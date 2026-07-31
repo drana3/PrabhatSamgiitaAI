@@ -69,12 +69,14 @@ class OpenAICompatibleProvider:
 
 @dataclass(slots=True)
 class AzureOpenAIProvider(OpenAICompatibleProvider):
+    embedding_model: str | None = None
     api_version: str = "2024-10-21"
 
     async def embed(self, text: str) -> list[float]:
+        deployment = self.embedding_model or self.model
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
-                f"{self.base_url}/openai/deployments/{self.model}/embeddings?api-version={self.api_version}",
+                f"{self.base_url}/openai/deployments/{deployment}/embeddings?api-version={self.api_version}",
                 headers={"api-key": self.api_key},
                 json={"input": text},
             )
@@ -100,15 +102,20 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
 
 
 def select_provider(settings: Settings) -> GroundedProvider:
+    azure_chat_deployment = (
+        settings.azure_openai_chat_deployment or settings.azure_openai_deployment
+    )
+    azure_embedding_deployment = settings.azure_openai_embedding_deployment or azure_chat_deployment
     if (
         settings.azure_openai_endpoint
         and settings.azure_openai_api_key
-        and settings.azure_openai_deployment
+        and azure_chat_deployment
     ):
         return AzureOpenAIProvider(
             api_key=settings.azure_openai_api_key,
             base_url=str(settings.azure_openai_endpoint).rstrip("/"),
-            model=settings.azure_openai_deployment,
+            model=azure_chat_deployment,
+            embedding_model=azure_embedding_deployment,
             api_version=settings.azure_openai_api_version,
         )
     if settings.openai_api_key:

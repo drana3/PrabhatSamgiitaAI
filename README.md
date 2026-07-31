@@ -58,6 +58,14 @@ The recurring deployment pipeline lives in [`.github/workflows/deploy.yml`](.git
 
 The Azure budget is managed separately through Terraform in `infra/terraform/budget` when you want to create or update the monthly budget resource.
 
+To use the real LLM in Azure, set these secrets in GitHub and the Azure Container App:
+
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_CHAT_DEPLOYMENT`
+- `AZURE_OPENAI_EMBEDDING_DEPLOYMENT`
+- `AZURE_OPENAI_API_VERSION` if you want to override the default
+
 ## Notes
 
 - The app never fabricates lyrics or notation. Missing canonical fields are surfaced as pending sync.

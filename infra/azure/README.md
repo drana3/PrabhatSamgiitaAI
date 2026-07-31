@@ -34,6 +34,14 @@ For every subsequent code push, the GitHub Actions workflow uses:
 
 That script assumes the Azure foundation already exists and only rebuilds images plus updates the Container Apps to the new image tag.
 
+If you want real-time LLM answers instead of the built-in mock fallback, provide these Azure OpenAI values as secrets and container app environment variables:
+
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_CHAT_DEPLOYMENT`
+- `AZURE_OPENAI_EMBEDDING_DEPLOYMENT`
+- `AZURE_OPENAI_API_VERSION`
+
 ## Budget
 
 The monthly Azure budget is managed separately in `infra/terraform/budget`.
