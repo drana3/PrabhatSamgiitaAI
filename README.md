@@ -1,4 +1,4 @@
-# Prabhat Samgiita AI-BaBa
+# Prabhat Samgiita AI-
 
 Responsive MVP for browsing, searching, and grounding Prabhat Samgiita content with a FastAPI backend, a Next.js frontend, PostgreSQL + pgvector, and optional Azure deployment.
 
