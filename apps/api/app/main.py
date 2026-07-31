@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,21 +23,39 @@ settings = get_settings()
 configure_logging(settings.log_level)
 scheduler = AsyncIOScheduler()
 DATA_DIR = Path(__file__).resolve().parents[4] / "data"
+logger = logging.getLogger(__name__)
+
+
+async def initialize_schema() -> None:
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception:
+        logger.exception("Database initialization skipped because the database is unavailable")
+
+
+async def bootstrap_data() -> None:
+    try:
+        async with SessionLocal() as session:
+            await BootstrapService(session, DATA_DIR).ensure_seed_data()
+    except Exception:
+        logger.exception("Background bootstrap failed")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
-        await conn.run_sync(Base.metadata.create_all)
-    async with SessionLocal() as session:
-        await BootstrapService(session, DATA_DIR).ensure_seed_data()
+    await initialize_schema()
     scheduler.start()
+    bootstrap_task = asyncio.create_task(bootstrap_data())
     try:
         yield
     finally:
+        bootstrap_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await bootstrap_task
         scheduler.shutdown(wait=False)
         await engine.dispose()
 
