@@ -25,18 +25,18 @@ export function SearchForm({ onResults }: { onResults: (results: Awaited<ReturnT
 
   return (
     <form
-      className="flex flex-col gap-3 rounded-3xl border border-ink-200 bg-white/80 p-4 shadow-glow backdrop-blur md:flex-row"
+      className="flex flex-col gap-3 rounded-3xl border border-ink-200 bg-white/90 p-4 shadow-glow backdrop-blur md:flex-row"
       onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
     >
       <div className="flex-1">
-        <label className="mb-1 block text-sm font-medium text-ink-700" htmlFor="query">
+        <label className="mb-1 block text-xs uppercase tracking-[0.25em] text-ink-500" htmlFor="query">
           Search by number, lyrics, or meaning
         </label>
         <input
           id="query"
           {...form.register("query")}
           placeholder="Try 1, bandhu he, or devotional dawn"
-          className="w-full rounded-2xl border border-ink-200 bg-ink-50 px-4 py-3 text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-ember-400"
+          className="w-full rounded-2xl border border-ink-200 bg-gradient-to-b from-ink-50 to-white px-4 py-3 text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-ember-400"
         />
         {form.formState.errors.query ? (
           <p className="mt-2 text-sm text-red-700">{form.formState.errors.query.message}</p>
@@ -47,7 +47,7 @@ export function SearchForm({ onResults }: { onResults: (results: Awaited<ReturnT
       </div>
       <button
         type="submit"
-        className="rounded-2xl bg-ink-900 px-6 py-3 font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-2xl bg-gradient-to-r from-ink-950 to-ink-800 px-6 py-3 font-semibold text-white transition hover:from-ink-900 hover:to-ink-700 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={mutation.isPending}
       >
         {mutation.isPending ? "Searching..." : "Search"}

@@ -10,7 +10,7 @@ export function RecommendationSection() {
   const [results, setResults] = useState<SongSummary[]>([])
 
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-5 space-y-4">
       <RecommendationForm onResults={setResults} />
       {results.length > 0 ? (
         <div className="grid gap-3">
@@ -19,7 +19,7 @@ export function RecommendationSection() {
           ))}
         </div>
       ) : (
-        <div className="rounded-3xl border border-dashed border-ink-200 bg-white p-5 text-sm text-ink-600">
+        <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 p-5 text-sm leading-6 text-ink-100">
           Enter a context like a festival, mood, or time of day to get grounded recommendations.
         </div>
       )}

@@ -4,39 +4,89 @@ import { LandingData } from "@/components/landing-data"
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-aurora">
-      <section className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-glow backdrop-blur md:p-10">
-            <p className="text-xs uppercase tracking-[0.4em] text-ember-700">Prabhat Samgiita AI</p>
-            <h1 className="mt-4 font-serif text-5xl leading-none text-ink-900 md:text-7xl">
-              Search the dawn songs with grounded, verified context.
+    <main className="relative min-h-screen overflow-hidden bg-aurora">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-8rem] top-[-6rem] h-72 w-72 rounded-full bg-ember-300/25 blur-3xl" />
+        <div className="absolute right-[-6rem] top-24 h-80 w-80 rounded-full bg-ink-400/20 blur-3xl" />
+        <div className="absolute bottom-[-8rem] left-1/3 h-96 w-96 rounded-full bg-white/30 blur-3xl" />
+      </div>
+      <section className="relative mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
+        <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="relative overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/80 p-6 shadow-glow backdrop-blur-md md:p-10">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ember-400 via-amber-200 to-ink-400" />
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-ember-700">
+                Prabhat Samgiita AI
+              </span>
+              <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-600">
+                Grounded search and meaning
+              </span>
+            </div>
+            <h1 className="mt-5 max-w-3xl font-serif text-5xl leading-[0.95] text-ink-900 md:text-7xl">
+              A spiritual archive, presented with clarity and reverence.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-ink-700 md:text-lg">
-              Find lyrics by number or first line, explore canonical translations, and listen to verified audio
-              or embedded video without the app inventing any of the source content.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-ink-700 md:text-lg">
+              Find lyrics by number or first line, explore canonical meanings, listen to verified audio or embedded
+              video, and read grounded explanations that stay faithful to the source.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="#catalog" className="rounded-full bg-ink-900 px-5 py-3 text-sm font-semibold text-white">
+              <Link
+                href="#catalog"
+                className="rounded-full bg-ink-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink-800"
+              >
                 Browse catalog
               </Link>
-              <Link href="#inventory" className="rounded-full border border-ink-200 bg-white px-5 py-3 text-sm font-semibold text-ink-900">
+              <Link
+                href="#inventory"
+                className="rounded-full border border-ink-200 bg-white px-6 py-3 text-sm font-semibold text-ink-900 transition hover:border-ember-300 hover:bg-ember-50"
+              >
                 View inventory
               </Link>
             </div>
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              <FeaturePill title="5018 songs" text="Complete catalog coverage" />
+              <FeaturePill title="Grounded AI" text="RAG-backed explanations" />
+              <FeaturePill title="Azure ready" text="Low-cost cloud deployment" />
+            </div>
           </div>
-          <div className="rounded-[2rem] border border-ink-200 bg-ink-900 p-6 text-white shadow-glow md:p-10">
-            <p className="text-xs uppercase tracking-[0.4em] text-ember-300">Why this design works</p>
-            <ul className="mt-6 space-y-4 text-sm leading-6 text-ink-100">
-              <li>Responsive cards and simple navigation for phones and desktops.</li>
-              <li>Streaming explanation endpoint for progressive AI responses.</li>
-              <li>Separation of verified canonical content from community media.</li>
-              <li>Fallback recommendations even with no model key configured.</li>
-            </ul>
+          <div className="rounded-[2.5rem] border border-ink-200 bg-ink-950 p-6 text-white shadow-glow md:p-10">
+            <p className="text-xs uppercase tracking-[0.4em] text-ember-300">Why it feels premium</p>
+            <div className="mt-6 space-y-4">
+              <HighlightCard
+                title="Editorial hierarchy"
+                text="Each screen leads with the song, then gently reveals lyrics, meaning, notation, and media."
+              />
+              <HighlightCard
+                title="Calm surfaces"
+                text="Soft gradients, refined spacing, and warm accent color keep the mood devotional rather than technical."
+              />
+              <HighlightCard
+                title="Immediate response"
+                text="The homepage paints first and then streams in catalog and inventory data without blocking."
+              />
+            </div>
           </div>
         </div>
         <LandingData />
       </section>
     </main>
+  )
+}
+
+function FeaturePill({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-3xl border border-ink-200 bg-white px-4 py-4 shadow-sm">
+      <p className="text-sm font-semibold text-ink-900">{title}</p>
+      <p className="mt-1 text-xs uppercase tracking-[0.22em] text-ink-500">{text}</p>
+    </div>
+  )
+}
+
+function HighlightCard({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+      <p className="text-sm font-semibold text-white">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-ink-100">{text}</p>
+    </div>
   )
 }

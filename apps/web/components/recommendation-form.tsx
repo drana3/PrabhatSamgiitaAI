@@ -37,24 +37,26 @@ export function RecommendationForm({
 
   return (
     <form
-      className="grid gap-3 rounded-3xl border border-ink-200 bg-ink-50 p-5 md:grid-cols-2"
+      className="grid gap-3 rounded-[1.75rem] border border-white/10 bg-white/5 p-5 md:grid-cols-2"
       onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
     >
       {["date", "day", "occasion", "festival", "season", "mood", "language", "difficulty", "meditation_context"].map(
         (field) => (
-          <label key={field} className="flex flex-col gap-2 text-sm text-ink-700">
-            <span className="capitalize">{field.replaceAll("_", " ")}</span>
+          <label key={field} className="flex flex-col gap-2 text-sm text-ink-100">
+            <span className="text-[11px] uppercase tracking-[0.25em] text-ink-300">
+              {field.replaceAll("_", " ")}
+            </span>
             <input
               {...form.register(field as keyof FormValues)}
               placeholder={field === "mood" ? "peaceful" : "Optional"}
-              className="rounded-2xl border border-ink-200 bg-white px-4 py-3 outline-none placeholder:text-ink-400 focus:border-ember-400"
+              className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-ink-300 focus:border-ember-300"
             />
           </label>
         ),
       )}
       <button
         type="submit"
-        className="col-span-full rounded-2xl bg-ink-900 px-5 py-3 font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="col-span-full rounded-2xl bg-gradient-to-r from-ember-500 to-amber-400 px-5 py-3 font-semibold text-white transition hover:from-ember-600 hover:to-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={mutation.isPending}
       >
         {mutation.isPending ? "Finding songs..." : "Recommend songs"}
