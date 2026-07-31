@@ -70,13 +70,7 @@ jobs:
       PG_DB: prabhatai
       WEB_APP: prabhatai-web
       API_APP: prabhatai-api
-      LAW: prabhatai-law
       PG_ADMIN: codexadmin
-      BUDGET_NAME: dewasheesh
-      BUDGET_AMOUNT: "2000"
-      BUDGET_EMAIL: dewasheesh.rana3@gmail.com
-      ARM_USE_OIDC: "true"
-      TF_IN_AUTOMATION: "true"
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -87,25 +81,6 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.5
-
-      - name: Apply Azure budget
-        working-directory: infra/terraform/budget
-        run: |
-          terraform init -input=false
-          terraform apply -auto-approve -input=false
-        env:
-          TF_VAR_budget_name: ${{ env.BUDGET_NAME }}
-          TF_VAR_amount: ${{ env.BUDGET_AMOUNT }}
-          TF_VAR_notification_email: ${{ env.BUDGET_EMAIL }}
-          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy app stack
         env:
