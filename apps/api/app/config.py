@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import AnyHttpUrl, Field
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,10 +10,11 @@ class Settings(BaseSettings):
     app_name: str = "Prabhat Samgiita AI"
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-    database_url: str = Field(alias="DATABASE_URL")
+    database_url: str = Field(default="", alias="DATABASE_URL")
     api_cors_origins: str = Field(default="http://localhost:3000", alias="API_CORS_ORIGINS")
-    content_source_url: AnyHttpUrl = Field(
-        default="https://prabhatasamgiita.net", alias="CONTENT_SOURCE_URL"
+    content_source_url: str = Field(
+        default="https://prabhatasamgiita.net",
+        alias="CONTENT_SOURCE_URL",
     )
     content_cache_dir: str = Field(default="./data/generated/cache", alias="CONTENT_CACHE_DIR")
     public_site_url: str = Field(default="http://localhost:3000", alias="PUBLIC_SITE_URL")

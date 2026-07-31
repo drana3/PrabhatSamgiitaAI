@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -27,9 +29,9 @@ class SongDetail(SongSummary):
     canonical_source_url: str | None = None
     canonical_source_status: str = "pending"
     related_songs: list["SongSummary"] = Field(default_factory=list)
-    media: list[dict] = Field(default_factory=list)
+    media: list[dict[str, Any]] = Field(default_factory=list)
     notation_scale: str | None = None
-    metadata_json: dict = Field(default_factory=dict)
+    metadata_json: dict[str, Any] = Field(default_factory=dict)
 
 
 class SearchRequest(BaseModel):

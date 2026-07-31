@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 import httpx
+
+from app.config import Settings
 
 
 class EmbeddingProvider(Protocol):
@@ -40,7 +42,8 @@ class OpenAICompatibleProvider:
                 json={"model": self.model, "input": text},
             )
             response.raise_for_status()
-            return response.json()["data"][0]["embedding"]
+            payload = cast(dict[str, Any], response.json())
+            return cast(list[float], payload["data"][0]["embedding"])
 
     async def complete(self, prompt: str) -> str:
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
@@ -56,7 +59,8 @@ class OpenAICompatibleProvider:
                 },
             )
             response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
+            payload = cast(dict[str, Any], response.json())
+            return cast(str, payload["choices"][0]["message"]["content"])
 
 
 @dataclass(slots=True)
@@ -71,7 +75,8 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
                 json={"input": text},
             )
             response.raise_for_status()
-            return response.json()["data"][0]["embedding"]
+            payload = cast(dict[str, Any], response.json())
+            return cast(list[float], payload["data"][0]["embedding"])
 
     async def complete(self, prompt: str) -> str:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -86,10 +91,11 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
                 },
             )
             response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
+            payload = cast(dict[str, Any], response.json())
+            return cast(str, payload["choices"][0]["message"]["content"])
 
 
-def select_provider(settings) -> EmbeddingProvider | TextProvider:
+def select_provider(settings: Settings) -> EmbeddingProvider | TextProvider:
     if (
         settings.azure_openai_endpoint
         and settings.azure_openai_api_key

@@ -6,13 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
+from app.models.song import Song
 from app.schemas.song import SongDetail, SongSummary
 from app.services.catalog import CatalogService
 
 router = APIRouter(prefix="/songs", tags=["songs"])
 
 
-def _summary(song) -> SongSummary:
+def _summary(song: Song) -> SongSummary:
     return SongSummary(
         number=song.number,
         title=song.title,

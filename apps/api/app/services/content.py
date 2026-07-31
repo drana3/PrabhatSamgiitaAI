@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -13,7 +14,7 @@ class ExternalResource:
     title: str
     url: str
     status: str = "active"
-    metadata_json: dict | None = None
+    metadata_json: dict[str, Any] | None = None
     notes: str | None = None
 
 
@@ -32,7 +33,7 @@ class OfficialCatalogScraper:
         soup = BeautifulSoup(html, "html.parser")
         resources: list[ExternalResource] = []
         for anchor in soup.find_all("a", href=True):
-            href = anchor["href"]
+            href = cast(str, anchor.get("href", ""))
             text = anchor.get_text(" ", strip=True)
             if not text:
                 continue

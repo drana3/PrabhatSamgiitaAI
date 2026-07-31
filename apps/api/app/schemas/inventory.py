@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -6,5 +8,5 @@ class InventoryItemOut(BaseModel):
     title: str
     url: str
     status: str
-    metadata_json: dict
+    metadata_json: dict[str, Any]
     notes: str | None = None
