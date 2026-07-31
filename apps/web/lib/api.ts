@@ -82,9 +82,19 @@ const transposedNotationSchema = z.object({
   notation: notationSchema,
 })
 
+const songLocalizationSchema = z.object({
+  song_number: z.number(),
+  language: z.string(),
+  localized_title: z.string().nullable().optional(),
+  localized_first_line: z.string().nullable().optional(),
+  localized_meaning: z.string().nullable().optional(),
+  localized_explanation: z.string().nullable().optional(),
+})
+
 export type SongSummary = z.infer<typeof songSummarySchema>
 export type SongDetail = z.infer<typeof songDetailSchema>
 export type TransposedNotation = z.infer<typeof transposedNotationSchema>
+export type SongLocalization = z.infer<typeof songLocalizationSchema>
 
 export async function fetchJson(path: string, init: RequestInit = {}) {
   const controller = new AbortController()
@@ -136,6 +146,23 @@ export async function fetchNotation(
       return null
     }
     return transposedNotationSchema.parse(await response.json())
+  } catch {
+    return null
+  }
+}
+
+export async function fetchSongLocalization(
+  number: number,
+  language: string,
+): Promise<SongLocalization | null> {
+  try {
+    const response = await fetchJson(
+      `/api/v1/songs/${number}/localized?language=${encodeURIComponent(language)}`,
+    )
+    if (!response.ok) {
+      return null
+    }
+    return songLocalizationSchema.parse(await response.json())
   } catch {
     return null
   }

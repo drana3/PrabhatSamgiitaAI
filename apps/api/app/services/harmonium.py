@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Notation, Song
@@ -187,11 +188,14 @@ async def load_song_notation(session: AsyncSession, song: Song) -> HarmoniumNota
         raw = song.harmonium_notation.strip()
         if raw.startswith("{"):
             return notation_from_json(raw)
-    result = await session.execute(select(Notation).where(Notation.song_number == song.number))
-    row = result.mappings().first()
-    if not row:
+    try:
+        result = await session.execute(select(Notation).where(Notation.song_number == song.number))
+        row = result.mappings().first()
+        if not row:
+            return None
+        notation_text = row.get("notation_text")
+        if not notation_text or not str(notation_text).strip().startswith("{"):
+            return None
+        return notation_from_json(str(notation_text))
+    except SQLAlchemyError:
         return None
-    notation_text = row.get("notation_text")
-    if not notation_text or not str(notation_text).strip().startswith("{"):
-        return None
-    return notation_from_json(str(notation_text))

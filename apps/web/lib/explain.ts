@@ -3,11 +3,15 @@ import { fetchJson } from "./api"
 export async function streamExplanation(
   songNumber: number,
   onChunk: (chunk: string) => void,
+  prompt?: string,
 ): Promise<void> {
   const response = await fetchJson("/api/v1/ai/explain", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ song_number: songNumber }),
+    body: JSON.stringify({
+      song_number: songNumber,
+      prompt,
+    }),
   })
 
   if (!response.body) {

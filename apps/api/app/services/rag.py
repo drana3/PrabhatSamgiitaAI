@@ -7,6 +7,7 @@ from math import sqrt
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Song, SongChunk
@@ -136,24 +137,47 @@ class RAGService:
         self.session = session
         self.provider = provider
 
+    def _fallback_chunks(self, song: Song, limit: int) -> list[RetrievedChunk]:
+        fallback_rows = build_song_chunks(song)[:limit]
+        return [
+            RetrievedChunk(
+                song_number=row["song_number"],
+                song_title=song.title,
+                chunk_index=row["chunk_index"],
+                chunk_type=row["chunk_type"],
+                title=row["title"],
+                content=row["content"],
+                source_url=row["source_url"],
+                metadata_json=row["metadata_json"],
+                score=1.0 - index * 0.01,
+            )
+            for index, row in enumerate(fallback_rows)
+        ]
+
     async def ensure_song_chunks(self) -> None:
-        result = await self.session.execute(select(SongChunk.id).limit(1))
-        if result.first():
+        try:
+            result = await self.session.execute(select(SongChunk.id).limit(1))
+            if result.first():
+                return
+            songs_result = await self.session.execute(select(Song).order_by(Song.number))
+            songs = list(songs_result.scalars().all())
+            for song in songs:
+                for row in build_song_chunks(song):
+                    self.session.add(SongChunk(**row))
+            await self.session.flush()
+        except SQLAlchemyError:
             return
-        songs_result = await self.session.execute(select(Song).order_by(Song.number))
-        songs = list(songs_result.scalars().all())
-        for song in songs:
-            for row in build_song_chunks(song):
-                self.session.add(SongChunk(**row))
-        await self.session.flush()
 
     async def chunks_for_song(self, song_number: int) -> list[SongChunk]:
-        result = await self.session.execute(
-            select(SongChunk)
-            .where(SongChunk.song_number == song_number)
-            .order_by(SongChunk.chunk_index)
-        )
-        return list(result.scalars().all())
+        try:
+            result = await self.session.execute(
+                select(SongChunk)
+                .where(SongChunk.song_number == song_number)
+                .order_by(SongChunk.chunk_index)
+            )
+            return list(result.scalars().all())
+        except SQLAlchemyError:
+            return []
 
     async def _ensure_embeddings(self, chunks: Iterable[SongChunk]) -> None:
         pending = [chunk for chunk in chunks if chunk.embeddings is None]
@@ -182,45 +206,51 @@ class RAGService:
         query: str,
         limit: int = 5,
     ) -> list[RetrievedChunk]:
-        await self.ensure_song_chunks()
-        candidate_song_numbers = [song.number]
-        if query.strip():
-            matches = await CatalogService(self.session).search(query, limit=12)
-            candidate_song_numbers.extend(
-                item.number for item in matches if item.number != song.number
-            )
-        candidate_song_numbers = list(dict.fromkeys(candidate_song_numbers))
-        result = await self.session.execute(
-            select(SongChunk)
-            .where(SongChunk.song_number.in_(candidate_song_numbers))
-            .order_by(SongChunk.song_number, SongChunk.chunk_index)
-        )
-        chunks = list(result.scalars().all())
-        await self._ensure_embeddings(chunks)
-
-        query_embedding = await self.provider.embed(query or song.title)
-        scored: list[RetrievedChunk] = []
-        for chunk in chunks:
-            lexical = token_score(query, chunk.title) * 0.4
-            lexical += token_score(query, chunk.content) * 0.6
-            similarity = cosine_similarity(query_embedding, chunk.embeddings or [])
-            boost = 0.15 if chunk.song_number == song.number else 0.0
-            total = lexical + similarity + boost
-            scored.append(
-                RetrievedChunk(
-                    song_number=chunk.song_number,
-                    song_title=chunk.metadata_json.get("song_title") or song.title,
-                    chunk_index=chunk.chunk_index,
-                    chunk_type=chunk.chunk_type,
-                    title=chunk.title,
-                    content=chunk.content,
-                    source_url=chunk.source_url,
-                    metadata_json=chunk.metadata_json or {},
-                    score=total,
+        try:
+            await self.ensure_song_chunks()
+            candidate_song_numbers = [song.number]
+            if query.strip():
+                matches = await CatalogService(self.session).search(query, limit=12)
+                candidate_song_numbers.extend(
+                    item.number for item in matches if item.number != song.number
                 )
+            candidate_song_numbers = list(dict.fromkeys(candidate_song_numbers))
+            result = await self.session.execute(
+                select(SongChunk)
+                .where(SongChunk.song_number.in_(candidate_song_numbers))
+                .order_by(SongChunk.song_number, SongChunk.chunk_index)
             )
-        scored.sort(key=lambda item: item.score, reverse=True)
-        return scored[:limit]
+            chunks = list(result.scalars().all())
+            await self._ensure_embeddings(chunks)
+
+            try:
+                query_embedding = await self.provider.embed(query or song.title)
+            except Exception:
+                query_embedding = []
+            scored: list[RetrievedChunk] = []
+            for chunk in chunks:
+                lexical = token_score(query, chunk.title) * 0.4
+                lexical += token_score(query, chunk.content) * 0.6
+                similarity = cosine_similarity(query_embedding, chunk.embeddings or [])
+                boost = 0.15 if chunk.song_number == song.number else 0.0
+                total = lexical + similarity + boost
+                scored.append(
+                    RetrievedChunk(
+                        song_number=chunk.song_number,
+                        song_title=chunk.metadata_json.get("song_title") or song.title,
+                        chunk_index=chunk.chunk_index,
+                        chunk_type=chunk.chunk_type,
+                        title=chunk.title,
+                        content=chunk.content,
+                        source_url=chunk.source_url,
+                        metadata_json=chunk.metadata_json or {},
+                        score=total,
+                    )
+                )
+            scored.sort(key=lambda item: item.score, reverse=True)
+            return scored[:limit]
+        except SQLAlchemyError:
+            return self._fallback_chunks(song, limit)
 
     async def build_grounded_answer(
         self, song: Song, query: str
@@ -237,8 +267,11 @@ class RAGService:
             [
                 "You are a grounded assistant for Prabhat Samgiita.",
                 "Answer only from the retrieved canonical context below.",
-                "If the context is insufficient, say so plainly.",
-                "Keep the answer concise, accurate, and cite the source labels like [1], [2].",
+                "Be warm, reverent, and practical.",
+                "If the context is insufficient, say so plainly and offer the",
+                "closest grounded help you can.",
+                "Keep the answer concise and cite the source labels like [1], [2].",
+                "When helpful, end with one gentle next step the user can take in the BOT.",
                 f"User question: {query}",
                 f"Song focus: {song.number} - {song.title}",
                 "Retrieved context:",

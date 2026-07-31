@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.db import get_session
 from app.models.song import Song
-from app.schemas.song import SongDetail, SongSummary
+from app.schemas.song import SongDetail, SongLocalizationResponse, SongSummary
+from app.services.ai import select_provider
 from app.services.catalog import CatalogService
+from app.services.localization import LocalizationService
+from app.services.rag import RAGService
 
 router = APIRouter(prefix="/songs", tags=["songs"])
+logger = logging.getLogger(__name__)
 
 
 def _summary(song: Song) -> SongSummary:
@@ -24,6 +30,37 @@ def _summary(song: Song) -> SongSummary:
         language=song.language,
         difficulty=song.difficulty,
         is_verified=song.is_verified,
+    )
+
+
+@router.get("/{number}/localized", response_model=SongLocalizationResponse)
+async def get_localized_song(
+    number: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    language: str = Query(min_length=2),
+) -> SongLocalizationResponse:
+    service = CatalogService(session)
+    song = await service.get_song(number)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    provider = select_provider(get_settings())
+    rag = RAGService(session, provider)
+    try:
+        explanation, _ = await rag.build_grounded_answer(
+            song,
+            f"Explain song {song.number}: {song.title}",
+        )
+    except Exception:  # pragma: no cover - runtime fallback for provider/db issues
+        logger.exception("Localized explanation fallback for song %s", song.number)
+        explanation = song.english_meaning or song.hindi_meaning or song.first_line or song.title
+    localized = await LocalizationService().localize(song, language, explanation=explanation)
+    return SongLocalizationResponse(
+        song_number=song.number,
+        language=localized.language,
+        localized_title=localized.localized_title,
+        localized_first_line=localized.localized_first_line,
+        localized_meaning=localized.localized_meaning,
+        localized_explanation=localized.localized_explanation,
     )
 
 

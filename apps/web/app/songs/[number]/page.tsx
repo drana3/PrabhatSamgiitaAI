@@ -2,17 +2,32 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { StreamExplanation } from "@/components/stream-explanation"
-import { fetchNotation, fetchSong } from "@/lib/api"
+import { SongLanguageSwitcher } from "@/components/song-language-switcher"
+import { fetchNotation, fetchSong, fetchSongLocalization } from "@/lib/api"
+import { localeLabel } from "@/lib/languages"
 
-export default async function SongPage({ params }: { params: Promise<{ number: string }> }) {
+export default async function SongPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ number: string }>
+  searchParams: Promise<{ language?: string }>
+}) {
   const { number } = await params
+  const { language = "en" } = await searchParams
   const song = await fetchSong(Number(number))
   if (!song) {
     notFound()
   }
   const notation = await fetchNotation(song.number)
+  const localized =
+    language && language !== "en" ? await fetchSongLocalization(song.number, localeLabel(language)) : null
   const mediaCount = song.media.length
   const relatedCount = song.related_songs.length
+  const explanationPrompt =
+    language && language !== "en"
+      ? `Explain song ${song.number} in ${localeLabel(language)} for a listener who prefers that language. Keep the answer warm, devotional, and concise.`
+      : undefined
 
   return (
     <main className="min-h-screen bg-aurora px-4 py-8 md:px-8">
@@ -35,15 +50,21 @@ export default async function SongPage({ params }: { params: Promise<{ number: s
                   Verified
                 </span>
               ) : null}
+              <SongLanguageSwitcher selectedLanguage={language} />
             </div>
             <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.95] text-white md:text-7xl">
-              {song.title}
+              {localized?.localized_title || song.title}
             </h1>
             {song.first_line ? (
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-ink-100 md:text-xl">{song.first_line}</p>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-ink-100 md:text-xl">
+                {localized?.localized_first_line || song.first_line}
+              </p>
             ) : null}
             <div className="mt-6 flex flex-wrap gap-3 text-sm text-ink-100">
               <MetaPill label="Meaning" value={song.english_meaning ? "Available" : "Pending"} />
+              {language !== "en" ? (
+                <MetaPill label="Localized" value={`${localeLabel(language)} ready`} />
+              ) : null}
               <MetaPill label="Notation" value={notation ? "Available" : "Pending"} />
               <MetaPill label="Media" value={`${mediaCount} sources`} />
               <MetaPill label="Related" value={`${relatedCount} songs`} />
@@ -52,6 +73,28 @@ export default async function SongPage({ params }: { params: Promise<{ number: s
 
           <div className="grid gap-6 p-6 md:p-10 xl:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-5">
+              {localized ? (
+                <section className="rounded-[1.75rem] border border-ember-100 bg-gradient-to-br from-ember-50 to-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.4em] text-ember-700">Localized view</p>
+                      <h2 className="mt-2 font-serif text-3xl text-ink-900">
+                        {localeLabel(language)} rendering
+                      </h2>
+                    </div>
+                    <span className="rounded-full border border-ember-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-ember-700">
+                      Powered by Prabhat Samgiita AI BOT
+                    </span>
+                  </div>
+                  <div className="mt-5 grid gap-4">
+                    <InfoBlock label="Localized meaning" value={localized.localized_meaning} />
+                    {localized.localized_explanation ? (
+                      <InfoBlock label="Localized explanation" value={localized.localized_explanation} />
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
               <section className="rounded-[1.75rem] border border-ink-100 bg-gradient-to-br from-white to-ink-50 p-5">
                 <p className="text-xs uppercase tracking-[0.4em] text-ember-700">Canonical text</p>
                 <div className="mt-5 grid gap-4">
@@ -65,7 +108,7 @@ export default async function SongPage({ params }: { params: Promise<{ number: s
               <section className="rounded-[1.75rem] border border-ink-100 bg-white p-5">
                 <p className="text-xs uppercase tracking-[0.4em] text-ember-700">Grounded explanation</p>
                 <div className="mt-4">
-                  <StreamExplanation songNumber={song.number} />
+                  <StreamExplanation songNumber={song.number} language={language !== "en" ? localeLabel(language) : null} prompt={explanationPrompt} />
                 </div>
               </section>
             </div>
@@ -148,28 +191,94 @@ export default async function SongPage({ params }: { params: Promise<{ number: s
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-ink-600">
-                    Notation is not yet available for this song in the synced source set.
-                  </p>
+                  <div className="mt-4 rounded-3xl border border-dashed border-ink-200 bg-gradient-to-br from-ink-50 to-white p-5">
+                    <p className="text-sm font-semibold text-ink-900">Notation is still being synced</p>
+                    <p className="mt-2 text-sm leading-7 text-ink-600">
+                      This song has lyrics and listening resources ready. When notation is available in the synced
+                      source set, it will appear here in a structured beat-by-beat view.
+                    </p>
+                  </div>
                 )}
               </section>
 
               <section className="rounded-[1.75rem] border border-ink-100 bg-ink-50 p-5">
-                <h2 className="font-serif text-3xl text-ink-900">Verified media</h2>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="font-serif text-3xl text-ink-900">Verified media</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">
+                      Play audio directly here, or watch the embedded video if a verified clip exists for this song.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-600">
+                    {mediaCount} sources
+                  </span>
+                </div>
                 <div className="mt-4 grid gap-4">
                   {song.media.map((item) => (
-                    <a
+                    <article
                       key={`${item.url}-${item.title}`}
-                      href={item.embed_url ?? item.url}
+                      className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition hover:border-ember-300 hover:shadow-md"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-ember-700">{item.kind}</p>
+                          <h3 className="mt-2 font-semibold text-ink-900">{item.title}</h3>
+                        </div>
+                        <span className="rounded-full bg-ink-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-white">
+                          {item.kind === "audio" ? "Play" : item.kind === "video" ? "Watch" : "Open"}
+                        </span>
+                      </div>
+                      {item.kind === "audio" ? (
+                        <div className="mt-4 rounded-[1.25rem] border border-ink-100 bg-gradient-to-br from-ink-50 to-white p-3">
+                          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-ink-500">
+                            <span className="h-2 w-2 rounded-full bg-ember-500" />
+                            Direct audio player
+                          </div>
+                          <audio controls preload="none" src={item.url} className="w-full" />
+                        </div>
+                      ) : item.kind === "video" && item.embed_url ? (
+                        <div className="mt-4 space-y-3">
+                          <iframe
+                            className="aspect-video w-full rounded-2xl border border-ink-100"
+                            src={item.embed_url}
+                            title={item.title}
+                            loading="lazy"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                          {item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:border-ember-300 hover:bg-ember-50"
+                            >
+                              Open video source
+                            </a>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <a
+                          href={item.embed_url ?? item.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-flex rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:border-ember-300 hover:bg-ember-50"
+                        >
+                          Open source
+                        </a>
+                      )}
+                    </article>
+                  ))}
+                  {song.media.every((item) => item.kind !== "video") ? (
+                    <a
+                      href="https://www.youtube.com/@AMPS0521spirituality"
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-2xl border border-ink-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-ember-300 hover:shadow-sm"
+                      className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-700 transition hover:border-ember-300 hover:bg-ember-50"
                     >
-                      <p className="text-xs uppercase tracking-[0.3em] text-ember-700">{item.kind}</p>
-                      <h3 className="mt-2 font-semibold text-ink-900">{item.title}</h3>
-                      <p className="mt-1 break-all text-sm text-ink-600">{item.url}</p>
+                      No embedded video is synced for this song yet. Watch the verified channel for more recordings.
                     </a>
-                  ))}
+                  ) : null}
                 </div>
               </section>
 
@@ -211,7 +320,7 @@ function InfoBlock({ label, value }: { label: string; value?: string | null }) {
     <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm">
       <p className="text-xs uppercase tracking-[0.3em] text-ember-700">{label}</p>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-ink-800">
-        {value || "Not yet synced from canonical source."}
+        {value || "This field is being synced from the canonical source set."}
       </p>
     </section>
   )

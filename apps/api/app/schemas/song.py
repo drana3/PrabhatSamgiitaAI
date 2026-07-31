@@ -59,4 +59,13 @@ class ExplanationRequest(BaseModel):
     prompt: str | None = None
 
 
+class SongLocalizationResponse(BaseModel):
+    song_number: int
+    language: str
+    localized_title: str | None = None
+    localized_first_line: str | None = None
+    localized_meaning: str | None = None
+    localized_explanation: str | None = None
+
+
 SongDetail.model_rebuild()

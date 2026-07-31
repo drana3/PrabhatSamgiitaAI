@@ -47,11 +47,11 @@ export function LandingData({
         <div className="flex flex-wrap items-end justify-between gap-4 rounded-[1.75rem] border border-ink-100 bg-gradient-to-r from-white to-ink-50 px-5 py-4">
           <div>
             <p className="text-xs uppercase tracking-[0.45em] text-ember-700">Explore</p>
-            <h2 className="mt-2 font-serif text-4xl text-ink-900">Search, read, and listen</h2>
+            <h2 className="mt-2 font-serif text-4xl text-ink-900">Search, read, listen, and ask.</h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-ink-600">
-            Start with a number, a first line, or the mood of your meditation. The experience is designed to feel
-            calm, clear, and easy to trust.
+            Start with a number, a first line, the mood of your meditation, or a festival context. The experience
+            is designed to feel calm, clear, and easy to trust.
           </p>
         </div>
 
@@ -76,7 +76,7 @@ export function LandingData({
             <h2 className="mt-2 font-serif text-4xl text-ink-900">Sample verified songs</h2>
           </div>
           <p className="text-sm text-ink-600">
-            {songs.length > 0 ? `${songs.length} songs ready` : "No cached songs yet"}
+            {songs.length > 0 ? `${songs.length} songs ready` : "Loading songs..."}
           </p>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -93,7 +93,7 @@ export function LandingData({
             <h2 className="mt-2 font-serif text-4xl text-white">Official resources</h2>
           </div>
           <p className="text-sm text-ink-100">
-            {inventory.length > 0 ? `${inventory.length} resources ready` : "No cached resources yet"}
+            {inventory.length > 0 ? `${inventory.length} resources ready` : "Loading resources..."}
           </p>
         </div>
         <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -107,7 +107,7 @@ export function LandingData({
             >
               <p className="text-xs uppercase tracking-[0.3em] text-ember-300">{item.source_kind}</p>
               <h3 className="mt-2 font-semibold text-white">{item.title}</h3>
-              <p className="mt-1 break-all text-sm text-ink-100">{item.url}</p>
+              <p className="mt-1 text-sm text-ink-100">{item.notes || "Verified source link"}</p>
             </a>
           ))}
         </div>

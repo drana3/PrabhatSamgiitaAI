@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 import re
 from typing import Annotated
 
@@ -8,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
 from app.schemas.song import ExplanationRequest
 from app.services.ai import select_provider
@@ -16,6 +19,8 @@ from app.services.rag import RAGService
 from app.services.streaming import stream_text
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=300, maxsize=256)
+logger = logging.getLogger(__name__)
 
 
 @router.post("/explain")
@@ -28,9 +33,21 @@ async def explain(
     if not song:
         return StreamingResponse(stream_text(["Song not found."]), media_type="text/event-stream")
     prompt = request.prompt or f"Explain song {song.number}: {song.title}"
+    cache_key = json.dumps({"song_number": song.number, "prompt": prompt}, sort_keys=True)
+    cached = await explanation_cache.get(cache_key)
+    if isinstance(cached, list):
+        return StreamingResponse(stream_text(cached), media_type="text/event-stream")
     provider = select_provider(get_settings())
     rag = RAGService(session, provider)
-    answer, chunks = await rag.build_grounded_answer(song, prompt)
+    try:
+        answer, chunks = await rag.build_grounded_answer(song, prompt)
+    except Exception:  # pragma: no cover - runtime fallback for provider/db issues
+        logger.exception("Grounded explanation fallback for song %s", song.number)
+        answer = (
+            f"Here is a grounded fallback for song {song.number}: {song.title}. "
+            f"{song.english_meaning or song.hindi_meaning or song.first_line or ''}".strip()
+        )
+        chunks = []
     citations = "\n".join(
         f"[{idx}] {chunk.song_number}:{chunk.chunk_index} {chunk.song_title} ({chunk.chunk_type})"
         for idx, chunk in enumerate(chunks, start=1)
@@ -47,4 +64,5 @@ async def explain(
         for part in re.split(r"\n{2,}", section)
         if part.strip()
     ]
+    await explanation_cache.set(cache_key, streamed)
     return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
