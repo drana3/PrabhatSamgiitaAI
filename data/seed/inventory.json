@@ -1,0 +1,34 @@
+[
+  {
+    "source_kind": "official-page",
+    "title": "Prabhata Samgiita lyrics and translations",
+    "url": "https://prabhatasamgiita.net/1-5018.htm",
+    "status": "active",
+    "metadata_json": {"role": "canonical-lyrics"},
+    "notes": "Primary source for verified lyrics and translations"
+  },
+  {
+    "source_kind": "official-page",
+    "title": "Audio archive 1-999",
+    "url": "https://prabhatasamgiita.net/1-999/andromeda.php",
+    "status": "active",
+    "metadata_json": {"role": "canonical-audio-index"},
+    "notes": "Primary archive for official MP3 files"
+  },
+  {
+    "source_kind": "official-page",
+    "title": "Notation archive",
+    "url": "https://prabhatasamgiita.net/notations/andromeda.php",
+    "status": "active",
+    "metadata_json": {"role": "canonical-notation-index"},
+    "notes": "Primary archive for PDF notations"
+  },
+  {
+    "source_kind": "official-video",
+    "title": "AMPS0521 spirituality",
+    "url": "https://www.youtube.com/@AMPS0521spirituality",
+    "status": "active",
+    "metadata_json": {"role": "video-channel"},
+    "notes": "Embedded as verified community/official video source"
+  }
+]

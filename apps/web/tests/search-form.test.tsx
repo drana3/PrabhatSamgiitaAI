@@ -1,0 +1,16 @@
+import React from "react"
+import { render, screen } from "@testing-library/react"
+
+import { Providers } from "@/components/providers"
+import { SearchForm } from "@/components/search-form"
+
+describe("SearchForm", () => {
+  it("renders the search input", () => {
+    render(
+      <Providers>
+        <SearchForm onResults={() => void 0} />
+      </Providers>,
+    )
+    expect(screen.getByLabelText(/Search by number/i)).toBeInTheDocument()
+  })
+})

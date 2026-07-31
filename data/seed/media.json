@@ -1,0 +1,35 @@
+[
+  {
+    "song_number": 1,
+    "kind": "audio",
+    "provider": "official",
+    "title": "1 BANDHU HE NIYE CALO",
+    "url": "https://prabhatasamgiita.net/1-999/1%20BANDHU%20HE%20NIYE%20CALO.mp3",
+    "embed_url": "https://prabhatasamgiita.net/1-999/1%20BANDHU%20HE%20NIYE%20CALO.mp3",
+    "verification_status": "verified",
+    "source_url": "https://prabhatasamgiita.net/1-999/andromeda.php",
+    "notes": "Official MP3 from the 1-999 archive"
+  },
+  {
+    "song_number": 2,
+    "kind": "audio",
+    "provider": "official",
+    "title": "2 E GA'N A'MA'R ALOR JHARN'A'DHA'RA'",
+    "url": "https://prabhatasamgiita.net/1-999/2%20E%20GA%27N%20A%27MA%27R%20ALOR%20JHARN%27A%27DHA%27RA%27.mp3",
+    "embed_url": "https://prabhatasamgiita.net/1-999/2%20E%20GA%27N%20A%27MA%27R%20ALOR%20JHARN%27A%27DHA%27RA%27.mp3",
+    "verification_status": "verified",
+    "source_url": "https://prabhatasamgiita.net/1-999/andromeda.php",
+    "notes": "Official MP3 from the 1-999 archive"
+  },
+  {
+    "song_number": 3,
+    "kind": "audio",
+    "provider": "official",
+    "title": "3 A'NDHA'RA SHES'E A'LORA DESHE",
+    "url": "https://prabhatasamgiita.net/1-999/3%20A%27NDHA%27RA%20SHES%27E%20A%27LORA%20DESHE.mp3",
+    "embed_url": "https://prabhatasamgiita.net/1-999/3%20A%27NDHA%27RA%20SHES%27E%20A%27LORA%20DESHE.mp3",
+    "verification_status": "verified",
+    "source_url": "https://prabhatasamgiita.net/1-999/andromeda.php",
+    "notes": "Official MP3 from the 1-999 archive"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Song",
+  "type": "object",
+  "required": ["number", "title", "canonical_source_url", "canonical_source_status"],
+  "properties": {
+    "number": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string" },
+    "first_line": { "type": ["string", "null"] },
+    "lyrics_original": { "type": ["string", "null"] },
+    "transliteration": { "type": ["string", "null"] },
+    "hindi_meaning": { "type": ["string", "null"] },
+    "english_meaning": { "type": ["string", "null"] },
+    "theme": { "type": ["string", "null"] },
+    "occasion": { "type": ["string", "null"] },
+    "festival": { "type": ["string", "null"] },
+    "season": { "type": ["string", "null"] },
+    "mood": { "type": ["string", "null"] },
+    "language": { "type": ["string", "null"] },
+    "difficulty": { "type": ["string", "null"] },
+    "meditation_context": { "type": ["string", "null"] },
+    "raga": { "type": ["string", "null"] },
+    "tala": { "type": ["string", "null"] },
+    "harmonium_notation": { "type": ["string", "null"] },
+    "canonical_source_url": { "type": "string", "format": "uri" },
+    "canonical_source_status": { "type": "string" },
+    "is_verified": { "type": "boolean" },
+    "metadata_json": { "type": "object" }
+  }
+}

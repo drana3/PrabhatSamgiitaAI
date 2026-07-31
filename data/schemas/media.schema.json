@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Media",
+  "type": "object",
+  "required": ["kind", "provider", "title", "url", "verification_status"],
+  "properties": {
+    "song_number": { "type": ["integer", "null"] },
+    "kind": { "type": "string" },
+    "provider": { "type": "string" },
+    "title": { "type": "string" },
+    "url": { "type": "string", "format": "uri" },
+    "embed_url": { "type": ["string", "null"], "format": "uri" },
+    "verification_status": { "type": "string" },
+    "source_url": { "type": ["string", "null"], "format": "uri" },
+    "notes": { "type": ["string", "null"] },
+    "metadata_json": { "type": "object" }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Notation",
+  "type": "object",
+  "required": ["song_number", "verification_status"],
+  "properties": {
+    "song_number": { "type": "integer", "minimum": 1 },
+    "source_url": { "type": ["string", "null"], "format": "uri" },
+    "notation_text": { "type": ["string", "null"] },
+    "scale": { "type": ["string", "null"] },
+    "verification_status": { "type": "string" },
+    "metadata_json": { "type": "object" }
+  }
+}

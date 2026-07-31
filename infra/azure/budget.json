@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "budgetName": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "int"
+    },
+    "email": {
+      "type": "string"
+    },
+    "startDate": {
+      "type": "string"
+    },
+    "resourceGroupName": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Consumption/budgets",
+      "apiVersion": "2019-05-01",
+      "name": "[parameters('budgetName')]",
+      "properties": {
+        "amount": "[parameters('amount')]",
+        "category": "Cost",
+        "timeGrain": "Monthly",
+        "timePeriod": {
+          "startDate": "[parameters('startDate')]"
+        },
+        "filters": {
+          "resourceGroups": [
+            "[parameters('resourceGroupName')]"
+          ]
+        },
+        "notifications": {
+          "Actual_GreaterThanOrEqualTo_70_Percent": {
+            "enabled": true,
+            "operator": "GreaterThanOrEqualTo",
+            "threshold": 70,
+            "contactEmails": [
+              "[parameters('email')]"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
