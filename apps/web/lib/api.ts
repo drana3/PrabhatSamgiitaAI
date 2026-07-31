@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
+const requestTimeoutMs = 15000
 
 const songSummarySchema = z.object({
   number: z.number(),
@@ -85,9 +86,23 @@ export type SongSummary = z.infer<typeof songSummarySchema>
 export type SongDetail = z.infer<typeof songDetailSchema>
 export type TransposedNotation = z.infer<typeof transposedNotationSchema>
 
+export async function fetchJson(path: string, init: RequestInit = {}) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs)
+  try {
+    return await fetch(`${apiBase}${path}`, {
+      ...init,
+      signal: controller.signal,
+      cache: "no-store",
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function fetchSongs(): Promise<SongSummary[]> {
   try {
-    const response = await fetch(`${apiBase}/api/v1/songs`, { cache: "no-store" })
+    const response = await fetchJson("/api/v1/songs")
     if (!response.ok) {
       return []
     }
@@ -99,7 +114,7 @@ export async function fetchSongs(): Promise<SongSummary[]> {
 
 export async function fetchSong(number: number): Promise<SongDetail | null> {
   try {
-    const response = await fetch(`${apiBase}/api/v1/songs/${number}`, { cache: "no-store" })
+    const response = await fetchJson(`/api/v1/songs/${number}`)
     if (!response.ok) {
       return null
     }
@@ -114,9 +129,8 @@ export async function fetchNotation(
   scale = "C",
 ): Promise<TransposedNotation | null> {
   try {
-    const response = await fetch(
-      `${apiBase}/api/v1/songs/${number}/notation?scale=${encodeURIComponent(scale)}&system=sargam`,
-      { cache: "no-store" },
+    const response = await fetchJson(
+      `/api/v1/songs/${number}/notation?scale=${encodeURIComponent(scale)}&system=sargam`,
     )
     if (!response.ok) {
       return null
@@ -129,7 +143,7 @@ export async function fetchNotation(
 
 export async function searchSongs(query: string): Promise<SongSummary[]> {
   try {
-    const response = await fetch(`${apiBase}/api/v1/search`, {
+    const response = await fetchJson("/api/v1/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
@@ -145,7 +159,7 @@ export async function searchSongs(query: string): Promise<SongSummary[]> {
 
 export async function recommendSongs(payload: Record<string, unknown>): Promise<SongSummary[]> {
   try {
-    const response = await fetch(`${apiBase}/api/v1/recommendations`, {
+    const response = await fetchJson("/api/v1/recommendations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -161,7 +175,7 @@ export async function recommendSongs(payload: Record<string, unknown>): Promise<
 
 export async function fetchInventory(): Promise<Array<{ source_kind: string; title: string; url: string; status: string; metadata_json: Record<string, unknown>; notes?: string | null }>> {
   try {
-    const response = await fetch(`${apiBase}/api/v1/inventory`, { cache: "no-store" })
+    const response = await fetchJson("/api/v1/inventory")
     if (!response.ok) {
       return []
     }

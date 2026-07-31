@@ -1,10 +1,10 @@
-import { apiUrl } from "./api"
+import { fetchJson } from "./api"
 
 export async function streamExplanation(
   songNumber: number,
   onChunk: (chunk: string) => void,
 ): Promise<void> {
-  const response = await fetch(apiUrl("/api/v1/ai/explain"), {
+  const response = await fetchJson("/api/v1/ai/explain", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ song_number: songNumber }),
