@@ -18,7 +18,7 @@ const sans = Manrope({
 
 export const metadata: Metadata = {
   title: "Prabhat Samgiita AI",
-  description: "Grounded search, lyrics, translations, notation, and streamed explanation for Prabhat Samgiita.",
+  description: "Search lyrics, read meanings, listen from verified sources, and browse curated Prabhat Samgiita resources.",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

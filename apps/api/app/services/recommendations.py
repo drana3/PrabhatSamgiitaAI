@@ -4,9 +4,11 @@ from dataclasses import asdict, dataclass, field
 from datetime import date
 
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Media, RecommendationAudit, Song
+from app.services.seed_data import load_rows
 
 
 @dataclass(slots=True)
@@ -36,23 +38,41 @@ class RankedRecommendation:
 class RecommendationEngine:
     algorithm_version = "r2"
 
-    async def media_availability(self, session: AsyncSession) -> dict[int, dict[str, int]]:
-        rows = await session.execute(
-            select(
-                Media.song_number,
-                func.sum(case((Media.kind == "audio", 1), else_=0)).label("audio_count"),
-                func.sum(case((Media.kind == "video", 1), else_=0)).label("video_count"),
-            )
-            .where(Media.song_number.is_not(None))
-            .group_by(Media.song_number)
-        )
+    def _seed_media_counts(self) -> dict[int, dict[str, int]]:
         counts: dict[int, dict[str, int]] = {}
-        for row in rows.all():
-            counts[int(row.song_number)] = {
-                "audio_count": int(row.audio_count or 0),
-                "video_count": int(row.video_count or 0),
-            }
+        for row in load_rows("media.json"):
+            song_number = row.get("song_number")
+            if song_number is None:
+                continue
+            counts.setdefault(int(song_number), {"audio_count": 0, "video_count": 0})
+            if row.get("kind") == "audio":
+                counts[int(song_number)]["audio_count"] += 1
+            if row.get("kind") == "video":
+                counts[int(song_number)]["video_count"] += 1
         return counts
+
+    async def media_availability(self, session: AsyncSession) -> dict[int, dict[str, int]]:
+        try:
+            rows = await session.execute(
+                select(
+                    Media.song_number,
+                    func.sum(case((Media.kind == "audio", 1), else_=0)).label("audio_count"),
+                    func.sum(case((Media.kind == "video", 1), else_=0)).label("video_count"),
+                )
+                .where(Media.song_number.is_not(None))
+                .group_by(Media.song_number)
+            )
+            counts: dict[int, dict[str, int]] = {}
+            for row in rows.all():
+                counts[int(row.song_number)] = {
+                    "audio_count": int(row.audio_count or 0),
+                    "video_count": int(row.video_count or 0),
+                }
+            if counts:
+                return counts
+        except SQLAlchemyError:
+            pass
+        return self._seed_media_counts()
 
     def _match_score(self, desired: str | None, actual: str | None) -> float:
         if not desired or not actual:

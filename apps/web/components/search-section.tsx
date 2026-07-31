@@ -20,7 +20,7 @@ export function SearchSection({ initialSongs }: { initialSongs: SongSummary[] })
           </p>
         </div>
         <div className="rounded-full border border-ink-200 bg-ink-50 px-3 py-2 text-xs uppercase tracking-[0.25em] text-ink-500">
-          {songs.length} results loaded
+          {songs.length} songs ready
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -42,7 +42,7 @@ export function SearchSection({ initialSongs }: { initialSongs: SongSummary[] })
         </div>
       ) : (
         <div className="rounded-3xl border border-dashed border-ink-200 bg-gradient-to-br from-ink-50 to-white p-6 text-sm leading-6 text-ink-600">
-          No matches yet. Try a song number, a first line, or a theme like devotion or morning meditation.
+          No matches yet. Try a song number, a first line, or a devotional theme like morning or devotion.
         </div>
       )}
     </div>

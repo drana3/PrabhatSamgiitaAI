@@ -5,12 +5,14 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models import Media, Notation, Song
 from app.schemas.search import MediaSummary, SearchFilters, SearchResponse, SearchResultItem
 from app.services.ai import select_provider
+from app.services.seed_data import load_rows
 
 
 @dataclass(slots=True)
@@ -68,35 +70,67 @@ class HybridSearchService:
         self.session = session
         self.provider = select_provider(get_settings())
 
+    def _seed_songs(self) -> list[Song]:
+        return [Song(**row) for row in load_rows("songs.json")]
+
+    def _seed_media(self) -> list[Media]:
+        return [Media(**row) for row in load_rows("media.json")]
+
+    def _seed_notations(self) -> list[Notation]:
+        return [Notation(**row) for row in load_rows("notations.json")]
+
     async def _song_index(self) -> list[Song]:
-        result = await self.session.execute(select(Song).order_by(Song.number))
-        return list(result.scalars().all())
+        try:
+            result = await self.session.execute(select(Song).order_by(Song.number))
+            rows = list(result.scalars().all())
+            if rows:
+                return rows
+        except SQLAlchemyError:
+            pass
+        return self._seed_songs()
 
     async def _media_counts(self) -> dict[int, MediaSummary]:
-        media_result = await self.session.execute(
-            select(
-                Media.song_number,
-                func.sum(case((Media.kind == "audio", 1), else_=0)).label("audio_count"),
-                func.sum(case((Media.kind == "video", 1), else_=0)).label("video_count"),
-            )
-            .where(Media.song_number.is_not(None))
-            .group_by(Media.song_number)
-        )
-        notation_result = await self.session.execute(
-            select(Notation.song_number, func.count(Notation.id).label("notation_count")).group_by(
-                Notation.song_number
-            )
-        )
         counts: dict[int, MediaSummary] = defaultdict(MediaSummary)
-        for row in media_result.all():
-            counts[int(row.song_number)] = MediaSummary(
-                audio_count=int(row.audio_count or 0),
-                video_count=int(row.video_count or 0),
-                notation_count=counts[int(row.song_number)].notation_count,
+        try:
+            media_result = await self.session.execute(
+                select(
+                    Media.song_number,
+                    func.sum(case((Media.kind == "audio", 1), else_=0)).label("audio_count"),
+                    func.sum(case((Media.kind == "video", 1), else_=0)).label("video_count"),
+                )
+                .where(Media.song_number.is_not(None))
+                .group_by(Media.song_number)
             )
-        for row in notation_result.all():
-            counts[int(row.song_number)].notation_count = int(row.notation_count or 0)
-        return counts
+            notation_result = await self.session.execute(
+                select(Notation.song_number, func.count(Notation.id).label("notation_count"))
+                .group_by(Notation.song_number)
+            )
+            for row in media_result.all():
+                counts[int(row.song_number)] = MediaSummary(
+                    audio_count=int(row.audio_count or 0),
+                    video_count=int(row.video_count or 0),
+                    notation_count=counts[int(row.song_number)].notation_count,
+                )
+            for notation_row in notation_result.all():
+                counts[int(notation_row.song_number)].notation_count = int(
+                    notation_row.notation_count or 0
+                )
+            return counts
+        except SQLAlchemyError:
+            media_rows: list[Media] = self._seed_media()
+            notation_rows: list[Notation] = self._seed_notations()
+            for media_item in media_rows:
+                song_number = media_item.song_number
+                if song_number is None:
+                    continue
+                counts[int(song_number)].audio_count += 1 if media_item.kind == "audio" else 0
+                counts[int(song_number)].video_count += 1 if media_item.kind == "video" else 0
+            for notation_item in notation_rows:
+                song_number = notation_item.song_number
+                if song_number is None:
+                    continue
+                counts[int(song_number)].notation_count += 1
+            return counts
 
     async def _vector_rank(
         self, songs: list[Song], query_embedding: list[float], limit: int
@@ -249,7 +283,10 @@ class HybridSearchService:
         media_counts = await self._media_counts()
         intent = detect_intent(query)
 
-        query_embedding = await self.provider.embed(query)
+        try:
+            query_embedding = await self.provider.embed(query)
+        except Exception:
+            query_embedding = []
         exact_number = await self._exact_number_rank(query)
         opening_rank = await self._opening_line_rank(query, songs, limit=50)
         fts_rank = await self._fts_rank(query, limit=50)

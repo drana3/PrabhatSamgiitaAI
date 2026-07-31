@@ -29,9 +29,15 @@ logger = logging.getLogger(__name__)
 async def initialize_schema() -> None:
     try:
         async with engine.begin() as conn:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
+            for statement, label in (
+                ("CREATE EXTENSION IF NOT EXISTS vector", "vector"),
+                ("CREATE EXTENSION IF NOT EXISTS pg_trgm", "pg_trgm"),
+                ("CREATE EXTENSION IF NOT EXISTS unaccent", "unaccent"),
+            ):
+                try:
+                    await conn.execute(text(statement))
+                except Exception:
+                    logger.exception("Skipping optional extension setup for %s", label)
             await conn.run_sync(Base.metadata.create_all)
     except Exception:
         logger.exception("Database initialization skipped because the database is unavailable")

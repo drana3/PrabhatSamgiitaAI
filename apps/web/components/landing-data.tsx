@@ -26,8 +26,12 @@ export function LandingData({
     const load = async () => {
       const [nextSongs, nextInventory] = await Promise.all([fetchSongs(), fetchInventory()])
       if (!active) return
-      setSongs(nextSongs)
-      setInventory(nextInventory)
+      if (nextSongs.length > 0) {
+        setSongs(nextSongs)
+      }
+      if (nextInventory.length > 0) {
+        setInventory(nextInventory)
+      }
     }
 
     void load()
@@ -54,11 +58,11 @@ export function LandingData({
         <div id="search" className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <SearchSection initialSongs={songs} />
           <div className="rounded-[2rem] border border-ink-200 bg-ink-950 p-5 text-white shadow-glow md:p-6">
-            <p className="text-xs uppercase tracking-[0.4em] text-ember-300">Recommendation context</p>
-            <h2 className="mt-2 font-serif text-3xl text-white">Let the moment guide the music</h2>
+            <p className="text-xs uppercase tracking-[0.4em] text-ember-300">Recommendations</p>
+            <h2 className="mt-2 font-serif text-3xl text-white">Automatic, festival-aware picks</h2>
             <p className="mt-3 text-sm leading-7 text-ink-100">
-              Describe the date, festival, mood, or meditation setting and the app will suggest songs that fit the
-              moment.
+              We start with today’s devotional context automatically. If you want to refine it, open the advanced
+              filters without cluttering the main view.
             </p>
             <RecommendationSection />
           </div>
@@ -72,7 +76,7 @@ export function LandingData({
             <h2 className="mt-2 font-serif text-4xl text-ink-900">Sample verified songs</h2>
           </div>
           <p className="text-sm text-ink-600">
-            {songs.length > 0 ? `${songs.length} songs ready` : "Loading songs..."}
+            {songs.length > 0 ? `${songs.length} songs ready` : "No cached songs yet"}
           </p>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -89,7 +93,7 @@ export function LandingData({
             <h2 className="mt-2 font-serif text-4xl text-white">Official resources</h2>
           </div>
           <p className="text-sm text-ink-100">
-            {inventory.length > 0 ? `${inventory.length} resources ready` : "Loading resources..."}
+            {inventory.length > 0 ? `${inventory.length} resources ready` : "No cached resources yet"}
           </p>
         </div>
         <div className="mt-6 grid gap-3 md:grid-cols-2">
