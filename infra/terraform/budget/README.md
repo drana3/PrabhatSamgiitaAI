@@ -1,6 +1,6 @@
 # Azure Budget Terraform
 
-This stack keeps the Azure monthly budget in Terraform instead of a shell step.
+This stack manages the Azure monthly budget separately from app deploys.
 
 ## Apply
 

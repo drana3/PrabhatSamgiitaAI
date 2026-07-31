@@ -36,7 +36,7 @@ That script assumes the Azure foundation already exists and only rebuilds images
 
 ## Budget
 
-The Azure budget is now managed by Terraform in [`infra/terraform/budget`](/Users/chaitaniya/Documents/Prabhat Samgiita AI/infra/terraform/budget).
+The monthly Azure budget is managed separately in `infra/terraform/budget`.
 
 ## Cost guardrails
 

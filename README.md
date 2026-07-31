@@ -44,7 +44,7 @@ API: `http://localhost:8000`
 
 ## Azure ready
 
-The repo includes a production container setup, a repeatable Azure deployment script for first-time bootstrap, and a GitHub Actions pipeline for repeat deployments on `main`:
+The repo includes a production container setup, a one-time Azure bootstrap script, and a GitHub Actions pipeline for repeat deployments on `main`:
 
 ```bash
 export PG_PASSWORD='use-a-strong-password'
@@ -52,8 +52,11 @@ export PG_PASSWORD='use-a-strong-password'
 ```
 
 That bootstrap flow uses Azure Container Apps for scale-to-zero HTTP serving and Azure Database for PostgreSQL Flexible Server with pgvector support.
+It creates the Azure foundation once. After that, GitHub Actions on `main` only rebuilds and redeploys the app containers.
 
-The recurring deployment pipeline lives in [`.github/workflows/deploy.yml`](/Users/chaitaniya/Documents/Prabhat Samgiita AI/.github/workflows/deploy.yml) and uses Terraform for the monthly Azure budget.
+The recurring deployment pipeline lives in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) and performs app redeploys only.
+
+The Azure budget is managed separately through Terraform in `infra/terraform/budget` when you want to create or update the monthly budget resource.
 
 ## Notes
 
@@ -68,3 +71,4 @@ The recurring deployment pipeline lives in [`.github/workflows/deploy.yml`](/Use
 
 - Run the scraper/importer to populate the database from the official catalog.
 - Deploy API and web to Azure Container Apps and PostgreSQL Flexible Server.
+- Keep PostgreSQL unless you explicitly want to reset the synced catalog. App redeploys do not delete the database.
