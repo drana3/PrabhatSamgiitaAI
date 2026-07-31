@@ -7,7 +7,8 @@ from typing import Any, cast
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import InventoryItem, Media, Notation, Song
+from app.models import InventoryItem, Media, Notation, Song, SongChunk
+from app.services.rag import build_song_chunks
 
 
 class BootstrapService:
@@ -59,4 +60,14 @@ class BootstrapService:
         await self._load_rows(Media, media, "url")
         await self._load_rows(Notation, notations, "source_url")
         await self._load_rows(InventoryItem, inventory, "url")
+        await self._ensure_song_chunks()
         await self.session.commit()
+
+    async def _ensure_song_chunks(self) -> None:
+        result = await self.session.execute(select(SongChunk.id).limit(1))
+        if result.first():
+            return
+        songs_result = await self.session.execute(select(Song).order_by(Song.number))
+        for song in songs_result.scalars().all():
+            for row in build_song_chunks(song):
+                self.session.add(SongChunk(**row))

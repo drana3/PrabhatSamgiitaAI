@@ -16,6 +16,10 @@ class TextProvider(Protocol):
     async def complete(self, prompt: str) -> str: ...
 
 
+class GroundedProvider(EmbeddingProvider, TextProvider, Protocol):
+    pass
+
+
 @dataclass(slots=True)
 class MockProvider:
     dimension: int = 16
@@ -95,7 +99,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
             return cast(str, payload["choices"][0]["message"]["content"])
 
 
-def select_provider(settings: Settings) -> EmbeddingProvider | TextProvider:
+def select_provider(settings: Settings) -> GroundedProvider:
     if (
         settings.azure_openai_endpoint
         and settings.azure_openai_api_key
