@@ -28,4 +28,4 @@ apps/web/node_modules/
 apps/web/coverage/
 apps/web/test-results/
 apps/web/playwright-report/
-data/generated/
+data/generated/cache/

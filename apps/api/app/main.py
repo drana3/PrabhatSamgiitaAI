@@ -19,6 +19,7 @@ from app.services.bootstrap import BootstrapService
 settings = get_settings()
 configure_logging(settings.log_level)
 scheduler = AsyncIOScheduler()
+DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 
 
 @asynccontextmanager
@@ -27,7 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     async with SessionLocal() as session:
-        await BootstrapService(session, Path("data/seed")).ensure_seed_data()
+        await BootstrapService(session, DATA_DIR).ensure_seed_data()
     scheduler.start()
     try:
         yield
