@@ -40,6 +40,7 @@ class SearchRequest(BaseModel):
 
 class RecommendationRequest(BaseModel):
     date: str | None = None
+    timezone: str | None = None
     day: str | None = None
     occasion: str | None = None
     festival: str | None = None
@@ -48,6 +49,9 @@ class RecommendationRequest(BaseModel):
     language: str | None = None
     difficulty: str | None = None
     meditation_context: str | None = None
+    time_of_day: str | None = None
+    media_preference: str | None = None
+    maximum_results: int = Field(default=20, ge=1, le=100)
 
 
 class ExplanationRequest(BaseModel):

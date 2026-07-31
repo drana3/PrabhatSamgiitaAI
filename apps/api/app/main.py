@@ -26,6 +26,8 @@ DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS unaccent"))
         await conn.run_sync(Base.metadata.create_all)
     async with SessionLocal() as session:
         await BootstrapService(session, DATA_DIR).ensure_seed_data()

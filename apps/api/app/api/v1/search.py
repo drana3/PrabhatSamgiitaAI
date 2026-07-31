@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
+from app.schemas.search import SearchFilters, SearchResponse
 from app.schemas.song import SearchRequest, SongSummary
-from app.services.catalog import CatalogService
+from app.services.search import HybridSearchService
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -17,18 +18,55 @@ async def search(
     request: SearchRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SongSummary]:
-    songs = await CatalogService(session).search(request.query)
+    response = await HybridSearchService(session).search(request.query)
     return [
         SongSummary(
-            number=song.number,
-            title=song.title,
-            first_line=song.first_line,
-            theme=song.theme,
-            occasion=song.occasion,
-            mood=song.mood,
-            language=song.language,
-            difficulty=song.difficulty,
-            is_verified=song.is_verified,
+            number=item.song_number,
+            title=item.opening_line or f"Song {item.song_number}",
+            first_line=item.opening_line,
+            theme=None,
+            occasion=None,
+            mood=None,
+            language=None,
+            difficulty=None,
+            is_verified=item.verification_status == "officially_verified",
         )
-        for song in songs
+        for item in response.items
     ]
+
+
+@router.get("", response_model=SearchResponse)
+async def search_rich(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    q: str = Query(min_length=1),
+    language: str | None = Query(default=None),
+    theme: str | None = Query(default=None),
+    occasion: str | None = Query(default=None),
+    festival: str | None = Query(default=None),
+    season: str | None = Query(default=None),
+    difficulty: str | None = Query(default=None),
+    verification_status: str | None = Query(default=None),
+    has_audio: bool | None = Query(default=None),
+    has_video: bool | None = Query(default=None),
+    has_notation: bool | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> SearchResponse:
+    filters = SearchFilters(
+        language=language,
+        theme=theme,
+        occasion=occasion,
+        festival=festival,
+        season=season,
+        difficulty=difficulty,
+        verification_status=verification_status,
+        has_audio=has_audio,
+        has_video=has_video,
+        has_notation=has_notation,
+    )
+    return await HybridSearchService(session).search(
+        q,
+        filters=filters,
+        page=page,
+        page_size=page_size,
+    )

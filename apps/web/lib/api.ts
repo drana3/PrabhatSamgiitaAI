@@ -33,8 +33,57 @@ const songDetailSchema = songSummarySchema.extend({
   metadata_json: z.record(z.any()).default({}),
 })
 
+const notationNoteSchema = z.object({
+  sargam: z.string(),
+  western: z.string().nullable().optional(),
+  duration: z.number(),
+  octave: z.enum(["lower", "middle", "upper"]).default("middle"),
+  syllable: z.string().nullable().optional(),
+  ornament: z.string().nullable().optional(),
+})
+
+const notationBeatSchema = z.object({
+  beat: z.number(),
+  notes: z.array(notationNoteSchema).default([]),
+})
+
+const notationMeasureSchema = z.object({
+  measures: z.array(notationBeatSchema).default([]),
+})
+
+const notationLineSchema = z.object({
+  line_number: z.number(),
+  lyrics: z.string(),
+  transliteration: z.string().nullable().optional(),
+  measures: z.array(notationMeasureSchema).default([]),
+})
+
+const notationSchema = z.object({
+  version: z.number(),
+  source_scale: z.string(),
+  tempo_bpm: z.number().nullable().optional(),
+  tala: z
+    .object({
+      name: z.string(),
+      beats: z.number(),
+      groups: z.array(z.number()).default([]),
+    })
+    .nullable()
+    .optional(),
+  lines: z.array(notationLineSchema).default([]),
+})
+
+const transposedNotationSchema = z.object({
+  song_number: z.number(),
+  source_scale: z.string(),
+  target_scale: z.string(),
+  verification_status: z.string(),
+  notation: notationSchema,
+})
+
 export type SongSummary = z.infer<typeof songSummarySchema>
 export type SongDetail = z.infer<typeof songDetailSchema>
+export type TransposedNotation = z.infer<typeof transposedNotationSchema>
 
 export async function fetchSongs(): Promise<SongSummary[]> {
   try {
@@ -55,6 +104,24 @@ export async function fetchSong(number: number): Promise<SongDetail | null> {
       return null
     }
     return songDetailSchema.parse(await response.json())
+  } catch {
+    return null
+  }
+}
+
+export async function fetchNotation(
+  number: number,
+  scale = "C",
+): Promise<TransposedNotation | null> {
+  try {
+    const response = await fetch(
+      `${apiBase}/api/v1/songs/${number}/notation?scale=${encodeURIComponent(scale)}&system=sargam`,
+      { cache: "no-store" },
+    )
+    if (!response.ok) {
+      return null
+    }
+    return transposedNotationSchema.parse(await response.json())
   } catch {
     return null
   }

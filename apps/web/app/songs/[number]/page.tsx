@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { StreamExplanation } from "@/components/stream-explanation"
-import { fetchSong } from "@/lib/api"
+import { fetchNotation, fetchSong } from "@/lib/api"
 
 export default async function SongPage({ params }: { params: Promise<{ number: string }> }) {
   const { number } = await params
@@ -10,6 +10,7 @@ export default async function SongPage({ params }: { params: Promise<{ number: s
   if (!song) {
     notFound()
   }
+  const notation = await fetchNotation(song.number)
 
   return (
     <main className="min-h-screen bg-aurora px-4 py-8 md:px-8">
@@ -37,6 +38,73 @@ export default async function SongPage({ params }: { params: Promise<{ number: s
         </article>
 
         <StreamExplanation songNumber={song.number} />
+
+        <section className="rounded-[2rem] border border-ink-200 bg-white p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-3xl text-ink-900">Harmonium notation</h2>
+              <p className="mt-2 text-sm text-ink-600">
+                Transposed to {notation?.target_scale ?? "C"} when canonical notation exists.
+              </p>
+            </div>
+            {notation ? (
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-700">
+                {notation.verification_status}
+              </p>
+            ) : null}
+          </div>
+          {notation ? (
+            <div className="mt-6 space-y-5">
+              {notation.notation.lines.map((line) => (
+                <article key={line.line_number} className="rounded-3xl border border-ink-200 bg-ink-50 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="font-semibold text-ink-900">Line {line.line_number}</h3>
+                    {line.transliteration ? (
+                      <p className="text-sm text-ink-600">{line.transliteration}</p>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm leading-7 text-ink-800">{line.lyrics}</p>
+                  <div className="mt-4 grid gap-3">
+                    {line.measures.map((measure, measureIndex) => (
+                      <div
+                        key={`${line.line_number}-${measureIndex}`}
+                        className="rounded-2xl border border-ink-200 bg-white p-4"
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-ember-700">
+                          Measure {measureIndex + 1}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {measure.measures.map((beat) => (
+                            <div
+                              key={`${line.line_number}-${measureIndex}-${beat.beat}`}
+                              className="min-w-24 rounded-2xl bg-ink-50 px-3 py-2"
+                            >
+                              <p className="text-[11px] uppercase tracking-[0.25em] text-ink-500">
+                                Beat {beat.beat}
+                              </p>
+                              <div className="mt-2 space-y-1">
+                                {beat.notes.map((note, index) => (
+                                  <p key={`${note.sargam}-${index}`} className="text-sm text-ink-800">
+                                    {note.sargam}
+                                    {note.western ? ` · ${note.western}` : ""}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-ink-600">
+              Notation is not yet available for this song in the synced source set.
+            </p>
+          )}
+        </section>
 
         <section className="rounded-[2rem] border border-ink-200 bg-white p-6">
           <h2 className="font-serif text-3xl text-ink-900">Verified media</h2>

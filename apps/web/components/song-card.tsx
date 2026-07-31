@@ -6,7 +6,7 @@ export function SongCard({ song }: { song: SongSummary }) {
   return (
     <Link
       href={`/songs/${song.number}`}
-      className="group rounded-3xl border border-ink-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-glow"
+      className="group rounded-3xl border border-ink-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-ember-300 hover:shadow-glow"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -18,6 +18,11 @@ export function SongCard({ song }: { song: SongSummary }) {
           {song.is_verified ? "Verified" : "Pending"}
         </span>
       </div>
+      {(song.occasion || song.difficulty) ? (
+        <p className="mt-3 text-xs uppercase tracking-[0.25em] text-ink-500">
+          {[song.occasion, song.difficulty].filter(Boolean).join(" · ")}
+        </p>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-2 text-xs text-ink-600">
         {song.theme ? <span className="rounded-full bg-ink-50 px-3 py-1">{song.theme}</span> : null}
         {song.mood ? <span className="rounded-full bg-ink-50 px-3 py-1">{song.mood}</span> : null}

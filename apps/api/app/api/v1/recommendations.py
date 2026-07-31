@@ -19,21 +19,23 @@ async def recommend(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SongSummary]:
     catalog = CatalogService(session)
-    songs = await catalog.list_songs(limit=500)
+    songs = await catalog.list_songs(limit=10000)
     context = RecommendationContext(**request.model_dump())
     engine = RecommendationEngine()
-    ranked = sorted(songs, key=lambda song: engine.score(song, context), reverse=True)
+    ranked = await engine.rank(session, songs, context)
+    await engine.audit(session, context, ranked)
+    await session.commit()
     return [
         SongSummary(
-            number=song.number,
-            title=song.title,
-            first_line=song.first_line,
-            theme=song.theme,
-            occasion=song.occasion,
-            mood=song.mood,
-            language=song.language,
-            difficulty=song.difficulty,
-            is_verified=song.is_verified,
+            number=item.song.number,
+            title=item.song.title,
+            first_line=item.song.first_line,
+            theme=item.song.theme,
+            occasion=item.song.occasion,
+            mood=item.song.mood,
+            language=item.song.language,
+            difficulty=item.song.difficulty,
+            is_verified=item.song.is_verified,
         )
-        for song in ranked[:20]
+        for item in ranked[: request.maximum_results]
     ]

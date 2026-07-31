@@ -46,14 +46,15 @@ export function RecommendationForm({
             <span className="capitalize">{field.replaceAll("_", " ")}</span>
             <input
               {...form.register(field as keyof FormValues)}
-              className="rounded-2xl border border-ink-200 bg-white px-4 py-3 outline-none focus:border-ember-400"
+              placeholder={field === "mood" ? "peaceful" : "Optional"}
+              className="rounded-2xl border border-ink-200 bg-white px-4 py-3 outline-none placeholder:text-ink-400 focus:border-ember-400"
             />
           </label>
         ),
       )}
       <button
         type="submit"
-        className="col-span-full rounded-2xl bg-ink-900 px-5 py-3 font-semibold text-white"
+        className="col-span-full rounded-2xl bg-ink-900 px-5 py-3 font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={mutation.isPending}
       >
         {mutation.isPending ? "Finding songs..." : "Recommend songs"}
