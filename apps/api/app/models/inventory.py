@@ -1,6 +1,5 @@
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -14,5 +13,9 @@ class InventoryItem(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     url: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
     status: Mapped[str] = mapped_column(String(32), default="active", server_default="active")
-    metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    metadata_json: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
     notes: Mapped[str | None] = mapped_column(Text)

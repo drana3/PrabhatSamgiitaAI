@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,16 +28,19 @@ def _summary(song) -> SongSummary:
 
 @router.get("", response_model=list[SongSummary])
 async def list_songs(
+    session: Annotated[AsyncSession, Depends(get_session)],
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    session: AsyncSession = Depends(get_session),
 ) -> list[SongSummary]:
     songs = await CatalogService(session).list_songs(limit=limit, offset=offset)
     return [_summary(song) for song in songs]
 
 
 @router.get("/{number}", response_model=SongDetail)
-async def get_song(number: int, session: AsyncSession = Depends(get_session)) -> SongDetail:
+async def get_song(
+    number: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SongDetail:
     service = CatalogService(session)
     song = await service.get_song(number)
     if not song:
@@ -58,16 +63,19 @@ async def get_song(number: int, session: AsyncSession = Depends(get_session)) ->
         canonical_source_url=song.canonical_source_url,
         canonical_source_status=song.canonical_source_status,
         related_songs=[_summary(item) for item in related],
-        media=[{
-            "kind": item.kind,
-            "provider": item.provider,
-            "title": item.title,
-            "url": item.url,
-            "embed_url": item.embed_url,
-            "verification_status": item.verification_status,
-            "source_url": item.source_url,
-            "notes": item.notes,
-        } for item in media],
+        media=[
+            {
+                "kind": item.kind,
+                "provider": item.provider,
+                "title": item.title,
+                "url": item.url,
+                "embed_url": item.embed_url,
+                "verification_status": item.verification_status,
+                "source_url": item.source_url,
+                "notes": item.notes,
+            }
+            for item in media
+        ],
         notation_scale=notation.scale if notation else None,
         metadata_json=song.metadata_json or {},
     )

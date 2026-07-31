@@ -26,9 +26,7 @@ class Settings(BaseSettings):
     azure_openai_endpoint: str | None = Field(default=None, alias="AZURE_OPENAI_ENDPOINT")
     azure_openai_api_key: str | None = Field(default=None, alias="AZURE_OPENAI_API_KEY")
     azure_openai_deployment: str | None = Field(default=None, alias="AZURE_OPENAI_DEPLOYMENT")
-    azure_openai_api_version: str = Field(
-        default="2024-10-21", alias="AZURE_OPENAI_API_VERSION"
-    )
+    azure_openai_api_version: str = Field(default="2024-10-21", alias="AZURE_OPENAI_API_VERSION")
 
 
 @lru_cache(maxsize=1)

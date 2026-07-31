@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +15,8 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 @router.post("", response_model=list[SongSummary])
 async def recommend(
-    request: RecommendationRequest, session: AsyncSession = Depends(get_session)
+    request: RecommendationRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SongSummary]:
     catalog = CatalogService(session)
     songs = await catalog.list_songs(limit=500)

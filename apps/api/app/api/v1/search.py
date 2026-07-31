@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,10 @@ router = APIRouter(prefix="/search", tags=["search"])
 
 
 @router.post("", response_model=list[SongSummary])
-async def search(request: SearchRequest, session: AsyncSession = Depends(get_session)) -> list[SongSummary]:
+async def search(
+    request: SearchRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SongSummary]:
     songs = await CatalogService(session).search(request.query)
     return [
         SongSummary(

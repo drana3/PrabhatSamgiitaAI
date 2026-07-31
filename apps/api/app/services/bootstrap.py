@@ -33,7 +33,10 @@ class BootstrapService:
             notations = json.loads(notation_path.read_text(encoding="utf-8"))
             for row in notations:
                 self.session.add(Notation(**row))
-        for inventory_path in [self.seed_dir / "inventory.json", Path("data/generated/inventory.json")]:
+        for inventory_path in (
+            self.seed_dir / "inventory.json",
+            Path("data/generated/inventory.json"),
+        ):
             if inventory_path.exists():
                 inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
                 for row in inventory:

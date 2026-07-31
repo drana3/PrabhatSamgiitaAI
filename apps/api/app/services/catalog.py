@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-
-from sqlalchemy import Select, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import InventoryItem, Media, Notation, Song
@@ -13,7 +11,9 @@ class CatalogService:
         self.session = session
 
     async def list_songs(self, limit: int = 50, offset: int = 0) -> list[Song]:
-        result = await self.session.execute(select(Song).order_by(Song.number).limit(limit).offset(offset))
+        result = await self.session.execute(
+            select(Song).order_by(Song.number).limit(limit).offset(offset)
+        )
         return list(result.scalars().all())
 
     async def get_song(self, number: int) -> Song | None:
@@ -61,10 +61,7 @@ class CatalogService:
         if not filters:
             return []
         result = await self.session.execute(
-            select(Song)
-            .where(Song.number != song.number)
-            .where(or_(*filters))
-            .limit(limit)
+            select(Song).where(Song.number != song.number).where(or_(*filters)).limit(limit)
         )
         return list(result.scalars().all())
 
@@ -73,9 +70,16 @@ class CatalogService:
         return list(result.scalars().all())
 
     async def get_notation(self, song_number: int) -> Notation | None:
-        result = await self.session.execute(select(Notation).where(Notation.song_number == song_number))
+        result = await self.session.execute(
+            select(Notation).where(Notation.song_number == song_number)
+        )
         return result.scalar_one_or_none()
 
     async def inventory(self) -> list[InventoryItem]:
-        result = await self.session.execute(select(InventoryItem).order_by(InventoryItem.source_kind, InventoryItem.title))
+        result = await self.session.execute(
+            select(InventoryItem).order_by(
+                InventoryItem.source_kind,
+                InventoryItem.title,
+            )
+        )
         return list(result.scalars().all())

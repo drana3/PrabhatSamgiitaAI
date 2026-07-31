@@ -5,9 +5,11 @@ Revises:
 Create Date: 2026-07-31 00:00:00
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
+
 try:
     from pgvector.sqlalchemy import Vector
 except ImportError:  # pragma: no cover - migration fallback in lightweight envs
@@ -20,6 +22,7 @@ except ImportError:  # pragma: no cover - migration fallback in lightweight envs
         def __init__(self, dimension: int) -> None:
             super().__init__()
             self.dimension = dimension
+
 
 from app.core.vector import VECTOR_DIMENSION
 
@@ -53,7 +56,12 @@ def upgrade() -> None:
         sa.Column("tala", sa.String(length=255)),
         sa.Column("harmonium_notation", sa.Text()),
         sa.Column("canonical_source_url", sa.String(length=512)),
-        sa.Column("canonical_source_status", sa.String(length=32), server_default="pending", nullable=False),
+        sa.Column(
+            "canonical_source_status",
+            sa.String(length=32),
+            server_default="pending",
+            nullable=False,
+        ),
         sa.Column("is_verified", sa.Boolean(), server_default="false"),
         sa.Column("embeddings", Vector(VECTOR_DIMENSION)),
         sa.Column("metadata_json", JSONB(), server_default=sa.text("'{}'::jsonb")),
@@ -68,7 +76,12 @@ def upgrade() -> None:
         sa.Column("title", sa.String(length=255), nullable=False),
         sa.Column("url", sa.String(length=1024), nullable=False),
         sa.Column("embed_url", sa.String(length=1024)),
-        sa.Column("verification_status", sa.String(length=32), server_default="unverified", nullable=False),
+        sa.Column(
+            "verification_status",
+            sa.String(length=32),
+            server_default="unverified",
+            nullable=False,
+        ),
         sa.Column("source_url", sa.String(length=1024)),
         sa.Column("notes", sa.Text()),
         sa.Column("metadata_json", JSONB(), server_default=sa.text("'{}'::jsonb")),
@@ -80,7 +93,12 @@ def upgrade() -> None:
         sa.Column("source_url", sa.String(length=1024)),
         sa.Column("notation_text", sa.Text()),
         sa.Column("scale", sa.String(length=64)),
-        sa.Column("verification_status", sa.String(length=32), server_default="verified", nullable=False),
+        sa.Column(
+            "verification_status",
+            sa.String(length=32),
+            server_default="verified",
+            nullable=False,
+        ),
         sa.Column("metadata_json", JSONB(), server_default=sa.text("'{}'::jsonb")),
     )
     op.create_table(

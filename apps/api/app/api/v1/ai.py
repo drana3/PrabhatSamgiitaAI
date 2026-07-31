@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +16,8 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 
 @router.post("/explain")
 async def explain(
-    request: ExplanationRequest, session: AsyncSession = Depends(get_session)
+    request: ExplanationRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StreamingResponse:
     song = await CatalogService(session).get_song(request.song_number)
     if not song:

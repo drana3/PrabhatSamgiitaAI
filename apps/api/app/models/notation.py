@@ -1,6 +1,5 @@
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -17,4 +16,8 @@ class Notation(Base, TimestampMixin):
     verification_status: Mapped[str] = mapped_column(
         String(32), default="verified", server_default="verified", nullable=False
     )
-    metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    metadata_json: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )

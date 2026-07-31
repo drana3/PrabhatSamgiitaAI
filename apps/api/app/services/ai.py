@@ -90,7 +90,11 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
 
 
 def select_provider(settings) -> EmbeddingProvider | TextProvider:
-    if settings.azure_openai_endpoint and settings.azure_openai_api_key and settings.azure_openai_deployment:
+    if (
+        settings.azure_openai_endpoint
+        and settings.azure_openai_api_key
+        and settings.azure_openai_deployment
+    ):
         return AzureOpenAIProvider(
             api_key=settings.azure_openai_api_key,
             base_url=str(settings.azure_openai_endpoint).rstrip("/"),

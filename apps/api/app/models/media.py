@@ -1,6 +1,5 @@
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -21,4 +20,8 @@ class Media(Base, TimestampMixin):
     )
     source_url: Mapped[str | None] = mapped_column(String(1024))
     notes: Mapped[str | None] = mapped_column(Text)
-    metadata_json: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    metadata_json: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )

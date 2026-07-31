@@ -2,8 +2,8 @@ from typing import Any
 
 from sqlalchemy import Boolean, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import JSON, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.types import JSON, TypeDecorator
 
 from app.core.vector import VECTOR_DIMENSION
 from app.models.base import Base, TimestampMixin
