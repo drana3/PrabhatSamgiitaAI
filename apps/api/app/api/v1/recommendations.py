@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -11,6 +13,7 @@ from app.services.catalog import CatalogService
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=list[SongSummary])
@@ -23,8 +26,12 @@ async def recommend(
     context = RecommendationContext(**request.model_dump())
     engine = RecommendationEngine()
     ranked = await engine.rank(session, songs, context)
-    await engine.audit(session, context, ranked)
-    await session.commit()
+    try:
+        await engine.audit(session, context, ranked)
+        await session.commit()
+    except SQLAlchemyError:
+        await session.rollback()
+        logger.exception("Skipping recommendation audit persistence")
     return [
         SongSummary(
             number=item.song.number,
