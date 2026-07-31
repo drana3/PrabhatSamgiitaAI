@@ -14,6 +14,10 @@ if [[ -z "${PG_PASSWORD}" ]]; then
   exit 1
 fi
 
+urlencode() {
+  python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip("\n"), safe=""))'
+}
+
 ACR_NAME="${ACR_NAME:-${PREFIX}acr$RANDOM}"
 ACA_ENV="${ACA_ENV:-${PREFIX}-env}"
 PG_SERVER="${PG_SERVER:-${PREFIX}-pg}"
@@ -91,7 +95,8 @@ az postgres flexible-server parameter set \
 az postgres flexible-server restart --resource-group "$RG" --name "$PG_SERVER" >/dev/null
 
 PG_HOST="$(az postgres flexible-server show --resource-group "$RG" --name "$PG_SERVER" --query fullyQualifiedDomainName -o tsv)"
-DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
+PG_PASSWORD_ENC="$(printf '%s' "$PG_PASSWORD" | urlencode)"
+DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD_ENC}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
 
 az containerapp create \
   --name "$API_APP" \

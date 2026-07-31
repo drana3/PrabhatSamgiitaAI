@@ -25,6 +25,10 @@ if [[ -z "${PG_PASSWORD}" ]]; then
   exit 1
 fi
 
+urlencode() {
+  python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip("\n"), safe=""))'
+}
+
 command -v az >/dev/null || { echo "Azure CLI is required."; exit 1; }
 
 az group show --name "$RG" >/dev/null
@@ -36,7 +40,8 @@ az containerapp show --name "$WEB_APP" --resource-group "$RG" >/dev/null
 
 ACR_LOGIN_SERVER="$(az acr show --name "$ACR_NAME" --resource-group "$RG" --query loginServer -o tsv)"
 PG_HOST="$(az postgres flexible-server show --resource-group "$RG" --name "$PG_SERVER" --query fullyQualifiedDomainName -o tsv)"
-DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
+PG_PASSWORD_ENC="$(printf '%s' "$PG_PASSWORD" | urlencode)"
+DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD_ENC}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
 
 az acr build \
   --registry "$ACR_NAME" \
