@@ -1,8 +1,13 @@
 import Link from "next/link"
 
 import { LandingData } from "@/components/landing-data"
+import seedInventory from "../../../data/seed/inventory.json"
+import seedSongs from "../../../data/seed/songs.json"
 
 export default function HomePage() {
+  const featuredSongs = seedSongs.slice(0, 6)
+  const featuredInventory = seedInventory.slice(0, 4)
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-aurora">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -19,7 +24,7 @@ export default function HomePage() {
                 Prabhat Samgiita AI
               </span>
               <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-600">
-                Grounded search and meaning
+                Lyrics, meaning, and listening
               </span>
             </div>
             <h1 className="mt-5 max-w-3xl font-serif text-5xl leading-[0.95] text-ink-900 md:text-7xl">
@@ -27,7 +32,7 @@ export default function HomePage() {
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-ink-700 md:text-lg">
               Find lyrics by number or first line, explore canonical meanings, listen to verified audio or embedded
-              video, and read grounded explanations that stay faithful to the source.
+              video, and read gentle explanations that stay faithful to the source.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -45,29 +50,29 @@ export default function HomePage() {
             </div>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               <FeaturePill title="5018 songs" text="Complete catalog coverage" />
-              <FeaturePill title="Grounded AI" text="RAG-backed explanations" />
-              <FeaturePill title="Azure ready" text="Low-cost cloud deployment" />
+              <FeaturePill title="Read meaning" text="Lyrics, translation, and purport" />
+              <FeaturePill title="Listen & watch" text="Official audio links and video" />
             </div>
           </div>
-          <div className="rounded-[2.5rem] border border-ink-200 bg-ink-950 p-6 text-white shadow-glow md:p-10">
-            <p className="text-xs uppercase tracking-[0.4em] text-ember-300">Why it feels premium</p>
+          <div className="rounded-[2.5rem] border border-ink-200 bg-white/90 p-6 text-ink-900 shadow-glow md:p-10">
+            <p className="text-xs uppercase tracking-[0.4em] text-ember-700">What you can do here</p>
             <div className="mt-6 space-y-4">
               <HighlightCard
-                title="Editorial hierarchy"
-                text="Each screen leads with the song, then gently reveals lyrics, meaning, notation, and media."
+                title="Find a song fast"
+                text="Search by song number, a remembered first line, or a devotional mood."
               />
               <HighlightCard
-                title="Calm surfaces"
-                text="Soft gradients, refined spacing, and warm accent color keep the mood devotional rather than technical."
+                title="Read with clarity"
+                text="Lyrics, transliteration, meaning, and explanation are arranged in the order a reader expects."
               />
               <HighlightCard
-                title="Immediate response"
-                text="The homepage paints first and then streams in catalog and inventory data without blocking."
+                title="Listen from the source"
+                text="Open official audio links and video when you want to hear the song, not store it twice."
               />
             </div>
           </div>
         </div>
-        <LandingData />
+        <LandingData initialSongs={featuredSongs} initialInventory={featuredInventory} />
       </section>
     </main>
   )
@@ -84,9 +89,9 @@ function FeaturePill({ title, text }: { title: string; text: string }) {
 
 function HighlightCard({ title, text }: { title: string; text: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-      <p className="text-sm font-semibold text-white">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-ink-100">{text}</p>
+    <div className="rounded-3xl border border-ink-200 bg-gradient-to-br from-white to-ink-50 p-4 shadow-sm">
+      <p className="text-sm font-semibold text-ink-900">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-ink-700">{text}</p>
     </div>
   )
 }
