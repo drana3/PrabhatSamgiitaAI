@@ -96,7 +96,7 @@ class LocalizationService:
             ]
         )
         try:
-            async with asyncio.timeout(12):
+            async with asyncio.timeout(25):
                 raw = await self.provider.complete(prompt)
             payload = self._extract_json(raw)
             result = LocalizedSongText(

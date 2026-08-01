@@ -23,6 +23,30 @@ class GroundedProvider(EmbeddingProvider, TextProvider, Protocol):
     pass
 
 
+def extract_responses_text(payload: dict[str, Any]) -> str:
+    direct = payload.get("output_text")
+    if isinstance(direct, str) and direct.strip():
+        return direct
+    parts: list[str] = []
+    output = payload.get("output")
+    if isinstance(output, list):
+        for item in output:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if not isinstance(block, dict) or block.get("type") != "output_text":
+                    continue
+                value = block.get("text")
+                if isinstance(value, str) and value.strip():
+                    parts.append(value)
+    if not parts:
+        raise ValueError("Azure OpenAI Responses payload did not contain output text")
+    return "\n".join(parts)
+
+
 @dataclass(slots=True)
 class MockProvider:
     dimension: int = 16
@@ -96,6 +120,7 @@ class OpenAICompatibleProvider:
 class AzureOpenAIProvider(OpenAICompatibleProvider):
     embedding_model: str | None = None
     api_version: str = "2024-10-21"
+    responses_api_version: str = "2025-04-01-preview"
 
     async def embed(self, text: str) -> list[float]:
         return (await self.embed_many([text]))[0]
@@ -116,19 +141,31 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
     async def complete(self, prompt: str) -> str:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
-                f"{self.base_url}/openai/deployments/{self.model}/chat/completions?api-version={self.api_version}",
+                f"{self.base_url}/openai/responses?api-version={self.responses_api_version}",
                 headers={"api-key": self.api_key},
                 json={
-                    "max_completion_tokens": 700,
-                    "messages": [
-                        {"role": "system", "content": "Answer only from canonical data."},
-                        {"role": "user", "content": prompt},
-                    ]
+                    "model": self.model,
+                    "max_output_tokens": 700,
+                    "input": [
+                        {
+                            "role": "system",
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": "Answer only from canonical data.",
+                                }
+                            ],
+                        },
+                        {
+                            "role": "user",
+                            "content": [{"type": "input_text", "text": prompt}],
+                        },
+                    ],
                 },
             )
             response.raise_for_status()
             payload = cast(dict[str, Any], response.json())
-            return cast(str, payload["choices"][0]["message"]["content"])
+            return extract_responses_text(payload)
 
 
 def select_provider(settings: Settings) -> GroundedProvider:
@@ -147,6 +184,7 @@ def select_provider(settings: Settings) -> GroundedProvider:
             model=azure_chat_deployment,
             embedding_model=azure_embedding_deployment,
             api_version=settings.azure_openai_api_version,
+            responses_api_version=settings.azure_openai_responses_api_version,
         )
     if settings.openai_api_key:
         return OpenAICompatibleProvider(
