@@ -36,7 +36,7 @@ class Song(Base, TimestampMixin):
     transliteration: Mapped[str | None] = mapped_column(Text)
     hindi_meaning: Mapped[str | None] = mapped_column(Text)
     english_meaning: Mapped[str | None] = mapped_column(Text)
-    theme: Mapped[str | None] = mapped_column(String(255))
+    theme: Mapped[str | None] = mapped_column(Text)
     occasion: Mapped[str | None] = mapped_column(String(255))
     festival: Mapped[str | None] = mapped_column(String(255))
     season: Mapped[str | None] = mapped_column(String(255))

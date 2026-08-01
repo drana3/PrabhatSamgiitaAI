@@ -27,6 +27,13 @@ def test_packaged_catalog_contains_all_songs() -> None:
     assert "PROUT" in (next(song for song in songs if song.number == 4599).theme or "")
 
 
+def test_canonical_theme_assignments_are_not_truncated() -> None:
+    song = next(item for item in catalog_song_snapshot() if item.number == 4081)
+
+    assert song.theme is not None
+    assert len(song.theme) > 255
+
+
 @pytest.mark.asyncio
 async def test_catalog_falls_back_to_full_snapshot() -> None:
     service = CatalogService(UnavailableSession())  # type: ignore[arg-type]

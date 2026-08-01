@@ -41,6 +41,9 @@ async def initialize_schema() -> None:
                 logger.exception("Skipping optional extension setup for %s", label)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Existing deployments used VARCHAR(255), but canonical theme sets can
+            # exceed that length. This idempotent widening runs before data import.
+            await conn.execute(text("ALTER TABLE songs ALTER COLUMN theme TYPE TEXT"))
     except Exception:
         logger.exception("Database initialization skipped because the database is unavailable")
 
