@@ -144,30 +144,44 @@ async def get_song(
     song = await service.get_song(number)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
-    related = await service.related_songs(song)
-    media = await service.get_media(number)
+    summary = _summary(song)
+    lyrics_original = song.lyrics_original
+    transliteration = song.transliteration
+    hindi_meaning = song.hindi_meaning
+    english_meaning = song.english_meaning
+    festival = song.festival
+    season = song.season
+    meditation_context = song.meditation_context
+    raga = song.raga
+    tala = song.tala
+    harmonium_notation = song.harmonium_notation
+    canonical_source_url = song.canonical_source_url
+    canonical_source_status = song.canonical_source_status
+    metadata_json = song.metadata_json or {}
+    related_summaries = [_summary(item) for item in await service.related_songs(song)]
+    media_responses = [_media(item) for item in await service.get_media(number)]
     notation = await service.get_notation(number)
     return SongDetail(
-        **_summary(song).model_dump(),
-        lyrics_original=song.lyrics_original,
-        transliteration=song.transliteration,
-        hindi_meaning=song.hindi_meaning,
-        english_meaning=song.english_meaning,
-        festival=song.festival,
-        season=song.season,
-        meditation_context=song.meditation_context,
-        raga=song.raga,
-        tala=song.tala,
-        harmonium_notation=song.harmonium_notation,
-        canonical_source_url=song.canonical_source_url,
-        canonical_source_status=song.canonical_source_status,
-        related_songs=[_summary(item) for item in related],
-        media=[_media(item) for item in media],
+        **summary.model_dump(),
+        lyrics_original=lyrics_original,
+        transliteration=transliteration,
+        hindi_meaning=hindi_meaning,
+        english_meaning=english_meaning,
+        festival=festival,
+        season=season,
+        meditation_context=meditation_context,
+        raga=raga,
+        tala=tala,
+        harmonium_notation=harmonium_notation,
+        canonical_source_url=canonical_source_url,
+        canonical_source_status=canonical_source_status,
+        related_songs=related_summaries,
+        media=media_responses,
         notation_scale=notation.scale if notation else None,
         notation_source_url=notation.source_url if notation else None,
         notation_verification_status=notation.verification_status if notation else None,
         notation_transposition_available=bool(
             notation and notation.notation_text and notation.notation_text.strip().startswith("{")
         ),
-        metadata_json=song.metadata_json or {},
+        metadata_json=metadata_json,
     )
