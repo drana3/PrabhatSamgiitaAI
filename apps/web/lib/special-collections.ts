@@ -17,8 +17,9 @@ export const specialCollectionGroups: SpecialCollectionGroup[] = [
     collections: [
       { label: "Sanskrit", query: "Sanskrit Songs", count: 9 },
       { label: "English", query: "English Songs", count: 3 },
-      { label: "Hindi", query: "Hindi Songs", count: 12 },
-      { label: "Urdu", query: "Urdu Songs", count: 16 },
+      { label: "Hindi only", query: "Hindi-only Songs", count: 1 },
+      { label: "Urdu only", query: "Urdu-only Songs", count: 5 },
+      { label: "Hindi-Urdu / Hindustani", query: "Shared Hindi-Urdu Songs", count: 11 },
       { label: "Aungika", query: "Aungika Songs", count: 7 },
       { label: "Maithili", query: "Maethili Song", count: 1 },
       { label: "Bengali dialects", query: "Bengali Dialect Songs", count: 25 },
@@ -52,7 +53,7 @@ export const specialCollectionGroups: SpecialCollectionGroup[] = [
     description: "Songs for meaningful transitions in family and community life.",
     collections: [
       { label: "Baby naming", query: "Baby Naming Ceremony Song", count: 1 },
-      { label: "Birthday", query: "Birthday Song", count: 1 },
+      { label: "Birthday songs", query: "All Birthday Songs", count: 6 },
       { label: "Marriage", query: "Marriage Ceremony Song", count: 1 },
       { label: "Passing away", query: "Passing Away Ceremony Song", count: 1 },
       { label: "House warming", query: "House Warming Ceremony Song", count: 1 },

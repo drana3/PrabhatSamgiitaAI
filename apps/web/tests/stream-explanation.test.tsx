@@ -15,6 +15,15 @@ describe("Prabhat Samgiita AI companion", () => {
     window.sessionStorage.clear()
   })
 
+  it("presents a clearly identified, ready AI companion", () => {
+    render(<StreamExplanation songNumber={135} />)
+
+    expect(screen.getByRole("status", { name: /ready to help/i })).toBeVisible()
+    expect(screen.getByRole("img", { name: "Prabhat Samgiita AI" })).toBeVisible()
+    expect(screen.getByPlaceholderText("Ask Prabhat Samgiita AI about this song...")).toBeVisible()
+    expect(screen.getByText(/Remembers this conversation for 10 minutes/i)).toBeVisible()
+  })
+
   it("rejects gibberish before an AI request is made", async () => {
     const user = userEvent.setup()
     render(<StreamExplanation songNumber={135} />)

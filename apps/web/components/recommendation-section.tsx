@@ -72,7 +72,7 @@ export function RecommendationSection() {
           <article key={song.number} className="py-4">
             <div className="flex items-center gap-4">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span>
-              <div className="min-w-0 flex-1"><Link href={`/songs/${song.number}`} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">{song.title}</Link><p className="truncate text-xs text-stone-500">{song.reasons[0] || "For today's reflection"}</p></div>
+              <div className="min-w-0 flex-1"><Link href={`/songs/${song.number}#ask`} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">{song.title}</Link><p className="truncate text-xs text-stone-500">{song.reasons[0] || "For today's reflection"}</p></div>
               {song.audio_url ? <div className="hidden lg:block"><AudioRendition url={song.audio_url} title={song.title} compact /></div> : null}
             </div>
             <div className="mt-3 flex flex-wrap gap-2 pl-14 text-[11px] font-semibold">
@@ -84,7 +84,7 @@ export function RecommendationSection() {
             </div>
           </article>
         )) : results.length ? results.slice(0, 3).map((song) => (
-          <Link key={song.number} href={`/songs/${song.number}`} className="group flex items-center gap-4 py-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span><div className="min-w-0 flex-1"><p className="truncate font-serif text-lg font-semibold text-navy-950 group-hover:text-gold-700">{song.title}</p><p className="truncate text-xs text-stone-500">{song.theme || song.mood || "A song for reflection"}</p></div><span className="grid h-8 w-8 place-items-center rounded-full border border-navy-900/15 text-[10px]">▶</span></Link>
+          <Link key={song.number} href={`/songs/${song.number}#ask`} className="group flex items-center gap-4 py-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span><div className="min-w-0 flex-1"><p className="truncate font-serif text-lg font-semibold text-navy-950 group-hover:text-gold-700">{song.title}</p><p className="truncate text-xs text-stone-500">{song.theme || song.mood || "A song for reflection"}</p></div><span className="grid h-8 w-8 place-items-center rounded-full border border-navy-900/15 text-[10px]">▶</span></Link>
         )) : <div className="py-6 text-center"><p className="font-serif text-xl text-navy-950">A fresh selection is on its way</p><p className="mt-2 text-sm text-stone-600">Browse the complete collection while today&apos;s recommendations reconnect.</p><Link href="/explore" className="outline-button mt-4">Explore songs</Link></div>}
       </div>
 
@@ -100,7 +100,7 @@ export function RecommendationSection() {
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {upcoming.map((observance) => (
-            <Link key={observance.title} href={`/explore?q=${encodeURIComponent(observance.query)}`} className="rounded-xl border border-white/15 bg-white/8 p-3 transition hover:border-gold-300 hover:bg-white/12">
+            <Link key={observance.title} href={`/explore?q=${encodeURIComponent(observance.query)}#catalog-search`} className="rounded-xl border border-white/15 bg-white/8 p-3 transition hover:border-gold-300 hover:bg-white/12">
               <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">{observance.dateLabel}</span>
               <span className="mt-1 block text-sm font-semibold text-white">{observance.title}</span>
               <span className="mt-2 block text-[11px] text-navy-200">{observance.daysUntil === 0 ? "Today" : `In ${observance.daysUntil} days`} · Find songs →</span>

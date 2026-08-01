@@ -2,8 +2,8 @@ import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
 
 describe("intelligent search intent", () => {
   it.each([
-    ["223", "/songs/223"],
-    ["Song 223", "/songs/223"],
+    ["223", "/songs/223#ask"],
+    ["Song 223", "/songs/223#ask"],
     ["explain about prabhat sagiat 223", "/songs/223#ask"],
     ["lyrics of Prabhat Samgiita 111", "/songs/111#lyrics"],
     ["harmonium notation for song 2256", "/songs/2256#notation"],

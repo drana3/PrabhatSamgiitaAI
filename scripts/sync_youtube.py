@@ -11,6 +11,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 
 CHANNELS = (
@@ -18,18 +19,30 @@ CHANNELS = (
         "url": "https://www.youtube.com/@AMPS0521spirituality/videos",
         "id": "UCzJy4vdGKx6gzP782-5buOQ",
         "name": "AMPS Spirituality",
+        "trusted": True,
         "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
     },
     {
         "url": "https://www.youtube.com/@Ananda_Marga/videos",
         "id": "UCc3f8g07me5NpqHfAsF8GIA",
         "name": "ANANDA MARGA",
+        "trusted": True,
         "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
     },
 )
+GENERAL_YOUTUBE = {
+    "url": "https://www.youtube.com/results",
+    "id": "youtube-community-search",
+    "name": "YouTube community",
+    "trusted": False,
+    "notes": "A number-first community match discovered after trusted channels; not re-hosted.",
+}
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_videos.json"
 REVIEW_OUTPUT_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_review_queue.json"
+)
+SEARCH_STATE_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_search_state.json"
 )
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
 USER_AGENT = "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://github.com/drana3/PrabhatSamgiitaAI)"
@@ -114,7 +127,7 @@ def youtube_config(html: str) -> tuple[str, str]:
     return key_match.group(1), version_match.group(1)
 
 
-def channel_videos(channel: dict[str, str], max_pages: int = 50) -> list[dict[str, str]]:
+def channel_videos(channel: dict[str, Any], max_pages: int = 50) -> list[dict[str, str]]:
     html = fetch(channel["url"])
     payload = initial_data(html)
     api_key, client_version = youtube_config(html)
@@ -193,17 +206,41 @@ def title_similarity(video_title: str, song: dict[str, Any]) -> float:
 def media_row(
     video: dict[str, str],
     songs: dict[int, dict[str, Any]],
-    channel: dict[str, str] = CHANNELS[0],
+    channel: dict[str, Any] = CHANNELS[0],
 ) -> dict[str, Any] | None:
     number = explicit_song_number(video["title"])
     if number is None or number not in songs:
         return None
     similarity = title_similarity(video["title"], songs[number])
-    score = round(0.35 + 0.25 * similarity + 0.15 * similarity + 0.15, 3)
-    if score < 0.75:
-        return None
+    has_explicit_marker = bool(
+        re.search(
+            rf"(?:song\s*)?(?:number|no\.?|#)\s*{number}(?!\d)",
+            video["title"],
+            re.I,
+        )
+    )
+    trusted = bool(channel.get("trusted", True))
+    if trusted:
+        score = round(
+            0.9 + 0.1 * similarity
+            if has_explicit_marker
+            else 0.35 + 0.25 * similarity + 0.15 * similarity + 0.15,
+            3,
+        )
+        if not has_explicit_marker and score < 0.75:
+            return None
+    else:
+        if not has_explicit_marker or similarity < 0.55:
+            return None
+        score = round(0.65 + 0.35 * similarity, 3)
     video_id = video["video_id"]
-    verification = "verified" if score >= 0.9 else "pending_review"
+    verification = (
+        "verified"
+        if trusted and (has_explicit_marker or score >= 0.9)
+        else "verified_external"
+        if not trusted
+        else "pending_review"
+    )
     return {
         "song_number": number,
         "kind": "video",
@@ -218,11 +255,15 @@ def media_row(
             "external_id": video_id,
             "channel_id": channel["id"],
             "channel_name": channel["name"],
-            "source_status": "verified_community",
+            "source_status": "verified_community" if trusted else "community",
             "rights_status": "embed_only",
             "availability_status": "available",
             "match_score": score,
-            "match_method": "explicit_song_number_then_canonical_title",
+            "match_method": (
+                "explicit_song_number_marker"
+                if has_explicit_marker
+                else "explicit_song_number_then_canonical_title"
+            ),
         },
     }
 
@@ -230,7 +271,7 @@ def media_row(
 def review_row(
     video: dict[str, str],
     songs: dict[int, dict[str, Any]],
-    channel: dict[str, str] = CHANNELS[0],
+    channel: dict[str, Any] = CHANNELS[0],
 ) -> dict[str, Any]:
     number = explicit_song_number(video["title"])
     similarity = title_similarity(video["title"], songs[number]) if number in songs else 0.0
@@ -251,11 +292,23 @@ def review_row(
     }
 
 
+def search_youtube_for_song(song: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+    query = f"Prabhat Samgiita #{song['number']} {song.get('title') or ''}"
+    search_url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
+    html = fetch(search_url)
+    videos = extract_videos(initial_data(html))[:20]
+    source = {**GENERAL_YOUTUBE, "url": search_url}
+    rows = [media_row(video, {int(song["number"]): song}, source) for video in videos]
+    return [row for row in rows if row is not None], search_url
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-pages", type=int, default=50)
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
     parser.add_argument("--review-output", type=Path, default=REVIEW_OUTPUT_PATH)
+    parser.add_argument("--general-search-limit", type=int, default=0)
+    parser.add_argument("--search-state", type=Path, default=SEARCH_STATE_PATH)
     args = parser.parse_args()
     songs = {row["number"]: row for row in json.loads(SONGS_PATH.read_text(encoding="utf-8"))}
     existing_rows = (
@@ -288,6 +341,40 @@ def main() -> None:
             else:
                 rows_by_id[row["metadata_json"]["external_id"]] = row
                 review_by_id.pop(row["metadata_json"]["external_id"], None)
+
+    general_discovered = 0
+    if args.general_search_limit > 0:
+        state = (
+            json.loads(args.search_state.read_text(encoding="utf-8"))
+            if args.search_state.exists()
+            else {"cursor": 0}
+        )
+        ordered_numbers = sorted(songs)
+        cursor = int(state.get("cursor", 0)) % len(ordered_numbers)
+        attempts = 0
+        inspected = 0
+        existing_song_numbers = {int(row["song_number"]) for row in rows_by_id.values()}
+        while attempts < args.general_search_limit and inspected < len(ordered_numbers):
+            index = (cursor + inspected) % len(ordered_numbers)
+            number = ordered_numbers[index]
+            inspected += 1
+            if number in existing_song_numbers:
+                continue
+            attempts += 1
+            try:
+                discovered_rows, _ = search_youtube_for_song(songs[number])
+            except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+                continue
+            for row in discovered_rows:
+                rows_by_id[row["metadata_json"]["external_id"]] = row
+                existing_song_numbers.add(number)
+                general_discovered += 1
+        args.search_state.parent.mkdir(parents=True, exist_ok=True)
+        args.search_state.write_text(
+            json.dumps({"cursor": (cursor + inspected) % len(ordered_numbers)}, indent=2)
+            + "\n",
+            encoding="utf-8",
+        )
     rows = list(rows_by_id.values())
     review_rows = list(review_by_id.values())
     rows.sort(key=lambda row: (row["song_number"], row["url"]))
@@ -305,6 +392,7 @@ def main() -> None:
                 "numbered_song_videos_published": len(rows),
                 "songs_with_video": len({row["song_number"] for row in rows}),
                 "videos_pending_review": len(review_rows),
+                "general_youtube_matches_added": general_discovered,
                 "output": str(args.output),
                 "review_output": str(args.review_output),
             },

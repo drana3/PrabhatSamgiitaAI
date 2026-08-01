@@ -7,7 +7,10 @@ import { HeroSearch } from "@/components/hero-search"
 const push = vi.fn()
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
 
-afterEach(() => push.mockClear())
+afterEach(() => {
+  push.mockClear()
+  Reflect.deleteProperty(window, "webkitSpeechRecognition")
+})
 
 describe("hero search", () => {
   it("routes exact song numbers directly", async () => {
@@ -15,7 +18,7 @@ describe("hero search", () => {
     render(<HeroSearch />)
     await user.type(screen.getByLabelText(/Ask by song/i), "111")
     await user.click(screen.getByRole("button", { name: "Search" }))
-    expect(push).toHaveBeenCalledWith("/songs/111")
+    expect(push).toHaveBeenCalledWith("/songs/111#ask")
   })
 
   it("routes thematic queries to Explore", async () => {
@@ -32,6 +35,29 @@ describe("hero search", () => {
     await user.type(screen.getByLabelText(/Ask by song/i), "explain about prabhat sagiat 223")
     await user.click(screen.getByRole("button", { name: "Search" }))
     expect(push).toHaveBeenCalledWith("/songs/223#ask")
+  })
+
+  it("routes a spoken transliteration through the same intelligent search", async () => {
+    class Recognition {
+      lang = ""
+      interimResults = false
+      maxAlternatives = 1
+      onresult: ((event: { results: { 0: { 0: { transcript: string } } } }) => void) | null = null
+      onerror: (() => void) | null = null
+      onend: (() => void) | null = null
+
+      start() {
+        this.onresult?.({ results: { 0: { 0: { transcript: "musafir aage badhte jana" } } } })
+        this.onend?.()
+      }
+    }
+    Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, value: Recognition })
+    const user = userEvent.setup()
+    render(<HeroSearch />)
+
+    await user.click(await screen.findByRole("button", { name: "Search by voice" }))
+
+    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana")
   })
 
   it("keeps malicious and meaningless input local", async () => {

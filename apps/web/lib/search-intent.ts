@@ -37,5 +37,5 @@ function createIntent(number: number, query: string): SongSearchIntent | null {
   if (/\b(?:audio|hear|listen|recording|video|watch)\b/i.test(query)) return { number, section: "listen" }
   if (/\b(?:lyrics?|words)\b/i.test(query)) return { number, section: "lyrics" }
   if (explanationTerms.test(query)) return { number, section: "ask" }
-  return { number }
+  return { number, section: "ask" }
 }

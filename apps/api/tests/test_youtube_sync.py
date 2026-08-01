@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from urllib.error import URLError
 
-from scripts.sync_youtube import CHANNELS, fetch, media_row, review_row
+from scripts.sync_youtube import CHANNELS, GENERAL_YOUTUBE, fetch, media_row, review_row
 
 SONGS = {1: {"number": 1, "title": "Bandhu He Niye Calo", "first_line": "Bandhu He"}}
 
@@ -51,6 +51,65 @@ def test_numbered_ananda_marga_video_maps_to_its_canonical_song() -> None:
     assert row["song_number"] == 680
     assert row["metadata_json"]["external_id"] == "qtevjGHM3Ls"
     assert row["metadata_json"]["channel_name"] == "ANANDA MARGA"
+
+
+def test_explicit_number_marker_survives_transliteration_title_differences() -> None:
+    songs = {
+        68: {
+            "number": 68,
+            "title": "WE LOVE THIS TINY GREEN ISLAND",
+            "first_line": "WE LOVE THIS TINY GREEN ISLAND",
+        }
+    }
+    video = {
+        "video_id": "number-first",
+        "title": "English Song - I Love This Tiny Green Island - Prabhat Sangeet #68",
+    }
+
+    row = media_row(video, songs)
+
+    assert row is not None
+    assert row["song_number"] == 68
+    assert row["verification_status"] == "verified"
+    assert row["metadata_json"]["match_method"] == "explicit_song_number_marker"
+
+
+def test_unmarked_year_is_not_published_as_a_song_number() -> None:
+    songs = {
+        2026: {
+            "number": 2026,
+            "title": "A completely different canonical song",
+            "first_line": "A completely different canonical song",
+        }
+    }
+    video = {
+        "video_id": "event-year",
+        "title": "Prabhat Samgiita celebration during New Year 2026",
+    }
+
+    assert media_row(video, songs) is None
+
+
+def test_general_youtube_is_a_strict_last_resort_source() -> None:
+    video = {
+        "video_id": "community-match",
+        "title": "Bandhu He Niye Calo - Prabhat Samgiita #1",
+    }
+
+    row = media_row(video, SONGS, GENERAL_YOUTUBE)
+
+    assert row is not None
+    assert row["verification_status"] == "verified_external"
+    assert row["metadata_json"]["source_status"] == "community"
+
+
+def test_general_youtube_rejects_number_only_without_title_agreement() -> None:
+    video = {
+        "video_id": "unrelated-community-video",
+        "title": "Completely unrelated performance - Prabhat Samgiita #1",
+    }
+
+    assert media_row(video, SONGS, GENERAL_YOUTUBE) is None
 
 
 def test_fetch_retries_transient_youtube_errors(monkeypatch) -> None:  # type: ignore[no-untyped-def]

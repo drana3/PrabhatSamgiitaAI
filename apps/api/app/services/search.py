@@ -124,19 +124,27 @@ def _search_doc(song: Song) -> str:
 
 def canonical_lexical_boost(query: str, song: Song) -> float:
     """Keep exact canonical text matches ahead of approximate vector neighbors."""
-    query_norm = normalize_query(query)
+    query_norm = normalize_filter_text(query)
     if not query_norm:
         return 0.0
-    title = normalize_query(song.title)
-    first_line = normalize_query(song.first_line or "")
+    title = normalize_filter_text(song.title)
+    first_line = normalize_filter_text(song.first_line or "")
     if query_norm in {title, first_line}:
         return 3.0
-    document = normalize_query(_search_doc(song))
+    document = normalize_filter_text(_search_doc(song))
     if query_norm in document:
         return 1.5
     significant_terms = [term for term in query_norm.split() if len(term) > 2]
     if len(significant_terms) >= 2 and all(term in document for term in significant_terms):
         return 0.25
+    title_similarity = max(
+        SequenceMatcher(None, query_norm, title).ratio(),
+        SequenceMatcher(None, query_norm, first_line).ratio(),
+    )
+    if title_similarity >= 0.84:
+        return 1.0
+    if title_similarity >= 0.7:
+        return 0.4
     return 0.0
 
 
@@ -166,17 +174,99 @@ class CanonicalCollectionMatch:
 
 def infer_canonical_collection(query: str) -> CanonicalCollectionMatch | None:
     query_text = normalize_filter_text(query)
+    rows = load_rows("theme_collections.json")
+    language_partition_queries = {
+        "hindi": "hindi",
+        "hindi song": "hindi",
+        "hindi songs": "hindi",
+        "hindi only song": "hindi",
+        "hindi only songs": "hindi",
+        "search prabhat samgiita for hindi only songs": "hindi",
+        "urdu": "urdu",
+        "urdu song": "urdu",
+        "urdu songs": "urdu",
+        "urdu only song": "urdu",
+        "urdu only songs": "urdu",
+        "search prabhat samgiita for urdu only songs": "urdu",
+        "hindi urdu": "shared",
+        "hindustani": "shared",
+        "shared hindi urdu songs": "shared",
+        "search prabhat samgiita for shared hindi urdu songs": "shared",
+    }
+    partition = language_partition_queries.get(query_text)
+    if partition:
+        language_rows = {
+            str(row.get("label")): {
+                int(number) for number in row.get("song_numbers", [])
+            }
+            for row in rows
+            if str(row.get("label")) in {"Hindi Songs", "Urdu Songs"}
+        }
+        hindi = language_rows.get("Hindi Songs", set())
+        urdu = language_rows.get("Urdu Songs", set())
+        numbers = hindi - urdu if partition == "hindi" else urdu - hindi
+        if partition == "shared":
+            numbers = hindi & urdu
+        labels = {
+            "hindi": ("Hindi-only Songs", "Hindi"),
+            "urdu": ("Urdu-only Songs", "Urdu"),
+            "shared": ("Shared Hindi-Urdu Songs", "Hindi-Urdu / Hindustani"),
+        }
+        label, value = labels[partition]
+        return CanonicalCollectionMatch(
+            label=label,
+            category="language",
+            value=value,
+            song_numbers=frozenset(numbers),
+        )
+
+    birthday_queries = {
+        "birthday",
+        "birthday song",
+        "birthday songs",
+        "all birthday song",
+        "all birthday songs",
+        "search prabhat samgiita for all birthday songs",
+    }
+    if query_text in birthday_queries:
+        birthday_rows = [
+            row
+            for row in rows
+            if str(row.get("label")) in {"Bábá Birthday Songs", "Birthday Song"}
+        ]
+        return CanonicalCollectionMatch(
+            label="All Birthday Songs",
+            category="festival",
+            value="Birthday",
+            song_numbers=frozenset(
+                int(number)
+                for row in birthday_rows
+                for number in row.get("song_numbers", [])
+            ),
+        )
+
     best: tuple[int, CanonicalCollectionMatch] | None = None
-    for row in load_rows("theme_collections.json"):
+    for row in rows:
         label = str(row.get("label") or "")
         value = str(row.get("value") or "")
+        normalized_label = normalize_filter_text(label)
         aliases = {
-            normalize_filter_text(label),
+            normalized_label,
             normalize_filter_text(value),
-            normalize_filter_text(re.sub(r"\b(?:song|songs)\b", " ", label)),
+            " ".join(re.sub(r"\b(?:song|songs)\b", " ", normalized_label).split()),
+            " ".join(
+                re.sub(
+                    r"\b(?:ceremony|day|song|songs)\b", " ", normalized_label
+                ).split()
+            ),
         }
         score = max(
-            (len(alias) for alias in aliases if len(alias) >= 3 and alias in query_text),
+            (
+                len(alias)
+                for alias in aliases
+                if len(alias) >= 3
+                and re.search(rf"(?:^| ){re.escape(alias)}(?: |$)", query_text)
+            ),
             default=0,
         )
         if score == 0:
@@ -320,11 +410,11 @@ class HybridSearchService:
             return [item[0] for item in scored[:limit]]
 
     async def _fts_rank(self, query: str, songs: list[Song], limit: int) -> list[str]:
-        query_norm = normalize_query(query)
+        query_norm = normalize_filter_text(query)
         query_terms = set(query_norm.split())
         scored = []
         for song in songs:
-            doc = normalize_query(_search_doc(song))
+            doc = normalize_filter_text(_search_doc(song))
             token_hits = sum(1 for term in query_terms if term and term in doc)
             phrase_bonus = 2.0 if query_norm and query_norm in doc else 0.0
             score = float(token_hits) + phrase_bonus
@@ -335,12 +425,12 @@ class HybridSearchService:
 
     async def _trigram_rank(self, query: str, songs: list[Song], limit: int) -> list[str]:
         scored = []
-        query_norm = normalize_query(query)
+        query_norm = normalize_filter_text(query)
         if not query_norm:
             return []
         for song in songs:
-            title = normalize_query(song.title)
-            first_line = normalize_query(song.first_line or "")
+            title = normalize_filter_text(song.title)
+            first_line = normalize_filter_text(song.first_line or "")
             similarity = max(
                 SequenceMatcher(None, query_norm, title).ratio(),
                 SequenceMatcher(None, query_norm, first_line).ratio(),
@@ -365,12 +455,12 @@ class HybridSearchService:
         return [str(number)] if number is not None else []
 
     async def _opening_line_rank(self, query: str, songs: list[Song], limit: int) -> list[str]:
-        query_norm = normalize_query(query)
+        query_norm = normalize_filter_text(query)
         exact = []
         partial = []
         for song in songs:
-            first_line = normalize_query(song.first_line or "")
-            title = normalize_query(song.title)
+            first_line = normalize_filter_text(song.first_line or "")
+            title = normalize_filter_text(song.title)
             number = str(song.number)
             if query_norm == number or query_norm == first_line or query_norm == title:
                 exact.append(number)
@@ -384,16 +474,18 @@ class HybridSearchService:
         filters: SearchFilters,
         media_summary: MediaSummary,
     ) -> bool:
+        assignment = (song.metadata_json or {}).get("canonical_theme_assignments") or {}
         checks = [
-            (filters.language, song.language),
-            (filters.theme, song.theme),
-            (filters.occasion, song.occasion),
-            (filters.festival, song.festival),
-            (filters.season, song.season),
-            (filters.difficulty, song.difficulty),
+            (filters.language, [song.language, *(assignment.get("languages") or [])]),
+            (filters.theme, [song.theme, *(assignment.get("themes") or [])]),
+            (filters.occasion, [song.occasion, *(assignment.get("occasions") or [])]),
+            (filters.festival, [song.festival, *(assignment.get("festivals") or [])]),
+            (filters.season, [song.season, *(assignment.get("seasons") or [])]),
+            (filters.difficulty, [song.difficulty]),
         ]
-        for expected, actual in checks:
-            if expected and (not actual or expected.lower() not in actual.lower()):
+        for expected, actual_values in checks:
+            values = [str(value) for value in actual_values if value]
+            if expected and not any(expected.lower() in value.lower() for value in values):
                 return False
         if filters.verification_status and filters.verification_status.lower() not in (
             song.canonical_source_status.lower(),

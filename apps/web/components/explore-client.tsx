@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
@@ -20,6 +20,8 @@ const themes = [
 export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: SongSummary[]; initialQuery: string }) {
   const [songs, setSongs] = useState(initialSongs)
   const [searching, setSearching] = useState(Boolean(initialQuery))
+  const [completedQuery, setCompletedQuery] = useState("")
+  const resultsRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (initialQuery) return
     let active = true
@@ -27,13 +29,30 @@ export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: So
     return () => { active = false }
   }, [initialQuery])
 
+  useEffect(() => {
+    if (searching || !initialQuery || completedQuery !== initialQuery) return
+    const frame = window.requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      resultsRef.current?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [completedQuery, initialQuery, searching])
+
+  function handleSearching(nextSearching: boolean) {
+    setSearching(nextSearching)
+    setCompletedQuery(nextSearching ? "" : initialQuery)
+  }
+
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
       <div className="flex flex-wrap items-baseline gap-4">
         <h1 className="font-serif text-4xl text-navy-950 sm:text-5xl">Explore Prabhat Samgiita</h1>
         <span className="text-sm font-semibold text-gold-700">5,018 songs</span>
       </div>
-      <div className="mt-6 max-w-4xl"><SearchForm initialQuery={initialQuery} onResults={setSongs} onSearching={setSearching} /></div>
+      <div className="mt-6 max-w-4xl"><SearchForm initialQuery={initialQuery} onResults={setSongs} onSearching={handleSearching} /></div>
 
       <div className="mt-8 space-y-5 border-y border-navy-900/10 py-6">
         <FilterRow label="Browse by theme" items={themes} />
@@ -50,7 +69,7 @@ export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: So
         </div>
       ) : null}
 
-      <div id="results" className="mt-8 flex scroll-mt-28 items-end justify-between gap-4">
+      <div ref={resultsRef} id="results" className="mt-8 flex scroll-mt-28 items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Top results</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">

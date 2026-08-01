@@ -6,7 +6,7 @@ export function MiniPlayer({ compact = false }: { compact?: boolean }) {
       <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-[url('/brand/dawn-hero.png')] bg-cover bg-left-bottom" />
       <div className="min-w-0">
         <p className="text-[10px] uppercase tracking-[0.18em] text-stone-500">Begin listening · Song 1</p>
-        <Link href="/songs/1" className="block truncate font-serif text-sm font-semibold text-navy-950">
+        <Link href="/songs/1#ask" className="block truncate font-serif text-sm font-semibold text-navy-950">
           Bandhu He Niye Calo
         </Link>
       </div>

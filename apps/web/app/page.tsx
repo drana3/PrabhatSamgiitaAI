@@ -20,10 +20,10 @@ export default function HomePage() {
           <figure className="order-2 mx-auto w-full max-w-[32rem] lg:order-1 lg:mx-0 lg:justify-self-end">
             <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-navy-950 p-2 shadow-[0_28px_70px_rgba(42,31,15,0.24)]">
               <Image
-                src="/brand/shrii-shrii-anandamurti.jpg"
+                src="/brand/shrii-shrii-anandamurti-quote.png"
                 alt="Shrii Shrii Anandamurti ji"
-                width={480}
-                height={348}
+                width={1536}
+                height={1024}
                 priority
                 className="h-auto w-full rounded-[1.55rem] object-cover"
               />
@@ -45,7 +45,7 @@ export default function HomePage() {
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link href="/explore" className="outline-button">Explore 5,018 songs <span aria-hidden="true">♪</span></Link>
-              <Link href="/songs/1" className="text-sm font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">Start with Song 1</Link>
+              <Link href="/songs/1#ask" className="text-sm font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">Start with Song 1</Link>
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@ export default function HomePage() {
               <div className="mx-auto mt-4 h-px w-24 bg-gold-400" />
             </article>
 
-            <article id="about" className="glass-card scroll-mt-28 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
+            <article id="about" className="glass-card scroll-mt-24 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0 flex-1">
                 <p className="eyebrow">About Prabhat Samgiita</p>
                 <h2 className="mt-3 font-serif text-3xl leading-tight text-navy-950">Songs composed for a new human dawn</h2>

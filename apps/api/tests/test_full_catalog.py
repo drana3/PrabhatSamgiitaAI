@@ -250,6 +250,66 @@ async def test_language_collection_query_returns_only_verified_english_songs() -
 
 
 @pytest.mark.asyncio
+async def test_plain_marriage_query_returns_only_the_canonical_ceremony_song() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("marriage")
+
+    assert response.detected_intent == "collection_search"
+    assert [item.song_number for item in response.items] == [58]
+
+
+@pytest.mark.asyncio
+async def test_plain_birthday_query_combines_general_and_baba_birthday_songs() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("birthday songs")
+
+    assert response.detected_intent == "collection_search"
+    assert {item.song_number for item in response.items} == {132, 133, 134, 135, 903, 2649}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "spoken_query",
+    [
+        "musafir aage badhte jana",
+        "musafir age barhate jana",
+        "musafir aage barhate jaana",
+    ],
+)
+async def test_spoken_transliteration_variants_rank_the_canonical_song_first(
+    spoken_query: str,
+) -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search(spoken_query, page_size=3)
+
+    assert response.items
+    assert response.items[0].song_number == 4166
+    assert len(response.items) <= 3
+
+
+@pytest.mark.asyncio
+async def test_hindi_urdu_and_shared_hindustani_collections_are_disjoint() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    hindi = await service.search("Hindi songs")
+    urdu = await service.search("Urdu songs")
+    shared = await service.search("Hindustani")
+    hindi_numbers = {item.song_number for item in hindi.items}
+    urdu_numbers = {item.song_number for item in urdu.items}
+    shared_numbers = {item.song_number for item in shared.items}
+
+    assert hindi_numbers == {4070}
+    assert urdu_numbers == {4072, 4078, 4166, 4171, 4172}
+    assert len(shared_numbers) == 11
+    assert hindi_numbers.isdisjoint(urdu_numbers)
+    assert hindi_numbers.isdisjoint(shared_numbers)
+    assert urdu_numbers.isdisjoint(shared_numbers)
+
+
+@pytest.mark.asyncio
 async def test_festival_collection_query_returns_only_shravanii_song() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 
