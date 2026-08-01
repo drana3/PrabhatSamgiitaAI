@@ -14,7 +14,6 @@ apps/api/.mypy_cache
 apps/api/.ruff_cache
 __pycache__
 *.pyc
-data/generated
 coverage
 dist
 build

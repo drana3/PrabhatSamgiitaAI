@@ -49,6 +49,9 @@ jobs:
       - name: Test
         run: npm run test
 
+      - name: Validate backend user questions
+        run: apps/api/.venv/bin/python scripts/validate_backend_acceptance.py
+
       - name: Build web
         run: npm run build
 

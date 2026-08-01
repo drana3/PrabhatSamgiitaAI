@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,7 +13,7 @@ from app.config import get_settings
 from app.models import Media, Notation, Song
 from app.schemas.search import MediaSummary, SearchFilters, SearchResponse, SearchResultItem
 from app.services.ai import select_provider
-from app.services.seed_data import load_rows
+from app.services.catalog import CatalogService, catalog_media_snapshot, catalog_notation_snapshot
 
 
 @dataclass(slots=True)
@@ -70,27 +71,28 @@ class HybridSearchService:
         self.session = session
         self.provider = select_provider(get_settings())
 
-    def _seed_songs(self) -> list[Song]:
-        return [Song(**row) for row in load_rows("songs.json")]
-
     def _seed_media(self) -> list[Media]:
-        return [Media(**row) for row in load_rows("media.json")]
+        return list(catalog_media_snapshot())
 
     def _seed_notations(self) -> list[Notation]:
-        return [Notation(**row) for row in load_rows("notations.json")]
+        return list(catalog_notation_snapshot())
 
     async def _song_index(self) -> list[Song]:
-        try:
-            result = await self.session.execute(select(Song).order_by(Song.number))
-            rows = list(result.scalars().all())
-            if rows:
-                return rows
-        except SQLAlchemyError:
-            pass
-        return self._seed_songs()
+        return await CatalogService(self.session).list_songs(limit=10000)
 
     async def _media_counts(self) -> dict[int, MediaSummary]:
         counts: dict[int, MediaSummary] = defaultdict(MediaSummary)
+        for media_item in self._seed_media():
+            song_number = media_item.song_number
+            if song_number is None:
+                continue
+            counts[int(song_number)].audio_count += 1 if media_item.kind == "audio" else 0
+            counts[int(song_number)].video_count += 1 if media_item.kind == "video" else 0
+        for notation_item in self._seed_notations():
+            song_number = notation_item.song_number
+            if song_number is None:
+                continue
+            counts[int(song_number)].notation_count += 1
         try:
             media_result = await self.session.execute(
                 select(
@@ -106,30 +108,17 @@ class HybridSearchService:
                 .group_by(Notation.song_number)
             )
             for row in media_result.all():
-                counts[int(row.song_number)] = MediaSummary(
-                    audio_count=int(row.audio_count or 0),
-                    video_count=int(row.video_count or 0),
-                    notation_count=counts[int(row.song_number)].notation_count,
-                )
+                summary = counts[int(row.song_number)]
+                summary.audio_count = max(summary.audio_count, int(row.audio_count or 0))
+                summary.video_count = max(summary.video_count, int(row.video_count or 0))
             for notation_row in notation_result.all():
-                counts[int(notation_row.song_number)].notation_count = int(
-                    notation_row.notation_count or 0
+                summary = counts[int(notation_row.song_number)]
+                summary.notation_count = max(
+                    summary.notation_count, int(notation_row.notation_count or 0)
                 )
             return counts
         except SQLAlchemyError:
-            media_rows: list[Media] = self._seed_media()
-            notation_rows: list[Notation] = self._seed_notations()
-            for media_item in media_rows:
-                song_number = media_item.song_number
-                if song_number is None:
-                    continue
-                counts[int(song_number)].audio_count += 1 if media_item.kind == "audio" else 0
-                counts[int(song_number)].video_count += 1 if media_item.kind == "video" else 0
-            for notation_item in notation_rows:
-                song_number = notation_item.song_number
-                if song_number is None:
-                    continue
-                counts[int(song_number)].notation_count += 1
+            await self.session.rollback()
             return counts
 
     async def _vector_rank(
@@ -149,6 +138,7 @@ class HybridSearchService:
             result = await self.session.execute(stmt)
             return [str(number) for number in result.scalars().all()]
         except Exception:
+            await self.session.rollback()
             scored: list[tuple[str, float]] = []
             for song in songs:
                 if not song.embeddings:
@@ -158,68 +148,46 @@ class HybridSearchService:
             scored.sort(key=lambda item: item[1], reverse=True)
             return [item[0] for item in scored[:limit]]
 
-    async def _fts_rank(self, query: str, limit: int) -> list[str]:
-        try:
-            searchable = func.unaccent(
-                func.concat_ws(
-                    " ",
-                    Song.title,
-                    Song.first_line,
-                    Song.lyrics_original,
-                    Song.transliteration,
-                    Song.hindi_meaning,
-                    Song.english_meaning,
-                    Song.theme,
-                    Song.occasion,
-                    Song.festival,
-                    Song.season,
-                )
-            )
-            tsquery = func.websearch_to_tsquery("simple", func.unaccent(query))
-            rank = func.ts_rank_cd(func.to_tsvector("simple", searchable), tsquery)
-            stmt = (
-                select(Song.number)
-                .where(func.to_tsvector("simple", searchable).op("@@")(tsquery))
-                .order_by(rank.desc())
-                .limit(limit)
-            )
-            result = await self.session.execute(stmt)
-            return [str(number) for number in result.scalars().all()]
-        except Exception:
-            songs = await self._song_index()
-            query_terms = set(normalize_query(query).split())
-            scored = []
-            for song in songs:
-                doc = normalize_query(_search_doc(song))
-                score = sum(1 for term in query_terms if term and term in doc)
-                if score:
-                    scored.append((str(song.number), float(score)))
-            scored.sort(key=lambda item: item[1], reverse=True)
-            return [item[0] for item in scored[:limit]]
+    async def _fts_rank(self, query: str, songs: list[Song], limit: int) -> list[str]:
+        query_norm = normalize_query(query)
+        query_terms = set(query_norm.split())
+        scored = []
+        for song in songs:
+            doc = normalize_query(_search_doc(song))
+            token_hits = sum(1 for term in query_terms if term and term in doc)
+            phrase_bonus = 2.0 if query_norm and query_norm in doc else 0.0
+            score = float(token_hits) + phrase_bonus
+            if score:
+                scored.append((str(song.number), score))
+        scored.sort(key=lambda item: item[1], reverse=True)
+        return [item[0] for item in scored[:limit]]
 
-    async def _trigram_rank(self, query: str, limit: int) -> list[str]:
-        try:
-            expr = func.greatest(
-                func.similarity(func.coalesce(Song.title, ""), query),
-                func.similarity(func.coalesce(Song.first_line, ""), query),
-                func.similarity(func.coalesce(Song.lyrics_original, ""), query),
-                func.similarity(func.coalesce(Song.english_meaning, ""), query),
-                func.similarity(func.coalesce(Song.hindi_meaning, ""), query),
+    async def _trigram_rank(self, query: str, songs: list[Song], limit: int) -> list[str]:
+        scored = []
+        query_norm = normalize_query(query)
+        if not query_norm:
+            return []
+        for song in songs:
+            title = normalize_query(song.title)
+            first_line = normalize_query(song.first_line or "")
+            similarity = max(
+                SequenceMatcher(None, query_norm, title).ratio(),
+                SequenceMatcher(None, query_norm, first_line).ratio(),
             )
-            stmt = select(Song.number).order_by(expr.desc()).limit(limit)
-            result = await self.session.execute(stmt)
-            return [str(number) for number in result.scalars().all()]
-        except Exception:
-            songs = await self._song_index()
-            scored = []
-            query_norm = normalize_query(query)
-            for song in songs:
-                candidate = normalize_query(_search_doc(song))
-                overlap = len(set(query_norm.split()) & set(candidate.split()))
-                if overlap:
-                    scored.append((str(song.number), float(overlap)))
-            scored.sort(key=lambda item: item[1], reverse=True)
-            return [item[0] for item in scored[:limit]]
+            if similarity >= 0.35:
+                scored.append((str(song.number), similarity))
+        scored.sort(key=lambda item: item[1], reverse=True)
+        return [item[0] for item in scored[:limit]]
+
+    async def _has_vector_index(self) -> bool:
+        try:
+            result = await self.session.execute(
+                select(Song.id).where(Song.embeddings.is_not(None)).limit(1)
+            )
+            return result.first() is not None
+        except SQLAlchemyError:
+            await self.session.rollback()
+            return False
 
     async def _exact_number_rank(self, query: str) -> list[str]:
         match = re.fullmatch(r"(?:ps\s*)?(\d{1,4})", normalize_query(query))
@@ -283,14 +251,16 @@ class HybridSearchService:
         media_counts = await self._media_counts()
         intent = detect_intent(query)
 
-        try:
-            query_embedding = await self.provider.embed(query)
-        except Exception:
-            query_embedding = []
+        query_embedding: list[float] = []
+        if await self._has_vector_index():
+            try:
+                query_embedding = await self.provider.embed(query)
+            except Exception:
+                query_embedding = []
         exact_number = await self._exact_number_rank(query)
         opening_rank = await self._opening_line_rank(query, songs, limit=50)
-        fts_rank = await self._fts_rank(query, limit=50)
-        trigram_rank = await self._trigram_rank(query, limit=50)
+        fts_rank = await self._fts_rank(query, songs, limit=50)
+        trigram_rank = await self._trigram_rank(query, songs, limit=50)
         vector_rank = await self._vector_rank(songs, query_embedding, limit=50)
 
         fused = reciprocal_rank_fusion(

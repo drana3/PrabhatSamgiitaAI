@@ -6,11 +6,35 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.schemas.notation import TransposedNotationResponse
+from app.schemas.notation import NotationSourceResponse, TransposedNotationResponse
 from app.services.catalog import CatalogService
 from app.services.harmonium import load_song_notation, normalize_tonic, transpose_notation
 
 router = APIRouter(prefix="/songs", tags=["notation"])
+
+
+@router.get("/{number}/notation/source", response_model=NotationSourceResponse)
+async def get_notation_source(
+    number: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> NotationSourceResponse:
+    service = CatalogService(session)
+    song = await service.get_song(number)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    notation = await service.get_notation(number)
+    if not notation or not notation.source_url:
+        raise HTTPException(status_code=404, detail="Notation source not available")
+    machine_readable = bool(
+        notation.notation_text and notation.notation_text.strip().startswith("{")
+    )
+    return NotationSourceResponse(
+        song_number=number,
+        source_url=notation.source_url,
+        verification_status=notation.verification_status,
+        machine_readable=machine_readable,
+        transposition_available=machine_readable,
+    )
 
 
 @router.get("/{number}/notation", response_model=TransposedNotationResponse)

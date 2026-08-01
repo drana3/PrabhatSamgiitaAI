@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import asdict, dataclass, field
 from datetime import date
 
@@ -71,19 +73,67 @@ class RecommendationEngine:
             if counts:
                 return counts
         except SQLAlchemyError:
-            pass
+            await session.rollback()
         return self._seed_media_counts()
 
     def _match_score(self, desired: str | None, actual: str | None) -> float:
         if not desired or not actual:
             return 0.0
-        desired_norm = desired.lower().strip()
-        actual_norm = actual.lower().strip()
+        desired_norm = self._normalize(desired)
+        actual_norm = self._normalize(actual)
         if desired_norm == actual_norm:
             return 1.0
         if desired_norm in actual_norm:
             return 0.8
         return 0.0
+
+    def _normalize(self, value: str) -> str:
+        decomposed = unicodedata.normalize("NFKD", value)
+        plain = "".join(
+            character for character in decomposed if not unicodedata.combining(character)
+        )
+        return " ".join(re.findall(r"[a-z0-9]+", plain.lower()))
+
+    def _context_text_score(self, song: Song, context: RecommendationContext) -> float:
+        desired = " ".join(
+            value
+            for value in (
+                context.occasion,
+                context.festival,
+                context.season,
+                context.mood,
+                context.meditation_context,
+            )
+            if value
+        )
+        desired_tokens = {
+            token
+            for token in self._normalize(desired).split()
+            if len(token) > 2 and token not in {"song", "songs", "music"}
+        }
+        if not desired_tokens:
+            return 0.0
+        metadata = song.metadata_json or {}
+        document = " ".join(
+            str(value)
+            for value in (
+                song.title,
+                song.first_line,
+                song.english_meaning,
+                song.hindi_meaning,
+                song.theme,
+                song.occasion,
+                song.festival,
+                song.season,
+                song.mood,
+                song.meditation_context,
+                metadata.get("category"),
+                metadata.get("purport"),
+            )
+            if value
+        )
+        document_tokens = set(self._normalize(document).split())
+        return len(desired_tokens & document_tokens) / len(desired_tokens)
 
     def score_details(
         self,
@@ -113,6 +163,7 @@ class RecommendationEngine:
             media_relevance = 1.0 if media else 0.0
         breakdown["media"] = media_relevance
         breakdown["diversity"] = 0.4 + (0.2 if song.number % 2 else 0.0)
+        breakdown["context_text"] = self._context_text_score(song, context)
 
         score = (
             0.30 * breakdown["occasion"]
@@ -123,6 +174,7 @@ class RecommendationEngine:
             + 0.05 * breakdown["difficulty"]
             + 0.05 * breakdown["media"]
             + 0.05 * breakdown["diversity"]
+            + 0.25 * breakdown["context_text"]
         )
         if song.is_verified or song.canonical_source_status == "verified":
             score += 0.05

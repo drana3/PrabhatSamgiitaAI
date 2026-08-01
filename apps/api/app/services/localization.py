@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -95,7 +96,8 @@ class LocalizationService:
             ]
         )
         try:
-            raw = await self.provider.complete(prompt)
+            async with asyncio.timeout(12):
+                raw = await self.provider.complete(prompt)
             payload = self._extract_json(raw)
             result = LocalizedSongText(
                 language=normalized,

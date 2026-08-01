@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
@@ -10,6 +11,8 @@ from app.config import Settings
 
 class EmbeddingProvider(Protocol):
     async def embed(self, text: str) -> list[float]: ...
+
+    async def embed_many(self, texts: list[str]) -> list[list[float]]: ...
 
 
 class TextProvider(Protocol):
@@ -28,7 +31,24 @@ class MockProvider:
         seed = sum(ord(ch) for ch in text)
         return [((seed + i * 31) % 1000) / 1000 for i in range(self.dimension)]
 
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
+        return [await self.embed(text) for text in texts]
+
     async def complete(self, prompt: str) -> str:
+        if "Return only valid JSON" in prompt:
+            fields: dict[str, str] = {}
+            for line in prompt.splitlines():
+                key, separator, value = line.partition(":")
+                if separator and key in {"Title", "First line", "English meaning"}:
+                    fields[key] = value.strip()
+            return json.dumps(
+                {
+                    "localized_title": fields.get("Title"),
+                    "localized_first_line": fields.get("First line"),
+                    "localized_meaning": fields.get("English meaning"),
+                    "localized_explanation": fields.get("English meaning"),
+                }
+            )
         return f"Mock grounded explanation based on: {prompt[:160]}"
 
 
@@ -39,15 +59,19 @@ class OpenAICompatibleProvider:
     model: str
 
     async def embed(self, text: str) -> list[float]:
+        return (await self.embed_many([text]))[0]
+
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
             response = await client.post(
                 "/embeddings",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"model": self.model, "input": text},
+                json={"model": self.model, "input": texts},
             )
             response.raise_for_status()
             payload = cast(dict[str, Any], response.json())
-            return cast(list[float], payload["data"][0]["embedding"])
+            data = sorted(payload["data"], key=lambda item: item["index"])
+            return [cast(list[float], item["embedding"]) for item in data]
 
     async def complete(self, prompt: str) -> str:
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
@@ -56,6 +80,7 @@ class OpenAICompatibleProvider:
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json={
                     "model": self.model,
+                    "max_completion_tokens": 700,
                     "messages": [
                         {"role": "system", "content": "Answer only from provided canonical data."},
                         {"role": "user", "content": prompt},
@@ -73,16 +98,20 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
     api_version: str = "2024-10-21"
 
     async def embed(self, text: str) -> list[float]:
+        return (await self.embed_many([text]))[0]
+
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
         deployment = self.embedding_model or self.model
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 f"{self.base_url}/openai/deployments/{deployment}/embeddings?api-version={self.api_version}",
                 headers={"api-key": self.api_key},
-                json={"input": text},
+                json={"input": texts},
             )
             response.raise_for_status()
             payload = cast(dict[str, Any], response.json())
-            return cast(list[float], payload["data"][0]["embedding"])
+            data = sorted(payload["data"], key=lambda item: item["index"])
+            return [cast(list[float], item["embedding"]) for item in data]
 
     async def complete(self, prompt: str) -> str:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -90,6 +119,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
                 f"{self.base_url}/openai/deployments/{self.model}/chat/completions?api-version={self.api_version}",
                 headers={"api-key": self.api_key},
                 json={
+                    "max_completion_tokens": 700,
                     "messages": [
                         {"role": "system", "content": "Answer only from canonical data."},
                         {"role": "user", "content": prompt},

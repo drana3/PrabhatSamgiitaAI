@@ -71,6 +71,48 @@ az containerapp update \
 
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 
+API_READY=""
+for attempt in $(seq 1 30); do
+  if API_READY="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null)"; then
+    if printf '%s' "$API_READY" | python3 -c 'import json, sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("snapshot_complete") and data.get("snapshot", {}).get("songs") == 5018 else 1)'; then
+      break
+    fi
+  fi
+  API_READY=""
+  sleep 10
+done
+
+if [[ -z "$API_READY" ]]; then
+  echo "API readiness check failed: the packaged 5,018-song catalog is unavailable."
+  exit 1
+fi
+
+curl --fail --silent --show-error "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
+SEARCH_SMOKE="$(curl --fail --silent --show-error \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --data '{"query":"111"}' \
+  "https://${API_FQDN}/api/v1/search")"
+printf '%s' "$SEARCH_SMOKE" | python3 -c 'import json, sys; rows=json.load(sys.stdin); raise SystemExit(0 if any(row.get("number") == 111 for row in rows) else 1)'
+
+INDEX_READY=""
+for attempt in $(seq 1 360); do
+  READINESS="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null || true)"
+  if [[ -n "$READINESS" ]]; then
+    if printf '%s' "$READINESS" | python3 -c 'import json, sys; data=json.load(sys.stdin); provider=data.get("embedding_provider_configured", False); indexed=data.get("embedding_progress", 0) >= 1; ready=data.get("database_synced") and data.get("rag_chunks_ready") and (indexed if provider else True); raise SystemExit(0 if ready else 1)'; then
+      INDEX_READY="$READINESS"
+      break
+    fi
+  fi
+  sleep 10
+done
+
+if [[ -z "$INDEX_READY" ]]; then
+  echo "API indexing did not finish within 60 minutes."
+  curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" || true
+  exit 1
+fi
+
 az acr build \
   --registry "$ACR_NAME" \
   --image "prabhat-samgiita-web:${TAG}" \
@@ -88,6 +130,8 @@ az containerapp update \
     NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" >/dev/null
 
 WEB_FQDN="$(az containerapp show --name "$WEB_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+
+python3 "${ROOT_DIR}/scripts/validate_live_backend.py" "https://${API_FQDN}"
 
 cat <<EOF
 Deployment complete.

@@ -18,6 +18,7 @@ from app.core.db import SessionLocal, engine
 from app.logging import configure_logging
 from app.models import Base
 from app.services.bootstrap import BootstrapService
+from app.services.embedding_index import build_embedding_indexes
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -28,16 +29,17 @@ logger = logging.getLogger(__name__)
 
 async def initialize_schema() -> None:
     try:
-        async with engine.begin() as conn:
-            for statement, label in (
-                ("CREATE EXTENSION IF NOT EXISTS vector", "vector"),
-                ("CREATE EXTENSION IF NOT EXISTS pg_trgm", "pg_trgm"),
-                ("CREATE EXTENSION IF NOT EXISTS unaccent", "unaccent"),
-            ):
-                try:
+        for statement, label in (
+            ("CREATE EXTENSION IF NOT EXISTS vector", "vector"),
+            ("CREATE EXTENSION IF NOT EXISTS pg_trgm", "pg_trgm"),
+            ("CREATE EXTENSION IF NOT EXISTS unaccent", "unaccent"),
+        ):
+            try:
+                async with engine.begin() as conn:
                     await conn.execute(text(statement))
-                except Exception:
-                    logger.exception("Skipping optional extension setup for %s", label)
+            except Exception:
+                logger.exception("Skipping optional extension setup for %s", label)
+        async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     except Exception:
         logger.exception("Database initialization skipped because the database is unavailable")
@@ -51,11 +53,16 @@ async def bootstrap_data() -> None:
         logger.exception("Background bootstrap failed")
 
 
+async def initialize_catalog_and_embeddings() -> None:
+    await bootstrap_data()
+    await build_embedding_indexes(settings)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await initialize_schema()
     scheduler.start()
-    bootstrap_task = asyncio.create_task(bootstrap_data())
+    bootstrap_task = asyncio.create_task(initialize_catalog_and_embeddings())
     try:
         yield
     finally:

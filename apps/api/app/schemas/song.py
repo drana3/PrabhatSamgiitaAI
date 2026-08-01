@@ -31,6 +31,9 @@ class SongDetail(SongSummary):
     related_songs: list["SongSummary"] = Field(default_factory=list)
     media: list[dict[str, Any]] = Field(default_factory=list)
     notation_scale: str | None = None
+    notation_source_url: str | None = None
+    notation_verification_status: str | None = None
+    notation_transposition_available: bool = False
     metadata_json: dict[str, Any] = Field(default_factory=dict)
 
 

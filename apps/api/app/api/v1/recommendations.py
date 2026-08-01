@@ -38,11 +38,13 @@ async def recommend(
     engine = RecommendationEngine()
     ranked = await engine.rank(session, songs, context)
     try:
-        await engine.audit(session, context, ranked)
+        async with session.begin_nested():
+            await engine.audit(session, context, ranked)
+            await session.flush()
         await session.commit()
     except SQLAlchemyError:
         await session.rollback()
-        logger.exception("Skipping recommendation audit persistence")
+        logger.warning("Skipping recommendation audit persistence")
     payload = [
         SongSummary(
             number=item.song.number,

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.models import (
     InventoryItem,
     Media,
@@ -18,8 +18,10 @@ from app.models import (
     SongChunk,
     Theme,
 )
-from app.services.ai import select_provider
 from app.services.rag import build_song_chunks
+from app.services.seed_data import load_rows
+
+logger = logging.getLogger(__name__)
 
 
 class BootstrapService:
@@ -33,27 +35,26 @@ class BootstrapService:
             self.data_dir / "seed" / filename,
         ]
 
-    async def _load_rows(
-        self, model: type[Any], rows: list[dict[str, Any]], key_field: str
-    ) -> None:
-        result = await self.session.execute(select(model))
-        existing_rows = result.scalars().all()
-        existing_keys = {
-            getattr(item, key_field)
-            for item in existing_rows
-            if getattr(item, key_field) is not None
-        }
-        incoming_keys = {row.get(key_field) for row in rows if row.get(key_field) is not None}
+    async def _replace_if_incomplete(
+        self, model: type[Any], rows: list[dict[str, Any]], label: str
+    ) -> bool:
         if not rows:
-            return
-        if incoming_keys.issubset(existing_keys) and len(existing_rows) >= len(rows):
-            return
-        if existing_rows:
-            await self.session.execute(delete(model))
-        for row in rows:
-            self.session.add(model(**row))
+            return False
+        existing_count = int(
+            (await self.session.execute(select(func.count()).select_from(model))).scalar_one()
+        )
+        if existing_count >= len(rows):
+            return False
+        logger.info("Synchronizing %s: %s -> %s rows", label, existing_count, len(rows))
+        await self.session.execute(delete(model))
+        await self.session.execute(insert(model), rows)
+        await self.session.commit()
+        return True
 
     async def _load_json(self, filename: str) -> list[dict[str, Any]]:
+        merged = load_rows(filename)
+        if merged:
+            return merged
         for path in self._candidate_paths(filename):
             if path.exists():
                 return cast(list[dict[str, Any]], json.loads(path.read_text(encoding="utf-8")))
@@ -65,14 +66,15 @@ class BootstrapService:
         notations = await self._load_json("notations.json")
         inventory = await self._load_json("inventory.json")
 
-        await self._load_rows(Song, songs, "number")
-        await self._load_rows(Media, media, "url")
-        await self._load_rows(Notation, notations, "source_url")
-        await self._load_rows(InventoryItem, inventory, "url")
+        # Catalog data is committed before any RAG indexing. The API can therefore
+        # serve all songs even if a later indexing step is interrupted.
+        await self._replace_if_incomplete(Song, songs, "songs")
+        await self._replace_if_incomplete(Media, media, "media")
+        await self._replace_if_incomplete(Notation, notations, "notations")
+        await self._replace_if_incomplete(InventoryItem, inventory, "inventory")
         await self._seed_lookup_tables()
-        await self._ensure_song_embeddings()
-        await self._ensure_song_chunks()
         await self.session.commit()
+        await self._ensure_song_chunks(songs)
 
     async def _seed_lookup_tables(self) -> None:
         theme_result = await self.session.execute(select(Theme.id).limit(1))
@@ -142,37 +144,30 @@ class BootstrapService:
                     )
                 )
 
-    async def _ensure_song_embeddings(self) -> None:
-        result = await self.session.execute(
-            select(Song.id).where(Song.embeddings.is_(None)).limit(1)
-        )
-        if not result.first():
-            return
-        provider = select_provider(get_settings())
-        songs_result = await self.session.execute(select(Song).order_by(Song.number))
-        for song in songs_result.scalars().all():
-            if song.embeddings is not None:
-                continue
-            text = "\n".join(
-                part
-                for part in (
-                    str(song.number),
-                    song.title,
-                    song.first_line,
-                    song.lyrics_original,
-                    song.transliteration,
-                    song.english_meaning,
-                    song.hindi_meaning,
+    async def _ensure_song_chunks(self, song_rows: list[dict[str, Any]]) -> None:
+        indexed_song_count = int(
+            (
+                await self.session.execute(
+                    select(func.count(func.distinct(SongChunk.song_number)))
                 )
-                if part
-            )
-            song.embeddings = await provider.embed(text)
-
-    async def _ensure_song_chunks(self) -> None:
-        result = await self.session.execute(select(SongChunk.id).limit(1))
-        if result.first():
+            ).scalar_one()
+        )
+        if indexed_song_count >= len(song_rows):
             return
-        songs_result = await self.session.execute(select(Song).order_by(Song.number))
-        for song in songs_result.scalars().all():
-            for row in build_song_chunks(song):
-                self.session.add(SongChunk(**row))
+        logger.info(
+            "Rebuilding RAG chunks: %s -> %s indexed songs",
+            indexed_song_count,
+            len(song_rows),
+        )
+        await self.session.execute(delete(SongChunk))
+        await self.session.commit()
+        batch: list[dict[str, Any]] = []
+        for row in song_rows:
+            batch.extend(build_song_chunks(Song(**row)))
+            if len(batch) >= 1000:
+                await self.session.execute(insert(SongChunk), batch)
+                await self.session.commit()
+                batch.clear()
+        if batch:
+            await self.session.execute(insert(SongChunk), batch)
+            await self.session.commit()

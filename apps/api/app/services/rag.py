@@ -179,13 +179,24 @@ class RAGService:
         except SQLAlchemyError:
             return []
 
-    async def _ensure_embeddings(self, chunks: Iterable[SongChunk]) -> None:
+    async def _ensure_embeddings(self, chunks: Iterable[SongChunk]) -> bool:
         pending = [chunk for chunk in chunks if chunk.embeddings is None]
         if not pending:
-            return
-        for chunk in pending:
-            chunk.embeddings = await self.provider.embed(self.chunk_embedding_text(chunk))
-        await self.session.flush()
+            return True
+        try:
+            vectors = await self.provider.embed_many(
+                [self.chunk_embedding_text(chunk) for chunk in pending]
+            )
+        except Exception:
+            return False
+        for chunk, vector in zip(pending, vectors, strict=True):
+            chunk.embeddings = vector
+        try:
+            await self.session.commit()
+            return True
+        except SQLAlchemyError:
+            await self.session.rollback()
+            return False
 
     def chunk_embedding_text(self, chunk: SongChunk) -> str:
         return "\n".join(
@@ -207,7 +218,6 @@ class RAGService:
         limit: int = 5,
     ) -> list[RetrievedChunk]:
         try:
-            await self.ensure_song_chunks()
             candidate_song_numbers = [song.number]
             if query.strip():
                 matches = await CatalogService(self.session).search(query, limit=12)
@@ -221,7 +231,11 @@ class RAGService:
                 .order_by(SongChunk.song_number, SongChunk.chunk_index)
             )
             chunks = list(result.scalars().all())
-            await self._ensure_embeddings(chunks)
+            if not chunks:
+                return self._fallback_chunks(song, limit)
+            fallback = self._fallback_chunks(song, limit)
+            if not await self._ensure_embeddings(chunks):
+                return fallback
 
             try:
                 query_embedding = await self.provider.embed(query or song.title)

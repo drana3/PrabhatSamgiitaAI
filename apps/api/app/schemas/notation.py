@@ -59,3 +59,11 @@ class TransposedNotationResponse(BaseModel):
     target_scale: str
     verification_status: str
     notation: HarmoniumNotation
+
+
+class NotationSourceResponse(BaseModel):
+    song_number: int
+    source_url: str
+    verification_status: str
+    machine_readable: bool = False
+    transposition_available: bool = False
