@@ -3,15 +3,30 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
+import time
 import unicodedata
 from collections.abc import Iterator
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-CHANNEL_URL = "https://www.youtube.com/@AMPS0521spirituality/videos"
-CHANNEL_ID = "UCzJy4vdGKx6gzP782-5buOQ"
+CHANNELS = (
+    {
+        "url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+        "id": "UCzJy4vdGKx6gzP782-5buOQ",
+        "name": "AMPS Spirituality",
+        "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    },
+    {
+        "url": "https://www.youtube.com/@Ananda_Marga/videos",
+        "id": "UCc3f8g07me5NpqHfAsF8GIA",
+        "name": "ANANDA MARGA",
+        "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    },
+)
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_videos.json"
 REVIEW_OUTPUT_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_review_queue.json"
@@ -22,13 +37,20 @@ USER_AGENT = "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://github.co
 
 def fetch(url: str, payload: dict[str, Any] | None = None) -> str:
     body = json.dumps(payload).encode() if payload is not None else None
-    request = Request(
-        url,
-        data=body,
-        headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"},
-    )
-    with urlopen(request, timeout=45) as response:
-        return bytes(response.read()).decode("utf-8")
+    for attempt in range(3):
+        request = Request(
+            url,
+            data=body,
+            headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"},
+        )
+        try:
+            with urlopen(request, timeout=45) as response:
+                return bytes(response.read()).decode("utf-8")
+        except (HTTPError, URLError, TimeoutError):
+            if attempt == 2:
+                raise
+            time.sleep(2 ** (attempt + 1))
+    raise RuntimeError("YouTube request retry loop ended unexpectedly")
 
 
 def initial_data(html: str) -> dict[str, Any]:
@@ -92,8 +114,8 @@ def youtube_config(html: str) -> tuple[str, str]:
     return key_match.group(1), version_match.group(1)
 
 
-def channel_videos(max_pages: int = 50) -> list[dict[str, str]]:
-    html = fetch(CHANNEL_URL)
+def channel_videos(channel: dict[str, str], max_pages: int = 50) -> list[dict[str, str]]:
+    html = fetch(channel["url"])
     payload = initial_data(html)
     api_key, client_version = youtube_config(html)
     videos = {item["video_id"]: item for item in extract_videos(payload)}
@@ -105,20 +127,27 @@ def channel_videos(max_pages: int = 50) -> list[dict[str, str]]:
         if token in seen_tokens:
             continue
         seen_tokens.add(token)
-        response = json.loads(
-            fetch(
-                f"https://www.youtube.com/youtubei/v1/browse?key={api_key}",
-                {
-                    "context": {
-                        "client": {
-                            "clientName": "WEB",
-                            "clientVersion": client_version,
-                        }
+        try:
+            response = json.loads(
+                fetch(
+                    f"https://www.youtube.com/youtubei/v1/browse?key={api_key}",
+                    {
+                        "context": {
+                            "client": {
+                                "clientName": "WEB",
+                                "clientVersion": client_version,
+                            }
+                        },
+                        "continuation": token,
                     },
-                    "continuation": token,
-                },
+                )
             )
-        )
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            print(
+                f"Partial scan for {channel['name']}: continuation unavailable ({exc})",
+                file=sys.stderr,
+            )
+            break
         videos.update({item["video_id"]: item for item in extract_videos(response)})
         pending.extend(continuation_tokens(response))
         pages += 1
@@ -161,7 +190,11 @@ def title_similarity(video_title: str, song: dict[str, Any]) -> float:
     return max(scores, default=0.0)
 
 
-def media_row(video: dict[str, str], songs: dict[int, dict[str, Any]]) -> dict[str, Any] | None:
+def media_row(
+    video: dict[str, str],
+    songs: dict[int, dict[str, Any]],
+    channel: dict[str, str] = CHANNELS[0],
+) -> dict[str, Any] | None:
     number = explicit_song_number(video["title"])
     if number is None or number not in songs:
         return None
@@ -179,12 +212,12 @@ def media_row(video: dict[str, str], songs: dict[int, dict[str, Any]]) -> dict[s
         "url": f"https://www.youtube.com/watch?v={video_id}",
         "embed_url": f"https://www.youtube-nocookie.com/embed/{video_id}",
         "verification_status": verification,
-        "source_url": CHANNEL_URL,
-        "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+        "source_url": channel["url"],
+        "notes": channel["notes"],
         "metadata_json": {
             "external_id": video_id,
-            "channel_id": CHANNEL_ID,
-            "channel_name": "AMPS Spirituality",
+            "channel_id": channel["id"],
+            "channel_name": channel["name"],
             "source_status": "verified_community",
             "rights_status": "embed_only",
             "availability_status": "available",
@@ -194,7 +227,11 @@ def media_row(video: dict[str, str], songs: dict[int, dict[str, Any]]) -> dict[s
     }
 
 
-def review_row(video: dict[str, str], songs: dict[int, dict[str, Any]]) -> dict[str, Any]:
+def review_row(
+    video: dict[str, str],
+    songs: dict[int, dict[str, Any]],
+    channel: dict[str, str] = CHANNELS[0],
+) -> dict[str, Any]:
     number = explicit_song_number(video["title"])
     similarity = title_similarity(video["title"], songs[number]) if number in songs else 0.0
     reason = "missing_explicit_song_number"
@@ -207,9 +244,9 @@ def review_row(video: dict[str, str], songs: dict[int, dict[str, Any]]) -> dict[
         "candidate_song_number": number,
         "title_similarity": round(similarity, 3),
         "review_reason": reason,
-        "channel_id": CHANNEL_ID,
-        "channel_name": "AMPS Spirituality",
-        "source_url": CHANNEL_URL,
+        "channel_id": channel["id"],
+        "channel_name": channel["name"],
+        "source_url": channel["url"],
         "status": "pending_review",
     }
 
@@ -221,15 +258,38 @@ def main() -> None:
     parser.add_argument("--review-output", type=Path, default=REVIEW_OUTPUT_PATH)
     args = parser.parse_args()
     songs = {row["number"]: row for row in json.loads(SONGS_PATH.read_text(encoding="utf-8"))}
-    discovered = channel_videos(max_pages=args.max_pages)
-    rows: list[dict[str, Any]] = []
-    review_rows: list[dict[str, Any]] = []
-    for video in discovered:
-        row = media_row(video, songs)
-        if row is None:
-            review_rows.append(review_row(video, songs))
-        else:
-            rows.append(row)
+    existing_rows = (
+        json.loads(args.output.read_text(encoding="utf-8")) if args.output.exists() else []
+    )
+    existing_review_rows = (
+        json.loads(args.review_output.read_text(encoding="utf-8"))
+        if args.review_output.exists()
+        else []
+    )
+    rows_by_id = {row["metadata_json"]["external_id"]: row for row in existing_rows}
+    review_by_id = {row["external_id"]: row for row in existing_review_rows}
+    discovered_by_channel: dict[str, int] = {}
+    for channel in CHANNELS:
+        try:
+            discovered = channel_videos(channel, max_pages=args.max_pages)
+        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            discovered_by_channel[channel["name"]] = 0
+            print(
+                f"Preserving {channel['name']} inventory after scan failure: {exc}",
+                file=sys.stderr,
+            )
+            continue
+        discovered_by_channel[channel["name"]] = len(discovered)
+        for video in discovered:
+            row = media_row(video, songs, channel)
+            if row is None:
+                review = review_row(video, songs, channel)
+                review_by_id[review["external_id"]] = review
+            else:
+                rows_by_id[row["metadata_json"]["external_id"]] = row
+                review_by_id.pop(row["metadata_json"]["external_id"], None)
+    rows = list(rows_by_id.values())
+    review_rows = list(review_by_id.values())
     rows.sort(key=lambda row: (row["song_number"], row["url"]))
     review_rows.sort(key=lambda row: row["external_id"])
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -241,7 +301,7 @@ def main() -> None:
     print(
         json.dumps(
             {
-                "channel_videos_discovered": len(discovered),
+                "channel_videos_discovered": discovered_by_channel,
                 "numbered_song_videos_published": len(rows),
                 "songs_with_video": len({row["song_number"] for row in rows}),
                 "videos_pending_review": len(review_rows),

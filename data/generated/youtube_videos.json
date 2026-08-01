@@ -777,6 +777,27 @@
     }
   },
   {
+    "song_number": 680,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "TUMI MOR JIIVANERA ÁNDHÁRER DHRUVA TÁRÁ #680 PRABHAT SAMGIITA During New Year 2023.",
+    "url": "https://www.youtube.com/watch?v=qtevjGHM3Ls",
+    "embed_url": "https://www.youtube-nocookie.com/embed/qtevjGHM3Ls",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "qtevjGHM3Ls",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_then_canonical_title"
+    }
+  },
+  {
     "song_number": 694,
     "kind": "video",
     "provider": "youtube",
@@ -857,6 +878,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.756,
+      "match_method": "explicit_song_number_then_canonical_title"
+    }
+  },
+  {
+    "song_number": 831,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tomari Tare Alo Jhare | Prabhat Samgiita #831 | Ananda Purnima DMS 2026 | Acarya Jagadatmananda Avt.",
+    "url": "https://www.youtube.com/watch?v=eaHu0_2y0nE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/eaHu0_2y0nE",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "eaHu0_2y0nE",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
       "match_method": "explicit_song_number_then_canonical_title"
     }
   },
@@ -7426,6 +7468,27 @@
       "external_id": "yftukvuD66E",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_then_canonical_title"
+    }
+  },
+  {
+    "song_number": 4673,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "BHAJO RE IŚT́A NÁM, MAN ÁMÁR | Prabhat Samgiita 4673 | DMS Babanagar Jamalpur 2026 |Ananda Marga",
+    "url": "https://www.youtube.com/watch?v=UrWIYy-IvV4",
+    "embed_url": "https://www.youtube-nocookie.com/embed/UrWIYy-IvV4",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "UrWIYy-IvV4",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",

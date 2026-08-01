@@ -1,4 +1,4 @@
-name: Watch AMPS YouTube
+name: Watch trusted Prabhat Samgiita channels
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: watch-amps-youtube
+  group: watch-prabhat-youtube
   cancel-in-progress: false
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
           cd apps/api
           uv sync --frozen --extra dev
 
-      - name: Scan allow-listed AMPS channel
+      - name: Scan allow-listed Prabhat Samgiita channels
         run: apps/api/.venv/bin/python scripts/sync_youtube.py
 
       - name: Validate media inventory
