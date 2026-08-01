@@ -49,8 +49,25 @@ def test_numbered_youtube_videos_preserve_multiple_renditions() -> None:
     assert len([item for item in videos if item.song_number == 2635]) == 2
 
 
+def test_number_first_audio_inventory_maximizes_coverage() -> None:
+    audio = [item for item in catalog_media_snapshot() if item.kind == "audio"]
+    covered = {item.song_number for item in audio if item.song_number is not None}
+
+    assert len(covered) == 4948
+    external_gap_fill = [
+        item for item in audio if item.song_number == 1112 and item.provider == "external_site"
+    ]
+    assert len(external_gap_fill) == 1
+    assert external_gap_fill[0].verification_status == "unverified"
+    assert external_gap_fill[0].url.startswith("https://sarkarverse.org/")
+
+
 def test_canonical_inventory_titles_are_not_truncated() -> None:
-    assert max(len(item.title) for item in catalog_inventory_snapshot()) > 255
+    inventory = catalog_inventory_snapshot()
+
+    assert max(len(item.title) for item in inventory) > 255
+    assert len([item for item in inventory if item.source_kind == "video"]) == 372
+    assert len([item for item in inventory if item.source_kind == "audio"]) >= 10_000
 
 
 @pytest.mark.asyncio

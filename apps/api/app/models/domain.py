@@ -151,3 +151,28 @@ class RecommendationAudit(Base, TimestampMixin):
         server_default=text("'{}'::jsonb"),
     )
     algorithm_version: Mapped[str] = mapped_column(String(64), nullable=False, default="r1")
+
+
+class ContentReport(Base, TimestampMixin):
+    __tablename__ = "content_reports"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    entity_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    reason: Mapped[str] = mapped_column(String(64), nullable=False)
+    comment: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), default="new", server_default="new", nullable=False
+    )
+
+
+class ContentAudit(Base, TimestampMixin):
+    __tablename__ = "content_audits"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    entity_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    reviewer: Mapped[str] = mapped_column(String(128), nullable=False)
+    previous_status: Mapped[str | None] = mapped_column(String(32))
+    new_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    review_note: Mapped[str | None] = mapped_column(Text)

@@ -71,6 +71,9 @@ def main() -> None:
     require(status == 200, body.decode(errors="replace"))
     require(ready["snapshot"]["songs"] == 5018, str(ready))
     require(ready["database"]["songs"] == 5018, str(ready))
+    require(ready["database"]["media"] >= 10570, str(ready))
+    require(ready["database"]["notations"] >= 1100, str(ready))
+    require(ready["database"]["inventory"] >= 17644, str(ready))
     require(ready["rag_chunks_ready"] is True, str(ready))
     require(ready["database"]["rag_chunks"] > 5018, str(ready))
     require(
@@ -93,6 +96,28 @@ def main() -> None:
     if audio is None:
         raise AssertionError("Song 111 audio is missing")
     record("Show song 111.", "Lyrics, meaning, and audio", elapsed)
+
+    status, _, body, elapsed = request(
+        base_url,
+        "GET",
+        "/api/v1/songs/1112/media?media_type=audio",
+    )
+    gap_audio = json.loads(body)
+    require(
+        status == 200
+        and any(
+            item["provider"] == "external_site"
+            and item["source_status"] == "community"
+            and item["verification_status"] == "unverified"
+            for item in gap_audio
+        ),
+        body.decode(errors="replace"),
+    )
+    record(
+        "Can a song missing from the official audio archive still be heard?",
+        "Number-matched community audio is clearly labelled and linked without re-hosting",
+        elapsed,
+    )
 
     status, _, body, elapsed = request(
         base_url,
@@ -141,6 +166,25 @@ def main() -> None:
     status, _, body, elapsed = request(
         base_url,
         "GET",
+        "/api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-05-21",
+    )
+    today = json.loads(body)
+    require(status == 200 and today["context"]["festival"] == "Bábá Birthday", str(today))
+    require(len(today["recommendations"]) == 3, str(today))
+    record("What fits Bábá's birthday?", "Reviewed Today context and three songs", elapsed)
+
+    status, _, body, elapsed = request(base_url, "GET", "/api/v1/festivals")
+    festivals = json.loads(body)
+    require(
+        status == 200
+        and any(item["name"] == "Shravanii Purnima Day" for item in festivals),
+        str(festivals),
+    )
+    record("Which festivals have sourced mappings?", "Canonical provenance list", elapsed)
+
+    status, _, body, elapsed = request(
+        base_url,
+        "GET",
         "/api/v1/songs/1/localized?language=Hindi",
     )
     localized = json.loads(body)
@@ -176,16 +220,20 @@ def main() -> None:
         time.monotonic() - audio_started,
     )
 
+    web_origin = "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
     status, headers, _, elapsed = request(
         base_url,
         "OPTIONS",
         "/api/v1/search",
         headers={
-            "Origin": "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
+            "Origin": web_origin,
             "Access-Control-Request-Method": "POST",
         },
     )
-    require(status == 200 and headers.get("access-control-allow-origin") == "*", str(headers))
+    require(
+        status == 200 and headers.get("access-control-allow-origin") == web_origin,
+        str(headers),
+    )
     record("Can the web app call the API?", "CORS preflight succeeds", elapsed)
 
     print(json.dumps({"passed": len(results), "total": len(results), "cases": results}, indent=2))

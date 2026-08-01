@@ -12,11 +12,13 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
+@router.get("/health/live")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @router.get("/health/readiness")
+@router.get("/health/ready")
 async def readiness(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
@@ -24,7 +26,10 @@ async def readiness(
     snapshot = stats["snapshot"]
     database = stats["database"]
     snapshot_complete = snapshot["songs"] >= 5018
-    database_synced = database["songs"] >= snapshot["songs"]
+    database_synced = all(
+        database[key] >= snapshot[key]
+        for key in ("songs", "media", "notations", "inventory")
+    )
     rag_chunked = database["rag_song_chunks"] >= snapshot["songs"]
     embedded_songs = database["embedded_songs"]
     rag_chunks = database["rag_chunks"]
@@ -37,7 +42,9 @@ async def readiness(
     embedding_progress = min(song_embedding_progress, chunk_embedding_progress)
     settings = get_settings()
     return {
-        "status": "ready" if snapshot_complete else "degraded",
+        "status": (
+            "ready" if snapshot_complete and database_synced and rag_chunked else "degraded"
+        ),
         "catalog_serving_source": "database" if database_synced else "packaged_snapshot",
         "snapshot_complete": snapshot_complete,
         "database_synced": database_synced,

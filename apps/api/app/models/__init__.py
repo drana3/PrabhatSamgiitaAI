@@ -1,6 +1,8 @@
 from app.models.base import Base
 from app.models.chunk import SongChunk
 from app.models.domain import (
+    ContentAudit,
+    ContentReport,
     Festival,
     FestivalSongLink,
     Occasion,
@@ -18,6 +20,8 @@ from app.models.song import Song
 
 __all__ = [
     "Base",
+    "ContentAudit",
+    "ContentReport",
     "Festival",
     "FestivalSongLink",
     "InventoryItem",

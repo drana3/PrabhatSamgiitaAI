@@ -52,7 +52,8 @@ SITE_PAGES = [
 ]
 
 SONG_SECTION_RE = re.compile(
-    r'<A NAME="(?P<anchor>[^"]+)">\s*</A>\s*<H4>(?P<header>.*?)</H4>\s*(?P<body>.*?)(?=(?:<A NAME="|</BODY>))',
+    r'<A NAME="(?P<anchor>[^"]+)">\s*</A>\s*<H4>(?P<header>.*?)</H4>\s*'
+    r'(?P<body>.*?)(?=(?:<A NAME="|</BODY>))',
     re.IGNORECASE | re.DOTALL,
 )
 PARAGRAPH_RE = re.compile(r"<P>(.*?)</P>", re.IGNORECASE | re.DOTALL)
@@ -163,7 +164,10 @@ def split_song_sections(paragraphs: list[list[str]]) -> tuple[list[str], list[st
             lyric_prefix.append(line)
             continue
         break
-    remainder = first_paragraph[len(lyric_prefix) :] + [line for paragraph in paragraphs[1:] for line in paragraph]
+    remaining_paragraphs = [
+        line for paragraph in paragraphs[1:] for line in paragraph
+    ]
+    remainder = first_paragraph[len(lyric_prefix) :] + remaining_paragraphs
     purport_index = next(
         (idx for idx, line in enumerate(remainder) if line.lower().startswith("purport:")),
         None,
@@ -230,7 +234,8 @@ def parse_archive_page(page_path: str) -> list[Resource]:
     resources: list[Resource] = []
     archive_name = page_path.strip("/").split("/")[0]
     for anchor in soup.find_all("a", href=True):
-        href = anchor["href"].strip()
+        href_value = anchor.get("href")
+        href = href_value.strip() if isinstance(href_value, str) else ""
         absolute = urljoin(BASE_URL, href)
         text = clean(anchor.get_text(" ", strip=True))
         if not text:
@@ -289,7 +294,8 @@ def parse_audio_media() -> list[dict[str, Any]]:
         soup = BeautifulSoup(html_text, "html.parser")
         archive_name = page_path.strip("/").split("/")[0]
         for anchor in soup.find_all("a", href=True):
-            href = anchor["href"].strip()
+            href_value = anchor.get("href")
+            href = href_value.strip() if isinstance(href_value, str) else ""
             absolute = urljoin(BASE_URL, href)
             if not absolute.lower().endswith(".mp3"):
                 continue
@@ -313,7 +319,20 @@ def parse_audio_media() -> list[dict[str, Any]]:
                     },
                 }
             )
-    return media
+    return deduplicate_media(media)
+
+
+def deduplicate_media(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep one canonical record per URL, preferring number-linked media."""
+    selected: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        url = str(row.get("url") or "")
+        current = selected.get(url)
+        if current is None or (
+            current.get("song_number") is None and row.get("song_number") is not None
+        ):
+            selected[url] = row
+    return list(selected.values())
 
 
 def parse_notations() -> list[dict[str, Any]]:
@@ -321,12 +340,16 @@ def parse_notations() -> list[dict[str, Any]]:
     soup = BeautifulSoup(html_text, "html.parser")
     notations: list[dict[str, Any]] = []
     for anchor in soup.find_all("a", href=True):
-        href = anchor["href"].strip()
+        href_value = anchor.get("href")
+        href = href_value.strip() if isinstance(href_value, str) else ""
         absolute = urljoin(BASE_URL, href)
         if not absolute.lower().endswith(".pdf"):
             continue
         text = clean(anchor.get_text(" ", strip=True))
-        match = re.match(r"(?P<number>\d+)\s*-\s*\((?P<display_number>[^)]+)\)\s*(?P<title>.*)", text)
+        match = re.match(
+            r"(?P<number>\d+)\s*-\s*\((?P<display_number>[^)]+)\)\s*(?P<title>.*)",
+            text,
+        )
         song_number: int | None = None
         title = text
         metadata: dict[str, Any] = {"archive": "notations"}
@@ -354,7 +377,21 @@ def parse_notations() -> list[dict[str, Any]]:
                 },
             }
         )
-    return notations
+    return deduplicate_notations(notations)
+
+
+def deduplicate_notations(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep the number-linked record when an archive repeats the same PDF link."""
+    selected: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        source_url = str(row.get("source_url") or "")
+        current = selected.get(source_url)
+        if current is None or (
+            int(current.get("song_number") or 0) <= 0
+            and int(row.get("song_number") or 0) > 0
+        ):
+            selected[source_url] = row
+    return list(selected.values())
 
 
 def crawl_inventory() -> list[Resource]:
@@ -366,7 +403,8 @@ def crawl_inventory() -> list[Resource]:
             continue
         soup = BeautifulSoup(html_text, "html.parser")
         for anchor in soup.find_all("a", href=True):
-            href = anchor["href"].strip()
+            href_value = anchor.get("href")
+            href = href_value.strip() if isinstance(href_value, str) else ""
             absolute = urljoin(BASE_URL, href)
             title = clean(anchor.get_text(" ", strip=True)) or Path(urlparse(absolute).path).name
             if not title:
@@ -400,7 +438,8 @@ def main() -> None:
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
     songs = parse_lyrics_page()
-    missing_numbers = [number for number in range(1, 5019) if number not in {song.number for song in songs}]
+    parsed_numbers = {song.number for song in songs}
+    missing_numbers = [number for number in range(1, 5019) if number not in parsed_numbers]
     for number in missing_numbers:
         song = parse_missing_song(number)
         if song:

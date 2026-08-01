@@ -44,7 +44,8 @@ async def search(
             mood=None,
             language=None,
             difficulty=None,
-            is_verified=item.verification_status == "officially_verified",
+            is_verified=item.verification_status
+            in {"verified", "officially_verified", "human_reviewed"},
         )
         for item in response.items
     ]

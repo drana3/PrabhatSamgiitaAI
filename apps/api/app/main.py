@@ -11,10 +11,12 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[impo
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.router import router as v1_router
 from app.config import get_settings
 from app.core.db import SessionLocal, engine
+from app.core.middleware import RequestContextMiddleware
 from app.logging import configure_logging
 from app.models import Base
 from app.services.bootstrap import BootstrapService
@@ -65,7 +67,8 @@ async def initialize_catalog_and_embeddings() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await initialize_schema()
-    scheduler.start()
+    if settings.scheduler_enabled:
+        scheduler.start()
     bootstrap_task = asyncio.create_task(initialize_catalog_and_embeddings())
     try:
         yield
@@ -73,11 +76,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         bootstrap_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await bootstrap_task
-        scheduler.shutdown(wait=False)
+        if settings.scheduler_enabled:
+            scheduler.shutdown(wait=False)
         await engine.dispose()
 
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
 
 allowed_origins = [
     origin.strip() for origin in settings.api_cors_origins.split(",") if origin.strip()
@@ -90,5 +94,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=[host.strip() for host in settings.trusted_hosts.split(",") if host.strip()],
+)
+app.add_middleware(RequestContextMiddleware, max_request_bytes=settings.max_request_bytes)
 
 app.include_router(v1_router)

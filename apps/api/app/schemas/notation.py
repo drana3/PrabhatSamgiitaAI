@@ -29,7 +29,7 @@ class NotationBeat(BaseModel):
 
 
 class NotationMeasure(BaseModel):
-    measures: list[NotationBeat] = Field(default_factory=list)
+    beats: list[NotationBeat] = Field(default_factory=list)
 
 
 class NotationLine(BaseModel):

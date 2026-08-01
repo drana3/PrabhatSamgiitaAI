@@ -52,7 +52,10 @@ async def get_notation(
     notation = await load_song_notation(session, song)
     if not notation:
         raise HTTPException(status_code=404, detail="Notation not available")
-    target_scale = normalize_tonic(scale)
+    try:
+        target_scale = normalize_tonic(scale)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     transposed = transpose_notation(notation, target_scale)
     if system.lower() == "western":
         # Keep the canonical schema but expose western notes in-place.

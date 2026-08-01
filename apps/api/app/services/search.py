@@ -190,7 +190,10 @@ class HybridSearchService:
             return False
 
     async def _exact_number_rank(self, query: str) -> list[str]:
-        match = re.fullmatch(r"(?:ps\s*)?(\d{1,4})", normalize_query(query))
+        match = re.fullmatch(
+            r"(?:(?:ps|prabhat samgiita|prabhat sangeet|song)\s*)?#?(\d{1,4})",
+            normalize_query(query),
+        )
         if not match:
             return []
         return [match.group(1)]

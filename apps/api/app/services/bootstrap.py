@@ -36,14 +36,28 @@ class BootstrapService:
         ]
 
     async def _replace_if_incomplete(
-        self, model: type[Any], rows: list[dict[str, Any]], label: str
+        self,
+        model: type[Any],
+        rows: list[dict[str, Any]],
+        label: str,
+        unique_field: Any | None = None,
     ) -> bool:
         if not rows:
             return False
         existing_count = int(
             (await self.session.execute(select(func.count()).select_from(model))).scalar_one()
         )
-        if existing_count >= len(rows):
+        has_managed_duplicates = False
+        if unique_field is not None and existing_count > len(rows):
+            distinct_count = int(
+                (
+                    await self.session.execute(
+                        select(func.count(func.distinct(unique_field))).select_from(model)
+                    )
+                ).scalar_one()
+            )
+            has_managed_duplicates = distinct_count <= len(rows)
+        if existing_count >= len(rows) and not has_managed_duplicates:
             return False
         logger.info("Synchronizing %s: %s -> %s rows", label, existing_count, len(rows))
         await self.session.execute(delete(model))
@@ -69,8 +83,13 @@ class BootstrapService:
         # Catalog data is committed before any RAG indexing. The API can therefore
         # serve all songs even if a later indexing step is interrupted.
         await self._replace_if_incomplete(Song, songs, "songs")
-        await self._replace_if_incomplete(Media, media, "media")
-        await self._replace_if_incomplete(Notation, notations, "notations")
+        await self._replace_if_incomplete(Media, media, "media", unique_field=Media.url)
+        await self._replace_if_incomplete(
+            Notation,
+            notations,
+            "notations",
+            unique_field=Notation.source_url,
+        )
         await self._replace_if_incomplete(InventoryItem, inventory, "inventory")
         await self._seed_lookup_tables()
         await self.session.commit()

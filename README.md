@@ -1,4 +1,4 @@
-# Prabhat Samgiita AI-
+# Prabhat Samgiita AI
 
 Responsive MVP for browsing, searching, and grounding Prabhat Samgiita content with a FastAPI backend, a Next.js frontend, PostgreSQL + pgvector, and optional Azure deployment.
 
@@ -9,7 +9,25 @@ Responsive MVP for browsing, searching, and grounding Prabhat Samgiita content w
 - Streamed explanation responses
 - Rule-based recommendations when no LLM is configured
 - Inventory model for official and verified external resources
+- Number-first audio and YouTube matching with alternate renditions preserved
+- Today, occasion, festival, localization, report, and authenticated admin APIs
+- In-process TTL caching, request IDs, strict media URL validation, and grounded RAG
 - Azure-ready containerized deployment docs
+
+## Catalog status
+
+- 5,018 canonical song records
+- 10,198 distinct linked audio resources covering 4,948 song numbers
+- 5,252 official-source audio links covering 4,742 song numbers
+- 4,946 community/link-only audio links discovered by canonical number through PS Player
+- 372 number-matched YouTube embeds covering 367 songs
+- 1,099 unique notation PDFs plus the official notation index
+- 15,437 canonical RAG chunks generated from lyrics, meanings, themes, and source metadata
+
+Across audio and video, 4,957 of 5,018 song numbers currently have at least one public media link.
+The remaining 61 are retained as explicit coverage gaps rather than being guessed. Audio and video
+remain on their source platforms and are played or embedded by URL. Third-party media is not
+downloaded or re-hosted, and community audio is not labelled official.
 
 ## Local development
 
@@ -20,16 +38,18 @@ Responsive MVP for browsing, searching, and grounding Prabhat Samgiita content w
 docker compose up -d db
 ```
 
-3. Install the frontend deps:
+3. Install locked dependencies:
 
 ```bash
-npm install
+make install
 ```
 
-4. Sync backend deps:
+4. Validate and prepare the database:
 
 ```bash
-cd apps/api && uv sync
+make validate-data
+make migrate
+make seed
 ```
 
 5. Run the app:
@@ -69,14 +89,27 @@ To use the real LLM in Azure, set these secrets in GitHub and the Azure Containe
 ## Notes
 
 - The app never fabricates lyrics or notation. Missing canonical fields are surfaced as pending sync.
+- Search and recommendations keep working without an LLM key. Azure OpenAI adds multilingual
+  localization and streamed grounded explanation when configured.
+- Admin write endpoints are closed until `ADMIN_API_KEY_HASH` is configured. Generate a SHA-256
+  digest outside the repository and send the original key only through the `X-Admin-Key` header.
 - Official site sources:
   - [Lyrics and translations](https://prabhatasamgiita.net/1-5018.htm)
   - [Audio inventory](https://prabhatasamgiita.net/1-999/andromeda.php)
   - [Notation inventory](https://prabhatasamgiita.net/notations/andromeda.php)
   - [YouTube channel](https://www.youtube.com/@AMPS0521spirituality)
 
-## Next steps
+## Verification
 
-- Run the scraper/importer to populate the database from the official catalog.
-- Deploy API and web to Azure Container Apps and PostgreSQL Flexible Server.
-- Keep PostgreSQL unless you explicitly want to reset the synced catalog. App redeploys do not delete the database.
+```bash
+make lint
+make typecheck
+make test
+make test-e2e
+make build
+```
+
+The deployment validates the 5,018-song database, unique media and notation inventory, RAG chunks,
+embeddings, number search, meaning search, recommendations, multilingual output, streamed AI,
+audio reachability, YouTube embeds, latency, and CORS before reporting success. App redeploys do not
+delete PostgreSQL data.

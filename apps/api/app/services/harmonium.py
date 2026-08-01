@@ -147,7 +147,7 @@ def transpose_notation(notation: HarmoniumNotation, target_scale: str) -> Harmon
         transposed_measures: list[NotationMeasure] = []
         for measure in line.measures:
             transposed_beats: list[NotationBeat] = []
-            for beat in measure.measures:
+            for beat in measure.beats:
                 notes: list[NotationNote] = []
                 for note in beat.notes:
                     western = note.western or sargam_to_western(
@@ -165,7 +165,7 @@ def transpose_notation(notation: HarmoniumNotation, target_scale: str) -> Harmon
                         )
                     )
                 transposed_beats.append(NotationBeat(beat=beat.beat, notes=notes))
-            transposed_measures.append(NotationMeasure(measures=transposed_beats))
+            transposed_measures.append(NotationMeasure(beats=transposed_beats))
         transposed_lines.append(
             NotationLine(
                 line_number=line.line_number,

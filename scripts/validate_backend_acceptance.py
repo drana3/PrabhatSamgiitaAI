@@ -35,6 +35,9 @@ class _FailedNestedTransaction:
 
 
 class UnavailableSession:
+    def __init__(self) -> None:
+        self.added: list[Any] = []
+
     async def execute(self, _statement: Any) -> None:
         raise SQLAlchemyError("database intentionally unavailable")
 
@@ -43,6 +46,9 @@ class UnavailableSession:
 
     async def commit(self) -> None:
         return None
+
+    def add(self, value: Any) -> None:
+        self.added.append(value)
 
     def begin_nested(self) -> _FailedNestedTransaction:
         return _FailedNestedTransaction()
@@ -80,6 +86,23 @@ def validate_readiness(response: httpx.Response) -> None:
     require(payload["snapshot_complete"] is True, response.text)
 
 
+def validate_liveness(response: httpx.Response) -> None:
+    require(response.status_code == 200, response.text)
+    require(response.json() == {"status": "ok"}, response.text)
+
+
+def validate_song_page(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require([row["number"] for row in rows] == [111, 112], response.text)
+
+
+def validate_related(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200 and len(rows) > 0, response.text)
+    require(all(row["number"] != 1 for row in rows), response.text)
+
+
 def validate_song_111(response: httpx.Response) -> None:
     payload = response.json()
     require(response.status_code == 200, response.text)
@@ -106,10 +129,22 @@ def validate_search_number(response: httpx.Response) -> None:
     require(bool(rows) and rows[0]["number"] == 111, response.text)
 
 
+def validate_full_name_search(response: httpx.Response) -> None:
+    validate_search_number(response)
+    require(response.json()[0]["is_verified"] is True, response.text)
+
+
 def validate_search_song_one(response: httpx.Response) -> None:
     rows = response.json()
     require(response.status_code == 200, response.text)
     require(any(row["number"] == 1 for row in rows[:5]), response.text)
+
+
+def validate_rich_video_search(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 200, response.text)
+    require(payload["items"][0]["song_number"] == 1, response.text)
+    require(payload["items"][0]["media_summary"]["video_count"] >= 1, response.text)
 
 
 def validate_recommendations(response: httpx.Response) -> None:
@@ -135,6 +170,11 @@ def validate_notation_source(response: httpx.Response) -> None:
     require(payload["transposition_available"] is False, response.text)
 
 
+def validate_missing_machine_notation(response: httpx.Response) -> None:
+    require(response.status_code == 404, response.text)
+    require(response.json()["detail"] == "Notation not available", response.text)
+
+
 def validate_youtube_video(response: httpx.Response) -> None:
     rows = response.json()
     require(response.status_code == 200, response.text)
@@ -153,6 +193,17 @@ def validate_multiple_videos(response: httpx.Response) -> None:
     require(len(rows) == 2, response.text)
     require(len({row["external_id"] for row in rows}) == 2, response.text)
     require(all(row["kind"] == "video" for row in rows), response.text)
+
+
+def validate_number_matched_community_audio(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require(bool(rows), "Song 1112 community audio is missing")
+    require(all(row["kind"] == "audio" for row in rows), response.text)
+    require(any(row["provider"] == "external_site" for row in rows), response.text)
+    require(any(row["source_status"] == "community" for row in rows), response.text)
+    require(any(row["rights_status"] == "link_only" for row in rows), response.text)
+    require(any(row["verification_status"] == "unverified" for row in rows), response.text)
 
 
 def validate_localization(response: httpx.Response) -> None:
@@ -181,13 +232,55 @@ def validate_inventory(response: httpx.Response) -> None:
     require(all(row["url"].startswith("https://") for row in rows), response.text)
 
 
+def validate_occasions(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200 and len(rows) >= 8, response.text)
+    require(any(row["slug"] == "dharma-cakra" for row in rows), response.text)
+
+
+def validate_festivals(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200 and len(rows) > 0, response.text)
+    require(any(row["name"] == "Shravanii Purnima Day" for row in rows), response.text)
+    require(all(row["source_urls"] for row in rows), response.text)
+
+
+def validate_today(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 200, response.text)
+    require(payload["context"]["festival"] == "Bábá Birthday", response.text)
+    require(len(payload["recommendations"]) == 3, response.text)
+    require(all(row["is_verified"] for row in payload["recommendations"]), response.text)
+
+
+def validate_report(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 201, response.text)
+    require(payload["status"] == "received", response.text)
+    require(bool(payload["report_id"]), response.text)
+
+
 CASES = [
+    AcceptanceCase(
+        "Is the Prabhat Samgiita AI service alive?",
+        "The liveness endpoint responds without touching the database.",
+        "GET",
+        "/api/v1/health/live",
+        validate_liveness,
+    ),
     AcceptanceCase(
         "Is the complete Prabhat Samgiita catalog available?",
         "Readiness reports exactly 5,018 packaged songs.",
         "GET",
         "/api/v1/health/readiness",
         validate_readiness,
+    ),
+    AcceptanceCase(
+        "Show the catalog page containing songs 111 and 112.",
+        "Bounded pagination returns exactly songs 111 and 112.",
+        "GET",
+        "/api/v1/songs?limit=2&offset=110",
+        validate_song_page,
     ),
     AcceptanceCase(
         "Show me Prabhat Samgiita number 111.",
@@ -204,12 +297,27 @@ CASES = [
         validate_song_1_meaning,
     ),
     AcceptanceCase(
+        "Which songs are related to song 1?",
+        "Related verified songs are returned without repeating song 1.",
+        "GET",
+        "/api/v1/songs/1/related",
+        validate_related,
+    ),
+    AcceptanceCase(
         "Find song number 111.",
         "Exact-number search places song 111 first.",
         "POST",
         "/api/v1/search",
         validate_search_number,
         {"query": "111"},
+    ),
+    AcceptanceCase(
+        "Find Prabhat Samgiita 111 using the full name.",
+        "Full-name exact-number search places song 111 first and marks it verified.",
+        "POST",
+        "/api/v1/search",
+        validate_full_name_search,
+        {"query": "Prabhat Samgiita 111"},
     ),
     AcceptanceCase(
         "I remember the line 'Bandhu He Niye Calo'. Which song is it?",
@@ -226,6 +334,13 @@ CASES = [
         "/api/v1/search",
         validate_search_song_one,
         {"query": "fountain of effulgence"},
+    ),
+    AcceptanceCase(
+        "Find Bandhu He with a verified YouTube video.",
+        "Rich filtered search returns song 1 with a non-zero video count.",
+        "GET",
+        "/api/v1/search?q=Bandhu%20He&has_video=true",
+        validate_rich_video_search,
     ),
     AcceptanceCase(
         "Recommend songs for peaceful morning meditation.",
@@ -249,6 +364,27 @@ CASES = [
         {"festival": "Shravanii Purnima", "maximum_results": 8},
     ),
     AcceptanceCase(
+        "What should I listen to on Bábá's birthday in Kolkata?",
+        "Today recommendations detect the reviewed fixed observance and return three songs.",
+        "GET",
+        "/api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-05-21",
+        validate_today,
+    ),
+    AcceptanceCase(
+        "Which occasions can I browse?",
+        "The API lists reviewed occasion choices including Dharma Cakra.",
+        "GET",
+        "/api/v1/occasions",
+        validate_occasions,
+    ),
+    AcceptanceCase(
+        "Which festivals have canonically sourced song mappings?",
+        "The API lists festival names, source URLs, and mapped-song counts.",
+        "GET",
+        "/api/v1/festivals",
+        validate_festivals,
+    ),
+    AcceptanceCase(
         "Is official notation available for song 1?",
         "A verified notation source is returned and transposition is honestly marked unavailable.",
         "GET",
@@ -256,11 +392,25 @@ CASES = [
         validate_notation_source,
     ),
     AcceptanceCase(
+        "Transpose song 1 to D on harmonium.",
+        "The API refuses to invent notes because parsed canonical notation is unavailable.",
+        "GET",
+        "/api/v1/songs/1/notation?scale=D&system=sargam",
+        validate_missing_machine_notation,
+    ),
+    AcceptanceCase(
         "Play the verified YouTube performance for song 1.",
         "Song 1 returns a privacy-enhanced YouTube embed from the allow-listed channel.",
         "GET",
         "/api/v1/songs/1/media?media_type=video&platform=youtube",
         validate_youtube_video,
+    ),
+    AcceptanceCase(
+        "Play song 1112, which is absent from the official audio archive.",
+        "A number-matched community link is returned with explicit trust and rights labels.",
+        "GET",
+        "/api/v1/songs/1112/media?media_type=audio",
+        validate_number_matched_community_audio,
     ),
     AcceptanceCase(
         "Are there multiple video renditions of song 2635?",
@@ -300,6 +450,19 @@ CASES = [
         "GET",
         "/api/v1/inventory?limit=25",
         validate_inventory,
+    ),
+    AcceptanceCase(
+        "Report that a media link is broken.",
+        "A bounded anonymous report is accepted for human review.",
+        "POST",
+        "/api/v1/reports",
+        validate_report,
+        {
+            "entity_type": "media",
+            "entity_id": "D4LHhnSLhro",
+            "reason": "broken_media",
+            "comment": "The video does not play in my region.",
+        },
     ),
 ]
 

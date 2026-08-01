@@ -5,6 +5,8 @@ Revises:
 Create Date: 2026-07-31 00:00:00
 """
 
+from typing import Any
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -15,7 +17,7 @@ try:
 except ImportError:  # pragma: no cover - migration fallback in lightweight envs
     from sqlalchemy.types import JSON, TypeDecorator
 
-    class Vector(TypeDecorator):
+    class Vector(TypeDecorator[Any]):  # type: ignore[no-redef]
         impl = JSON
         cache_ok = True
 

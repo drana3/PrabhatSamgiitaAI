@@ -42,6 +42,8 @@ ACR_LOGIN_SERVER="$(az acr show --name "$ACR_NAME" --resource-group "$RG" --quer
 PG_HOST="$(az postgres flexible-server show --resource-group "$RG" --name "$PG_SERVER" --query fullyQualifiedDomainName -o tsv)"
 PG_PASSWORD_ENC="$(printf '%s' "$PG_PASSWORD" | urlencode)"
 DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD_ENC}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
+WEB_FQDN="$(az containerapp show --name "$WEB_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 
 az acr build \
   --registry "$ACR_NAME" \
@@ -58,7 +60,8 @@ az containerapp update \
   --set-env-vars \
     DATABASE_URL="$DATABASE_URL" \
     APP_ENV=production \
-    API_CORS_ORIGINS="*" \
+    API_CORS_ORIGINS="https://${WEB_FQDN}" \
+    TRUSTED_HOSTS="${API_FQDN},localhost,127.0.0.1" \
     CONTENT_SOURCE_URL=https://prabhatasamgiita.net \
     CONTENT_CACHE_DIR=/tmp/content-cache \
     LOG_LEVEL=INFO \
@@ -68,8 +71,6 @@ az containerapp update \
     AZURE_OPENAI_CHAT_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT" \
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT="$AZURE_OPENAI_EMBEDDING_DEPLOYMENT" \
     AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION" >/dev/null
-
-API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 
 API_READY=""
 for attempt in $(seq 1 30); do
@@ -128,8 +129,6 @@ az containerapp update \
   --image "$WEB_IMAGE" \
   --set-env-vars \
     NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" >/dev/null
-
-WEB_FQDN="$(az containerapp show --name "$WEB_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 
 python3 "${ROOT_DIR}/scripts/validate_live_backend.py" "https://${API_FQDN}"
 

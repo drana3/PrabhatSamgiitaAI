@@ -3,18 +3,15 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from time import monotonic
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 
 @dataclass(slots=True)
-class CacheEntry(Generic[T]):
+class CacheEntry[T]:
     value: T
     expires_at: float
 
 
-class AsyncTTLCache(Generic[T]):
+class AsyncTTLCache[T]:
     def __init__(self, ttl_seconds: int = 300, maxsize: int = 512) -> None:
         self.ttl_seconds = ttl_seconds
         self.maxsize = maxsize
@@ -45,4 +42,3 @@ class AsyncTTLCache(Generic[T]):
                 oldest_key = next(iter(self._entries))
                 self._entries.pop(oldest_key, None)
             self._entries[key] = CacheEntry(value=value, expires_at=monotonic() + self.ttl_seconds)
-

@@ -8,10 +8,20 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "Prabhat Samgiita AI"
+    app_version: str = Field(default="0.1.0", alias="APP_VERSION")
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     database_url: str = Field(default="", alias="DATABASE_URL")
     api_cors_origins: str = Field(default="http://localhost:3000", alias="API_CORS_ORIGINS")
+    trusted_hosts: str = Field(
+        default="localhost,127.0.0.1,testserver,acceptance",
+        alias="TRUSTED_HOSTS",
+    )
+    max_request_bytes: int = Field(default=1_048_576, alias="MAX_REQUEST_BYTES", ge=1024)
+    admin_api_key_hash: str | None = Field(default=None, alias="ADMIN_API_KEY_HASH")
+    scheduler_enabled: bool = Field(default=False, alias="SCHEDULER_ENABLED")
+    cache_ttl_seconds: int = Field(default=300, alias="CACHE_TTL_SECONDS", ge=1)
+    cache_max_entries: int = Field(default=500, alias="CACHE_MAX_ENTRIES", ge=1)
     content_source_url: str = Field(
         default="https://prabhatasamgiita.net",
         alias="CONTENT_SOURCE_URL",

@@ -15,9 +15,48 @@ def load_rows(filename: str) -> list[dict[str, Any]]:
     if filename == "media.json":
         generated = _merge_unique(
             generated,
+            _read_rows(DATA_DIR / "generated" / "external_audio.json"),
+            "url",
+        )
+        generated = _merge_unique(
+            generated,
             _read_rows(DATA_DIR / "generated" / "youtube_videos.json"),
             "url",
         )
+    if filename == "inventory.json":
+        external_audio_inventory = [
+            {
+                "source_kind": "audio",
+                "title": row["title"],
+                "url": row["url"],
+                "status": "active",
+                "metadata_json": {
+                    **(row.get("metadata_json") or {}),
+                    "song_number": row.get("song_number"),
+                    "discovered_from": row.get("source_url"),
+                },
+                "notes": row.get("notes"),
+            }
+            for row in _read_rows(DATA_DIR / "generated" / "external_audio.json")
+        ]
+        generated = _merge_unique(generated, external_audio_inventory, "url")
+        video_inventory = [
+            {
+                "source_kind": "video",
+                "title": row["title"],
+                "url": row["url"],
+                "status": "active",
+                "metadata_json": {
+                    **(row.get("metadata_json") or {}),
+                    "song_number": row.get("song_number"),
+                    "embed_url": row.get("embed_url"),
+                    "discovered_from": row.get("source_url"),
+                },
+                "notes": row.get("notes"),
+            }
+            for row in _read_rows(DATA_DIR / "generated" / "youtube_videos.json")
+        ]
+        generated = _merge_unique(generated, video_inventory, "url")
     seed = _read_rows(DATA_DIR / "seed" / filename)
     if not generated:
         return seed

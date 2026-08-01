@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 
+from app.api.v1.admin import router as admin_router
 from app.api.v1.ai import router as ai_router
+from app.api.v1.discovery import router as discovery_router
 from app.api.v1.health import router as health_router
 from app.api.v1.inventory import router as inventory_router
 from app.api.v1.notation import router as notation_router
@@ -16,3 +18,5 @@ router.include_router(recommendations_router)
 router.include_router(inventory_router)
 router.include_router(notation_router)
 router.include_router(ai_router)
+router.include_router(discovery_router)
+router.include_router(admin_router)
