@@ -9,8 +9,8 @@ export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: s
   const searchParams = useSearchParams()
 
   return (
-    <label className="flex items-center gap-3 rounded-full border border-ink-200 bg-white px-4 py-2 text-sm text-ink-700 shadow-sm">
-      <span className="text-[11px] uppercase tracking-[0.25em] text-ink-500">Language</span>
+    <label className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-navy-900/15 bg-white px-3 py-2 text-sm text-navy-800 shadow-sm sm:w-auto sm:min-w-[17rem] sm:rounded-full">
+      <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">Language</span>
       <select
         value={selectedLanguage}
         onChange={(event) => {
@@ -23,7 +23,8 @@ export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: s
           }
           router.replace(`?${next.toString()}`, { scroll: false })
         }}
-        className="rounded-full border border-ink-200 bg-ink-50 px-3 py-1 text-sm text-ink-900 outline-none"
+        aria-label="Reading language"
+        className="min-w-0 w-full rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 text-sm text-navy-950 outline-none focus:border-gold-500"
       >
         {localeOptions.map((option) => (
           <option key={option.code} value={option.code}>

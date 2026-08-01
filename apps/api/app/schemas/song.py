@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -75,9 +75,15 @@ class RecommendationRequest(BaseModel):
     maximum_results: int = Field(default=20, ge=1, le=100)
 
 
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+
 class ExplanationRequest(BaseModel):
     song_number: int
     prompt: str | None = None
+    history: list[ConversationTurn] = Field(default_factory=list, max_length=8)
 
 
 class SongLocalizationResponse(BaseModel):

@@ -26,8 +26,18 @@ describe("streaming song companion", () => {
     })
     fetchJsonMock.mockResolvedValue(new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } }))
     const chunks: string[] = []
-    await streamExplanation(1, (chunk) => chunks.push(chunk), "Explain its imagery")
+    await streamExplanation(1, (chunk) => chunks.push(chunk), "What did I ask last?", [
+      { role: "user", content: "Explain its imagery" },
+      { role: "assistant", content: "The imagery points toward inner light." },
+    ])
     expect(chunks).toEqual(["First grounded thought", "Source: Song 1"])
+    expect(JSON.parse(String(fetchJsonMock.mock.calls[0][1]?.body))).toMatchObject({
+      prompt: "What did I ask last?",
+      history: [
+        { role: "user", content: "Explain its imagery" },
+        { role: "assistant", content: "The imagery points toward inner light." },
+      ],
+    })
   })
 
   it("rejects HTTP failures instead of showing an empty assistant bubble", async () => {

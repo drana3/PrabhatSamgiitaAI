@@ -5,32 +5,46 @@ import { useState } from "react"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { streamExplanation } from "@/lib/explain"
 
+type ChatMessage = {
+  role: "assistant" | "user"
+  text: string
+  createdAt: number
+}
+
+const contextWindowMs = 10 * 60 * 1000
+
 export function StreamExplanation({ songNumber, language, prompt }: { songNumber: number; language?: string | null; prompt?: string }) {
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState(prompt ?? "")
-  const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
-    { role: "assistant", text: `Namaskar. Ask me about this song${language ? ` in ${language}` : ""}, its imagery, feeling, or spiritual meaning.` },
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: "assistant", text: `Namaskar. Ask me about this song${language ? ` in ${language}` : ""}, its imagery, feeling, or spiritual meaning.`, createdAt: Date.now() },
   ])
 
   async function ask() {
     const nextPrompt = query.trim() || prompt || `Explain song ${songNumber}`
+    const now = Date.now()
+    const history = messages
+      .slice(1)
+      .filter((message) => message.text.trim() && now - message.createdAt <= contextWindowMs)
+      .slice(-8)
+      .map((message) => ({ role: message.role, content: message.text.slice(0, 2000) }))
     setLoading(true)
     setQuery("")
-    setMessages((current) => [...current, { role: "user", text: nextPrompt }, { role: "assistant", text: "" }])
+    setMessages((current) => [...current, { role: "user", text: nextPrompt, createdAt: now }, { role: "assistant", text: "", createdAt: now }])
     let streamed = ""
     try {
       await streamExplanation(songNumber, (chunk) => {
         streamed = streamed ? `${streamed}\n${chunk}` : chunk
         setMessages((current) => {
           const next = [...current]
-          next[next.length - 1] = { role: "assistant", text: streamed }
+          next[next.length - 1] = { role: "assistant", text: streamed, createdAt: now }
           return next
         })
-      }, nextPrompt)
+      }, nextPrompt, history)
     } catch {
       setMessages((current) => {
         const next = [...current]
-        next[next.length - 1] = { role: "assistant", text: "I could not complete that response. Please try again in a moment." }
+        next[next.length - 1] = { role: "assistant", text: "I could not complete that response. Please try again in a moment.", createdAt: now }
         return next
       })
     } finally {
@@ -39,11 +53,12 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
   }
 
   return (
-    <section id="ask" className="overflow-hidden rounded-2xl border border-navy-900/10 bg-ivory-50">
+    <section id="ask" className="scroll-mt-28 overflow-hidden rounded-2xl border border-navy-900/10 bg-ivory-50">
       <div className="border-b border-navy-900/10 bg-gold-50/60 p-5">
         <p className="eyebrow">Your song companion</p>
         <h2 className="mt-2 font-serif text-3xl text-navy-950">Ask Prabhat Samgiita AI</h2>
         <p className="mt-2 text-sm leading-6 text-stone-600">Explore meaning, context, and related songs in the language that feels natural to you.</p>
+        <p className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">Conversation context · 10 minutes</p>
       </div>
       <div aria-live="polite" aria-busy={loading} className="max-h-[32rem] space-y-3 overflow-y-auto p-4 sm:p-5">
         {messages.map((message, index) => (

@@ -280,10 +280,16 @@ class HybridSearchService:
                 query_embedding = await self.provider.embed(query)
             except Exception:
                 query_embedding = []
-        opening_rank = await self._opening_line_rank(query, songs, limit=50)
-        fts_rank = await self._fts_rank(query, songs, limit=50)
-        trigram_rank = await self._trigram_rank(query, songs, limit=50)
-        vector_rank = await self._vector_rank(songs, query_embedding, limit=50)
+        # A catalog number is an identifier, not fuzzy text. Returning only the
+        # exact number prevents queries such as 2256 from surfacing Song 226.
+        opening_rank = [] if exact_number else await self._opening_line_rank(query, songs, limit=50)
+        fts_rank = [] if exact_number else await self._fts_rank(query, songs, limit=50)
+        trigram_rank = [] if exact_number else await self._trigram_rank(query, songs, limit=50)
+        vector_rank = (
+            []
+            if exact_number
+            else await self._vector_rank(songs, query_embedding, limit=50)
+        )
 
         fused = reciprocal_rank_fusion(
             [exact_number, opening_rank, fts_rank, trigram_rank, vector_rank]

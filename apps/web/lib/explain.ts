@@ -1,10 +1,16 @@
 import { fetchJson } from "./api"
 import { queryGuidance, queryIsUseful } from "./query-guard"
 
+export type ConversationTurn = {
+  role: "user" | "assistant"
+  content: string
+}
+
 export async function streamExplanation(
   songNumber: number,
   onChunk: (chunk: string) => void,
   prompt?: string,
+  history: ConversationTurn[] = [],
 ): Promise<void> {
   if (prompt && !queryIsUseful(prompt, 800)) {
     onChunk(queryGuidance)
@@ -16,6 +22,7 @@ export async function streamExplanation(
     body: JSON.stringify({
       song_number: songNumber,
       prompt,
+      history: history.slice(-8),
     }),
   })
 

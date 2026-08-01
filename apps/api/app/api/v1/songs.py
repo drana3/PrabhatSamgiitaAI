@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,9 +17,12 @@ router = APIRouter(prefix="/songs", tags=["songs"])
 
 
 def _summary(song: Song) -> SongSummary:
+    title = song.title
+    if re.fullmatch(r"Song\s+\d+", title, flags=re.IGNORECASE):
+        title = song.first_line or "Title awaiting source review"
     return SongSummary(
         number=song.number,
-        title=song.title,
+        title=title,
         first_line=song.first_line,
         theme=song.theme,
         occasion=song.occasion,

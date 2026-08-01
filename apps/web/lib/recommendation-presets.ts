@@ -25,6 +25,13 @@ type FestivalObservation = {
   windowDays?: number
 }
 
+export type UpcomingObservation = {
+  title: string
+  dateLabel: string
+  daysUntil: number
+  query: string
+}
+
 function seasonFromMonth(month: number) {
   if (month >= 3 && month <= 5) return "spring"
   if (month >= 6 && month <= 8) return "summer"
@@ -149,9 +156,29 @@ function isSameDay(now: Date, month: number, day: number) {
 }
 
 function daysUntil(now: Date, month: number, day: number) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const target = new Date(now.getFullYear(), month - 1, day)
-  const diffMs = target.getTime() - now.getTime()
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  if (target.getTime() < today.getTime()) {
+    target.setFullYear(target.getFullYear() + 1)
+  }
+  const diffMs = target.getTime() - today.getTime()
+  return Math.round(diffMs / (1000 * 60 * 60 * 24))
+}
+
+export function getUpcomingObservances(now = new Date(), limit = 3): UpcomingObservation[] {
+  return festivalCalendar
+    .map((item) => ({ ...item, delta: daysUntil(now, item.month, item.day) }))
+    .filter((item) => item.delta >= 0)
+    .sort((left, right) => left.delta - right.delta)
+    .slice(0, limit)
+    .map((item) => ({
+      title: item.title,
+      dateLabel: new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(
+        new Date(now.getFullYear() + (item.delta > 300 ? 1 : 0), item.month - 1, item.day),
+      ),
+      daysUntil: item.delta,
+      query: item.festival || item.occasion || item.title,
+    }))
 }
 
 function festivalPresetForDate(now: Date): RecommendationPreset | null {

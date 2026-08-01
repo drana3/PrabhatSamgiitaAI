@@ -5,6 +5,7 @@ import Link from "next/link"
 
 import { SearchForm } from "@/components/search-form"
 import { SongCard } from "@/components/song-card"
+import { SpecialCollections } from "@/components/special-collections"
 import { fetchSongs } from "@/lib/api"
 import type { SongSummary } from "@/lib/api"
 
@@ -15,15 +16,6 @@ const themes = [
   { label: "♙ Service & humanity", query: "service humanity" },
   { label: "♧ Nature", query: "nature river mountain" },
 ]
-const occasions = [
-  { label: "Birthday", query: "birthday" },
-  { label: "Shiva", query: "Shiva" },
-  { label: "Krishna", query: "Krishna" },
-  { label: "Guru & devotion", query: "Guru devotion" },
-  { label: "New Year", query: "New Year" },
-  { label: "Meditation", query: "meditation" },
-]
-
 export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: SongSummary[]; initialQuery: string }) {
   const [songs, setSongs] = useState(initialSongs)
   useEffect(() => {
@@ -43,11 +35,11 @@ export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: So
 
       <div className="mt-8 space-y-5 border-y border-navy-900/10 py-6">
         <FilterRow label="Browse by theme" items={themes} />
-        <FilterRow label="Special collections" items={occasions} />
+        <a href="#collections" className="inline-flex text-sm font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Browse all 69 special collections →</a>
         <p className="text-xs leading-5 text-stone-500"><strong className="text-navy-950">Raga & tala:</strong> the musical index is published progressively as canonical notation pages are reviewed.</p>
       </div>
 
-      <div className="mt-8 flex items-end justify-between gap-4">
+      <div id="results" className="mt-8 flex scroll-mt-28 items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Top results</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">Songs that match your search</h2>
@@ -62,6 +54,8 @@ export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: So
           <p className="mt-2 text-sm text-stone-600">Try a song number, opening words, feeling, or occasion.</p>
         </div>
       )}
+
+      <div className="mt-14"><SpecialCollections /></div>
     </div>
   )
 }

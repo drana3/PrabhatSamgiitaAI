@@ -1,5 +1,10 @@
 from app.models.song import Song
-from app.services.rag import build_song_chunks, cosine_similarity, split_text_blocks
+from app.services.rag import (
+    build_grounded_prompt,
+    build_song_chunks,
+    cosine_similarity,
+    split_text_blocks,
+)
 
 
 def test_split_text_blocks_preserves_paragraphs() -> None:
@@ -32,3 +37,18 @@ def test_build_song_chunks_creates_grounded_sections() -> None:
 
 def test_cosine_similarity_matches_identical_vectors() -> None:
     assert cosine_similarity([1.0, 0.0], [1.0, 0.0]) == 1.0
+
+
+def test_grounded_prompt_uses_recent_turns_only_for_follow_up_context() -> None:
+    song = Song(number=2256, title="Asar Katha Chilo Anek Age")
+
+    prompt = build_grounded_prompt(
+        song,
+        "What did I ask last?",
+        ["[1] Canonical meaning"],
+        [("user", "Explain it in Magahi"), ("assistant", "Here is the explanation.")],
+    )
+
+    assert "User: Explain it in Magahi" in prompt
+    assert "Current user question: What did I ask last?" in prompt
+    assert "Answer factual claims only from the retrieved canonical context" in prompt

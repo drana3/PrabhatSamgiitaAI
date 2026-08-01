@@ -19,9 +19,11 @@ test("home delivers a complete, nonblank spiritual journey", async ({ page }) =>
   await page.goto("/")
   await expect(page.getByRole("heading", { name: /Music for the inner dawn/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Songs composed for a new human dawn/i })).toBeVisible()
-  await expect(page.getByRole("heading", { name: /A song for this moment/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Today.*songs and upcoming observances/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Upcoming observances", exact: true })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Listen, read, and reflect/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Meaning and guidance, grounded in the songs/i })).toBeVisible()
+  await expect(page.getByText(/written with the ink of the heart/i)).toBeVisible()
   await expect(page.getByText("5,018", { exact: false }).first()).toBeVisible()
   await expect(page.getByText(/Finding songs/i)).toHaveCount(0, { timeout: 20_000 })
 
@@ -50,6 +52,68 @@ test("brand artwork is crisp and accessible", async ({ page }) => {
   expect(imageQuality.naturalWidth / imageQuality.renderedWidth).toBeGreaterThan(1.25)
   expect(imageQuality.naturalHeight / imageQuality.renderedHeight).toBeGreaterThan(1.25)
   expect(imageQuality.alt).toBe("Prabhat Samgiita")
+  expect(imageQuality.renderedHeight).toBeGreaterThanOrEqual(56)
+  const iconHref = await page.locator("link[rel='icon']").first().getAttribute("href")
+  expect(iconHref).toBeTruthy()
+  expect((await page.request.get(iconHref!)).ok()).toBe(true)
+})
+
+test("About navigation lands below the sticky header", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("link", { name: "About", exact: true }).click()
+  await expect(page).toHaveURL(/#about$/)
+  await expect.poll(async () => page.locator("#about").evaluate((node) => Math.round(node.getBoundingClientRect().top))).toBeLessThan(150)
+  const positions = await page.evaluate(() => {
+    const header = document.querySelector("header")
+    const about = document.querySelector("#about")
+    return {
+      headerBottom: header?.getBoundingClientRect().bottom ?? 0,
+      aboutTop: about?.getBoundingClientRect().top ?? 0,
+    }
+  })
+  expect(positions.aboutTop).toBeGreaterThanOrEqual(positions.headerBottom + 8)
+  expect(positions.aboutTop).toBeLessThan(positions.headerBottom + 60)
+})
+
+test("all special collections are organized and lead to catalog search", async ({ page }) => {
+  await page.goto("/explore")
+  await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
+  await expect(page.getByText("69 collections", { exact: true })).toBeVisible()
+  await expect(page.getByText("Languages", { exact: true })).toBeVisible()
+  await expect(page.getByText("Musical traditions and rarities", { exact: true })).toBeVisible()
+  const collectionLinks = page.locator("#collections a[href^='/explore?q=']")
+  await expect(collectionLinks).toHaveCount(69)
+  await page.getByRole("link", { name: /Hindi 12/ }).click()
+  await expect(page).toHaveURL(/q=Hindi/)
+  await expect(page.locator("#results")).toBeVisible()
+})
+
+test("song tabs land within the viewport and language control never clips", async ({ page }) => {
+  await page.goto("/songs/1")
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+  const language = page.getByLabel("Reading language")
+  await expect(language).toBeVisible()
+  const languageBounds = await language.boundingBox()
+  const viewport = page.viewportSize()
+  expect(languageBounds).not.toBeNull()
+  expect(viewport).not.toBeNull()
+  expect(languageBounds!.x).toBeGreaterThanOrEqual(0)
+  expect(languageBounds!.x + languageBounds!.width).toBeLessThanOrEqual(viewport!.width)
+
+  for (const section of ["Lyrics", "Meaning", "Notation", "Listen", "Ask AI"]) {
+    await page.getByRole("link", { name: section, exact: true }).click()
+    const targetId = section === "Ask AI" ? "ask" : section.toLowerCase()
+    const positions = await page.evaluate((id) => {
+      const header = document.querySelector("header")
+      const target = document.querySelector(`#${id}`)
+      return {
+        headerBottom: header?.getBoundingClientRect().bottom ?? 0,
+        targetTop: target?.getBoundingClientRect().top ?? 0,
+      }
+    }, targetId)
+    expect(positions.targetTop).toBeGreaterThanOrEqual(positions.headerBottom + 8)
+  }
+  await expect(page.getByRole("heading", { name: "Listen to this song" })).toBeVisible()
 })
 
 test("garbage and hostile hero queries never reach search or AI", async ({ page }) => {
@@ -75,10 +139,14 @@ test("a meaningful query moves naturally into exploration", async ({ page }) => 
 test("search renders verified results and a deliberate no-match state", async ({ page }) => {
   await page.route("**/api/v1/search", async (route) => {
     const payload = route.request().postDataJSON() as { query: string }
-    await route.fulfill({ json: payload.query.includes("unmatched theme") ? [] : [songResult] })
+    await route.fulfill({ json: payload.query.includes("unmatched theme") ? [] : payload.query === "2256" ? [{ ...songResult, number: 2256, title: "Ásár Kathá Chilo Anek Áge", first_line: "ÁSÁR KATHÁ CHILO ANEK ÁGE" }] : [songResult] })
   })
   await page.goto("/explore")
   const input = page.getByLabel(/Search by number/i)
+  await input.fill("2256")
+  await page.getByRole("button", { name: "Search" }).click()
+  await expect(page.getByRole("link", { name: /2256.*Ásár Kathá Chilo Anek Áge/i })).toHaveCount(1)
+  await expect(page.getByText("226", { exact: true })).toHaveCount(0)
   await input.fill("Tomar Katha")
   await page.getByRole("button", { name: "Search" }).click()
   await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible()
@@ -86,6 +154,14 @@ test("search renders verified results and a deliberate no-match state", async ({
   await page.getByRole("button", { name: "Search" }).click()
   await expect(page.getByRole("heading", { name: "No exact match found" })).toBeVisible()
   await expect(page.getByText(/Try a song number, opening words/i)).toBeVisible()
+})
+
+test("song pages omit unavailable information and use clear recording language", async ({ page }) => {
+  await page.goto("/songs/2256")
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+  await expect(page.getByText(/No verified video match/i)).toHaveCount(0)
+  await expect(page.getByText("Not listed", { exact: true })).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Audio renditions" })).toHaveCount(0)
 })
 
 test("search failure is recoverable and never becomes a blank results panel", async ({ page }) => {

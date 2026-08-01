@@ -129,6 +129,12 @@ def validate_search_number(response: httpx.Response) -> None:
     require(bool(rows) and rows[0]["number"] == 111, response.text)
 
 
+def validate_search_2256_is_exact(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require([row["number"] for row in rows] == [2256], response.text)
+
+
 def validate_full_name_search(response: httpx.Response) -> None:
     validate_search_number(response)
     require(response.json()[0]["is_verified"] is True, response.text)
@@ -325,6 +331,14 @@ CASES = [
         "/api/v1/search",
         validate_full_name_search,
         {"query": "Prabhat Samgiita 111"},
+    ),
+    AcceptanceCase(
+        "Find exactly song 2256 without showing song 226.",
+        "A numeric identifier returns only song 2256 and never a fuzzy number match.",
+        "POST",
+        "/api/v1/search",
+        validate_search_2256_is_exact,
+        {"query": "2256"},
     ),
     AcceptanceCase(
         "I remember the line 'Bandhu He Niye Calo'. Which song is it?",

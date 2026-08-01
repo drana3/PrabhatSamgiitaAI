@@ -132,6 +132,34 @@ def token_score(query: str, content: str) -> float:
     return score / len(query_tokens)
 
 
+def build_grounded_prompt(
+    song: Song,
+    query: str,
+    context_lines: list[str],
+    history: list[tuple[str, str]] | None = None,
+) -> str:
+    recent_conversation = "\n".join(
+        f"{role.title()}: {content}" for role, content in (history or [])
+    )
+    return "\n\n".join(
+        [
+            "You are a grounded assistant for Prabhat Samgiita.",
+            "Answer factual claims only from the retrieved canonical context below.",
+            "Use the recent conversation only to understand references and follow-up questions.",
+            "Be warm, reverent, and practical.",
+            "If the canonical context is insufficient, say so plainly and offer the "
+            "closest grounded help you can.",
+            "Keep the answer concise and cite the source labels like [1], [2].",
+            "When helpful, end with one gentle next step the user can take in the BOT.",
+            f"Recent conversation (may be empty):\n{recent_conversation or 'No earlier turns.'}",
+            f"Current user question: {query}",
+            f"Song focus: {song.number} - {song.title}",
+            "Retrieved canonical context:",
+            "\n\n".join(context_lines),
+        ]
+    )
+
+
 class RAGService:
     def __init__(self, session: AsyncSession, provider: GroundedProvider) -> None:
         self.session = session
@@ -267,7 +295,10 @@ class RAGService:
             return self._fallback_chunks(song, limit)
 
     async def build_grounded_answer(
-        self, song: Song, query: str
+        self,
+        song: Song,
+        query: str,
+        history: list[tuple[str, str]] | None = None,
     ) -> tuple[str, list[RetrievedChunk]]:
         chunks = await self.retrieve(song, query, limit=5)
         context_lines = []
@@ -277,21 +308,7 @@ class RAGService:
                 f"[{idx}] {chunk.song_title} | {chunk.chunk_type} | source {source}\n"
                 f"{chunk.content}"
             )
-        prompt = "\n\n".join(
-            [
-                "You are a grounded assistant for Prabhat Samgiita.",
-                "Answer only from the retrieved canonical context below.",
-                "Be warm, reverent, and practical.",
-                "If the context is insufficient, say so plainly and offer the",
-                "closest grounded help you can.",
-                "Keep the answer concise and cite the source labels like [1], [2].",
-                "When helpful, end with one gentle next step the user can take in the BOT.",
-                f"User question: {query}",
-                f"Song focus: {song.number} - {song.title}",
-                "Retrieved context:",
-                "\n\n".join(context_lines),
-            ]
-        )
+        prompt = build_grounded_prompt(song, query, context_lines, history)
         try:
             answer = await self.provider.complete(prompt)
         except Exception as exc:  # pragma: no cover - network/provider failures are runtime only

@@ -45,7 +45,16 @@ async def explain(
             media_type="text/event-stream",
         )
     prompt = assessment.normalized
-    cache_key = json.dumps({"song_number": song.number, "prompt": prompt}, sort_keys=True)
+    history: list[tuple[str, str]] = []
+    for turn in payload.history:
+        content = " ".join(turn.content.split())
+        if turn.role == "user" and not assess_query(content, max_length=2000).allowed:
+            continue
+        history.append((turn.role, content))
+    cache_key = json.dumps(
+        {"song_number": song.number, "prompt": prompt, "history": history},
+        sort_keys=True,
+    )
     cached = await explanation_cache.get(cache_key)
     if isinstance(cached, list):
         return StreamingResponse(stream_text(cached), media_type="text/event-stream")
@@ -57,7 +66,7 @@ async def explain(
     provider = select_provider(get_settings())
     rag = RAGService(session, provider)
     try:
-        answer, chunks = await rag.build_grounded_answer(song, prompt)
+        answer, chunks = await rag.build_grounded_answer(song, prompt, history=history)
     except Exception:  # pragma: no cover - runtime fallback for provider/db issues
         logger.exception("Grounded explanation fallback for song %s", song.number)
         answer = (

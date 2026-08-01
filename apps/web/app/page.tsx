@@ -47,22 +47,35 @@ export default function HomePage() {
               <div className="mx-auto mt-4 h-px w-24 bg-gold-400" />
             </article>
 
-            <article id="about" className="glass-card flex flex-col gap-5 sm:flex-row sm:items-center">
+            <article id="about" className="glass-card scroll-mt-28 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0 flex-1">
                 <p className="eyebrow">About Prabhat Samgiita</p>
                 <h2 className="mt-3 font-serif text-3xl leading-tight text-navy-950">Songs composed for a new human dawn</h2>
                 <p className="mt-3 text-sm leading-7 text-stone-700">
                   Shrii Shrii Anandamurti composed Prabhat Samgiita between 14 September 1982 and 20 October 1990. Its 5,018 songs bring together devotion, mysticism, humanism, nature, and the hope of collective welfare.
                 </p>
+                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold uppercase tracking-[0.12em] text-navy-800/75" aria-label="Ways to explore Prabhat Samgiita">
+                  <span>Listen</span>
+                  <span>Understand</span>
+                  <span>Practise</span>
+                </div>
                 <Link href="/explore" className="mt-4 inline-flex text-sm font-semibold text-gold-700">Explore the collection →</Link>
               </div>
-              <Image
-                src="/brand/shrii-shrii-anandamurti.jpg"
-                alt="Shrii Shrii Anandamurti"
-                width={240}
-                height={174}
-                className="h-36 w-full rounded-2xl object-cover object-left sm:w-44"
-              />
+              <figure className="mx-auto w-full max-w-44 sm:w-40">
+                <div className="overflow-hidden rounded-[1.35rem] border border-gold-500/25 bg-gold-50 p-1.5 shadow-[0_12px_30px_rgba(45,35,24,0.13)]">
+                  <Image
+                    src="/brand/shrii-shrii-anandamurti-portrait.jpeg"
+                    alt="Shrii Shrii Anandamurti"
+                    width={192}
+                    height={262}
+                    className="aspect-[192/262] w-full rounded-[1rem] object-cover object-top"
+                  />
+                </div>
+                <figcaption className="mt-2 text-center text-xs leading-5 text-stone-700">
+                  <span className="block font-semibold text-navy-950">Shrii Shrii Anandamurti</span>
+                  Composer of Prabhat Samgiita
+                </figcaption>
+              </figure>
             </article>
           </div>
           <MiniPlayer />

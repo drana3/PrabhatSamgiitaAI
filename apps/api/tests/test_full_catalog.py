@@ -112,3 +112,13 @@ async def test_exact_number_search_works_without_database() -> None:
     assert response.total >= 1
     assert response.items[0].song_number == 111
     assert "exact_number" in response.items[0].matched_by
+
+
+@pytest.mark.asyncio
+async def test_exact_number_search_never_returns_similar_numbers() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("2256")
+
+    assert response.total == 1
+    assert [item.song_number for item in response.items] == [2256]

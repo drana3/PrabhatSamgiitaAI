@@ -50,7 +50,7 @@ export function HarmoniumPractice({ songNumber, initialNotation, sourceUrl, sour
   }
 
   return (
-    <section id="notation" className="scroll-mt-24">
+    <section id="notation" className="scroll-mt-28">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div><p className="eyebrow">Learn on harmonium</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Simple practice notation</h2><p className="mt-2 text-sm text-stone-600">Choose where Sa feels comfortable, then practise one lyric line at a time.</p></div>
         {notation ? <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] ${notation.verification_status.includes("verified") ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>{notation.verification_status.includes("verified") ? "Verified notation" : "Practice draft"}</span> : null}

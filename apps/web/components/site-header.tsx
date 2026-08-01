@@ -11,27 +11,27 @@ const navigation = [
 export function SiteHeader({ active = "Home" }: { active?: string }) {
   return (
     <header className="sticky top-0 z-50 border-b border-navy-900/10 bg-ivory-50/95 backdrop-blur-xl">
-      <div className="mx-auto flex h-[4.75rem] max-w-[90rem] items-center justify-between gap-5 px-4 sm:px-6 lg:px-10">
-        <Link href="/" aria-label="Prabhat Samgiita home" className="shrink-0">
+      <div className="mx-auto flex h-[5.25rem] max-w-[90rem] items-center justify-between gap-5 px-4 sm:px-6 lg:px-10">
+        <Link href="/" aria-label="Prabhat Samgiita home" className="flex shrink-0 items-center gap-2.5 sm:gap-3">
           <Image
-            src="/brand/prabhat-samgiita-lockup.png"
+            src="/brand/prabhat-samgiita-emblem.png"
             alt="Prabhat Samgiita"
-            width={216}
-            height={110}
-            className="h-12 w-[9.5rem] object-contain object-left sm:w-[11rem]"
+            width={680}
+            height={680}
+            className="h-[3.6rem] w-[3.6rem] object-contain sm:h-[4.15rem] sm:w-[4.15rem]"
             priority
           />
+          <span className="hidden font-serif text-[1.05rem] leading-[1.05] tracking-[0.06em] text-navy-950 min-[390px]:block sm:text-xl">
+            <span className="block">PRABHAT</span>
+            <span className="block">SAMGIITA</span>
+          </span>
         </Link>
 
         <nav aria-label="Main navigation" className="hidden items-center gap-8 md:flex">
-          {navigation.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`nav-link ${active === item.label ? "nav-link-active" : ""}`}
-            >
-              {item.label}
-            </Link>
+          {navigation.map((item) => item.href.includes("#") ? (
+            <a key={item.label} href={item.href} className={`nav-link ${active === item.label ? "nav-link-active" : ""}`}>{item.label}</a>
+          ) : (
+            <Link key={item.label} href={item.href} className={`nav-link ${active === item.label ? "nav-link-active" : ""}`}>{item.label}</Link>
           ))}
         </nav>
 

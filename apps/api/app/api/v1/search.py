@@ -45,7 +45,7 @@ async def search(
     results = [
         SongSummary(
             number=item.song_number,
-            title=item.opening_line or f"Song {item.song_number}",
+            title=item.opening_line or "Title awaiting source review",
             first_line=item.opening_line,
             theme=None,
             occasion=None,

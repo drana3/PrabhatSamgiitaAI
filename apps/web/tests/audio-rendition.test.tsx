@@ -12,6 +12,13 @@ afterEach(() => {
 })
 
 describe("authenticated audio controls", () => {
+  it("uses clear recording language for verified sources", () => {
+    global.fetch = vi.fn().mockResolvedValue(Response.json([]))
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 1" provider="official" />)
+
+    expect(screen.getByText("Verified recording")).toBeInTheDocument()
+  })
+
   it("does not offer download to anonymous visitors", async () => {
     global.fetch = vi.fn().mockResolvedValue(Response.json([]))
     render(<AudioRendition url="https://example.test/song.mp3" title="Song 1" />)
