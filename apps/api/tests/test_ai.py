@@ -19,5 +19,11 @@ def test_extract_responses_text_from_message_content() -> None:
 
 
 def test_extract_responses_text_rejects_empty_payload() -> None:
-    with pytest.raises(ValueError, match="did not contain output text"):
-        extract_responses_text({"output": []})
+    with pytest.raises(ValueError, match="status='incomplete'.*max_output_tokens"):
+        extract_responses_text(
+            {
+                "status": "incomplete",
+                "incomplete_details": {"reason": "max_output_tokens"},
+                "output": [],
+            }
+        )

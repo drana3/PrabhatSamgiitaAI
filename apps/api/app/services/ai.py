@@ -43,7 +43,12 @@ def extract_responses_text(payload: dict[str, Any]) -> str:
                 if isinstance(value, str) and value.strip():
                     parts.append(value)
     if not parts:
-        raise ValueError("Azure OpenAI Responses payload did not contain output text")
+        status = payload.get("status")
+        incomplete = payload.get("incomplete_details")
+        raise ValueError(
+            "Azure OpenAI Responses payload did not contain output text "
+            f"(status={status!r}, incomplete_details={incomplete!r})"
+        )
     return "\n".join(parts)
 
 
@@ -145,7 +150,9 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
                 headers={"api-key": self.api_key},
                 json={
                     "model": self.model,
-                    "max_output_tokens": 700,
+                    "max_output_tokens": 1600,
+                    "reasoning": {"effort": "low"},
+                    "text": {"verbosity": "low"},
                     "input": [
                         {
                             "role": "system",
