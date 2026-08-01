@@ -191,10 +191,10 @@ async def load_song_notation(session: AsyncSession, song: Song) -> HarmoniumNota
             return notation_from_json(raw)
     try:
         result = await session.execute(select(Notation).where(Notation.song_number == song.number))
-        row = result.mappings().first()
+        row = result.scalar_one_or_none()
         if not row:
             return None
-        notation_text = row.get("notation_text")
+        notation_text = row.notation_text
         if not notation_text or not str(notation_text).strip().startswith("{"):
             return None
         return notation_from_json(str(notation_text))
