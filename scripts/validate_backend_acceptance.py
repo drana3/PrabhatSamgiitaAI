@@ -166,13 +166,20 @@ def validate_notation_source(response: httpx.Response) -> None:
     require(response.status_code == 200, response.text)
     require(payload["song_number"] == 1, response.text)
     require(payload["verification_status"] == "verified", response.text)
+    require(payload["learner_verification_status"] == "practice_draft", response.text)
     require(payload["source_url"].startswith("https://"), response.text)
-    require(payload["transposition_available"] is False, response.text)
+    require(payload["machine_readable"] is True, response.text)
+    require(payload["transposition_available"] is True, response.text)
 
 
-def validate_missing_machine_notation(response: httpx.Response) -> None:
-    require(response.status_code == 404, response.text)
-    require(response.json()["detail"] == "Notation not available", response.text)
+def validate_transposed_practice_notation(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 200, response.text)
+    require(payload["song_number"] == 1, response.text)
+    require(payload["source_scale"] == "C", response.text)
+    require(payload["target_scale"] == "D", response.text)
+    require(payload["verification_status"] == "practice_draft", response.text)
+    require(bool(payload["notation"]["lines"]), response.text)
 
 
 def validate_youtube_video(response: httpx.Response) -> None:
@@ -386,17 +393,17 @@ CASES = [
     ),
     AcceptanceCase(
         "Is official notation available for song 1?",
-        "A verified notation source is returned and transposition is honestly marked unavailable.",
+        "The canonical source and learner-draft statuses are reported separately.",
         "GET",
         "/api/v1/songs/1/notation/source",
         validate_notation_source,
     ),
     AcceptanceCase(
         "Transpose song 1 to D on harmonium.",
-        "The API refuses to invent notes because parsed canonical notation is unavailable.",
+        "The OCR-derived practice draft is transposed to D and remains clearly labelled.",
         "GET",
         "/api/v1/songs/1/notation?scale=D&system=sargam",
-        validate_missing_machine_notation,
+        validate_transposed_practice_notation,
     ),
     AcceptanceCase(
         "Play the verified YouTube performance for song 1.",

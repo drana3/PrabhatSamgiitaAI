@@ -122,8 +122,9 @@ class HybridSearchService:
                 .group_by(Media.song_number)
             )
             notation_result = await self.session.execute(
-                select(Notation.song_number, func.count(Notation.id).label("notation_count"))
-                .group_by(Notation.song_number)
+                select(
+                    Notation.song_number, func.count(Notation.id).label("notation_count")
+                ).group_by(Notation.song_number)
             )
             for row in media_result.all():
                 summary = counts[int(row.song_number)]
@@ -272,13 +273,13 @@ class HybridSearchService:
         media_counts = await self._media_counts()
         intent = detect_intent(query)
 
+        exact_number = await self._exact_number_rank(query)
         query_embedding: list[float] = []
-        if await self._has_vector_index():
+        if not exact_number and await self._has_vector_index():
             try:
                 query_embedding = await self.provider.embed(query)
             except Exception:
                 query_embedding = []
-        exact_number = await self._exact_number_rank(query)
         opening_rank = await self._opening_line_rank(query, songs, limit=50)
         fts_rank = await self._fts_rank(query, songs, limit=50)
         trigram_rank = await self._trigram_rank(query, songs, limit=50)

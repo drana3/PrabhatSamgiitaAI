@@ -2,37 +2,31 @@ import Link from "next/link"
 
 import type { SongSummary } from "@/lib/api"
 
-export function SongCard({ song }: { song: SongSummary }) {
+export function SongCard({ song, index = 0 }: { song: SongSummary; index?: number }) {
+  const swatches = ["from-amber-100 to-orange-50", "from-sky-100 to-ivory-50", "from-emerald-100 to-ivory-50"]
   return (
-    <Link
-      href={`/songs/${song.number}`}
-      className="group relative overflow-hidden rounded-3xl border border-ink-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-ember-300 hover:shadow-glow"
-    >
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ember-400 via-amber-200 to-ink-400 opacity-80" />
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-ember-700">Song {song.number}</p>
-          <h3 className="mt-2 font-serif text-2xl text-ink-900 transition group-hover:text-ink-950">{song.title}</h3>
-          {song.first_line ? <p className="mt-3 text-sm leading-6 text-ink-700">{song.first_line}</p> : null}
+    <Link href={`/songs/${song.number}`} className="group surface-card overflow-hidden transition duration-300 hover:-translate-y-1 hover:border-gold-500/50 hover:shadow-xl">
+      <div className={`h-2 bg-gradient-to-r ${swatches[index % swatches.length]}`} />
+      <div className="p-5">
+        <div className="flex items-start gap-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-gold-500/30 bg-gold-50 font-serif text-lg font-bold text-gold-700">{song.number}</span>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-serif text-xl font-semibold leading-snug text-navy-950 group-hover:text-gold-700">{titleCase(song.title)}</h3>
+            {song.first_line ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">{titleCase(song.first_line)}</p> : null}
+          </div>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-navy-900/15 text-xs text-navy-950 transition group-hover:border-gold-600 group-hover:bg-gold-600 group-hover:text-white">▶</span>
         </div>
-        <span className="rounded-full border border-ink-200 bg-ink-50 px-3 py-1 text-xs font-semibold text-ink-600">
-          {song.is_verified ? "Verified" : "Pending"}
-        </span>
-      </div>
-      {(song.occasion || song.difficulty) ? (
-        <p className="mt-3 text-xs uppercase tracking-[0.25em] text-ink-500">
-          {[song.occasion, song.difficulty].filter(Boolean).join(" · ")}
-        </p>
-      ) : null}
-      <div className="mt-4 flex flex-wrap gap-2 text-xs text-ink-600">
-        {song.theme ? <span className="rounded-full bg-ink-50 px-3 py-1">{song.theme}</span> : null}
-        {song.mood ? <span className="rounded-full bg-ink-50 px-3 py-1">{song.mood}</span> : null}
-        {song.language ? <span className="rounded-full bg-ink-50 px-3 py-1">{song.language}</span> : null}
-      </div>
-      <div className="mt-5 flex items-center justify-between border-t border-ink-100 pt-4 text-[11px] uppercase tracking-[0.3em] text-ink-500">
-        <span>Open song</span>
-        <span className="transition group-hover:translate-x-1">→</span>
+        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-navy-900/8 pt-4 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-stone-500">
+          <span>{song.theme || song.mood || "Devotion"}</span>
+          <span className="text-gold-500">•</span>
+          <span>{song.language || "Roman"}</span>
+          {song.is_verified ? <span className="ml-auto text-emerald-700">✓ Source verified</span> : null}
+        </div>
       </div>
     </Link>
   )
+}
+
+function titleCase(value: string) {
+  return value.toLocaleLowerCase().replace(/(^|[\s'’-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
 }

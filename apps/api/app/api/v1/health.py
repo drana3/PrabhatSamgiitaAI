@@ -27,8 +27,7 @@ async def readiness(
     database = stats["database"]
     snapshot_complete = snapshot["songs"] >= 5018
     database_synced = all(
-        database[key] >= snapshot[key]
-        for key in ("songs", "media", "notations", "inventory")
+        database[key] >= snapshot[key] for key in ("songs", "media", "notations", "inventory")
     )
     rag_chunked = database["rag_song_chunks"] >= snapshot["songs"]
     embedded_songs = database["embedded_songs"]

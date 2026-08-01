@@ -20,9 +20,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("X-Request-ID", str(uuid4()))[:128]
         content_length = request.headers.get("content-length")
         try:
-            body_too_large = bool(
-                content_length and int(content_length) > self.max_request_bytes
-            )
+            body_too_large = bool(content_length and int(content_length) > self.max_request_bytes)
         except ValueError:
             body_too_large = True
         if body_too_large:

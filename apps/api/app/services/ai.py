@@ -180,11 +180,7 @@ def select_provider(settings: Settings) -> GroundedProvider:
         settings.azure_openai_chat_deployment or settings.azure_openai_deployment
     )
     azure_embedding_deployment = settings.azure_openai_embedding_deployment or azure_chat_deployment
-    if (
-        settings.azure_openai_endpoint
-        and settings.azure_openai_api_key
-        and azure_chat_deployment
-    ):
+    if settings.azure_openai_endpoint and settings.azure_openai_api_key and azure_chat_deployment:
         return AzureOpenAIProvider(
             api_key=settings.azure_openai_api_key,
             base_url=str(settings.azure_openai_endpoint).rstrip("/"),

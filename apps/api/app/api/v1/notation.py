@@ -31,7 +31,14 @@ async def get_notation_source(
     return NotationSourceResponse(
         song_number=number,
         source_url=notation.source_url,
-        verification_status=notation.verification_status,
+        verification_status=str(
+            (notation.metadata_json or {}).get(
+                "source_verification_status", notation.verification_status
+            )
+        ),
+        learner_verification_status=(
+            notation.verification_status if machine_readable else None
+        ),
         machine_readable=machine_readable,
         transposition_available=machine_readable,
     )
@@ -57,6 +64,7 @@ async def get_notation(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     transposed = transpose_notation(notation, target_scale)
+    source = await CatalogService(session).get_notation(number)
     if system.lower() == "western":
         # Keep the canonical schema but expose western notes in-place.
         pass
@@ -64,6 +72,6 @@ async def get_notation(
         song_number=number,
         source_scale=notation.source_scale,
         target_scale=target_scale,
-        verification_status=song.canonical_source_status,
+        verification_status=source.verification_status if source else "practice_draft",
         notation=transposed,
     )

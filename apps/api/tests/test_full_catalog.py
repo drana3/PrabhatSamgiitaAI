@@ -8,6 +8,7 @@ from app.services.catalog import (
     CatalogService,
     catalog_inventory_snapshot,
     catalog_media_snapshot,
+    catalog_notation_snapshot,
     catalog_song_snapshot,
 )
 from app.services.search import HybridSearchService, canonical_lexical_boost
@@ -83,6 +84,15 @@ def test_canonical_inventory_titles_are_not_truncated() -> None:
     assert max(len(item.title) for item in inventory) > 255
     assert len([item for item in inventory if item.source_kind == "video"]) >= 372
     assert len([item for item in inventory if item.source_kind == "audio"]) >= 10_000
+
+
+def test_learner_notation_has_substantial_real_source_coverage() -> None:
+    notations = catalog_notation_snapshot()
+    machine_readable = [item for item in notations if item.notation_text]
+
+    assert len(machine_readable) >= 1_000
+    assert all(item.verification_status != "verified" for item in machine_readable)
+    assert all(item.metadata_json.get("requires_human_review") is True for item in machine_readable)
 
 
 @pytest.mark.asyncio

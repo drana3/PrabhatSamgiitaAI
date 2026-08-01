@@ -1,0 +1,71 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+
+import { SearchForm } from "@/components/search-form"
+import { SongCard } from "@/components/song-card"
+import { fetchSongs } from "@/lib/api"
+import type { SongSummary } from "@/lib/api"
+
+const themes = [
+  { label: "♡ Love & devotion", query: "love devotion" },
+  { label: "♧ Peace & bliss", query: "peace bliss" },
+  { label: "☀ Spiritual awakening", query: "spiritual awakening" },
+  { label: "♙ Service & humanity", query: "service humanity" },
+  { label: "♧ Nature", query: "nature river mountain" },
+]
+const occasions = [
+  { label: "Birthday", query: "birthday" },
+  { label: "Shiva", query: "Shiva" },
+  { label: "Krishna", query: "Krishna" },
+  { label: "Guru & devotion", query: "Guru devotion" },
+  { label: "New Year", query: "New Year" },
+  { label: "Meditation", query: "meditation" },
+]
+
+export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: SongSummary[]; initialQuery: string }) {
+  const [songs, setSongs] = useState(initialSongs)
+  useEffect(() => {
+    if (initialQuery) return
+    let active = true
+    void fetchSongs().then((value) => { if (active && value.length) setSongs(value) })
+    return () => { active = false }
+  }, [initialQuery])
+
+  return (
+    <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
+      <div className="flex flex-wrap items-baseline gap-4">
+        <h1 className="font-serif text-4xl text-navy-950 sm:text-5xl">Explore Prabhat Samgiita</h1>
+        <span className="text-sm font-semibold text-gold-700">5,018 songs</span>
+      </div>
+      <div className="mt-6 max-w-4xl"><SearchForm initialQuery={initialQuery} onResults={setSongs} /></div>
+
+      <div className="mt-8 space-y-5 border-y border-navy-900/10 py-6">
+        <FilterRow label="Browse by theme" items={themes} />
+        <FilterRow label="Special collections" items={occasions} />
+        <p className="text-xs leading-5 text-stone-500"><strong className="text-navy-950">Raga & tala:</strong> the musical index is published progressively as canonical notation pages are reviewed.</p>
+      </div>
+
+      <div className="mt-8 flex items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Top results</p>
+          <h2 className="mt-2 font-serif text-3xl text-navy-950">Songs that match your search</h2>
+        </div>
+        <span className="text-xs font-semibold text-stone-500">{songs.length} shown</span>
+      </div>
+      {songs.length ? (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{songs.map((song, index) => <SongCard key={song.number} song={song} index={index} />)}</div>
+      ) : (
+        <div className="mt-6 rounded-2xl border border-dashed border-gold-500/40 bg-white p-8 text-center">
+          <h3 className="font-serif text-2xl text-navy-950">No exact match found</h3>
+          <p className="mt-2 text-sm text-stone-600">Try a song number, opening words, feeling, or occasion.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilterRow({ label, items }: { label: string; items: Array<{ label: string; query: string }> }) {
+  return <div><p className="mb-3 text-xs font-bold text-navy-950">{label}</p><div className="flex flex-wrap gap-2">{items.map((item) => <Link key={item.label} href={`/explore?q=${encodeURIComponent(item.query)}`} className="soft-chip">{item.label}</Link>)}</div></div>
+}

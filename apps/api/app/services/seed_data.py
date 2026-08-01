@@ -12,6 +12,11 @@ DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 @lru_cache(maxsize=8)
 def load_rows(filename: str) -> list[dict[str, Any]]:
     generated = _read_rows(DATA_DIR / "generated" / filename)
+    if filename == "notations.json":
+        generated = _merge_notation_practice(
+            generated,
+            _read_rows(DATA_DIR / "generated" / "notation_practice.json"),
+        )
     if filename == "media.json":
         generated = _merge_unique(
             generated,
@@ -75,6 +80,29 @@ def load_rows(filename: str) -> list[dict[str, Any]]:
     return _merge_unique(generated, seed, key)
 
 
+def _merge_notation_practice(
+    sources: list[dict[str, Any]],
+    practice_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    drafts = {row.get("song_number"): row for row in practice_rows}
+    merged: list[dict[str, Any]] = []
+    for source in sources:
+        row = dict(source)
+        draft = drafts.get(row.get("song_number"))
+        if draft:
+            source_verification_status = row.get("verification_status", "unverified")
+            row["notation_text"] = draft.get("notation_text")
+            row["scale"] = draft.get("scale") or "C"
+            row["verification_status"] = draft.get("verification_status", "practice_draft")
+            row["metadata_json"] = {
+                **(row.get("metadata_json") or {}),
+                **(draft.get("metadata_json") or {}),
+                "source_verification_status": source_verification_status,
+            }
+        merged.append(row)
+    return merged
+
+
 def _read_rows(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -83,9 +111,7 @@ def _read_rows(path: Path) -> list[dict[str, Any]]:
         for row in rows:
             source_url = row.get("canonical_source_url")
             if isinstance(source_url, str) and source_url.startswith("/"):
-                row["canonical_source_url"] = urljoin(
-                    "https://prabhatasamgiita.net", source_url
-                )
+                row["canonical_source_url"] = urljoin("https://prabhatasamgiita.net", source_url)
     return rows
 
 
@@ -107,15 +133,9 @@ def _merge_songs(
         assignment = assignments.get(row.get("number"))
         if assignment:
             row["theme"] = ", ".join(assignment.get("themes", [])) or row.get("theme")
-            row["festival"] = ", ".join(assignment.get("festivals", [])) or row.get(
-                "festival"
-            )
-            row["occasion"] = ", ".join(assignment.get("occasions", [])) or row.get(
-                "occasion"
-            )
-            row["season"] = ", ".join(assignment.get("seasons", [])) or row.get(
-                "season"
-            )
+            row["festival"] = ", ".join(assignment.get("festivals", [])) or row.get("festival")
+            row["occasion"] = ", ".join(assignment.get("occasions", [])) or row.get("occasion")
+            row["season"] = ", ".join(assignment.get("seasons", [])) or row.get("season")
             languages = assignment.get("languages", [])
             if languages:
                 row["language"] = ", ".join(languages)

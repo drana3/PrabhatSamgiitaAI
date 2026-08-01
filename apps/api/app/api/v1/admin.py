@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.core.db import get_session
 from app.core.security import require_admin
-from app.models import ContentAudit, Media, Notation, Song
+from app.models import AnalyticsDaily, ContentAudit, Media, Notation, Song
 from app.schemas.admin import (
     AdminActionResponse,
+    AdminAnalyticsItem,
+    AdminAnalyticsSummary,
     AdminMediaUpdate,
     AdminMediaWrite,
     AdminNotationWrite,
@@ -242,9 +245,7 @@ async def create_notation(
         review_note="Created through authenticated admin API",
     )
     await session.commit()
-    return AdminActionResponse(
-        status="created", entity_type="notation", entity_id=str(notation.id)
-    )
+    return AdminActionResponse(status="created", entity_type="notation", entity_id=str(notation.id))
 
 
 async def _refresh_embeddings(settings: Settings) -> None:
@@ -259,3 +260,30 @@ async def reindex(
 ) -> AdminActionResponse:
     background_tasks.add_task(_refresh_embeddings, settings)
     return AdminActionResponse(status="accepted", entity_type="search_index", entity_id="all")
+
+
+@router.get("/analytics/summary", response_model=AdminAnalyticsSummary)
+async def analytics_summary(
+    admin: AdminIdentity,
+    session: DatabaseSession,
+    days: int = Query(default=30, ge=1, le=365),
+) -> AdminAnalyticsSummary:
+    del admin
+    start = (date.today() - timedelta(days=days - 1)).isoformat()
+    result = await session.execute(
+        select(AnalyticsDaily)
+        .where(AnalyticsDaily.metric_date >= start)
+        .order_by(AnalyticsDaily.metric_date.desc(), AnalyticsDaily.count.desc())
+    )
+    return AdminAnalyticsSummary(
+        days=days,
+        metrics=[
+            AdminAnalyticsItem(
+                date=item.metric_date,
+                metric_type=item.metric_type,
+                dimension=item.dimension,
+                count=item.count,
+            )
+            for item in result.scalars().all()
+        ],
+    )

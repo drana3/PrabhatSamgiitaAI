@@ -3,13 +3,15 @@ from __future__ import annotations
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
+from app.core.security import require_public_quota
 from app.schemas.search import SearchFilters, SearchResponse
 from app.schemas.song import SearchRequest, SongSummary
+from app.services.query_guard import assess_query
 from app.services.search import HybridSearchService
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -25,16 +27,22 @@ rich_search_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
 
 @router.post("", response_model=list[SongSummary])
 async def search(
-    request: SearchRequest,
+    payload: SearchRequest,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SongSummary]:
-    cache_key = json.dumps({"query": request.query}, sort_keys=True)
+    require_public_quota(request, bucket="search", limit=40)
+    assessment = assess_query(payload.query, max_length=200)
+    if not assessment.allowed:
+        raise HTTPException(status_code=422, detail=assessment.guidance)
+    query = assessment.normalized
+    cache_key = json.dumps({"query": query}, sort_keys=True)
     cached = await simple_search_cache.get(cache_key)
     if isinstance(cached, list):
         return [SongSummary.model_validate(item) for item in cached]
 
-    response = await HybridSearchService(session).search(request.query)
-    payload = [
+    response = await HybridSearchService(session).search(query)
+    results = [
         SongSummary(
             number=item.song_number,
             title=item.opening_line or f"Song {item.song_number}",
@@ -49,12 +57,13 @@ async def search(
         )
         for item in response.items
     ]
-    await simple_search_cache.set(cache_key, [item.model_dump() for item in payload])
-    return payload
+    await simple_search_cache.set(cache_key, [item.model_dump() for item in results])
+    return results
 
 
 @router.get("", response_model=SearchResponse)
 async def search_rich(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     q: str = Query(min_length=1),
     language: str | None = Query(default=None),
@@ -70,6 +79,11 @@ async def search_rich(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> SearchResponse:
+    require_public_quota(request, bucket="search", limit=40)
+    assessment = assess_query(q, max_length=200)
+    if not assessment.allowed:
+        raise HTTPException(status_code=422, detail=assessment.guidance)
+    q = assessment.normalized
     cache_key = json.dumps(
         {
             "q": q,

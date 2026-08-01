@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import { Cormorant_Garamond, Manrope } from "next/font/google"
 
 import { Providers } from "@/components/providers"
+import { FeedbackWidget } from "@/components/feedback-widget"
+import { AnalyticsTracker } from "@/components/analytics-tracker"
 import "./globals.css"
 
 const serif = Cormorant_Garamond({
@@ -25,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${serif.variable} ${sans.variable} font-sans`}>
-        <Providers>{children}</Providers>
+        <Providers><AnalyticsTracker />{children}<FeedbackWidget /></Providers>
       </body>
     </html>
   )

@@ -167,9 +167,7 @@ async def get_song(
         notation_source_url=notation.source_url if notation else None,
         notation_verification_status=notation.verification_status if notation else None,
         notation_transposition_available=bool(
-            notation
-            and notation.notation_text
-            and notation.notation_text.strip().startswith("{")
+            notation and notation.notation_text and notation.notation_text.strip().startswith("{")
         ),
         metadata_json=song.metadata_json or {},
     )

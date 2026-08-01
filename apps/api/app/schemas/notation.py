@@ -65,5 +65,6 @@ class NotationSourceResponse(BaseModel):
     song_number: int
     source_url: str
     verification_status: str
+    learner_verification_status: str | None = None
     machine_readable: bool = False
     transposition_available: bool = False

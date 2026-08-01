@@ -1,97 +1,81 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 
+import { LoadingIndicator } from "@/components/loading-indicator"
+import { AudioRendition } from "@/components/audio-rendition"
 import { RecommendationForm } from "@/components/recommendation-form"
-import { SongCard } from "@/components/song-card"
-import type { SongSummary } from "@/lib/api"
-import { recommendSongs } from "@/lib/api"
+import { fetchTodayRecommendations, recommendSongs } from "@/lib/api"
+import type { SongSummary, TodayRecommendations } from "@/lib/api"
 import { getAutoRecommendationPreset, quickRecommendationPresets } from "@/lib/recommendation-presets"
 import seedSongs from "../../../data/seed/songs.json"
 
 export function RecommendationSection() {
-  const [results, setResults] = useState<SongSummary[]>(seedSongs.slice(0, 4) as SongSummary[])
+  const [results, setResults] = useState<SongSummary[]>(seedSongs.slice(0, 3) as SongSummary[])
+  const [today, setToday] = useState<TodayRecommendations | null>(null)
   const [presetKey, setPresetKey] = useState("auto")
+  const [loading, setLoading] = useState(true)
   const presets = useMemo(() => quickRecommendationPresets(), [])
   const autoPreset = useMemo(() => getAutoRecommendationPreset(), [])
-
-  const activePreset = useMemo(() => {
-    if (presetKey === "auto") return autoPreset
-    return presets.find((item) => item.id === presetKey)?.preset ?? autoPreset
-  }, [autoPreset, presetKey, presets])
+  const activePreset = presetKey === "auto" ? autoPreset : presets.find((item) => item.id === presetKey)?.preset ?? autoPreset
 
   useEffect(() => {
     let active = true
-    const run = async () => {
-      try {
-        const next = await recommendSongs(activePreset)
-        if (active && next.length > 0) {
-          setResults(next)
-        }
-      } catch {
-        // keep the seed results visible
-      }
+    setLoading(true)
+    if (presetKey === "auto") {
+      void fetchTodayRecommendations().then((value) => {
+        if (active && value?.recommendations.length) setToday(value)
+      }).finally(() => { if (active) setLoading(false) })
+    } else {
+      void recommendSongs(activePreset).then((next) => {
+        if (active && next.length) { setResults(next); setToday(null) }
+      }).finally(() => { if (active) setLoading(false) })
     }
-    void run()
-    return () => {
-      active = false
-    }
-  }, [activePreset])
+    return () => { active = false }
+  }, [activePreset, presetKey])
+
+  const contextTitle = today?.signals[0]?.title || activePreset.title
+  const contextSummary = today?.signals[0]?.summary || activePreset.subtitle
 
   return (
-    <div className="mt-5 space-y-4">
-      <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/25 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.2)]">
+    <div className="surface-card overflow-hidden">
+      <div className="border-b border-navy-900/10 bg-gradient-to-r from-gold-50 to-white p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.35em] text-ember-200">Automatic recommendation</p>
-            <h3 className="mt-2 font-serif text-2xl text-white">{activePreset.title}</h3>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-100">{activePreset.subtitle}</p>
+            <p className="eyebrow">Selected for this moment</p>
+            <h3 className="mt-2 font-serif text-3xl text-navy-950">{contextTitle}</h3>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">{contextSummary}</p>
           </div>
-          <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-amber-50">
-            Based on today
-          </span>
+          {loading ? <LoadingIndicator label="Finding songs" compact /> : <span className="text-xs font-semibold text-emerald-700">Updated for today</span>}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {presets.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setPresetKey(item.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                presetKey === item.id
-                  ? "border-ember-300 bg-ember-500 text-white"
-                  : "border-white/15 bg-white/5 text-slate-100 hover:border-ember-300 hover:bg-white/10"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setPresetKey("auto")} className={`soft-chip ${presetKey === "auto" ? "border-gold-600 bg-gold-100" : ""}`}>Today</button>
+          {presets.filter((item) => item.id !== "auto").map((item) => <button key={item.id} type="button" onClick={() => setPresetKey(item.id)} className={`soft-chip ${presetKey === item.id ? "border-gold-600 bg-gold-100" : ""}`}>{item.label}</button>)}
         </div>
-
-        <details className="group mt-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-          <summary className="cursor-pointer list-none text-sm font-semibold text-white">
-            More ways to refine
-          </summary>
-          <p className="mt-2 text-sm leading-6 text-slate-100">
-            Keep the main experience simple. Open this only if you want a specific date, mood, language, or
-            meditation setting.
-          </p>
-          <div className="mt-4">
-            <RecommendationForm onResults={setResults} />
-          </div>
-        </details>
       </div>
-      {results.length > 0 ? (
-        <div className="grid gap-3">
-          {results.slice(0, 4).map((song) => (
-            <SongCard key={song.number} song={song} />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 p-5 text-sm leading-6 text-slate-100">
-          A fresh recommendation will appear here automatically.
-        </div>
-      )}
+
+      <div aria-busy={loading} className="divide-y divide-navy-900/10 px-5 sm:px-6">
+        {today?.recommendations.length ? today.recommendations.slice(0, 3).map((song) => (
+          <article key={song.number} className="py-4">
+            <div className="flex items-center gap-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span>
+              <div className="min-w-0 flex-1"><Link href={`/songs/${song.number}`} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">{song.title}</Link><p className="truncate text-xs text-stone-500">{song.reasons[0] || "For today's reflection"}</p></div>
+              {song.audio_url ? <div className="hidden lg:block"><AudioRendition url={song.audio_url} title={song.title} compact /></div> : null}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 pl-14 text-[11px] font-semibold">
+              {song.audio_url ? <Link href={`/songs/${song.number}#listen`} className="soft-chip" data-feature="recommendation_listen">▶ Listen</Link> : null}
+              <Link href={`/songs/${song.number}#meaning`} className="soft-chip">Understand</Link>
+              <Link href={`/songs/${song.number}#lyrics`} className="soft-chip">Learn</Link>
+              {song.notation_available ? <Link href={`/songs/${song.number}#notation`} className="soft-chip">Practise harmonium</Link> : null}
+            </div>
+          </article>
+        )) : results.length ? results.slice(0, 3).map((song) => (
+          <Link key={song.number} href={`/songs/${song.number}`} className="group flex items-center gap-4 py-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span><div className="min-w-0 flex-1"><p className="truncate font-serif text-lg font-semibold text-navy-950 group-hover:text-gold-700">{song.title}</p><p className="truncate text-xs text-stone-500">{song.theme || song.mood || "A song for reflection"}</p></div><span className="grid h-8 w-8 place-items-center rounded-full border border-navy-900/15 text-[10px]">▶</span></Link>
+        )) : <div className="py-6 text-center"><p className="font-serif text-xl text-navy-950">A fresh selection is on its way</p><p className="mt-2 text-sm text-stone-600">Browse the complete collection while today&apos;s recommendations reconnect.</p><Link href="/explore" className="outline-button mt-4">Explore songs</Link></div>}
+      </div>
+
+      <details className="border-t border-navy-900/10 p-5 sm:p-6"><summary className="cursor-pointer text-sm font-semibold text-gold-700">Refine these suggestions</summary><p className="mt-2 text-sm text-stone-600">Optionally add a mood, language, or meditation setting.</p><div className="mt-4 rounded-2xl bg-navy-950 p-4"><RecommendationForm onResults={(value) => { setResults(value); setToday(null) }} /></div></details>
     </div>
   )
 }

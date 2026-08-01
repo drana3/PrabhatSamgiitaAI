@@ -55,6 +55,12 @@ jobs:
       - name: Build web
         run: npm run build
 
+      - name: Install browser for premium journey tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate desktop, mobile, and tablet journeys
+        run: npm run test:e2e
+
   deploy:
     name: Deploy to Azure
     runs-on: ubuntu-latest

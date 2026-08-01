@@ -27,11 +27,23 @@ class TodayRecommendationItem(BaseModel):
     score: float
     reasons: list[str] = Field(default_factory=list)
     is_verified: bool
+    audio_url: str | None = None
+    video_embed_url: str | None = None
+    notation_available: bool = False
+
+
+class ContextSignalResponse(BaseModel):
+    title: str
+    category: str
+    summary: str
+    source_name: str
+    source_url: str
 
 
 class TodayResponse(BaseModel):
     context: dict[str, Any]
     recommendations: list[TodayRecommendationItem]
+    signals: list[ContextSignalResponse] = Field(default_factory=list)
     disclaimer: str
 
 
@@ -55,3 +67,24 @@ class ContentReportResponse(BaseModel):
     report_id: str
     status: str
     message: str
+
+
+class UserFeedbackRequest(BaseModel):
+    category: Literal[
+        "experience", "content", "search", "audio_video", "ai", "accessibility", "other"
+    ]
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(min_length=3, max_length=2000)
+    page_path: str | None = Field(default=None, max_length=512)
+    contact: str | None = Field(default=None, max_length=320)
+
+
+class UserFeedbackResponse(BaseModel):
+    feedback_id: str
+    status: str
+    message: str
+
+
+class AnalyticsEventRequest(BaseModel):
+    metric_type: Literal["page_view", "feature_use"]
+    dimension: str = Field(min_length=1, max_length=256, pattern=r"^[a-zA-Z0-9/_-]+$")

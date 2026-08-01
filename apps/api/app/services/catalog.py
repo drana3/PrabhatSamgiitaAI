@@ -110,7 +110,8 @@ class CatalogService:
         scored = [
             song
             for song in seeded
-            if query_norm in " ".join(
+            if query_norm
+            in " ".join(
                 part.lower()
                 for part in (
                     str(song.number),
@@ -196,10 +197,13 @@ class CatalogService:
             if int(count_result.scalar_one()) < len(snapshot):
                 return snapshot[offset : offset + limit]
             result = await self.session.execute(
-                select(InventoryItem).order_by(
+                select(InventoryItem)
+                .order_by(
                     InventoryItem.source_kind,
                     InventoryItem.title,
-                ).limit(limit).offset(offset)
+                )
+                .limit(limit)
+                .offset(offset)
             )
             rows = list(result.scalars().all())
             if rows:
@@ -238,18 +242,14 @@ class CatalogService:
                 select(func.count(func.distinct(SongChunk.song_number)))
             )
             database["rag_song_chunks"] = int(chunked.scalar_one())
-            chunk_count = await self.session.execute(
-                select(func.count()).select_from(SongChunk)
-            )
+            chunk_count = await self.session.execute(select(func.count()).select_from(SongChunk))
             database["rag_chunks"] = int(chunk_count.scalar_one())
             embedded_songs = await self.session.execute(
                 select(func.count()).select_from(Song).where(Song.embeddings.is_not(None))
             )
             database["embedded_songs"] = int(embedded_songs.scalar_one())
             embedded_chunks = await self.session.execute(
-                select(func.count()).select_from(SongChunk).where(
-                    SongChunk.embeddings.is_not(None)
-                )
+                select(func.count()).select_from(SongChunk).where(SongChunk.embeddings.is_not(None))
             )
             database["embedded_chunks"] = int(embedded_chunks.scalar_one())
         except SQLAlchemyError:

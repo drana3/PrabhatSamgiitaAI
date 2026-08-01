@@ -111,3 +111,15 @@ class AdminActionResponse(BaseModel):
     status: str
     entity_type: str
     entity_id: str
+
+
+class AdminAnalyticsItem(BaseModel):
+    date: str
+    metric_type: str
+    dimension: str
+    count: int
+
+
+class AdminAnalyticsSummary(BaseModel):
+    days: int
+    metrics: list[AdminAnalyticsItem]

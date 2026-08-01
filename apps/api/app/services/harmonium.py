@@ -16,6 +16,7 @@ from app.schemas.notation import (
     NotationMeasure,
     NotationNote,
 )
+from app.services.catalog import CatalogService
 
 CHROMATIC_ROOTS = {
     "C": 0,
@@ -198,4 +199,11 @@ async def load_song_notation(session: AsyncSession, song: Song) -> HarmoniumNota
             return None
         return notation_from_json(str(notation_text))
     except SQLAlchemyError:
-        return None
+        snapshot = await CatalogService(session).get_notation(song.number)
+        if (
+            not snapshot
+            or not snapshot.notation_text
+            or not snapshot.notation_text.strip().startswith("{")
+        ):
+            return None
+        return notation_from_json(snapshot.notation_text)

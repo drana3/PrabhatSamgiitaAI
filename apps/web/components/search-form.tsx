@@ -3,9 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
+import { useEffect } from "react"
 import { z } from "zod"
 
 import { searchSongs } from "@/lib/api"
+import { LoadingIndicator } from "@/components/loading-indicator"
 
 const schema = z.object({
   query: z.string().min(1, "Enter a song number, first line, or theme"),
@@ -13,44 +15,50 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-export function SearchForm({ onResults }: { onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void }) {
+export function SearchForm({ onResults, initialQuery = "" }: { onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void; initialQuery?: string }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { query: "" },
+    defaultValues: { query: initialQuery },
   })
+
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => searchSongs(values.query),
     onSuccess: onResults,
   })
 
+  useEffect(() => {
+    if (initialQuery) mutation.mutate({ query: initialQuery })
+    // The URL query is intentionally executed once when this screen opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery])
+
   return (
     <form
-      className="flex flex-col gap-3 rounded-3xl border border-ink-200 bg-white/90 p-4 shadow-glow backdrop-blur md:flex-row"
+      className="flex flex-col gap-3 rounded-2xl border border-navy-900/10 bg-white p-3 shadow-sm md:flex-row md:items-end"
       onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
     >
       <div className="flex-1">
-        <label className="mb-1 block text-xs uppercase tracking-[0.25em] text-ink-500" htmlFor="query">
-          Search by number, lyrics, or meaning
+        <label className="mb-2 block text-xs font-bold text-navy-950" htmlFor="query">
+          Search by number, lyrics, meaning, or moment
         </label>
         <input
           id="query"
           {...form.register("query")}
           placeholder="Try 1, bandhu he, or devotional dawn"
-          className="w-full rounded-2xl border border-ink-200 bg-gradient-to-b from-ink-50 to-white px-4 py-3 text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-ember-400"
+          className="w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-navy-950 outline-none transition placeholder:text-stone-400 focus:border-gold-500"
         />
         {form.formState.errors.query ? (
           <p className="mt-2 text-sm text-red-700">{form.formState.errors.query.message}</p>
         ) : null}
-        <p className="mt-2 text-xs uppercase tracking-[0.25em] text-ink-500">
-          Exact number, lyrics, or meaning all work
-        </p>
+        {mutation.isError ? <p role="alert" className="mt-2 text-sm text-amber-800">{mutation.error.message}</p> : null}
       </div>
       <button
         type="submit"
-        className="rounded-2xl bg-gradient-to-r from-ink-950 to-ink-800 px-6 py-3 font-semibold text-white transition hover:from-ink-900 hover:to-ink-700 disabled:cursor-not-allowed disabled:opacity-60"
+        data-feature="catalog_search"
+        className="rounded-xl bg-navy-950 px-7 py-3 font-semibold text-white transition hover:bg-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={mutation.isPending}
       >
-        {mutation.isPending ? "Searching..." : "Search"}
+        {mutation.isPending ? <LoadingIndicator label="Searching" compact /> : "Search"}
       </button>
     </form>
   )

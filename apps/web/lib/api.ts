@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { queryGuidance, queryIsUseful } from "@/lib/query-guard"
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
 const requestTimeoutMs = 15000
@@ -29,8 +30,23 @@ const songDetailSchema = songSummarySchema.extend({
   canonical_source_url: z.string().nullable().optional(),
   canonical_source_status: z.string(),
   related_songs: z.array(songSummarySchema).default([]),
-  media: z.array(z.any()).default([]),
+  media: z.array(z.object({
+    kind: z.string(),
+    provider: z.string(),
+    title: z.string(),
+    url: z.string(),
+    embed_url: z.string().nullable().optional(),
+    verification_status: z.string(),
+    source_url: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    channel_name: z.string().nullable().optional(),
+    language: z.string().nullable().optional(),
+    match_score: z.number().nullable().optional(),
+  })).default([]),
   notation_scale: z.string().nullable().optional(),
+  notation_source_url: z.string().nullable().optional(),
+  notation_verification_status: z.string().nullable().optional(),
+  notation_transposition_available: z.boolean().default(false),
   metadata_json: z.record(z.any()).default({}),
 })
 
@@ -49,7 +65,7 @@ const notationBeatSchema = z.object({
 })
 
 const notationMeasureSchema = z.object({
-  measures: z.array(notationBeatSchema).default([]),
+  beats: z.array(notationBeatSchema).default([]),
 })
 
 const notationLineSchema = z.object({
@@ -95,6 +111,31 @@ export type SongSummary = z.infer<typeof songSummarySchema>
 export type SongDetail = z.infer<typeof songDetailSchema>
 export type TransposedNotation = z.infer<typeof transposedNotationSchema>
 export type SongLocalization = z.infer<typeof songLocalizationSchema>
+
+const todayRecommendationSchema = z.object({
+  context: z.record(z.any()),
+  signals: z.array(z.object({
+    title: z.string(),
+    category: z.string(),
+    summary: z.string(),
+    source_name: z.string(),
+    source_url: z.string(),
+  })).default([]),
+  recommendations: z.array(z.object({
+    number: z.number(),
+    title: z.string(),
+    first_line: z.string().nullable().optional(),
+    score: z.number(),
+    reasons: z.array(z.string()).default([]),
+    is_verified: z.boolean(),
+    audio_url: z.string().nullable().optional(),
+    video_embed_url: z.string().nullable().optional(),
+    notation_available: z.boolean().default(false),
+  })),
+  disclaimer: z.string(),
+})
+
+export type TodayRecommendations = z.infer<typeof todayRecommendationSchema>
 
 export async function fetchJson(path: string, init: RequestInit = {}) {
   const controller = new AbortController()
@@ -169,6 +210,7 @@ export async function fetchSongLocalization(
 }
 
 export async function searchSongs(query: string): Promise<SongSummary[]> {
+  if (!queryIsUseful(query, 200)) throw new Error(queryGuidance)
   try {
     const response = await fetchJson("/api/v1/search", {
       method: "POST",
@@ -176,10 +218,12 @@ export async function searchSongs(query: string): Promise<SongSummary[]> {
       body: JSON.stringify({ query }),
     })
     if (!response.ok) {
-      return []
+      const payload = await response.json().catch(() => null)
+      throw new Error(typeof payload?.detail === "string" ? payload.detail : "Search is temporarily unavailable.")
     }
     return z.array(songSummarySchema).parse(await response.json())
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message !== "Failed to fetch") throw error
     return []
   }
 }
@@ -197,6 +241,17 @@ export async function recommendSongs(payload: Record<string, unknown>): Promise<
     return z.array(songSummarySchema).parse(await response.json())
   } catch {
     return []
+  }
+}
+
+export async function fetchTodayRecommendations(): Promise<TodayRecommendations | null> {
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"
+    const response = await fetchJson(`/api/v1/recommendations/today?timezone=${encodeURIComponent(timezone)}`)
+    if (!response.ok) return null
+    return todayRecommendationSchema.parse(await response.json())
+  } catch {
+    return null
   }
 }
 
@@ -225,4 +280,23 @@ export async function fetchInventory(): Promise<Array<{ source_kind: string; tit
 
 export function apiUrl(path: string) {
   return `${apiBase}${path}`
+}
+
+export async function submitFeedback(payload: {
+  category: string
+  rating: number
+  comment: string
+  page_path?: string
+  contact?: string
+}): Promise<string> {
+  const response = await fetchJson("/api/v1/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(typeof body?.detail === "string" ? body.detail : "Feedback could not be sent. Please try again.")
+  }
+  return typeof body?.message === "string" ? body.message : "Thank you for helping us improve."
 }

@@ -90,10 +90,33 @@ class BootstrapService:
             "notations",
             unique_field=Notation.source_url,
         )
+        await self._refresh_machine_notations(notations)
         await self._replace_if_incomplete(InventoryItem, inventory, "inventory")
         await self._seed_lookup_tables()
         await self.session.commit()
         await self._ensure_song_chunks(songs)
+
+    async def _refresh_machine_notations(self, rows: list[dict[str, Any]]) -> None:
+        desired = sum(
+            1 for row in rows if str(row.get("notation_text") or "").lstrip().startswith("{")
+        )
+        if not desired:
+            return
+        existing = int(
+            (
+                await self.session.execute(
+                    select(func.count())
+                    .select_from(Notation)
+                    .where(Notation.notation_text.like("{%"))
+                )
+            ).scalar_one()
+        )
+        if existing >= desired:
+            return
+        logger.info("Refreshing machine-readable notation: %s -> %s", existing, desired)
+        await self.session.execute(delete(Notation))
+        await self.session.execute(insert(Notation), rows)
+        await self.session.commit()
 
     async def _seed_lookup_tables(self) -> None:
         theme_result = await self.session.execute(select(Theme.id).limit(1))
@@ -166,9 +189,7 @@ class BootstrapService:
     async def _ensure_song_chunks(self, song_rows: list[dict[str, Any]]) -> None:
         indexed_song_count = int(
             (
-                await self.session.execute(
-                    select(func.count(func.distinct(SongChunk.song_number)))
-                )
+                await self.session.execute(select(func.count(func.distinct(SongChunk.song_number))))
             ).scalar_one()
         )
         if indexed_song_count >= len(song_rows):
