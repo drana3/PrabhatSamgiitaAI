@@ -47,12 +47,6 @@ az acr build \
   --file "${ROOT_DIR}/apps/api/Dockerfile" \
   "$ROOT_DIR" >/dev/null
 
-az acr build \
-  --registry "$ACR_NAME" \
-  --image "prabhat-samgiita-web:${TAG}" \
-  --file "${ROOT_DIR}/apps/web/Dockerfile" \
-  "$ROOT_DIR" >/dev/null
-
 az monitor log-analytics workspace create \
   --resource-group "$RG" \
   --workspace-name "$LAW" \
@@ -119,6 +113,13 @@ az containerapp create \
     LOG_LEVEL=INFO >/dev/null
 
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+
+az acr build \
+  --registry "$ACR_NAME" \
+  --image "prabhat-samgiita-web:${TAG}" \
+  --file "${ROOT_DIR}/apps/web/Dockerfile" \
+  --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
+  "$ROOT_DIR" >/dev/null
 
 az containerapp create \
   --name "$WEB_APP" \

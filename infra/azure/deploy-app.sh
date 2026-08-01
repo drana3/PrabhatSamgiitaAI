@@ -49,14 +49,7 @@ az acr build \
   --file "${ROOT_DIR}/apps/api/Dockerfile" \
   "$ROOT_DIR" >/dev/null
 
-az acr build \
-  --registry "$ACR_NAME" \
-  --image "prabhat-samgiita-web:${TAG}" \
-  --file "${ROOT_DIR}/apps/web/Dockerfile" \
-  "$ROOT_DIR" >/dev/null
-
 API_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-api:${TAG}"
-WEB_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}"
 
 az containerapp update \
   --name "$API_APP" \
@@ -77,6 +70,15 @@ az containerapp update \
     AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION" >/dev/null
 
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+
+az acr build \
+  --registry "$ACR_NAME" \
+  --image "prabhat-samgiita-web:${TAG}" \
+  --file "${ROOT_DIR}/apps/web/Dockerfile" \
+  --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
+  "$ROOT_DIR" >/dev/null
+
+WEB_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}"
 
 az containerapp update \
   --name "$WEB_APP" \

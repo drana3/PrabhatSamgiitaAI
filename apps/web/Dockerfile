@@ -11,6 +11,8 @@ FROM base AS builder
 COPY --from=deps /app/node_modules /app/node_modules
 COPY . .
 WORKDIR /app/apps/web
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN npm run build
 
 FROM base AS runner
