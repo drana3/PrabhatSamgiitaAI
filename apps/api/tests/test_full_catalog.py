@@ -3,6 +3,8 @@ from typing import Any
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api.v1.songs import _media_quality_key
+from app.models.media import Media
 from app.models.song import Song
 from app.services.catalog import (
     CatalogService,
@@ -78,6 +80,42 @@ def test_number_first_audio_inventory_maximizes_coverage() -> None:
     assert external_gap_fill[0].url.startswith("https://sarkarverse.org/")
 
 
+def test_primary_audio_prefers_current_and_non_low_quality_recordings() -> None:
+    current = Media(
+        song_number=1,
+        kind="audio",
+        provider="official",
+        title="Current recording",
+        url="https://example.test/current.mp3",
+        verification_status="verified",
+        metadata_json={"source_status": "official"},
+    )
+    old = Media(
+        song_number=1,
+        kind="audio",
+        provider="official",
+        title="Old recording",
+        url="https://example.test/old.mp3",
+        verification_status="verified",
+        metadata_json={"source_status": "official", "version": "old"},
+    )
+    low_quality = Media(
+        song_number=1,
+        kind="audio",
+        provider="official",
+        title="Recording (low quality)",
+        url="https://example.test/low.mp3",
+        verification_status="verified",
+        metadata_json={"source_status": "official"},
+    )
+
+    assert sorted([low_quality, old, current], key=_media_quality_key) == [
+        current,
+        old,
+        low_quality,
+    ]
+
+
 def test_canonical_inventory_titles_are_not_truncated() -> None:
     inventory = catalog_inventory_snapshot()
 
@@ -122,3 +160,33 @@ async def test_exact_number_search_never_returns_similar_numbers() -> None:
 
     assert response.total == 1
     assert [item.song_number for item in response.items] == [2256]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Song 223",
+        "explain about prabhat sagiat 223",
+        "what is the meaning of Prabhat Samgiita 223",
+        "lyrics for PS 223",
+    ],
+)
+async def test_natural_language_song_number_intent_is_authoritative(query: str) -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search(query)
+
+    assert response.detected_intent == "song_number_search"
+    assert response.total == 1
+    assert [item.song_number for item in response.items] == [223]
+
+
+@pytest.mark.asyncio
+async def test_historical_year_query_remains_semantic() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("songs composed in 1983")
+
+    assert response.detected_intent == "semantic_search"
+    assert not (response.total == 1 and response.items[0].song_number == 1983)

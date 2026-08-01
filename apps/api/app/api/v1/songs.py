@@ -54,6 +54,23 @@ def _media(item: Media) -> MediaItemResponse:
     )
 
 
+def _media_quality_key(item: Media) -> tuple[int, int, int, float, str]:
+    metadata = item.metadata_json or {}
+    searchable = f"{item.title} {item.url}".casefold()
+    low_quality = 1 if "low quality" in searchable else 0
+    old_version = 1 if metadata.get("version") == "old" or "old version" in searchable else 0
+    source_status = str(metadata.get("source_status") or item.verification_status)
+    source_order = {"official": 0, "verified": 0, "verified_community": 1, "community": 2}
+    match_score = float(metadata.get("match_score") or 0)
+    return (
+        low_quality,
+        old_version,
+        source_order.get(source_status, 3),
+        -match_score,
+        item.title.casefold(),
+    )
+
+
 @router.get("/{number}/localized", response_model=SongLocalizationResponse)
 async def get_localized_song(
     number: int,
@@ -117,7 +134,8 @@ async def get_song_media(
     service = CatalogService(session)
     if not await service.get_song(number):
         raise HTTPException(status_code=404, detail="Song not found")
-    rows = [_media(item) for item in await service.get_media(number)]
+    media_items = sorted(await service.get_media(number), key=_media_quality_key)
+    rows = [_media(item) for item in media_items]
     filters = {
         "kind": media_type,
         "provider": platform,
@@ -128,14 +146,6 @@ async def get_song_media(
     for field, value in filters.items():
         if value:
             rows = [item for item in rows if getattr(item, field) == value]
-    source_order = {"official": 0, "verified_community": 1, "community": 2}
-    rows.sort(
-        key=lambda item: (
-            source_order.get(item.source_status or item.verification_status, 3),
-            -(item.match_score or 0),
-            item.title.lower(),
-        )
-    )
     return rows
 
 
@@ -163,7 +173,10 @@ async def get_song(
     canonical_source_status = song.canonical_source_status
     metadata_json = song.metadata_json or {}
     related_summaries = [_summary(item) for item in await service.related_songs(song)]
-    media_responses = [_media(item) for item in await service.get_media(number)]
+    media_responses = [
+        _media(item)
+        for item in sorted(await service.get_media(number), key=_media_quality_key)
+    ]
     notation = await service.get_notation(number)
     return SongDetail(
         **summary.model_dump(),

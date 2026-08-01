@@ -17,7 +17,7 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState(prompt ?? "")
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", text: `Namaskar. Ask me about this song${language ? ` in ${language}` : ""}, its imagery, feeling, or spiritual meaning.`, createdAt: Date.now() },
+    { role: "assistant", text: `Namaskar. I can help you understand this song${language ? ` in ${language}` : ""}, including its imagery, feeling, spiritual context, and related Prabhat Samgiita.`, createdAt: Date.now() },
   ])
 
   async function ask() {
@@ -55,9 +55,9 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
   return (
     <section id="ask" className="scroll-mt-28 overflow-hidden rounded-2xl border border-navy-900/10 bg-ivory-50">
       <div className="border-b border-navy-900/10 bg-gold-50/60 p-5">
-        <p className="eyebrow">Your song companion</p>
-        <h2 className="mt-2 font-serif text-3xl text-navy-950">Ask Prabhat Samgiita AI</h2>
-        <p className="mt-2 text-sm leading-6 text-stone-600">Explore meaning, context, and related songs in the language that feels natural to you.</p>
+        <p className="eyebrow">Prabhat Samgiita AI Companion</p>
+        <h2 className="mt-2 font-serif text-3xl text-navy-950">Know more about this song</h2>
+        <p className="mt-2 text-sm leading-6 text-stone-600">Ask about meaning, imagery, spiritual context, pronunciation, or related songs in the language that feels natural to you.</p>
         <p className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">Conversation context · 10 minutes</p>
       </div>
       <div aria-live="polite" aria-busy={loading} className="max-h-[32rem] space-y-3 overflow-y-auto p-4 sm:p-5">

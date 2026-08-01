@@ -27,6 +27,52 @@ def normalize_query(value: str) -> str:
     return " ".join(value.lower().split())
 
 
+EXPLANATION_TERMS = (
+    "about",
+    "explain",
+    "interpret",
+    "lyrics",
+    "meaning",
+    "notation",
+    "tell me",
+    "translate",
+)
+
+
+def extract_song_number_intent(query: str) -> int | None:
+    """Resolve an explicit catalog identifier before fuzzy or vector retrieval."""
+    cleaned = normalize_query(query)
+    exact = re.fullmatch(
+        r"(?:(?:ps|prabhat samgiita|prabhat sangeet|song)\s*)?#?(\d{1,4})",
+        cleaned,
+    )
+    if exact:
+        number = int(exact.group(1))
+        return number if 1 <= number <= 5018 else None
+
+    matches = [int(value) for value in re.findall(r"(?<!\d)(\d{1,4})(?!\d)", cleaned)]
+    in_catalog = sorted({number for number in matches if 1 <= number <= 5018})
+    if len(in_catalog) != 1:
+        return None
+
+    number = in_catalog[0]
+    number_text = str(number)
+    identity_patterns = (
+        rf"\b(?:ps|song)(?:\s+(?:number|no\.?))?\s*#?\s*{number_text}\b",
+        rf"\bprabhat(?:\s+[^\W\d_]+){{0,3}}\s*#?\s*{number_text}\b",
+        rf"\b{number_text}\s+(?:ps|song)\b",
+    )
+    if any(re.search(pattern, cleaned, re.IGNORECASE) for pattern in identity_patterns):
+        return number
+
+    has_explanation_intent = any(term in cleaned for term in EXPLANATION_TERMS)
+    has_song_context = any(
+        term in cleaned
+        for term in ("prabhat", "samgiita", "sangeet", "sagiat", "song", "ps")
+    )
+    return number if has_explanation_intent and has_song_context else None
+
+
 def reciprocal_rank_fusion(ranked_lists: list[list[str]], k: int = 60) -> dict[str, float]:
     scores: dict[str, float] = defaultdict(float)
     for ranked_list in ranked_lists:
@@ -37,7 +83,7 @@ def reciprocal_rank_fusion(ranked_lists: list[list[str]], k: int = 60) -> dict[s
 
 def detect_intent(query: str) -> str:
     cleaned = normalize_query(query)
-    if re.fullmatch(r"(?:ps\s*)?\d{1,4}", cleaned):
+    if extract_song_number_intent(cleaned) is not None:
         return "song_number_search"
     if any(token in cleaned for token in ("morning", "evening", "meditation", "festival")):
         return "occasion_search"
@@ -209,13 +255,8 @@ class HybridSearchService:
             return False
 
     async def _exact_number_rank(self, query: str) -> list[str]:
-        match = re.fullmatch(
-            r"(?:(?:ps|prabhat samgiita|prabhat sangeet|song)\s*)?#?(\d{1,4})",
-            normalize_query(query),
-        )
-        if not match:
-            return []
-        return [match.group(1)]
+        number = extract_song_number_intent(query)
+        return [str(number)] if number is not None else []
 
     async def _opening_line_rank(self, query: str, songs: list[Song], limit: int) -> list[str]:
         query_norm = normalize_query(query)

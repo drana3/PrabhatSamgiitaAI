@@ -19,7 +19,7 @@ test("home delivers a complete, nonblank spiritual journey", async ({ page }) =>
   await page.goto("/")
   await expect(page.getByRole("heading", { name: /Music for the inner dawn/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Songs composed for a new human dawn/i })).toBeVisible()
-  await expect(page.getByRole("heading", { name: /Today.*songs and upcoming observances/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Music for this moment" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Upcoming observances", exact: true })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Listen, read, and reflect/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Meaning and guidance, grounded in the songs/i })).toBeVisible()
@@ -88,7 +88,7 @@ test("all special collections are organized and lead to catalog search", async (
   await expect(page.locator("#results")).toBeVisible()
 })
 
-test("song tabs land within the viewport and language control never clips", async ({ page }) => {
+test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {
   await page.goto("/songs/1")
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   const language = page.getByLabel("Reading language")
@@ -102,20 +102,37 @@ test("song tabs land within the viewport and language control never clips", asyn
   expect(languageBounds!.x).toBeGreaterThanOrEqual(0)
   expect(languageBounds!.x + languageBounds!.width).toBeLessThanOrEqual(viewport!.width)
 
-  for (const section of ["Lyrics", "Meaning", "Notation", "Listen", "Ask AI"]) {
-    await page.getByRole("link", { name: section, exact: true }).click()
-    const targetId = section === "Ask AI" ? "ask" : section.toLowerCase()
-    const positions = await page.evaluate((id) => {
-      const header = document.querySelector("header")
-      const target = document.querySelector(`#${id}`)
-      return {
-        headerBottom: header?.getBoundingClientRect().bottom ?? 0,
-        targetTop: target?.getBoundingClientRect().top ?? 0,
-      }
-    }, targetId)
-    expect(positions.targetTop).toBeGreaterThanOrEqual(positions.headerBottom + 8)
+  await expect(page.locator("#lyrics")).toBeVisible()
+  await expect(page.locator("#meaning")).toBeVisible()
+  const songActions = page.getByRole("navigation", { name: "Song actions" })
+  for (const [action, targetId] of [["Harmonium", "notation"], ["Listen", "listen"], ["Know more with AI", "ask"], ["Watch", "watch"]] as const) {
+    await expect(songActions.getByRole("link", { name: new RegExp(action), exact: false })).toHaveAttribute("href", `#${targetId}`)
+    await expect(page.locator(`#${targetId}`)).toHaveCount(1)
   }
+  const lyrics = await page.locator("#lyrics").boundingBox()
+  const meaning = await page.locator("#meaning").boundingBox()
+  expect(lyrics).not.toBeNull()
+  expect(meaning).not.toBeNull()
+  if (testInfo.project.name === "desktop-chromium") {
+    expect(Math.abs(lyrics!.y - meaning!.y)).toBeLessThan(8)
+    expect(meaning!.x).toBeGreaterThan(lyrics!.x + lyrics!.width - 8)
+  } else if (testInfo.project.name === "mobile-chromium") {
+    expect(meaning!.y).toBeGreaterThan(lyrics!.y + lyrics!.height - 8)
+  }
+  await songActions.getByRole("link", { name: /Harmonium/ }).click()
+  await expect(page.locator("#notation")).toBeInViewport()
+  await page.getByRole("heading", { name: "Practise on harmonium" }).click()
+  await page.getByRole("button", { name: "Sargam guide" }).click()
+  await expect(page.getByRole("heading", { name: "Sargam at a glance" })).toBeVisible()
+  await expect(page.getByText("Aroha · ascending")).toBeVisible()
+  await expect(page.getByText("Avaroha · descending")).toBeVisible()
+  await expect(page.getByText("सा", { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole("img", { name: /Harmonium key guide/i })).toBeVisible()
+  await expect(page.getByText(/Beginner alankar · ascending/i)).toBeVisible()
+  await expect(page.getByLabel(/Listen to/i).first()).toBeVisible()
   await expect(page.getByRole("heading", { name: "Listen to this song" })).toBeVisible()
+  const alternateRecordings = page.getByText(/More recordings \(/)
+  if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 
 test("garbage and hostile hero queries never reach search or AI", async ({ page }) => {
@@ -138,6 +155,20 @@ test("a meaningful query moves naturally into exploration", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
 })
 
+test("home and Explore resolve natural-language song number intent before RAG", async ({ page }) => {
+  await page.goto("/")
+  await page.getByLabel(/Ask by song, feeling/i).fill("explain about prabhat sagiat 223")
+  await page.getByRole("button", { name: "Search" }).click()
+  await expect(page).toHaveURL(/\/songs\/223#ask$/)
+  await expect(page.locator("#ask")).toBeVisible()
+
+  await page.goto("/explore")
+  await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")
+  await page.getByRole("button", { name: "Search" }).click()
+  await expect(page).toHaveURL(/\/songs\/1#notation$/)
+  await expect(page.locator("#notation")).toBeVisible()
+})
+
 test("search renders verified results and a deliberate no-match state", async ({ page }) => {
   await page.route("**/api/v1/search", async (route) => {
     const payload = route.request().postDataJSON() as { query: string }
@@ -145,10 +176,6 @@ test("search renders verified results and a deliberate no-match state", async ({
   })
   await page.goto("/explore")
   const input = page.getByLabel(/Search by number/i)
-  await input.fill("2256")
-  await page.getByRole("button", { name: "Search" }).click()
-  await expect(page.getByRole("link", { name: /2256.*Ásár Kathá Chilo Anek Áge/i })).toHaveCount(1)
-  await expect(page.getByText("226", { exact: true })).toHaveCount(0)
   await input.fill("Tomar Katha")
   await page.getByRole("button", { name: "Search" }).click()
   await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible()
@@ -164,6 +191,36 @@ test("song pages omit unavailable information and use clear recording language",
   await expect(page.getByText(/No verified video match/i)).toHaveCount(0)
   await expect(page.getByText("Not listed", { exact: true })).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Audio renditions" })).toHaveCount(0)
+})
+
+test("catalog titles and source-only content never render fabricated blank sections", async ({ page }) => {
+  await page.goto("/explore?q=song%20about%20rain")
+  await expect(page.locator("#results")).toBeVisible()
+  const resultTitles = await page.locator("#results ~ div h3").allTextContents()
+  expect(resultTitles.some((title) => /^Song\s+\d+$/i.test(title.trim()))).toBe(false)
+
+  await page.goto("/songs/68")
+  await expect(page.getByRole("heading", { name: "Understand the song" })).toBeVisible()
+  await expect(page.locator("#lyrics")).toHaveCount(0)
+  await expect(page.locator("#meaning")).toBeVisible()
+})
+
+test("practice coach always reports microphone and audio-analysis outcomes", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: () => Promise.reject(new DOMException("Denied", "NotAllowedError")) },
+    })
+  })
+  await page.goto("/songs/1#notation")
+  await page.getByRole("heading", { name: "Practise on harmonium" }).click()
+  await page.getByRole("button", { name: /Record practice/ }).click()
+  await expect(page.getByText(/Microphone access was not available/i)).toBeVisible()
+
+  const fileInput = page.locator("input[type=file]")
+  await fileInput.setInputFiles({ name: "practice.wav", mimeType: "audio/wav", buffer: Buffer.from("not-a-valid-wave") })
+  await expect(page.getByText("Analysis complete", { exact: true })).toBeVisible()
+  await expect(page.getByText(/could not be analysed/i)).toBeVisible()
 })
 
 test("search failure is recoverable and never becomes a blank results panel", async ({ page }) => {

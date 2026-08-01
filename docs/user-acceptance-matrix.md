@@ -8,6 +8,7 @@ blank section, raw media URL, fabricated content, or inaccessible primary action
 | Journey | Expected result |
 | --- | --- |
 | Search `1`, `111`, or `5018` | Exact song number is ranked first and opens the song page. |
+| Ask `explain Prabhat Samgiita 223` or `harmonium for song 1` | Song intent is detected before semantic retrieval and opens the relevant song section. |
 | Search an opening line | Matching verified songs appear with a useful result count. |
 | Search meaning, mood, festival, birthday, Shiva, Krishna, or meditation | Relevant songs appear without requiring every optional field. |
 | Search Bengali, Hindi, Tamil, Maithili, or Urdu text | Unicode input is accepted and processed safely. |
@@ -45,9 +46,10 @@ blank section, raw media URL, fabricated content, or inaccessible primary action
 
 | Journey | Expected result |
 | --- | --- |
-| Notation draft exists | Sargam, beat groups, lyric alignment, Sa selection, and slow preview appear. |
+| Notation draft exists | Expandable studio shows Devanagari and Latin Sargam, harmonium keys, aroha/avaroha, beginner alankar, beat groups, lyric alignment, Sa selection, and slow preview. |
 | Notation is OCR-derived | Practice-draft and human-review notices remain visible. |
 | No machine-readable notation exists | Canonical PDF is offered when available; melody is never invented. |
+| General Sargam guide is opened | Learning aids are clearly separated from song-specific notation; no raga or pakad is invented. |
 | Upload a matching transposed rendition | On-device contour analysis recognizes the selected song. |
 | Upload unrelated audio | Match is rejected as not confirmed. |
 | Upload over 20 MB or over two minutes | Analysis is refused with clear limits. |
@@ -63,6 +65,10 @@ blank section, raw media URL, fabricated content, or inaccessible primary action
 | Feedback | Empty comments are blocked; valid feedback is acknowledged; spam is rate-limited. |
 | Analytics | Only aggregate page and feature counters are stored; no prompt, query, email, or media URL. |
 | Sharing | Native sharing or named social actions are available without exposing internal data. |
+| Homepage is opened | Today's recommendations appear immediately after the hero with Listen, Watch, Understand, and Learn actions when available. |
+| Reviewed Ananda Marga festival is today | Festival context is primary and links to the reviewed calendar source. |
+| Important world day or humanitarian event is active | Recommendations show the reason and source; unrelated or sensational news is ignored. |
+| Festival date is not reviewed for the selected year | No lunar date is guessed or silently repeated from another year. |
 
 ## Automated release gates
 

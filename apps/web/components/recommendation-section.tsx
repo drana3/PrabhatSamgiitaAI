@@ -38,15 +38,17 @@ export function RecommendationSection() {
 
   const contextTitle = today?.signals[0]?.title || activePreset.title
   const contextSummary = today?.signals[0]?.summary || activePreset.subtitle
+  const contextSignal = today?.signals[0]
 
   return (
-    <div className="surface-card overflow-hidden">
+    <div className="surface-card overflow-hidden shadow-[0_24px_70px_rgba(29,43,66,0.12)]">
       <div className="border-b border-navy-900/10 bg-gradient-to-r from-gold-50 to-white p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="eyebrow">Selected for this moment</p>
             <h3 className="mt-2 font-serif text-3xl text-navy-950">{contextTitle}</h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">{contextSummary}</p>
+            {contextSignal ? <a href={contextSignal.source_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Context from {contextSignal.source_name} ↗</a> : null}
           </div>
           {loading ? <LoadingIndicator label="Finding songs" compact /> : <span className="text-xs font-semibold text-emerald-700">Updated for today</span>}
         </div>
@@ -66,6 +68,7 @@ export function RecommendationSection() {
             </div>
             <div className="mt-3 flex flex-wrap gap-2 pl-14 text-[11px] font-semibold">
               {song.audio_url ? <Link href={`/songs/${song.number}#listen`} className="soft-chip" data-feature="recommendation_listen">▶ Listen</Link> : null}
+              {song.video_embed_url ? <Link href={`/songs/${song.number}#watch`} className="soft-chip">▶ Watch</Link> : null}
               <Link href={`/songs/${song.number}#meaning`} className="soft-chip">Understand</Link>
               <Link href={`/songs/${song.number}#lyrics`} className="soft-chip">Learn</Link>
               {song.notation_available ? <Link href={`/songs/${song.number}#notation`} className="soft-chip">Practise harmonium</Link> : null}
@@ -95,6 +98,7 @@ export function RecommendationSection() {
             </a>
           ))}
         </div>
+        <a href="https://india.anandamarga.org/ananda-marga-festivals-imp-days/" target="_blank" rel="noreferrer" className="mt-4 inline-flex text-[11px] font-semibold text-gold-200 underline decoration-gold-300/60 underline-offset-4">Reviewed 2026 Ananda Marga calendar ↗</a>
       </section>
     </div>
   )

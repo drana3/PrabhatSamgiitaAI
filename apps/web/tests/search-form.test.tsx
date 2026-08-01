@@ -4,6 +4,9 @@ import { render, screen } from "@testing-library/react"
 import { Providers } from "@/components/providers"
 import { SearchForm } from "@/components/search-form"
 
+const push = vi.fn()
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
+
 describe("SearchForm", () => {
   it("renders the search input", () => {
     render(

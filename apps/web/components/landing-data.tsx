@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
-import { RecommendationSection } from "@/components/recommendation-section"
 import { SongCard } from "@/components/song-card"
 import { fetchSongs } from "@/lib/api"
 import type { SongSummary } from "@/lib/api"
@@ -21,19 +20,6 @@ export function LandingData({ initialSongs }: { initialSongs: SongSummary[]; ini
 
   return (
     <div className="mx-auto max-w-[90rem] space-y-20 px-4 py-20 sm:px-6 lg:px-10">
-      <section aria-labelledby="discover-title" className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
-        <div>
-          <p className="eyebrow">Recommended for today</p>
-          <h2 id="discover-title" className="mt-4 max-w-xl font-serif text-5xl leading-[0.98] text-navy-950 sm:text-6xl">
-            Today&apos;s songs and upcoming observances
-          </h2>
-          <p className="mt-5 max-w-xl text-base leading-8 text-stone-700">
-            Morning meditation, a festival, longing, gratitude, or quiet reflection: recommendations begin with today and can be gently refined when you wish.
-          </p>
-        </div>
-        <RecommendationSection />
-      </section>
-
       <section aria-labelledby="featured-title">
         <div className="flex flex-wrap items-end justify-between gap-5 border-b border-navy-900/10 pb-5">
           <div>

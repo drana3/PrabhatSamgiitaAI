@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { queryGuidance, queryIsUseful } from "@/lib/query-guard"
+import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
 
 export function HeroSearch() {
   const [query, setQuery] = useState("")
@@ -20,8 +21,9 @@ export function HeroSearch() {
           return
         }
         setGuidance("")
-        if (/^\d{1,4}$/.test(value)) {
-          router.push(`/songs/${value}`)
+        const songIntent = extractSongSearchIntent(value)
+        if (songIntent) {
+          router.push(songIntentPath(songIntent))
           return
         }
         router.push(`/explore?q=${encodeURIComponent(value)}`)

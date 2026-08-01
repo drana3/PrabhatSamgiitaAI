@@ -14,16 +14,18 @@ same core contracts.
 | Which songs are related to song 1? | `GET /api/v1/songs/1/related` | Related songs without repeating song 1. |
 | Find song number 111. | `POST /api/v1/search` | Song 111 is the first exact-number result. |
 | Find Prabhat Samgiita 111 using the full name. | `POST /api/v1/search` | Full-name number parsing returns verified song 111 first. |
+| Explain Prabhat Samgiita 223. | `POST /api/v1/search` | Natural-language number intent returns only song 223 before fuzzy or vector retrieval. |
 | I remember “Bandhu He Niye Calo.” | `POST /api/v1/search` | Song 1 appears near the top. |
 | Find a song about the fountain of effulgence. | `POST /api/v1/search` | Meaning search finds song 1 near the top. |
 | Find Bandhu He with a verified video. | `GET /api/v1/search?q=Bandhu%20He&has_video=true` | Rich search returns song 1 and non-zero video availability. |
 | Recommend songs for peaceful morning meditation. | `POST /api/v1/recommendations` | Distinct verified songs, ranked using available canonical metadata. |
 | Recommend songs for Shravanii Purnima. | `POST /api/v1/recommendations` | Canonical Shravanii Purnima song 4954 ranks first. |
 | What should I listen to on Bábá's birthday? | `GET /api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-05-21` | Reviewed fixed observance, local context, three verified recommendations, reasons, and disclaimer. |
+| What should I listen to on Shrávanii Purnimá 2026? | `GET /api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-08-28` | The reviewed 2026 festival is the primary sourced signal; no lunar date is guessed for another year. |
 | Which occasions can I browse? | `GET /api/v1/occasions` | Reviewed choices including Dharma Cakra. |
 | Which festivals have canonical mappings? | `GET /api/v1/festivals` | Festival names, song counts, verification status, and source URLs. |
 | Is official notation available for song 1? | `GET /api/v1/songs/1/notation/source` | Verified PDF/source link; machine transposition is only marked available when parsed notation exists. |
-| Transpose song 1 to D. | `GET /api/v1/songs/1/notation?scale=D&system=sargam` | `404 Notation not available`; no notes are invented from a source-only PDF. |
+| Transpose song 1 to D. | `GET /api/v1/songs/1/notation?scale=D&system=sargam` | OCR-derived learner draft is transposed, remains labelled `practice_draft`, and never claims canonical verification. |
 | Play the verified YouTube performance for song 1. | `GET /api/v1/songs/1/media?media_type=video&platform=youtube` | Privacy-enhanced embed from the allow-listed AMPS channel, with community-source status. |
 | Play song 1112, which is absent from the official audio archive. | `GET /api/v1/songs/1112/media?media_type=audio` | Number-matched community audio link with `community`, `link_only`, and `unverified` labels. |
 | Are there multiple video renditions of song 2635? | `GET /api/v1/songs/2635/media?media_type=video` | Both distinct videos remain associated with canonical song number 2635. |

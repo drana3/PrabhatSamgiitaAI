@@ -40,9 +40,16 @@ from app.services.domain_catalog import (
     time_of_day,
 )
 from app.services.recommendations import RecommendationContext, RecommendationEngine
-from app.services.world_context import current_humanitarian_signals, observance_for_day
+from app.services.world_context import (
+    ContextSignal,
+    current_humanitarian_signals,
+    observance_for_day,
+)
 
 router = APIRouter(tags=["discovery"])
+ANANDA_MARGA_CALENDAR_URL = (
+    "https://india.anandamarga.org/ananda-marga-festivals-imp-days/"
+)
 today_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(ttl_seconds=3600, maxsize=128)
 report_attempts: dict[str, deque[float]] = defaultdict(deque)
 feedback_attempts: dict[str, deque[float]] = defaultdict(deque)
@@ -95,7 +102,7 @@ async def recommendations_today(
     local_hour = now.hour if date is None else 8
     period = time_of_day(local_hour)
     season = season_for_month(local_date.month)
-    festival = fixed_reviewed_festival(local_date.month, local_date.day)
+    festival = fixed_reviewed_festival(local_date.month, local_date.day, local_date.year)
     observance = observance_for_day(local_date)
     context = {
         "date": local_date.isoformat(),
@@ -110,7 +117,23 @@ async def recommendations_today(
     if cached:
         return TodayResponse.model_validate(cached)
     news_signals = await current_humanitarian_signals()
-    signals = ([observance] if observance else []) + news_signals[:1]
+    festival_signal = (
+        ContextSignal(
+            title=festival,
+            category="festival",
+            summary=f"A reviewed Ananda Marga observance for {local_date:%d %B %Y}.",
+            source_name="Ananda Marga India",
+            source_url=ANANDA_MARGA_CALENDAR_URL,
+            keywords=(festival, "devotion", "meditation"),
+        )
+        if festival
+        else None
+    )
+    signals = (
+        ([festival_signal] if festival_signal else [])
+        + ([observance] if observance else [])
+        + news_signals[:1]
+    )
     context_keywords = " ".join(keyword for signal in signals for keyword in signal.keywords)
     context["humanitarian_context"] = news_signals[0].category if news_signals else None
     catalog = CatalogService(session)

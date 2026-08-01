@@ -11,6 +11,7 @@ export type RecommendationPreset = {
 }
 
 type FestivalObservation = {
+  year?: number
   month: number
   day: number
   title: string
@@ -41,6 +42,7 @@ function seasonFromMonth(month: number) {
 
 const festivalCalendar: FestivalObservation[] = [
   {
+    year: 2026,
     month: 1,
     day: 25,
     title: "R.U. Day",
@@ -53,6 +55,7 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "collective service",
   },
   {
+    year: 2026,
     month: 2,
     day: 12,
     title: "Niilakanth'a Divasa",
@@ -65,6 +68,7 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "quiet meditation",
   },
   {
+    year: 2026,
     month: 3,
     day: 4,
     title: "Vasantotsava",
@@ -77,6 +81,27 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "seasonal celebration",
   },
   {
+    year: 2026,
+    month: 3,
+    day: 5,
+    title: "Dadhicii Divas",
+    subtitle: "Songs of courage, dedication, and selfless service.",
+    occasion: "service",
+    mood: "courageous",
+    meditation_context: "selfless service",
+  },
+  {
+    year: 2026,
+    month: 4,
+    day: 14,
+    title: "Navavarsa",
+    subtitle: "A hopeful selection for a new year and new beginnings.",
+    occasion: "celebration",
+    mood: "hopeful",
+    meditation_context: "new year",
+  },
+  {
+    year: 2026,
     month: 5,
     day: 1,
     title: "Ánanda Purnimá",
@@ -89,6 +114,7 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "full-moon meditation",
   },
   {
+    year: 2026,
     month: 6,
     day: 5,
     title: "PROUT Day",
@@ -101,6 +127,7 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "social transformation",
   },
   {
+    year: 2026,
     month: 8,
     day: 28,
     title: "Shrávanii Purnimá",
@@ -113,6 +140,7 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "evening reflection",
   },
   {
+    year: 2026,
     month: 9,
     day: 6,
     title: "Kaoshiki Divas",
@@ -125,6 +153,7 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "kaoshiki practice",
   },
   {
+    year: 2026,
     month: 9,
     day: 14,
     title: "Prabháta Saḿgiita Divasa",
@@ -138,6 +167,37 @@ const festivalCalendar: FestivalObservation[] = [
     meditation_context: "Prabháta Saḿgiita Day",
   },
   {
+    year: 2026,
+    month: 10,
+    day: 1,
+    title: "Sharadotsava and Children's Day",
+    subtitle: "Songs of joy, creativity, and hope for every child.",
+    occasion: "celebration",
+    mood: "joyful",
+    meditation_context: "children and autumn festival",
+  },
+  {
+    year: 2026,
+    month: 10,
+    day: 2,
+    title: "Public Day",
+    subtitle: "Songs for collective welfare, dignity, and shared purpose.",
+    occasion: "service",
+    mood: "hopeful",
+    meditation_context: "collective welfare",
+  },
+  {
+    year: 2026,
+    month: 10,
+    day: 3,
+    title: "Fine Arts Day",
+    subtitle: "A lyrical selection celebrating beauty and creative expression.",
+    occasion: "celebration",
+    mood: "joyful",
+    meditation_context: "fine arts celebration",
+  },
+  {
+    year: 2026,
     month: 10,
     day: 4,
     title: "Music Day",
@@ -149,16 +209,66 @@ const festivalCalendar: FestivalObservation[] = [
     difficulty: "easy",
     meditation_context: "music celebration",
   },
+  {
+    year: 2026,
+    month: 10,
+    day: 5,
+    title: "Vijayotsava",
+    subtitle: "Songs of courage, hope, and the victory of benevolence.",
+    occasion: "celebration",
+    mood: "courageous",
+    meditation_context: "victory celebration",
+  },
+  {
+    year: 2026,
+    month: 10,
+    day: 8,
+    title: "Kiirtana Divas",
+    subtitle: "An uplifting selection for collective singing and devotion.",
+    occasion: "celebration",
+    mood: "joyful",
+    meditation_context: "collective kiirtan",
+  },
+  {
+    year: 2026,
+    month: 10,
+    day: 25,
+    title: "Navánna",
+    subtitle: "Songs of gratitude for harvest, nature, and shared abundance.",
+    occasion: "celebration",
+    mood: "grateful",
+    meditation_context: "harvest gratitude",
+  },
+  {
+    year: 2026,
+    month: 11,
+    day: 8,
+    title: "Diipavalii",
+    subtitle: "Songs of light, hope, and spiritual awakening.",
+    occasion: "celebration",
+    mood: "joyful",
+    meditation_context: "festival of light",
+  },
+  {
+    year: 2026,
+    month: 11,
+    day: 11,
+    title: "Bhrátrdvitiiyá",
+    subtitle: "A warm selection for affection, family, and human bonds.",
+    occasion: "celebration",
+    mood: "loving",
+    meditation_context: "family observance",
+  },
 ]
 
-function isSameDay(now: Date, month: number, day: number) {
-  return now.getMonth() + 1 === month && now.getDate() === day
+function isSameDay(now: Date, month: number, day: number, year?: number) {
+  return (!year || now.getFullYear() === year) && now.getMonth() + 1 === month && now.getDate() === day
 }
 
-function daysUntil(now: Date, month: number, day: number) {
+function daysUntil(now: Date, month: number, day: number, year?: number) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const target = new Date(now.getFullYear(), month - 1, day)
-  if (target.getTime() < today.getTime()) {
+  const target = new Date(year ?? now.getFullYear(), month - 1, day)
+  if (!year && target.getTime() < today.getTime()) {
     target.setFullYear(target.getFullYear() + 1)
   }
   const diffMs = target.getTime() - today.getTime()
@@ -167,14 +277,14 @@ function daysUntil(now: Date, month: number, day: number) {
 
 export function getUpcomingObservances(now = new Date(), limit = 3): UpcomingObservation[] {
   return festivalCalendar
-    .map((item) => ({ ...item, delta: daysUntil(now, item.month, item.day) }))
+    .map((item) => ({ ...item, delta: daysUntil(now, item.month, item.day, item.year) }))
     .filter((item) => item.delta >= 0)
     .sort((left, right) => left.delta - right.delta)
     .slice(0, limit)
     .map((item) => ({
       title: item.title,
       dateLabel: new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(
-        new Date(now.getFullYear() + (item.delta > 300 ? 1 : 0), item.month - 1, item.day),
+        new Date(item.year ?? now.getFullYear() + (item.delta > 300 ? 1 : 0), item.month - 1, item.day),
       ),
       daysUntil: item.delta,
       query: item.festival || item.occasion || item.title,
@@ -182,7 +292,7 @@ export function getUpcomingObservances(now = new Date(), limit = 3): UpcomingObs
 }
 
 function festivalPresetForDate(now: Date): RecommendationPreset | null {
-  const observed = festivalCalendar.find((item) => isSameDay(now, item.month, item.day))
+  const observed = festivalCalendar.find((item) => isSameDay(now, item.month, item.day, item.year))
   if (!observed) {
     return null
   }
@@ -203,7 +313,7 @@ function festivalPresetForDate(now: Date): RecommendationPreset | null {
 
 function upcomingFestivalPreset(now: Date, windowDays = 14): RecommendationPreset | null {
   const upcoming = festivalCalendar
-    .map((item) => ({ ...item, delta: daysUntil(now, item.month, item.day) }))
+    .map((item) => ({ ...item, delta: daysUntil(now, item.month, item.day, item.year) }))
     .filter((item) => item.delta > 0 && item.delta <= windowDays)
     .sort((left, right) => left.delta - right.delta)[0]
 

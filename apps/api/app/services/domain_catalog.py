@@ -109,7 +109,34 @@ def time_of_day(hour: int) -> str:
     return "night"
 
 
-def fixed_reviewed_festival(month: int, day: int) -> str | None:
-    # The composer's birthday is a fixed civil-calendar observance. Lunar dates
-    # are intentionally not guessed; they must come from reviewed calendar data.
-    return "Bábá Birthday" if (month, day) == (5, 21) else None
+REVIEWED_FESTIVAL_DATES_2026 = {
+    (1, 25): "R.U. Day",
+    (2, 12): "Niilakanth'a Divasa",
+    (3, 4): "Vasantotsava",
+    (3, 5): "Dadhicii Divas",
+    (4, 14): "Navavarsa",
+    (5, 1): "Ánanda Purnimá",
+    (6, 5): "PROUT Day",
+    (8, 28): "Shrávanii Purnimá",
+    (9, 6): "Kaoshiki Divas",
+    (9, 14): "Prabháta Saḿgiita Divasa",
+    (10, 1): "Sharadotsava",
+    (10, 2): "Public Day",
+    (10, 3): "Fine Arts Day",
+    (10, 4): "Music Day",
+    (10, 5): "Vijayotsava",
+    (10, 8): "Kiirtana Divas",
+    (10, 25): "Navánna",
+    (11, 8): "Diipavalii",
+    (11, 11): "Bhrátrdvitiiyá",
+}
+
+
+def fixed_reviewed_festival(month: int, day: int, year: int | None = None) -> str | None:
+    # Bábá's birthday is a fixed civil-calendar observance. Other entries are
+    # year-specific because lunar and festival dates must never be guessed.
+    if (month, day) == (5, 21):
+        return "Bábá Birthday"
+    if year == 2026:
+        return REVIEWED_FESTIVAL_DATES_2026.get((month, day))
+    return None

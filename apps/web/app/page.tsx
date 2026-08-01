@@ -4,6 +4,7 @@ import Link from "next/link"
 import { HeroSearch } from "@/components/hero-search"
 import { LandingData } from "@/components/landing-data"
 import { MiniPlayer } from "@/components/mini-player"
+import { RecommendationSection } from "@/components/recommendation-section"
 import { SiteHeader } from "@/components/site-header"
 import seedInventory from "../../../data/seed/inventory.json"
 import seedSongs from "../../../data/seed/songs.json"
@@ -36,9 +37,25 @@ export default function HomePage() {
           </div>
         </div>
 
+        <section id="today" aria-labelledby="today-recommendations-title" className="relative mx-auto max-w-[90rem] scroll-mt-28 px-4 pb-8 sm:px-6 lg:px-10">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-5">
+            <div className="max-w-3xl">
+              <p className="eyebrow">Today&apos;s Prabhat Samgiita</p>
+              <h2 id="today-recommendations-title" className="mt-3 font-serif text-4xl leading-tight text-navy-950 sm:text-5xl lg:text-6xl">
+                Music for this moment
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-stone-700">
+                Songs selected for today&apos;s Ananda Marga observance, important world days, and carefully reviewed humanitarian context. Listen now, understand the meaning, or learn the song.
+              </p>
+            </div>
+            <Link href="/explore" className="outline-button">Explore your own moment →</Link>
+          </div>
+          <RecommendationSection />
+        </section>
+
         <div className="relative mx-auto -mt-8 max-w-[90rem] px-4 pb-5 sm:px-6 lg:px-10">
           <div className="grid gap-4 lg:grid-cols-[0.78fr_1.22fr]">
-            <article id="today" className="glass-card text-center">
+            <article className="glass-card text-center">
               <p className="eyebrow">Today&apos;s reflection</p>
               <blockquote className="mt-4 font-serif text-lg italic leading-8 text-navy-950">
                 “Let there be peace, let there be love, let there be bliss.”

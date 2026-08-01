@@ -18,9 +18,9 @@ describe("reviewed discovery collections", () => {
     expect(events[0]).toMatchObject({ title: "Shrávanii Purnimá", daysUntil: 0 })
   })
 
-  it("rolls upcoming observances into the next calendar year", () => {
+  it("does not guess lunar observances beyond the reviewed calendar year", () => {
     const events = getUpcomingObservances(new Date(2026, 11, 31, 12, 0), 1)
 
-    expect(events[0]).toMatchObject({ title: "R.U. Day", daysUntil: 25 })
+    expect(events).toEqual([])
   })
 })

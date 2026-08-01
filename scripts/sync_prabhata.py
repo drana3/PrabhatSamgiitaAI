@@ -4,6 +4,7 @@ import html
 import json
 import re
 import subprocess
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -118,7 +119,15 @@ def fetch(url: str) -> str:
 
 
 def clean(text: str) -> str:
-    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+    decoded = html.unescape(text)
+    # The source contains decimal combining marks written as text (for example
+    # "Su769" instead of "Ś"). Decode those artifacts before indexing.
+    decoded = re.sub(
+        r"(?<=[A-Za-z])u(7\d{2})\s*(?=[^\W\d_])",
+        lambda match: chr(int(match.group(1))),
+        decoded,
+    )
+    return re.sub(r"\s+", " ", decoded).strip()
 
 
 def html_to_lines(fragment: str) -> list[str]:
@@ -151,30 +160,52 @@ def parse_song_header(header: str, anchor: str) -> tuple[int, dict[str, str]]:
 
 
 def is_roman_lyric_line(line: str) -> bool:
-    return bool(line) and not re.search(r"[a-z]", line)
+    if not line:
+        return False
+    # Dialogue songs use mixed-case speaker labels such as "Krs'n'a:" before
+    # uppercase Roman-Samskrta lyrics. Treat short labels as part of the lyric
+    # block and classify the remaining lines by uppercase letter ratio.
+    if line.endswith(":") and len(line) <= 48:
+        return True
+    letters = [character for character in line if character.isalpha()]
+    if not letters:
+        return False
+    uppercase = sum(character.isupper() for character in letters)
+    return uppercase / len(letters) >= 0.72
 
 
 def split_song_sections(paragraphs: list[list[str]]) -> tuple[list[str], list[str], list[str]]:
     if not paragraphs:
         return [], [], []
-    first_paragraph = paragraphs[0]
-    lyric_prefix: list[str] = []
-    for line in first_paragraph:
-        if is_roman_lyric_line(line):
-            lyric_prefix.append(line)
-            continue
-        break
-    remaining_paragraphs = [
-        line for paragraph in paragraphs[1:] for line in paragraph
-    ]
-    remainder = first_paragraph[len(lyric_prefix) :] + remaining_paragraphs
+    lines = [line for paragraph in paragraphs for line in paragraph]
     purport_index = next(
-        (idx for idx, line in enumerate(remainder) if line.lower().startswith("purport:")),
+        (idx for idx, line in enumerate(lines) if line.lower().startswith("purport:")),
         None,
     )
-    if purport_index is None:
-        return lyric_prefix, remainder, []
-    return lyric_prefix, remainder[:purport_index], remainder[purport_index + 1 :]
+    content = lines if purport_index is None else lines[:purport_index]
+    purport = [] if purport_index is None else lines[purport_index + 1 :]
+
+    lyric_start = next(
+        (
+            index
+            for index, line in enumerate(content)
+            if is_roman_lyric_line(line)
+            and index + 1 < len(content)
+            and is_roman_lyric_line(content[index + 1])
+        ),
+        None,
+    )
+    if lyric_start is None:
+        return [], content, purport
+
+    lyric_end = lyric_start
+    while lyric_end < len(content) and is_roman_lyric_line(content[lyric_end]):
+        lyric_end += 1
+    lyrics = content[lyric_start:lyric_end]
+    meaning = content[:lyric_start] + content[lyric_end:]
+    if lyrics and lyrics[-1].endswith(":") and meaning:
+        meaning.insert(len(content[:lyric_start]), lyrics.pop())
+    return lyrics, meaning, purport
 
 
 def parse_lyrics_page() -> list[SongRecord]:
@@ -192,7 +223,10 @@ def parse_song_page(page_path: str) -> list[SongRecord]:
         if not paragraphs:
             continue
         lyrics_lines, english_lines, purport_lines = split_song_sections(paragraphs)
-        first_line = lyrics_lines[0] if lyrics_lines else None
+        first_line = next(
+            (line for line in lyrics_lines if not line.endswith(":")),
+            english_lines[0] if english_lines else None,
+        )
         songs.append(
             SongRecord(
                 number=number,
@@ -434,9 +468,7 @@ def write_json(path: Path, data: list[dict[str, Any]]) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def main() -> None:
-    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-
+def sync_songs() -> list[SongRecord]:
     songs = parse_lyrics_page()
     parsed_numbers = {song.number for song in songs}
     missing_numbers = [number for number in range(1, 5019) if number not in parsed_numbers]
@@ -445,11 +477,21 @@ def main() -> None:
         if song:
             songs.append(song)
     songs.sort(key=lambda item: item.number)
+    write_json(GENERATED_DIR / "songs.json", [asdict(item) for item in songs])
+    return songs
+
+
+def main(*, songs_only: bool = False) -> None:
+    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+
+    songs = sync_songs()
+    if songs_only:
+        print(f"Wrote {len(songs)} songs to {GENERATED_DIR / 'songs.json'}")
+        return
     media = parse_audio_media()
     notations = parse_notations()
     inventory = crawl_inventory()
 
-    write_json(GENERATED_DIR / "songs.json", [asdict(item) for item in songs])
     write_json(GENERATED_DIR / "media.json", media)
     write_json(GENERATED_DIR / "notations.json", notations)
     write_json(GENERATED_DIR / "inventory.json", [asdict(item) for item in inventory])
@@ -462,4 +504,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(songs_only="--songs-only" in sys.argv[1:])

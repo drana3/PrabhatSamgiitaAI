@@ -135,6 +135,12 @@ def validate_search_2256_is_exact(response: httpx.Response) -> None:
     require([row["number"] for row in rows] == [2256], response.text)
 
 
+def validate_natural_language_number_intent(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require([row["number"] for row in rows] == [223], response.text)
+
+
 def validate_full_name_search(response: httpx.Response) -> None:
     validate_search_number(response)
     require(response.json()[0]["is_verified"] is True, response.text)
@@ -266,6 +272,15 @@ def validate_today(response: httpx.Response) -> None:
     require(all(row["is_verified"] for row in payload["recommendations"]), response.text)
 
 
+def validate_reviewed_festival_today(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 200, response.text)
+    require(payload["context"]["festival"] == "Shrávanii Purnimá", response.text)
+    require(payload["signals"][0]["title"] == "Shrávanii Purnimá", response.text)
+    require(payload["signals"][0]["source_name"] == "Ananda Marga India", response.text)
+    require(len(payload["recommendations"]) == 3, response.text)
+
+
 def validate_report(response: httpx.Response) -> None:
     payload = response.json()
     require(response.status_code == 201, response.text)
@@ -341,6 +356,14 @@ CASES = [
         {"query": "2256"},
     ),
     AcceptanceCase(
+        "Explain Prabhat Samgiita 223.",
+        "Natural-language song intent returns only song 223 before semantic retrieval.",
+        "POST",
+        "/api/v1/search",
+        validate_natural_language_number_intent,
+        {"query": "explain about prabhat sagiat 223"},
+    ),
+    AcceptanceCase(
         "I remember the line 'Bandhu He Niye Calo'. Which song is it?",
         "Opening-line search finds song 1 near the top.",
         "POST",
@@ -390,6 +413,13 @@ CASES = [
         "GET",
         "/api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-05-21",
         validate_today,
+    ),
+    AcceptanceCase(
+        "What should I listen to on Shrávanii Purnimá 2026?",
+        "The reviewed festival is the primary sourced context for today's recommendations.",
+        "GET",
+        "/api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-08-28",
+        validate_reviewed_festival_today,
     ),
     AcceptanceCase(
         "Which occasions can I browse?",

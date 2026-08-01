@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Any, cast
 
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import bindparam, delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -82,7 +82,8 @@ class BootstrapService:
 
         # Catalog data is committed before any RAG indexing. The API can therefore
         # serve all songs even if a later indexing step is interrupted.
-        await self._replace_if_incomplete(Song, songs, "songs")
+        songs_replaced = await self._replace_if_incomplete(Song, songs, "songs")
+        songs_refreshed = await self._refresh_song_content(songs)
         await self._replace_if_incomplete(Media, media, "media", unique_field=Media.url)
         await self._replace_if_incomplete(
             Notation,
@@ -94,7 +95,83 @@ class BootstrapService:
         await self._replace_if_incomplete(InventoryItem, inventory, "inventory")
         await self._seed_lookup_tables()
         await self.session.commit()
-        await self._ensure_song_chunks(songs)
+        await self._ensure_song_chunks(songs, force=songs_replaced or songs_refreshed)
+
+    async def _refresh_song_content(self, rows: list[dict[str, Any]]) -> bool:
+        if not rows:
+            return False
+        existing_placeholders = int(
+            (
+                await self.session.execute(
+                    select(func.count()).select_from(Song).where(Song.title.like("Song %"))
+                )
+            ).scalar_one()
+        )
+        desired_placeholders = sum(
+            1 for row in rows if str(row.get("title") or "").startswith("Song ")
+        )
+        existing_missing_lyrics = int(
+            (
+                await self.session.execute(
+                    select(func.count())
+                    .select_from(Song)
+                    .where(Song.lyrics_original.is_(None))
+                )
+            ).scalar_one()
+        )
+        desired_missing_lyrics = sum(1 for row in rows if not row.get("lyrics_original"))
+        if (
+            existing_placeholders <= desired_placeholders
+            and existing_missing_lyrics <= desired_missing_lyrics
+        ):
+            return False
+
+        logger.info(
+            "Refreshing corrected song text: placeholders %s -> %s, missing lyrics %s -> %s",
+            existing_placeholders,
+            desired_placeholders,
+            existing_missing_lyrics,
+            desired_missing_lyrics,
+        )
+        content_fields = (
+            "title",
+            "first_line",
+            "lyrics_original",
+            "transliteration",
+            "hindi_meaning",
+            "english_meaning",
+            "theme",
+            "occasion",
+            "festival",
+            "season",
+            "mood",
+            "language",
+            "difficulty",
+            "meditation_context",
+            "raga",
+            "tala",
+            "harmonium_notation",
+            "canonical_source_url",
+            "canonical_source_status",
+            "is_verified",
+            "metadata_json",
+        )
+        payload = [
+            {
+                "_catalog_number": row["number"],
+                **{field: row.get(field) for field in content_fields},
+            }
+            for row in rows
+        ]
+        statement = (
+            update(cast(Any, Song.__table__))
+            .where(Song.number == bindparam("_catalog_number"))
+            .values({field: bindparam(field) for field in content_fields})
+            .values(embeddings=None)
+        )
+        await self.session.execute(statement, payload)
+        await self.session.commit()
+        return True
 
     async def _refresh_machine_notations(self, rows: list[dict[str, Any]]) -> None:
         desired = sum(
@@ -186,13 +263,15 @@ class BootstrapService:
                     )
                 )
 
-    async def _ensure_song_chunks(self, song_rows: list[dict[str, Any]]) -> None:
+    async def _ensure_song_chunks(
+        self, song_rows: list[dict[str, Any]], *, force: bool = False
+    ) -> None:
         indexed_song_count = int(
             (
                 await self.session.execute(select(func.count(func.distinct(SongChunk.song_number))))
             ).scalar_one()
         )
-        if indexed_song_count >= len(song_rows):
+        if not force and indexed_song_count >= len(song_rows):
             return
         logger.info(
             "Rebuilding RAG chunks: %s -> %s indexed songs",
