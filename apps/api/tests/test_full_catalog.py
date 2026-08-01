@@ -3,13 +3,14 @@ from typing import Any
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.models.song import Song
 from app.services.catalog import (
     CatalogService,
     catalog_inventory_snapshot,
     catalog_media_snapshot,
     catalog_song_snapshot,
 )
-from app.services.search import HybridSearchService
+from app.services.search import HybridSearchService, canonical_lexical_boost
 
 
 class UnavailableSession:
@@ -37,6 +38,20 @@ def test_canonical_theme_assignments_are_not_truncated() -> None:
 
     assert song.theme is not None
     assert len(song.theme) > 255
+
+
+def test_exact_canonical_meaning_phrase_gets_strong_search_boost() -> None:
+    song = Song(
+        number=1,
+        title="Bandhu He Niye Calo",
+        first_line="Bandhu He Niye Calo",
+        english_meaning="O friend, lead me towards the fountain of effulgence.",
+        canonical_source_url="https://prabhatasamgiita.net/lyrics/ps_1.htm",
+        canonical_source_status="verified",
+        is_verified=True,
+    )
+
+    assert canonical_lexical_boost("fountain of effulgence", song) == 1.5
 
 
 def test_numbered_youtube_videos_preserve_multiple_renditions() -> None:

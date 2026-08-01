@@ -66,6 +66,24 @@ def _search_doc(song: Song) -> str:
     )
 
 
+def canonical_lexical_boost(query: str, song: Song) -> float:
+    """Keep exact canonical text matches ahead of approximate vector neighbors."""
+    query_norm = normalize_query(query)
+    if not query_norm:
+        return 0.0
+    title = normalize_query(song.title)
+    first_line = normalize_query(song.first_line or "")
+    if query_norm in {title, first_line}:
+        return 3.0
+    document = normalize_query(_search_doc(song))
+    if query_norm in document:
+        return 1.5
+    significant_terms = [term for term in query_norm.split() if len(term) > 2]
+    if len(significant_terms) >= 2 and all(term in document for term in significant_terms):
+        return 0.25
+    return 0.0
+
+
 class HybridSearchService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -301,9 +319,11 @@ class HybridSearchService:
             if song.is_verified or song.canonical_source_status == "verified":
                 matched_by.append("verified")
             score = fused.get(candidate, 0.0)
-            score += 0.05 if summary.audio_count else 0.0
-            score += 0.02 if summary.notation_count else 0.0
-            score += 0.03 if song.is_verified else 0.0
+            score += canonical_lexical_boost(query, song)
+            score += 10.0 if candidate in exact_number else 0.0
+            score += 0.005 if summary.audio_count else 0.0
+            score += 0.002 if summary.notation_count else 0.0
+            score += 0.003 if song.is_verified else 0.0
             items.append(
                 SearchResultItem(
                     song_number=song.number,
@@ -318,6 +338,7 @@ class HybridSearchService:
                 )
             )
 
+        items.sort(key=lambda item: (-item.score, item.song_number))
         total = len(items)
         start = max(page - 1, 0) * page_size
         end = start + page_size
