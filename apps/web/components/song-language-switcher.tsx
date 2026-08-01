@@ -26,10 +26,14 @@ export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: s
         aria-label="Reading language"
         className="min-w-0 w-full rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 text-sm text-navy-950 outline-none focus:border-gold-500"
       >
-        {localeOptions.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.nativeLabel} ({option.label})
-          </option>
+        {["Indian languages", "World languages"].map((group) => (
+          <optgroup key={group} label={group}>
+            {localeOptions.filter((option) => option.group === group).map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.nativeLabel} ({option.label})
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
     </label>

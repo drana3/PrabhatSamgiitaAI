@@ -64,7 +64,7 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
         {messages.map((message, index) => (
           <div key={`${message.role}-${index}`} className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-7 ${message.role === "user" ? "ml-auto bg-gold-100 text-navy-950" : "border border-navy-900/10 bg-white text-stone-700 shadow-sm"}`}>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">{message.role === "user" ? "You" : "Prabhat Samgiita AI"}</p>
-            {loading && index === messages.length - 1 && !message.text ? <LoadingIndicator label="Reflecting on the sources" /> : <p className="whitespace-pre-wrap">{message.text}</p>}
+            {loading && index === messages.length - 1 && !message.text ? <LoadingIndicator label="Reflecting on the sources" /> : <p dir="auto" className="whitespace-pre-wrap">{message.text}</p>}
           </div>
         ))}
       </div>

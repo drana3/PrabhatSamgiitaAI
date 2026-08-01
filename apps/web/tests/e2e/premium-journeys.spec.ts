@@ -93,6 +93,8 @@ test("song tabs land within the viewport and language control never clips", asyn
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   const language = page.getByLabel("Reading language")
   await expect(language).toBeVisible()
+  await expect(language.locator("option")).toHaveCount(36)
+  await expect(language.locator("optgroup")).toHaveCount(2)
   const languageBounds = await language.boundingBox()
   const viewport = page.viewportSize()
   expect(languageBounds).not.toBeNull()
