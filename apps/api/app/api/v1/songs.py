@@ -12,6 +12,7 @@ from app.models.song import Song
 from app.schemas.song import MediaItemResponse, SongDetail, SongLocalizationResponse, SongSummary
 from app.services.catalog import CatalogService
 from app.services.localization import LocalizationService
+from app.services.media_quality import media_quality_key
 
 router = APIRouter(prefix="/songs", tags=["songs"])
 
@@ -51,23 +52,6 @@ def _media(item: Media) -> MediaItemResponse:
         availability_status=metadata.get("availability_status"),
         language=metadata.get("language"),
         match_score=metadata.get("match_score"),
-    )
-
-
-def _media_quality_key(item: Media) -> tuple[int, int, int, float, str]:
-    metadata = item.metadata_json or {}
-    searchable = f"{item.title} {item.url}".casefold()
-    low_quality = 1 if "low quality" in searchable else 0
-    old_version = 1 if metadata.get("version") == "old" or "old version" in searchable else 0
-    source_status = str(metadata.get("source_status") or item.verification_status)
-    source_order = {"official": 0, "verified": 0, "verified_community": 1, "community": 2}
-    match_score = float(metadata.get("match_score") or 0)
-    return (
-        low_quality,
-        old_version,
-        source_order.get(source_status, 3),
-        -match_score,
-        item.title.casefold(),
     )
 
 
@@ -134,7 +118,7 @@ async def get_song_media(
     service = CatalogService(session)
     if not await service.get_song(number):
         raise HTTPException(status_code=404, detail="Song not found")
-    media_items = sorted(await service.get_media(number), key=_media_quality_key)
+    media_items = sorted(await service.get_media(number), key=media_quality_key)
     rows = [_media(item) for item in media_items]
     filters = {
         "kind": media_type,
@@ -175,7 +159,7 @@ async def get_song(
     related_summaries = [_summary(item) for item in await service.related_songs(song)]
     media_responses = [
         _media(item)
-        for item in sorted(await service.get_media(number), key=_media_quality_key)
+        for item in sorted(await service.get_media(number), key=media_quality_key)
     ]
     notation = await service.get_notation(number)
     return SongDetail(

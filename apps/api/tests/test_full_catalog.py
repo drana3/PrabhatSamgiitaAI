@@ -3,7 +3,6 @@ from typing import Any
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.v1.songs import _media_quality_key
 from app.models.media import Media
 from app.models.song import Song
 from app.services.catalog import (
@@ -13,6 +12,7 @@ from app.services.catalog import (
     catalog_notation_snapshot,
     catalog_song_snapshot,
 )
+from app.services.media_quality import media_quality_key
 from app.services.search import HybridSearchService, canonical_lexical_boost
 
 
@@ -109,7 +109,7 @@ def test_primary_audio_prefers_current_and_non_low_quality_recordings() -> None:
         metadata_json={"source_status": "official"},
     )
 
-    assert sorted([low_quality, old, current], key=_media_quality_key) == [
+    assert sorted([low_quality, old, current], key=media_quality_key) == [
         current,
         old,
         low_quality,
