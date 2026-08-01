@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import type { TransposedNotation } from "@/lib/api"
-import { comparePitchSequence, expectedMidi } from "@/lib/practice-analysis"
+import { comparePitchSequence, expectedMidi, extractPitchTrack, unavailablePracticeResult } from "@/lib/practice-analysis"
 import type { PracticeResult } from "@/lib/practice-analysis"
 
 export function PracticeCoach({ notation }: { notation: TransposedNotation | null }) {
@@ -24,7 +24,7 @@ export function PracticeCoach({ notation }: { notation: TransposedNotation | nul
   async function analyze(blob: Blob) {
     if (!notation) return
     if (blob.size > 20 * 1024 * 1024) {
-      setResult({ isLikelyMatch: false, score: 0, matchedNotes: 0, expectedNotes: 0, averageCents: 0, suggestions: ["Choose an audio recording smaller than 20 MB."] })
+      setResult(unavailablePracticeResult("analysis_error", "Choose an audio recording smaller than 20 MB."))
       return
     }
     setWorking(true)
@@ -36,14 +36,13 @@ export function PracticeCoach({ notation }: { notation: TransposedNotation | nul
       if (!AudioContextClass) throw new Error("Audio analysis is not supported")
       context = new AudioContextClass()
       const buffer = await context.decodeAudioData(await blob.arrayBuffer())
-      const observed = extractPitchTrack(buffer)
       if (buffer.duration > 60) {
-        setResult({ isLikelyMatch: false, score: 0, matchedNotes: 0, expectedNotes: 0, averageCents: 0, suggestions: ["Choose a focused practice excerpt of one minute or less."] })
+        setResult(unavailablePracticeResult("analysis_error", "Choose a focused practice excerpt of one minute or less."))
       } else {
-        setResult(comparePitchSequence(observed, expectedMidi(notation)))
+        setResult(comparePitchSequence(extractPitchTrack(buffer.getChannelData(0), buffer.sampleRate), expectedMidi(notation)))
       }
     } catch {
-      setResult({ isLikelyMatch: false, score: 0, matchedNotes: 0, expectedNotes: 0, averageCents: 0, suggestions: ["This recording could not be analysed. Try WAV, MP3, M4A, or record directly in the browser."] })
+      setResult(unavailablePracticeResult("analysis_error", "This recording could not be analysed. Try WAV, MP3, M4A, or record directly in the browser."))
     } finally {
       if (context) await context.close().catch(() => undefined)
       setWorking(false)
@@ -53,14 +52,14 @@ export function PracticeCoach({ notation }: { notation: TransposedNotation | nul
   async function toggleRecording() {
     if (recording) { recorder.current?.stop(); return }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setResult({ isLikelyMatch: false, score: 0, matchedNotes: 0, expectedNotes: 0, averageCents: 0, suggestions: ["Recording is not supported in this browser. Choose an audio file instead."] })
+      setResult(unavailablePracticeResult("analysis_error", "Recording is not supported in this browser. Choose an audio file instead."))
       return
     }
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch {
-      setResult({ isLikelyMatch: false, score: 0, matchedNotes: 0, expectedNotes: 0, averageCents: 0, suggestions: ["Microphone access was not available. Allow access in your browser, or choose an audio file instead."] })
+      setResult(unavailablePracticeResult("analysis_error", "Microphone access was not available. Allow access in your browser, or choose an audio file instead."))
       return
     }
     chunks.current = []
@@ -73,7 +72,7 @@ export function PracticeCoach({ notation }: { notation: TransposedNotation | nul
       stream.getTracks().forEach((track) => track.stop())
       const blob = new Blob(chunks.current, { type: next.mimeType })
       if (!blob.size) {
-        setResult({ isLikelyMatch: false, score: 0, matchedNotes: 0, expectedNotes: 0, averageCents: 0, suggestions: ["No audible recording was captured. Check the microphone and try again."] })
+        setResult(unavailablePracticeResult("insufficient_audio", "No audible recording was captured. Check the microphone and try again."))
         return
       }
       void analyze(blob)
@@ -94,39 +93,14 @@ export function PracticeCoach({ notation }: { notation: TransposedNotation | nul
       {!notation ? <p className="mt-4 rounded-xl bg-white/10 p-4 text-sm text-navy-100">A notation reference is needed before the coach can compare this song responsibly.</p> : <>
         <div className="mt-5 flex flex-wrap gap-3">
           <button type="button" onClick={() => void toggleRecording()} disabled={working} className={`rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-60 ${recording ? "bg-red-500" : "bg-gold-500 text-navy-950"}`}>{recording ? `■ Stop and analyse · ${formatTime(recordingSeconds)}` : "● Record practice"}</button>
-          <label className={`rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold ${working || recording ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-white/10"}`}>Choose audio file<input type="file" accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg" disabled={working || recording} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (file.type && !file.type.startsWith("audio/")) { setResult({ isLikelyMatch: false, score: 0, matchedNotes: 0, expectedNotes: 0, averageCents: 0, suggestions: ["Choose an audio file containing your Prabhat Samgiita practice."] }); return } void analyze(file); event.target.value = "" }} /></label>
+          <label className={`rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold ${working || recording ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-white/10"}`}>Choose audio file<input type="file" accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg" disabled={working || recording} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (file.type && !file.type.startsWith("audio/")) { setResult(unavailablePracticeResult("analysis_error", "Choose an audio file containing your Prabhat Samgiita practice.")); return } void analyze(file); event.target.value = "" }} /></label>
         </div>
         {recording ? <p role="status" className="mt-4 text-sm text-gold-200">Recording now. Sing a clear 10 to 30 second phrase, then choose Stop and analyse.</p> : null}
         {working ? <div role="status" className="mt-5"><LoadingIndicator label="Analysing melody on this device" /><p className="mt-2 text-xs text-navy-100">This normally takes a few seconds. Your audio remains private.</p></div> : null}
-        {result ? <div aria-live="polite" className="mt-5 rounded-2xl bg-white p-5 text-navy-950"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Analysis complete</p><div className="mt-2 flex items-end gap-3"><span className="font-serif text-5xl font-bold">{result.score}%</span><span className="pb-1 text-sm text-stone-500">{result.isLikelyMatch ? "melody similarity" : "match not confirmed"}</span></div><p className="mt-2 text-xs text-stone-500">{notation.verification_status.includes("verified") ? "Compared with reviewed notation." : "Experimental guidance from a practice draft; verify with the source notation."}</p><div className="mt-4 space-y-2">{result.suggestions.map((suggestion) => <p key={suggestion} className="rounded-xl bg-gold-50 p-3 text-sm leading-6">{suggestion}</p>)}</div></div> : null}
+        {result ? <div aria-live="polite" className="mt-5 rounded-2xl bg-white p-5 text-navy-950"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Analysis complete</p><div className="mt-2 flex items-end gap-3">{result.score === null ? <span className="font-serif text-3xl font-bold">Assessment unavailable</span> : <span className="font-serif text-5xl font-bold">{result.score}%</span>}<span className="pb-1 text-sm text-stone-500">{result.score === null ? "more audio evidence needed" : result.isLikelyMatch ? "melody similarity" : "keep practising"}</span></div>{result.score !== null ? <p className="mt-2 text-xs text-stone-500">{notation.verification_status.includes("verified") ? "Compared with reviewed notation." : "Experimental similarity against a practice draft; verify with the source notation."}</p> : null}<div className="mt-4 space-y-2">{result.suggestions.map((suggestion) => <p key={suggestion} className="rounded-xl bg-gold-50 p-3 text-sm leading-6">{suggestion}</p>)}</div></div> : null}
       </>}
     </section>
   )
-}
-
-function extractPitchTrack(buffer: AudioBuffer) {
-  const samples = buffer.getChannelData(0)
-  const sampleRate = buffer.sampleRate
-  const windowSize = 1024
-  const hop = 4096
-  const sampleLimit = Math.min(samples.length, sampleRate * 30)
-  const pitches: number[] = []
-  for (let offset = 0; offset + windowSize < sampleLimit; offset += hop) {
-    let rms = 0
-    for (let index = 0; index < windowSize; index++) rms += samples[offset + index] ** 2
-    if (Math.sqrt(rms / windowSize) < 0.02) continue
-    let bestLag = 0
-    let bestCorrelation = 0
-    const minLag = Math.floor(sampleRate / 800)
-    const maxLag = Math.min(windowSize - 1, Math.floor(sampleRate / 80))
-    for (let lag = minLag; lag <= maxLag; lag++) {
-      let correlation = 0
-      for (let index = 0; index < windowSize - lag; index += 2) correlation += samples[offset + index] * samples[offset + index + lag]
-      if (correlation > bestCorrelation) { bestCorrelation = correlation; bestLag = lag }
-    }
-    if (bestLag) pitches.push(69 + 12 * Math.log2((sampleRate / bestLag) / 440))
-  }
-  return pitches.filter((value, index) => index % 2 === 0)
 }
 
 function formatTime(seconds: number) {

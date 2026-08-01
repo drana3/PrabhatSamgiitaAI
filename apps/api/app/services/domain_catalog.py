@@ -131,6 +131,23 @@ REVIEWED_FESTIVAL_DATES_2026 = {
     (11, 11): "Bhrátrdvitiiyá",
 }
 
+REVIEWED_FESTIVAL_COLLECTIONS_2026: dict[tuple[int, int], dict[str, str]] = {
+    (3, 4): {"season": "spring", "meditation_context": "Vasantotsava"},
+    (4, 14): {"festival": "New Year", "meditation_context": "Navavarsa"},
+    (5, 1): {"festival": "Bábá Birthday", "meditation_context": "Ánanda Purnimá"},
+    (6, 5): {"theme": "PROUT", "meditation_context": "PROUT Day"},
+    (8, 28): {
+        "festival": "Shravanii Purnima Day",
+        "meditation_context": "Shrávanii Purnimá",
+    },
+    (10, 1): {"season": "autumn", "theme": "Children"},
+    (10, 5): {"festival": "Victory Day", "meditation_context": "Vijayotsava"},
+    (11, 8): {
+        "festival": "Dipavali (Colour Festival) Day",
+        "meditation_context": "Diipavalii",
+    },
+}
+
 
 def fixed_reviewed_festival(month: int, day: int, year: int | None = None) -> str | None:
     # Bábá's birthday is a fixed civil-calendar observance. Other entries are
@@ -140,3 +157,13 @@ def fixed_reviewed_festival(month: int, day: int, year: int | None = None) -> st
     if year == 2026:
         return REVIEWED_FESTIVAL_DATES_2026.get((month, day))
     return None
+
+
+def reviewed_festival_context(month: int, day: int, year: int) -> dict[str, str]:
+    title = fixed_reviewed_festival(month, day, year)
+    if not title:
+        return {}
+    return {
+        "title": title,
+        **REVIEWED_FESTIVAL_COLLECTIONS_2026.get((month, day), {}),
+    }

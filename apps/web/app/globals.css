@@ -79,7 +79,7 @@ button { cursor: pointer; }
 .hero-wash {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(255, 250, 240, 0.07), rgba(255, 250, 240, 0.26) 48%, rgba(255, 250, 240, 0.1));
+  background: linear-gradient(90deg, rgba(255, 250, 240, 0.08), rgba(255, 250, 240, 0.58) 47%, rgba(255, 250, 240, 0.94) 70%, rgba(255, 250, 240, 0.9));
 }
 
 @media (max-width: 1023px) {

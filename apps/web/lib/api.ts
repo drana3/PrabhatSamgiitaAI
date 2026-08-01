@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { queryGuidance, queryIsUseful } from "@/lib/query-guard"
+import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
 const requestTimeoutMs = 15000
@@ -210,7 +210,7 @@ export async function fetchSongLocalization(
 }
 
 export async function searchSongs(query: string): Promise<SongSummary[]> {
-  if (!queryIsUseful(query, 200)) throw new Error(queryGuidance)
+  if (!queryIsUseful(query, 200)) throw new Error(queryGuidanceFor(query))
   try {
     const response = await fetchJson("/api/v1/search", {
       method: "POST",

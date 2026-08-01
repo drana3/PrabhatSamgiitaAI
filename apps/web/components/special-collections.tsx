@@ -1,6 +1,8 @@
+import Link from "next/link"
+
 import { specialCollectionCount, specialCollectionGroups } from "@/lib/special-collections"
 
-export function SpecialCollections() {
+export function SpecialCollections({ activeQuery = "" }: { activeQuery?: string }) {
   return (
     <section id="collections" aria-labelledby="collections-title" className="scroll-mt-28 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-[0_16px_45px_rgba(42,31,15,0.08)] sm:p-7 lg:p-9">
       <div className="grid gap-5 border-b border-navy-900/10 pb-6 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -26,14 +28,15 @@ export function SpecialCollections() {
             </summary>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {group.collections.map((collection) => (
-                <a
+                <Link
                   key={collection.label}
-                  href={`/explore?q=${encodeURIComponent(collection.query)}#results`}
-                  className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-navy-900/10 bg-white px-4 py-3 text-sm font-semibold text-navy-950 transition hover:border-gold-500 hover:bg-gold-50"
+                  href={`/explore?q=${encodeURIComponent(collectionPrompt(collection.query))}`}
+                  aria-current={queryMatchesCollection(activeQuery, collection.label, collection.query) ? "true" : undefined}
+                  className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold text-navy-950 transition hover:border-gold-500 hover:bg-gold-50 ${queryMatchesCollection(activeQuery, collection.label, collection.query) ? "border-gold-600 bg-gold-100 shadow-sm" : "border-navy-900/10 bg-white"}`}
                 >
                   <span>{collection.label}</span>
                   <span className="shrink-0 rounded-full bg-navy-50 px-2 py-1 text-[10px] font-bold text-navy-700">{collection.count}</span>
-                </a>
+                </Link>
               ))}
             </div>
           </details>
@@ -45,4 +48,13 @@ export function SpecialCollections() {
       </p>
     </section>
   )
+}
+
+export function collectionPrompt(label: string) {
+  return `Search Prabhat Samgiita for ${label}`
+}
+
+function queryMatchesCollection(query: string, label: string, collectionQuery: string) {
+  const normalized = query.toLocaleLowerCase()
+  return normalized.includes(label.toLocaleLowerCase()) || normalized.includes(collectionQuery.toLocaleLowerCase())
 }

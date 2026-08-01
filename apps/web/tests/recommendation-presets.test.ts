@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { getUpcomingObservances } from "@/lib/recommendation-presets"
+import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
 import { specialCollectionCount, specialCollectionGroups } from "@/lib/special-collections"
+import canonicalCollections from "../../../data/generated/theme_collections.json"
 
 describe("reviewed discovery collections", () => {
   it("publishes every canonical special collection in organized groups", () => {
@@ -12,10 +13,39 @@ describe("reviewed discovery collections", () => {
     )
   })
 
+  it("keeps every displayed collection count aligned with the canonical source manifest", () => {
+    const expected = new Map(canonicalCollections.map((item) => [item.label, item.count]))
+    const displayed = specialCollectionGroups.flatMap((group) => group.collections)
+
+    expect(displayed).toHaveLength(69)
+    for (const collection of displayed) {
+      expect(expected.get(collection.query), collection.query).toBe(collection.count)
+    }
+  })
+
   it("includes an observance occurring today", () => {
     const events = getUpcomingObservances(new Date(2026, 7, 28, 18, 0), 1)
 
     expect(events[0]).toMatchObject({ title: "Shrávanii Purnimá", daysUntil: 0 })
+    expect(events[0].query).toContain("Shravanii Purnima Day")
+  })
+
+  it("prioritizes exact-day observances with canonical collection metadata", () => {
+    expect(getAutoRecommendationPreset(new Date(2026, 4, 1, 8, 0))).toMatchObject({
+      title: "Ánanda Purnimá",
+      festival: "Bábá Birthday",
+    })
+    expect(getAutoRecommendationPreset(new Date(2026, 5, 5, 8, 0))).toMatchObject({
+      title: "PROUT Day",
+      theme: "PROUT",
+    })
+  })
+
+  it("uses only verified service collections for the Service preset", () => {
+    const service = quickRecommendationPresets().find((item) => item.id === "service")
+
+    expect(service?.preset.theme).toContain("AMURT")
+    expect(service?.preset.theme).toContain("PROUT")
   })
 
   it("does not guess lunar observances beyond the reviewed calendar year", () => {

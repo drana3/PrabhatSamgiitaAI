@@ -13,7 +13,12 @@ from app.services.catalog import (
     catalog_song_snapshot,
 )
 from app.services.media_quality import media_quality_key
-from app.services.search import HybridSearchService, canonical_lexical_boost
+from app.services.search import (
+    HybridSearchService,
+    canonical_lexical_boost,
+    infer_canonical_collection,
+)
+from app.services.seed_data import load_rows
 
 
 class UnavailableSession:
@@ -36,11 +41,52 @@ def test_packaged_catalog_contains_all_songs() -> None:
     assert "PROUT" in (next(song for song in songs if song.number == 4599).theme or "")
 
 
-def test_canonical_theme_assignments_are_not_truncated() -> None:
-    song = next(item for item in catalog_song_snapshot() if item.number == 4081)
+def test_canonical_ceremonies_are_distinct_and_not_contaminated() -> None:
+    songs = {song.number: song for song in catalog_song_snapshot()}
 
-    assert song.theme is not None
-    assert len(song.theme) > 255
+    assert songs[58].occasion == "Marriage Ceremony"
+    assert songs[60].occasion == "Passing Away Ceremony"
+    assert songs[137].occasion == "House Warming Ceremony"
+    assert songs[136].occasion == "Tree Planting Ceremony"
+    assert "Passing Away" not in (songs[58].occasion or "")
+    assert not any(
+        song.occasion and "Marriage Ceremony" in song.occasion and "Passing Away" in song.occasion
+        for song in songs.values()
+    )
+
+
+def test_canonical_language_and_festival_collections_are_exact() -> None:
+    songs = catalog_song_snapshot()
+    english = {song.number for song in songs if song.language == "English"}
+    shravanii = {song.number for song in songs if song.festival == "Shravanii Purnima Day"}
+
+    assert english == {68, 5008, 5009}
+    assert shravanii == {4954}
+
+
+def test_all_69_canonical_collections_resolve_to_their_exact_song_sets() -> None:
+    collections = load_rows("theme_collections.json")
+
+    assert len(collections) == 69
+    for collection in collections:
+        expected = frozenset(int(number) for number in collection["song_numbers"])
+        match = infer_canonical_collection(f"Search Prabhat Samgiita for {collection['label']}")
+        assert expected
+        assert collection["count"] == len(expected)
+        assert match is not None, collection["label"]
+        assert match.label == collection["label"]
+        assert match.song_numbers == expected
+
+
+def test_two_autumn_collections_remain_distinct() -> None:
+    sharat = infer_canonical_collection("Autumn Songs (Sharat)")
+    hemante = infer_canonical_collection("Autumn Songs (Hemante)")
+
+    assert sharat is not None
+    assert hemante is not None
+    assert len(sharat.song_numbers) == 6
+    assert len(hemante.song_numbers) == 6
+    assert sharat.song_numbers != hemante.song_numbers
 
 
 def test_exact_canonical_meaning_phrase_gets_strong_search_boost() -> None:
@@ -190,3 +236,25 @@ async def test_historical_year_query_remains_semantic() -> None:
 
     assert response.detected_intent == "semantic_search"
     assert not (response.total == 1 and response.items[0].song_number == 1983)
+
+
+@pytest.mark.asyncio
+async def test_language_collection_query_returns_only_verified_english_songs() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("English songs")
+
+    assert response.detected_intent == "collection_search"
+    assert {item.song_number for item in response.items} == {68, 5008, 5009}
+    assert all("structured_filter" in item.matched_by for item in response.items)
+
+
+@pytest.mark.asyncio
+async def test_festival_collection_query_returns_only_shravanii_song() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search(
+        "Search Prabhat Samgiita for Shrávanii Purnimá Shravanii Purnima Day"
+    )
+
+    assert [item.song_number for item in response.items] == [4954]

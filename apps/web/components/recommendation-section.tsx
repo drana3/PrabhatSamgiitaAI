@@ -9,10 +9,9 @@ import { RecommendationForm } from "@/components/recommendation-form"
 import { fetchTodayRecommendations, recommendSongs } from "@/lib/api"
 import type { SongSummary, TodayRecommendations } from "@/lib/api"
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
-import seedSongs from "../../../data/seed/songs.json"
 
 export function RecommendationSection() {
-  const [results, setResults] = useState<SongSummary[]>(seedSongs.slice(0, 3) as SongSummary[])
+  const [results, setResults] = useState<SongSummary[]>([])
   const [today, setToday] = useState<TodayRecommendations | null>(null)
   const [presetKey, setPresetKey] = useState("auto")
   const [loading, setLoading] = useState(true)
@@ -25,12 +24,22 @@ export function RecommendationSection() {
     let active = true
     setLoading(true)
     if (presetKey === "auto") {
-      void fetchTodayRecommendations().then((value) => {
-        if (active && value?.recommendations.length) setToday(value)
+      void fetchTodayRecommendations().then(async (value) => {
+        if (!active) return
+        if (value?.recommendations.length) {
+          setToday(value)
+          setResults([])
+          return
+        }
+        const fallback = await recommendSongs(activePreset)
+        if (active) {
+          setToday(null)
+          setResults(fallback)
+        }
       }).finally(() => { if (active) setLoading(false) })
     } else {
       void recommendSongs(activePreset).then((next) => {
-        if (active && next.length) { setResults(next); setToday(null) }
+        if (active) { setResults(next); setToday(null) }
       }).finally(() => { if (active) setLoading(false) })
     }
     return () => { active = false }
@@ -91,11 +100,11 @@ export function RecommendationSection() {
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {upcoming.map((observance) => (
-            <a key={observance.title} href={`/explore?q=${encodeURIComponent(observance.query)}#results`} className="rounded-xl border border-white/15 bg-white/8 p-3 transition hover:border-gold-300 hover:bg-white/12">
+            <Link key={observance.title} href={`/explore?q=${encodeURIComponent(observance.query)}`} className="rounded-xl border border-white/15 bg-white/8 p-3 transition hover:border-gold-300 hover:bg-white/12">
               <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">{observance.dateLabel}</span>
               <span className="mt-1 block text-sm font-semibold text-white">{observance.title}</span>
               <span className="mt-2 block text-[11px] text-navy-200">{observance.daysUntil === 0 ? "Today" : `In ${observance.daysUntil} days`} · Find songs →</span>
-            </a>
+            </Link>
           ))}
         </div>
         <a href="https://india.anandamarga.org/ananda-marga-festivals-imp-days/" target="_blank" rel="noreferrer" className="mt-4 inline-flex text-[11px] font-semibold text-gold-200 underline decoration-gold-300/60 underline-offset-4">Reviewed 2026 Ananda Marga calendar ↗</a>

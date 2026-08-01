@@ -11,6 +11,7 @@ from app.core.db import get_session
 from app.core.security import require_public_quota
 from app.schemas.search import SearchFilters, SearchResponse
 from app.schemas.song import SearchRequest, SongSummary
+from app.services.catalog import catalog_song_snapshot
 from app.services.query_guard import assess_query
 from app.services.search import HybridSearchService
 
@@ -42,21 +43,24 @@ async def search(
         return [SongSummary.model_validate(item) for item in cached]
 
     response = await HybridSearchService(session).search(query)
-    results = [
-        SongSummary(
-            number=item.song_number,
-            title=item.opening_line or "Title awaiting source review",
-            first_line=item.opening_line,
-            theme=None,
-            occasion=None,
-            mood=None,
-            language=None,
-            difficulty=None,
-            is_verified=item.verification_status
-            in {"verified", "officially_verified", "human_reviewed"},
+    songs_by_number = {song.number: song for song in catalog_song_snapshot()}
+    results: list[SongSummary] = []
+    for item in response.items:
+        song = songs_by_number.get(item.song_number)
+        results.append(
+            SongSummary(
+                number=item.song_number,
+                title=(song.title if song else item.opening_line) or "Title awaiting source review",
+                first_line=song.first_line if song else item.opening_line,
+                theme=song.theme if song else None,
+                occasion=song.occasion if song else None,
+                mood=song.mood if song else None,
+                language=song.language if song else None,
+                difficulty=song.difficulty if song else None,
+                is_verified=item.verification_status
+                in {"verified", "officially_verified", "human_reviewed"},
+            )
         )
-        for item in response.items
-    ]
     await simple_search_cache.set(cache_key, [item.model_dump() for item in results])
     return results
 

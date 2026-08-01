@@ -36,6 +36,7 @@ from app.services.domain_catalog import (
     OCCASIONS,
     canonical_festivals,
     fixed_reviewed_festival,
+    reviewed_festival_context,
     season_for_month,
     time_of_day,
 )
@@ -47,9 +48,7 @@ from app.services.world_context import (
 )
 
 router = APIRouter(tags=["discovery"])
-ANANDA_MARGA_CALENDAR_URL = (
-    "https://india.anandamarga.org/ananda-marga-festivals-imp-days/"
-)
+ANANDA_MARGA_CALENDAR_URL = "https://india.anandamarga.org/ananda-marga-festivals-imp-days/"
 today_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(ttl_seconds=3600, maxsize=128)
 report_attempts: dict[str, deque[float]] = defaultdict(deque)
 feedback_attempts: dict[str, deque[float]] = defaultdict(deque)
@@ -103,6 +102,11 @@ async def recommendations_today(
     period = time_of_day(local_hour)
     season = season_for_month(local_date.month)
     festival = fixed_reviewed_festival(local_date.month, local_date.day, local_date.year)
+    festival_context = reviewed_festival_context(
+        local_date.month,
+        local_date.day,
+        local_date.year,
+    )
     observance = observance_for_day(local_date)
     context = {
         "date": local_date.isoformat(),
@@ -146,10 +150,19 @@ async def recommendations_today(
             if period in {"morning", "evening"}
             else context_keywords or None
         ),
-        festival=festival,
+        festival=festival_context.get("festival"),
         season=season,
+        theme=festival_context.get("theme"),
         time_of_day=period,
-        meditation_context=f"{period} {context_keywords}".strip(),
+        meditation_context=" ".join(
+            part
+            for part in (
+                period,
+                festival_context.get("meditation_context"),
+                context_keywords,
+            )
+            if part
+        ),
         media_preference="audio",
         maximum_results=3,
     )

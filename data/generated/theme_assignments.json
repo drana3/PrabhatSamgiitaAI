@@ -15,49 +15,35 @@
   {
     "song_number": 4,
     "themes": [
-      "Belgium-tune",
-      "Turkish-tune"
+      "Belgium-tune"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html"
+      "https://prabhatasamgiita.net/belgium.html"
     ]
   },
   {
     "song_number": 7,
     "themes": [
-      "Songs containing 'extinct' melodies",
-      "Songs composed in Baba's youth",
-      "Song with a very rare verse form",
-      "Classicalised kiirtan-style song"
+      "Songs containing 'extinct' melodies"
     ],
     "festivals": [],
     "occasions": [
-      "Song in memory of Lord Buddha",
-      "Songs in memory of Rabindranath Tagore",
-      "Song in memory of the musician Suradas"
+      "Song in memory of Lord Buddha"
     ],
     "seasons": [],
     "languages": [],
     "source_urls": [
       "https://prabhatasamgiita.net/buddha.html",
-      "https://prabhatasamgiita.net/tagore.html",
-      "https://prabhatasamgiita.net/suradas.html",
-      "https://prabhatasamgiita.net/extinct.html",
-      "https://prabhatasamgiita.net/babayouth.html",
-      "https://prabhatasamgiita.net/rareverse.html",
-      "https://prabhatasamgiita.net/classicalisedkiirtan.html"
+      "https://prabhatasamgiita.net/extinct.html"
     ]
   },
   {
     "song_number": 25,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -67,160 +53,59 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 50,
-    "themes": [
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
-      "Flag Ceremony",
-      "Marching"
+      "Flag Ceremony"
     ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/flag.html",
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/flag.html"
     ]
   },
   {
     "song_number": 58,
-    "themes": [
-      "Dharma",
-      "AMURT",
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
-      "Marriage Ceremony",
-      "Passing Away Ceremony",
-      "House Warming Ceremony",
-      "Tree Planting Ceremony",
-      "Flag Ceremony",
-      "Marching"
+      "Marriage Ceremony"
     ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/marriage.html",
-      "https://prabhatasamgiita.net/passingaway.html",
-      "https://prabhatasamgiita.net/housewarming.html",
-      "https://prabhatasamgiita.net/treeplanting.html",
-      "https://prabhatasamgiita.net/dharma.html",
-      "https://prabhatasamgiita.net/amurt.html",
-      "https://prabhatasamgiita.net/flag.html",
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/marriage.html"
     ]
   },
   {
     "song_number": 59,
     "themes": [],
-    "festivals": [
-      "Birthday"
-    ],
+    "festivals": [],
     "occasions": [
       "Baby Naming Ceremony"
     ],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/babynaming.html",
-      "https://prabhatasamgiita.net/birthday.html"
+      "https://prabhatasamgiita.net/babynaming.html"
     ]
   },
   {
     "song_number": 60,
-    "themes": [
-      "Dharma",
-      "AMURT",
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
-      "Passing Away Ceremony",
-      "House Warming Ceremony",
-      "Tree Planting Ceremony",
-      "Flag Ceremony",
-      "Marching"
+      "Passing Away Ceremony"
     ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/passingaway.html",
-      "https://prabhatasamgiita.net/housewarming.html",
-      "https://prabhatasamgiita.net/treeplanting.html",
-      "https://prabhatasamgiita.net/dharma.html",
-      "https://prabhatasamgiita.net/amurt.html",
-      "https://prabhatasamgiita.net/flag.html",
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/passingaway.html"
     ]
   },
   {
@@ -270,38 +155,15 @@
   },
   {
     "song_number": 74,
-    "themes": [
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Marching"
     ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/marching.html"
     ]
   },
   {
@@ -310,17 +172,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/autumnhemante.html"
     ]
   },
   {
@@ -329,15 +185,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/autumnhemante.html"
     ]
   },
   {
@@ -346,15 +198,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/autumnhemante.html"
     ]
   },
   {
@@ -363,15 +211,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/autumnhemante.html"
     ]
   },
   {
@@ -380,13 +224,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html"
+      "https://prabhatasamgiita.net/autumnhemante.html"
     ]
   },
   {
@@ -395,13 +237,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html"
+      "https://prabhatasamgiita.net/autumnhemante.html"
     ]
   },
   {
@@ -410,15 +250,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "winter",
-      "rainy season",
-      "dry season"
+      "winter"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/winter.html"
     ]
   },
   {
@@ -427,13 +263,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "winter",
-      "rainy season"
+      "winter"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/winter.html"
     ]
   },
   {
@@ -442,13 +276,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "winter",
-      "rainy season"
+      "winter"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/winter.html"
     ]
   },
   {
@@ -457,13 +289,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "winter",
-      "rainy season"
+      "winter"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/winter.html"
     ]
   },
   {
@@ -511,22 +341,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
+      "spring"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/spring.html"
     ]
   },
   {
@@ -535,20 +354,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season"
+      "spring"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/spring.html"
     ]
   },
   {
@@ -557,20 +367,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season"
+      "spring"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/spring.html"
     ]
   },
   {
@@ -579,20 +380,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season"
+      "spring"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/spring.html"
     ]
   },
   {
@@ -640,20 +432,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
+      "summer"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/summer.html"
     ]
   },
   {
@@ -662,18 +445,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season"
+      "summer"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/summer.html"
     ]
   },
   {
@@ -682,18 +458,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season"
+      "summer"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/summer.html"
     ]
   },
   {
@@ -702,18 +471,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season"
+      "summer"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/summer.html"
     ]
   },
   {
@@ -735,13 +497,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "rainy season",
-      "dry season"
+      "rainy season"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/rainy.html"
     ]
   },
   {
@@ -799,22 +559,17 @@
   {
     "song_number": 119,
     "themes": [
-      "Songs to Attract Rain / Draught Songs / Farmer's",
-      "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\""
+      "Songs to Attract Rain / Draught Songs / Farmer's"
     ],
     "festivals": [],
-    "occasions": [
-      "Children"
-    ],
+    "occasions": [],
     "seasons": [
       "dry season"
     ],
     "languages": [],
     "source_urls": [
       "https://prabhatasamgiita.net/dry.html",
-      "https://prabhatasamgiita.net/farmers.html",
-      "https://prabhatasamgiita.net/children.html",
-      "https://prabhatasamgiita.net/goldenlotus.html"
+      "https://prabhatasamgiita.net/farmers.html"
     ]
   },
   {
@@ -823,18 +578,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/autumnsharat.html"
     ]
   },
   {
@@ -843,39 +591,27 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/autumnsharat.html"
     ]
   },
   {
     "song_number": 122,
     "themes": [
-      "Song with a very rare verse form",
-      "Classicalised kiirtan-style song"
+      "Song with a very rare verse form"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
       "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/rareverse.html",
-      "https://prabhatasamgiita.net/classicalisedkiirtan.html"
+      "https://prabhatasamgiita.net/rareverse.html"
     ]
   },
   {
@@ -884,16 +620,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter",
-      "rainy season"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html"
+      "https://prabhatasamgiita.net/autumnsharat.html"
     ]
   },
   {
@@ -902,14 +633,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html"
+      "https://prabhatasamgiita.net/autumnsharat.html"
     ]
   },
   {
@@ -918,14 +646,11 @@
     "festivals": [],
     "occasions": [],
     "seasons": [
-      "autumn",
-      "winter"
+      "autumn"
     ],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html"
+      "https://prabhatasamgiita.net/autumnsharat.html"
     ]
   },
   {
@@ -934,90 +659,63 @@
     "festivals": [
       "Year-end"
     ],
-    "occasions": [
-      "Song for those approaching the end of their life"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/yearend.html",
-      "https://prabhatasamgiita.net/endoflife.html"
+      "https://prabhatasamgiita.net/yearend.html"
     ]
   },
   {
     "song_number": 127,
-    "themes": [
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [
       "New Year"
     ],
-    "occasions": [
-      "Songs in memory of one's family members"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/newyear.html",
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/newyear.html"
     ]
   },
   {
     "song_number": 129,
-    "themes": [
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [
       "New Year"
     ],
-    "occasions": [
-      "Songs in memory of one's family members"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/newyear.html",
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/newyear.html"
     ]
   },
   {
     "song_number": 130,
-    "themes": [
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [
       "New Year"
     ],
-    "occasions": [
-      "Songs in memory of one's family members"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/newyear.html",
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/newyear.html"
     ]
   },
   {
     "song_number": 131,
-    "themes": [
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [
       "New Year"
     ],
-    "occasions": [
-      "Songs in memory of one's family members"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/newyear.html",
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/newyear.html"
     ]
   },
   {
@@ -1074,92 +772,28 @@
   },
   {
     "song_number": 136,
-    "themes": [
-      "Dharma",
-      "AMURT",
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
-      "Tree Planting Ceremony",
-      "Flag Ceremony",
-      "Marching"
+      "Tree Planting Ceremony"
     ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/treeplanting.html",
-      "https://prabhatasamgiita.net/dharma.html",
-      "https://prabhatasamgiita.net/amurt.html",
-      "https://prabhatasamgiita.net/flag.html",
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/treeplanting.html"
     ]
   },
   {
     "song_number": 137,
-    "themes": [
-      "Dharma",
-      "AMURT",
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
-      "House Warming Ceremony",
-      "Tree Planting Ceremony",
-      "Flag Ceremony",
-      "Marching"
+      "House Warming Ceremony"
     ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/housewarming.html",
-      "https://prabhatasamgiita.net/treeplanting.html",
-      "https://prabhatasamgiita.net/dharma.html",
-      "https://prabhatasamgiita.net/amurt.html",
-      "https://prabhatasamgiita.net/flag.html",
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/housewarming.html"
     ]
   },
   {
@@ -1178,22 +812,14 @@
   {
     "song_number": 193,
     "themes": [
-      "Chinese-tune",
-      "Chinese-European blending-tune",
-      "Scandinavian-tune",
-      "Belgium-tune",
-      "Turkish-tune"
+      "Chinese-tune"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/chinese.html",
-      "https://prabhatasamgiita.net/chineseeuropean.html",
-      "https://prabhatasamgiita.net/scandinavian.html",
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html"
+      "https://prabhatasamgiita.net/chinese.html"
     ]
   },
   {
@@ -1302,9 +928,7 @@
   },
   {
     "song_number": 361,
-    "themes": [
-      "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\""
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Children"
@@ -1312,8 +936,7 @@
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/children.html",
-      "https://prabhatasamgiita.net/goldenlotus.html"
+      "https://prabhatasamgiita.net/children.html"
     ]
   },
   {
@@ -1409,9 +1032,7 @@
   },
   {
     "song_number": 432,
-    "themes": [
-      "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\""
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Children"
@@ -1422,8 +1043,7 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/bengalidialect.html",
-      "https://prabhatasamgiita.net/children.html",
-      "https://prabhatasamgiita.net/goldenlotus.html"
+      "https://prabhatasamgiita.net/children.html"
     ]
   },
   {
@@ -1649,44 +1269,27 @@
   {
     "song_number": 586,
     "themes": [
-      "Shiva",
-      "River"
+      "Shiva"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/shiva.html",
-      "https://prabhatasamgiita.net/river.html"
+      "https://prabhatasamgiita.net/shiva.html"
     ]
   },
   {
     "song_number": 695,
     "themes": [
-      "Sinners",
-      "Songs containing 'extinct' melodies",
-      "Songs composed in Baba's youth",
-      "Song with a very rare verse form",
-      "Classicalised kiirtan-style song"
+      "Sinners"
     ],
     "festivals": [],
-    "occasions": [
-      "Song in memory of Lord Buddha",
-      "Songs in memory of Rabindranath Tagore",
-      "Song in memory of the musician Suradas"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/sinners.html",
-      "https://prabhatasamgiita.net/buddha.html",
-      "https://prabhatasamgiita.net/tagore.html",
-      "https://prabhatasamgiita.net/suradas.html",
-      "https://prabhatasamgiita.net/extinct.html",
-      "https://prabhatasamgiita.net/babayouth.html",
-      "https://prabhatasamgiita.net/rareverse.html",
-      "https://prabhatasamgiita.net/classicalisedkiirtan.html"
+      "https://prabhatasamgiita.net/sinners.html"
     ]
   },
   {
@@ -1744,11 +1347,7 @@
   {
     "song_number": 925,
     "themes": [
-      "River",
-      "Songs containing 'extinct' melodies",
-      "Songs composed in Baba's youth",
-      "Song with a very rare verse form",
-      "Classicalised kiirtan-style song"
+      "River"
     ],
     "festivals": [],
     "occasions": [
@@ -1758,28 +1357,20 @@
     "languages": [],
     "source_urls": [
       "https://prabhatasamgiita.net/tagore.html",
-      "https://prabhatasamgiita.net/river.html",
-      "https://prabhatasamgiita.net/extinct.html",
-      "https://prabhatasamgiita.net/babayouth.html",
-      "https://prabhatasamgiita.net/rareverse.html",
-      "https://prabhatasamgiita.net/classicalisedkiirtan.html"
+      "https://prabhatasamgiita.net/river.html"
     ]
   },
   {
     "song_number": 960,
     "themes": [
-      "Scandinavian-tune",
-      "Belgium-tune",
-      "Turkish-tune"
+      "Scandinavian-tune"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/scandinavian.html",
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html"
+      "https://prabhatasamgiita.net/scandinavian.html"
     ]
   },
   {
@@ -1850,43 +1441,14 @@
   {
     "song_number": 1103,
     "themes": [
-      "Dharma",
-      "AMURT",
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
+      "Dharma"
     ],
     "festivals": [],
-    "occasions": [
-      "Flag Ceremony",
-      "Marching"
-    ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "occasions": [],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/dharma.html",
-      "https://prabhatasamgiita.net/amurt.html",
-      "https://prabhatasamgiita.net/flag.html",
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/dharma.html"
     ]
   },
   {
@@ -1930,51 +1492,28 @@
   },
   {
     "song_number": 1255,
-    "themes": [
-      "Songs containing 'extinct' melodies",
-      "Songs composed in Baba's youth",
-      "Song with a very rare verse form",
-      "Classicalised kiirtan-style song"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
-      "Songs in memory of Rabindranath Tagore",
       "Song in memory of the musician Suradas"
     ],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/tagore.html",
-      "https://prabhatasamgiita.net/suradas.html",
-      "https://prabhatasamgiita.net/extinct.html",
-      "https://prabhatasamgiita.net/babayouth.html",
-      "https://prabhatasamgiita.net/rareverse.html",
-      "https://prabhatasamgiita.net/classicalisedkiirtan.html"
+      "https://prabhatasamgiita.net/suradas.html"
     ]
   },
   {
     "song_number": 1256,
     "themes": [
-      "Taj Mahal",
-      "End of Communism",
-      "Chinese-tune",
-      "Chinese-European blending-tune",
-      "Scandinavian-tune",
-      "Belgium-tune",
-      "Turkish-tune"
+      "Taj Mahal"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/tajmahal.html",
-      "https://prabhatasamgiita.net/endofcommunism.html",
-      "https://prabhatasamgiita.net/chinese.html",
-      "https://prabhatasamgiita.net/chineseeuropean.html",
-      "https://prabhatasamgiita.net/scandinavian.html",
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html"
+      "https://prabhatasamgiita.net/tajmahal.html"
     ]
   },
   {
@@ -2007,9 +1546,7 @@
   },
   {
     "song_number": 1273,
-    "themes": [
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Songs in memory of one's family members"
@@ -2017,8 +1554,7 @@
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/familymembers.html"
     ]
   },
   {
@@ -2036,34 +1572,15 @@
   },
   {
     "song_number": 1291,
-    "themes": [
-      "Sinners",
-      "Songs containing 'extinct' melodies",
-      "Songs composed in Baba's youth",
-      "Song with a very rare verse form",
-      "Classicalised kiirtan-style song"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
-      "Song with sanyasii spirit",
-      "Song in memory of Lord Buddha",
-      "Songs in memory of Rabindranath Tagore",
-      "Song in memory of Avtk. Ananda Bharati Ac.",
-      "Song in memory of the musician Suradas"
+      "Song with sanyasii spirit"
     ],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/sanyasii.html",
-      "https://prabhatasamgiita.net/sinners.html",
-      "https://prabhatasamgiita.net/buddha.html",
-      "https://prabhatasamgiita.net/tagore.html",
-      "https://prabhatasamgiita.net/anandabharati.html",
-      "https://prabhatasamgiita.net/suradas.html",
-      "https://prabhatasamgiita.net/extinct.html",
-      "https://prabhatasamgiita.net/babayouth.html",
-      "https://prabhatasamgiita.net/rareverse.html",
-      "https://prabhatasamgiita.net/classicalisedkiirtan.html"
+      "https://prabhatasamgiita.net/sanyasii.html"
     ]
   },
   {
@@ -2160,16 +1677,14 @@
   {
     "song_number": 1418,
     "themes": [
-      "Shiva",
-      "River"
+      "Shiva"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/shiva.html",
-      "https://prabhatasamgiita.net/river.html"
+      "https://prabhatasamgiita.net/shiva.html"
     ]
   },
   {
@@ -2239,10 +1754,7 @@
   },
   {
     "song_number": 1495,
-    "themes": [
-      "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"",
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Children",
@@ -2252,9 +1764,7 @@
     "languages": [],
     "source_urls": [
       "https://prabhatasamgiita.net/children.html",
-      "https://prabhatasamgiita.net/goldenlotus.html",
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/familymembers.html"
     ]
   },
   {
@@ -2312,8 +1822,7 @@
   {
     "song_number": 1565,
     "themes": [
-      "Shiva",
-      "River"
+      "Shiva"
     ],
     "festivals": [],
     "occasions": [],
@@ -2323,8 +1832,7 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/sanskrit.html",
-      "https://prabhatasamgiita.net/shiva.html",
-      "https://prabhatasamgiita.net/river.html"
+      "https://prabhatasamgiita.net/shiva.html"
     ]
   },
   {
@@ -2394,9 +1902,7 @@
   },
   {
     "song_number": 1784,
-    "themes": [
-      "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\""
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Children"
@@ -2404,8 +1910,7 @@
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/children.html",
-      "https://prabhatasamgiita.net/goldenlotus.html"
+      "https://prabhatasamgiita.net/children.html"
     ]
   },
   {
@@ -2450,57 +1955,27 @@
   {
     "song_number": 1892,
     "themes": [
-      "Song for a Dust Particle",
-      "Song for a Dewdrop",
-      "Taj Mahal",
-      "End of Communism",
-      "Chinese-tune",
-      "Chinese-European blending-tune",
-      "Scandinavian-tune",
-      "Belgium-tune",
-      "Turkish-tune"
+      "Song for a Dust Particle"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/dustparticle.html",
-      "https://prabhatasamgiita.net/dewdrop.html",
-      "https://prabhatasamgiita.net/tajmahal.html",
-      "https://prabhatasamgiita.net/endofcommunism.html",
-      "https://prabhatasamgiita.net/chinese.html",
-      "https://prabhatasamgiita.net/chineseeuropean.html",
-      "https://prabhatasamgiita.net/scandinavian.html",
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html"
+      "https://prabhatasamgiita.net/dustparticle.html"
     ]
   },
   {
     "song_number": 1908,
     "themes": [
-      "Song for a Dewdrop",
-      "Taj Mahal",
-      "End of Communism",
-      "Chinese-tune",
-      "Chinese-European blending-tune",
-      "Scandinavian-tune",
-      "Belgium-tune",
-      "Turkish-tune"
+      "Song for a Dewdrop"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/dewdrop.html",
-      "https://prabhatasamgiita.net/tajmahal.html",
-      "https://prabhatasamgiita.net/endofcommunism.html",
-      "https://prabhatasamgiita.net/chinese.html",
-      "https://prabhatasamgiita.net/chineseeuropean.html",
-      "https://prabhatasamgiita.net/scandinavian.html",
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html"
+      "https://prabhatasamgiita.net/dewdrop.html"
     ]
   },
   {
@@ -2610,46 +2085,40 @@
   {
     "song_number": 2412,
     "themes": [
-      "Shiva",
-      "River"
+      "Shiva"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/shiva.html",
-      "https://prabhatasamgiita.net/river.html"
+      "https://prabhatasamgiita.net/shiva.html"
     ]
   },
   {
     "song_number": 2414,
     "themes": [
-      "Shiva",
-      "River"
+      "Shiva"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/shiva.html",
-      "https://prabhatasamgiita.net/river.html"
+      "https://prabhatasamgiita.net/shiva.html"
     ]
   },
   {
     "song_number": 2421,
     "themes": [
-      "Shiva",
-      "River"
+      "Shiva"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/shiva.html",
-      "https://prabhatasamgiita.net/river.html"
+      "https://prabhatasamgiita.net/shiva.html"
     ]
   },
   {
@@ -2770,16 +2239,14 @@
   {
     "song_number": 3262,
     "themes": [
-      "Songs containing 'extinct' melodies",
-      "Songs composed in Baba's youth"
+      "Songs containing 'extinct' melodies"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/extinct.html",
-      "https://prabhatasamgiita.net/babayouth.html"
+      "https://prabhatasamgiita.net/extinct.html"
     ]
   },
   {
@@ -2811,20 +2278,14 @@
   {
     "song_number": 3389,
     "themes": [
-      "Chinese-European blending-tune",
-      "Scandinavian-tune",
-      "Belgium-tune",
-      "Turkish-tune"
+      "Chinese-European blending-tune"
     ],
     "festivals": [],
     "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/chineseeuropean.html",
-      "https://prabhatasamgiita.net/scandinavian.html",
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html"
+      "https://prabhatasamgiita.net/chineseeuropean.html"
     ]
   },
   {
@@ -2888,41 +2349,14 @@
   {
     "song_number": 3714,
     "themes": [
-      "AMURT",
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
+      "AMURT"
     ],
     "festivals": [],
-    "occasions": [
-      "Flag Ceremony",
-      "Marching"
-    ],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "occasions": [],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/amurt.html",
-      "https://prabhatasamgiita.net/flag.html",
-      "https://prabhatasamgiita.net/marching.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/amurt.html"
     ]
   },
   {
@@ -3008,9 +2442,7 @@
   },
   {
     "song_number": 4029,
-    "themes": [
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Songs in memory of one's family members"
@@ -3018,15 +2450,12 @@
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/familymembers.html"
     ]
   },
   {
     "song_number": 4062,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3036,8 +2465,7 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
@@ -3068,9 +2496,7 @@
   },
   {
     "song_number": 4072,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3078,15 +2504,12 @@
       "Urdu"
     ],
     "source_urls": [
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4078,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3094,8 +2517,7 @@
       "Urdu"
     ],
     "source_urls": [
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
@@ -3114,58 +2536,17 @@
   {
     "song_number": 4081,
     "themes": [
-      "Krśńa",
-      "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)",
-      "Sinners",
-      "Song for a Dust Particle",
-      "Song for a Dewdrop",
-      "Taj Mahal",
-      "End of Communism",
-      "Chinese-tune",
-      "Chinese-European blending-tune",
-      "Scandinavian-tune",
-      "Belgium-tune",
-      "Turkish-tune",
-      "Songs containing 'extinct' melodies",
-      "Songs composed in Baba's youth",
-      "Song with a very rare verse form",
-      "Classicalised kiirtan-style song"
+      "Krśńa"
     ],
     "festivals": [],
-    "occasions": [
-      "Song with sanyasii spirit",
-      "Song in memory of Lord Buddha",
-      "Songs in memory of Rabindranath Tagore",
-      "Song in memory of Avtk. Ananda Bharati Ac.",
-      "Song in memory of the musician Suradas"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [
       "Maithili"
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/maethili.html",
-      "https://prabhatasamgiita.net/krsna.html",
-      "https://prabhatasamgiita.net/satbhai.html",
-      "https://prabhatasamgiita.net/sanyasii.html",
-      "https://prabhatasamgiita.net/sinners.html",
-      "https://prabhatasamgiita.net/buddha.html",
-      "https://prabhatasamgiita.net/tagore.html",
-      "https://prabhatasamgiita.net/anandabharati.html",
-      "https://prabhatasamgiita.net/suradas.html",
-      "https://prabhatasamgiita.net/dustparticle.html",
-      "https://prabhatasamgiita.net/dewdrop.html",
-      "https://prabhatasamgiita.net/tajmahal.html",
-      "https://prabhatasamgiita.net/endofcommunism.html",
-      "https://prabhatasamgiita.net/chinese.html",
-      "https://prabhatasamgiita.net/chineseeuropean.html",
-      "https://prabhatasamgiita.net/scandinavian.html",
-      "https://prabhatasamgiita.net/belgium.html",
-      "https://prabhatasamgiita.net/turkish.html",
-      "https://prabhatasamgiita.net/extinct.html",
-      "https://prabhatasamgiita.net/babayouth.html",
-      "https://prabhatasamgiita.net/rareverse.html",
-      "https://prabhatasamgiita.net/classicalisedkiirtan.html"
+      "https://prabhatasamgiita.net/krsna.html"
     ]
   },
   {
@@ -3222,9 +2603,7 @@
   },
   {
     "song_number": 4166,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3232,15 +2611,12 @@
       "Urdu"
     ],
     "source_urls": [
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4167,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3250,15 +2626,12 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4168,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3268,15 +2641,12 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4170,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3286,15 +2656,12 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4171,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3302,53 +2669,28 @@
       "Urdu"
     ],
     "source_urls": [
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4172,
     "themes": [
-      "VSS",
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha",
-      "Women"
+      "VSS"
     ],
     "festivals": [],
     "occasions": [],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [
       "Urdu"
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/vss.html",
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/vss.html"
     ]
   },
   {
     "song_number": 4195,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3358,8 +2700,7 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
@@ -3422,9 +2763,7 @@
   },
   {
     "song_number": 4283,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3434,15 +2773,12 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4327,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3452,15 +2788,12 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
     "song_number": 4335,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3470,8 +2803,7 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
@@ -3497,24 +2829,10 @@
     ],
     "festivals": [],
     "occasions": [],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/gurusakasha.html"
     ]
   },
   {
@@ -3623,9 +2941,7 @@
   },
   {
     "song_number": 4733,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3635,8 +2951,7 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
@@ -3667,9 +2982,7 @@
   },
   {
     "song_number": 4940,
-    "themes": [
-      "Himalaya"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [
       "Songs in memory of one's family members"
@@ -3677,8 +2990,7 @@
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/familymembers.html",
-      "https://prabhatasamgiita.net/himalaya.html"
+      "https://prabhatasamgiita.net/familymembers.html"
     ]
   },
   {
@@ -3735,9 +3047,7 @@
   },
   {
     "song_number": 4979,
-    "themes": [
-      "Women"
-    ],
+    "themes": [],
     "festivals": [],
     "occasions": [],
     "seasons": [],
@@ -3747,8 +3057,7 @@
     ],
     "source_urls": [
       "https://prabhatasamgiita.net/hindi.html",
-      "https://prabhatasamgiita.net/urdu.html",
-      "https://prabhatasamgiita.net/women.html"
+      "https://prabhatasamgiita.net/urdu.html"
     ]
   },
   {
@@ -3793,19 +3102,14 @@
   {
     "song_number": 5011,
     "themes": [
-      "Songs to Attract Rain / Draught Songs / Farmer's",
-      "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\""
+      "Songs to Attract Rain / Draught Songs / Farmer's"
     ],
     "festivals": [],
-    "occasions": [
-      "Children"
-    ],
+    "occasions": [],
     "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/farmers.html",
-      "https://prabhatasamgiita.net/children.html",
-      "https://prabhatasamgiita.net/goldenlotus.html"
+      "https://prabhatasamgiita.net/farmers.html"
     ]
   },
   {
@@ -3824,61 +3128,27 @@
   {
     "song_number": 5017,
     "themes": [
-      "Ánanda Nagar",
-      "Guru Sakasha"
+      "Ánanda Nagar"
     ],
     "festivals": [],
     "occasions": [],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/anandanagar.html"
     ]
   },
   {
     "song_number": 5018,
     "themes": [
-      "Gurukula",
-      "Ánanda Nagar",
-      "Guru Sakasha"
+      "Gurukula"
     ],
     "festivals": [],
     "occasions": [],
-    "seasons": [
-      "spring",
-      "summer",
-      "autumn",
-      "winter",
-      "rainy season",
-      "dry season"
-    ],
+    "seasons": [],
     "languages": [],
     "source_urls": [
-      "https://prabhatasamgiita.net/gurukula.html",
-      "https://prabhatasamgiita.net/anandanagar.html",
-      "https://prabhatasamgiita.net/gurusakasha.html",
-      "https://prabhatasamgiita.net/spring.html",
-      "https://prabhatasamgiita.net/summer.html",
-      "https://prabhatasamgiita.net/autumnsharat.html",
-      "https://prabhatasamgiita.net/autumnhemante.html",
-      "https://prabhatasamgiita.net/winter.html",
-      "https://prabhatasamgiita.net/rainy.html",
-      "https://prabhatasamgiita.net/dry.html"
+      "https://prabhatasamgiita.net/gurukula.html"
     ]
   }
 ]

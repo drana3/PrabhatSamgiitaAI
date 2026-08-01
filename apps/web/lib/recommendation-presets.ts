@@ -8,6 +8,7 @@ export type RecommendationPreset = {
   language?: string
   difficulty?: string
   meditation_context?: string
+  theme?: string
 }
 
 type FestivalObservation = {
@@ -23,6 +24,7 @@ type FestivalObservation = {
   language?: string
   difficulty?: string
   meditation_context?: string
+  theme?: string
   windowDays?: number
 }
 
@@ -99,6 +101,7 @@ const festivalCalendar: FestivalObservation[] = [
     occasion: "celebration",
     mood: "hopeful",
     meditation_context: "new year",
+    festival: "New Year",
   },
   {
     year: 2026,
@@ -112,6 +115,7 @@ const festivalCalendar: FestivalObservation[] = [
     language: "Roman",
     difficulty: "easy",
     meditation_context: "full-moon meditation",
+    festival: "Bábá Birthday",
   },
   {
     year: 2026,
@@ -125,6 +129,7 @@ const festivalCalendar: FestivalObservation[] = [
     language: "Roman",
     difficulty: "easy",
     meditation_context: "social transformation",
+    theme: "PROUT",
   },
   {
     year: 2026,
@@ -138,6 +143,7 @@ const festivalCalendar: FestivalObservation[] = [
     language: "Roman",
     difficulty: "easy",
     meditation_context: "evening reflection",
+    festival: "Shravanii Purnima Day",
   },
   {
     year: 2026,
@@ -175,6 +181,7 @@ const festivalCalendar: FestivalObservation[] = [
     occasion: "celebration",
     mood: "joyful",
     meditation_context: "children and autumn festival",
+    theme: "Children",
   },
   {
     year: 2026,
@@ -218,6 +225,7 @@ const festivalCalendar: FestivalObservation[] = [
     occasion: "celebration",
     mood: "courageous",
     meditation_context: "victory celebration",
+    festival: "Victory Day",
   },
   {
     year: 2026,
@@ -248,6 +256,7 @@ const festivalCalendar: FestivalObservation[] = [
     occasion: "celebration",
     mood: "joyful",
     meditation_context: "festival of light",
+    festival: "Dipavali (Colour Festival) Day",
   },
   {
     year: 2026,
@@ -287,7 +296,7 @@ export function getUpcomingObservances(now = new Date(), limit = 3): UpcomingObs
         new Date(item.year ?? now.getFullYear() + (item.delta > 300 ? 1 : 0), item.month - 1, item.day),
       ),
       daysUntil: item.delta,
-      query: item.festival || item.occasion || item.title,
+      query: `Search Prabhat Samgiita for ${item.title}${item.festival && item.festival !== item.title ? ` ${item.festival}` : ""}${item.theme ? ` ${item.theme}` : ""}`,
     }))
 }
 
@@ -308,6 +317,7 @@ function festivalPresetForDate(now: Date): RecommendationPreset | null {
     language: observed.language,
     difficulty: observed.difficulty,
     meditation_context: observed.meditation_context,
+    theme: observed.theme,
   }
 }
 
@@ -331,6 +341,7 @@ function upcomingFestivalPreset(now: Date, windowDays = 14): RecommendationPrese
     language: upcoming.language,
     difficulty: upcoming.difficulty,
     meditation_context: upcoming.meditation_context,
+    theme: upcoming.theme,
   }
 }
 
@@ -413,8 +424,9 @@ export function quickRecommendationPresets(now = new Date()): QuickRecommendatio
       label: "Service",
       preset: {
         title: "Service and uplift",
-        subtitle: "Choose songs that support collective spirit and service.",
+        subtitle: "Verified songs of service, social uplift, and collective welfare.",
         occasion: "service",
+        theme: "AMURT|Neo-Humanism|PROUT|Dharma|VSS|Gurukula",
         mood: "courageous",
         season: "summer",
         language: "Roman",

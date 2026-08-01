@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { queryGuidance, queryIsUseful } from "@/lib/query-guard"
+import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
 
 export function HeroSearch() {
@@ -17,7 +17,7 @@ export function HeroSearch() {
         event.preventDefault()
         const value = query.trim()
         if (!queryIsUseful(value, 200)) {
-          setGuidance(queryGuidance)
+          setGuidance(queryGuidanceFor(query))
           return
         }
         setGuidance("")

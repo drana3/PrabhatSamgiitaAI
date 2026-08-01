@@ -25,6 +25,7 @@ class RecommendationContext:
     language: str | None = None
     difficulty: str | None = None
     meditation_context: str | None = None
+    theme: str | None = None
     time_of_day: str | None = None
     media_preference: str | None = None
     maximum_results: int = 20
@@ -79,13 +80,17 @@ class RecommendationEngine:
     def _match_score(self, desired: str | None, actual: str | None) -> float:
         if not desired or not actual:
             return 0.0
-        desired_norm = self._normalize(desired)
         actual_norm = self._normalize(actual)
-        if desired_norm == actual_norm:
-            return 1.0
-        if desired_norm in actual_norm:
-            return 0.8
-        return 0.0
+        scores = []
+        for desired_value in desired.split("|"):
+            desired_norm = self._normalize(desired_value)
+            if desired_norm == actual_norm:
+                scores.append(1.0)
+            elif desired_norm and desired_norm in actual_norm:
+                scores.append(0.8)
+            else:
+                scores.append(0.0)
+        return max(scores, default=0.0)
 
     def _normalize(self, value: str) -> str:
         decomposed = unicodedata.normalize("NFKD", value)
@@ -102,6 +107,7 @@ class RecommendationEngine:
                 context.festival,
                 context.season,
                 context.mood,
+                context.theme,
                 context.meditation_context,
             )
             if value
@@ -152,6 +158,7 @@ class RecommendationEngine:
             "meditation_context": self._match_score(
                 context.meditation_context, song.meditation_context
             ),
+            "collection_theme": self._match_score(context.theme, song.theme),
         }
         media = media_counts.get(song.number, {})
         media_relevance = 0.0
@@ -175,6 +182,7 @@ class RecommendationEngine:
             + 0.05 * breakdown["media"]
             + 0.05 * breakdown["diversity"]
             + 0.25 * breakdown["context_text"]
+            + 0.25 * breakdown["collection_theme"]
         )
         if song.is_verified or song.canonical_source_status == "verified":
             score += 0.05
@@ -211,9 +219,10 @@ class RecommendationEngine:
             "language",
             "difficulty",
             "meditation_context",
+            "theme",
         ):
             value = getattr(context, attr_name)
-            song_value = getattr(song, attr_name)
+            song_value = song.theme if attr_name == "theme" else getattr(song, attr_name)
             if value and song_value and value.lower() in song_value.lower():
                 reasons.append(f"matches {attr_name}")
         return ", ".join(reasons) if reasons else "balanced grounding with verified metadata"
@@ -230,6 +239,10 @@ class RecommendationEngine:
             if song.canonical_source_status == "draft":
                 continue
             score, breakdown = self.score_details(song, context, media_counts)
+            if context.festival and breakdown["festival"] == 0:
+                continue
+            if context.theme and breakdown["collection_theme"] == 0:
+                continue
             ranked.append(RankedRecommendation(song=song, score=score, breakdown=breakdown))
         ranked.sort(key=lambda item: item.score, reverse=True)
         return ranked[: context.maximum_results]

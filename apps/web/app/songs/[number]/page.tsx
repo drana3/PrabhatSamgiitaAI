@@ -38,7 +38,12 @@ export default async function SongPage({ params, searchParams }: { params: Promi
       <div className="mx-auto max-w-[90rem] px-4 py-6 sm:px-6 lg:px-10">
         <div className="flex items-center gap-2 text-xs text-stone-500"><Link href="/explore" className="hover:text-gold-700">Explore</Link><span>›</span><span>Song {song.number}</span></div>
 
-        <section className="relative mt-5 min-h-[18rem] overflow-hidden rounded-[2rem] bg-[url('/brand/dawn-hero.png')] bg-cover bg-center text-white shadow-xl">
+        <section className="relative mt-5 min-h-[18rem] overflow-hidden rounded-[2rem] bg-navy-950 text-white shadow-xl">
+          <div
+            role="img"
+            aria-label="Shrii Shrii Anandamurti ji at dawn"
+            className="absolute inset-0 bg-[url('/brand/dawn-hero.png')] bg-cover bg-[82%_18%]"
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/80 to-navy-950/25" />
           <div className="relative flex min-h-[18rem] flex-col justify-between gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:p-10">
             <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-200">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl lg:text-6xl">{titleCase(localized?.localized_title || song.title)}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">{titleCase(localized?.localized_first_line || song.first_line || song.title)}</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>

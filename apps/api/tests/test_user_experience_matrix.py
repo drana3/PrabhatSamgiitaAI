@@ -84,7 +84,10 @@ def test_negative_queries_stop_before_rag_or_llm(query: str, reason: str) -> Non
 
     assert result.allowed is False
     assert result.reason == reason
-    assert "specific Prabhat Samgiita question" in result.guidance
+    if reason == "song_number_out_of_range":
+        assert "1 to 5,018" in result.guidance
+    else:
+        assert "specific Prabhat Samgiita question" in result.guidance
 
 
 @pytest.mark.parametrize("rating", [0, 6])

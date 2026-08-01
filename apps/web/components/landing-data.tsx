@@ -46,18 +46,21 @@ export function LandingData({ initialSongs }: { initialSongs: SongSummary[]; ini
               <Link href="/explore" className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold hover:bg-white/10">Find another song</Link>
             </div>
           </div>
-          <div className="relative flex min-h-[25rem] items-end overflow-hidden bg-[url('/brand/dawn-hero.png')] bg-cover bg-right lg:min-h-full">
-            <div className="absolute inset-0 bg-gradient-to-t from-navy-950 via-navy-950/55 to-transparent lg:bg-gradient-to-r lg:from-navy-950/75 lg:via-navy-950/20 lg:to-transparent" />
-            <blockquote className="relative m-6 max-w-xl rounded-2xl border border-white/20 bg-navy-950/80 p-6 backdrop-blur-md sm:m-8 sm:p-8">
-              <p className="font-serif text-2xl leading-9 text-ivory-50 sm:text-[1.75rem] sm:leading-10">
-                “Prabháta Saḿgiita is the feeling of the heart, and the expression of the heart, and it has been written with the ink of the heart.”
-              </p>
-              <footer className="mt-5 border-t border-gold-300/35 pt-4 text-sm leading-6 text-gold-100">
-                2 Jan 1983, Morning General Darshan<br />Ananda Nagar
-              </footer>
-            </blockquote>
-          </div>
+          <div
+            role="img"
+            aria-label="Shrii Shrii Anandamurti ji at dawn"
+            className="min-h-[24rem] bg-[url('/brand/dawn-hero.png')] bg-cover bg-[82%_center] lg:min-h-full"
+          />
         </div>
+        <blockquote className="border-t border-gold-300/30 bg-ivory-50 px-7 py-8 text-navy-950 sm:px-10 lg:px-14">
+          <p className="max-w-5xl font-serif text-2xl leading-9 sm:text-[1.75rem] sm:leading-10">
+            “Prabháta Saḿgiita is the feeling of the heart, and the expression of the heart, and it has been written with the ink of the heart.”
+          </p>
+          <footer className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-gold-600/25 pt-4 text-sm leading-6 text-stone-700">
+            <span className="font-semibold text-navy-950">Shri Prabhat Ranjan Sarkar</span>
+            <span>2 Jan 1983, Morning General Darshan, Ananda Nagar</span>
+          </footer>
+        </blockquote>
       </section>
     </div>
   )

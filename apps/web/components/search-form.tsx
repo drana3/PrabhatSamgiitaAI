@@ -17,7 +17,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-export function SearchForm({ onResults, initialQuery = "" }: { onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void; initialQuery?: string }) {
+export function SearchForm({ onResults, onSearching, initialQuery = "" }: { onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void; onSearching?: (searching: boolean) => void; initialQuery?: string }) {
   const router = useRouter()
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -26,7 +26,9 @@ export function SearchForm({ onResults, initialQuery = "" }: { onResults: (resul
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => searchSongs(values.query),
-    onSuccess: onResults,
+    onMutate: () => onSearching?.(true),
+    onSuccess: (results) => onResults(results),
+    onSettled: () => onSearching?.(false),
   })
 
   function submit(values: FormValues) {
@@ -35,11 +37,17 @@ export function SearchForm({ onResults, initialQuery = "" }: { onResults: (resul
       router.push(songIntentPath(songIntent))
       return
     }
-    mutation.mutate(values)
+    const nextUrl = `/explore?q=${encodeURIComponent(values.query.trim())}`
+    if (values.query.trim() !== initialQuery.trim()) {
+      router.push(nextUrl)
+      return
+    }
+    mutation.mutate({ query: values.query.trim() })
   }
 
   useEffect(() => {
-    if (initialQuery) submit({ query: initialQuery })
+    form.reset({ query: initialQuery })
+    if (initialQuery) mutation.mutate({ query: initialQuery })
     // The URL query is intentionally executed once when this screen opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery])

@@ -70,6 +70,7 @@ class RecommendationRequest(BaseModel):
     language: str | None = None
     difficulty: str | None = None
     meditation_context: str | None = None
+    theme: str | None = None
     time_of_day: str | None = None
     media_preference: str | None = None
     maximum_results: int = Field(default=20, ge=1, le=100)
@@ -83,7 +84,7 @@ class ConversationTurn(BaseModel):
 class ExplanationRequest(BaseModel):
     song_number: int
     prompt: str | None = None
-    history: list[ConversationTurn] = Field(default_factory=list, max_length=8)
+    history: list[ConversationTurn] = Field(default_factory=list, max_length=12)
 
 
 class SongLocalizationResponse(BaseModel):

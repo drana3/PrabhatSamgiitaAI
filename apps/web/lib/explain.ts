@@ -1,5 +1,5 @@
 import { fetchJson } from "./api"
-import { queryGuidance, queryIsUseful } from "./query-guard"
+import { queryGuidanceFor, queryIsUseful } from "./query-guard"
 
 export type ConversationTurn = {
   role: "user" | "assistant"
@@ -13,7 +13,7 @@ export async function streamExplanation(
   history: ConversationTurn[] = [],
 ): Promise<void> {
   if (prompt && !queryIsUseful(prompt, 800)) {
-    onChunk(queryGuidance)
+    onChunk(queryGuidanceFor(prompt))
     return
   }
   const response = await fetchJson("/api/v1/ai/explain", {
@@ -22,7 +22,7 @@ export async function streamExplanation(
     body: JSON.stringify({
       song_number: songNumber,
       prompt,
-      history: history.slice(-8),
+      history: history.slice(-12),
     }),
   })
 

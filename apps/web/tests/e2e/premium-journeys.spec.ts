@@ -44,6 +44,35 @@ test("home delivers a complete, nonblank spiritual journey", async ({ page }) =>
   expect(shadowedText).toBe(0)
 })
 
+test("Guru portrait and reflection remain aligned without overlap", async ({ page }, testInfo) => {
+  await page.goto("/")
+
+  const heading = page.getByRole("heading", { name: /Music for the inner dawn/i })
+  const heroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji", exact: true }).first()
+  await expect(heroPortrait).toBeVisible()
+  await expect(page.getByText("Shri Prabhat Ranjan Sarkar", { exact: true })).toBeVisible()
+  await expect(page.getByText("Shrii Shrii Anandamurti ji", { exact: true }).first()).toBeVisible()
+
+  const headingBounds = await heading.boundingBox()
+  const heroBounds = await heroPortrait.boundingBox()
+  expect(headingBounds).not.toBeNull()
+  expect(heroBounds).not.toBeNull()
+  if (testInfo.project.name === "desktop-chromium") {
+    expect(heroBounds!.x + heroBounds!.width).toBeLessThan(headingBounds!.x)
+    expect(heroBounds!.width).toBeGreaterThan(400)
+  } else {
+    expect(heroBounds!.y).toBeGreaterThan(headingBounds!.y + headingBounds!.height)
+  }
+
+  const guidancePortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
+  const quote = page.locator("blockquote").filter({ hasText: "written with the ink of the heart" })
+  const guidanceBounds = await guidancePortrait.boundingBox()
+  const quoteBounds = await quote.boundingBox()
+  expect(guidanceBounds).not.toBeNull()
+  expect(quoteBounds).not.toBeNull()
+  expect(quoteBounds!.y).toBeGreaterThanOrEqual(guidanceBounds!.y + guidanceBounds!.height - 1)
+})
+
 test("brand artwork is crisp and accessible", async ({ page }) => {
   await page.goto("/")
   const logo = page.getByRole("img", { name: "Prabhat Samgiita" })
@@ -84,13 +113,44 @@ test("all special collections are organized and lead to catalog search", async (
   const collectionLinks = page.locator("#collections a[href^='/explore?q=']")
   await expect(collectionLinks).toHaveCount(69)
   await page.getByRole("link", { name: /Hindi 12/ }).click()
-  await expect(page).toHaveURL(/q=Hindi/)
+  await expect(page).toHaveURL(/q=Search%20Prabhat%20Samgiita%20for%20Hindi%20Songs/)
   await expect(page.locator("#results")).toBeVisible()
+})
+
+test("collections stay above results and English returns only its three canonical songs", async ({ page }) => {
+  const englishSongs = [
+    { ...songResult, number: 68, title: "I love this tiny green island", language: "English" },
+    { ...songResult, number: 5008, title: "WE LOVE THAT GREAT ENTITY", language: "English" },
+    { ...songResult, number: 5009, title: "THIS LIFE IS FOR HIM", language: "English" },
+  ]
+  await page.route("**/api/v1/search", async (route) => {
+    const payload = route.request().postDataJSON() as { query: string }
+    await route.fulfill({ json: payload.query.includes("English Songs") ? englishSongs : [] })
+  })
+  await page.goto("/explore")
+  await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
+  const collections = page.locator("#collections")
+  const results = page.locator("#results")
+  const collectionBounds = await collections.boundingBox()
+  const resultBounds = await results.boundingBox()
+  expect(collectionBounds).not.toBeNull()
+  expect(resultBounds).not.toBeNull()
+  expect(collectionBounds!.y + collectionBounds!.height).toBeLessThan(resultBounds!.y)
+
+  await page.getByRole("link", { name: /English 3/ }).click()
+  await expect(page.getByRole("heading", { name: /Songs matching.*English Songs/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "I love this tiny green island" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "WE LOVE THAT GREAT ENTITY" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "THIS LIFE IS FOR HIM" })).toBeVisible()
+  await expect(page.getByText("3 shown", { exact: true })).toBeVisible()
 })
 
 test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {
   await page.goto("/songs/1")
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+  const songHeroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
+  await expect(songHeroPortrait).toBeVisible()
+  await expect(songHeroPortrait).toHaveCSS("background-position", "82% 18%")
   const language = page.getByLabel("Reading language")
   await expect(language).toBeVisible()
   await expect(language.locator("option")).toHaveCount(36)
@@ -109,8 +169,10 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
     await expect(songActions.getByRole("link", { name: new RegExp(action), exact: false })).toHaveAttribute("href", `#${targetId}`)
     await expect(page.locator(`#${targetId}`)).toHaveCount(1)
   }
-  const lyrics = await page.locator("#lyrics").boundingBox()
-  const meaning = await page.locator("#meaning").boundingBox()
+  const { lyrics, meaning } = await page.evaluate(() => ({
+    lyrics: document.querySelector("#lyrics")?.getBoundingClientRect().toJSON() ?? null,
+    meaning: document.querySelector("#meaning")?.getBoundingClientRect().toJSON() ?? null,
+  }))
   expect(lyrics).not.toBeNull()
   expect(meaning).not.toBeNull()
   if (testInfo.project.name === "desktop-chromium") {
@@ -147,6 +209,23 @@ test("garbage and hostile hero queries never reach search or AI", async ({ page 
   await expect(page).toHaveURL(/\/$/)
 })
 
+test("random numbers and missing song identifiers stop before search", async ({ page }) => {
+  let searchCalls = 0
+  await page.route("**/api/v1/search", async (route) => { searchCalls += 1; await route.abort() })
+  await page.goto("/explore")
+  const input = page.getByLabel(/Search by number/i)
+
+  await input.fill("9876543210")
+  await page.getByRole("button", { name: "Search" }).click()
+  await expect(page.getByRole("alert").filter({ hasText: "specific about Prabhat Samgiita" })).toBeVisible()
+  expect(searchCalls).toBe(0)
+
+  await input.fill("song 5019")
+  await page.getByRole("button", { name: "Search" }).click()
+  await expect(page.getByRole("alert").filter({ hasText: "1 to 5,018" })).toBeVisible()
+  expect(searchCalls).toBe(0)
+})
+
 test("a meaningful query moves naturally into exploration", async ({ page }) => {
   await page.goto("/")
   await page.getByLabel(/Ask by song, feeling/i).fill("morning meditation")
@@ -179,10 +258,65 @@ test("search renders verified results and a deliberate no-match state", async ({
   await input.fill("Tomar Katha")
   await page.getByRole("button", { name: "Search" }).click()
   await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible()
-  await input.fill("unmatched theme")
-  await page.getByRole("button", { name: "Search" }).click()
-  await expect(page.getByRole("heading", { name: "No exact match found" })).toBeVisible()
+
+  await page.goto("/explore?q=unmatched%20theme")
+  await expect(page).toHaveURL(/q=unmatched%20theme/)
+  await expect(page.getByRole("heading", { name: "No songs matched your search criteria" })).toBeVisible()
   await expect(page.getByText(/Try a song number, opening words/i)).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Recommended songs to explore" })).toBeVisible()
+  await expect(page.getByText("These are suggestions, not matches for your search.")).toBeVisible()
+})
+
+test("AI companion remembers context, accepts Romanized Hindi, and blocks nonsense", async ({ page }) => {
+  const requests: Array<{ prompt: string; history: Array<{ role: string; content: string }> }> = []
+  await page.route("**/api/v1/ai/explain", async (route) => {
+    const payload = route.request().postDataJSON() as { prompt: string; history: Array<{ role: string; content: string }> }
+    requests.push(payload)
+    const answer = requests.length === 1
+      ? "Yeh gaana pyar, bhakti aur antarik shanti ko vyakt karta hai. [1]"
+      : "Aapka pichhla prashn pyar ke sandarbh mein is gaane ka arth tha."
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: `data: ${answer}\n\n`,
+    })
+  })
+  await page.goto("/songs/452#ask")
+  const input = page.getByLabel("Ask about this song")
+  await input.fill("is gaane ka arth pyar ke sandarbh mein batao")
+  await page.getByRole("button", { name: "Send question" }).click()
+  await expect(page.getByText(/Yeh gaana pyar/i)).toBeVisible()
+  await expect(page.getByText("Would you like to explore next?")).toBeVisible()
+
+  await input.fill("what did I ask last?")
+  await page.getByRole("button", { name: "Send question" }).click()
+  await expect(page.getByText(/Aapka pichhla prashn/i)).toBeVisible()
+  expect(requests).toHaveLength(2)
+  expect(requests[1].history.map((turn) => turn.content)).toEqual([
+    "is gaane ka arth pyar ke sandarbh mein batao",
+    "Yeh gaana pyar, bhakti aur antarik shanti ko vyakt karta hai. [1]",
+  ])
+
+  await input.fill("kcwcbiubckebckcvjebfkjcckve")
+  await page.getByRole("button", { name: "Send question" }).click()
+  await expect(page.getByRole("alert").filter({ hasText: "specific about Prabhat Samgiita" })).toBeVisible()
+  expect(requests).toHaveLength(2)
+})
+
+test("Service recommendation sends canonical service collections and never keeps stale songs", async ({ page }) => {
+  let requestTheme = ""
+  await page.route("**/api/v1/recommendations", async (route) => {
+    const payload = route.request().postDataJSON() as { theme?: string }
+    requestTheme = payload.theme ?? ""
+    await route.fulfill({ json: [{ ...songResult, number: 4599, title: "PROUTER E CAKR AAGE CALO", theme: "PROUT" }] })
+  })
+  await page.goto("/")
+  await page.getByRole("button", { name: "Service", exact: true }).click()
+
+  await expect(page.getByRole("link", { name: "PROUTER E CAKR AAGE CALO" })).toBeVisible()
+  expect(requestTheme).toContain("PROUT")
+  expect(requestTheme).toContain("AMURT")
+  await expect(page.getByText("BANDHU HE NIYE CALO", { exact: true })).toHaveCount(0)
 })
 
 test("song pages omit unavailable information and use clear recording language", async ({ page }) => {

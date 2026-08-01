@@ -1,4 +1,4 @@
-import { queryGuidance, queryIsUseful } from "@/lib/query-guard"
+import { queryGuidance, queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 
 describe("query guard release matrix", () => {
   test.each([
@@ -14,6 +14,8 @@ describe("query guard release matrix", () => {
     "محبت کا گیت",
     "शिव से जुड़े गीत",
     "songs in raga bhairavi",
+    "pyar",
+    "is gaane ka arth batao",
   ])("accepts a purposeful multilingual query: %s", (query) => {
     expect(queryIsUseful(query)).toBe(true)
   })
@@ -23,6 +25,8 @@ describe("query guard release matrix", () => {
     "0",
     "5019",
     "9999",
+    "9876543210",
+    "12 34 56 78",
     "djcvjcvhjcvhjc",
     "qwertyuiop",
     "asdfghjkl",
@@ -39,6 +43,17 @@ describe("query guard release matrix", () => {
 
   it("rejects oversized requests and returns actionable guidance", () => {
     expect(queryIsUseful("devotion ".repeat(100), 200)).toBe(false)
-    expect(queryGuidance).toContain("Song 1")
+    expect(queryGuidance).toContain("Explain this song")
+  })
+
+  it("gives a precise catalog boundary for an explicit missing song", () => {
+    expect(queryGuidanceFor("song 5019")).toContain("1 to 5,018")
+  })
+
+  it("treats random numbers as unrelated noise rather than a song identifier", () => {
+    expect(queryGuidanceFor("9876543210")).toContain("Prabhat Samgiita")
+    expect(queryGuidanceFor("9876543210")).not.toContain("1 to 5,018")
+    expect(queryIsUseful("compare song 1 and song 2")).toBe(true)
+    expect(queryIsUseful("songs composed in 1983")).toBe(true)
   })
 })

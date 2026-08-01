@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "generated" / "theme_assignments.json"
+COLLECTION_OUTPUT = ROOT / "data" / "generated" / "theme_collections.json"
 BASE_URL = "https://prabhatasamgiita.net"
 INDEX_URL = f"{BASE_URL}/themes.html"
 
@@ -93,8 +94,6 @@ def song_numbers(page_html: str) -> list[int]:
     for anchor in soup.find_all("a", href=True):
         text = clean(anchor.get_text(" ", strip=True))
         match = re.match(r"^(\d{1,4})(?:\s|$)", text)
-        if not match:
-            match = re.search(r"(?:ps_|#)(\d{1,4})(?:\D|$)", str(anchor.get("href", "")))
         if match:
             number = int(match.group(1))
             if 1 <= number <= 5018:
@@ -136,7 +135,7 @@ def category_for(label: str) -> tuple[str, str]:
     return "theme", label.removesuffix(" Songs").removesuffix(" Song")
 
 
-def build_assignments() -> list[dict[str, Any]]:
+def build_theme_data() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     assignments: dict[int, dict[str, Any]] = defaultdict(
         lambda: {
             "song_number": 0,
@@ -149,12 +148,23 @@ def build_assignments() -> list[dict[str, Any]]:
         }
     )
     links = theme_links(fetch(INDEX_URL))
+    collections: list[dict[str, Any]] = []
     for label, url in links:
         try:
             numbers = song_numbers(fetch(url))
         except subprocess.CalledProcessError:
             continue
         category, value = category_for(label)
+        collections.append(
+            {
+                "label": label,
+                "category": category,
+                "value": value,
+                "source_url": url,
+                "song_numbers": numbers,
+                "count": len(numbers),
+            }
+        )
         plural_key = {
             "theme": "themes",
             "festival": "festivals",
@@ -169,14 +179,24 @@ def build_assignments() -> list[dict[str, Any]]:
                 row[plural_key].append(value)
             if url not in row["source_urls"]:
                 row["source_urls"].append(url)
-    return [assignments[number] for number in sorted(assignments)]
+    return [assignments[number] for number in sorted(assignments)], collections
+
+
+def build_assignments() -> list[dict[str, Any]]:
+    assignments, _ = build_theme_data()
+    return assignments
 
 
 def main() -> None:
-    rows = build_assignments()
+    rows, collections = build_theme_data()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    COLLECTION_OUTPUT.write_text(
+        json.dumps(collections, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(f"Wrote {len(rows)} canonical theme assignments to {OUTPUT}")
+    print(f"Wrote {len(collections)} canonical collections to {COLLECTION_OUTPUT}")
 
 
 if __name__ == "__main__":

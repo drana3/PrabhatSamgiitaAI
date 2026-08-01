@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -14,6 +15,7 @@ from app.models import Media, Notation, Song
 from app.schemas.search import MediaSummary, SearchFilters, SearchResponse, SearchResultItem
 from app.services.ai import select_provider
 from app.services.catalog import CatalogService, catalog_media_snapshot, catalog_notation_snapshot
+from app.services.seed_data import load_rows
 
 
 @dataclass(slots=True)
@@ -67,8 +69,7 @@ def extract_song_number_intent(query: str) -> int | None:
 
     has_explanation_intent = any(term in cleaned for term in EXPLANATION_TERMS)
     has_song_context = any(
-        term in cleaned
-        for term in ("prabhat", "samgiita", "sangeet", "sagiat", "song", "ps")
+        term in cleaned for term in ("prabhat", "samgiita", "sangeet", "sagiat", "song", "ps")
     )
     return number if has_explanation_intent and has_song_context else None
 
@@ -93,6 +94,12 @@ def detect_intent(query: str) -> str:
 
 
 def _search_doc(song: Song) -> str:
+    assignment = (song.metadata_json or {}).get("canonical_theme_assignments") or {}
+    assignment_text = " ".join(
+        str(value)
+        for key in ("themes", "festivals", "occasions", "seasons", "languages")
+        for value in assignment.get(key, [])
+    )
     return " ".join(
         part
         for part in (
@@ -107,6 +114,9 @@ def _search_doc(song: Song) -> str:
             song.occasion,
             song.festival,
             song.season,
+            song.language,
+            song.difficulty,
+            assignment_text,
         )
         if part
     )
@@ -128,6 +138,102 @@ def canonical_lexical_boost(query: str, song: Song) -> float:
     if len(significant_terms) >= 2 and all(term in document for term in significant_terms):
         return 0.25
     return 0.0
+
+
+FILTER_ASSIGNMENT_KEYS = {
+    "language": "languages",
+    "theme": "themes",
+    "festival": "festivals",
+    "occasion": "occasions",
+    "season": "seasons",
+}
+
+
+def normalize_filter_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    plain = "".join(character for character in decomposed if not unicodedata.combining(character))
+    normalized = re.sub(r"[^a-z0-9]+", " ", plain).strip()
+    return normalized.replace("krishna", "krsna").replace("maethili", "maithili")
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalCollectionMatch:
+    label: str
+    category: str
+    value: str
+    song_numbers: frozenset[int]
+
+
+def infer_canonical_collection(query: str) -> CanonicalCollectionMatch | None:
+    query_text = normalize_filter_text(query)
+    best: tuple[int, CanonicalCollectionMatch] | None = None
+    for row in load_rows("theme_collections.json"):
+        label = str(row.get("label") or "")
+        value = str(row.get("value") or "")
+        aliases = {
+            normalize_filter_text(label),
+            normalize_filter_text(value),
+            normalize_filter_text(re.sub(r"\b(?:song|songs)\b", " ", label)),
+        }
+        score = max(
+            (len(alias) for alias in aliases if len(alias) >= 3 and alias in query_text),
+            default=0,
+        )
+        if score == 0:
+            continue
+        match = CanonicalCollectionMatch(
+            label=label,
+            category=str(row.get("category") or "theme"),
+            value=value,
+            song_numbers=frozenset(int(number) for number in row.get("song_numbers", [])),
+        )
+        if best is None or score > best[0]:
+            best = (score, match)
+    return best[1] if best else None
+
+
+def infer_search_filters(query: str, songs: list[Song]) -> SearchFilters:
+    """Resolve canonical collection names before semantic ranking."""
+    query_text = normalize_filter_text(query)
+    matches: dict[str, tuple[int, str]] = {}
+    for song in songs:
+        assignment = (song.metadata_json or {}).get("canonical_theme_assignments") or {}
+        for field, assignment_key in FILTER_ASSIGNMENT_KEYS.items():
+            values = list(assignment.get(assignment_key, []))
+            if field == "language" and song.language:
+                values.extend(part.strip() for part in song.language.split(",") if part.strip())
+            for value in values:
+                if not isinstance(value, str):
+                    continue
+                normalized = normalize_filter_text(value)
+                simplified = re.sub(r"\b(?:day|song|songs)\b", " ", normalized)
+                simplified = " ".join(simplified.split())
+                aliases = {normalized, simplified}
+                matched_length = max(
+                    (len(alias) for alias in aliases if len(alias) >= 3 and alias in query_text),
+                    default=0,
+                )
+                if matched_length > matches.get(field, (0, ""))[0]:
+                    matches[field] = (matched_length, value)
+    return SearchFilters(
+        language=matches.get("language", (0, None))[1],
+        theme=matches.get("theme", (0, None))[1],
+        festival=matches.get("festival", (0, None))[1],
+        occasion=matches.get("occasion", (0, None))[1],
+        season=matches.get("season", (0, None))[1],
+    )
+
+
+def merge_search_filters(explicit: SearchFilters, inferred: SearchFilters) -> SearchFilters:
+    values = explicit.model_dump()
+    for field, value in inferred.model_dump().items():
+        if values.get(field) is None and value is not None:
+            values[field] = value
+    return SearchFilters.model_validate(values)
+
+
+def has_search_filters(filters: SearchFilters) -> bool:
+    return any(value is not None for value in filters.model_dump().values())
 
 
 class HybridSearchService:
@@ -312,7 +418,15 @@ class HybridSearchService:
         filters = filters or SearchFilters()
         songs = await self._song_index()
         media_counts = await self._media_counts()
-        intent = detect_intent(query)
+        collection_match = infer_canonical_collection(query)
+        filters = merge_search_filters(filters, infer_search_filters(query, songs))
+        intent = (
+            "collection_search"
+            if collection_match
+            else "filtered_search"
+            if has_search_filters(filters)
+            else detect_intent(query)
+        )
 
         exact_number = await self._exact_number_rank(query)
         query_embedding: list[float] = []
@@ -327,18 +441,39 @@ class HybridSearchService:
         fts_rank = [] if exact_number else await self._fts_rank(query, songs, limit=50)
         trigram_rank = [] if exact_number else await self._trigram_rank(query, songs, limit=50)
         vector_rank = (
-            []
-            if exact_number
-            else await self._vector_rank(songs, query_embedding, limit=50)
+            [] if exact_number else await self._vector_rank(songs, query_embedding, limit=50)
+        )
+        structured_rank = (
+            [
+                str(song.number)
+                for song in songs
+                if (
+                    (not collection_match or song.number in collection_match.song_numbers)
+                    and self._apply_filters(
+                        song,
+                        filters,
+                        media_counts.get(song.number, MediaSummary()),
+                    )
+                )
+            ]
+            if has_search_filters(filters) or collection_match
+            else []
         )
 
         fused = reciprocal_rank_fusion(
-            [exact_number, opening_rank, fts_rank, trigram_rank, vector_rank]
+            [exact_number, structured_rank, opening_rank, fts_rank, trigram_rank, vector_rank]
         )
         candidates = sorted(
             {
                 item
-                for ranked in (exact_number, opening_rank, fts_rank, trigram_rank, vector_rank)
+                for ranked in (
+                    exact_number,
+                    structured_rank,
+                    opening_rank,
+                    fts_rank,
+                    trigram_rank,
+                    vector_rank,
+                )
                 for item in ranked
             },
             key=lambda item: fused.get(item, 0.0),
@@ -351,12 +486,15 @@ class HybridSearchService:
             song = candidate_lookup.get(int(candidate))
             if not song:
                 continue
+            if collection_match and song.number not in collection_match.song_numbers:
+                continue
             summary = media_counts.get(song.number, MediaSummary())
             if not self._apply_filters(song, filters, summary):
                 continue
             matched_by = []
             for label, ranked in (
                 ("exact_number", exact_number),
+                ("structured_filter", structured_rank),
                 ("opening_line", opening_rank),
                 ("full_text", fts_rank),
                 ("trigram", trigram_rank),

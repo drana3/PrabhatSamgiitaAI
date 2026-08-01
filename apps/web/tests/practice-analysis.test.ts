@@ -1,4 +1,4 @@
-import { comparePitchSequence, midiFromWestern } from "@/lib/practice-analysis"
+import { comparePitchSequence, extractPitchTrack, midiFromWestern } from "@/lib/practice-analysis"
 
 describe("practice analysis", () => {
   it("recognizes a transposed but matching melody", () => {
@@ -8,7 +8,9 @@ describe("practice analysis", () => {
   })
 
   it("asks for a longer recording when pitch evidence is absent", () => {
-    expect(comparePitchSequence([], [60, 62, 64]).score).toBe(0)
+    const result = comparePitchSequence([], [60, 62, 64])
+    expect(result.score).toBeNull()
+    expect(result.status).toBe("insufficient_audio")
   })
 
   it("parses western notes for harmonium comparison", () => {
@@ -19,7 +21,8 @@ describe("practice analysis", () => {
   it("rejects a melody with a different contour", () => {
     const result = comparePitchSequence([60, 71, 59, 72, 58, 73], [60, 62, 64, 65, 67, 69])
     expect(result.isLikelyMatch).toBe(false)
-    expect(result.suggestions.join(" ")).toContain("does not appear to match")
+    expect(result.score).toBeGreaterThan(0)
+    expect(result.suggestions.join(" ")).toContain("not close enough")
   })
 
   it("accepts octave-transposed singing because the contour is the identity", () => {
@@ -32,5 +35,17 @@ describe("practice analysis", () => {
     expect(midiFromWestern("Hb4")).toBeNull()
     expect(midiFromWestern("C##4")).toBeNull()
     expect(midiFromWestern("C")).toBeNull()
+  })
+
+  it("extracts measurable pitch from a clean A4 practice recording", () => {
+    const sampleRate = 44_100
+    const samples = Float32Array.from(
+      { length: sampleRate },
+      (_, index) => 0.35 * Math.sin(2 * Math.PI * 440 * index / sampleRate),
+    )
+    const track = extractPitchTrack(samples, sampleRate)
+
+    expect(track.length).toBeGreaterThan(5)
+    expect(track.every((pitch) => Math.abs(pitch - 69) < 0.35)).toBe(true)
   })
 })

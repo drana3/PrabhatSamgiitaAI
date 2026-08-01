@@ -16,6 +16,7 @@ from app.core.security import require_public_quota
 from app.schemas.song import ExplanationRequest
 from app.services.ai import select_provider
 from app.services.catalog import CatalogService
+from app.services.conversation import try_conversation_answer
 from app.services.direct_answers import try_direct_answer
 from app.services.query_guard import assess_query
 from app.services.rag import RAGService
@@ -58,6 +59,11 @@ async def explain(
     cached = await explanation_cache.get(cache_key)
     if isinstance(cached, list):
         return StreamingResponse(stream_text(cached), media_type="text/event-stream")
+    conversation_answer = try_conversation_answer(prompt, history)
+    if conversation_answer:
+        streamed = [conversation_answer]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
     direct = try_direct_answer(prompt, song)
     if direct:
         streamed = [direct.text, f"Source: {direct.source_label}."]

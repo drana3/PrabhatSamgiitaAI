@@ -168,9 +168,10 @@ def validate_recommendations(response: httpx.Response) -> None:
 
 
 def validate_shravanii_recommendations(response: httpx.Response) -> None:
-    validate_recommendations(response)
     rows = response.json()
-    require(rows[0]["number"] == 4954, response.text)
+    require(response.status_code == 200, response.text)
+    require([row["number"] for row in rows] == [4954], response.text)
+    require(rows[0]["is_verified"] is True, response.text)
 
 
 def validate_notation_source(response: httpx.Response) -> None:
@@ -278,7 +279,10 @@ def validate_reviewed_festival_today(response: httpx.Response) -> None:
     require(payload["context"]["festival"] == "Shrávanii Purnimá", response.text)
     require(payload["signals"][0]["title"] == "Shrávanii Purnimá", response.text)
     require(payload["signals"][0]["source_name"] == "Ananda Marga India", response.text)
-    require(len(payload["recommendations"]) == 3, response.text)
+    require(
+        [row["number"] for row in payload["recommendations"]] == [4954],
+        response.text,
+    )
 
 
 def validate_report(response: httpx.Response) -> None:
@@ -401,7 +405,7 @@ CASES = [
     ),
     AcceptanceCase(
         "Recommend songs for Shravanii Purnima.",
-        "Canonical Shravanii Purnima song 4954 is ranked first.",
+        "Only canonical Shravanii Purnima song 4954 is returned.",
         "POST",
         "/api/v1/recommendations",
         validate_shravanii_recommendations,

@@ -132,6 +132,54 @@ def token_score(query: str, content: str) -> float:
     return score / len(query_tokens)
 
 
+RELATED_SONG_PATTERN = re.compile(
+    r"\b(?:related|similar|another|compare|recommend|other\s+songs?|songs?\s+like)\b",
+    re.IGNORECASE,
+)
+
+
+def requests_related_songs(query: str) -> bool:
+    return RELATED_SONG_PATTERN.search(query) is not None
+
+
+def song_chunk_priority(query: str, chunk_type: str) -> int:
+    normalized = clean_text(query).casefold()
+    if re.search(r"\b(?:lyric|line|pronoun|sing|word)\b", normalized):
+        order = {"lyrics": 6, "transliteration": 5, "meaning": 4, "summary": 3, "purport": 2}
+    elif re.search(r"\b(?:meaning|mean|about|explain|imagery|spiritual|arth|matlab)\b", normalized):
+        order = {"meaning": 6, "purport": 5, "lyrics": 4, "summary": 3, "transliteration": 2}
+    else:
+        order = {"meaning": 6, "lyrics": 5, "summary": 4, "purport": 3, "transliteration": 2}
+    return order.get(chunk_type, 1)
+
+
+def fresh_song_chunks(song: Song, query: str) -> list[RetrievedChunk]:
+    rows = build_song_chunks(song)
+    ranked = sorted(
+        rows,
+        key=lambda row: (
+            song_chunk_priority(query, str(row["chunk_type"])),
+            token_score(query, str(row["content"])),
+            -int(row["chunk_index"]),
+        ),
+        reverse=True,
+    )
+    return [
+        RetrievedChunk(
+            song_number=song.number,
+            song_title=song.title,
+            chunk_index=int(row["chunk_index"]),
+            chunk_type=str(row["chunk_type"]),
+            title=str(row["title"]),
+            content=str(row["content"]),
+            source_url=row["source_url"],
+            metadata_json=row["metadata_json"],
+            score=float(song_chunk_priority(query, str(row["chunk_type"]))),
+        )
+        for row in ranked
+    ]
+
+
 def build_grounded_prompt(
     song: Song,
     query: str,
@@ -145,12 +193,21 @@ def build_grounded_prompt(
         [
             "You are a grounded assistant for Prabhat Samgiita.",
             "Answer factual claims only from the retrieved canonical context below.",
-            "Use the recent conversation only to understand references and follow-up questions.",
+            "Use the recent conversation to resolve pronouns, references, and follow-up questions.",
+            "When the user refers to a previous turn, acknowledge that turn directly instead of "
+            "claiming that context is missing.",
             "Be warm, reverent, and practical.",
+            "Reply in the language and script used by the user. If the user writes a language "
+            "in Roman letters, such as Hindi 'pyar' or 'is gaane ka arth', reply naturally in "
+            "that same Romanized style unless they request another language.",
+            "The selected song is the source of truth. Never say its lyrics or meaning are "
+            "missing when a selected-song context passage contains them.",
+            "Do not use another song to explain the selected song unless the user explicitly "
+            "asks for related songs or a comparison.",
             "If the canonical context is insufficient, say so plainly and offer the "
             "closest grounded help you can.",
             "Keep the answer concise and cite the source labels like [1], [2].",
-            "When helpful, end with one gentle next step the user can take in the BOT.",
+            "Do not invent an answer for meaningless text; ask for a clear song-related question.",
             f"Recent conversation (may be empty):\n{recent_conversation or 'No earlier turns.'}",
             f"Current user question: {query}",
             f"Song focus: {song.number} - {song.title}",
@@ -166,21 +223,7 @@ class RAGService:
         self.provider = provider
 
     def _fallback_chunks(self, song: Song, limit: int) -> list[RetrievedChunk]:
-        fallback_rows = build_song_chunks(song)[:limit]
-        return [
-            RetrievedChunk(
-                song_number=row["song_number"],
-                song_title=song.title,
-                chunk_index=row["chunk_index"],
-                chunk_type=row["chunk_type"],
-                title=row["title"],
-                content=row["content"],
-                source_url=row["source_url"],
-                metadata_json=row["metadata_json"],
-                score=1.0 - index * 0.01,
-            )
-            for index, row in enumerate(fallback_rows)
-        ]
+        return fresh_song_chunks(song, "")[:limit]
 
     async def ensure_song_chunks(self) -> None:
         try:
@@ -245,6 +288,9 @@ class RAGService:
         query: str,
         limit: int = 5,
     ) -> list[RetrievedChunk]:
+        selected_chunks = fresh_song_chunks(song, query)
+        if not requests_related_songs(query):
+            return selected_chunks[:limit]
         try:
             candidate_song_numbers = [song.number]
             if query.strip():
@@ -261,7 +307,7 @@ class RAGService:
             chunks = list(result.scalars().all())
             if not chunks:
                 return self._fallback_chunks(song, limit)
-            fallback = self._fallback_chunks(song, limit)
+            fallback = selected_chunks[:limit]
             if not await self._ensure_embeddings(chunks):
                 return fallback
 
@@ -290,7 +336,9 @@ class RAGService:
                     )
                 )
             scored.sort(key=lambda item: item.score, reverse=True)
-            return scored[:limit]
+            related = [item for item in scored if item.song_number != song.number]
+            selected_limit = min(3, limit)
+            return (selected_chunks[:selected_limit] + related)[:limit]
         except SQLAlchemyError:
             return self._fallback_chunks(song, limit)
 
