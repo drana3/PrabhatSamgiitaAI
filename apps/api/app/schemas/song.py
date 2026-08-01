@@ -15,6 +15,24 @@ class SongSummary(BaseModel):
     is_verified: bool = False
 
 
+class MediaItemResponse(BaseModel):
+    kind: str
+    provider: str
+    title: str
+    url: str
+    embed_url: str | None = None
+    verification_status: str
+    source_url: str | None = None
+    notes: str | None = None
+    external_id: str | None = None
+    channel_name: str | None = None
+    source_status: str | None = None
+    rights_status: str | None = None
+    availability_status: str | None = None
+    language: str | None = None
+    match_score: float | None = None
+
+
 class SongDetail(SongSummary):
     lyrics_original: str | None = None
     transliteration: str | None = None
@@ -29,7 +47,7 @@ class SongDetail(SongSummary):
     canonical_source_url: str | None = None
     canonical_source_status: str = "pending"
     related_songs: list["SongSummary"] = Field(default_factory=list)
-    media: list[dict[str, Any]] = Field(default_factory=list)
+    media: list[MediaItemResponse] = Field(default_factory=list)
     notation_scale: str | None = None
     notation_source_url: str | None = None
     notation_verification_status: str | None = None

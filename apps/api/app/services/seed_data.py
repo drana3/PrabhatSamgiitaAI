@@ -12,6 +12,12 @@ DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 @lru_cache(maxsize=8)
 def load_rows(filename: str) -> list[dict[str, Any]]:
     generated = _read_rows(DATA_DIR / "generated" / filename)
+    if filename == "media.json":
+        generated = _merge_unique(
+            generated,
+            _read_rows(DATA_DIR / "generated" / "youtube_videos.json"),
+            "url",
+        )
     seed = _read_rows(DATA_DIR / "seed" / filename)
     if not generated:
         return seed

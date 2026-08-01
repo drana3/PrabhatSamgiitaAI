@@ -15,6 +15,8 @@ same core contracts.
 | Recommend songs for peaceful morning meditation. | `POST /api/v1/recommendations` | Distinct verified songs, ranked using available canonical metadata. |
 | Recommend songs for Shravanii Purnima. | `POST /api/v1/recommendations` | Canonical Shravanii Purnima song 4954 ranks first. |
 | Is official notation available for song 1? | `GET /api/v1/songs/1/notation/source` | Verified PDF/source link; machine transposition is only marked available when parsed notation exists. |
+| Play the verified YouTube performance for song 1. | `GET /api/v1/songs/1/media?media_type=video&platform=youtube` | Privacy-enhanced embed from the allow-listed AMPS channel, with community-source status. |
+| Are there multiple video renditions of song 2635? | `GET /api/v1/songs/2635/media?media_type=video` | Both distinct videos remain associated with canonical song number 2635. |
 | Explain song 1 in Hindi. | `GET /api/v1/songs/1/localized?language=Hindi` | Grounded localization, with canonical fallback if the LLM is unavailable. |
 | BOT, what is the central message of song 1? | `POST /api/v1/ai/explain` | Streamed answer with retrieved source labels. |
 | Show song 6000. | `GET /api/v1/songs/6000` | `404 Song not found`; no invented song. |

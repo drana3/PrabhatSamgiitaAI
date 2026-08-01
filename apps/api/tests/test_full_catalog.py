@@ -3,7 +3,12 @@ from typing import Any
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.services.catalog import CatalogService, catalog_song_snapshot
+from app.services.catalog import (
+    CatalogService,
+    catalog_inventory_snapshot,
+    catalog_media_snapshot,
+    catalog_song_snapshot,
+)
 from app.services.search import HybridSearchService
 
 
@@ -32,6 +37,20 @@ def test_canonical_theme_assignments_are_not_truncated() -> None:
 
     assert song.theme is not None
     assert len(song.theme) > 255
+
+
+def test_numbered_youtube_videos_preserve_multiple_renditions() -> None:
+    videos = [item for item in catalog_media_snapshot() if item.kind == "video"]
+
+    assert len(videos) == 372
+    song_one = next(item for item in videos if item.song_number == 1)
+    assert song_one.embed_url == "https://www.youtube-nocookie.com/embed/D4LHhnSLhro"
+    assert song_one.verification_status == "verified"
+    assert len([item for item in videos if item.song_number == 2635]) == 2
+
+
+def test_canonical_inventory_titles_are_not_truncated() -> None:
+    assert max(len(item.title) for item in catalog_inventory_snapshot()) > 255
 
 
 @pytest.mark.asyncio

@@ -12,7 +12,7 @@ class InventoryItem(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     source_kind: Mapped[str] = mapped_column(String(64), nullable=False)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
     url: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
     status: Mapped[str] = mapped_column(String(32), default="active", server_default="active")
     metadata_json: Mapped[dict[str, Any]] = mapped_column(

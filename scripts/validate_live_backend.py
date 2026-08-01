@@ -96,6 +96,20 @@ def main() -> None:
 
     status, _, body, elapsed = request(
         base_url,
+        "GET",
+        "/api/v1/songs/1/media?media_type=video&platform=youtube",
+    )
+    videos = json.loads(body)
+    require(status == 200 and len(videos) == 1, body.decode(errors="replace"))
+    require(videos[0]["external_id"] == "D4LHhnSLhro", str(videos))
+    require(
+        videos[0]["embed_url"].startswith("https://www.youtube-nocookie.com/embed/"),
+        str(videos),
+    )
+    record("Can I watch song 1 without re-hosting video?", "Allow-listed YouTube embed", elapsed)
+
+    status, _, body, elapsed = request(
+        base_url,
         "POST",
         "/api/v1/search",
         {"query": "111"},

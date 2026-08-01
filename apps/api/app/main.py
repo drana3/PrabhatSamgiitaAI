@@ -44,6 +44,7 @@ async def initialize_schema() -> None:
             # Existing deployments used VARCHAR(255), but canonical theme sets can
             # exceed that length. This idempotent widening runs before data import.
             await conn.execute(text("ALTER TABLE songs ALTER COLUMN theme TYPE TEXT"))
+            await conn.execute(text("ALTER TABLE inventory_items ALTER COLUMN title TYPE TEXT"))
     except Exception:
         logger.exception("Database initialization skipped because the database is unavailable")
 

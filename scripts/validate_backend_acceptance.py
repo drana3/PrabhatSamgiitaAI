@@ -135,6 +135,26 @@ def validate_notation_source(response: httpx.Response) -> None:
     require(payload["transposition_available"] is False, response.text)
 
 
+def validate_youtube_video(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require(len(rows) == 1, response.text)
+    require(rows[0]["external_id"] == "D4LHhnSLhro", response.text)
+    require(
+        rows[0]["embed_url"].startswith("https://www.youtube-nocookie.com/embed/"),
+        response.text,
+    )
+    require(rows[0]["source_status"] == "verified_community", response.text)
+
+
+def validate_multiple_videos(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require(len(rows) == 2, response.text)
+    require(len({row["external_id"] for row in rows}) == 2, response.text)
+    require(all(row["kind"] == "video" for row in rows), response.text)
+
+
 def validate_localization(response: httpx.Response) -> None:
     payload = response.json()
     require(response.status_code == 200, response.text)
@@ -234,6 +254,20 @@ CASES = [
         "GET",
         "/api/v1/songs/1/notation/source",
         validate_notation_source,
+    ),
+    AcceptanceCase(
+        "Play the verified YouTube performance for song 1.",
+        "Song 1 returns a privacy-enhanced YouTube embed from the allow-listed channel.",
+        "GET",
+        "/api/v1/songs/1/media?media_type=video&platform=youtube",
+        validate_youtube_video,
+    ),
+    AcceptanceCase(
+        "Are there multiple video renditions of song 2635?",
+        "Both distinct performances remain attached to canonical song number 2635.",
+        "GET",
+        "/api/v1/songs/2635/media?media_type=video",
+        validate_multiple_videos,
     ),
     AcceptanceCase(
         "Explain song 1 in Hindi.",
