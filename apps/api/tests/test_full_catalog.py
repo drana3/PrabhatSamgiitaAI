@@ -57,7 +57,7 @@ def test_exact_canonical_meaning_phrase_gets_strong_search_boost() -> None:
 def test_numbered_youtube_videos_preserve_multiple_renditions() -> None:
     videos = [item for item in catalog_media_snapshot() if item.kind == "video"]
 
-    assert len(videos) == 372
+    assert len(videos) >= 372
     song_one = next(item for item in videos if item.song_number == 1)
     assert song_one.embed_url == "https://www.youtube-nocookie.com/embed/D4LHhnSLhro"
     assert song_one.verification_status == "verified"
@@ -81,7 +81,7 @@ def test_canonical_inventory_titles_are_not_truncated() -> None:
     inventory = catalog_inventory_snapshot()
 
     assert max(len(item.title) for item in inventory) > 255
-    assert len([item for item in inventory if item.source_kind == "video"]) == 372
+    assert len([item for item in inventory if item.source_kind == "video"]) >= 372
     assert len([item for item in inventory if item.source_kind == "audio"]) >= 10_000
 
 

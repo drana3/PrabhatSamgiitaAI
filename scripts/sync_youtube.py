@@ -13,6 +13,9 @@ from urllib.request import Request, urlopen
 CHANNEL_URL = "https://www.youtube.com/@AMPS0521spirituality/videos"
 CHANNEL_ID = "UCzJy4vdGKx6gzP782-5buOQ"
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_videos.json"
+REVIEW_OUTPUT_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_review_queue.json"
+)
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
 USER_AGENT = "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://github.com/drana3/PrabhatSamgiitaAI)"
 
@@ -191,24 +194,59 @@ def media_row(video: dict[str, str], songs: dict[int, dict[str, Any]]) -> dict[s
     }
 
 
+def review_row(video: dict[str, str], songs: dict[int, dict[str, Any]]) -> dict[str, Any]:
+    number = explicit_song_number(video["title"])
+    similarity = title_similarity(video["title"], songs[number]) if number in songs else 0.0
+    reason = "missing_explicit_song_number"
+    if number is not None:
+        reason = "canonical_title_match_below_threshold"
+    return {
+        "external_id": video["video_id"],
+        "title": video["title"],
+        "url": f"https://www.youtube.com/watch?v={video['video_id']}",
+        "candidate_song_number": number,
+        "title_similarity": round(similarity, 3),
+        "review_reason": reason,
+        "channel_id": CHANNEL_ID,
+        "channel_name": "AMPS Spirituality",
+        "source_url": CHANNEL_URL,
+        "status": "pending_review",
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-pages", type=int, default=50)
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    parser.add_argument("--review-output", type=Path, default=REVIEW_OUTPUT_PATH)
     args = parser.parse_args()
     songs = {row["number"]: row for row in json.loads(SONGS_PATH.read_text(encoding="utf-8"))}
     discovered = channel_videos(max_pages=args.max_pages)
-    rows = [row for video in discovered if (row := media_row(video, songs)) is not None]
+    rows: list[dict[str, Any]] = []
+    review_rows: list[dict[str, Any]] = []
+    for video in discovered:
+        row = media_row(video, songs)
+        if row is None:
+            review_rows.append(review_row(video, songs))
+        else:
+            rows.append(row)
     rows.sort(key=lambda row: (row["song_number"], row["url"]))
+    review_rows.sort(key=lambda row: row["external_id"])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    args.review_output.write_text(
+        json.dumps(review_rows, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(
         json.dumps(
             {
                 "channel_videos_discovered": len(discovered),
                 "numbered_song_videos_published": len(rows),
                 "songs_with_video": len({row["song_number"] for row in rows}),
+                "videos_pending_review": len(review_rows),
                 "output": str(args.output),
+                "review_output": str(args.review_output),
             },
             indent=2,
         )

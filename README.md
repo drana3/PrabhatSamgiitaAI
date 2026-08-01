@@ -10,6 +10,7 @@ Responsive MVP for browsing, searching, and grounding Prabhat Samgiita content w
 - Rule-based recommendations when no LLM is configured
 - Inventory model for official and verified external resources
 - Number-first audio and YouTube matching with alternate renditions preserved
+- Daily AMPS YouTube watcher with an auditable unmatched-video review queue
 - Today, occasion, festival, localization, report, and authenticated admin APIs
 - In-process TTL caching, request IDs, strict media URL validation, and grounded RAG
 - Azure-ready containerized deployment docs
@@ -28,6 +29,11 @@ Across audio and video, 4,957 of 5,018 song numbers currently have at least one 
 The remaining 61 are retained as explicit coverage gaps rather than being guessed. Audio and video
 remain on their source platforms and are played or embedded by URL. Third-party media is not
 downloaded or re-hosted, and community audio is not labelled official.
+
+The scheduled `Watch AMPS YouTube` workflow scans the allow-listed channel daily at 02:17 UTC.
+Explicitly numbered, title-consistent videos are committed to the linked media catalog and deployed;
+unmatched uploads are stored in `youtube_review_queue.json` for human review. Only metadata and embed
+links are stored, never video files.
 
 ## Local development
 
