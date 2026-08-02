@@ -85,7 +85,14 @@ def test_structured_answer_skips_regional_language_requests() -> None:
     )
 
     assert try_structured_answer("explain its meaning in magahi", song) is None
-    assert try_structured_answer("maithili me batao", song, [("user", "What is this song about?")]) is None
+    assert (
+        try_structured_answer(
+            "maithili me batao",
+            song,
+            [("user", "What is this song about?")],
+        )
+        is None
+    )
 
 
 def test_structured_answer_handles_story_requests() -> None:
