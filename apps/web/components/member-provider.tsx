@@ -34,6 +34,18 @@ export function MemberProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { void refresh() }, [])
 
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") void refresh()
+    }
+    window.addEventListener("focus", onVisible)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      window.removeEventListener("focus", onVisible)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [])
+
   return <MemberContext.Provider value={{ loading, session, refresh }}>{children}</MemberContext.Provider>
 }
 

@@ -21,7 +21,7 @@ export default function AccountPage() {
     void fetchQuizStatus().then(setQuizStatus)
   }, [session.authenticated])
   if (loading) return <main className="min-h-screen bg-ivory-50"><SiteHeader /><p className="p-10 text-center">Preparing your profile…</p></main>
-  if (!session.authenticated) return <main className="min-h-screen bg-ivory-50"><SiteHeader /><div className="mx-auto max-w-xl p-10 text-center"><h1 className="font-serif text-4xl text-navy-950">Sign in to continue</h1><Link href="/signin" className="gold-button mt-6">Sign in</Link></div></main>
+  if (!session.authenticated) return <main className="min-h-screen bg-ivory-50"><SiteHeader /><div className="mx-auto max-w-xl p-10 text-center"><h1 className="font-serif text-4xl text-navy-950">Sign in to continue</h1><Link href="/signin?next=/account" className="gold-button mt-6">Sign in</Link></div></main>
 
   const firstName = memberFirstName(session.display_name)
 
