@@ -1,13 +1,18 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { localeOptions } from "@/lib/languages"
 
-export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: string }) {
-  const router = useRouter()
+export function SongLanguageSwitcher({
+  selectedLanguage,
+  navigate = (url) => window.location.replace(url),
+}: {
+  selectedLanguage: string
+  navigate?: (url: string) => void
+}) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [targetLanguage, setTargetLanguage] = useState<string | null>(null)
@@ -16,11 +21,26 @@ export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: s
   useEffect(() => {
     const savedPosition = window.sessionStorage.getItem("song-translation-scroll")
     if (!savedPosition) return
-    const frame = window.requestAnimationFrame(() => {
-      window.scrollTo({ top: Number(savedPosition), behavior: "auto" })
+    const top = Number(savedPosition)
+    if (!Number.isFinite(top)) {
       window.sessionStorage.removeItem("song-translation-scroll")
-    })
-    return () => window.cancelAnimationFrame(frame)
+      return
+    }
+    let cancelled = false
+    const restorePosition = () => {
+      if (!cancelled) window.scrollTo({ top, behavior: "auto" })
+    }
+    const frame = window.requestAnimationFrame(() => window.requestAnimationFrame(restorePosition))
+    if (document.fonts) void document.fonts.ready.then(restorePosition)
+    const timeout = window.setTimeout(() => {
+      restorePosition()
+      window.sessionStorage.removeItem("song-translation-scroll")
+    }, 300)
+    return () => {
+      cancelled = true
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timeout)
+    }
   }, [selectedLanguage])
 
   useEffect(() => {
@@ -48,7 +68,7 @@ export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: s
               next.set("language", value)
             }
             const query = next.toString()
-            router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false })
+            navigate(`${pathname}${query ? `?${query}` : ""}`)
           }}
           aria-label="Reading language"
           className="min-w-0 w-full rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70"

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
+from urllib.parse import urlparse
 
 import httpx
 
@@ -88,6 +90,7 @@ INDIA_OBSERVANCES = {
 }
 
 DISASTER_MARKERS = (
+    "severe flood",
     "flood",
     "earthquake",
     "cyclone",
@@ -104,6 +107,7 @@ DISASTER_MARKERS = (
     "above normal flood",
     "severe weather",
 )
+CAP_NAMESPACE = "urn:oasis:names:tc:emergency:cap:1.2"
 
 
 def observance_for_day(day: date) -> ContextSignal | None:
@@ -138,12 +142,58 @@ def parse_india_disaster_alerts(xml_text: str) -> list[ContextSignal]:
     return signals
 
 
+def needs_english_headline(title: str) -> bool:
+    letters = [character for character in title if character.isalpha()]
+    if not letters:
+        return False
+    latin_letters = [character for character in letters if character.isascii()]
+    return len(latin_letters) / len(letters) < 0.6
+
+
+def extract_english_cap_headline(xml_text: str) -> str | None:
+    root = ET.fromstring(xml_text)
+    prefix = f"{{{CAP_NAMESPACE}}}"
+    for info in root.findall(f"{prefix}info"):
+        language = (info.findtext(f"{prefix}language") or "").casefold()
+        headline = " ".join((info.findtext(f"{prefix}headline") or "").split())
+        if language.startswith("en") and headline:
+            return headline
+    return None
+
+
+def english_disaster_fallback(title: str) -> str:
+    normalized = title.casefold()
+    for marker in sorted(DISASTER_MARKERS, key=len, reverse=True):
+        if marker in normalized:
+            return f"{marker.title()} alert in India"
+    return "Significant disaster alert in India"
+
+
+async def _english_signal(client: httpx.AsyncClient, signal: ContextSignal) -> ContextSignal:
+    if not needs_english_headline(signal.title):
+        return signal
+    parsed = urlparse(signal.source_url)
+    if parsed.hostname != "sachet.ndma.gov.in":
+        return replace(signal, title=english_disaster_fallback(signal.title))
+    try:
+        response = await client.get(signal.source_url)
+        response.raise_for_status()
+        headline = extract_english_cap_headline(response.text)
+    except (httpx.HTTPError, ET.ParseError):
+        headline = None
+    return replace(signal, title=headline or english_disaster_fallback(signal.title))
+
+
 async def current_india_humanitarian_signals() -> list[ContextSignal]:
     try:
         # Current alerts enrich the page but must never delay core song discovery.
         async with httpx.AsyncClient(timeout=1.5, follow_redirects=True) as client:
             response = await client.get(NDMA_ALL_INDIA_RSS)
             response.raise_for_status()
-        return parse_india_disaster_alerts(response.text)
+            signals = parse_india_disaster_alerts(response.text)
+            localized = await asyncio.gather(
+                *(_english_signal(client, signal) for signal in signals)
+            )
+            return list(localized)
     except (httpx.HTTPError, ET.ParseError):
         return []

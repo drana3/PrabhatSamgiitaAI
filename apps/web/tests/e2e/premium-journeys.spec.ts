@@ -55,6 +55,23 @@ test("home delivers a complete, nonblank spiritual journey", async ({ page }) =>
   expect(shadowedText).toBe(0)
 })
 
+test("general song links settle on the AI Companion after layout", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("link", { name: "Start with Song 1" }).click()
+  await expect(page).toHaveURL(/\/songs\/1#ask$/)
+  await expect(page.locator("#ask")).toBeInViewport()
+  await expect(page.getByRole("heading", { name: "Know more about this song" })).toBeVisible()
+  const landing = await page.evaluate(() => ({
+    askTop: document.querySelector("#ask")?.getBoundingClientRect().top ?? null,
+    notationTop: document.querySelector("#notation")?.getBoundingClientRect().top ?? null,
+  }))
+  expect(landing.askTop).not.toBeNull()
+  expect(landing.notationTop).not.toBeNull()
+  expect(landing.askTop!).toBeGreaterThanOrEqual(0)
+  expect(landing.askTop!).toBeLessThanOrEqual((page.viewportSize()?.height ?? 800) * 0.25)
+  expect(landing.notationTop!).toBeLessThan(landing.askTop!)
+})
+
 test("Guru portrait and reflection remain aligned without overlap", async ({ page }, testInfo) => {
   await page.goto("/")
 
@@ -197,11 +214,14 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   expect(languageBounds!.x).toBeGreaterThanOrEqual(0)
   expect(languageBounds!.x + languageBounds!.width).toBeLessThanOrEqual(viewport!.width)
 
-  await page.goto("/songs/1?language=hi", { waitUntil: "domcontentloaded" })
-  await expect(page).toHaveURL(/\/songs\/1\?language=hi$/)
+  await page.locator("#meaning").scrollIntoViewIfNeeded()
+  const translationScroll = await page.evaluate(() => window.scrollY)
+  await language.selectOption("hi")
+  await expect(page).toHaveURL(/\/songs\/1\?language=hi$/, { timeout: 20000 })
   await expect(page.locator("#meaning").getByLabel("Reading language").first()).toHaveValue("hi")
   await expect(page.getByText("Hindi meaning", { exact: true })).toHaveCount(1)
   await expect(page.locator("#meaning article")).toHaveCount(2)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(translationScroll)
 
   await expect(page.locator("#lyrics")).toBeVisible()
   await expect(page.locator("#meaning")).toBeVisible()
@@ -225,8 +245,10 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await songActions.getByRole("link", { name: /Harmonium/ }).click()
   await expect(page.locator("#notation")).toBeInViewport()
   await page.getByRole("heading", { name: "Practise on harmonium" }).click()
-  await page.getByRole("button", { name: "Sargam guide" }).click()
-  await expect(page.getByRole("heading", { name: "Sargam at a glance" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Lyric-by-lyric Sargam" })).toBeVisible()
+  await expect(page.locator("#notation").getByText("BANDHU HE NIYE CALO", { exact: true }).first()).toBeVisible()
+  await page.getByRole("button", { name: "Warm-up guide" }).click()
+  await expect(page.getByRole("heading", { name: "Sargam warm-up guide" })).toBeVisible()
   await expect(page.getByText("Aroha · ascending")).toBeVisible()
   await expect(page.getByText("Avaroha · descending")).toBeVisible()
   await expect(page.getByText("सा", { exact: true }).first()).toBeVisible()
@@ -237,6 +259,12 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(readingNavigation).toBeVisible()
   await expect(readingNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
   await expect(readingNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
+  await expect(songActions.getByRole("link", { name: /Read & Listen/ })).toHaveAttribute("href", "#listen")
+  const companionListening = page.getByRole("heading", { name: "Listen to this song" }).locator("..")
+  await expect(companionListening).toBeVisible()
+  const companionNavigation = page.getByRole("navigation", { name: "Return to song text" })
+  await expect(companionNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
+  await expect(companionNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
     listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
     watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,

@@ -49,7 +49,7 @@ PG_PASSWORD_ENC="$(printf '%s' "$PG_PASSWORD" | urlencode)"
 DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD_ENC}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
 WEB_FQDN="$(az containerapp show --name "$WEB_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
-AUTH_ENABLED="$(az containerapp auth show --name "$WEB_APP" --resource-group "$RG" --query properties.platform.enabled -o tsv 2>/dev/null || true)"
+AUTH_ENABLED="$(az containerapp auth show --name "$WEB_APP" --resource-group "$RG" --query platform.enabled -o tsv 2>/dev/null || true)"
 if [[ "$AUTH_ENABLED" != "true" ]]; then
   AUTH_ENABLED=false
 fi
@@ -154,6 +154,24 @@ az containerapp update \
     NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
     API_BASE_URL="https://${API_FQDN}" \
     MEMBER_PROXY_KEY=secretref:member-proxy-key >/dev/null
+
+WEB_AUTH_READY=""
+if [[ "$AUTH_ENABLED" == "true" ]]; then
+  for attempt in $(seq 1 30); do
+    SIGNIN_HTML="$(curl --fail --silent --show-error "https://${WEB_FQDN}/signin" 2>/dev/null || true)"
+    if grep -q 'Continue with Microsoft' <<<"$SIGNIN_HTML" && \
+      grep -q '/.auth/login/aad' <<<"$SIGNIN_HTML"; then
+      WEB_AUTH_READY=true
+      break
+    fi
+    sleep 10
+  done
+
+  if [[ -z "$WEB_AUTH_READY" ]]; then
+    echo "Web authentication smoke check failed: Microsoft sign-in is not visible."
+    exit 1
+  fi
+fi
 
 python3 "${ROOT_DIR}/scripts/validate_live_backend.py" "https://${API_FQDN}"
 

@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { HarmoniumPractice } from "@/components/harmonium-practice"
+import { HashLanding } from "@/components/hash-landing"
 import { AudioRendition } from "@/components/audio-rendition"
 import { ShareMenu } from "@/components/share-menu"
 import { SiteHeader } from "@/components/site-header"
@@ -37,6 +38,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
 
   return (
     <main className="min-h-screen bg-ivory-100">
+      <HashLanding />
       <SiteHeader active="Explore" />
       <div className="mx-auto max-w-[90rem] px-4 py-6 sm:px-6 lg:px-10">
         <div className="flex items-center gap-2 text-xs text-stone-500"><Link href="/explore" className="hover:text-gold-700">Explore</Link><span>›</span><span>Song {song.number}</span></div>
@@ -50,7 +52,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/80 to-navy-950/25" />
           <div className="relative flex min-h-[18rem] flex-col justify-between gap-6 p-6 sm:p-8 lg:p-10">
             <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-200">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl lg:text-6xl">{titleCase(localized?.localized_title || song.title)}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">{titleCase(localized?.localized_first_line || song.first_line || song.title)}</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>
-            <nav aria-label="Song actions" className="flex w-full flex-wrap gap-2 sm:justify-end xl:flex-nowrap"><a href="#ask" className="whitespace-nowrap rounded-full bg-gold-300 px-4 py-2 text-sm font-semibold text-navy-950">✦ Know more with AI</a>{audio.length ? <a href="#listen" className="whitespace-nowrap rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy-950">♪ Listen</a> : null}{videos.length ? <a href="#watch" className="whitespace-nowrap rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy-950">▶ Watch</a> : null}{hasNotation ? <a href="#notation" className="whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-4 py-2 text-sm font-semibold text-white">♬ Harmonium</a> : null}<ShareMenu title={`Song ${song.number}: ${song.title}`} /></nav>
+            <nav aria-label="Song actions" className="flex w-full flex-wrap gap-2 sm:justify-end xl:flex-nowrap"><a href="#ask" className="whitespace-nowrap rounded-full bg-gold-300 px-4 py-2 text-sm font-semibold text-navy-950">✦ Know more with AI</a>{audio.length ? <a href="#listen" className="whitespace-nowrap rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy-950">♪ Read &amp; Listen</a> : null}{videos.length ? <a href="#watch" className="whitespace-nowrap rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy-950">▶ Watch</a> : null}{hasNotation ? <a href="#notation" className="whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-4 py-2 text-sm font-semibold text-white">♬ Harmonium</a> : null}<ShareMenu title={`Song ${song.number}: ${song.title}`} /></nav>
           </div>
         </section>
 
@@ -71,6 +73,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           </div>
 
           <aside className="flex min-w-0 flex-col gap-7">
+            {audio.length ? <section className="surface-card p-5 sm:p-6"><p className="eyebrow">Listen</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Listen to this song</h2><p className="mt-2 text-sm leading-6 text-stone-600">Hear the primary recording while you explore this song with the AI Companion.</p><div className="mt-5"><AudioRendition url={audio[0].url} title={audio[0].title} provider={audio[0].provider} /></div><nav aria-label="Return to song text" className="mt-4 flex flex-wrap gap-2"><a href="#lyrics" className="soft-chip">Lyrics</a>{hasMeaning ? <a href="#meaning" className="soft-chip">Meaning</a> : null}</nav></section> : null}
             {videos.length ? <section id="watch" className="surface-card scroll-mt-28 overflow-hidden"><div className="p-5 sm:p-6"><p className="eyebrow">Watch</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Watch this song</h2></div><iframe className="aspect-video w-full" src={videos[0].embed_url || undefined} title={videos[0].title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />{videos.length > 1 ? <details className="border-t border-navy-900/10 p-5"><summary className="cursor-pointer text-sm font-semibold text-gold-700">More performances ({videos.length - 1})</summary><div className="mt-4 space-y-5">{videos.slice(1).map((item) => <iframe key={item.url} className="aspect-video w-full rounded-xl" src={item.embed_url || undefined} title={item.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />)}</div></details> : null}</section> : null}
             {details.length ? <section className="rounded-2xl bg-navy-950 p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-300">Song details</p><div className="mt-4 grid grid-cols-2 gap-3">{details.map(([label, value]) => <Detail key={label} label={label} value={value} />)}</div></section> : null}
           </aside>

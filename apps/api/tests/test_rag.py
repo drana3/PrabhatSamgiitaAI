@@ -44,10 +44,10 @@ class CorrectingProvider(CapturingProvider):
         if self.calls == 1:
             return "I can provide a line-by-line explanation if you'd like."
         return (
-            "BANDHU HE NIYE CALO [1]\n"
-            "O dearest Friend, lead me onward.\n"
-            "ALOR OI JHARANA DHARARA PANE [2]\n"
-            "Lead me toward the fountain of divine light."
+            "1. Lyric: BANDHU HE NIYE CALO [1]\n"
+            "Meaning: O dearest Friend, lead me onward.\n"
+            "2. Lyric: ALOR OI JHARANA DHARARA PANE [2]\n"
+            "Meaning: Lead me toward the fountain of divine light."
         )
 
 
@@ -111,6 +111,40 @@ def test_line_by_line_prompt_requires_immediate_grounded_explanation() -> None:
     assert "Answer it now" in prompt
     assert "directly beneath each line" in prompt
     assert "Do not defer" in prompt
+    assert "numbered `Lyric:` line" in prompt
+    assert "never return a list of untranslated lyrics" in prompt
+
+
+def test_line_by_line_audit_rejects_untranslated_lyrics() -> None:
+    song = Song(
+        number=5,
+        title="ELO, ANEK JUGER SEI AJÁNÁ PATHIK",
+        lyrics_original=(
+            "ELO, ANEK JUGER SEI AJÁNÁ PATHIK\n"
+            "CETANÁR MADHURA TÁNE\n"
+            "TÁI, JIIVAN ÁMÁR BHARE GELO GÁNE"
+        ),
+        english_meaning=(
+            "The ancient unknown traveler has come.\n"
+            "With the blissful resonance of consciousness,\n"
+            "my life overflows with song."
+        ),
+    )
+    chunks = fresh_song_chunks(song, "explain line by line in English")
+
+    audit = audit_grounded_answer(
+        song,
+        "explain line by line in English",
+        (
+            "ELO, ANEK JUGER SEI AJÁNÁ PATHIK\n"
+            "CETANÁR MADHURA TÁNE\n"
+            "TÁI, JIIVAN ÁMÁR BHARE GELO GÁNE [1]"
+        ),
+        chunks,
+    )
+
+    assert audit.passed is False
+    assert any("pair each lyric phrase" in issue for issue in audit.issues)
 
 
 def test_song_scoped_meaning_is_mandatory_first_context() -> None:

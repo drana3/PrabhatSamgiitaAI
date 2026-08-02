@@ -198,6 +198,12 @@ def audit_grounded_answer(
         meaningful_lines = [line.strip() for line in answer.splitlines() if len(line.strip()) >= 8]
         if len(meaningful_lines) < 4:
             issues.append("The response does not provide the requested line-by-line structure.")
+        lyric_pairs = len(re.findall(r"(?im)^\s*(?:\d+[.)]\s*)?lyric\s*:", answer))
+        meaning_pairs = len(re.findall(r"(?im)^\s*meaning\s*:", answer))
+        if lyric_pairs < 2 or meaning_pairs < 2:
+            issues.append(
+                "The response does not pair each lyric phrase with a grounded meaning."
+            )
 
     if chunks and not re.search(r"\[\d+\]", answer):
         issues.append("The response does not cite its retrieved evidence.")
@@ -277,7 +283,9 @@ def build_grounded_prompt(
         "interpretation directly beneath each line or natural phrase. Use the sequence of "
         "the canonical lyrics and meaning to align them. Do not defer, ask permission, or "
         "claim that explicit line mappings are required. Clearly distinguish literal meaning "
-        "from spiritual interpretation."
+        "from spiritual interpretation. Format every item exactly as a numbered `Lyric:` line "
+        "followed by a `Meaning:` line. Write each Meaning in the language requested by the user; "
+        "never return a list of untranslated lyrics as the answer."
         if re.search(r"\bline[ -]by[ -]line\b", query, re.IGNORECASE)
         else ""
     )

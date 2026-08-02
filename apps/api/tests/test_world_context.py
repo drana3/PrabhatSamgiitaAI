@@ -1,4 +1,9 @@
-from app.services.world_context import parse_india_disaster_alerts
+from app.services.world_context import (
+    english_disaster_fallback,
+    extract_english_cap_headline,
+    needs_english_headline,
+    parse_india_disaster_alerts,
+)
 
 
 def test_india_alert_feed_prioritizes_disasters_and_skips_routine_weather() -> None:
@@ -16,3 +21,24 @@ def test_india_alert_feed_prioritizes_disasters_and_skips_routine_weather() -> N
     assert [signal.category for signal in signals] == ["disaster", "disaster"]
     assert all(signal.source_name == "NDMA SACHET" for signal in signals)
     assert all("Delhi" not in signal.title for signal in signals)
+
+
+def test_multilingual_alert_uses_authoritative_english_cap_headline() -> None:
+    malayalam = (
+        "പത്തനംതിട്ട ജില്ലയിൽ മലക്കരയിലെ പമ്പാ നദി അതിരൂക്ഷ വെള്ളപ്പൊക്ക "
+        "(Severe Flood) സാധ്യത നിലയിൽ ഒഴുകുന്നു."
+    )
+    cap = """<cap:alert xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2">
+      <cap:info><cap:language>en-IN</cap:language>
+        <cap:headline>River Pamba at Malakkara in Pathanamthitta district of Kerala
+        continues to flow in severe flood situation.</cap:headline></cap:info>
+      <cap:info><cap:language>ML</cap:language>
+        <cap:headline>പ്രാദേശിക മുന്നറിയിപ്പ്</cap:headline></cap:info>
+    </cap:alert>"""
+
+    assert needs_english_headline(malayalam) is True
+    assert extract_english_cap_headline(cap) == (
+        "River Pamba at Malakkara in Pathanamthitta district of Kerala "
+        "continues to flow in severe flood situation."
+    )
+    assert english_disaster_fallback(malayalam) == "Severe Flood alert in India"
