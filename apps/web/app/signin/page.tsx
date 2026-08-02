@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 
 import { SignInPanel } from "@/components/sign-in-panel"
 import { SiteHeader } from "@/components/site-header"
+import { resolveClientPrincipal } from "@/lib/azure-principal"
 import { safeSignInNextPath } from "@/lib/sign-in"
 
 export const dynamic = "force-dynamic"
@@ -14,7 +15,7 @@ export default async function SignInPage({
 }) {
   const params = await searchParams
   const next = safeSignInNextPath(params.next)
-  const principal = (await headers()).get("x-ms-client-principal")
+  const principal = resolveClientPrincipal(await headers())
   if (principal) redirect(next)
 
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"

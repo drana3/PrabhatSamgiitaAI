@@ -76,6 +76,18 @@ def test_structured_answer_handles_explain_requests() -> None:
     assert "Theme: Devotion" in answer
 
 
+def test_structured_answer_skips_regional_language_requests() -> None:
+    song = Song(
+        number=3,
+        title="ÁNDHÁRA SHEŚE ÁLORA DESHE",
+        english_meaning="Calling all, I will sing the glories of this crimson dawn.",
+        theme="Neo-Humanism",
+    )
+
+    assert try_structured_answer("explain its meaning in magahi", song) is None
+    assert try_structured_answer("maithili me batao", song, [("user", "What is this song about?")]) is None
+
+
 def test_structured_answer_handles_story_requests() -> None:
     song = Song(number=419, title="KENDE KENDE KATA D'A'KI")
 

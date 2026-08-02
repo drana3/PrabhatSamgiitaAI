@@ -28,7 +28,7 @@ export function extractSongSearchIntent(value: string): SongSearchIntent | null 
 }
 
 export function songIntentPath(intent: SongSearchIntent) {
-  return `/songs/${intent.number}${intent.section ? `#${intent.section}` : ""}`
+  return `/songs/${intent.number}#${intent.section ?? "ask"}`
 }
 
 function createIntent(number: number, query: string): SongSearchIntent | null {

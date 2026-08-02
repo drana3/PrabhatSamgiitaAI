@@ -66,6 +66,7 @@ export function starterPrompts(language: ChatLanguage = "en"): string[] {
   return [
     "What is this song about?",
     "Explain the spiritual imagery",
+    "Explain its meaning in Magahi",
     "Are there devotee stories connected to this song?",
   ]
 }

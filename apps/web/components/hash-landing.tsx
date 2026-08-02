@@ -3,13 +3,22 @@
 import { useEffect } from "react"
 
 import { scrollToSectionId } from "@/lib/scroll-to-section"
+import type { SongSection } from "@/lib/song-path"
 
-const SONG_SECTIONS = new Set(["ask", "lyrics", "meaning", "listen", "watch", "notation"])
+const SONG_SECTIONS = new Set<SongSection>(["ask", "lyrics", "meaning", "listen", "watch", "notation"])
 
 export function HashLanding() {
   useEffect(() => {
-    const section = decodeURIComponent(window.location.hash.slice(1))
-    if (!SONG_SECTIONS.has(section)) return
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual"
+
+    const rawHash = window.location.hash.slice(1)
+    const section = rawHash ? decodeURIComponent(rawHash) : "ask"
+    if (!SONG_SECTIONS.has(section as SongSection)) return
+
+    if (!rawHash) {
+      const nextUrl = `${window.location.pathname}${window.location.search}#ask`
+      history.replaceState(null, "", nextUrl)
+    }
 
     let cancelled = false
     const scrollToSection = () => {

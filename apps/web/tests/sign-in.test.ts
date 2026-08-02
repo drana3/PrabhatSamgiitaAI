@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { microsoftSignInHref, safeSignInNextPath } from "@/lib/sign-in"
+import { microsoftSignInHref, safeSignInNextPath, signInHref } from "@/lib/sign-in"
 
 describe("safeSignInNextPath", () => {
   it("defaults to home for missing or unsafe paths", () => {
@@ -20,5 +20,11 @@ describe("microsoftSignInHref", () => {
   it("builds the Azure login URL with the post-login destination", () => {
     expect(microsoftSignInHref("/account")).toBe("/.auth/login/aad?post_login_redirect_uri=%2Faccount")
     expect(microsoftSignInHref(undefined)).toBe("/.auth/login/aad?post_login_redirect_uri=%2F")
+  })
+
+  it("builds sign-in links that return to the current page", () => {
+    expect(signInHref("/quiz")).toBe("/signin?next=%2Fquiz")
+    expect(signInHref("/songs/3")).toBe("/signin?next=%2Fsongs%2F3")
+    expect(signInHref()).toBe("/signin")
   })
 })

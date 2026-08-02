@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { resolveClientPrincipal } from "@/lib/azure-principal"
+
 function backendBase() {
   return process.env.API_BASE_URL
     ?? process.env.NEXT_PUBLIC_API_BASE_URL
@@ -11,7 +13,7 @@ export async function POST(request: NextRequest) {
     "Content-Type": request.headers.get("content-type") ?? "application/json",
   }
 
-  const principal = request.headers.get("x-ms-client-principal")
+  const principal = resolveClientPrincipal(request.headers)
   const proxyKey = process.env.MEMBER_PROXY_KEY
   if (principal && proxyKey) {
     headers["X-MS-CLIENT-PRINCIPAL"] = principal

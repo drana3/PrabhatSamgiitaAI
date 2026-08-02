@@ -29,7 +29,7 @@ describe("FavoriteSongButton", () => {
   it("prompts guests to sign in", () => {
     useMemberMock.mockReturnValue({ loading: false, session: { authenticated: false }, refresh })
     render(<FavoriteSongButton songNumber={135} />)
-    expect(screen.getByRole("link", { name: "♡ Save song" })).toHaveAttribute("href", "/signin")
+    expect(screen.getByRole("link", { name: "♡ Save song" })).toHaveAttribute("href", "/signin?next=%2Fsongs%2F135%23ask")
   })
 
   it("saves a song for signed-in members", async () => {

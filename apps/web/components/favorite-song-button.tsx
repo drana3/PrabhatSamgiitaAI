@@ -5,6 +5,8 @@ import { useState } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { addFavoriteSong, removeFavoriteSong } from "@/lib/member"
+import { signInHref } from "@/lib/sign-in"
+import { songPagePath } from "@/lib/song-path"
 
 export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
@@ -25,7 +27,7 @@ export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
   if (!session.authenticated) {
     return (
       <Link
-        href="/signin"
+        href={signInHref(songPagePath(songNumber))}
         className="whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-4 py-2 text-sm font-semibold text-white transition hover:border-gold-300 hover:bg-white/10"
       >
         ♡ Save song

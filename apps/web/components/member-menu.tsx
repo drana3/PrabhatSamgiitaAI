@@ -1,14 +1,17 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { memberFirstName } from "@/lib/member"
 import { clearSongChatStorage } from "@/lib/chat"
+import { signInHref } from "@/lib/sign-in"
 
 export function MemberMenu() {
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
+  const pathname = usePathname()
   const { loading, session, refresh } = useMember()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -24,7 +27,7 @@ export function MemberMenu() {
   if (!authEnabled) return null
   if (loading) return <span aria-label="Checking sign-in" className="h-10 w-20 animate-pulse rounded-full bg-navy-900/5" />
   if (!session.authenticated) {
-    return <Link href="/signin" className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">Sign in</Link>
+    return <Link href={signInHref(pathname)} className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">Sign in</Link>
   }
 
   const firstName = memberFirstName(session.display_name)

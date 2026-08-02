@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Song, SongChunk
 from app.services.ai import GroundedProvider
 from app.services.catalog import CatalogService
+from app.services.chat_language import explicit_target_language_label
 from app.services.structured_answers import try_structured_answer
 
 
@@ -283,8 +284,11 @@ def build_grounded_prompt(
             "Devanagari, otherwise natural Romanized Hindi."
         )
     elif response_language == "other":
+        target = explicit_target_language_label(query) or "the language the user requested"
         language_instruction = (
-            "Reply in the same language and script the user used in their latest question."
+            f"Reply in {target}. Translate and explain the grounded meaning faithfully "
+            f"in that language. Do not paste the English canonical meaning verbatim — "
+            f"explain it naturally so the user understands."
         )
     else:
         language_instruction = (

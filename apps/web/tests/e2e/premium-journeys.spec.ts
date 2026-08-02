@@ -318,6 +318,12 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 
+test("opening a song lands on the AI companion", async ({ page }) => {
+  await page.goto("/songs/1")
+  await expect.poll(() => new URL(page.url()).hash).toBe("#ask")
+  await expect(page.getByRole("status", { name: "AI companion ready to help" })).toBeVisible()
+})
+
 test("members can discover the configured sign-in flow", async ({ page }) => {
   await page.goto("/")
   const signIn = page.getByRole("link", { name: "Sign in", exact: true })

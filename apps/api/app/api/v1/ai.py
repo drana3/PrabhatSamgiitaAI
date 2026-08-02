@@ -65,12 +65,14 @@ async def explain(
             continue
         history.append((turn.role, content))
 
+    response_language = detect_response_language(prompt, history)
     cache_key = json.dumps(
         {
             "song_number": song.number,
             "prompt": prompt,
             "history": history,
             "profile_context": payload.profile_context,
+            "response_language": response_language,
         },
         sort_keys=True,
     )
@@ -106,7 +108,6 @@ async def explain(
         return StreamingResponse(stream_text([quota.guidance]), media_type="text/event-stream")
     record_daily_ai_question(is_member=member is not None, identity=quota_identity)
 
-    response_language = detect_response_language(prompt, history)
     provider = select_provider(settings)
     rag = RAGService(session, provider)
     try:

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { QuizCertificate } from "@/components/quiz-certificate"
 import { useMember } from "@/components/member-provider"
+import { signInHref } from "@/lib/sign-in"
 import {
   QUIZ_LEVEL_COPY,
   fetchQuizStatus,
@@ -98,7 +99,7 @@ export function QuizBoard() {
         <p className="mt-3 text-sm leading-6 text-stone-600">
           Quizzes, retries, answer review, and certificates are available for signed-in members.
         </p>
-        <Link href="/signin" className="gold-button mt-6 px-6 py-3">Sign in</Link>
+        <Link href={signInHref("/quiz")} className="gold-button mt-6 px-6 py-3">Sign in</Link>
       </div>
     )
   }

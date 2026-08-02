@@ -58,7 +58,8 @@ def requests_song_explanation(query: str, history: list[tuple[str, str]] | None 
     if is_language_rephrase(query):
         return bool(history)
     if re.search(
-        r"\b(?:in|into|to)\s+(?:hindi|english|bengali|urdu)\b|\b(?:hindi|english)\s+me(?:in|ṃ|in)?\b",
+        r"\b(?:in|into|to)\s+(?:hindi|english|bengali|urdu|magahi|maithili|tamil|telugu|marathi|punjabi|gujarati|nepali|odia|assamese|sanskrit|kannada|malayalam)\b|"
+        r"\b(?:hindi|english|magahi|maithili|bengali|urdu)\s+me(?:in|ṃ|in)?\b",
         cleaned,
     ):
         return True
@@ -87,6 +88,14 @@ def requests_song_explanation(query: str, history: list[tuple[str, str]] | None 
             "anuvad",
         )
     )
+
+
+def has_canonical_structured_meaning(song: Song, language: str) -> bool:
+    if language == "hi":
+        return has_hindi_meaning(song)
+    if language == "en":
+        return bool((song.english_meaning or "").strip())
+    return False
 
 
 def build_line_by_line_answer(song: Song, language: str = "en") -> str | None:
@@ -233,6 +242,8 @@ def try_structured_answer(
     language = detect_response_language(query, history)
     cleaned = query.casefold()
     if requests_line_by_line(query):
+        if not has_canonical_structured_meaning(song, language):
+            return None
         # Canonical meanings are prose blocks, not 1:1 lyric lines — use overview instead
         # of numbered Lyric/Meaning pairs that repeat the last line on refrains.
         return build_overview_answer(song, language)
@@ -253,7 +264,11 @@ def try_structured_answer(
     if requests_related_songs(query):
         return build_related_songs_answer(song, related or [], language)
     if re.search(r"\b(?:meditation|meditate|dhyan|reflect)\b", cleaned):
+        if not has_canonical_structured_meaning(song, language):
+            return None
         return build_meditation_answer(song, language)
     if requests_song_explanation(query, history):
+        if not has_canonical_structured_meaning(song, language):
+            return None
         return build_overview_answer(song, language)
     return None

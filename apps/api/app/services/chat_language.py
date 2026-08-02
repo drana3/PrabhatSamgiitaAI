@@ -30,12 +30,36 @@ EXPLICIT_ENGLISH = re.compile(
     r"\b(?:in|into|to)\s+english\b|\benglish\s+(?:me(?:in|ṃ|in)?|language|version)\b",
     re.IGNORECASE,
 )
+REGIONAL_LANGUAGE_NAMES = (
+    "magahi",
+    "maithili",
+    "bengali",
+    "bangla",
+    "urdu",
+    "tamil",
+    "telugu",
+    "marathi",
+    "punjabi",
+    "gujarati",
+    "odia",
+    "oriya",
+    "assamese",
+    "nepali",
+    "sanskrit",
+    "kannada",
+    "malayalam",
+)
+REGIONAL_LANGUAGE_PATTERN = re.compile(
+    rf"\b(?:in|into|to)\s+(?:{'|'.join(REGIONAL_LANGUAGE_NAMES)})\b|"
+    rf"\b(?:{'|'.join(REGIONAL_LANGUAGE_NAMES)})\s+me(?:in|ṃ|in)?\b",
+    re.IGNORECASE,
+)
 LANGUAGE_ONLY = re.compile(
     r"^(?:"
-    r"(?:in|into|to)\s+(?:hindi|english|bengali|urdu)|"
-    r"(?:hindi|english|bengali|urdu)\s+me(?:in|ṃ|in)?|"
+    r"(?:in|into|to)\s+(?:hindi|english|bengali|urdu|magahi|maithili|tamil|telugu|marathi|punjabi|gujarati|nepali|odia|assamese|sanskrit|kannada|malayalam)|"
+    r"(?:hindi|english|bengali|urdu|magahi|maithili)\s+me(?:in|ṃ|in)?|"
     r"(?:hindi|english)\s+me(?:in|ṃ|in)?\s+batao|"
-    r"translate(?:d)?\s+(?:to|in)\s+(?:hindi|english)"
+    r"translate(?:d)?\s+(?:to|in)\s+(?:hindi|english|magahi|maithili|bengali|urdu)"
     r")\s*[?.!]*$",
     re.IGNORECASE,
 )
@@ -43,6 +67,27 @@ AMBIGUOUS_FOLLOW_UP = re.compile(
     r"^(?:yes|no|ok|okay|more|continue|why|thanks|thank you|sure|please)\s*[?.!]*$",
     re.IGNORECASE,
 )
+
+
+def explicit_target_language_label(text: str) -> str | None:
+    cleaned = text.strip()
+    if not cleaned:
+        return None
+    match = re.search(
+        rf"\b(?:in|into|to)\s+({'|'.join(REGIONAL_LANGUAGE_NAMES)})\b",
+        cleaned,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1).title()
+    match = re.search(
+        rf"\b({'|'.join(REGIONAL_LANGUAGE_NAMES)})\s+me(?:in|ṃ|in)?\b",
+        cleaned,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1).title()
+    return None
 
 
 def explicit_response_language(text: str) -> str | None:
@@ -53,6 +98,8 @@ def explicit_response_language(text: str) -> str | None:
         return "en"
     if EXPLICIT_HINDI.search(cleaned):
         return "hi"
+    if explicit_target_language_label(cleaned):
+        return "other"
     return None
 
 

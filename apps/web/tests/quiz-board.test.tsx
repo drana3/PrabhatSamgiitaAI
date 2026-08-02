@@ -11,6 +11,6 @@ describe("QuizBoard", () => {
   it("asks guests to sign in", () => {
     render(<QuizBoard />)
     expect(screen.getByRole("heading", { name: /Sign in to take the quiz/i })).toBeVisible()
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin")
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin?next=%2Fquiz")
   })
 })

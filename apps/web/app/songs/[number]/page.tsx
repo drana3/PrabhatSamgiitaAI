@@ -6,7 +6,6 @@ import { FavoriteSongButton } from "@/components/favorite-song-button"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { HarmoniumPractice } from "@/components/harmonium-practice"
 import { HashLanding } from "@/components/hash-landing"
-import { SongScrollTop } from "@/components/song-scroll-top"
 import { AudioRendition } from "@/components/audio-rendition"
 import { ShareMenu } from "@/components/share-menu"
 import { SiteHeader } from "@/components/site-header"
@@ -17,6 +16,7 @@ import { StreamExplanation } from "@/components/stream-explanation"
 import { fetchNotation, fetchSong, fetchSongLocalization } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
 import { splitLyricLines } from "@/lib/sargam-display"
+import { songPagePath } from "@/lib/song-path"
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
   const { number } = await params
@@ -47,7 +47,6 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   return (
     <main className="min-h-screen bg-ivory-100 pb-24 md:pb-0">
       <HashLanding />
-      <SongScrollTop songNumber={song.number} />
       <SiteHeader active="Explore" />
       <div className="mx-auto max-w-[90rem] px-4 py-4 sm:px-6 sm:py-6 lg:px-10">
         <div className="flex items-center gap-2 text-xs text-stone-500"><Link href="/" className="hover:text-gold-700">Home</Link><span>›</span><Link href="/explore" className="hover:text-gold-700">Explore</Link><span>›</span><span>Song {song.number}</span></div>
@@ -89,7 +88,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
         <div className="mt-7 grid gap-7 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-7">
             <section className="surface-card p-4 sm:p-6"><StreamExplanation songNumber={song.number} language={language !== "en" ? localeLabel(language) : null} /></section>
-            {song.related_songs.length ? <section className="surface-card p-5 sm:p-7"><p className="eyebrow">Continue exploring</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Related songs</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{song.related_songs.map((related) => <Link key={related.number} href={`/songs/${related.number}`} className="rounded-2xl border border-navy-900/10 bg-ivory-50 p-4 hover:border-gold-500"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Song {related.number}</p><h3 className="mt-2 font-serif text-lg font-semibold text-navy-950">{titleCase(related.title)}</h3></Link>)}</div></section> : null}
+            {song.related_songs.length ? <section className="surface-card p-5 sm:p-7"><p className="eyebrow">Continue exploring</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Related songs</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{song.related_songs.map((related) => <Link key={related.number} href={songPagePath(related.number)} className="rounded-2xl border border-navy-900/10 bg-ivory-50 p-4 hover:border-gold-500"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Song {related.number}</p><h3 className="mt-2 font-serif text-lg font-semibold text-navy-950">{titleCase(related.title)}</h3></Link>)}</div></section> : null}
           </div>
 
           <aside className="flex min-w-0 flex-col gap-7">

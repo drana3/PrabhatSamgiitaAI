@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { resolveClientPrincipal } from "@/lib/azure-principal"
+
 const allowedPaths = new Set([
   "session",
   "preferences",
@@ -9,6 +11,8 @@ const allowedPaths = new Set([
   "quiz",
 ])
 
+export const dynamic = "force-dynamic"
+
 function backendBase() {
   return process.env.API_BASE_URL
     ?? process.env.NEXT_PUBLIC_API_BASE_URL
@@ -16,22 +20,31 @@ function backendBase() {
 }
 
 function principalFor(request: NextRequest) {
-  const principal = request.headers.get("x-ms-client-principal")
+  const principal = resolveClientPrincipal(request.headers)
   if (principal) return principal
   if (process.env.NODE_ENV !== "production") return process.env.DEV_MEMBER_PRINCIPAL ?? null
   return null
 }
 
+function sessionResponse(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store, private",
+    },
+  })
+}
+
 async function forward(request: NextRequest, segments: string[]) {
   const root = segments[0] ?? ""
-  if (!allowedPaths.has(root)) return NextResponse.json({ detail: "Unknown member endpoint" }, { status: 404 })
+  if (!allowedPaths.has(root)) return sessionResponse({ detail: "Unknown member endpoint" }, 404)
   const principal = principalFor(request)
   if (!principal) {
-    if (root === "session") return NextResponse.json({ authenticated: false })
-    return NextResponse.json({ detail: "Sign in is required" }, { status: 401 })
+    if (root === "session") return sessionResponse({ authenticated: false })
+    return sessionResponse({ detail: "Sign in is required" }, 401)
   }
   const proxyKey = process.env.MEMBER_PROXY_KEY
-  if (!proxyKey) return NextResponse.json({ detail: "Member services are not configured" }, { status: 503 })
+  if (!proxyKey) return sessionResponse({ detail: "Member services are not configured" }, 503)
 
   const incomingUrl = new URL(request.url)
   const target = new URL(`/api/v1/members/${segments.map(encodeURIComponent).join("/")}`, backendBase())
@@ -47,10 +60,18 @@ async function forward(request: NextRequest, segments: string[]) {
     body,
     cache: "no-store",
   })
-  if (response.status === 204) return new NextResponse(null, { status: 204 })
+  if (response.status === 204) {
+    return new NextResponse(null, {
+      status: 204,
+      headers: { "Cache-Control": "no-store, private" },
+    })
+  }
   return new NextResponse(await response.text(), {
     status: response.status,
-    headers: { "Content-Type": response.headers.get("content-type") ?? "application/json" },
+    headers: {
+      "Content-Type": response.headers.get("content-type") ?? "application/json",
+      "Cache-Control": "no-store, private",
+    },
   })
 }
 

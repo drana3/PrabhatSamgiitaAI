@@ -84,6 +84,18 @@ def test_hindi_explanation_uses_canonical_hindi_meaning_when_available() -> None
     assert "Deep in dream" not in answer
 
 
+def test_magahi_explanation_skips_structured_answer_and_uses_llm_path() -> None:
+    song = Song(
+        number=3,
+        title="ÁNDHÁRA SHEŚE ÁLORA DESHE",
+        english_meaning="Calling all, I will sing the glories of this crimson dawn.",
+        theme="Neo-Humanism",
+    )
+
+    assert explicit_response_language("explain its meaning in magahi") == "other"
+    assert try_structured_answer("explain its meaning in magahi", song) is None
+
+
 def test_is_language_rephrase() -> None:
     assert is_language_rephrase("in hindi")
     assert is_language_rephrase("hindi mein batao")

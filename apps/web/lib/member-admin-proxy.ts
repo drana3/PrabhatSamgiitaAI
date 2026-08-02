@@ -1,12 +1,9 @@
 import type { NextRequest } from "next/server"
 
+import { azureAuthForwardHeaders, resolveClientPrincipal } from "@/lib/azure-principal"
+
 export function memberForwardHeaders(request: NextRequest) {
-  const headers = new Headers()
-  const principal = request.headers.get("x-ms-client-principal")
-  const cookie = request.headers.get("cookie")
-  if (principal) headers.set("x-ms-client-principal", principal)
-  if (cookie) headers.set("cookie", cookie)
-  return headers
+  return azureAuthForwardHeaders(request.headers)
 }
 
 export async function memberSessionIsAdmin(request: NextRequest) {
@@ -35,7 +32,7 @@ export async function forwardMemberAdmin(
   init?: RequestInit,
 ) {
   const proxyKey = process.env.MEMBER_PROXY_KEY
-  const principal = request.headers.get("x-ms-client-principal")
+  const principal = resolveClientPrincipal(request.headers)
   if (!proxyKey || !principal) {
     return new Response(JSON.stringify({ detail: "Sign in is required" }), {
       status: 401,

@@ -9,7 +9,7 @@ import { microsoftSignInHref, safeSignInNextPath } from "@/lib/sign-in"
 
 export function SignInPanel({ authEnabled, next }: { authEnabled: boolean; next: string }) {
   const router = useRouter()
-  const { loading, session } = useMember()
+  const { loading, session, refresh } = useMember()
   const destination = safeSignInNextPath(next)
 
   useEffect(() => {
@@ -17,6 +17,12 @@ export function SignInPanel({ authEnabled, next }: { authEnabled: boolean; next:
       router.replace(destination)
     }
   }, [destination, loading, router, session.authenticated])
+
+  useEffect(() => {
+    if (loading || session.authenticated) return
+    const timers = [400, 1200, 2500].map((delay) => window.setTimeout(() => { void refresh() }, delay))
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
+  }, [loading, refresh, session.authenticated])
 
   if (loading || session.authenticated) {
     return (
