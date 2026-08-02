@@ -3,18 +3,17 @@
   "private": true,
   "workspaces": [
     "apps/web",
-    "apps/mobile",
     "packages/core"
   ],
   "scripts": {
     "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "npm --workspace apps/web run dev",
     "dev:api": "cd apps/api && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
-    "mobile": "npm --workspace apps/mobile run start",
-    "mobile:build": "npm --workspace apps/mobile run build:preview:all",
-    "mobile:build:android": "npm --workspace apps/mobile run build:preview:android",
-    "mobile:build:ios": "npm --workspace apps/mobile run build:preview:ios",
-    "mobile:build:ios-simulator": "npm --workspace apps/mobile run build:preview:ios-simulator",
+    "mobile": "npm --prefix apps/mobile run start",
+    "mobile:build": "npm --prefix apps/mobile run build:preview:all",
+    "mobile:build:android": "npm --prefix apps/mobile run build:preview:android",
+    "mobile:build:ios": "npm --prefix apps/mobile run build:preview:ios",
+    "mobile:build:ios-simulator": "npm --prefix apps/mobile run build:preview:ios-simulator",
     "build": "npm --workspace apps/web run build",
     "build:e2e": "NEXT_PUBLIC_AUTH_ENABLED=true npm --workspace apps/web run build",
     "lint": "npm --workspace apps/web run lint && cd apps/api && uv run ruff check . && uv run mypy app",

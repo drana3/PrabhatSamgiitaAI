@@ -4,12 +4,16 @@ Expo app for iOS and Android. Shares API logic with the web app via `@prabhat/co
 
 ## Setup
 
+This app keeps its own `node_modules` and lockfile. It is deliberately outside the
+npm workspaces, because its react 18 / React Native 0.76 stack cannot be hoisted
+alongside the web app's react 19 without breaking Metro and CocoaPods resolution.
+
 ```bash
-# From repository root
+# Mobile dependencies (not installed by the root `npm install`)
+cd apps/mobile
 npm install
 
 # Link Expo project (once, after creating expo.dev account)
-cd apps/mobile
 npx eas-cli login
 npx eas-cli init   # writes projectId into app.json
 

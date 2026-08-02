@@ -135,7 +135,7 @@ EXPO_PUBLIC_WEB_BASE_URL=https://<web-host>   # optional deep links
 Run the mobile app:
 
 ```bash
-npm install
+npm --prefix apps/mobile install
 npm run mobile
 ```
 

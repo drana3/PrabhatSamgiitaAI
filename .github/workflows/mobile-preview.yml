@@ -45,8 +45,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
 
+      # The mobile app installs outside the npm workspaces so its react 18 /
+      # RN 0.76 stack cannot be hoisted against the web app's react 19.
       - name: Install dependencies
+        working-directory: apps/mobile
         run: npm ci
 
       - name: Set up EAS CLI
