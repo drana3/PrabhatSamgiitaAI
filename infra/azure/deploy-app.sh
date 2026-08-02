@@ -184,7 +184,8 @@ az containerapp update \
     NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" \
     NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
     API_BASE_URL="https://${API_FQDN}" \
-    MEMBER_PROXY_KEY=secretref:member-proxy-key >/dev/null
+    MEMBER_PROXY_KEY=secretref:member-proxy-key \
+    DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" >/dev/null
 
 WEB_REVISION="$(az containerapp revision list \
   --name "$WEB_APP" \

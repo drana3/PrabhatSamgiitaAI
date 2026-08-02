@@ -1,4 +1,5 @@
 import type { MemberProfile } from "@/lib/member"
+import { isDefaultAdminEmail } from "@/lib/admin-emails"
 
 type Claim = { typ: string; val: string }
 
@@ -98,15 +99,16 @@ export function parseClientPrincipalProfile(principal: string): MemberProfile | 
     const email = claimValue(claims, EMAIL_CLAIMS) || payload.user_details || null
     const displayName = claimValue(claims, NAME_CLAIMS) || email || "Prabhat Samgiita member"
     if (!subject) return null
+    const normalizedEmail = email ? email.slice(0, 320) : null
     return {
       authenticated: true,
       id: `${provider}:${subject}`,
       display_name: displayName.slice(0, 255),
-      email: email ? email.slice(0, 320) : null,
+      email: normalizedEmail,
       identity_provider: provider,
       personalization_enabled: true,
       favorite_song_numbers: [],
-      is_admin: false,
+      is_admin: isDefaultAdminEmail(normalizedEmail),
     }
   } catch {
     return null
