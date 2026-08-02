@@ -66,40 +66,38 @@ export function SearchForm({ onResults, onSearching, onVoiceResult, initialQuery
   return (
     <form
       id="catalog-search"
-      className="flex scroll-mt-28 flex-col gap-3 rounded-2xl border border-navy-900/10 bg-white p-3 shadow-sm md:flex-row md:items-end"
+      className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-3 shadow-sm"
       onSubmit={form.handleSubmit(submit)}
     >
-      <div className="flex-1">
-        <label className="mb-2 block text-xs font-bold text-navy-950" htmlFor="query">
-          Search by number, lyrics, meaning, or moment
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="query"
-            {...form.register("query")}
-            placeholder="Try 1, bandhu he, or devotional dawn"
-            className="min-w-0 flex-1 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-navy-950 outline-none transition placeholder:text-stone-400 focus:border-gold-500"
-          />
-          <VoiceSearchButton onTranscript={({ transcript, language }) => {
-            form.setValue("query", transcript, { shouldValidate: true })
-            router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
-          }} />
-        </div>
-        <div className="min-h-5 pt-1">
-          {form.formState.errors.query ? (
-            <p className="text-sm text-red-700">{form.formState.errors.query.message}</p>
-          ) : null}
-          {mutation.isError ? <p role="alert" className="text-sm text-amber-800">{mutation.error.message}</p> : null}
-        </div>
+      <label className="mb-2 block text-xs font-bold text-navy-950" htmlFor="query">
+        Search by number, lyrics, meaning, or moment
+      </label>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+        <input
+          id="query"
+          {...form.register("query")}
+          placeholder="Try 1, bandhu he, or devotional dawn"
+          className="min-h-12 min-w-0 flex-1 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-navy-950 outline-none transition placeholder:text-stone-400 focus:border-gold-500"
+        />
+        <VoiceSearchButton onTranscript={({ transcript, language }) => {
+          form.setValue("query", transcript, { shouldValidate: true })
+          router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
+        }} />
+        <button
+          type="submit"
+          data-feature="catalog_search"
+          className="flex min-h-12 items-center justify-center rounded-xl bg-navy-950 px-7 py-3 font-semibold text-white transition hover:bg-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? <LoadingIndicator label="Searching" compact /> : "Search"}
+        </button>
       </div>
-      <button
-        type="submit"
-        data-feature="catalog_search"
-        className="rounded-xl bg-navy-950 px-7 py-3 font-semibold text-white transition hover:bg-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={mutation.isPending}
-      >
-        {mutation.isPending ? <LoadingIndicator label="Searching" compact /> : "Search"}
-      </button>
+      <div className="min-h-5 pt-1">
+        {form.formState.errors.query ? (
+          <p className="text-sm text-red-700">{form.formState.errors.query.message}</p>
+        ) : null}
+        {mutation.isError ? <p role="alert" className="text-sm text-amber-800">{mutation.error.message}</p> : null}
+      </div>
     </form>
   )
 }

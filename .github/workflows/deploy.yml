@@ -18,6 +18,8 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_AUTH_ENABLED: "true"
     steps:
       - name: Check out repo
         uses: actions/checkout@v4

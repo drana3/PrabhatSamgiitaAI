@@ -69,7 +69,7 @@ export function VoiceSearchButton({ onTranscript, compact = false }: { onTranscr
   if (!supported) return null
 
   return (
-    <div className="flex shrink-0 items-center">
+    <div className={compact ? "flex shrink-0 items-center" : "flex w-full shrink-0 items-stretch sm:w-auto"}>
       <button
         type="button"
         aria-label={listening ? "Listening for a song" : "Search by voice"}
@@ -77,7 +77,7 @@ export function VoiceSearchButton({ onTranscript, compact = false }: { onTranscr
         onClick={listen}
         className={compact
           ? "shrink-0 rounded-full border border-navy-900/15 bg-white px-3 py-2 text-xs font-semibold text-navy-950"
-          : "shrink-0 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm font-semibold text-navy-950 transition hover:border-gold-500"}
+          : "min-h-12 w-full shrink-0 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm font-semibold text-navy-950 transition hover:border-gold-500"}
       >
         {listening ? "Listening..." : "Mic"}
       </button>

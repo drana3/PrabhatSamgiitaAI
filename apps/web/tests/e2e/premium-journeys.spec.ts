@@ -296,6 +296,48 @@ test("a meaningful query moves naturally into exploration", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
 })
 
+test("Explore search stays aligned and infers spoken language", async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      configurable: true,
+      value: class {
+        lang = ""
+        interimResults = false
+        maxAlternatives = 1
+        onresult = null
+        onerror = null
+        onend = null
+        start() {}
+      },
+    })
+  })
+  await page.goto("/explore")
+  const input = page.getByLabel(/Search by number/i)
+  const mic = page.getByRole("button", { name: "Search by voice" })
+  const search = page.getByRole("button", { name: "Search", exact: true })
+  await expect(mic).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Spoken language" })).toHaveCount(0)
+  const [inputBounds, micBounds, searchBounds] = await Promise.all([
+    input.boundingBox(),
+    mic.boundingBox(),
+    search.boundingBox(),
+  ])
+  expect(inputBounds).not.toBeNull()
+  expect(micBounds).not.toBeNull()
+  expect(searchBounds).not.toBeNull()
+  if (testInfo.project.name === "mobile-chromium") {
+    expect(micBounds!.y).toBeGreaterThan(inputBounds!.y + inputBounds!.height - 2)
+    expect(searchBounds!.y).toBeGreaterThan(micBounds!.y + micBounds!.height - 2)
+    expect(Math.abs(inputBounds!.width - micBounds!.width)).toBeLessThan(3)
+    expect(Math.abs(inputBounds!.width - searchBounds!.width)).toBeLessThan(3)
+  } else {
+    expect(Math.abs(inputBounds!.y - micBounds!.y)).toBeLessThan(3)
+    expect(Math.abs(inputBounds!.y - searchBounds!.y)).toBeLessThan(3)
+    expect(Math.abs(inputBounds!.height - micBounds!.height)).toBeLessThan(3)
+    expect(Math.abs(inputBounds!.height - searchBounds!.height)).toBeLessThan(3)
+  }
+})
+
 test("home and Explore resolve natural-language song number intent before RAG", async ({ page }) => {
   await page.goto("/")
   await page.getByLabel(/Ask by song, feeling/i).fill("explain about prabhat sagiat 223")
