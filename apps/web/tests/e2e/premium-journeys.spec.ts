@@ -265,7 +265,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.locator("#lyrics")).toBeVisible()
   await expect(page.locator("#meaning")).toBeVisible()
   const songActions = page.getByRole("navigation", { name: "Song actions" })
-  for (const [action, targetId] of [["Harmonium", "notation"], ["Listen", "listen"], ["Know more with AI", "ask"], ["Watch", "watch"]] as const) {
+  for (const [action, targetId] of [["Harmonium", "notation"], ["Listen", "listen"], ["Ask AI", "ask"], ["Watch", "watch"]] as const) {
     await expect(songActions.getByRole("link", { name: new RegExp(action), exact: false })).toHaveAttribute("href", `#${targetId}`)
     await expect(page.locator(`#${targetId}`)).toHaveCount(1)
   }
@@ -296,12 +296,17 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByText(/Beginner alankar · ascending/i)).toBeVisible()
   await page.getByRole("button", { name: "सारगम + keys" }).click()
   await expect(page.getByRole("button", { name: "Hear slowly" }).first()).toBeVisible()
-  await expect(songActions.getByRole("link", { name: /Read & Listen/ })).toHaveAttribute("href", "#listen")
-  const companionListening = page.getByRole("heading", { name: "Listen to this song" }).locator("..")
-  await expect(companionListening).toBeVisible()
-  const companionNavigation = page.getByRole("navigation", { name: "Return to song text" })
-  await expect(companionNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
-  await expect(companionNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
+  await expect(songActions.getByRole("link", { name: /Listen/i })).toHaveAttribute("href", "#listen")
+  if (testInfo.project.name === "desktop-chromium") {
+    const companionListening = page.getByRole("heading", { name: "Listen to this song" }).locator("..")
+    await expect(companionListening).toBeVisible()
+    const companionNavigation = page.getByRole("navigation", { name: "Return to song text" })
+    await expect(companionNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
+    await expect(companionNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
+  } else {
+    await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
+    await expect(page.getByRole("navigation", { name: "Song sections" }).getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "#listen")
+  }
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
     listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
     watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,
