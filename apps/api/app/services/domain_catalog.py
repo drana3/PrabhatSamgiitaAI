@@ -4,6 +4,13 @@ from functools import lru_cache
 
 from app.services.seed_data import load_rows
 
+TIMEZONE_ALIASES = {"Asia/Calcutta": "Asia/Kolkata"}
+
+
+def canonical_timezone(timezone: str) -> str:
+    return TIMEZONE_ALIASES.get(timezone, timezone)
+
+
 OCCASIONS = [
     {
         "slug": "morning-meditation",

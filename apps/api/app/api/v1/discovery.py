@@ -44,6 +44,7 @@ from app.services.catalog import CatalogService
 from app.services.domain_catalog import (
     OCCASIONS,
     canonical_festivals,
+    canonical_timezone,
     fixed_reviewed_festival,
     reviewed_festival_collection_labels,
     reviewed_festival_context,
@@ -153,6 +154,7 @@ async def recommendations_today(
     timezone: str = Query(default="Asia/Kolkata"),
     date: date_type | None = None,
 ) -> TodayResponse:
+    timezone = canonical_timezone(timezone)
     try:
         zone = ZoneInfo(timezone)
     except ZoneInfoNotFoundError as exc:

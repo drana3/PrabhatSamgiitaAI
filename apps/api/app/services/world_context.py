@@ -221,7 +221,8 @@ def parse_un_news(xml_text: str) -> list[ContextSignal]:
 
 async def current_humanitarian_signals() -> list[ContextSignal]:
     try:
-        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+        # News is optional enrichment and must never delay the core recommendation path.
+        async with httpx.AsyncClient(timeout=1.0, follow_redirects=True) as client:
             response = await client.get(UN_NEWS_RSS)
             response.raise_for_status()
         return parse_un_news(response.text)
