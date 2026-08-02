@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -61,11 +62,14 @@ async def find_member_by_email(session: AsyncSession, email: str) -> UserAccount
     normalized = email.strip().casefold()
     if not normalized:
         return None
-    return await session.scalar(
-        select(UserAccount).where(
-            UserAccount.deleted_at.is_(None),
-            func.lower(UserAccount.email) == normalized,
-        )
+    return cast(
+        UserAccount | None,
+        await session.scalar(
+            select(UserAccount).where(
+                UserAccount.deleted_at.is_(None),
+                func.lower(UserAccount.email) == normalized,
+            )
+        ),
     )
 
 
@@ -74,7 +78,10 @@ async def grant_admin(session: AsyncSession, email: str) -> UserAccount:
     if member is None:
         raise HTTPException(
             status_code=404,
-            detail="No signed-in member was found with that email. They need to sign in once first.",
+            detail=(
+                "No signed-in member was found with that email. "
+                "They need to sign in once first."
+            ),
         )
     member.is_admin = True
     await session.commit()
@@ -95,7 +102,10 @@ async def revoke_admin(
     if not target.is_admin:
         raise HTTPException(status_code=400, detail="This member is not an admin")
     if is_protected_admin(target, settings):
-        raise HTTPException(status_code=403, detail="This admin account is protected and cannot be removed")
+        raise HTTPException(
+            status_code=403,
+            detail="This admin account is protected and cannot be removed",
+        )
     if target.id == actor.id:
         raise HTTPException(status_code=400, detail="You cannot remove your own admin access here")
 

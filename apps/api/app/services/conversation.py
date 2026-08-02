@@ -11,12 +11,22 @@ def try_conversation_answer(
     user_turns = [content for role, content in history if role == "user"]
     assistant_turns = [content for role, content in history if role == "assistant"]
 
+    mentions_last = (
+        "last" in cleaned
+        or "previous" in cleaned
+        or "pichhla" in cleaned
+        or "pichle" in cleaned
+    )
+    mentions_question = (
+        "ask" in cleaned
+        or "question" in cleaned
+        or "prashn" in cleaned
+        or "pucha" in cleaned
+    )
     asks_for_last_question = (
-        (
-            ("last" in cleaned or "previous" in cleaned or "pichhla" in cleaned or "pichle" in cleaned)
-            and ("ask" in cleaned or "question" in cleaned or "prashn" in cleaned or "pucha" in cleaned)
-            and (re.search(r"\b(?:i|my|me|maine|mera|mujhe)\b", cleaned) is not None)
-        )
+        mentions_last
+        and mentions_question
+        and re.search(r"\b(?:i|my|me|maine|mera|mujhe)\b", cleaned) is not None
     )
     if asks_for_last_question:
         if not user_turns:

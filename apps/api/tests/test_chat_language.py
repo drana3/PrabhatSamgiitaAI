@@ -1,3 +1,4 @@
+from app.models.song import Song
 from app.services.chat_language import (
     conversation_language_from_user_messages,
     detect_response_language,
@@ -6,7 +7,6 @@ from app.services.chat_language import (
 )
 from app.services.query_guard import assess_query
 from app.services.structured_answers import requests_song_explanation, try_structured_answer
-from app.models.song import Song
 
 
 def test_explicit_hindi_from_in_hindi_request() -> None:

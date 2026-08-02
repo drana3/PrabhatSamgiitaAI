@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 
+import { readErrorDetail } from "@/lib/read-error-detail"
+
 type AdminMember = {
   id: string
   display_name: string
@@ -25,13 +27,13 @@ export default function AdminMembersPage() {
     setError("")
     try {
       const response = await fetch("/api/admin/members", { cache: "no-store" })
-      const body = await response.json().catch(() => null) as AdminMember[] | { detail?: string } | null
+      const body = await response.json().catch(() => null)
       if (!response.ok) {
-        setError(typeof body?.detail === "string" ? body.detail : "Could not load admins")
+        setError(readErrorDetail(body, "Could not load admins"))
         setMembers([])
         return
       }
-      setMembers(Array.isArray(body) ? body : [])
+      setMembers(Array.isArray(body) ? (body as AdminMember[]) : [])
     } catch {
       setError("Could not reach the admin service")
       setMembers([])
@@ -57,9 +59,9 @@ export default function AdminMembersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed }),
       })
-      const body = await response.json().catch(() => null) as { detail?: string; display_name?: string } | null
+      const body = await response.json().catch(() => null) as { display_name?: string } | null
       if (!response.ok) {
-        setError(typeof body?.detail === "string" ? body.detail : "Could not promote member")
+        setError(readErrorDetail(body, "Could not promote member"))
         return
       }
       setEmail("")
@@ -78,9 +80,9 @@ export default function AdminMembersPage() {
     setMessage("")
     try {
       const response = await fetch(`/api/admin/members?id=${encodeURIComponent(member.id)}`, { method: "DELETE" })
-      const body = await response.json().catch(() => null) as { detail?: string } | null
+      const body = await response.json().catch(() => null)
       if (!response.ok) {
-        setError(typeof body?.detail === "string" ? body.detail : "Could not remove admin")
+        setError(readErrorDetail(body, "Could not remove admin"))
         return
       }
       setMessage(`${member.display_name} is no longer an admin.`)

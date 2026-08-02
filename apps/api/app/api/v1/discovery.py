@@ -18,7 +18,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import AsyncTTLCache
-from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
 from app.core.db import get_session
 from app.core.security import require_public_quota
 from app.models import (
@@ -58,6 +57,7 @@ from app.services.domain_catalog import (
     song_numbers_for_collection_labels,
     time_of_day,
 )
+from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 from app.services.reflections import select_reflection
 from app.services.stories import (

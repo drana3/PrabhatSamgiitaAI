@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 
+import { readErrorDetail } from "@/lib/read-error-detail"
+
 type FeedbackItem = {
   feedback_id: string
   category: string
@@ -50,15 +52,16 @@ export default function AdminFeedbackPage() {
     setError("")
     try {
       const response = await fetch(`/api/admin/feedback?status=${encodeURIComponent(status)}`, { cache: "no-store" })
-      const body = await response.json().catch(() => null) as FeedbackResponse | { detail?: string } | null
+      const body = await response.json().catch(() => null)
       if (!response.ok) {
-        setError(typeof body?.detail === "string" ? body.detail : "Could not load feedback")
+        setError(readErrorDetail(body, "Could not load feedback"))
         setItems([])
         setTotal(0)
         return
       }
-      setItems(body?.items ?? [])
-      setTotal(body?.total ?? 0)
+      const payload = body as FeedbackResponse | null
+      setItems(payload?.items ?? [])
+      setTotal(payload?.total ?? 0)
     } catch {
       setError("Could not reach the admin service")
       setItems([])
@@ -82,7 +85,7 @@ export default function AdminFeedbackPage() {
       })
       if (!response.ok) {
         const body = await response.json().catch(() => null)
-        setError(typeof body?.detail === "string" ? body.detail : "Could not update feedback")
+        setError(readErrorDetail(body, "Could not update feedback"))
         return
       }
       await loadFeedback()

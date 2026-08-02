@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -22,7 +22,7 @@ def owner(email: str = "owner@example.com") -> UserAccount:
         identity_provider="google",
         email=email,
         display_name="Owner",
-        last_seen_at=datetime.now(timezone.utc),
+        last_seen_at=datetime.now(UTC),
         is_admin=True,
     )
 
@@ -34,7 +34,7 @@ def admin(email: str = "admin@example.com") -> UserAccount:
         identity_provider="google",
         email=email,
         display_name="Admin",
-        last_seen_at=datetime.now(timezone.utc),
+        last_seen_at=datetime.now(UTC),
         is_admin=True,
     )
 
