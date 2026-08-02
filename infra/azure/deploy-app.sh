@@ -272,6 +272,17 @@ MEMBER_FEEDBACK_SMOKE="$(curl_retry "member-admin-feedback" \
   exit 1
 }
 printf '%s' "$MEMBER_FEEDBACK_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if isinstance(data.get("items"), list) and "total" in data else 1)'
+MEMBER_QUIZ_SMOKE="$(curl_retry "member-quiz-start" \
+  --request POST \
+  --header "Content-Type: application/json" \
+  --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
+  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  --data '{"level":"starter"}' \
+  "https://${API_FQDN}/api/v1/members/quiz/start")" || {
+  echo "Member quiz start smoke failed after API warm-up." >&2
+  exit 1
+}
+printf '%s' "$MEMBER_QUIZ_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("attempt_id") and len(data.get("questions") or []) == 10 else 1)'
 
 cat <<EOF
 Deployment complete.

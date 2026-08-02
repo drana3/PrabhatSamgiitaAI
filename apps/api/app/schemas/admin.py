@@ -135,10 +135,13 @@ class AdminFeedbackItem(BaseModel):
     status: str
     created_at: str
     priority: bool = False
+    on_live_ticker: bool = False
 
 
 class AdminFeedbackUpdate(BaseModel):
-    status: Literal["new", "reviewed", "actioned", "dismissed"]
+    status: Literal["new", "reviewed", "actioned", "dismissed"] | None = None
+    publish_to_live: bool = False
+    unpublish_from_live: bool = False
     review_note: str | None = Field(default=None, max_length=2000)
 
 

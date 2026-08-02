@@ -349,13 +349,16 @@ async def update_feedback(
     feedback = await session.get(UserFeedback, feedback_id)
     if not feedback:
         raise HTTPException(status_code=404, detail="Feedback not found")
-    feedback.status = payload.status
-    await session.commit()
-    await session.refresh(feedback)
+    if payload.status is None and not payload.publish_to_live and not payload.unpublish_from_live:
+        raise HTTPException(status_code=400, detail="No feedback update provided")
+    if payload.status is not None:
+        feedback.status = payload.status
+        await session.commit()
+        await session.refresh(feedback)
     logger.info(
         "Feedback %s marked %s by %s%s",
         feedback_id,
-        payload.status,
+        payload.status or feedback.status,
         admin,
         f": {payload.review_note}" if payload.review_note else "",
     )

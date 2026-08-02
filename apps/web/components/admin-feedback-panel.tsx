@@ -77,18 +77,25 @@ export function AdminFeedbackPanel({
     void loadFeedback()
   }, [loadFeedback, loadedStatus, status])
 
-  async function updateStatus(feedbackId: string, nextStatus: "reviewed" | "actioned" | "dismissed") {
+  async function patchFeedback(
+    feedbackId: string,
+    body: {
+      status?: "reviewed" | "actioned" | "dismissed"
+      publish_to_live?: boolean
+      unpublish_from_live?: boolean
+    },
+  ) {
     setUpdatingId(feedbackId)
     try {
       const response = await fetch(`/api/admin/feedback?id=${encodeURIComponent(feedbackId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify(body),
       })
       if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        setError(readErrorDetail(body, "Could not update feedback"))
+        const payload = await response.json().catch(() => null)
+        setError(readErrorDetail(payload, "Could not update feedback"))
         return
       }
       setLoadedStatus(null)
@@ -96,6 +103,10 @@ export function AdminFeedbackPanel({
     } finally {
       setUpdatingId(null)
     }
+  }
+
+  async function updateStatus(feedbackId: string, nextStatus: "reviewed" | "actioned" | "dismissed") {
+    await patchFeedback(feedbackId, { status: nextStatus })
   }
 
   return (
@@ -166,6 +177,11 @@ export function AdminFeedbackPanel({
                     <span className="text-sm font-semibold text-gold-700">{"★".repeat(item.rating)}{"☆".repeat(5 - item.rating)}</span>
                     {item.priority ? <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-700">Priority</span> : null}
                     <span className="rounded-full bg-ivory-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-600">{item.status}</span>
+                    {item.on_live_ticker ? (
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-800">
+                        On live ticker
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-navy-950">{item.comment}</p>
                   <p className="mt-3 text-xs text-stone-500">
@@ -176,36 +192,57 @@ export function AdminFeedbackPanel({
                 </div>
               </div>
 
-              {item.status === "new" || item.status === "reviewed" ? (
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-navy-900/10 pt-4">
-                  {item.status === "new" ? (
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-navy-900/10 pt-4">
+                {item.status === "new" ? (
+                  <button
+                    type="button"
+                    disabled={updatingId === item.feedback_id}
+                    onClick={() => void updateStatus(item.feedback_id, "reviewed")}
+                    className="soft-chip"
+                  >
+                    Mark reviewed
+                  </button>
+                ) : null}
+                {item.status === "new" || item.status === "reviewed" ? (
+                  <>
                     <button
                       type="button"
                       disabled={updatingId === item.feedback_id}
-                      onClick={() => void updateStatus(item.feedback_id, "reviewed")}
+                      onClick={() => void updateStatus(item.feedback_id, "actioned")}
                       className="soft-chip"
                     >
-                      Mark reviewed
+                      Mark actioned
                     </button>
-                  ) : null}
+                    <button
+                      type="button"
+                      disabled={updatingId === item.feedback_id}
+                      onClick={() => void updateStatus(item.feedback_id, "dismissed")}
+                      className="soft-chip"
+                    >
+                      Dismiss
+                    </button>
+                  </>
+                ) : null}
+                {item.on_live_ticker ? (
                   <button
                     type="button"
                     disabled={updatingId === item.feedback_id}
-                    onClick={() => void updateStatus(item.feedback_id, "actioned")}
+                    onClick={() => void patchFeedback(item.feedback_id, { unpublish_from_live: true })}
                     className="soft-chip"
                   >
-                    Mark actioned
+                    Remove from live ticker
                   </button>
+                ) : (
                   <button
                     type="button"
-                    disabled={updatingId === item.feedback_id}
-                    onClick={() => void updateStatus(item.feedback_id, "dismissed")}
-                    className="soft-chip"
+                    disabled={updatingId === item.feedback_id || item.comment.trim().length < 12}
+                    onClick={() => void patchFeedback(item.feedback_id, { publish_to_live: true })}
+                    className="gold-button px-4 py-2 text-xs"
                   >
-                    Dismiss
+                    Show on live ticker
                   </button>
-                </div>
-              ) : null}
+                )}
+              </div>
             </article>
           ))}
         </div>

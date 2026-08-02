@@ -17,11 +17,19 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "user_accounts",
-        sa.Column("is_admin", sa.Boolean(), server_default="false", nullable=False),
+    # Idempotent: safe if create_all / startup DDL already added the column.
+    op.execute(
+        sa.text(
+            "ALTER TABLE user_accounts "
+            "ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false"
+        )
     )
-    op.create_index("ix_user_accounts_is_admin", "user_accounts", ["is_admin"])
+    op.execute(
+        sa.text(
+            "CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin "
+            "ON user_accounts (is_admin)"
+        )
+    )
 
 
 def downgrade() -> None:

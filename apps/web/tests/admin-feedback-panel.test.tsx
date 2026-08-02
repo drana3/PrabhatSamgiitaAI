@@ -43,6 +43,31 @@ describe("AdminFeedbackPanel", () => {
     )
   })
 
+  it("offers a publish control for the live ticker", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        total: 1,
+        items: [{
+          feedback_id: "fb-live",
+          category: "experience",
+          rating: 5,
+          comment: "Prabhat Samgiita AI brings calm into my practice",
+          page_path: "/",
+          contact: null,
+          status: "new",
+          created_at: "2026-08-02T12:00:00+00:00",
+          priority: false,
+          on_live_ticker: false,
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    render(<AdminFeedbackPanel initialStatus="new" />)
+    expect(await screen.findByRole("button", { name: "Show on live ticker" })).toBeInTheDocument()
+  })
+
   it("lets the admin retry after a failed client load", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({

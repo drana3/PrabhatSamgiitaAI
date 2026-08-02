@@ -38,38 +38,59 @@ def _run_alembic_migrations() -> None:
     command.upgrade(config, "head")
 
 
+async def _ensure_member_schema() -> None:
+    """Idempotent member DDL that must run even when Alembic is stuck or OOM-killed.
+
+    create_all creates quiz_attempts / quiz_certifications and other ORM tables.
+    Explicit ADD COLUMN covers older user_accounts rows that predate is_admin
+    (create_all does not add missing columns on existing tables).
+    """
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin "
+                "ON user_accounts (is_admin)"
+            )
+        )
+
+    # Non-critical wideners: never block member/admin/quiz schema.
+    for statement, label in (
+        ("ALTER TABLE songs ALTER COLUMN theme TYPE TEXT", "songs.theme"),
+        ("ALTER TABLE inventory_items ALTER COLUMN title TYPE TEXT", "inventory_items.title"),
+    ):
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text(statement))
+        except Exception:
+            logger.exception("Skipping optional column widen for %s", label)
+
+
 async def initialize_schema() -> None:
     try:
         await asyncio.to_thread(_run_alembic_migrations)
-        for statement, label in (
-            ("CREATE EXTENSION IF NOT EXISTS vector", "vector"),
-            ("CREATE EXTENSION IF NOT EXISTS pg_trgm", "pg_trgm"),
-            ("CREATE EXTENSION IF NOT EXISTS unaccent", "unaccent"),
-        ):
-            try:
-                async with engine.begin() as conn:
-                    await conn.execute(text(statement))
-            except Exception:
-                logger.exception("Skipping optional extension setup for %s", label)
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            # Existing deployments used VARCHAR(255), but canonical theme sets can
-            # exceed that length. This idempotent widening runs before data import.
-            await conn.execute(text("ALTER TABLE songs ALTER COLUMN theme TYPE TEXT"))
-            await conn.execute(text("ALTER TABLE inventory_items ALTER COLUMN title TYPE TEXT"))
-            # Member admin features need is_admin even if alembic history was skipped.
-            await conn.execute(
-                text(
-                    "ALTER TABLE user_accounts "
-                    "ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false"
-                )
-            )
-            await conn.execute(
-                text(
-                    "CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin "
-                    "ON user_accounts (is_admin)"
-                )
-            )
+    except Exception:
+        logger.exception("Alembic upgrade failed; continuing with idempotent schema ensure")
+
+    for statement, label in (
+        ("CREATE EXTENSION IF NOT EXISTS vector", "vector"),
+        ("CREATE EXTENSION IF NOT EXISTS pg_trgm", "pg_trgm"),
+        ("CREATE EXTENSION IF NOT EXISTS unaccent", "unaccent"),
+    ):
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text(statement))
+        except Exception:
+            logger.exception("Skipping optional extension setup for %s", label)
+
+    try:
+        await _ensure_member_schema()
     except Exception:
         logger.exception("Database initialization skipped because the database is unavailable")
 

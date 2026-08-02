@@ -48,6 +48,7 @@ export type AdminFeedbackItem = {
   status: string
   created_at: string
   priority: boolean
+  on_live_ticker?: boolean
 }
 
 export type AdminFeedbackResponse = {

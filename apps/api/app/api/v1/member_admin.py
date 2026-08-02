@@ -18,6 +18,11 @@ from app.services.admin_members import (
     require_admin_member,
     revoke_admin,
 )
+from app.services.feedback_live import (
+    feedback_is_on_live_ticker,
+    publish_feedback_to_live,
+    unpublish_feedback_from_live,
+)
 from app.services.feedback_triage import feedback_is_priority
 from app.services.members import require_member_identity, sync_member
 
@@ -84,6 +89,21 @@ async def admin_revoke(
     return _admin_item(member)
 
 
+async def _feedback_item(session: AsyncSession, item: UserFeedback) -> AdminFeedbackItem:
+    return AdminFeedbackItem(
+        feedback_id=str(item.id),
+        category=item.category,
+        rating=item.rating,
+        comment=item.comment,
+        page_path=item.page_path,
+        contact=item.contact,
+        status=item.status,
+        created_at=(item.created_at.isoformat() if item.created_at else ""),
+        priority=feedback_is_priority(item.category, item.rating),
+        on_live_ticker=await feedback_is_on_live_ticker(session, item.comment),
+    )
+
+
 @router.get("/feedback", response_model=AdminFeedbackListResponse)
 async def admin_feedback_list(
     request: Request,
@@ -102,20 +122,8 @@ async def admin_feedback_list(
     result = await session.execute(
         statement.order_by(UserFeedback.created_at.desc()).offset(offset).limit(limit)
     )
-    items = [
-        AdminFeedbackItem(
-            feedback_id=str(item.id),
-            category=item.category,
-            rating=item.rating,
-            comment=item.comment,
-            page_path=item.page_path,
-            contact=item.contact,
-            status=item.status,
-            created_at=(item.created_at.isoformat() if item.created_at else ""),
-            priority=feedback_is_priority(item.category, item.rating),
-        )
-        for item in result.scalars().all()
-    ]
+    rows = list(result.scalars().all())
+    items = [await _feedback_item(session, item) for item in rows]
     return AdminFeedbackListResponse(total=int(total or 0), items=items)
 
 
@@ -130,17 +138,19 @@ async def admin_feedback_update(
     feedback = await session.get(UserFeedback, feedback_id)
     if feedback is None:
         raise HTTPException(status_code=404, detail="Feedback not found")
-    feedback.status = payload.status
-    await session.commit()
-    await session.refresh(feedback)
-    return AdminFeedbackItem(
-        feedback_id=str(feedback.id),
-        category=feedback.category,
-        rating=feedback.rating,
-        comment=feedback.comment,
-        page_path=feedback.page_path,
-        contact=feedback.contact,
-        status=feedback.status,
-        created_at=feedback.created_at.isoformat(),
-        priority=feedback_is_priority(feedback.category, feedback.rating),
-    )
+    if payload.status is not None:
+        feedback.status = payload.status
+        await session.commit()
+        await session.refresh(feedback)
+    if payload.publish_to_live:
+        try:
+            await publish_feedback_to_live(session, feedback)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if feedback.status == "new":
+            feedback.status = "actioned"
+            await session.commit()
+            await session.refresh(feedback)
+    if payload.unpublish_from_live:
+        await unpublish_feedback_from_live(session, feedback)
+    return await _feedback_item(session, feedback)
