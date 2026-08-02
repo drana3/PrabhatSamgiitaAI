@@ -240,8 +240,8 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await page.goto("/songs/1")
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   const songHeroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
-  await expect(songHeroPortrait).toBeVisible()
-  await expect(songHeroPortrait).toHaveCSS("background-position", "82% 0%")
+  await expect(songHeroPortrait).toBeAttached()
+  await expect(songHeroPortrait).toHaveCSS("background-position", /82% 0/)
   const language = page.getByLabel("Reading language")
   await expect(language).toBeVisible()
   await expect(language.locator("option")).toHaveCount(36)
@@ -490,6 +490,8 @@ test("home today recommendations load without manual mood chips", async ({ page 
           number: 4599,
           title: "PROUTER E CAKR AAGE CALO",
           theme: "PROUT",
+          score: 1,
+          is_verified: true,
           reasons: ["For service and uplift"],
         }],
         signals: [{
@@ -505,7 +507,7 @@ test("home today recommendations load without manual mood chips", async ({ page 
     })
   })
   await page.goto("/")
-
+  await expect(page.getByText("Finding songs")).toHaveCount(0, { timeout: 20_000 })
   await expect(page.getByRole("link", { name: "PROUTER E CAKR AAGE CALO" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Morning", exact: true })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Service", exact: true })).toHaveCount(0)

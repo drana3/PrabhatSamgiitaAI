@@ -4,7 +4,7 @@ const ci = Boolean(process.env.CI)
 const apiServerCommand = ci
   ? ".venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011"
   : "uv run uvicorn app.main:app --host 127.0.0.1 --port 8011"
-const webServerCommand = ci ? "npm run start" : "npm run start:standalone"
+const webServerCommand = "npm run start:standalone"
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -43,6 +43,7 @@ export default defineConfig({
       timeout: 120000,
       env: {
         NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8011",
+        NEXT_PUBLIC_AUTH_ENABLED: "true",
       },
     },
   ],
