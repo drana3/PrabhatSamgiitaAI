@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CommunityTestimonial, UserFeedback
 
+# Keep in sync with admin feedback panel live-ticker publish guard.
+MIN_LIVE_QUOTE_LENGTH = 8
+
 
 def live_display_name(feedback: UserFeedback) -> str:
     contact = (feedback.contact or "").strip()
@@ -36,8 +39,10 @@ async def publish_feedback_to_live(
     session: AsyncSession, feedback: UserFeedback
 ) -> CommunityTestimonial:
     quote = feedback.comment.strip()
-    if len(quote) < 12:
-        raise ValueError("Comment is too short to show on the live ticker")
+    if len(quote) < MIN_LIVE_QUOTE_LENGTH:
+        raise ValueError(
+            f"Comment needs at least {MIN_LIVE_QUOTE_LENGTH} characters for the live ticker"
+        )
 
     now = datetime.now(UTC)
     existing = await session.scalar(

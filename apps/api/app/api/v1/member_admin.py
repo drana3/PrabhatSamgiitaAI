@@ -147,10 +147,6 @@ async def admin_feedback_update(
             await publish_feedback_to_live(session, feedback)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        if feedback.status == "new":
-            feedback.status = "actioned"
-            await session.commit()
-            await session.refresh(feedback)
     if payload.unpublish_from_live:
         await unpublish_feedback_from_live(session, feedback)
     return await _feedback_item(session, feedback)

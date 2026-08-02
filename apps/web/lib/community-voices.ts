@@ -6,7 +6,7 @@ export function mergeCommunityVoices(fromApi: CommunityTestimonial[]): Community
 
   for (const item of fromApi) {
     const quote = item.quote_text.trim()
-    if (quote.length < 12) continue
+    if (quote.length < 8) continue
     const key = quote.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)

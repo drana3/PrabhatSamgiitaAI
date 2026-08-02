@@ -20,7 +20,7 @@ describe("mergeCommunityVoices", () => {
       {
         display_name: "Too short",
         display_location: "Nowhere",
-        quote_text: "Nice app",
+        quote_text: "Nice",
       },
     ])
 

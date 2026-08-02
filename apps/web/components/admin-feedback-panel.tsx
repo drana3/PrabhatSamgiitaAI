@@ -40,9 +40,12 @@ export function AdminFeedbackPanel({
   const [loading, setLoading] = useState(!hasUsableInitial)
   const [error, setError] = useState(initialData?.error ?? "")
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [notice, setNotice] = useState("")
   const [loadedStatus, setLoadedStatus] = useState<string | null>(
     hasUsableInitial ? initialStatus : null,
   )
+
+  const MIN_LIVE_QUOTE_LENGTH = 8
 
   const loadFeedback = useCallback(async () => {
     setLoading(true)
@@ -86,6 +89,8 @@ export function AdminFeedbackPanel({
     },
   ) {
     setUpdatingId(feedbackId)
+    setError("")
+    setNotice("")
     try {
       const response = await fetch(`/api/admin/feedback?id=${encodeURIComponent(feedbackId)}`, {
         method: "PATCH",
@@ -98,8 +103,15 @@ export function AdminFeedbackPanel({
         setError(readErrorDetail(payload, "Could not update feedback"))
         return
       }
+      if (body.publish_to_live) {
+        setNotice("Published to the live ticker. Refresh the home page to see it scroll.")
+      } else if (body.unpublish_from_live) {
+        setNotice("Removed from the live ticker.")
+      }
       setLoadedStatus(null)
       await loadFeedback()
+    } catch {
+      setError("Could not reach the admin service")
     } finally {
       setUpdatingId(null)
     }
@@ -139,6 +151,9 @@ export function AdminFeedbackPanel({
         </div>
 
         <p className="mt-4 text-sm text-stone-600">{loading ? "Loading feedback..." : `${total} submission${total === 1 ? "" : "s"}`}</p>
+        {notice ? (
+          <p className="mt-3 text-sm text-emerald-800" role="status">{notice}</p>
+        ) : null}
         {error ? (
           <div className="mt-3 flex flex-wrap items-center gap-3" role="alert">
             <p className="text-sm text-red-700">{error}</p>
@@ -235,8 +250,22 @@ export function AdminFeedbackPanel({
                 ) : (
                   <button
                     type="button"
-                    disabled={updatingId === item.feedback_id || item.comment.trim().length < 12}
-                    onClick={() => void patchFeedback(item.feedback_id, { publish_to_live: true })}
+                    disabled={updatingId === item.feedback_id}
+                    title={
+                      item.comment.trim().length < MIN_LIVE_QUOTE_LENGTH
+                        ? `Needs at least ${MIN_LIVE_QUOTE_LENGTH} characters`
+                        : "Publish this comment on the home-page ticker"
+                    }
+                    onClick={() => {
+                      if (item.comment.trim().length < MIN_LIVE_QUOTE_LENGTH) {
+                        setNotice("")
+                        setError(
+                          `Comment needs at least ${MIN_LIVE_QUOTE_LENGTH} characters to show on the live ticker.`,
+                        )
+                        return
+                      }
+                      void patchFeedback(item.feedback_id, { publish_to_live: true })
+                    }}
                     className="gold-button px-4 py-2 text-xs"
                   >
                     Show on live ticker
