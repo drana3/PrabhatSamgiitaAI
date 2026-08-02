@@ -52,7 +52,7 @@ describe("member proxy route", () => {
     expect(body.detail).toMatch(/not configured/i)
   })
 
-  it("falls back to Azure identity when the member API session fails", async () => {
+  it("keeps member writes enabled when session API fails but the proxy key is present", async () => {
     process.env.MEMBER_PROXY_KEY = "proxy-key"
     process.env.NODE_ENV = "production"
     const principal = buildClientPrincipal("user-oid-42", "member@example.com")
@@ -69,7 +69,7 @@ describe("member proxy route", () => {
 
     expect(response.status).toBe(200)
     expect(body.authenticated).toBe(true)
-    expect(body.member_backend).toBe(false)
+    expect(body.member_backend).toBe(true)
     expect(body.personalization_enabled).toBe(true)
   })
 

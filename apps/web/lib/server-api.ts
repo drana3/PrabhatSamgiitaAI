@@ -1,8 +1,9 @@
 import type { SongSummary } from "@/lib/api"
+import { runtimeEnv } from "@/lib/runtime-env"
 
 function apiBase() {
-  return process.env.API_BASE_URL
-    ?? process.env.NEXT_PUBLIC_API_BASE_URL
+  return runtimeEnv("API_BASE_URL")
+    ?? runtimeEnv("NEXT_PUBLIC_API_BASE_URL")
     ?? "http://localhost:8000"
 }
 

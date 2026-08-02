@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
+import { runtimeEnv } from "@/lib/runtime-env"
 
 const allowedPaths = new Set([
   "session",
@@ -14,8 +15,8 @@ const allowedPaths = new Set([
 export const dynamic = "force-dynamic"
 
 function backendBase() {
-  return process.env.API_BASE_URL
-    ?? process.env.NEXT_PUBLIC_API_BASE_URL
+  return runtimeEnv("API_BASE_URL")
+    ?? runtimeEnv("NEXT_PUBLIC_API_BASE_URL")
     ?? "http://localhost:8000"
 }
 
@@ -35,17 +36,18 @@ function sessionResponse(body: unknown, status = 200) {
   })
 }
 
-/** Azure-authenticated identity without a working member API.
+/** Azure-authenticated identity when the live member session payload is unavailable.
  * Must stay authenticated:true or Sign in ↔ /signin redirects loop forever.
+ * member_backend is false only when the web proxy key itself is missing.
  */
-function principalSessionFallback(principal: string) {
+function principalSessionFallback(principal: string, memberBackend: boolean) {
   const profile = parseClientPrincipalProfile(principal)
   if (!profile) return null
   return {
     ...profile,
     favorite_song_numbers: [],
     personalization_enabled: true,
-    member_backend: false,
+    member_backend: memberBackend,
   }
 }
 
@@ -57,10 +59,10 @@ async function forward(request: NextRequest, segments: string[]) {
     if (root === "session") return sessionResponse({ authenticated: false })
     return sessionResponse({ detail: "Sign in is required" }, 401)
   }
-  const proxyKey = process.env.MEMBER_PROXY_KEY
+  const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   if (!proxyKey) {
     if (root === "session") {
-      const fallback = principalSessionFallback(principal)
+      const fallback = principalSessionFallback(principal, false)
       if (fallback) return sessionResponse(fallback)
       return sessionResponse({ authenticated: false })
     }
@@ -84,8 +86,8 @@ async function forward(request: NextRequest, segments: string[]) {
 
   if (root === "session" && !response.ok) {
     // Keep Azure identity visible so the UI does not bounce Sign in → /signin.
-    // Writes still go through the live API and fail clearly when it is down.
-    const fallback = principalSessionFallback(principal)
+    // Proxy key is present, so allow write attempts; favorites/chat show API errors.
+    const fallback = principalSessionFallback(principal, true)
     if (fallback) return sessionResponse(fallback)
   }
 

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { resolveClientPrincipal } from "@/lib/azure-principal"
+import { runtimeEnv } from "@/lib/runtime-env"
 
 function backendBase() {
-  return process.env.API_BASE_URL
-    ?? process.env.NEXT_PUBLIC_API_BASE_URL
+  return runtimeEnv("API_BASE_URL")
+    ?? runtimeEnv("NEXT_PUBLIC_API_BASE_URL")
     ?? "http://localhost:8000"
 }
 
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   const principal = resolveClientPrincipal(request.headers)
-  const proxyKey = process.env.MEMBER_PROXY_KEY
+  const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   if (principal && proxyKey) {
     headers["X-MS-CLIENT-PRINCIPAL"] = principal
     headers["X-Member-Proxy-Key"] = proxyKey

@@ -220,6 +220,33 @@ fi
 
 python3 "${ROOT_DIR}/scripts/validate_live_backend.py" "https://${API_FQDN}"
 
+# Authenticated member/admin smoke (never prints the proxy key).
+MEMBER_SMOKE_PRINCIPAL="$(python3 - <<'PY'
+import base64, json
+payload = {
+  "auth_typ": "aad",
+  "claims": [
+    {"typ": "http://schemas.microsoft.com/identity/claims/objectidentifier", "val": "deploy-smoke"},
+    {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "val": "deploy-smoke"},
+    {"typ": "name", "val": "Deploy Smoke"},
+    {"typ": "email", "val": "dewasheesh.rana3@gmail.com"},
+    {"typ": "preferred_username", "val": "dewasheesh.rana3@gmail.com"},
+  ],
+}
+print(base64.b64encode(json.dumps(payload).encode()).decode())
+PY
+)"
+MEMBER_SESSION_SMOKE="$(curl --fail --silent --show-error \
+  --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
+  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  "https://${API_FQDN}/api/v1/members/session")"
+printf '%s' "$MEMBER_SESSION_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("authenticated") is True and data.get("is_admin") is True else 1)'
+MEMBER_FEEDBACK_SMOKE="$(curl --fail --silent --show-error \
+  --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
+  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  "https://${API_FQDN}/api/v1/members/admin/feedback?status=new")"
+printf '%s' "$MEMBER_FEEDBACK_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if isinstance(data.get("items"), list) and "total" in data else 1)'
+
 cat <<EOF
 Deployment complete.
 Web: https://${WEB_FQDN}

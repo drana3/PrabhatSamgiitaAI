@@ -1,5 +1,7 @@
+import { runtimeEnv } from "@/lib/runtime-env"
+
 export function defaultAdminEmails(): Set<string> {
-  const raw = process.env.DEFAULT_ADMIN_EMAILS ?? ""
+  const raw = runtimeEnv("DEFAULT_ADMIN_EMAILS") ?? ""
   return new Set(
     raw.split(",").map((email) => email.trim().toLowerCase()).filter(Boolean),
   )

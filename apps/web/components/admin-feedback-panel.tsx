@@ -54,7 +54,7 @@ export function AdminFeedbackPanel({
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) {
-        setError(readErrorDetail(body, "Could not load feedback"))
+        setError(readErrorDetail(body, `Could not load feedback (${response.status})`))
         setItems([])
         setTotal(0)
         return

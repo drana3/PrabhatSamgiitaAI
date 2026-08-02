@@ -46,7 +46,8 @@ describe("member auth journeys", () => {
     const body = await response.json()
 
     expect(body.authenticated).toBe(true)
-    expect(body.member_backend).toBe(false)
+    // Proxy key is configured, so Save song / admin writes should still be attempted.
+    expect(body.member_backend).toBe(true)
     // UI should show account menu, not Sign in → /signin → redirect bounce.
     expect(body.display_name || body.email).toBeTruthy()
   })

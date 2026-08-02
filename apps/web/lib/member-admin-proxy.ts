@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server"
 
 import { isDefaultAdminEmail } from "@/lib/admin-emails"
 import { azureAuthForwardHeaders, parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
+import { runtimeEnv } from "@/lib/runtime-env"
 
 export function memberForwardHeaders(request: NextRequest) {
   return azureAuthForwardHeaders(request.headers)
@@ -32,8 +33,8 @@ export async function memberSessionIsAdmin(request: NextRequest) {
 }
 
 export function backendBaseUrl() {
-  return process.env.API_BASE_URL
-    ?? process.env.NEXT_PUBLIC_API_BASE_URL
+  return runtimeEnv("API_BASE_URL")
+    ?? runtimeEnv("NEXT_PUBLIC_API_BASE_URL")
     ?? "http://localhost:8000"
 }
 
@@ -72,7 +73,7 @@ export async function fetchAdminFeedback(
   source: Headers,
   status = "new",
 ): Promise<AdminFeedbackResponse> {
-  const proxyKey = process.env.MEMBER_PROXY_KEY
+  const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   const principal = resolveClientPrincipal(source)
   const authError = adminProxyAuthError(proxyKey, principal)
   if (authError) {
@@ -95,7 +96,7 @@ export async function fetchAdminFeedback(
       return {
         total: 0,
         items: [],
-        error: readAdminDetail(body, "Could not load feedback"),
+        error: readAdminDetail(body, `Could not load feedback (${response.status})`),
       }
     }
     const payload = body as AdminFeedbackResponse | null
@@ -113,7 +114,7 @@ export async function forwardMemberAdmin(
   path: string,
   init?: RequestInit,
 ) {
-  const proxyKey = process.env.MEMBER_PROXY_KEY
+  const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   const principal = resolveClientPrincipal(request.headers)
   const authError = adminProxyAuthError(proxyKey, principal)
   if (authError || !proxyKey || !principal) {
