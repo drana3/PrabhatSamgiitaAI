@@ -3,7 +3,9 @@ from app.services.domain_catalog import (
     fixed_reviewed_festival,
     reviewed_festival_collection_labels,
     reviewed_festival_song_numbers,
+    reviewed_humanitarian_collection_labels,
     season_for_month,
+    song_numbers_for_collection_labels,
     time_of_day,
 )
 
@@ -39,4 +41,14 @@ def test_festival_recommendations_use_only_exact_reviewed_collections() -> None:
         2649,
     }
     assert reviewed_festival_collection_labels(1, 25, 2026) == ()
+
+
+def test_humanitarian_context_uses_only_reviewed_source_collections() -> None:
+    assert reviewed_humanitarian_collection_labels("peace") == ("Neo-Humanism Songs",)
+    assert reviewed_humanitarian_collection_labels("service") == (
+        "AMURT Song",
+        "Neo-Humanism Songs",
+    )
+    assert reviewed_humanitarian_collection_labels("unknown") == ()
+    assert song_numbers_for_collection_labels(("Neo-Humanism Songs",))
     assert reviewed_festival_song_numbers(1, 25, 2026) == ()

@@ -6,8 +6,11 @@ from datetime import date
 
 import httpx
 
-UN_NEWS_RSS = "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
-UN_OBSERVANCES_URL = "https://www.un.org/en/observances/list-days-weeks"
+NDMA_ALL_INDIA_RSS = (
+    "https://sachet.ndma.gov.in/cap_public_website/rss/rss_india.xml"
+)
+NDMA_SACHET_URL = "https://sachet.ndma.gov.in/"
+INDIA_NATIONAL_PORTAL = "https://knowindia.india.gov.in/"
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,211 +23,127 @@ class ContextSignal:
     keywords: tuple[str, ...]
 
 
-def _observance(title: str, category: str, summary: str, *keywords: str) -> ContextSignal:
+def _india_observance(
+    title: str, category: str, summary: str, *keywords: str
+) -> ContextSignal:
     return ContextSignal(
         title=title,
         category=category,
         summary=summary,
-        source_name="United Nations",
-        source_url=UN_OBSERVANCES_URL,
+        source_name="National Portal of India",
+        source_url=INDIA_NATIONAL_PORTAL,
         keywords=keywords,
     )
 
 
-UN_OBSERVANCES = {
-    (1, 24): _observance(
-        "International Day of Education",
+INDIA_OBSERVANCES = {
+    (1, 12): _india_observance(
+        "National Youth Day",
         "humanity",
-        "Learning, dignity, and collective progress.",
-        "education",
+        "Courage, service, and the potential of young people.",
+        "youth",
         "service",
-        "hope",
+        "courage",
     ),
-    (2, 20): _observance(
-        "World Day of Social Justice",
-        "service",
-        "Dignity, fairness, and welfare for all.",
-        "social justice",
-        "service",
+    (1, 26): _india_observance(
+        "Republic Day of India",
         "humanity",
-    ),
-    (3, 8): _observance(
-        "International Women's Day",
+        "Collective dignity, responsibility, and national welfare.",
         "humanity",
-        "Equality, courage, and the dignity of women.",
-        "women",
         "dignity",
-        "courage",
-    ),
-    (3, 20): _observance(
-        "International Day of Happiness",
-        "bliss",
-        "Well-being, joy, and the shared human spirit.",
-        "happiness",
-        "bliss",
-        "joy",
-    ),
-    (3, 22): _observance(
-        "World Water Day",
-        "nature",
-        "Care for water, life, and the natural world.",
-        "water",
-        "nature",
         "service",
     ),
-    (4, 22): _observance(
-        "International Mother Earth Day",
-        "nature",
-        "Reverence for our living planet.",
-        "earth",
-        "nature",
-        "environment",
-    ),
-    (5, 16): _observance(
-        "International Day of Living Together in Peace",
-        "peace",
-        "Harmony across communities and cultures.",
-        "peace",
-        "harmony",
+    (8, 15): _india_observance(
+        "Independence Day of India",
         "humanity",
-    ),
-    (6, 5): _observance(
-        "World Environment Day",
-        "nature",
-        "Collective care for nature and future generations.",
-        "nature",
-        "environment",
-        "service",
-    ),
-    (6, 20): _observance(
-        "World Refugee Day",
+        "Freedom joined with social responsibility and collective progress.",
+        "freedom",
         "humanity",
-        "Compassion and dignity for displaced people.",
-        "refugee",
-        "compassion",
         "service",
     ),
-    (6, 21): _observance(
-        "International Day of Yoga",
-        "meditation",
-        "Inner balance, health, and human unity.",
-        "meditation",
-        "harmony",
+    (10, 2): _india_observance(
+        "Gandhi Jayanti",
         "peace",
-    ),
-    (8, 19): _observance(
-        "World Humanitarian Day",
-        "service",
-        "Courageous service to people in need.",
-        "humanitarian",
+        "A day for courage, peace, and service to humanity.",
+        "peace",
         "service",
         "courage",
     ),
-    (9, 21): _observance(
-        "International Day of Peace",
-        "peace",
-        "A shared aspiration for peace and non-violence.",
-        "peace",
-        "love",
+    (10, 31): _india_observance(
+        "National Unity Day",
+        "humanity",
+        "Unity amid diversity and shared national welfare.",
+        "unity",
+        "humanity",
         "harmony",
     ),
-    (10, 2): _observance(
-        "International Day of Non-Violence",
-        "peace",
-        "Strength through compassion and non-violence.",
-        "non-violence",
-        "peace",
-        "courage",
-    ),
-    (12, 5): _observance(
-        "International Volunteer Day",
-        "service",
-        "Service, solidarity, and collective welfare.",
-        "volunteer",
-        "service",
+    (11, 26): _india_observance(
+        "Constitution Day of India",
         "humanity",
-    ),
-    (12, 10): _observance(
-        "Human Rights Day",
-        "humanity",
-        "Universal dignity and freedom.",
-        "human rights",
+        "Justice, dignity, and responsibility in collective life.",
+        "justice",
         "dignity",
         "humanity",
-    ),
-    (12, 21): _observance(
-        "World Meditation Day",
-        "meditation",
-        "A global moment for inner peace.",
-        "meditation",
-        "peace",
-        "bliss",
     ),
 }
 
-IMPACT_GROUPS = (
-    (
-        "peace",
-        ("war", "conflict", "violence", "ceasefire", "peace", "attack"),
-        ("peace", "compassion", "courage"),
-    ),
-    (
-        "disaster",
-        ("flood", "earthquake", "cyclone", "storm", "wildfire", "drought"),
-        ("service", "hope", "humanity"),
-    ),
-    (
-        "humanity",
-        ("refugee", "hunger", "famine", "displaced", "humanitarian", "poverty"),
-        ("compassion", "service", "humanity"),
-    ),
-    (
-        "service",
-        ("volunteer", "aid", "relief", "health", "education"),
-        ("service", "courage", "hope"),
-    ),
+DISASTER_MARKERS = (
+    "flood",
+    "earthquake",
+    "cyclone",
+    "storm surge",
+    "landslide",
+    "cloudburst",
+    "tsunami",
+    "drought",
+    "wildfire",
+    "forest fire",
+    "building collapse",
+    "industrial fire",
+    "flash flood",
+    "above normal flood",
+    "severe weather",
 )
 
 
 def observance_for_day(day: date) -> ContextSignal | None:
-    return UN_OBSERVANCES.get((day.month, day.day))
+    return INDIA_OBSERVANCES.get((day.month, day.day))
 
 
-def parse_un_news(xml_text: str) -> list[ContextSignal]:
+def parse_india_disaster_alerts(xml_text: str) -> list[ContextSignal]:
+    """Return only significant India disaster signals, not routine weather forecasts."""
     root = ET.fromstring(xml_text)
     signals: list[ContextSignal] = []
-    for item in root.findall("./channel/item")[:20]:
-        title = (item.findtext("title") or "").strip()
-        link = (item.findtext("link") or UN_NEWS_RSS).strip()
-        description = " ".join((item.findtext("description") or "").split())
-        searchable = f"{title} {description}".casefold()
-        for category, markers, keywords in IMPACT_GROUPS:
-            if any(marker in searchable for marker in markers):
-                signals.append(
-                    ContextSignal(
-                        title=title,
-                        category=category,
-                        summary=(
-                            "A current humanitarian context reflected through peace, "
-                            "hope, and service."
-                        ),
-                        source_name="UN News",
-                        source_url=link,
-                        keywords=keywords,
-                    )
-                )
-                break
+    for item in root.findall("./channel/item")[:80]:
+        title = " ".join((item.findtext("title") or "").split())
+        searchable = title.casefold()
+        if not title or not any(marker in searchable for marker in DISASTER_MARKERS):
+            continue
+        link = (item.findtext("link") or NDMA_SACHET_URL).strip()
+        signals.append(
+            ContextSignal(
+                title=title,
+                category="disaster",
+                summary=(
+                    "An official India disaster alert calling for compassion, "
+                    "courage, and service to affected communities."
+                ),
+                source_name="NDMA SACHET",
+                source_url=link,
+                keywords=("service", "relief", "hope", "humanity"),
+            )
+        )
         if len(signals) >= 2:
             break
     return signals
 
 
-async def current_humanitarian_signals() -> list[ContextSignal]:
+async def current_india_humanitarian_signals() -> list[ContextSignal]:
     try:
-        # News is optional enrichment and must never delay the core recommendation path.
-        async with httpx.AsyncClient(timeout=1.0, follow_redirects=True) as client:
-            response = await client.get(UN_NEWS_RSS)
+        # Current alerts enrich the page but must never delay core song discovery.
+        async with httpx.AsyncClient(timeout=1.5, follow_redirects=True) as client:
+            response = await client.get(NDMA_ALL_INDIA_RSS)
             response.raise_for_status()
-        return parse_un_news(response.text)
+        return parse_india_disaster_alerts(response.text)
     except (httpx.HTTPError, ET.ParseError):
         return []

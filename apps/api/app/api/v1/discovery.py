@@ -49,14 +49,16 @@ from app.services.domain_catalog import (
     reviewed_festival_collection_labels,
     reviewed_festival_context,
     reviewed_festival_song_numbers,
+    reviewed_humanitarian_collection_labels,
     season_for_month,
+    song_numbers_for_collection_labels,
     time_of_day,
 )
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 from app.services.reflections import select_reflection
 from app.services.world_context import (
     ContextSignal,
-    current_humanitarian_signals,
+    current_india_humanitarian_signals,
     observance_for_day,
 )
 
@@ -197,7 +199,13 @@ async def recommendations_today(
     cached = await today_cache.get(cache_key)
     if cached:
         return TodayResponse.model_validate(cached)
-    news_signals = await current_humanitarian_signals()
+    news_signals = await current_india_humanitarian_signals()
+    humanitarian_collection_labels = reviewed_humanitarian_collection_labels(
+        news_signals[0].category if news_signals else None
+    )
+    canonical_collection_labels = (
+        festival_collection_labels or humanitarian_collection_labels
+    )
     festival_signal = (
         ContextSignal(
             title=festival,
@@ -217,6 +225,7 @@ async def recommendations_today(
     )
     context_keywords = " ".join(keyword for signal in signals for keyword in signal.keywords)
     context["humanitarian_context"] = news_signals[0].category if news_signals else None
+    context["canonical_collections"] = list(canonical_collection_labels)
     catalog = CatalogService(session)
     songs = await catalog.list_songs(limit=10000)
     recommendation_context = RecommendationContext(
@@ -244,8 +253,11 @@ async def recommendations_today(
         maximum_results=3,
     )
     engine = RecommendationEngine()
-    if festival:
-        eligible_songs = [song for song in songs if song.number in festival_song_numbers]
+    if canonical_collection_labels:
+        eligible_song_numbers = festival_song_numbers or set(
+            song_numbers_for_collection_labels(canonical_collection_labels)
+        )
+        eligible_songs = [song for song in songs if song.number in eligible_song_numbers]
         ranked = await engine.rank_source_constrained(
             session,
             eligible_songs,
@@ -259,10 +271,10 @@ async def recommendations_today(
         notation = await catalog.get_notation(item.song.number)
         audio = next((row for row in media if row.kind == "audio"), None)
         video = next((row for row in media if row.kind == "video" and row.embed_url), None)
-        if festival_collection_labels:
+        if canonical_collection_labels:
             reasons = [
                 f"From the reviewed {label.removesuffix(' Songs').removesuffix(' Song')} collection"
-                for label in festival_collection_labels
+                for label in canonical_collection_labels
             ]
         else:
             reasons = [signal.title for signal in signals[:1]]

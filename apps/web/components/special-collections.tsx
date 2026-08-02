@@ -4,7 +4,7 @@ import { specialCollectionCount, specialCollectionGroups } from "@/lib/special-c
 
 export function SpecialCollections({ activeQuery = "" }: { activeQuery?: string }) {
   return (
-    <details id="collections" open className="group/collection-browser scroll-mt-28 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-[0_16px_45px_rgba(42,31,15,0.08)] sm:p-7 lg:p-9">
+    <details id="collections" className="group/collection-browser scroll-mt-28 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-[0_16px_45px_rgba(42,31,15,0.08)] sm:p-7 lg:p-9">
       <summary className="grid cursor-pointer list-none gap-5 border-b border-navy-900/10 pb-6 marker:content-none lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
           <p className="eyebrow">Special collections</p>

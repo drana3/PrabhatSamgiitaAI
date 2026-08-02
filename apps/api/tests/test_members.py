@@ -7,7 +7,11 @@ from fastapi import HTTPException
 
 from app.models import ReflectionQuote, UserInterestProfile
 from app.services.members import _summary, decode_client_principal
-from app.services.reflections import reflection_context, select_reflection
+from app.services.reflections import (
+    has_book_provenance,
+    reflection_context,
+    select_reflection,
+)
 
 
 def encoded_principal(claims: list[dict[str, str]]) -> str:
@@ -55,7 +59,7 @@ def test_interest_summary_is_compact_and_long_lived() -> None:
 
 def quote(
     text: str,
-    source: str,
+    source: str = "Ánanda Sútram",
     *,
     observances: list[str] | None = None,
     themes: list[str] | None = None,
@@ -74,10 +78,10 @@ def quote(
 
 
 def test_independence_day_reflection_prefers_exact_reviewed_context() -> None:
-    daily = quote("Daily", "daily", themes=["meditation"])
+    daily = quote("Daily", themes=["meditation"])
     social = quote(
         "Social justice",
-        "prout",
+        "Prout in a Nutshell",
         observances=["independence-day-india"],
     )
 
@@ -88,12 +92,23 @@ def test_independence_day_reflection_prefers_exact_reviewed_context() -> None:
 
 
 def test_unverified_reflection_never_enters_rotation() -> None:
-    verified = quote("Verified", "verified")
-    pending = quote("Pending", "pending", observances=["new-year"], status="pending")
+    verified = quote("Verified")
+    pending = quote("Pending", observances=["new-year"], status="pending")
 
     selected, _ = select_reflection([pending, verified], date(2026, 1, 1))
 
     assert selected is verified
+
+
+def test_generic_web_article_never_enters_reflection_rotation() -> None:
+    book = quote("Book source")
+    article = quote("Article source", "Meditation", observances=["new-year"])
+
+    selected, _ = select_reflection([article, book], date(2026, 1, 1))
+
+    assert selected is book
+    assert has_book_provenance("Ánanda Vacanámrtam Part 12") is True
+    assert has_book_provenance("Meditation") is False
 
 
 def test_reflection_context_is_stable_for_ordinary_day() -> None:

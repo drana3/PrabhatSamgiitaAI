@@ -5,10 +5,20 @@ from functools import lru_cache
 from app.services.seed_data import load_rows
 
 TIMEZONE_ALIASES = {"Asia/Calcutta": "Asia/Kolkata"}
+HUMANITARIAN_COLLECTION_LABELS = {
+    "peace": ("Neo-Humanism Songs",),
+    "service": ("AMURT Song", "Neo-Humanism Songs"),
+    "disaster": ("AMURT Song", "Neo-Humanism Songs"),
+    "humanity": ("Neo-Humanism Songs",),
+}
 
 
 def canonical_timezone(timezone: str) -> str:
     return TIMEZONE_ALIASES.get(timezone, timezone)
+
+
+def reviewed_humanitarian_collection_labels(category: str | None) -> tuple[str, ...]:
+    return HUMANITARIAN_COLLECTION_LABELS.get(category or "", ())
 
 
 OCCASIONS = [
@@ -206,14 +216,19 @@ def reviewed_festival_collection_labels(
 
 def reviewed_festival_song_numbers(month: int, day: int, year: int) -> tuple[int, ...]:
     labels = set(reviewed_festival_collection_labels(month, day, year))
-    if not labels:
+    return song_numbers_for_collection_labels(labels)
+
+
+def song_numbers_for_collection_labels(labels: set[str] | tuple[str, ...]) -> tuple[int, ...]:
+    normalized_labels = set(labels)
+    if not normalized_labels:
         return ()
     return tuple(
         sorted(
             {
                 int(number)
                 for row in load_rows("theme_collections.json")
-                if str(row.get("label")) in labels
+                if str(row.get("label")) in normalized_labels
                 for number in row.get("song_numbers", [])
             }
         )

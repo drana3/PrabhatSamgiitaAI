@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
+import { LoadingIndicator } from "@/components/loading-indicator"
 import { localeOptions } from "@/lib/languages"
 
 export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: string }) {
@@ -63,7 +64,7 @@ export function SongLanguageSwitcher({ selectedLanguage }: { selectedLanguage: s
           ))}
         </select>
       </label>
-      {translating ? <div role="status" aria-live="polite" className="mt-2 overflow-hidden rounded-full bg-gold-100"><span className="block h-1 w-2/3 animate-pulse rounded-full bg-gold-600" /><span className="sr-only">Translation in progress</span></div> : null}
+      {translating ? <div className="mt-2 flex justify-end text-gold-800"><LoadingIndicator label="Translating" compact /></div> : null}
     </div>
   )
 }

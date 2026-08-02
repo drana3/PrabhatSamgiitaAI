@@ -17,11 +17,27 @@ FIXED_CONTEXTS = {
     (12, 10): ("human-rights-day", "Human Rights Day"),
 }
 
+BOOK_SOURCE_MARKERS = (
+    "ananda sutram",
+    "ananda vacanamrtam",
+    "ananda vachanamritam",
+    "caryacarya",
+    "prout in a nutshell",
+)
+
 
 def _slug(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value.casefold())
     plain = "".join(character for character in normalized if not unicodedata.combining(character))
     return re.sub(r"[^a-z0-9]+", "-", plain).strip("-")
+
+
+def has_book_provenance(source_title: str) -> bool:
+    normalized = unicodedata.normalize("NFKD", source_title.casefold())
+    plain = "".join(
+        character for character in normalized if not unicodedata.combining(character)
+    )
+    return any(marker in plain for marker in BOOK_SOURCE_MARKERS)
 
 
 def reflection_context(day: date, requested_theme: str | None = None) -> tuple[str, str]:
@@ -50,6 +66,7 @@ def select_reflection(
         quote
         for quote in quotes
         if quote.is_active and quote.verification_status == "source_verified"
+        and has_book_provenance(quote.source_title)
     ]
     if not eligible:
         return None, context_label

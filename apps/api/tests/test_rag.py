@@ -3,6 +3,7 @@ import pytest
 from app.models.song import Song
 from app.services.rag import (
     RAGService,
+    audit_grounded_answer,
     build_grounded_prompt,
     build_song_chunks,
     cosine_similarity,
@@ -30,6 +31,24 @@ class CapturingProvider:
     async def complete(self, prompt: str) -> str:
         self.prompt = prompt
         return "It describes the Divine manifesting beauty, love, compassion, and peace. [1]"
+
+
+class CorrectingProvider(CapturingProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = 0
+
+    async def complete(self, prompt: str) -> str:
+        self.prompt = prompt
+        self.calls += 1
+        if self.calls == 1:
+            return "I can provide a line-by-line explanation if you'd like."
+        return (
+            "BANDHU HE NIYE CALO [1]\n"
+            "O dearest Friend, lead me onward.\n"
+            "ALOR OI JHARANA DHARARA PANE [2]\n"
+            "Lead me toward the fountain of divine light."
+        )
 
 
 def test_split_text_blocks_preserves_paragraphs() -> None:
@@ -80,6 +99,20 @@ def test_grounded_prompt_uses_recent_turns_only_for_follow_up_context() -> None:
     assert "same Romanized style" in prompt
 
 
+def test_line_by_line_prompt_requires_immediate_grounded_explanation() -> None:
+    song = Song(number=1, title="Bandhu He Niye Calo")
+
+    prompt = build_grounded_prompt(
+        song,
+        "Explain this song line by line",
+        ["[1] canonical lyrics", "[2] canonical English meaning"],
+    )
+
+    assert "Answer it now" in prompt
+    assert "directly beneath each line" in prompt
+    assert "Do not defer" in prompt
+
+
 def test_song_scoped_meaning_is_mandatory_first_context() -> None:
     song = Song(
         number=452,
@@ -96,6 +129,29 @@ def test_song_scoped_meaning_is_mandatory_first_context() -> None:
     assert "formless beauty" in chunks[0].content
     assert requests_related_songs("what this song is about") is False
     assert requests_related_songs("recommend a related song") is True
+
+
+def test_answer_audit_rejects_wrong_song_and_missing_evidence_claims() -> None:
+    song = Song(number=452, title="ARÚP SÁGARE SNÁNA KARIYÁCHO")
+    chunks = fresh_song_chunks(
+        Song(
+            number=452,
+            title="ARÚP SÁGARE SNÁNA KARIYÁCHO",
+            english_meaning="You bathe in the ocean of formless beauty.",
+        ),
+        "what is this song about",
+    )
+
+    audit = audit_grounded_answer(
+        song,
+        "what is this song about",
+        "I don't have the canonical meaning for this song. Song 2219 may be similar. [1]",
+        chunks,
+    )
+
+    assert audit.passed is False
+    assert any("evidence is missing" in issue for issue in audit.issues)
+    assert any("unrelated song number" in issue for issue in audit.issues)
 
 
 @pytest.mark.asyncio
@@ -119,3 +175,24 @@ async def test_song_scoped_answer_never_substitutes_another_song() -> None:
     assert all(chunk.song_number == 452 for chunk in chunks)
     assert "ocean of formless beauty" in provider.prompt
     assert "2219" not in provider.prompt
+
+
+@pytest.mark.asyncio
+async def test_failed_answer_is_corrected_once_against_the_same_song_context() -> None:
+    song = Song(
+        number=1,
+        title="BANDHU HE NIYE CALO",
+        lyrics_original="BANDHU HE NIYE CALO\nALOR OI JHARANA DHARARA PANE",
+        english_meaning="O dearest Friend, lead me toward the fountain of divine light.",
+    )
+    provider = CorrectingProvider()
+
+    answer, chunks = await RAGService(
+        NoDatabaseSession(),  # type: ignore[arg-type]
+        provider,  # type: ignore[arg-type]
+    ).build_grounded_answer(song, "Explain this song line by line")
+
+    assert provider.calls == 2
+    assert "Lead me toward the fountain" in answer
+    assert all(chunk.song_number == 1 for chunk in chunks)
+    assert "CORRECTIVE GROUNDING PASS" in provider.prompt

@@ -57,7 +57,8 @@ describe("hero search", () => {
 
     await user.click(await screen.findByRole("button", { name: "Search by voice" }))
 
-    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana&mode=voice&lang=en-IN")
+    expect(screen.queryByRole("combobox", { name: "Spoken language" })).not.toBeInTheDocument()
+    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana&mode=voice&lang=auto")
   })
 
   it("keeps malicious and meaningless input local", async () => {

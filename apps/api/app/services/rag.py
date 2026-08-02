@@ -28,6 +28,12 @@ class RetrievedChunk:
     score: float
 
 
+@dataclass(frozen=True, slots=True)
+class AnswerAudit:
+    passed: bool
+    issues: tuple[str, ...]
+
+
 def clean_text(value: str | None) -> str:
     return " ".join((value or "").split()).strip()
 
@@ -142,6 +148,81 @@ def requests_related_songs(query: str) -> bool:
     return RELATED_SONG_PATTERN.search(query) is not None
 
 
+DEFERRED_ANSWER_PATTERNS = (
+    r"\bif you(?:'d| would) like,? i can\b",
+    r"\bi can provide (?:a |the )?(?:line[ -]by[ -]line|translation|explanation)\b",
+    r"\bplease (?:provide|paste) (?:the )?(?:canonical )?(?:lyrics|meaning|text)\b",
+    r"\b(?:allow me to|i can) fetch it\b",
+)
+MISSING_CONTEXT_PATTERNS = (
+    r"\bi (?:do not|don't) have (?:the )?(?:canonical )?(?:text|lyrics|meaning)\b",
+    r"\bthe (?:retrieved )?context does not (?:include|contain)\b",
+    r"\bi (?:cannot|can't) say (?:exactly|what)\b",
+)
+
+
+def audit_grounded_answer(
+    song: Song,
+    query: str,
+    answer: str,
+    chunks: Sequence[RetrievedChunk],
+) -> AnswerAudit:
+    issues: list[str] = []
+    normalized = clean_text(answer)
+    if len(normalized) < 40:
+        issues.append("The response is too short to satisfy the request.")
+
+    selected_types = {chunk.chunk_type for chunk in chunks if chunk.song_number == song.number}
+    has_song_evidence = bool(selected_types & {"lyrics", "meaning", "purport", "transliteration"})
+    if has_song_evidence and any(
+        re.search(pattern, answer, re.IGNORECASE) for pattern in MISSING_CONTEXT_PATTERNS
+    ):
+        issues.append("The response incorrectly claims that selected-song evidence is missing.")
+
+    if any(re.search(pattern, answer, re.IGNORECASE) for pattern in DEFERRED_ANSWER_PATTERNS):
+        issues.append("The response defers a task that should be completed now.")
+
+    if not requests_related_songs(query):
+        mentioned_numbers = {
+            int(value)
+            for value in re.findall(
+                r"\b(?:song|ps)\s*(?:number|no\.?|#)?\s*(\d{1,4})\b",
+                answer,
+                re.IGNORECASE,
+            )
+        }
+        if mentioned_numbers - {song.number}:
+            issues.append("The response substitutes or introduces an unrelated song number.")
+
+    if re.search(r"\bline[ -]by[ -]line\b", query, re.IGNORECASE):
+        meaningful_lines = [line.strip() for line in answer.splitlines() if len(line.strip()) >= 8]
+        if len(meaningful_lines) < 4:
+            issues.append("The response does not provide the requested line-by-line structure.")
+
+    if chunks and not re.search(r"\[\d+\]", answer):
+        issues.append("The response does not cite its retrieved evidence.")
+    return AnswerAudit(not issues, tuple(issues))
+
+
+def build_corrective_prompt(
+    original_prompt: str,
+    answer: str,
+    audit: AnswerAudit,
+) -> str:
+    issue_list = "\n".join(f"- {issue}" for issue in audit.issues)
+    return "\n\n".join(
+        [
+            original_prompt,
+            "CORRECTIVE GROUNDING PASS",
+            "The draft below failed the answer-quality audit. Rewrite the complete answer now. "
+            "Resolve every listed issue using only the same canonical context above. Do not "
+            "discuss the audit, apologize, defer the task, or introduce unsupported facts.",
+            f"Audit issues:\n{issue_list}",
+            f"Rejected draft:\n{answer}",
+        ]
+    )
+
+
 def song_chunk_priority(query: str, chunk_type: str) -> int:
     normalized = clean_text(query).casefold()
     if re.search(r"\b(?:lyric|line|pronoun|sing|word)\b", normalized):
@@ -190,6 +271,16 @@ def build_grounded_prompt(
     recent_conversation = "\n".join(
         f"{role.title()}: {content}" for role, content in (history or [])
     )
+    line_by_line_instruction = (
+        "The user explicitly requested a line-by-line explanation. Answer it now. "
+        "Present the canonical lyric in sequence and place a concise meaning or grounded "
+        "interpretation directly beneath each line or natural phrase. Use the sequence of "
+        "the canonical lyrics and meaning to align them. Do not defer, ask permission, or "
+        "claim that explicit line mappings are required. Clearly distinguish literal meaning "
+        "from spiritual interpretation."
+        if re.search(r"\bline[ -]by[ -]line\b", query, re.IGNORECASE)
+        else ""
+    )
     return "\n\n".join(
         [
             "You are a grounded assistant for Prabhat Samgiita.",
@@ -212,6 +303,7 @@ def build_grounded_prompt(
             "closest grounded help you can.",
             "Keep the answer concise and cite the source labels like [1], [2].",
             "Do not invent an answer for meaningless text; ask for a clear song-related question.",
+            line_by_line_instruction,
             f"Recent conversation (may be empty):\n{recent_conversation or 'No earlier turns.'}",
             f"Member interest summary (may be empty):\n{profile_context or 'No member summary.'}",
             f"Current user question: {query}",
@@ -365,6 +457,14 @@ class RAGService:
         prompt = build_grounded_prompt(song, query, context_lines, history, profile_context)
         try:
             answer = await self.provider.complete(prompt)
+            audit = audit_grounded_answer(song, query, answer, chunks)
+            if not audit.passed:
+                corrected = await self.provider.complete(
+                    build_corrective_prompt(prompt, answer, audit)
+                )
+                corrected_audit = audit_grounded_answer(song, query, corrected, chunks)
+                if corrected_audit.passed or len(corrected_audit.issues) < len(audit.issues):
+                    answer = corrected
         except Exception as exc:  # pragma: no cover - network/provider failures are runtime only
             cited = "; ".join(
                 f"[{idx}] {chunk.song_title} ({chunk.chunk_type})"

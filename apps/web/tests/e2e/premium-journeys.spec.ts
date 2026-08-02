@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/reflections/today**", async (route) => route.fulfill({ json: {
     quote_text: "As one thinks, so one becomes.",
     attribution: "Shrii Shrii Anandamurti ji",
-    source_title: "Meditation",
+    source_title: "Ánanda Sútram",
     source_url: "https://www.anandamarga.org/articles/meditation/",
     context_label: "Daily spiritual reflection",
     verification_status: "source_verified",
@@ -126,6 +126,8 @@ test("all special collections are organized and lead to catalog search", async (
   const collectionBrowser = page.locator("#collections").first()
   const languages = collectionBrowser.getByText("Languages", { exact: true })
   await expect(collectionBrowser.getByText("70 collections", { exact: true })).toBeVisible()
+  await expect(languages).toBeHidden()
+  await collectionBrowser.locator(":scope > summary").click()
   await expect(languages).toBeVisible()
   await expect(collectionBrowser.getByText("Musical traditions and rarities", { exact: true })).toBeVisible()
   await collectionBrowser.locator(":scope > summary").click()
@@ -153,6 +155,7 @@ test("collections stay above results and English returns only its three canonica
   await page.goto("/explore")
   await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
   const collections = page.locator("#collections").first()
+  await collections.locator(":scope > summary").click()
   const results = page.locator("#results").first()
   const collectionBounds = await collections.boundingBox()
   const resultBounds = await results.boundingBox()
@@ -230,9 +233,10 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByRole("img", { name: /Harmonium key guide/i })).toBeVisible()
   await expect(page.getByText(/Beginner alankar · ascending/i)).toBeVisible()
   await expect(page.getByLabel(/Listen to/i).first()).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Listen to this song" })).toBeVisible()
-  await expect(page.getByRole("navigation", { name: "Return to song text" }).getByRole("link", { name: /Lyrics/ })).toHaveAttribute("href", "#lyrics")
-  await expect(page.getByRole("navigation", { name: "Return to song text" }).getByRole("link", { name: /Meaning/ })).toHaveAttribute("href", "#meaning")
+  const readingNavigation = page.getByRole("navigation", { name: "Read while listening" })
+  await expect(readingNavigation).toBeVisible()
+  await expect(readingNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
+  await expect(readingNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
     listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
     watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,
@@ -242,6 +246,17 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   expect(watchBounds!.y).toBeGreaterThan(listenBounds!.y + listenBounds!.height - 8)
   const alternateRecordings = page.getByText(/More recordings \(/)
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
+})
+
+test("members can discover the configured sign-in flow", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("link", { name: "Sign in", exact: true }).click()
+  await expect(page).toHaveURL(/\/signin$/)
+  await expect(page.getByRole("heading", { name: "Namaskar. Continue your journey." })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Continue with Microsoft" })).toHaveAttribute(
+    "href",
+    "/.auth/login/aad?post_login_redirect_uri=/account",
+  )
 })
 
 test("garbage and hostile hero queries never reach search or AI", async ({ page }) => {

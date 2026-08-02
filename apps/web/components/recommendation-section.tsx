@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
-import { AudioRendition } from "@/components/audio-rendition"
 import { fetchTodayRecommendations, recommendSongs } from "@/lib/api"
 import type { SongSummary, TodayRecommendations } from "@/lib/api"
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
@@ -70,21 +69,14 @@ export function RecommendationSection() {
       <div aria-busy={loading} className="divide-y divide-navy-900/10 px-5 sm:px-6">
         {today?.recommendations.length ? today.recommendations.slice(0, 3).map((song) => (
           <article key={song.number} className="py-4">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span>
               <div className="min-w-0 flex-1"><Link href={`/songs/${song.number}#ask`} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">{song.title}</Link><p className="truncate text-xs text-stone-500">{song.reasons[0] || "For today's reflection"}</p></div>
-              {song.audio_url ? <div className="hidden lg:block"><AudioRendition url={song.audio_url} title={song.title} compact /></div> : null}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2 pl-14 text-[11px] font-semibold">
-              {song.audio_url ? <Link href={`/songs/${song.number}#listen`} className="soft-chip" data-feature="recommendation_listen">▶ Listen</Link> : null}
-              {song.video_embed_url ? <Link href={`/songs/${song.number}#watch`} className="soft-chip">▶ Watch</Link> : null}
-              <Link href={`/songs/${song.number}#meaning`} className="soft-chip">Understand</Link>
-              <Link href={`/songs/${song.number}#lyrics`} className="soft-chip">Learn</Link>
-              {song.notation_available ? <Link href={`/songs/${song.number}#notation`} className="soft-chip">Practise harmonium</Link> : null}
+              <Link href={`/songs/${song.number}#ask`} className="soft-chip shrink-0">Explore more →</Link>
             </div>
           </article>
         )) : results.length ? results.slice(0, 3).map((song) => (
-          <Link key={song.number} href={`/songs/${song.number}#ask`} className="group flex items-center gap-4 py-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span><div className="min-w-0 flex-1"><p className="truncate font-serif text-lg font-semibold text-navy-950 group-hover:text-gold-700">{song.title}</p><p className="truncate text-xs text-stone-500">{song.theme || song.mood || "A song for reflection"}</p></div><span className="grid h-8 w-8 place-items-center rounded-full border border-navy-900/15 text-[10px]">▶</span></Link>
+          <article key={song.number} className="flex flex-wrap items-center gap-4 py-4 sm:flex-nowrap"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span><div className="min-w-0 flex-1"><Link href={`/songs/${song.number}#ask`} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">{song.title}</Link><p className="truncate text-xs text-stone-500">{song.theme || song.mood || "A song for reflection"}</p></div><Link href={`/songs/${song.number}#ask`} className="soft-chip shrink-0">Explore more →</Link></article>
         )) : <div className="py-6 text-center"><p className="font-serif text-xl text-navy-950">{strictFestivalWithoutSongs ? `No source-verified songs are assigned specifically to ${contextTitle} yet` : "A fresh selection is on its way"}</p><p className="mt-2 text-sm leading-6 text-stone-600">{strictFestivalWithoutSongs ? "We will not mix unrelated songs into this observance. You can still explore the complete Prabhat Samgiita collection." : "Browse the complete collection while today’s recommendations reconnect."}</p><Link href="/explore" className="outline-button mt-4">Explore songs</Link></div>}
       </div>
 

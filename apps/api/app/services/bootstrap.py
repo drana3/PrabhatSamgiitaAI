@@ -95,15 +95,19 @@ class BootstrapService:
         )
         await self._refresh_machine_notations(notations)
         await self._replace_if_incomplete(InventoryItem, inventory, "inventory")
-        await self._replace_if_incomplete(
-            ReflectionQuote,
-            reflection_quotes,
-            "reflection quotes",
-            unique_field=ReflectionQuote.source_url,
-        )
+        await self._synchronize_reflection_quotes(reflection_quotes)
         await self._seed_lookup_tables()
         await self.session.commit()
         await self._ensure_song_chunks(songs, force=songs_replaced or songs_refreshed)
+
+    async def _synchronize_reflection_quotes(self, rows: list[dict[str, Any]]) -> None:
+        if not rows:
+            return
+        # This is a small editorial collection. Replacing it prevents retired,
+        # article-sourced quotes from resurfacing after a new deployment.
+        await self.session.execute(delete(ReflectionQuote))
+        await self.session.execute(insert(ReflectionQuote), rows)
+        await self.session.commit()
 
     async def _refresh_song_content(self, rows: list[dict[str, Any]]) -> bool:
         if not rows:

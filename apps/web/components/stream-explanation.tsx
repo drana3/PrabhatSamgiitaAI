@@ -157,7 +157,7 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
             </div>
             <h2 className="mt-2 font-serif text-3xl leading-tight text-navy-950 sm:text-[2rem]">Know more about this song</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Ask about meaning, imagery, spiritual context, pronunciation, or related songs in the language that feels natural to you.</p>
-            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Personalized across devices · recent chat kept 30 days" : "Remembers this browser conversation for 10 minutes"}</p>
+            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Signed in · recent chat 30 days · preferences remembered" : "Guest · this browser conversation is remembered for 10 minutes"}</p>
           </div>
         </div>
       </div>

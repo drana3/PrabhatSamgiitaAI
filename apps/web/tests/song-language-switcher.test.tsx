@@ -25,7 +25,7 @@ describe("song language translation state", () => {
 
     await user.selectOptions(language, "hi")
 
-    expect(screen.getByRole("status")).toHaveTextContent("Translation in progress")
+    expect(screen.getByRole("status")).toHaveTextContent("Translating")
     expect(language).toBeDisabled()
     expect(replace).toHaveBeenCalledWith("/songs/1?language=hi", { scroll: false })
     expect(window.sessionStorage.getItem("song-translation-scroll")).not.toBeNull()
