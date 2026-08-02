@@ -239,24 +239,24 @@ function CompactPlayer({
 function NativeAudio({
   url,
   title,
-  signedIn,
+  allowDownload,
   className,
 }: {
   url: string
   title: string
-  signedIn: boolean
+  allowDownload: boolean
   className?: string
 }) {
   return (
     <audio
       aria-label={`Listen to ${title}`}
       controls
-      controlsList={controlsList(signedIn)}
+      controlsList={controlsList(allowDownload)}
       preload="none"
       src={url}
       onPlay={() => trackEvent("feature_use", "audio_play")}
       onContextMenu={(event) => {
-        if (!signedIn) event.preventDefault()
+        if (!allowDownload) event.preventDefault()
       }}
       className={className}
     />
@@ -276,8 +276,8 @@ export function AudioRendition({
   featured?: boolean
   compact?: boolean
 }) {
-  const { session } = useMember()
-  const signedIn = session.authenticated
+  const { loading, session } = useMember()
+  const allowDownload = !loading && session.authenticated
 
   if (compact) {
     return <CompactPlayer url={url} title={title} provider={provider} />
@@ -296,14 +296,10 @@ export function AudioRendition({
         </div>
         <span className="text-gold-700">♪</span>
       </div>
-      <NativeAudio url={url} title={title} signedIn={signedIn} className="mt-3 w-full" />
-      {signedIn ? (
-        <a href={url} download data-feature="audio_download" className="mt-3 inline-flex text-xs font-semibold text-gold-700">
-          Download audio
-        </a>
-      ) : (
-        <p className="mt-3 text-[10px] text-stone-500">Sign in to enable the download option.</p>
-      )}
+      <NativeAudio url={url} title={title} allowDownload={allowDownload} className="mt-3 w-full" />
+      {!allowDownload ? (
+        <p className="mt-3 text-[10px] text-stone-500">Sign in to enable download from the player menu.</p>
+      ) : null}
     </article>
   )
 }

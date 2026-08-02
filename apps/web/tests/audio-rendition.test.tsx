@@ -3,14 +3,20 @@ import { render, screen } from "@testing-library/react"
 
 import { AudioRendition } from "@/components/audio-rendition"
 
-const memberState = vi.hoisted(() => ({ authenticated: false }))
+const memberState = vi.hoisted(() => ({ authenticated: false, loading: false }))
 vi.mock("@/components/member-provider", () => ({
-  useMember: () => ({ loading: false, session: memberState.authenticated ? { authenticated: true, display_name: "Ananda" } : { authenticated: false } }),
+  useMember: () => ({
+    loading: memberState.loading,
+    session: memberState.authenticated
+      ? { authenticated: true, display_name: "Ananda" }
+      : { authenticated: false },
+  }),
 }))
 
 afterEach(() => {
   vi.restoreAllMocks()
   memberState.authenticated = false
+  memberState.loading = false
 })
 
 describe("authenticated audio controls", () => {
@@ -37,13 +43,21 @@ describe("authenticated audio controls", () => {
     render(<AudioRendition url="https://example.test/song.mp3" title="Song 1" />)
     expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
     expect(screen.getByLabelText("Listen to Song 1")).toHaveAttribute("controlsList", expect.stringContaining("nodownload"))
-    expect(screen.getByText(/Sign in to enable/i)).toBeVisible()
+    expect(screen.getByText(/Sign in to enable download from the player menu/i)).toBeVisible()
   })
 
-  it("offers download when the trusted member profile is authenticated", () => {
+  it("keeps download disabled while the member session is loading", () => {
+    memberState.loading = true
     memberState.authenticated = true
     render(<AudioRendition url="https://example.test/song.mp3" title="Song 1" />)
-    expect(screen.getByRole("link", { name: "Download audio" })).toBeVisible()
+    expect(screen.getByLabelText("Listen to Song 1")).toHaveAttribute("controlsList", expect.stringContaining("nodownload"))
+  })
+
+  it("enables player-menu download for authenticated members", () => {
+    memberState.authenticated = true
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 1" />)
+    expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
     expect(screen.getByLabelText("Listen to Song 1").getAttribute("controlsList")).not.toContain("nodownload")
+    expect(screen.queryByText(/Sign in to enable/i)).not.toBeInTheDocument()
   })
 })
