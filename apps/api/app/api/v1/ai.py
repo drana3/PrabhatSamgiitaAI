@@ -23,8 +23,8 @@ from app.services.direct_answers import try_direct_answer
 from app.services.members import try_member_identity
 from app.services.query_guard import assess_query
 from app.services.rag import RAGService
-from app.services.structured_answers import try_structured_answer
 from app.services.streaming import stream_text
+from app.services.structured_answers import try_structured_answer
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=86_400, maxsize=512)
@@ -110,7 +110,7 @@ async def explain(
     provider = select_provider(settings)
     rag = RAGService(session, provider)
     try:
-        answer, chunks = await rag.build_grounded_answer(
+        answer, _chunks = await rag.build_grounded_answer(
             song,
             prompt,
             history=history,
@@ -124,7 +124,6 @@ async def explain(
             f"Here is a grounded fallback for song {song.number}: {song.title}. "
             f"{song.english_meaning or song.hindi_meaning or song.first_line or ''}".strip()
         )
-        chunks = []
 
     streamed = _stream_answer([answer])
     await explanation_cache.set(cache_key, streamed)

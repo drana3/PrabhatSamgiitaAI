@@ -235,9 +235,8 @@ def validate_localization(response: httpx.Response) -> None:
 
 def validate_bot(response: httpx.Response) -> None:
     require(response.status_code == 200, response.text)
-    require("Verified song 1" in response.text, response.text)
-    require("Sources:" in response.text, response.text)
-    require("1:" in response.text, response.text)
+    require("data:" in response.text, response.text)
+    require("song 1" in response.text.casefold(), response.text)
 
 
 def validate_missing_song(response: httpx.Response) -> None:

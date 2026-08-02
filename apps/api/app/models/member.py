@@ -192,7 +192,9 @@ class QuizAttempt(Base, TimestampMixin):
 
 class QuizCertification(Base, TimestampMixin):
     __tablename__ = "quiz_certifications"
-    __table_args__ = (UniqueConstraint("user_id", "level", name="uq_quiz_certification_user_level"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "level", name="uq_quiz_certification_user_level"),
+    )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(

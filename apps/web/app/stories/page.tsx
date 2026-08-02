@@ -1,7 +1,7 @@
 import Link from "next/link"
 
 import { SiteHeader } from "@/components/site-header"
-import seedStories from "../../../data/generated/stories.json"
+import seedStories from "../../../../data/generated/stories.json"
 import type { InspirationStory } from "@/lib/api"
 
 const stories: InspirationStory[] = seedStories.map((row) => ({

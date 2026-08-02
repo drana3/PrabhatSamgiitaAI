@@ -44,7 +44,9 @@ def test_grade_attempt_builds_review() -> None:
 
 def test_grade_attempt_marks_wrong_selection() -> None:
     question = questions_for_level("starter")[0]
-    wrong = next(option.id for option in question.options if option.id != question.correct_option_id)
+    wrong = next(
+        option.id for option in question.options if option.id != question.correct_option_id
+    )
     score, review = grade_attempt(
         [question.id],
         [{"question_id": question.id, "selected_option_id": wrong}],

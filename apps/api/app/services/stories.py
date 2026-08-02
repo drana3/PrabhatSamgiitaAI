@@ -148,7 +148,9 @@ def stories_matching_query(
     scored: list[tuple[int, InspirationStory]] = []
     for story in stories:
         score = 0
-        haystack = " ".join((story.title, story.author, story.teaser, " ".join(story.themes))).casefold()
+        haystack = " ".join(
+            (story.title, story.author, story.teaser, " ".join(story.themes))
+        ).casefold()
         if cleaned and cleaned in haystack:
             score += 20
         for token in cleaned.split():

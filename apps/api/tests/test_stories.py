@@ -1,5 +1,4 @@
 from app.services.stories import (
-    InspirationStory,
     load_stories_from_seed,
     select_featured_story,
     stories_for_song,

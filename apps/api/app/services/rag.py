@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Song, SongChunk
 from app.services.ai import GroundedProvider
+from app.services.catalog import CatalogService
 from app.services.structured_answers import try_structured_answer
 
 
@@ -308,7 +309,8 @@ def build_grounded_prompt(
     return "\n\n".join(
         [
             "You are the Prabhat Samgiita AI Companion — warm, intelligent, and grounded.",
-            "Speak like a knowledgeable spiritual guide in a natural chat, not like a catalog dump.",
+            "Speak like a knowledgeable spiritual guide in a natural chat, "
+            "not like a catalog dump.",
             "Answer factual claims only from the retrieved canonical context below.",
             "Use the recent conversation to resolve pronouns, references, and follow-up questions.",
             "Use the optional member interest summary only to personalize language, tone, and "

@@ -22,11 +22,21 @@ export function SavedSongsList({
     setLoading(true)
     void Promise.all(songNumbers.map((number) => fetchSong(number))).then((results) => {
       if (!active) return
-      setSongs(
-        results
-          .map((song, index) => (song ? { ...song, number: songNumbers[index] } : null))
-          .filter((song): song is SongSummary => Boolean(song)),
-      )
+      const loaded = results.flatMap((song, index) => {
+        if (!song) return []
+        return [{
+          number: songNumbers[index],
+          title: song.title,
+          is_verified: song.is_verified,
+          theme: song.theme,
+          first_line: song.first_line,
+          occasion: song.occasion,
+          mood: song.mood,
+          language: song.language,
+          difficulty: song.difficulty,
+        } satisfies SongSummary]
+      })
+      setSongs(loaded)
       setLoading(false)
     })
     return () => { active = false }

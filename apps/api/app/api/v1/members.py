@@ -28,7 +28,7 @@ from app.services.members import (
     store_chat_memory,
     sync_member,
 )
-from app.services.quiz import start_quiz, submit_quiz, quiz_status
+from app.services.quiz import quiz_status, start_quiz, submit_quiz
 
 router = APIRouter(prefix="/members", tags=["members"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]

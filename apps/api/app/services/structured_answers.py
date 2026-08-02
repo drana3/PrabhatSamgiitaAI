@@ -4,6 +4,7 @@ import re
 
 from app.models import Song
 from app.services.chat_language import detect_response_language
+from app.services.stories import STORIES_INDEX_PATH, InspirationStory
 
 
 def split_verse_lines(text: str | None) -> list[str]:
@@ -55,6 +56,7 @@ def requests_song_explanation(query: str) -> bool:
             "explain",
             "meaning",
             "mean",
+            "message",
             "about this song",
             "what is this song",
             "understand",
@@ -133,7 +135,8 @@ def build_meditation_answer(song: Song, language: str = "en") -> str | None:
     if meaning:
         parts.append(f"Ground your reflection in this meaning:\n{meaning}")
     parts.append(
-        "Sit comfortably, follow your breath, and let one line settle in the heart before moving on."
+        "Sit comfortably, follow your breath, and let one line settle in the heart "
+        "before moving on."
         if language != "hi"
         else "आराम से बैठें, श्वास पर ध्यान रखें, और एक-एक पंक्ति को हृदय में उतरने दें।"
     )
@@ -171,18 +174,11 @@ def requests_stories_inspiration(query: str) -> bool:
 
 def build_stories_answer(
     song: Song | None,
-    stories: list[object],
+    stories: list[InspirationStory],
     language: str = "en",
 ) -> str | None:
     if not stories:
         return None
-
-    from app.services.stories import STORIES_INDEX_PATH, InspirationStory
-
-    items = [
-        story if isinstance(story, InspirationStory) else story
-        for story in stories
-    ]
 
     if language == "hi":
         opener = (
@@ -200,7 +196,7 @@ def build_stories_answer(
         read_label = "Read"
 
     lines = [opener, ""]
-    for item in items[:5]:
+    for item in stories[:5]:
         detail = f" — {item.teaser}" if item.teaser else ""
         lines.append(f"• {item.title} by {item.author}{detail}")
         lines.append(f"  {read_label}: {item.read_path}")
@@ -220,7 +216,11 @@ def try_structured_answer(
     if requests_line_by_line(query):
         return build_line_by_line_answer(song, language)
     if requests_stories_inspiration(query):
-        from app.services.stories import load_stories_from_seed, stories_for_song, stories_matching_query
+        from app.services.stories import (
+            load_stories_from_seed,
+            stories_for_song,
+            stories_matching_query,
+        )
 
         catalog = load_stories_from_seed()
         matched = stories_for_song(catalog, song.number)

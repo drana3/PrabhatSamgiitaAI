@@ -149,7 +149,7 @@ async def quiz_status(session: AsyncSession, member: UserAccount) -> dict[str, A
         "certifications": [
             {
                 "level": cert.level,
-                "label": LEVEL_LABELS[cert.level],  # type: ignore[index]
+                "label": LEVEL_LABELS[cert.level],
                 "certificate_code": cert.certificate_code,
                 "earned_at": cert.earned_at.isoformat(),
             }
@@ -158,7 +158,9 @@ async def quiz_status(session: AsyncSession, member: UserAccount) -> dict[str, A
     }
 
 
-async def start_quiz(session: AsyncSession, member: UserAccount, level: QuizLevel) -> dict[str, Any]:
+async def start_quiz(
+    session: AsyncSession, member: UserAccount, level: QuizLevel
+) -> dict[str, Any]:
     selected = pick_questions(level)
     attempt = QuizAttempt(
         user_id=member.id,
@@ -230,14 +232,14 @@ async def submit_quiz(
             newly_earned = True
             certification = {
                 "level": cert.level,
-                "label": LEVEL_LABELS[cert.level],  # type: ignore[index]
+                "label": LEVEL_LABELS[cert.level],
                 "certificate_code": cert.certificate_code,
                 "earned_at": cert.earned_at.isoformat(),
             }
         else:
             certification = {
                 "level": existing.level,
-                "label": LEVEL_LABELS[existing.level],  # type: ignore[index]
+                "label": LEVEL_LABELS[existing.level],
                 "certificate_code": existing.certificate_code,
                 "earned_at": existing.earned_at.isoformat(),
             }
@@ -247,7 +249,7 @@ async def submit_quiz(
     return {
         "attempt_id": str(attempt.id),
         "level": attempt.level,
-        "level_label": LEVEL_LABELS[attempt.level],  # type: ignore[index]
+        "level_label": LEVEL_LABELS[attempt.level],
         "score": score,
         "total": len(attempt.question_ids),
         "pass_score": PASS_SCORE,

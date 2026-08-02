@@ -9,8 +9,8 @@ from sqlalchemy import bindparam, delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
-    InventoryItem,
     InspirationStoryRecord,
+    InventoryItem,
     Media,
     Notation,
     Occasion,

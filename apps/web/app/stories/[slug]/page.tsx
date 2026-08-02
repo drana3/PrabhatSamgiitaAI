@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 
 import { SiteHeader } from "@/components/site-header"
 import { fetchStory } from "@/lib/api"
-import seedStories from "../../../../data/generated/stories.json"
+import seedStories from "../../../../../data/generated/stories.json"
 import type { InspirationStoryDetail } from "@/lib/api"
 
 function fallbackStory(slug: string): InspirationStoryDetail | null {

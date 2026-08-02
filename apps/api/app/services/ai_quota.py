@@ -46,7 +46,9 @@ def _read_usage(key: str, today: str) -> int:
     return stored[1]
 
 
-def check_daily_ai_quota(*, is_member: bool, identity: str, settings: Settings | None = None) -> DailyQuotaStatus:
+def check_daily_ai_quota(
+    *, is_member: bool, identity: str, settings: Settings | None = None
+) -> DailyQuotaStatus:
     config = settings or get_settings()
     limit = config.ai_daily_member_limit if is_member else config.ai_daily_guest_limit
     today = _today_key()
