@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import Link from "next/link"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
@@ -9,6 +10,7 @@ import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
 import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
+import { scrollToSectionId } from "@/lib/scroll-to-section"
 import type { ExploreSearchKind } from "@/lib/special-collections"
 import { specialCollectionCount } from "@/lib/special-collections"
 
@@ -38,12 +40,19 @@ function exploreUrl(
   return `/explore?${params.toString()}#catalog-search`
 }
 
-function scrollToSearchProgress() {
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  document.getElementById("catalog-search")?.scrollIntoView({
-    behavior: reduceMotion ? "auto" : "smooth",
-    block: "start",
-  })
+function scrollToSearchBar() {
+  scrollToSectionId("catalog-search")
+}
+
+function scrollToResults() {
+  scrollToSectionId("results", { behavior: "smooth" })
+}
+
+function beginSearchState(
+  apply: () => void,
+) {
+  flushSync(apply)
+  scrollToSearchBar()
 }
 
 export function ExploreClient({
@@ -61,12 +70,12 @@ export function ExploreClient({
   inputMode?: "text" | "voice"
   spokenLanguage?: string
 }) {
-  const pendingInitialSearch = Boolean(initialQuery && !searchPrefetched)
+  const pendingInitialSearch = Boolean(initialQuery)
   const [songs, setSongs] = useState<SongSummary[]>(pendingInitialSearch ? [] : initialSongs)
   const [activeQuery, setActiveQuery] = useState(initialQuery)
   const [activeKind, setActiveKind] = useState<ExploreSearchKind>(searchKind)
   const [searching, setSearching] = useState(pendingInitialSearch)
-  const [completedQuery, setCompletedQuery] = useState(searchPrefetched ? initialQuery : "")
+  const [completedQuery, setCompletedQuery] = useState("")
   const [voiceResult, setVoiceResult] = useState<VoiceSearchResult | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
   const resultsRef = useRef<HTMLDivElement | null>(null)
@@ -82,14 +91,15 @@ export function ExploreClient({
 
   useEffect(() => {
     if (!searchPrefetched || !initialQuery) return
-    setSongs(initialSongs)
-    setActiveQuery(initialQuery)
-    setActiveKind(searchKind)
     searchCache.current.set(cacheKey(initialQuery, searchKind), initialSongs)
-    setCompletedQuery(initialQuery)
-    setSearching(false)
-    bootstrappedQuery.current = `${inputMode}:${searchKind}:${initialQuery}`
-  }, [initialQuery, initialSongs, searchKind, searchPrefetched, inputMode])
+  }, [initialQuery, initialSongs, searchKind, searchPrefetched])
+
+  const finishSearch = useCallback((trimmed: string) => {
+    setCompletedQuery(trimmed)
+    window.requestAnimationFrame(() => {
+      scrollToResults()
+    })
+  }, [])
 
   const runSearch = useCallback(async (query: string, kind: ExploreSearchKind) => {
     const trimmed = query.trim()
@@ -98,35 +108,47 @@ export function ExploreClient({
     const key = cacheKey(trimmed, kind)
     const cached = searchCache.current.get(key)
     if (cached) {
-      setActiveQuery(trimmed)
-      setActiveKind(kind)
-      setSongs(cached)
-      setCompletedQuery(trimmed)
-      setVoiceResult(null)
+      beginSearchState(() => {
+        setSearching(true)
+        setActiveQuery(trimmed)
+        setActiveKind(kind)
+        setCompletedQuery("")
+        setSongs([])
+        setVoiceResult(null)
+        setSearchError(null)
+      })
       window.history.replaceState(null, "", exploreUrl(trimmed, kind))
+      flushSync(() => {
+        setSongs(cached)
+        setSearching(false)
+      })
+      finishSearch(trimmed)
       return
     }
 
-    setSearching(true)
-    setActiveQuery(trimmed)
-    setActiveKind(kind)
-    setCompletedQuery("")
-    setVoiceResult(null)
-    setSearchError(null)
+    beginSearchState(() => {
+      setSearching(true)
+      setActiveQuery(trimmed)
+      setActiveKind(kind)
+      setCompletedQuery("")
+      setSongs([])
+      setVoiceResult(null)
+      setSearchError(null)
+    })
     window.history.replaceState(null, "", exploreUrl(trimmed, kind))
-    scrollToSearchProgress()
 
     try {
       const results = await searchSongs(trimmed, { mode: kind === "catalog" ? "catalog" : "semantic" })
       searchCache.current.set(key, results)
       setSongs(results)
-      setCompletedQuery(trimmed)
+      finishSearch(trimmed)
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : "Search is temporarily unavailable.")
+      setCompletedQuery(trimmed)
     } finally {
       setSearching(false)
     }
-  }, [])
+  }, [finishSearch])
 
   const runCatalogSearch = useCallback(
     (query: string) => void runSearch(query, "catalog"),
@@ -142,57 +164,41 @@ export function ExploreClient({
     const trimmed = query.trim()
     if (!trimmed) return
 
-    setSearching(true)
-    setActiveQuery(trimmed)
-    setActiveKind("semantic")
-    setCompletedQuery("")
-    setSearchError(null)
+    beginSearchState(() => {
+      setSearching(true)
+      setActiveQuery(trimmed)
+      setActiveKind("semantic")
+      setCompletedQuery("")
+      setSongs([])
+      setSearchError(null)
+    })
     window.history.replaceState(null, "", exploreUrl(trimmed, "semantic", { voice: true, lang: spokenLanguage }))
-    scrollToSearchProgress()
 
     try {
       const voiceResult = await searchSongsByVoice(trimmed, spokenLanguage)
       setVoiceResult(voiceResult)
       setSongs(voiceResult.matches.map((match) => match.song))
-      setCompletedQuery(trimmed)
+      finishSearch(trimmed)
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : "Voice search is temporarily unavailable.")
+      setCompletedQuery(trimmed)
     } finally {
       setSearching(false)
     }
-  }, [spokenLanguage])
+  }, [finishSearch, spokenLanguage])
 
   useEffect(() => {
-    if (!initialQuery || searchPrefetched) return
+    if (!initialQuery) return
     const pendingKey = `${inputMode}:${searchKind}:${initialQuery}`
     if (bootstrappedQuery.current === pendingKey) return
     bootstrappedQuery.current = pendingKey
-
-    setSearching(true)
-    setSongs([])
-    setVoiceResult(null)
-    setSearchError(null)
-    setCompletedQuery("")
-    scrollToSearchProgress()
 
     if (inputMode === "voice") {
       void runVoiceSearch(initialQuery)
       return
     }
     void runSearch(initialQuery, searchKind)
-  }, [initialQuery, inputMode, runSearch, runVoiceSearch, searchKind, searchPrefetched])
-
-  useEffect(() => {
-    if (searching || !activeQuery || completedQuery !== activeQuery) return
-    const frame = window.requestAnimationFrame(() => {
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      resultsRef.current?.scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "start",
-      })
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [completedQuery, activeQuery, searching])
+  }, [initialQuery, inputMode, runSearch, runVoiceSearch, searchKind])
 
   function handleSearching(nextSearching: boolean) {
     setSearching(nextSearching)

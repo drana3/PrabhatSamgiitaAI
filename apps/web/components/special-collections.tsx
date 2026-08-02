@@ -1,14 +1,7 @@
 "use client"
 
 import { collectionPrompt, queryMatchesCollection, specialCollectionCount, specialCollectionGroups } from "@/lib/special-collections"
-
-function scrollToSearchProgress() {
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  document.getElementById("catalog-search")?.scrollIntoView({
-    behavior: reduceMotion ? "auto" : "smooth",
-    block: "start",
-  })
-}
+import { scrollToSectionId } from "@/lib/scroll-to-section"
 
 export function SpecialCollections({
   activeQuery = "",
@@ -59,10 +52,9 @@ export function SpecialCollections({
                       if (!onSelect || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
                       event.preventDefault()
                       if (isActive) {
-                        scrollToSearchProgress()
+                        scrollToSectionId("catalog-search")
                         return
                       }
-                      scrollToSearchProgress()
                       void onSelect(prompt)
                     }}
                     className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold text-navy-950 transition hover:border-gold-500 hover:bg-gold-50 ${isActive ? "border-gold-600 bg-gold-100 shadow-sm" : "border-navy-900/10 bg-white"}`}
