@@ -104,7 +104,8 @@ def request_json(
                 time.sleep(sleep_seconds)
             continue
         try:
-            return status, response_headers, parse_json(body, status=status, path=path), total_elapsed
+            parsed = parse_json(body, status=status, path=path)
+            return status, response_headers, parsed, total_elapsed
         except AssertionError as exc:
             last_error = str(exc)
             if attempt < attempts:
@@ -286,7 +287,7 @@ def main() -> None:
     )
     explanation = body.decode(errors="replace")
     if status in RETRY_STATUSES or not explanation.strip():
-        for attempt in range(5):
+        for _attempt in range(5):
             time.sleep(8)
             status, _, body, extra = request(
                 base_url,
