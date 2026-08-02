@@ -41,6 +41,7 @@ def apply_default_admin(member: UserAccount, settings: Settings | None = None) -
 
 
 async def require_admin_member(session: AsyncSession, member: UserAccount) -> UserAccount:
+    apply_default_admin(member)
     if not member.is_admin:
         raise HTTPException(status_code=403, detail="Admin access is required")
     return member

@@ -37,6 +37,62 @@ export function backendBaseUrl() {
     ?? "http://localhost:8000"
 }
 
+export type AdminFeedbackItem = {
+  feedback_id: string
+  category: string
+  rating: number
+  comment: string
+  page_path: string | null
+  contact: string | null
+  status: string
+  created_at: string
+  priority: boolean
+}
+
+export type AdminFeedbackResponse = {
+  total: number
+  items: AdminFeedbackItem[]
+  error?: string
+}
+
+export async function fetchAdminFeedback(
+  source: Headers,
+  status = "new",
+): Promise<AdminFeedbackResponse> {
+  const proxyKey = process.env.MEMBER_PROXY_KEY
+  const principal = resolveClientPrincipal(source)
+  if (!proxyKey || !principal) {
+    return { total: 0, items: [], error: "Sign in is required" }
+  }
+
+  const target = new URL("/api/v1/members/admin/feedback", backendBaseUrl())
+  target.searchParams.set("status", status)
+
+  try {
+    const response = await fetch(target, {
+      headers: {
+        "X-MS-CLIENT-PRINCIPAL": principal,
+        "X-Member-Proxy-Key": proxyKey,
+      },
+      cache: "no-store",
+    })
+    const body = await response.json().catch(() => null)
+    if (!response.ok) {
+      const detail = body && typeof body === "object" && "detail" in body
+        ? String((body as { detail?: unknown }).detail ?? "Could not load feedback")
+        : "Could not load feedback"
+      return { total: 0, items: [], error: detail }
+    }
+    const payload = body as AdminFeedbackResponse | null
+    return {
+      total: payload?.total ?? 0,
+      items: payload?.items ?? [],
+    }
+  } catch {
+    return { total: 0, items: [], error: "Could not reach the admin service" }
+  }
+}
+
 export async function forwardMemberAdmin(
   request: NextRequest,
   path: string,

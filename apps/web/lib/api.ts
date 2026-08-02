@@ -447,10 +447,11 @@ export async function submitFeedback(payload: {
   page_path?: string
   contact?: string
 }): Promise<{ message: string; feedbackId: string }> {
-  const response = await fetchJson("/api/v1/feedback", {
+  const response = await fetch("/api/feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    cache: "no-store",
   })
   const body = await response.json().catch(() => null)
   if (!response.ok) {

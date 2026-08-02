@@ -29,8 +29,17 @@ DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 logger = logging.getLogger(__name__)
 
 
+def _run_alembic_migrations() -> None:
+    from alembic import command
+    from alembic.config import Config
+
+    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    command.upgrade(config, "head")
+
+
 async def initialize_schema() -> None:
     try:
+        await asyncio.to_thread(_run_alembic_migrations)
         for statement, label in (
             ("CREATE EXTENSION IF NOT EXISTS vector", "vector"),
             ("CREATE EXTENSION IF NOT EXISTS pg_trgm", "pg_trgm"),

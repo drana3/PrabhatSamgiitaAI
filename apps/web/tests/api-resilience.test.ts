@@ -38,6 +38,7 @@ describe("API resilience", () => {
   it("returns the feedback acknowledgement", async () => {
     global.fetch = vi.fn().mockResolvedValue(Response.json({ message: "Thank you for the thoughtful feedback.", feedback_id: "abc" }, { status: 201 }))
     await expect(submitFeedback({ category: "experience", rating: 5, comment: "Beautiful experience" })).resolves.toMatchObject({ message: expect.stringContaining("Thank you") })
+    expect(global.fetch).toHaveBeenCalledWith("/api/feedback", expect.objectContaining({ method: "POST" }))
   })
 
   it("surfaces feedback rate limiting without losing the message", async () => {
