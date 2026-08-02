@@ -20,6 +20,13 @@ describe("authenticated audio controls", () => {
     expect(screen.getByText("Verified recording")).toBeInTheDocument()
   })
 
+  it("shows a compact play button for the lyrics header player", () => {
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" compact />)
+
+    expect(screen.getByRole("button", { name: /Play Song 8/i })).toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
+  })
+
   it("does not offer download to anonymous visitors", () => {
     render(<AudioRendition url="https://example.test/song.mp3" title="Song 1" />)
     expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()

@@ -51,6 +51,25 @@ describe("streaming song companion", () => {
     })
   })
 
+  it("preserves every data line inside a multiline SSE frame", async () => {
+    const encoder = new TextEncoder()
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode("data: 1. Lyric: ÁMI JETE CÁI\n"))
+        controller.enqueue(encoder.encode("data: Meaning: I want to go,\n"))
+        controller.enqueue(encoder.encode("data: 2. Lyric: BÁDHAÁR BÁNDHAÁ\n"))
+        controller.enqueue(encoder.encode("data: Meaning: please take me with You.\n\n"))
+        controller.close()
+      },
+    })
+    fetchMock.mockResolvedValue(new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } }))
+    const chunks: string[] = []
+    await streamExplanation(8, (chunk) => chunks.push(chunk), "Explain the meaning line by line")
+    expect(chunks).toEqual([
+      "1. Lyric: ÁMI JETE CÁI\nMeaning: I want to go,\n2. Lyric: BÁDHAÁR BÁNDHAÁ\nMeaning: please take me with You.",
+    ])
+  })
+
   it("rejects HTTP failures instead of showing an empty assistant bubble", async () => {
     fetchMock.mockResolvedValue(new Response("unavailable", { status: 503 }))
     await expect(streamExplanation(1, () => undefined, "Explain this song")).rejects.toThrow("temporarily unavailable")

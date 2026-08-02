@@ -24,6 +24,23 @@ def test_line_by_line_answer_pairs_lyrics_with_meaning() -> None:
     assert "Meaning: In every heart" in answer
 
 
+def test_line_by_line_answer_pairs_refrain_lyrics_sequentially() -> None:
+    song = Song(
+        number=8,
+        title="ÁMI JETE CÁI, TUMI NIYE JÁO",
+        lyrics_original="ÁMI JETE CÁI, TUMI NIYE JÁO\nBÁDHAÁR BÁNDHAÁ SAB CHINŔE DÁO",
+        english_meaning="I want to go,\nplease take me with You.",
+    )
+
+    answer = build_line_by_line_answer(song)
+
+    assert answer is not None
+    assert "1. Lyric: ÁMI JETE CÁI" in answer
+    assert "Meaning: I want to go," in answer
+    assert "2. Lyric: BÁDHAÁR BÁNDHAÁ" in answer
+    assert "Meaning: please take me with You." in answer
+
+
 def test_structured_answer_handles_explain_requests() -> None:
     song = Song(
         number=452,

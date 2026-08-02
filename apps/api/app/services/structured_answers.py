@@ -31,7 +31,7 @@ def pair_lyrics_with_meaning(
         return [(lyric, meanings[0]) for lyric in lyrics]
     pairs: list[tuple[str, str]] = []
     for index, lyric in enumerate(lyrics):
-        meaning_index = min(int(index * len(meanings) / len(lyrics)), len(meanings) - 1)
+        meaning_index = min(index, len(meanings) - 1)
         pairs.append((lyric, meanings[meaning_index]))
     return pairs
 

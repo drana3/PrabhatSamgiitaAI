@@ -57,10 +57,12 @@ export async function streamExplanation(
     const frames = buffer.split("\n\n")
     buffer = frames.pop() ?? ""
     for (const frame of frames) {
-      const line = frame
+      const payload = frame
         .split("\n")
-        .find((entry) => entry.startsWith("data: "))
-      if (line) onChunk(line.slice(6))
+        .filter((entry) => entry.startsWith("data: "))
+        .map((entry) => entry.slice(6))
+        .join("\n")
+      if (payload) onChunk(payload)
     }
   }
 }
