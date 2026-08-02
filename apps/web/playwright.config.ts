@@ -1,11 +1,15 @@
 import { defineConfig, devices } from "@playwright/test"
 
 const ci = Boolean(process.env.CI)
+const apiServerCommand = ci
+  ? ".venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011"
+  : "uv run uvicorn app.main:app --host 127.0.0.1 --port 8011"
+const webServerCommand = ci ? "npm run start" : "npm run start:standalone"
 
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
-  workers: 2,
+  workers: ci ? 1 : 2,
   retries: ci ? 1 : 0,
   timeout: 30_000,
   expect: { timeout: 10_000 },
@@ -18,7 +22,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "uv run uvicorn app.main:app --host 127.0.0.1 --port 8011",
+      command: apiServerCommand,
       cwd: "../api",
       url: "http://127.0.0.1:8011/api/v1/health/live",
       reuseExistingServer: false,
@@ -33,7 +37,7 @@ export default defineConfig({
       },
     },
     {
-      command: "npm run start:standalone",
+      command: webServerCommand,
       url: "http://127.0.0.1:3000",
       reuseExistingServer: false,
       timeout: 120000,

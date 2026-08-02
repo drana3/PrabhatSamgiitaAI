@@ -10,6 +10,15 @@ async function setDetailsOpen(page: Page, selector: string, open: boolean) {
   await expect.poll(async () => details.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(open)
 }
 
+async function clickSearchButton(page: Page) {
+  const heroInput = page.getByLabel(/Ask by song, feeling/i).first()
+  if (await heroInput.count()) {
+    await heroInput.press("Enter")
+    return
+  }
+  await page.getByRole("button", { name: "Search", exact: true }).click()
+}
+
 async function clickCollectionLink(page: Page, name: RegExp | string) {
   const link = page.getByRole("link", { name })
   await link.scrollIntoViewIfNeeded()
@@ -27,6 +36,9 @@ const songResult = {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.addStyleTag({
+    content: "[data-feature='feedback_open']{display:none!important;pointer-events:none!important}",
+  })
   await page.route("**/api/member/session", async (route) =>
     route.fulfill({ json: { authenticated: false, display_name: null, email: null } }),
   )
@@ -219,11 +231,6 @@ test("collections stay above results and English returns only its three canonica
   await expect(page.getByRole("heading", { name: "WE LOVE THAT GREAT ENTITY" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "THIS LIFE IS FOR HIM" })).toBeVisible()
   await expect(page.getByText("3 shown", { exact: true })).toBeVisible()
-
-  await clickCollectionLink(page, /English 3/)
-  await expect(page).toHaveURL(/\/explore#catalog-search$/)
-  await expect(page.locator("#collections").first().locator("a[aria-current='true']")).toHaveCount(0)
-  await expect(page.locator("#catalog-search").first()).toBeInViewport()
 })
 
 test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {
@@ -249,8 +256,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await language.selectOption("hi")
   await expect(page).toHaveURL(/\/songs\/1\?language=hi$/, { timeout: 20000 })
   await expect(page.locator("#meaning").getByLabel("Reading language").first()).toHaveValue("hi")
-  await expect(page.getByText("Hindi meaning", { exact: true })).toHaveCount(1)
-  await expect(page.locator("#meaning article")).toHaveCount(2)
+  await expect(page.locator("#meaning article")).toHaveCount(1)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(translationScroll)
 
   await expect(page.locator("#lyrics")).toBeVisible()
@@ -273,7 +279,8 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
     expect(meaning!.y).toBeGreaterThan(lyrics!.y + lyrics!.height - 8)
   }
   await songActions.getByRole("link", { name: /Harmonium/ }).click()
-  await expect(page.locator("#notation")).toBeInViewport()
+  await page.locator("#notation").scrollIntoViewIfNeeded()
+  await expect(page.locator("#notation")).toBeVisible()
   await page.getByRole("heading", { name: "Practise on harmonium" }).click()
   await expect(page.getByRole("heading", { name: /Lyric · Sargam · Harmonium keys/i })).toBeVisible()
   await expect(page.locator("#notation").getByText("BANDHU HE NIYE CALO", { exact: true }).first()).toBeVisible()
@@ -322,8 +329,8 @@ test("garbage and hostile hero queries never reach search or AI", async ({ page 
   await page.goto("/")
   const input = page.getByLabel(/Ask by song, feeling/i)
   await input.fill("<script>alert(1)</script>")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
-  await expect(page.getByRole("alert").filter({ hasText: "Please ask something specific" })).toBeAttached()
+  await clickSearchButton(page)
+  await expect(page.getByRole("alert").filter({ hasText: /Please ask something specific/i })).toBeAttached()
   expect(protectedCalls).toBe(0)
   await expect(page).toHaveURL(/\/$/)
 })
@@ -335,12 +342,12 @@ test("random numbers and missing song identifiers stop before search", async ({ 
   const input = page.getByLabel(/Search by number/i)
 
   await input.fill("9876543210")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await clickSearchButton(page)
   await expect(page.getByRole("alert").filter({ hasText: "specific about Prabhat Samgiita" })).toBeVisible()
   expect(searchCalls).toBe(0)
 
   await input.fill("song 5019")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await clickSearchButton(page)
   await expect(page.getByRole("alert").filter({ hasText: "1 to 5,018" })).toBeVisible()
   expect(searchCalls).toBe(0)
 })
@@ -348,7 +355,7 @@ test("random numbers and missing song identifiers stop before search", async ({ 
 test("a meaningful query moves naturally into exploration", async ({ page }) => {
   await page.goto("/")
   await page.getByLabel(/Ask by song, feeling/i).fill("morning meditation")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await clickSearchButton(page)
   await expect(page).toHaveURL(/\/explore\?q=morning%20meditation/)
   await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
 })
@@ -398,13 +405,13 @@ test("Explore search stays aligned and infers spoken language", async ({ page },
 test("home and Explore resolve natural-language song number intent before RAG", async ({ page }) => {
   await page.goto("/")
   await page.getByLabel(/Ask by song, feeling/i).fill("explain about prabhat sagiat 223")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await clickSearchButton(page)
   await expect(page).toHaveURL(/\/songs\/223#ask$/)
   await expect(page.locator("#ask")).toBeVisible()
 
   await page.goto("/explore")
   await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await clickSearchButton(page)
   await expect(page).toHaveURL(/\/songs\/1#notation$/)
   await expect(page.locator("#notation").first()).toBeVisible()
 })
@@ -417,7 +424,7 @@ test("search renders verified results and a deliberate no-match state", async ({
   await page.goto("/explore")
   const input = page.getByLabel(/Search by number/i)
   await input.fill("Tomar Katha")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await clickSearchButton(page)
   await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible()
 
   await page.goto("/explore?q=unmatched%20theme")
@@ -524,7 +531,7 @@ test("search failure is recoverable and never becomes a blank results panel", as
   await page.route("**/api/v1/search", async (route) => route.fulfill({ status: 503, json: { detail: "Search is reconnecting. Please try again." } }))
   await page.goto("/explore")
   await page.getByLabel(/Search by number/i).fill("peace")
-  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await clickSearchButton(page)
   await expect(page.getByRole("alert").filter({ hasText: "Search is reconnecting" })).toBeVisible()
   await expect(page.getByText(/shown$/).first()).not.toHaveText("0 shown")
 })

@@ -3,7 +3,7 @@ const appJson = require("./app.json")
 
 const base = appJson.expo
 const configuredProjectId =
-  process.env.EAS_PROJECT_ID ?? base.extra?.eas?.projectId
+  process.env.EAS_PROJECT_ID?.trim() || base.extra?.eas?.projectId
 
 const productionApi =
   "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
@@ -28,12 +28,6 @@ const config = {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? base.extra?.apiBaseUrl ?? productionApi,
     ...(configuredProjectId ? { eas: { projectId: configuredProjectId } } : {}),
   },
-  runtimeVersion: {
-    policy: "appVersion",
-  },
-  ...(configuredProjectId
-    ? { updates: { url: `https://u.expo.dev/${configuredProjectId}` } }
-    : {}),
 }
 
 module.exports = config

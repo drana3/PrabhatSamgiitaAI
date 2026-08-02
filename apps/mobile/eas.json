@@ -6,7 +6,6 @@
   "build": {
     "preview": {
       "distribution": "internal",
-      "channel": "preview",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
       }
@@ -30,7 +29,6 @@
       }
     },
     "production": {
-      "channel": "production",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
       },

@@ -55,7 +55,7 @@ jobs:
         run: apps/api/.venv/bin/python scripts/validate_backend_acceptance.py
 
       - name: Build web
-        run: npm run build
+        run: npm run build:e2e
 
       - name: Upload web build for journey tests
         uses: actions/upload-artifact@v4

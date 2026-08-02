@@ -52,17 +52,29 @@ jobs:
       - name: Set up EAS CLI
         run: npm install -g eas-cli@latest
 
-      - name: Build with EAS
+      - name: Verify Expo credentials
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
-          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL }}
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::Add EXPO_TOKEN to GitHub repository secrets (expo.dev/settings/access-tokens)."
             exit 1
           fi
+          eas whoami
+
+      - name: Validate EAS project config
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx expo config --type public > /dev/null
+
+      - name: Build with EAS
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL }}
+        run: |
           eas build \
             --platform "${{ matrix.platform }}" \
             --profile "${{ matrix.profile }}" \
