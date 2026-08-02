@@ -715,6 +715,51 @@ class HybridSearchService:
             return False
         return True
 
+    def _collection_search_response(
+        self,
+        query: str,
+        collection_match: CanonicalCollectionMatch,
+        songs: list[Song],
+        media_counts: dict[int, MediaSummary],
+        filters: SearchFilters,
+        page: int,
+        page_size: int,
+    ) -> SearchResponse:
+        lookup = {song.number: song for song in songs}
+        items: list[SearchResultItem] = []
+        for number in sorted(collection_match.song_numbers):
+            song = lookup.get(number)
+            if song is None:
+                continue
+            summary = media_counts.get(number, MediaSummary())
+            if not self._apply_filters(song, filters, summary):
+                continue
+            matched_by = ["structured_filter"]
+            if song.is_verified or song.canonical_source_status == "verified":
+                matched_by.append("verified")
+            items.append(
+                SearchResultItem(
+                    song_number=song.number,
+                    opening_line=song.first_line,
+                    matched_by=matched_by,
+                    score=1.0,
+                    verification_status="officially_verified"
+                    if song.is_verified or song.canonical_source_status == "verified"
+                    else song.canonical_source_status,
+                    themes=[value for value in [song.theme] if value],
+                    media_summary=summary,
+                )
+            )
+        total = len(items)
+        start = max(page - 1, 0) * page_size
+        end = start + page_size
+        return SearchResponse(
+            query=query,
+            detected_intent="collection_search",
+            total=total,
+            items=items[start:end],
+        )
+
     async def search(
         self,
         query: str,
@@ -727,18 +772,24 @@ class HybridSearchService:
         filters = filters or SearchFilters()
         songs = await self._song_index()
         media_counts = await self._media_counts()
+        collection_match = infer_canonical_collection(query)
+        if collection_match:
+            return self._collection_search_response(
+                query,
+                collection_match,
+                songs,
+                media_counts,
+                filters,
+                page,
+                page_size,
+            )
+
         semantic_mode = mode == "semantic"
-        collection_match = None if semantic_mode else infer_canonical_collection(query)
-        if semantic_mode:
-            inferred_filters = SearchFilters()
-        else:
-            inferred_filters = infer_search_filters(query, songs)
+        inferred_filters = SearchFilters() if semantic_mode else infer_search_filters(query, songs)
         filters = merge_search_filters(filters, inferred_filters)
         intent = (
             "semantic_search"
             if semantic_mode
-            else "collection_search"
-            if collection_match
             else "filtered_search"
             if has_search_filters(filters)
             else detect_intent(query)
@@ -781,16 +832,13 @@ class HybridSearchService:
             [
                 str(song.number)
                 for song in songs
-                if (
-                    (not collection_match or song.number in collection_match.song_numbers)
-                    and self._apply_filters(
-                        song,
-                        filters,
-                        media_counts.get(song.number, MediaSummary()),
-                    )
+                if self._apply_filters(
+                    song,
+                    filters,
+                    media_counts.get(song.number, MediaSummary()),
                 )
             ]
-            if has_search_filters(filters) or collection_match
+            if has_search_filters(filters)
             else []
         )
 
@@ -830,8 +878,6 @@ class HybridSearchService:
         for candidate in candidates:
             song = candidate_lookup.get(int(candidate))
             if not song:
-                continue
-            if collection_match and song.number not in collection_match.song_numbers:
                 continue
             summary = media_counts.get(song.number, MediaSummary())
             if not self._apply_filters(song, filters, summary):

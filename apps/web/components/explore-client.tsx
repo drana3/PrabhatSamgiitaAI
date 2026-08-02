@@ -38,6 +38,14 @@ function exploreUrl(
   return `/explore?${params.toString()}#catalog-search`
 }
 
+function scrollToSearchProgress() {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  document.getElementById("catalog-search")?.scrollIntoView({
+    behavior: reduceMotion ? "auto" : "smooth",
+    block: "start",
+  })
+}
+
 export function ExploreClient({
   initialSongs,
   initialQuery,
@@ -104,6 +112,7 @@ export function ExploreClient({
     setVoiceResult(null)
     setSearchError(null)
     window.history.replaceState(null, "", exploreUrl(trimmed, kind))
+    scrollToSearchProgress()
 
     try {
       const results = await searchSongs(trimmed, { mode: kind === "catalog" ? "catalog" : "semantic" })
@@ -137,6 +146,7 @@ export function ExploreClient({
     setCompletedQuery("")
     setSearchError(null)
     window.history.replaceState(null, "", exploreUrl(trimmed, "semantic", { voice: true, lang: spokenLanguage }))
+    scrollToSearchProgress()
 
     try {
       const voiceResult = await searchSongsByVoice(trimmed, spokenLanguage)
@@ -234,7 +244,9 @@ export function ExploreClient({
             {activeQuery ? <>{inputMode === "voice" ? "Top voice matches for" : "Songs matching"} <span className="text-gold-700">“{activeQuery}”</span></> : "Explore the songs"}
           </h2>
         </div>
-        <span className="text-xs font-semibold text-stone-500">{songs.length} shown</span>
+        <span className="text-xs font-semibold text-stone-500">
+          {searching ? "Searching…" : `${songs.length} shown`}
+        </span>
       </div>
       {searching ? (
         <div className="mt-6 rounded-2xl border border-gold-500/25 bg-white p-8"><LoadingIndicator label={loadingLabel} /></div>

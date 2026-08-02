@@ -18,7 +18,7 @@ export async function searchSongsOnServer(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: trimmed, mode }),
-      next: { revalidate: mode === "catalog" ? 300 : 0 },
+      cache: "no-store",
     })
     if (!response.ok) return null
     return await response.json() as SongSummary[]

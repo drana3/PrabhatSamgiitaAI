@@ -250,13 +250,23 @@ async def test_language_collection_query_returns_only_verified_english_songs() -
 
 
 @pytest.mark.asyncio
-async def test_semantic_mode_skips_collection_filtering() -> None:
+async def test_semantic_mode_uses_collection_fast_path_for_reviewed_lists() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 
     response = await service.search("English songs", mode="semantic")
 
-    assert response.detected_intent == "semantic_search"
-    assert "structured_filter" not in response.items[0].matched_by if response.items else True
+    assert response.detected_intent == "collection_search"
+    assert {item.song_number for item in response.items} == {68, 5008, 5009}
+
+
+@pytest.mark.asyncio
+async def test_semantic_mode_uses_collection_fast_path_for_short_keywords() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("marriage", mode="semantic")
+
+    assert response.detected_intent == "collection_search"
+    assert [item.song_number for item in response.items] == [58]
 
 
 @pytest.mark.asyncio

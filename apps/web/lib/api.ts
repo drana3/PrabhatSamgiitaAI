@@ -3,6 +3,17 @@ import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
 const requestTimeoutMs = 15000
+const searchTimeoutMs = 45000
+
+function searchErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (error.name === "AbortError" || /abort/i.test(error.message)) {
+      return "Search is taking longer than expected. Please try again in a moment."
+    }
+    if (error.message !== "Failed to fetch") return error.message
+  }
+  return "Search is temporarily unavailable."
+}
 
 const songSummarySchema = z.object({
   number: z.number(),
@@ -205,6 +216,20 @@ export async function fetchJson(path: string, init: RequestInit = {}) {
   }
 }
 
+async function fetchSearchJson(path: string, init: RequestInit) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), searchTimeoutMs)
+  try {
+    return await fetch(`${apiBase}${path}`, {
+      ...init,
+      signal: controller.signal,
+      cache: "no-store",
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function fetchSongs(): Promise<SongSummary[]> {
   try {
     const response = await fetchJson("/api/v1/songs")
@@ -270,7 +295,7 @@ export async function searchSongs(
   if (!queryIsUseful(query, 200)) throw new Error(queryGuidanceFor(query))
   const mode = options.mode ?? "catalog"
   try {
-    const response = await fetchJson("/api/v1/search", {
+    const response = await fetchSearchJson("/api/v1/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, mode }),
@@ -281,8 +306,7 @@ export async function searchSongs(
     }
     return z.array(songSummarySchema).parse(await response.json())
   } catch (error) {
-    if (error instanceof Error && error.message !== "Failed to fetch") throw error
-    return []
+    throw new Error(searchErrorMessage(error))
   }
 }
 
