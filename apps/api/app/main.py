@@ -30,8 +30,9 @@ logger = logging.getLogger(__name__)
 
 
 def _run_alembic_migrations() -> None:
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
     command.upgrade(config, "head")
