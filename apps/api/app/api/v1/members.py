@@ -42,8 +42,6 @@ async def current_member(request: Request, session: AsyncSession) -> UserAccount
 
 @router.get("/session", response_model=MemberProfile | AnonymousMember)
 async def session_profile(request: Request, session: DatabaseSession) -> MemberProfile:
-    import logging
-
     try:
         member = await current_member(request, session)
         return await member_profile(session, member)

@@ -93,18 +93,14 @@ async def admin_feedback_list(
     offset: int = Query(default=0, ge=0),
 ) -> AdminFeedbackListResponse:
     await admin_member(request, session)
-    filters = []
+    statement = select(UserFeedback)
+    count_statement = select(func.count()).select_from(UserFeedback)
     if status and status != "all":
-        filters.append(UserFeedback.status == status)
-    total = await session.scalar(
-        select(func.count()).select_from(UserFeedback).where(*filters)
-    )
+        statement = statement.where(UserFeedback.status == status)
+        count_statement = count_statement.where(UserFeedback.status == status)
+    total = await session.scalar(count_statement)
     result = await session.execute(
-        select(UserFeedback)
-        .where(*filters)
-        .order_by(UserFeedback.created_at.desc())
-        .offset(offset)
-        .limit(limit)
+        statement.order_by(UserFeedback.created_at.desc()).offset(offset).limit(limit)
     )
     items = [
         AdminFeedbackItem(
@@ -115,7 +111,7 @@ async def admin_feedback_list(
             page_path=item.page_path,
             contact=item.contact,
             status=item.status,
-            created_at=item.created_at.isoformat(),
+            created_at=(item.created_at.isoformat() if item.created_at else ""),
             priority=feedback_is_priority(item.category, item.rating),
         )
         for item in result.scalars().all()
