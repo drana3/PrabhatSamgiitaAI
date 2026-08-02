@@ -4,11 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import { fetchTestimonials } from "@/lib/api"
 import type { CommunityTestimonial } from "@/lib/api"
-import {
-  COMMUNITY_FEEDBACK_EVENT,
-  mergeCommunityVoices,
-  type CommunityFeedbackSubmission,
-} from "@/lib/community-voices"
+import { mergeCommunityVoices } from "@/lib/community-voices"
 
 function TickerItem({ item }: { item: CommunityTestimonial }) {
   return (
@@ -26,39 +22,15 @@ function TickerItem({ item }: { item: CommunityTestimonial }) {
 }
 
 export function CommunityFeedbackTicker() {
-  const [apiItems, setApiItems] = useState<CommunityTestimonial[]>([])
-  const [liveItems, setLiveItems] = useState<CommunityTestimonial[]>([])
+  const [items, setItems] = useState<CommunityTestimonial[]>([])
 
   useEffect(() => {
-    void fetchTestimonials().then(setApiItems)
+    void fetchTestimonials().then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
   }, [])
 
-  useEffect(() => {
-    function onFeedback(event: Event) {
-      const detail = (event as CustomEvent<CommunityFeedbackSubmission>).detail
-      if (!detail?.quote_text?.trim()) return
-      setLiveItems((current) => [
-        {
-          display_name: detail.display_name,
-          display_location: detail.display_location ?? null,
-          quote_text: detail.quote_text.trim(),
-        },
-        ...current,
-      ])
-    }
+  const track = useMemo(() => (items.length ? [...items, ...items] : []), [items])
 
-    window.addEventListener(COMMUNITY_FEEDBACK_EVENT, onFeedback)
-    return () => window.removeEventListener(COMMUNITY_FEEDBACK_EVENT, onFeedback)
-  }, [])
-
-  const items = useMemo(
-    () => mergeCommunityVoices([...liveItems, ...apiItems]),
-    [apiItems, liveItems],
-  )
-
-  if (!items.length) return null
-
-  const track = [...items, ...items]
+  if (!track.length) return null
 
   return (
     <div
@@ -66,7 +38,7 @@ export function CommunityFeedbackTicker() {
       aria-label="Community feedback about Prabhat Samgiita"
     >
       <p className="sr-only">
-        Scrolling messages from devotees sharing how Prabhat Samgiita and this AI companion support
+        Approved messages from devotees sharing how Prabhat Samgiita and this AI companion support
         their spiritual journey.
       </p>
       <div className="community-feedback-ticker__viewport">

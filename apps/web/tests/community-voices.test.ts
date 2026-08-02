@@ -1,13 +1,11 @@
-import { FALLBACK_COMMUNITY_VOICES, mergeCommunityVoices } from "@/lib/community-voices"
+import { mergeCommunityVoices } from "@/lib/community-voices"
 
 describe("mergeCommunityVoices", () => {
-  it("returns fallbacks when the API is empty", () => {
-    const merged = mergeCommunityVoices([])
-    expect(merged.length).toBeGreaterThanOrEqual(6)
-    expect(merged[0]?.display_name).toBe(FALLBACK_COMMUNITY_VOICES[0]?.display_name)
+  it("returns nothing when the API has no approved testimonials", () => {
+    expect(mergeCommunityVoices([])).toEqual([])
   })
 
-  it("puts API voices first and avoids duplicate quotes", () => {
+  it("keeps approved voices and removes duplicate quotes", () => {
     const merged = mergeCommunityVoices([
       {
         display_name: "Live Voice",
@@ -17,10 +15,16 @@ describe("mergeCommunityVoices", () => {
       {
         display_name: "Duplicate",
         display_location: "Nowhere",
-        quote_text: FALLBACK_COMMUNITY_VOICES[0]!.quote_text,
+        quote_text: "Prabhat Samgiita guides my morning meditation.",
+      },
+      {
+        display_name: "Too short",
+        display_location: "Nowhere",
+        quote_text: "Nice app",
       },
     ])
+
+    expect(merged).toHaveLength(1)
     expect(merged[0]?.display_name).toBe("Live Voice")
-    expect(merged.filter((item) => item.display_name === "Duplicate")).toHaveLength(0)
   })
 })

@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react"
 
 import { CommunityFeedbackTicker } from "@/components/community-feedback-ticker"
 import { fetchTestimonials } from "@/lib/api"
-import { publishCommunityFeedback } from "@/lib/community-voices"
 
 vi.mock("@/lib/api", () => ({ fetchTestimonials: vi.fn() }))
 const fetchTestimonialsMock = vi.mocked(fetchTestimonials)
@@ -11,14 +10,13 @@ const fetchTestimonialsMock = vi.mocked(fetchTestimonials)
 afterEach(() => vi.clearAllMocks())
 
 describe("CommunityFeedbackTicker", () => {
-  it("shows fallback voices when the API returns none", async () => {
+  it("renders nothing when there are no approved testimonials", () => {
     fetchTestimonialsMock.mockResolvedValue([])
-    render(<CommunityFeedbackTicker />)
-    expect((await screen.findAllByText(/Ananda D\./)).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Kolkata, India/).length).toBeGreaterThan(0)
+    const { container } = render(<CommunityFeedbackTicker />)
+    expect(container).toBeEmptyDOMElement()
   })
 
-  it("prefers approved API testimonials and prepends live feedback", async () => {
+  it("shows approved API testimonials only", async () => {
     fetchTestimonialsMock.mockResolvedValue([
       {
         display_name: "Test Devotee",
@@ -28,14 +26,6 @@ describe("CommunityFeedbackTicker", () => {
     ])
     render(<CommunityFeedbackTicker />)
     await waitFor(() => expect(screen.getAllByText(/Test Devotee/).length).toBeGreaterThan(0))
-
-    publishCommunityFeedback({
-      display_name: "Riya",
-      display_location: "Pune, India",
-      quote_text: "This tool helps me reflect after each song.",
-    })
-
-    expect((await screen.findAllByText(/Riya/)).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Pune, India/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Varanasi, India/).length).toBeGreaterThan(0)
   })
 })

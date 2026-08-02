@@ -194,6 +194,7 @@ async def current_india_humanitarian_signals() -> list[ContextSignal]:
             localized = await asyncio.gather(
                 *(_english_signal(client, signal) for signal in signals)
             )
-            return list(localized)
+            # RSS item links are machine-readable CAP/XML endpoints, not public pages.
+            return [replace(signal, source_url=NDMA_SACHET_URL) for signal in localized]
     except (httpx.HTTPError, ET.ParseError):
         return []

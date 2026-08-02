@@ -476,20 +476,34 @@ test("AI companion remembers context, accepts Romanized Hindi, and blocks nonsen
   expect(requests).toHaveLength(2)
 })
 
-test("Service recommendation sends canonical service collections and never keeps stale songs", async ({ page }) => {
-  let requestTheme = ""
-  await page.route("**/api/v1/recommendations", async (route) => {
-    const payload = route.request().postDataJSON() as { theme?: string }
-    requestTheme = payload.theme ?? ""
-    await route.fulfill({ json: [{ ...songResult, number: 4599, title: "PROUTER E CAKR AAGE CALO", theme: "PROUT" }] })
+test("home today recommendations load without manual mood chips", async ({ page }) => {
+  await page.route("**/api/v1/recommendations/today**", async (route) => {
+    await route.fulfill({
+      json: {
+        recommendations: [{
+          ...songResult,
+          number: 4599,
+          title: "PROUTER E CAKR AAGE CALO",
+          theme: "PROUT",
+          reasons: ["For service and uplift"],
+        }],
+        signals: [{
+          title: "Today’s selection",
+          summary: "Auto-selected for this moment.",
+          source_name: "Prabhat Samgiita AI",
+          source_url: "https://knowindia.india.gov.in/",
+          category: "humanity",
+        }],
+        context: { recommendation_mode: "contextual" },
+        disclaimer: "Recommendations are grounded in reviewed collections.",
+      },
+    })
   })
   await page.goto("/")
-  await page.getByRole("button", { name: "Service", exact: true }).click()
 
   await expect(page.getByRole("link", { name: "PROUTER E CAKR AAGE CALO" })).toBeVisible()
-  expect(requestTheme).toContain("PROUT")
-  expect(requestTheme).toContain("AMURT")
-  await expect(page.getByText("BANDHU HE NIYE CALO", { exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Morning", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Service", exact: true })).toHaveCount(0)
 })
 
 test("song pages omit unavailable information and use clear recording language", async ({ page }) => {

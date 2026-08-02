@@ -1,4 +1,5 @@
 from app.services.world_context import (
+    NDMA_SACHET_URL,
     english_disaster_fallback,
     extract_english_cap_headline,
     needs_english_headline,
@@ -21,6 +22,18 @@ def test_india_alert_feed_prioritizes_disasters_and_skips_routine_weather() -> N
     assert [signal.category for signal in signals] == ["disaster", "disaster"]
     assert all(signal.source_name == "NDMA SACHET" for signal in signals)
     assert all("Delhi" not in signal.title for signal in signals)
+
+
+def test_humanitarian_signals_use_public_ndma_homepage() -> None:
+    payload = """<?xml version="1.0"?><rss><channel>
+      <item><title>Severe flood alert in Kerala.</title>
+        <link>https://sachet.ndma.gov.in/cap_public_website/FetchXMLFile?identifier=1785672086661008</link></item>
+    </channel></rss>"""
+
+    signals = parse_india_disaster_alerts(payload)
+
+    assert signals[0].source_url.endswith("FetchXMLFile?identifier=1785672086661008")
+    assert NDMA_SACHET_URL == "https://sachet.ndma.gov.in/"
 
 
 def test_multilingual_alert_uses_authoritative_english_cap_headline() -> None:

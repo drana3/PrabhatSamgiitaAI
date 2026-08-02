@@ -6,46 +6,41 @@ import Link from "next/link"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { fetchTodayRecommendations, recommendSongs } from "@/lib/api"
 import type { SongSummary, TodayRecommendations } from "@/lib/api"
-import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
+import { publicContextLink } from "@/lib/context-links"
+import { getAutoRecommendationPreset, getUpcomingObservances } from "@/lib/recommendation-presets"
 
 export function RecommendationSection() {
   const [results, setResults] = useState<SongSummary[]>([])
   const [today, setToday] = useState<TodayRecommendations | null>(null)
-  const [presetKey, setPresetKey] = useState("auto")
   const [loading, setLoading] = useState(true)
-  const presets = useMemo(() => quickRecommendationPresets(), [])
   const upcoming = useMemo(() => getUpcomingObservances(), [])
-  const autoPreset = useMemo(() => getAutoRecommendationPreset(), [])
-  const activePreset = presetKey === "auto" ? autoPreset : presets.find((item) => item.id === presetKey)?.preset ?? autoPreset
+  const fallbackPreset = useMemo(() => getAutoRecommendationPreset(), [])
 
   useEffect(() => {
     let active = true
     setLoading(true)
-    if (presetKey === "auto") {
-      void fetchTodayRecommendations().then(async (value) => {
-        if (!active) return
-        if (value) {
-          setToday(value)
-          setResults([])
-          return
-        }
-        const fallback = await recommendSongs(activePreset)
-        if (active) {
-          setToday(null)
-          setResults(fallback)
-        }
-      }).finally(() => { if (active) setLoading(false) })
-    } else {
-      void recommendSongs(activePreset).then((next) => {
-        if (active) { setResults(next); setToday(null) }
-      }).finally(() => { if (active) setLoading(false) })
-    }
+    void fetchTodayRecommendations().then(async (value) => {
+      if (!active) return
+      if (value) {
+        setToday(value)
+        setResults([])
+        return
+      }
+      const fallback = await recommendSongs(fallbackPreset)
+      if (active) {
+        setToday(null)
+        setResults(fallback)
+      }
+    }).finally(() => {
+      if (active) setLoading(false)
+    })
     return () => { active = false }
-  }, [activePreset, presetKey])
+  }, [fallbackPreset])
 
-  const contextTitle = today?.signals[0]?.title || activePreset.title
-  const contextSummary = today?.signals[0]?.summary || activePreset.subtitle
+  const contextTitle = today?.signals[0]?.title || fallbackPreset.title
+  const contextSummary = today?.signals[0]?.summary || fallbackPreset.subtitle
   const contextSignal = today?.signals[0]
+  const contextLink = contextSignal ? publicContextLink(contextSignal.source_url) : null
   const strictFestivalWithoutSongs = today?.context.recommendation_mode === "strict_festival" && !today.recommendations.length
 
   return (
@@ -56,13 +51,9 @@ export function RecommendationSection() {
             <p className="eyebrow">Selected for this moment</p>
             <h3 className="mt-2 font-serif text-3xl text-navy-950">{contextTitle}</h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">{contextSummary}</p>
-            {contextSignal ? <a href={contextSignal.source_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Context from {contextSignal.source_name} ↗</a> : null}
+            {contextLink && contextSignal ? <a href={contextLink} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Context from {contextSignal.source_name} ↗</a> : null}
           </div>
           {loading ? <LoadingIndicator label="Finding songs" compact /> : <span className="text-xs font-semibold text-emerald-700">Updated for today</span>}
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setPresetKey("auto")} className={`soft-chip ${presetKey === "auto" ? "border-gold-600 bg-gold-100" : ""}`}>Today</button>
-          {presets.filter((item) => item.id !== "auto").map((item) => <button key={item.id} type="button" onClick={() => setPresetKey(item.id)} className={`soft-chip ${presetKey === item.id ? "border-gold-600 bg-gold-100" : ""}`}>{item.label}</button>)}
         </div>
       </div>
 
