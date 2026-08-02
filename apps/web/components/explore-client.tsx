@@ -12,7 +12,7 @@ import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
 import { scrollToSectionId } from "@/lib/scroll-to-section"
 import type { ExploreSearchKind } from "@/lib/special-collections"
-import { specialCollectionCount } from "@/lib/special-collections"
+import { collectionSearchDisplayLabel, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
 
 const themes = [
   { label: "♡ Love & devotion", query: "love devotion" },
@@ -209,6 +209,9 @@ export function ExploreClient({
     ? "Finding the verified songs in this collection"
     : "Searching meanings and themes across the catalog"
 
+  const queryLabel = collectionSearchDisplayLabel(activeQuery)
+  const collectionSearch = isCollectionSearchQuery(activeQuery)
+
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
       <div className="flex flex-wrap items-baseline gap-4">
@@ -252,7 +255,10 @@ export function ExploreClient({
 
       {activeQuery ? (
         <div id="active-filter" role="status" className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold-500/35 bg-gold-50 px-5 py-4">
-          <p className="text-sm text-stone-700"><span className="font-semibold text-navy-950">Showing songs for:</span> {activeQuery}</p>
+          <p className="text-sm text-stone-700">
+            <span className="font-semibold text-navy-950">Showing songs for:</span>{" "}
+            {collectionSearch ? queryLabel : activeQuery}
+          </p>
           <Link href="/explore" className="text-xs font-semibold text-gold-700 underline underline-offset-4">Clear search</Link>
         </div>
       ) : null}
@@ -261,7 +267,15 @@ export function ExploreClient({
         <div>
           <p className="eyebrow">Top results</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">
-            {activeQuery ? <>{inputMode === "voice" ? "Top voice matches for" : "Songs matching"} <span className="text-gold-700">“{activeQuery}”</span></> : "Explore the songs"}
+            {activeQuery ? (
+              inputMode === "voice" ? (
+                <>Top voice matches for <span className="text-gold-700">“{queryLabel}”</span></>
+              ) : collectionSearch ? (
+                <>Songs in the <span className="text-gold-700">{queryLabel}</span> collection</>
+              ) : (
+                <>Songs matching <span className="text-gold-700">“{queryLabel}”</span></>
+              )
+            ) : "Explore the songs"}
           </h2>
         </div>
         <span className="text-xs font-semibold text-stone-500">

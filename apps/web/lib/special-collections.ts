@@ -308,6 +308,21 @@ export function isCollectionSearchQuery(query: string) {
   return query.trim().toLocaleLowerCase().startsWith(collectionPromptPrefix)
 }
 
+export function collectionSearchDisplayLabel(query: string) {
+  const trimmed = query.trim()
+  for (const group of specialCollectionGroups) {
+    for (const collection of group.collections) {
+      if (queryMatchesCollection(trimmed, collection.query)) {
+        return collection.label
+      }
+    }
+  }
+  if (isCollectionSearchQuery(trimmed)) {
+    return trimmed.slice(collectionPromptPrefix.length).trim()
+  }
+  return trimmed
+}
+
 export type ExploreSearchKind = "catalog" | "semantic"
 
 export function exploreSearchKind(query: string, explicitKind?: string | null): ExploreSearchKind {

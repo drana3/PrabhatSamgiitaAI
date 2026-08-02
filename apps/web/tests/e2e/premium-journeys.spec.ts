@@ -223,7 +223,7 @@ test("collections stay above results and English returns only its three canonica
   expect(collectionBounds!.y + collectionBounds!.height).toBeLessThan(resultBounds!.y)
 
   await clickCollectionLink(page, /English 3/)
-  await expect(page.getByRole("heading", { name: /Songs matching.*English Songs/i }).first()).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Songs in the English collection/i }).first()).toBeVisible()
   await expect(page.locator("#results").first()).toBeInViewport()
   const searchBounds = await page.locator("#catalog-search").first().boundingBox()
   const resultsAfterBounds = await page.locator("#results").first().boundingBox()

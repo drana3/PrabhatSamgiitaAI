@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
-import { specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
+import { collectionSearchDisplayLabel, specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
 import canonicalCollections from "../../../data/generated/theme_collections.json"
 
 describe("reviewed discovery collections", () => {
@@ -79,5 +79,13 @@ describe("reviewed discovery collections", () => {
     expect(exploreSearchKind("Search Prabhat Samgiita for Hindi Songs")).toBe("catalog")
     expect(exploreSearchKind("song about rain")).toBe("semantic")
     expect(exploreSearchKind("morning meditation", "semantic")).toBe("semantic")
+  })
+
+  it("maps collection search prompts to friendly display labels", () => {
+    expect(collectionSearchDisplayLabel(
+      "Search Prabhat Samgiita for Songs to Attract Rain / Draught Songs / Farmer's Songs",
+    )).toBe("Rain, drought, and farmers")
+    expect(collectionSearchDisplayLabel("Search Prabhat Samgiita for English Songs")).toBe("English")
+    expect(collectionSearchDisplayLabel("morning meditation")).toBe("morning meditation")
   })
 })
