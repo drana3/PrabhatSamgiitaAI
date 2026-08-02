@@ -374,6 +374,79 @@ test("a meaningful query moves naturally into exploration", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
 })
 
+test("home search lands on explore with Searching before results arrive", async ({ page }) => {
+  await page.route("**/api/v1/search", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    await route.fulfill({ json: [songResult] })
+  })
+  await page.goto("/")
+  await page.getByLabel(/Ask by song, feeling/i).fill("Musafir aage badhate hain")
+  await clickSearchButton(page)
+  await expect(page).toHaveURL(/\/explore\?q=.*Musafir.*kind=semantic/)
+  await expect(page.getByRole("button", { name: "Searching" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Searching" })).toBeDisabled()
+  await expect(page.getByText("Searching meanings and themes across the catalog")).toBeVisible()
+  await expect(page.getByText("Searching…", { exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("button", { name: "Search", exact: true })).toBeEnabled()
+})
+
+test("explore URL with query shows Searching immediately on landing", async ({ page }) => {
+  await page.route("**/api/v1/search", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    await route.fulfill({ json: [songResult] })
+  })
+  await page.goto("/explore?q=Musafir%20aage%20badhate%20hain&kind=semantic")
+  await expect(page.getByRole("button", { name: "Searching" })).toBeVisible()
+  await expect(page.getByRole("main").getByText("Searching meanings and themes across the catalog")).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Songs matching/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator("#results")).toBeInViewport()
+})
+
+test("explore semantic search shows Searching immediately and scrolls to results", async ({ page }) => {
+  await page.route("**/api/v1/search", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 450))
+    await route.fulfill({ json: [songResult] })
+  })
+  await page.goto("/explore")
+  await page.getByLabel(/Search by number/i).fill("peaceful devotion")
+  await clickSearchButton(page)
+  await expect(page.getByRole("button", { name: "Searching" })).toBeVisible()
+  await expect(page.locator("#catalog-search")).toBeInViewport()
+  await expect(page.getByText("Searching…", { exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator("#results")).toBeInViewport()
+})
+
+test("collection click scrolls to search bar, shows Searching, and uses a friendly heading", async ({ page }) => {
+  const rainSongs = [
+    { ...songResult, number: 119, title: "Rain Song Example 1" },
+    { ...songResult, number: 5011, title: "Rain Song Example 2" },
+  ]
+  await page.route("**/api/v1/search", async (route) => {
+    const payload = route.request().postDataJSON() as { query: string }
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    if (payload.query.includes("Attract Rain") || payload.query.includes("Farmer")) {
+      await route.fulfill({ json: rainSongs })
+      return
+    }
+    await route.fulfill({ json: [songResult] })
+  })
+  await page.goto("/explore")
+  await setDetailsOpen(page, "#collections", true)
+  await page.getByText("Seasons, earth, and rain", { exact: true }).first().click()
+  await clickCollectionLink(page, /Rain, drought, and farmers\s+\d+/)
+  await expect(page.getByRole("button", { name: "Searching" })).toBeVisible()
+  await expect(page.locator("#catalog-search")).toBeInViewport()
+  await expect(page.getByRole("alert").filter({ hasText: "specific about Prabhat Samgiita" })).toHaveCount(0)
+  await expect(page.getByText("Finding the verified songs in this collection")).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Songs in the Rain, drought, and farmers collection/i }).first()).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Rain Song Example 1" })).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator("#results")).toBeInViewport()
+  await expect(page.getByText("2 shown", { exact: true })).toBeVisible()
+})
+
 test("Explore search stays aligned and infers spoken language", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "webkitSpeechRecognition", {
@@ -563,7 +636,7 @@ test("search failure is recoverable and never becomes a blank results panel", as
   await page.getByLabel(/Search by number/i).fill("peace")
   await clickSearchButton(page)
   await expect(page.getByRole("alert").filter({ hasText: "Search is reconnecting" })).toBeVisible()
-  await expect(page.getByText(/shown$/).first()).not.toHaveText("0 shown")
+  await expect(page.getByText("Unavailable", { exact: true })).toBeVisible()
 })
 
 test("feedback validates input and confirms successful delivery", async ({ page }) => {

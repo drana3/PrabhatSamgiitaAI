@@ -279,7 +279,7 @@ export function ExploreClient({
           </h2>
         </div>
         <span className="text-xs font-semibold text-stone-500">
-          {searching ? "Searching…" : `${songs.length} shown`}
+          {searching ? "Searching…" : searchError ? "Unavailable" : `${songs.length} shown`}
         </span>
       </div>
       {searching ? (

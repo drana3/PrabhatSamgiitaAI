@@ -122,6 +122,8 @@ export function SearchForm({
         <button
           type="submit"
           data-feature="catalog_search"
+          aria-label={mutation.isPending || isSearching ? "Searching" : "Search"}
+          aria-busy={mutation.isPending || isSearching}
           className="flex min-h-12 items-center justify-center rounded-xl bg-navy-950 px-7 py-3 font-semibold text-white transition hover:bg-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={mutation.isPending || isSearching}
         >
