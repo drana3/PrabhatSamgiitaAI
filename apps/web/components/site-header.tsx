@@ -33,7 +33,7 @@ export function SiteHeader({ active = "Home" }: { active?: string }) {
           </span>
         </Link>
 
-        <nav aria-label="Main navigation" className="hidden items-center gap-8 md:flex">
+        <nav aria-label="Main navigation" className="hidden items-center gap-5 md:flex lg:gap-8">
           {navigation.map((item) => item.href.includes("#") ? (
             <a key={item.label} href={item.href} className={`nav-link ${active === item.label ? "nav-link-active" : ""}`}>{item.label}</a>
           ) : (
