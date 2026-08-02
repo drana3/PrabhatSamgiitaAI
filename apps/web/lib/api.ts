@@ -110,6 +110,8 @@ const songLocalizationSchema = z.object({
 export type SongSummary = z.infer<typeof songSummarySchema>
 export type SongDetail = z.infer<typeof songDetailSchema>
 export type TransposedNotation = z.infer<typeof transposedNotationSchema>
+export type NotationLine = z.infer<typeof notationLineSchema>
+export type NotationNote = z.infer<typeof notationNoteSchema>
 export type SongLocalization = z.infer<typeof songLocalizationSchema>
 
 const todayRecommendationSchema = z.object({

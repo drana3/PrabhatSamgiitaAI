@@ -12,6 +12,7 @@ import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
 import { fetchNotation, fetchSong, fetchSongLocalization } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
+import { splitLyricLines } from "@/lib/sargam-display"
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
   const { number } = await params
@@ -65,7 +66,18 @@ export default async function SongPage({ params, searchParams }: { params: Promi
             {hasMeaning ? <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="eyebrow">Meaning</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Understand the song</h2><p className="mt-2 text-xs leading-5 text-stone-500">Choose a language for an AI-assisted translation grounded in this song.</p></div><SongLanguageSwitcher selectedLanguage={language} /></div>{language !== "en" && selectedMeaning ? <MeaningBlock label={`${localeLabel(language)} meaning`} value={selectedMeaning} /> : null}<MeaningBlock label="English" value={song.english_meaning} />{language !== "hi" && !song.english_meaning ? <MeaningBlock label="हिन्दी" value={song.hindi_meaning} /> : null}</section> : null}
           </div>
 
-          {hasNotation ? <div className="mt-7 border-t border-navy-900/10 pt-7"><HarmoniumPractice songNumber={song.number} initialNotation={notation} sourceUrl={song.notation_source_url} sourceStatus={song.notation_verification_status} /></div> : null}
+          {hasNotation ? (
+            <div className="mt-7 border-t border-navy-900/10 pt-7">
+              <HarmoniumPractice
+                songNumber={song.number}
+                initialNotation={notation}
+                sourceUrl={song.notation_source_url}
+                sourceStatus={song.notation_verification_status}
+                songLyricLines={splitLyricLines(song.transliteration || song.first_line)}
+                originalLyricLines={splitLyricLines(song.lyrics_original)}
+              />
+            </div>
+          ) : null}
         </section>
 
         <div className="mt-7 grid gap-7 xl:grid-cols-[1.2fr_0.8fr]">
