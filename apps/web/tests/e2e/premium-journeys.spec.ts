@@ -327,7 +327,7 @@ test("members can discover the configured sign-in flow", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Namaskar. Continue your journey." })).toBeVisible()
   await expect(page.getByRole("link", { name: "Continue with Microsoft" })).toHaveAttribute(
     "href",
-    "/.auth/login/aad?post_login_redirect_uri=/",
+    "/.auth/login/aad?post_login_redirect_uri=%2F",
   )
 })
 
