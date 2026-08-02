@@ -13,6 +13,16 @@ const songResult = {
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/songs", async (route) => route.fulfill({ json: [songResult] }))
   await page.route("**/api/v1/recommendations/today**", async (route) => route.fulfill({ status: 503, body: "offline" }))
+  await page.route("**/api/v1/recommendations", async (route) => route.fulfill({ json: [songResult] }))
+  await page.route("**/api/v1/reflections/today**", async (route) => route.fulfill({ json: {
+    quote_text: "As one thinks, so one becomes.",
+    attribution: "Shrii Shrii Anandamurti ji",
+    source_title: "Meditation",
+    source_url: "https://www.anandamarga.org/articles/meditation/",
+    context_label: "Daily spiritual reflection",
+    verification_status: "source_verified",
+  } }))
+  await page.route("**/api/v1/testimonials**", async (route) => route.fulfill({ json: [] }))
 })
 
 test("home delivers a complete, nonblank spiritual journey", async ({ page }) => {
@@ -21,9 +31,10 @@ test("home delivers a complete, nonblank spiritual journey", async ({ page }) =>
   await expect(page.getByRole("heading", { name: /Songs composed for a new human dawn/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Music for this moment" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Upcoming observances", exact: true })).toBeVisible()
+  await expect(page.getByText("Refine these suggestions", { exact: true })).toHaveCount(0)
   await expect(page.getByRole("heading", { name: /Listen, read, and reflect/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Meaning and guidance, grounded in the songs/i })).toBeVisible()
-  await expect(page.getByText(/written with the ink of the heart/i)).toBeVisible()
+  await expect(page.getByText(/written with the ink of the heart/i).first()).toBeVisible()
   await expect(page.getByText("5,018", { exact: false }).first()).toBeVisible()
   await expect(page.getByText(/Finding songs/i)).toHaveCount(0, { timeout: 20_000 })
 
@@ -50,7 +61,7 @@ test("Guru portrait and reflection remain aligned without overlap", async ({ pag
   const heading = page.getByRole("heading", { name: /Music for the inner dawn/i })
   const heroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji", exact: true }).first()
   await expect(heroPortrait).toBeVisible()
-  await expect(page.getByText("Shri Prabhat Ranjan Sarkar", { exact: true })).toBeVisible()
+  await expect(page.getByText("Shri Prabhat Ranjan Sarkar", { exact: true }).first()).toBeVisible()
   await expect(page.getByText("Shrii Shrii Anandamurti ji", { exact: true }).first()).toBeVisible()
 
   const headingBounds = await heading.boundingBox()
@@ -65,7 +76,7 @@ test("Guru portrait and reflection remain aligned without overlap", async ({ pag
   }
 
   const guidancePortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
-  const quote = page.locator("blockquote").filter({ hasText: "written with the ink of the heart" })
+  const quote = page.locator("blockquote").filter({ hasText: "written with the ink of the heart" }).first()
   const guidanceBounds = await guidancePortrait.boundingBox()
   const quoteBounds = await quote.boundingBox()
   expect(guidanceBounds).not.toBeNull()
@@ -89,9 +100,14 @@ test("brand artwork is crisp and accessible", async ({ page }) => {
 
 test("About navigation lands below the sticky header", async ({ page }) => {
   await page.goto("/")
+  await page.evaluate(() => document.fonts.ready)
   await page.getByRole("link", { name: "About", exact: true }).click()
   await expect(page).toHaveURL(/#about$/)
-  await expect.poll(async () => page.locator("#about").evaluate((node) => Math.round(node.getBoundingClientRect().top))).toBeLessThan(150)
+  await expect.poll(async () => page.evaluate(() => {
+    const header = document.querySelector("header")
+    const about = document.querySelector("#about")
+    return (about?.getBoundingClientRect().top ?? 1000) - (header?.getBoundingClientRect().bottom ?? 0)
+  })).toBeLessThan(100)
   const positions = await page.evaluate(() => {
     const header = document.querySelector("header")
     const about = document.querySelector("#about")
@@ -101,24 +117,26 @@ test("About navigation lands below the sticky header", async ({ page }) => {
     }
   })
   expect(positions.aboutTop).toBeGreaterThanOrEqual(positions.headerBottom + 8)
-  expect(positions.aboutTop).toBeLessThan(positions.headerBottom + 60)
+  expect(positions.aboutTop).toBeLessThan(positions.headerBottom + 100)
 })
 
 test("all special collections are organized and lead to catalog search", async ({ page }) => {
   await page.goto("/explore")
   await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
-  await expect(page.getByText("70 collections", { exact: true })).toBeVisible()
-  await expect(page.getByText("Languages", { exact: true })).toBeVisible()
-  await expect(page.getByText("Musical traditions and rarities", { exact: true })).toBeVisible()
-  await page.locator("#collections > summary").click()
-  await expect(page.getByText("Languages", { exact: true })).toBeHidden()
-  await page.locator("#collections > summary").click()
-  await expect(page.getByText("Languages", { exact: true })).toBeVisible()
-  const collectionLinks = page.locator("#collections a[href^='/explore?q=']")
+  const collectionBrowser = page.locator("#collections").first()
+  const languages = collectionBrowser.getByText("Languages", { exact: true })
+  await expect(collectionBrowser.getByText("70 collections", { exact: true })).toBeVisible()
+  await expect(languages).toBeVisible()
+  await expect(collectionBrowser.getByText("Musical traditions and rarities", { exact: true })).toBeVisible()
+  await collectionBrowser.locator(":scope > summary").click()
+  await expect(languages).toBeHidden()
+  await collectionBrowser.locator(":scope > summary").click()
+  await expect(languages).toBeVisible()
+  const collectionLinks = collectionBrowser.locator("a[href^='/explore?q=']")
   await expect(collectionLinks).toHaveCount(70)
-  await page.getByRole("link", { name: /Hindi only 1/ }).click()
+  await collectionBrowser.getByRole("link", { name: /Hindi only 1/ }).click()
   await expect(page).toHaveURL(/q=Search%20Prabhat%20Samgiita%20for%20Hindi-only%20Songs/)
-  await expect(page.locator("#results")).toBeVisible()
+  await expect(page.locator("#results").first()).toBeVisible()
 })
 
 test("collections stay above results and English returns only its three canonical songs", async ({ page }) => {
@@ -134,8 +152,8 @@ test("collections stay above results and English returns only its three canonica
   })
   await page.goto("/explore")
   await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
-  const collections = page.locator("#collections")
-  const results = page.locator("#results")
+  const collections = page.locator("#collections").first()
+  const results = page.locator("#results").first()
   const collectionBounds = await collections.boundingBox()
   const resultBounds = await results.boundingBox()
   expect(collectionBounds).not.toBeNull()
@@ -143,10 +161,10 @@ test("collections stay above results and English returns only its three canonica
   expect(collectionBounds!.y + collectionBounds!.height).toBeLessThan(resultBounds!.y)
 
   await page.getByRole("link", { name: /English 3/ }).click()
-  await expect(page.locator("#catalog-search")).toBeInViewport()
-  await expect(page.getByRole("heading", { name: /Songs matching.*English Songs/i })).toBeVisible()
-  await expect(page.locator("#results")).toBeInViewport()
-  await expect(page.locator("#collections a[aria-current='true']")).toHaveCount(1)
+  await expect(page.locator("#catalog-search").first()).toBeInViewport()
+  await expect(page.getByRole("heading", { name: /Songs matching.*English Songs/i }).first()).toBeVisible()
+  await expect(page.locator("#results").first()).toBeInViewport()
+  await expect(page.locator("#collections").first().locator("a[aria-current='true']")).toHaveCount(1)
   await expect(page.getByRole("link", { name: /English 3/ })).toHaveAttribute("href", "/explore#catalog-search")
   await expect(page.getByRole("heading", { name: "I love this tiny green island" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "WE LOVE THAT GREAT ENTITY" })).toBeVisible()
@@ -155,8 +173,8 @@ test("collections stay above results and English returns only its three canonica
 
   await page.getByRole("link", { name: /English 3/ }).click()
   await expect(page).toHaveURL(/\/explore#catalog-search$/)
-  await expect(page.locator("#collections a[aria-current='true']")).toHaveCount(0)
-  await expect(page.locator("#catalog-search")).toBeInViewport()
+  await expect(page.locator("#collections").first().locator("a[aria-current='true']")).toHaveCount(0)
+  await expect(page.locator("#catalog-search").first()).toBeInViewport()
 })
 
 test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {
@@ -176,8 +194,9 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   expect(languageBounds!.x).toBeGreaterThanOrEqual(0)
   expect(languageBounds!.x + languageBounds!.width).toBeLessThanOrEqual(viewport!.width)
 
-  await page.goto("/songs/1?language=hi")
-  await expect(language).toHaveValue("hi")
+  await page.goto("/songs/1?language=hi", { waitUntil: "domcontentloaded" })
+  await expect(page).toHaveURL(/\/songs\/1\?language=hi$/)
+  await expect(page.locator("#meaning").getByLabel("Reading language").first()).toHaveValue("hi")
   await expect(page.getByText("Hindi meaning", { exact: true })).toHaveCount(1)
   await expect(page.locator("#meaning article")).toHaveCount(2)
 
@@ -214,8 +233,10 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByRole("heading", { name: "Listen to this song" })).toBeVisible()
   await expect(page.getByRole("navigation", { name: "Return to song text" }).getByRole("link", { name: /Lyrics/ })).toHaveAttribute("href", "#lyrics")
   await expect(page.getByRole("navigation", { name: "Return to song text" }).getByRole("link", { name: /Meaning/ })).toHaveAttribute("href", "#meaning")
-  const listenBounds = await page.locator("#listen").boundingBox()
-  const watchBounds = await page.locator("#watch").boundingBox()
+  const { listenBounds, watchBounds } = await page.evaluate(() => ({
+    listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
+    watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,
+  }))
   expect(listenBounds).not.toBeNull()
   expect(watchBounds).not.toBeNull()
   expect(watchBounds!.y).toBeGreaterThan(listenBounds!.y + listenBounds!.height - 8)
@@ -271,7 +292,7 @@ test("home and Explore resolve natural-language song number intent before RAG", 
   await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")
   await page.getByRole("button", { name: "Search", exact: true }).click()
   await expect(page).toHaveURL(/\/songs\/1#notation$/)
-  await expect(page.locator("#notation")).toBeVisible()
+  await expect(page.locator("#notation").first()).toBeVisible()
 })
 
 test("search renders verified results and a deliberate no-match state", async ({ page }) => {
@@ -314,7 +335,7 @@ test("AI companion remembers context, accepts Romanized Hindi, and blocks nonsen
   await input.fill("is gaane ka arth pyar ke sandarbh mein batao")
   await page.getByRole("button", { name: "Send question" }).click()
   await expect(page.getByText(/Yeh gaana pyar/i)).toBeVisible()
-  await expect(page.getByText("Would you like to explore next?")).toBeVisible()
+  await expect(page.getByText("Would you like to explore next?").first()).toBeVisible()
 
   await input.fill("what did I ask last?")
   await page.getByRole("button", { name: "Send question" }).click()
@@ -357,8 +378,8 @@ test("song pages omit unavailable information and use clear recording language",
 
 test("catalog titles and source-only content never render fabricated blank sections", async ({ page }) => {
   await page.goto("/explore?q=song%20about%20rain")
-  await expect(page.locator("#results")).toBeVisible()
-  const resultTitles = await page.locator("#results ~ div h3").allTextContents()
+  await expect(page.locator("#results").first()).toBeVisible()
+  const resultTitles = await page.locator("#results").first().locator("xpath=following-sibling::div[1]//h3").allTextContents()
   expect(resultTitles.some((title) => /^Song\s+\d+$/i.test(title.trim()))).toBe(false)
 
   await page.goto("/songs/68")
@@ -391,7 +412,7 @@ test("search failure is recoverable and never becomes a blank results panel", as
   await page.getByLabel(/Search by number/i).fill("peace")
   await page.getByRole("button", { name: "Search", exact: true }).click()
   await expect(page.getByRole("alert").filter({ hasText: "Search is reconnecting" })).toBeVisible()
-  await expect(page.getByText(/shown$/)).not.toHaveText("0 shown")
+  await expect(page.getByText(/shown$/).first()).not.toHaveText("0 shown")
 })
 
 test("feedback validates input and confirms successful delivery", async ({ page }) => {

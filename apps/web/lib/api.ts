@@ -137,6 +137,41 @@ const todayRecommendationSchema = z.object({
 
 export type TodayRecommendations = z.infer<typeof todayRecommendationSchema>
 
+const voiceSearchSchema = z.object({
+  heard: z.string(),
+  spoken_language: z.string().nullable().optional(),
+  interpreted_as: z.string(),
+  confidence: z.enum(["high", "medium", "low", "none"]),
+  matches: z.array(z.object({
+    song: songSummarySchema,
+    confidence: z.number(),
+    match_reason: z.string(),
+  })).max(3),
+  guidance: z.string().nullable().optional(),
+})
+
+export type VoiceSearchResult = z.infer<typeof voiceSearchSchema>
+
+const reflectionQuoteSchema = z.object({
+  quote_text: z.string(),
+  attribution: z.string(),
+  source_title: z.string(),
+  source_url: z.string().url(),
+  source_date: z.string().nullable().optional(),
+  context_label: z.string(),
+  verification_status: z.string(),
+})
+
+const testimonialSchema = z.object({
+  quote_text: z.string(),
+  display_name: z.string(),
+  display_location: z.string().nullable().optional(),
+  avatar_url: z.string().nullable().optional(),
+})
+
+export type ReflectionQuote = z.infer<typeof reflectionQuoteSchema>
+export type CommunityTestimonial = z.infer<typeof testimonialSchema>
+
 export async function fetchJson(path: string, init: RequestInit = {}) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs)
@@ -228,6 +263,28 @@ export async function searchSongs(query: string): Promise<SongSummary[]> {
   }
 }
 
+export async function searchSongsByVoice(
+  transcript: string,
+  spokenLanguage?: string,
+  alternatives: string[] = [],
+): Promise<VoiceSearchResult> {
+  if (!queryIsUseful(transcript, 200)) throw new Error(queryGuidanceFor(transcript))
+  const response = await fetchJson("/api/v1/search/voice", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      transcript,
+      spoken_language: spokenLanguage,
+      alternatives: alternatives.slice(0, 3),
+    }),
+  })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(typeof payload?.detail === "string" ? payload.detail : "Voice search is temporarily unavailable.")
+  }
+  return voiceSearchSchema.parse(payload)
+}
+
 export async function recommendSongs(payload: Record<string, unknown>): Promise<SongSummary[]> {
   try {
     const response = await fetchJson("/api/v1/recommendations", {
@@ -252,6 +309,26 @@ export async function fetchTodayRecommendations(): Promise<TodayRecommendations 
     return todayRecommendationSchema.parse(await response.json())
   } catch {
     return null
+  }
+}
+
+export async function fetchTodayReflection(): Promise<ReflectionQuote | null> {
+  try {
+    const response = await fetchJson("/api/v1/reflections/today")
+    if (!response.ok) return null
+    return reflectionQuoteSchema.parse(await response.json())
+  } catch {
+    return null
+  }
+}
+
+export async function fetchTestimonials(): Promise<CommunityTestimonial[]> {
+  try {
+    const response = await fetchJson("/api/v1/testimonials?limit=8")
+    if (!response.ok) return []
+    return z.array(testimonialSchema).parse(await response.json())
+  } catch {
+    return []
   }
 }
 

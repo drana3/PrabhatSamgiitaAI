@@ -19,10 +19,15 @@ AZURE_OPENAI_API_KEY="${AZURE_OPENAI_API_KEY:-}"
 AZURE_OPENAI_CHAT_DEPLOYMENT="${AZURE_OPENAI_CHAT_DEPLOYMENT:-${AZURE_OPENAI_DEPLOYMENT:-}}"
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT="${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-${AZURE_OPENAI_CHAT_DEPLOYMENT:-}}"
 AZURE_OPENAI_API_VERSION="${AZURE_OPENAI_API_VERSION:-2024-10-21}"
+MEMBER_PROXY_KEY="${MEMBER_PROXY_KEY:-}"
 
 if [[ -z "${PG_PASSWORD}" ]]; then
   echo "Set PG_PASSWORD to a strong password before running."
   exit 1
+fi
+
+if [[ -z "${MEMBER_PROXY_KEY}" ]]; then
+  MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:%s' "$PG_PASSWORD" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
 fi
 
 urlencode() {
@@ -44,6 +49,15 @@ PG_PASSWORD_ENC="$(printf '%s' "$PG_PASSWORD" | urlencode)"
 DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD_ENC}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
 WEB_FQDN="$(az containerapp show --name "$WEB_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+AUTH_ENABLED="$(az containerapp auth show --name "$WEB_APP" --resource-group "$RG" --query properties.platform.enabled -o tsv 2>/dev/null || true)"
+if [[ "$AUTH_ENABLED" != "true" ]]; then
+  AUTH_ENABLED=false
+fi
+
+az containerapp secret set \
+  --name "$API_APP" \
+  --resource-group "$RG" \
+  --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
 
 az acr build \
   --registry "$ACR_NAME" \
@@ -71,6 +85,7 @@ az containerapp update \
     AZURE_OPENAI_CHAT_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT" \
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT="$AZURE_OPENAI_EMBEDDING_DEPLOYMENT" \
     AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION" \
+    MEMBER_PROXY_KEY=secretref:member-proxy-key \
     AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview >/dev/null
 
 API_READY=""
@@ -120,16 +135,25 @@ az acr build \
   --image "prabhat-samgiita-web:${TAG}" \
   --file "${ROOT_DIR}/apps/web/Dockerfile" \
   --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
+  --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
   "$ROOT_DIR" >/dev/null
 
 WEB_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}"
+
+az containerapp secret set \
+  --name "$WEB_APP" \
+  --resource-group "$RG" \
+  --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
 
 az containerapp update \
   --name "$WEB_APP" \
   --resource-group "$RG" \
   --image "$WEB_IMAGE" \
   --set-env-vars \
-    NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" >/dev/null
+    NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" \
+    NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
+    API_BASE_URL="https://${API_FQDN}" \
+    MEMBER_PROXY_KEY=secretref:member-proxy-key >/dev/null
 
 python3 "${ROOT_DIR}/scripts/validate_live_backend.py" "https://${API_FQDN}"
 

@@ -5,7 +5,6 @@ import Link from "next/link"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { AudioRendition } from "@/components/audio-rendition"
-import { RecommendationForm } from "@/components/recommendation-form"
 import { fetchTodayRecommendations, recommendSongs } from "@/lib/api"
 import type { SongSummary, TodayRecommendations } from "@/lib/api"
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
@@ -26,7 +25,7 @@ export function RecommendationSection() {
     if (presetKey === "auto") {
       void fetchTodayRecommendations().then(async (value) => {
         if (!active) return
-        if (value?.recommendations.length) {
+        if (value) {
           setToday(value)
           setResults([])
           return
@@ -48,6 +47,7 @@ export function RecommendationSection() {
   const contextTitle = today?.signals[0]?.title || activePreset.title
   const contextSummary = today?.signals[0]?.summary || activePreset.subtitle
   const contextSignal = today?.signals[0]
+  const strictFestivalWithoutSongs = today?.context.recommendation_mode === "strict_festival" && !today.recommendations.length
 
   return (
     <div className="surface-card overflow-hidden shadow-[0_24px_70px_rgba(29,43,66,0.12)]">
@@ -85,10 +85,10 @@ export function RecommendationSection() {
           </article>
         )) : results.length ? results.slice(0, 3).map((song) => (
           <Link key={song.number} href={`/songs/${song.number}#ask`} className="group flex items-center gap-4 py-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span><div className="min-w-0 flex-1"><p className="truncate font-serif text-lg font-semibold text-navy-950 group-hover:text-gold-700">{song.title}</p><p className="truncate text-xs text-stone-500">{song.theme || song.mood || "A song for reflection"}</p></div><span className="grid h-8 w-8 place-items-center rounded-full border border-navy-900/15 text-[10px]">▶</span></Link>
-        )) : <div className="py-6 text-center"><p className="font-serif text-xl text-navy-950">A fresh selection is on its way</p><p className="mt-2 text-sm text-stone-600">Browse the complete collection while today&apos;s recommendations reconnect.</p><Link href="/explore" className="outline-button mt-4">Explore songs</Link></div>}
+        )) : <div className="py-6 text-center"><p className="font-serif text-xl text-navy-950">{strictFestivalWithoutSongs ? `No source-verified songs are assigned specifically to ${contextTitle} yet` : "A fresh selection is on its way"}</p><p className="mt-2 text-sm leading-6 text-stone-600">{strictFestivalWithoutSongs ? "We will not mix unrelated songs into this observance. You can still explore the complete Prabhat Samgiita collection." : "Browse the complete collection while today’s recommendations reconnect."}</p><Link href="/explore" className="outline-button mt-4">Explore songs</Link></div>}
       </div>
 
-      <details className="border-t border-navy-900/10 p-5 sm:p-6"><summary className="cursor-pointer text-sm font-semibold text-gold-700">Refine these suggestions</summary><p className="mt-2 text-sm text-stone-600">Optionally add a mood, language, or meditation setting.</p><div className="mt-4 rounded-2xl bg-navy-950 p-4"><RecommendationForm onResults={(value) => { setResults(value); setToday(null) }} /></div></details>
+      {today?.recommendations.length ? <p className="border-t border-navy-900/10 px-5 py-3 text-xs leading-5 text-stone-500 sm:px-6">{today.disclaimer}</p> : null}
 
       <section aria-labelledby="upcoming-observances-title" className="border-t border-navy-900/10 bg-navy-950 p-5 text-white sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">

@@ -13,6 +13,8 @@ import {
 import type { ChatMessage } from "@/lib/chat"
 import { streamExplanation } from "@/lib/explain"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
+import { useMember } from "@/components/member-provider"
+import { fetchMemberChat, saveMemberChat } from "@/lib/member"
 
 function greeting(language?: string | null): ChatMessage {
   return {
@@ -23,15 +25,18 @@ function greeting(language?: string | null): ChatMessage {
 }
 
 export function StreamExplanation({ songNumber, language, prompt }: { songNumber: number; language?: string | null; prompt?: string }) {
+  const { loading: memberLoading, session } = useMember()
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState(prompt ?? "")
   const [inputError, setInputError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([greeting(language)])
+  const [profileSummary, setProfileSummary] = useState("")
   const conversationEnd = useRef<HTMLDivElement | null>(null)
   const storageKey = `prabhat-song-chat-${songNumber}`
 
   useEffect(() => {
+    if (memberLoading) return
     setHydrated(false)
     let restored: ChatMessage[] = []
     try {
@@ -39,9 +44,33 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
     } catch {
       restored = []
     }
-    setMessages([greeting(language), ...restored])
-    setHydrated(true)
-  }, [language, storageKey])
+    if (!session.authenticated) {
+      setMessages([greeting(language), ...restored])
+      setProfileSummary("")
+      setHydrated(true)
+      return
+    }
+    let active = true
+    void fetchMemberChat(songNumber).then((memory) => {
+      if (!active) return
+      setProfileSummary(memory.summary)
+      const remote = memory.recent_turns.map((turn, index) => ({
+        role: turn.role,
+        text: turn.content,
+        createdAt: Date.now() - ((memory.recent_turns.length - index) * 1000),
+      } satisfies ChatMessage))
+      const seen = new Set<string>()
+      const merged = [...remote, ...restored].filter((turn) => {
+        const key = `${turn.role}:${turn.text}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      }).slice(-maximumConversationTurns)
+      setMessages([greeting(language), ...merged])
+      setHydrated(true)
+    })
+    return () => { active = false }
+  }, [language, memberLoading, session.authenticated, songNumber, storageKey])
 
   useEffect(() => {
     if (!hydrated) return
@@ -85,7 +114,16 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
           next[next.length - 1] = { role: "assistant", text: streamed, createdAt: Date.now() }
           return next
         })
-      }, nextPrompt, history)
+      }, nextPrompt, history, profileSummary)
+      if (streamed && session.authenticated) {
+        void saveMemberChat({
+          song_number: songNumber,
+          turns: [
+            { role: "user", content: nextPrompt },
+            { role: "assistant", content: streamed },
+          ],
+        })
+      }
     } catch {
       setMessages((current) => {
         const next = [...current]
@@ -119,7 +157,7 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
             </div>
             <h2 className="mt-2 font-serif text-3xl leading-tight text-navy-950 sm:text-[2rem]">Know more about this song</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Ask about meaning, imagery, spiritual context, pronunciation, or related songs in the language that feels natural to you.</p>
-            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">Remembers this conversation for 10 minutes</p>
+            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Personalized across devices · recent chat kept 30 days" : "Remembers this browser conversation for 10 minutes"}</p>
           </div>
         </div>
       </div>

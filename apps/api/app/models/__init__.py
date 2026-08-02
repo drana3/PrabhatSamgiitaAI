@@ -17,6 +17,16 @@ from app.models.domain import (
 )
 from app.models.inventory import InventoryItem
 from app.models.media import Media
+from app.models.member import (
+    CommunityTestimonial,
+    ReflectionQuote,
+    UserAccount,
+    UserChatMessage,
+    UserFavorite,
+    UserInterestProfile,
+    UserPlaylist,
+    UserPlaylistSong,
+)
 from app.models.notation import Notation
 from app.models.song import Song
 
@@ -25,6 +35,7 @@ __all__ = [
     "Base",
     "ContentAudit",
     "ContentReport",
+    "CommunityTestimonial",
     "Festival",
     "FestivalSongLink",
     "InventoryItem",
@@ -32,6 +43,7 @@ __all__ = [
     "Notation",
     "Occasion",
     "RecommendationAudit",
+    "ReflectionQuote",
     "Season",
     "Song",
     "SongChunk",
@@ -39,5 +51,11 @@ __all__ = [
     "SongSeasonLink",
     "SongThemeLink",
     "Theme",
+    "UserAccount",
+    "UserChatMessage",
+    "UserFavorite",
     "UserFeedback",
+    "UserInterestProfile",
+    "UserPlaylist",
+    "UserPlaylistSong",
 ]

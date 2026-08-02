@@ -53,6 +53,16 @@ describe("reviewed discovery collections", () => {
 
     expect(service?.preset.theme).toContain("AMURT")
     expect(service?.preset.theme).toContain("PROUT")
+    expect(service?.preset.season).toBeUndefined()
+    expect(service?.preset.language).toBeUndefined()
+    expect(service?.preset.difficulty).toBeUndefined()
+  })
+
+  it("does not present an upcoming festival as today's selection", () => {
+    const preset = getAutoRecommendationPreset(new Date(2026, 7, 20, 8, 0))
+
+    expect(preset.title).toBe("Today’s devotional mood")
+    expect(preset.festival).toBeUndefined()
   })
 
   it("does not guess lunar observances beyond the reviewed calendar year", () => {

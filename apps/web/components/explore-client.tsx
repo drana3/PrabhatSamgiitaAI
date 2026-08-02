@@ -8,7 +8,8 @@ import { SearchForm } from "@/components/search-form"
 import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
 import { fetchSongs } from "@/lib/api"
-import type { SongSummary } from "@/lib/api"
+import type { SongSummary, VoiceSearchResult } from "@/lib/api"
+import { specialCollectionCount } from "@/lib/special-collections"
 
 const themes = [
   { label: "♡ Love & devotion", query: "love devotion" },
@@ -17,10 +18,11 @@ const themes = [
   { label: "♙ Service & humanity", query: "service humanity" },
   { label: "♧ Nature", query: "nature river mountain" },
 ]
-export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: SongSummary[]; initialQuery: string }) {
+export function ExploreClient({ initialSongs, initialQuery, inputMode = "text", spokenLanguage }: { initialSongs: SongSummary[]; initialQuery: string; inputMode?: "text" | "voice"; spokenLanguage?: string }) {
   const [songs, setSongs] = useState(initialSongs)
   const [searching, setSearching] = useState(Boolean(initialQuery))
   const [completedQuery, setCompletedQuery] = useState("")
+  const [voiceResult, setVoiceResult] = useState<VoiceSearchResult | null>(null)
   const resultsRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (initialQuery) return
@@ -52,11 +54,22 @@ export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: So
         <h1 className="font-serif text-4xl text-navy-950 sm:text-5xl">Explore Prabhat Samgiita</h1>
         <span className="text-sm font-semibold text-gold-700">5,018 songs</span>
       </div>
-      <div className="mt-6 max-w-4xl"><SearchForm initialQuery={initialQuery} onResults={setSongs} onSearching={handleSearching} /></div>
+      <div className="mt-6 max-w-4xl"><SearchForm initialQuery={initialQuery} inputMode={inputMode} spokenLanguage={spokenLanguage} onResults={setSongs} onSearching={handleSearching} onVoiceResult={setVoiceResult} /></div>
+
+      {voiceResult ? (
+        <div role="status" className={`mt-4 max-w-4xl rounded-2xl border px-5 py-4 ${voiceResult.confidence === "low" || voiceResult.confidence === "none" ? "border-amber-500/40 bg-amber-50" : "border-emerald-700/20 bg-emerald-50"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-stone-700"><span className="font-semibold text-navy-950">We heard:</span> “{voiceResult.heard}”</p>
+            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-navy-950">{voiceResult.confidence} confidence</span>
+          </div>
+          {voiceResult.interpreted_as && voiceResult.interpreted_as.toLocaleLowerCase() !== voiceResult.heard.toLocaleLowerCase() ? <p className="mt-2 text-xs text-stone-600">Interpreted for search as “{voiceResult.interpreted_as}”.</p> : null}
+          {voiceResult.guidance ? <p className="mt-2 text-sm font-medium text-amber-900">{voiceResult.guidance}</p> : <p className="mt-2 text-xs text-stone-600">Showing the three strongest verified catalog matches.</p>}
+        </div>
+      ) : null}
 
       <div className="mt-8 space-y-5 border-y border-navy-900/10 py-6">
         <FilterRow label="Browse by theme" items={themes} />
-        <a href="#collections" className="inline-flex text-sm font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Browse all 69 special collections →</a>
+        <a href="#collections" className="inline-flex text-sm font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Browse all {specialCollectionCount} special collections →</a>
         <p className="text-xs leading-5 text-stone-500"><strong className="text-navy-950">Raga & tala:</strong> the musical index is published progressively as canonical notation pages are reviewed.</p>
       </div>
 
@@ -73,7 +86,7 @@ export function ExploreClient({ initialSongs, initialQuery }: { initialSongs: So
         <div>
           <p className="eyebrow">Top results</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">
-            {initialQuery ? <>Songs matching <span className="text-gold-700">“{initialQuery}”</span></> : "Explore the songs"}
+            {initialQuery ? <>{inputMode === "voice" ? "Top voice matches for" : "Songs matching"} <span className="text-gold-700">“{initialQuery}”</span></> : "Explore the songs"}
           </h2>
         </div>
         <span className="text-xs font-semibold text-stone-500">{songs.length} shown</span>

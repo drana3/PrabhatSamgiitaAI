@@ -59,6 +59,27 @@ class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
 
 
+class VoiceSearchRequest(BaseModel):
+    transcript: str = Field(min_length=1, max_length=200)
+    spoken_language: str | None = Field(default=None, max_length=24)
+    alternatives: list[str] = Field(default_factory=list, max_length=3)
+
+
+class VoiceSearchMatch(BaseModel):
+    song: SongSummary
+    confidence: float = Field(ge=0, le=1)
+    match_reason: str
+
+
+class VoiceSearchResponse(BaseModel):
+    heard: str
+    spoken_language: str | None = None
+    interpreted_as: str
+    confidence: Literal["high", "medium", "low", "none"]
+    matches: list[VoiceSearchMatch] = Field(default_factory=list, max_length=3)
+    guidance: str | None = None
+
+
 class RecommendationRequest(BaseModel):
     date: str | None = None
     timezone: str | None = None
@@ -85,6 +106,7 @@ class ExplanationRequest(BaseModel):
     song_number: int
     prompt: str | None = None
     history: list[ConversationTurn] = Field(default_factory=list, max_length=12)
+    profile_context: str | None = Field(default=None, max_length=600)
 
 
 class SongLocalizationResponse(BaseModel):

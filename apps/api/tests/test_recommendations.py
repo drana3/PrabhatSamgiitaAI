@@ -70,3 +70,71 @@ async def test_explicit_service_collection_excludes_unrelated_seasonal_song() ->
     )
 
     assert [item.song.number for item in ranked] == [4599]
+
+
+@pytest.mark.asyncio
+async def test_service_eligibility_uses_canonical_assignment_not_contaminated_text() -> None:
+    unrelated = Song(
+        number=10,
+        title="Spring song",
+        theme="PROUT",
+        metadata_json={"canonical_theme_assignments": {"themes": ["Spring"]}},
+    )
+    service = Song(
+        number=4599,
+        title="PROUT song",
+        theme="PROUT",
+        metadata_json={"canonical_theme_assignments": {"themes": ["PROUT"]}},
+    )
+
+    ranked = await RecommendationEngine().rank(
+        UnavailableSession(),  # type: ignore[arg-type]
+        [unrelated, service],
+        RecommendationContext(theme="PROUT", occasion="service"),
+    )
+
+    assert [item.song.number for item in ranked] == [4599]
+
+
+@pytest.mark.asyncio
+async def test_source_constrained_ranking_rewards_complete_listenable_songs() -> None:
+    complete = Song(
+        number=9001,
+        title="Complete song",
+        lyrics_original="Verified lyrics",
+        english_meaning="Verified meaning",
+        is_verified=True,
+        canonical_source_status="verified",
+        metadata_json={},
+    )
+    incomplete = Song(
+        number=9002,
+        title="Incomplete song",
+        is_verified=True,
+        canonical_source_status="verified",
+        metadata_json={},
+    )
+    unverified = Song(
+        number=9003,
+        title="Unverified song",
+        canonical_source_status="pending",
+        metadata_json={},
+    )
+
+    ranked = await RecommendationEngine().rank_source_constrained(
+        UnavailableSession(),  # type: ignore[arg-type]
+        [incomplete, unverified, complete],
+    )
+
+    assert [item.song.number for item in ranked] == [9001, 9002]
+    assert ranked[0].breakdown["lyrics"] == 1.0
+    assert ranked[0].breakdown["meaning"] == 1.0
+
+
+def test_song_number_parity_never_changes_recommendation_score() -> None:
+    engine = RecommendationEngine()
+    context = RecommendationContext(occasion="meditation")
+    odd = Song(number=1, title="Odd", occasion="meditation", metadata_json={})
+    even = Song(number=2, title="Even", occasion="meditation", metadata_json={})
+
+    assert engine.score(odd, context) == engine.score(even, context)

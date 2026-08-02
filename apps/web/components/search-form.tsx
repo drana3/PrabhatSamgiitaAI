@@ -7,7 +7,8 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { z } from "zod"
 
-import { searchSongs } from "@/lib/api"
+import { searchSongs, searchSongsByVoice } from "@/lib/api"
+import type { VoiceSearchResult } from "@/lib/api"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { VoiceSearchButton } from "@/components/voice-search-button"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
@@ -18,7 +19,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-export function SearchForm({ onResults, onSearching, initialQuery = "" }: { onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void; onSearching?: (searching: boolean) => void; initialQuery?: string }) {
+export function SearchForm({ onResults, onSearching, onVoiceResult, initialQuery = "", inputMode = "text", spokenLanguage }: { onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void; onSearching?: (searching: boolean) => void; onVoiceResult?: (result: VoiceSearchResult | null) => void; initialQuery?: string; inputMode?: "text" | "voice"; spokenLanguage?: string }) {
   const router = useRouter()
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -26,9 +27,18 @@ export function SearchForm({ onResults, onSearching, initialQuery = "" }: { onRe
   })
 
   const mutation = useMutation({
-    mutationFn: async (values: FormValues) => searchSongs(values.query),
+    mutationFn: async (values: FormValues) => {
+      if (inputMode === "voice") {
+        const voiceResult = await searchSongsByVoice(values.query, spokenLanguage)
+        return { songs: voiceResult.matches.map((match) => match.song), voiceResult }
+      }
+      return { songs: await searchSongs(values.query), voiceResult: null }
+    },
     onMutate: () => onSearching?.(true),
-    onSuccess: (results) => onResults(results),
+    onSuccess: ({ songs, voiceResult }) => {
+      onResults(songs)
+      onVoiceResult?.(voiceResult)
+    },
     onSettled: () => onSearching?.(false),
   })
 
@@ -70,15 +80,17 @@ export function SearchForm({ onResults, onSearching, initialQuery = "" }: { onRe
             placeholder="Try 1, bandhu he, or devotional dawn"
             className="min-w-0 flex-1 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-navy-950 outline-none transition placeholder:text-stone-400 focus:border-gold-500"
           />
-          <VoiceSearchButton onTranscript={(transcript) => {
+          <VoiceSearchButton onTranscript={({ transcript, language }) => {
             form.setValue("query", transcript, { shouldValidate: true })
-            void form.handleSubmit(submit)()
+            router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
           }} />
         </div>
-        {form.formState.errors.query ? (
-          <p className="mt-2 text-sm text-red-700">{form.formState.errors.query.message}</p>
-        ) : null}
-        {mutation.isError ? <p role="alert" className="mt-2 text-sm text-amber-800">{mutation.error.message}</p> : null}
+        <div className="min-h-5 pt-1">
+          {form.formState.errors.query ? (
+            <p className="text-sm text-red-700">{form.formState.errors.query.message}</p>
+          ) : null}
+          {mutation.isError ? <p role="alert" className="text-sm text-amber-800">{mutation.error.message}</p> : null}
+        </div>
       </div>
       <button
         type="submit"

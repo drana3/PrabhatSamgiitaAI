@@ -1,18 +1,23 @@
 import React from "react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 
-import { Providers } from "@/components/providers"
 import { SearchForm } from "@/components/search-form"
+
+vi.mock("@/components/member-provider", () => ({
+  useMember: () => ({ loading: false, session: { authenticated: false } }),
+}))
 
 const push = vi.fn()
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
 
 describe("SearchForm", () => {
   it("renders the search input", () => {
+    const client = new QueryClient()
     render(
-      <Providers>
+      <QueryClientProvider client={client}>
         <SearchForm onResults={() => void 0} />
-      </Providers>,
+      </QueryClientProvider>,
     )
     expect(screen.getByLabelText(/Search by number/i)).toBeInTheDocument()
   })

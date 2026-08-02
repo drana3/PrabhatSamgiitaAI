@@ -47,7 +47,7 @@ describe("hero search", () => {
       onend: (() => void) | null = null
 
       start() {
-        this.onresult?.({ results: { 0: { 0: { transcript: "musafir aage badhte jana" } } } })
+        this.onresult?.({ results: { 0: { 0: { transcript: "musafir aage badhte jana" }, length: 1 } } })
         this.onend?.()
       }
     }
@@ -57,7 +57,7 @@ describe("hero search", () => {
 
     await user.click(await screen.findByRole("button", { name: "Search by voice" }))
 
-    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana")
+    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana&mode=voice&lang=en-IN")
   })
 
   it("keeps malicious and meaningless input local", async () => {

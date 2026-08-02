@@ -11,6 +11,7 @@ export async function streamExplanation(
   onChunk: (chunk: string) => void,
   prompt?: string,
   history: ConversationTurn[] = [],
+  profileContext?: string,
 ): Promise<void> {
   if (prompt && !queryIsUseful(prompt, 800)) {
     onChunk(queryGuidanceFor(prompt))
@@ -23,6 +24,7 @@ export async function streamExplanation(
       song_number: songNumber,
       prompt,
       history: history.slice(-12),
+      profile_context: profileContext || undefined,
     }),
   })
 

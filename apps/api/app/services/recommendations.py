@@ -39,7 +39,7 @@ class RankedRecommendation:
 
 
 class RecommendationEngine:
-    algorithm_version = "r2"
+    algorithm_version = "r3"
 
     def _seed_media_counts(self) -> dict[int, dict[str, int]]:
         counts: dict[int, dict[str, int]] = {}
@@ -99,6 +99,13 @@ class RecommendationEngine:
         )
         return " ".join(re.findall(r"[a-z0-9]+", plain.lower()))
 
+    def _canonical_values(self, song: Song, key: str, fallback: str | None) -> str | None:
+        assignments = (song.metadata_json or {}).get("canonical_theme_assignments") or {}
+        values = assignments.get(key) or []
+        if isinstance(values, list) and values:
+            return " | ".join(str(value) for value in values)
+        return fallback
+
     def _context_text_score(self, song: Song, context: RecommendationContext) -> float:
         desired = " ".join(
             value
@@ -151,14 +158,20 @@ class RecommendationEngine:
         breakdown = {
             "occasion": self._match_score(context.occasion, song.occasion),
             "theme": self._match_score(context.mood, song.mood),
-            "festival": self._match_score(context.festival, song.festival),
+            "festival": self._match_score(
+                context.festival,
+                self._canonical_values(song, "festivals", song.festival),
+            ),
             "season": self._match_score(context.season, song.season),
             "language": self._match_score(context.language, song.language),
             "difficulty": self._match_score(context.difficulty, song.difficulty),
             "meditation_context": self._match_score(
                 context.meditation_context, song.meditation_context
             ),
-            "collection_theme": self._match_score(context.theme, song.theme),
+            "collection_theme": self._match_score(
+                context.theme,
+                self._canonical_values(song, "themes", song.theme),
+            ),
         }
         media = media_counts.get(song.number, {})
         media_relevance = 0.0
@@ -169,7 +182,7 @@ class RecommendationEngine:
         elif context.media_preference == "any":
             media_relevance = 1.0 if media else 0.0
         breakdown["media"] = media_relevance
-        breakdown["diversity"] = 0.4 + (0.2 if song.number % 2 else 0.0)
+        breakdown["diversity"] = 0.0
         breakdown["context_text"] = self._context_text_score(song, context)
 
         score = (
@@ -180,7 +193,6 @@ class RecommendationEngine:
             + 0.10 * breakdown["language"]
             + 0.05 * breakdown["difficulty"]
             + 0.05 * breakdown["media"]
-            + 0.05 * breakdown["diversity"]
             + 0.25 * breakdown["context_text"]
             + 0.25 * breakdown["collection_theme"]
         )
@@ -246,6 +258,42 @@ class RecommendationEngine:
             ranked.append(RankedRecommendation(song=song, score=score, breakdown=breakdown))
         ranked.sort(key=lambda item: item.score, reverse=True)
         return ranked[: context.maximum_results]
+
+    async def rank_source_constrained(
+        self,
+        session: AsyncSession,
+        songs: list[Song],
+        maximum_results: int = 3,
+    ) -> list[RankedRecommendation]:
+        """Rank only already-approved candidates by user benefit, never relevance guesses."""
+        media_counts = await self.media_availability(session)
+        ranked: list[RankedRecommendation] = []
+        for song in songs:
+            source_verified = song.is_verified or song.canonical_source_status == "verified"
+            if not source_verified:
+                continue
+            media = media_counts.get(song.number, {})
+            breakdown = {
+                "canonical_collection": 1.0,
+                "source_verified": 1.0,
+                "audio": 1.0 if media.get("audio_count", 0) > 0 else 0.0,
+                "video": 1.0 if media.get("video_count", 0) > 0 else 0.0,
+                "lyrics": 1.0 if song.lyrics_original or song.transliteration else 0.0,
+                "meaning": 1.0 if song.english_meaning or song.hindi_meaning else 0.0,
+            }
+            score = (
+                1.0
+                + 3.0 * breakdown["source_verified"]
+                + 2.5 * breakdown["audio"]
+                + 0.5 * breakdown["video"]
+                + 1.5 * breakdown["lyrics"]
+                + 1.5 * breakdown["meaning"]
+            )
+            ranked.append(
+                RankedRecommendation(song=song, score=round(score, 4), breakdown=breakdown)
+            )
+        ranked.sort(key=lambda item: (-item.score, item.song.number))
+        return ranked[:maximum_results]
 
     async def audit(
         self,

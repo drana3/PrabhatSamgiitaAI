@@ -43,7 +43,14 @@ export function HeroSearch() {
         placeholder="Ask by song, feeling, meaning, or moment..."
         className="min-w-0 flex-1 bg-transparent text-sm text-navy-950 outline-none placeholder:text-stone-500"
       />
-      <VoiceSearchButton compact onTranscript={(transcript) => { setQuery(transcript); search(transcript) }} />
+      <VoiceSearchButton compact onTranscript={({ transcript, language }) => {
+        setQuery(transcript)
+        if (!queryIsUseful(transcript, 200)) {
+          setGuidance(queryGuidanceFor(transcript))
+          return
+        }
+        router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
+      }} />
       <button type="submit" aria-label="Search" data-feature="hero_search" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-600 text-lg text-white shadow-md transition hover:bg-gold-700">
         →
       </button>

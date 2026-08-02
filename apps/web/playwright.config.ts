@@ -3,11 +3,13 @@ import { defineConfig, devices } from "@playwright/test"
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
-  retries: 1,
+  workers: 1,
+  retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:3000",
-    trace: "on-first-retry",
+    contextOptions: { reducedMotion: "reduce" },
+    trace: "retain-on-failure",
   },
   webServer: [
     {
@@ -26,7 +28,7 @@ export default defineConfig({
       },
     },
     {
-      command: "npm run build && npm run start",
+      command: "npm run start:standalone",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: false,
       timeout: 120000,

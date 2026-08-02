@@ -47,6 +47,23 @@ class TodayResponse(BaseModel):
     disclaimer: str
 
 
+class ReflectionQuoteResponse(BaseModel):
+    quote_text: str
+    attribution: str
+    source_title: str
+    source_url: str
+    source_date: str | None = None
+    context_label: str
+    verification_status: str
+
+
+class CommunityTestimonialResponse(BaseModel):
+    quote_text: str
+    display_name: str
+    display_location: str | None = None
+    avatar_url: str | None = None
+
+
 class ContentReportRequest(BaseModel):
     entity_type: Literal["song", "media", "notation", "translation", "recommendation"]
     entity_id: str = Field(min_length=1, max_length=128)

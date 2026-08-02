@@ -148,6 +148,21 @@ REVIEWED_FESTIVAL_COLLECTIONS_2026: dict[tuple[int, int], dict[str, str]] = {
     },
 }
 
+# Only collections whose source explicitly associates songs with the observance
+# may be presented as festival-specific homepage recommendations.
+REVIEWED_FESTIVAL_COLLECTION_LABELS_2026: dict[tuple[int, int], tuple[str, ...]] = {
+    (4, 14): ("New Year Songs",),
+    (5, 1): ("Bábá Birthday Songs",),
+    (6, 5): ("PROUT Song",),
+    (8, 28): ("Shravanii Purnima Day Song",),
+    (10, 5): ("Victory Day Song",),
+    (11, 8): ("Dipavali (Colour Festival) Day Songs",),
+}
+
+FIXED_FESTIVAL_COLLECTION_LABELS: dict[tuple[int, int], tuple[str, ...]] = {
+    (5, 21): ("Bábá Birthday Songs",),
+}
+
 
 def fixed_reviewed_festival(month: int, day: int, year: int | None = None) -> str | None:
     # Bábá's birthday is a fixed civil-calendar observance. Other entries are
@@ -167,3 +182,32 @@ def reviewed_festival_context(month: int, day: int, year: int) -> dict[str, str]
         "title": title,
         **REVIEWED_FESTIVAL_COLLECTIONS_2026.get((month, day), {}),
     }
+
+
+def reviewed_festival_collection_labels(
+    month: int, day: int, year: int
+) -> tuple[str, ...]:
+    if not fixed_reviewed_festival(month, day, year):
+        return ()
+    fixed = FIXED_FESTIVAL_COLLECTION_LABELS.get((month, day))
+    if fixed:
+        return fixed
+    if year == 2026:
+        return REVIEWED_FESTIVAL_COLLECTION_LABELS_2026.get((month, day), ())
+    return ()
+
+
+def reviewed_festival_song_numbers(month: int, day: int, year: int) -> tuple[int, ...]:
+    labels = set(reviewed_festival_collection_labels(month, day, year))
+    if not labels:
+        return ()
+    return tuple(
+        sorted(
+            {
+                int(number)
+                for row in load_rows("theme_collections.json")
+                if str(row.get("label")) in labels
+                for number in row.get("song_numbers", [])
+            }
+        )
+    )

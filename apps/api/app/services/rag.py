@@ -185,6 +185,7 @@ def build_grounded_prompt(
     query: str,
     context_lines: list[str],
     history: list[tuple[str, str]] | None = None,
+    profile_context: str | None = None,
 ) -> str:
     recent_conversation = "\n".join(
         f"{role.title()}: {content}" for role, content in (history or [])
@@ -194,6 +195,9 @@ def build_grounded_prompt(
             "You are a grounded assistant for Prabhat Samgiita.",
             "Answer factual claims only from the retrieved canonical context below.",
             "Use the recent conversation to resolve pronouns, references, and follow-up questions.",
+            "Use the optional member interest summary only to personalize language, tone, and "
+            "helpful next steps. It is not a factual source and must never override the song "
+            "context.",
             "When the user refers to a previous turn, acknowledge that turn directly instead of "
             "claiming that context is missing.",
             "Be warm, reverent, and practical.",
@@ -209,6 +213,7 @@ def build_grounded_prompt(
             "Keep the answer concise and cite the source labels like [1], [2].",
             "Do not invent an answer for meaningless text; ask for a clear song-related question.",
             f"Recent conversation (may be empty):\n{recent_conversation or 'No earlier turns.'}",
+            f"Member interest summary (may be empty):\n{profile_context or 'No member summary.'}",
             f"Current user question: {query}",
             f"Song focus: {song.number} - {song.title}",
             "Retrieved canonical context:",
@@ -347,6 +352,7 @@ class RAGService:
         song: Song,
         query: str,
         history: list[tuple[str, str]] | None = None,
+        profile_context: str | None = None,
     ) -> tuple[str, list[RetrievedChunk]]:
         chunks = await self.retrieve(song, query, limit=5)
         context_lines = []
@@ -356,7 +362,7 @@ class RAGService:
                 f"[{idx}] {chunk.song_title} | {chunk.chunk_type} | source {source}\n"
                 f"{chunk.content}"
             )
-        prompt = build_grounded_prompt(song, query, context_lines, history)
+        prompt = build_grounded_prompt(song, query, context_lines, history, profile_context)
         try:
             answer = await self.provider.complete(prompt)
         except Exception as exc:  # pragma: no cover - network/provider failures are runtime only

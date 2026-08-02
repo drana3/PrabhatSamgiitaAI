@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     )
     max_request_bytes: int = Field(default=1_048_576, alias="MAX_REQUEST_BYTES", ge=1024)
     admin_api_key_hash: str | None = Field(default=None, alias="ADMIN_API_KEY_HASH")
+    member_proxy_key: str | None = Field(default=None, alias="MEMBER_PROXY_KEY")
     scheduler_enabled: bool = Field(default=False, alias="SCHEDULER_ENABLED")
     cache_ttl_seconds: int = Field(default=300, alias="CACHE_TTL_SECONDS", ge=1)
     cache_max_entries: int = Field(default=500, alias="CACHE_MAX_ENTRIES", ge=1)

@@ -291,6 +291,36 @@ async def test_spoken_transliteration_variants_rank_the_canonical_song_first(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "spoken_query",
+    [
+        "मुसाफिर आगे बढ़ते जाना",
+        "मुझे मुसाफिर आगे बढ़ते जाना सुनाओ",
+    ],
+)
+async def test_native_hindi_voice_query_returns_three_ranked_matches(
+    spoken_query: str,
+) -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search(spoken_query, page_size=3, input_mode="voice")
+
+    assert response.items
+    assert response.items[0].song_number == 4166
+    assert len(response.items) <= 3
+    assert "voice_phonetic" in response.items[0].matched_by
+
+
+@pytest.mark.asyncio
+async def test_voice_song_number_remains_authoritative() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("song 2256", page_size=3, input_mode="voice")
+
+    assert [item.song_number for item in response.items] == [2256]
+
+
+@pytest.mark.asyncio
 async def test_hindi_urdu_and_shared_hindustani_collections_are_disjoint() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 

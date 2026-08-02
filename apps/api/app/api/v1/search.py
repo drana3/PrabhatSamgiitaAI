@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +9,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
 from app.core.security import require_public_quota
-from app.schemas.search import SearchFilters, SearchResponse
-from app.schemas.song import SearchRequest, SongSummary
+from app.models import Song
+from app.schemas.search import SearchFilters, SearchResponse, SearchResultItem
+from app.schemas.song import (
+    SearchRequest,
+    SongSummary,
+    VoiceSearchMatch,
+    VoiceSearchRequest,
+    VoiceSearchResponse,
+)
 from app.services.catalog import catalog_song_snapshot
 from app.services.query_guard import assess_query
-from app.services.search import HybridSearchService
+from app.services.search import HybridSearchService, prepare_voice_query
 
 router = APIRouter(prefix="/search", tags=["search"])
 simple_search_cache: AsyncTTLCache[list[dict[str, object]]] = AsyncTTLCache(
@@ -24,6 +31,120 @@ rich_search_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
     ttl_seconds=300,
     maxsize=256,
 )
+
+
+def _song_summary(item: SearchResultItem, songs_by_number: dict[int, Song]) -> SongSummary:
+    song_number = item.song_number
+    song = songs_by_number.get(song_number)
+    opening_line = item.opening_line
+    return SongSummary(
+        number=song_number,
+        title=(song.title if song else opening_line) or "Title awaiting source review",
+        first_line=song.first_line if song else opening_line,
+        theme=song.theme if song else None,
+        occasion=song.occasion if song else None,
+        mood=song.mood if song else None,
+        language=song.language if song else None,
+        difficulty=song.difficulty if song else None,
+        is_verified=item.verification_status
+        in {"verified", "officially_verified", "human_reviewed"},
+    )
+
+
+def _voice_confidence(matched_by: list[str], score: float) -> tuple[float, str]:
+    methods = set(matched_by)
+    if "exact_number" in methods:
+        return 0.99, "Exact Prabhat Samgiita number"
+    if score >= 3 or {"opening_line", "full_text"} <= methods:
+        return 0.96, "Opening words matched the verified song text"
+    if "structured_filter" in methods:
+        return 0.9, "Matched a reviewed language, festival, or collection"
+    if {"full_text", "voice_phonetic"} <= methods:
+        return 0.86, "Words and pronunciation matched the song text"
+    if {"trigram", "voice_phonetic"} <= methods:
+        return 0.76, "Close pronunciation and spelling match"
+    if "full_text" in methods:
+        return 0.72, "Words matched the song text or meaning"
+    if "voice_phonetic" in methods:
+        return 0.64, "Pronunciation is close to this song"
+    if "vector" in methods:
+        return 0.46, "Meaning is similar, but the wording was not an exact match"
+    return 0.35, "Possible catalog match"
+
+
+@router.post("/voice", response_model=VoiceSearchResponse)
+async def search_voice(
+    payload: VoiceSearchRequest,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> VoiceSearchResponse:
+    require_public_quota(request, bucket="voice-search", limit=30)
+    assessment = assess_query(payload.transcript, max_length=200)
+    if not assessment.allowed:
+        return VoiceSearchResponse(
+            heard=assessment.normalized,
+            spoken_language=payload.spoken_language,
+            interpreted_as="",
+            confidence="none",
+            guidance=assessment.guidance,
+        )
+
+    interpreted_as = prepare_voice_query(assessment.normalized)
+    if not interpreted_as:
+        return VoiceSearchResponse(
+            heard=assessment.normalized,
+            spoken_language=payload.spoken_language,
+            interpreted_as="",
+            confidence="none",
+            guidance=(
+                "Please say a song number, remembered lyric, feeling, festival, language, "
+                "or occasion."
+            ),
+        )
+
+    response = await HybridSearchService(session).search(
+        interpreted_as,
+        page_size=3,
+        input_mode="voice",
+    )
+    songs_by_number = {song.number: song for song in catalog_song_snapshot()}
+    matches: list[VoiceSearchMatch] = []
+    for item in response.items[:3]:
+        confidence, reason = _voice_confidence(item.matched_by, item.score)
+        matches.append(
+            VoiceSearchMatch(
+                song=_song_summary(item, songs_by_number),
+                confidence=confidence,
+                match_reason=reason,
+            )
+        )
+
+    top_confidence = matches[0].confidence if matches else 0
+    confidence_label: Literal["high", "medium", "low", "none"] = (
+        "high"
+        if top_confidence >= 0.85
+        else "medium"
+        if top_confidence >= 0.62
+        else "low"
+        if matches
+        else "none"
+    )
+    guidance = None
+    if confidence_label == "low":
+        guidance = "These are possible matches. Try saying the song number or a longer lyric line."
+    elif confidence_label == "none":
+        guidance = (
+            "No confident song match was found. Try a song number, a longer lyric line, "
+            "or a feeling such as peace, devotion, or hope."
+        )
+    return VoiceSearchResponse(
+        heard=assessment.normalized,
+        spoken_language=payload.spoken_language,
+        interpreted_as=interpreted_as,
+        confidence=confidence_label,
+        matches=matches,
+        guidance=guidance,
+    )
 
 
 @router.post("", response_model=list[SongSummary])
@@ -46,21 +167,7 @@ async def search(
     songs_by_number = {song.number: song for song in catalog_song_snapshot()}
     results: list[SongSummary] = []
     for item in response.items:
-        song = songs_by_number.get(item.song_number)
-        results.append(
-            SongSummary(
-                number=item.song_number,
-                title=(song.title if song else item.opening_line) or "Title awaiting source review",
-                first_line=song.first_line if song else item.opening_line,
-                theme=song.theme if song else None,
-                occasion=song.occasion if song else None,
-                mood=song.mood if song else None,
-                language=song.language if song else None,
-                difficulty=song.difficulty if song else None,
-                is_verified=item.verification_status
-                in {"verified", "officially_verified", "human_reviewed"},
-            )
-        )
+        results.append(_song_summary(item, songs_by_number))
     await simple_search_cache.set(cache_key, [item.model_dump() for item in results])
     return results
 

@@ -6,6 +6,8 @@ import { LandingData } from "@/components/landing-data"
 import { MiniPlayer } from "@/components/mini-player"
 import { RecommendationSection } from "@/components/recommendation-section"
 import { SiteHeader } from "@/components/site-header"
+import { DailyReflection } from "@/components/daily-reflection"
+import { CommunityVoices } from "@/components/community-voices"
 import seedInventory from "../../../data/seed/inventory.json"
 import seedSongs from "../../../data/seed/songs.json"
 
@@ -70,14 +72,7 @@ export default function HomePage() {
 
         <div className="relative mx-auto -mt-8 max-w-[90rem] px-4 pb-5 sm:px-6 lg:px-10">
           <div className="grid gap-4 lg:grid-cols-[0.78fr_1.22fr]">
-            <article className="glass-card text-center">
-              <p className="eyebrow">Today&apos;s reflection</p>
-              <blockquote className="mt-4 font-serif text-lg italic leading-8 text-navy-950">
-                “Let there be peace, let there be love, let there be bliss.”
-              </blockquote>
-              <p className="mt-2 text-xs text-stone-600">Shrii Shrii Anandamurti ji</p>
-              <div className="mx-auto mt-4 h-px w-24 bg-gold-400" />
-            </article>
+            <DailyReflection />
 
             <article id="about" className="glass-card scroll-mt-24 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0 flex-1">
@@ -115,6 +110,7 @@ export default function HomePage() {
       </section>
 
       <LandingData initialSongs={seedSongs.slice(0, 9)} initialInventory={seedInventory.slice(0, 4)} />
+      <CommunityVoices />
     </main>
   )
 }

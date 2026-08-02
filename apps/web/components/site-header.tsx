@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { MemberMenu } from "@/components/member-menu"
 
 const navigation = [
   { href: "/", label: "Home" },
@@ -41,6 +42,7 @@ export function SiteHeader({ active = "Home" }: { active?: string }) {
             <span className="grid h-6 w-6 place-items-center rounded-full bg-gold-600 text-xs text-white">▶</span>
             <span className="hidden sm:inline">Listen now</span>
           </Link>
+          <MemberMenu />
         </div>
       </div>
     </header>

@@ -321,45 +321,16 @@ function festivalPresetForDate(now: Date): RecommendationPreset | null {
   }
 }
 
-function upcomingFestivalPreset(now: Date, windowDays = 14): RecommendationPreset | null {
-  const upcoming = festivalCalendar
-    .map((item) => ({ ...item, delta: daysUntil(now, item.month, item.day, item.year) }))
-    .filter((item) => item.delta > 0 && item.delta <= windowDays)
-    .sort((left, right) => left.delta - right.delta)[0]
-
-  if (!upcoming) {
-    return null
-  }
-
-  return {
-    title: `Leading into ${upcoming.title}`,
-    subtitle: `${upcoming.subtitle} The event is coming up soon, so the set leans in that direction.`,
-    festival: upcoming.festival ?? upcoming.title,
-    occasion: upcoming.occasion,
-    season: upcoming.season ?? seasonFromMonth(now.getMonth() + 1),
-    mood: upcoming.mood,
-    language: upcoming.language,
-    difficulty: upcoming.difficulty,
-    meditation_context: upcoming.meditation_context,
-    theme: upcoming.theme,
-  }
-}
-
 export function getAutoRecommendationPreset(now = new Date()): RecommendationPreset {
   const month = now.getMonth() + 1
   const hour = now.getHours()
   const season = seasonFromMonth(month)
   const festivalPreset = festivalPresetForDate(now)
-  const upcomingFestival = upcomingFestivalPreset(now)
   const isMorning = hour < 12
   const isEvening = hour >= 17
 
   if (festivalPreset) {
     return festivalPreset
-  }
-
-  if (upcomingFestival) {
-    return upcomingFestival
   }
 
   return {
@@ -427,10 +398,6 @@ export function quickRecommendationPresets(now = new Date()): QuickRecommendatio
         subtitle: "Verified songs of service, social uplift, and collective welfare.",
         occasion: "service",
         theme: "AMURT|Neo-Humanism|PROUT|Dharma|VSS|Gurukula",
-        mood: "courageous",
-        season: "summer",
-        language: "Roman",
-        difficulty: "easy",
         meditation_context: "service programme",
       },
     },

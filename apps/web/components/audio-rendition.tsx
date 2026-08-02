@@ -1,21 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
-
 import { trackEvent } from "@/lib/analytics"
+import { useMember } from "@/components/member-provider"
 
 export function AudioRendition({ url, title, provider, featured = false, compact = false }: { url: string; title: string; provider?: string; featured?: boolean; compact?: boolean }) {
-  const [signedIn, setSignedIn] = useState(false)
-  const memberDownloadsEnabled = process.env.NEXT_PUBLIC_MEMBER_DOWNLOADS_ENABLED === "true"
-
-  useEffect(() => {
-    let active = true
-    void fetch("/.auth/me", { credentials: "same-origin" })
-      .then(async (response) => response.ok ? response.json() : [])
-      .then((users) => { if (active) setSignedIn(memberDownloadsEnabled && Array.isArray(users) && users.length > 0) })
-      .catch(() => undefined)
-    return () => { active = false }
-  }, [memberDownloadsEnabled])
+  const { session } = useMember()
+  const signedIn = session.authenticated
 
   if (compact) {
     return <audio aria-label={`Listen to ${title}`} controls controlsList={signedIn ? "noplaybackrate" : "nodownload noplaybackrate"} preload="none" src={url} onPlay={() => trackEvent("feature_use", "audio_play")} onContextMenu={(event) => { if (!signedIn) event.preventDefault() }} className="h-9 w-full max-w-56" />

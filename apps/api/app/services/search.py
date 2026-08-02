@@ -9,6 +9,7 @@ from difflib import SequenceMatcher
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from unidecode import unidecode
 
 from app.config import get_settings
 from app.models import Media, Notation, Song
@@ -27,6 +28,126 @@ class SearchCandidate:
 
 def normalize_query(value: str) -> str:
     return " ".join(value.lower().split())
+
+
+VOICE_COMMAND_PREFIXES = (
+    "can you find",
+    "could you find",
+    "find me",
+    "find",
+    "please find",
+    "play me",
+    "play",
+    "search for",
+    "search",
+    "show me",
+    "tell me",
+    "mujhe sunao",
+    "mujhe batao",
+    "mujhe dhundho",
+    "gaana sunao",
+    "gana sunao",
+    "khojo",
+    "dhundho",
+)
+
+VOICE_DOMAIN_FILLERS = (
+    "prabhat samgiita ka",
+    "prabhat samgita ka",
+    "prabhat sangeet ka",
+    "prabhat samgiita",
+    "prabhat samgita",
+    "prabhat sangeet",
+    "song about",
+    "song for",
+    "song",
+    "gaana",
+    "gana",
+)
+
+VOICE_CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
+    "anand": ("bliss", "joy"),
+    "asha": ("hope",),
+    "baarish": ("rain", "rainy"),
+    "barish": ("rain", "rainy"),
+    "barsaat": ("rain", "rainy"),
+    "bhakti": ("devotion",),
+    "daya": ("compassion",),
+    "dukh": ("sorrow", "pain"),
+    "gam": ("sorrow",),
+    "ishq": ("love", "devotion"),
+    "janamdin": ("birthday",),
+    "janmadin": ("birthday",),
+    "khushi": ("joy", "bliss"),
+    "mohabbat": ("love", "devotion"),
+    "musafir": ("journey", "traveller"),
+    "musaaphir": ("journey", "traveller"),
+    "nikah": ("marriage",),
+    "prakriti": ("nature",),
+    "prem": ("love", "devotion"),
+    "pyar": ("love", "devotion"),
+    "pyaar": ("love", "devotion"),
+    "safar": ("journey",),
+    "salgirah": ("birthday",),
+    "seva": ("service", "humanity"),
+    "sewa": ("service", "humanity"),
+    "shaadi": ("marriage",),
+    "shadi": ("marriage",),
+    "shanti": ("peace",),
+    "shaanti": ("peace",),
+    "ummid": ("hope",),
+    "umeed": ("hope",),
+    "vivah": ("marriage",),
+}
+
+
+def prepare_voice_query(value: str) -> str:
+    """Convert speech-recognition output into a compact catalog query."""
+    cleaned = normalize_filter_text(value)
+    cleaned = re.sub(r"^(?:mujhe|mere liye|kripya|please)\s+", "", cleaned)
+    cleaned = re.sub(
+        r"\s+(?:sunaao|sunao|bataao|batao|dikhaao|dikhao|dhundho|khojo)$",
+        "",
+        cleaned,
+    )
+    for prefix in VOICE_COMMAND_PREFIXES:
+        if cleaned == prefix:
+            return ""
+        if cleaned.startswith(f"{prefix} "):
+            cleaned = cleaned[len(prefix) + 1 :]
+            break
+    for filler in VOICE_DOMAIN_FILLERS:
+        cleaned = re.sub(rf"\b{re.escape(filler)}\b", " ", cleaned)
+    return " ".join(cleaned.split())
+
+
+def expand_voice_query(value: str) -> str:
+    cleaned = prepare_voice_query(value)
+    aliases: list[str] = []
+    words = set(cleaned.split())
+    for word, expansions in VOICE_CONCEPT_ALIASES.items():
+        if word in words:
+            aliases.extend(expansions)
+    return " ".join(dict.fromkeys([*cleaned.split(), *aliases]))
+
+
+def phonetic_key(value: str) -> str:
+    """Make common speech-to-text spelling variations compare more forgivingly."""
+    normalized = prepare_voice_query(value)
+    replacements = (
+        (r"ph", "f"),
+        (r"bh", "b"),
+        (r"dh", "d"),
+        (r"th", "t"),
+        (r"sh", "s"),
+        (r"v", "w"),
+        (r"aa+", "a"),
+        (r"ee+", "i"),
+        (r"oo+", "u"),
+    )
+    for pattern, replacement in replacements:
+        normalized = re.sub(pattern, replacement, normalized)
+    return normalized
 
 
 EXPLANATION_TERMS = (
@@ -158,7 +279,9 @@ FILTER_ASSIGNMENT_KEYS = {
 
 
 def normalize_filter_text(value: str) -> str:
-    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    # Unidecode keeps Devanagari, Bengali, Gujarati, Gurmukhi, Tamil, Telugu,
+    # Kannada, Malayalam, Odia, and Perso-Arabic speech transcripts searchable.
+    decomposed = unicodedata.normalize("NFKD", unidecode(value).casefold())
     plain = "".join(character for character in decomposed if not unicodedata.combining(character))
     normalized = re.sub(r"[^a-z0-9]+", " ", plain).strip()
     return normalized.replace("krishna", "krsna").replace("maethili", "maithili")
@@ -440,6 +563,37 @@ class HybridSearchService:
         scored.sort(key=lambda item: item[1], reverse=True)
         return [item[0] for item in scored[:limit]]
 
+    async def _voice_phonetic_rank(
+        self, query: str, songs: list[Song], limit: int
+    ) -> list[str]:
+        query_key = phonetic_key(query)
+        query_terms = {term for term in query_key.split() if len(term) > 2}
+        if not query_key or not query_terms:
+            return []
+        scored: list[tuple[str, float]] = []
+        for song in songs:
+            title_key = phonetic_key(song.title)
+            first_line_key = phonetic_key(song.first_line or "")
+            transliteration_key = phonetic_key(song.transliteration or "")
+            document_terms = set(
+                f"{title_key} {first_line_key} {transliteration_key}".split()
+            )
+            coverage = len(query_terms & document_terms) / len(query_terms)
+            phrase_match = any(
+                query_key in value
+                for value in (title_key, first_line_key, transliteration_key)
+                if value
+            )
+            similarity = max(
+                SequenceMatcher(None, query_key, title_key).ratio(),
+                SequenceMatcher(None, query_key, first_line_key).ratio(),
+            )
+            score = (1.25 if phrase_match else 0.0) + coverage + (similarity * 0.35)
+            if phrase_match or coverage >= 0.5 or similarity >= 0.68:
+                scored.append((str(song.number), score))
+        scored.sort(key=lambda item: item[1], reverse=True)
+        return [item[0] for item in scored[:limit]]
+
     async def _has_vector_index(self) -> bool:
         try:
             result = await self.session.execute(
@@ -506,6 +660,7 @@ class HybridSearchService:
         filters: SearchFilters | None = None,
         page: int = 1,
         page_size: int = 20,
+        input_mode: str = "text",
     ) -> SearchResponse:
         filters = filters or SearchFilters()
         songs = await self._song_index()
@@ -521,10 +676,11 @@ class HybridSearchService:
         )
 
         exact_number = await self._exact_number_rank(query)
+        semantic_query = expand_voice_query(query) if input_mode == "voice" else query
         query_embedding: list[float] = []
         if not exact_number and await self._has_vector_index():
             try:
-                query_embedding = await self.provider.embed(query)
+                query_embedding = await self.provider.embed(semantic_query)
             except Exception:
                 query_embedding = []
         # A catalog number is an identifier, not fuzzy text. Returning only the
@@ -532,6 +688,11 @@ class HybridSearchService:
         opening_rank = [] if exact_number else await self._opening_line_rank(query, songs, limit=50)
         fts_rank = [] if exact_number else await self._fts_rank(query, songs, limit=50)
         trigram_rank = [] if exact_number else await self._trigram_rank(query, songs, limit=50)
+        voice_phonetic_rank = (
+            []
+            if exact_number or input_mode != "voice"
+            else await self._voice_phonetic_rank(query, songs, limit=50)
+        )
         vector_rank = (
             [] if exact_number else await self._vector_rank(songs, query_embedding, limit=50)
         )
@@ -553,7 +714,15 @@ class HybridSearchService:
         )
 
         fused = reciprocal_rank_fusion(
-            [exact_number, structured_rank, opening_rank, fts_rank, trigram_rank, vector_rank]
+            [
+                exact_number,
+                structured_rank,
+                opening_rank,
+                fts_rank,
+                trigram_rank,
+                voice_phonetic_rank,
+                vector_rank,
+            ]
         )
         candidates = sorted(
             {
@@ -564,6 +733,7 @@ class HybridSearchService:
                     opening_rank,
                     fts_rank,
                     trigram_rank,
+                    voice_phonetic_rank,
                     vector_rank,
                 )
                 for item in ranked
@@ -590,6 +760,7 @@ class HybridSearchService:
                 ("opening_line", opening_rank),
                 ("full_text", fts_rank),
                 ("trigram", trigram_rank),
+                ("voice_phonetic", voice_phonetic_rank),
                 ("vector", vector_rank),
             ):
                 if candidate in ranked:

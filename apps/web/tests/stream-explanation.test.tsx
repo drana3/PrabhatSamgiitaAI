@@ -6,6 +6,13 @@ import { StreamExplanation } from "@/components/stream-explanation"
 import { streamExplanation } from "@/lib/explain"
 
 vi.mock("@/lib/explain", () => ({ streamExplanation: vi.fn() }))
+vi.mock("@/components/member-provider", () => ({
+  useMember: () => ({ loading: false, session: { authenticated: false } }),
+}))
+vi.mock("@/lib/member", () => ({
+  fetchMemberChat: vi.fn().mockResolvedValue({ summary: "", recent_turns: [] }),
+  saveMemberChat: vi.fn().mockResolvedValue(true),
+}))
 
 const mockedStream = vi.mocked(streamExplanation)
 
@@ -21,7 +28,7 @@ describe("Prabhat Samgiita AI companion", () => {
     expect(screen.getByRole("status", { name: /ready to help/i })).toBeVisible()
     expect(screen.getByRole("img", { name: "Prabhat Samgiita AI" })).toBeVisible()
     expect(screen.getByPlaceholderText("Ask Prabhat Samgiita AI about this song...")).toBeVisible()
-    expect(screen.getByText(/Remembers this conversation for 10 minutes/i)).toBeVisible()
+    expect(screen.getByText(/Remembers this browser conversation for 10 minutes/i)).toBeVisible()
   })
 
   it("rejects gibberish before an AI request is made", async () => {
@@ -51,6 +58,7 @@ describe("Prabhat Samgiita AI companion", () => {
       expect.any(Function),
       "is gaane ka arth pyar ke sandarbh mein batao",
       [],
+      "",
     )
     expect(screen.getByText("Would you like to explore next?")).toBeVisible()
     expect(screen.getByText("Would you like to explore next?").parentElement?.querySelectorAll("button")).toHaveLength(3)

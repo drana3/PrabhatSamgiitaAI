@@ -11,6 +11,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,14 +19,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
 from app.core.security import require_public_quota
-from app.models import AnalyticsDaily, ContentReport, UserFeedback
+from app.models import (
+    AnalyticsDaily,
+    CommunityTestimonial,
+    ContentReport,
+    ReflectionQuote,
+    UserFeedback,
+)
 from app.schemas.discovery import (
     AnalyticsEventRequest,
+    CommunityTestimonialResponse,
     ContentReportRequest,
     ContentReportResponse,
     ContextSignalResponse,
     FestivalResponse,
     OccasionResponse,
+    ReflectionQuoteResponse,
     TodayRecommendationItem,
     TodayResponse,
     UserFeedbackRequest,
@@ -36,11 +45,14 @@ from app.services.domain_catalog import (
     OCCASIONS,
     canonical_festivals,
     fixed_reviewed_festival,
+    reviewed_festival_collection_labels,
     reviewed_festival_context,
+    reviewed_festival_song_numbers,
     season_for_month,
     time_of_day,
 )
 from app.services.recommendations import RecommendationContext, RecommendationEngine
+from app.services.reflections import select_reflection
 from app.services.world_context import (
     ContextSignal,
     current_humanitarian_signals,
@@ -86,6 +98,55 @@ async def list_festivals() -> list[FestivalResponse]:
     return [FestivalResponse.model_validate(item) for item in canonical_festivals()]
 
 
+@router.get("/reflections/today", response_model=ReflectionQuoteResponse)
+async def reflection_today(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    date: date_type | None = None,
+    theme: str | None = Query(default=None, max_length=80),
+) -> ReflectionQuoteResponse:
+    local_date = date or datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    result = await session.execute(
+        select(ReflectionQuote).where(
+            ReflectionQuote.is_active.is_(True),
+            ReflectionQuote.verification_status == "source_verified",
+        )
+    )
+    quote, context_label = select_reflection(list(result.scalars()), local_date, theme)
+    if quote is None:
+        raise HTTPException(status_code=404, detail="No source-verified reflection is available")
+    return ReflectionQuoteResponse(
+        quote_text=quote.quote_text,
+        attribution=quote.attribution,
+        source_title=quote.source_title,
+        source_url=quote.source_url,
+        source_date=quote.source_date,
+        context_label=context_label,
+        verification_status=quote.verification_status,
+    )
+
+
+@router.get("/testimonials", response_model=list[CommunityTestimonialResponse])
+async def approved_testimonials(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    limit: int = Query(default=8, ge=1, le=20),
+) -> list[CommunityTestimonialResponse]:
+    result = await session.execute(
+        select(CommunityTestimonial)
+        .where(CommunityTestimonial.status == "approved")
+        .order_by(CommunityTestimonial.approved_at.desc())
+        .limit(limit)
+    )
+    return [
+        CommunityTestimonialResponse(
+            quote_text=item.quote_text,
+            display_name=item.display_name,
+            display_location=item.display_location,
+            avatar_url=item.avatar_url,
+        )
+        for item in result.scalars()
+    ]
+
+
 @router.get("/recommendations/today", response_model=TodayResponse)
 async def recommendations_today(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -107,6 +168,18 @@ async def recommendations_today(
         local_date.day,
         local_date.year,
     )
+    festival_collection_labels = reviewed_festival_collection_labels(
+        local_date.month,
+        local_date.day,
+        local_date.year,
+    )
+    festival_song_numbers = set(
+        reviewed_festival_song_numbers(
+            local_date.month,
+            local_date.day,
+            local_date.year,
+        )
+    )
     observance = observance_for_day(local_date)
     context = {
         "date": local_date.isoformat(),
@@ -115,6 +188,8 @@ async def recommendations_today(
         "season": season,
         "festival": festival,
         "observance": observance.title if observance else None,
+        "recommendation_mode": "strict_festival" if festival else "daily_reflection",
+        "canonical_collections": list(festival_collection_labels),
     }
     cache_key = json.dumps(context, sort_keys=True)
     cached = await today_cache.get(cache_key)
@@ -166,17 +241,34 @@ async def recommendations_today(
         media_preference="audio",
         maximum_results=3,
     )
-    ranked = await RecommendationEngine().rank(session, songs, recommendation_context)
+    engine = RecommendationEngine()
+    if festival:
+        eligible_songs = [song for song in songs if song.number in festival_song_numbers]
+        ranked = await engine.rank_source_constrained(
+            session,
+            eligible_songs,
+            recommendation_context.maximum_results,
+        )
+    else:
+        ranked = await engine.rank(session, songs, recommendation_context)
     items = []
     for item in ranked[:3]:
         media = await catalog.get_media(item.song.number)
         notation = await catalog.get_notation(item.song.number)
         audio = next((row for row in media if row.kind == "audio"), None)
         video = next((row for row in media if row.kind == "video" and row.embed_url), None)
-        reasons = [signal.title for signal in signals[:1]]
-        reasons.extend(
-            label.replace("_", " ") for label, value in item.breakdown.items() if value > 0
-        )
+        if festival_collection_labels:
+            reasons = [
+                f"From the reviewed {label.removesuffix(' Songs').removesuffix(' Song')} collection"
+                for label in festival_collection_labels
+            ]
+        else:
+            reasons = [signal.title for signal in signals[:1]]
+            reasons.extend(
+                label.replace("_", " ")
+                for label, value in item.breakdown.items()
+                if value > 0
+            )
         items.append(
             TodayRecommendationItem(
                 number=item.song.number,
@@ -195,8 +287,12 @@ async def recommendations_today(
         recommendations=items,
         signals=[ContextSignalResponse(**asdict(signal)) for signal in signals],
         disclaimer=(
-            "Recommendations use reviewed metadata and contextual matching; they are not "
-            "presented as spiritually authoritative."
+            "Festival selections are restricted to exact reviewed source collections."
+            if festival
+            else (
+                "Daily selections use reviewed metadata and are not presented as "
+                "spiritually authoritative."
+            )
         ),
     )
     await today_cache.set(cache_key, response.model_dump(mode="json"))

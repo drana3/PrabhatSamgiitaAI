@@ -1,0 +1,68 @@
+[
+  {
+    "quote_text": "As one thinks, so one becomes.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Meditation",
+    "source_url": "https://www.anandamarga.org/articles/meditation/",
+    "source_date": null,
+    "themes": {"values": ["meditation", "mind", "daily practice"]},
+    "observances": {"values": []},
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Cosmic Consciousness abides in the very sense of existence, in one's very heart's desire.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Self-Realization",
+    "source_url": "https://www.anandamarga.org/ideology/self-realization/",
+    "source_date": null,
+    "themes": {"values": ["self-realization", "consciousness", "meditation"]},
+    "observances": {"values": ["ananda-purnima"]},
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Whatever you speak or do, forget Him never.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Path of Bliss",
+    "source_url": "https://www.anandamarga.org/pdf/AMPathofBliss.pdf",
+    "source_date": null,
+    "themes": {"values": ["devotion", "service", "spiritual practice"]},
+    "observances": {"values": ["new-year", "ananda-purnima", "dharma-maha-sammelan"]},
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "If a single person dies due to lack of the minimum requirements of life, the whole society is to blame.",
+    "attribution": "Prabhat Ranjan Sarkar",
+    "source_title": "PROUT",
+    "source_url": "https://www.anandamarga.org/philosophy/social-philosophy/prout/",
+    "source_date": null,
+    "themes": {"values": ["prout", "economic democracy", "social justice", "service"]},
+    "observances": {"values": ["independence-day-india", "labour-day", "human-rights-day"]},
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "You are never alone or helpless. The force that guides the stars guides you too.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ananda Marga Universal Bliss Newsletter",
+    "source_url": "https://www.anandamarga.org/images/newsletter/issues/2016December.html",
+    "source_date": "December 2016",
+    "themes": {"values": ["hope", "courage", "guidance"]},
+    "observances": {"values": []},
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "If you want to know all, know One, and that One is your own inner I-feeling.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Meditation and Yoga Philosophy: Who am I?",
+    "source_url": "https://www.anandamarga.org/learn-meditation/meditation-yoga-philosophy/session08/",
+    "source_date": null,
+    "themes": {"values": ["self-knowledge", "meditation", "consciousness"]},
+    "observances": {"values": []},
+    "verification_status": "source_verified",
+    "is_active": true
+  }
+]

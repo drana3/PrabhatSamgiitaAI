@@ -13,6 +13,7 @@ from app.models import (
     Media,
     Notation,
     Occasion,
+    ReflectionQuote,
     Season,
     Song,
     SongChunk,
@@ -79,6 +80,7 @@ class BootstrapService:
         media = await self._load_json("media.json")
         notations = await self._load_json("notations.json")
         inventory = await self._load_json("inventory.json")
+        reflection_quotes = await self._load_json("reflection_quotes.json")
 
         # Catalog data is committed before any RAG indexing. The API can therefore
         # serve all songs even if a later indexing step is interrupted.
@@ -93,6 +95,12 @@ class BootstrapService:
         )
         await self._refresh_machine_notations(notations)
         await self._replace_if_incomplete(InventoryItem, inventory, "inventory")
+        await self._replace_if_incomplete(
+            ReflectionQuote,
+            reflection_quotes,
+            "reflection quotes",
+            unique_field=ReflectionQuote.source_url,
+        )
         await self._seed_lookup_tables()
         await self.session.commit()
         await self._ensure_song_chunks(songs, force=songs_replaced or songs_refreshed)

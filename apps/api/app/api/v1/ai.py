@@ -53,7 +53,12 @@ async def explain(
             continue
         history.append((turn.role, content))
     cache_key = json.dumps(
-        {"song_number": song.number, "prompt": prompt, "history": history},
+        {
+            "song_number": song.number,
+            "prompt": prompt,
+            "history": history,
+            "profile_context": payload.profile_context,
+        },
         sort_keys=True,
     )
     cached = await explanation_cache.get(cache_key)
@@ -72,7 +77,12 @@ async def explain(
     provider = select_provider(get_settings())
     rag = RAGService(session, provider)
     try:
-        answer, chunks = await rag.build_grounded_answer(song, prompt, history=history)
+        answer, chunks = await rag.build_grounded_answer(
+            song,
+            prompt,
+            history=history,
+            profile_context=payload.profile_context,
+        )
     except Exception:  # pragma: no cover - runtime fallback for provider/db issues
         logger.exception("Grounded explanation fallback for song %s", song.number)
         answer = (
