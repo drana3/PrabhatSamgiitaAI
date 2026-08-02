@@ -1,8 +1,14 @@
-import Link from "next/link"
+"use client"
 
-import { specialCollectionCount, specialCollectionGroups } from "@/lib/special-collections"
+import { collectionPrompt, queryMatchesCollection, specialCollectionCount, specialCollectionGroups } from "@/lib/special-collections"
 
-export function SpecialCollections({ activeQuery = "" }: { activeQuery?: string }) {
+export function SpecialCollections({
+  activeQuery = "",
+  onSelect,
+}: {
+  activeQuery?: string
+  onSelect?: (query: string) => void
+}) {
   return (
     <details id="collections" className="group/collection-browser scroll-mt-28 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-[0_16px_45px_rgba(42,31,15,0.08)] sm:p-7 lg:p-9">
       <summary className="grid cursor-pointer list-none gap-5 border-b border-navy-900/10 pb-6 marker:content-none lg:grid-cols-[1fr_auto] lg:items-end">
@@ -31,17 +37,30 @@ export function SpecialCollections({ activeQuery = "" }: { activeQuery?: string 
             </summary>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {group.collections.map((collection) => {
+                const prompt = collectionPrompt(collection.query)
                 const isActive = queryMatchesCollection(activeQuery, collection.query)
+                const href = isActive
+                  ? "/explore#catalog-search"
+                  : `/explore?q=${encodeURIComponent(prompt)}&kind=catalog#catalog-search`
                 return (
-                  <Link
+                  <a
                     key={collection.label}
-                    href={isActive ? "/explore#catalog-search" : `/explore?q=${encodeURIComponent(collectionPrompt(collection.query))}#catalog-search`}
+                    href={href}
                     aria-current={isActive ? "true" : undefined}
+                    onClick={(event) => {
+                      if (!onSelect || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+                      event.preventDefault()
+                      if (isActive) {
+                        document.getElementById("catalog-search")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                        return
+                      }
+                      void onSelect(prompt)
+                    }}
                     className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold text-navy-950 transition hover:border-gold-500 hover:bg-gold-50 ${isActive ? "border-gold-600 bg-gold-100 shadow-sm" : "border-navy-900/10 bg-white"}`}
                   >
                     <span>{collection.label}</span>
                     <span className="shrink-0 rounded-full bg-navy-50 px-2 py-1 text-[10px] font-bold text-navy-700">{collection.count}</span>
-                  </Link>
+                  </a>
                 )
               })}
             </div>
@@ -54,12 +73,4 @@ export function SpecialCollections({ activeQuery = "" }: { activeQuery?: string 
       </p>
     </details>
   )
-}
-
-export function collectionPrompt(label: string) {
-  return `Search Prabhat Samgiita for ${label}`
-}
-
-function queryMatchesCollection(query: string, collectionQuery: string) {
-  return query.trim().toLocaleLowerCase() === collectionPrompt(collectionQuery).toLocaleLowerCase()
 }

@@ -57,6 +57,7 @@ class SongDetail(SongSummary):
 
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
+    mode: Literal["catalog", "semantic"] = "catalog"
 
 
 class VoiceSearchRequest(BaseModel):

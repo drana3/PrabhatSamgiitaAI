@@ -250,6 +250,16 @@ async def test_language_collection_query_returns_only_verified_english_songs() -
 
 
 @pytest.mark.asyncio
+async def test_semantic_mode_skips_collection_filtering() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("English songs", mode="semantic")
+
+    assert response.detected_intent == "semantic_search"
+    assert "structured_filter" not in response.items[0].matched_by if response.items else True
+
+
+@pytest.mark.asyncio
 async def test_plain_marriage_query_returns_only_the_canonical_ceremony_song() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 

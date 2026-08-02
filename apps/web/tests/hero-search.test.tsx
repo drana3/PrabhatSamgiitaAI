@@ -26,7 +26,7 @@ describe("hero search", () => {
     render(<HeroSearch />)
     await user.type(screen.getByLabelText(/Ask by song/i), "morning meditation")
     await user.click(screen.getByRole("button", { name: "Search" }))
-    expect(push).toHaveBeenCalledWith("/explore?q=morning%20meditation")
+    expect(push).toHaveBeenCalledWith("/explore?q=morning%20meditation&kind=semantic")
   })
 
   it("opens grounded AI context for an explanation request containing a song number", async () => {
@@ -58,7 +58,7 @@ describe("hero search", () => {
     await user.click(await screen.findByRole("button", { name: "Search by voice" }))
 
     expect(screen.queryByRole("combobox", { name: "Spoken language" })).not.toBeInTheDocument()
-    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana&mode=voice&lang=auto")
+    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana&kind=semantic&mode=voice&lang=auto")
   })
 
   it("keeps malicious and meaningless input local", async () => {

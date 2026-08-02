@@ -293,3 +293,24 @@ export const specialCollectionCount = specialCollectionGroups.reduce(
   (total, group) => total + group.collections.length,
   0,
 )
+
+export function collectionPrompt(label: string) {
+  return `Search Prabhat Samgiita for ${label}`
+}
+
+export function queryMatchesCollection(query: string, collectionQuery: string) {
+  return query.trim().toLocaleLowerCase() === collectionPrompt(collectionQuery).toLocaleLowerCase()
+}
+
+const collectionPromptPrefix = "search prabhat samgiita for "
+
+export function isCollectionSearchQuery(query: string) {
+  return query.trim().toLocaleLowerCase().startsWith(collectionPromptPrefix)
+}
+
+export type ExploreSearchKind = "catalog" | "semantic"
+
+export function exploreSearchKind(query: string, explicitKind?: string | null): ExploreSearchKind {
+  if (explicitKind === "catalog" || explicitKind === "semantic") return explicitKind
+  return isCollectionSearchQuery(query) ? "catalog" : "semantic"
+}

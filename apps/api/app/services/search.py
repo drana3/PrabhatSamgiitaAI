@@ -12,10 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unidecode import unidecode
 
 from app.config import get_settings
-from app.models import Media, Notation, Song
+from app.models import Media, Notation, Song, SongChunk
 from app.schemas.search import MediaSummary, SearchFilters, SearchResponse, SearchResultItem
 from app.services.ai import select_provider
 from app.services.catalog import CatalogService, catalog_media_snapshot, catalog_notation_snapshot
+from app.services.rag import build_song_chunks, cosine_similarity, token_score
 from app.services.seed_data import load_rows
 
 
@@ -449,10 +450,70 @@ def has_search_filters(filters: SearchFilters) -> bool:
     return any(value is not None for value in filters.model_dump().values())
 
 
+SEMANTIC_QUERY_PROMPT = (
+    "Rewrite this Prabhat Samgiita discovery question into compact search keywords "
+    "covering theme, feeling, imagery, occasion, and spiritual mood. "
+    "Return only the keywords, without explanation.\n"
+    "Question: {query}"
+)
+
+
 class HybridSearchService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.provider = select_provider(get_settings())
+
+    async def _expand_semantic_query(self, query: str) -> str:
+        try:
+            expanded = await self.provider.complete(
+                SEMANTIC_QUERY_PROMPT.format(query=query.strip())
+            )
+            cleaned = " ".join(expanded.split())
+            return cleaned or query
+        except Exception:
+            return query
+
+    async def _rag_chunk_rank(
+        self,
+        query: str,
+        query_embedding: list[float],
+        songs: list[Song],
+        limit: int = 80,
+    ) -> list[str]:
+        if not query_embedding:
+            return []
+        scored: dict[int, float] = {}
+        try:
+            stmt = (
+                select(SongChunk)
+                .where(SongChunk.embeddings.is_not(None))
+                .order_by(SongChunk.embeddings.op("<=>")(query_embedding))
+                .limit(limit)
+            )
+            result = await self.session.execute(stmt)
+            chunks = list(result.scalars().all())
+        except Exception:
+            await self.session.rollback()
+            chunks = []
+        if not chunks:
+            for song in songs:
+                for row in build_song_chunks(song):
+                    chunk_embedding = row.get("embeddings")
+                    if not chunk_embedding:
+                        continue
+                    similarity = cosine_similarity(query_embedding, chunk_embedding)
+                    lexical = token_score(query, row.get("content", "")) * 0.35
+                    total = similarity + lexical
+                    song_number = int(row["song_number"])
+                    scored[song_number] = max(scored.get(song_number, 0.0), total)
+        else:
+            for chunk in chunks:
+                similarity = cosine_similarity(query_embedding, chunk.embeddings or [])
+                lexical = token_score(query, chunk.content) * 0.35
+                total = similarity + lexical
+                scored[chunk.song_number] = max(scored.get(chunk.song_number, 0.0), total)
+        ranked = sorted(scored.items(), key=lambda item: item[1], reverse=True)
+        return [str(number) for number, _ in ranked[:limit]]
 
     def _seed_media(self) -> list[Media]:
         return list(catalog_media_snapshot())
@@ -661,14 +722,22 @@ class HybridSearchService:
         page: int = 1,
         page_size: int = 20,
         input_mode: str = "text",
+        mode: str = "catalog",
     ) -> SearchResponse:
         filters = filters or SearchFilters()
         songs = await self._song_index()
         media_counts = await self._media_counts()
-        collection_match = infer_canonical_collection(query)
-        filters = merge_search_filters(filters, infer_search_filters(query, songs))
+        semantic_mode = mode == "semantic"
+        collection_match = None if semantic_mode else infer_canonical_collection(query)
+        if semantic_mode:
+            inferred_filters = SearchFilters()
+        else:
+            inferred_filters = infer_search_filters(query, songs)
+        filters = merge_search_filters(filters, inferred_filters)
         intent = (
-            "collection_search"
+            "semantic_search"
+            if semantic_mode
+            else "collection_search"
             if collection_match
             else "filtered_search"
             if has_search_filters(filters)
@@ -676,7 +745,14 @@ class HybridSearchService:
         )
 
         exact_number = await self._exact_number_rank(query)
-        semantic_query = expand_voice_query(query) if input_mode == "voice" else query
+        if semantic_mode and input_mode == "voice":
+            semantic_query = expand_voice_query(query)
+        elif semantic_mode:
+            semantic_query = await self._expand_semantic_query(query)
+        elif input_mode == "voice":
+            semantic_query = expand_voice_query(query)
+        else:
+            semantic_query = query
         query_embedding: list[float] = []
         if not exact_number and await self._has_vector_index():
             try:
@@ -695,6 +771,11 @@ class HybridSearchService:
         )
         vector_rank = (
             [] if exact_number else await self._vector_rank(songs, query_embedding, limit=50)
+        )
+        rag_chunk_rank = (
+            []
+            if exact_number or not semantic_mode
+            else await self._rag_chunk_rank(query, query_embedding, songs, limit=80)
         )
         structured_rank = (
             [
@@ -717,6 +798,7 @@ class HybridSearchService:
             [
                 exact_number,
                 structured_rank,
+                rag_chunk_rank,
                 opening_rank,
                 fts_rank,
                 trigram_rank,
@@ -730,6 +812,7 @@ class HybridSearchService:
                 for ranked in (
                     exact_number,
                     structured_rank,
+                    rag_chunk_rank,
                     opening_rank,
                     fts_rank,
                     trigram_rank,
@@ -757,6 +840,7 @@ class HybridSearchService:
             for label, ranked in (
                 ("exact_number", exact_number),
                 ("structured_filter", structured_rank),
+                ("rag_chunk", rag_chunk_rank),
                 ("opening_line", opening_rank),
                 ("full_text", fts_rank),
                 ("trigram", trigram_rank),

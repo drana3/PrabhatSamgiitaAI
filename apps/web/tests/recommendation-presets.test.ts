@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
-import { specialCollectionCount, specialCollectionGroups } from "@/lib/special-collections"
+import { specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
 import canonicalCollections from "../../../data/generated/theme_collections.json"
 
 describe("reviewed discovery collections", () => {
@@ -72,5 +72,12 @@ describe("reviewed discovery collections", () => {
     const events = getUpcomingObservances(new Date(2026, 11, 31, 12, 0), 1)
 
     expect(events).toEqual([])
+  })
+
+  it("routes collection prompts to catalog search and free text to semantic search", () => {
+    expect(isCollectionSearchQuery("Search Prabhat Samgiita for Hindi Songs")).toBe(true)
+    expect(exploreSearchKind("Search Prabhat Samgiita for Hindi Songs")).toBe("catalog")
+    expect(exploreSearchKind("song about rain")).toBe("semantic")
+    expect(exploreSearchKind("morning meditation", "semantic")).toBe("semantic")
   })
 })

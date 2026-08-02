@@ -19,7 +19,25 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-export function SearchForm({ onResults, onSearching, onVoiceResult, initialQuery = "", inputMode = "text", spokenLanguage }: { onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void; onSearching?: (searching: boolean) => void; onVoiceResult?: (result: VoiceSearchResult | null) => void; initialQuery?: string; inputMode?: "text" | "voice"; spokenLanguage?: string }) {
+export function SearchForm({
+  onResults,
+  onSearching,
+  onVoiceResult,
+  onQueryChange,
+  onSemanticSearch,
+  initialQuery = "",
+  inputMode = "text",
+  spokenLanguage,
+}: {
+  onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void
+  onSearching?: (searching: boolean) => void
+  onVoiceResult?: (result: VoiceSearchResult | null) => void
+  onQueryChange?: (query: string) => void
+  onSemanticSearch?: (query: string) => void
+  initialQuery?: string
+  inputMode?: "text" | "voice"
+  spokenLanguage?: string
+}) {
   const router = useRouter()
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -32,7 +50,7 @@ export function SearchForm({ onResults, onSearching, onVoiceResult, initialQuery
         const voiceResult = await searchSongsByVoice(values.query, spokenLanguage)
         return { songs: voiceResult.matches.map((match) => match.song), voiceResult }
       }
-      return { songs: await searchSongs(values.query), voiceResult: null }
+      return { songs: await searchSongs(values.query, { mode: "semantic" }), voiceResult: null }
     },
     onMutate: () => onSearching?.(true),
     onSuccess: ({ songs, voiceResult }) => {
@@ -48,20 +66,23 @@ export function SearchForm({ onResults, onSearching, onVoiceResult, initialQuery
       router.push(songIntentPath(songIntent))
       return
     }
-    const nextUrl = `/explore?q=${encodeURIComponent(values.query.trim())}`
-    if (values.query.trim() !== initialQuery.trim()) {
+    const trimmed = values.query.trim()
+    const nextUrl = `/explore?q=${encodeURIComponent(trimmed)}&kind=semantic`
+    if (onSemanticSearch) {
+      onSemanticSearch(trimmed)
+      return
+    }
+    if (trimmed !== initialQuery.trim()) {
       router.push(nextUrl)
       return
     }
-    mutation.mutate({ query: values.query.trim() })
+    mutation.mutate({ query: trimmed })
   }
 
   useEffect(() => {
     form.reset({ query: initialQuery })
-    if (initialQuery) mutation.mutate({ query: initialQuery })
-    // The URL query is intentionally executed once when this screen opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuery])
+    onQueryChange?.(initialQuery)
+  }, [initialQuery, form, onQueryChange])
 
   return (
     <form
@@ -81,7 +102,7 @@ export function SearchForm({ onResults, onSearching, onVoiceResult, initialQuery
         />
         <VoiceSearchButton onTranscript={({ transcript, language }) => {
           form.setValue("query", transcript, { shouldValidate: true })
-          router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
+          router.push(`/explore?q=${encodeURIComponent(transcript)}&kind=semantic&mode=voice&lang=${encodeURIComponent(language)}`)
         }} />
         <button
           type="submit"

@@ -158,12 +158,13 @@ async def search(
     if not assessment.allowed:
         raise HTTPException(status_code=422, detail=assessment.guidance)
     query = assessment.normalized
-    cache_key = json.dumps({"query": query}, sort_keys=True)
+    mode = payload.mode
+    cache_key = json.dumps({"query": query, "mode": mode}, sort_keys=True)
     cached = await simple_search_cache.get(cache_key)
     if isinstance(cached, list):
         return [SongSummary.model_validate(item) for item in cached]
 
-    response = await HybridSearchService(session).search(query)
+    response = await HybridSearchService(session).search(query, mode=mode)
     songs_by_number = {song.number: song for song in catalog_song_snapshot()}
     results: list[SongSummary] = []
     for item in response.items:

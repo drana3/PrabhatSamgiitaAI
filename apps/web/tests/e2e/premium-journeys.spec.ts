@@ -370,7 +370,7 @@ test("a meaningful query moves naturally into exploration", async ({ page }) => 
   await page.goto("/")
   await page.getByLabel(/Ask by song, feeling/i).fill("morning meditation")
   await clickSearchButton(page)
-  await expect(page).toHaveURL(/\/explore\?q=morning%20meditation/)
+  await expect(page).toHaveURL(/\/explore\?q=morning%20meditation.*kind=semantic/)
   await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
 })
 

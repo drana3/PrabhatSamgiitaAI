@@ -263,13 +263,17 @@ export async function fetchSongLocalization(
   }
 }
 
-export async function searchSongs(query: string): Promise<SongSummary[]> {
+export async function searchSongs(
+  query: string,
+  options: { mode?: "catalog" | "semantic" } = {},
+): Promise<SongSummary[]> {
   if (!queryIsUseful(query, 200)) throw new Error(queryGuidanceFor(query))
+  const mode = options.mode ?? "catalog"
   try {
     const response = await fetchJson("/api/v1/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, mode }),
     })
     if (!response.ok) {
       const payload = await response.json().catch(() => null)

@@ -84,7 +84,7 @@ export function RecommendationSection() {
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {upcoming.map((observance) => (
-            <Link key={observance.title} href={`/explore?q=${encodeURIComponent(observance.query)}#catalog-search`} className="rounded-xl border border-white/15 bg-white/8 p-3 transition hover:border-gold-300 hover:bg-white/12">
+            <Link key={observance.title} href={`/explore?q=${encodeURIComponent(observance.query)}&kind=catalog#catalog-search`} className="rounded-xl border border-white/15 bg-white/8 p-3 transition hover:border-gold-300 hover:bg-white/12">
               <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">{observance.dateLabel}</span>
               <span className="mt-1 block text-sm font-semibold text-white">{observance.title}</span>
               <span className="mt-2 block text-[11px] text-navy-200">{observance.daysUntil === 0 ? "Today" : `In ${observance.daysUntil} days`} · Find songs →</span>
