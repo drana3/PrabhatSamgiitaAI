@@ -26,8 +26,7 @@ export function MemberProvider({ children }: { children: React.ReactNode }) {
     try {
       const next = await fetchMemberSession()
       const signedOut = previousAuth.current && !next.authenticated
-      const signedIn = !previousAuth.current && next.authenticated
-      if (signedOut || signedIn) {
+      if (signedOut) {
         clearSongChatStorage()
       }
       previousAuth.current = next.authenticated

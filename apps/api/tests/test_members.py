@@ -42,6 +42,14 @@ def test_principal_without_subject_is_rejected() -> None:
         decode_client_principal(principal)
 
 
+def test_chat_memory_turn_accepts_long_assistant_replies() -> None:
+    from app.schemas.member import ChatMemoryTurn
+
+    turn = ChatMemoryTurn(role="assistant", content="x" * 5000)
+
+    assert len(turn.content) == 5000
+
+
 def test_interest_summary_is_compact_and_long_lived() -> None:
     profile = UserInterestProfile(
         topic_counts={"meaning": 5, "translation": 3, "practice": 1},

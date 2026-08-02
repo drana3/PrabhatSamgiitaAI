@@ -49,15 +49,20 @@ export async function saveMemberChat(payload: {
 }) {
   const response = await fetch("/api/member/chat-memory", {
     method: "POST",
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    cache: "no-store",
   })
   return response.ok
 }
 
 export async function fetchMemberChat(songNumber?: number) {
-  const suffix = songNumber ? `?song_number=${songNumber}` : ""
-  const response = await fetch(`/api/member/chat-memory${suffix}`, { cache: "no-store" })
+  const suffix = songNumber ? `?song_number=${encodeURIComponent(String(songNumber))}` : ""
+  const response = await fetch(`/api/member/chat-memory${suffix}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+  })
   if (!response.ok) return { summary: "", recent_turns: [] }
   return await response.json() as {
     summary: string

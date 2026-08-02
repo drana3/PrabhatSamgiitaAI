@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { VoiceQuestionButton } from "@/components/voice-question-button"
 import {
+  chatMemoryTurnsForSave,
   clearMemberChatStorage,
   clearSongChatStorage,
   followUpsFromMessages,
@@ -89,7 +90,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
       setProfileSummary(memory.summary)
       const remote = memory.recent_turns.map((turn, index) => ({
         role: turn.role,
-        text: turn.content,
+        text: turn.role === "assistant" ? formatAssistantMessage(turn.content) : turn.content,
         createdAt: Date.now() - ((memory.recent_turns.length - index) * 1000),
       } satisfies ChatMessage))
       const seen = new Set<string>()
@@ -149,12 +150,9 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
         })
       }, nextPrompt, history, profileSummary)
       if (streamed && session.authenticated) {
-        void saveMemberChat({
+        await saveMemberChat({
           song_number: songNumber,
-          turns: [
-            { role: "user", content: nextPrompt },
-            { role: "assistant", content: streamed },
-          ],
+          turns: chatMemoryTurnsForSave(nextPrompt, streamed),
         })
       }
     } catch {

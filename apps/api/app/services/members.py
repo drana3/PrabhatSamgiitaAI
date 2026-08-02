@@ -262,7 +262,7 @@ async def recent_chat_memory(
     if song_number is not None:
         statement = statement.where(UserChatMessage.song_number == song_number)
     messages = list(
-        (await session.execute(statement.order_by(UserChatMessage.created_at.desc()).limit(8)))
+        (await session.execute(statement.order_by(UserChatMessage.created_at.desc()).limit(12)))
         .scalars()
         .all()
     )

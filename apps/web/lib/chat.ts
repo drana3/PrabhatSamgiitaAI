@@ -71,6 +71,13 @@ export function starterPrompts(language: ChatLanguage = "en"): string[] {
   ]
 }
 
+export function chatMemoryTurnsForSave(userPrompt: string, assistantText: string) {
+  return [
+    { role: "user" as const, content: userPrompt.trim().slice(0, 2000) },
+    { role: "assistant" as const, content: formatAssistantMessage(assistantText).slice(0, 8000) },
+  ]
+}
+
 export function recentConversation(
   messages: ChatMessage[],
   now = Date.now(),

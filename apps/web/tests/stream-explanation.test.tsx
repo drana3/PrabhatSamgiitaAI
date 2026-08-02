@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 
 import { StreamExplanation } from "@/components/stream-explanation"
 import { streamExplanation } from "@/lib/explain"
+import { fetchMemberChat, saveMemberChat } from "@/lib/member"
 
 vi.mock("@/lib/explain", () => ({ streamExplanation: vi.fn() }))
 vi.mock("@/components/member-provider", () => ({
@@ -15,6 +16,8 @@ vi.mock("@/lib/member", () => ({
 }))
 
 const mockedStream = vi.mocked(streamExplanation)
+const fetchMemberChatMock = vi.mocked(fetchMemberChat)
+const saveMemberChatMock = vi.mocked(saveMemberChat)
 const memberState = vi.hoisted(() => ({
   value: { loading: false, session: { authenticated: false } },
 }))
@@ -22,6 +25,10 @@ const memberState = vi.hoisted(() => ({
 describe("Prabhat Samgiita AI companion", () => {
   beforeEach(() => {
     mockedStream.mockReset()
+    fetchMemberChatMock.mockReset()
+    fetchMemberChatMock.mockResolvedValue({ summary: "", recent_turns: [] })
+    saveMemberChatMock.mockReset()
+    saveMemberChatMock.mockResolvedValue(true)
     memberState.value = { loading: false, session: { authenticated: false } }
     window.sessionStorage.clear()
     Reflect.deleteProperty(window, "webkitSpeechRecognition")
@@ -74,6 +81,47 @@ describe("Prabhat Samgiita AI companion", () => {
     )
     expect(screen.getByText("Would you like to explore next?")).toBeVisible()
     expect(screen.getByText("Would you like to explore next?").parentElement?.querySelectorAll("button").length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("restores a signed-in conversation from member chat memory after sign-in", async () => {
+    fetchMemberChatMock.mockResolvedValue({
+      summary: "often explores meaning",
+      recent_turns: [
+        { role: "user", content: "Explain this song line by line" },
+        { role: "assistant", content: "1. Lyric: restored answer" },
+      ],
+    })
+
+    memberState.value = { loading: false, session: { authenticated: false } }
+    const { rerender } = render(<StreamExplanation songNumber={135} />)
+    expect(screen.getByText("Try asking")).toBeVisible()
+
+    memberState.value = { loading: false, session: { authenticated: true } }
+    rerender(<StreamExplanation songNumber={135} />)
+
+    expect(await screen.findByText(/Explain this song line by line/i)).toBeVisible()
+    expect(screen.getByText(/restored answer/i)).toBeVisible()
+    expect(fetchMemberChatMock).toHaveBeenCalledWith(135)
+  })
+
+  it("persists signed-in companion turns to member chat memory", async () => {
+    const user = userEvent.setup()
+    mockedStream.mockImplementation(async (_number, onChunk) => {
+      onChunk("A grounded answer. [1]\n\nSources:\n[1] Song 135 (meaning)")
+    })
+    memberState.value = { loading: false, session: { authenticated: true } }
+    render(<StreamExplanation songNumber={135} />)
+
+    await user.type(screen.getByLabelText("Ask about this song"), "What is this song about?")
+    await user.click(screen.getByRole("button", { name: "Send question" }))
+
+    await waitFor(() => expect(saveMemberChatMock).toHaveBeenCalledWith({
+      song_number: 135,
+      turns: [
+        { role: "user", content: "What is this song about?" },
+        { role: "assistant", content: "A grounded answer." },
+      ],
+    }))
   })
 
   it("does not restore a signed-in conversation after sign out", async () => {

@@ -1,4 +1,5 @@
 import {
+  chatMemoryTurnsForSave,
   clearMemberChatStorage,
   clearSongChatStorage,
   conversationContextMs,
@@ -80,6 +81,16 @@ describe("AI companion conversation contract", () => {
     expect(history).toHaveLength(12)
     expect(history[0].content).toBe("turn 8")
     expect(history[11].content).toBe("turn 19")
+  })
+
+  it("stores trimmed companion replies for member chat memory", () => {
+    const turns = chatMemoryTurnsForSave(
+      "What is this song about?",
+      "A grounded answer. [1]\n\nSources:\n[1] Song 1 (meaning)\n" + "x".repeat(9000),
+    )
+    expect(turns[0]?.content).toBe("What is this song about?")
+    expect(turns[1]?.content).toBe("A grounded answer.")
+    expect(turns[1]?.content.length).toBeLessThanOrEqual(8000)
   })
 
   it("keeps guest and member chat storage separate and clears both on sign out", () => {
