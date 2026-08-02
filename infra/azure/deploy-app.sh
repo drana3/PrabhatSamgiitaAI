@@ -112,8 +112,30 @@ SEARCH_SMOKE="$(curl --fail --silent --show-error \
   "https://${API_FQDN}/api/v1/search")"
 printf '%s' "$SEARCH_SMOKE" | python3 -c 'import json, sys; rows=json.load(sys.stdin); raise SystemExit(0 if any(row.get("number") == 111 for row in rows) else 1)'
 
+# Build the web image while the API finishes indexing so ACR time overlaps
+# the readiness wait instead of stacking after it.
+WEB_BUILD_LOG="$(mktemp)"
+(
+  az acr build \
+    --registry "$ACR_NAME" \
+    --image "prabhat-samgiita-web:${TAG}" \
+    --file "${ROOT_DIR}/apps/web/Dockerfile" \
+    --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
+    --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
+    "$ROOT_DIR" >/dev/null
+) >"$WEB_BUILD_LOG" 2>&1 &
+WEB_BUILD_PID=$!
+
 INDEX_READY=""
 for attempt in $(seq 1 360); do
+  if [[ -n "${WEB_BUILD_PID}" ]] && ! kill -0 "$WEB_BUILD_PID" 2>/dev/null; then
+    if ! wait "$WEB_BUILD_PID"; then
+      echo "Web image build failed while waiting for API indexing."
+      cat "$WEB_BUILD_LOG" || true
+      exit 1
+    fi
+    WEB_BUILD_PID=""
+  fi
   READINESS="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null || true)"
   if [[ -n "$READINESS" ]]; then
     if printf '%s' "$READINESS" | python3 -c 'import json, sys; data=json.load(sys.stdin); provider=data.get("embedding_provider_configured", False); indexed=data.get("embedding_progress", 0) >= 1; ready=data.get("database_synced") and data.get("rag_chunks_ready") and (indexed if provider else True); raise SystemExit(0 if ready else 1)'; then
@@ -125,18 +147,23 @@ for attempt in $(seq 1 360); do
 done
 
 if [[ -z "$INDEX_READY" ]]; then
+  if [[ -n "${WEB_BUILD_PID}" ]]; then
+    kill "$WEB_BUILD_PID" 2>/dev/null || true
+    wait "$WEB_BUILD_PID" 2>/dev/null || true
+  fi
   echo "API indexing did not finish within 60 minutes."
   curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" || true
   exit 1
 fi
 
-az acr build \
-  --registry "$ACR_NAME" \
-  --image "prabhat-samgiita-web:${TAG}" \
-  --file "${ROOT_DIR}/apps/web/Dockerfile" \
-  --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
-  --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
-  "$ROOT_DIR" >/dev/null
+if [[ -n "${WEB_BUILD_PID}" ]]; then
+  if ! wait "$WEB_BUILD_PID"; then
+    echo "Web image build failed."
+    cat "$WEB_BUILD_LOG" || true
+    exit 1
+  fi
+fi
+rm -f "$WEB_BUILD_LOG"
 
 WEB_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}"
 

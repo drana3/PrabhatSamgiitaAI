@@ -15,7 +15,9 @@ permissions:
 
 concurrency:
   group: mobile-preview
-  cancel-in-progress: false
+  # A newer push should cancel the previous EAS wait rather than queue another
+  # full Android + iOS pair behind it.
+  cancel-in-progress: true
 
 jobs:
   build:

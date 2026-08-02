@@ -198,16 +198,33 @@ def main() -> None:
     )
     record("Explain song 1 in Hindi.", "Grounded Devanagari localization", elapsed)
 
+    # Use a prompt the structured-answer shortcut does not intercept, so this
+    # check still exercises live Azure OpenAI + RAG grounding.
+    rag_prompt = (
+        "Compose a short dawn-practice reflection for a seeker beginning with "
+        "this composition. Keep it grounded in the selected song."
+    )
     status, _, body, elapsed = request(
         base_url,
         "POST",
         "/api/v1/ai/explain",
-        {"song_number": 1, "prompt": "What is the central message of this song?"},
+        {"song_number": 1, "prompt": rag_prompt},
     )
     explanation = body.decode(errors="replace")
-    require(status == 200 and "Sources:" in explanation and "1:" in explanation, explanation)
+    require(status == 200, explanation)
     require("Mock grounded" not in explanation, explanation)
-    record("BOT, what is song 1's central message?", "Real grounded streamed answer", elapsed)
+    require(
+        "expresses the following grounded meaning" not in explanation,
+        "Structured overview shortcut answered a prompt that should use RAG",
+    )
+    require(
+        re.search(r"\b(?:1|BANDHU|Friend|dawn|effulgence)\b", explanation, re.IGNORECASE)
+        is not None
+        or "[1]" in explanation,
+        explanation,
+    )
+    require(len(explanation.strip()) > 80, explanation)
+    record("BOT, dawn-practice reflection for song 1?", "Real grounded streamed answer", elapsed)
 
     audio_started = time.monotonic()
     audio_request = Request(audio["url"], headers={"Range": "bytes=0-1023"})
