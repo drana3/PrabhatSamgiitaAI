@@ -151,8 +151,8 @@ function CompactPlayer({
   const fieldId = title.replace(/\s+/g, "-").toLowerCase()
 
   return (
-    <div className="w-full max-w-[20rem] rounded-xl border border-navy-900/10 bg-white px-2 py-2 shadow-sm">
-      <div className="flex items-center gap-1.5">
+    <div className="w-full max-w-[20rem] overflow-hidden rounded-xl border border-navy-900/10 bg-white px-2 py-2 pr-2.5 shadow-sm">
+      <div className="flex min-w-0 items-center gap-1">
         <div className="flex shrink-0 items-center">
           <IconButton label={`Rewind ${skipSeconds} seconds`} onClick={() => seekBy(-skipSeconds)}>
             <SkipBackIcon />
@@ -184,14 +184,14 @@ function CompactPlayer({
           step={0.1}
           value={Math.min(currentTime, duration || 0)}
           onChange={(event) => seekTo(Number(event.target.value))}
-          className="h-1 min-w-[3.5rem] flex-1 cursor-pointer accent-gold-600"
+          className="h-1 min-w-0 flex-1 cursor-pointer accent-gold-600"
           aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
         />
         <span className="hidden w-8 shrink-0 text-right text-[10px] tabular-nums text-stone-500 sm:inline">
           {formatTime(duration)}
         </span>
 
-        <div className="flex shrink-0 items-center gap-1 border-l border-navy-900/10 pl-1.5">
+        <div className="flex min-w-0 max-w-[3.75rem] shrink-0 items-center gap-0.5 overflow-hidden border-l border-navy-900/10 pl-1.5">
           <button
             type="button"
             aria-label={volume > 0 ? "Mute" : "Unmute"}
@@ -211,7 +211,7 @@ function CompactPlayer({
             step={0.05}
             value={volume}
             onChange={(event) => setVolume(Number(event.target.value))}
-            className="h-1 w-10 cursor-pointer accent-gold-600 sm:w-12"
+            className="h-1 w-full min-w-0 max-w-[2rem] cursor-pointer accent-gold-600 sm:max-w-[2.25rem]"
             aria-valuetext={`${Math.round(volume * 100)} percent`}
           />
         </div>
