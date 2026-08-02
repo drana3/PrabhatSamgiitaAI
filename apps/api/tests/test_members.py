@@ -50,6 +50,16 @@ def test_chat_memory_turn_accepts_long_assistant_replies() -> None:
     assert len(turn.content) == 5000
 
 
+def test_recent_chat_memory_does_not_short_circuit_when_personalization_disabled() -> None:
+    import inspect
+
+    from app.services import members as members_service
+
+    source = inspect.getsource(members_service.recent_chat_memory)
+    assert "if not member.personalization_enabled:" not in source
+    assert "Always restore chat turns" in source
+
+
 def test_interest_summary_is_compact_and_long_lived() -> None:
     profile = UserInterestProfile(
         topic_counts={"meaning": 5, "translation": 3, "practice": 1},

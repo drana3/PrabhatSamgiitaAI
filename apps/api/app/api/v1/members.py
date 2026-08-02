@@ -110,8 +110,8 @@ async def write_chat_memory(
     payload: ChatMemoryWrite, request: Request, session: DatabaseSession
 ) -> ChatMemoryResponse:
     member = await current_member(request, session)
-    if not member.personalization_enabled:
-        return ChatMemoryResponse()
+    # Chat turns always persist for signed-in members so companions restore after
+    # sign-out/sign-in. personalization_enabled only gates interest profiling.
     summary = await store_chat_memory(session, member, payload)
     return ChatMemoryResponse(summary=summary)
 

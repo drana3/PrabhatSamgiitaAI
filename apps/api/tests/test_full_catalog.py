@@ -358,13 +358,13 @@ async def test_voice_feeling_query_uses_semantic_mode_across_catalog() -> None:
 
     response = await service.search(
         "I am feeling very happy today",
-        page_size=12,
+        page_size=5,
         input_mode="voice",
         mode="semantic",
     )
 
     assert response.items
-    assert len(response.items) <= 12
+    assert len(response.items) <= 5
     assert response.detected_intent == "semantic_search"
 
 

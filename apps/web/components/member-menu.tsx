@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { memberFirstName } from "@/lib/member"
-import { clearSongChatStorage } from "@/lib/chat"
+import { clearGuestChatStorage } from "@/lib/chat"
 import { signInHref } from "@/lib/sign-in"
 
 export function MemberMenu() {
@@ -76,7 +76,7 @@ export function MemberMenu() {
           <a
             href="/.auth/logout?post_logout_redirect_uri=/"
             role="menuitem"
-            onClick={() => { clearSongChatStorage(); setOpen(false); void refresh() }}
+            onClick={() => { clearGuestChatStorage(); setOpen(false); void refresh() }}
             className="block px-4 py-3 text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
           >
             Sign out

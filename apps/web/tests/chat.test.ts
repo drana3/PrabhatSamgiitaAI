@@ -101,7 +101,7 @@ describe("AI companion conversation contract", () => {
     expect(songChatStorageKey(3, false)).toBe("prabhat-song-chat-guest-3")
   })
 
-  it("keeps member chat cache across guest cleanup after sign out", () => {
+  it("keeps member chat cache when sign-out clears only guest storage", () => {
     const memberKey = songChatStorageKey(3, true, "aad:user-1")
     window.sessionStorage.setItem(memberKey, JSON.stringify([
       { role: "user", text: "member turn", createdAt: Date.now() },

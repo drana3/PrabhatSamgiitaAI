@@ -6,6 +6,7 @@ import { memberSessionIsAdmin } from "@/lib/member-admin-proxy"
 describe("member admin session", () => {
   afterEach(() => {
     delete process.env.DEFAULT_ADMIN_EMAILS
+    delete process.env.MEMBER_PROXY_KEY
     vi.unstubAllGlobals()
   })
 
@@ -88,5 +89,17 @@ describe("member admin session", () => {
       items: [expect.objectContaining({ comment: "Search felt fast" })],
     })
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/v1/members/admin/feedback?status=new")
+  })
+
+  it("reports missing member proxy configuration clearly", async () => {
+    delete process.env.MEMBER_PROXY_KEY
+    const principal = buildClientPrincipal("user-oid-42", "owner@example.com")
+    const headers = new Headers({ "x-ms-client-principal": principal })
+    const { fetchAdminFeedback } = await import("@/lib/member-admin-proxy")
+    await expect(fetchAdminFeedback(headers, "new")).resolves.toMatchObject({
+      total: 0,
+      items: [],
+      error: "Member services are not configured",
+    })
   })
 })

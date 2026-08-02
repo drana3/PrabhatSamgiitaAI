@@ -20,7 +20,11 @@ from app.schemas.song import (
 )
 from app.services.catalog import catalog_song_snapshot
 from app.services.query_guard import assess_query
-from app.services.search import HybridSearchService, prepare_voice_query
+from app.services.search import (
+    TOP_SEARCH_PREDICTIONS,
+    HybridSearchService,
+    prepare_voice_query,
+)
 
 router = APIRouter(prefix="/search", tags=["search"])
 simple_search_cache: AsyncTTLCache[list[dict[str, object]]] = AsyncTTLCache(
@@ -107,13 +111,13 @@ async def search_voice(
     # "I am feeling very happy today".
     response = await HybridSearchService(session).search(
         interpreted_as,
-        page_size=12,
+        page_size=TOP_SEARCH_PREDICTIONS,
         input_mode="voice",
         mode="semantic",
     )
     songs_by_number = {song.number: song for song in catalog_song_snapshot()}
     matches: list[VoiceSearchMatch] = []
-    for item in response.items[:12]:
+    for item in response.items[:TOP_SEARCH_PREDICTIONS]:
         confidence, reason = _voice_confidence(item.matched_by, item.score)
         matches.append(
             VoiceSearchMatch(
@@ -169,12 +173,19 @@ async def search(
     cache_key = json.dumps({"query": query, "mode": mode}, sort_keys=True)
     cached = await simple_search_cache.get(cache_key)
     if isinstance(cached, list):
-        return [SongSummary.model_validate(item) for item in cached]
+        return [
+            SongSummary.model_validate(item)
+            for item in cached[:TOP_SEARCH_PREDICTIONS]
+        ]
 
-    response = await HybridSearchService(session).search(query, mode=mode)
+    response = await HybridSearchService(session).search(
+        query,
+        page_size=TOP_SEARCH_PREDICTIONS,
+        mode=mode,
+    )
     songs_by_number = {song.number: song for song in catalog_song_snapshot()}
     results: list[SongSummary] = []
-    for item in response.items:
+    for item in response.items[:TOP_SEARCH_PREDICTIONS]:
         results.append(_song_summary(item, songs_by_number))
     await simple_search_cache.set(cache_key, [item.model_dump() for item in results])
     return results

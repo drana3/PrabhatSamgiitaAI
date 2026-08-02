@@ -8,7 +8,7 @@ import { QuizCertificate } from "@/components/quiz-certificate"
 import { useMember } from "@/components/member-provider"
 import { SiteHeader } from "@/components/site-header"
 import { memberFirstName } from "@/lib/member"
-import { clearSongChatStorage } from "@/lib/chat"
+import { clearGuestChatStorage, clearSongChatStorage } from "@/lib/chat"
 import { fetchQuizStatus, type QuizStatus } from "@/lib/quiz"
 
 export default function AccountPage() {
@@ -110,7 +110,7 @@ export default function AccountPage() {
           <div className="mt-5 flex flex-wrap gap-3">
             <button type="button" onClick={() => void clearMemory()} className="outline-button">Clear chat memory</button>
             <button type="button" onClick={() => void deleteData()} className="rounded-full border border-red-700/30 px-5 py-3 text-sm font-semibold text-red-800">Delete account data</button>
-            <a href="/.auth/logout?post_logout_redirect_uri=/" onClick={() => { clearSongChatStorage(); void refresh() }} className="outline-button">Sign out</a>
+            <a href="/.auth/logout?post_logout_redirect_uri=/" onClick={() => { clearGuestChatStorage(); void refresh() }} className="outline-button">Sign out</a>
           </div>
         </div>
       </section>

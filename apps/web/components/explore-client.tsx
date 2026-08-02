@@ -285,7 +285,7 @@ export function ExploreClient({
 
       <div ref={resultsRef} id="results" className="mt-8 flex scroll-mt-28 items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Top results</p>
+          <p className="eyebrow">Top 5 predictions</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">
             {activeQuery ? (
               inputMode === "voice" ? (

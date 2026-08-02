@@ -213,13 +213,6 @@ async def store_chat_memory(
     await session.execute(
         delete(UserChatMessage).where(UserChatMessage.expires_at <= now)
     )
-    profile = await session.get(UserInterestProfile, member.id)
-    if profile is None:
-        profile = UserInterestProfile(user_id=member.id)
-        session.add(profile)
-    topics = dict(profile.topic_counts or {})
-    songs = dict(profile.song_counts or {})
-    languages = dict(profile.language_counts or {})
     for turn in payload.turns:
         session.add(
             UserChatMessage(
@@ -230,28 +223,41 @@ async def store_chat_memory(
                 expires_at=now + timedelta(days=30),
             )
         )
-        if turn.role != "user":
-            continue
-        normalized = turn.content.casefold()
-        for topic, terms in TOPIC_TERMS.items():
-            if any(term in normalized for term in terms):
-                _increment(topics, topic)
-        _increment(languages, _detect_language(turn.content))
-    if payload.song_number is not None:
-        _increment(songs, str(payload.song_number))
-    profile.topic_counts = topics
-    profile.song_counts = songs
-    profile.language_counts = languages
-    profile.summary_text = _summary(profile)
+
+    summary = ""
+    if member.personalization_enabled:
+        profile = await session.get(UserInterestProfile, member.id)
+        if profile is None:
+            profile = UserInterestProfile(user_id=member.id)
+            session.add(profile)
+        topics = dict(profile.topic_counts or {})
+        songs = dict(profile.song_counts or {})
+        languages = dict(profile.language_counts or {})
+        for turn in payload.turns:
+            if turn.role != "user":
+                continue
+            normalized = turn.content.casefold()
+            for topic, terms in TOPIC_TERMS.items():
+                if any(term in normalized for term in terms):
+                    _increment(topics, topic)
+            _increment(languages, _detect_language(turn.content))
+        if payload.song_number is not None:
+            _increment(songs, str(payload.song_number))
+        profile.topic_counts = topics
+        profile.song_counts = songs
+        profile.language_counts = languages
+        profile.summary_text = _summary(profile)
+        summary = profile.summary_text
+
     await session.commit()
-    return profile.summary_text
+    return summary
 
 
 async def recent_chat_memory(
     session: AsyncSession, member: UserAccount, song_number: int | None
 ) -> tuple[str, list[ChatMemoryTurn]]:
-    if not member.personalization_enabled:
-        return "", []
+    # Always restore chat turns for signed-in members. personalization_enabled
+    # only controls interest-summary exposure, not companion history.
     now = datetime.now(UTC)
     await session.execute(delete(UserChatMessage).where(UserChatMessage.expires_at <= now))
     profile = await session.get(UserInterestProfile, member.id)
@@ -267,8 +273,13 @@ async def recent_chat_memory(
         .all()
     )
     await session.commit()
+    summary = (
+        profile.summary_text
+        if profile and member.personalization_enabled
+        else ""
+    )
     return (
-        profile.summary_text if profile else "",
+        summary,
         [
             ChatMemoryTurn(
                 role="assistant" if message.role == "assistant" else "user",

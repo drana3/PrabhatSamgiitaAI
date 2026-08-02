@@ -8,7 +8,6 @@ import { VoiceQuestionButton } from "@/components/voice-question-button"
 import {
   chatMemoryTurnsForSave,
   clearGuestChatStorage,
-  clearMemberChatStorage,
   followUpsFromMessages,
   formatAssistantMessage,
   hasUserMessages,
@@ -77,9 +76,8 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
     let restored: ChatMessage[] = []
     try {
       window.sessionStorage.removeItem(legacySongChatStorageKey(songNumber))
-      if (!session.authenticated) {
-        clearMemberChatStorage()
-      }
+      // Keep member-scoped cache across guest hydration so sign-out → sign-in
+      // can restore from sessionStorage while server memory loads.
       restored = restoreConversation(
         window.sessionStorage.getItem(storageKey),
         Date.now(),

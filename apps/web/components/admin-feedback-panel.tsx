@@ -30,14 +30,18 @@ export function AdminFeedbackPanel({
   initialStatus?: (typeof filters)[number][0]
   initialData?: AdminFeedbackResponse
 }) {
+  // Server-side loads can fail (missing Easy Auth headers during RSC) even when
+  // the signed-in admin can load feedback from the browser. Only treat a clean
+  // payload as already loaded so the client can retry.
+  const hasUsableInitial = Boolean(initialData && !initialData.error)
   const [status, setStatus] = useState(initialStatus)
-  const [items, setItems] = useState<AdminFeedbackItem[]>(initialData?.items ?? [])
-  const [total, setTotal] = useState(initialData?.total ?? 0)
-  const [loading, setLoading] = useState(!initialData)
+  const [items, setItems] = useState<AdminFeedbackItem[]>(hasUsableInitial ? initialData!.items : [])
+  const [total, setTotal] = useState(hasUsableInitial ? initialData!.total : 0)
+  const [loading, setLoading] = useState(!hasUsableInitial)
   const [error, setError] = useState(initialData?.error ?? "")
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [loadedStatus, setLoadedStatus] = useState<string | null>(
-    initialData ? initialStatus : null,
+    hasUsableInitial ? initialStatus : null,
   )
 
   const loadFeedback = useCallback(async () => {
@@ -124,7 +128,21 @@ export function AdminFeedbackPanel({
         </div>
 
         <p className="mt-4 text-sm text-stone-600">{loading ? "Loading feedback..." : `${total} submission${total === 1 ? "" : "s"}`}</p>
-        {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
+        {error ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3" role="alert">
+            <p className="text-sm text-red-700">{error}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoadedStatus(null)
+                void loadFeedback()
+              }}
+              className="text-sm font-semibold text-gold-700 underline underline-offset-4"
+            >
+              Try again
+            </button>
+          </div>
+        ) : null}
 
         <div className="mt-5 space-y-4">
           {!loading && !items.length ? (

@@ -11,6 +11,7 @@ from app.models import UserAccount
 from app.services.admin_members import (
     apply_default_admin,
     is_protected_admin,
+    require_admin_member,
     revoke_admin,
 )
 
@@ -63,6 +64,30 @@ def test_protected_admin_uses_explicit_list() -> None:
     cfg = settings(default="owner@example.com,admin@example.com", protected="owner@example.com")
     assert is_protected_admin(owner(), cfg) is True
     assert is_protected_admin(admin(), cfg) is False
+
+
+@pytest.mark.asyncio
+async def test_require_admin_member_commits_default_admin_promotion(monkeypatch) -> None:
+    member = owner("owner@example.com")
+    member.is_admin = False
+
+    def promote(target: UserAccount, _settings=None) -> None:
+        target.is_admin = True
+
+    monkeypatch.setattr("app.services.admin_members.apply_default_admin", promote)
+
+    commits: list[str] = []
+
+    class Session:
+        async def commit(self):
+            commits.append("commit")
+
+        async def refresh(self, value):
+            assert value is member
+
+    result = await require_admin_member(Session(), member)  # type: ignore[arg-type]
+    assert result.is_admin is True
+    assert commits == ["commit"]
 
 
 @pytest.mark.asyncio

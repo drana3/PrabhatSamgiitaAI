@@ -55,14 +55,28 @@ export type AdminFeedbackResponse = {
   error?: string
 }
 
+function adminProxyAuthError(proxyKey: string | undefined, principal: string | null) {
+  if (!proxyKey) return "Member services are not configured"
+  if (!principal) return "Sign in is required"
+  return null
+}
+
+function readAdminDetail(body: unknown, fallback: string) {
+  if (!body || typeof body !== "object" || !("detail" in body)) return fallback
+  const detail = (body as { detail?: unknown }).detail
+  if (typeof detail === "string" && detail.trim()) return detail
+  return fallback
+}
+
 export async function fetchAdminFeedback(
   source: Headers,
   status = "new",
 ): Promise<AdminFeedbackResponse> {
   const proxyKey = process.env.MEMBER_PROXY_KEY
   const principal = resolveClientPrincipal(source)
-  if (!proxyKey || !principal) {
-    return { total: 0, items: [], error: "Sign in is required" }
+  const authError = adminProxyAuthError(proxyKey, principal)
+  if (authError) {
+    return { total: 0, items: [], error: authError }
   }
 
   const target = new URL("/api/v1/members/admin/feedback", backendBaseUrl())
@@ -71,17 +85,18 @@ export async function fetchAdminFeedback(
   try {
     const response = await fetch(target, {
       headers: {
-        "X-MS-CLIENT-PRINCIPAL": principal,
-        "X-Member-Proxy-Key": proxyKey,
+        "X-MS-CLIENT-PRINCIPAL": principal!,
+        "X-Member-Proxy-Key": proxyKey!,
       },
       cache: "no-store",
     })
     const body = await response.json().catch(() => null)
     if (!response.ok) {
-      const detail = body && typeof body === "object" && "detail" in body
-        ? String((body as { detail?: unknown }).detail ?? "Could not load feedback")
-        : "Could not load feedback"
-      return { total: 0, items: [], error: detail }
+      return {
+        total: 0,
+        items: [],
+        error: readAdminDetail(body, "Could not load feedback"),
+      }
     }
     const payload = body as AdminFeedbackResponse | null
     return {
@@ -100,9 +115,10 @@ export async function forwardMemberAdmin(
 ) {
   const proxyKey = process.env.MEMBER_PROXY_KEY
   const principal = resolveClientPrincipal(request.headers)
-  if (!proxyKey || !principal) {
-    return new Response(JSON.stringify({ detail: "Sign in is required" }), {
-      status: 401,
+  const authError = adminProxyAuthError(proxyKey, principal)
+  if (authError || !proxyKey || !principal) {
+    return new Response(JSON.stringify({ detail: authError ?? "Sign in is required" }), {
+      status: authError === "Sign in is required" || !principal ? 401 : 503,
       headers: { "Content-Type": "application/json" },
     })
   }

@@ -472,6 +472,10 @@ SEMANTIC_QUERY_PROMPT = (
 )
 
 
+# Typed and voice prediction UIs show a short ranked list, not the full candidate set.
+TOP_SEARCH_PREDICTIONS = 5
+
+
 class HybridSearchService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
