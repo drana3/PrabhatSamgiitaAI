@@ -61,6 +61,10 @@ test("general song links settle on the AI Companion after layout", async ({ page
   await expect(page).toHaveURL(/\/songs\/1#ask$/)
   await expect(page.locator("#ask")).toBeInViewport()
   await expect(page.getByRole("heading", { name: "Know more about this song" })).toBeVisible()
+  const maximumLandingTop = (page.viewportSize()?.height ?? 800) * 0.25
+  await expect.poll(
+    () => page.locator("#ask").evaluate((element) => element.getBoundingClientRect().top),
+  ).toBeLessThanOrEqual(maximumLandingTop)
   const landing = await page.evaluate(() => ({
     askTop: document.querySelector("#ask")?.getBoundingClientRect().top ?? null,
     notationTop: document.querySelector("#notation")?.getBoundingClientRect().top ?? null,
@@ -68,7 +72,7 @@ test("general song links settle on the AI Companion after layout", async ({ page
   expect(landing.askTop).not.toBeNull()
   expect(landing.notationTop).not.toBeNull()
   expect(landing.askTop!).toBeGreaterThanOrEqual(0)
-  expect(landing.askTop!).toBeLessThanOrEqual((page.viewportSize()?.height ?? 800) * 0.25)
+  expect(landing.askTop!).toBeLessThanOrEqual(maximumLandingTop)
   expect(landing.notationTop!).toBeLessThan(landing.askTop!)
 })
 
