@@ -57,6 +57,19 @@ async def initialize_schema() -> None:
             # exceed that length. This idempotent widening runs before data import.
             await conn.execute(text("ALTER TABLE songs ALTER COLUMN theme TYPE TEXT"))
             await conn.execute(text("ALTER TABLE inventory_items ALTER COLUMN title TYPE TEXT"))
+            # Member admin features need is_admin even if alembic history was skipped.
+            await conn.execute(
+                text(
+                    "ALTER TABLE user_accounts "
+                    "ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false"
+                )
+            )
+            await conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin "
+                    "ON user_accounts (is_admin)"
+                )
+            )
     except Exception:
         logger.exception("Database initialization skipped because the database is unavailable")
 

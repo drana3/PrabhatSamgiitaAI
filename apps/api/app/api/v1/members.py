@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -32,6 +33,7 @@ from app.services.quiz import quiz_status, start_quiz, submit_quiz
 
 router = APIRouter(prefix="/members", tags=["members"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
+logger = logging.getLogger(__name__)
 
 
 async def current_member(request: Request, session: AsyncSession) -> UserAccount:
@@ -40,8 +42,19 @@ async def current_member(request: Request, session: AsyncSession) -> UserAccount
 
 @router.get("/session", response_model=MemberProfile | AnonymousMember)
 async def session_profile(request: Request, session: DatabaseSession) -> MemberProfile:
-    member = await current_member(request, session)
-    return await member_profile(session, member)
+    import logging
+
+    try:
+        member = await current_member(request, session)
+        return await member_profile(session, member)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Member session failed")
+        raise HTTPException(
+            status_code=503,
+            detail="Member session is temporarily unavailable",
+        ) from exc
 
 
 @router.patch("/preferences", response_model=MemberProfile)

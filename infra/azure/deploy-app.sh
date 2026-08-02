@@ -29,7 +29,8 @@ if [[ -z "${PG_PASSWORD}" ]]; then
 fi
 
 if [[ -z "${MEMBER_PROXY_KEY}" ]]; then
-  MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:%s' "$PG_PASSWORD" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
+  # v2 salt rotates any proxy key that was previously leaked into CI logs.
+  MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:v2:%s' "$PG_PASSWORD" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
 fi
 
 urlencode() {
@@ -37,7 +38,10 @@ urlencode() {
 }
 
 # Container Apps often return 503 while a new revision is warming or swapping traffic.
+# First argument is a safe label for logs; never print raw curl args (they may include secrets).
 curl_retry() {
+  local label="$1"
+  shift
   local attempts="${CURL_RETRY_ATTEMPTS:-30}"
   local sleep_seconds="${CURL_RETRY_SLEEP_SECONDS:-10}"
   local attempt output
@@ -48,8 +52,8 @@ curl_retry() {
     fi
     sleep "$sleep_seconds"
   done
-  echo "Request failed after ${attempts} attempts: $*" >&2
-  curl --fail --silent --show-error "$@"
+  echo "Request failed after ${attempts} attempts: ${label}" >&2
+  return 1
 }
 
 command -v az >/dev/null || { echo "Azure CLI is required."; exit 1; }
@@ -124,8 +128,8 @@ if [[ -z "$API_READY" ]]; then
   exit 1
 fi
 
-curl_retry "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
-SEARCH_SMOKE="$(curl_retry \
+curl_retry "api-song-5018" "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
+SEARCH_SMOKE="$(curl_retry "api-search-111" \
   --request POST \
   --header 'Content-Type: application/json' \
   --data '{"query":"111"}' \
@@ -252,15 +256,21 @@ payload = {
 print(base64.b64encode(json.dumps(payload).encode()).decode())
 PY
 )"
-MEMBER_SESSION_SMOKE="$(curl_retry \
+MEMBER_SESSION_SMOKE="$(curl_retry "member-session" \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
   --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
-  "https://${API_FQDN}/api/v1/members/session")"
+  "https://${API_FQDN}/api/v1/members/session")" || {
+  echo "Member session smoke failed after API warm-up." >&2
+  exit 1
+}
 printf '%s' "$MEMBER_SESSION_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("authenticated") is True and data.get("is_admin") is True else 1)'
-MEMBER_FEEDBACK_SMOKE="$(curl_retry \
+MEMBER_FEEDBACK_SMOKE="$(curl_retry "member-admin-feedback" \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
   --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
-  "https://${API_FQDN}/api/v1/members/admin/feedback?status=new")"
+  "https://${API_FQDN}/api/v1/members/admin/feedback?status=new")" || {
+  echo "Member admin feedback smoke failed after API warm-up." >&2
+  exit 1
+}
 printf '%s' "$MEMBER_FEEDBACK_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if isinstance(data.get("items"), list) and "total" in data else 1)'
 
 cat <<EOF
