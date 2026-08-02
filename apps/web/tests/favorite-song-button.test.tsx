@@ -34,7 +34,7 @@ describe("FavoriteSongButton", () => {
   it("prompts guests to sign in", () => {
     useMemberMock.mockReturnValue({ loading: false, session: { authenticated: false }, refresh })
     render(<FavoriteSongButton songNumber={135} />)
-    expect(screen.getByRole("link", { name: "♡ Save song" })).toHaveAttribute("href", "/signin?next=%2Fsongs%2F135%23ask")
+    expect(screen.getByRole("link", { name: "♡ Save song" })).toHaveAttribute("href", "/signin?next=%2Fsongs%2F135")
   })
 
   it("saves a song for signed-in members", async () => {
@@ -71,5 +71,22 @@ describe("FavoriteSongButton", () => {
     })
     render(<FavoriteSongButton songNumber={135} />)
     expect(screen.getByRole("button", { name: "Remove from playlist" })).toHaveTextContent("♥ Saved")
+  })
+
+  it("does not pretend playlist writes work when member backend is unavailable", async () => {
+    const user = userEvent.setup()
+    useMemberMock.mockReturnValue({
+      loading: false,
+      session: {
+        authenticated: true,
+        favorite_song_numbers: [],
+        member_backend: false,
+      },
+      refresh,
+    })
+    render(<FavoriteSongButton songNumber={135} />)
+    await user.click(screen.getByRole("button", { name: "Save to playlist" }))
+    expect(addFavoriteSongMock).not.toHaveBeenCalled()
+    expect(await screen.findByRole("status")).toHaveTextContent("Playlist saving is temporarily unavailable.")
   })
 })

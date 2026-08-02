@@ -640,7 +640,23 @@ test("search failure is recoverable and never becomes a blank results panel", as
   await expect(page.getByText("Unavailable", { exact: true })).toBeVisible()
 })
 
-test("feedback validates input and confirms successful delivery", async ({ page }) => {
+test("feedback requires sign-in, then validates and confirms delivery", async ({ page }) => {
+  await page.route("**/api/member/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        authenticated: true,
+        id: "aad:e2e-user",
+        display_name: "E2E Member",
+        email: "e2e@example.com",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        favorite_song_numbers: [],
+        is_admin: false,
+        member_backend: true,
+      },
+    })
+  })
   await page.route("**/api/feedback", async (route) => {
     if (route.request().method() !== "POST") {
       await route.continue()
@@ -662,6 +678,18 @@ test("feedback validates input and confirms successful delivery", async ({ page 
   await page.getByRole("button", { name: "4 stars" }).click()
   await page.getByRole("button", { name: "Send feedback" }).click()
   await expect(page.getByRole("status").filter({ hasText: "feedback was received" })).toBeVisible()
+})
+
+test("guests are prompted to sign in before sending feedback", async ({ page }) => {
+  await page.route("**/api/member/session", async (route) => {
+    await route.fulfill({ status: 200, json: { authenticated: false } })
+  })
+  await page.goto("/")
+  await page.addStyleTag({
+    content: "[data-feature='feedback_open']{display:block!important;pointer-events:auto!important}",
+  })
+  await page.getByRole("button", { name: "Feedback" }).click()
+  await expect(page.getByRole("link", { name: "Sign in to send feedback" })).toBeVisible()
 })
 
 test("keyboard and assistive users can reach search and primary actions", async ({ page }, testInfo) => {

@@ -1,9 +1,13 @@
 "use client"
 
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { useMember } from "@/components/member-provider"
 import { submitFeedback } from "@/lib/api"
+import { signInHref } from "@/lib/sign-in"
 
 const categories = [
   ["experience", "Overall experience"],
@@ -15,6 +19,8 @@ const categories = [
 ] as const
 
 export function FeedbackWidget() {
+  const pathname = usePathname()
+  const { loading, session } = useMember()
   const [open, setOpen] = useState(false)
   const [rating, setRating] = useState(5)
   const [category, setCategory] = useState("experience")
@@ -23,6 +29,10 @@ export function FeedbackWidget() {
   const [sending, setSending] = useState(false)
 
   async function send() {
+    if (!session.authenticated) {
+      setStatus("Please sign in to send feedback for review.")
+      return
+    }
     if (comment.trim().length < 3) {
       setStatus("Please share at least a few words so we can act on your feedback.")
       return
@@ -50,19 +60,85 @@ export function FeedbackWidget() {
       {open ? (
         <section aria-label="Share feedback" className="w-[22rem] max-w-full rounded-2xl border border-navy-900/10 bg-white p-5 shadow-2xl">
           <div className="flex items-start justify-between gap-4">
-            <div><p className="eyebrow">Help us improve</p><h2 className="mt-1 font-serif text-2xl text-navy-950">How was your experience?</h2></div>
+            <div>
+              <p className="eyebrow">Help us improve</p>
+              <h2 className="mt-1 font-serif text-2xl text-navy-950">How was your experience?</h2>
+            </div>
             <button type="button" aria-label="Close feedback" onClick={() => setOpen(false)} className="rounded-full p-2 text-stone-500 hover:bg-ivory-100">✕</button>
           </div>
-          <fieldset className="mt-4"><legend className="text-xs font-bold text-navy-950">Rating</legend><div className="mt-2 flex gap-1">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => setRating(value)} aria-label={`${value} star${value === 1 ? "" : "s"}`} aria-pressed={rating === value} className={`text-2xl ${value <= rating ? "text-gold-600" : "text-stone-300"}`}>★</button>)}</div></fieldset>
-          <label className="mt-4 block text-xs font-bold text-navy-950" htmlFor="feedback-category">Area</label>
-          <select id="feedback-category" value={category} onChange={(event) => setCategory(event.target.value)} className="mt-2 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm text-navy-950">{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-          <label className="mt-4 block text-xs font-bold text-navy-950" htmlFor="feedback-comment">Your feedback</label>
-          <textarea id="feedback-comment" value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} rows={4} placeholder="Share how Prabhat Samgiita or the AI companion supports your spiritual journey..." className="mt-2 w-full resize-none rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm text-navy-950 outline-none focus:border-gold-500" />
-          {status ? <p role="status" className="mt-3 text-xs leading-5 text-stone-600">{status}</p> : null}
-          <button type="button" onClick={() => void send()} disabled={sending} className="mt-4 flex w-full items-center justify-center rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{sending ? <LoadingIndicator label="Sending" compact /> : "Send feedback"}</button>
+          {loading ? (
+            <p className="mt-4 text-sm text-stone-600">Checking your sign-in…</p>
+          ) : !session.authenticated ? (
+            <div className="mt-4 space-y-3">
+              <p className="text-sm leading-6 text-stone-600">
+                Sign in so your feedback can be reviewed by the Prabhat Samgiita AI team.
+              </p>
+              <Link href={signInHref(pathname)} className="gold-button inline-flex w-full justify-center py-3">
+                Sign in to send feedback
+              </Link>
+            </div>
+          ) : (
+            <>
+              <fieldset className="mt-4">
+                <legend className="text-xs font-bold text-navy-950">Rating</legend>
+                <div className="mt-2 flex gap-1">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setRating(value)}
+                      aria-label={`${value} star${value === 1 ? "" : "s"}`}
+                      aria-pressed={rating === value}
+                      className={`text-2xl ${value <= rating ? "text-gold-600" : "text-stone-300"}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <label className="mt-4 block text-xs font-bold text-navy-950" htmlFor="feedback-category">Area</label>
+              <select
+                id="feedback-category"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm text-navy-950"
+              >
+                {categories.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <label className="mt-4 block text-xs font-bold text-navy-950" htmlFor="feedback-comment">Your feedback</label>
+              <textarea
+                id="feedback-comment"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                maxLength={2000}
+                rows={4}
+                placeholder="Share how Prabhat Samgiita or the AI companion supports your spiritual journey..."
+                className="mt-2 w-full resize-none rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm text-navy-950 outline-none focus:border-gold-500"
+              />
+              {status ? <p role="status" className="mt-3 text-xs leading-5 text-stone-600">{status}</p> : null}
+              <button
+                type="button"
+                onClick={() => void send()}
+                disabled={sending}
+                className="mt-4 flex w-full items-center justify-center rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {sending ? <LoadingIndicator label="Sending" compact /> : "Send feedback"}
+              </button>
+            </>
+          )}
         </section>
       ) : null}
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} data-feature="feedback_open" className="rounded-full bg-navy-950 px-5 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-gold-700">Feedback</button>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        data-feature="feedback_open"
+        className="rounded-full bg-navy-950 px-5 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-gold-700"
+      >
+        Feedback
+      </button>
     </div>
   )
 }

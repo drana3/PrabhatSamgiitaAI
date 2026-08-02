@@ -31,4 +31,12 @@ describe("microsoftSignInHref", () => {
     expect(signInHref("/songs/3")).toBe("/signin?next=%2Fsongs%2F3")
     expect(signInHref()).toBe("/signin")
   })
+
+  it("strips hash fragments so Save song cannot bounce through /signin and reload", () => {
+    expect(safeSignInNextPath("/songs/135#ask")).toBe("/songs/135")
+    expect(signInHref("/songs/135#ask")).toBe("/signin?next=%2Fsongs%2F135")
+    expect(microsoftSignInHref("/songs/135#ask")).toBe(
+      "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3Fnext%3D%252Fsongs%252F135",
+    )
+  })
 })

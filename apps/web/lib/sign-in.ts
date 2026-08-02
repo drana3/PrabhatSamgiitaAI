@@ -1,6 +1,9 @@
 export function safeSignInNextPath(next: string | undefined) {
   if (!next || !next.startsWith("/") || next.startsWith("//")) return "/"
-  return next
+  // Fragment identifiers are client-only and break server redirects / Easy Auth return.
+  const path = next.split("#")[0] || "/"
+  if (!path.startsWith("/") || path.startsWith("//")) return "/"
+  return path
 }
 
 export function microsoftSignInHref(next: string | undefined) {

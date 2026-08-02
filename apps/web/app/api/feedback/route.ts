@@ -14,11 +14,13 @@ export async function POST(request: NextRequest) {
   }
 
   const principal = resolveClientPrincipal(request.headers)
-  if (principal) {
-    const profile = parseClientPrincipalProfile(principal)
-    if (profile?.email && !payload.contact) {
-      payload.contact = profile.email
-    }
+  if (!principal) {
+    return Response.json({ detail: "Sign in is required to send feedback" }, { status: 401 })
+  }
+
+  const profile = parseClientPrincipalProfile(principal)
+  if (profile?.email && !payload.contact) {
+    payload.contact = profile.email
   }
 
   const target = new URL("/api/v1/feedback", backendBaseUrl())

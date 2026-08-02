@@ -10,6 +10,8 @@ export type MemberProfile = {
   personalization_enabled: boolean
   favorite_song_numbers: number[]
   is_admin: boolean
+  /** False when Azure identity is present but member API/proxy cannot serve writes. */
+  member_backend?: boolean
 }
 
 export type MemberSession = MemberProfile | { authenticated: false }

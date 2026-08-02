@@ -15,7 +15,7 @@ describe("member proxy route", () => {
     vi.unstubAllGlobals()
   })
 
-  it("does not fake an authenticated session when MEMBER_PROXY_KEY is missing", async () => {
+  it("keeps Azure identity authenticated when MEMBER_PROXY_KEY is missing", async () => {
     delete process.env.MEMBER_PROXY_KEY
     process.env.NODE_ENV = "production"
     const principal = buildClientPrincipal("user-oid-42", "member@example.com")
@@ -27,7 +27,9 @@ describe("member proxy route", () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body).toEqual({ authenticated: false })
+    expect(body.authenticated).toBe(true)
+    expect(body.member_backend).toBe(false)
+    expect(body.email).toBe("member@example.com")
   })
 
   it("returns 503 for favorite writes when MEMBER_PROXY_KEY is missing", async () => {
@@ -50,7 +52,7 @@ describe("member proxy route", () => {
     expect(body.detail).toMatch(/not configured/i)
   })
 
-  it("forwards API session failures instead of synthesizing a signed-in profile", async () => {
+  it("falls back to Azure identity when the member API session fails", async () => {
     process.env.MEMBER_PROXY_KEY = "proxy-key"
     process.env.NODE_ENV = "production"
     const principal = buildClientPrincipal("user-oid-42", "member@example.com")
@@ -65,8 +67,39 @@ describe("member proxy route", () => {
     const response = await GET(request, { params: Promise.resolve({ path: ["session"] }) })
     const body = await response.json()
 
-    expect(response.status).toBe(503)
-    expect(body.detail).toBe("Member API unavailable")
-    expect(body.authenticated).toBeUndefined()
+    expect(response.status).toBe(200)
+    expect(body.authenticated).toBe(true)
+    expect(body.member_backend).toBe(false)
+    expect(body.personalization_enabled).toBe(true)
+  })
+
+  it("marks live member sessions as backend-ready", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.NODE_ENV = "production"
+    const principal = buildClientPrincipal("user-oid-42", "member@example.com")
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({
+        authenticated: true,
+        id: "aad:user-oid-42",
+        display_name: "Member",
+        email: "member@example.com",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        favorite_song_numbers: [3],
+        is_admin: false,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )))
+
+    const request = new NextRequest("https://example.test/api/member/session", {
+      headers: { "x-ms-client-principal": principal },
+    })
+    const response = await GET(request, { params: Promise.resolve({ path: ["session"] }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.authenticated).toBe(true)
+    expect(body.member_backend).toBe(true)
+    expect(body.favorite_song_numbers).toEqual([3])
   })
 })

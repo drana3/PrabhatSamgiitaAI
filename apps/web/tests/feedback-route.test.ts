@@ -16,6 +16,26 @@ describe("feedback API route", () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     backendResponse.mockReset()
+    vi.resetModules()
+  })
+
+  it("rejects anonymous feedback submissions", async () => {
+    const { POST } = await import("@/app/api/feedback/route")
+    const request = new Request("https://example.test/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: "experience",
+        rating: 5,
+        comment: "Beautiful experience",
+      }),
+    })
+
+    const response = await POST(request as never)
+    const body = await response.json()
+    expect(response.status).toBe(401)
+    expect(body.detail).toMatch(/sign in/i)
+    expect(backendResponse).not.toHaveBeenCalled()
   })
 
   it("forwards feedback to the backend and attaches the signed-in email", async () => {

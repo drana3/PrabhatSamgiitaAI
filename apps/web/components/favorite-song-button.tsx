@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useState, type MouseEvent } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { addFavoriteSong, removeFavoriteSong } from "@/lib/member"
@@ -36,9 +36,16 @@ export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
   }
 
   const saved = (session.favorite_song_numbers ?? []).includes(songNumber)
+  const backendReady = session.member_backend !== false
 
-  async function toggleFavorite() {
+  async function toggleFavorite(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    event.stopPropagation()
     setNotice(null)
+    if (!backendReady) {
+      setNotice("Playlist saving is temporarily unavailable. Please try again shortly.")
+      return
+    }
     setPending(true)
     try {
       const result = saved
@@ -49,7 +56,7 @@ export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
           result.error === "Sign in is required" || result.error === "Member proxy authentication failed"
             ? "Please sign in again to update your playlist."
             : result.error === "Member services are not configured"
-              ? "Playlist saving is temporarily unavailable."
+              ? "Playlist saving is temporarily unavailable. Please try again shortly."
               : result.error,
         )
         return
@@ -69,7 +76,7 @@ export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
         aria-pressed={saved}
         aria-label={saved ? "Remove from playlist" : "Save to playlist"}
         disabled={pending}
-        onClick={() => void toggleFavorite()}
+        onClick={(event) => void toggleFavorite(event)}
         data-feature="save_song"
         className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
           saved

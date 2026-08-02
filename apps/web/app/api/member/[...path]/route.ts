@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { resolveClientPrincipal } from "@/lib/azure-principal"
+import { parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
 
 const allowedPaths = new Set([
   "session",
@@ -35,6 +35,20 @@ function sessionResponse(body: unknown, status = 200) {
   })
 }
 
+/** Azure-authenticated identity without a working member API.
+ * Must stay authenticated:true or Sign in ↔ /signin redirects loop forever.
+ */
+function principalSessionFallback(principal: string) {
+  const profile = parseClientPrincipalProfile(principal)
+  if (!profile) return null
+  return {
+    ...profile,
+    favorite_song_numbers: [],
+    personalization_enabled: true,
+    member_backend: false,
+  }
+}
+
 async function forward(request: NextRequest, segments: string[]) {
   const root = segments[0] ?? ""
   if (!allowedPaths.has(root)) return sessionResponse({ detail: "Unknown member endpoint" }, 404)
@@ -45,10 +59,11 @@ async function forward(request: NextRequest, segments: string[]) {
   }
   const proxyKey = process.env.MEMBER_PROXY_KEY
   if (!proxyKey) {
-    // Never synthesize an authenticated member session without the proxy key.
-    // A principal-only fallback makes Save song / chat look available while
-    // every write fails with "Could not update your playlist."
-    if (root === "session") return sessionResponse({ authenticated: false })
+    if (root === "session") {
+      const fallback = principalSessionFallback(principal)
+      if (fallback) return sessionResponse(fallback)
+      return sessionResponse({ authenticated: false })
+    }
     return sessionResponse({ detail: "Member services are not configured" }, 503)
   }
 
@@ -66,15 +81,34 @@ async function forward(request: NextRequest, segments: string[]) {
     body,
     cache: "no-store",
   })
-  // Pass member API failures through. Synthesizing personalization_enabled:false
-  // made chat-memory writes no-op with HTTP 200 and wiped restore after sign-in.
+
+  if (root === "session" && !response.ok) {
+    // Keep Azure identity visible so the UI does not bounce Sign in → /signin.
+    // Writes still go through the live API and fail clearly when it is down.
+    const fallback = principalSessionFallback(principal)
+    if (fallback) return sessionResponse(fallback)
+  }
+
   if (response.status === 204) {
     return new NextResponse(null, {
       status: 204,
       headers: { "Cache-Control": "no-store, private" },
     })
   }
-  return new NextResponse(await response.text(), {
+
+  const text = await response.text()
+  if (root === "session" && response.ok) {
+    try {
+      const payload = JSON.parse(text) as Record<string, unknown>
+      if (payload && typeof payload === "object") {
+        return sessionResponse({ ...payload, member_backend: true })
+      }
+    } catch {
+      // Fall through with the original upstream body.
+    }
+  }
+
+  return new NextResponse(text, {
     status: response.status,
     headers: {
       "Content-Type": response.headers.get("content-type") ?? "application/json",
