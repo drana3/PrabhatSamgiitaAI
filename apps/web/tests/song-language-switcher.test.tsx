@@ -6,6 +6,7 @@ import { SongLanguageSwitcher } from "@/components/song-language-switcher"
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/songs/1",
+  useRouter: () => ({ replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }))
 

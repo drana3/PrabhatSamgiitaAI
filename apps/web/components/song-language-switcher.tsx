@@ -1,20 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { localeOptions } from "@/lib/languages"
 
 export function SongLanguageSwitcher({
   selectedLanguage,
-  navigate = (url) => window.location.replace(url),
+  navigate,
 }: {
   selectedLanguage: string
   navigate?: (url: string) => void
 }) {
+  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const go = navigate ?? ((url: string) => router.replace(url, { scroll: false }))
   const [targetLanguage, setTargetLanguage] = useState<string | null>(null)
   const translating = targetLanguage !== null && targetLanguage !== selectedLanguage
 
@@ -68,7 +70,7 @@ export function SongLanguageSwitcher({
               next.set("language", value)
             }
             const query = next.toString()
-            navigate(`${pathname}${query ? `?${query}` : ""}`)
+            go(`${pathname}${query ? `?${query}` : ""}`)
           }}
           aria-label="Reading language"
           className="min-w-0 w-full rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70"
