@@ -49,3 +49,13 @@ def test_query_guard_distinguishes_random_numbers_from_song_numbers() -> None:
 
     assert assess_query("compare song 1 and song 2").allowed is True
     assert assess_query("songs composed in 1983").allowed is True
+
+
+def test_query_guard_accepts_curated_collection_prompts() -> None:
+    query = (
+        "Search Prabhat Samgiita for Songs to Attract Rain / Draught Songs / Farmer's Songs"
+    )
+    assessment = assess_query(query, max_length=200)
+
+    assert assessment.allowed is True
+    assert assessment.reason is None

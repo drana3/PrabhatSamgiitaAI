@@ -56,4 +56,11 @@ describe("query guard release matrix", () => {
     expect(queryIsUseful("compare song 1 and song 2")).toBe(true)
     expect(queryIsUseful("songs composed in 1983")).toBe(true)
   })
+
+  it("accepts curated special-collection search prompts", () => {
+    expect(queryIsUseful(
+      "Search Prabhat Samgiita for Songs to Attract Rain / Draught Songs / Farmer's Songs",
+      200,
+    )).toBe(true)
+  })
 })

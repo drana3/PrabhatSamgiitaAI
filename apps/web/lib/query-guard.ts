@@ -15,6 +15,7 @@ const lowValueWords = new Set(["fuck", "shit", "bitch", "idiot", "stupid", "test
 export function queryIsUseful(value: string, maxLength = 600) {
   const normalized = value.normalize("NFKC").trim().replace(/\s+/g, " ")
   if (!normalized || normalized.length > maxLength || blocked.some((pattern) => pattern.test(normalized))) return false
+  if (normalized.toLocaleLowerCase().startsWith("search prabhat samgiita for ")) return true
   const explicitSongNumber = normalized.match(/\b(?:song|ps|prabhat\s+(?:samgiita|sangeet))\s*(?:number|no\.?|#)?\s*(\d{1,6})\b/i)
   if (explicitSongNumber && (Number(explicitSongNumber[1]) < 1 || Number(explicitSongNumber[1]) > 5018)) return false
   const numericParts = normalized.match(/\d+/g) ?? []

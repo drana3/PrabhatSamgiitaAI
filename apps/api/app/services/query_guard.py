@@ -8,6 +8,7 @@ GUIDANCE = (
     "Please ask a specific Prabhat Samgiita question, for example: "
     "'Song 1', 'songs for morning meditation', or 'What does this song mean?'"
 )
+COLLECTION_PROMPT_PREFIX = "search prabhat samgiita for "
 SONG_RANGE_GUIDANCE = (
     "Prabhat Samgiita song numbers run from 1 to 5,018. Please enter a number within that range."
 )
@@ -40,6 +41,9 @@ def assess_query(value: str | None, *, max_length: int = 600) -> QueryAssessment
         return QueryAssessment(False, normalized[:max_length], "too_long")
     if any(re.search(pattern, normalized, re.IGNORECASE) for pattern in BLOCKED_PATTERNS):
         return QueryAssessment(False, normalized, "unsafe_or_unrelated_instruction")
+
+    if normalized.casefold().startswith(COLLECTION_PROMPT_PREFIX):
+        return QueryAssessment(True, normalized)
 
     explicit_song_number = re.search(
         r"\b(?:song|ps|prabhat\s+(?:samgiita|sangeet))\s*"
