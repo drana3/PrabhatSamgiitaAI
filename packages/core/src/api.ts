@@ -85,6 +85,45 @@ export type ApiClientOptions = {
   fetchImpl?: typeof fetch
 }
 
+export type ConversationTurn = {
+  role: "user" | "assistant"
+  content: string
+}
+
+async function readEventStream(response: Response, onChunk: (chunk: string) => void) {
+  if (!response.body) {
+    onChunk("Streaming unavailable.")
+    return
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const frames = buffer.split("\n\n")
+    buffer = frames.pop() ?? ""
+    for (const frame of frames) {
+      const payload = frame
+        .split("\n")
+        .filter((entry) => entry.startsWith("data: "))
+        .map((entry) => entry.slice(6))
+        .join("\n")
+      if (payload) onChunk(payload)
+    }
+  }
+  buffer += decoder.decode()
+  if (buffer.trim()) {
+    const payload = buffer
+      .split("\n")
+      .filter((entry) => entry.startsWith("data: "))
+      .map((entry) => entry.slice(6))
+      .join("\n")
+    if (payload) onChunk(payload)
+  }
+}
+
 export function createApiClient(options: ApiClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/$/, "")
   const timeoutMs = options.timeoutMs ?? 15000
@@ -208,6 +247,39 @@ export function createApiClient(options: ApiClientOptions) {
       } catch {
         return null
       }
+    },
+
+    async streamExplanation(
+      songNumber: number,
+      onChunk: (chunk: string) => void,
+      prompt?: string,
+      history: ConversationTurn[] = [],
+    ): Promise<void> {
+      if (prompt && !queryIsUseful(prompt, 800)) {
+        onChunk(queryGuidanceFor(prompt))
+        return
+      }
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60_000)
+      let response: Response
+      try {
+        response = await fetchImpl(`${baseUrl}/api/v1/ai/explain`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+          body: JSON.stringify({
+            song_number: songNumber,
+            prompt,
+            history: history.slice(-12),
+          }),
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timeout)
+      }
+      if (!response.ok) {
+        throw new Error("The song companion is temporarily unavailable.")
+      }
+      await readEventStream(response, onChunk)
     },
   }
 }

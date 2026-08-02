@@ -99,7 +99,7 @@ def test_grounded_prompt_uses_recent_turns_only_for_follow_up_context() -> None:
     assert "Reply in clear, natural English by default" in prompt
 
 
-def test_line_by_line_prompt_requires_immediate_grounded_explanation() -> None:
+def test_line_by_line_prompt_prefers_flowing_prose() -> None:
     song = Song(number=1, title="Bandhu He Niye Calo")
 
     prompt = build_grounded_prompt(
@@ -108,27 +108,16 @@ def test_line_by_line_prompt_requires_immediate_grounded_explanation() -> None:
         ["[1] canonical lyrics", "[2] canonical English meaning"],
     )
 
-    assert "Answer it now" in prompt
-    assert "directly beneath each line" in prompt
-    assert "Do not defer" in prompt
-    assert "numbered `Lyric:` line" in prompt
-    assert "never return a list of untranslated lyrics" in prompt
+    assert "flowing paragraphs" in prompt
+    assert "Do not use numbered Lyric:/Meaning: pairs" in prompt
+    assert "numbered `Lyric:` line" not in prompt
 
 
-def test_line_by_line_audit_rejects_untranslated_lyrics() -> None:
+def test_line_by_line_audit_rejects_lyric_meaning_pairs() -> None:
     song = Song(
         number=5,
         title="ELO, ANEK JUGER SEI AJÁNÁ PATHIK",
-        lyrics_original=(
-            "ELO, ANEK JUGER SEI AJÁNÁ PATHIK\n"
-            "CETANÁR MADHURA TÁNE\n"
-            "TÁI, JIIVAN ÁMÁR BHARE GELO GÁNE"
-        ),
-        english_meaning=(
-            "The ancient unknown traveler has come.\n"
-            "With the blissful resonance of consciousness,\n"
-            "my life overflows with song."
-        ),
+        english_meaning="The ancient unknown traveler has come.",
     )
     chunks = fresh_song_chunks(song, "explain line by line in English")
 
@@ -136,15 +125,16 @@ def test_line_by_line_audit_rejects_untranslated_lyrics() -> None:
         song,
         "explain line by line in English",
         (
-            "ELO, ANEK JUGER SEI AJÁNÁ PATHIK\n"
-            "CETANÁR MADHURA TÁNE\n"
-            "TÁI, JIIVAN ÁMÁR BHARE GELO GÁNE [1]"
+            "1. Lyric: ELO, ANEK JUGER\n"
+            "Meaning: The traveler came.\n"
+            "2. Lyric: CETANÁR MADHURA\n"
+            "Meaning: The traveler came."
         ),
         chunks,
     )
 
     assert audit.passed is False
-    assert any("pair each lyric phrase" in issue for issue in audit.issues)
+    assert any("Lyric/Meaning pairs" in issue for issue in audit.issues)
 
 
 def test_song_scoped_meaning_is_mandatory_first_context() -> None:

@@ -196,14 +196,12 @@ def audit_grounded_answer(
             issues.append("The response substitutes or introduces an unrelated song number.")
 
     if re.search(r"\bline[ -]by[ -]line\b", query, re.IGNORECASE):
-        meaningful_lines = [line.strip() for line in answer.splitlines() if len(line.strip()) >= 8]
-        if len(meaningful_lines) < 4:
-            issues.append("The response does not provide the requested line-by-line structure.")
-        lyric_pairs = len(re.findall(r"(?im)^\s*(?:\d+[.)]\s*)?lyric\s*:", answer))
-        meaning_pairs = len(re.findall(r"(?im)^\s*meaning\s*:", answer))
-        if lyric_pairs < 2 or meaning_pairs < 2:
+        meaningful_lines = [line.strip() for line in answer.splitlines() if len(line.strip()) >= 12]
+        if len(meaningful_lines) < 2:
+            issues.append("The response does not provide enough grounded detail.")
+        if len(re.findall(r"(?im)^\s*(?:\d+[.)]\s*)?lyric\s*:", answer)) >= 2:
             issues.append(
-                "The response does not pair each lyric phrase with a grounded meaning."
+                "Avoid numbered Lyric/Meaning pairs; explain the song in flowing paragraphs."
             )
 
     if chunks and not re.search(r"\[\d+\]", answer):
@@ -295,14 +293,10 @@ def build_grounded_prompt(
             "language or script."
         )
     line_by_line_instruction = (
-        "The user explicitly requested a line-by-line explanation. Answer it now. "
-        "Present the canonical lyric in sequence and place a concise meaning or grounded "
-        "interpretation directly beneath each line or natural phrase. Use the sequence of "
-        "the canonical lyrics and meaning to align them. Do not defer, ask permission, or "
-        "claim that explicit line mappings are required. Clearly distinguish literal meaning "
-        "from spiritual interpretation. Format every item exactly as a numbered `Lyric:` line "
-        "followed by a `Meaning:` line (or `अर्थ:` in Hindi). Write each meaning in the "
-        "response language; never return a list of untranslated lyrics as the answer."
+        "The user asked for a detailed reading of this song. Explain the grounded meaning in "
+        "clear, flowing paragraphs — imagery, feeling, and spiritual context. Walk through "
+        "the song naturally. Do not use numbered Lyric:/Meaning: pairs or repeat the same "
+        "meaning under every lyric line. Never return a list of untranslated lyrics as the answer."
         if re.search(r"\bline[ -]by[ -]line\b", query, re.IGNORECASE)
         else ""
     )

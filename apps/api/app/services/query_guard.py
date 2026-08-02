@@ -59,7 +59,13 @@ def assess_query(value: str | None, *, max_length: int = 600) -> QueryAssessment
 
     numeric_parts = re.findall(r"\d+", normalized)
     has_song_context = re.search(
-        r"\b(?:song|ps|prabhat|samgiita|sangeet|compare|meaning|lyrics|notation)\b",
+        r"\b(?:"
+        r"song|ps|prabhat|samgiita|sangeet|compare|meaning|mean|lyrics|notation|"
+        r"explain|about|understand|arth|matlab|batao|samjha|gaane|gaana|gana|"
+        r"dhyan|meditation|meditate|pronounc|pronunc|related|story|stories|"
+        r"hindi|english|bengali|urdu|translate|imagery|spiritual|reflect|devotee|"
+        r"this|it|line|message|overview|summary|recap"
+        r")\b",
         normalized,
         re.IGNORECASE,
     )

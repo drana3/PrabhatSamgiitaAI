@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.core.db import get_session
 from app.core.security import require_admin
-from app.models import AnalyticsDaily, ContentAudit, Media, Notation, Song
+from app.models import AnalyticsDaily, ContentAudit, Media, Notation, Song, UserFeedback
 from app.schemas.admin import (
     AdminActionResponse,
     AdminAnalyticsItem,
     AdminAnalyticsSummary,
+    AdminFeedbackItem,
+    AdminFeedbackListResponse,
+    AdminFeedbackUpdate,
     AdminMediaUpdate,
     AdminMediaWrite,
     AdminNotationWrite,
@@ -23,10 +28,16 @@ from app.schemas.admin import (
 )
 from app.schemas.song import MediaItemResponse, SongSummary
 from app.services.embedding_index import build_embedding_indexes
+from app.services.feedback_triage import feedback_is_priority
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 AdminIdentity = Annotated[str, Depends(require_admin)]
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
+logger = logging.getLogger(__name__)
+
+
+def feedback_priority(category: str, rating: int) -> bool:
+    return feedback_is_priority(category, rating)
 
 
 def _song_summary(song: Song) -> SongSummary:
@@ -286,4 +297,76 @@ async def analytics_summary(
             )
             for item in result.scalars().all()
         ],
+    )
+
+
+@router.get("/feedback", response_model=AdminFeedbackListResponse)
+async def list_feedback(
+    admin: AdminIdentity,
+    session: DatabaseSession,
+    status_filter: str | None = Query(default="new", alias="status"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> AdminFeedbackListResponse:
+    del admin
+    filters = []
+    if status_filter and status_filter != "all":
+        filters.append(UserFeedback.status == status_filter)
+    total = await session.scalar(
+        select(func.count()).select_from(UserFeedback).where(*filters)
+    )
+    result = await session.execute(
+        select(UserFeedback)
+        .where(*filters)
+        .order_by(UserFeedback.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    items = [
+        AdminFeedbackItem(
+            feedback_id=str(item.id),
+            category=item.category,
+            rating=item.rating,
+            comment=item.comment,
+            page_path=item.page_path,
+            contact=item.contact,
+            status=item.status,
+            created_at=item.created_at.isoformat(),
+            priority=feedback_priority(item.category, item.rating),
+        )
+        for item in result.scalars().all()
+    ]
+    return AdminFeedbackListResponse(total=int(total or 0), items=items)
+
+
+@router.patch("/feedback/{feedback_id}", response_model=AdminFeedbackItem)
+async def update_feedback(
+    feedback_id: UUID,
+    payload: AdminFeedbackUpdate,
+    admin: AdminIdentity,
+    session: DatabaseSession,
+) -> AdminFeedbackItem:
+    feedback = await session.get(UserFeedback, feedback_id)
+    if not feedback:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    feedback.status = payload.status
+    await session.commit()
+    await session.refresh(feedback)
+    logger.info(
+        "Feedback %s marked %s by %s%s",
+        feedback_id,
+        payload.status,
+        admin,
+        f": {payload.review_note}" if payload.review_note else "",
+    )
+    return AdminFeedbackItem(
+        feedback_id=str(feedback.id),
+        category=feedback.category,
+        rating=feedback.rating,
+        comment=feedback.comment,
+        page_path=feedback.page_path,
+        contact=feedback.contact,
+        status=feedback.status,
+        created_at=feedback.created_at.isoformat(),
+        priority=feedback_priority(feedback.category, feedback.rating),
     )

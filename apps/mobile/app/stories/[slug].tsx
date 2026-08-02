@@ -1,13 +1,21 @@
-import { Link, useLocalSearchParams } from "expo-router"
+import { Link, useLocalSearchParams, useRouter } from "expo-router"
 import { useEffect, useState } from "react"
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { Pressable, StyleSheet, Text, View } from "react-native"
 
-import { ScreenContainer, SectionHeader } from "@/components/screen-shell"
+import {
+  BackButton,
+  ScreenLoader,
+  ScreenSafe,
+  ScreenScroll,
+  SectionHeader,
+  SurfaceCard,
+} from "@/components/screen-shell"
+import { cardElevation, hairline } from "@/lib/theme"
 import { api, colors, radii, spacing, typography } from "@/lib/client"
 import type { InspirationStoryDetail } from "@prabhat/core"
 
 export default function StoryScreen() {
+  const router = useRouter()
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const [story, setStory] = useState<InspirationStoryDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,62 +29,60 @@ export default function StoryScreen() {
   }, [slug])
 
   if (loading) {
-    return (
-      <ScreenContainer>
-        <ActivityIndicator color={colors.gold500} style={{ marginTop: spacing.xl }} />
-      </ScreenContainer>
-    )
+    return <ScreenLoader />
   }
 
   if (!story) {
     return (
-      <ScreenContainer>
+      <ScreenSafe>
         <Text style={styles.missing}>Story not found.</Text>
-      </ScreenContainer>
+      </ScreenSafe>
     )
   }
 
   return (
-    <ScreenContainer>
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Link href="/stories" asChild>
-            <Pressable><Text style={styles.back}>← Stories</Text></Pressable>
-          </Link>
+    <ScreenSafe edges={["top", "bottom"]}>
+      <ScreenScroll contentContainerStyle={styles.content}>
+        <BackButton label="← Stories" onPress={() => router.back()} />
 
+        <SurfaceCard style={styles.heroCard}>
           <Text style={styles.author}>{story.author}</Text>
           <Text style={styles.title}>{story.title}</Text>
           <Text style={styles.teaser}>{story.teaser}</Text>
+        </SurfaceCard>
 
-          {story.body_paragraphs.map((paragraph, index) => (
-            <Text key={index} style={styles.paragraph}>{paragraph}</Text>
-          ))}
+        {story.body_paragraphs.map((paragraph, index) => (
+          <Text key={index} style={styles.paragraph}>
+            {paragraph}
+          </Text>
+        ))}
 
-          {story.song_numbers.length ? (
-            <View style={styles.related}>
-              <SectionHeader title="Related songs" />
-              <View style={styles.songLinks}>
-                {story.song_numbers.slice(0, 6).map((number) => (
-                  <Link key={number} href={`/songs/${number}`} asChild>
-                    <Pressable style={styles.songChip}>
-                      <Text style={styles.songChipText}>Song {number}</Text>
-                    </Pressable>
-                  </Link>
-                ))}
-              </View>
+        {story.song_numbers.length ? (
+          <View style={styles.related}>
+            <SectionHeader title="Related songs" />
+            <View style={styles.songLinks}>
+              {story.song_numbers.slice(0, 6).map((number) => (
+                <Link key={number} href={`/songs/${number}`} asChild>
+                  <Pressable style={styles.songChip}>
+                    <Text style={styles.songChipText}>Song {number}</Text>
+                  </Pressable>
+                </Link>
+              ))}
             </View>
-          ) : null}
-        </ScrollView>
-      </SafeAreaView>
-    </ScreenContainer>
+          </View>
+        ) : null}
+      </ScreenScroll>
+    </ScreenSafe>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
+  content: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
   missing: { padding: spacing.lg, color: colors.stone600 },
-  back: { color: colors.gold500, fontWeight: "700" },
+  heroCard: { gap: spacing.sm },
   author: {
     color: colors.gold500,
     fontSize: typography.label,
@@ -93,9 +99,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: "rgba(9, 45, 86, 0.12)",
+    borderColor: hairline,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    ...cardElevation(1),
   },
   songChipText: { color: colors.navy950, fontWeight: "700" },
 })

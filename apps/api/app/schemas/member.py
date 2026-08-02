@@ -16,7 +16,20 @@ class MemberProfile(BaseModel):
     preferred_language: str | None = None
     country: str | None = None
     personalization_enabled: bool = True
+    is_admin: bool = False
     favorite_song_numbers: list[int] = Field(default_factory=list)
+
+
+class AdminMemberItem(BaseModel):
+    id: UUID
+    display_name: str
+    email: str | None = None
+    is_admin: bool
+    is_protected: bool = False
+
+
+class AdminGrantWrite(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
 
 
 class AnonymousMember(BaseModel):

@@ -30,6 +30,18 @@ export function clearSongChatStorage() {
   }
 }
 
+export function clearMemberChatStorage() {
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (key.startsWith("prabhat-song-chat-member-")) {
+        window.sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Storage may be unavailable in private browsing modes.
+  }
+}
+
 export function formatAssistantMessage(text: string): string {
   return text
     .replace(/\nSources:\n[\s\S]*$/i, "")
@@ -47,13 +59,13 @@ export function starterPrompts(language: ChatLanguage = "en"): string[] {
   if (language === "hi") {
     return [
       "Is gaane ka sar arth kya hai?",
-      "Har line ka arth samjhaiye",
       "Is gaane ki ruhani bhavna kya hai?",
+      "Is gaane par dhyan kaise karein?",
     ]
   }
   return [
     "What is this song about?",
-    "Explain the meaning line by line",
+    "Explain the spiritual imagery",
     "Are there devotee stories connected to this song?",
   ]
 }
@@ -126,7 +138,6 @@ export function followUpQuestions(
   const assistantText = options.priorAssistantText ?? ""
 
   const english = {
-    lineByLine: "Explain the meaning line by line",
     imagery: "Explain the imagery and spiritual feeling",
     meditation: "How can I reflect on this song in meditation?",
     related: "Recommend a related Prabhat Samgiita",
@@ -136,7 +147,6 @@ export function followUpQuestions(
   }
 
   const hindi = {
-    lineByLine: "Har line ka arth aur bhav samjhaiye",
     imagery: "Is gaane ki imagery aur ruhani bhavna samjhaiye",
     meditation: "Is gaane par dhyan kaise karein?",
     related: "Is se juda koi aur Prabhat Samgiita suggest kijiye",
@@ -159,8 +169,8 @@ export function followUpQuestions(
       candidates.push(copy.related)
     }
   } else if (/pronoun|sing|practi[cs]e|learn|uchcharan/.test(normalized)) {
-    if (!alreadyAsked(asked, /line.?by.?line|har line/)) {
-      candidates.push(copy.lineByLine)
+    if (!alreadyAsked(asked, /imagery|spiritual feeling|ruhani|bhavna/)) {
+      candidates.push(copy.imagery)
     }
     if (!alreadyAsked(asked, /meditation|dhyan/)) {
       candidates.push(copy.meditation)
@@ -179,8 +189,8 @@ export function followUpQuestions(
       candidates.push(copy.related)
     }
   } else if (/meaning|spiritual|explain|understand|arth|matlab|about/.test(normalized)) {
-    if (!alreadyAsked(asked, /line.?by.?line|har line/) && !assistantCovered(assistantText, /line.?by.?line|lyric:/)) {
-      candidates.push(copy.lineByLine)
+    if (!alreadyAsked(asked, /imagery|spiritual feeling|ruhani|bhavna/) && !assistantCovered(assistantText, /imagery|feeling|bhav/)) {
+      candidates.push(copy.imagery)
     }
     if (!alreadyAsked(asked, /meditation|dhyan/) && !assistantCovered(assistantText, /meditation|reflect|dhyan/)) {
       candidates.push(copy.meditation)
@@ -202,11 +212,11 @@ export function followUpQuestions(
     if (!alreadyAsked(asked, /meaning|about|arth|overview/)) {
       candidates.push(copy.overview)
     }
-    if (!alreadyAsked(asked, /line.?by.?line|har line/)) {
-      candidates.push(copy.lineByLine)
-    }
     if (!alreadyAsked(asked, /spiritual feeling|ruhani|imagery|bhavna/)) {
       candidates.push(copy.imagery)
+    }
+    if (!alreadyAsked(asked, /meditation|dhyan/)) {
+      candidates.push(copy.meditation)
     }
   }
 
@@ -217,10 +227,9 @@ export function followUpsFromMessages(messages: ChatMessage[]): string[] {
   const userMessages = messages.filter((message) => message.role === "user").map((message) => message.text)
   if (!userMessages.length) return []
   const latest = userMessages.at(-1) ?? ""
-  const assistantText = messages
-    .filter((message) => message.role === "assistant")
-    .map((message) => formatAssistantMessage(message.text))
-    .join("\n")
+  const assistantMessages = messages.filter((message) => message.role === "assistant" && message.text.trim())
+  const latestAssistant = assistantMessages.at(-1)
+  const assistantText = latestAssistant ? formatAssistantMessage(latestAssistant.text) : ""
   return followUpQuestions(latest, {
     priorUserPrompts: userMessages.slice(0, -1),
     priorAssistantText: assistantText,

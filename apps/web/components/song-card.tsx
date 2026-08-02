@@ -5,7 +5,7 @@ import type { SongSummary } from "@/lib/api"
 export function SongCard({ song, index = 0 }: { song: SongSummary; index?: number }) {
   const swatches = ["from-amber-100 to-orange-50", "from-sky-100 to-ivory-50", "from-emerald-100 to-ivory-50"]
   return (
-    <Link href={`/songs/${song.number}#ask`} className="group surface-card overflow-hidden transition duration-300 hover:-translate-y-1 hover:border-gold-500/50 hover:shadow-xl">
+    <Link href={`/songs/${song.number}`} className="group surface-card overflow-hidden transition duration-300 hover:-translate-y-1 hover:border-gold-500/50 hover:shadow-xl">
       <div className={`h-2 bg-gradient-to-r ${swatches[index % swatches.length]}`} />
       <div className="p-5">
         <div className="flex items-start gap-4">

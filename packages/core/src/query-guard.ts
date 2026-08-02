@@ -23,7 +23,7 @@ export function queryIsUseful(value: string, maxLength = 600) {
     return false
   }
   const numericParts = normalized.match(/\d+/g) ?? []
-  const hasSongContext = /\b(?:song|ps|prabhat|samgiita|sangeet|compare|meaning|lyrics|notation)\b/i.test(
+  const hasSongContext = /\b(?:song|ps|prabhat|samgiita|sangeet|compare|meaning|mean|lyrics|notation|explain|about|understand|arth|matlab|batao|samjha|gaane|gaana|gana|dhyan|meditation|meditate|pronounc|related|story|stories|hindi|english|bengali|urdu|translate|imagery|spiritual|reflect|devotee|this|it|line|message|overview|summary|recap)\b/i.test(
     normalized,
   )
   if (!hasSongContext && (numericParts.length > 1 || numericParts.some((part) => part.length > 4))) {

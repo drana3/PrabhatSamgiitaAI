@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     )
     ai_daily_guest_limit: int = Field(default=15, alias="AI_DAILY_GUEST_LIMIT", ge=1)
     ai_daily_member_limit: int = Field(default=50, alias="AI_DAILY_MEMBER_LIMIT", ge=1)
+    default_admin_emails: str = Field(default="", alias="DEFAULT_ADMIN_EMAILS")
+    protected_admin_emails: str = Field(default="", alias="PROTECTED_ADMIN_EMAILS")
 
 
 @lru_cache(maxsize=1)

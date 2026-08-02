@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections import defaultdict, deque
 from dataclasses import asdict
 from datetime import date as date_type
@@ -17,6 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import AsyncTTLCache
+from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
 from app.core.db import get_session
 from app.core.security import require_public_quota
 from app.models import (
@@ -72,10 +74,12 @@ from app.services.world_context import (
 )
 
 router = APIRouter(tags=["discovery"])
+logger = logging.getLogger(__name__)
 ANANDA_MARGA_CALENDAR_URL = "https://india.anandamarga.org/ananda-marga-festivals-imp-days/"
 today_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(ttl_seconds=3600, maxsize=128)
 report_attempts: dict[str, deque[float]] = defaultdict(deque)
 feedback_attempts: dict[str, deque[float]] = defaultdict(deque)
+logger = logging.getLogger(__name__)
 
 
 def enforce_report_rate_limit(client_key: str, limit: int = 5, window: int = 60) -> None:
@@ -442,10 +446,21 @@ async def submit_feedback(
         raise HTTPException(
             status_code=503, detail="Feedback storage is temporarily unavailable"
         ) from exc
+    priority = feedback_is_priority(payload.category, payload.rating)
+    log = logger.warning if priority else logger.info
+    log(
+        "User feedback %s [%s/%s stars]%s on %s: %s",
+        feedback.id,
+        payload.category,
+        payload.rating,
+        " PRIORITY" if priority else "",
+        payload.page_path or "unknown page",
+        payload.comment[:240],
+    )
     return UserFeedbackResponse(
         feedback_id=str(feedback.id),
         status="received",
-        message="Thank you. Your feedback will help improve Prabhat Samgiita AI.",
+        message=feedback_acknowledgement(str(feedback.id), priority=priority),
     )
 
 

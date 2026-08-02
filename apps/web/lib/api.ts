@@ -418,7 +418,7 @@ export async function submitFeedback(payload: {
   comment: string
   page_path?: string
   contact?: string
-}): Promise<string> {
+}): Promise<{ message: string; feedbackId: string }> {
   const response = await fetchJson("/api/v1/feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -428,5 +428,8 @@ export async function submitFeedback(payload: {
   if (!response.ok) {
     throw new Error(typeof body?.detail === "string" ? body.detail : "Feedback could not be sent. Please try again.")
   }
-  return typeof body?.message === "string" ? body.message : "Thank you for helping us improve."
+  return {
+    message: typeof body?.message === "string" ? body.message : "Thank you for helping us improve.",
+    feedbackId: typeof body?.feedback_id === "string" ? body.feedback_id : "",
+  }
 }

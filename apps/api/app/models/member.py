@@ -26,6 +26,9 @@ class UserAccount(Base, TimestampMixin):
     personalization_enabled: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="true", nullable=False
     )
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

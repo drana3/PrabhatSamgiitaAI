@@ -24,7 +24,10 @@ describe("feedback widget", () => {
   })
 
   it("submits rating, category, comment, and current page", async () => {
-    submitFeedbackMock.mockResolvedValue("Thank you. Your feedback was received.")
+    submitFeedbackMock.mockResolvedValue({
+      message: "Thank you. Your feedback was received.",
+      feedbackId: "abc-123",
+    })
     const user = userEvent.setup()
     render(<FeedbackWidget />)
     await user.click(screen.getByRole("button", { name: "Feedback" }))

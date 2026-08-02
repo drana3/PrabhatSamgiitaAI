@@ -24,7 +24,7 @@ export function MemberMenu() {
   if (!authEnabled) return null
   if (loading) return <span aria-label="Checking sign-in" className="h-10 w-20 animate-pulse rounded-full bg-navy-900/5" />
   if (!session.authenticated) {
-    return <Link href="/signin" className="outline-button px-4 py-2.5">Sign in</Link>
+    return <Link href="/signin" className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">Sign in</Link>
   }
 
   const firstName = memberFirstName(session.display_name)
@@ -60,6 +60,16 @@ export function MemberMenu() {
           >
             Quiz &amp; certificates
           </Link>
+          {session.is_admin ? (
+            <Link
+              href="/admin/feedback"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-3 text-sm font-semibold text-navy-950 transition hover:bg-ivory-50"
+            >
+              Admin
+            </Link>
+          ) : null}
           <a
             href="/.auth/logout?post_logout_redirect_uri=/"
             role="menuitem"

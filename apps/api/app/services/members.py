@@ -20,6 +20,7 @@ from app.models import (
     UserInterestProfile,
 )
 from app.schemas.member import ChatMemoryTurn, ChatMemoryWrite, MemberProfile
+from app.services.admin_members import apply_default_admin
 
 NAME_CLAIMS = {
     "name",
@@ -140,6 +141,7 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         member.avatar_url = identity.avatar_url or member.avatar_url
         member.last_seen_at = now
         member.deleted_at = None
+    apply_default_admin(member)
     await session.commit()
     await session.refresh(member)
     return member
@@ -164,6 +166,7 @@ async def member_profile(session: AsyncSession, member: UserAccount) -> MemberPr
         preferred_language=member.preferred_language,
         country=member.country,
         personalization_enabled=member.personalization_enabled,
+        is_admin=member.is_admin,
         favorite_song_numbers=favorites,
     )
 

@@ -41,6 +41,26 @@ def test_line_by_line_answer_pairs_refrain_lyrics_sequentially() -> None:
     assert "Meaning: please take me with You." in answer
 
 
+def test_structured_answer_line_by_line_uses_overview_not_pairs() -> None:
+    song = Song(
+        number=16,
+        title="ÁJI, SAJALA PAVANE SAGHANA SVAPANE",
+        lyrics_original="ÁJI, SAJALA PAVANE SAGHANA SVAPANE\nAJÁNA PATHIK ESECHE\n" * 4,
+        english_meaning=(
+            "Deep in dream, the air heavy with moisture, the Unknown Traveler came.\n"
+            "The unknown has become known today."
+        ),
+        theme="Mysticism",
+    )
+
+    answer = try_structured_answer("Explain the meaning line by line", song)
+
+    assert answer is not None
+    assert "Lyric:" not in answer
+    assert "Unknown Traveler" in answer
+    assert "Theme: Mysticism" in answer
+
+
 def test_structured_answer_handles_explain_requests() -> None:
     song = Song(
         number=452,

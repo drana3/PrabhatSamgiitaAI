@@ -43,7 +43,7 @@ export function FeedbackWidget() {
     setSending(true)
     setStatus("")
     try {
-      const message = await submitFeedback({
+      const result = await submitFeedback({
         category,
         rating,
         comment: comment.trim(),
@@ -57,7 +57,7 @@ export function FeedbackWidget() {
           quote_text: comment.trim(),
         })
       }
-      setStatus(message)
+      setStatus(result.message)
       setComment("")
       setSharePublicly(false)
     } catch (error) {

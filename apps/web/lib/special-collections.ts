@@ -1,3 +1,5 @@
+import canonicalCollections from "../../../data/generated/theme_collections.json"
+
 export type SpecialCollection = {
   label: string
   query: string
@@ -10,138 +12,282 @@ export type SpecialCollectionGroup = {
   collections: SpecialCollection[]
 }
 
-export const specialCollectionGroups: SpecialCollectionGroup[] = [
+type CanonicalCollection = {
+  label: string
+  category: string
+  value: string
+  count: number
+  song_numbers: number[]
+}
+
+type CollectionRef =
+  | { canonicalLabel: string; displayLabel?: string }
+  | { displayLabel: string; query: string; sourceLabels: string[] }
+
+type GroupDefinition = {
+  title: string
+  description: string
+  collections: CollectionRef[]
+}
+
+const canonicalByLabel = new Map(
+  (canonicalCollections as CanonicalCollection[]).map((row) => [row.label, row]),
+)
+
+const displayLabelOverrides: Record<string, string> = {
+  "Sanskrit Songs": "Sanskrit",
+  "English Songs": "English",
+  "Hindi Songs": "Hindi",
+  "Urdu Songs": "Urdu",
+  "Aungika Songs": "Aungika",
+  "Maethili Song": "Maithili",
+  "Bengali Dialect Songs": "Bengali dialects",
+  "Shiva Songs": "Shiva",
+  "Krśńa Songs": "Krśńa",
+  "Krśńa and Devotees Songs": "Krśńa and devotees",
+  "Mahabharata Song": "Mahabharata",
+  "Bábá Birthday Songs": "Bábá birthday",
+  "New Year Songs": "New Year",
+  "Year-end Song": "Year-end",
+  "Dipavali (Colour Festival) Day Songs": "Dipavali",
+  "Shravanii Purnima Day Song": "Shravanii Purnima",
+  "Victory Day Song": "Victory Day",
+  "National Day Song (or Song of Love for one's Country)": "National Day",
+  "Baby Naming Ceremony Song": "Baby naming",
+  "Marriage Ceremony Song": "Marriage",
+  "Passing Away Ceremony Song": "Passing away",
+  "House Warming Ceremony Song": "House warming",
+  "Tree Planting Ceremony Song": "Tree planting",
+  "Dharma Song": "Dharma",
+  "PROUT Song": "PROUT",
+  "Neo-Humanism Songs": "Neo-Humanism",
+  "AMURT Song": "AMURT",
+  "Flag Ceremony Song": "Flag ceremony",
+  "Marching Song": "Marching",
+  "VSS Song": "VSS",
+  "Gurukula Song": "Gurukula",
+  "Ánanda Nagar Song": "Ánanda Nagar",
+  "Guru Sakasha Song": "Guru Sakasha",
+  "Spring Songs": "Spring",
+  "Summer Songs": "Summer",
+  "Autumn Songs (Sharat)": "Autumn: Sharat",
+  "Autumn Songs (Hemante)": "Autumn: Hemante",
+  "Winter Songs": "Winter",
+  "Rainy Season Songs": "Rainy season",
+  "Dry Season Songs": "Dry season",
+  "Songs to Attract Rain / Draught Songs / Farmer's Songs": "Rain, drought, and farmers",
+  "Children Songs": "Children",
+  "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"": "The Golden Lotus of the Blue Sea",
+  "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)": "Sat Bhai Chompa",
+  "Women Songs": "Women",
+  "Song for those approaching the end of their life": "Approaching the end of life",
+  "Songs in memory of one's family members": "In memory of family",
+  "Song with sanyasii spirit": "Sanyasii spirit",
+  "Sinners Song": "Sinners",
+  "Song in memory of Lord Buddha": "Lord Buddha",
+  "Songs in memory of Rabindranath Tagore": "Rabindranath Tagore",
+  "Song in memory of Avtk. Ananda Bharati Ac.": "Avtk. Ananda Bharati Ac.",
+  "Song in memory of the musician Suradas": "Musician Suradas",
+  "Himalaya Songs": "Himalaya",
+  "River Songs": "Rivers",
+  "Song for a Dust Particle": "A dust particle",
+  "Song for a Dewdrop": "A dewdrop",
+  "Taj Mahal Song": "Taj Mahal",
+  "End of Communism Song": "End of Communism",
+  "Chinese-tune Song": "Chinese tune",
+  "Chinese-European blending-tune Song": "Chinese-European blend",
+  "Scandinavian-tune Song": "Scandinavian tune",
+  "Belgium-tune Song": "Belgium tune",
+  "Turkish-tune Song": "Turkish tune",
+  "Songs containing 'extinct' melodies": "Extinct melodies",
+  "Songs composed in Baba's youth": "Composed in Bábá's youth",
+  "Song with a very rare verse form": "Rare verse form",
+  "Classicalised kiirtan-style song": "Classicalised kiirtan style",
+}
+
+function compositeCount(sourceLabels: string[]): number {
+  const numbers = new Set<number>()
+  for (const label of sourceLabels) {
+    for (const number of canonicalByLabel.get(label)?.song_numbers ?? []) {
+      numbers.add(number)
+    }
+  }
+  return numbers.size
+}
+
+function resolveCollection(ref: CollectionRef): SpecialCollection {
+  if ("canonicalLabel" in ref) {
+    const row = canonicalByLabel.get(ref.canonicalLabel)
+    if (!row) {
+      throw new Error(`Missing canonical collection: ${ref.canonicalLabel}`)
+    }
+    return {
+      label: ref.displayLabel ?? displayLabelOverrides[ref.canonicalLabel] ?? ref.canonicalLabel,
+      query: ref.canonicalLabel,
+      count: row.count,
+    }
+  }
+
+  return {
+    label: ref.displayLabel,
+    query: ref.query,
+    count: compositeCount(ref.sourceLabels),
+  }
+}
+
+function intersectionCount(leftLabel: string, rightLabel: string): number {
+  const left = new Set(canonicalByLabel.get(leftLabel)?.song_numbers ?? [])
+  const right = new Set(canonicalByLabel.get(rightLabel)?.song_numbers ?? [])
+  let overlap = 0
+  for (const number of left) {
+    if (right.has(number)) overlap += 1
+  }
+  return overlap
+}
+
+export const hindiUrduSharedCount = intersectionCount("Hindi Songs", "Urdu Songs")
+
+const groupDefinitions: GroupDefinition[] = [
   {
     title: "Languages",
-    description: "Find songs by their original language or dialect.",
+    description: `Find songs by their original language or dialect. The canonical Hindi list has ${canonicalByLabel.get("Hindi Songs")?.count ?? 0} songs and Urdu has ${canonicalByLabel.get("Urdu Songs")?.count ?? 0}; ${hindiUrduSharedCount} appear on both lists as Hindustani.`,
     collections: [
-      { label: "Sanskrit", query: "Sanskrit Songs", count: 9 },
-      { label: "English", query: "English Songs", count: 3 },
-      { label: "Hindi only", query: "Hindi-only Songs", count: 1 },
-      { label: "Urdu only", query: "Urdu-only Songs", count: 5 },
-      { label: "Hindi-Urdu / Hindustani", query: "Shared Hindi-Urdu Songs", count: 11 },
-      { label: "Aungika", query: "Aungika Songs", count: 7 },
-      { label: "Maithili", query: "Maethili Song", count: 1 },
-      { label: "Bengali dialects", query: "Bengali Dialect Songs", count: 25 },
+      { canonicalLabel: "Sanskrit Songs" },
+      { canonicalLabel: "English Songs" },
+      { canonicalLabel: "Hindi Songs" },
+      { canonicalLabel: "Urdu Songs" },
+      { canonicalLabel: "Aungika Songs" },
+      { canonicalLabel: "Maethili Song" },
+      { canonicalLabel: "Bengali Dialect Songs" },
     ],
   },
   {
     title: "Sacred figures and epics",
     description: "Songs connected with Shiva, Krśńa, devotees, and the Mahabharata.",
     collections: [
-      { label: "Shiva", query: "Shiva Songs", count: 15 },
-      { label: "Krśńa", query: "Krśńa Songs", count: 15 },
-      { label: "Krśńa and devotees", query: "Krśńa and Devotees Songs", count: 5 },
-      { label: "Mahabharata", query: "Mahabharata Song", count: 1 },
+      { canonicalLabel: "Shiva Songs" },
+      { canonicalLabel: "Krśńa Songs" },
+      { canonicalLabel: "Krśńa and Devotees Songs" },
+      { canonicalLabel: "Mahabharata Song" },
     ],
   },
   {
     title: "Festivals and observances",
     description: "Music for annual celebrations, remembrance, and collective occasions.",
     collections: [
-      { label: "Bábá birthday", query: "Bábá Birthday Songs", count: 5 },
-      { label: "New Year", query: "New Year Songs", count: 4 },
-      { label: "Year-end", query: "Year-end Song", count: 1 },
-      { label: "Dipavali", query: "Dipavali (Colour Festival) Day Songs", count: 3 },
-      { label: "Shravanii Purnima", query: "Shravanii Purnima Day Song", count: 1 },
-      { label: "Victory Day", query: "Victory Day Song", count: 1 },
-      { label: "National Day", query: "National Day Song (or Song of Love for one's Country)", count: 1 },
+      { canonicalLabel: "Bábá Birthday Songs" },
+      { canonicalLabel: "New Year Songs" },
+      { canonicalLabel: "Year-end Song" },
+      { canonicalLabel: "Dipavali (Colour Festival) Day Songs" },
+      { canonicalLabel: "Shravanii Purnima Day Song" },
+      { canonicalLabel: "Victory Day Song" },
+      { canonicalLabel: "National Day Song (or Song of Love for one's Country)" },
     ],
   },
   {
     title: "Life ceremonies",
     description: "Songs for meaningful transitions in family and community life.",
     collections: [
-      { label: "Baby naming", query: "Baby Naming Ceremony Song", count: 1 },
-      { label: "Birthday songs", query: "All Birthday Songs", count: 6 },
-      { label: "Marriage", query: "Marriage Ceremony Song", count: 1 },
-      { label: "Passing away", query: "Passing Away Ceremony Song", count: 1 },
-      { label: "House warming", query: "House Warming Ceremony Song", count: 1 },
-      { label: "Tree planting", query: "Tree Planting Ceremony Song", count: 1 },
+      { canonicalLabel: "Baby Naming Ceremony Song" },
+      {
+        displayLabel: "Birthday songs",
+        query: "All Birthday Songs",
+        sourceLabels: ["Bábá Birthday Songs", "Birthday Song"],
+      },
+      { canonicalLabel: "Marriage Ceremony Song" },
+      { canonicalLabel: "Passing Away Ceremony Song" },
+      { canonicalLabel: "House Warming Ceremony Song" },
+      { canonicalLabel: "Tree Planting Ceremony Song" },
     ],
   },
   {
     title: "Ideals and Ananda Marga",
     description: "Spiritual, social, service, educational, and organizational themes.",
     collections: [
-      { label: "Dharma", query: "Dharma Song", count: 1 },
-      { label: "PROUT", query: "PROUT Song", count: 3 },
-      { label: "Neo-Humanism", query: "Neo-Humanism Songs", count: 11 },
-      { label: "AMURT", query: "AMURT Song", count: 1 },
-      { label: "Flag ceremony", query: "Flag Ceremony Song", count: 1 },
-      { label: "Marching", query: "Marching Song", count: 1 },
-      { label: "VSS", query: "VSS Song", count: 1 },
-      { label: "Gurukula", query: "Gurukula Song", count: 1 },
-      { label: "Ánanda Nagar", query: "Ánanda Nagar Song", count: 1 },
-      { label: "Guru Sakasha", query: "Guru Sakasha Song", count: 1 },
+      { canonicalLabel: "Dharma Song" },
+      { canonicalLabel: "PROUT Song" },
+      { canonicalLabel: "Neo-Humanism Songs" },
+      { canonicalLabel: "AMURT Song" },
+      { canonicalLabel: "Flag Ceremony Song" },
+      { canonicalLabel: "Marching Song" },
+      { canonicalLabel: "VSS Song" },
+      { canonicalLabel: "Gurukula Song" },
+      { canonicalLabel: "Ánanda Nagar Song" },
+      { canonicalLabel: "Guru Sakasha Song" },
     ],
   },
   {
     title: "Seasons, earth, and rain",
     description: "Follow the natural year and humanity's relationship with the land.",
     collections: [
-      { label: "Spring", query: "Spring Songs", count: 9 },
-      { label: "Summer", query: "Summer Songs", count: 4 },
-      { label: "Autumn: Sharat", query: "Autumn Songs (Sharat)", count: 6 },
-      { label: "Autumn: Hemante", query: "Autumn Songs (Hemante)", count: 6 },
-      { label: "Winter", query: "Winter Songs", count: 7 },
-      { label: "Rainy season", query: "Rainy Season Songs", count: 5 },
-      { label: "Dry season", query: "Dry Season Songs", count: 2 },
-      { label: "Rain, drought, and farmers", query: "Songs to Attract Rain / Draught Songs / Farmer's Songs", count: 2 },
+      { canonicalLabel: "Spring Songs" },
+      { canonicalLabel: "Summer Songs" },
+      { canonicalLabel: "Autumn Songs (Sharat)" },
+      { canonicalLabel: "Autumn Songs (Hemante)" },
+      { canonicalLabel: "Winter Songs" },
+      { canonicalLabel: "Rainy Season Songs" },
+      { canonicalLabel: "Dry Season Songs" },
+      { canonicalLabel: "Songs to Attract Rain / Draught Songs / Farmer's Songs" },
     ],
   },
   {
     title: "Stories and human experience",
     description: "Songs for children, women, inner struggle, remembrance, and folktales.",
     collections: [
-      { label: "Children", query: "Children Songs", count: 4 },
-      { label: "The Golden Lotus of the Blue Sea", query: "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"", count: 6 },
-      { label: "Sat Bhai Chompa", query: "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)", count: 2 },
-      { label: "Women", query: "Women Songs", count: 28 },
-      { label: "Approaching the end of life", query: "Song for those approaching the end of their life", count: 1 },
-      { label: "In memory of family", query: "Songs in memory of one's family members", count: 4 },
-      { label: "Sanyasii spirit", query: "Song with sanyasii spirit", count: 1 },
-      { label: "Sinners", query: "Sinners Song", count: 1 },
+      { canonicalLabel: "Children Songs" },
+      { canonicalLabel: "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"" },
+      { canonicalLabel: "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)" },
+      { canonicalLabel: "Women Songs" },
+      { canonicalLabel: "Song for those approaching the end of their life" },
+      { canonicalLabel: "Songs in memory of one's family members" },
+      { canonicalLabel: "Song with sanyasii spirit" },
+      { canonicalLabel: "Sinners Song" },
     ],
   },
   {
     title: "Tributes and remembrance",
     description: "Songs honouring spiritual, literary, and musical lives.",
     collections: [
-      { label: "Lord Buddha", query: "Song in memory of Lord Buddha", count: 1 },
-      { label: "Rabindranath Tagore", query: "Songs in memory of Rabindranath Tagore", count: 2 },
-      { label: "Avtk. Ananda Bharati Ac.", query: "Song in memory of Avtk. Ananda Bharati Ac.", count: 1 },
-      { label: "Musician Suradas", query: "Song in memory of the musician Suradas", count: 1 },
+      { canonicalLabel: "Song in memory of Lord Buddha" },
+      { canonicalLabel: "Songs in memory of Rabindranath Tagore" },
+      { canonicalLabel: "Song in memory of Avtk. Ananda Bharati Ac." },
+      { canonicalLabel: "Song in memory of the musician Suradas" },
     ],
   },
   {
     title: "Nature, places, and history",
     description: "Landscapes, small wonders, landmarks, and moments in human history.",
     collections: [
-      { label: "Himalaya", query: "Himalaya Songs", count: 4 },
-      { label: "Rivers", query: "River Songs", count: 6 },
-      { label: "A dust particle", query: "Song for a Dust Particle", count: 1 },
-      { label: "A dewdrop", query: "Song for a Dewdrop", count: 1 },
-      { label: "Taj Mahal", query: "Taj Mahal Song", count: 1 },
-      { label: "End of Communism", query: "End of Communism Song", count: 1 },
+      { canonicalLabel: "Himalaya Songs" },
+      { canonicalLabel: "River Songs" },
+      { canonicalLabel: "Song for a Dust Particle" },
+      { canonicalLabel: "Song for a Dewdrop" },
+      { canonicalLabel: "Taj Mahal Song" },
+      { canonicalLabel: "End of Communism Song" },
     ],
   },
   {
     title: "Musical traditions and rarities",
     description: "Regional tunes, unusual forms, historic melodies, and distinctive compositions.",
     collections: [
-      { label: "Chinese tune", query: "Chinese-tune Song", count: 1 },
-      { label: "Chinese-European blend", query: "Chinese-European blending-tune Song", count: 1 },
-      { label: "Scandinavian tune", query: "Scandinavian-tune Song", count: 1 },
-      { label: "Belgium tune", query: "Belgium-tune Song", count: 1 },
-      { label: "Turkish tune", query: "Turkish-tune Song", count: 1 },
-      { label: "Extinct melodies", query: "Songs containing 'extinct' melodies", count: 2 },
-      { label: "Composed in Bábá's youth", query: "Songs composed in Baba's youth", count: 3 },
-      { label: "Rare verse form", query: "Song with a very rare verse form", count: 1 },
-      { label: "Classicalised kiirtan style", query: "Classicalised kiirtan-style song", count: 1 },
+      { canonicalLabel: "Chinese-tune Song" },
+      { canonicalLabel: "Chinese-European blending-tune Song" },
+      { canonicalLabel: "Scandinavian-tune Song" },
+      { canonicalLabel: "Belgium-tune Song" },
+      { canonicalLabel: "Turkish-tune Song" },
+      { canonicalLabel: "Songs containing 'extinct' melodies" },
+      { canonicalLabel: "Songs composed in Baba's youth" },
+      { canonicalLabel: "Song with a very rare verse form" },
+      { canonicalLabel: "Classicalised kiirtan-style song" },
     ],
   },
 ]
+
+export const specialCollectionGroups: SpecialCollectionGroup[] = groupDefinitions.map((group) => ({
+  title: group.title,
+  description: group.description,
+  collections: group.collections.map(resolveCollection),
+}))
 
 export const specialCollectionCount = specialCollectionGroups.reduce(
   (total, group) => total + group.collections.length,

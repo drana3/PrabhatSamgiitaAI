@@ -18,7 +18,7 @@ export function queryIsUseful(value: string, maxLength = 600) {
   const explicitSongNumber = normalized.match(/\b(?:song|ps|prabhat\s+(?:samgiita|sangeet))\s*(?:number|no\.?|#)?\s*(\d{1,6})\b/i)
   if (explicitSongNumber && (Number(explicitSongNumber[1]) < 1 || Number(explicitSongNumber[1]) > 5018)) return false
   const numericParts = normalized.match(/\d+/g) ?? []
-  const hasSongContext = /\b(?:song|ps|prabhat|samgiita|sangeet|compare|meaning|lyrics|notation)\b/i.test(normalized)
+  const hasSongContext = /\b(?:song|ps|prabhat|samgiita|sangeet|compare|meaning|mean|lyrics|notation|explain|about|understand|arth|matlab|batao|samjha|gaane|gaana|gana|dhyan|meditation|meditate|pronounc|related|story|stories|hindi|english|bengali|urdu|translate|imagery|spiritual|reflect|devotee|this|it|line|message|overview|summary|recap)\b/i.test(normalized)
   if (!hasSongContext && (numericParts.length > 1 || numericParts.some((part) => part.length > 4))) return false
   const compact = Array.from(normalized).filter((character) => /[\p{L}\p{M}\p{N}]/u.test(character)).join("")
   if (!compact) return false

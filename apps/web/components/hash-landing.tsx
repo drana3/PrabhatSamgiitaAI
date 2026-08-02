@@ -2,6 +2,8 @@
 
 import { useEffect } from "react"
 
+import { scrollToSectionId } from "@/lib/scroll-to-section"
+
 const SONG_SECTIONS = new Set(["ask", "lyrics", "meaning", "listen", "watch", "notation"])
 
 export function HashLanding() {
@@ -11,7 +13,7 @@ export function HashLanding() {
 
     let cancelled = false
     const scrollToSection = () => {
-      if (!cancelled) document.getElementById(section)?.scrollIntoView({ block: "start" })
+      if (!cancelled) scrollToSectionId(section)
     }
     const settle = () => requestAnimationFrame(() => requestAnimationFrame(scrollToSection))
     settle()

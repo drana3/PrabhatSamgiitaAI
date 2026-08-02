@@ -5,6 +5,7 @@ from app.api.v1.ai import router as ai_router
 from app.api.v1.discovery import router as discovery_router
 from app.api.v1.health import router as health_router
 from app.api.v1.inventory import router as inventory_router
+from app.api.v1.member_admin import router as member_admin_router
 from app.api.v1.members import router as members_router
 from app.api.v1.notation import router as notation_router
 from app.api.v1.recommendations import router as recommendations_router
@@ -18,6 +19,7 @@ router.include_router(search_router)
 router.include_router(recommendations_router)
 router.include_router(inventory_router)
 router.include_router(members_router)
+router.include_router(member_admin_router)
 router.include_router(notation_router)
 router.include_router(ai_router)
 router.include_router(discovery_router)

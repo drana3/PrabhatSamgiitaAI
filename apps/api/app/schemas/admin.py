@@ -123,3 +123,25 @@ class AdminAnalyticsItem(BaseModel):
 class AdminAnalyticsSummary(BaseModel):
     days: int
     metrics: list[AdminAnalyticsItem]
+
+
+class AdminFeedbackItem(BaseModel):
+    feedback_id: str
+    category: str
+    rating: int
+    comment: str
+    page_path: str | None = None
+    contact: str | None = None
+    status: str
+    created_at: str
+    priority: bool = False
+
+
+class AdminFeedbackUpdate(BaseModel):
+    status: Literal["new", "reviewed", "actioned", "dismissed"]
+    review_note: str | None = Field(default=None, max_length=2000)
+
+
+class AdminFeedbackListResponse(BaseModel):
+    total: int
+    items: list[AdminFeedbackItem]

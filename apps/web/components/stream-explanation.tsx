@@ -4,7 +4,9 @@ import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { VoiceQuestionButton } from "@/components/voice-question-button"
 import {
+  clearMemberChatStorage,
   clearSongChatStorage,
   followUpsFromMessages,
   formatAssistantMessage,
@@ -40,6 +42,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
   const [messages, setMessages] = useState<ChatMessage[]>([greeting()])
   const [profileSummary, setProfileSummary] = useState("")
   const conversationEnd = useRef<HTMLDivElement | null>(null)
+  const previousAuth = useRef(session.authenticated)
   const storageKey = songChatStorageKey(songNumber, session.authenticated)
 
   function resetConversation() {
@@ -51,10 +54,25 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
 
   useEffect(() => {
     if (memberLoading) return
+
+    const signedOut = previousAuth.current && !session.authenticated
+    previousAuth.current = session.authenticated
+
+    if (signedOut) {
+      clearSongChatStorage()
+      setMessages([greeting()])
+      setProfileSummary("")
+      setHydrated(true)
+      return
+    }
+
     setHydrated(false)
     let restored: ChatMessage[] = []
     try {
       window.sessionStorage.removeItem(legacySongChatStorageKey(songNumber))
+      if (!session.authenticated) {
+        clearMemberChatStorage()
+      }
       restored = restoreConversation(window.sessionStorage.getItem(storageKey))
     } catch {
       restored = []
@@ -251,6 +269,14 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
             aria-invalid={Boolean(inputError)}
             aria-describedby={inputError ? `ask-${songNumber}-error` : undefined}
             className="min-h-12 flex-1 resize-none bg-transparent px-3 py-2 text-sm text-navy-950 outline-none placeholder:text-stone-400"
+          />
+          <VoiceQuestionButton
+            disabled={loading}
+            onTranscript={(transcript) => {
+              setQuery(transcript)
+              setInputError(null)
+            }}
+            onError={setInputError}
           />
           <button type="button" onClick={() => void ask()} disabled={loading} aria-label="Send question" data-feature="ai_companion" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold-600 text-lg text-white shadow-sm transition hover:bg-gold-700 disabled:opacity-50">→</button>
         </div>

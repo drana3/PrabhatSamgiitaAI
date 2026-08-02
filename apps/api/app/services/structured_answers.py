@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from app.models import Song
-from app.services.chat_language import detect_response_language
+from app.services.chat_language import detect_response_language, is_language_rephrase
 from app.services.stories import STORIES_INDEX_PATH, InspirationStory
 
 
@@ -13,10 +13,15 @@ def split_verse_lines(text: str | None) -> list[str]:
     return [line.strip() for line in text.splitlines() if line.strip()]
 
 
+def has_hindi_meaning(song: Song) -> bool:
+    text = (song.hindi_meaning or "").strip()
+    return bool(text and re.search(r"[\u0900-\u097F]", text))
+
+
 def pick_meaning(song: Song, language: str) -> str | None:
     if language == "hi":
-        return song.hindi_meaning or song.english_meaning
-    return song.english_meaning or song.hindi_meaning
+        return song.hindi_meaning if has_hindi_meaning(song) else None
+    return song.english_meaning or (song.hindi_meaning if has_hindi_meaning(song) else None)
 
 
 def pair_lyrics_with_meaning(
@@ -48,8 +53,15 @@ def requests_related_songs(query: str) -> bool:
     ) is not None
 
 
-def requests_song_explanation(query: str) -> bool:
-    cleaned = query.casefold()
+def requests_song_explanation(query: str, history: list[tuple[str, str]] | None = None) -> bool:
+    cleaned = query.casefold().strip()
+    if is_language_rephrase(query):
+        return bool(history)
+    if re.search(
+        r"\b(?:in|into|to)\s+(?:hindi|english|bengali|urdu)\b|\b(?:hindi|english)\s+me(?:in|ṃ|in)?\b",
+        cleaned,
+    ):
+        return True
     return any(
         term in cleaned
         for term in (
@@ -58,15 +70,21 @@ def requests_song_explanation(query: str) -> bool:
             "mean",
             "message",
             "about this song",
+            "about the song",
             "what is this song",
+            "what's this song",
             "understand",
             "arth",
             "matlab",
             "batao",
             "samjha",
+            "samjhaiye",
             "imagery",
             "spiritual",
             "overview",
+            "summary",
+            "translate",
+            "anuvad",
         )
     )
 
@@ -105,11 +123,12 @@ def build_overview_answer(song: Song, language: str = "en") -> str | None:
 
     details = []
     if song.theme:
-        details.append(f"Theme: {song.theme}.")
+        details.append(f"{'विषय' if language == 'hi' else 'Theme'}: {song.theme}.")
     if song.occasion:
-        details.append(f"Occasion: {song.occasion}.")
+        details.append(f"{'अवसर' if language == 'hi' else 'Occasion'}: {song.occasion}.")
     if song.meditation_context:
-        details.append(f"Meditation context: {song.meditation_context}.")
+        label = "ध्यान संदर्भ" if language == "hi" else "Meditation context"
+        details.append(f"{label}: {song.meditation_context}.")
 
     if language == "hi":
         opener = f"गीत {song.number} «{song.title}» का सार इस प्रकार है:"
@@ -214,7 +233,9 @@ def try_structured_answer(
     language = detect_response_language(query, history)
     cleaned = query.casefold()
     if requests_line_by_line(query):
-        return build_line_by_line_answer(song, language)
+        # Canonical meanings are prose blocks, not 1:1 lyric lines — use overview instead
+        # of numbered Lyric/Meaning pairs that repeat the last line on refrains.
+        return build_overview_answer(song, language)
     if requests_stories_inspiration(query):
         from app.services.stories import (
             load_stories_from_seed,
@@ -233,6 +254,6 @@ def try_structured_answer(
         return build_related_songs_answer(song, related or [], language)
     if re.search(r"\b(?:meditation|meditate|dhyan|reflect)\b", cleaned):
         return build_meditation_answer(song, language)
-    if requests_song_explanation(query):
+    if requests_song_explanation(query, history):
         return build_overview_answer(song, language)
     return None

@@ -1,4 +1,5 @@
 import {
+  clearMemberChatStorage,
   clearSongChatStorage,
   conversationContextMs,
   followUpQuestions,
@@ -10,7 +11,7 @@ import {
   songChatStorageKey,
   starterPrompts,
 } from "@/lib/chat"
-import { detectChatLanguage } from "@/lib/chat-language"
+import { conversationLanguage, detectChatLanguage } from "@/lib/chat-language"
 
 describe("AI companion conversation contract", () => {
   it("keeps recent turns for ten minutes and expires older context", () => {
@@ -26,6 +27,10 @@ describe("AI companion conversation contract", () => {
       "Yeh gaana prem aur shanti ke baare mein hai.",
     ])
     expect(restoreConversation(JSON.stringify(messages), now)).toHaveLength(2)
+  })
+
+  it("does not keep Hindi follow-ups after an English numeric turn", () => {
+    expect(conversationLanguage(["explain this song in hindi", "222"])).toBe("en")
   })
 
   it("detects Hindi from Romanized user input", () => {
@@ -52,7 +57,7 @@ describe("AI companion conversation contract", () => {
 
   it("switches follow-up language to match the user", () => {
     const followUps = followUpQuestions("is gaane ka arth batao", { language: "hi" })
-    expect(followUps[0]).toMatch(/line|arth|bhav/i)
+    expect(followUps[0]).toMatch(/arth|bhav|dhyan/i)
   })
 
   it("builds follow-ups from the full conversation", () => {
@@ -93,5 +98,19 @@ describe("AI companion conversation contract", () => {
     expect(window.sessionStorage.getItem(songChatStorageKey(3, true))).toBeNull()
     expect(window.sessionStorage.getItem(songChatStorageKey(3, false))).toBeNull()
     expect(window.sessionStorage.getItem(legacySongChatStorageKey(3))).toBeNull()
+  })
+
+  it("clears only member chat storage for guest sessions", () => {
+    window.sessionStorage.setItem(songChatStorageKey(3, true), JSON.stringify([
+      { role: "user", text: "member turn", createdAt: Date.now() },
+    ]))
+    window.sessionStorage.setItem(songChatStorageKey(3, false), JSON.stringify([
+      { role: "user", text: "guest turn", createdAt: Date.now() },
+    ]))
+
+    clearMemberChatStorage()
+
+    expect(window.sessionStorage.getItem(songChatStorageKey(3, true))).toBeNull()
+    expect(window.sessionStorage.getItem(songChatStorageKey(3, false))).not.toBeNull()
   })
 })

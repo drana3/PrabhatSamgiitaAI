@@ -9,6 +9,7 @@ export type MemberProfile = {
   country?: string | null
   personalization_enabled: boolean
   favorite_song_numbers: number[]
+  is_admin: boolean
 }
 
 export type MemberSession = MemberProfile | { authenticated: false }

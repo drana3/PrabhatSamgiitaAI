@@ -24,6 +24,7 @@ describe("Prabhat Samgiita AI companion", () => {
     mockedStream.mockReset()
     memberState.value = { loading: false, session: { authenticated: false } }
     window.sessionStorage.clear()
+    Reflect.deleteProperty(window, "webkitSpeechRecognition")
   })
 
   it("shows starter prompts before the first question", () => {
@@ -95,6 +96,28 @@ describe("Prabhat Samgiita AI companion", () => {
     expect(screen.getByText("Try asking")).toBeVisible()
   })
 
+  it("does not restore an older guest conversation after sign out", async () => {
+    const now = Date.now()
+    window.sessionStorage.setItem("prabhat-song-chat-guest-135", JSON.stringify([
+      { role: "user", text: "Old guest question", createdAt: now },
+      { role: "assistant", text: "Old guest answer", createdAt: now + 1 },
+    ]))
+
+    memberState.value = { loading: false, session: { authenticated: true } }
+    const { rerender } = render(<StreamExplanation songNumber={135} />)
+    await waitFor(() => {
+      expect(screen.queryByText(/Old guest question/i)).not.toBeInTheDocument()
+    })
+
+    memberState.value = { loading: false, session: { authenticated: false } }
+    rerender(<StreamExplanation songNumber={135} />)
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Old guest question/i)).not.toBeInTheDocument()
+    })
+    expect(screen.getByText("Try asking")).toBeVisible()
+  })
+
   it("sends prior user and assistant turns with the next question", async () => {
     const user = userEvent.setup()
     mockedStream
@@ -115,5 +138,36 @@ describe("Prabhat Samgiita AI companion", () => {
       { role: "user", content: "what this song is about" },
       { role: "assistant", content: "The song expresses formless beauty and peace. [1]" },
     ])
+  })
+
+  it("fills the question box from voice input", async () => {
+    class Recognition {
+      continuous = false
+      interimResults = false
+      lang = ""
+      maxAlternatives = 1
+      onresult: ((event: { resultIndex: number; results: { length: number; [index: number]: { 0: { transcript: string } } } }) => void) | null = null
+      onerror: (() => void) | null = null
+      onend: (() => void) | null = null
+
+      start() {
+        this.onresult?.({
+          resultIndex: 0,
+          results: { 0: { 0: { transcript: "what is this song about" } }, length: 1 },
+        })
+      }
+
+      stop() {
+        this.onend?.()
+      }
+    }
+    Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, value: Recognition })
+
+    const user = userEvent.setup()
+    render(<StreamExplanation songNumber={135} />)
+
+    await user.click(screen.getByRole("button", { name: "Ask by voice" }))
+
+    expect(screen.getByLabelText("Ask about this song")).toHaveValue("what is this song about")
   })
 })

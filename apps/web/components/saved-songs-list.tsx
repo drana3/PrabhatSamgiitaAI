@@ -66,7 +66,7 @@ export function SavedSongsList({
         <li key={song.number} className="flex items-center gap-3 rounded-2xl border border-navy-900/10 bg-ivory-50 px-4 py-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span>
           <div className="min-w-0 flex-1">
-            <Link href={`/songs/${song.number}#ask`} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">
+            <Link href={`/songs/${song.number}`} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">
               {titleCase(song.title)}
             </Link>
             {song.first_line ? <p className="truncate text-xs text-stone-500">{titleCase(song.first_line)}</p> : null}

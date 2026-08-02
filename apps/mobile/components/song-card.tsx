@@ -1,7 +1,9 @@
 import type { SongSummary } from "@prabhat/core"
+import { Ionicons } from "@expo/vector-icons"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import { Link } from "expo-router"
 
+import { cardElevation, hairline } from "@/lib/theme"
 import { colors, radii, spacing, typography } from "@/lib/client"
 
 export function SongCard({ song }: { song: SongSummary }) {
@@ -13,9 +15,14 @@ export function SongCard({ song }: { song: SongSummary }) {
         </View>
         <View style={styles.body}>
           <Text style={styles.title}>{titleCase(song.title)}</Text>
-          {song.first_line ? <Text style={styles.subtitle} numberOfLines={2}>{titleCase(song.first_line)}</Text> : null}
+          {song.first_line ? (
+            <Text style={styles.subtitle} numberOfLines={2}>
+              {titleCase(song.first_line)}
+            </Text>
+          ) : null}
           {song.theme ? <Text style={styles.theme}>{song.theme}</Text> : null}
         </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.stone500} />
       </Pressable>
     </Link>
   )
@@ -28,12 +35,14 @@ function titleCase(value: string) {
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     backgroundColor: colors.white,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "rgba(9, 45, 86, 0.1)",
+    borderColor: hairline,
     padding: spacing.md,
+    ...cardElevation(1),
   },
   pressed: { opacity: 0.92 },
   badge: {

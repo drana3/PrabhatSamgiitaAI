@@ -20,6 +20,8 @@ def test_query_guard_accepts_song_numbers_and_multilingual_queries() -> None:
     assert assess_query("Bandhu he niye calo").allowed is True
     assert assess_query("pyar").allowed is True
     assert assess_query("is gaane ka arth batao").allowed is True
+    assert assess_query("explain in hindi").allowed is True
+    assert assess_query("what does this mean").allowed is True
 
 
 def test_query_guard_rejects_numbers_outside_catalog() -> None:

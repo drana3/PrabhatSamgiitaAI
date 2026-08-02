@@ -6,10 +6,10 @@ import canonicalCollections from "../../../data/generated/theme_collections.json
 
 describe("reviewed discovery collections", () => {
   it("publishes every canonical special collection in organized groups", () => {
-    expect(specialCollectionCount).toBe(70)
+    expect(specialCollectionCount).toBe(69)
     expect(specialCollectionGroups.map((group) => group.title)).toContain("Languages")
     expect(specialCollectionGroups.flatMap((group) => group.collections).map((item) => item.label)).toEqual(
-      expect.arrayContaining(["Hindi only", "Urdu only", "Hindi-Urdu / Hindustani", "Maithili", "Shiva", "Tree planting", "Turkish tune"]),
+      expect.arrayContaining(["Hindi", "Urdu", "Maithili", "Shiva", "Tree planting", "Turkish tune"]),
     )
   })
 
@@ -17,17 +17,20 @@ describe("reviewed discovery collections", () => {
     const expected = new Map(canonicalCollections.map((item) => [item.label, item.count]))
     const displayed = specialCollectionGroups.flatMap((group) => group.collections)
 
-    expect(displayed).toHaveLength(70)
+    expect(displayed).toHaveLength(69)
     for (const collection of displayed) {
       const curatedCounts: Record<string, number> = {
         "All Birthday Songs": 6,
-        "Hindi-only Songs": 1,
-        "Urdu-only Songs": 5,
-        "Shared Hindi-Urdu Songs": 11,
       }
       const expectedCount = curatedCounts[collection.query] ?? expected.get(collection.query)
       expect(expectedCount, collection.query).toBe(collection.count)
     }
+  })
+
+  it("shows canonical Hindi and Urdu totals instead of splitting Hindustani overlap", () => {
+    const languages = specialCollectionGroups.find((group) => group.title === "Languages")?.collections ?? []
+    expect(languages.find((item) => item.label === "Hindi")).toMatchObject({ count: 12, query: "Hindi Songs" })
+    expect(languages.find((item) => item.label === "Urdu")).toMatchObject({ count: 16, query: "Urdu Songs" })
   })
 
   it("includes an observance occurring today", () => {

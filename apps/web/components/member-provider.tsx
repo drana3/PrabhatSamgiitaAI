@@ -1,7 +1,8 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
 
+import { clearSongChatStorage } from "@/lib/chat"
 import { fetchMemberSession } from "@/lib/member"
 import type { MemberSession } from "@/lib/member"
 
@@ -16,10 +17,18 @@ const MemberContext = createContext<MemberContextValue | null>(null)
 export function MemberProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<MemberSession>({ authenticated: false })
+  const previousAuth = useRef(session.authenticated)
 
   async function refresh() {
     setLoading(true)
-    setSession(await fetchMemberSession())
+    const next = await fetchMemberSession()
+    const signedOut = previousAuth.current && !next.authenticated
+    const signedIn = !previousAuth.current && next.authenticated
+    if (signedOut || signedIn) {
+      clearSongChatStorage()
+    }
+    previousAuth.current = next.authenticated
+    setSession(next)
     setLoading(false)
   }
 

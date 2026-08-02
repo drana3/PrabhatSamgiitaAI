@@ -1,58 +1,72 @@
+import { Ionicons } from "@expo/vector-icons"
 import { Link } from "expo-router"
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { StyleSheet, Text, View } from "react-native"
 
-import { ScreenContainer, SectionHeader } from "@/components/screen-shell"
-import { colors, radii, spacing, typography } from "@/lib/client"
+import {
+  PrimaryButton,
+  ScreenSafe,
+  ScreenScroll,
+  SectionHeader,
+  SurfaceCard,
+} from "@/components/screen-shell"
+import { colors, spacing, typography } from "@/lib/client"
+
+const COMING_FEATURES = [
+  { icon: "bookmark-outline" as const, label: "Saved songs playlist" },
+  { icon: "ribbon-outline" as const, label: "Quiz certifications" },
+  { icon: "chatbubbles-outline" as const, label: "Chat memory sync" },
+]
 
 export default function AccountScreen() {
   return (
-    <ScreenContainer>
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.header}>
-            <SectionHeader
-              eyebrow="Account"
-              title="Your practice space"
-              subtitle="Sign in on the web today. Native Microsoft sign-in arrives in the next mobile release."
-            />
-          </View>
+    <ScreenSafe>
+      <ScreenScroll contentContainerStyle={styles.content}>
+        <SectionHeader
+          eyebrow="Account"
+          title="Your practice space"
+          subtitle="Sign in on the web today. Native Microsoft sign-in arrives in the next mobile release."
+        />
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Coming in Phase 2</Text>
-            <Text style={styles.cardCopy}>Saved songs playlist, quiz certifications, and chat memory sync.</Text>
+        <SurfaceCard style={styles.card}>
+          <Text style={styles.cardTitle}>Coming in Phase 2</Text>
+          <View style={styles.featureList}>
+            {COMING_FEATURES.map(({ icon, label }) => (
+              <View key={label} style={styles.featureRow}>
+                <Ionicons name={icon} size={18} color={colors.gold500} />
+                <Text style={styles.featureText}>{label}</Text>
+              </View>
+            ))}
           </View>
+        </SurfaceCard>
 
-          <Link href="/songs/1" asChild>
-            <Pressable style={styles.button}>
-              <Text style={styles.buttonText}>Continue exploring songs</Text>
-            </Pressable>
-          </Link>
-        </ScrollView>
-      </SafeAreaView>
-    </ScreenContainer>
+        <Link href="/songs/1" asChild>
+          <PrimaryButton label="Continue exploring songs" style={styles.button} />
+        </Link>
+      </ScreenScroll>
+    </ScreenSafe>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
-  header: { gap: spacing.sm },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: "rgba(9, 45, 86, 0.08)",
+  content: {
     padding: spacing.lg,
+    gap: spacing.md,
+  },
+  card: { gap: spacing.md },
+  cardTitle: { color: colors.navy950, fontWeight: "700", fontSize: typography.body },
+  featureList: { gap: spacing.sm },
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
   },
-  cardTitle: { color: colors.navy950, fontWeight: "700", fontSize: typography.body },
-  cardCopy: { color: colors.stone600, lineHeight: 22 },
+  featureText: {
+    color: colors.stone600,
+    fontSize: typography.body,
+    lineHeight: 22,
+  },
   button: {
-    backgroundColor: colors.navy950,
-    borderRadius: radii.pill,
-    paddingVertical: 14,
+    alignSelf: "stretch",
     alignItems: "center",
   },
-  buttonText: { color: colors.white, fontWeight: "700" },
 })

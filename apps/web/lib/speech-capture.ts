@@ -31,7 +31,13 @@ export function speechCaptureSupported() {
   return Boolean(voiceWindow.SpeechRecognition || voiceWindow.webkitSpeechRecognition)
 }
 
-export function startSpeechCapture(onTranscript: (transcript: string) => void): SpeechCapture {
+export function startSpeechCapture(
+  onTranscript: (transcript: string) => void,
+  options?: {
+    onEnd?: () => void
+    onError?: () => void
+  },
+): SpeechCapture {
   const voiceWindow = window as SpeechWindow
   const Recognition = voiceWindow.SpeechRecognition || voiceWindow.webkitSpeechRecognition
   if (!Recognition) {
@@ -51,8 +57,12 @@ export function startSpeechCapture(onTranscript: (transcript: string) => void): 
     }
     if (parts.length) onTranscript(parts.join(" "))
   }
-  recognition.onerror = () => undefined
-  recognition.onend = () => undefined
+  recognition.onerror = () => {
+    options?.onError?.()
+  }
+  recognition.onend = () => {
+    options?.onEnd?.()
+  }
   recognition.start()
 
   return {
