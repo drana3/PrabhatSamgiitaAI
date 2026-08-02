@@ -1,0 +1,31 @@
+---
+description: Keep Cursor token use low without sacrificing quality
+alwaysApply: true
+---
+
+# Token efficiency
+
+## Before asking the agent
+- One task per message. Name the file or folder when you know it (`apps/web/...`, `apps/api/...`, `apps/mobile/...`).
+- Prefer `@folder` or `@file` over `@Codebase` unless the location is unknown.
+- Paste only the failing log lines (10–30 lines), not full CI output. Link GitHub Actions runs instead.
+- For “is CI green?”, link the run URL; don’t paste job logs unless something failed.
+
+## Scope
+- Web/API/mobile are separate dependency trees. Don’t touch `apps/mobile` when fixing web CI, and vice versa.
+- Docs-only or mobile-only changes should not trigger full deploy discussion unless deploy is the ask.
+- Minimize diff scope: fix the root cause, don’t refactor adjacent code.
+
+## Exploration
+- Search/grep before reading whole files. Read only the function or component in scope.
+- Don’t re-run full E2E locally unless the change touches UI journeys or Playwright config.
+- Don’t regenerate lockfiles unless dependency graphs actually changed; always verify with `npm ci` from a clean tree.
+
+## Long tasks
+- Use Plan mode for architecture or multi-file design; switch to Agent for the implementation.
+- Split large work into reviewable chunks (web, API, mobile, infra) instead of one mega-prompt.
+- Prefer `workflow_dispatch` or path-filtered CI when validating unrelated areas.
+
+## Models
+- Default/fast models for lint fixes, config tweaks, and small diffs.
+- Stronger models for RAG/AI logic, cross-app refactors, or ambiguous production failures.

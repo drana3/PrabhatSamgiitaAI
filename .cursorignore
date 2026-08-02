@@ -1,0 +1,22 @@
+# Keep heavy/generated trees out of Cursor indexing to cut token use.
+node_modules/
+apps/mobile/node_modules/
+apps/web/.next/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/api/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+coverage/
+dist/
+build/
+.terraform/
+*.tfstate
+*.tfstate.*
+data/generated/cache/
+apps/mobile/.expo/
+apps/mobile/dist/
+package-lock.json
+apps/mobile/package-lock.json
