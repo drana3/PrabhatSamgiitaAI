@@ -1,7 +1,9 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 
 import { FavoriteSongButton } from "@/components/favorite-song-button"
+import { LoadingIndicator } from "@/components/loading-indicator"
 import { HarmoniumPractice } from "@/components/harmonium-practice"
 import { HashLanding } from "@/components/hash-landing"
 import { AudioRendition } from "@/components/audio-rendition"
@@ -20,7 +22,8 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   const song = await fetchSong(Number(number))
   if (!song) notFound()
   const notation = await fetchNotation(song.number)
-  const localized = language !== "en" ? await fetchSongLocalization(song.number, localeLabel(language)) : null
+  const shouldFetchLocalization = language !== "en" && !(language === "hi" && song.hindi_meaning)
+  const localized = shouldFetchLocalization ? await fetchSongLocalization(song.number, localeLabel(language)) : null
   const audio = song.media.filter((item) => item.kind === "audio")
   const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
   const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
@@ -63,7 +66,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           <div className={`grid gap-7 ${hasLyrics && hasMeaning ? "xl:grid-cols-2" : "max-w-4xl"}`}>
             {hasLyrics ? <section id="lyrics" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="eyebrow">Lyrics</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2></div>{audio.length ? <div id="listen" className="scroll-mt-28 sm:max-w-xs"><AudioRendition url={audio[0].url} title={audio[0].title} provider={audio[0].provider} compact /></div> : null}</div><p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">{lyrics}</p>{song.lyrics_original?.trim() && song.transliteration?.trim() ? <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4"><summary className="cursor-pointer text-sm font-semibold text-gold-700">Roman transliteration</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{song.transliteration.trim()}</p></details> : null}{audio.length > 1 ? <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4"><summary className="cursor-pointer text-sm font-semibold text-gold-700">More recordings ({Math.min(audio.length - 1, 4)})</summary><div className="mt-4 space-y-4">{audio.slice(1, 5).map((item) => <AudioRendition key={item.url} url={item.url} title={item.title} provider={item.provider} />)}</div></details> : null}</section> : null}
 
-            {hasMeaning ? <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="eyebrow">Meaning</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Understand the song</h2><p className="mt-2 text-xs leading-5 text-stone-500">Choose a language for an AI-assisted translation grounded in this song.</p></div><SongLanguageSwitcher selectedLanguage={language} /></div>{language !== "en" && selectedMeaning ? <MeaningBlock label={`${localeLabel(language)} meaning`} value={selectedMeaning} /> : null}<MeaningBlock label="English" value={song.english_meaning} />{language !== "hi" && !song.english_meaning ? <MeaningBlock label="हिन्दी" value={song.hindi_meaning} /> : null}</section> : null}
+            {hasMeaning ? <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="eyebrow">Meaning</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Understand the song</h2><p className="mt-2 text-xs leading-5 text-stone-500">Choose a language for an AI-assisted translation grounded in this song.</p></div><Suspense fallback={<div className="flex justify-end py-2"><LoadingIndicator label="Loading languages" compact /></div>}><SongLanguageSwitcher selectedLanguage={language} /></Suspense></div>{language !== "en" && selectedMeaning ? <MeaningBlock label={`${localeLabel(language)} meaning`} value={selectedMeaning} /> : null}<MeaningBlock label="English" value={song.english_meaning} />{language !== "hi" && !song.english_meaning ? <MeaningBlock label="हिन्दी" value={song.hindi_meaning} /> : null}</section> : null}
           </div>
 
           {hasNotation ? (

@@ -1,0 +1,57 @@
+{
+  "cli": {
+    "version": ">= 13.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
+      }
+    },
+    "preview-android": {
+      "extends": "preview",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview-ios": {
+      "extends": "preview",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview-ios-simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "production": {
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {
+        "appleId": "${APPLE_ID}",
+        "ascAppId": "${APPLE_APP_STORE_CONNECT_APP_ID}",
+        "appleTeamId": "${APPLE_TEAM_ID}"
+      }
+    }
+  }
+}

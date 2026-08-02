@@ -1,0 +1,124 @@
+name: Mobile preview build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - "packages/core/**"
+      - ".github/workflows/mobile-preview.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-preview
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            profile: preview-android
+            label: Android APK
+            artifact_name: prabhat-samgiita-ai-android-preview
+            output_file: prabhat-samgiita-ai-preview.apk
+          - platform: ios
+            profile: preview-ios-simulator
+            label: iOS Simulator
+            artifact_name: prabhat-samgiita-ai-ios-simulator
+            output_file: prabhat-samgiita-ai-ios-simulator.tar.gz
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Build with EAS
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add EXPO_TOKEN to GitHub repository secrets (expo.dev/settings/access-tokens)."
+            exit 1
+          fi
+          eas build \
+            --platform "${{ matrix.platform }}" \
+            --profile "${{ matrix.profile }}" \
+            --non-interactive \
+            --wait
+
+      - name: Resolve download URL
+        id: artifact
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          URL="$(eas build:list --platform "${{ matrix.platform }}" --limit 1 --json --non-interactive | node -e "
+            const rows = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+            const build = rows[0];
+            const url = build?.artifacts?.buildUrl || build?.artifacts?.applicationArchiveUrl;
+            if (!url) process.exit(1);
+            process.stdout.write(url);
+          ")"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Download URL: $URL"
+
+      - name: Download build artifact
+        working-directory: apps/mobile
+        run: curl --fail --location --output "${{ matrix.output_file }}" "${{ steps.artifact.outputs.url }}"
+
+      - name: Upload installable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: apps/mobile/${{ matrix.output_file }}
+          retention-days: 90
+
+  summary:
+    name: Install instructions
+    runs-on: ubuntu-latest
+    needs: build
+    if: always() && needs.build.result == 'success'
+    steps:
+      - name: Publish install instructions
+        run: |
+          {
+            echo "## Mobile preview builds"
+            echo ""
+            echo "### Android (real devices, no Play Store fee)"
+            echo "Download **prabhat-samgiita-ai-android-preview** from this workflow run."
+            echo "Share the \`.apk\` via Drive/WhatsApp/USB. Users enable *Install unknown apps* once."
+            echo ""
+            echo "### iOS Simulator (Mac developers / QA)"
+            echo "Download **prabhat-samgiita-ai-ios-simulator** (\`.tar.gz\`)."
+            echo "Extract, then drag the \`.app\` into an Xcode iOS Simulator."
+            echo ""
+            echo "### iPhone / iPad users without Apple Developer (\$0)"
+            echo "Safari → [Prabhat Samgiita web app](https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io) → **Add to Home Screen**."
+            echo ""
+            echo "### iOS on real devices (requires Apple Developer \$99/yr)"
+            echo "Run locally: \`cd apps/mobile && eas build --platform ios --profile preview-ios\`"
+            echo "Then distribute via TestFlight or EAS internal install link."
+          } >> "$GITHUB_STEP_SUMMARY"

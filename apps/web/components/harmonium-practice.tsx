@@ -178,7 +178,7 @@ export function HarmoniumPractice({
               ))}
             </div>
           )}
-          <PracticeCoach notation={notation} />
+          <PracticeCoach notation={notation} lyricLines={songLyricLines} />
         </div>
       ) : (
         <div className="border-t border-gold-500/20 p-5 sm:p-6">

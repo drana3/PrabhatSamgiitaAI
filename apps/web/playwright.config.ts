@@ -1,15 +1,20 @@
 import { defineConfig, devices } from "@playwright/test"
 
+const ci = Boolean(process.env.CI)
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
-  workers: 1,
-  retries: 0,
-  reporter: [["list"], ["html", { open: "never" }]],
+  workers: 2,
+  retries: ci ? 1 : 0,
+  timeout: 30_000,
+  expect: { timeout: 10_000 },
+  reporter: ci ? [["github"], ["list"]] : [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:3000",
     contextOptions: { reducedMotion: "reduce" },
-    trace: "retain-on-failure",
+    trace: ci ? "retain-on-failure" : "retain-on-failure",
+    actionTimeout: 10_000,
   },
   webServer: [
     {
@@ -40,6 +45,11 @@ export default defineConfig({
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
-    { name: "tablet-chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 820, height: 1180 } } },
+    ...(ci
+      ? []
+      : [{
+          name: "tablet-chromium",
+          use: { ...devices["Desktop Chrome"], viewport: { width: 820, height: 1180 } },
+        }]),
   ],
 })

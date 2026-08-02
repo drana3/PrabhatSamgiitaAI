@@ -1,0 +1,23 @@
+{
+  "name": "Prabhat Samgiita AI",
+  "short_name": "Prabhat AI",
+  "description": "Search lyrics, read meanings, listen, practise harmonium, and ask about Prabhat Samgiita.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffdf8",
+  "theme_color": "#092d56",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/brand/prabhat-samgiita-emblem.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

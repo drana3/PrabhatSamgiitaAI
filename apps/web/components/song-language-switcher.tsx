@@ -70,7 +70,10 @@ export function SongLanguageSwitcher({
               next.set("language", value)
             }
             const query = next.toString()
-            go(`${pathname}${query ? `?${query}` : ""}`)
+            const url = `${pathname}${query ? `?${query}` : ""}`
+            window.history.replaceState(window.history.state, "", url)
+            go(url)
+            router.refresh()
           }}
           aria-label="Reading language"
           className="min-w-0 w-full rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70"

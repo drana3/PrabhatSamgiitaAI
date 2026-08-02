@@ -1,0 +1,39 @@
+{
+  "name": "prabhat-samgiita-ai-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "lint": "expo lint",
+    "build:preview:android": "eas build --platform android --profile preview-android",
+    "build:preview:ios": "eas build --platform ios --profile preview-ios",
+    "build:preview:ios-simulator": "eas build --platform ios --profile preview-ios-simulator",
+    "build:preview:all": "eas build --platform android --profile preview-android && eas build --platform ios --profile preview-ios-simulator",
+    "build:production:android": "eas build --platform android --profile production",
+    "build:production:ios": "eas build --platform ios --profile production",
+    "build:production:all": "eas build --platform all --profile production"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.4",
+    "@prabhat/core": "*",
+    "expo": "~52.0.47",
+    "expo-constants": "~17.0.8",
+    "expo-font": "~13.0.4",
+    "expo-linear-gradient": "~14.0.2",
+    "expo-linking": "~7.0.5",
+    "expo-router": "~4.0.21",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.4.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/react": "~18.3.12",
+    "typescript": "~5.6.3"
+  }
+}

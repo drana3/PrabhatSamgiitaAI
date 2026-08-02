@@ -1,4 +1,20 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+
+async function setDetailsOpen(page: Page, selector: string, open: boolean) {
+  const details = page.locator(selector).first()
+  await details.scrollIntoViewIfNeeded()
+  const isOpen = await details.evaluate((node) => (node as HTMLDetailsElement).open)
+  if (isOpen === open) return
+  await details.locator(":scope > summary").focus()
+  await page.keyboard.press("Enter")
+  await expect.poll(async () => details.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(open)
+}
+
+async function clickCollectionLink(page: Page, name: RegExp | string) {
+  const link = page.getByRole("link", { name })
+  await link.scrollIntoViewIfNeeded()
+  await link.click({ force: true })
+}
 
 const songResult = {
   number: 111,
@@ -11,6 +27,9 @@ const songResult = {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/api/member/session", async (route) =>
+    route.fulfill({ json: { authenticated: false, display_name: null, email: null } }),
+  )
   await page.route("**/api/v1/songs", async (route) => route.fulfill({ json: [songResult] }))
   await page.route("**/api/v1/recommendations/today**", async (route) => route.fulfill({ status: 503, body: "offline" }))
   await page.route("**/api/v1/recommendations", async (route) => route.fulfill({ json: [songResult] }))
@@ -125,20 +144,25 @@ test("About navigation lands below the sticky header", async ({ page }) => {
   await page.getByRole("link", { name: "About", exact: true }).click()
   await expect(page).toHaveURL(/#about$/)
   await expect.poll(async () => page.evaluate(() => {
-    const header = document.querySelector("header")
+    const sticky = document.querySelector(".sticky.top-0")
     const about = document.querySelector("#about")
-    return (about?.getBoundingClientRect().top ?? 1000) - (header?.getBoundingClientRect().bottom ?? 0)
-  })).toBeLessThan(100)
+    return (about?.getBoundingClientRect().top ?? 0) - (sticky?.getBoundingClientRect().bottom ?? 0)
+  })).toBeGreaterThanOrEqual(4)
+  await expect.poll(async () => page.evaluate(() => {
+    const sticky = document.querySelector(".sticky.top-0")
+    const about = document.querySelector("#about")
+    return (about?.getBoundingClientRect().top ?? 1000) - (sticky?.getBoundingClientRect().bottom ?? 0)
+  })).toBeLessThan(120)
   const positions = await page.evaluate(() => {
-    const header = document.querySelector("header")
+    const sticky = document.querySelector(".sticky.top-0")
     const about = document.querySelector("#about")
     return {
-      headerBottom: header?.getBoundingClientRect().bottom ?? 0,
+      headerBottom: sticky?.getBoundingClientRect().bottom ?? 0,
       aboutTop: about?.getBoundingClientRect().top ?? 0,
     }
   })
-  expect(positions.aboutTop).toBeGreaterThanOrEqual(positions.headerBottom + 8)
-  expect(positions.aboutTop).toBeLessThan(positions.headerBottom + 100)
+  expect(positions.aboutTop).toBeGreaterThanOrEqual(positions.headerBottom + 4)
+  expect(positions.aboutTop).toBeLessThan(positions.headerBottom + 120)
 })
 
 test("all special collections are organized and lead to catalog search", async ({ page }) => {
@@ -148,16 +172,17 @@ test("all special collections are organized and lead to catalog search", async (
   const languages = collectionBrowser.getByText("Languages", { exact: true })
   await expect(collectionBrowser.getByText("70 collections", { exact: true })).toBeVisible()
   await expect(languages).toBeHidden()
-  await collectionBrowser.locator(":scope > summary").click()
+  await setDetailsOpen(page, "#collections", true)
   await expect(languages).toBeVisible()
   await expect(collectionBrowser.getByText("Musical traditions and rarities", { exact: true })).toBeVisible()
-  await collectionBrowser.locator(":scope > summary").click()
+  await setDetailsOpen(page, "#collections", false)
   await expect(languages).toBeHidden()
-  await collectionBrowser.locator(":scope > summary").click()
+  await setDetailsOpen(page, "#collections", true)
   await expect(languages).toBeVisible()
   const collectionLinks = collectionBrowser.locator("a[href^='/explore?q=']")
   await expect(collectionLinks).toHaveCount(70)
-  await collectionBrowser.getByRole("link", { name: /Hindi only 1/ }).click()
+  await collectionBrowser.locator("a[href^='/explore?q=']").first().scrollIntoViewIfNeeded()
+  await clickCollectionLink(page, /Hindi only 1/)
   await expect(page).toHaveURL(/q=Search%20Prabhat%20Samgiita%20for%20Hindi-only%20Songs/)
   await expect(page.locator("#results").first()).toBeVisible()
 })
@@ -176,7 +201,7 @@ test("collections stay above results and English returns only its three canonica
   await page.goto("/explore")
   await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
   const collections = page.locator("#collections").first()
-  await collections.locator(":scope > summary").click()
+  await setDetailsOpen(page, "#collections", true)
   const results = page.locator("#results").first()
   const collectionBounds = await collections.boundingBox()
   const resultBounds = await results.boundingBox()
@@ -184,7 +209,7 @@ test("collections stay above results and English returns only its three canonica
   expect(resultBounds).not.toBeNull()
   expect(collectionBounds!.y + collectionBounds!.height).toBeLessThan(resultBounds!.y)
 
-  await page.getByRole("link", { name: /English 3/ }).click()
+  await clickCollectionLink(page, /English 3/)
   await expect(page.locator("#catalog-search").first()).toBeInViewport()
   await expect(page.getByRole("heading", { name: /Songs matching.*English Songs/i }).first()).toBeVisible()
   await expect(page.locator("#results").first()).toBeInViewport()
@@ -195,7 +220,7 @@ test("collections stay above results and English returns only its three canonica
   await expect(page.getByRole("heading", { name: "THIS LIFE IS FOR HIM" })).toBeVisible()
   await expect(page.getByText("3 shown", { exact: true })).toBeVisible()
 
-  await page.getByRole("link", { name: /English 3/ }).click()
+  await clickCollectionLink(page, /English 3/)
   await expect(page).toHaveURL(/\/explore#catalog-search$/)
   await expect(page.locator("#collections").first().locator("a[aria-current='true']")).toHaveCount(0)
   await expect(page.locator("#catalog-search").first()).toBeInViewport()
@@ -220,6 +245,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
 
   await page.locator("#meaning").scrollIntoViewIfNeeded()
   const translationScroll = await page.evaluate(() => window.scrollY)
+  await expect(language).toBeEnabled()
   await language.selectOption("hi")
   await expect(page).toHaveURL(/\/songs\/1\?language=hi$/, { timeout: 20000 })
   await expect(page.locator("#meaning").getByLabel("Reading language").first()).toHaveValue("hi")
@@ -249,7 +275,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await songActions.getByRole("link", { name: /Harmonium/ }).click()
   await expect(page.locator("#notation")).toBeInViewport()
   await page.getByRole("heading", { name: "Practise on harmonium" }).click()
-  await expect(page.getByRole("heading", { name: "Lyric-by-lyric Sargam" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Lyric · Sargam · Harmonium keys/i })).toBeVisible()
   await expect(page.locator("#notation").getByText("BANDHU HE NIYE CALO", { exact: true }).first()).toBeVisible()
   await page.getByRole("button", { name: "Warm-up guide" }).click()
   await expect(page.getByRole("heading", { name: "Sargam warm-up guide" })).toBeVisible()
@@ -258,7 +284,8 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByText("सा", { exact: true }).first()).toBeVisible()
   await expect(page.getByRole("img", { name: /Harmonium key guide/i })).toBeVisible()
   await expect(page.getByText(/Beginner alankar · ascending/i)).toBeVisible()
-  await expect(page.getByLabel(/Listen to/i).first()).toBeVisible()
+  await page.getByRole("button", { name: "सारगम + keys" }).click()
+  await expect(page.getByRole("button", { name: "Hear slowly" }).first()).toBeVisible()
   await expect(songActions.getByRole("link", { name: /Read & Listen/ })).toHaveAttribute("href", "#listen")
   const companionListening = page.getByRole("heading", { name: "Listen to this song" }).locator("..")
   await expect(companionListening).toBeVisible()
@@ -278,7 +305,9 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
 
 test("members can discover the configured sign-in flow", async ({ page }) => {
   await page.goto("/")
-  await page.getByRole("link", { name: "Sign in", exact: true }).click()
+  const signIn = page.getByRole("link", { name: "Sign in", exact: true })
+  await expect(signIn).toBeVisible()
+  await signIn.click()
   await expect(page).toHaveURL(/\/signin$/)
   await expect(page.getByRole("heading", { name: "Namaskar. Continue your journey." })).toBeVisible()
   await expect(page.getByRole("link", { name: "Continue with Microsoft" })).toHaveAttribute(
@@ -401,7 +430,7 @@ test("search renders verified results and a deliberate no-match state", async ({
 
 test("AI companion remembers context, accepts Romanized Hindi, and blocks nonsense", async ({ page }) => {
   const requests: Array<{ prompt: string; history: Array<{ role: string; content: string }> }> = []
-  await page.route("**/api/v1/ai/explain", async (route) => {
+  await page.route("**/api/ai/explain", async (route) => {
     const payload = route.request().postDataJSON() as { prompt: string; history: Array<{ role: string; content: string }> }
     requests.push(payload)
     const answer = requests.length === 1

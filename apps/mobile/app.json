@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Prabhat Samgiita AI",
+    "slug": "prabhat-samgiita-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "prabhatai",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#092d56"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "net.prabhatasamgiita.ai",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#092d56"
+      },
+      "package": "net.prabhatasamgiita.ai",
+      "versionCode": 1
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8000",
+      "eas": {
+        "projectId": "4a49bf45-0d4a-4362-bbcf-35851d255cc5"
+      }
+    }
+  }
+}
