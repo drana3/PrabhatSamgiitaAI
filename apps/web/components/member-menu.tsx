@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { memberFirstName } from "@/lib/member"
+import { clearSongChatStorage } from "@/lib/chat"
 
 export function MemberMenu() {
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
@@ -62,7 +63,7 @@ export function MemberMenu() {
           <a
             href="/.auth/logout?post_logout_redirect_uri=/"
             role="menuitem"
-            onClick={() => { setOpen(false); void refresh() }}
+            onClick={() => { clearSongChatStorage(); setOpen(false); void refresh() }}
             className="block px-4 py-3 text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
           >
             Sign out

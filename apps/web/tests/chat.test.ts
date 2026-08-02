@@ -1,10 +1,13 @@
 import {
+  clearSongChatStorage,
   conversationContextMs,
   followUpQuestions,
   followUpsFromMessages,
   formatAssistantMessage,
+  legacySongChatStorageKey,
   recentConversation,
   restoreConversation,
+  songChatStorageKey,
   starterPrompts,
 } from "@/lib/chat"
 import { detectChatLanguage } from "@/lib/chat-language"
@@ -72,5 +75,23 @@ describe("AI companion conversation contract", () => {
     expect(history).toHaveLength(12)
     expect(history[0].content).toBe("turn 8")
     expect(history[11].content).toBe("turn 19")
+  })
+
+  it("keeps guest and member chat storage separate and clears both on sign out", () => {
+    window.sessionStorage.setItem(songChatStorageKey(3, true), JSON.stringify([
+      { role: "user", text: "member turn", createdAt: Date.now() },
+    ]))
+    window.sessionStorage.setItem(songChatStorageKey(3, false), JSON.stringify([
+      { role: "user", text: "guest turn", createdAt: Date.now() },
+    ]))
+    window.sessionStorage.setItem(legacySongChatStorageKey(3), JSON.stringify([
+      { role: "user", text: "legacy turn", createdAt: Date.now() },
+    ]))
+
+    clearSongChatStorage()
+
+    expect(window.sessionStorage.getItem(songChatStorageKey(3, true))).toBeNull()
+    expect(window.sessionStorage.getItem(songChatStorageKey(3, false))).toBeNull()
+    expect(window.sessionStorage.getItem(legacySongChatStorageKey(3))).toBeNull()
   })
 })

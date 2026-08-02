@@ -7,7 +7,7 @@ import { streamExplanation } from "@/lib/explain"
 
 vi.mock("@/lib/explain", () => ({ streamExplanation: vi.fn() }))
 vi.mock("@/components/member-provider", () => ({
-  useMember: () => ({ loading: false, session: { authenticated: false } }),
+  useMember: () => memberState.value,
 }))
 vi.mock("@/lib/member", () => ({
   fetchMemberChat: vi.fn().mockResolvedValue({ summary: "", recent_turns: [] }),
@@ -15,10 +15,14 @@ vi.mock("@/lib/member", () => ({
 }))
 
 const mockedStream = vi.mocked(streamExplanation)
+const memberState = vi.hoisted(() => ({
+  value: { loading: false, session: { authenticated: false } },
+}))
 
 describe("Prabhat Samgiita AI companion", () => {
   beforeEach(() => {
     mockedStream.mockReset()
+    memberState.value = { loading: false, session: { authenticated: false } }
     window.sessionStorage.clear()
   })
 
@@ -69,6 +73,26 @@ describe("Prabhat Samgiita AI companion", () => {
     )
     expect(screen.getByText("Would you like to explore next?")).toBeVisible()
     expect(screen.getByText("Would you like to explore next?").parentElement?.querySelectorAll("button").length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("does not restore a signed-in conversation after sign out", async () => {
+    const now = Date.now()
+    window.sessionStorage.setItem("prabhat-song-chat-member-135", JSON.stringify([
+      { role: "user", text: "Explain line by line", createdAt: now },
+      { role: "assistant", text: "1. Lyric: old answer", createdAt: now + 1 },
+    ]))
+
+    memberState.value = { loading: false, session: { authenticated: true } }
+    const { rerender } = render(<StreamExplanation songNumber={135} />)
+    expect(await screen.findByText(/Explain line by line/i)).toBeVisible()
+
+    memberState.value = { loading: false, session: { authenticated: false } }
+    rerender(<StreamExplanation songNumber={135} />)
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Explain line by line/i)).not.toBeInTheDocument()
+    })
+    expect(screen.getByText("Try asking")).toBeVisible()
   })
 
   it("sends prior user and assistant turns with the next question", async () => {

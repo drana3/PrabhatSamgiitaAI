@@ -5,12 +5,15 @@ import { useEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import {
+  clearSongChatStorage,
   followUpsFromMessages,
   formatAssistantMessage,
   hasUserMessages,
+  legacySongChatStorageKey,
   maximumConversationTurns,
   recentConversation,
   restoreConversation,
+  songChatStorageKey,
   starterPrompts,
 } from "@/lib/chat"
 import type { ChatMessage } from "@/lib/chat"
@@ -37,19 +40,27 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
   const [messages, setMessages] = useState<ChatMessage[]>([greeting()])
   const [profileSummary, setProfileSummary] = useState("")
   const conversationEnd = useRef<HTMLDivElement | null>(null)
-  const storageKey = `prabhat-song-chat-${songNumber}`
+  const storageKey = songChatStorageKey(songNumber, session.authenticated)
+
+  function resetConversation() {
+    clearSongChatStorage()
+    setMessages([greeting()])
+    setQuery(prompt ?? "")
+    setInputError(null)
+  }
 
   useEffect(() => {
     if (memberLoading) return
     setHydrated(false)
     let restored: ChatMessage[] = []
     try {
+      window.sessionStorage.removeItem(legacySongChatStorageKey(songNumber))
       restored = restoreConversation(window.sessionStorage.getItem(storageKey))
     } catch {
       restored = []
     }
     if (!session.authenticated) {
-      setMessages([greeting(), ...restored])
+      setMessages(restored.length ? [greeting(), ...restored] : [greeting()])
       setProfileSummary("")
       setHydrated(true)
       return
@@ -165,6 +176,15 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
             <h2 className="mt-2 font-serif text-3xl leading-tight text-navy-950 sm:text-[2rem]">Know more about this song</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Ask about meaning, imagery, spiritual context, pronunciation, or related songs in the language that feels natural to you.</p>
             <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Signed in · grounded answers first · 50 deeper AI questions/day" : "Guest · grounded answers first · 15 deeper AI questions/day"}</p>
+            {hasUserMessages(messages) ? (
+              <button
+                type="button"
+                onClick={resetConversation}
+                className="mt-3 rounded-full border border-navy-900/10 bg-white px-3 py-1.5 text-[11px] font-semibold text-navy-950 transition hover:border-gold-500/40"
+              >
+                Start fresh
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

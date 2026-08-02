@@ -20,10 +20,13 @@ describe("authenticated audio controls", () => {
     expect(screen.getByText("Verified recording")).toBeInTheDocument()
   })
 
-  it("shows a compact play button for the lyrics header player", () => {
+  it("shows compact transport controls for the lyrics header player", () => {
     render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" compact />)
 
     expect(screen.getByRole("button", { name: /Play Song 8/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Rewind 10 seconds/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Forward 10 seconds/i })).toBeInTheDocument()
+    expect(screen.getByRole("slider", { name: /Seek through Song 8/i })).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
   })
 

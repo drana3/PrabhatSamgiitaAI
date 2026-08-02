@@ -10,6 +10,26 @@ export type ChatMessage = {
 export const conversationContextMs = 10 * 60 * 1000
 export const maximumConversationTurns = 12
 
+export function songChatStorageKey(songNumber: number, authenticated: boolean) {
+  return `prabhat-song-chat-${authenticated ? "member" : "guest"}-${songNumber}`
+}
+
+export function legacySongChatStorageKey(songNumber: number) {
+  return `prabhat-song-chat-${songNumber}`
+}
+
+export function clearSongChatStorage() {
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (key.startsWith("prabhat-song-chat-")) {
+        window.sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Storage may be unavailable in private browsing modes.
+  }
+}
+
 export function formatAssistantMessage(text: string): string {
   return text
     .replace(/\nSources:\n[\s\S]*$/i, "")

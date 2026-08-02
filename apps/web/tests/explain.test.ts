@@ -70,6 +70,21 @@ describe("streaming song companion", () => {
     ])
   })
 
+  it("flushes the final SSE frame when the stream ends without a trailing blank line", async () => {
+    const encoder = new TextEncoder()
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode("data: 1. Lyric: first line\n"))
+        controller.enqueue(encoder.encode("data: Meaning: first meaning"))
+        controller.close()
+      },
+    })
+    fetchMock.mockResolvedValue(new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } }))
+    const chunks: string[] = []
+    await streamExplanation(3, (chunk) => chunks.push(chunk), "Explain the meaning line by line")
+    expect(chunks).toEqual(["1. Lyric: first line\nMeaning: first meaning"])
+  })
+
   it("rejects HTTP failures instead of showing an empty assistant bubble", async () => {
     fetchMock.mockResolvedValue(new Response("unavailable", { status: 503 }))
     await expect(streamExplanation(1, () => undefined, "Explain this song")).rejects.toThrow("temporarily unavailable")

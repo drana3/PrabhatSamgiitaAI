@@ -65,4 +65,13 @@ export async function streamExplanation(
       if (payload) onChunk(payload)
     }
   }
+  buffer += decoder.decode()
+  if (buffer.trim()) {
+    const payload = buffer
+      .split("\n")
+      .filter((entry) => entry.startsWith("data: "))
+      .map((entry) => entry.slice(6))
+      .join("\n")
+    if (payload) onChunk(payload)
+  }
 }
