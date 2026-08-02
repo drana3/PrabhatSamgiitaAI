@@ -81,18 +81,48 @@ export async function fetchMemberChat(songNumber?: number) {
   }
 }
 
-export async function addFavoriteSong(songNumber: number): Promise<number[] | null> {
-  const response = await fetch("/api/member/favorites", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ song_number: songNumber }),
-  })
-  if (!response.ok) return null
-  return await response.json() as number[]
+export type FavoriteUpdateResult =
+  | { ok: true; favorites: number[] }
+  | { ok: false; error: string }
+
+async function readFavoriteUpdate(response: Response): Promise<FavoriteUpdateResult> {
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    const detail = body && typeof body === "object" && typeof (body as { detail?: unknown }).detail === "string"
+      ? (body as { detail: string }).detail
+      : "Could not update your playlist."
+    return { ok: false, error: detail }
+  }
+  if (!Array.isArray(body) || body.some((value) => typeof value !== "number")) {
+    return { ok: false, error: "Could not update your playlist." }
+  }
+  return { ok: true, favorites: body }
 }
 
-export async function removeFavoriteSong(songNumber: number): Promise<number[] | null> {
-  const response = await fetch(`/api/member/favorites/${songNumber}`, { method: "DELETE" })
-  if (!response.ok) return null
-  return await response.json() as number[]
+export async function addFavoriteSong(songNumber: number): Promise<FavoriteUpdateResult> {
+  try {
+    const response = await fetch("/api/member/favorites", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ song_number: songNumber }),
+    })
+    return await readFavoriteUpdate(response)
+  } catch {
+    return { ok: false, error: "Could not reach playlist services. Please try again." }
+  }
+}
+
+export async function removeFavoriteSong(songNumber: number): Promise<FavoriteUpdateResult> {
+  try {
+    const response = await fetch(`/api/member/favorites/${songNumber}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+    return await readFavoriteUpdate(response)
+  } catch {
+    return { ok: false, error: "Could not reach playlist services. Please try again." }
+  }
 }

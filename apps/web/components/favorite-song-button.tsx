@@ -35,22 +35,31 @@ export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
     )
   }
 
-  const saved = session.favorite_song_numbers.includes(songNumber)
+  const saved = (session.favorite_song_numbers ?? []).includes(songNumber)
 
   async function toggleFavorite() {
     setNotice(null)
     setPending(true)
-    const favorites = saved
-      ? await removeFavoriteSong(songNumber)
-      : await addFavoriteSong(songNumber)
-    setPending(false)
-    if (!favorites) {
-      setNotice("Could not update your playlist.")
-      return
+    try {
+      const result = saved
+        ? await removeFavoriteSong(songNumber)
+        : await addFavoriteSong(songNumber)
+      if (!result.ok) {
+        setNotice(
+          result.error === "Sign in is required" || result.error === "Member proxy authentication failed"
+            ? "Please sign in again to update your playlist."
+            : result.error === "Member services are not configured"
+              ? "Playlist saving is temporarily unavailable."
+              : result.error,
+        )
+        return
+      }
+      await refresh({ silent: true })
+      setNotice(saved ? "Removed from your playlist." : "Saved to your playlist.")
+      window.setTimeout(() => setNotice(null), 2200)
+    } finally {
+      setPending(false)
     }
-    await refresh()
-    setNotice(saved ? "Removed from your playlist." : "Saved to your playlist.")
-    window.setTimeout(() => setNotice(null), 2200)
   }
 
   return (

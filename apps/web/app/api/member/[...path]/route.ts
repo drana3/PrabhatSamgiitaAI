@@ -66,9 +66,18 @@ async function forward(request: NextRequest, segments: string[]) {
     body,
     cache: "no-store",
   })
-  if (root === "session" && !response.ok) {
+  // Do not synthesize a signed-in session when the member API rejects auth.
+  // A fallback profile makes Save song / chat memory look available while
+  // every write then fails with "Could not update your playlist."
+  if (root === "session" && response.status >= 500) {
     const fallback = parseClientPrincipalProfile(principal)
-    if (fallback) return sessionResponse(fallback)
+    if (fallback) {
+      return sessionResponse({
+        ...fallback,
+        favorite_song_numbers: [],
+        personalization_enabled: false,
+      })
+    }
   }
   if (response.status === 204) {
     return new NextResponse(null, {
