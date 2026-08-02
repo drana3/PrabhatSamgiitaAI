@@ -26,12 +26,20 @@ export function memberFirstName(displayName: string): string {
 }
 
 export async function fetchMemberSession(): Promise<MemberSession> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 8000)
   try {
-    const response = await fetch("/api/member/session", { credentials: "same-origin", cache: "no-store" })
+    const response = await fetch("/api/member/session", {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    })
     if (!response.ok) return { authenticated: false }
     return await response.json() as MemberSession
   } catch {
     return { authenticated: false }
+  } finally {
+    window.clearTimeout(timeout)
   }
 }
 

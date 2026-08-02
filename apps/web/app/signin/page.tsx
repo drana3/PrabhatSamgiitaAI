@@ -1,10 +1,11 @@
+import Link from "next/link"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
-import { SignInPanel } from "@/components/sign-in-panel"
+import { SignInRedirect } from "@/components/sign-in-redirect"
 import { SiteHeader } from "@/components/site-header"
 import { resolveClientPrincipal } from "@/lib/azure-principal"
-import { safeSignInNextPath } from "@/lib/sign-in"
+import { microsoftSignInHref, safeSignInNextPath } from "@/lib/sign-in"
 
 export const dynamic = "force-dynamic"
 
@@ -30,7 +31,24 @@ export default async function SignInPage({
           <p className="mt-4 leading-7 text-stone-600">
             Sign in to save songs, create playlists, download available recordings, keep practice history, and receive guidance shaped by your interests.
           </p>
-          <SignInPanel authEnabled={authEnabled} next={next} />
+          <SignInRedirect next={next} />
+          {authEnabled ? (
+            <div className="mt-8 grid gap-3">
+              <a href={microsoftSignInHref(next)} className="outline-button justify-center py-3.5">
+                Continue with Microsoft
+              </a>
+            </div>
+          ) : (
+            <p className="mt-8 rounded-xl border border-gold-500/25 bg-gold-50 px-4 py-3 text-sm leading-6 text-navy-950">
+              Member sign-in is being prepared. You can continue using search, lyrics, meanings, listening, and AI guidance without an account.
+            </p>
+          )}
+          <p className="mt-6 text-xs leading-5 text-stone-500">
+            Essential search, lyrics, meaning, listening, and basic AI guidance remain available without signing in.
+          </p>
+          <Link href="/" className="mt-5 inline-flex text-sm font-semibold text-gold-700">
+            Continue without an account →
+          </Link>
         </div>
       </section>
     </main>

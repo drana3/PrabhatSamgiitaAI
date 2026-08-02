@@ -17,9 +17,13 @@ describe("safeSignInNextPath", () => {
 })
 
 describe("microsoftSignInHref", () => {
-  it("builds the Azure login URL with the post-login destination", () => {
-    expect(microsoftSignInHref("/account")).toBe("/.auth/login/aad?post_login_redirect_uri=%2Faccount")
-    expect(microsoftSignInHref(undefined)).toBe("/.auth/login/aad?post_login_redirect_uri=%2F")
+  it("builds the Azure login URL with a post-login return through sign-in", () => {
+    expect(microsoftSignInHref("/account")).toBe(
+      "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3Fnext%3D%252Faccount",
+    )
+    expect(microsoftSignInHref(undefined)).toBe(
+      "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3Fnext%3D%252F",
+    )
   })
 
   it("builds sign-in links that return to the current page", () => {

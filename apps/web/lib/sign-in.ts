@@ -4,8 +4,9 @@ export function safeSignInNextPath(next: string | undefined) {
 }
 
 export function microsoftSignInHref(next: string | undefined) {
-  const destination = encodeURIComponent(safeSignInNextPath(next))
-  return `/.auth/login/aad?post_login_redirect_uri=${destination}`
+  const destination = safeSignInNextPath(next)
+  const returnTo = `/signin?next=${encodeURIComponent(destination)}`
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(returnTo)}`
 }
 
 export function signInHref(next?: string) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   buildClientPrincipal,
+  parseClientPrincipalProfile,
   resolveClientPrincipal,
 } from "@/lib/azure-principal"
 
@@ -34,5 +35,19 @@ describe("resolveClientPrincipal", () => {
       claims: Array<{ typ: string; val: string }>
     }
     expect(payload.claims.some((claim) => claim.typ === "email" && claim.val === "member@example.com")).toBe(true)
+  })
+
+  it("parses a principal blob into a member profile", () => {
+    const principal = buildClientPrincipal("user-oid-42", "member@example.com")
+    expect(parseClientPrincipalProfile(principal)).toEqual({
+      authenticated: true,
+      id: "aad:user-oid-42",
+      display_name: "member@example.com",
+      email: "member@example.com",
+      identity_provider: "aad",
+      personalization_enabled: true,
+      favorite_song_numbers: [],
+      is_admin: false,
+    })
   })
 })

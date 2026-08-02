@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { resolveClientPrincipal } from "@/lib/azure-principal"
+import { parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
 
 const allowedPaths = new Set([
   "session",
@@ -44,7 +44,13 @@ async function forward(request: NextRequest, segments: string[]) {
     return sessionResponse({ detail: "Sign in is required" }, 401)
   }
   const proxyKey = process.env.MEMBER_PROXY_KEY
-  if (!proxyKey) return sessionResponse({ detail: "Member services are not configured" }, 503)
+  if (!proxyKey) {
+    if (root === "session") {
+      const fallback = parseClientPrincipalProfile(principal)
+      if (fallback) return sessionResponse(fallback)
+    }
+    return sessionResponse({ detail: "Member services are not configured" }, 503)
+  }
 
   const incomingUrl = new URL(request.url)
   const target = new URL(`/api/v1/members/${segments.map(encodeURIComponent).join("/")}`, backendBase())
@@ -60,6 +66,10 @@ async function forward(request: NextRequest, segments: string[]) {
     body,
     cache: "no-store",
   })
+  if (root === "session" && !response.ok) {
+    const fallback = parseClientPrincipalProfile(principal)
+    if (fallback) return sessionResponse(fallback)
+  }
   if (response.status === 204) {
     return new NextResponse(null, {
       status: 204,

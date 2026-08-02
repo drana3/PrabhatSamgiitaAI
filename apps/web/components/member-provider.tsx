@@ -21,15 +21,18 @@ export function MemberProvider({ children }: { children: React.ReactNode }) {
 
   async function refresh() {
     setLoading(true)
-    const next = await fetchMemberSession()
-    const signedOut = previousAuth.current && !next.authenticated
-    const signedIn = !previousAuth.current && next.authenticated
-    if (signedOut || signedIn) {
-      clearSongChatStorage()
+    try {
+      const next = await fetchMemberSession()
+      const signedOut = previousAuth.current && !next.authenticated
+      const signedIn = !previousAuth.current && next.authenticated
+      if (signedOut || signedIn) {
+        clearSongChatStorage()
+      }
+      previousAuth.current = next.authenticated
+      setSession(next)
+    } finally {
+      setLoading(false)
     }
-    previousAuth.current = next.authenticated
-    setSession(next)
-    setLoading(false)
   }
 
   useEffect(() => { void refresh() }, [])

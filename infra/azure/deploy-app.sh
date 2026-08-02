@@ -186,6 +186,19 @@ az containerapp update \
     API_BASE_URL="https://${API_FQDN}" \
     MEMBER_PROXY_KEY=secretref:member-proxy-key >/dev/null
 
+WEB_REVISION="$(az containerapp revision list \
+  --name "$WEB_APP" \
+  --resource-group "$RG" \
+  --query '[0].name' \
+  -o tsv)"
+if [[ -n "$WEB_REVISION" ]]; then
+  az containerapp revision restart \
+    --name "$WEB_APP" \
+    --resource-group "$RG" \
+    --revision "$WEB_REVISION" >/dev/null
+fi
+sleep 15
+
 WEB_AUTH_READY=""
 if [[ "$AUTH_ENABLED" == "true" ]]; then
   for attempt in $(seq 1 45); do
