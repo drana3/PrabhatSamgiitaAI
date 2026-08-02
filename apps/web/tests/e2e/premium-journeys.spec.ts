@@ -229,6 +229,7 @@ test("collections stay above results and English returns only its three canonica
   const resultsAfterBounds = await page.locator("#results").first().boundingBox()
   expect(searchBounds!.y).toBeLessThan(resultsAfterBounds!.y)
   await expect(page.locator("#collections").first().locator("a[aria-current='true']")).toHaveCount(1)
+  await setDetailsOpen(page, "#collections", true)
   await expect(page.getByRole("link", { name: /English 3/ })).toHaveAttribute("href", "/explore#catalog-search")
   await expect(page.getByRole("heading", { name: "I love this tiny green island" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "WE LOVE THAT GREAT ENTITY" })).toBeVisible()

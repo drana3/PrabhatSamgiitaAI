@@ -55,6 +55,8 @@ export function SpecialCollections({
                         scrollToSectionId("catalog-search")
                         return
                       }
+                      const browser = event.currentTarget.closest("details#collections") as HTMLDetailsElement | null
+                      if (browser?.open) browser.open = false
                       void onSelect(prompt)
                     }}
                     className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold text-navy-950 transition hover:border-gold-500 hover:bg-gold-50 ${isActive ? "border-gold-600 bg-gold-100 shadow-sm" : "border-navy-900/10 bg-white"}`}

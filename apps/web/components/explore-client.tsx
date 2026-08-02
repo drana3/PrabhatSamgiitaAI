@@ -52,7 +52,14 @@ function beginSearchState(
   apply: () => void,
 ) {
   flushSync(apply)
+  // Mobile taps (and Playwright actionability) often keep the clicked control
+  // centered after the handler returns, so re-assert the search-bar scroll
+  // after the click gesture settles.
   scrollToSearchBar()
+  window.requestAnimationFrame(() => {
+    scrollToSearchBar()
+    window.setTimeout(scrollToSearchBar, 50)
+  })
 }
 
 export function ExploreClient({
