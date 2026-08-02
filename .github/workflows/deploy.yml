@@ -5,9 +5,12 @@ on:
     branches:
       - main
     paths-ignore:
-      # Docs and mobile-only pushes should not burn a full verify/E2E/Azure cycle.
+      # Docs, editor config, and mobile-only pushes should not burn a full
+      # verify/E2E/Azure cycle.
       - "docs/**"
       - "**.md"
+      - ".cursor/**"
+      - ".cursorignore"
       - "apps/mobile/**"
       - ".github/workflows/mobile-preview.yml"
   workflow_dispatch:
