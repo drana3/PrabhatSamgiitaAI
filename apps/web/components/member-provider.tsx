@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 
-import { clearSongChatStorage } from "@/lib/chat"
+import { clearGuestChatStorage } from "@/lib/chat"
 import { fetchMemberSession } from "@/lib/member"
 import type { MemberSession } from "@/lib/member"
 
@@ -27,7 +27,9 @@ export function MemberProvider({ children }: { children: React.ReactNode }) {
       const next = await fetchMemberSession()
       const signedOut = previousAuth.current && !next.authenticated
       if (signedOut) {
-        clearSongChatStorage()
+        // Keep member-scoped session cache so the same person can restore after
+        // signing back in on this tab; guest cache is always discarded.
+        clearGuestChatStorage()
       }
       previousAuth.current = next.authenticated
       setSession(next)

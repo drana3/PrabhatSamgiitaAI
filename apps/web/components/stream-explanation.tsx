@@ -7,8 +7,8 @@ import { LoadingIndicator } from "@/components/loading-indicator"
 import { VoiceQuestionButton } from "@/components/voice-question-button"
 import {
   chatMemoryTurnsForSave,
+  clearGuestChatStorage,
   clearMemberChatStorage,
-  clearSongChatStorage,
   followUpsFromMessages,
   formatAssistantMessage,
   hasUserMessages,
@@ -18,6 +18,7 @@ import {
   restoreConversation,
   songChatStorageKey,
   starterPrompts,
+  storedMemberConversationMs,
 } from "@/lib/chat"
 import type { ChatMessage } from "@/lib/chat"
 import { conversationLanguage } from "@/lib/chat-language"
@@ -44,10 +45,15 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
   const [profileSummary, setProfileSummary] = useState("")
   const conversationEnd = useRef<HTMLDivElement | null>(null)
   const previousAuth = useRef(session.authenticated)
-  const storageKey = songChatStorageKey(songNumber, session.authenticated)
+  const memberId = session.authenticated ? session.id : null
+  const storageKey = songChatStorageKey(songNumber, session.authenticated, memberId)
 
   function resetConversation() {
-    clearSongChatStorage()
+    try {
+      window.sessionStorage.removeItem(storageKey)
+    } catch {
+      // Storage may be unavailable in private browsing modes.
+    }
     setMessages([greeting()])
     setQuery(prompt ?? "")
     setInputError(null)
@@ -60,7 +66,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
     previousAuth.current = session.authenticated
 
     if (signedOut) {
-      clearSongChatStorage()
+      clearGuestChatStorage()
       setMessages([greeting()])
       setProfileSummary("")
       setHydrated(true)
@@ -74,7 +80,11 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
       if (!session.authenticated) {
         clearMemberChatStorage()
       }
-      restored = restoreConversation(window.sessionStorage.getItem(storageKey))
+      restored = restoreConversation(
+        window.sessionStorage.getItem(storageKey),
+        Date.now(),
+        session.authenticated ? storedMemberConversationMs : undefined,
+      )
     } catch {
       restored = []
     }
@@ -85,7 +95,15 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
       return
     }
     let active = true
-    void fetchMemberChat(songNumber).then((memory) => {
+    async function loadMemberConversation() {
+      let memory = await fetchMemberChat(songNumber)
+      if (!active) return
+      // OAuth return can briefly 401 before the proxy is ready; retry once.
+      if (!memory.ok) {
+        await new Promise((resolve) => window.setTimeout(resolve, 400))
+        if (!active) return
+        memory = await fetchMemberChat(songNumber)
+      }
       if (!active) return
       setProfileSummary(memory.summary)
       const remote = memory.recent_turns.map((turn, index) => ({
@@ -102,9 +120,10 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
       }).slice(-maximumConversationTurns)
       setMessages([greeting(), ...merged])
       setHydrated(true)
-    })
+    }
+    void loadMemberConversation()
     return () => { active = false }
-  }, [memberLoading, session.authenticated, songNumber, storageKey])
+  }, [memberLoading, memberId, session.authenticated, songNumber, storageKey])
 
   useEffect(() => {
     if (!hydrated) return
@@ -150,10 +169,14 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
         })
       }, nextPrompt, history, profileSummary)
       if (streamed && session.authenticated) {
-        await saveMemberChat({
-          song_number: songNumber,
-          turns: chatMemoryTurnsForSave(nextPrompt, streamed),
-        })
+        const turns = chatMemoryTurnsForSave(nextPrompt, streamed)
+        if (turns.length) {
+          let saved = await saveMemberChat({ song_number: songNumber, turns })
+          if (!saved) {
+            await new Promise((resolve) => window.setTimeout(resolve, 350))
+            saved = await saveMemberChat({ song_number: songNumber, turns })
+          }
+        }
       }
     } catch {
       setMessages((current) => {

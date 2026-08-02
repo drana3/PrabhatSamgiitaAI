@@ -59,14 +59,25 @@ export async function saveMemberChat(payload: {
 
 export async function fetchMemberChat(songNumber?: number) {
   const suffix = songNumber ? `?song_number=${encodeURIComponent(String(songNumber))}` : ""
-  const response = await fetch(`/api/member/chat-memory${suffix}`, {
-    credentials: "same-origin",
-    cache: "no-store",
-  })
-  if (!response.ok) return { summary: "", recent_turns: [] }
-  return await response.json() as {
-    summary: string
-    recent_turns: Array<{ role: "user" | "assistant"; content: string }>
+  try {
+    const response = await fetch(`/api/member/chat-memory${suffix}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+    if (!response.ok) {
+      return { ok: false as const, summary: "", recent_turns: [] as Array<{ role: "user" | "assistant"; content: string }> }
+    }
+    const body = await response.json() as {
+      summary?: string
+      recent_turns?: Array<{ role: "user" | "assistant"; content: string }>
+    }
+    return {
+      ok: true as const,
+      summary: body.summary ?? "",
+      recent_turns: Array.isArray(body.recent_turns) ? body.recent_turns : [],
+    }
+  } catch {
+    return { ok: false as const, summary: "", recent_turns: [] as Array<{ role: "user" | "assistant"; content: string }> }
   }
 }
 

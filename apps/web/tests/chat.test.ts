@@ -1,5 +1,6 @@
 import {
   chatMemoryTurnsForSave,
+  clearGuestChatStorage,
   clearMemberChatStorage,
   clearSongChatStorage,
   conversationContextMs,
@@ -11,6 +12,7 @@ import {
   restoreConversation,
   songChatStorageKey,
   starterPrompts,
+  storedMemberConversationMs,
 } from "@/lib/chat"
 import { conversationLanguage, detectChatLanguage } from "@/lib/chat-language"
 
@@ -93,8 +95,15 @@ describe("AI companion conversation contract", () => {
     expect(turns[1]?.content.length).toBeLessThanOrEqual(8000)
   })
 
-  it("keeps guest and member chat storage separate and clears both on sign out", () => {
-    window.sessionStorage.setItem(songChatStorageKey(3, true), JSON.stringify([
+  it("scopes member chat storage by member id", () => {
+    expect(songChatStorageKey(3, true, "aad:user-1")).toBe("prabhat-song-chat-member-aad:user-1-3")
+    expect(songChatStorageKey(3, true, "aad:user-2")).not.toBe(songChatStorageKey(3, true, "aad:user-1"))
+    expect(songChatStorageKey(3, false)).toBe("prabhat-song-chat-guest-3")
+  })
+
+  it("keeps member chat cache across guest cleanup after sign out", () => {
+    const memberKey = songChatStorageKey(3, true, "aad:user-1")
+    window.sessionStorage.setItem(memberKey, JSON.stringify([
       { role: "user", text: "member turn", createdAt: Date.now() },
     ]))
     window.sessionStorage.setItem(songChatStorageKey(3, false), JSON.stringify([
@@ -104,15 +113,28 @@ describe("AI companion conversation contract", () => {
       { role: "user", text: "legacy turn", createdAt: Date.now() },
     ]))
 
-    clearSongChatStorage()
+    clearGuestChatStorage()
 
-    expect(window.sessionStorage.getItem(songChatStorageKey(3, true))).toBeNull()
+    expect(window.sessionStorage.getItem(memberKey)).not.toBeNull()
     expect(window.sessionStorage.getItem(songChatStorageKey(3, false))).toBeNull()
     expect(window.sessionStorage.getItem(legacySongChatStorageKey(3))).toBeNull()
+
+    clearSongChatStorage()
+    expect(window.sessionStorage.getItem(memberKey)).toBeNull()
+  })
+
+  it("restores member-stored turns beyond the short live-context window", () => {
+    const now = 1_000_000
+    const raw = JSON.stringify([
+      { role: "user", text: "Explain this song", createdAt: now - storedMemberConversationMs + 1_000 },
+      { role: "assistant", text: "A lasting answer", createdAt: now - storedMemberConversationMs + 2_000 },
+    ])
+    expect(restoreConversation(raw, now)).toHaveLength(0)
+    expect(restoreConversation(raw, now, storedMemberConversationMs)).toHaveLength(2)
   })
 
   it("clears only member chat storage for guest sessions", () => {
-    window.sessionStorage.setItem(songChatStorageKey(3, true), JSON.stringify([
+    window.sessionStorage.setItem(songChatStorageKey(3, true, "aad:user-1"), JSON.stringify([
       { role: "user", text: "member turn", createdAt: Date.now() },
     ]))
     window.sessionStorage.setItem(songChatStorageKey(3, false), JSON.stringify([
@@ -121,7 +143,7 @@ describe("AI companion conversation contract", () => {
 
     clearMemberChatStorage()
 
-    expect(window.sessionStorage.getItem(songChatStorageKey(3, true))).toBeNull()
+    expect(window.sessionStorage.getItem(songChatStorageKey(3, true, "aad:user-1"))).toBeNull()
     expect(window.sessionStorage.getItem(songChatStorageKey(3, false))).not.toBeNull()
   })
 })

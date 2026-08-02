@@ -8,10 +8,17 @@ export type ChatMessage = {
 }
 
 export const conversationContextMs = 10 * 60 * 1000
+export const storedMemberConversationMs = 30 * 24 * 60 * 60 * 1000
 export const maximumConversationTurns = 12
 
-export function songChatStorageKey(songNumber: number, authenticated: boolean) {
-  return `prabhat-song-chat-${authenticated ? "member" : "guest"}-${songNumber}`
+export function songChatStorageKey(
+  songNumber: number,
+  authenticated: boolean,
+  memberId?: string | null,
+) {
+  if (!authenticated) return `prabhat-song-chat-guest-${songNumber}`
+  const scope = (memberId || "member").trim() || "member"
+  return `prabhat-song-chat-member-${scope}-${songNumber}`
 }
 
 export function legacySongChatStorageKey(songNumber: number) {
@@ -22,6 +29,21 @@ export function clearSongChatStorage() {
   try {
     for (const key of Object.keys(window.sessionStorage)) {
       if (key.startsWith("prabhat-song-chat-")) {
+        window.sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Storage may be unavailable in private browsing modes.
+  }
+}
+
+export function clearGuestChatStorage() {
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (
+        key.startsWith("prabhat-song-chat-guest-")
+        || /^prabhat-song-chat-\d+$/.test(key)
+      ) {
         window.sessionStorage.removeItem(key)
       }
     }
@@ -72,10 +94,13 @@ export function starterPrompts(language: ChatLanguage = "en"): string[] {
 }
 
 export function chatMemoryTurnsForSave(userPrompt: string, assistantText: string) {
+  const userContent = userPrompt.trim().slice(0, 2000)
+  const formatted = formatAssistantMessage(assistantText).slice(0, 8000)
+  const assistantContent = (formatted || assistantText.trim()).slice(0, 8000)
   return [
-    { role: "user" as const, content: userPrompt.trim().slice(0, 2000) },
-    { role: "assistant" as const, content: formatAssistantMessage(assistantText).slice(0, 8000) },
-  ]
+    { role: "user" as const, content: userContent },
+    { role: "assistant" as const, content: assistantContent },
+  ].filter((turn) => turn.content.length > 0)
 }
 
 export function recentConversation(
@@ -88,7 +113,11 @@ export function recentConversation(
     .map((message) => ({ role: message.role, content: message.text.slice(0, 2000) }))
 }
 
-export function restoreConversation(raw: string | null, now = Date.now()): ChatMessage[] {
+export function restoreConversation(
+  raw: string | null,
+  now = Date.now(),
+  maxAgeMs = conversationContextMs,
+): ChatMessage[] {
   if (!raw) return []
   try {
     const parsed: unknown = JSON.parse(raw)
@@ -100,7 +129,7 @@ export function restoreConversation(raw: string | null, now = Date.now()): ChatM
         && (message as ChatMessage).role in { assistant: true, user: true }
         && typeof (message as ChatMessage).text === "string"
         && typeof (message as ChatMessage).createdAt === "number"
-        && now - (message as ChatMessage).createdAt <= conversationContextMs,
+        && now - (message as ChatMessage).createdAt <= maxAgeMs,
       ))
       .slice(-maximumConversationTurns)
   } catch {
