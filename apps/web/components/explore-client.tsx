@@ -59,6 +59,7 @@ export function ExploreClient({
   const [searching, setSearching] = useState(false)
   const [completedQuery, setCompletedQuery] = useState(searchPrefetched ? initialQuery : "")
   const [voiceResult, setVoiceResult] = useState<VoiceSearchResult | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const resultsRef = useRef<HTMLDivElement | null>(null)
   const searchCache = useRef(new Map<string, SongSummary[]>())
   const bootstrappedQuery = useRef<string | null>(null)
@@ -101,6 +102,7 @@ export function ExploreClient({
     setActiveKind(kind)
     setCompletedQuery("")
     setVoiceResult(null)
+    setSearchError(null)
     window.history.replaceState(null, "", exploreUrl(trimmed, kind))
 
     try {
@@ -108,6 +110,8 @@ export function ExploreClient({
       searchCache.current.set(key, results)
       setSongs(results)
       setCompletedQuery(trimmed)
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Search is temporarily unavailable.")
     } finally {
       setSearching(false)
     }
@@ -131,6 +135,7 @@ export function ExploreClient({
     setActiveQuery(trimmed)
     setActiveKind("semantic")
     setCompletedQuery("")
+    setSearchError(null)
     window.history.replaceState(null, "", exploreUrl(trimmed, "semantic", { voice: true, lang: spokenLanguage }))
 
     try {
@@ -138,6 +143,8 @@ export function ExploreClient({
       setVoiceResult(voiceResult)
       setSongs(voiceResult.matches.map((match) => match.song))
       setCompletedQuery(trimmed)
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Voice search is temporarily unavailable.")
     } finally {
       setSearching(false)
     }
@@ -190,6 +197,7 @@ export function ExploreClient({
           onVoiceResult={setVoiceResult}
           onQueryChange={setActiveQuery}
           onSemanticSearch={runSemanticSearch}
+          searchError={searchError}
         />
       </div>
 

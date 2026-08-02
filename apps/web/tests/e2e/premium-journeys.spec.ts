@@ -196,7 +196,7 @@ test("all special collections are organized and lead to catalog search", async (
   await expect(collectionLinks).toHaveCount(69)
   await collectionBrowser.locator("a[href^='/explore?q=']").first().scrollIntoViewIfNeeded()
   await clickCollectionLink(page, /Hindi\s+12/)
-  await expect(page).toHaveURL(/q=Search%20Prabhat%20Samgiita%20for%20Hindi%20Songs/)
+  await expect(page).toHaveURL(/q=Search(\+|%20)Prabhat(\+|%20)Samgiita(\+|%20)for(\+|%20)Hindi(\+|%20)Songs.*kind=catalog/)
   await expect(page.locator("#results").first()).toBeVisible()
 })
 
@@ -370,7 +370,7 @@ test("a meaningful query moves naturally into exploration", async ({ page }) => 
   await page.goto("/")
   await page.getByLabel(/Ask by song, feeling/i).fill("morning meditation")
   await clickSearchButton(page)
-  await expect(page).toHaveURL(/\/explore\?q=morning%20meditation.*kind=semantic/)
+  await expect(page).toHaveURL(/\/explore\?q=morning(\+|%20)meditation.*kind=semantic/)
   await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
 })
 
@@ -441,8 +441,8 @@ test("search renders verified results and a deliberate no-match state", async ({
   await clickSearchButton(page)
   await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible()
 
-  await page.goto("/explore?q=unmatched%20theme")
-  await expect(page).toHaveURL(/q=unmatched%20theme/)
+  await page.goto("/explore?q=unmatched%20theme&kind=semantic")
+  await expect(page).toHaveURL(/q=unmatched(\+|%20)theme.*kind=semantic/)
   await expect(page.getByRole("heading", { name: "No songs matched your search criteria" })).toBeVisible()
   await expect(page.getByText(/Try a song number, opening words/i)).toBeVisible()
   await expect(page.getByRole("heading", { name: "Recommended songs to explore" })).toBeVisible()

@@ -11,6 +11,7 @@ import { searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { VoiceSearchResult } from "@/lib/api"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { VoiceSearchButton } from "@/components/voice-search-button"
+import { queryIsUseful } from "@/lib/query-guard"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
 
 const schema = z.object({
@@ -25,6 +26,7 @@ export function SearchForm({
   onVoiceResult,
   onQueryChange,
   onSemanticSearch,
+  searchError = null,
   initialQuery = "",
   inputMode = "text",
   spokenLanguage,
@@ -34,6 +36,7 @@ export function SearchForm({
   onVoiceResult?: (result: VoiceSearchResult | null) => void
   onQueryChange?: (query: string) => void
   onSemanticSearch?: (query: string) => void
+  searchError?: string | null
   initialQuery?: string
   inputMode?: "text" | "voice"
   spokenLanguage?: string
@@ -68,6 +71,10 @@ export function SearchForm({
     }
     const trimmed = values.query.trim()
     const nextUrl = `/explore?q=${encodeURIComponent(trimmed)}&kind=semantic`
+    if (!queryIsUseful(trimmed, 200)) {
+      mutation.mutate({ query: trimmed })
+      return
+    }
     if (onSemanticSearch) {
       onSemanticSearch(trimmed)
       return
@@ -117,6 +124,7 @@ export function SearchForm({
         {form.formState.errors.query ? (
           <p className="text-sm text-red-700">{form.formState.errors.query.message}</p>
         ) : null}
+        {searchError ? <p role="alert" className="text-sm text-amber-800">{searchError}</p> : null}
         {mutation.isError ? <p role="alert" className="text-sm text-amber-800">{mutation.error.message}</p> : null}
       </div>
     </form>
