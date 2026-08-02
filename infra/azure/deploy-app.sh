@@ -36,6 +36,22 @@ urlencode() {
   python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip("\n"), safe=""))'
 }
 
+# Container Apps often return 503 while a new revision is warming or swapping traffic.
+curl_retry() {
+  local attempts="${CURL_RETRY_ATTEMPTS:-30}"
+  local sleep_seconds="${CURL_RETRY_SLEEP_SECONDS:-10}"
+  local attempt output
+  for attempt in $(seq 1 "$attempts"); do
+    if output="$(curl --fail --silent --show-error "$@" 2>/dev/null)"; then
+      printf '%s' "$output"
+      return 0
+    fi
+    sleep "$sleep_seconds"
+  done
+  echo "Request failed after ${attempts} attempts: $*" >&2
+  curl --fail --silent --show-error "$@"
+}
+
 command -v az >/dev/null || { echo "Azure CLI is required."; exit 1; }
 
 az group show --name "$RG" >/dev/null
@@ -108,8 +124,8 @@ if [[ -z "$API_READY" ]]; then
   exit 1
 fi
 
-curl --fail --silent --show-error "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
-SEARCH_SMOKE="$(curl --fail --silent --show-error \
+curl_retry "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
+SEARCH_SMOKE="$(curl_retry \
   --request POST \
   --header 'Content-Type: application/json' \
   --data '{"query":"111"}' \
@@ -236,12 +252,12 @@ payload = {
 print(base64.b64encode(json.dumps(payload).encode()).decode())
 PY
 )"
-MEMBER_SESSION_SMOKE="$(curl --fail --silent --show-error \
+MEMBER_SESSION_SMOKE="$(curl_retry \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
   --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
   "https://${API_FQDN}/api/v1/members/session")"
 printf '%s' "$MEMBER_SESSION_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("authenticated") is True and data.get("is_admin") is True else 1)'
-MEMBER_FEEDBACK_SMOKE="$(curl --fail --silent --show-error \
+MEMBER_FEEDBACK_SMOKE="$(curl_retry \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
   --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
   "https://${API_FQDN}/api/v1/members/admin/feedback?status=new")"
