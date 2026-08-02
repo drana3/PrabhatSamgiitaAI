@@ -3,7 +3,7 @@ import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
 const requestTimeoutMs = 15000
-const searchTimeoutMs = 45000
+const searchTimeoutMs = 60000
 
 function searchErrorMessage(error: unknown) {
   if (error instanceof Error) {

@@ -21,4 +21,15 @@ describe("SearchForm", () => {
     )
     expect(screen.getByLabelText(/Search by number/i)).toBeInTheDocument()
   })
+
+  it("shows searching on the button while an external search is running", () => {
+    const client = new QueryClient()
+    render(
+      <QueryClientProvider client={client}>
+        <SearchForm onResults={() => void 0} isSearching />
+      </QueryClientProvider>,
+    )
+    expect(screen.getByRole("button", { name: "Searching" })).toBeDisabled()
+    expect(screen.getByText("Searching")).toBeInTheDocument()
+  })
 })

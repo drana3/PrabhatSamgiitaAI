@@ -26,20 +26,24 @@ export function SearchForm({
   onVoiceResult,
   onQueryChange,
   onSemanticSearch,
+  onVoiceSearch,
   searchError = null,
   initialQuery = "",
   inputMode = "text",
   spokenLanguage,
+  isSearching = false,
 }: {
   onResults: (results: Awaited<ReturnType<typeof searchSongs>>) => void
   onSearching?: (searching: boolean) => void
   onVoiceResult?: (result: VoiceSearchResult | null) => void
   onQueryChange?: (query: string) => void
   onSemanticSearch?: (query: string) => void
+  onVoiceSearch?: (query: string, language?: string) => void
   searchError?: string | null
   initialQuery?: string
   inputMode?: "text" | "voice"
   spokenLanguage?: string
+  isSearching?: boolean
 }) {
   const router = useRouter()
   const form = useForm<FormValues>({
@@ -109,15 +113,19 @@ export function SearchForm({
         />
         <VoiceSearchButton onTranscript={({ transcript, language }) => {
           form.setValue("query", transcript, { shouldValidate: true })
+          if (onVoiceSearch) {
+            onVoiceSearch(transcript, language)
+            return
+          }
           router.push(`/explore?q=${encodeURIComponent(transcript)}&kind=semantic&mode=voice&lang=${encodeURIComponent(language)}`)
         }} />
         <button
           type="submit"
           data-feature="catalog_search"
           className="flex min-h-12 items-center justify-center rounded-xl bg-navy-950 px-7 py-3 font-semibold text-white transition hover:bg-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || isSearching}
         >
-          {mutation.isPending ? <LoadingIndicator label="Searching" compact /> : "Search"}
+          {mutation.isPending || isSearching ? <LoadingIndicator label="Searching" compact /> : "Search"}
         </button>
       </div>
       <div className="min-h-5 pt-1">

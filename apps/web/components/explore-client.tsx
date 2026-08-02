@@ -61,10 +61,11 @@ export function ExploreClient({
   inputMode?: "text" | "voice"
   spokenLanguage?: string
 }) {
-  const [songs, setSongs] = useState(initialSongs)
+  const pendingInitialSearch = Boolean(initialQuery && !searchPrefetched)
+  const [songs, setSongs] = useState<SongSummary[]>(pendingInitialSearch ? [] : initialSongs)
   const [activeQuery, setActiveQuery] = useState(initialQuery)
   const [activeKind, setActiveKind] = useState<ExploreSearchKind>(searchKind)
-  const [searching, setSearching] = useState(false)
+  const [searching, setSearching] = useState(pendingInitialSearch)
   const [completedQuery, setCompletedQuery] = useState(searchPrefetched ? initialQuery : "")
   const [voiceResult, setVoiceResult] = useState<VoiceSearchResult | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -80,14 +81,15 @@ export function ExploreClient({
   }, [initialQuery])
 
   useEffect(() => {
+    if (!searchPrefetched || !initialQuery) return
     setSongs(initialSongs)
     setActiveQuery(initialQuery)
     setActiveKind(searchKind)
-    if (searchPrefetched && initialQuery) {
-      searchCache.current.set(cacheKey(initialQuery, searchKind), initialSongs)
-      setCompletedQuery(initialQuery)
-    }
-  }, [initialQuery, initialSongs, searchKind, searchPrefetched])
+    searchCache.current.set(cacheKey(initialQuery, searchKind), initialSongs)
+    setCompletedQuery(initialQuery)
+    setSearching(false)
+    bootstrappedQuery.current = `${inputMode}:${searchKind}:${initialQuery}`
+  }, [initialQuery, initialSongs, searchKind, searchPrefetched, inputMode])
 
   const runSearch = useCallback(async (query: string, kind: ExploreSearchKind) => {
     const trimmed = query.trim()
@@ -161,8 +163,18 @@ export function ExploreClient({
   }, [spokenLanguage])
 
   useEffect(() => {
-    if (!initialQuery || searchPrefetched || bootstrappedQuery.current === initialQuery) return
-    bootstrappedQuery.current = initialQuery
+    if (!initialQuery || searchPrefetched) return
+    const pendingKey = `${inputMode}:${searchKind}:${initialQuery}`
+    if (bootstrappedQuery.current === pendingKey) return
+    bootstrappedQuery.current = pendingKey
+
+    setSearching(true)
+    setSongs([])
+    setVoiceResult(null)
+    setSearchError(null)
+    setCompletedQuery("")
+    scrollToSearchProgress()
+
     if (inputMode === "voice") {
       void runVoiceSearch(initialQuery)
       return
@@ -202,11 +214,13 @@ export function ExploreClient({
           initialQuery={activeQuery}
           inputMode={inputMode}
           spokenLanguage={spokenLanguage}
+          isSearching={searching}
           onResults={setSongs}
           onSearching={handleSearching}
           onVoiceResult={setVoiceResult}
           onQueryChange={setActiveQuery}
           onSemanticSearch={runSemanticSearch}
+          onVoiceSearch={(query) => { void runVoiceSearch(query) }}
           searchError={searchError}
         />
       </div>
