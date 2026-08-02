@@ -6,6 +6,9 @@ import { FeedbackWidget } from "@/components/feedback-widget"
 import { submitFeedback } from "@/lib/api"
 
 vi.mock("@/lib/api", () => ({ submitFeedback: vi.fn() }))
+vi.mock("@/components/member-provider", () => ({
+  useMember: () => ({ loading: false, session: { authenticated: false } }),
+}))
 const submitFeedbackMock = vi.mocked(submitFeedback)
 
 afterEach(() => vi.clearAllMocks())

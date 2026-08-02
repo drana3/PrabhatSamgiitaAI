@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,11 @@ from app.schemas.member import (
     FavoriteWrite,
     MemberPreferencesWrite,
     MemberProfile,
+    QuizStartResponse,
+    QuizStartWrite,
+    QuizStatusResponse,
+    QuizSubmitResponse,
+    QuizSubmitWrite,
 )
 from app.services.members import (
     member_profile,
@@ -23,6 +28,7 @@ from app.services.members import (
     store_chat_memory,
     sync_member,
 )
+from app.services.quiz import start_quiz, submit_quiz, quiz_status
 
 router = APIRouter(prefix="/members", tags=["members"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
@@ -138,3 +144,39 @@ async def delete_member_data(request: Request, session: DatabaseSession) -> Resp
     await session.delete(member)
     await session.commit()
     return Response(status_code=204)
+
+
+@router.get("/quiz/status", response_model=QuizStatusResponse)
+async def read_quiz_status(request: Request, session: DatabaseSession) -> QuizStatusResponse:
+    member = await current_member(request, session)
+    return QuizStatusResponse.model_validate(await quiz_status(session, member))
+
+
+@router.post("/quiz/start", response_model=QuizStartResponse)
+async def begin_quiz(
+    payload: QuizStartWrite, request: Request, session: DatabaseSession
+) -> QuizStartResponse:
+    member = await current_member(request, session)
+    try:
+        return QuizStartResponse.model_validate(await start_quiz(session, member, payload.level))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/quiz/submit", response_model=QuizSubmitResponse)
+async def finish_quiz(
+    payload: QuizSubmitWrite, request: Request, session: DatabaseSession
+) -> QuizSubmitResponse:
+    member = await current_member(request, session)
+    try:
+        result = await submit_quiz(
+            session,
+            member,
+            payload.attempt_id,
+            [answer.model_dump() for answer in payload.answers],
+        )
+        return QuizSubmitResponse.model_validate(result)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

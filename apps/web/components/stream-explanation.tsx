@@ -5,32 +5,36 @@ import { useEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import {
-  followUpQuestions,
+  followUpsFromMessages,
+  formatAssistantMessage,
+  hasUserMessages,
   maximumConversationTurns,
   recentConversation,
   restoreConversation,
+  starterPrompts,
 } from "@/lib/chat"
 import type { ChatMessage } from "@/lib/chat"
+import { conversationLanguage } from "@/lib/chat-language"
 import { streamExplanation } from "@/lib/explain"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { useMember } from "@/components/member-provider"
 import { fetchMemberChat, saveMemberChat } from "@/lib/member"
 
-function greeting(language?: string | null): ChatMessage {
+function greeting(): ChatMessage {
   return {
     role: "assistant",
-    text: `Namaskar. I can help you understand this song${language ? ` in ${language}` : ""}, including its imagery, feeling, spiritual context, and related Prabhat Samgiita.`,
+    text: "Namaskar. I can help you understand this song — its meaning, imagery, spiritual context, pronunciation, and related Prabhat Samgiita. Ask in English, or in the language that feels natural to you.",
     createdAt: Date.now(),
   }
 }
 
-export function StreamExplanation({ songNumber, language, prompt }: { songNumber: number; language?: string | null; prompt?: string }) {
+export function StreamExplanation({ songNumber, prompt }: { songNumber: number; language?: string | null; prompt?: string }) {
   const { loading: memberLoading, session } = useMember()
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState(prompt ?? "")
   const [inputError, setInputError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
-  const [messages, setMessages] = useState<ChatMessage[]>([greeting(language)])
+  const [messages, setMessages] = useState<ChatMessage[]>([greeting()])
   const [profileSummary, setProfileSummary] = useState("")
   const conversationEnd = useRef<HTMLDivElement | null>(null)
   const storageKey = `prabhat-song-chat-${songNumber}`
@@ -45,7 +49,7 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
       restored = []
     }
     if (!session.authenticated) {
-      setMessages([greeting(language), ...restored])
+      setMessages([greeting(), ...restored])
       setProfileSummary("")
       setHydrated(true)
       return
@@ -66,11 +70,11 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
         seen.add(key)
         return true
       }).slice(-maximumConversationTurns)
-      setMessages([greeting(language), ...merged])
+      setMessages([greeting(), ...merged])
       setHydrated(true)
     })
     return () => { active = false }
-  }, [language, memberLoading, session.authenticated, songNumber, storageKey])
+  }, [memberLoading, session.authenticated, songNumber, storageKey])
 
   useEffect(() => {
     if (!hydrated) return
@@ -135,8 +139,11 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
     }
   }
 
-  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.text ?? ""
-  const nextQuestions = followUpQuestions(latestUserPrompt, language)
+  const nextQuestions = followUpsFromMessages(messages)
+  const userTurns = hasUserMessages(messages)
+  const suggestedPrompts = starterPrompts(conversationLanguage(
+    messages.filter((message) => message.role === "user").map((message) => message.text),
+  ))
 
   return (
     <section id="ask" className="scroll-mt-28 overflow-hidden rounded-2xl border border-navy-900/10 bg-ivory-50 shadow-[0_18px_50px_rgba(34,28,18,0.08)]">
@@ -157,13 +164,15 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
             </div>
             <h2 className="mt-2 font-serif text-3xl leading-tight text-navy-950 sm:text-[2rem]">Know more about this song</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Ask about meaning, imagery, spiritual context, pronunciation, or related songs in the language that feels natural to you.</p>
-            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Signed in · recent chat 30 days · preferences remembered" : "Guest · this browser conversation is remembered for 10 minutes"}</p>
+            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Signed in · grounded answers first · 50 deeper AI questions/day" : "Guest · grounded answers first · 15 deeper AI questions/day"}</p>
           </div>
         </div>
       </div>
       <div aria-live="polite" aria-busy={loading} className="max-h-[32rem] space-y-4 overflow-y-auto bg-[linear-gradient(rgba(9,45,86,0.025)_1px,transparent_1px)] bg-[length:100%_3rem] p-4 sm:p-5">
         {messages.map((message, index) => {
+          const isGreeting = index === 0 && message.role === "assistant"
           const isLatestAnswer = message.role === "assistant" && index === messages.length - 1 && Boolean(message.text) && !loading
+          const displayText = message.role === "assistant" ? formatAssistantMessage(message.text) : message.text
           return (
             <div key={`${message.role}-${message.createdAt}-${index}`} className={`flex items-end gap-2.5 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
               {message.role === "assistant" ? (
@@ -173,8 +182,20 @@ export function StreamExplanation({ songNumber, language, prompt }: { songNumber
               ) : null}
               <div className={`max-w-[88%] px-4 py-3 text-sm leading-7 sm:max-w-[82%] ${message.role === "user" ? "rounded-2xl rounded-br-md bg-navy-950 text-white shadow-sm" : "rounded-2xl rounded-bl-md border border-navy-900/10 bg-white text-stone-700 shadow-sm"}`}>
                 <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.16em] ${message.role === "user" ? "text-gold-200" : "text-gold-700"}`}>{message.role === "user" ? "You" : "Prabhat Samgiita AI"}</p>
-                {loading && index === messages.length - 1 && !message.text ? <LoadingIndicator label="Reading the song and preparing your answer" /> : <p dir="auto" className="whitespace-pre-wrap">{message.text}</p>}
-                {isLatestAnswer ? (
+                {loading && index === messages.length - 1 && !message.text ? <LoadingIndicator label="Reading the song and preparing your answer" /> : <p dir="auto" className="whitespace-pre-wrap">{displayText}</p>}
+                {isGreeting && !userTurns && !loading ? (
+                  <div className="mt-4 border-t border-navy-900/10 pt-3">
+                    <p className="text-xs font-semibold text-navy-950">Try asking</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {suggestedPrompts.map((question) => (
+                        <button key={question} type="button" onClick={() => void ask(question)} className="rounded-full border border-gold-500/35 bg-gold-50 px-3 py-1.5 text-left text-xs font-semibold leading-5 text-navy-950 transition hover:border-gold-600 hover:bg-gold-100">
+                          {question}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {isLatestAnswer && userTurns && nextQuestions.length ? (
                   <div className="mt-4 border-t border-navy-900/10 pt-3">
                     <p className="text-xs font-semibold text-navy-950">Would you like to explore next?</p>
                     <div className="mt-2 flex flex-wrap gap-2">

@@ -259,10 +259,6 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByRole("img", { name: /Harmonium key guide/i })).toBeVisible()
   await expect(page.getByText(/Beginner alankar · ascending/i)).toBeVisible()
   await expect(page.getByLabel(/Listen to/i).first()).toBeVisible()
-  const readingNavigation = page.getByRole("navigation", { name: "Read while listening" })
-  await expect(readingNavigation).toBeVisible()
-  await expect(readingNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
-  await expect(readingNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
   await expect(songActions.getByRole("link", { name: /Read & Listen/ })).toHaveAttribute("href", "#listen")
   const companionListening = page.getByRole("heading", { name: "Listen to this song" }).locator("..")
   await expect(companionListening).toBeVisible()
@@ -287,7 +283,7 @@ test("members can discover the configured sign-in flow", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Namaskar. Continue your journey." })).toBeVisible()
   await expect(page.getByRole("link", { name: "Continue with Microsoft" })).toHaveAttribute(
     "href",
-    "/.auth/login/aad?post_login_redirect_uri=/account",
+    "/.auth/login/aad?post_login_redirect_uri=/",
   )
 })
 

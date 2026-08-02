@@ -1,4 +1,3 @@
-import { fetchJson } from "./api"
 import { queryGuidanceFor, queryIsUseful } from "./query-guard"
 
 export type ConversationTurn = {
@@ -17,16 +16,26 @@ export async function streamExplanation(
     onChunk(queryGuidanceFor(prompt))
     return
   }
-  const response = await fetchJson("/api/v1/ai/explain", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      song_number: songNumber,
-      prompt,
-      history: history.slice(-12),
-      profile_context: profileContext || undefined,
-    }),
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 60_000)
+  let response: Response
+  try {
+    response = await fetch("/api/ai/explain", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        song_number: songNumber,
+        prompt,
+        history: history.slice(-12),
+        profile_context: profileContext || undefined,
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
 
   if (!response.ok) {
     throw new Error("The song companion is temporarily unavailable.")

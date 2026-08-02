@@ -14,7 +14,7 @@ export default function SignInPage() {
           <p className="mt-4 leading-7 text-stone-600">Sign in to save songs, create playlists, download available recordings, keep practice history, and receive guidance shaped by your interests.</p>
           {authEnabled ? (
             <div className="mt-8 grid gap-3">
-              <a href="/.auth/login/aad?post_login_redirect_uri=/account" className="outline-button justify-center py-3.5">Continue with Microsoft</a>
+              <a href="/.auth/login/aad?post_login_redirect_uri=/" className="outline-button justify-center py-3.5">Continue with Microsoft</a>
             </div>
           ) : (
             <p className="mt-8 rounded-xl border border-gold-500/25 bg-gold-50 px-4 py-3 text-sm leading-6 text-navy-950">

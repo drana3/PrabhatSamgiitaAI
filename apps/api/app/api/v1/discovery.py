@@ -33,6 +33,8 @@ from app.schemas.discovery import (
     ContentReportResponse,
     ContextSignalResponse,
     FestivalResponse,
+    InspirationStoryDetailResponse,
+    InspirationStoryResponse,
     OccasionResponse,
     ReflectionQuoteResponse,
     TodayRecommendationItem,
@@ -56,6 +58,13 @@ from app.services.domain_catalog import (
 )
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 from app.services.reflections import select_reflection
+from app.services.stories import (
+    InspirationStory,
+    get_story_by_slug,
+    load_stories,
+    select_featured_story,
+    stories_for_song,
+)
 from app.services.world_context import (
     ContextSignal,
     current_india_humanitarian_signals,
@@ -148,6 +157,61 @@ async def approved_testimonials(
         )
         for item in result.scalars()
     ]
+
+
+def _story_response(story: InspirationStory) -> InspirationStoryResponse:
+    return InspirationStoryResponse(
+        slug=story.slug,
+        title=story.title,
+        author=story.author,
+        teaser=story.teaser,
+        read_path=story.read_path,
+        source_url=story.source_url,
+        themes=list(story.themes),
+        song_numbers=list(story.song_numbers),
+    )
+
+
+def _story_detail_response(story: InspirationStory) -> InspirationStoryDetailResponse:
+    return InspirationStoryDetailResponse(
+        **_story_response(story).model_dump(),
+        body_paragraphs=list(story.body_paragraphs),
+    )
+
+
+@router.get("/stories", response_model=list[InspirationStoryResponse])
+async def list_stories(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    song_number: int | None = Query(default=None, ge=1, le=5018),
+    limit: int = Query(default=24, ge=1, le=50),
+) -> list[InspirationStoryResponse]:
+    stories = await load_stories(session)
+    filtered = stories_for_song(stories, song_number) if song_number else stories
+    return [_story_response(story) for story in filtered[:limit]]
+
+
+@router.get("/stories/featured", response_model=InspirationStoryResponse)
+async def featured_story(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    date: date_type | None = None,
+) -> InspirationStoryResponse:
+    local_date = date or datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    stories = await load_stories(session)
+    story = select_featured_story(stories, local_date)
+    if story is None:
+        raise HTTPException(status_code=404, detail="No inspiration stories are available")
+    return _story_response(story)
+
+
+@router.get("/stories/{slug}", response_model=InspirationStoryDetailResponse)
+async def story_detail(
+    slug: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> InspirationStoryDetailResponse:
+    story = await get_story_by_slug(session, slug)
+    if story is None:
+        raise HTTPException(status_code=404, detail="Story not found")
+    return _story_detail_response(story)
 
 
 @router.get("/recommendations/today", response_model=TodayResponse)

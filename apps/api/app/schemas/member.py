@@ -46,3 +46,67 @@ class MemberPreferencesWrite(BaseModel):
     preferred_language: str | None = Field(default=None, max_length=32)
     country: str | None = Field(default=None, max_length=128)
     personalization_enabled: bool | None = None
+
+
+QuizLevel = Literal["starter", "intermediate", "experienced"]
+
+
+class QuizAnswerWrite(BaseModel):
+    question_id: str = Field(min_length=3, max_length=64)
+    selected_option_id: str = Field(min_length=1, max_length=8)
+
+
+class QuizStartWrite(BaseModel):
+    level: QuizLevel
+
+
+class QuizSubmitWrite(BaseModel):
+    attempt_id: UUID
+    answers: list[QuizAnswerWrite] = Field(min_length=10, max_length=10)
+
+
+class QuizCertificationOut(BaseModel):
+    level: QuizLevel
+    label: str
+    certificate_code: str
+    earned_at: str
+
+
+class QuizStatusResponse(BaseModel):
+    levels: list[dict[str, object]]
+    questions_per_quiz: int
+    pass_percent: int
+    pass_score: int
+    certifications: list[QuizCertificationOut]
+
+
+class QuizStartResponse(BaseModel):
+    attempt_id: str
+    level: QuizLevel
+    level_label: str
+    questions_per_quiz: int
+    pass_score: int
+    questions: list[dict[str, object]]
+
+
+class QuizReviewItem(BaseModel):
+    question_id: str
+    prompt: str
+    options: list[dict[str, str]]
+    selected_option_id: str | None = None
+    correct_option_id: str
+    is_correct: bool
+    explanation: str
+
+
+class QuizSubmitResponse(BaseModel):
+    attempt_id: str
+    level: QuizLevel
+    level_label: str
+    score: int
+    total: int
+    pass_score: int
+    passed: bool
+    review: list[QuizReviewItem]
+    certification: QuizCertificationOut | None = None
+    newly_earned: bool = False

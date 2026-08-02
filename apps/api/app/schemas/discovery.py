@@ -64,6 +64,21 @@ class CommunityTestimonialResponse(BaseModel):
     avatar_url: str | None = None
 
 
+class InspirationStoryResponse(BaseModel):
+    slug: str
+    title: str
+    author: str
+    teaser: str
+    read_path: str
+    source_url: str
+    themes: list[str] = Field(default_factory=list)
+    song_numbers: list[int] = Field(default_factory=list)
+
+
+class InspirationStoryDetailResponse(InspirationStoryResponse):
+    body_paragraphs: list[str] = Field(default_factory=list)
+
+
 class ContentReportRequest(BaseModel):
     entity_type: Literal["song", "media", "notation", "translation", "recommendation"]
     entity_id: str = Field(min_length=1, max_length=128)

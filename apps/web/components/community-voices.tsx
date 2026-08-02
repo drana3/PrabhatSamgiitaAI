@@ -5,11 +5,14 @@ import { useEffect, useState } from "react"
 
 import { fetchTestimonials } from "@/lib/api"
 import type { CommunityTestimonial } from "@/lib/api"
+import { mergeCommunityVoices } from "@/lib/community-voices"
 
 export function CommunityVoices() {
   const [items, setItems] = useState<CommunityTestimonial[]>([])
   const [active, setActive] = useState(0)
-  useEffect(() => { void fetchTestimonials().then(setItems) }, [])
+  useEffect(() => {
+    void fetchTestimonials().then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
+  }, [])
   useEffect(() => {
     if (items.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
     const timer = window.setInterval(() => setActive((value) => (value + 1) % items.length), 8000)

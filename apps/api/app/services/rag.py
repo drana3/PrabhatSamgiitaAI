@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Song, SongChunk
 from app.services.ai import GroundedProvider
-from app.services.catalog import CatalogService
+from app.services.structured_answers import try_structured_answer
 
 
 @dataclass(slots=True)
@@ -273,10 +273,26 @@ def build_grounded_prompt(
     context_lines: list[str],
     history: list[tuple[str, str]] | None = None,
     profile_context: str | None = None,
+    response_language: str = "en",
 ) -> str:
     recent_conversation = "\n".join(
         f"{role.title()}: {content}" for role, content in (history or [])
     )
+    if response_language == "hi":
+        language_instruction = (
+            "Reply in Hindi, matching the user's script when possible: Devanagari if they used "
+            "Devanagari, otherwise natural Romanized Hindi."
+        )
+    elif response_language == "other":
+        language_instruction = (
+            "Reply in the same language and script the user used in their latest question."
+        )
+    else:
+        language_instruction = (
+            "Reply in clear, natural English by default. Only switch away from English when the "
+            "user's current question or recent user turns are clearly written in another "
+            "language or script."
+        )
     line_by_line_instruction = (
         "The user explicitly requested a line-by-line explanation. Answer it now. "
         "Present the canonical lyric in sequence and place a concise meaning or grounded "
@@ -284,14 +300,15 @@ def build_grounded_prompt(
         "the canonical lyrics and meaning to align them. Do not defer, ask permission, or "
         "claim that explicit line mappings are required. Clearly distinguish literal meaning "
         "from spiritual interpretation. Format every item exactly as a numbered `Lyric:` line "
-        "followed by a `Meaning:` line. Write each Meaning in the language requested by the user; "
-        "never return a list of untranslated lyrics as the answer."
+        "followed by a `Meaning:` line (or `अर्थ:` in Hindi). Write each meaning in the "
+        "response language; never return a list of untranslated lyrics as the answer."
         if re.search(r"\bline[ -]by[ -]line\b", query, re.IGNORECASE)
         else ""
     )
     return "\n\n".join(
         [
-            "You are a grounded assistant for Prabhat Samgiita.",
+            "You are the Prabhat Samgiita AI Companion — warm, intelligent, and grounded.",
+            "Speak like a knowledgeable spiritual guide in a natural chat, not like a catalog dump.",
             "Answer factual claims only from the retrieved canonical context below.",
             "Use the recent conversation to resolve pronouns, references, and follow-up questions.",
             "Use the optional member interest summary only to personalize language, tone, and "
@@ -299,17 +316,16 @@ def build_grounded_prompt(
             "context.",
             "When the user refers to a previous turn, acknowledge that turn directly instead of "
             "claiming that context is missing.",
-            "Be warm, reverent, and practical.",
-            "Reply in the language and script used by the user. If the user writes a language "
-            "in Roman letters, such as Hindi 'pyar' or 'is gaane ka arth', reply naturally in "
-            "that same Romanized style unless they request another language.",
+            "Lead with the answer the user asked for. Expand with imagery, feeling, and spiritual "
+            "context when helpful.",
+            language_instruction,
             "The selected song is the source of truth. Never say its lyrics or meaning are "
             "missing when a selected-song context passage contains them.",
             "Do not use another song to explain the selected song unless the user explicitly "
             "asks for related songs or a comparison.",
             "If the canonical context is insufficient, say so plainly and offer the "
             "closest grounded help you can.",
-            "Keep the answer concise and cite the source labels like [1], [2].",
+            "Keep answers focused and cite source labels like [1], [2] where you use them.",
             "Do not invent an answer for meaningless text; ask for a clear song-related question.",
             line_by_line_instruction,
             f"Recent conversation (may be empty):\n{recent_conversation or 'No earlier turns.'}",
@@ -453,6 +469,7 @@ class RAGService:
         query: str,
         history: list[tuple[str, str]] | None = None,
         profile_context: str | None = None,
+        response_language: str = "en",
     ) -> tuple[str, list[RetrievedChunk]]:
         chunks = await self.retrieve(song, query, limit=5)
         context_lines = []
@@ -462,7 +479,14 @@ class RAGService:
                 f"[{idx}] {chunk.song_title} | {chunk.chunk_type} | source {source}\n"
                 f"{chunk.content}"
             )
-        prompt = build_grounded_prompt(song, query, context_lines, history, profile_context)
+        prompt = build_grounded_prompt(
+            song,
+            query,
+            context_lines,
+            history,
+            profile_context,
+            response_language,
+        )
         try:
             answer = await self.provider.complete(prompt)
             audit = audit_grounded_answer(song, query, answer, chunks)
@@ -473,14 +497,22 @@ class RAGService:
                 corrected_audit = audit_grounded_answer(song, query, corrected, chunks)
                 if corrected_audit.passed or len(corrected_audit.issues) < len(audit.issues):
                     answer = corrected
+                else:
+                    structured = try_structured_answer(query, song, history)
+                    if structured:
+                        answer = structured
         except Exception as exc:  # pragma: no cover - network/provider failures are runtime only
-            cited = "; ".join(
-                f"[{idx}] {chunk.song_title} ({chunk.chunk_type})"
-                for idx, chunk in enumerate(chunks, start=1)
-            )
-            answer = (
-                f"Grounded context collected for song {song.number}: {song.title}.\n"
-                f"Retrieved passages: {cited or 'none'}.\n"
-                f"Provider fallback: {exc!s}"
-            )
+            structured = try_structured_answer(query, song, history)
+            if structured:
+                answer = structured
+            else:
+                cited = "; ".join(
+                    f"[{idx}] {chunk.song_title} ({chunk.chunk_type})"
+                    for idx, chunk in enumerate(chunks, start=1)
+                )
+                answer = (
+                    f"Grounded context collected for song {song.number}: {song.title}.\n"
+                    f"Retrieved passages: {cited or 'none'}.\n"
+                    f"Provider fallback: {exc!s}"
+                )
         return answer, chunks

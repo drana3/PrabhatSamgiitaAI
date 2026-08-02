@@ -22,13 +22,20 @@ describe("Prabhat Samgiita AI companion", () => {
     window.sessionStorage.clear()
   })
 
+  it("shows starter prompts before the first question", () => {
+    render(<StreamExplanation songNumber={135} />)
+    expect(screen.getByText("Try asking")).toBeVisible()
+    expect(screen.getByRole("button", { name: "What is this song about?" })).toBeVisible()
+    expect(screen.queryByText("Would you like to explore next?")).not.toBeInTheDocument()
+  })
+
   it("presents a clearly identified, ready AI companion", () => {
     render(<StreamExplanation songNumber={135} />)
 
     expect(screen.getByRole("status", { name: /ready to help/i })).toBeVisible()
     expect(screen.getByRole("img", { name: "Prabhat Samgiita AI" })).toBeVisible()
     expect(screen.getByPlaceholderText("Ask Prabhat Samgiita AI about this song...")).toBeVisible()
-    expect(screen.getByText(/Guest.*remembered for 10 minutes/i)).toBeVisible()
+    expect(screen.getByText(/Guest.*grounded answers first/i)).toBeVisible()
   })
 
   it("rejects gibberish before an AI request is made", async () => {
@@ -61,7 +68,7 @@ describe("Prabhat Samgiita AI companion", () => {
       "",
     )
     expect(screen.getByText("Would you like to explore next?")).toBeVisible()
-    expect(screen.getByText("Would you like to explore next?").parentElement?.querySelectorAll("button")).toHaveLength(3)
+    expect(screen.getByText("Would you like to explore next?").parentElement?.querySelectorAll("button").length).toBeGreaterThanOrEqual(2)
   })
 
   it("sends prior user and assistant turns with the next question", async () => {

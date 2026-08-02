@@ -8,6 +8,8 @@ import { RecommendationSection } from "@/components/recommendation-section"
 import { SiteHeader } from "@/components/site-header"
 import { DailyReflection } from "@/components/daily-reflection"
 import { CommunityVoices } from "@/components/community-voices"
+import { MemberQuizBadge } from "@/components/member-quiz-badge"
+import { StoriesInspiration } from "@/components/stories-inspiration"
 import seedInventory from "../../../data/seed/inventory.json"
 import seedSongs from "../../../data/seed/songs.json"
 
@@ -48,6 +50,9 @@ export default function HomePage() {
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link href="/explore" className="outline-button">Explore 5,018 songs <span aria-hidden="true">♪</span></Link>
               <Link href="/songs/1#ask" className="text-sm font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">Start with Song 1</Link>
+            </div>
+            <div className="mt-5 max-w-xl">
+              <MemberQuizBadge />
             </div>
           </div>
         </div>
@@ -110,6 +115,7 @@ export default function HomePage() {
       </section>
 
       <LandingData initialSongs={seedSongs.slice(0, 9)} initialInventory={seedInventory.slice(0, 4)} />
+      <StoriesInspiration />
       <CommunityVoices />
     </main>
   )

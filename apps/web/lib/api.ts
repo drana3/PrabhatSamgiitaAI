@@ -169,8 +169,25 @@ const testimonialSchema = z.object({
   avatar_url: z.string().nullable().optional(),
 })
 
+const inspirationStorySchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  author: z.string(),
+  teaser: z.string(),
+  read_path: z.string(),
+  source_url: z.string(),
+  themes: z.array(z.string()).default([]),
+  song_numbers: z.array(z.number()).default([]),
+})
+
+const inspirationStoryDetailSchema = inspirationStorySchema.extend({
+  body_paragraphs: z.array(z.string()).default([]),
+})
+
 export type ReflectionQuote = z.infer<typeof reflectionQuoteSchema>
 export type CommunityTestimonial = z.infer<typeof testimonialSchema>
+export type InspirationStory = z.infer<typeof inspirationStorySchema>
+export type InspirationStoryDetail = z.infer<typeof inspirationStoryDetailSchema>
 
 export async function fetchJson(path: string, init: RequestInit = {}) {
   const controller = new AbortController()
@@ -329,6 +346,40 @@ export async function fetchTestimonials(): Promise<CommunityTestimonial[]> {
     return z.array(testimonialSchema).parse(await response.json())
   } catch {
     return []
+  }
+}
+
+export async function fetchStories(options: { songNumber?: number; limit?: number } = {}): Promise<InspirationStory[]> {
+  try {
+    const params = new URLSearchParams()
+    if (options.songNumber) params.set("song_number", String(options.songNumber))
+    if (options.limit) params.set("limit", String(options.limit))
+    const suffix = params.size ? `?${params.toString()}` : ""
+    const response = await fetchJson(`/api/v1/stories${suffix}`)
+    if (!response.ok) return []
+    return z.array(inspirationStorySchema).parse(await response.json())
+  } catch {
+    return []
+  }
+}
+
+export async function fetchFeaturedStory(): Promise<InspirationStory | null> {
+  try {
+    const response = await fetchJson("/api/v1/stories/featured")
+    if (!response.ok) return null
+    return inspirationStorySchema.parse(await response.json())
+  } catch {
+    return null
+  }
+}
+
+export async function fetchStory(slug: string): Promise<InspirationStoryDetail | null> {
+  try {
+    const response = await fetchJson(`/api/v1/stories/${encodeURIComponent(slug)}`)
+    if (!response.ok) return null
+    return inspirationStoryDetailSchema.parse(await response.json())
+  } catch {
+    return null
   }
 }
 

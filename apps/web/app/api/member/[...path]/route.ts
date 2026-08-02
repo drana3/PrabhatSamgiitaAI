@@ -6,6 +6,7 @@ const allowedPaths = new Set([
   "favorites",
   "chat-memory",
   "me",
+  "quiz",
 ])
 
 function backendBase() {

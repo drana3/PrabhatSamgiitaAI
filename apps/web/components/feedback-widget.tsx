@@ -1,9 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { useMember } from "@/components/member-provider"
 import { submitFeedback } from "@/lib/api"
+import { memberFirstName } from "@/lib/member"
+import { publishCommunityFeedback } from "@/lib/community-voices"
 
 const categories = [
   ["experience", "Overall experience"],
@@ -15,12 +18,22 @@ const categories = [
 ] as const
 
 export function FeedbackWidget() {
+  const { session } = useMember()
   const [open, setOpen] = useState(false)
   const [rating, setRating] = useState(5)
   const [category, setCategory] = useState("experience")
   const [comment, setComment] = useState("")
+  const [sharePublicly, setSharePublicly] = useState(false)
+  const [displayName, setDisplayName] = useState("")
+  const [displayLocation, setDisplayLocation] = useState("")
   const [status, setStatus] = useState("")
   const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (!session.authenticated) return
+    setDisplayName((current) => current || memberFirstName(session.display_name))
+    setDisplayLocation((current) => current || session.country || "")
+  }, [session])
 
   async function send() {
     if (comment.trim().length < 3) {
@@ -36,8 +49,17 @@ export function FeedbackWidget() {
         comment: comment.trim(),
         page_path: window.location.pathname,
       })
+      if (sharePublicly && comment.trim().length >= 12) {
+        const name = displayName.trim() || "A fellow seeker"
+        publishCommunityFeedback({
+          display_name: name,
+          display_location: displayLocation.trim() || null,
+          quote_text: comment.trim(),
+        })
+      }
       setStatus(message)
       setComment("")
+      setSharePublicly(false)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Feedback could not be sent.")
     } finally {
@@ -57,7 +79,42 @@ export function FeedbackWidget() {
           <label className="mt-4 block text-xs font-bold text-navy-950" htmlFor="feedback-category">Area</label>
           <select id="feedback-category" value={category} onChange={(event) => setCategory(event.target.value)} className="mt-2 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm text-navy-950">{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           <label className="mt-4 block text-xs font-bold text-navy-950" htmlFor="feedback-comment">Your feedback</label>
-          <textarea id="feedback-comment" value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} rows={4} placeholder="Tell us what felt good or what should improve..." className="mt-2 w-full resize-none rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm text-navy-950 outline-none focus:border-gold-500" />
+          <textarea id="feedback-comment" value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} rows={4} placeholder="Share how Prabhat Samgiita or the AI companion supports your spiritual journey..." className="mt-2 w-full resize-none rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm text-navy-950 outline-none focus:border-gold-500" />
+          <label className="mt-4 flex items-start gap-2 text-xs text-navy-950">
+            <input
+              type="checkbox"
+              checked={sharePublicly}
+              onChange={(event) => setSharePublicly(event.target.checked)}
+              className="mt-0.5"
+            />
+            <span>Share my words on the community ticker (first name and city only)</span>
+          </label>
+          {sharePublicly ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-bold text-navy-950" htmlFor="feedback-name">
+                First name
+                <input
+                  id="feedback-name"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  maxLength={40}
+                  placeholder="Ananda"
+                  className="mt-1 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2 text-sm text-navy-950 outline-none focus:border-gold-500"
+                />
+              </label>
+              <label className="block text-xs font-bold text-navy-950" htmlFor="feedback-location">
+                City or region
+                <input
+                  id="feedback-location"
+                  value={displayLocation}
+                  onChange={(event) => setDisplayLocation(event.target.value)}
+                  maxLength={80}
+                  placeholder="Kolkata, India"
+                  className="mt-1 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2 text-sm text-navy-950 outline-none focus:border-gold-500"
+                />
+              </label>
+            </div>
+          ) : null}
           {status ? <p role="status" className="mt-3 text-xs leading-5 text-stone-600">{status}</p> : null}
           <button type="button" onClick={() => void send()} disabled={sending} className="mt-4 flex w-full items-center justify-center rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{sending ? <LoadingIndicator label="Sending" compact /> : "Send feedback"}</button>
         </section>

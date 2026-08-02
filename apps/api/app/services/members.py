@@ -103,6 +103,20 @@ def require_member_identity(request: Request) -> MemberIdentity:
     return decode_client_principal(principal)
 
 
+def try_member_identity(request: Request) -> MemberIdentity | None:
+    configured_key = get_settings().member_proxy_key
+    provided_key = request.headers.get("x-member-proxy-key")
+    principal = request.headers.get("x-ms-client-principal")
+    if not configured_key or not provided_key or not principal:
+        return None
+    if not hmac.compare_digest(configured_key, provided_key):
+        return None
+    try:
+        return decode_client_principal(principal)
+    except HTTPException:
+        return None
+
+
 async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAccount:
     now = datetime.now(UTC)
     member = await session.scalar(

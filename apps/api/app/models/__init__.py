@@ -19,6 +19,9 @@ from app.models.inventory import InventoryItem
 from app.models.media import Media
 from app.models.member import (
     CommunityTestimonial,
+    InspirationStoryRecord,
+    QuizAttempt,
+    QuizCertification,
     ReflectionQuote,
     UserAccount,
     UserChatMessage,
@@ -38,10 +41,13 @@ __all__ = [
     "CommunityTestimonial",
     "Festival",
     "FestivalSongLink",
+    "InspirationStoryRecord",
     "InventoryItem",
     "Media",
     "Notation",
     "Occasion",
+    "QuizAttempt",
+    "QuizCertification",
     "RecommendationAudit",
     "ReflectionQuote",
     "Season",

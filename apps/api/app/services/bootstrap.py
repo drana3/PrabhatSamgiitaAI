@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     InventoryItem,
+    InspirationStoryRecord,
     Media,
     Notation,
     Occasion,
@@ -21,6 +22,7 @@ from app.models import (
 )
 from app.services.rag import build_song_chunks
 from app.services.seed_data import load_rows
+from app.services.stories import story_rows_for_bootstrap
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,7 @@ class BootstrapService:
         notations = await self._load_json("notations.json")
         inventory = await self._load_json("inventory.json")
         reflection_quotes = await self._load_json("reflection_quotes.json")
+        inspiration_stories = story_rows_for_bootstrap()
 
         # Catalog data is committed before any RAG indexing. The API can therefore
         # serve all songs even if a later indexing step is interrupted.
@@ -96,6 +99,7 @@ class BootstrapService:
         await self._refresh_machine_notations(notations)
         await self._replace_if_incomplete(InventoryItem, inventory, "inventory")
         await self._synchronize_reflection_quotes(reflection_quotes)
+        await self._synchronize_inspiration_stories(inspiration_stories)
         await self._seed_lookup_tables()
         await self.session.commit()
         await self._ensure_song_chunks(songs, force=songs_replaced or songs_refreshed)
@@ -107,6 +111,13 @@ class BootstrapService:
         # article-sourced quotes from resurfacing after a new deployment.
         await self.session.execute(delete(ReflectionQuote))
         await self.session.execute(insert(ReflectionQuote), rows)
+        await self.session.commit()
+
+    async def _synchronize_inspiration_stories(self, rows: list[dict[str, Any]]) -> None:
+        if not rows:
+            return
+        await self.session.execute(delete(InspirationStoryRecord))
+        await self.session.execute(insert(InspirationStoryRecord), rows)
         await self.session.commit()
 
     async def _refresh_song_content(self, rows: list[dict[str, Any]]) -> bool:
