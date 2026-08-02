@@ -128,19 +128,18 @@ button { cursor: pointer; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .community-feedback-ticker__track {
-    animation: none;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: auto;
-    max-width: 90rem;
-    margin-inline: auto;
-    white-space: normal;
-    text-align: center;
-    row-gap: 0.35rem;
+  /* The track must stay a single clipped row. Wrapping every voice instead grew
+     the sticky header past the viewport height and buried the navigation. */
+  .community-feedback-ticker__viewport {
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
-  .community-feedback-ticker__item {
-    white-space: normal;
+  .community-feedback-ticker__viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .community-feedback-ticker__track {
+    animation: none;
   }
 }

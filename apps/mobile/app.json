@@ -26,7 +26,7 @@
       "package": "net.prabhatasamgiita.ai",
       "versionCode": 1
     },
-    "plugins": ["expo-router", "expo-asset"],
+    "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
     },

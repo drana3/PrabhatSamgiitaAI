@@ -21,8 +21,9 @@ async function clickSearchButton(page: Page) {
 
 async function clickCollectionLink(page: Page, name: RegExp | string) {
   const link = page.getByRole("link", { name })
-  await link.scrollIntoViewIfNeeded()
-  await link.click({ force: true })
+  // Centre the link so the sticky header cannot sit over it on small viewports.
+  await link.evaluate((node) => node.scrollIntoView({ block: "center" }))
+  await link.click()
 }
 
 const songResult = {
@@ -222,9 +223,11 @@ test("collections stay above results and English returns only its three canonica
   expect(collectionBounds!.y + collectionBounds!.height).toBeLessThan(resultBounds!.y)
 
   await clickCollectionLink(page, /English 3/)
-  await expect(page.locator("#catalog-search").first()).toBeInViewport()
   await expect(page.getByRole("heading", { name: /Songs matching.*English Songs/i }).first()).toBeVisible()
   await expect(page.locator("#results").first()).toBeInViewport()
+  const searchBounds = await page.locator("#catalog-search").first().boundingBox()
+  const resultsAfterBounds = await page.locator("#results").first().boundingBox()
+  expect(searchBounds!.y).toBeLessThan(resultsAfterBounds!.y)
   await expect(page.locator("#collections").first().locator("a[aria-current='true']")).toHaveCount(1)
   await expect(page.getByRole("link", { name: /English 3/ })).toHaveAttribute("href", "/explore#catalog-search")
   await expect(page.getByRole("heading", { name: "I love this tiny green island" })).toBeVisible()

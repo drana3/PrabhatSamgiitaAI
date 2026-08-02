@@ -79,7 +79,7 @@ export default function HomePage() {
           <div className="grid gap-4 lg:grid-cols-[0.78fr_1.22fr]">
             <DailyReflection />
 
-            <article id="about" className="glass-card scroll-mt-96 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
+            <article id="about" className="glass-card scroll-mt-32 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0 flex-1">
                 <p className="eyebrow">About Prabhat Samgiita</p>
                 <h2 className="mt-3 font-serif text-3xl leading-tight text-navy-950">Songs composed for a new human dawn</h2>
