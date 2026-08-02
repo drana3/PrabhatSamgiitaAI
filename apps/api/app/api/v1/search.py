@@ -102,14 +102,18 @@ async def search_voice(
             ),
         )
 
+    # Voice and typed natural-language asks both need meaning search across the
+    # full embedding index. Catalog/lexical mode misses feeling queries such as
+    # "I am feeling very happy today".
     response = await HybridSearchService(session).search(
         interpreted_as,
-        page_size=3,
+        page_size=12,
         input_mode="voice",
+        mode="semantic",
     )
     songs_by_number = {song.number: song for song in catalog_song_snapshot()}
     matches: list[VoiceSearchMatch] = []
-    for item in response.items[:3]:
+    for item in response.items[:12]:
         confidence, reason = _voice_confidence(item.matched_by, item.score)
         matches.append(
             VoiceSearchMatch(
@@ -131,7 +135,10 @@ async def search_voice(
     )
     guidance = None
     if confidence_label == "low":
-        guidance = "These are possible matches. Try saying the song number or a longer lyric line."
+        guidance = (
+            "These are possible meaning matches. Try a song number, a longer lyric line, "
+            "or a clearer feeling such as peace, devotion, or joy."
+        )
     elif confidence_label == "none":
         guidance = (
             "No confident song match was found. Try a song number, a longer lyric line, "

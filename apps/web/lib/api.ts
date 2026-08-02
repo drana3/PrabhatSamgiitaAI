@@ -159,7 +159,7 @@ const voiceSearchSchema = z.object({
     song: songSummarySchema,
     confidence: z.number(),
     match_reason: z.string(),
-  })).max(3),
+  })).max(12),
   guidance: z.string().nullable().optional(),
 })
 

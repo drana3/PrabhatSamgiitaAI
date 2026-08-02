@@ -77,7 +77,7 @@ class VoiceSearchResponse(BaseModel):
     spoken_language: str | None = None
     interpreted_as: str
     confidence: Literal["high", "medium", "low", "none"]
-    matches: list[VoiceSearchMatch] = Field(default_factory=list, max_length=3)
+    matches: list[VoiceSearchMatch] = Field(default_factory=list, max_length=12)
     guidance: str | None = None
 
 

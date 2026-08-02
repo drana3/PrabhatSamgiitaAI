@@ -340,6 +340,34 @@ async def test_voice_song_number_remains_authoritative() -> None:
     assert [item.song_number for item in response.items] == [2256]
 
 
+def test_voice_feeling_query_keeps_meaning_terms_for_semantic_search() -> None:
+    from app.services.search import expand_voice_query, prepare_voice_query
+
+    heard = "I am feeling very happy today"
+    prepared = prepare_voice_query(heard)
+    expanded = expand_voice_query(prepared)
+
+    assert "happy" in prepared
+    assert "feeling" in prepared
+    assert "joy" in expanded or "bliss" in expanded
+
+
+@pytest.mark.asyncio
+async def test_voice_feeling_query_uses_semantic_mode_across_catalog() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search(
+        "I am feeling very happy today",
+        page_size=12,
+        input_mode="voice",
+        mode="semantic",
+    )
+
+    assert response.items
+    assert len(response.items) <= 12
+    assert response.detected_intent == "semantic_search"
+
+
 @pytest.mark.asyncio
 async def test_hindi_urdu_and_shared_hindustani_collections_are_disjoint() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]

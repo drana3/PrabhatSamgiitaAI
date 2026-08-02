@@ -184,11 +184,24 @@ export function ExploreClient({
     try {
       const voiceResult = await searchSongsByVoice(trimmed, spokenLanguage)
       setVoiceResult(voiceResult)
-      setSongs(voiceResult.matches.map((match) => match.song))
+      if (voiceResult.matches.length) {
+        setSongs(voiceResult.matches.map((match) => match.song))
+      } else {
+        // Feeling/meaning asks should still land on embedding search results.
+        const semanticResults = await searchSongs(trimmed, { mode: "semantic" })
+        setSongs(semanticResults)
+      }
       finishSearch(trimmed)
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "Voice search is temporarily unavailable.")
-      setCompletedQuery(trimmed)
+      try {
+        const semanticResults = await searchSongs(trimmed, { mode: "semantic" })
+        setVoiceResult(null)
+        setSongs(semanticResults)
+        finishSearch(trimmed)
+      } catch {
+        setSearchError(error instanceof Error ? error.message : "Voice search is temporarily unavailable.")
+        setCompletedQuery(trimmed)
+      }
     } finally {
       setSearching(false)
     }
@@ -248,7 +261,7 @@ export function ExploreClient({
             <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-navy-950">{voiceResult.confidence} confidence</span>
           </div>
           {voiceResult.interpreted_as && voiceResult.interpreted_as.toLocaleLowerCase() !== voiceResult.heard.toLocaleLowerCase() ? <p className="mt-2 text-xs text-stone-600">Interpreted for search as “{voiceResult.interpreted_as}”.</p> : null}
-          {voiceResult.guidance ? <p className="mt-2 text-sm font-medium text-amber-900">{voiceResult.guidance}</p> : <p className="mt-2 text-xs text-stone-600">Showing the three strongest verified catalog matches.</p>}
+          {voiceResult.guidance ? <p className="mt-2 text-sm font-medium text-amber-900">{voiceResult.guidance}</p> : <p className="mt-2 text-xs text-stone-600">Searching meanings and feelings across all 5,018 songs.</p>}
         </div>
       ) : null}
 

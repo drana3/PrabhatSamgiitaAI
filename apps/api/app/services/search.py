@@ -73,21 +73,34 @@ VOICE_CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
     "barish": ("rain", "rainy"),
     "barsaat": ("rain", "rainy"),
     "bhakti": ("devotion",),
+    "bliss": ("bliss", "joy"),
+    "compassion": ("compassion", "daya"),
     "daya": ("compassion",),
+    "devotion": ("devotion", "bhakti"),
     "dukh": ("sorrow", "pain"),
+    "feeling": ("feeling", "mood"),
     "gam": ("sorrow",),
+    "happy": ("joy", "bliss", "happiness"),
+    "happiness": ("joy", "bliss"),
+    "hope": ("hope", "asha"),
     "ishq": ("love", "devotion"),
     "janamdin": ("birthday",),
     "janmadin": ("birthday",),
+    "joy": ("joy", "bliss"),
     "khushi": ("joy", "bliss"),
+    "love": ("love", "devotion"),
     "mohabbat": ("love", "devotion"),
     "musafir": ("journey", "traveller"),
     "musaaphir": ("journey", "traveller"),
+    "nature": ("nature",),
     "nikah": ("marriage",),
+    "peace": ("peace", "shanti"),
+    "peaceful": ("peace", "shanti"),
     "prakriti": ("nature",),
     "prem": ("love", "devotion"),
     "pyar": ("love", "devotion"),
     "pyaar": ("love", "devotion"),
+    "sad": ("sorrow", "pain"),
     "safar": ("journey",),
     "salgirah": ("birthday",),
     "seva": ("service", "humanity"),
@@ -96,6 +109,7 @@ VOICE_CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
     "shadi": ("marriage",),
     "shanti": ("peace",),
     "shaanti": ("peace",),
+    "sorrow": ("sorrow", "pain"),
     "ummid": ("hope",),
     "umeed": ("hope",),
     "vivah": ("marriage",),
@@ -797,7 +811,11 @@ class HybridSearchService:
 
         exact_number = await self._exact_number_rank(query)
         if semantic_mode and input_mode == "voice":
-            semantic_query = expand_voice_query(query)
+            # Keep spoken feeling/meaning language for embeddings, and add
+            # compact aliases so phonetic/catalog signals still help.
+            voiced = expand_voice_query(query)
+            expanded = await self._expand_semantic_query(voiced or query)
+            semantic_query = " ".join(dict.fromkeys(f"{query} {voiced} {expanded}".split()))
         elif semantic_mode:
             semantic_query = await self._expand_semantic_query(query)
         elif input_mode == "voice":
