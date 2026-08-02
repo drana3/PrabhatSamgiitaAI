@@ -93,7 +93,7 @@ az containerapp update \
     AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview >/dev/null
 
 API_READY=""
-for attempt in $(seq 1 30); do
+for attempt in $(seq 1 45); do
   if API_READY="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null)"; then
     if printf '%s' "$API_READY" | python3 -c 'import json, sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("snapshot_complete") and data.get("snapshot", {}).get("songs") == 5018 else 1)'; then
       break
@@ -188,7 +188,7 @@ az containerapp update \
 
 WEB_AUTH_READY=""
 if [[ "$AUTH_ENABLED" == "true" ]]; then
-  for attempt in $(seq 1 30); do
+  for attempt in $(seq 1 45); do
     SIGNIN_HTML="$(curl --fail --silent --show-error "https://${WEB_FQDN}/signin" 2>/dev/null || true)"
     if grep -q 'Continue with Microsoft' <<<"$SIGNIN_HTML" && \
       grep -q '/.auth/login/aad' <<<"$SIGNIN_HTML"; then

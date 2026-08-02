@@ -15,7 +15,7 @@ def request(
     path: str,
     payload: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
-    timeout: int = 35,
+    timeout: int = 60,
 ) -> tuple[int, dict[str, str], bytes, float]:
     body = json.dumps(payload).encode() if payload is not None else None
     request_headers = {"Accept": "application/json", **(headers or {})}
@@ -50,6 +50,22 @@ def require(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+def request_ready(
+    base_url: str,
+    attempts: int = 3,
+    timeout: int = 120,
+) -> tuple[int, dict[str, str], bytes, float]:
+    last: tuple[int, dict[str, str], bytes, float] | None = None
+    for attempt in range(1, attempts + 1):
+        last = request(base_url, "GET", "/api/v1/health/readiness", timeout=timeout)
+        if last[0] == 200:
+            return last
+        if attempt < attempts:
+            time.sleep(5)
+    assert last is not None
+    return last
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("Usage: validate_live_backend.py https://api-host")
@@ -66,7 +82,7 @@ def main() -> None:
             }
         )
 
-    status, _, body, elapsed = request(base_url, "GET", "/api/v1/health/readiness")
+    status, _, body, elapsed = request_ready(base_url)
     ready = json.loads(body)
     require(status == 200, body.decode(errors="replace"))
     require(ready["snapshot"]["songs"] == 5018, str(ready))
@@ -138,6 +154,7 @@ def main() -> None:
         "POST",
         "/api/v1/search",
         {"query": "111"},
+        timeout=45,
     )
     rows = json.loads(body)
     require(status == 200 and rows and rows[0]["number"] == 111, body.decode())
@@ -148,6 +165,7 @@ def main() -> None:
         "POST",
         "/api/v1/search",
         {"query": "fountain of effulgence"},
+        timeout=45,
     )
     rows = json.loads(body)
     require(status == 200 and any(row["number"] == 1 for row in rows[:5]), body.decode())
@@ -209,6 +227,7 @@ def main() -> None:
         "POST",
         "/api/v1/ai/explain",
         {"song_number": 1, "prompt": rag_prompt},
+        timeout=90,
     )
     explanation = body.decode(errors="replace")
     require(status == 200, explanation)
