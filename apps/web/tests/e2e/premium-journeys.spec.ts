@@ -640,8 +640,20 @@ test("search failure is recoverable and never becomes a blank results panel", as
 })
 
 test("feedback validates input and confirms successful delivery", async ({ page }) => {
-  await page.route("**/api/v1/feedback", async (route) => route.fulfill({ status: 201, json: { message: "Thank you. Your feedback was received." } }))
+  await page.route("**/api/feedback", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 201,
+      json: { message: "Thank you. Your feedback was received.", feedback_id: "e2e-feedback" },
+    })
+  })
   await page.goto("/")
+  await page.addStyleTag({
+    content: "[data-feature='feedback_open']{display:block!important;pointer-events:auto!important}",
+  })
   await page.getByRole("button", { name: "Feedback" }).click()
   await page.getByRole("button", { name: "Send feedback" }).click()
   await expect(page.getByRole("status").filter({ hasText: "at least a few words" })).toBeVisible()
