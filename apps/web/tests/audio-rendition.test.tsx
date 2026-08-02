@@ -27,6 +27,9 @@ describe("authenticated audio controls", () => {
     expect(screen.getByRole("button", { name: /Rewind 10 seconds/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Forward 10 seconds/i })).toBeInTheDocument()
     expect(screen.getByRole("slider", { name: /Seek through Song 8/i })).toBeInTheDocument()
+    expect(screen.getByRole("slider", { name: /Volume for Song 8/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Mute/i })).toBeInTheDocument()
+    expect(screen.queryByText(/Verified recording/i)).not.toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
   })
 
