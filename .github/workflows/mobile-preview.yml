@@ -20,8 +20,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    name: Mobile unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      # Mobile is outside npm workspaces — install its own tree (Expo/RN).
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: apps/mobile
+        run: npm test
+
   build:
     name: ${{ matrix.label }}
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

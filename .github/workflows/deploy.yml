@@ -6,7 +6,8 @@ on:
       - main
     paths-ignore:
       # Docs, editor config, and mobile-only pushes should not burn a full
-      # verify/E2E/Azure cycle.
+      # verify/E2E/Azure cycle. Mobile unit tests + EAS live in mobile-preview.yml
+      # (separate dependency tree — do not run apps/mobile tests in Deploy).
       - "docs/**"
       - "**.md"
       - ".cursor/**"
