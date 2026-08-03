@@ -10,6 +10,7 @@ from app.config import Settings
 from app.models import UserAccount
 from app.services.admin_members import (
     apply_default_admin,
+    is_ephemeral_member,
     is_protected_admin,
     require_admin_member,
     revoke_admin,
@@ -52,6 +53,21 @@ def test_apply_default_admin_promotes_configured_email() -> None:
     member.is_admin = False
     apply_default_admin(member, settings(default="owner@example.com"))
     assert member.is_admin is True
+
+
+def test_ephemeral_probe_accounts_are_not_protected() -> None:
+    probe = UserAccount(
+        id=uuid4(),
+        external_subject="aad:deploy-smoke",
+        identity_provider="aad",
+        email="owner@example.com",
+        display_name="Deploy Smoke",
+        last_seen_at=datetime.now(UTC),
+        is_admin=True,
+    )
+    cfg = settings(default="owner@example.com", protected="owner@example.com")
+    assert is_ephemeral_member(probe) is True
+    assert is_protected_admin(probe, cfg) is False
 
 
 def test_protected_admin_falls_back_to_default_list() -> None:

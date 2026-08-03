@@ -284,6 +284,16 @@ MEMBER_QUIZ_SMOKE="$(curl_retry "member-quiz-start" \
 }
 printf '%s' "$MEMBER_QUIZ_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("attempt_id") and len(data.get("questions") or []) == 10 else 1)'
 
+# Remove the ephemeral deploy-smoke member so it does not appear as a duplicate admin.
+curl_retry "member-smoke-cleanup" \
+  --request DELETE \
+  --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
+  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  "https://${API_FQDN}/api/v1/members/me" >/dev/null || {
+  echo "Member smoke cleanup failed after API warm-up." >&2
+  exit 1
+}
+
 cat <<EOF
 Deployment complete.
 Web: https://${WEB_FQDN}

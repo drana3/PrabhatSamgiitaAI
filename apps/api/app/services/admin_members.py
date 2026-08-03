@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
@@ -9,6 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.models import UserAccount
+
+# Probe / deploy identities that must not clutter the admin console.
+EPHEMERAL_MEMBER_MARKERS = (
+    "deploy-smoke",
+    "admin-diag",
+    "feedback-diag",
+    "quiz-diag",
+    "member-diag",
+)
 
 
 def _email_set(raw: str) -> set[str]:
@@ -27,7 +37,14 @@ def protected_admin_emails(settings: Settings | None = None) -> set[str]:
     return default_admin_emails(settings)
 
 
+def is_ephemeral_member(member: UserAccount) -> bool:
+    haystack = f"{member.external_subject or ''} {member.display_name or ''}".casefold()
+    return any(marker in haystack for marker in EPHEMERAL_MEMBER_MARKERS)
+
+
 def is_protected_admin(member: UserAccount, settings: Settings | None = None) -> bool:
+    if is_ephemeral_member(member):
+        return False
     email = (member.email or "").casefold()
     if not email:
         return False
@@ -35,6 +52,8 @@ def is_protected_admin(member: UserAccount, settings: Settings | None = None) ->
 
 
 def apply_default_admin(member: UserAccount, settings: Settings | None = None) -> None:
+    # Ephemeral deploy/probe identities may still be promoted so smoke checks can
+    # exercise admin routes; list_admin_members hides them from the console.
     email = (member.email or "").casefold()
     if email and email in default_admin_emails(settings):
         member.is_admin = True
@@ -51,8 +70,17 @@ async def require_admin_member(session: AsyncSession, member: UserAccount) -> Us
     return member
 
 
+def _last_seen_key(member: UserAccount) -> datetime:
+    value = member.last_seen_at or member.created_at
+    if value is None:
+        return datetime.min.replace(tzinfo=UTC)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
 async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
-    return list(
+    rows = list(
         (
             await session.execute(
                 select(UserAccount)
@@ -60,6 +88,19 @@ async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
                 .order_by(UserAccount.display_name.asc())
             )
         ).scalars()
+    )
+    # One row per email so deploy/probe clones of the owner account do not appear twice.
+    by_email: dict[str, UserAccount] = {}
+    for row in rows:
+        if is_ephemeral_member(row):
+            continue
+        key = (row.email or "").casefold() or str(row.id)
+        current = by_email.get(key)
+        if current is None or _last_seen_key(row) >= _last_seen_key(current):
+            by_email[key] = row
+    return sorted(
+        by_email.values(),
+        key=lambda member: (member.display_name or "").casefold(),
     )
 
 
