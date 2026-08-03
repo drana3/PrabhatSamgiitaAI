@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { fetchTestimonials } from "@/lib/api"
 import type { CommunityTestimonial } from "@/lib/api"
@@ -24,9 +24,23 @@ function TickerItem({ item }: { item: CommunityTestimonial }) {
 export function CommunityFeedbackTicker() {
   const [items, setItems] = useState<CommunityTestimonial[]>([])
 
-  useEffect(() => {
-    void fetchTestimonials().then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
+  const reload = useCallback(() => {
+    void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
   }, [])
+
+  useEffect(() => {
+    reload()
+    const onFocus = () => reload()
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") reload()
+    }
+    window.addEventListener("focus", onFocus)
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => {
+      window.removeEventListener("focus", onFocus)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
+  }, [reload])
 
   const track = useMemo(() => (items.length ? [...items, ...items] : []), [items])
 
@@ -44,7 +58,7 @@ export function CommunityFeedbackTicker() {
       <div className="community-feedback-ticker__viewport">
         <div className="community-feedback-ticker__track">
           {track.map((item, index) => (
-            <TickerItem key={`${item.display_name}-${index}`} item={item} />
+            <TickerItem key={`${item.display_name}-${item.quote_text}-${index}`} item={item} />
           ))}
         </div>
       </div>

@@ -1,0 +1,660 @@
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native"
+import { Image } from "expo-image"
+import { LinearGradient } from "expo-linear-gradient"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { ChevronDown, ChevronLeft, Heart, Pause, Play, Share2, Sparkles } from "lucide-react-native"
+import Animated, { FadeInDown } from "react-native-reanimated"
+import { SafeAreaView } from "react-native-safe-area-context"
+
+import { IconButton } from "@/components/common/IconButton"
+import { LanguagePickerModal } from "@/components/common/LanguagePickerModal"
+import { SongListenControls } from "@/components/player/SongListenControls"
+import { WatchVideoCard } from "@/components/player/WatchVideoCard"
+import { NotationPractice } from "@/components/songs/NotationPractice"
+import { SongJourneyTicker } from "@/components/songs/SongJourneyTicker"
+import { colors } from "@/constants/colors"
+import {
+  localeLabel,
+  localeNativeLabel,
+  localeOptions,
+  quickLocaleCodes,
+} from "@/constants/languages"
+import { softShadow } from "@/constants/shadows"
+import { visibleSongJourneyTabs, type SongJourneyTab } from "@/constants/songJourney"
+import { radius, spacing } from "@/constants/spacing"
+import { typography } from "@/constants/typography"
+import type { MockSong } from "@/data/mock"
+import { api } from "@/lib/client"
+import { isSameSong, songPlayback } from "@/lib/playback"
+import { resolveSongBundle } from "@/lib/songs"
+import { songShareMessage } from "@/lib/webLinks"
+import { usePlayerStore } from "@/stores/playerStore"
+import { usePreferencesStore } from "@/stores/preferencesStore"
+import { href } from "@/utils/href"
+
+const QUICK_LOCALES = localeOptions.filter((option) =>
+  (quickLocaleCodes as readonly string[]).includes(option.code),
+)
+
+function Accordion({
+  title,
+  subtitle,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <View style={styles.accordion}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={title}
+        onPress={onToggle}
+        style={styles.accordionHeader}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.accordionTitle}>{title}</Text>
+          <Text style={styles.accordionSub}>{subtitle}</Text>
+        </View>
+        <ChevronDown
+          size={20}
+          color={colors.textMuted}
+          style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}
+        />
+      </Pressable>
+      {open ? <View style={styles.accordionBody}>{children}</View> : null}
+    </View>
+  )
+}
+
+export default function SongDetailScreen() {
+  const { songId, tab: tabParam } = useLocalSearchParams<{ songId: string; tab?: string }>()
+  const router = useRouter()
+  const [song, setSong] = useState<MockSong | null>(null)
+  const [related, setRelated] = useState<MockSong[]>([])
+  const [loadingSong, setLoadingSong] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [hasNotation, setHasNotation] = useState(false)
+  const loadSong = usePlayerStore((s) => s.loadSong)
+  const syncCurrentSong = usePlayerStore((s) => s.syncCurrentSong)
+  const playOrToggle = usePlayerStore((s) => s.playOrToggle)
+  const pause = usePlayerStore((s) => s.pause)
+  const setQueue = usePlayerStore((s) => s.setQueue)
+  const showPause = usePlayerStore((s) =>
+    song ? songPlayback(s, song).showPause : false,
+  )
+  const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
+  const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
+  const [language, setLanguage] = useState("en")
+  const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
+  const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
+  const [localizing, setLocalizing] = useState(false)
+  const [journey, setJourney] = useState<SongJourneyTab>("listen")
+  const [openLyrics, setOpenLyrics] = useState(true)
+  const [openMeaning, setOpenMeaning] = useState(true)
+  const [openNotation, setOpenNotation] = useState(true)
+  const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
+  const autoPlayedFor = useRef<string | null>(null)
+  const lastPlayToggleAt = useRef(0)
+
+  useEffect(() => {
+    let active = true
+    setLoadingSong(true)
+    setLoadError(null)
+    setHasNotation(false)
+    autoPlayedFor.current = null
+    void resolveSongBundle(songId).then((bundle) => {
+      if (!active) return
+      if (!bundle) {
+        setSong(null)
+        setRelated([])
+        setLoadError("Song not found.")
+        setLoadingSong(false)
+        return
+      }
+      setSong(bundle.song)
+      setRelated(bundle.related)
+      setLocalizedMeaning(null)
+      setLocalizedTitle(null)
+      setLanguage("en")
+      setLoadingSong(false)
+      void api.fetchNotation(bundle.song.number, "C").then((notation) => {
+        if (!active) return
+        const lines = notation?.notation?.lines?.length ?? 0
+        setHasNotation(lines > 0)
+      })
+    })
+    return () => {
+      active = false
+    }
+  }, [songId])
+
+  const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
+  const journeyTabs = useMemo(
+    () => visibleSongJourneyTabs({ hasVideo, hasNotation }),
+    [hasVideo, hasNotation],
+  )
+
+  const requestedTab =
+    tabParam === "watch" ||
+    tabParam === "understand" ||
+    tabParam === "listen" ||
+    tabParam === "notation"
+      ? tabParam
+      : null
+
+  useEffect(() => {
+    if (requestedTab) setJourney(requestedTab)
+  }, [requestedTab, songId])
+
+  useEffect(() => {
+    if (tabParam !== "deeper" || !song) return
+    router.replace(href(`/(tabs)/ai?song=${song.number}`))
+  }, [tabParam, song, router])
+
+  useEffect(() => {
+    if (!journeyTabs.some((tab) => tab.id === journey)) {
+      // Prefer requested tab once media arrives (e.g. watch after videos hydrate).
+      if (requestedTab && journeyTabs.some((tab) => tab.id === requestedTab)) {
+        setJourney(requestedTab)
+        return
+      }
+      setJourney("listen")
+    }
+  }, [journeyTabs, journey, requestedTab])
+
+  useEffect(() => {
+    if (!song) return
+    const queue = [song.number, ...related.map((item) => item.number)]
+    // Watch / Notation / Lyrics open should show that tab — not force Listen + audio.
+    if (requestedTab && requestedTab !== "listen") {
+      setJourney(requestedTab)
+      if (autoPlayedFor.current === song.id) return
+      autoPlayedFor.current = song.id
+      const current = usePlayerStore.getState().currentSong
+      // Keep whatever is already playing; only sync metadata for Listen controls.
+      if (isSameSong(current, song)) syncCurrentSong(song, queue)
+      else setQueue(queue)
+      return
+    }
+    // Once per song visit — avoid restarting on related[] updates.
+    if (autoPlayedFor.current === song.id) return
+    autoPlayedFor.current = song.id
+    setJourney("listen")
+    const current = usePlayerStore.getState().currentSong
+    if (isSameSong(current, song)) {
+      // Already playing this track from Home/mini-player — do not touch the Sound.
+      syncCurrentSong(song, queue)
+      return
+    }
+    loadSong(song, queue)
+  }, [song?.id, song, related, loadSong, syncCurrentSong, setQueue, requestedTab])
+
+  useEffect(() => {
+    if (!song) return
+    // Match website: English uses catalog meaning; Hindi prefers curated hindi_meaning
+    // (skip AI so the text stays stable instead of regenerating differently).
+    if (language === "en") {
+      setLocalizedMeaning(null)
+      setLocalizedTitle(null)
+      setLocalizing(false)
+      return
+    }
+    if (language === "hi" && song.hindiMeaning) {
+      setLocalizedMeaning(song.hindiMeaning)
+      setLocalizedTitle(null)
+      setLocalizing(false)
+      return
+    }
+    let active = true
+    setLocalizing(true)
+    void api.fetchSongLocalization(song.number, localeLabel(language)).then((result) => {
+      if (!active) return
+      setLocalizing(false)
+      if (!result) {
+        setLocalizedMeaning(language === "hi" ? song.hindiMeaning ?? null : null)
+        setLocalizedTitle(null)
+        return
+      }
+      setLocalizedTitle(result.localized_title ?? null)
+      setLocalizedMeaning(
+        language === "hi"
+          ? song.hindiMeaning || result.localized_meaning || null
+          : result.localized_meaning ?? null,
+      )
+    })
+    return () => {
+      active = false
+    }
+  }, [language, song])
+
+  if (loadingSong && !song) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={styles.loadingText}>Loading song…</Text>
+      </View>
+    )
+  }
+
+  if (!song) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <Text style={styles.loadingText}>{loadError || "Song not found."}</Text>
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.aiBtnText}>Go back</Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  const isSaved = savedSongIds.includes(song.id)
+  const playQueue = [song.number, ...related.map((item) => item.number)]
+
+  const handlePlayToggle = () => {
+    const now = Date.now()
+    if (now - lastPlayToggleAt.current < 350) return
+    lastPlayToggleAt.current = now
+    setJourney("listen")
+    // Pause must be direct — never go through load/sync paths while audio is on.
+    if (showPause) {
+      pause()
+      return
+    }
+    playOrToggle(song, playQueue)
+  }
+
+  const shareSong = async () => {
+    try {
+      await Share.share({
+        message: songShareMessage(song.number, song.title),
+      })
+    } catch {
+      Alert.alert("Share", "Could not open the share sheet.")
+    }
+  }
+
+  const meaningText =
+    language === "hi"
+      ? song.hindiMeaning || localizedMeaning || song.meaning
+      : language === "en"
+        ? song.meaning
+        : localizedMeaning || song.meaning
+  const displayTitle = localizedTitle || song.title
+  const watchVideos = song.videos.filter((video) => video.embedUrl)
+
+  return (
+    <View style={styles.root}>
+      <SafeAreaView edges={["top"]} style={styles.safe}>
+        <View style={styles.nav}>
+          <IconButton soft accessibilityLabel="Go back" onPress={() => router.back()}>
+            <ChevronLeft size={22} color={colors.textPrimary} />
+          </IconButton>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            PS {song.number}
+          </Text>
+          <View style={styles.navActions}>
+            <IconButton
+              soft
+              accessibilityLabel={isSaved ? "Remove favorite" : "Save favorite"}
+              onPress={() => void toggleSaved(song.id)}
+            >
+              <Heart
+                size={20}
+                color={isSaved ? colors.primary : colors.textPrimary}
+                fill={isSaved ? colors.primary : "transparent"}
+              />
+            </IconButton>
+            <IconButton soft accessibilityLabel="Share song" onPress={shareSong}>
+              <Share2 size={20} color={colors.textPrimary} />
+            </IconButton>
+          </View>
+        </View>
+      </SafeAreaView>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+      >
+        {loadingSong ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.loadingText}>Loading song…</Text>
+          </View>
+        ) : null}
+        <Animated.View entering={FadeInDown.duration(240)} style={styles.hero}>
+          <Image source={{ uri: song.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <LinearGradient
+            colors={["transparent", "rgba(20,14,10,0.72)"]}
+            style={StyleSheet.absoluteFill}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={showPause ? `Pause ${song.title}` : `Listen to ${song.title}`}
+            onPress={handlePlayToggle}
+            onPressIn={handlePlayToggle}
+            style={({ pressed }) => [styles.heroPlay, pressed && { transform: [{ scale: 0.96 }] }]}
+          >
+            {showPause ? (
+              <Pause size={28} color={colors.white} fill={colors.white} />
+            ) : (
+              <Play size={28} color={colors.white} fill={colors.white} />
+            )}
+          </Pressable>
+          <View style={styles.heroMeta}>
+            <Text style={styles.heroTitle}>{song.originalTitle ?? song.title}</Text>
+            <Text style={styles.heroThemes}>{song.themes.join(" · ")}</Text>
+          </View>
+        </Animated.View>
+
+        <View style={styles.titleRow}>
+          <Text style={styles.englishTitle} numberOfLines={3}>
+            {displayTitle}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open AI Companion for this song"
+            onPress={() => router.push(href(`/(tabs)/ai?song=${song.number}`))}
+            style={({ pressed }) => [styles.aiCompanionChip, pressed && { opacity: 0.9 }]}
+          >
+            <Sparkles size={14} color={colors.white} />
+            <Text style={styles.aiCompanionText}>AI Companion</Text>
+          </Pressable>
+        </View>
+        <Text style={[styles.description, song.audioUrl ? styles.descriptionSpaced : null]}>
+          {song.shortDescription}
+        </Text>
+        {song.audioUrl ? null : (
+          <Text style={styles.audioHint}>No direct audio stream yet — player opens when media exists.</Text>
+        )}
+
+        <SongJourneyTicker
+          tabs={journeyTabs}
+          selected={journey}
+          onSelect={setJourney}
+        />
+
+        {journey === "listen" ? (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
+            <Text style={styles.sectionLead}>Listen to this song.</Text>
+            <SongListenControls
+              songId={song.id}
+              songNumber={song.number}
+              imageUrl={song.thumbnailUrl}
+              title={song.title}
+              performer={song.performer}
+              onTogglePlay={handlePlayToggle}
+            />
+          </View>
+        ) : null}
+
+        {journey === "watch" && hasVideo ? (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>Experience · Watch</Text>
+            <Text style={styles.sectionLead}>
+              See the song with nature and sunrise — same spirit as the website Watch section.
+            </Text>
+            {watchVideos.map((video) => (
+              <WatchVideoCard key={video.id} video={video} songNumber={song.number} />
+            ))}
+          </View>
+        ) : null}
+
+        {journey === "notation" && hasNotation ? (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>Experience · Notation</Text>
+            <Text style={styles.sectionLead}>Harmonium practice for songs that have verified notation.</Text>
+            <Accordion
+              title="Harmonium notation"
+              subtitle="Expand to practise Sargam and keys"
+              open={openNotation}
+              onToggle={() => setOpenNotation((v) => !v)}
+            >
+              <NotationPractice songNumber={song.number} embedded lyricText={song.lyrics} />
+            </Accordion>
+          </View>
+        ) : null}
+
+        {journey === "understand" ? (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>Lyrics & Meaning</Text>
+            <Text style={styles.sectionLead}>Lyrics first, then meaning.</Text>
+            <Accordion
+              title="Lyrics"
+              subtitle="Original language"
+              open={openLyrics}
+              onToggle={() => setOpenLyrics((v) => !v)}
+            >
+              <Text style={styles.lyrics}>{song.lyrics}</Text>
+            </Accordion>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.langRow}
+            >
+              {QUICK_LOCALES.map((option) => (
+                <Pressable
+                  key={option.code}
+                  onPress={() => setLanguage(option.code)}
+                  style={[styles.langChip, language === option.code && styles.langActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: language === option.code }}
+                  accessibilityLabel={`Meaning in ${option.label}`}
+                >
+                  <Text style={styles.langText}>{option.nativeLabel}</Text>
+                </Pressable>
+              ))}
+              {!(quickLocaleCodes as readonly string[]).includes(language) ? (
+                <Pressable
+                  style={[styles.langChip, styles.langActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: true }}
+                  accessibilityLabel={`Meaning in ${localeLabel(language)}`}
+                  onPress={() => setLanguagePickerOpen(true)}
+                >
+                  <Text style={styles.langText}>{localeNativeLabel(language)}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={() => setLanguagePickerOpen(true)}
+                style={styles.langMore}
+                accessibilityRole="button"
+                accessibilityLabel="More languages"
+              >
+                <Text style={styles.langMoreText}>More</Text>
+              </Pressable>
+            </ScrollView>
+            <View style={styles.langHintRow}>
+              {localizing ? (
+                <>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.langHint}>{localeLabel(language)}</Text>
+                </>
+              ) : (
+                <Text style={styles.langHint}>Meaning language · {localeLabel(language)}</Text>
+              )}
+            </View>
+            <LanguagePickerModal
+              visible={languagePickerOpen}
+              selectedCode={language}
+              onClose={() => setLanguagePickerOpen(false)}
+              onSelect={setLanguage}
+            />
+            <Accordion
+              title="Meaning"
+              subtitle={`Language · ${localeLabel(language)}`}
+              open={openMeaning}
+              onToggle={() => setOpenMeaning((v) => !v)}
+            >
+              <Text style={styles.body}>{meaningText}</Text>
+            </Accordion>
+          </View>
+        ) : null}
+
+      </ScrollView>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+  centered: { alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
+  safe: { backgroundColor: colors.background },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  loadingText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  nav: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  navTitle: { ...typography.h3, color: colors.textPrimary, flex: 1 },
+  navActions: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section },
+  hero: {
+    height: 240,
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    marginBottom: spacing.lg,
+    ...softShadow(2),
+  },
+  heroPlay: {
+    position: "absolute",
+    left: "50%",
+    marginLeft: -32,
+    top: "36%",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 5,
+  },
+  heroMeta: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.lg },
+  heroTitle: { fontFamily: "Lora_700Bold", fontSize: 22, color: colors.white },
+  heroThemes: { ...typography.caption, color: "rgba(255,255,255,0.85)", marginTop: 4 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  englishTitle: { ...typography.h2, color: colors.textPrimary, flex: 1 },
+  aiCompanionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginTop: 2,
+    ...softShadow(1),
+  },
+  aiCompanionText: {
+    ...typography.caption,
+    color: colors.white,
+    fontFamily: "Inter_600SemiBold",
+  },
+  description: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  descriptionSpaced: { marginBottom: spacing.md },
+  audioHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  sectionBlock: { marginBottom: spacing.lg },
+  sectionEyebrow: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
+  sectionLead: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  langChip: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surface,
+  },
+  langActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  langText: { ...typography.caption, color: colors.textPrimary },
+  langMore: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.textPrimary,
+  },
+  langMoreText: { ...typography.caption, color: colors.white, fontFamily: "Inter_600SemiBold" },
+  langHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  langHint: { ...typography.caption, color: colors.textMuted },
+  accordion: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+    overflow: "hidden",
+  },
+  accordionHeader: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  accordionTitle: { ...typography.label, fontSize: 16, color: colors.textPrimary },
+  accordionSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  accordionBody: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  body: { ...typography.bodySmall, color: colors.textSecondary },
+  lyrics: { ...typography.body, color: colors.textPrimary },
+  aiBtnText: { ...typography.caption, color: colors.primary },
+})

@@ -96,4 +96,16 @@ describe("streaming song companion", () => {
     await streamExplanation(1, (chunk) => chunks.push(chunk), "Explain this song")
     expect(chunks).toEqual(["Streaming unavailable."])
   })
+
+  it("parses buffered SSE when response.body is null", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: null,
+      text: async () => "data: Grounded meaning for the song.\n\n",
+    })
+    const chunks: string[] = []
+    await streamExplanation(1, (chunk) => chunks.push(chunk), "Explain this song")
+    expect(chunks).toEqual(["Grounded meaning for the song."])
+  })
 })

@@ -28,6 +28,7 @@ from app.schemas.admin import (
 )
 from app.schemas.song import MediaItemResponse, SongSummary
 from app.services.embedding_index import build_embedding_indexes
+from app.services.feedback_live import publish_feedback_to_live, unpublish_feedback_from_live
 from app.services.feedback_triage import feedback_is_priority
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -351,6 +352,14 @@ async def update_feedback(
         raise HTTPException(status_code=404, detail="Feedback not found")
     if payload.status is None and not payload.publish_to_live and not payload.unpublish_from_live:
         raise HTTPException(status_code=400, detail="No feedback update provided")
+    # Match member-admin: publish before status so ticker failures stay visible.
+    if payload.publish_to_live:
+        try:
+            await publish_feedback_to_live(session, feedback)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if payload.unpublish_from_live:
+        await unpublish_feedback_from_live(session, feedback)
     if payload.status is not None:
         feedback.status = payload.status
         await session.commit()

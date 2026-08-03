@@ -1,76 +1,115 @@
-import { Ionicons } from "@expo/vector-icons"
 import { Tabs } from "expo-router"
-import { Platform } from "react-native"
+import { Home, Library, Sparkles, Heart, User } from "lucide-react-native"
+import { Platform, StyleSheet, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { colors } from "@/lib/client"
+import { MiniPlayer } from "@/components/player/MiniPlayer"
+import { colors } from "@/constants/colors"
+import { usePlayerStore } from "@/stores/playerStore"
 
-type TabIconProps = {
+function TabIcon({
+  Icon,
+  color,
+  focused,
+}: {
+  Icon: typeof Home
   color: string
   focused: boolean
-  name: keyof typeof Ionicons.glyphMap
-}
-
-function TabIcon({ color, focused, name }: TabIconProps) {
-  return <Ionicons name={name} size={22} color={color} style={{ opacity: focused ? 1 : 0.88 }} />
+}) {
+  return <Icon size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets()
+  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const tabBarHeight = (Platform.OS === "ios" ? 52 : 58) + Math.max(insets.bottom, 8)
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.gold300,
-        tabBarInactiveTintColor: "rgba(255,255,255,0.55)",
-        tabBarStyle: {
-          backgroundColor: colors.navy950,
-          borderTopColor: "rgba(255,255,255,0.08)",
-          height: Platform.OS === "ios" ? 84 : 64,
-          paddingTop: 6,
-          paddingBottom: Platform.OS === "ios" ? 24 : 10,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "700",
-          marginTop: 2,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon color={color} focused={focused} name={focused ? "home" : "home-outline"} />
-          ),
+    <View style={styles.root}>
+      <Tabs
+        initialRouteName="index"
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            height: tabBarHeight,
+            paddingTop: 6,
+            paddingBottom: Math.max(insets.bottom, 8),
+          },
+          tabBarLabelStyle: {
+            fontFamily: "Inter_500Medium",
+            fontSize: 11,
+            marginTop: 2,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: "Explore",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon color={color} focused={focused} name={focused ? "search" : "search-outline"} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="stories"
-        options={{
-          title: "Stories",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon color={color} focused={focused} name={focused ? "book" : "book-outline"} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="account"
-        options={{
-          title: "Account",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon color={color} focused={focused} name={focused ? "person" : "person-outline"} />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Home",
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon Icon={Home} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="songs"
+          options={{
+            title: "Songs",
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon Icon={Library} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="ai"
+          options={{
+            title: "AI",
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon Icon={Sparkles} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="saved"
+          options={{
+            title: "Saved",
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon Icon={Heart} color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon Icon={User} color={color} focused={focused} />
+            ),
+          }}
+        />
+      </Tabs>
+      {hasSong ? (
+        <View style={[styles.miniSlot, { bottom: tabBarHeight }]} pointerEvents="box-none">
+          <MiniPlayer />
+        </View>
+      ) : null}
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  miniSlot: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+  },
+})

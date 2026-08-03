@@ -7,7 +7,9 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
+        "EXPO_PUBLIC_API_BASE_URL": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
+        "EXPO_PUBLIC_WEB_BASE_URL": "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
+        "EXPO_PUBLIC_AZURE_TENANT_ID": "22cd8762-00e6-4945-850c-7b6ab1798844"
       }
     },
     "preview-android": {

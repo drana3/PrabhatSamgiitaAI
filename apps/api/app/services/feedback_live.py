@@ -22,6 +22,10 @@ def live_display_name(feedback: UserFeedback) -> str:
     return "Community member"
 
 
+def _normalized_quote(comment: str) -> str:
+    return comment.strip().lower()
+
+
 async def feedback_is_on_live_ticker(session: AsyncSession, comment: str) -> bool:
     quote = comment.strip()
     if not quote:
@@ -29,7 +33,7 @@ async def feedback_is_on_live_ticker(session: AsyncSession, comment: str) -> boo
     found = await session.scalar(
         select(CommunityTestimonial.id).where(
             CommunityTestimonial.status == "approved",
-            func.lower(CommunityTestimonial.quote_text) == quote.casefold(),
+            func.lower(CommunityTestimonial.quote_text) == _normalized_quote(quote),
         )
     )
     return found is not None
@@ -47,7 +51,7 @@ async def publish_feedback_to_live(
     now = datetime.now(UTC)
     existing = await session.scalar(
         select(CommunityTestimonial).where(
-            func.lower(CommunityTestimonial.quote_text) == quote.casefold()
+            func.lower(CommunityTestimonial.quote_text) == _normalized_quote(quote)
         )
     )
     if existing is not None:
@@ -82,7 +86,7 @@ async def unpublish_feedback_from_live(session: AsyncSession, feedback: UserFeed
         (
             await session.execute(
                 select(CommunityTestimonial).where(
-                    func.lower(CommunityTestimonial.quote_text) == quote.casefold(),
+                    func.lower(CommunityTestimonial.quote_text) == _normalized_quote(quote),
                     CommunityTestimonial.status == "approved",
                 )
             )

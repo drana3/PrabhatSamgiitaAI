@@ -138,10 +138,10 @@ async def admin_feedback_update(
     feedback = await session.get(UserFeedback, feedback_id)
     if feedback is None:
         raise HTTPException(status_code=404, detail="Feedback not found")
-    if payload.status is not None:
-        feedback.status = payload.status
-        await session.commit()
-        await session.refresh(feedback)
+    if payload.status is None and not payload.publish_to_live and not payload.unpublish_from_live:
+        raise HTTPException(status_code=400, detail="No feedback update provided")
+    # Publish/unpublish before status commit so a failed ticker publish
+    # does not silently move the item out of the current filter.
     if payload.publish_to_live:
         try:
             await publish_feedback_to_live(session, feedback)
@@ -149,4 +149,8 @@ async def admin_feedback_update(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     if payload.unpublish_from_live:
         await unpublish_feedback_from_live(session, feedback)
+    if payload.status is not None:
+        feedback.status = payload.status
+        await session.commit()
+        await session.refresh(feedback)
     return await _feedback_item(session, feedback)

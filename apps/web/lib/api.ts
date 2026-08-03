@@ -369,9 +369,19 @@ export async function fetchTodayReflection(): Promise<ReflectionQuote | null> {
   }
 }
 
-export async function fetchTestimonials(): Promise<CommunityTestimonial[]> {
+export async function fetchTestimonials(limit = 20): Promise<CommunityTestimonial[]> {
   try {
-    const response = await fetchJson("/api/v1/testimonials?limit=8")
+    const clamped = Math.min(20, Math.max(1, limit))
+    // Browser: same-origin Next proxy (works on custom domains without API CORS).
+    // Server: call the API directly.
+    const path =
+      typeof window !== "undefined"
+        ? `/api/testimonials?limit=${clamped}`
+        : `/api/v1/testimonials?limit=${clamped}`
+    const response =
+      typeof window !== "undefined"
+        ? await fetch(path, { cache: "no-store" })
+        : await fetchJson(path)
     if (!response.ok) return []
     return z.array(testimonialSchema).parse(await response.json())
   } catch {

@@ -11,7 +11,13 @@ export function CommunityVoices() {
   const [items, setItems] = useState<CommunityTestimonial[]>([])
   const [active, setActive] = useState(0)
   useEffect(() => {
-    void fetchTestimonials().then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
+    const reload = () => {
+      void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
+    }
+    reload()
+    const onFocus = () => reload()
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
   }, [])
   useEffect(() => {
     if (items.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return

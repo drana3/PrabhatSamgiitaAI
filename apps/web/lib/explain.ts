@@ -41,21 +41,11 @@ export async function streamExplanation(
     throw new Error("The song companion is temporarily unavailable.")
   }
 
-  if (!response.body) {
-    onChunk("Streaming unavailable.")
-    return
-  }
+  const body = response.body
 
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ""
-
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const frames = buffer.split("\n\n")
-    buffer = frames.pop() ?? ""
+  const emitFrames = (raw: string, flushPartial: boolean): string => {
+    const frames = raw.split("\n\n")
+    const remainder = frames.pop() ?? ""
     for (const frame of frames) {
       const payload = frame
         .split("\n")
@@ -64,14 +54,39 @@ export async function streamExplanation(
         .join("\n")
       if (payload) onChunk(payload)
     }
+    if (flushPartial && remainder.trim()) {
+      const payload = remainder
+        .split("\n")
+        .filter((entry) => entry.startsWith("data: "))
+        .map((entry) => entry.slice(6))
+        .join("\n")
+      if (payload) onChunk(payload)
+      return ""
+    }
+    return remainder
+  }
+
+  // Some runtimes (notably React Native) buffer SSE without exposing response.body.
+  if (!body || typeof body.getReader !== "function") {
+    const raw = await response.text()
+    if (!raw.trim()) {
+      onChunk("Streaming unavailable.")
+      return
+    }
+    emitFrames(raw, true)
+    return
+  }
+
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    buffer = emitFrames(buffer, false)
   }
   buffer += decoder.decode()
-  if (buffer.trim()) {
-    const payload = buffer
-      .split("\n")
-      .filter((entry) => entry.startsWith("data: "))
-      .map((entry) => entry.slice(6))
-      .join("\n")
-    if (payload) onChunk(payload)
-  }
+  emitFrames(buffer, true)
 }
