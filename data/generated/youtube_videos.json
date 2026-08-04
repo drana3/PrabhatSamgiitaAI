@@ -6090,6 +6090,27 @@
     }
   },
   {
+    "song_number": 2496,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Iishan Tomar Visan Bejeche - Prabhat Sangeet song #2496 - Singer - Dipanwita Debnath",
+    "url": "https://www.youtube.com/watch?v=k8Hk22QNXhI",
+    "embed_url": "https://www.youtube-nocookie.com/embed/k8Hk22QNXhI",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "k8Hk22QNXhI",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.941,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2497,
     "kind": "video",
     "provider": "youtube",
