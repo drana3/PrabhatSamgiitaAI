@@ -4,7 +4,7 @@
   "description": "Search lyrics, read meanings, listen, practise harmonium, and ask about Prabhat Samgiita.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#092d56",
+  "background_color": "#FAF7F2",
   "theme_color": "#092d56",
   "orientation": "portrait-primary",
   "icons": [
