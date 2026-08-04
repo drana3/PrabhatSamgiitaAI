@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   humanizeSpeechRecognitionError,
   isNativeSpeechRecognitionAvailable,
+  shouldUseOnDeviceRecognition,
   speechRecognitionRuntime,
   startNativeSpeechRecognition,
   stopNativeSpeechRecognition,
@@ -35,7 +36,9 @@ describe("speech recognition wrapper", () => {
     const stop = vi.fn()
     vi.spyOn(speechRecognitionRuntime, "load").mockReturnValue({
       isRecognitionAvailable: () => true,
+      // Without installed locales, Android path should not force on-device.
       supportsOnDeviceRecognition: () => true,
+      getSupportedLocales: async () => ({ installedLocales: [] }),
       requestPermissionsAsync: async () => ({ granted: true }),
       requestMicrophonePermissionsAsync: async () => ({ granted: true }),
       getStateAsync: async () => "inactive" as const,
@@ -48,11 +51,23 @@ describe("speech recognition wrapper", () => {
     expect(start).toHaveBeenCalled()
     expect(start.mock.calls[0]?.[0]).toMatchObject({
       lang: "en-US",
-      requiresOnDeviceRecognition: true,
     })
     stopFn()
     expect(stop).toHaveBeenCalled()
     stopNativeSpeechRecognition()
+  })
+
+  it("avoids Android on-device STT when the language pack is missing", async () => {
+    await expect(
+      shouldUseOnDeviceRecognition(
+        {
+          supportsOnDeviceRecognition: () => true,
+          getSupportedLocales: async () => ({ installedLocales: [] }),
+        },
+        "en-US",
+        { platform: "android" },
+      ),
+    ).resolves.toBe(false)
   })
 
   it("humanizes Apple speech error 209", () => {
@@ -62,6 +77,14 @@ describe("speech recognition wrapper", () => {
     )
     expect(message.toLowerCase()).not.toContain("kafassistant")
     expect(message).toMatch(/microphone|listening|audio/i)
+  })
+
+  it("humanizes Android offline language pack errors", () => {
+    const message = humanizeSpeechRecognitionError(
+      "Requested language is supported, but not yet downloaded.",
+    )
+    expect(message.toLowerCase()).toMatch(/network|wi/)
+    expect(message.toLowerCase()).not.toContain("not yet downloaded")
   })
 
   it("ignores aborted cleanup noise", () => {

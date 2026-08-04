@@ -133,7 +133,7 @@ export function VoiceSearchModal({ visible, busy, error, onClose, onSubmit }: Pr
             {nativeAvailable
               ? onSimulator
                 ? "On Simulator: enable I/O → Audio Input → Mac microphone, or type a query below. On a real iPhone, tap Start listening and speak."
-                : "Tap Start listening, speak a song number or theme, then search."
+                : "Tap Start listening, speak a song number or theme, then wait for the text to appear here before searching."
               : "Native mic listening needs a rebuilt app (not Expo Go). For now, use keyboard dictation or type."}
           </Text>
 

@@ -9,6 +9,9 @@
 type SpeechModule = {
   isRecognitionAvailable: () => boolean
   supportsOnDeviceRecognition?: () => boolean
+  getSupportedLocales?: (options?: {
+    androidRecognitionServicePackage?: string
+  }) => Promise<{ locales?: string[]; installedLocales?: string[] }>
   requestPermissionsAsync: () => Promise<{ granted: boolean }>
   requestMicrophonePermissionsAsync?: () => Promise<{ granted: boolean }>
   getStateAsync?: () => Promise<"inactive" | "starting" | "stopping" | "recognizing">
@@ -30,6 +33,44 @@ type SpeechModule = {
       code?: number
     }) => void,
   ) => { remove: () => void }
+}
+
+function platformOS(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform: { OS: string } }
+    return Platform.OS
+  } catch {
+    return "unknown"
+  }
+}
+
+/**
+ * Prefer on-device STT only when the pack is actually usable.
+ * Android often reports on-device support even when the language model is missing,
+ * which surfaces "Requested language is supported, but not yet downloaded."
+ */
+export async function shouldUseOnDeviceRecognition(
+  speech: Pick<SpeechModule, "supportsOnDeviceRecognition" | "getSupportedLocales">,
+  lang = "en-US",
+  options?: { platform?: string },
+): Promise<boolean> {
+  if (!speech.supportsOnDeviceRecognition?.()) return false
+  const os = options?.platform ?? platformOS()
+  // Network STT via Google is the reliable default on Android phones.
+  if (os === "android") {
+    if (!speech.getSupportedLocales) return false
+    try {
+      const { installedLocales = [] } = await speech.getSupportedLocales({
+        androidRecognitionServicePackage: "com.google.android.googlequicksearchbox",
+      })
+      const needle = lang.toLowerCase()
+      return installedLocales.some((locale) => locale.toLowerCase() === needle)
+    } catch {
+      return false
+    }
+  }
+  return true
 }
 
 /** Overridable for unit tests; production uses lazy require. */
@@ -114,6 +155,15 @@ export function humanizeSpeechRecognitionError(
     lower.includes("denied")
   ) {
     return "Microphone and speech recognition permission is required. Enable them in Settings."
+  }
+
+  if (
+    lower.includes("not yet downloaded") ||
+    lower.includes("language is supported, but not yet") ||
+    lower.includes("offline language") ||
+    code === "language-not-supported"
+  ) {
+    return "Voice search needs a network connection on this phone (offline speech pack isn’t installed). Tap Start listening again with data/Wi‑Fi on."
   }
 
   return message || "Speech recognition failed."
@@ -220,7 +270,10 @@ export async function startNativeSpeechRecognition(
   }
 
   const onSimulator = isLikelyIosSimulator()
-  const onDevice = Boolean(speech.supportsOnDeviceRecognition?.())
+  const lang = "en-US"
+  // Android: use Google network STT unless the offline pack is installed.
+  // iOS: keep on-device when available (avoids flaky network Siri on Simulator).
+  const onDevice = await shouldUseOnDeviceRecognition(speech, lang)
 
   const subscriptions = [
     speech.addListener("result", (event) => {
@@ -243,11 +296,12 @@ export async function startNativeSpeechRecognition(
   ]
 
   speech.start({
-    lang: "en-US",
+    lang,
     interimResults: true,
     continuous: false,
-    // On-device avoids Apple network Siri path that often fails on Simulator (209).
     requiresOnDeviceRecognition: onDevice,
+    // Prefer Google’s recognizer on Android phones.
+    androidRecognitionServicePackage: "com.google.android.googlequicksearchbox",
     iosCategory: {
       category: "playAndRecord",
       categoryOptions: ["defaultToSpeaker", "allowBluetooth", "mixWithOthers"],

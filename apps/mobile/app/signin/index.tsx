@@ -53,29 +53,29 @@ export default function SignInScreen() {
         <Text style={styles.title}>Sign in</Text>
         <Text style={styles.body}>
           {msalReady
-            ? "Continue with Microsoft to use the same Entra identity as the website."
-            : "Preview sign-in works on-device. Add EXPO_PUBLIC_AZURE_CLIENT_ID for live Microsoft login."}
+            ? "Sign in with the same Microsoft account you use on the website to sync favorites, quiz, and chat."
+            : "You can continue as a guest, or use a preview member session on this device."}
         </Text>
         <Text style={styles.list}>
           {memberAuthAvailable()
-            ? "Favorites, quiz, feedback, and AI chat memory sync with the live member API."
-            : "Favorites stay on this device until EXPO_PUBLIC_MEMBER_PROXY_KEY matches the website MEMBER_PROXY_KEY."}
+            ? "Favorites, quiz, feedback, and AI chat memory sync with your member profile when signed in."
+            : "Favorites can stay on this device if you continue without a synced member account."}
         </Text>
-        {redirectUri ? (
-          <Text style={styles.redirect}>Register this Entra redirect URI: {redirectUri}</Text>
+        {__DEV__ && redirectUri ? (
+          <Text style={styles.redirect}>Dev only — Azure redirect URI: {redirectUri}</Text>
         ) : null}
 
         {busy ? <ActivityIndicator color={colors.primary} /> : null}
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
         <PrimaryButton
-          label={msalReady ? "Continue with Microsoft" : "Continue with Microsoft (preview)"}
+          label={msalReady ? "Continue with Microsoft" : "Continue with preview member"}
           onPress={() => void signIn(false)}
           disabled={busy}
         />
         {msalReady ? (
           <SecondaryButton
-            label="Use preview member session"
+            label="Continue with preview member"
             onPress={() => void signIn(true)}
           />
         ) : null}

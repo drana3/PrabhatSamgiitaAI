@@ -3,11 +3,7 @@ import * as WebBrowser from "expo-web-browser"
 import Constants from "expo-constants"
 
 import { identityFromIdToken, type MicrosoftIdentity } from "@/lib/msalToken"
-import {
-  MICROSOFT_REDIRECT_PATH,
-  MICROSOFT_REDIRECT_SCHEME,
-  microsoftRedirectHint,
-} from "@/lib/msalRedirect"
+import { MICROSOFT_REDIRECT_PATH, MICROSOFT_REDIRECT_SCHEME } from "@/lib/msalRedirect"
 
 export type { MicrosoftIdentity }
 export { identityFromIdToken } from "@/lib/msalToken"
@@ -68,7 +64,7 @@ export async function signInWithMicrosoft(): Promise<MicrosoftIdentity> {
   if (result.type !== "success" || !result.params.code) {
     if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
     throw new Error(
-      `Microsoft sign-in failed. Confirm redirect URI in Entra matches: ${redirectUri} (register ${microsoftRedirectHint()} for native builds).`,
+      "Microsoft sign-in didn’t finish. Try again, or choose “Continue with preview member” / “Continue without account”.",
     )
   }
 
