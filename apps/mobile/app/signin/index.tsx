@@ -73,9 +73,9 @@ export default function SignInScreen() {
           onPress={() => void signIn(false)}
           disabled={busy}
         />
-        {msalReady ? (
+        {msalReady && __DEV__ ? (
           <SecondaryButton
-            label="Continue with preview member"
+            label="Continue with preview member (dev)"
             onPress={() => void signIn(true)}
           />
         ) : null}

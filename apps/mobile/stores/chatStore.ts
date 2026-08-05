@@ -14,6 +14,8 @@ export type ChatThread = {
   title: string
   updatedAt: number
   messages: StoredChatMessage[]
+  /** null = global companion (AI tab without a song). */
+  songNumber: number | null
 }
 
 type AccountChat = {
@@ -27,6 +29,8 @@ type ChatState = {
   getAccountChat: (accountId: string) => AccountChat
   getActiveThread: (accountId: string) => ChatThread | null
   ensureActiveThread: (accountId: string) => string
+  /** Activate or create the thread for this song scope (null = global companion). */
+  ensureScopeThread: (accountId: string, songNumber: number | null) => string
   appendExchange: (accountId: string, userText: string, assistantText: string) => void
   /** Starts a turn with an empty assistant bubble for streaming. Returns assistant message id. */
   beginExchange: (accountId: string, userText: string) => string | null
@@ -36,8 +40,9 @@ type ChatState = {
     accountId: string,
     turns: Array<{ role: "user" | "assistant"; content: string }>,
     title?: string,
+    songNumber?: number | null,
   ) => void
-  startNewThread: (accountId: string) => string
+  startNewThread: (accountId: string, songNumber?: number | null) => string
   setActiveThread: (accountId: string, threadId: string) => void
   clearAccountMemory: (accountId: string) => void
 }
@@ -50,13 +55,22 @@ function titleFromPrompt(text: string): string {
   return `${cleaned.slice(0, 42)}…`
 }
 
-function createThread(firstPrompt?: string): ChatThread {
+function threadSongNumber(thread: ChatThread): number | null {
+  return typeof thread.songNumber === "number" ? thread.songNumber : null
+}
+
+function createThread(firstPrompt?: string, songNumber: number | null = null): ChatThread {
   const now = Date.now()
   return {
-    id: `thread-${now}`,
-    title: firstPrompt ? titleFromPrompt(firstPrompt) : "New conversation",
+    id: `thread-${now}-${Math.random().toString(36).slice(2, 9)}`,
+    title: firstPrompt
+      ? titleFromPrompt(firstPrompt)
+      : songNumber
+        ? `Song ${songNumber}`
+        : "New conversation",
     updatedAt: now,
     messages: [],
+    songNumber,
   }
 }
 
@@ -83,16 +97,42 @@ export const useChatStore = create<ChatState>()(
         if (account.activeThreadId && account.threads.some((t) => t.id === account.activeThreadId)) {
           return account.activeThreadId
         }
-        const thread = createThread()
-        set((state) => ({
-          byAccount: {
-            ...state.byAccount,
-            [accountId]: {
-              threads: [thread, ...account.threads],
-              activeThreadId: thread.id,
+        return get().ensureScopeThread(accountId, null)
+      },
+
+      ensureScopeThread: (accountId, songNumber) => {
+        const account = get().getAccountChat(accountId)
+        const active = account.threads.find((thread) => thread.id === account.activeThreadId)
+        // Keep the current thread when it already matches this song scope (supports
+        // multiple threads per song via "New chat").
+        if (active && threadSongNumber(active) === songNumber) {
+          return active.id
+        }
+        const existing = [...account.threads]
+          .filter((thread) => threadSongNumber(thread) === songNumber)
+          .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+        if (existing) {
+          set((state) => ({
+            byAccount: {
+              ...state.byAccount,
+              [accountId]: { ...account, activeThreadId: existing.id },
             },
-          },
-        }))
+          }))
+          return existing.id
+        }
+        const thread = createThread(undefined, songNumber)
+        set((state) => {
+          const current = state.byAccount[accountId] ?? emptyAccount()
+          return {
+            byAccount: {
+              ...state.byAccount,
+              [accountId]: {
+                threads: [thread, ...current.threads],
+                activeThreadId: thread.id,
+              },
+            },
+          }
+        })
         return thread.id
       },
 
@@ -120,13 +160,14 @@ export const useChatStore = create<ChatState>()(
           let thread = threads.find((t) => t.id === activeId)
 
           if (!thread) {
-            thread = createThread(trimmed)
+            thread = createThread(trimmed, null)
             activeId = thread.id
             threads = [thread, ...threads]
           }
 
           const updated: ChatThread = {
             ...thread,
+            songNumber: threadSongNumber(thread),
             title: thread.messages.length === 0 ? titleFromPrompt(trimmed) : thread.title,
             updatedAt: now,
             messages: [...thread.messages, userMsg, assistantMsg],
@@ -168,13 +209,14 @@ export const useChatStore = create<ChatState>()(
           let thread = threads.find((t) => t.id === activeId)
 
           if (!thread) {
-            thread = createThread(trimmed)
+            thread = createThread(trimmed, null)
             activeId = thread.id
             threads = [thread, ...threads]
           }
 
           const updated: ChatThread = {
             ...thread,
+            songNumber: threadSongNumber(thread),
             title: thread.messages.length === 0 ? titleFromPrompt(trimmed) : thread.title,
             updatedAt: now,
             messages: [...thread.messages, userMsg, assistantMsg],
@@ -219,12 +261,13 @@ export const useChatStore = create<ChatState>()(
         })
       },
 
-      hydrateFromServerTurns: (accountId, turns, title) => {
+      hydrateFromServerTurns: (accountId, turns, title, songNumber = null) => {
         const cleaned = turns
           .map((turn) => ({ role: turn.role, content: turn.content.trim() }))
           .filter((turn) => turn.content.length > 0)
         if (!cleaned.length) return
 
+        get().ensureScopeThread(accountId, songNumber ?? null)
         const account = get().getAccountChat(accountId)
         const active = account.threads.find((thread) => thread.id === account.activeThreadId)
         if (active && active.messages.length > 0) return
@@ -241,23 +284,27 @@ export const useChatStore = create<ChatState>()(
           title: title || titleFromPrompt(cleaned[0]?.content || "Synced conversation"),
           updatedAt: now,
           messages,
+          songNumber: songNumber ?? null,
         }
         set((state) => {
           const current = state.byAccount[accountId] ?? emptyAccount()
+          const withoutScope = current.threads.filter(
+            (item) => threadSongNumber(item) !== thread.songNumber,
+          )
           return {
             byAccount: {
               ...state.byAccount,
               [accountId]: {
                 activeThreadId: thread.id,
-                threads: [thread, ...current.threads],
+                threads: [thread, ...withoutScope],
               },
             },
           }
         })
       },
 
-      startNewThread: (accountId) => {
-        const thread = createThread()
+      startNewThread: (accountId, songNumber = null) => {
+        const thread = createThread(undefined, songNumber ?? null)
         set((state) => {
           const account = state.byAccount[accountId] ?? emptyAccount()
           return {

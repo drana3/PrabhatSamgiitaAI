@@ -21,6 +21,30 @@ describe("member preview auth", () => {
     expect(headers["X-MS-CLIENT-PRINCIPAL"]).toBeTruthy()
   })
 
+  it("prefers Microsoft OID over email so mobile does not fork the website account", () => {
+    const headers = buildMemberAuthHeaders(
+      "member@example.com",
+      "Member",
+      "proxy-key",
+      "11111111-2222-3333-4444-555555555555",
+    )
+    const payload = JSON.parse(
+      Buffer.from(headers["X-MS-CLIENT-PRINCIPAL"], "base64").toString("utf8"),
+    ) as { claims: Array<{ typ: string; val: string }> }
+    const oid = payload.claims.find((claim) => claim.typ.includes("objectidentifier"))
+    expect(oid?.val).toBe("11111111-2222-3333-4444-555555555555")
+  })
+
+  it("does not use a real email as the principal object id", () => {
+    const headers = buildMemberAuthHeaders("member@example.com", "Member", "proxy-key")
+    const payload = JSON.parse(
+      Buffer.from(headers["X-MS-CLIENT-PRINCIPAL"], "base64").toString("utf8"),
+    ) as { claims: Array<{ typ: string; val: string }> }
+    const oid = payload.claims.find((claim) => claim.typ.includes("objectidentifier"))
+    expect(oid?.val).not.toBe("member@example.com")
+    expect(oid?.val).toMatch(/^preview:/)
+  })
+
   it("sends a person name claim, not the email address as display name", () => {
     const headers = buildMemberAuthHeaders(
       "dewasheesh.rana@gmail.com",

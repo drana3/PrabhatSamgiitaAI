@@ -197,6 +197,14 @@ async function pausePlaybackForMic() {
     /* ignore */
   }
 
+  // expo-av setAudioModeAsync steals the mic from Android SpeechRecognizer
+  // ("Couldn't capture audio" / ERROR_AUDIO). Only reopen the iOS session.
+  if (platformOS() !== "ios") {
+    // Give Android audio focus a moment to settle after pause before STT starts.
+    await delay(400)
+    return
+  }
+
   try {
     // Player previously locked iOS into allowsRecordingIOS:false — reopen the mic.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -295,18 +303,11 @@ export async function startNativeSpeechRecognition(
     }),
   ]
 
-  speech.start({
+  const startOptions: Record<string, unknown> = {
     lang,
     interimResults: true,
     continuous: false,
     requiresOnDeviceRecognition: onDevice,
-    // Prefer Google’s recognizer on Android phones.
-    androidRecognitionServicePackage: "com.google.android.googlequicksearchbox",
-    iosCategory: {
-      category: "playAndRecord",
-      categoryOptions: ["defaultToSpeaker", "allowBluetooth", "mixWithOthers"],
-      mode: "measurement",
-    },
     contextualStrings: [
       "Prabhat Samgiita",
       "song",
@@ -316,7 +317,33 @@ export async function startNativeSpeechRecognition(
       "peace",
       "harmonium",
     ],
-  })
+  }
+  if (platformOS() === "android") {
+    // Pin Google only when that package actually exposes locales; otherwise the
+    // system default recognizer avoids ERROR_AUDIO on OEM builds without GSA.
+    try {
+      if (speech.getSupportedLocales) {
+        const locales = await speech.getSupportedLocales({
+          androidRecognitionServicePackage: "com.google.android.googlequicksearchbox",
+        })
+        const available =
+          (locales.locales?.length ?? 0) > 0 || (locales.installedLocales?.length ?? 0) > 0
+        if (available) {
+          startOptions.androidRecognitionServicePackage =
+            "com.google.android.googlequicksearchbox"
+        }
+      }
+    } catch {
+      /* use Android default SpeechRecognizer */
+    }
+  } else {
+    startOptions.iosCategory = {
+      category: "playAndRecord",
+      categoryOptions: ["defaultToSpeaker", "allowBluetooth", "mixWithOthers"],
+      mode: "measurement",
+    }
+  }
+  speech.start(startOptions)
 
   return () => {
     try {

@@ -64,6 +64,7 @@ export default function AIScreen() {
   const beginExchange = useChatStore((s) => s.beginExchange)
   const updateAssistantMessage = useChatStore((s) => s.updateAssistantMessage)
   const hydrateFromServerTurns = useChatStore((s) => s.hydrateFromServerTurns)
+  const ensureScopeThread = useChatStore((s) => s.ensureScopeThread)
   const startNewThread = useChatStore((s) => s.startNewThread)
   const setActiveThread = useChatStore((s) => s.setActiveThread)
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
@@ -75,7 +76,12 @@ export default function AIScreen() {
     [account],
   )
   const messages = activeThread?.messages ?? []
-  const pastThreads = account.threads.filter((t) => t.messages.length > 0)
+  const scopeSongNumber = groundedNumber ?? null
+  const pastThreads = account.threads.filter(
+    (t) =>
+      t.messages.length > 0 &&
+      (typeof t.songNumber === "number" ? t.songNumber : null) === scopeSongNumber,
+  )
 
   const suggestions = useMemo(() => {
     if (companionSong) return songCompanionSuggestions(companionSong)
@@ -113,16 +119,20 @@ export default function AIScreen() {
   }, [focusedSongNumber])
 
   useEffect(() => {
-    if (!focusedSongNumber) return
-    startNewThread(accountId)
-  }, [focusedSongNumber, accountId, startNewThread])
+    ensureScopeThread(accountId, groundedNumber ?? null)
+  }, [accountId, groundedNumber, ensureScopeThread])
 
   useEffect(() => {
     if (mode !== "signed_in" || !memberAuthAvailable()) return
     let active = true
     void api.fetchMemberChat(groundedNumber ?? undefined).then((memory) => {
       if (!active || !memory.ok || !memory.recent_turns.length) return
-      hydrateFromServerTurns(accountId, memory.recent_turns, memory.summary || undefined)
+      hydrateFromServerTurns(
+        accountId,
+        memory.recent_turns,
+        memory.summary || undefined,
+        groundedNumber ?? null,
+      )
     })
     return () => {
       active = false
@@ -211,7 +221,11 @@ export default function AIScreen() {
             </Text>
           </View>
           <View style={styles.headerActions}>
-            <IconButton soft accessibilityLabel="New chat" onPress={() => startNewThread(accountId)}>
+            <IconButton
+              soft
+              accessibilityLabel="New chat"
+              onPress={() => startNewThread(accountId, scopeSongNumber)}
+            >
               <Plus size={20} color={colors.textPrimary} />
             </IconButton>
             <IconButton soft accessibilityLabel="Chat history" onPress={() => setHistoryOpen(true)}>
@@ -300,7 +314,7 @@ export default function AIScreen() {
             <Pressable
               style={styles.newChatBtn}
               onPress={() => {
-                startNewThread(accountId)
+                startNewThread(accountId, scopeSongNumber)
                 setHistoryOpen(false)
               }}
             >

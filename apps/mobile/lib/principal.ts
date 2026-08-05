@@ -47,6 +47,25 @@ export function buildClientPrincipal(
   return Buffer.from(json, "utf8").toString("base64")
 }
 
+/**
+ * Principal object id for Easy Auth compatibility.
+ * Prefer the Microsoft OID / stable subject. Do not fall back to a normal email —
+ * that creates a parallel `aad:email` account separate from website Easy Auth.
+ */
+export function resolvePrincipalId(memberId?: string | null, email?: string | null): string {
+  const subject = (memberId || "").trim()
+  if (subject) return subject
+  const mail = (email || "").trim()
+  if (mail && looksLikeEmail(mail) && mail.toLowerCase().endsWith("@prabhat.local")) {
+    return "mobile-preview"
+  }
+  if (mail && looksLikeEmail(mail)) {
+    // Legacy fallback only for tests / broken state — never a real member email as OID.
+    return `preview:${mail.toLowerCase()}`
+  }
+  return "mobile-preview"
+}
+
 export function buildMemberAuthHeaders(
   email: string,
   displayName: string,
@@ -54,10 +73,19 @@ export function buildMemberAuthHeaders(
   memberId?: string | null,
 ): Record<string, string> {
   if (!proxyKey) return {}
-  const principalId = (memberId || email).trim().toLowerCase() || "mobile-preview-member"
+  const principalId = resolvePrincipalId(memberId, email)
   const personName = friendlyPersonName(displayName, email)
+  const emailForClaims =
+    email && looksLikeEmail(email) && !email.toLowerCase().endsWith("@prabhat.local")
+      ? email
+      : null
   return {
     "X-Member-Proxy-Key": proxyKey,
-    "X-MS-CLIENT-PRINCIPAL": buildClientPrincipal(principalId, personName, "aad", email),
+    "X-MS-CLIENT-PRINCIPAL": buildClientPrincipal(
+      principalId,
+      personName,
+      "aad",
+      emailForClaims,
+    ),
   }
 }

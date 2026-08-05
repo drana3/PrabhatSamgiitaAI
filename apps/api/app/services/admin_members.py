@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -90,13 +89,29 @@ async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
         ).scalars()
     )
     # One row per email so deploy/probe clones of the owner account do not appear twice.
+    # Prefer the strongest subject (Easy Auth OID) over the newest mobile fork.
+    def _subject_rank(subject: str) -> int:
+        value = (subject or "").casefold()
+        if value.startswith("aad:") and "@" not in value and "preview" not in value:
+            return 3
+        if "preview" in value:
+            return 0
+        if "@" in value:
+            return 1
+        return 2
+
     by_email: dict[str, UserAccount] = {}
     for row in rows:
         if is_ephemeral_member(row):
             continue
         key = (row.email or "").casefold() or str(row.id)
         current = by_email.get(key)
-        if current is None or _last_seen_key(row) >= _last_seen_key(current):
+        if current is None:
+            by_email[key] = row
+            continue
+        row_key = (_subject_rank(row.external_subject), _last_seen_key(row))
+        cur_key = (_subject_rank(current.external_subject), _last_seen_key(current))
+        if row_key >= cur_key:
             by_email[key] = row
     return sorted(
         by_email.values(),
@@ -108,15 +123,37 @@ async def find_member_by_email(session: AsyncSession, email: str) -> UserAccount
     normalized = email.strip().casefold()
     if not normalized:
         return None
-    return cast(
-        UserAccount | None,
-        await session.scalar(
-            select(UserAccount).where(
-                UserAccount.deleted_at.is_(None),
-                func.lower(UserAccount.email) == normalized,
+    rows = list(
+        (
+            await session.scalars(
+                select(UserAccount).where(
+                    UserAccount.deleted_at.is_(None),
+                    func.lower(UserAccount.email) == normalized,
+                )
             )
-        ),
+        ).all()
     )
+    if not rows:
+        return None
+
+    def _rank(subject: str) -> int:
+        value = (subject or "").casefold()
+        if value.startswith("aad:") and "@" not in value and "preview" not in value:
+            return 3
+        if "preview" in value:
+            return 0
+        if "@" in value:
+            return 1
+        return 2
+
+    rows.sort(
+        key=lambda row: (
+            0 if row.is_admin else 1,
+            -_rank(row.external_subject),
+            row.created_at or datetime.min.replace(tzinfo=UTC),
+        )
+    )
+    return rows[0]
 
 
 async def grant_admin(session: AsyncSession, email: str) -> UserAccount:

@@ -15,10 +15,14 @@ async function hydrateFromSession() {
     return { ok: false as const, memberBackend: false }
   }
   const profile = session as MemberProfile
+  // Keep the Microsoft OID (or preview subject) in memberId for X-MS-CLIENT-PRINCIPAL.
+  // Never replace it with the API's DB UUID — that forks a second member row and
+  // makes quiz/certs/admin disappear from the website Easy Auth profile.
+  const existingSubject = useAuthStore.getState().memberId
   useAuthStore.getState().applyMemberSession({
     displayName: profile.display_name,
     email: profile.email ?? null,
-    memberId: profile.id,
+    memberId: existingSubject,
     isAdmin: profile.is_admin,
     memberBackend: true,
     identityProvider: profile.identity_provider || "aad",

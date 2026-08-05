@@ -45,10 +45,11 @@ export const useAuthStore = create<AuthState>()(
       setMode: (mode) =>
         set({
           mode,
-          displayName: mode === "guest" ? "Guest" : "Dewasheesh",
-          email: mode === "guest" ? null : "dewasheesh.rana3@gmail.com",
-          memberId: null,
-          isAdmin: mode === "signed_in" ? get().isAdmin : false,
+          displayName: mode === "guest" ? "Guest" : "Preview member",
+          // Never mint a real owner email as the principal — that forks admin/certs.
+          email: mode === "guest" ? null : "mobile-preview@prabhat.local",
+          memberId: mode === "guest" ? null : "mobile-preview",
+          isAdmin: false,
           memberBackend: false,
           identityProvider: mode === "signed_in" ? "preview" : null,
         }),

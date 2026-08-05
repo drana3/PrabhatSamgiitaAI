@@ -9,18 +9,20 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, Request
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models import (
+    QuizAttempt,
+    QuizCertification,
     UserAccount,
     UserChatMessage,
     UserFavorite,
     UserInterestProfile,
 )
 from app.schemas.member import ChatMemoryTurn, ChatMemoryWrite, MemberProfile
-from app.services.admin_members import apply_default_admin
+from app.services.admin_members import apply_default_admin, is_ephemeral_member
 
 NAME_CLAIMS = {
     "name",
@@ -118,11 +120,126 @@ def try_member_identity(request: Request) -> MemberIdentity | None:
         return None
 
 
+def _subject_rank(subject: str) -> int:
+    """Higher = more canonical (Easy Auth OID beats email/preview forks)."""
+    value = (subject or "").casefold()
+    if value.startswith("aad:") and "@" not in value and "preview" not in value:
+        return 3
+    if "preview" in value or value.endswith("@prabhat.local"):
+        return 0
+    if "@" in value:
+        return 1
+    return 2
+
+
+def _account_preference(row: UserAccount) -> tuple:
+    """Lower tuple = stronger canonical account (admin, OID, then oldest)."""
+    return (
+        0 if row.is_admin else 1,
+        -_subject_rank(row.external_subject),
+        row.created_at or datetime.min.replace(tzinfo=UTC),
+    )
+
+
+async def _find_canonical_by_email(
+    session: AsyncSession, email: str
+) -> UserAccount | None:
+    normalized = email.strip().casefold()
+    if not normalized or normalized.endswith("@prabhat.local"):
+        return None
+    rows = list(
+        (
+            await session.scalars(
+                select(UserAccount).where(
+                    UserAccount.deleted_at.is_(None),
+                    func.lower(UserAccount.email) == normalized,
+                )
+            )
+        ).all()
+    )
+    if not rows:
+        return None
+    rows.sort(key=_account_preference)
+    return rows[0]
+
+
+async def _merge_fork_into_canonical(
+    session: AsyncSession, fork: UserAccount, canonical: UserAccount
+) -> None:
+    """Move quiz/favorites/chat from a mobile identity fork onto the website account."""
+    if fork.id == canonical.id:
+        return
+    fav_numbers = set(
+        (
+            await session.execute(
+                select(UserFavorite.song_number).where(UserFavorite.user_id == canonical.id)
+            )
+        ).scalars()
+    )
+    fork_favs = list(
+        (
+            await session.scalars(select(UserFavorite).where(UserFavorite.user_id == fork.id))
+        ).all()
+    )
+    for fav in fork_favs:
+        if fav.song_number in fav_numbers:
+            await session.delete(fav)
+        else:
+            fav.user_id = canonical.id
+
+    cert_levels = set(
+        (
+            await session.execute(
+                select(QuizCertification.level).where(QuizCertification.user_id == canonical.id)
+            )
+        ).scalars()
+    )
+    fork_certs = list(
+        (
+            await session.scalars(
+                select(QuizCertification).where(QuizCertification.user_id == fork.id)
+            )
+        ).all()
+    )
+    for cert in fork_certs:
+        if cert.level in cert_levels:
+            await session.delete(cert)
+        else:
+            cert.user_id = canonical.id
+
+    fork_attempts = list(
+        (
+            await session.scalars(select(QuizAttempt).where(QuizAttempt.user_id == fork.id))
+        ).all()
+    )
+    for attempt in fork_attempts:
+        attempt.user_id = canonical.id
+
+    fork_chats = list(
+        (
+            await session.scalars(
+                select(UserChatMessage).where(UserChatMessage.user_id == fork.id)
+            )
+        ).all()
+    )
+    for chat in fork_chats:
+        chat.user_id = canonical.id
+
+    if canonical.is_admin or fork.is_admin:
+        canonical.is_admin = True
+    fork.deleted_at = datetime.now(UTC)
+
+
 async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAccount:
     now = datetime.now(UTC)
     member = await session.scalar(
         select(UserAccount).where(UserAccount.external_subject == identity.subject)
     )
+    if member is None and identity.email:
+        canonical = await _find_canonical_by_email(session, identity.email)
+        if canonical is not None and not is_ephemeral_member(canonical):
+            # Reuse the website Easy Auth account instead of forking by mobile UUID/email.
+            member = canonical
     if member is None:
         member = UserAccount(
             external_subject=identity.subject,
@@ -135,6 +252,32 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         session.add(member)
         await session.flush()
     else:
+        # Existing fork subject (mobile UUID / email principal): fold into website OID account.
+        if identity.email:
+            canonical = await _find_canonical_by_email(session, identity.email)
+            if (
+                canonical is not None
+                and canonical.id != member.id
+                and _account_preference(canonical) < _account_preference(member)
+            ):
+                await _merge_fork_into_canonical(session, member, canonical)
+                member = canonical
+            # Website/OID sign-in: absorb weaker email twins (orphaned mobile UUID forks)
+            # so quiz certs and admin are restored onto the canonical account.
+            twins = list(
+                (
+                    await session.scalars(
+                        select(UserAccount).where(
+                            UserAccount.deleted_at.is_(None),
+                            func.lower(UserAccount.email) == identity.email.strip().casefold(),
+                            UserAccount.id != member.id,
+                        )
+                    )
+                ).all()
+            )
+            for twin in twins:
+                if _account_preference(member) < _account_preference(twin):
+                    await _merge_fork_into_canonical(session, twin, member)
         member.identity_provider = identity.provider
         member.email = identity.email or member.email
         member.display_name = identity.display_name
