@@ -132,7 +132,7 @@ def _subject_rank(subject: str) -> int:
     return 2
 
 
-def _account_preference(row: UserAccount) -> tuple:
+def _account_preference(row: UserAccount) -> tuple[int, int, datetime]:
     """Lower tuple = stronger canonical account (admin, OID, then oldest)."""
     return (
         0 if row.is_admin else 1,
