@@ -6153,6 +6153,27 @@
     }
   },
   {
+    "song_number": 2500,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Aloker Dut - Prabhat Sangeet song #2500 - Singer - Dipanwita Debnath",
+    "url": "https://www.youtube.com/watch?v=eAuK3xPLTpU",
+    "embed_url": "https://www.youtube-nocookie.com/embed/eAuK3xPLTpU",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "eAuK3xPLTpU",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.93,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2505,
     "kind": "video",
     "provider": "youtube",
