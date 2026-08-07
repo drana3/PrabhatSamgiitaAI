@@ -1,24 +1,17 @@
 import type { ReflectionQuote } from "@prabhat/core"
+import { reflectionBookCitation as coreReflectionBookCitation, todayReflectionFallback } from "@prabhat/core"
 
 /**
- * Fallback only until GET /reflections/today loads.
- * Must stay a book citation from Shrii Shrii Anandamurti ji (not a web article).
+ * Fallback until GET /reflections/today loads.
+ * Rotates daily from the curated seed quotes in data/seed/reflection_quotes.json.
  */
-export const fallbackReflection: ReflectionQuote = {
-  quote_text: "Infinite happiness is ánanda (bliss).",
-  attribution: "Shrii Shrii Anandamurti ji",
-  source_title: "Ánanda Sútram",
-  source_url: "https://www.sarkarverse.org/wiki/Ananda_Sutram",
-  source_date: "1961 · Chapter 2, Sútra 3",
-  context_label: "Daily spiritual reflection",
-  verification_status: "source_verified",
+export function fallbackReflection(reference = new Date()): ReflectionQuote {
+  return todayReflectionFallback(reference)
 }
 
 /** Exact book locator: title · year/chapter/sútra when present. */
 export function reflectionBookCitation(reflection: ReflectionQuote) {
-  const title = reflection.source_title.trim()
-  const locator = reflection.source_date?.trim()
-  return locator ? `${title} · ${locator}` : title
+  return coreReflectionBookCitation(reflection)
 }
 
 export function reflectionSourceLabel(reflection: ReflectionQuote) {

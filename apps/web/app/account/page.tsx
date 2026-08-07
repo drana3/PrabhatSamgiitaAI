@@ -8,7 +8,8 @@ import { QuizCertificate } from "@/components/quiz-certificate"
 import { useMember } from "@/components/member-provider"
 import { SiteHeader } from "@/components/site-header"
 import { memberFirstName } from "@/lib/member"
-import { clearGuestChatStorage, clearSongChatStorage } from "@/lib/chat"
+import { clearSongChatStorage } from "@/lib/chat"
+import { signOutMember } from "@/lib/sign-out"
 import { fetchQuizStatus, type QuizStatus } from "@/lib/quiz"
 
 export default function AccountPage() {
@@ -24,6 +25,7 @@ export default function AccountPage() {
   if (!session.authenticated) return <main className="min-h-screen bg-ivory-50"><SiteHeader /><div className="mx-auto max-w-xl p-10 text-center"><h1 className="font-serif text-4xl text-navy-950">Sign in to continue</h1><Link href="/signin?next=/account" className="gold-button mt-6">Sign in</Link></div></main>
 
   const firstName = memberFirstName(session.display_name)
+  const identityProvider = session.identity_provider
 
   async function clearMemory() {
     const response = await fetch("/api/member/chat-memory", { method: "DELETE" })
@@ -40,7 +42,7 @@ export default function AccountPage() {
     const response = await fetch("/api/member/me", { method: "DELETE" })
     if (response.ok) {
       clearSongChatStorage()
-      window.location.href = "/.auth/logout?post_logout_redirect_uri=/"
+      await signOutMember(identityProvider)
     }
   }
 
@@ -115,7 +117,13 @@ export default function AccountPage() {
           <div className="mt-5 flex flex-wrap gap-3">
             <button type="button" onClick={() => void clearMemory()} className="outline-button">Clear chat memory</button>
             <button type="button" onClick={() => void deleteData()} className="rounded-full border border-red-700/30 px-5 py-3 text-sm font-semibold text-red-800">Delete account data</button>
-            <a href="/.auth/logout?post_logout_redirect_uri=/" onClick={() => { clearGuestChatStorage(); void refresh() }} className="outline-button">Sign out</a>
+            <button
+              type="button"
+              onClick={() => void signOutMember(identityProvider)}
+              className="outline-button"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </section>

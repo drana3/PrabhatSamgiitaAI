@@ -1,8 +1,8 @@
 "use client"
 
-import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 
+import { AdminShell } from "@/components/admin-shell"
 import { readErrorDetail } from "@/lib/read-error-detail"
 
 type AdminMember = {
@@ -93,26 +93,12 @@ export default function AdminMembersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-ivory-50">
-      <header className="border-b border-navy-900/10 bg-white">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6">
-          <div>
-            <p className="eyebrow">Admin console</p>
-            <h1 className="font-serif text-3xl text-navy-950">Admin members</h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/admin/feedback" className="outline-button px-4 py-2.5">Feedback</Link>
-            <Link href="/admin/quiz" className="outline-button px-4 py-2.5">Quiz events</Link>
-            <Link href="/" className="outline-button px-4 py-2.5">Back to site</Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        <p className="text-sm leading-7 text-stone-600">
-          Promote signed-in members by email. Protected accounts (project owners) cannot be removed by anyone else.
-        </p>
-
+    <AdminShell
+      active="members"
+      title="Admin members"
+      description="Promote signed-in members by email. Protected accounts (project owners) cannot be removed by anyone else."
+      maxWidth="3xl"
+    >
         <form onSubmit={(event) => void promoteMember(event)} className="mt-6 rounded-2xl border border-navy-900/10 bg-white p-5 shadow-sm">
           <label htmlFor="admin-email" className="block text-sm font-semibold text-navy-950">Promote by email</label>
           <p className="mt-1 text-xs text-stone-500">They must have signed in at least once.</p>
@@ -167,7 +153,6 @@ export default function AdminMembersPage() {
             </article>
           ))}
         </div>
-      </div>
-    </main>
+    </AdminShell>
   )
 }

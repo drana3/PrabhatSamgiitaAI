@@ -1,3 +1,4 @@
+import { todayReflectionFallback } from "@prabhat/core"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -15,6 +16,8 @@ import seedInventory from "../../../data/seed/inventory.json"
 import seedSongs from "../../../data/seed/songs.json"
 
 export default function HomePage() {
+  const initialReflection = todayReflectionFallback()
+
   return (
     <main className="min-h-screen bg-ivory-50">
       <SiteHeader />
@@ -78,7 +81,7 @@ export default function HomePage() {
 
         <div className="relative mx-auto -mt-8 max-w-[90rem] px-4 pb-5 sm:px-6 lg:px-10">
           <div className="grid gap-4 lg:grid-cols-[0.78fr_1.22fr]">
-            <DailyReflection />
+            <DailyReflection initialReflection={initialReflection} />
 
             <article id="about" className="glass-card scroll-mt-32 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0 flex-1">

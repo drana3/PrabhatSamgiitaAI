@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 
-import { AdminNav } from "@/components/admin-nav"
+import { AdminShell } from "@/components/admin-shell"
 import { readErrorDetail } from "@/lib/read-error-detail"
 
 type YoutubeReview = {
@@ -89,15 +89,11 @@ export function AdminYoutubePanel() {
   }
 
   return (
-    <main className="min-h-screen bg-ivory-50 px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-5xl">
-        <p className="eyebrow">Admin</p>
-        <h1 className="mt-2 font-serif text-4xl text-navy-950">YouTube review queue</h1>
-        <p className="mt-2 max-w-2xl text-sm text-stone-600">
-          Videos discovered by the batch sync that need a human match before they appear on song pages.
-          Multiple approved videos for one song show under “More performances”.
-        </p>
-        <AdminNav active="youtube" />
+    <AdminShell
+      active="youtube"
+      title="YouTube scheduled job review"
+      description="Videos discovered by the batch sync that need a human match before they appear on song pages. Multiple approved videos for one song show under “More performances”."
+    >
         <div className="mb-4 flex flex-wrap gap-3">
           <button type="button" onClick={() => void syncQueue()} className="gold-button px-4 py-2 text-sm">
             Sync from batch output
@@ -139,7 +135,6 @@ export function AdminYoutubePanel() {
             </article>
           ))}
         </div>
-      </div>
-    </main>
+    </AdminShell>
   )
 }

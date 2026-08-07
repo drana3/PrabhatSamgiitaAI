@@ -6,13 +6,13 @@ import { useEffect, useRef, useState } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { memberFirstName } from "@/lib/member"
-import { clearGuestChatStorage } from "@/lib/chat"
+import { signOutMember } from "@/lib/sign-out"
 import { signInHref } from "@/lib/sign-in"
 
 export function MemberMenu() {
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
   const pathname = usePathname()
-  const { loading, session, refresh } = useMember()
+  const { loading, session } = useMember()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -73,19 +73,17 @@ export function MemberMenu() {
               Admin
             </Link>
           ) : null}
-          <a
-            href="/.auth/logout?post_logout_redirect_uri=/"
+          <button
+            type="button"
             role="menuitem"
             onClick={() => {
-              clearGuestChatStorage()
               setOpen(false)
-              void fetch("/api/auth/logout", { method: "POST" })
-              void refresh()
+              void signOutMember(session.identity_provider)
             }}
-            className="block px-4 py-3 text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
+            className="block w-full px-4 py-3 text-left text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
           >
             Sign out
-          </a>
+          </button>
         </div>
       ) : null}
     </div>

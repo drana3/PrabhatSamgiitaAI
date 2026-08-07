@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server"
 
-import { parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
+import { parseClientPrincipalProfile } from "@/lib/azure-principal"
 import { backendBaseUrl } from "@/lib/member-admin-proxy"
+import { memberPrincipalFor } from "@/lib/member-request"
 
 export const dynamic = "force-dynamic"
 
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: "Invalid feedback payload" }, { status: 400 })
   }
 
-  const principal = resolveClientPrincipal(request.headers)
+  const principal = memberPrincipalFor(request)
   if (!principal) {
     return Response.json({ detail: "Sign in is required to send feedback" }, { status: 401 })
   }

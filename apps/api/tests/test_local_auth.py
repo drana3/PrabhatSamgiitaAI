@@ -94,7 +94,7 @@ async def test_register_and_login_local_user_returns_member_principal() -> None:
 
 
 @pytest.mark.asyncio
-async def test_register_links_password_to_existing_oauth_account() -> None:
+async def test_register_rejects_existing_oauth_email() -> None:
     session = _AuthSession()
     oauth_member = UserAccount(
         id=uuid4(),
@@ -106,7 +106,23 @@ async def test_register_links_password_to_existing_oauth_account() -> None:
     )
     session.accounts.append(oauth_member)
 
-    registered = await register_local_user(
+    with pytest.raises(HTTPException) as error:
+        await register_local_user(
+            session,  # type: ignore[arg-type]
+            LocalRegisterWrite(
+                email="member@example.com",
+                password="secure-pass-1",
+                display_name="Member",
+            ),
+        )
+    assert error.value.status_code == 409
+    assert "already exists" in str(error.value.detail).lower()
+
+
+@pytest.mark.asyncio
+async def test_register_rejects_duplicate_local_email() -> None:
+    session = _AuthSession()
+    await register_local_user(
         session,  # type: ignore[arg-type]
         LocalRegisterWrite(
             email="member@example.com",
@@ -114,9 +130,18 @@ async def test_register_links_password_to_existing_oauth_account() -> None:
             display_name="Member",
         ),
     )
-    identity = decode_client_principal(registered.client_principal)
-    assert identity.subject == "aad:website-oid"
-    assert identity.provider == "aad"
+
+    with pytest.raises(HTTPException) as error:
+        await register_local_user(
+            session,  # type: ignore[arg-type]
+            LocalRegisterWrite(
+                email="member@example.com",
+                password="another-pass-1",
+                display_name="Someone else",
+            ),
+        )
+    assert error.value.status_code == 409
+    assert "already exists" in str(error.value.detail).lower()
 
 
 @pytest.mark.asyncio

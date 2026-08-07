@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-import { AdminNav } from "@/components/admin-nav"
+import { AdminShell } from "@/components/admin-shell"
 import { localeLabel, localeOptions } from "@/lib/languages"
 import {
   canTranslateMeaningFromEnglish,
@@ -185,14 +185,12 @@ export function AdminIngestionPanel({ isSuperAdmin = false }: { isSuperAdmin?: b
   }
 
   return (
-    <main className="min-h-screen bg-ivory-50 px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-3xl">
-        <p className="eyebrow">Admin</p>
-        <h1 className="mt-2 font-serif text-4xl text-navy-950">Song ingestion</h1>
-        <p className="mt-2 text-sm text-stone-600">
-          Submit lyrics, meanings, audio, video, and notation. Entries stay pending until a super-admin approves.
-        </p>
-        <AdminNav active="ingest" />
+    <AdminShell
+      active="ingest"
+      title="Song ingestion"
+      description="Submit lyrics, meanings, audio, video, and notation. Entries stay pending until a super-admin approves."
+      maxWidth="3xl"
+    >
         {notice ? <p className="mb-3 text-sm text-emerald-700">{notice}</p> : null}
         {error ? <p className="mb-3 text-sm text-red-700">{error}</p> : null}
         <div className="surface-card space-y-4 p-5">
@@ -302,7 +300,6 @@ export function AdminIngestionPanel({ isSuperAdmin = false }: { isSuperAdmin?: b
             </div>
           </section>
         ) : null}
-      </div>
-    </main>
+    </AdminShell>
   )
 }

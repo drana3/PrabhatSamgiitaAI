@@ -40,7 +40,12 @@ function decodeHeaderValue(value: string) {
   }
 }
 
-export function buildClientPrincipal(id: string, name?: string | null, provider = "aad") {
+export function buildClientPrincipal(
+  id: string,
+  name?: string | null,
+  provider = "aad",
+  email?: string | null,
+) {
   const claims: Claim[] = [
     {
       typ: "http://schemas.microsoft.com/identity/claims/objectidentifier",
@@ -58,14 +63,16 @@ export function buildClientPrincipal(id: string, name?: string | null, provider 
       typ: "http://schemas.microsoft.com/identity/claims/displayname",
       val: name,
     })
-    if (name.includes("@")) {
-      claims.push({ typ: "email", val: name })
-      claims.push({ typ: "preferred_username", val: name })
-      claims.push({
-        typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-        val: name,
-      })
-    }
+  }
+
+  const emailClaim = email?.trim() || (name?.includes("@") ? name.trim() : null)
+  if (emailClaim) {
+    claims.push({ typ: "email", val: emailClaim })
+    claims.push({ typ: "preferred_username", val: emailClaim })
+    claims.push({
+      typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+      val: emailClaim,
+    })
   }
 
   const payload = { auth_typ: provider, claims }

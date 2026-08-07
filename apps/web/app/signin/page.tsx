@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 
 import { SignInRedirect } from "@/components/sign-in-redirect"
 import { EmailAuthPanel } from "@/components/email-auth-panel"
+import { FacebookSignInButton, GoogleSignInButton } from "@/components/social-sign-in-buttons"
 import { SiteHeader } from "@/components/site-header"
 import { LOCAL_AUTH_COOKIE, facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
 import {
@@ -12,8 +13,6 @@ import {
   memberPrincipalFromHeaders,
 } from "@/lib/member-request"
 import {
-  facebookSignInHref,
-  googleSignInHref,
   microsoftSignInHref,
   safeSignInNextPath,
   signInReturnPath,
@@ -61,16 +60,8 @@ export default async function SignInPage({
               <a href={microsoftSignInHref(next)} className="outline-button justify-center py-3.5">
                 Continue with Microsoft
               </a>
-              {googleAuthEnabled() ? (
-                <a href={googleSignInHref(next)} className="outline-button justify-center py-3.5">
-                  Continue with Google
-                </a>
-              ) : null}
-              {facebookAuthEnabled() ? (
-                <a href={facebookSignInHref(next)} className="outline-button justify-center py-3.5">
-                  Continue with Facebook
-                </a>
-              ) : null}
+              {googleAuthEnabled() ? <GoogleSignInButton next={next} /> : null}
+              {facebookAuthEnabled() ? <FacebookSignInButton next={next} /> : null}
               {localAuthEnabled() ? (
                 <>
                   <div className="flex items-center gap-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">

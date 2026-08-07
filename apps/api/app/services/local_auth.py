@@ -48,23 +48,26 @@ async def register_local_user(
             detail="An account with this email already exists. Sign in instead.",
         )
 
+    existing_member = await _find_canonical_by_email(session, email)
+    if existing_member is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists. Sign in instead.",
+        )
+
     now = datetime.now(UTC)
     display_name = payload.display_name.strip()[:255] or email
-    member = await _find_canonical_by_email(session, email)
-    if member is None:
-        user_id = uuid4()
-        member = UserAccount(
-            id=user_id,
-            external_subject=f"local:{user_id}",
-            identity_provider="local",
-            email=email,
-            display_name=display_name,
-            last_seen_at=now,
-        )
-        session.add(member)
-        await session.flush()
-    else:
-        display_name = member.display_name or display_name
+    user_id = uuid4()
+    member = UserAccount(
+        id=user_id,
+        external_subject=f"local:{user_id}",
+        identity_provider="local",
+        email=email,
+        display_name=display_name,
+        last_seen_at=now,
+    )
+    session.add(member)
+    await session.flush()
 
     session.add(
         UserCredential(

@@ -52,9 +52,9 @@ export function SongLanguageSwitcher({
   }, [translating])
 
   return (
-    <div className="w-full min-w-0 sm:w-auto sm:min-w-[17rem]" aria-busy={translating}>
-      <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-navy-900/15 bg-white px-3 py-2 text-sm text-navy-800 shadow-sm sm:rounded-full">
-        <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">Reading language</span>
+    <div className="w-full min-w-0 sm:w-auto sm:min-w-[14rem]" aria-busy={translating}>
+      <label className="flex w-full flex-col gap-2 rounded-2xl border border-navy-900/15 bg-white px-3 py-2.5 text-sm text-navy-800 shadow-sm sm:min-w-[14rem] sm:rounded-full sm:py-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">Reading language</span>
         <select
           value={targetLanguage || selectedLanguage}
           disabled={translating}
@@ -76,13 +76,13 @@ export function SongLanguageSwitcher({
             router.refresh()
           }}
           aria-label="Reading language"
-          className="min-w-0 w-full rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70"
+          className="w-full min-w-0 rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 pr-8 text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70"
         >
           {["Indian languages", "World languages"].map((group) => (
             <optgroup key={group} label={group}>
               {localeOptions.filter((option) => option.group === group).map((option) => (
                 <option key={option.code} value={option.code}>
-                  {option.nativeLabel} ({option.label})
+                  {option.nativeLabel === option.label ? option.label : option.nativeLabel}
                 </option>
               ))}
             </optgroup>

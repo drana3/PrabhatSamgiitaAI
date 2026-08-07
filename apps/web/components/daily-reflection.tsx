@@ -1,23 +1,25 @@
 "use client"
 
+import { todayReflectionFallback, type ReflectionQuote } from "@prabhat/core"
 import { useEffect, useState } from "react"
 
 import { fetchTodayReflection } from "@/lib/api"
-import type { ReflectionQuote } from "@/lib/api"
 
-const fallback: ReflectionQuote = {
-  quote_text: "Infinite happiness is ánanda (bliss).",
-  attribution: "Shrii Shrii Anandamurti ji",
-  source_title: "Ánanda Sútram",
-  source_url: "https://www.sarkarverse.org/wiki/Ananda_Sutram",
-  source_date: "1961 · Chapter 2, Sútra 3",
-  context_label: "Daily spiritual reflection",
-  verification_status: "source_verified",
+type DailyReflectionProps = {
+  initialReflection?: ReflectionQuote
 }
 
-export function DailyReflection() {
-  const [reflection, setReflection] = useState(fallback)
-  useEffect(() => { void fetchTodayReflection().then((value) => { if (value) setReflection(value) }) }, [])
+export function DailyReflection({ initialReflection }: DailyReflectionProps) {
+  const [reflection, setReflection] = useState<ReflectionQuote>(
+    initialReflection ?? todayReflectionFallback(),
+  )
+
+  useEffect(() => {
+    void fetchTodayReflection().then((value) => {
+      if (value) setReflection(value)
+    })
+  }, [])
+
   return (
     <article className="glass-card text-center">
       <p className="eyebrow">Today&apos;s reflection</p>

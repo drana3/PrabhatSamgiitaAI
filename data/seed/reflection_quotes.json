@@ -1,12 +1,550 @@
 [
   {
+    "quote_text": "Brahma is the composite of Shiva and Shakti.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 1",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Shakti (the Operative Principle) is the shakti (force) of Shiva.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 2",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Puruśa and Prakrti find their fulfilment in saiṋcara (extroversive movement) and pratisaiṋcara (introversive movement).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 3",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Supreme Consciousness at the nucleus of the universe is known as Paramashiva or Puruśottama.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 4",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Saiṋcara (in the Cosmic Cycle) is the gradual extroversial movement under the increasing influence of the guńas (binding principles).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 5",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Pratisaincara (in the Cosmic Cycle) is the gradual introversial movement under the waning influence of guńas.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 6",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Puruśa is the substantiator, the ultimate witness; (the actional faculty of) Prakrti is the act of witnessing (and that which is witnessed).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 7",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "As the guńas increase their bondage, they express themselves fully in the emergence of the fundamental factors.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 8",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Due to excessive pressure of the guńas, proper balance among the bhútas (five fundamental factors) is lost and jad́asphot́a (explosion of matter) occurs.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 9",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Due to the increasing influence of the guńas, clash occurs among the fundamental factors and bala (energy) is produced.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 10",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The resultant interial force forming the nucleus within the physical structure and maintaining its solidarity, is called práńáh (vital energy).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 11",
+    "themes": {
+      "values": [
+        "philosophy",
+        "daily practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Due to excessive clash, some crude matter is pulverized, and cittáńu (ectoplasmic particles), or mind-stuff, is evolved.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 12",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Through the combination of ectoplasmic particles in the unit structure, the feeling of citta (objective mind) evolves.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 13",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "As the influence of the guńas wanes and rajoguńa becomes dominant, the aham (sense of doership) evolves out of the citta.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 14",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "With further movement towards the subtle, the mahat evolves out of the ahamtattva.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 15",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "When the aham is greater than the citta, the buddhi (intellect) evolves.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 16",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "When the mahat is greater than the aham, the bodhi (intuition) evolves.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 17",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In undeveloped living organisms, creepers and shrubs where aham and mahat have not yet evolved, there is only citta.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 18",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In undeveloped organisms, creepers and shrubs where mahat has not yet evolved, there is aham as well as citta.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 19",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In developed organisms, creepers and shrubs, as well as in humans, there is mahat, aham and citta.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 20",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "When the aham and the citta merge into the Macrocosmic Mahat, the merger is called saguńásthiti or savikalpa samádhi.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 21",
+    "themes": {
+      "values": [
+        "meditation",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "When the mahat merges into the Átman, it is called nirguńásthiti (state of objectlessness) or nirvikalpa samádhi (the trance of indeterminate absorption, or total suspension, of the mind).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 22",
+    "themes": {
+      "values": [
+        "meditation",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "This state (of nirvikalpa samádhi) is beyond the mind.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 23",
+    "themes": {
+      "values": [
+        "meditation",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The lingering bliss which follows this state of vacuity is the proof of that state, the means of firm belief in that state.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 24",
+    "themes": {
+      "values": [
+        "bliss",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The bridge between Nirguńa Brahma and Saguńa Brahma is called Táraka (Liberating) Brahma.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_1:_Brahma_Cakra",
+    "source_date": "1961 · Chapter 1, Sútra 25",
+    "themes": {
+      "values": [
+        "philosophy",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "A congenial mental feeling is called happiness.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 1",
+    "themes": {
+      "values": [
+        "bliss",
+        "daily practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The attachment to happiness is the primary vrtti (propensity) of living beings.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 2",
+    "themes": {
+      "values": [
+        "bliss",
+        "daily practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
     "quote_text": "Infinite happiness is ánanda (bliss).",
     "attribution": "Shrii Shrii Anandamurti ji",
     "source_title": "Ánanda Sútram",
-    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
     "source_date": "1961 · Chapter 2, Sútra 3",
-    "themes": {"values": ["bliss", "meditation", "daily practice"]},
-    "observances": {"values": ["ananda-purnima"]},
+    "themes": {
+      "values": [
+        "bliss",
+        "meditation",
+        "daily practice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "ananda-purnima"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "This ánanda is called Brahma.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 4",
+    "themes": {
+      "values": [
+        "bliss",
+        "devotion",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": [
+        "ananda-purnima"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "That (Brahma) having been attained, all thirst is permanently quenched.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 5",
+    "themes": {
+      "values": [
+        "bliss",
+        "devotion",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "ananda-purnima"
+      ]
+    },
     "verification_status": "source_verified",
     "is_active": true
   },
@@ -16,8 +554,508 @@
     "source_title": "Ánanda Sútram",
     "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
     "source_date": "1961 · Chapter 2, Sútra 6",
-    "themes": {"values": ["dharma", "devotion", "spiritual practice"]},
-    "observances": {"values": ["dharma-maha-sammelan"]},
+    "themes": {
+      "values": [
+        "dharma",
+        "devotion",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "dharma-maha-sammelan"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Therefore dharma should always be practised.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 7",
+    "themes": {
+      "values": [
+        "dharma",
+        "spiritual practice",
+        "daily practice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "dharma-maha-sammelan"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The reflection of Puruśa in a unit object is called the jiivátmá (unit soul).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 8",
+    "themes": {
+      "values": [
+        "philosophy",
+        "devotion"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Every entity is embedded finally in the Átman.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 9",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Puruśottama is linked to each entity individually and to all entities collectively.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 10",
+    "themes": {
+      "values": [
+        "devotion",
+        "philosophy"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The seed of the universe lies beyond the mind, in a state the mind cannot comprehend.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 11",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The creation originates from Saguńa Brahma.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 12",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The universe takes form within the Cognitive Body.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 13",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Brahma is Absolute Truth; the universe is also truth, but relative.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 14",
+    "themes": {
+      "values": [
+        "philosophy",
+        "dharma"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Puruśa does no action (directly), but is the witnessing entity of actions and reactions; located at the nucleus of Saguńa Brahma, He is the controller of the guńas.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 15",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The Buddhitattva, or Mahattattva, itself is not the doer, but remains associated with objects.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 16",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The Aham is the doer, and directly enjoys or suffers the results of action.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 17",
+    "themes": {
+      "values": [
+        "philosophy",
+        "dharma"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The citta takes the form of the results of actions.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 18",
+    "themes": {
+      "values": [
+        "philosophy",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The process through which the distorted citta regains its original state is the enjoyment or suffering of the results of actions.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 19",
+    "themes": {
+      "values": [
+        "philosophy",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "There is neither heaven nor hell.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 20",
+    "themes": {
+      "values": [
+        "philosophy",
+        "dharma"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the flow of saiṋcara, matter takes form in the Cosmic citta.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 21",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Tanmátras (microscopic fractions of bhútas, or fundamental factors) represent the bhútas, are carried by the bhútas, and are created by vibrations from the clash within the bhútas.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 22",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The bhútas are recognized by their corresponding tanmátras.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 23",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The indriyas (organs) are the composite of: the gateways of the organs, the nerves, the nerve fluid, and the appropriative piit́has (seats) of the organs (in the brain).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_2:_Dharma_and_The_Nature_of_the_Universe",
+    "source_date": "1961 · Chapter 2, Sútra 24",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The living being is the composite of five kośas (layers of mind), like a plantain flower (with its petals).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 1",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The Cosmic Mind is the composite of seven lokas (layers, worlds).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 2",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Long sleep in the causal mind is death.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 3",
+    "themes": {
+      "values": [
+        "philosophy",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "A distortion of the mind-stuff waiting for expression (i.e. a reaction in potentiality) is known as a samskára.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 4",
+    "themes": {
+      "values": [
+        "philosophy",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the bodiless mind there is no doership, no feeling of pleasure or pain.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 5",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The sight of ghosts is created by the cittáńu (mind-stuff) in concentrated thought.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 6",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The requital of an action is guided by the (divine) longing for welfare.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 7",
+    "themes": {
+      "values": [
+        "dharma",
+        "service",
+        "hope"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Out of the intense desire for mukti (liberation), one attains one's sadguru (perfect master).",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 8",
+    "themes": {
+      "values": [
+        "devotion",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Only Brahma is the guru, no one else.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 9",
+    "themes": {
+      "values": [
+        "devotion",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
     "verification_status": "source_verified",
     "is_active": true
   },
@@ -27,8 +1065,34 @@
     "source_title": "Ánanda Sútram",
     "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
     "source_date": "1961 · Chapter 3, Sútra 10",
-    "themes": {"values": ["hope", "courage", "spiritual practice"]},
-    "observances": {"values": []},
+    "themes": {
+      "values": [
+        "hope",
+        "courage",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Prayer and ritualistic worship only become a source of confusion.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
+    "source_date": "1961 · Chapter 3, Sútra 11",
+    "themes": {
+      "values": [
+        "devotion",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
     "verification_status": "source_verified",
     "is_active": true
   },
@@ -38,8 +1102,313 @@
     "source_title": "Ánanda Sútram",
     "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_3:_Mind_and_Sadhana",
     "source_date": "1961 · Chapter 3, Sútra 12",
-    "themes": {"values": ["devotion", "meditation", "spiritual practice"]},
-    "observances": {"values": ["ananda-purnima"]},
+    "themes": {
+      "values": [
+        "devotion",
+        "meditation",
+        "spiritual practice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "ananda-purnima"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The tri-attributional primordial force (progenitrix of creation) flows on in endless triangular forms.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 1",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the triangle of forces, the three attributes of Prakrti are locked in endless mutual transformation.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 2",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the first stage (not yet a stage of actual manifestation), Prakrti is called Shivánii, and the witnessing Puruśa at the nucleus is called Paramashiva.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 3",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the second phase, when the germ of evolution sprouts, Prakrti is called Bhaeravii, and the witnessing Puruśa is called Bhaerava.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 4",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the vibrational world there is a sequence of similarity of curvatures (homogenesis). Here Prakrti is called Bhavánii and the witnessing Puruśa is called Bhava.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 5",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The process of creation starts from Shambhúliuṋga.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 6",
+    "themes": {
+      "values": [
+        "philosophy",
+        "cosmology"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the ultimate state of crudification, the paráshakti lying dormant at Svayambhúliuṋga is called the kuńd́alinii (\"coiled serpentine\").",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 7",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The kuńd́alinii is the (force of) fundamental negativity.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_4:_Creation_of_the_Universe_and_Kundalini",
+    "source_date": "1961 · Chapter 4, Sútra 8",
+    "themes": {
+      "values": [
+        "philosophy",
+        "meditation"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "In the movement of the social cycle, one class is always dominant.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 1",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Located in the nucleus of the social cycle, sadvipras control the social cycle.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 2",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice",
+        "service"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Accelerating the movement of the social cycle by the application of force is called \"evolution\".",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 3",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Accelerating the movement of the social cycle by the application of tremendous force is called \"revolution\".",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 4",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Reversing the movement of the social cycle by the application of force is called \"counter-evolution\".",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 5",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Reversing the movement of the social cycle by the application of tremendous force is called \"counter-revolution\".",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 6",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "A complete rotation of the social cycle is called \"peripheric evolution\".",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 7",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": []
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Diversity, not identity, is the law of nature.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 8",
+    "themes": {
+      "values": [
+        "prout",
+        "social justice",
+        "humanity"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "international-day-of-peace",
+        "labour-day"
+      ]
+    },
     "verification_status": "source_verified",
     "is_active": true
   },
@@ -49,8 +1418,44 @@
     "source_title": "Ánanda Sútram",
     "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
     "source_date": "1961 · Chapter 5, Sútra 9",
-    "themes": {"values": ["prout", "social justice", "service"]},
-    "observances": {"values": ["independence-day-india", "labour-day", "human-rights-day"]},
+    "themes": {
+      "values": [
+        "prout",
+        "social justice",
+        "service",
+        "economic democracy"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "The surplus wealth should be distributed among meritorious people according to the degree of their merit.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 10",
+    "themes": {
+      "values": [
+        "prout",
+        "economic democracy",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
     "verification_status": "source_verified",
     "is_active": true
   },
@@ -60,8 +1465,203 @@
     "source_title": "Ánanda Sútram",
     "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
     "source_date": "1961 · Chapter 5, Sútra 11",
-    "themes": {"values": ["prout", "economic democracy", "collective welfare", "service"]},
-    "observances": {"values": ["independence-day-india", "labour-day", "human-rights-day"]},
+    "themes": {
+      "values": [
+        "prout",
+        "economic democracy",
+        "collective welfare",
+        "service"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "There should be no accumulation of wealth without the permission of society.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 12",
+    "themes": {
+      "values": [
+        "prout",
+        "economic democracy",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "There should be maximum utilization and rational distribution of the crude, subtle, and causal resources.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 13",
+    "themes": {
+      "values": [
+        "prout",
+        "economic democracy",
+        "collective welfare"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "There should be maximum utilization of the physical, mental, and spiritual potentialities of the individual and collective beings.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 14",
+    "themes": {
+      "values": [
+        "prout",
+        "collective welfare",
+        "service"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "There should be a well-balanced adjustment among the crude, subtle, and causal utilizations.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 15",
+    "themes": {
+      "values": [
+        "prout",
+        "economic democracy"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Utilizations vary in accordance with time, space, and form; the utilizations should be progressive.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5, Sútra 16",
+    "themes": {
+      "values": [
+        "prout",
+        "economic democracy",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "human-rights-day",
+        "independence-day-india",
+        "labour-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Human society is one and indivisible.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Prout in a Nutshell",
+    "source_url": "https://www.sarkarverse.org/wiki/PROUT_in_a_Nutshell",
+    "source_date": "1959 · Part 1 · Human Society Is One and Indivisible",
+    "themes": {
+      "values": [
+        "prout",
+        "humanity",
+        "social justice"
+      ]
+    },
+    "observances": {
+      "values": [
+        "independence-day-india",
+        "international-day-of-peace",
+        "human-rights-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "Neo-humanism is the practice of love for all created beings of the universe, animate and inanimate.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Prout in a Nutshell",
+    "source_url": "https://www.sarkarverse.org/wiki/Neo-humanism",
+    "source_date": "1982 · Part 21 · Neo-humanism in a Nutshell",
+    "themes": {
+      "values": [
+        "prout",
+        "service",
+        "humanity"
+      ]
+    },
+    "observances": {
+      "values": [
+        "international-day-of-peace",
+        "human-rights-day"
+      ]
+    },
+    "verification_status": "source_verified",
+    "is_active": true
+  },
+  {
+    "quote_text": "This is the Progressive Utilization Theory, propounded for the happiness and all-round welfare of all.",
+    "attribution": "Shrii Shrii Anandamurti ji",
+    "source_title": "Ánanda Sútram",
+    "source_url": "https://www.sarkarverse.org/wiki/Ananda_Sutram#Chapter_5:_The_Samaj_Cakra_(Social_cycle)_and_Socio-economic_Theory",
+    "source_date": "1961 · Chapter 5 (closing verse)",
+    "themes": {
+      "values": [
+        "prout",
+        "collective welfare",
+        "service"
+      ]
+    },
+    "observances": {
+      "values": [
+        "independence-day-india",
+        "labour-day",
+        "human-rights-day"
+      ]
+    },
     "verification_status": "source_verified",
     "is_active": true
   }

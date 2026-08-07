@@ -18,7 +18,7 @@ import { href } from "@/utils/href"
 export { CommunityVoicesTicker as CommunityVoicesRow } from "@/components/home/CommunityVoicesTicker"
 
 export function DailyReflectionCard() {
-  const [reflection, setReflection] = useState<ReflectionQuote>(fallbackReflection)
+  const [reflection, setReflection] = useState<ReflectionQuote>(() => fallbackReflection())
 
   useEffect(() => {
     let active = true

@@ -134,3 +134,15 @@ def test_reflection_context_is_stable_for_ordinary_day() -> None:
         "daily-practice",
         "Daily spiritual reflection",
     )
+
+
+def test_daily_reflection_rotation_changes_by_date() -> None:
+    quotes = [
+        quote(f"Quote {index}", f"Ánanda Sútram · {index}")
+        for index in range(12)
+    ]
+    first, _ = select_reflection(quotes, date(2026, 8, 8))
+    second, _ = select_reflection(quotes, date(2026, 8, 9))
+    assert first is not None
+    assert second is not None
+    assert first.quote_text != second.quote_text

@@ -1,8 +1,8 @@
 "use client"
 
-import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 
+import { AdminShell } from "@/components/admin-shell"
 import type { AdminFeedbackItem, AdminFeedbackResponse } from "@/lib/member-admin-proxy"
 import { readErrorDetail } from "@/lib/read-error-detail"
 
@@ -122,22 +122,11 @@ export function AdminFeedbackPanel({
   }
 
   return (
-    <main className="min-h-screen bg-ivory-50">
-      <header className="border-b border-navy-900/10 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6">
-          <div>
-            <p className="eyebrow">Admin console</p>
-            <h1 className="font-serif text-3xl text-navy-950">User feedback</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/admin/quiz" className="outline-button px-4 py-2.5">Quiz events</Link>
-            <Link href="/admin/members" className="outline-button px-4 py-2.5">Admins</Link>
-            <Link href="/" className="outline-button px-4 py-2.5">Back to site</Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+    <AdminShell
+      active="feedback"
+      title="User feedback"
+      description="Review submissions from the site feedback widget and publish selected quotes to the home ticker."
+    >
         <div className="flex flex-wrap gap-2">
           {filters.map(([value, label]) => (
             <button
@@ -276,7 +265,6 @@ export function AdminFeedbackPanel({
             </article>
           ))}
         </div>
-      </div>
-    </main>
+    </AdminShell>
   )
 }

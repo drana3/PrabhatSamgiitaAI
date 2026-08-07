@@ -695,13 +695,21 @@ export function createApiClient(options: ApiClientOptions) {
     },
 
     async fetchMemberChat(songNumber?: number): Promise<ChatMemoryResponse & { ok: boolean }> {
+      const empty = {
+        ok: false as const,
+        summary: "",
+        recent_turns: [] as ChatMemoryTurn[],
+        history_days: [] as ChatMemoryResponse["history_days"],
+        archived_summary: "",
+        monthly_summaries: {} as ChatMemoryResponse["monthly_summaries"],
+      }
       try {
         const suffix = songNumber ? `?song_number=${encodeURIComponent(String(songNumber))}` : ""
         const response = await fetchJson(`/api/v1/members/chat-memory${suffix}`)
-        if (!response.ok) return { ok: false, summary: "", recent_turns: [] }
+        if (!response.ok) return empty
         return { ok: true, ...chatMemoryResponseSchema.parse(await response.json()) }
       } catch {
-        return { ok: false, summary: "", recent_turns: [] }
+        return empty
       }
     },
 

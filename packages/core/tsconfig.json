@@ -6,7 +6,8 @@
     "strict": true,
     "skipLibCheck": true,
     "declaration": false,
-    "noEmit": true
+    "noEmit": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../../data/seed/reflection_quotes.json"]
 }

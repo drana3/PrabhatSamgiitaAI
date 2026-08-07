@@ -1,7 +1,6 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import {
@@ -10,7 +9,7 @@ import {
   type QuizEventQuestion,
   type QuizEventSummary,
 } from "@/lib/quiz-events"
-import { AdminNav } from "@/components/admin-nav"
+import { AdminShell } from "@/components/admin-shell"
 import { readErrorDetail } from "@/lib/read-error-detail"
 
 type QuizEventDetail = QuizEventSummary & {
@@ -152,29 +151,12 @@ export function AdminQuizPanel() {
   )
 
   return (
-    <main className="min-h-screen bg-ivory-50">
-      <header className="border-b border-navy-900/10 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4 px-4 py-6 sm:px-6">
-          <div>
-            <p className="eyebrow">Admin console</p>
-            <h1 className="font-serif text-3xl text-navy-950">Live quiz events</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-              Create a 10-question Prabhat Samgiita quiz, publish it instantly, and share the QR code for mobile scanning.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/admin/feedback" className="outline-button">Feedback</Link>
-            <Link href="/admin/members" className="outline-button">Admins</Link>
-            <Link href="/" className="outline-button">Back to site</Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <AdminNav active="quiz" />
-      </div>
-
-      <div className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <AdminShell
+      active="quiz"
+      title="Live quiz events"
+      description="Create a 10-question Prabhat Samgiita quiz, publish it instantly, and share the QR code for mobile scanning."
+    >
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-2xl border border-navy-900/10 bg-white p-5 shadow-sm">
           <h2 className="font-serif text-2xl text-navy-950">Create quiz event</h2>
           <div className="mt-4 grid gap-4">
@@ -309,6 +291,6 @@ export function AdminQuizPanel() {
           </section>
         </aside>
       </div>
-    </main>
+    </AdminShell>
   )
 }

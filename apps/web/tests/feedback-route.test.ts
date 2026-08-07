@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { NextRequest } from "next/server"
 
 import { buildClientPrincipal } from "@/lib/azure-principal"
+import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 
 const backendResponse = vi.fn()
 
@@ -21,7 +23,7 @@ describe("feedback API route", () => {
 
   it("rejects anonymous feedback submissions", async () => {
     const { POST } = await import("@/app/api/feedback/route")
-    const request = new Request("https://example.test/api/feedback", {
+    const request = new NextRequest("https://example.test/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -49,7 +51,7 @@ describe("feedback API route", () => {
 
     const { POST } = await import("@/app/api/feedback/route")
     const principal = buildClientPrincipal("user-1", "member@example.com")
-    const request = new Request("https://example.test/api/feedback", {
+    const request = new NextRequest("https://example.test/api/feedback", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -67,5 +69,33 @@ describe("feedback API route", () => {
     expect(String(backendResponse.mock.calls[0]?.[0])).toBe("https://api.test/api/v1/feedback")
     const forwardedBody = JSON.parse(String(backendResponse.mock.calls[0]?.[1]?.body))
     expect(forwardedBody.contact).toBe("member@example.com")
+  })
+
+  it("accepts feedback from local-auth cookie sessions", async () => {
+    backendResponse.mockResolvedValue(
+      Response.json(
+        { feedback_id: "local-1", status: "received", message: "Thank you." },
+        { status: 201 },
+      ),
+    )
+    vi.stubGlobal("fetch", backendResponse)
+
+    const { POST } = await import("@/app/api/feedback/route")
+    const principal = buildClientPrincipal("local-user-1", "Ram", "local", "ram@example.com")
+    const request = new NextRequest("https://example.test/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: "experience",
+        rating: 5,
+        comment: "Baba Nam Kevalam, Great one",
+      }),
+    })
+    request.cookies.set(LOCAL_AUTH_COOKIE, principal)
+
+    const response = await POST(request as never)
+    expect(response.status).toBe(201)
+    const forwardedBody = JSON.parse(String(backendResponse.mock.calls[0]?.[1]?.body))
+    expect(forwardedBody.contact).toBe("ram@example.com")
   })
 })

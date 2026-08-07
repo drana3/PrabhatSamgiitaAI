@@ -45,6 +45,9 @@ button { cursor: pointer; }
   .gold-button {
     @apply inline-flex items-center justify-center gap-2 rounded-full bg-gold-100 font-semibold text-navy-950 shadow-sm transition hover:bg-gold-200;
   }
+  .primary-button {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-full bg-navy-950 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(9,45,86,0.2)] transition hover:bg-navy-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-not-allowed disabled:opacity-60;
+  }
   .outline-button {
     @apply inline-flex items-center gap-2 rounded-full border border-gold-500/60 bg-ivory-50/75 px-5 py-2.5 text-sm font-semibold text-navy-950 shadow-sm backdrop-blur transition hover:bg-white;
   }

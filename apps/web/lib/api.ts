@@ -460,6 +460,7 @@ export async function submitFeedback(payload: {
   const response = await fetch("/api/feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     body: JSON.stringify(payload),
     cache: "no-store",
   })
