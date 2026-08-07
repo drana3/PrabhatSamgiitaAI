@@ -160,7 +160,7 @@ export default function ProfileScreen() {
                   Alert.alert(
                     "Clear chat memory?",
                     memberAuthAvailable()
-                      ? "This clears chat memory on this device and on your member account."
+                      ? "This clears all AI chat history on this device and on your member account, including song-page conversations."
                       : "This removes saved AI conversations for your account on this device.",
                     [
                       { text: "Cancel", style: "cancel" },
@@ -171,7 +171,7 @@ export default function ProfileScreen() {
                           void (async () => {
                             clearAccountMemory(accountId)
                             if (memberAuthAvailable()) await api.clearMemberChat()
-                            Alert.alert("Cleared", "Your AI chat history was removed.")
+                            Alert.alert("Cleared", "Your AI chat memory was cleared.")
                           })()
                         },
                       },

@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.models import UserAccount, UserChatMessage, UserFavorite, UserInterestProfile
+from app.models import UserAccount, UserFavorite
 from app.schemas.member import (
     AnonymousMember,
     ChatMemoryResponse,
@@ -24,6 +24,7 @@ from app.schemas.member import (
     QuizSubmitWrite,
 )
 from app.services.members import (
+    clear_member_chat_memory,
     member_profile,
     recent_chat_memory,
     require_member_identity,
@@ -155,16 +156,7 @@ async def read_chat_memory(
 @router.delete("/chat-memory", status_code=204)
 async def clear_chat_memory(request: Request, session: DatabaseSession) -> Response:
     member = await current_member(request, session)
-    await session.execute(
-        delete(UserChatMessage).where(
-            UserChatMessage.user_id == member.id,
-            UserChatMessage.song_number.is_(None),
-        )
-    )
-    profile = await session.get(UserInterestProfile, member.id)
-    if profile is not None:
-        profile.monthly_summaries = {}
-    await session.commit()
+    await clear_member_chat_memory(session, member)
     return Response(status_code=204)
 
 

@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, Request
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -541,3 +541,17 @@ async def recent_chat_memory(
     recent_turns = [_turn_from_message(message) for message in messages[-RECENT_TURN_LIMIT:]]
     history_days = _group_messages_by_day(messages)
     return summary, recent_turns, history_days, archived, monthly
+
+
+async def clear_member_chat_memory(session: AsyncSession, member: UserAccount) -> None:
+    await session.execute(
+        delete(UserChatMessage).where(UserChatMessage.user_id == member.id)
+    )
+    profile = await session.get(UserInterestProfile, member.id)
+    if profile is not None:
+        profile.summary_text = ""
+        profile.topic_counts = {}
+        profile.song_counts = {}
+        profile.language_counts = {}
+        profile.monthly_summaries = {}
+    await session.commit()

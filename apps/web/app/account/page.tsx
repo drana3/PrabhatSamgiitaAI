@@ -27,7 +27,12 @@ export default function AccountPage() {
 
   async function clearMemory() {
     const response = await fetch("/api/member/chat-memory", { method: "DELETE" })
-    setNotice(response.ok ? "Your AI companion chat memory was cleared." : "Memory could not be cleared.")
+    if (response.ok) {
+      clearSongChatStorage()
+      setNotice("Your AI chat memory was cleared.")
+    } else {
+      setNotice("Memory could not be cleared.")
+    }
   }
 
   async function deleteData() {

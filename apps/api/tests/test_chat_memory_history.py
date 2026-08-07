@@ -9,6 +9,7 @@ from app.models import UserAccount, UserChatMessage, UserInterestProfile
 from app.services.members import (
     _archive_expired_messages,
     _group_messages_by_day,
+    clear_member_chat_memory,
     recent_chat_memory,
 )
 
@@ -225,3 +226,69 @@ async def test_song_scoped_chat_memory_skips_companion_history_features() -> Non
     assert history_days == []
     assert archived_summary == ""
     assert monthly == {}
+
+
+class _ClearMemorySession:
+    def __init__(
+        self,
+        messages: list[UserChatMessage],
+        profile: UserInterestProfile | None,
+    ):
+        self.messages = list(messages)
+        self.profile = profile
+        self.committed = False
+
+    async def execute(self, statement):
+        sql = str(statement).casefold()
+        if "delete from user_chat_messages" in sql:
+            self.messages.clear()
+        return _RecentResult([])
+
+    async def get(self, _model, _user_id):
+        return self.profile
+
+    async def commit(self):
+        self.committed = True
+
+
+@pytest.mark.asyncio
+async def test_clear_member_chat_memory_removes_all_scopes_and_resets_profile() -> None:
+    member = _member()
+    now = datetime(2026, 8, 8, 12, tzinfo=UTC)
+    messages = [
+        _message(
+            member.id,
+            role="user",
+            content="Companion question",
+            created_at=now - timedelta(hours=2),
+            expires_at=now + timedelta(days=20),
+            song_number=None,
+        ),
+        _message(
+            member.id,
+            role="user",
+            content="Song page question",
+            created_at=now - timedelta(hours=1),
+            expires_at=now + timedelta(days=20),
+            song_number=12,
+        ),
+    ]
+    profile = UserInterestProfile(
+        user_id=member.id,
+        summary_text="Interested in meaning.",
+        topic_counts={"meaning": 2},
+        song_counts={"12": 1},
+        language_counts={"Roman/English": 2},
+        monthly_summaries={"2026-06": "Companion archive only."},
+    )
+    session = _ClearMemorySession(messages, profile)
+
+    await clear_member_chat_memory(session, member)  # type: ignore[arg-type]
+
+    assert session.committed is True
+    assert session.messages == []
+    assert profile.summary_text == ""
+    assert profile.topic_counts == {}
+    assert profile.song_counts == {}
+    assert profile.language_counts == {}
+    assert profile.monthly_summaries == {}
