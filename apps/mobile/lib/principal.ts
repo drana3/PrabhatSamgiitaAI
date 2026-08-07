@@ -71,6 +71,7 @@ export function buildMemberAuthHeaders(
   displayName: string,
   proxyKey?: string,
   memberId?: string | null,
+  identityProvider = "aad",
 ): Record<string, string> {
   if (!proxyKey) return {}
   const principalId = resolvePrincipalId(memberId, email)
@@ -84,7 +85,7 @@ export function buildMemberAuthHeaders(
     "X-MS-CLIENT-PRINCIPAL": buildClientPrincipal(
       principalId,
       personName,
-      "aad",
+      identityProvider,
       emailForClaims,
     ),
   }

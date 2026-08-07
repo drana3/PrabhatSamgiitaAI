@@ -1,18 +1,10 @@
 import type { NextRequest } from "next/server"
 
-import { isDefaultAdminEmail } from "@/lib/admin-emails"
-import { azureAuthForwardHeaders, parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
+import { azureAuthForwardHeaders, resolveClientPrincipal } from "@/lib/azure-principal"
 import { runtimeEnv } from "@/lib/runtime-env"
 
 export function memberForwardHeaders(request: NextRequest) {
   return azureAuthForwardHeaders(request.headers)
-}
-
-function principalIsDefaultAdmin(request: NextRequest) {
-  const principal = resolveClientPrincipal(request.headers)
-  if (!principal) return false
-  const profile = parseClientPrincipalProfile(principal)
-  return isDefaultAdminEmail(profile?.email)
 }
 
 export async function memberSessionIsAdmin(request: NextRequest) {
@@ -22,14 +14,13 @@ export async function memberSessionIsAdmin(request: NextRequest) {
       cache: "no-store",
     })
     if (response.ok) {
-      const body = await response.json() as { authenticated?: boolean; is_admin?: boolean; email?: string | null }
-      if (body.authenticated === true && body.is_admin === true) return true
-      if (body.authenticated === true && isDefaultAdminEmail(body.email)) return true
+      const body = await response.json() as { authenticated?: boolean; is_admin?: boolean }
+      return body.authenticated === true && body.is_admin === true
     }
   } catch {
-    // Fall through to principal-only admin check.
+    // Member API unavailable — treat as non-admin.
   }
-  return principalIsDefaultAdmin(request)
+  return false
 }
 
 export function backendBaseUrl() {

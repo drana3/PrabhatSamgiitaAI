@@ -12,6 +12,18 @@ export function microsoftSignInHref(next: string | undefined) {
   return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(returnTo)}`
 }
 
+export function googleSignInHref(next: string | undefined) {
+  const destination = safeSignInNextPath(next)
+  const returnTo = `/signin?next=${encodeURIComponent(destination)}`
+  return `/.auth/login/google?post_login_redirect_uri=${encodeURIComponent(returnTo)}`
+}
+
+export function facebookSignInHref(next: string | undefined) {
+  const destination = safeSignInNextPath(next)
+  const returnTo = `/signin?next=${encodeURIComponent(destination)}`
+  return `/.auth/login/facebook?post_login_redirect_uri=${encodeURIComponent(returnTo)}`
+}
+
 export function signInHref(next?: string) {
   const destination = safeSignInNextPath(next)
   if (destination === "/") return "/signin"

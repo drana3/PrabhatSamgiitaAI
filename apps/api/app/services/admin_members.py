@@ -24,16 +24,15 @@ def _email_set(raw: str) -> set[str]:
     return {email.strip().casefold() for email in raw.split(",") if email.strip()}
 
 
-def default_admin_emails(settings: Settings | None = None) -> set[str]:
-    return _email_set((settings or get_settings()).default_admin_emails)
-
-
 def protected_admin_emails(settings: Settings | None = None) -> set[str]:
     settings = settings or get_settings()
-    protected = _email_set(settings.protected_admin_emails)
-    if protected:
-        return protected
-    return default_admin_emails(settings)
+    return _email_set(settings.protected_admin_emails)
+
+
+def ensure_ephemeral_smoke_admin(member: UserAccount) -> None:
+    """CI/deploy probe identities need admin routes without hardcoding owner emails."""
+    if is_ephemeral_member(member):
+        member.is_admin = True
 
 
 def is_ephemeral_member(member: UserAccount) -> bool:
@@ -50,17 +49,9 @@ def is_protected_admin(member: UserAccount, settings: Settings | None = None) ->
     return email in protected_admin_emails(settings)
 
 
-def apply_default_admin(member: UserAccount, settings: Settings | None = None) -> None:
-    # Ephemeral deploy/probe identities may still be promoted so smoke checks can
-    # exercise admin routes; list_admin_members hides them from the console.
-    email = (member.email or "").casefold()
-    if email and email in default_admin_emails(settings):
-        member.is_admin = True
-
-
 async def require_admin_member(session: AsyncSession, member: UserAccount) -> UserAccount:
     was_admin = member.is_admin
-    apply_default_admin(member)
+    ensure_ephemeral_smoke_admin(member)
     if member.is_admin and not was_admin:
         await session.commit()
         await session.refresh(member)

@@ -5,7 +5,6 @@ import { memberSessionIsAdmin } from "@/lib/member-admin-proxy"
 
 describe("member admin session", () => {
   afterEach(() => {
-    delete process.env.DEFAULT_ADMIN_EMAILS
     delete process.env.MEMBER_PROXY_KEY
     vi.unstubAllGlobals()
   })
@@ -21,8 +20,7 @@ describe("member admin session", () => {
     await expect(memberSessionIsAdmin(request)).resolves.toBe(true)
   })
 
-  it("promotes configured default admin emails from session responses", async () => {
-    process.env.DEFAULT_ADMIN_EMAILS = "owner@example.com"
+  it("returns false when session says member is not admin", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ authenticated: true, is_admin: false, email: "owner@example.com" }),
@@ -30,11 +28,10 @@ describe("member admin session", () => {
     vi.stubGlobal("fetch", fetchMock)
 
     const request = { url: "https://example.test/admin/feedback", headers: { get: () => null } } as never
-    await expect(memberSessionIsAdmin(request)).resolves.toBe(true)
+    await expect(memberSessionIsAdmin(request)).resolves.toBe(false)
   })
 
-  it("falls back to Azure principal email when session is unavailable", async () => {
-    process.env.DEFAULT_ADMIN_EMAILS = "owner@example.com"
+  it("returns false when session is unavailable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")))
 
     const principal = buildClientPrincipal("user-oid-42", "owner@example.com")
@@ -44,7 +41,7 @@ describe("member admin session", () => {
       headers: { get: (name: string) => headers.get(name) },
     } as never
 
-    await expect(memberSessionIsAdmin(request)).resolves.toBe(true)
+    await expect(memberSessionIsAdmin(request)).resolves.toBe(false)
   })
 
   it("returns false for signed-in non-admin members", async () => {

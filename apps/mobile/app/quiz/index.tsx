@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
-import { useRouter } from "expo-router"
+import { useFocusEffect, useRouter } from "expo-router"
 import { Award, Check, Lock, X } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
@@ -49,6 +49,15 @@ export default function QuizScreen() {
       active = false
     }
   }, [mode])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (mode !== "signed_in" || !memberAuthAvailable()) return
+      void api.fetchQuizStatus().then((value) => {
+        if (value) setStatus(value as QuizStatus)
+      })
+    }, [mode]),
+  )
 
   const current = attempt?.questions[index]
   const progressLabel = useMemo(() => {

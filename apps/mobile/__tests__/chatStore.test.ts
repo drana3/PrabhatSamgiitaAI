@@ -54,4 +54,48 @@ describe("chatStore song scoping", () => {
     store.ensureScopeThread(accountId, 5)
     expect(store.getActiveThread(accountId)?.id).toBe(secondId)
   })
+
+  it("hydrates an empty local thread from server chat memory (cross-device restore)", () => {
+    const accountId = "member:member@example.com"
+    const store = useChatStore.getState()
+
+    store.ensureScopeThread(accountId, 12)
+    expect(store.getActiveThread(accountId)?.messages).toHaveLength(0)
+
+    store.hydrateFromServerTurns(
+      accountId,
+      [
+        { role: "user", content: "Explain PS 12" },
+        { role: "assistant", content: "PS 12 speaks of devotion." },
+      ],
+      "Synced conversation",
+      12,
+    )
+
+    const thread = store.getActiveThread(accountId)
+    expect(thread?.songNumber).toBe(12)
+    expect(thread?.messages.map((message) => message.text)).toEqual([
+      "Explain PS 12",
+      "PS 12 speaks of devotion.",
+    ])
+  })
+
+  it("does not overwrite local messages when hydrating from server", () => {
+    const accountId = "member:member@example.com"
+    const store = useChatStore.getState()
+    store.ensureScopeThread(accountId, 12)
+    const assistantId = store.beginExchange(accountId, "Local-only draft")
+    store.updateAssistantMessage(accountId, assistantId!, "Still typing…")
+
+    store.hydrateFromServerTurns(
+      accountId,
+      [{ role: "user", content: "Server history" }],
+      undefined,
+      12,
+    )
+
+    expect(store.getActiveThread(accountId)?.messages.some((m) => m.text.includes("Local-only"))).toBe(
+      true,
+    )
+  })
 })

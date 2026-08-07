@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native"
 import type { AdminFeedbackItem, AdminMember } from "@prabhat/core"
-import { useRouter } from "expo-router"
+import { useFocusEffect, useRouter } from "expo-router"
 import { MessageSquare, Shield, Users } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
@@ -21,6 +21,7 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 import { memberAuthAvailable } from "@/lib/memberAuth"
+import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
@@ -39,7 +40,6 @@ export default function AdminScreen() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const mode = useAuthStore((s) => s.mode)
-  const toggleAdminPreview = useAuthStore((s) => s.toggleAdminPreview)
 
   const loadFeedback = useCallback(async () => {
     if (!memberAuthAvailable()) {
@@ -62,6 +62,13 @@ export default function AdminScreen() {
     setLoading(false)
   }, [])
 
+  useFocusEffect(
+    useCallback(() => {
+      if (mode !== "signed_in" || !memberAuthAvailable()) return
+      void refreshMemberSession()
+    }, [mode]),
+  )
+
   useEffect(() => {
     if (mode !== "signed_in" || !isAdmin) return
     if (tab === "feedback") void loadFeedback()
@@ -75,8 +82,8 @@ export default function AdminScreen() {
           <Shield size={28} color={colors.primary} />
           <Text style={styles.lockedTitle}>Admin only</Text>
           <Text style={styles.lockedBody}>
-            Mirrors website `/admin/feedback` and `/admin/members`. Enable admin preview from Profile
-            after signing in.
+            Mirrors website `/admin/feedback` and `/admin/members`. Admin access comes from your
+            member account after an owner promotes you or sets `is_admin` in the database.
           </Text>
           <PrimaryButton label="Go to Profile" onPress={() => router.replace(href("/(tabs)/profile"))} />
         </View>
@@ -291,11 +298,6 @@ export default function AdminScreen() {
           </>
         )}
 
-        {__DEV__ ? (
-          <Pressable onPress={toggleAdminPreview}>
-            <Text style={styles.disable}>Disable admin preview</Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
     </ScreenContainer>
   )

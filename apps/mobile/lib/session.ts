@@ -1,13 +1,19 @@
 import type { MemberProfile } from "@prabhat/core"
 
 import { api } from "@/lib/client"
+import { signInWithFacebook } from "@/lib/facebookAuth"
+import { signInWithGoogle } from "@/lib/googleAuth"
+import { loginWithEmail, registerWithEmail } from "@/lib/localAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { microsoftAuthConfigured, signInWithMicrosoft, getMicrosoftRedirectUri } from "@/lib/msal"
+import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
 import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
 export { microsoftAuthConfigured, getMicrosoftRedirectUri }
+export { googleAuthConfigured } from "@/lib/googleAuth"
+export { facebookAuthConfigured } from "@/lib/facebookAuth"
 
 async function hydrateFromSession() {
   const session = await api.fetchMemberSession()
@@ -15,9 +21,6 @@ async function hydrateFromSession() {
     return { ok: false as const, memberBackend: false }
   }
   const profile = session as MemberProfile
-  // Keep the Microsoft OID (or preview subject) in memberId for X-MS-CLIENT-PRINCIPAL.
-  // Never replace it with the API's DB UUID — that forks a second member row and
-  // makes quiz/certs/admin disappear from the website Easy Auth profile.
   const existingSubject = useAuthStore.getState().memberId
   useAuthStore.getState().applyMemberSession({
     displayName: profile.display_name,
@@ -31,26 +34,19 @@ async function hydrateFromSession() {
   return { ok: true as const, memberBackend: true, profile }
 }
 
-/**
- * Sign in with Microsoft when Azure client ID is configured; otherwise use the
- * preview identity and hydrate member session when MEMBER_PROXY_KEY is available.
- */
-export async function signInMember(options?: { preferPreview?: boolean }) {
-  const preferPreview = options?.preferPreview === true || !microsoftAuthConfigured()
-
-  if (!preferPreview) {
-    const identity = await signInWithMicrosoft()
-    // Temporarily set auth so getAuthHeaders can mint principal for this identity.
-    useAuthStore.getState().applyMemberSession({
-      displayName: identity.displayName,
-      email: identity.email,
-      memberId: identity.id,
-      memberBackend: false,
-      identityProvider: "aad",
-    })
-  } else {
-    useAuthStore.getState().setMode("signed_in")
-  }
+async function finishSignIn(input: {
+  displayName: string
+  email: string | null
+  memberId: string
+  identityProvider: string
+}) {
+  useAuthStore.getState().applyMemberSession({
+    displayName: input.displayName,
+    email: input.email,
+    memberId: input.memberId,
+    memberBackend: false,
+    identityProvider: input.identityProvider,
+  })
 
   if (!memberAuthAvailable()) {
     return {
@@ -75,6 +71,80 @@ export async function signInMember(options?: { preferPreview?: boolean }) {
     memberBackend: true,
     message: "Signed in and synced with your Prabhat Samgiita member session.",
   }
+}
+
+export async function refreshMemberSession() {
+  const { mode } = useAuthStore.getState()
+  if (mode !== "signed_in" || !memberAuthAvailable()) {
+    return { ok: false as const, memberBackend: false }
+  }
+  return hydrateFromSession()
+}
+
+export async function signInMember(options?: { preferPreview?: boolean }) {
+  const preferPreview = options?.preferPreview === true || !microsoftAuthConfigured()
+
+  if (!preferPreview) {
+    const identity = await signInWithMicrosoft()
+    return finishSignIn({
+      displayName: identity.displayName,
+      email: identity.email,
+      memberId: identity.id,
+      identityProvider: "aad",
+    })
+  }
+
+  useAuthStore.getState().setMode("signed_in")
+  return finishSignIn({
+    displayName: "Preview member",
+    email: "mobile-preview@prabhat.local",
+    memberId: "mobile-preview",
+    identityProvider: "preview",
+  })
+}
+
+export async function signInWithGoogleAccount() {
+  const identity = await signInWithGoogle()
+  return finishSignIn({
+    displayName: identity.displayName,
+    email: identity.email,
+    memberId: identity.id,
+    identityProvider: identity.provider,
+  })
+}
+
+export async function signInWithFacebookAccount() {
+  const identity = await signInWithFacebook()
+  return finishSignIn({
+    displayName: identity.displayName,
+    email: identity.email,
+    memberId: identity.id,
+    identityProvider: identity.provider,
+  })
+}
+
+export async function signInWithEmailPassword(email: string, password: string) {
+  const session = await loginWithEmail({ email, password })
+  return finishSignIn({
+    displayName: session.display_name,
+    email: session.email,
+    memberId: subjectFromPrincipal(session.client_principal),
+    identityProvider: session.identity_provider,
+  })
+}
+
+export async function signUpWithEmailPassword(
+  email: string,
+  password: string,
+  displayName: string,
+) {
+  const session = await registerWithEmail({ email, password, displayName })
+  return finishSignIn({
+    displayName: session.display_name,
+    email: session.email,
+    memberId: subjectFromPrincipal(session.client_principal),
+    identityProvider: session.identity_provider,
+  })
 }
 
 export function previewPrincipalForTests(email: string) {

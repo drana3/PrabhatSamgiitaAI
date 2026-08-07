@@ -33,6 +33,17 @@ class UserAccount(Base, TimestampMixin):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class UserCredential(Base, TimestampMixin):
+    __tablename__ = "user_credentials"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("user_accounts.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class UserFavorite(Base, TimestampMixin):
     __tablename__ = "user_favorites"
     __table_args__ = (UniqueConstraint("user_id", "song_number", name="uq_user_favorite"),)

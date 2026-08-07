@@ -20,8 +20,8 @@ AZURE_OPENAI_CHAT_DEPLOYMENT="${AZURE_OPENAI_CHAT_DEPLOYMENT:-${AZURE_OPENAI_DEP
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT="${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-${AZURE_OPENAI_CHAT_DEPLOYMENT:-}}"
 AZURE_OPENAI_API_VERSION="${AZURE_OPENAI_API_VERSION:-2024-10-21}"
 MEMBER_PROXY_KEY="${MEMBER_PROXY_KEY:-}"
-DEFAULT_ADMIN_EMAILS="${DEFAULT_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
-PROTECTED_ADMIN_EMAILS="${PROTECTED_ADMIN_EMAILS:-$DEFAULT_ADMIN_EMAILS}"
+DEFAULT_ADMIN_EMAILS="${DEFAULT_ADMIN_EMAILS:-}"
+PROTECTED_ADMIN_EMAILS="${PROTECTED_ADMIN_EMAILS:-}"
 
 if [[ -z "${PG_PASSWORD}" ]]; then
   echo "Set PG_PASSWORD to a strong password before running."
@@ -249,8 +249,8 @@ payload = {
     {"typ": "http://schemas.microsoft.com/identity/claims/objectidentifier", "val": "deploy-smoke"},
     {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "val": "deploy-smoke"},
     {"typ": "name", "val": "Deploy Smoke"},
-    {"typ": "email", "val": "dewasheesh.rana3@gmail.com"},
-    {"typ": "preferred_username", "val": "dewasheesh.rana3@gmail.com"},
+    {"typ": "email", "val": "deploy-smoke@prabhat.local"},
+    {"typ": "preferred_username", "val": "deploy-smoke@prabhat.local"},
   ],
 }
 print(base64.b64encode(json.dumps(payload).encode()).decode())
@@ -263,7 +263,7 @@ MEMBER_SESSION_SMOKE="$(curl_retry "member-session" \
   echo "Member session smoke failed after API warm-up." >&2
   exit 1
 }
-printf '%s' "$MEMBER_SESSION_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("authenticated") is True and data.get("is_admin") is True else 1)'
+printf '%s' "$MEMBER_SESSION_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("authenticated") is True else 1)'
 MEMBER_FEEDBACK_SMOKE="$(curl_retry "member-admin-feedback" \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
   --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \

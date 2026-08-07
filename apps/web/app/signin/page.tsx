@@ -3,9 +3,16 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { SignInRedirect } from "@/components/sign-in-redirect"
+import { EmailAuthPanel } from "@/components/email-auth-panel"
 import { SiteHeader } from "@/components/site-header"
+import { facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
 import { resolveClientPrincipal } from "@/lib/azure-principal"
-import { microsoftSignInHref, safeSignInNextPath } from "@/lib/sign-in"
+import {
+  facebookSignInHref,
+  googleSignInHref,
+  microsoftSignInHref,
+  safeSignInNextPath,
+} from "@/lib/sign-in"
 
 export const dynamic = "force-dynamic"
 
@@ -37,6 +44,26 @@ export default async function SignInPage({
               <a href={microsoftSignInHref(next)} className="outline-button justify-center py-3.5">
                 Continue with Microsoft
               </a>
+              {googleAuthEnabled() ? (
+                <a href={googleSignInHref(next)} className="outline-button justify-center py-3.5">
+                  Continue with Google
+                </a>
+              ) : null}
+              {facebookAuthEnabled() ? (
+                <a href={facebookSignInHref(next)} className="outline-button justify-center py-3.5">
+                  Continue with Facebook
+                </a>
+              ) : null}
+              {localAuthEnabled() ? (
+                <>
+                  <div className="flex items-center gap-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                    <span className="h-px flex-1 bg-stone-200" />
+                    <span>or</span>
+                    <span className="h-px flex-1 bg-stone-200" />
+                  </div>
+                  <EmailAuthPanel next={next} />
+                </>
+              ) : null}
             </div>
           ) : (
             <p className="mt-8 rounded-xl border border-gold-500/25 bg-gold-50 px-4 py-3 text-sm leading-6 text-navy-950">

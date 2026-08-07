@@ -76,7 +76,12 @@ export function MemberMenu() {
           <a
             href="/.auth/logout?post_logout_redirect_uri=/"
             role="menuitem"
-            onClick={() => { clearGuestChatStorage(); setOpen(false); void refresh() }}
+            onClick={() => {
+              clearGuestChatStorage()
+              setOpen(false)
+              void fetch("/api/auth/logout", { method: "POST" })
+              void refresh()
+            }}
             className="block px-4 py-3 text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
           >
             Sign out

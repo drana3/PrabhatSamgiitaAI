@@ -38,7 +38,6 @@ describe("resolveClientPrincipal", () => {
   })
 
   it("parses a principal blob into a member profile", () => {
-    process.env.DEFAULT_ADMIN_EMAILS = "member@example.com"
     const principal = buildClientPrincipal("user-oid-42", "member@example.com")
     expect(parseClientPrincipalProfile(principal)).toEqual({
       authenticated: true,
@@ -48,8 +47,7 @@ describe("resolveClientPrincipal", () => {
       identity_provider: "aad",
       personalization_enabled: true,
       favorite_song_numbers: [],
-      is_admin: true,
+      is_admin: false,
     })
-    delete process.env.DEFAULT_ADMIN_EMAILS
   })
 })

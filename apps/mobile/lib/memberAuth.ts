@@ -15,6 +15,11 @@ export function memberAuthAvailable() {
   return Boolean(memberProxyKey())
 }
 
-export function buildMemberAuthHeaders(email: string, displayName: string, memberId?: string | null): Record<string, string> {
-  return buildHeaders(email, displayName, memberProxyKey(), memberId)
+export function buildMemberAuthHeaders(
+  email: string,
+  displayName: string,
+  memberId?: string | null,
+  identityProvider = "aad",
+): Record<string, string> {
+  return buildHeaders(email, displayName, memberProxyKey(), memberId, identityProvider)
 }

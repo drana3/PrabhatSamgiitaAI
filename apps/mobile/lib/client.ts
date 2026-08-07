@@ -12,9 +12,9 @@ const apiBaseUrl =
 export const api = createApiClient({
   baseUrl: apiBaseUrl,
   getAuthHeaders: (): Record<string, string> => {
-    const { mode, email, displayName, memberId } = useAuthStore.getState()
+    const { mode, email, displayName, memberId, identityProvider } = useAuthStore.getState()
     if (mode !== "signed_in" || !email) return {}
-    return buildMemberAuthHeaders(email, displayName, memberId)
+    return buildMemberAuthHeaders(email, displayName, memberId, identityProvider || "aad")
   },
 })
 

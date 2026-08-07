@@ -138,7 +138,8 @@ export default function AdminMembersPage() {
           <p className="text-sm font-semibold text-navy-950">{loading ? "Loading admins..." : `${members.length} admin${members.length === 1 ? "" : "s"}`}</p>
           {!loading && !members.length ? (
             <div className="rounded-2xl border border-navy-900/10 bg-white p-8 text-center text-sm text-stone-600">
-              No admins yet. Your account is promoted automatically when your email is in DEFAULT_ADMIN_EMAILS.
+              No admins yet. Promote a member who has signed in at least once, or set{" "}
+              <code className="rounded bg-stone-100 px-1 py-0.5">is_admin = true</code> in the database.
             </div>
           ) : null}
           {members.map((member) => (

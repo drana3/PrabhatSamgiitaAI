@@ -1,5 +1,6 @@
+import { useCallback } from "react"
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
-import { useRouter } from "expo-router"
+import { useFocusEffect, useRouter } from "expo-router"
 import {
   Award,
   ChevronRight,
@@ -20,6 +21,7 @@ import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 import { friendlyPersonName } from "@/lib/displayName"
 import { memberAuthAvailable } from "@/lib/memberAuth"
+import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { APP_LANGUAGES, usePreferencesStore } from "@/stores/preferencesStore"
@@ -63,7 +65,6 @@ export default function ProfileScreen() {
   const identityProvider = useAuthStore((s) => s.identityProvider)
   const signOut = useAuthStore((s) => s.signOut)
   const resetWelcome = useAuthStore((s) => s.resetWelcome)
-  const toggleAdminPreview = useAuthStore((s) => s.toggleAdminPreview)
   const language = usePreferencesStore((s) => s.language)
   const setLanguage = usePreferencesStore((s) => s.setLanguage)
 
@@ -85,6 +86,13 @@ export default function ProfileScreen() {
   const getAccountId = useChatStore((s) => s.getAccountId)
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
   const accountId = getAccountId(mode, email)
+
+  useFocusEffect(
+    useCallback(() => {
+      if (mode !== "signed_in" || !memberAuthAvailable()) return
+      void refreshMemberSession()
+    }, [mode]),
+  )
 
   return (
     <ScreenContainer padded={false} showGuru={false}>
@@ -137,15 +145,12 @@ export default function ProfileScreen() {
           />
           {mode === "signed_in" ? (
             <>
-              {isAdmin || __DEV__ ? (
+              {isAdmin ? (
                 <Row
                   icon={<Shield size={18} color={colors.primary} />}
-                  label={isAdmin ? "Admin console" : "Enable admin preview"}
-                  value={isAdmin ? "On" : undefined}
-                  onPress={() => {
-                    if (!isAdmin) toggleAdminPreview()
-                    router.push(href("/admin"))
-                  }}
+                  label="Admin console"
+                  value="On"
+                  onPress={() => router.push(href("/admin"))}
                 />
               ) : null}
               <Row

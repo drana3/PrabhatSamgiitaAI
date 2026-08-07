@@ -15,6 +15,7 @@ import { Lora_700Bold, useFonts as useLora } from "@expo-google-fonts/lora"
 import * as SplashScreen from "expo-splash-screen"
 
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
+import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { colors } from "@/constants/colors"
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined)
@@ -53,6 +54,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <PlaybackLifecycle />
+        <MemberSessionSync />
         <StatusBar style="dark" />
         <Stack
           screenOptions={{

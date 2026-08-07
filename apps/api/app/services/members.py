@@ -22,7 +22,7 @@ from app.models import (
     UserInterestProfile,
 )
 from app.schemas.member import ChatMemoryTurn, ChatMemoryWrite, MemberProfile
-from app.services.admin_members import apply_default_admin, is_ephemeral_member
+from app.services.admin_members import ensure_ephemeral_smoke_admin, is_ephemeral_member
 
 NAME_CLAIMS = {
     "name",
@@ -123,7 +123,7 @@ def try_member_identity(request: Request) -> MemberIdentity | None:
 def _subject_rank(subject: str) -> int:
     """Higher = more canonical (Easy Auth OID beats email/preview forks)."""
     value = (subject or "").casefold()
-    if value.startswith("aad:") and "@" not in value and "preview" not in value:
+    if value.startswith(("aad:", "google:", "facebook:", "local:")) and "@" not in value and "preview" not in value:
         return 3
     if "preview" in value or value.endswith("@prabhat.local"):
         return 0
@@ -284,7 +284,7 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         member.avatar_url = identity.avatar_url or member.avatar_url
         member.last_seen_at = now
         member.deleted_at = None
-    apply_default_admin(member)
+    ensure_ephemeral_smoke_admin(member)
     await session.commit()
     await session.refresh(member)
     return member
