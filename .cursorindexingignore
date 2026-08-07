@@ -1,0 +1,17 @@
+# Index-only exclusions: still @-readable, but not in codebase search.
+# Keeps semantic index small without blocking intentional reads.
+
+data/generated/**
+data/seed/*.json
+apps/mobile/ios/Pods/**
+apps/mobile/android/.gradle/**
+apps/web/public/brand/**
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.webp
+**/*.ico
+**/*.svg
+**/package-lock.json
+**/uv.lock
+**/Podfile.lock

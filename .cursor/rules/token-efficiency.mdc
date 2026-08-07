@@ -5,27 +5,20 @@ alwaysApply: true
 
 # Token efficiency
 
-## Before asking the agent
-- One task per message. Name the file or folder when you know it (`apps/web/...`, `apps/api/...`, `apps/mobile/...`).
-- Prefer `@folder` or `@file` over `@Codebase` unless the location is unknown.
-- Paste only the failing log lines (10–30 lines), not full CI output. Link GitHub Actions runs instead.
-- For “is CI green?”, link the run URL; don’t paste job logs unless something failed.
+## Prompting
+- One task per message. Name the path (`apps/web/...`, `apps/api/...`, `apps/mobile/...`).
+- Prefer `@file` / `@folder` over `@Codebase`. Never dump full CI logs — link the run URL; paste 10–30 failing lines max.
+- Start a new chat for unrelated work (don't reuse huge threads).
 
-## Scope
-- Web/API/mobile are separate dependency trees. Don’t touch `apps/mobile` when fixing web CI, and vice versa.
-- Docs-only or mobile-only changes should not trigger full deploy discussion unless deploy is the ask.
-- Minimize diff scope: fix the root cause, don’t refactor adjacent code.
+## Agent behavior
+- Grep/search before reading; read only the function/region needed.
+- Touch only the app tree in scope (web ≠ api ≠ mobile).
+- Minimal diffs: fix root cause; no drive-by refactors or unsolicited docs.
+- Don't re-run full E2E unless UI journeys/Playwright config changed.
+- Don't regenerate lockfiles unless deps actually changed.
 
-## Exploration
-- Search/grep before reading whole files. Read only the function or component in scope.
-- Don’t re-run full E2E locally unless the change touches UI journeys or Playwright config.
-- Don’t regenerate lockfiles unless dependency graphs actually changed; always verify with `npm ci` from a clean tree.
-
-## Long tasks
-- Use Plan mode for architecture or multi-file design; switch to Agent for the implementation.
-- Split large work into reviewable chunks (web, API, mobile, infra) instead of one mega-prompt.
-- Prefer `workflow_dispatch` or path-filtered CI when validating unrelated areas.
-
-## Models
-- Default/fast models for lint fixes, config tweaks, and small diffs.
-- Stronger models for RAG/AI logic, cross-app refactors, or ambiguous production failures.
+## Models & modes
+- Fast/default model for lint, config, small diffs.
+- Stronger model only for RAG/AI logic, cross-app refactors, or ambiguous prod failures.
+- Plan mode for multi-file architecture; Agent for implementation.
+- Prefer `workflow_dispatch` / path-filtered CI for unrelated areas.

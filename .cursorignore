@@ -1,22 +1,61 @@
-# Keep heavy/generated trees out of Cursor indexing to cut token use.
+# Keep heavy/generated/secret trees out of Cursor indexing + agent @-context.
+
+# Dependencies & lockfiles
 node_modules/
 apps/mobile/node_modules/
+package-lock.json
+apps/mobile/package-lock.json
+**/uv.lock
+**/Podfile.lock
+
+# Build / cache / native deps (ios/Pods alone is ~937MB)
 apps/web/.next/
 apps/web/test-results/
 apps/web/playwright-report/
+apps/web/coverage/
 apps/api/.venv/
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
 **/__pycache__/
 **/.pytest_cache/
 **/.mypy_cache/
 **/.ruff_cache/
+**/.eslintcache/
+**/.turbo/
 coverage/
 dist/
 build/
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tsbuildinfo
 data/generated/cache/
-apps/mobile/.expo/
-apps/mobile/dist/
-package-lock.json
-apps/mobile/package-lock.json
+
+# Secrets — never pull into model context
+**/.env
+**/.env.local
+**/.env.*.local
+**/credentials.json
+**/secrets.json
+**/*.pem
+**/*.key
+**/id_rsa
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Media / binaries that bloat context when attached
+**/*.apk
+**/*.aab
+**/*.ipa
+**/*.mp3
+**/*.mp4
+**/*.wav
+**/*.zip
+**/*.tar
+**/*.gz
+**/*.7z
