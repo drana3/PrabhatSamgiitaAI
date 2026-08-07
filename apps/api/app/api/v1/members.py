@@ -16,6 +16,7 @@ from app.schemas.member import (
     FavoriteWrite,
     MemberPreferencesWrite,
     MemberProfile,
+    QuizEventSubmitWrite,
     QuizStartResponse,
     QuizStartWrite,
     QuizStatusResponse,
@@ -30,6 +31,11 @@ from app.services.members import (
     sync_member,
 )
 from app.services.quiz import quiz_status, start_quiz, submit_quiz
+from app.services.quiz_events import (
+    event_metadata_for_member,
+    start_event_quiz,
+    submit_event_quiz,
+)
 
 router = APIRouter(prefix="/members", tags=["members"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
@@ -134,17 +140,30 @@ async def read_chat_memory(
     song_number: int | None = Query(default=None, ge=1, le=5018),
 ) -> ChatMemoryResponse:
     member = await current_member(request, session)
-    summary, turns = await recent_chat_memory(session, member, song_number)
-    return ChatMemoryResponse(summary=summary, recent_turns=turns)
+    summary, turns, history_days, archived_summary, monthly_summaries = await recent_chat_memory(
+        session, member, song_number
+    )
+    return ChatMemoryResponse(
+        summary=summary,
+        recent_turns=turns,
+        history_days=history_days,
+        archived_summary=archived_summary,
+        monthly_summaries=monthly_summaries,
+    )
 
 
 @router.delete("/chat-memory", status_code=204)
 async def clear_chat_memory(request: Request, session: DatabaseSession) -> Response:
     member = await current_member(request, session)
-    await session.execute(delete(UserChatMessage).where(UserChatMessage.user_id == member.id))
     await session.execute(
-        delete(UserInterestProfile).where(UserInterestProfile.user_id == member.id)
+        delete(UserChatMessage).where(
+            UserChatMessage.user_id == member.id,
+            UserChatMessage.song_number.is_(None),
+        )
     )
+    profile = await session.get(UserInterestProfile, member.id)
+    if profile is not None:
+        profile.monthly_summaries = {}
     await session.commit()
     return Response(status_code=204)
 
@@ -187,6 +206,51 @@ async def finish_quiz(
             [answer.model_dump() for answer in payload.answers],
         )
         return QuizSubmitResponse.model_validate(result)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/quiz/events/{slug}")
+async def read_quiz_event(
+    slug: str, request: Request, session: DatabaseSession
+) -> dict[str, object]:
+    member = await current_member(request, session)
+    try:
+        return await event_metadata_for_member(session, member, slug)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/quiz/events/{slug}/start")
+async def begin_quiz_event(
+    slug: str, request: Request, session: DatabaseSession
+) -> dict[str, object]:
+    member = await current_member(request, session)
+    try:
+        return await start_event_quiz(session, member, slug)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/quiz/events/{slug}/submit")
+async def finish_quiz_event(
+    slug: str,
+    payload: QuizEventSubmitWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> dict[str, object]:
+    member = await current_member(request, session)
+    try:
+        return await submit_event_quiz(
+            session,
+            member,
+            slug,
+            [answer.model_dump() for answer in payload.answers],
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

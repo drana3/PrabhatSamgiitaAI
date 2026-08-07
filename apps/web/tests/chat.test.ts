@@ -6,7 +6,10 @@ import {
   conversationContextMs,
   followUpQuestions,
   followUpsFromMessages,
+  flattenHistoryDays,
   formatAssistantMessage,
+  formatHistoryDayLabel,
+  memberProfileContext,
   legacySongChatStorageKey,
   recentConversation,
   restoreConversation,
@@ -145,5 +148,31 @@ describe("AI companion conversation contract", () => {
 
     expect(window.sessionStorage.getItem(songChatStorageKey(3, true, "aad:user-1"))).toBeNull()
     expect(window.sessionStorage.getItem(songChatStorageKey(3, false))).not.toBeNull()
+  })
+
+  it("flattens day-grouped server history into chat messages", () => {
+    const messages = flattenHistoryDays([
+      {
+        date: "2026-08-07",
+        turns: [
+          { role: "user", content: "Explain PS 12" },
+          { role: "assistant", content: "PS 12 is devotional." },
+        ],
+      },
+    ])
+    expect(messages).toHaveLength(2)
+    expect(messages[0]?.text).toBe("Explain PS 12")
+  })
+
+  it("combines archived and interest summaries for AI context", () => {
+    expect(memberProfileContext("Likes meaning.", "2026-06: Asked about meditation.")).toBe(
+      "2026-06: Asked about meditation.\n\nLikes meaning.",
+    )
+  })
+
+  it("labels history days like ChatGPT", () => {
+    const now = new Date("2026-08-08T10:00:00.000Z")
+    expect(formatHistoryDayLabel("2026-08-08", now)).toBe("Today")
+    expect(formatHistoryDayLabel("2026-08-07", now)).toBe("Yesterday")
   })
 })

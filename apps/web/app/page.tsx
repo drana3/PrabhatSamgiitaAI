@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/site-header"
 import { DailyReflection } from "@/components/daily-reflection"
 import { CommunityVoices } from "@/components/community-voices"
 import { MemberQuizBadge } from "@/components/member-quiz-badge"
+import { QuizWinnersSection } from "@/components/quiz-winners-section"
 import { StoriesInspiration } from "@/components/stories-inspiration"
 import seedInventory from "../../../data/seed/inventory.json"
 import seedSongs from "../../../data/seed/songs.json"
@@ -115,6 +116,7 @@ export default function HomePage() {
       </section>
 
       <LandingData initialSongs={seedSongs.slice(0, 9)} initialInventory={seedInventory.slice(0, 4)} />
+      <QuizWinnersSection />
       <StoriesInspiration />
       <CommunityVoices />
     </main>

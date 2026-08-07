@@ -102,6 +102,7 @@ export default function AdminMembersPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/admin/feedback" className="outline-button px-4 py-2.5">Feedback</Link>
+            <Link href="/admin/quiz" className="outline-button px-4 py-2.5">Quiz events</Link>
             <Link href="/" className="outline-button px-4 py-2.5">Back to site</Link>
           </div>
         </div>

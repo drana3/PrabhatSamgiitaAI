@@ -9,6 +9,7 @@ import { CollectionsPreview } from "@/components/home/CollectionsPreview"
 import { ContinueListeningRow } from "@/components/home/ContinueListeningRow"
 import { FeedbackEntryCard, QuizBanner } from "@/components/home/EngagementCards"
 import { GreetingHeader } from "@/components/home/GreetingHeader"
+import { QuizWinnersRow } from "@/components/home/QuizWinnersRow"
 import {
   AboutComposerCard,
   CommunityVoicesRow,
@@ -239,9 +240,14 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.block}>
+          <QuizWinnersRow />
+        </View>
+
+        <View style={styles.block}>
           <QuizBanner
             isGuest={mode === "guest"}
             onPress={() => router.push(href(mode === "guest" ? "/signin" : "/quiz"))}
+            onScanPress={() => router.push(href(mode === "guest" ? "/signin" : "/quiz/scan"))}
           />
         </View>
 

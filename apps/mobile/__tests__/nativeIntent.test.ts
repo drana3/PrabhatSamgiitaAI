@@ -20,4 +20,8 @@ describe("rewriteNativeSystemPath", () => {
     expect(rewriteNativeSystemPath("/song/ps-1")).toBe("/song/ps-1")
     expect(rewriteNativeSystemPath("prabhatai:///song/ps-1")).toBe("/song/ps-1")
   })
+
+  it("maps quiz event deep links to the event screen", () => {
+    expect(rewriteNativeSystemPath("prabhatai://quiz/event/abc123")).toBe("/quiz/event/abc123")
+  })
 })

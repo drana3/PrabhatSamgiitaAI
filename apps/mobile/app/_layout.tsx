@@ -77,6 +77,8 @@ export default function RootLayout() {
           <Stack.Screen name="festivals/index" options={{ presentation: "card" }} />
           <Stack.Screen name="festival/[festivalId]" options={{ presentation: "card" }} />
           <Stack.Screen name="quiz/index" options={{ presentation: "card" }} />
+          <Stack.Screen name="quiz/scan" options={{ presentation: "card" }} />
+          <Stack.Screen name="quiz/event/[slug]" options={{ presentation: "card" }} />
           <Stack.Screen name="feedback/index" options={{ presentation: "modal" }} />
           <Stack.Screen name="admin/index" options={{ presentation: "card" }} />
           <Stack.Screen name="stories/index" options={{ presentation: "card" }} />

@@ -1,3 +1,4 @@
+from app.models.admin_workflow import SongIngestionSubmission, YoutubeReviewQueue
 from app.models.base import Base
 from app.models.chunk import SongChunk
 from app.models.domain import (
@@ -22,6 +23,9 @@ from app.models.member import (
     InspirationStoryRecord,
     QuizAttempt,
     QuizCertification,
+    QuizEvent,
+    QuizEventQuestion,
+    QuizEventSubmission,
     ReflectionQuote,
     UserAccount,
     UserChatMessage,
@@ -49,11 +53,15 @@ __all__ = [
     "Occasion",
     "QuizAttempt",
     "QuizCertification",
+    "QuizEvent",
+    "QuizEventQuestion",
+    "QuizEventSubmission",
     "RecommendationAudit",
     "ReflectionQuote",
     "Season",
     "Song",
     "SongChunk",
+    "SongIngestionSubmission",
     "SongOccasionLink",
     "SongSeasonLink",
     "SongThemeLink",
@@ -66,4 +74,5 @@ __all__ = [
     "UserInterestProfile",
     "UserPlaylist",
     "UserPlaylistSong",
+    "YoutubeReviewQueue",
 ]

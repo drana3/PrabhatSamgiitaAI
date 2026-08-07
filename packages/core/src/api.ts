@@ -266,6 +266,7 @@ export const memberProfileSchema = z
     country: z.string().nullable().optional(),
     personalization_enabled: z.boolean().optional().default(true),
     is_admin: z.boolean().optional().default(false),
+    is_super_admin: z.boolean().optional().default(false),
     favorite_song_numbers: z.array(z.number()).default([]),
   })
   .passthrough()
@@ -280,15 +281,24 @@ export const chatMemoryTurnSchema = z.object({
   content: z.string(),
 })
 
+export const chatHistoryDaySchema = z.object({
+  date: z.string(),
+  turns: z.array(chatMemoryTurnSchema).default([]),
+})
+
 export const chatMemoryResponseSchema = z.object({
   summary: z.string().optional().default(""),
   recent_turns: z.array(chatMemoryTurnSchema).default([]),
+  history_days: z.array(chatHistoryDaySchema).default([]),
+  archived_summary: z.string().optional().default(""),
+  monthly_summaries: z.record(z.string()).optional().default({}),
 })
 
 export type MemberProfile = z.infer<typeof memberProfileSchema>
 export type MemberSession = z.infer<typeof memberSessionSchema>
 export type ChatMemoryResponse = z.infer<typeof chatMemoryResponseSchema>
 export type ChatMemoryTurn = z.infer<typeof chatMemoryTurnSchema>
+export type ChatHistoryDay = z.infer<typeof chatHistoryDaySchema>
 
 export type ApiClientOptions = {
   baseUrl: string
@@ -797,6 +807,59 @@ export function createApiClient(options: ApiClientOptions) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         })
+        if (!response.ok) return null
+        return await response.json()
+      } catch {
+        return null
+      }
+    },
+
+    async fetchQuizEvent(slug: string): Promise<unknown | null> {
+      try {
+        const response = await fetchJson(`/api/v1/members/quiz/events/${encodeURIComponent(slug)}`)
+        if (!response.ok) return null
+        return await response.json()
+      } catch {
+        return null
+      }
+    },
+
+    async startQuizEvent(slug: string): Promise<unknown | null> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/quiz/events/${encodeURIComponent(slug)}/start`,
+          { method: "POST" },
+        )
+        if (!response.ok) return null
+        return await response.json()
+      } catch {
+        return null
+      }
+    },
+
+    async submitQuizEvent(
+      slug: string,
+      answers: Array<{ question_id: string; selected_option_id: string }>,
+    ): Promise<unknown | null> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/quiz/events/${encodeURIComponent(slug)}/submit`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ answers }),
+          },
+        )
+        if (!response.ok) return null
+        return await response.json()
+      } catch {
+        return null
+      }
+    },
+
+    async fetchQuizWinners(): Promise<unknown | null> {
+      try {
+        const response = await fetchJson("/api/v1/quiz/winners")
         if (!response.ok) return null
         return await response.json()
       } catch {

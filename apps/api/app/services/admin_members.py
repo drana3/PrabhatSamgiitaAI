@@ -147,6 +147,21 @@ async def find_member_by_email(session: AsyncSession, email: str) -> UserAccount
     return rows[0]
 
 
+async def require_super_admin_member(session: AsyncSession, member: UserAccount) -> UserAccount:
+    member = await require_admin_member(session, member)
+    if not member.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super-admin access is required")
+    return member
+
+
+async def grant_super_admin(session: AsyncSession, email: str) -> UserAccount:
+    member = await grant_admin(session, email)
+    member.is_super_admin = True
+    await session.commit()
+    await session.refresh(member)
+    return member
+
+
 async def grant_admin(session: AsyncSession, email: str) -> UserAccount:
     member = await find_member_by_email(session, email)
     if member is None:

@@ -37,6 +37,7 @@ import { useChatStore } from "@/stores/chatStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
 
+// Mobile AI companion keeps its own look/feel and history UX — intentionally separate from web.
 export default function AIScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
@@ -49,6 +50,10 @@ export default function AIScreen() {
 
   const [draft, setDraft] = useState("")
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [serverHistoryDays, setServerHistoryDays] = useState<
+    Array<{ date: string; turns: Array<{ role: "user" | "assistant"; content: string }> }>
+  >([])
+  const [archivedSummary, setArchivedSummary] = useState("")
   const [sending, setSending] = useState(false)
   const [focusSong, setFocusSong] = useState<MockSong | null>(null)
   const mode = useAuthStore((s) => s.mode)
@@ -64,6 +69,7 @@ export default function AIScreen() {
   const beginExchange = useChatStore((s) => s.beginExchange)
   const updateAssistantMessage = useChatStore((s) => s.updateAssistantMessage)
   const hydrateFromServerTurns = useChatStore((s) => s.hydrateFromServerTurns)
+  const syncServerHistory = useChatStore((s) => s.syncServerHistory)
   const ensureScopeThread = useChatStore((s) => s.ensureScopeThread)
   const startNewThread = useChatStore((s) => s.startNewThread)
   const setActiveThread = useChatStore((s) => s.setActiveThread)
@@ -126,18 +132,34 @@ export default function AIScreen() {
     if (mode !== "signed_in" || !memberAuthAvailable()) return
     let active = true
     void api.fetchMemberChat(groundedNumber ?? undefined).then((memory) => {
-      if (!active || !memory.ok || !memory.recent_turns.length) return
+      if (!active || !memory.ok) return
+      if (!groundedNumber) {
+        setServerHistoryDays(memory.history_days ?? [])
+        setArchivedSummary(memory.archived_summary ?? "")
+        if (!memory.recent_turns.length && !(memory.history_days?.length)) return
+        syncServerHistory(accountId, memory, null)
+        hydrateFromServerTurns(
+          accountId,
+          memory.recent_turns,
+          memory.summary || undefined,
+          null,
+        )
+        return
+      }
+      setServerHistoryDays([])
+      setArchivedSummary("")
+      if (!memory.recent_turns.length) return
       hydrateFromServerTurns(
         accountId,
         memory.recent_turns,
         memory.summary || undefined,
-        groundedNumber ?? null,
+        groundedNumber,
       )
     })
     return () => {
       active = false
     }
-  }, [mode, accountId, groundedNumber, hydrateFromServerTurns])
+  }, [mode, accountId, groundedNumber, hydrateFromServerTurns, syncServerHistory])
 
   const send = async (text: string) => {
     const trimmed = text.trim()
@@ -180,7 +202,7 @@ export default function AIScreen() {
 
       if (mode === "signed_in" && memberAuthAvailable() && finalText) {
         void api.saveMemberChat({
-          song_number: songNumber,
+          song_number: groundedNumber ?? undefined,
           turns: [
             { role: "user", content: trimmed },
             { role: "assistant", content: finalText.slice(0, 8000) },
@@ -307,10 +329,17 @@ export default function AIScreen() {
               </IconButton>
             </View>
             <Text style={styles.sheetLead}>
-              {mode === "signed_in"
-                ? "Your conversations stay after sign out. Sign back in to continue."
-                : "Sign in to keep history with your account."}
+              {mode === "signed_in" && !groundedNumber
+                ? "Conversations from the last 30 days are grouped by day. Older context is kept as a summary."
+                : mode === "signed_in"
+                  ? "Song questions keep recent context only. Open AI Companion without a song for full history."
+                  : "Sign in to keep history with your account."}
             </Text>
+            {mode === "signed_in" && !groundedNumber && archivedSummary ? (
+              <Text style={styles.archiveSummary} numberOfLines={4}>
+                Earlier context: {archivedSummary}
+              </Text>
+            ) : null}
             <Pressable
               style={styles.newChatBtn}
               onPress={() => {
@@ -350,6 +379,22 @@ export default function AIScreen() {
               </Pressable>
             ) : null}
             <ScrollView style={styles.historyList}>
+              {mode === "signed_in" && !groundedNumber && serverHistoryDays.length > 0 ? (
+                serverHistoryDays.map((day) => (
+                  <View key={day.date} style={styles.historyDayGroup}>
+                    <Text style={styles.historyDayLabel}>
+                      {new Date(`${day.date}T12:00:00.000Z`).toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Text>
+                    <Text style={styles.historyMeta}>
+                      {day.turns.filter((turn) => turn.role === "user").length} questions
+                    </Text>
+                  </View>
+                ))
+              ) : null}
               {pastThreads.length === 0 ? (
                 <Text style={styles.emptyHistory}>No saved conversations yet.</Text>
               ) : (
@@ -487,6 +532,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.md,
   },
+  archiveSummary: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
   clearHistoryBtn: {
     alignSelf: "flex-start",
     marginTop: spacing.sm,
@@ -515,6 +566,18 @@ const styles = StyleSheet.create({
   },
   historyList: {
     maxHeight: 320,
+  },
+  historyDayGroup: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  historyDayLabel: {
+    ...typography.label,
+    color: colors.textPrimary,
   },
   emptyHistory: {
     ...typography.bodySmall,

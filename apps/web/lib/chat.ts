@@ -11,6 +11,47 @@ export const conversationContextMs = 10 * 60 * 1000
 export const storedMemberConversationMs = 30 * 24 * 60 * 60 * 1000
 export const maximumConversationTurns = 12
 
+export type ChatHistoryDay = {
+  date: string
+  turns: Array<{ role: "user" | "assistant"; content: string }>
+}
+
+export function flattenHistoryDays(
+  days: ChatHistoryDay[],
+  formatAssistant: (text: string) => string = (text) => text,
+): ChatMessage[] {
+  const messages: ChatMessage[] = []
+  for (const day of days) {
+    const base = Date.parse(`${day.date}T12:00:00.000Z`)
+    day.turns.forEach((turn, index) => {
+      messages.push({
+        role: turn.role,
+        text: turn.role === "assistant" ? formatAssistant(turn.content) : turn.content,
+        createdAt: Number.isFinite(base) ? base + index * 1000 : Date.now() + index,
+      })
+    })
+  }
+  return messages
+}
+
+export function memberProfileContext(summary: string, archivedSummary: string): string {
+  return [archivedSummary.trim(), summary.trim()].filter(Boolean).join("\n\n")
+}
+
+export function formatHistoryDayLabel(date: string, now = new Date()): string {
+  const today = now.toISOString().slice(0, 10)
+  const yesterday = new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10)
+  if (date === today) return "Today"
+  if (date === yesterday) return "Yesterday"
+  const parsed = new Date(`${date}T12:00:00.000Z`)
+  if (Number.isNaN(parsed.getTime())) return date
+  return parsed.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
+}
+
+export function messageDayKey(createdAt: number): string {
+  return new Date(createdAt).toISOString().slice(0, 10)
+}
+
 export function songChatStorageKey(
   songNumber: number,
   authenticated: boolean,

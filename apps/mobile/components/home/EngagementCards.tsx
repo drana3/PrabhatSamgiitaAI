@@ -9,28 +9,41 @@ import { typography } from "@/constants/typography"
 type QuizBannerProps = {
   isGuest: boolean
   onPress: () => void
+  onScanPress?: () => void
 }
 
-export function QuizBanner({ isGuest, onPress }: QuizBannerProps) {
+export function QuizBanner({ isGuest, onPress, onScanPress }: QuizBannerProps) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Open quiz"
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.94 }]}
-    >
-      <View style={styles.icon}>
-        <Award size={20} color={colors.primary} />
-      </View>
-      <View style={styles.copy}>
-        <Text style={styles.title}>Prabhat Samgiita Quiz</Text>
-        <Text style={styles.sub}>
-          {isGuest
-            ? "Sign in to take the 10-question journey and earn a certificate."
-            : "Continue your levels — starter, intermediate, and experienced."}
-        </Text>
-      </View>
-    </Pressable>
+    <View style={styles.cardWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open quiz"
+        onPress={onPress}
+        style={({ pressed }) => [styles.card, pressed && { opacity: 0.94 }]}
+      >
+        <View style={styles.icon}>
+          <Award size={20} color={colors.primary} />
+        </View>
+        <View style={styles.copy}>
+          <Text style={styles.title}>Prabhat Samgiita Quiz</Text>
+          <Text style={styles.sub}>
+            {isGuest
+              ? "Sign in to take the 10-question journey and earn a certificate."
+              : "Continue your levels — starter, intermediate, and experienced."}
+          </Text>
+        </View>
+      </Pressable>
+      {!isGuest && onScanPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Scan live quiz QR code"
+          onPress={onScanPress}
+          style={({ pressed }) => [styles.scanChip, pressed && { opacity: 0.94 }]}
+        >
+          <Text style={styles.scanText}>Scan live quiz QR</Text>
+        </Pressable>
+      ) : null}
+    </View>
   )
 }
 
@@ -56,6 +69,9 @@ export function FeedbackEntryCard({ onPress }: FeedbackChipProps) {
 }
 
 const styles = StyleSheet.create({
+  cardWrap: {
+    gap: spacing.sm,
+  },
   card: {
     flexDirection: "row",
     gap: spacing.md,
@@ -87,6 +103,20 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  scanChip: {
+    alignSelf: "flex-start",
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.primaryLight,
+  },
+  scanText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
   },
   feedback: {
     flexDirection: "row",

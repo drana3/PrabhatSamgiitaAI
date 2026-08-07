@@ -10,6 +10,7 @@ export type MemberProfile = {
   personalization_enabled: boolean
   favorite_song_numbers: number[]
   is_admin: boolean
+  is_super_admin?: boolean
   /** False when Azure identity is present but member API/proxy cannot serve writes. */
   member_backend?: boolean
 }
@@ -59,27 +60,54 @@ export async function saveMemberChat(payload: {
   return response.ok
 }
 
-export async function fetchMemberChat(songNumber?: number) {
+export type ChatHistoryDay = {
+  date: string
+  turns: Array<{ role: "user" | "assistant"; content: string }>
+}
+
+export type MemberChatMemory = {
+  ok: boolean
+  summary: string
+  recent_turns: Array<{ role: "user" | "assistant"; content: string }>
+  history_days: ChatHistoryDay[]
+  archived_summary: string
+  monthly_summaries: Record<string, string>
+}
+
+const emptyMemberChatMemory = (): MemberChatMemory => ({
+  ok: false,
+  summary: "",
+  recent_turns: [],
+  history_days: [],
+  archived_summary: "",
+  monthly_summaries: {},
+})
+
+export async function fetchMemberChat(songNumber?: number): Promise<MemberChatMemory> {
   const suffix = songNumber ? `?song_number=${encodeURIComponent(String(songNumber))}` : ""
   try {
     const response = await fetch(`/api/member/chat-memory${suffix}`, {
       credentials: "same-origin",
       cache: "no-store",
     })
-    if (!response.ok) {
-      return { ok: false as const, summary: "", recent_turns: [] as Array<{ role: "user" | "assistant"; content: string }> }
-    }
+    if (!response.ok) return emptyMemberChatMemory()
     const body = await response.json() as {
       summary?: string
       recent_turns?: Array<{ role: "user" | "assistant"; content: string }>
+      history_days?: ChatHistoryDay[]
+      archived_summary?: string
+      monthly_summaries?: Record<string, string>
     }
     return {
-      ok: true as const,
+      ok: true,
       summary: body.summary ?? "",
       recent_turns: Array.isArray(body.recent_turns) ? body.recent_turns : [],
+      history_days: Array.isArray(body.history_days) ? body.history_days : [],
+      archived_summary: body.archived_summary ?? "",
+      monthly_summaries: body.monthly_summaries ?? {},
     }
   } catch {
-    return { ok: false as const, summary: "", recent_turns: [] as Array<{ role: "user" | "assistant"; content: string }> }
+    return emptyMemberChatMemory()
   }
 }
 

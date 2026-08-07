@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, Request
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -21,7 +21,7 @@ from app.models import (
     UserFavorite,
     UserInterestProfile,
 )
-from app.schemas.member import ChatMemoryTurn, ChatMemoryWrite, MemberProfile
+from app.schemas.member import ChatHistoryDay, ChatMemoryTurn, ChatMemoryWrite, MemberProfile
 from app.services.admin_members import ensure_ephemeral_smoke_admin, is_ephemeral_member
 
 NAME_CLAIMS = {
@@ -42,6 +42,95 @@ SUBJECT_CLAIMS = {
     "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
     "http://schemas.microsoft.com/identity/claims/objectidentifier",
 }
+
+CHAT_RETENTION_DAYS = 30
+RECENT_TURN_LIMIT = 12
+
+
+def _is_companion_scope(song_number: int | None) -> bool:
+    """Long-term day-grouped history and monthly archives apply only to the AI companion."""
+    return song_number is None
+
+
+def _month_key(moment: datetime) -> str:
+    return moment.astimezone(UTC).strftime("%Y-%m")
+
+
+def _day_key(moment: datetime) -> str:
+    return moment.astimezone(UTC).strftime("%Y-%m-%d")
+
+
+def _turn_from_message(message: UserChatMessage) -> ChatMemoryTurn:
+    return ChatMemoryTurn(
+        role="assistant" if message.role == "assistant" else "user",
+        content=message.content,
+    )
+
+
+def _group_messages_by_day(messages: list[UserChatMessage]) -> list[ChatHistoryDay]:
+    buckets: dict[str, list[UserChatMessage]] = {}
+    for message in sorted(messages, key=lambda row: row.created_at):
+        buckets.setdefault(_day_key(message.created_at), []).append(message)
+    return [
+        ChatHistoryDay(
+            date=day,
+            turns=[_turn_from_message(message) for message in buckets[day]],
+        )
+        for day in sorted(buckets.keys(), reverse=True)
+    ]
+
+
+def _archived_summary(monthly_summaries: dict[str, Any]) -> str:
+    if not monthly_summaries:
+        return ""
+    parts = [f"{month}: {str(text).strip()}" for month, text in sorted(monthly_summaries.items())]
+    return " ".join(parts)[-4000:]
+
+
+async def _archive_expired_messages(
+    session: AsyncSession, member: UserAccount, now: datetime
+) -> None:
+    expired = list(
+        (
+            await session.scalars(
+                select(UserChatMessage).where(
+                    UserChatMessage.user_id == member.id,
+                    UserChatMessage.song_number.is_(None),
+                    UserChatMessage.expires_at <= now,
+                )
+            )
+        ).all()
+    )
+    if not expired:
+        return
+
+    profile = await session.get(UserInterestProfile, member.id)
+    if profile is None:
+        profile = UserInterestProfile(user_id=member.id)
+        session.add(profile)
+
+    monthly = dict(profile.monthly_summaries or {})
+    buckets: dict[str, list[UserChatMessage]] = {}
+    for message in expired:
+        buckets.setdefault(_month_key(message.created_at), []).append(message)
+
+    for month, messages in buckets.items():
+        user_lines = [
+            message.content.strip()[:160]
+            for message in messages
+            if message.role == "user" and message.content.strip()
+        ]
+        if not user_lines:
+            continue
+        snippet = "; ".join(user_lines[:6])
+        prior = str(monthly.get(month, "")).strip()
+        merged = f"{prior}; {snippet}".strip("; ").strip() if prior else snippet
+        monthly[month] = merged[:2000]
+
+    profile.monthly_summaries = monthly
+    for message in expired:
+        await session.delete(message)
+
 
 TOPIC_TERMS = {
     "meaning": ("meaning", "mean", "arth", "matlab"),
@@ -314,6 +403,7 @@ async def member_profile(session: AsyncSession, member: UserAccount) -> MemberPr
         country=member.country,
         personalization_enabled=member.personalization_enabled,
         is_admin=member.is_admin,
+        is_super_admin=bool(member.is_super_admin),
         favorite_song_numbers=favorites,
     )
 
@@ -357,9 +447,8 @@ async def store_chat_memory(
     session: AsyncSession, member: UserAccount, payload: ChatMemoryWrite
 ) -> str:
     now = datetime.now(UTC)
-    await session.execute(
-        delete(UserChatMessage).where(UserChatMessage.expires_at <= now)
-    )
+    if _is_companion_scope(payload.song_number):
+        await _archive_expired_messages(session, member, now)
     for turn in payload.turns:
         session.add(
             UserChatMessage(
@@ -367,7 +456,7 @@ async def store_chat_memory(
                 song_number=payload.song_number,
                 role=turn.role,
                 content=turn.content,
-                expires_at=now + timedelta(days=30),
+                expires_at=now + timedelta(days=CHAT_RETENTION_DAYS),
             )
         )
 
@@ -402,11 +491,13 @@ async def store_chat_memory(
 
 async def recent_chat_memory(
     session: AsyncSession, member: UserAccount, song_number: int | None
-) -> tuple[str, list[ChatMemoryTurn]]:
+) -> tuple[str, list[ChatMemoryTurn], list[ChatHistoryDay], str, dict[str, str]]:
     # Always restore chat turns for signed-in members. personalization_enabled
     # only controls interest-summary exposure, not companion history.
     now = datetime.now(UTC)
-    await session.execute(delete(UserChatMessage).where(UserChatMessage.expires_at <= now))
+    companion = _is_companion_scope(song_number)
+    if companion:
+        await _archive_expired_messages(session, member, now)
     profile = await session.get(UserInterestProfile, member.id)
     statement = select(UserChatMessage).where(
         UserChatMessage.user_id == member.id,
@@ -414,24 +505,39 @@ async def recent_chat_memory(
     )
     if song_number is not None:
         statement = statement.where(UserChatMessage.song_number == song_number)
-    messages = list(
-        (await session.execute(statement.order_by(UserChatMessage.created_at.desc()).limit(12)))
-        .scalars()
-        .all()
-    )
+    else:
+        statement = statement.where(UserChatMessage.song_number.is_(None))
+    if companion:
+        messages = list(
+            (await session.execute(statement.order_by(UserChatMessage.created_at.asc())))
+            .scalars()
+            .all()
+        )
+    else:
+        messages = list(
+            (
+                await session.execute(
+                    statement.order_by(UserChatMessage.created_at.desc()).limit(RECENT_TURN_LIMIT)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        messages = list(reversed(messages))
     await session.commit()
     summary = (
         profile.summary_text
         if profile and member.personalization_enabled
         else ""
     )
-    return (
-        summary,
-        [
-            ChatMemoryTurn(
-                role="assistant" if message.role == "assistant" else "user",
-                content=message.content,
-            )
-            for message in reversed(messages)
-        ],
-    )
+    if not companion:
+        return summary, [_turn_from_message(message) for message in messages], [], "", {}
+    monthly = {
+        str(month): str(text)
+        for month, text in dict(profile.monthly_summaries or {}).items()
+        if str(text).strip()
+    } if profile else {}
+    archived = _archived_summary(monthly)
+    recent_turns = [_turn_from_message(message) for message in messages[-RECENT_TURN_LIMIT:]]
+    history_days = _group_messages_by_day(messages)
+    return summary, recent_turns, history_days, archived, monthly

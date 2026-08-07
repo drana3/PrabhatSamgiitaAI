@@ -42,6 +42,20 @@ type ChatState = {
     title?: string,
     songNumber?: number | null,
   ) => void
+  /** Syncs server history on sign-in; replaces local thread when server has more context. */
+  syncServerHistory: (
+    accountId: string,
+    memory: {
+      recent_turns: Array<{ role: "user" | "assistant"; content: string }>
+      history_days?: Array<{
+        date: string
+        turns: Array<{ role: "user" | "assistant"; content: string }>
+      }>
+      summary?: string
+      archived_summary?: string
+    },
+    songNumber?: number | null,
+  ) => void
   startNewThread: (accountId: string, songNumber?: number | null) => string
   setActiveThread: (accountId: string, threadId: string) => void
   clearAccountMemory: (accountId: string) => void
@@ -57,6 +71,66 @@ function titleFromPrompt(text: string): string {
 
 function threadSongNumber(thread: ChatThread): number | null {
   return typeof thread.songNumber === "number" ? thread.songNumber : null
+}
+
+function flattenServerTurns(
+  memory: {
+    recent_turns: Array<{ role: "user" | "assistant"; content: string }>
+    history_days?: Array<{
+      date: string
+      turns: Array<{ role: "user" | "assistant"; content: string }>
+    }>
+  },
+): Array<{ role: "user" | "assistant"; content: string }> {
+  if (memory.history_days?.length) {
+    return memory.history_days
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .flatMap((day) => day.turns)
+  }
+  return memory.recent_turns
+}
+
+function applyServerThread(
+  accountId: string,
+  turns: Array<{ role: "user" | "assistant"; content: string }>,
+  title: string | undefined,
+  songNumber: number | null,
+) {
+  const cleaned = turns
+    .map((turn) => ({ role: turn.role, content: turn.content.trim() }))
+    .filter((turn) => turn.content.length > 0)
+  if (!cleaned.length) return
+
+  const now = Date.now()
+  const messages: StoredChatMessage[] = cleaned.map((turn, index) => ({
+    id: `server-${now}-${index}`,
+    role: turn.role,
+    text: turn.content,
+    createdAt: now + index,
+  }))
+  const thread: ChatThread = {
+    id: `thread-server-${now}`,
+    title: title || titleFromPrompt(cleaned[0]?.content || "Synced conversation"),
+    updatedAt: now,
+    messages,
+    songNumber,
+  }
+  useChatStore.setState((state) => {
+    const current = state.byAccount[accountId] ?? emptyAccount()
+    const withoutScope = current.threads.filter(
+      (item) => threadSongNumber(item) !== thread.songNumber,
+    )
+    return {
+      byAccount: {
+        ...state.byAccount,
+        [accountId]: {
+          activeThreadId: thread.id,
+          threads: [thread, ...withoutScope],
+        },
+      },
+    }
+  })
 }
 
 function createThread(firstPrompt?: string, songNumber: number | null = null): ChatThread {
@@ -272,35 +346,25 @@ export const useChatStore = create<ChatState>()(
         const active = account.threads.find((thread) => thread.id === account.activeThreadId)
         if (active && active.messages.length > 0) return
 
-        const now = Date.now()
-        const messages: StoredChatMessage[] = cleaned.map((turn, index) => ({
-          id: `server-${now}-${index}`,
-          role: turn.role,
-          text: turn.content,
-          createdAt: now + index,
-        }))
-        const thread: ChatThread = {
-          id: `thread-server-${now}`,
-          title: title || titleFromPrompt(cleaned[0]?.content || "Synced conversation"),
-          updatedAt: now,
-          messages,
-          songNumber: songNumber ?? null,
-        }
-        set((state) => {
-          const current = state.byAccount[accountId] ?? emptyAccount()
-          const withoutScope = current.threads.filter(
-            (item) => threadSongNumber(item) !== thread.songNumber,
-          )
-          return {
-            byAccount: {
-              ...state.byAccount,
-              [accountId]: {
-                activeThreadId: thread.id,
-                threads: [thread, ...withoutScope],
-              },
-            },
-          }
-        })
+        applyServerThread(accountId, cleaned, title, songNumber ?? null)
+      },
+
+      syncServerHistory: (accountId, memory, songNumber = null) => {
+        const scope = songNumber ?? null
+        const turns = flattenServerTurns(memory)
+        if (!turns.length) return
+
+        const account = get().getAccountChat(accountId)
+        const scoped = account.threads.filter((thread) => threadSongNumber(thread) === scope)
+        const bestLocal = [...scoped].sort((a, b) => b.updatedAt - a.updatedAt)[0]
+        if (bestLocal && bestLocal.messages.length >= turns.length) return
+
+        applyServerThread(
+          accountId,
+          turns,
+          memory.summary || memory.archived_summary || undefined,
+          scope,
+        )
       },
 
       startNewThread: (accountId, songNumber = null) => {

@@ -59,6 +59,18 @@ async def _ensure_member_schema() -> None:
                 "ON user_accounts (is_admin)"
             )
         )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_interest_profiles "
+                "ADD COLUMN IF NOT EXISTS monthly_summaries JSONB NOT NULL DEFAULT '{}'::jsonb"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT false"
+            )
+        )
 
     # Non-critical wideners: never block member/admin/quiz schema.
     for statement, label in (

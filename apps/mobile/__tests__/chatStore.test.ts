@@ -98,4 +98,38 @@ describe("chatStore song scoping", () => {
       true,
     )
   })
+
+  it("syncs from server when server history has more turns than local", () => {
+    const accountId = "member:member@example.com"
+    const store = useChatStore.getState()
+    store.ensureScopeThread(accountId, 12)
+    const assistantId = store.beginExchange(accountId, "Short local chat")
+    store.updateAssistantMessage(accountId, assistantId!, "Only one reply.")
+
+    store.syncServerHistory(
+      accountId,
+      {
+        history_days: [
+          {
+            date: "2026-08-07",
+            turns: [
+              { role: "user", content: "Server question one" },
+              { role: "assistant", content: "Server answer one" },
+              { role: "user", content: "Server question two" },
+              { role: "assistant", content: "Server answer two" },
+            ],
+          },
+        ],
+        recent_turns: [],
+      },
+      12,
+    )
+
+    expect(store.getActiveThread(accountId)?.messages.map((message) => message.text)).toEqual([
+      "Server question one",
+      "Server answer one",
+      "Server question two",
+      "Server answer two",
+    ])
+  })
 })

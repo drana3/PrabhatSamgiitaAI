@@ -27,6 +27,7 @@ def _member(*, subject: str = "aad:oid-website", email: str = "member@example.co
         last_seen_at=datetime.now(UTC),
         personalization_enabled=True,
         is_admin=False,
+        is_super_admin=False,
     )
 
 
@@ -67,18 +68,29 @@ class _ChatMemorySession:
 
     async def execute(self, statement) -> _ChatResult:
         sql = str(statement).casefold()
-        if "delete from user_chat_messages" in sql:
-            now = datetime.now(UTC)
-            self.messages = [message for message in self.messages if message.expires_at > now]
-            return _ChatResult([])
         if "from user_chat_messages" in sql:
             now = datetime.now(UTC)
             rows = [message for message in self.messages if message.expires_at > now]
             if "song_number" in sql:
                 rows = [message for message in rows if message.song_number == 12]
-            rows.sort(key=lambda message: message.created_at, reverse=True)
-            return _ChatResult(rows[:12])
+            if "order by" in sql and "asc" in sql:
+                rows.sort(key=lambda message: message.created_at)
+            else:
+                rows.sort(key=lambda message: message.created_at, reverse=True)
+            return _ChatResult(rows)
         return _ChatResult([])
+
+    async def scalars(self, statement):
+        sql = str(statement).casefold()
+        if "from user_chat_messages" in sql and "expires_at <=" in sql:
+            now = datetime.now(UTC)
+            rows = [message for message in self.messages if message.expires_at <= now]
+            return _ChatResult(rows)
+        return _ChatResult([])
+
+    async def delete(self, obj: object) -> None:
+        if isinstance(obj, UserChatMessage) and obj in self.messages:
+            self.messages.remove(obj)
 
     async def commit(self) -> None:
         self.committed += 1
@@ -162,7 +174,7 @@ async def test_store_and_restore_chat_memory_is_song_scoped() -> None:
         ),
     )
 
-    _, turns = await recent_chat_memory(session, member, 12)  # type: ignore[arg-type]
+    _, turns, _, _, _ = await recent_chat_memory(session, member, 12)  # type: ignore[arg-type]
     contents = [turn.content for turn in turns]
     assert "Explain PS 12" in contents
     assert "PS 12 is devotional." in contents
@@ -177,7 +189,7 @@ async def test_recent_chat_memory_restores_when_personalization_disabled() -> No
         [_chat_message(member.id, 12, "user", "Restore me on sign-in")]
     )
 
-    summary, turns = await recent_chat_memory(session, member, 12)  # type: ignore[arg-type]
+    summary, turns, _, _, _ = await recent_chat_memory(session, member, 12)  # type: ignore[arg-type]
 
     assert summary == ""
     assert [turn.content for turn in turns] == ["Restore me on sign-in"]
