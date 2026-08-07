@@ -15,6 +15,28 @@ function scenicFor(number: number) {
   return scenicArtList[number % scenicArtList.length]
 }
 
+function readLocalizedMeanings(metadata: Record<string, unknown> | undefined): Record<string, string> {
+  const raw = metadata?.localized_meanings
+  if (!raw || typeof raw !== "object") return {}
+  const meanings: Record<string, string> = {}
+  for (const [code, text] of Object.entries(raw)) {
+    if (typeof text === "string" && text.trim()) {
+      meanings[code.toLowerCase()] = text.trim()
+    }
+  }
+  return meanings
+}
+
+export function storedMeaningForLanguage(
+  song: Pick<MockSong, "meaning" | "hindiMeaning" | "localizedMeanings">,
+  language: string,
+): string | null {
+  const code = language.toLowerCase()
+  if (code === "en") return song.meaning?.trim() || null
+  if (code === "hi") return song.hindiMeaning?.trim() || null
+  return song.localizedMeanings?.[code] ?? null
+}
+
 export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong {
   const scenic = scenicArtList[index % scenicArtList.length]
   const themes = [summary.theme, summary.mood, summary.occasion].filter(Boolean) as string[]
@@ -66,6 +88,7 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
       detail.theme ||
       "A song from the Prabhat Samgiita collection.",
     hindiMeaning: detail.hindi_meaning?.trim() || null,
+    localizedMeanings: readLocalizedMeanings(detail.metadata_json),
     lyrics: detail.lyrics_original || detail.transliteration || detail.first_line || detail.title,
     translation: detail.english_meaning || detail.hindi_meaning || detail.first_line || detail.title,
     durationSeconds: 300,

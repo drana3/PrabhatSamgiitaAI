@@ -54,7 +54,7 @@ export function SongLanguageSwitcher({
   return (
     <div className="w-full min-w-0 sm:w-auto sm:min-w-[17rem]" aria-busy={translating}>
       <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-navy-900/15 bg-white px-3 py-2 text-sm text-navy-800 shadow-sm sm:rounded-full">
-        <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">AI translate</span>
+        <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">Reading language</span>
         <select
           value={targetLanguage || selectedLanguage}
           disabled={translating}

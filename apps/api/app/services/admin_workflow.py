@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,20 +11,24 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models import Media, Song, UserAccount
 from app.models.admin_workflow import SongIngestionSubmission, YoutubeReviewQueue
 from app.schemas.admin_workflow import (
     SongIngestionPreview,
     SongIngestionWrite,
+    TranslateFromEnglishResponse,
     YoutubeReviewApproveWrite,
     collect_language_warnings,
 )
-from app.services.ingestion_language import validate_meaning_language
+from app.services.ai import select_provider
+from app.services.chat_language import _detect_text_language
+from app.services.ingestion_language import SUPPORTED_LANGUAGES, validate_meaning_language
 from app.services.media_quality import media_quality_key
+from app.services.song_meanings import LANGUAGE_LABELS, collect_stored_meanings
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 YOUTUBE_REVIEW_JSON = REPO_ROOT / "data" / "generated" / "youtube_review_queue.json"
-
 
 def _youtube_embed_url(video_id: str) -> str:
     return f"https://www.youtube-nocookie.com/embed/{video_id}"
@@ -172,19 +177,10 @@ async def song_ingestion_preview(session: AsyncSession, song_number: int) -> Son
     media_rows.sort(key=media_quality_key)
     audio = next((row for row in media_rows if row.kind == "audio"), None)
     video = next((row for row in media_rows if row.kind == "video"), None)
-    meanings: dict[str, str] = {}
-    if song.english_meaning:
-        meanings["en"] = song.english_meaning
-    if song.hindi_meaning:
-        meanings["hi"] = song.hindi_meaning
-    localized = dict((song.metadata_json or {}).get("localized_meanings") or {})
-    for code, text in localized.items():
-        if isinstance(text, str) and text.strip():
-            meanings[str(code)] = text.strip()
     return SongIngestionPreview(
         song_number=song_number,
         existing_lyrics=song.lyrics_original,
-        existing_meanings=meanings,
+        existing_meanings=collect_stored_meanings(song),
         existing_audio_url=audio.url if audio else None,
         existing_video_url=video.url if video else None,
         existing_notation=song.harmonium_notation,
@@ -345,3 +341,60 @@ async def review_song_ingestion(
 
 def check_language(language: str, text: str) -> tuple[bool, str]:
     return validate_meaning_language(language, text)
+
+
+async def translate_meaning_from_english(
+    session: AsyncSession,
+    song_number: int,
+    target_language: str,
+    english_text: str | None = None,
+) -> TranslateFromEnglishResponse:
+    code = target_language.strip().casefold()
+    if code not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=400, detail=f"Unsupported language: {target_language}")
+    if code == "en":
+        raise HTTPException(status_code=400, detail="Target language must not be English")
+
+    song = await session.scalar(select(Song).where(Song.number == song_number))
+    if song is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    source = (english_text or "").strip() or (song.english_meaning or "").strip()
+    if not source:
+        raise HTTPException(
+            status_code=400,
+            detail="No English meaning available. Add an English meaning first.",
+        )
+
+    label = LANGUAGE_LABELS.get(code, code)
+    prompt = "\n".join(
+        [
+            (
+                f"Translate this Prabhat Samgiita song meaning faithfully "
+                f"from English into {label} ({code})."
+            ),
+            "Preserve the devotional and spiritual tone. Do not add facts beyond the source.",
+            "Return only the translated meaning text — no JSON, no commentary.",
+            f"Song number: {song_number}",
+            "English meaning:",
+            source,
+        ]
+    )
+    provider = select_provider(get_settings())
+    try:
+        async with asyncio.timeout(30):
+            draft = await provider.complete(prompt)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Translation failed: {exc}") from exc
+
+    draft_text = draft.strip()
+    ok, message = validate_meaning_language(code, draft_text)
+    detected = _detect_text_language(draft_text)
+    return TranslateFromEnglishResponse(
+        draft_text=draft_text,
+        source_language="en",
+        target_language=code,
+        detected_language=detected,
+        language_check_ok=ok,
+        language_check_message=message,
+    )

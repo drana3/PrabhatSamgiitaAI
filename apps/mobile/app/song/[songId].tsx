@@ -28,6 +28,7 @@ import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { isSameSong, songPlayback } from "@/lib/playback"
 import { resolveSongBundle } from "@/lib/songs"
+import { storedMeaningForLanguage } from "@/lib/songMap"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -199,16 +200,15 @@ export default function SongDetailScreen() {
 
   useEffect(() => {
     if (!song) return
-    // Match website: English uses catalog meaning; Hindi prefers curated hindi_meaning
-    // (skip AI so the text stays stable instead of regenerating differently).
     if (language === "en") {
       setLocalizedMeaning(null)
       setLocalizedTitle(null)
       setLocalizing(false)
       return
     }
-    if (language === "hi" && song.hindiMeaning) {
-      setLocalizedMeaning(song.hindiMeaning)
+    const curated = storedMeaningForLanguage(song, language)
+    if (curated) {
+      setLocalizedMeaning(curated)
       setLocalizedTitle(null)
       setLocalizing(false)
       return
@@ -219,16 +219,12 @@ export default function SongDetailScreen() {
       if (!active) return
       setLocalizing(false)
       if (!result) {
-        setLocalizedMeaning(language === "hi" ? song.hindiMeaning ?? null : null)
+        setLocalizedMeaning(null)
         setLocalizedTitle(null)
         return
       }
       setLocalizedTitle(result.localized_title ?? null)
-      setLocalizedMeaning(
-        language === "hi"
-          ? song.hindiMeaning || result.localized_meaning || null
-          : result.localized_meaning ?? null,
-      )
+      setLocalizedMeaning(result.localized_meaning ?? null)
     })
     return () => {
       active = false
@@ -282,11 +278,9 @@ export default function SongDetailScreen() {
   }
 
   const meaningText =
-    language === "hi"
-      ? song.hindiMeaning || localizedMeaning || song.meaning
-      : language === "en"
-        ? song.meaning
-        : localizedMeaning || song.meaning
+    language === "en"
+      ? song.meaning
+      : storedMeaningForLanguage(song, language) || localizedMeaning || song.meaning
   const displayTitle = localizedTitle || song.title
   const watchVideos = song.videos.filter((video) => video.embedUrl)
 

@@ -109,6 +109,31 @@ class LanguageCheckResponse(BaseModel):
     message: str = ""
 
 
+class TranslateFromEnglishRequest(BaseModel):
+    song_number: int = Field(ge=1, le=5018)
+    target_language: str = Field(min_length=2, max_length=16)
+    english_text: str | None = Field(default=None, max_length=12000)
+
+    @field_validator("target_language")
+    @classmethod
+    def supported_target_language(cls, value: str) -> str:
+        code = value.strip().casefold()
+        if code not in SUPPORTED_LANGUAGES:
+            raise ValueError(f"Unsupported language: {value}")
+        if code == "en":
+            raise ValueError("Target language must not be English")
+        return code
+
+
+class TranslateFromEnglishResponse(BaseModel):
+    draft_text: str
+    source_language: str = "en"
+    target_language: str
+    detected_language: str | None = None
+    language_check_ok: bool = True
+    language_check_message: str = ""
+
+
 def collect_language_warnings(payload: SongIngestionWrite) -> list[str]:
     warnings: list[str] = []
     for entry in payload.meanings:

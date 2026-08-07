@@ -21,6 +21,8 @@ export type MockSong = {
   meaning: string
   /** Curated Hindi meaning from the catalog when available. */
   hindiMeaning?: string | null
+  /** Admin-approved meanings keyed by language code (e.g. bn, ta). */
+  localizedMeanings?: Record<string, string>
   lyrics: string
   translation: string
   durationSeconds: number

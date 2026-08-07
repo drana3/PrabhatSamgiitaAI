@@ -18,6 +18,8 @@ from app.schemas.admin_workflow import (
     SongIngestionPreview,
     SongIngestionReviewWrite,
     SongIngestionWrite,
+    TranslateFromEnglishRequest,
+    TranslateFromEnglishResponse,
     YoutubeReviewApproveWrite,
     YoutubeReviewItem,
     YoutubeReviewListResponse,
@@ -41,6 +43,7 @@ from app.services.admin_workflow import (
     song_ingestion_preview,
     submit_song_ingestion,
     sync_youtube_review_queue,
+    translate_meaning_from_english,
 )
 from app.services.feedback_live import (
     feedback_is_on_live_ticker,
@@ -335,6 +338,24 @@ async def admin_check_ingestion_language(
     await admin_member(request, session)
     ok, message = check_language(payload.language, payload.text)
     return LanguageCheckResponse(ok=ok, message=message)
+
+
+@router.post(
+    "/ingestions/translate-from-english",
+    response_model=TranslateFromEnglishResponse,
+)
+async def admin_translate_ingestion_from_english(
+    payload: TranslateFromEnglishRequest,
+    request: Request,
+    session: DatabaseSession,
+) -> TranslateFromEnglishResponse:
+    await admin_member(request, session)
+    return await translate_meaning_from_english(
+        session,
+        payload.song_number,
+        payload.target_language,
+        english_text=payload.english_text,
+    )
 
 
 @router.post("/ingestions", response_model=SongIngestionItem, status_code=201)

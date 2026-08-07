@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.core.cache import AsyncTTLCache
 from app.models import Song
 from app.services.ai import select_provider
+from app.services.song_meanings import language_display_name, stored_meaning_for_language
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,17 @@ class LocalizationService:
         explanation: str | None = None,
     ) -> LocalizedSongText:
         normalized = language.strip()
+        display_language = language_display_name(normalized)
+        stored_meaning = stored_meaning_for_language(song, normalized)
+        if stored_meaning:
+            return LocalizedSongText(
+                language=display_language,
+                localized_title=song.title,
+                localized_first_line=song.first_line,
+                localized_meaning=stored_meaning,
+                localized_explanation=explanation,
+            )
+
         cached = await translation_cache.get(self._cache_key(song, normalized))
         if isinstance(cached, dict):
             return LocalizedSongText(

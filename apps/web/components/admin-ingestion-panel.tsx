@@ -3,7 +3,11 @@
 import { useState } from "react"
 
 import { AdminNav } from "@/components/admin-nav"
-import { localeOptions } from "@/lib/languages"
+import { localeLabel, localeOptions } from "@/lib/languages"
+import {
+  canTranslateMeaningFromEnglish,
+  needsEnglishMeaningFirst,
+} from "@/lib/ingestion-meaning"
 import { readErrorDetail } from "@/lib/read-error-detail"
 
 type Preview = {
@@ -29,7 +33,21 @@ export function AdminIngestionPanel({ isSuperAdmin = false }: { isSuperAdmin?: b
   const [languageCheck, setLanguageCheck] = useState("")
   const [notice, setNotice] = useState("")
   const [error, setError] = useState("")
+  const [translating, setTranslating] = useState(false)
   const [pending, setPending] = useState<Array<{ id: string; song_number: number; status: string }>>([])
+
+  function applyMeaningLanguage(language: string) {
+    setMeaningLanguage(language)
+    setLanguageCheck("")
+    if (preview?.existing_meanings[language]) {
+      setMeaningText(preview.existing_meanings[language])
+    } else {
+      setMeaningText("")
+    }
+  }
+
+  const showTranslateFromEnglish = canTranslateMeaningFromEnglish(preview, meaningLanguage)
+  const showEnglishFirstHint = needsEnglishMeaningFirst(preview, meaningLanguage)
 
   async function loadPreview() {
     setError("")
@@ -64,6 +82,41 @@ export function AdminIngestionPanel({ isSuperAdmin = false }: { isSuperAdmin?: b
     })
     const body = await response.json().catch(() => null) as { ok?: boolean; message?: string } | null
     setLanguageCheck(body?.ok ? "Language check passed" : (body?.message ?? "Language check failed"))
+  }
+
+  async function translateFromEnglish() {
+    setError("")
+    setNotice("")
+    setTranslating(true)
+    const number = Number(songNumber)
+    const response = await fetch("/api/admin/ingestions/translate-from-english", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        song_number: number,
+        target_language: meaningLanguage,
+      }),
+    })
+    const body = await response.json().catch(() => null) as {
+      draft_text?: string
+      language_check_ok?: boolean
+      language_check_message?: string
+    } | null
+    setTranslating(false)
+    if (!response.ok) {
+      setError(readErrorDetail(body, "Translation failed"))
+      return
+    }
+    if (body?.draft_text) {
+      setMeaningText(body.draft_text)
+      setNotice(
+        `Draft ${localeLabel(meaningLanguage)} meaning from English — review before submitting`,
+      )
+    }
+    if (body?.language_check_ok === false && body.language_check_message) {
+      setLanguageCheck(body.language_check_message)
+    }
   }
 
   async function submit(allowWarnings = false) {
@@ -171,7 +224,11 @@ export function AdminIngestionPanel({ isSuperAdmin = false }: { isSuperAdmin?: b
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="font-semibold text-navy-950">Meaning language</span>
-              <select value={meaningLanguage} onChange={(event) => setMeaningLanguage(event.target.value)} className="mt-1 w-full rounded-lg border border-navy-900/10 px-3 py-2">
+              <select
+                value={meaningLanguage}
+                onChange={(event) => applyMeaningLanguage(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-navy-900/10 px-3 py-2"
+              >
                 {localeOptions.map((option) => (
                   <option key={option.code} value={option.code}>{option.label}</option>
                 ))}
@@ -186,8 +243,23 @@ export function AdminIngestionPanel({ isSuperAdmin = false }: { isSuperAdmin?: b
             <span className="font-semibold text-navy-950">Meaning</span>
             <textarea value={meaningText} onChange={(event) => setMeaningText(event.target.value)} rows={4} className="mt-1 w-full rounded-lg border border-navy-900/10 px-3 py-2" />
           </label>
+          {showEnglishFirstHint ? (
+            <p className="text-xs text-amber-700">
+              Add an English meaning first — translations are generated from the English version.
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => void checkLanguage()} className="outline-button text-sm">Check language</button>
+            {showTranslateFromEnglish ? (
+              <button
+                type="button"
+                onClick={() => void translateFromEnglish()}
+                disabled={translating}
+                className="outline-button text-sm"
+              >
+                {translating ? "Translating…" : "Translate from English"}
+              </button>
+            ) : null}
             {languageCheck ? <span className="text-xs text-stone-600">{languageCheck}</span> : null}
           </div>
           <label className="block text-sm">

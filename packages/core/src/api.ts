@@ -40,6 +40,7 @@ export const songDetailSchema = songSummarySchema.extend({
     )
     .default([]),
   notation_verification_status: z.string().nullable().optional(),
+  metadata_json: z.record(z.unknown()).optional().default({}),
 })
 
 export const notationNoteSchema = z.object({
