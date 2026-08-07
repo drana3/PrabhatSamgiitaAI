@@ -6,6 +6,15 @@ export function safeSignInNextPath(next: string | undefined) {
   return path
 }
 
+/** Post-auth destination. Song pages skip auto-opening the AI companion after sign-in. */
+export function signInReturnPath(next: string | undefined) {
+  const path = safeSignInNextPath(next)
+  if (/^\/songs\/\d+$/.test(path)) {
+    return `${path}?from=signin`
+  }
+  return path
+}
+
 export function microsoftSignInHref(next: string | undefined) {
   const destination = safeSignInNextPath(next)
   const returnTo = `/signin?next=${encodeURIComponent(destination)}`

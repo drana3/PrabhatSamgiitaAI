@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { safeSignInNextPath } from "@/lib/sign-in"
+import { signInReturnPath } from "@/lib/sign-in"
 
 type Mode = "signin" | "signup"
 
@@ -35,7 +35,7 @@ export function EmailAuthPanel({ next }: { next: string }) {
       if (!response.ok) {
         throw new Error(payload?.detail || "Could not complete sign-in.")
       }
-      router.replace(safeSignInNextPath(next))
+      router.replace(signInReturnPath(next))
       router.refresh()
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not complete sign-in.")

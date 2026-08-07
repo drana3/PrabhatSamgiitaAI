@@ -11,6 +11,12 @@ export function HashLanding() {
   useEffect(() => {
     if ("scrollRestoration" in history) history.scrollRestoration = "manual"
 
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("from") === "signin") {
+      history.replaceState(null, "", window.location.pathname)
+      return
+    }
+
     const rawHash = window.location.hash.slice(1)
     const section = rawHash ? decodeURIComponent(rawHash) : "ask"
     if (!SONG_SECTIONS.has(section as SongSection)) return

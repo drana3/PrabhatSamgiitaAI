@@ -56,7 +56,7 @@ export default function SignInScreen() {
       const result = await action()
       setStatus(result.message ?? null)
       completeWelcome()
-      router.replace(href("/(tabs)"))
+      router.replace(href("/(tabs)/index"))
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Sign-in failed.")
     } finally {

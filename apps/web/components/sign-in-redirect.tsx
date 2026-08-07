@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react"
 
 import { useMember } from "@/components/member-provider"
-import { safeSignInNextPath } from "@/lib/sign-in"
+import { signInReturnPath, safeSignInNextPath } from "@/lib/sign-in"
 
 async function azurePrincipalPresent() {
   try {
@@ -18,7 +18,7 @@ async function azurePrincipalPresent() {
 
 export function SignInRedirect({ next }: { next: string }) {
   const { loading, session, refresh } = useMember()
-  const destination = safeSignInNextPath(next)
+  const destination = signInReturnPath(next)
   const leaving = useRef(false)
 
   useEffect(() => {

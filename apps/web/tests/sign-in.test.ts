@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { microsoftSignInHref, safeSignInNextPath, signInHref } from "@/lib/sign-in"
+import { microsoftSignInHref, safeSignInNextPath, signInHref, signInReturnPath } from "@/lib/sign-in"
 
 describe("safeSignInNextPath", () => {
   it("defaults to home for missing or unsafe paths", () => {
@@ -38,5 +38,11 @@ describe("microsoftSignInHref", () => {
     expect(microsoftSignInHref("/songs/135#ask")).toBe(
       "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3Fnext%3D%252Fsongs%252F135",
     )
+  })
+
+  it("returns song pages without auto-opening the AI companion after sign-in", () => {
+    expect(signInReturnPath("/songs/135")).toBe("/songs/135?from=signin")
+    expect(signInReturnPath("/account")).toBe("/account")
+    expect(signInReturnPath(undefined)).toBe("/")
   })
 })

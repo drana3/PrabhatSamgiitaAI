@@ -1,17 +1,18 @@
 import Link from "next/link"
-import { headers } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { SignInRedirect } from "@/components/sign-in-redirect"
 import { EmailAuthPanel } from "@/components/email-auth-panel"
 import { SiteHeader } from "@/components/site-header"
-import { facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
+import { LOCAL_AUTH_COOKIE, facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
 import { resolveClientPrincipal } from "@/lib/azure-principal"
 import {
   facebookSignInHref,
   googleSignInHref,
   microsoftSignInHref,
   safeSignInNextPath,
+  signInReturnPath,
 } from "@/lib/sign-in"
 
 export const dynamic = "force-dynamic"
@@ -23,8 +24,11 @@ export default async function SignInPage({
 }) {
   const params = await searchParams
   const next = safeSignInNextPath(params.next)
-  const principal = resolveClientPrincipal(await headers())
-  if (principal) redirect(next)
+  const principal =
+    resolveClientPrincipal(await headers()) ??
+    (await cookies()).get(LOCAL_AUTH_COOKIE)?.value ??
+    null
+  if (principal) redirect(signInReturnPath(next))
 
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
 

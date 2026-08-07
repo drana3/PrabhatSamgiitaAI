@@ -45,4 +45,16 @@ describe("HashLanding", () => {
     })
     expect(window.location.hash).toBe("#notation")
   })
+
+  it("does not auto-open the AI companion when returning from sign-in", async () => {
+    window.history.replaceState(null, "", "/songs/135?from=signin")
+    render(<HashLanding />)
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/songs/135")
+      expect(window.location.search).toBe("")
+      expect(window.location.hash).toBe("")
+    })
+    expect(scrollToSectionId).not.toHaveBeenCalled()
+  })
 })
