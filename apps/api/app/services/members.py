@@ -123,7 +123,11 @@ def try_member_identity(request: Request) -> MemberIdentity | None:
 def _subject_rank(subject: str) -> int:
     """Higher = more canonical (Easy Auth OID beats email/preview forks)."""
     value = (subject or "").casefold()
-    if value.startswith(("aad:", "google:", "facebook:", "local:")) and "@" not in value and "preview" not in value:
+    if (
+        value.startswith(("aad:", "google:", "facebook:", "local:"))
+        and "@" not in value
+        and "preview" not in value
+    ):
         return 3
     if "preview" in value or value.endswith("@prabhat.local"):
         return 0

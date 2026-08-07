@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from app.models import UserAccount, UserCredential
 from app.schemas.auth import LocalLoginWrite, LocalRegisterWrite
 from app.services.local_auth import login_local_user, register_local_user
-from app.services.members import decode_client_principal, sync_member, MemberIdentity
+from app.services.members import decode_client_principal
 
 
 class _AuthSession:

@@ -65,7 +65,7 @@ class _ChatMemorySession:
                 obj.created_at = datetime.now(UTC)
             self.messages.append(obj)
 
-    async def execute(self, statement) -> "_ChatResult":
+    async def execute(self, statement) -> _ChatResult:
         sql = str(statement).casefold()
         if "delete from user_chat_messages" in sql:
             now = datetime.now(UTC)
@@ -191,7 +191,7 @@ async def test_member_profile_reflects_database_admin_flag() -> None:
     class FavoritesSession:
         async def execute(self, _statement):
             class Result:
-                def scalars(self_inner):
+                def scalars(self):
                     return iter([135, 3])
 
             return Result()

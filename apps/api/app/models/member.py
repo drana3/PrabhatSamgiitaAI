@@ -38,7 +38,10 @@ class UserCredential(Base, TimestampMixin):
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("user_accounts.id", ondelete="CASCADE"), unique=True, index=True
+        PGUUID(as_uuid=True),
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
     )
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)

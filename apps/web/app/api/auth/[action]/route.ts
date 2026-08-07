@@ -61,7 +61,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
   }
 
   try {
-    const payload = JSON.parse(text) as { client_principal?: string }
+    const payload = JSON.parse(text) as {
+      client_principal?: string
+      identity_provider?: string
+    }
     if (!payload.client_principal) {
       return NextResponse.json({ detail: "Authentication response was incomplete" }, { status: 502 })
     }
