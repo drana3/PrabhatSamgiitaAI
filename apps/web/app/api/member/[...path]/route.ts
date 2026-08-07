@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
-import { parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
+import { parseClientPrincipalProfile } from "@/lib/azure-principal"
+import { memberPrincipalFor } from "@/lib/member-request"
 import { runtimeEnv } from "@/lib/runtime-env"
 
 const allowedPaths = new Set([
@@ -22,12 +22,7 @@ function backendBase() {
 }
 
 function principalFor(request: NextRequest) {
-  const principal = resolveClientPrincipal(request.headers)
-  if (principal) return principal
-  const localPrincipal = request.cookies.get(LOCAL_AUTH_COOKIE)?.value
-  if (localPrincipal) return localPrincipal
-  if (process.env.NODE_ENV !== "production") return process.env.DEV_MEMBER_PRINCIPAL ?? null
-  return null
+  return memberPrincipalFor(request)
 }
 
 function sessionResponse(body: unknown, status = 200) {

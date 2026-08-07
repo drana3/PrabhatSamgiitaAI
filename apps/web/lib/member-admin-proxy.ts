@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server"
 
 import { azureAuthForwardHeaders, resolveClientPrincipal } from "@/lib/azure-principal"
+import { fetchBackendMemberSession, memberPrincipalFor } from "@/lib/member-request"
 import { runtimeEnv } from "@/lib/runtime-env"
 
 export function memberForwardHeaders(request: NextRequest) {
@@ -8,19 +9,11 @@ export function memberForwardHeaders(request: NextRequest) {
 }
 
 export async function memberSessionIsAdmin(request: NextRequest) {
-  try {
-    const response = await fetch(new URL("/api/member/session", request.url), {
-      headers: memberForwardHeaders(request),
-      cache: "no-store",
-    })
-    if (response.ok) {
-      const body = await response.json() as { authenticated?: boolean; is_admin?: boolean }
-      return body.authenticated === true && body.is_admin === true
-    }
-  } catch {
-    // Member API unavailable — treat as non-admin.
-  }
-  return false
+  const principal = memberPrincipalFor(request)
+  if (!principal) return false
+
+  const session = await fetchBackendMemberSession(principal)
+  return session?.authenticated === true && session?.is_admin === true
 }
 
 export function backendBaseUrl() {

@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react"
 
 import { useMember } from "@/components/member-provider"
-import { signInReturnPath, safeSignInNextPath } from "@/lib/sign-in"
+import { isAdminDestination } from "@/lib/member-request"
+import { signInReturnPath } from "@/lib/sign-in"
 
 async function azurePrincipalPresent() {
   try {
@@ -20,17 +21,22 @@ export function SignInRedirect({ next }: { next: string }) {
   const { loading, session, refresh } = useMember()
   const destination = signInReturnPath(next)
   const leaving = useRef(false)
+  const adminDestination = isAdminDestination(destination)
+
+  const isAuthenticated = session.authenticated
+  const isAdmin = isAuthenticated ? session.is_admin : false
 
   useEffect(() => {
     if (leaving.current || loading) return
-    if (session.authenticated) {
-      leaving.current = true
-      window.location.replace(destination)
-    }
-  }, [destination, loading, session.authenticated])
+    if (!isAuthenticated) return
+    if (adminDestination && !isAdmin) return
+    leaving.current = true
+    window.location.replace(destination)
+  }, [adminDestination, destination, isAdmin, isAuthenticated, loading])
 
   useEffect(() => {
-    if (leaving.current || loading || session.authenticated) return
+    if (leaving.current || loading || isAuthenticated) return
+    if (adminDestination) return
     let active = true
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -50,7 +56,7 @@ export function SignInRedirect({ next }: { next: string }) {
       active = false
       window.clearTimeout(timer)
     }
-  }, [destination, loading, refresh, session.authenticated])
+  }, [adminDestination, destination, isAuthenticated, loading, refresh])
 
   return null
 }

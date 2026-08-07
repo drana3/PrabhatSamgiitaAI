@@ -8,11 +8,14 @@ import { GET, POST } from "@/app/api/member/[...path]/route"
 describe("database-backed member source of truth", () => {
   const originalProxyKey = process.env.MEMBER_PROXY_KEY
   const originalNodeEnv = process.env.NODE_ENV
+  const originalApiBase = process.env.API_BASE_URL
 
   afterEach(() => {
     if (originalProxyKey === undefined) delete process.env.MEMBER_PROXY_KEY
     else process.env.MEMBER_PROXY_KEY = originalProxyKey
     process.env.NODE_ENV = originalNodeEnv
+    if (originalApiBase === undefined) delete process.env.API_BASE_URL
+    else process.env.API_BASE_URL = originalApiBase
     vi.unstubAllGlobals()
   })
 
@@ -23,11 +26,16 @@ describe("database-backed member source of truth", () => {
   })
 
   it("uses API is_admin for admin middleware decisions", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.API_BASE_URL = "https://api.example.test"
+    const principal = buildClientPrincipal("user-oid-42", "owner@example.com")
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ authenticated: true, is_admin: true }),
     }))
-    const request = { url: "https://example.test/admin/feedback", headers: { get: () => null } } as never
+    const request = new NextRequest("https://example.test/admin/feedback", {
+      headers: { "x-ms-client-principal": principal },
+    })
     await expect(memberSessionIsAdmin(request)).resolves.toBe(true)
   })
 

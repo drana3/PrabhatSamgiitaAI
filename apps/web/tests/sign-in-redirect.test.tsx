@@ -44,6 +44,34 @@ describe("SignInRedirect", () => {
     })
   })
 
+  it("does not auto-redirect non-admins to admin destinations", async () => {
+    const replace = vi.fn()
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, replace },
+    })
+    useMemberMock.mockReturnValue({
+      loading: false,
+      session: {
+        authenticated: true,
+        id: "aad:1",
+        display_name: "A",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        favorite_song_numbers: [],
+        is_admin: false,
+      },
+      refresh,
+    })
+
+    render(<SignInRedirect next="/admin/feedback" />)
+
+    await waitFor(() => {
+      expect(refresh).not.toHaveBeenCalled()
+    })
+    expect(replace).not.toHaveBeenCalled()
+  })
+
   it("leaves /signin when Easy Auth already has a principal even if member API is slow", async () => {
     const replace = vi.fn()
     Object.defineProperty(window, "location", {

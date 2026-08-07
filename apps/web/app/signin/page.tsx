@@ -6,7 +6,11 @@ import { SignInRedirect } from "@/components/sign-in-redirect"
 import { EmailAuthPanel } from "@/components/email-auth-panel"
 import { SiteHeader } from "@/components/site-header"
 import { LOCAL_AUTH_COOKIE, facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
-import { resolveClientPrincipal } from "@/lib/azure-principal"
+import {
+  fetchBackendMemberSession,
+  isAdminDestination,
+  memberPrincipalFromHeaders,
+} from "@/lib/member-request"
 import {
   facebookSignInHref,
   googleSignInHref,
@@ -24,11 +28,20 @@ export default async function SignInPage({
 }) {
   const params = await searchParams
   const next = safeSignInNextPath(params.next)
+  const headerList = await headers()
+  const cookieStore = await cookies()
   const principal =
-    resolveClientPrincipal(await headers()) ??
-    (await cookies()).get(LOCAL_AUTH_COOKIE)?.value ??
-    null
-  if (principal) redirect(signInReturnPath(next))
+    memberPrincipalFromHeaders(headerList, cookieStore.get(LOCAL_AUTH_COOKIE)?.value)
+  if (principal) {
+    if (isAdminDestination(next)) {
+      const session = await fetchBackendMemberSession(principal)
+      if (session?.authenticated === true && session?.is_admin === true) {
+        redirect(signInReturnPath(next))
+      }
+    } else {
+      redirect(signInReturnPath(next))
+    }
+  }
 
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
 
