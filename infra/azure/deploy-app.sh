@@ -309,6 +309,15 @@ MEMBER_FEEDBACK_SMOKE="$(curl_retry "member-admin-feedback" \
   exit 1
 }
 printf '%s' "$MEMBER_FEEDBACK_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if isinstance(data.get("items"), list) and "total" in data else 1)'
+YOUTUBE_CHANNELS_STATUS="$(curl --silent --show-error --write-out '%{http_code}' --output /dev/null \
+  --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
+  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  "https://${API_FQDN}/api/v1/members/admin/youtube-channels")" || YOUTUBE_CHANNELS_STATUS="000"
+if [[ "$YOUTUBE_CHANNELS_STATUS" != "200" && "$YOUTUBE_CHANNELS_STATUS" != "401" && "$YOUTUBE_CHANNELS_STATUS" != "403" ]]; then
+  echo "YouTube channel admin route smoke failed: expected 200/401/403, got ${YOUTUBE_CHANNELS_STATUS}." >&2
+  echo "If this is 404, the API image is missing scripts/ or an old revision is still serving." >&2
+  exit 1
+fi
 MEMBER_QUIZ_SMOKE="$(curl_retry "member-quiz-start" \
   --request POST \
   --header "Content-Type: application/json" \

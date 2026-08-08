@@ -28,6 +28,7 @@ COPY --from=builder --chown=app:app /app/apps/api/.venv /app/apps/api/.venv
 
 COPY --chown=app:app apps/api /app/apps/api
 COPY --chown=app:app data /app/data
+COPY --chown=app:app scripts /app/scripts
 
 USER app
 
