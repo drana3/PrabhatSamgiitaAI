@@ -52,8 +52,8 @@ export function SongLanguageSwitcher({
   }, [translating])
 
   return (
-    <div className="w-full min-w-0 sm:w-auto sm:min-w-[14rem]" aria-busy={translating}>
-      <label className="flex w-full flex-col gap-2 rounded-2xl border border-navy-900/15 bg-white px-3 py-2.5 text-sm text-navy-800 shadow-sm sm:min-w-[14rem] sm:rounded-full sm:py-2">
+    <div className="mx-auto w-full min-w-0 sm:w-auto sm:min-w-[14rem]" aria-busy={translating}>
+      <label className="flex w-full flex-col items-center gap-2 rounded-2xl border border-navy-900/15 bg-white px-3 py-2.5 text-center text-sm text-navy-800 shadow-sm sm:min-w-[14rem] sm:flex-row sm:justify-center sm:rounded-full sm:px-4 sm:py-2">
         <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">Reading language</span>
         <select
           value={targetLanguage || selectedLanguage}
@@ -76,7 +76,7 @@ export function SongLanguageSwitcher({
             router.refresh()
           }}
           aria-label="Reading language"
-          className="w-full min-w-0 rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 pr-8 text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70"
+          className="w-full min-w-0 rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 pr-8 text-center text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70 sm:w-auto sm:min-w-[10rem]"
         >
           {["Indian languages", "World languages"].map((group) => (
             <optgroup key={group} label={group}>
@@ -89,7 +89,7 @@ export function SongLanguageSwitcher({
           ))}
         </select>
       </label>
-      {translating ? <div className="mt-2 flex justify-end text-gold-800"><LoadingIndicator label="Translating" compact /></div> : null}
+      {translating ? <div className="mt-2 flex justify-center text-gold-800"><LoadingIndicator label="Translating" compact /></div> : null}
     </div>
   )
 }

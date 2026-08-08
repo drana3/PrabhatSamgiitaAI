@@ -47,6 +47,19 @@ SEARCH_STATE_PATH = (
 )
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
 USER_AGENT = "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://github.com/drana3/PrabhatSamgiitaAI)"
+MIN_SONG_NUMBER = 1
+MAX_SONG_NUMBER = 5018
+PRABHAT_SAMGIITA_RE = re.compile(
+    r"prabhat\s*(?:samgiita|samgita|sangeet|sangeeta)",
+    re.I,
+)
+PRABHAT_HINT_RE = re.compile(r"prab?h?a?t", re.I)
+SAMGIITA_HINT_RE = re.compile(
+    r"sam?g+i+[et]{1,2}a?|sange+e?t+a?|samgita|samgiit|sangiita",
+    re.I,
+)
+PRABHAT_ROOT = "prabhat"
+SAMGIITA_ROOTS = ("samgiita", "samgita", "sangeet", "sangeeta", "samgeeta")
 
 
 def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
@@ -210,18 +223,68 @@ def normalize(value: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", value.lower()))
 
 
+def _token_looks_like_prabhat(token: str) -> bool:
+    if len(token) < 5:
+        return False
+    if PRABHAT_HINT_RE.fullmatch(token) or PRABHAT_HINT_RE.search(token):
+        return True
+    return SequenceMatcher(None, token, PRABHAT_ROOT).ratio() >= 0.78
+
+
+def _token_looks_like_samgiita(token: str) -> bool:
+    if len(token) < 5:
+        return False
+    if SAMGIITA_HINT_RE.search(token):
+        return True
+    return any(SequenceMatcher(None, token, root).ratio() >= 0.78 for root in SAMGIITA_ROOTS)
+
+
+def mentions_prabhat_samgiita(title: str) -> bool:
+    if PRABHAT_SAMGIITA_RE.search(title):
+        return True
+    if PRABHAT_HINT_RE.search(title) and SAMGIITA_HINT_RE.search(title):
+        return True
+    normalized = normalize(title)
+    compact = normalized.replace(" ", "")
+    if "prabh" in compact and ("samg" in compact or "sang" in compact):
+        return True
+    tokens = normalized.split()
+    has_prabhat = any(_token_looks_like_prabhat(token) for token in tokens)
+    has_samgiita = any(_token_looks_like_samgiita(token) for token in tokens)
+    return has_prabhat and has_samgiita
+
+
+def bare_catalog_song_number(title: str) -> int | None:
+    match = re.search(r"(?:song\s*)?(?:number|no\.?|#)\s*(\d{1,4})", title, re.I)
+    if not match:
+        return None
+    number = int(match.group(1))
+    if MIN_SONG_NUMBER <= number <= MAX_SONG_NUMBER:
+        return number
+    return None
+
+
+def youtube_video_in_scope(title: str) -> bool:
+    """Only scan videos with a catalog song number or Prabhat Samgiita in the title."""
+    if bare_catalog_song_number(title) is not None:
+        return True
+    return mentions_prabhat_samgiita(title)
+
+
 def explicit_song_number(title: str) -> int | None:
-    if not re.search(r"prabhat\s*(?:samgiita|samgita|sangeet|sangeeta)", title, re.I):
+    if not mentions_prabhat_samgiita(title):
         return None
     patterns = (
         r"(?:song\s*)?(?:number|no\.?|#)\s*(\d{1,4})",
-        r"prabhat\s*(?:samgiita|samgita|sangeet|sangeeta)\D{0,24}(\d{1,4})",
+        r"#\s*(\d{1,4})",
+        r"(?:samg|sang)[a-z]*\D{0,24}(\d{1,4})",
+        r"prab[a-z]*\D{0,24}(\d{1,4})",
     )
     for pattern in patterns:
         match = re.search(pattern, title, re.I)
         if match:
             number = int(match.group(1))
-            if 1 <= number <= 5018:
+            if MIN_SONG_NUMBER <= number <= MAX_SONG_NUMBER:
                 return number
     return None
 
@@ -309,7 +372,9 @@ def review_row(
     video: dict[str, str],
     songs: dict[int, dict[str, Any]],
     channel: dict[str, Any] = CHANNELS[0],
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
+    if not youtube_video_in_scope(video["title"]):
+        return None
     number = explicit_song_number(video["title"])
     similarity = title_similarity(video["title"], songs[number]) if number in songs else 0.0
     reason = "missing_explicit_song_number"
@@ -372,10 +437,13 @@ def main() -> None:
             continue
         discovered_by_channel[channel["name"]] = len(discovered)
         for video in discovered:
+            if not youtube_video_in_scope(video["title"]):
+                continue
             row = media_row(video, songs, channel)
             if row is None:
                 review = review_row(video, songs, channel)
-                review_by_id[review["external_id"]] = review
+                if review is not None:
+                    review_by_id[review["external_id"]] = review
             else:
                 rows_by_id[row["metadata_json"]["external_id"]] = row
                 review_by_id.pop(row["metadata_json"]["external_id"], None)

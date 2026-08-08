@@ -26,6 +26,7 @@ from scripts.sync_youtube import (  # noqa: E402
     media_row,
     review_row,
     walk,
+    youtube_video_in_scope,
 )
 
 
@@ -221,6 +222,9 @@ async def scan_youtube_channel(
             known_count += 1
             continue
 
+        if not youtube_video_in_scope(video["title"]):
+            continue
+
         matched = media_row(video, songs, channel)
         if matched is not None:
             verification = str(matched.get("verification_status") or "pending_review")
@@ -245,6 +249,8 @@ async def scan_youtube_channel(
                 continue
 
         review = review_row(video, songs, channel)
+        if review is None:
+            continue
         session.add(
             YoutubeReviewQueue(
                 external_id=review["external_id"],

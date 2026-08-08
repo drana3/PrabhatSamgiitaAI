@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from urllib.error import URLError
 
-from scripts.sync_youtube import CHANNELS, GENERAL_YOUTUBE, fetch, media_row, review_row
+from scripts.sync_youtube import (
+    CHANNELS,
+    GENERAL_YOUTUBE,
+    fetch,
+    media_row,
+    mentions_prabhat_samgiita,
+    review_row,
+    youtube_video_in_scope,
+)
 
 SONGS = {1: {"number": 1, "title": "Bandhu He Niye Calo", "first_line": "Bandhu He"}}
 
@@ -21,12 +29,39 @@ def test_numbered_channel_video_is_published_by_song_number() -> None:
 
 
 def test_unnumbered_upload_is_retained_for_human_review() -> None:
-    video = {"video_id": "new-video", "title": "A devotional dawn melody"}
+    video = {"video_id": "new-video", "title": "Prabhat Samgiita devotional dawn melody"}
 
     assert media_row(video, SONGS) is None
     review = review_row(video, SONGS)
+    assert review is not None
     assert review["status"] == "pending_review"
     assert review["review_reason"] == "missing_explicit_song_number"
+
+
+def test_unrelated_upload_is_ignored() -> None:
+    video = {"video_id": "new-video", "title": "A devotional dawn melody"}
+
+    assert youtube_video_in_scope(video["title"]) is False
+    assert media_row(video, SONGS) is None
+    assert review_row(video, SONGS) is None
+
+
+def test_loose_prabhat_samgiita_match_accepts_common_typos() -> None:
+    assert mentions_prabhat_samgiita("Probhat Samgita Song Number 1") is True
+    assert mentions_prabhat_samgiita("Prabhata Samgeeta morning meditation") is True
+    assert mentions_prabhat_samgiita("Morning kiirtan and meditation") is False
+
+
+def test_loose_prabhat_samgiita_still_links_numbered_song() -> None:
+    video = {
+        "video_id": "typo-title",
+        "title": "Probhat Samgita No. 1 - Bandhu He Niye Calo",
+    }
+
+    row = media_row(video, SONGS)
+
+    assert row is not None
+    assert row["song_number"] == 1
 
 
 def test_numbered_ananda_marga_video_maps_to_its_canonical_song() -> None:

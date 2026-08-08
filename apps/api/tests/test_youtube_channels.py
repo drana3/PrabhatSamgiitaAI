@@ -135,12 +135,13 @@ async def test_scan_skips_known_and_queues_new_videos() -> None:
     videos = [
         {"video_id": "known123", "title": "Prabhat Samgiita Song Number 1"},
         {"video_id": "new999", "title": "Prabhat Samgiita random title"},
+        {"video_id": "skip000", "title": "Morning meditation and kiirtan"},
     ]
 
     with patch("app.services.youtube_channels.channel_videos", return_value=videos):
         result = await scan_youtube_channel(session, channel.id)  # type: ignore[arg-type]
 
-    assert result["discovered"] == 2
+    assert result["discovered"] == 3
     assert result["already_known"] == 1
     assert result["new_queued_for_review"] == 1
     assert len(session.reviews) == 1
