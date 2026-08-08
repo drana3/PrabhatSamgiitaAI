@@ -7,6 +7,7 @@ import { runtimeEnv } from "@/lib/runtime-env"
 const allowedPaths = new Set([
   "session",
   "preferences",
+  "phone",
   "favorites",
   "chat-memory",
   "me",

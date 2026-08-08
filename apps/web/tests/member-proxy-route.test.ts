@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
 import { buildClientPrincipal } from "@/lib/azure-principal"
-import { GET, POST } from "@/app/api/member/[...path]/route"
+import { GET, PATCH, POST } from "@/app/api/member/[...path]/route"
 
 describe("member proxy route", () => {
   const originalProxyKey = process.env.MEMBER_PROXY_KEY
@@ -101,5 +101,32 @@ describe("member proxy route", () => {
     expect(body.authenticated).toBe(true)
     expect(body.member_backend).toBe(true)
     expect(body.favorite_song_numbers).toEqual([3])
+  })
+
+  it("forwards phone updates to the member API", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.NODE_ENV = "production"
+    const principal = buildClientPrincipal("user-oid-42", "member@example.com")
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ authenticated: true, phone_e164: "+917483675323" }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const request = new NextRequest("https://example.test/api/member/phone", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-ms-client-principal": principal,
+      },
+      body: JSON.stringify({ phone_country_code: "IN", phone_number: "7483675323" }),
+    })
+    const response = await PATCH(request, { params: Promise.resolve({ path: ["phone"] }) })
+
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/members/phone"),
+      expect.objectContaining({ method: "PATCH" }),
+    )
   })
 })
