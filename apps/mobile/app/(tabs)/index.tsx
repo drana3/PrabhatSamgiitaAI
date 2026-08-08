@@ -9,6 +9,7 @@ import { CollectionsPreview } from "@/components/home/CollectionsPreview"
 import { ContinueListeningRow } from "@/components/home/ContinueListeningRow"
 import { FeedbackEntryCard, QuizBanner } from "@/components/home/EngagementCards"
 import { GreetingHeader } from "@/components/home/GreetingHeader"
+import { SiteAnnouncementsBanner } from "@/components/home/SiteAnnouncementsBanner"
 import { QuizWinnersRow } from "@/components/home/QuizWinnersRow"
 import {
   AboutComposerCard,
@@ -150,6 +151,8 @@ export default function HomeScreen() {
           onPress={() => router.push(href("/search"))}
           onMicPress={() => router.push(href("/search?voice=1"))}
         />
+
+        <SiteAnnouncementsBanner />
 
         {homeError ? <Text style={styles.homeError}>{homeError}</Text> : null}
 

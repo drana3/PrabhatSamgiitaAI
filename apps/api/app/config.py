@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     ai_daily_member_limit: int = Field(default=50, alias="AI_DAILY_MEMBER_LIMIT", ge=1)
     default_admin_emails: str = Field(default="", alias="DEFAULT_ADMIN_EMAILS")
     protected_admin_emails: str = Field(default="", alias="PROTECTED_ADMIN_EMAILS")
+    acs_email_connection_string: str | None = Field(
+        default=None, alias="ACS_EMAIL_CONNECTION_STRING"
+    )
+    acs_email_from: str | None = Field(default=None, alias="ACS_EMAIL_FROM")
+    acs_email_enabled: bool = Field(default=False, alias="ACS_EMAIL_ENABLED")
 
 
 @lru_cache(maxsize=1)

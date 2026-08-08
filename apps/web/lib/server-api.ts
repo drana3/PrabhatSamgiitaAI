@@ -1,3 +1,4 @@
+import type { ActiveSiteAnnouncement } from "@/lib/announcements"
 import type { SongSummary } from "@/lib/api"
 import { runtimeEnv } from "@/lib/runtime-env"
 
@@ -25,5 +26,18 @@ export async function searchSongsOnServer(
     return await response.json() as SongSummary[]
   } catch {
     return null
+  }
+}
+
+export async function fetchActiveAnnouncementsOnServer(): Promise<ActiveSiteAnnouncement[]> {
+  try {
+    const response = await fetch(`${apiBase()}/api/v1/announcements/active`, {
+      cache: "no-store",
+    })
+    if (!response.ok) return []
+    const payload = (await response.json()) as { items?: ActiveSiteAnnouncement[] }
+    return payload.items ?? []
+  } catch {
+    return []
   }
 }

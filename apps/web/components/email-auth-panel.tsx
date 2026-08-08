@@ -120,6 +120,13 @@ export function EmailAuthPanel({ next }: { next: string }) {
             placeholder={mode === "signup" ? "At least 8 characters" : "Your password"}
           />
         </label>
+        {mode === "signin" ? (
+          <p className="text-right text-sm">
+            <a href="/forgot-password" className="font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">
+              Forgot password?
+            </a>
+          </p>
+        ) : null}
         {error ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
             {error}

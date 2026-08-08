@@ -1,6 +1,6 @@
 import Link from "next/link"
 
-export type AdminSection = "feedback" | "ingest" | "youtube" | "members" | "quiz"
+export type AdminSection = "feedback" | "ingest" | "youtube" | "members" | "quiz" | "announcements"
 
 const links: ReadonlyArray<{ href: AdminSection; label: string; shortLabel: string }> = [
   { href: "feedback", label: "Feedback", shortLabel: "Feedback" },
@@ -10,6 +10,7 @@ const links: ReadonlyArray<{ href: AdminSection; label: string; shortLabel: stri
     label: "YouTube scheduled job review",
     shortLabel: "YouTube review",
   },
+  { href: "announcements", label: "Announcements", shortLabel: "Announce" },
   { href: "members", label: "Admins", shortLabel: "Admins" },
   { href: "quiz", label: "Create quiz event", shortLabel: "Quiz event" },
 ]

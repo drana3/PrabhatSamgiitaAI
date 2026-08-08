@@ -26,6 +26,8 @@ class AdminMemberItem(BaseModel):
     id: UUID
     display_name: str
     email: str | None = None
+    identity_provider: str | None = None
+    last_seen_at: str | None = None
     is_admin: bool
     is_super_admin: bool = False
     is_protected: bool = False
@@ -33,6 +35,10 @@ class AdminMemberItem(BaseModel):
 
 class AdminGrantWrite(BaseModel):
     email: str = Field(min_length=3, max_length=320)
+
+
+class AdminGrantBulkWrite(BaseModel):
+    user_ids: list[UUID] = Field(min_length=1, max_length=50)
 
 
 class AnonymousMember(BaseModel):

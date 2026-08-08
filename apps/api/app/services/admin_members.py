@@ -69,28 +69,18 @@ def _last_seen_key(member: UserAccount) -> datetime:
     return value
 
 
-async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
-    rows = list(
-        (
-            await session.execute(
-                select(UserAccount)
-                .where(UserAccount.is_admin.is_(True), UserAccount.deleted_at.is_(None))
-                .order_by(UserAccount.display_name.asc())
-            )
-        ).scalars()
-    )
-    # One row per email so deploy/probe clones of the owner account do not appear twice.
-    # Prefer the strongest subject (Easy Auth OID) over the newest mobile fork.
-    def _subject_rank(subject: str) -> int:
-        value = (subject or "").casefold()
-        if value.startswith("aad:") and "@" not in value and "preview" not in value:
-            return 3
-        if "preview" in value:
-            return 0
-        if "@" in value:
-            return 1
-        return 2
+def _subject_rank(subject: str) -> int:
+    value = (subject or "").casefold()
+    if value.startswith("aad:") and "@" not in value and "preview" not in value:
+        return 3
+    if "preview" in value:
+        return 0
+    if "@" in value:
+        return 1
+    return 2
 
+
+def _dedupe_members(rows: list[UserAccount]) -> list[UserAccount]:
     by_email: dict[str, UserAccount] = {}
     for row in rows:
         if is_ephemeral_member(row):
@@ -104,8 +94,56 @@ async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
         cur_key = (_subject_rank(current.external_subject), _last_seen_key(current))
         if row_key >= cur_key:
             by_email[key] = row
+    return list(by_email.values())
+
+
+async def list_signed_in_members(
+    session: AsyncSession,
+    *,
+    query: str | None = None,
+    limit: int = 100,
+) -> list[UserAccount]:
+    statement = select(UserAccount).where(UserAccount.deleted_at.is_(None))
+    if query and query.strip():
+        needle = f"%{query.strip().casefold()}%"
+        statement = statement.where(
+            func.lower(UserAccount.email).like(needle)
+            | func.lower(UserAccount.display_name).like(needle)
+        )
+    rows = list(
+        (
+            await session.execute(
+                statement.order_by(
+                    UserAccount.is_admin.desc(),
+                    UserAccount.last_seen_at.desc(),
+                    UserAccount.display_name.asc(),
+                ).limit(limit * 3)
+            )
+        ).scalars()
+    )
+    deduped = _dedupe_members(rows)
+    deduped.sort(
+        key=lambda member: (
+            0 if member.is_admin else 1,
+            -_last_seen_key(member).timestamp(),
+            (member.display_name or "").casefold(),
+        )
+    )
+    return deduped[:limit]
+
+
+async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
+    rows = list(
+        (
+            await session.execute(
+                select(UserAccount)
+                .where(UserAccount.is_admin.is_(True), UserAccount.deleted_at.is_(None))
+                .order_by(UserAccount.display_name.asc())
+            )
+        ).scalars()
+    )
     return sorted(
-        by_email.values(),
+        _dedupe_members(rows),
         key=lambda member: (member.display_name or "").casefold(),
     )
 
@@ -176,6 +214,26 @@ async def grant_admin(session: AsyncSession, email: str) -> UserAccount:
     await session.commit()
     await session.refresh(member)
     return member
+
+
+async def grant_admin_bulk(session: AsyncSession, user_ids: list[UUID]) -> list[UserAccount]:
+    promoted: list[UserAccount] = []
+    for user_id in user_ids:
+        member = await session.get(UserAccount, user_id)
+        if member is None or member.deleted_at is not None or is_ephemeral_member(member):
+            continue
+        if not member.is_admin:
+            member.is_admin = True
+            promoted.append(member)
+    if not promoted:
+        raise HTTPException(
+            status_code=400,
+            detail="No eligible members were selected for promotion.",
+        )
+    await session.commit()
+    for member in promoted:
+        await session.refresh(member)
+    return promoted
 
 
 async def revoke_admin(

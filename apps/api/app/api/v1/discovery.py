@@ -27,6 +27,7 @@ from app.models import (
     ReflectionQuote,
     UserFeedback,
 )
+from app.schemas.announcements import ActiveSiteAnnouncementItem, ActiveSiteAnnouncementListResponse
 from app.schemas.discovery import (
     AnalyticsEventRequest,
     CommunityTestimonialResponse,
@@ -43,6 +44,7 @@ from app.schemas.discovery import (
     UserFeedbackRequest,
     UserFeedbackResponse,
 )
+from app.services.announcements import list_active_announcements
 from app.services.catalog import CatalogService
 from app.services.domain_catalog import (
     OCCASIONS,
@@ -112,6 +114,26 @@ async def list_occasions() -> list[OccasionResponse]:
 @router.get("/festivals", response_model=list[FestivalResponse])
 async def list_festivals() -> list[FestivalResponse]:
     return [FestivalResponse.model_validate(item) for item in canonical_festivals()]
+
+
+@router.get("/announcements/active", response_model=ActiveSiteAnnouncementListResponse)
+async def active_announcements(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ActiveSiteAnnouncementListResponse:
+    rows = await list_active_announcements(session)
+    return ActiveSiteAnnouncementListResponse(
+        items=[
+            ActiveSiteAnnouncementItem(
+                id=str(row.id),
+                title=row.title,
+                body=row.body,
+                kind=row.kind,
+                priority=row.priority,
+                ends_at=row.ends_at.isoformat(),
+            )
+            for row in rows
+        ]
+    )
 
 
 @router.get("/reflections/today", response_model=ReflectionQuoteResponse)

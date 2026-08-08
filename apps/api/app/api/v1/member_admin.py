@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.models import UserAccount, UserFeedback
+from app.models.announcements import SiteAnnouncement
 from app.schemas.admin import AdminFeedbackItem, AdminFeedbackListResponse, AdminFeedbackUpdate
 from app.schemas.admin_workflow import (
     LanguageCheckRequest,
@@ -24,12 +25,24 @@ from app.schemas.admin_workflow import (
     YoutubeReviewItem,
     YoutubeReviewListResponse,
 )
-from app.schemas.member import AdminGrantWrite, AdminMemberItem, QuizEventCreateWrite
+from app.schemas.announcements import (
+    SiteAnnouncementCreateWrite,
+    SiteAnnouncementItem,
+    SiteAnnouncementListResponse,
+)
+from app.schemas.member import (
+    AdminGrantBulkWrite,
+    AdminGrantWrite,
+    AdminMemberItem,
+    QuizEventCreateWrite,
+)
 from app.services.admin_members import (
     grant_admin,
+    grant_admin_bulk,
     grant_super_admin,
     is_protected_admin,
     list_admin_members,
+    list_signed_in_members,
     require_admin_member,
     require_super_admin_member,
     revoke_admin,
@@ -44,6 +57,11 @@ from app.services.admin_workflow import (
     submit_song_ingestion,
     sync_youtube_review_queue,
     translate_meaning_from_english,
+)
+from app.services.announcements import (
+    create_announcement,
+    deactivate_announcement,
+    list_all_announcements,
 )
 from app.services.feedback_live import (
     feedback_is_on_live_ticker,
@@ -65,13 +83,32 @@ DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
 
 
 def _admin_item(member: UserAccount) -> AdminMemberItem:
+    last_seen = member.last_seen_at or member.created_at
     return AdminMemberItem(
         id=member.id,
         display_name=member.display_name,
         email=member.email,
+        identity_provider=member.identity_provider,
+        last_seen_at=last_seen.isoformat() if last_seen else None,
         is_admin=member.is_admin,
         is_super_admin=member.is_super_admin,
         is_protected=is_protected_admin(member),
+    )
+
+
+def _announcement_item(row: SiteAnnouncement) -> SiteAnnouncementItem:
+    return SiteAnnouncementItem(
+        id=str(row.id),
+        title=row.title,
+        body=row.body,
+        kind=row.kind,
+        priority=row.priority,
+        starts_at=row.starts_at.isoformat(),
+        ends_at=row.ends_at.isoformat(),
+        is_active=row.is_active,
+        notify_by_email=row.notify_by_email,
+        email_sent_count=row.email_sent_count,
+        created_at=row.created_at.isoformat() if row.created_at else "",
     )
 
 
@@ -85,25 +122,14 @@ async def admin_users(
     request: Request,
     session: DatabaseSession,
     q: str | None = Query(default=None, max_length=320),
+    scope: str = Query(default="signed_in", pattern="^(signed_in|admins)$"),
+    limit: int = Query(default=100, ge=1, le=200),
 ) -> list[AdminMemberItem]:
     await admin_member(request, session)
-    if q and q.strip():
-        needle = q.strip().casefold()
-        rows = list(
-            (
-                await session.execute(
-                    select(UserAccount)
-                    .where(
-                        UserAccount.deleted_at.is_(None),
-                        func.lower(UserAccount.email).contains(needle),
-                    )
-                    .order_by(UserAccount.is_admin.desc(), UserAccount.display_name.asc())
-                    .limit(20)
-                )
-            ).scalars()
-        )
-        return [_admin_item(row) for row in rows]
-    return [_admin_item(row) for row in await list_admin_members(session)]
+    if scope == "admins":
+        return [_admin_item(row) for row in await list_admin_members(session)]
+    rows = await list_signed_in_members(session, query=q, limit=limit)
+    return [_admin_item(row) for row in rows]
 
 
 @router.post("/grant", response_model=AdminMemberItem)
@@ -113,6 +139,56 @@ async def admin_grant(
     await admin_member(request, session)
     member = await grant_admin(session, payload.email)
     return _admin_item(member)
+
+
+@router.post("/grant-bulk", response_model=list[AdminMemberItem])
+async def admin_grant_bulk(
+    payload: AdminGrantBulkWrite, request: Request, session: DatabaseSession
+) -> list[AdminMemberItem]:
+    await admin_member(request, session)
+    members = await grant_admin_bulk(session, payload.user_ids)
+    return [_admin_item(row) for row in members]
+
+
+@router.get("/announcements", response_model=SiteAnnouncementListResponse)
+async def admin_announcements_list(
+    request: Request, session: DatabaseSession
+) -> SiteAnnouncementListResponse:
+    await admin_member(request, session)
+    rows = await list_all_announcements(session)
+    return SiteAnnouncementListResponse(items=[_announcement_item(row) for row in rows])
+
+
+@router.post("/announcements", response_model=SiteAnnouncementItem)
+async def admin_announcements_create(
+    payload: SiteAnnouncementCreateWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> SiteAnnouncementItem:
+    creator = await admin_member(request, session)
+    row = await create_announcement(
+        session,
+        creator=creator,
+        title=payload.title,
+        body=payload.body,
+        kind=payload.kind,
+        priority=payload.priority,
+        starts_at=payload.starts_at,
+        ends_at=payload.ends_at,
+        notify_by_email=payload.notify_by_email,
+    )
+    return _announcement_item(row)
+
+
+@router.post("/announcements/{announcement_id}/deactivate", response_model=SiteAnnouncementItem)
+async def admin_announcements_deactivate(
+    announcement_id: UUID,
+    request: Request,
+    session: DatabaseSession,
+) -> SiteAnnouncementItem:
+    await admin_member(request, session)
+    row = await deactivate_announcement(session, announcement_id)
+    return _announcement_item(row)
 
 
 @router.delete("/users/{user_id}", response_model=AdminMemberItem)

@@ -121,6 +121,31 @@ describe("API client resilience (shared with website)", () => {
     await expect(client().fetchTestimonials()).resolves.toEqual([])
   })
 
+  it("parses active site announcements", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      Response.json({
+        items: [
+          {
+            id: "a1",
+            title: "Maintenance tonight",
+            body: "The site will be unavailable from 11 PM to 1 AM IST.",
+            kind: "maintenance",
+            priority: "high",
+            ends_at: "2026-08-09T18:30:00+00:00",
+          },
+        ],
+      }),
+    )
+    await expect(client().fetchActiveAnnouncements()).resolves.toEqual([
+      expect.objectContaining({ id: "a1", title: "Maintenance tonight" }),
+    ])
+  })
+
+  it("returns empty announcements on failure", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("nope", { status: 500 }))
+    await expect(client().fetchActiveAnnouncements()).resolves.toEqual([])
+  })
+
   it("returns the feedback acknowledgement", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       Response.json(

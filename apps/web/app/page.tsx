@@ -6,7 +6,9 @@ import { HeroSearch } from "@/components/hero-search"
 import { LandingData } from "@/components/landing-data"
 import { MiniPlayer } from "@/components/mini-player"
 import { RecommendationSection } from "@/components/recommendation-section"
+import { SiteAnnouncementsBanner } from "@/components/site-announcements-banner"
 import { SiteHeader } from "@/components/site-header"
+import { fetchActiveAnnouncementsOnServer } from "@/lib/server-api"
 import { DailyReflection } from "@/components/daily-reflection"
 import { CommunityVoices } from "@/components/community-voices"
 import { MemberQuizBadge } from "@/components/member-quiz-badge"
@@ -15,12 +17,16 @@ import { StoriesInspiration } from "@/components/stories-inspiration"
 import seedInventory from "../../../data/seed/inventory.json"
 import seedSongs from "../../../data/seed/songs.json"
 
-export default function HomePage() {
+export const dynamic = "force-dynamic"
+
+export default async function HomePage() {
   const initialReflection = todayReflectionFallback()
+  const announcements = await fetchActiveAnnouncementsOnServer()
 
   return (
     <main className="min-h-screen bg-ivory-50">
       <SiteHeader />
+      <SiteAnnouncementsBanner items={announcements} />
 
       <section className="hero-scene">
         <div className="hero-wash" />

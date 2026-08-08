@@ -212,6 +212,21 @@ export type TodayContextSignal = z.infer<typeof todayContextSignalSchema>
 export type TodayRecommendationItem = z.infer<typeof todayRecommendationItemSchema>
 export type ReflectionQuote = z.infer<typeof reflectionQuoteSchema>
 
+export const activeSiteAnnouncementSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  kind: z.string(),
+  priority: z.string(),
+  ends_at: z.string(),
+})
+
+export const activeSiteAnnouncementsListSchema = z.object({
+  items: z.array(activeSiteAnnouncementSchema).default([]),
+})
+
+export type ActiveSiteAnnouncement = z.infer<typeof activeSiteAnnouncementSchema>
+
 export const voiceSearchSchema = z.object({
   heard: z.string(),
   spoken_language: z.string().nullable().optional(),
@@ -622,6 +637,16 @@ export function createApiClient(options: ApiClientOptions) {
         return reflectionQuoteSchema.parse(await response.json())
       } catch {
         return null
+      }
+    },
+
+    async fetchActiveAnnouncements(): Promise<ActiveSiteAnnouncement[]> {
+      try {
+        const response = await fetchJson("/api/v1/announcements/active")
+        if (!response.ok) return []
+        return activeSiteAnnouncementsListSchema.parse(await response.json()).items
+      } catch {
+        return []
       }
     },
 
