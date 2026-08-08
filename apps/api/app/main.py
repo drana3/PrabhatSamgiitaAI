@@ -71,6 +71,30 @@ async def _ensure_member_schema() -> None:
                 "ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT false"
             )
         )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS phone_e164 VARCHAR(20)"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS phone_country_code VARCHAR(2)"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_user_accounts_phone_e164 "
+                "ON user_accounts (phone_e164)"
+            )
+        )
 
     # Non-critical wideners: never block member/admin/quiz schema.
     for statement, label in (
