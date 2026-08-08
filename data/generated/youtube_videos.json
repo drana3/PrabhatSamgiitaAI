@@ -8631,6 +8631,27 @@
     }
   },
   {
+    "song_number": 2719,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ei Nutan Prabhate - Prabhat Sangeet song #2719 - Singer - Shubhankar Haldar",
+    "url": "https://www.youtube.com/watch?v=bM6IG5MzcXA",
+    "embed_url": "https://www.youtube-nocookie.com/embed/bM6IG5MzcXA",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "bM6IG5MzcXA",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.944,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2720,
     "kind": "video",
     "provider": "youtube",
@@ -8690,6 +8711,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2725,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Surer Sarita - Prabhat Sangeet song #2725 - Singer - Shubhankar Sarkar",
+    "url": "https://www.youtube.com/watch?v=9ugQhhsGGtA",
+    "embed_url": "https://www.youtube-nocookie.com/embed/9ugQhhsGGtA",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "9ugQhhsGGtA",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.943,
       "match_method": "explicit_song_number_marker"
     }
   },
