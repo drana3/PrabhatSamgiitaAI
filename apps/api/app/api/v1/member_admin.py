@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.models import UserAccount, UserFeedback
+from app.models.admin_workflow import YoutubeScanChannel
 from app.models.announcements import SiteAnnouncement
 from app.schemas.admin import AdminFeedbackItem, AdminFeedbackListResponse, AdminFeedbackUpdate
 from app.schemas.admin_workflow import (
@@ -24,6 +25,10 @@ from app.schemas.admin_workflow import (
     YoutubeReviewApproveWrite,
     YoutubeReviewItem,
     YoutubeReviewListResponse,
+    YoutubeScanChannelCreateWrite,
+    YoutubeScanChannelItem,
+    YoutubeScanChannelListResponse,
+    YoutubeScanChannelScanResult,
 )
 from app.schemas.announcements import (
     SiteAnnouncementCreateWrite,
@@ -77,6 +82,13 @@ from app.services.quiz_events import (
     publish_quiz_event,
     verify_quiz_event,
 )
+from app.services.youtube_channels import (
+    create_youtube_scan_channel,
+    deactivate_youtube_scan_channel,
+    list_all_youtube_scan_channels,
+    scan_all_youtube_channels,
+    scan_youtube_channel,
+)
 
 router = APIRouter(prefix="/members/admin", tags=["member-admin"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
@@ -88,6 +100,7 @@ def _admin_item(member: UserAccount) -> AdminMemberItem:
         id=member.id,
         display_name=member.display_name,
         email=member.email,
+        phone_e164=member.phone_e164,
         identity_provider=member.identity_provider,
         last_seen_at=last_seen.isoformat() if last_seen else None,
         is_admin=member.is_admin,
@@ -344,6 +357,81 @@ async def admin_grant_super_admin(
     await require_super_admin_member(session, actor)
     member = await grant_super_admin(session, payload.email)
     return _admin_item(member)
+
+
+def _youtube_channel_item(row: YoutubeScanChannel) -> YoutubeScanChannelItem:
+    return YoutubeScanChannelItem(
+        id=str(row.id),
+        name=row.name,
+        channel_id=row.channel_id,
+        channel_url=row.channel_url,
+        is_trusted=row.is_trusted,
+        is_active=row.is_active,
+        notes=row.notes,
+        last_scanned_at=row.last_scanned_at.isoformat() if row.last_scanned_at else None,
+        last_scan_discovered=row.last_scan_discovered,
+        last_scan_new=row.last_scan_new,
+        last_scan_known=row.last_scan_known,
+        created_at=row.created_at.isoformat() if row.created_at else "",
+    )
+
+
+@router.get("/youtube-channels", response_model=YoutubeScanChannelListResponse)
+async def admin_list_youtube_channels(
+    request: Request, session: DatabaseSession
+) -> YoutubeScanChannelListResponse:
+    await admin_member(request, session)
+    rows = await list_all_youtube_scan_channels(session)
+    return YoutubeScanChannelListResponse(items=[_youtube_channel_item(row) for row in rows])
+
+
+@router.post("/youtube-channels", response_model=YoutubeScanChannelItem)
+async def admin_create_youtube_channel(
+    payload: YoutubeScanChannelCreateWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> YoutubeScanChannelItem:
+    creator = await admin_member(request, session)
+    row = await create_youtube_scan_channel(
+        session,
+        creator=creator,
+        name=payload.name,
+        channel_url=payload.channel_url,
+        channel_id=payload.channel_id,
+        is_trusted=payload.is_trusted,
+        notes=payload.notes,
+    )
+    return _youtube_channel_item(row)
+
+
+@router.post("/youtube-channels/scan-all", response_model=dict[str, object])
+async def admin_scan_all_youtube_channels(
+    request: Request, session: DatabaseSession
+) -> dict[str, object]:
+    await admin_member(request, session)
+    return await scan_all_youtube_channels(session)
+
+
+@router.post("/youtube-channels/{channel_id}/scan", response_model=YoutubeScanChannelScanResult)
+async def admin_scan_youtube_channel(
+    channel_id: UUID,
+    request: Request,
+    session: DatabaseSession,
+) -> YoutubeScanChannelScanResult:
+    await admin_member(request, session)
+    result = await scan_youtube_channel(session, channel_id)
+    return YoutubeScanChannelScanResult(**result)
+
+
+@router.post("/youtube-channels/{channel_id}/deactivate", response_model=YoutubeScanChannelItem)
+async def admin_deactivate_youtube_channel(
+    channel_id: UUID,
+    request: Request,
+    session: DatabaseSession,
+) -> YoutubeScanChannelItem:
+    await admin_member(request, session)
+    row = await deactivate_youtube_scan_channel(session, channel_id)
+    return _youtube_channel_item(row)
 
 
 @router.post("/youtube-reviews/sync")

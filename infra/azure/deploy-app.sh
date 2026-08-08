@@ -25,6 +25,9 @@ PROTECTED_ADMIN_EMAILS="${PROTECTED_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
 ACS_EMAIL_ENABLED="${ACS_EMAIL_ENABLED:-true}"
 ACS_EMAIL_FROM="${ACS_EMAIL_FROM:-DoNotReply@a6f8f0fe-ff1d-4f62-8b88-43cd0f36675a.azurecomm.net}"
 ACS_EMAIL_CONNECTION_STRING="${ACS_EMAIL_CONNECTION_STRING:-}"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
+NEXT_PUBLIC_FACEBOOK_APP_ID="${NEXT_PUBLIC_FACEBOOK_APP_ID:-}"
+GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
 
 if [[ -z "${PG_PASSWORD}" ]]; then
   echo "Set PG_PASSWORD to a strong password before running."
@@ -160,6 +163,8 @@ WEB_BUILD_LOG="$(mktemp)"
     --file "${ROOT_DIR}/apps/web/Dockerfile" \
     --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
     --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
+    --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
+    --build-arg "NEXT_PUBLIC_FACEBOOK_APP_ID=${NEXT_PUBLIC_FACEBOOK_APP_ID}" \
     "$ROOT_DIR" >/dev/null
 ) >"$WEB_BUILD_LOG" 2>&1 &
 WEB_BUILD_PID=$!
@@ -210,16 +215,34 @@ az containerapp secret set \
   --resource-group "$RG" \
   --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
 
-az containerapp update \
-  --name "$WEB_APP" \
-  --resource-group "$RG" \
-  --image "$WEB_IMAGE" \
-  --set-env-vars \
-    NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" \
-    NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
-    API_BASE_URL="https://${API_FQDN}" \
-    MEMBER_PROXY_KEY=secretref:member-proxy-key \
-    DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" >/dev/null
+if [[ -n "${GOOGLE_CLIENT_SECRET}" ]]; then
+  az containerapp secret set \
+    --name "$WEB_APP" \
+    --resource-group "$RG" \
+    --secrets google-client-secret="$GOOGLE_CLIENT_SECRET" >/dev/null
+  az containerapp update \
+    --name "$WEB_APP" \
+    --resource-group "$RG" \
+    --image "$WEB_IMAGE" \
+    --set-env-vars \
+      NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" \
+      NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
+      API_BASE_URL="https://${API_FQDN}" \
+      MEMBER_PROXY_KEY=secretref:member-proxy-key \
+      DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" \
+      GOOGLE_CLIENT_SECRET=secretref:google-client-secret >/dev/null
+else
+  az containerapp update \
+    --name "$WEB_APP" \
+    --resource-group "$RG" \
+    --image "$WEB_IMAGE" \
+    --set-env-vars \
+      NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" \
+      NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
+      API_BASE_URL="https://${API_FQDN}" \
+      MEMBER_PROXY_KEY=secretref:member-proxy-key \
+      DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" >/dev/null
+fi
 
 WEB_REVISION="$(az containerapp revision list \
   --name "$WEB_APP" \

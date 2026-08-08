@@ -7,6 +7,12 @@ export type MemberProfile = {
   identity_provider: string
   preferred_language?: string | null
   country?: string | null
+  phone_e164?: string | null
+  phone_display?: string | null
+  phone_country_code?: string | null
+  phone_verified?: boolean
+  phone_required?: boolean
+  phone_verification_required?: boolean
   personalization_enabled: boolean
   favorite_song_numbers: number[]
   is_admin: boolean

@@ -7,8 +7,8 @@ const links: ReadonlyArray<{ href: AdminSection; label: string; shortLabel: stri
   { href: "ingest", label: "Song ingestion", shortLabel: "Ingestion" },
   {
     href: "youtube",
-    label: "YouTube scheduled job review",
-    shortLabel: "YouTube review",
+    label: "YouTube channels & review",
+    shortLabel: "YouTube",
   },
   { href: "announcements", label: "Announcements", shortLabel: "Announce" },
   { href: "members", label: "Admins", shortLabel: "Admins" },

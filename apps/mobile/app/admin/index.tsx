@@ -281,7 +281,8 @@ export default function AdminScreen() {
                   </Text>
                 </View>
                 <Text style={styles.snippet}>{member.display_name}</Text>
-                <Text style={styles.meta}>{member.email}</Text>
+                <Text style={styles.meta}>{member.email ?? "No email"}</Text>
+                <Text style={styles.meta}>{member.phone_e164 ?? "No mobile"}</Text>
                 {member.is_admin && !member.is_protected ? (
                   <View style={styles.actions}>
                     <Pressable

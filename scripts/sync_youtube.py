@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import time
@@ -46,6 +47,42 @@ SEARCH_STATE_PATH = (
 )
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
 USER_AGENT = "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://github.com/drana3/PrabhatSamgiitaAI)"
+
+
+def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
+    database_url = database_url or os.environ.get("DATABASE_URL")
+    if not database_url:
+        return list(CHANNELS)
+    try:
+        import psycopg
+
+        url = database_url.replace("postgresql+psycopg://", "postgresql://")
+        with psycopg.connect(url) as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT channel_id, channel_url, name, is_trusted, notes
+                FROM youtube_scan_channels
+                WHERE is_active = true
+                ORDER BY name
+                """
+            )
+            rows = cur.fetchall()
+        if not rows:
+            return list(CHANNELS)
+        return [
+            {
+                "url": row[1],
+                "id": row[0],
+                "name": row[2],
+                "trusted": bool(row[3]),
+                "notes": row[4]
+                or f"Scanned from {row[2]}; embedded only, not re-hosted.",
+            }
+            for row in rows
+        ]
+    except Exception as exc:
+        print(f"Using default channels after DB load failed: {exc}", file=sys.stderr)
+        return list(CHANNELS)
 
 
 def fetch(url: str, payload: dict[str, Any] | None = None) -> str:
@@ -322,7 +359,8 @@ def main() -> None:
     rows_by_id = {row["metadata_json"]["external_id"]: row for row in existing_rows}
     review_by_id = {row["external_id"]: row for row in existing_review_rows}
     discovered_by_channel: dict[str, int] = {}
-    for channel in CHANNELS:
+    scan_channels = load_scan_channels()
+    for channel in scan_channels:
         try:
             discovered = channel_videos(channel, max_pages=args.max_pages)
         except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:

@@ -14,6 +14,7 @@ from app.schemas.member import (
     ChatMemoryResponse,
     ChatMemoryWrite,
     FavoriteWrite,
+    MemberPhoneWrite,
     MemberPreferencesWrite,
     MemberProfile,
     QuizEventSubmitWrite,
@@ -23,6 +24,7 @@ from app.schemas.member import (
     QuizSubmitResponse,
     QuizSubmitWrite,
 )
+from app.services.member_phone import set_member_phone
 from app.services.members import (
     clear_member_chat_memory,
     member_profile,
@@ -74,6 +76,20 @@ async def update_preferences(
     if payload.personalization_enabled is not None:
         member.personalization_enabled = payload.personalization_enabled
     await session.commit()
+    return await member_profile(session, member)
+
+
+@router.patch("/phone", response_model=MemberProfile)
+async def update_phone(
+    payload: MemberPhoneWrite, request: Request, session: DatabaseSession
+) -> MemberProfile:
+    member = await current_member(request, session)
+    await set_member_phone(
+        session,
+        member,
+        phone_country_code=payload.phone_country_code,
+        phone_number=payload.phone_number,
+    )
     return await member_profile(session, member)
 
 

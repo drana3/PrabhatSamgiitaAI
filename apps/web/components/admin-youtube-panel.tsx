@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 
 import { AdminShell } from "@/components/admin-shell"
+import { AdminYoutubeChannelsPanel } from "@/components/admin-youtube-channels-panel"
 import { readErrorDetail } from "@/lib/read-error-detail"
 
 type YoutubeReview = {
@@ -91,9 +92,11 @@ export function AdminYoutubePanel() {
   return (
     <AdminShell
       active="youtube"
-      title="YouTube scheduled job review"
-      description="Videos discovered by the batch sync that need a human match before they appear on song pages. Multiple approved videos for one song show under “More performances”."
+      title="YouTube channels & review"
+      description="Configure channels to scan, import only new videos, then approve matches in the review queue."
     >
+        <AdminYoutubeChannelsPanel />
+        <h2 className="mb-4 font-serif text-2xl text-navy-950">Review queue</h2>
         <div className="mb-4 flex flex-wrap gap-3">
           <button type="button" onClick={() => void syncQueue()} className="gold-button px-4 py-2 text-sm">
             Sync from batch output

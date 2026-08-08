@@ -1,3 +1,4 @@
+import { DEFAULT_PHONE_COUNTRY, formatPhonePayload, validateNationalPhoneNumber } from "@prabhat/core"
 import { useState } from "react"
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native"
 import { useRouter } from "expo-router"
@@ -38,6 +39,8 @@ export default function SignInScreen() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
+  const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
+  const [phoneNumber, setPhoneNumber] = useState("")
   const msalReady = microsoftAuthConfigured()
   const googleReady = googleAuthConfigured()
   const facebookReady = facebookAuthConfigured()
@@ -49,13 +52,17 @@ export default function SignInScreen() {
     router.replace(href("/(tabs)"))
   }
 
-  const completeSignIn = async (action: () => Promise<{ message?: string }>) => {
+  const completeSignIn = async (action: () => Promise<{ message?: string; needsPhone?: boolean }>) => {
     setBusy(true)
     setStatus(null)
     try {
       const result = await action()
       setStatus(result.message ?? null)
       completeWelcome()
+      if (result.needsPhone) {
+        router.replace(href("/complete-profile"))
+        return
+      }
       router.replace(href("/(tabs)/index"))
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Sign-in failed.")
@@ -66,8 +73,19 @@ export default function SignInScreen() {
 
   const submitEmail = async () => {
     if (emailMode === "signup") {
+      const phoneError = validateNationalPhoneNumber(phoneCountryCode, phoneNumber)
+      if (phoneError) {
+        setStatus(phoneError)
+        return
+      }
       await completeSignIn(() =>
-        signUpWithEmailPassword(email, password, displayName || email.split("@")[0] || "Member"),
+        signUpWithEmailPassword(
+          email,
+          password,
+          displayName || email.split("@")[0] || "Member",
+          phoneCountryCode,
+          phoneNumber,
+        ),
       )
       return
     }
@@ -151,6 +169,24 @@ export default function SignInScreen() {
             style={styles.input}
           />
         ) : null}
+        {emailMode === "signup" ? (
+          <>
+            <TextInput
+              value={phoneCountryCode}
+              onChangeText={(value) => setPhoneCountryCode(value.toUpperCase().slice(0, 2))}
+              placeholder="Country (IN)"
+              autoCapitalize="characters"
+              style={styles.input}
+            />
+            <TextInput
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder="Mobile number"
+              keyboardType="phone-pad"
+              style={styles.input}
+            />
+          </>
+        ) : null}
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -169,7 +205,13 @@ export default function SignInScreen() {
         <PrimaryButton
           label={emailMode === "signup" ? "Create account" : "Sign in with email"}
           onPress={() => void submitEmail()}
-          disabled={busy || !email || password.length < (emailMode === "signup" ? 8 : 1)}
+          disabled={
+            busy ||
+            !email ||
+            password.length < (emailMode === "signup" ? 8 : 1) ||
+            (emailMode === "signup" &&
+              validateNationalPhoneNumber(phoneCountryCode, phoneNumber) !== null)
+          }
         />
 
         <SecondaryButton label="Continue without account" onPress={continueGuest} />

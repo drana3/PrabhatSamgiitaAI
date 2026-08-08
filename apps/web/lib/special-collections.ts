@@ -41,7 +41,6 @@ const displayLabelOverrides: Record<string, string> = {
   "Urdu Songs": "Urdu",
   "Aungika Songs": "Aungika",
   "Maethili Song": "Maithili",
-  "Bengali Dialect Songs": "Bengali dialects",
   "Shiva Songs": "Shiva",
   "Krśńa Songs": "Krśńa",
   "Krśńa and Devotees Songs": "Krśńa and devotees",
@@ -158,7 +157,6 @@ const groupDefinitions: GroupDefinition[] = [
       { canonicalLabel: "Urdu Songs" },
       { canonicalLabel: "Aungika Songs" },
       { canonicalLabel: "Maethili Song" },
-      { canonicalLabel: "Bengali Dialect Songs" },
     ],
   },
   {

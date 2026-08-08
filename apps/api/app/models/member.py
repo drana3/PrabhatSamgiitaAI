@@ -23,6 +23,9 @@ class UserAccount(Base, TimestampMixin):
     avatar_url: Mapped[str | None] = mapped_column(Text)
     preferred_language: Mapped[str | None] = mapped_column(String(32))
     country: Mapped[str | None] = mapped_column(String(128))
+    phone_e164: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)
+    phone_country_code: Mapped[str | None] = mapped_column(String(2))
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     personalization_enabled: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="true", nullable=False
     )
@@ -34,6 +37,18 @@ class UserAccount(Base, TimestampMixin):
     )
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PhoneVerificationCode(Base, TimestampMixin):
+    __tablename__ = "phone_verification_codes"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("user_accounts.id", ondelete="CASCADE"), index=True
+    )
+    phone_e164: Mapped[str] = mapped_column(String(20), nullable=False)
+    code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class UserCredential(Base, TimestampMixin):

@@ -9,10 +9,16 @@ type MemberRow = {
   id: string
   display_name: string
   email: string | null
+  phone_e164?: string | null
   identity_provider?: string | null
   last_seen_at?: string | null
   is_admin: boolean
   is_protected: boolean
+}
+
+function formatPhone(value: string | null | undefined) {
+  if (!value) return "—"
+  return value
 }
 
 function formatSeen(value: string | null | undefined) {
@@ -157,7 +163,7 @@ export default function AdminMembersPage() {
           <div className="min-w-0 flex-1">
             <h2 className="font-serif text-2xl text-navy-950">Signed-in members</h2>
             <p className="mt-1 text-sm text-stone-600">
-              Filter by name or email, then promote one or multiple members at once.
+              Filter by name, email, or mobile number, then promote one or multiple members at once.
             </p>
           </div>
           <button
@@ -180,7 +186,7 @@ export default function AdminMembersPage() {
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Name or email"
+            placeholder="Name, email, or mobile"
             className="mt-2 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm outline-none transition focus:border-gold-500"
           />
         </label>
@@ -197,7 +203,7 @@ export default function AdminMembersPage() {
         ) : null}
 
         <div className="mt-4 overflow-hidden rounded-xl border border-navy-900/10">
-          <div className="grid grid-cols-[auto_1fr_1fr_auto_auto] gap-3 border-b border-navy-900/10 bg-ivory-50 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] gap-3 border-b border-navy-900/10 bg-ivory-50 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -210,6 +216,7 @@ export default function AdminMembersPage() {
             </label>
             <span>Member</span>
             <span>Email</span>
+            <span>Mobile</span>
             <span>Last seen</span>
             <span>Status</span>
           </div>
@@ -228,7 +235,7 @@ export default function AdminMembersPage() {
             ? signedIn.map((member) => (
                 <div
                   key={member.id}
-                  className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-center gap-3 border-b border-navy-900/5 px-4 py-3 last:border-b-0"
+                  className="grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] items-center gap-3 border-b border-navy-900/5 px-4 py-3 last:border-b-0"
                 >
                   <input
                     type="checkbox"
@@ -242,6 +249,7 @@ export default function AdminMembersPage() {
                     <p className="truncate text-xs text-stone-500">{member.identity_provider ?? "member"}</p>
                   </div>
                   <p className="truncate text-sm text-stone-600">{member.email ?? "No email"}</p>
+                  <p className="truncate text-sm text-stone-600">{formatPhone(member.phone_e164)}</p>
                   <p className="whitespace-nowrap text-xs text-stone-500">{formatSeen(member.last_seen_at)}</p>
                   <span
                     className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
@@ -276,6 +284,7 @@ export default function AdminMembersPage() {
             <div>
               <p className="font-semibold text-navy-950">{member.display_name}</p>
               <p className="text-sm text-stone-600">{member.email ?? "No email on file"}</p>
+              <p className="text-sm text-stone-600">{formatPhone(member.phone_e164)}</p>
             </div>
             <div className="flex items-center gap-2">
               {member.is_protected ? (

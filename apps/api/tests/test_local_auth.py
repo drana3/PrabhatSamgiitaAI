@@ -11,6 +11,8 @@ from app.schemas.auth import LocalLoginWrite, LocalRegisterWrite
 from app.services.local_auth import login_local_user, register_local_user
 from app.services.members import decode_client_principal
 
+VALID_PHONE = {"phone_country_code": "IN", "phone_number": "9876543210"}
+
 
 class _AuthSession:
     def __init__(self):
@@ -32,6 +34,15 @@ class _AuthSession:
         return None
 
     async def scalar(self, statement):
+        entity = statement.column_descriptions[0].get("entity")
+        if entity is UserAccount and statement.whereclause is not None:
+            resolved = getattr(statement.whereclause.right, "value", None)
+            if resolved is not None:
+                for account in self.accounts:
+                    if account.phone_e164 == resolved or (
+                        account.email and account.email.casefold() == str(resolved).casefold()
+                    ):
+                        return account
         sql = str(statement.compile(compile_kwargs={"literal_binds": True})).casefold()
         if "from user_credentials" in sql:
             for credential in self.credentials:
@@ -80,6 +91,7 @@ async def test_register_and_login_local_user_returns_member_principal() -> None:
             email="member@example.com",
             password="secure-pass-1",
             display_name="Member",
+            **VALID_PHONE,
         ),
     )
     identity = decode_client_principal(registered.client_principal)
@@ -113,6 +125,7 @@ async def test_register_rejects_existing_oauth_email() -> None:
                 email="member@example.com",
                 password="secure-pass-1",
                 display_name="Member",
+                **VALID_PHONE,
             ),
         )
     assert error.value.status_code == 409
@@ -128,6 +141,7 @@ async def test_register_rejects_duplicate_local_email() -> None:
             email="member@example.com",
             password="secure-pass-1",
             display_name="Member",
+            **VALID_PHONE,
         ),
     )
 
@@ -138,6 +152,8 @@ async def test_register_rejects_duplicate_local_email() -> None:
                 email="member@example.com",
                 password="another-pass-1",
                 display_name="Someone else",
+                phone_country_code="IN",
+                phone_number="9123456789",
             ),
         )
     assert error.value.status_code == 409
@@ -153,6 +169,7 @@ async def test_login_rejects_invalid_password() -> None:
             email="member@example.com",
             password="secure-pass-1",
             display_name="Member",
+            **VALID_PHONE,
         ),
     )
     with pytest.raises(HTTPException) as error:

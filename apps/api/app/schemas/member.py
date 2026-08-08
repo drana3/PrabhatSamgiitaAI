@@ -16,6 +16,12 @@ class MemberProfile(BaseModel):
     identity_provider: str
     preferred_language: str | None = None
     country: str | None = None
+    phone_e164: str | None = None
+    phone_display: str | None = None
+    phone_country_code: str | None = None
+    phone_verified: bool = False
+    phone_required: bool = False
+    phone_verification_required: bool = False
     personalization_enabled: bool = True
     is_admin: bool = False
     is_super_admin: bool = False
@@ -26,6 +32,7 @@ class AdminMemberItem(BaseModel):
     id: UUID
     display_name: str
     email: str | None = None
+    phone_e164: str | None = None
     identity_provider: str | None = None
     last_seen_at: str | None = None
     is_admin: bool
@@ -76,6 +83,15 @@ class MemberPreferencesWrite(BaseModel):
     preferred_language: str | None = Field(default=None, max_length=32)
     country: str | None = Field(default=None, max_length=128)
     personalization_enabled: bool | None = None
+
+
+class MemberPhoneWrite(BaseModel):
+    phone_country_code: str = Field(min_length=2, max_length=2, pattern=r"^[A-Za-z]{2}$")
+    phone_number: str = Field(min_length=4, max_length=20)
+
+
+class PhoneVerifyWrite(BaseModel):
+    code: str = Field(min_length=4, max_length=8)
 
 
 QuizLevel = Literal["starter", "intermediate", "experienced"]

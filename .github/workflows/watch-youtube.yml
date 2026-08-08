@@ -34,8 +34,13 @@ jobs:
           cd apps/api
           uv sync --frozen --extra dev
 
-      - name: Scan allow-listed Prabhat Samgiita channels
-        run: apps/api/.venv/bin/python scripts/sync_youtube.py --general-search-limit 20
+      - name: Scan configured YouTube channels
+        env:
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+        run: |
+          PG_HOST=prabhatai-pg.postgres.database.azure.com
+          export DATABASE_URL="postgresql+psycopg://codexadmin:${PG_PASSWORD}@${PG_HOST}:5432/prabhatai?sslmode=require"
+          apps/api/.venv/bin/python scripts/sync_youtube.py --general-search-limit 0
 
       - name: Validate media inventory
         run: |

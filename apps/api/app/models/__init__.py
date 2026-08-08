@@ -1,4 +1,8 @@
-from app.models.admin_workflow import SongIngestionSubmission, YoutubeReviewQueue
+from app.models.admin_workflow import (
+    SongIngestionSubmission,
+    YoutubeReviewQueue,
+    YoutubeScanChannel,
+)
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
 from app.models.base import Base
 from app.models.chunk import SongChunk
@@ -22,6 +26,7 @@ from app.models.media import Media
 from app.models.member import (
     CommunityTestimonial,
     InspirationStoryRecord,
+    PhoneVerificationCode,
     QuizAttempt,
     QuizCertification,
     QuizEvent,
@@ -53,6 +58,7 @@ __all__ = [
     "Notation",
     "Occasion",
     "PasswordResetToken",
+    "PhoneVerificationCode",
     "QuizAttempt",
     "QuizCertification",
     "QuizEvent",
@@ -78,4 +84,5 @@ __all__ = [
     "UserPlaylist",
     "UserPlaylistSong",
     "YoutubeReviewQueue",
+    "YoutubeScanChannel",
 ]

@@ -99,6 +99,40 @@ class YoutubeReviewApproveWrite(BaseModel):
     is_primary: bool = True
 
 
+class YoutubeScanChannelItem(BaseModel):
+    id: str
+    name: str
+    channel_id: str
+    channel_url: str
+    is_trusted: bool
+    is_active: bool
+    notes: str | None = None
+    last_scanned_at: str | None = None
+    last_scan_discovered: int
+    last_scan_new: int
+    last_scan_known: int
+    created_at: str
+
+
+class YoutubeScanChannelListResponse(BaseModel):
+    items: list[YoutubeScanChannelItem]
+
+
+class YoutubeScanChannelCreateWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    channel_url: str = Field(min_length=8, max_length=1024)
+    channel_id: str | None = Field(default=None, max_length=128)
+    is_trusted: bool = True
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class YoutubeScanChannelScanResult(BaseModel):
+    discovered: int
+    already_known: int
+    new_queued_for_review: int
+    new_auto_linked: int
+
+
 class LanguageCheckRequest(BaseModel):
     language: str
     text: str

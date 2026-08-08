@@ -12,8 +12,5 @@ export function googleAuthEnabled() {
 }
 
 export function facebookAuthEnabled() {
-  return (
-    Boolean(process.env.NEXT_PUBLIC_FACEBOOK_APP_ID?.trim()) ||
-    process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
-  )
+  return process.env.NEXT_PUBLIC_FACEBOOK_AUTH_ENABLED === "true"
 }

@@ -109,6 +109,7 @@ async def list_signed_in_members(
         statement = statement.where(
             func.lower(UserAccount.email).like(needle)
             | func.lower(UserAccount.display_name).like(needle)
+            | func.lower(UserAccount.phone_e164).like(needle)
         )
     rows = list(
         (

@@ -66,6 +66,14 @@ async function finishSignIn(input: {
         "Signed in locally. Member API session could not load — confirm MEMBER_PROXY_KEY and network.",
     }
   }
+  if (hydrated.profile.phone_required) {
+    return {
+      ok: true as const,
+      memberBackend: true,
+      needsPhone: true,
+      message: "Add your mobile number to finish setting up your account.",
+    }
+  }
   return {
     ok: true as const,
     memberBackend: true,
@@ -137,8 +145,16 @@ export async function signUpWithEmailPassword(
   email: string,
   password: string,
   displayName: string,
+  phoneCountryCode: string,
+  phoneNumber: string,
 ) {
-  const session = await registerWithEmail({ email, password, displayName })
+  const session = await registerWithEmail({
+    email,
+    password,
+    displayName,
+    phoneCountryCode,
+    phoneNumber,
+  })
   return finishSignIn({
     displayName: session.display_name,
     email: session.email,

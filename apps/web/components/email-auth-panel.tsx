@@ -1,7 +1,9 @@
 "use client"
 
+import { DEFAULT_PHONE_COUNTRY, formatPhonePayload } from "@prabhat/core"
 import { useState } from "react"
 
+import { PhoneInput, phoneInputValid } from "@/components/phone-input"
 import { signInReturnPath } from "@/lib/sign-in"
 
 type Mode = "signin" | "signup"
@@ -18,6 +20,8 @@ export function EmailAuthPanel({ next }: { next: string }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
+  const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
+  const [phoneNumber, setPhoneNumber] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,7 +33,12 @@ export function EmailAuthPanel({ next }: { next: string }) {
       const endpoint = mode === "signup" ? "/api/auth/register" : "/api/auth/login"
       const body =
         mode === "signup"
-          ? { email, password, display_name: displayName || email.split("@")[0] || "Member" }
+          ? {
+              email,
+              password,
+              display_name: displayName || email.split("@")[0] || "Member",
+              ...formatPhonePayload(phoneCountryCode, phoneNumber),
+            }
           : { email, password }
       const response = await fetch(endpoint, {
         method: "POST",
@@ -95,6 +104,15 @@ export function EmailAuthPanel({ next }: { next: string }) {
             />
           </label>
         ) : null}
+        {mode === "signup" ? (
+          <PhoneInput
+            countryCode={phoneCountryCode}
+            nationalNumber={phoneNumber}
+            onCountryCodeChange={setPhoneCountryCode}
+            onNationalNumberChange={setPhoneNumber}
+            disabled={busy}
+          />
+        ) : null}
         <label className="grid gap-1.5 text-sm">
           <span className="font-semibold text-navy-950">Email</span>
           <input
@@ -132,7 +150,14 @@ export function EmailAuthPanel({ next }: { next: string }) {
             {error}
           </p>
         ) : null}
-        <button type="submit" disabled={busy} className="primary-button mt-1">
+        <button
+          type="submit"
+          disabled={
+            busy ||
+            (mode === "signup" && !phoneInputValid(phoneCountryCode, phoneNumber))
+          }
+          className="primary-button mt-1"
+        >
           {busy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in with email"}
         </button>
       </form>

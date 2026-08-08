@@ -23,6 +23,7 @@ from app.models import (
 )
 from app.schemas.member import ChatHistoryDay, ChatMemoryTurn, ChatMemoryWrite, MemberProfile
 from app.services.admin_members import ensure_ephemeral_smoke_admin, is_ephemeral_member
+from app.services.member_phone import phone_profile_fields
 
 NAME_CLAIMS = {
     "name",
@@ -405,6 +406,7 @@ async def member_profile(session: AsyncSession, member: UserAccount) -> MemberPr
         is_admin=member.is_admin,
         is_super_admin=bool(member.is_super_admin),
         favorite_song_numbers=favorites,
+        **phone_profile_fields(member),
     )
 
 

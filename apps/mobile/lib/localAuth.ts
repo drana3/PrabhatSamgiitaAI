@@ -27,11 +27,15 @@ export async function registerWithEmail(input: {
   email: string
   password: string
   displayName: string
+  phoneCountryCode: string
+  phoneNumber: string
 }) {
   return postAuth("register", {
     email: input.email,
     password: input.password,
     display_name: input.displayName,
+    phone_country_code: input.phoneCountryCode,
+    phone_number: input.phoneNumber.replace(/\D/g, ""),
   })
 }
 

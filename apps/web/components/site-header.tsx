@@ -14,7 +14,7 @@ const navigation = [
 
 export function SiteHeader({ active = "Home" }: { active?: string }) {
   return (
-    <div className="sticky top-0 z-50">
+    <div className="sticky top-0 z-50 overflow-x-clip">
       <CommunityFeedbackTicker />
       <header className="border-b border-navy-900/10 bg-ivory-50/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[5.25rem] max-w-[90rem] items-center justify-between gap-5 px-4 sm:px-6 lg:px-10">

@@ -92,14 +92,12 @@ export async function completeGoogleOAuth(code: string) {
     throw new Error("Google sign-in expired. Please try again.")
   }
 
-  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+  const tokenResponse = await fetch("/api/auth/google/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       code,
       redirect_uri: googleRedirectUri(),
-      grant_type: "authorization_code",
       code_verifier: verifier,
     }),
   })

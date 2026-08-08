@@ -9,7 +9,10 @@
   --ivory: #fffaf0;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
 
 body,
 button,
@@ -24,6 +27,7 @@ select {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: clip;
   background: #fffaf0;
   color: #092d56;
 }
@@ -97,6 +101,8 @@ button { cursor: pointer; }
 
 .community-feedback-ticker {
   overflow: hidden;
+  max-width: 100%;
+  contain: paint;
 }
 
 .community-feedback-ticker__viewport {
@@ -134,7 +140,7 @@ button { cursor: pointer; }
   /* The track must stay a single clipped row. Wrapping every voice instead grew
      the sticky header past the viewport height and buried the navigation. */
   .community-feedback-ticker__viewport {
-    overflow-x: auto;
+    overflow-x: clip;
     scrollbar-width: none;
   }
 

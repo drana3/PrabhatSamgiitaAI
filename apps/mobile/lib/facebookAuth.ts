@@ -20,7 +20,9 @@ function facebookAppId() {
 }
 
 export function facebookAuthConfigured() {
-  return Boolean(facebookAppId())
+  return (
+    process.env.EXPO_PUBLIC_FACEBOOK_AUTH_ENABLED === "true" && Boolean(facebookAppId())
+  )
 }
 
 export function getFacebookRedirectUri() {

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -37,6 +37,25 @@ class YoutubeReviewQueue(Base, TimestampMixin):
     review_note: Mapped[str | None] = mapped_column(Text)
     reviewed_by: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class YoutubeScanChannel(Base, TimestampMixin):
+    __tablename__ = "youtube_scan_channels"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    channel_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    channel_url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    is_trusted: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    notes: Mapped[str | None] = mapped_column(Text)
+    last_scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_scan_discovered: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_scan_new: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_scan_known: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_by: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("user_accounts.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class SongIngestionSubmission(Base, TimestampMixin):

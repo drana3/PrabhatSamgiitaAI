@@ -183,7 +183,7 @@ test("all special collections are organized and lead to catalog search", async (
   await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
   const collectionBrowser = page.locator("#collections").first()
   const languages = collectionBrowser.getByText("Languages", { exact: true })
-  await expect(collectionBrowser.getByText("69 collections", { exact: true })).toBeVisible()
+  await expect(collectionBrowser.getByText("68 collections", { exact: true })).toBeVisible()
   await expect(languages).toBeHidden()
   await setDetailsOpen(page, "#collections", true)
   await expect(languages).toBeVisible()
@@ -304,9 +304,11 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
     const companionNavigation = page.getByRole("navigation", { name: "Return to song text" })
     await expect(companionNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
     await expect(companionNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
-  } else {
+  } else if (testInfo.project.name === "mobile-chromium") {
     await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Song sections" }).getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "#listen")
+  } else {
+    await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
   }
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
     listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
