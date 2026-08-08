@@ -25,6 +25,8 @@ type PlayerState = {
   togglePlay: () => void
   play: () => void
   pause: () => void
+  /** Pause playback and reopen the mic for speech recognition. */
+  prepareForSpeechCapture: () => Promise<void>
   seekTo: (position: number) => void
   seekBy: (deltaSeconds: number) => void
   setVolume: (volume: number) => void
@@ -74,6 +76,16 @@ async function setPlaybackMode() {
     shouldDuckAndroid: true,
     playThroughEarpieceAndroid: false,
   })
+}
+
+function isIosPlatform() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform: { OS: string } }
+    return Platform.OS === "ios"
+  } catch {
+    return false
+  }
 }
 
 /** Stop every native stream, including orphans that lost their JS handle. */
@@ -424,6 +436,42 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       // No JS handle — kill orphan native streams only in that case.
       await silenceAllAudio()
     })
+  },
+
+  prepareForSpeechCapture: async () => {
+    bag.__psPlayToken += 1
+    set({ isPlaying: false, isBuffering: false })
+    await enqueueAudio(async () => {
+      const current = getSound()
+      if (current) {
+        try {
+          await current.pauseAsync()
+        } catch {
+          try {
+            await current.setStatusAsync({ shouldPlay: false })
+          } catch {
+            /* ignore */
+          }
+        }
+        return
+      }
+      await silenceAllAudio()
+    })
+    if (!isIosPlatform()) {
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      return
+    }
+    try {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        allowsRecordingIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      })
+    } catch {
+      /* ignore */
+    }
   },
 
   seekTo: (position) => {

@@ -167,8 +167,8 @@ export default function ProfileScreen() {
                 label="Delete account data"
                 onPress={() =>
                   Alert.alert(
-                    "Delete account",
-                    "This calls DELETE /api/v1/members/me — same as the website account page.",
+                    "Delete account?",
+                    "This permanently removes your member profile, saved songs, quiz progress, and chat history. This cannot be undone.",
                     [
                       { text: "Cancel", style: "cancel" },
                       {

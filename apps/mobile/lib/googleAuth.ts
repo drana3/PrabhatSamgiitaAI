@@ -1,40 +1,51 @@
+import * as Application from "expo-application"
 import * as AuthSession from "expo-auth-session"
+import { discovery } from "expo-auth-session/providers/google"
 import * as WebBrowser from "expo-web-browser"
-import Constants from "expo-constants"
 
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
-import { makeOAuthRedirectUri, redirectUriMismatchMessage } from "@/lib/oauthRedirect"
+import {
+  googleAuthConfigured,
+  googleNativeClientId,
+  googleRedirectUriForClient,
+  googleSetupHint,
+} from "@/lib/googleOAuthConfig"
 
 WebBrowser.maybeCompleteAuthSession()
 
-const discovery = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
+export { googleAuthConfigured, googleSetupHint } from "@/lib/googleOAuthConfig"
+
+function resolveGoogleClientId() {
+  return googleNativeClientId()
 }
 
-function googleClientId() {
-  return (
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ||
-    (Constants.expoConfig?.extra?.googleClientId as string | undefined)?.trim() ||
-    ""
-  )
-}
-
-export function googleAuthConfigured() {
-  return Boolean(googleClientId())
-}
-
-export function getGoogleRedirectUri() {
-  return makeOAuthRedirectUri({ path: "auth/google" })
+function googleOAuthErrorMessage(
+  result: AuthSession.AuthSessionResult,
+  clientId: string,
+  redirectUri: string,
+) {
+  if (result.type === "dismiss") return "Sign-in was cancelled."
+  const oauthError = result.params?.error_description || result.params?.error
+  if (typeof oauthError === "string") {
+    if (/redirect_uri|invalid_request|client_id/i.test(oauthError)) {
+      const suffix = clientId.endsWith(".apps.googleusercontent.com") ? "" : " (check iOS client ID)"
+      return `${oauthError}${suffix}\nRedirect: ${redirectUri}\n${googleSetupHint()}`
+    }
+    return oauthError
+  }
+  return "Google sign-in didn’t finish. Try again."
 }
 
 export async function signInWithGoogle(): Promise<OAuthIdentity> {
-  const clientId = googleClientId()
+  const clientId = resolveGoogleClientId()
   if (!clientId) {
-    throw new Error("Google sign-in is not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID.")
+    throw new Error(googleSetupHint())
   }
 
-  const redirectUri = getGoogleRedirectUri()
+  const redirectUri =
+    Application.applicationId?.trim()
+      ? `${Application.applicationId}:/oauthredirect`
+      : googleRedirectUriForClient(clientId)
   const request = new AuthSession.AuthRequest({
     clientId,
     redirectUri,
@@ -45,14 +56,12 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
   })
 
   await request.makeAuthUrlAsync(discovery)
-  const result = await request.promptAsync(discovery, { showInRecents: true })
+  const result = await request.promptAsync(discovery, {
+    showInRecents: true,
+    preferEphemeralSession: true,
+  })
   if (result.type !== "success" || !result.params.code) {
-    if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
-    const oauthError = result.params?.error_description || result.params?.error
-    if (typeof oauthError === "string" && /redirect_uri/i.test(oauthError)) {
-      throw new Error(redirectUriMismatchMessage("Google"))
-    }
-    throw new Error("Google sign-in didn’t finish. Try again.")
+    throw new Error(googleOAuthErrorMessage(result, clientId, redirectUri))
   }
 
   const tokenResult = await AuthSession.exchangeCodeAsync(
@@ -66,7 +75,7 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
   )
 
   const accessToken = tokenResult.accessToken
-  if (!accessToken) throw new Error("Google did not return an access token.")
+  if (!accessToken) throw new Error("Google sign-in did not return an access token.")
 
   const profile = (await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },

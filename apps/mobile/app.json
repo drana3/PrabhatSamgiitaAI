@@ -32,6 +32,7 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
+      "./plugins/withIosProjectRootFix",
       [
         "expo-speech-recognition",
         {

@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { Clock, X } from "lucide-react-native"
 import { queryGuidanceFor, queryIsUseful } from "@prabhat/core"
 
@@ -18,6 +18,7 @@ import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { collectionCount } from "@/data/collections"
 import { popularSearches, type MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { resolveSearchMode } from "@/lib/searchMode"
@@ -28,22 +29,26 @@ import { href } from "@/utils/href"
 
 const DEBOUNCE_MS = 350
 
+function shouldRunSearch(value: string) {
+  const trimmed = value.trim()
+  return trimmed.length >= 2 && queryIsUseful(trimmed, 200)
+}
+
 export default function SearchScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ q?: string; listen?: string }>()
+  const params = useLocalSearchParams<{ q?: string; listen?: string; focus?: string }>()
   const initial = typeof params.q === "string" ? params.q : ""
   const [query, setQuery] = useState(initial)
   const recents = usePreferencesStore((s) => s.searchRecents)
   const addSearchRecent = usePreferencesStore((s) => s.addSearchRecent)
   const clearSearchRecents = usePreferencesStore((s) => s.clearSearchRecents)
   const [results, setResults] = useState<MockSong[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(() => shouldRunSearch(initial))
   const [error, setError] = useState<string | null>(null)
   const [voiceBusy, setVoiceBusy] = useState(false)
   const [voiceNote, setVoiceNote] = useState<string | null>(null)
   const requestId = useRef(0)
   const inputRef = useRef<TextInput>(null)
-  const autoListenStarted = useRef(false)
 
   const submitVoice = useCallback(
     async (transcript: string) => {
@@ -81,14 +86,33 @@ export default function SearchScreen() {
   const { listening, error: voiceError, setError: setVoiceError, start, stop, toggle } = voice
 
   useEffect(() => {
-    if (typeof params.q === "string") setQuery(params.q)
+    if (typeof params.q !== "string") return
+    setQuery(params.q)
+    if (shouldRunSearch(params.q)) {
+      setResults([])
+      setError(null)
+      setLoading(true)
+    }
   }, [params.q])
 
+  useFocusEffect(
+    useCallback(() => {
+      if (params.listen !== "1") return
+      const handle = setTimeout(() => {
+        void start()
+      }, 180)
+      return () => {
+        clearTimeout(handle)
+        stop()
+      }
+    }, [params.listen, start, stop]),
+  )
+
   useEffect(() => {
-    if (params.listen !== "1" || autoListenStarted.current) return
-    autoListenStarted.current = true
-    void start()
-  }, [params.listen, start])
+    if (params.focus !== "1") return
+    const handle = setTimeout(() => inputRef.current?.focus(), 120)
+    return () => clearTimeout(handle)
+  }, [params.focus])
 
   const runSearch = useCallback(async (nextQuery: string) => {
     const trimmed = nextQuery.trim()
@@ -131,6 +155,7 @@ export default function SearchScreen() {
 
   const isCollectionQuery = query.toLowerCase().includes("search prabhat samgiita for")
   const showResults = query.trim().length >= 2
+  const resultsTitle = loading ? "Searching…" : isCollectionQuery ? "Collection results" : "Songs"
   const voiceStatus = listening
     ? "Listening… speak a song number or theme."
     : voiceBusy
@@ -138,10 +163,11 @@ export default function SearchScreen() {
       : voiceError
 
   return (
-    <ScreenContainer edges={["top", "bottom"]} padded={false} title="Search">
+    <ScreenContainer edges={["top", "bottom"]} padded={false} title="Explore">
       <View style={styles.searchWrap}>
         <SearchBar
           editable
+          autoFocus={params.focus === "1"}
           showSparkle={false}
           showMic
           inputRef={inputRef}
@@ -174,11 +200,14 @@ export default function SearchScreen() {
           ListHeaderComponent={
             <View style={{ marginBottom: spacing.md }}>
               <View style={styles.resultHeader}>
-                <Text style={styles.section}>
-                  {isCollectionQuery ? "Collection results" : "Songs"}
-                </Text>
+                <Text style={styles.section}>{resultsTitle}</Text>
                 {loading ? <ActivityIndicator color={colors.primary} /> : null}
               </View>
+              {loading ? (
+                <Text style={styles.searching}>
+                  Searching meanings and themes across the catalog…
+                </Text>
+              ) : null}
               {voiceNote ? <Text style={styles.hint}>{voiceNote}</Text> : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
               {!loading && !error && results.length === 0 ? (
@@ -251,7 +280,9 @@ export default function SearchScreen() {
           </View>
 
           <Pressable style={styles.collectionsLink} onPress={() => router.push(href("/collections"))}>
-            <Text style={styles.collectionsText}>Browse all 69 special collections →</Text>
+            <Text style={styles.collectionsText}>
+              Browse all {collectionCount} special collections →
+            </Text>
           </Pressable>
         </View>
       )}
@@ -278,6 +309,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   hint: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
+  searching: { ...typography.bodySmall, color: colors.textSecondary, marginBottom: spacing.sm },
   error: { ...typography.bodySmall, color: colors.error, marginBottom: spacing.sm },
   recentRow: {
     flexDirection: "row",

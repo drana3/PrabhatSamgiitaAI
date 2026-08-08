@@ -82,8 +82,8 @@ export default function AdminScreen() {
           <Shield size={28} color={colors.primary} />
           <Text style={styles.lockedTitle}>Admin only</Text>
           <Text style={styles.lockedBody}>
-            Mirrors website `/admin/feedback` and `/admin/members`. Admin access comes from your
-            member account after an owner promotes you or sets `is_admin` in the database.
+            Admin tools are available only to team members with admin access. Ask an existing admin
+            to grant access from the Members tab.
           </Text>
           <PrimaryButton label="Go to Profile" onPress={() => router.replace(href("/(tabs)/profile"))} />
         </View>
@@ -183,14 +183,15 @@ export default function AdminScreen() {
 
       {!memberAuthAvailable() ? (
         <Text style={styles.warn}>
-          Set EXPO_PUBLIC_MEMBER_PROXY_KEY to load live admin APIs.
+          Member sync is not configured on this build. Admin data cannot load until the app is set up
+          for your environment.
         </Text>
       ) : null}
 
       <ScrollView contentContainerStyle={styles.content}>
         {tab === "feedback" ? (
           <>
-            <Text style={styles.heroSub}>Live triage from `/members/admin/feedback`.</Text>
+            <Text style={styles.heroSub}>Review member feedback and choose what appears on the home ticker.</Text>
             <View style={styles.filterRow}>
               {(["new", "reviewed", "actioned", "all"] as FeedbackFilter[]).map((value) => (
                 <Pressable
@@ -248,7 +249,7 @@ export default function AdminScreen() {
           </>
         ) : (
           <>
-            <Text style={styles.heroSub}>Live members from `/members/admin/users`.</Text>
+            <Text style={styles.heroSub}>View members and grant or revoke admin access.</Text>
             <View style={styles.grantRow}>
               <TextInput
                 value={grantEmail}

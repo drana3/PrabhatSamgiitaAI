@@ -13,7 +13,7 @@ type Voice = { id: string; quote: string; name: string }
 const SPEED_PX_PER_SEC = 36
 
 function mergeLiveVoices(
-  rows: Array<{ quote_text: string; display_name: string; display_location?: string | null }>,
+  rows: { quote_text: string; display_name: string; display_location?: string | null }[],
 ): Voice[] {
   const live: Voice[] = []
   const seen = new Set<string>()
@@ -35,7 +35,6 @@ function mergeLiveVoices(
 
   if (!live.length) return communityVoices
 
-  // Keep a few curated fallbacks after live quotes so the strip never looks empty.
   const extras = communityVoices.filter((voice) => !seen.has(voice.quote.trim().toLowerCase()))
   return [...live, ...extras.slice(0, 2)]
 }
@@ -47,7 +46,6 @@ export function CommunityVoicesTicker() {
   const offset = useRef(new Animated.Value(0)).current
   const animRef = useRef<Animated.CompositeAnimation | null>(null)
 
-  // Refetch whenever Home gains focus so admin "Show on ticker" appears immediately.
   useFocusEffect(
     useCallback(() => {
       let active = true
@@ -108,14 +106,12 @@ export function CommunityVoicesTicker() {
               importantForAccessibility={index >= voices.length ? "no-hide-descendants" : "auto"}
             >
               <Text style={styles.star}>✦</Text>
-              <Text style={styles.name} numberOfLines={1}>
-                {voice.name}
+              <Text style={styles.line}>
+                <Text style={styles.name}>{voice.name}</Text>
+                <Text style={styles.dash}> — </Text>
+                <Text style={styles.quote}>“{voice.quote}”</Text>
               </Text>
-              <Text style={styles.dash}>—</Text>
-              <Text style={styles.quote} numberOfLines={1}>
-                “{voice.quote}”
-              </Text>
-              <Text style={styles.sep}>·</Text>
+              <Text style={styles.sep}> · </Text>
             </View>
           ))}
         </Animated.View>
@@ -134,7 +130,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   viewport: {
-    height: 40,
+    minHeight: 40,
     borderRadius: 20,
     backgroundColor: colors.surfaceWarm,
     borderWidth: 1,
@@ -146,37 +142,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   item: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
     marginRight: spacing.lg,
-    maxWidth: 320,
+    flexShrink: 0,
   },
   star: {
     ...typography.caption,
     color: colors.spiritualGold,
+    marginRight: 6,
+  },
+  line: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    flexShrink: 0,
   },
   name: {
-    ...typography.caption,
     color: colors.primaryDark,
     fontFamily: "Inter_600SemiBold",
-    flexShrink: 0,
-    maxWidth: 120,
   },
   dash: {
-    ...typography.caption,
     color: colors.textMuted,
   },
   quote: {
-    ...typography.caption,
     color: colors.textPrimary,
-    flexShrink: 1,
   },
   sep: {
     ...typography.caption,
     color: colors.textMuted,
-    marginLeft: spacing.sm,
   },
 })

@@ -37,6 +37,10 @@ links are stored, never video files.
 
 ## Local development
 
+See **[docs/local-setup.md](docs/local-setup.md)** for web, API, and mobile setup (env files, simulators, OAuth, troubleshooting).
+
+Quick start:
+
 1. Copy `.env.example` to `.env` and adjust values.
 2. Start PostgreSQL:
 

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
-import type { TodayRecommendations } from "@prabhat/core"
+import { queryGuidanceFor, queryIsUseful, type TodayRecommendations } from "@prabhat/core"
 
-import { SearchBar } from "@/components/common/SearchBar"
+import { HomeHeroSearch } from "@/components/home/HomeHeroSearch"
 import { ScreenContainer, SectionHeader } from "@/components/common/ScreenContainer"
 import { CollectionsPreview } from "@/components/home/CollectionsPreview"
 import { ContinueListeningRow } from "@/components/home/ContinueListeningRow"
@@ -68,6 +68,7 @@ export default function HomeScreen() {
   const [loadingToday, setLoadingToday] = useState(true)
   const [suggestedSongs, setSuggestedSongs] = useState<MockSong[]>([])
   const [homeError, setHomeError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     let active = true
@@ -125,34 +126,56 @@ export default function HomeScreen() {
     router.push(href(`/song/${song.id}`))
   }
 
+  const submitHomeSearch = () => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed) {
+      router.push(href("/search?focus=1"))
+      return
+    }
+    if (!queryIsUseful(trimmed, 200)) {
+      Alert.alert("Try a clearer search", queryGuidanceFor(searchQuery))
+      return
+    }
+    router.push(href(`/search?focus=1&q=${encodeURIComponent(trimmed)}`))
+  }
+
   return (
     <ScreenContainer padded={false} showGuru={false}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: hasSong ? 160 : 110 }]}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
-        <GreetingHeader
-          onNotifyPress={() =>
-            mode === "guest"
-              ? router.push(href("/signin"))
-              : Alert.alert(
-                  "Daily reminders",
-                  "Push notification preferences are not available in this build yet. Open Profile for account and language settings.",
-                  [
-                    { text: "Not now", style: "cancel" },
-                    { text: "Open Profile", onPress: () => router.push(href("/(tabs)/profile")) },
-                  ],
-                )
-          }
-        />
-        <SearchBar
-          placeholder="Ask about any Prabhat Samgiita..."
-          showMic
-          onPress={() => router.push(href("/search"))}
-          onMicPress={() => router.push(href("/search?listen=1"))}
-        />
+        <ScrollView
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.content, { paddingBottom: hasSong ? 160 : 110 }]}
+        >
+          <GreetingHeader
+            onNotifyPress={() =>
+              mode === "guest"
+                ? router.push(href("/signin"))
+                : Alert.alert(
+                    "Daily reminders",
+                    "Push notification preferences are not available in this build yet. Open Profile for account and language settings.",
+                    [
+                      { text: "Not now", style: "cancel" },
+                      { text: "Open Profile", onPress: () => router.push(href("/(tabs)/profile")) },
+                    ],
+                  )
+            }
+          />
+          <View style={styles.searchSlot}>
+            <HomeHeroSearch
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmit={submitHomeSearch}
+              onMicPress={() => router.push(href("/search?listen=1"))}
+            />
+          </View>
 
-        <SiteAnnouncementsBanner />
+          <SiteAnnouncementsBanner />
 
         {homeError ? <Text style={styles.homeError}>{homeError}</Text> : null}
 
@@ -215,7 +238,7 @@ export default function HomeScreen() {
         <View style={styles.block}>
           <CollectionsPreview
             onOpenCollection={(item) =>
-              router.push(href(`/search?q=${encodeURIComponent(collectionSearchPrompt(item.label))}`))
+              router.push(href(`/search?focus=1&q=${encodeURIComponent(collectionSearchPrompt(item.label))}`))
             }
             onSeeAll={() => router.push(href("/collections"))}
           />
@@ -259,12 +282,20 @@ export default function HomeScreen() {
             onPress={() => router.push(href(mode === "guest" ? "/signin" : "/feedback"))}
           />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  searchSlot: {
+    marginTop: -spacing.lg,
+    marginBottom: spacing.md,
+    zIndex: 100,
+    elevation: 100,
+  },
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,

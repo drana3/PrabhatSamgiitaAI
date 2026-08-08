@@ -14,7 +14,7 @@ describe("search mic UX contract", () => {
   })
 
   it("keeps a mic entry point on Home, Songs, Search, Collections, and AI", () => {
-    expect(read("app/(tabs)/index.tsx")).toMatch(/showMic/)
+    expect(read("app/(tabs)/index.tsx")).toMatch(/HomeHeroSearch|Mic/)
     expect(read("app/(tabs)/songs.tsx")).toMatch(/showMic/)
     expect(read("app/search/index.tsx")).toMatch(/showMic/)
     expect(read("app/collections/index.tsx")).toMatch(/showMic/)

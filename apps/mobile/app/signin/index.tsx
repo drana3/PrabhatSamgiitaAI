@@ -24,7 +24,7 @@ import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { facebookAuthConfigured } from "@/lib/facebookAuth"
-import { googleAuthConfigured } from "@/lib/googleAuth"
+import { googleAuthConfigured, googleSetupHint } from "@/lib/googleAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { expoGoOAuthMessage } from "@/lib/oauthRedirect"
 import {
@@ -189,14 +189,11 @@ export default function SignInScreen() {
                   label="Continue with Google"
                   onPress={() => void completeSignIn(() => signInWithGoogleAccount())}
                 />
-              ) : (
+              ) : __DEV__ ? (
                 <View style={styles.hintBox}>
-                  <Text style={styles.hintText}>
-                    Google sign-in: add EXPO_PUBLIC_GOOGLE_CLIENT_ID to apps/mobile/.env and restart
-                    Expo.
-                  </Text>
+                  <Text style={styles.hintText}>{googleSetupHint()}</Text>
                 </View>
-              )}
+              ) : null}
               {facebookReady ? (
                 <SecondaryButton
                   label="Continue with Facebook"
@@ -293,9 +290,10 @@ export default function SignInScreen() {
               />
             </View>
 
-            {!memberAuthAvailable() ? (
+            {__DEV__ && !memberAuthAvailable() ? (
               <Text style={styles.syncHint}>
-                Add EXPO_PUBLIC_MEMBER_PROXY_KEY (same as website) to sync member data from the API.
+                Dev note: add EXPO_PUBLIC_MEMBER_PROXY_KEY to sync favorites, quiz, and chat memory
+                with the live API.
               </Text>
             ) : null}
 

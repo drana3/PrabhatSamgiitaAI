@@ -69,7 +69,7 @@ export default function QuizScreen() {
     if (!memberAuthAvailable()) {
       Alert.alert(
         "Member sync needed",
-        "Set EXPO_PUBLIC_MEMBER_PROXY_KEY to the same MEMBER_PROXY_KEY as the website to run the live quiz.",
+        "The live quiz is not available on this build yet. Please try again after the team shares an updated app build.",
       )
       return
     }
@@ -235,7 +235,8 @@ export default function QuizScreen() {
 
             {!memberAuthAvailable() ? (
               <Text style={styles.hint}>
-                Live quiz needs EXPO_PUBLIC_MEMBER_PROXY_KEY (same value as website MEMBER_PROXY_KEY).
+                The live quiz is not available on this build yet. Please try again after the team
+                shares an updated app build.
               </Text>
             ) : null}
           </>

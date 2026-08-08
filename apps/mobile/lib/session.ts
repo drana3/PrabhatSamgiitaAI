@@ -53,7 +53,7 @@ async function finishSignIn(input: {
       ok: true as const,
       memberBackend: false,
       message:
-        "Signed in on this device. Add EXPO_PUBLIC_MEMBER_PROXY_KEY (same as website MEMBER_PROXY_KEY) to sync favorites, quiz, and chat memory.",
+        "Signed in on this device. Favorites, quiz, and chat memory will sync after this build is fully configured.",
     }
   }
 
@@ -63,7 +63,7 @@ async function finishSignIn(input: {
       ok: true as const,
       memberBackend: false,
       message:
-        "Signed in locally. Member API session could not load — confirm MEMBER_PROXY_KEY and network.",
+        "Signed in locally. We could not reach your member account — check your connection and try again.",
     }
   }
   if (hydrated.profile.phone_required) {

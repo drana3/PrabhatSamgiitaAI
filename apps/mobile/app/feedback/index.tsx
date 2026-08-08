@@ -32,7 +32,10 @@ export default function FeedbackScreen() {
 
   const submit = async () => {
     if (mode === "guest") {
-      Alert.alert("Sign in required", "Feedback requires a signed-in member — same as the website.")
+      Alert.alert(
+        "Sign-in required",
+        "Please sign in to send feedback.",
+      )
       return
     }
     if (comment.trim().length < 3) {

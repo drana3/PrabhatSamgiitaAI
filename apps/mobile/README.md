@@ -2,6 +2,8 @@
 
 Expo app for iOS and Android. Shares API logic with the web app via `@prabhat/core`.
 
+**Full local setup (API + web + mobile):** [docs/local-setup.md](../../docs/local-setup.md)
+
 ## Setup
 
 This app keeps its own `node_modules` and lockfile. It is deliberately outside the

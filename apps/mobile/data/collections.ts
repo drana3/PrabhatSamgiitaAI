@@ -43,19 +43,23 @@ const categoryMeta: Record<string, { title: string; description: string; order: 
   },
 }
 
+const hiddenCollectionLabels = new Set(["Bengali Dialect Songs"])
+
 export const allCollections: CollectionItem[] = (rawCollections as Array<{
   label: string
   category: string
   value: string
   count: number
   source_url?: string
-}>).map((row) => ({
-  label: row.label,
-  category: row.category,
-  value: row.value,
-  count: row.count,
-  sourceUrl: row.source_url,
-}))
+}>)
+  .filter((row) => !hiddenCollectionLabels.has(row.label))
+  .map((row) => ({
+    label: row.label,
+    category: row.category,
+    value: row.value,
+    count: row.count,
+    sourceUrl: row.source_url,
+  }))
 
 export const collectionCount = allCollections.length
 

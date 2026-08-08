@@ -29,9 +29,15 @@ export function GreetingHeader({ onNotifyPress }: Props) {
   const firstName = greetFirstName(displayName, email)
 
   return (
-    <View style={styles.wrap}>
-      <Image source={brandAssets.dawn} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+    <View style={styles.wrap} pointerEvents="box-none">
+      <Image
+        pointerEvents="none"
+        source={brandAssets.dawn}
+        style={StyleSheet.absoluteFillObject}
+        contentFit="cover"
+      />
       <LinearGradient
+        pointerEvents="none"
         colors={[
           "rgba(250,247,242,0.42)",
           "rgba(250,247,242,0.78)",
@@ -63,7 +69,7 @@ export function GreetingHeader({ onNotifyPress }: Props) {
         <Text style={styles.tagline}>Music for the inner dawn</Text>
       </Pressable>
 
-      <View style={styles.greetingBlock}>
+      <View style={styles.greetingBlock} pointerEvents="none">
         <Text style={styles.greeting}>
           {mode === "guest" ? "Namaskar" : `Namaskar ${firstName}`}
         </Text>

@@ -208,36 +208,9 @@ async function pausePlaybackForMic() {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { usePlayerStore } = require("@/stores/playerStore") as {
-      usePlayerStore: { getState: () => { pause: () => void } }
+      usePlayerStore: { getState: () => { prepareForSpeechCapture: () => Promise<void> } }
     }
-    usePlayerStore.getState().pause()
-  } catch {
-    /* ignore */
-  }
-
-  // expo-av setAudioModeAsync steals the mic from Android SpeechRecognizer
-  // ("Couldn't capture audio" / ERROR_AUDIO). Only reopen the iOS session.
-  if (platformOS() !== "ios") {
-    // Give Android audio focus a moment to settle after pause before STT starts.
-    await delay(400)
-    return
-  }
-
-  try {
-    // Player previously locked iOS into allowsRecordingIOS:false — reopen the mic.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Audio } = require("expo-av") as {
-      Audio: {
-        setAudioModeAsync: (mode: Record<string, unknown>) => Promise<void>
-      }
-    }
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    })
+    await usePlayerStore.getState().prepareForSpeechCapture()
   } catch {
     /* ignore */
   }

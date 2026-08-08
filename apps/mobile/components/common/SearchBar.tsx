@@ -21,6 +21,8 @@ type Props = {
   onMicPress?: () => void
   onFilterPress?: () => void
   onSubmitEditing?: () => void
+  onFocus?: () => void
+  autoFocus?: boolean
   voiceListening?: boolean
   inputRef?: RefObject<TextInput | null>
 }
@@ -60,6 +62,8 @@ export function SearchBar({
   onMicPress,
   onFilterPress,
   onSubmitEditing,
+  onFocus,
+  autoFocus = false,
   voiceListening = false,
   inputRef,
 }: Props) {
@@ -104,9 +108,10 @@ export function SearchBar({
         {leading}
         <TextInput
           ref={inputRef}
-          autoFocus
+          autoFocus={autoFocus}
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
           style={styles.input}

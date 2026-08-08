@@ -16,7 +16,7 @@ export const featureParity = [
   { web: "Explore catalog", mobile: "Songs tab (GET /songs) + Search", status: "ui", api: "GET /songs, POST /search" },
   { web: "Semantic + catalog search", mobile: "/search catalog|semantic", status: "ui", api: "POST /search" },
   { web: "Voice search", mobile: "Native STT (dev build) or keyboard dictation → POST /search/voice", status: "ui", api: "POST /search/voice" },
-  { web: "69 special collections", mobile: "/collections", status: "ui" },
+  { web: "68 special collections", mobile: "/collections", status: "ui" },
   { web: "Song detail", mobile: "/song/[songId] live catalog only", status: "ui", api: "GET /songs/{n}" },
   { web: "Lyrics / meaning / translation", mobile: "Song language switcher + localized API", status: "ui", api: "GET /songs/{n}/localized" },
   { web: "Audio listen", mobile: "Mini + full player (expo-av in-app; hydrates audio_url)", status: "ui" },

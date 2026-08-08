@@ -1,6 +1,7 @@
 import { Image } from "expo-image"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 
+import { collectionCount } from "@/data/collections"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { brandAssets, guruCaption } from "@/constants/brand"
 import { colors } from "@/constants/colors"
@@ -36,7 +37,7 @@ export default function AboutScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>What you can do</Text>
           <Text style={styles.bullet}>· Discover today’s song and upcoming festivals</Text>
-          <Text style={styles.bullet}>· Browse all 69 special collections</Text>
+          <Text style={styles.bullet}>· Browse all {collectionCount} special collections</Text>
           <Text style={styles.bullet}>· Read lyrics, meanings, and stories</Text>
           <Text style={styles.bullet}>· Ask the AI companion for song-grounded insight</Text>
           <Text style={styles.bullet}>· Take the quiz and sync favorites when signed in</Text>
