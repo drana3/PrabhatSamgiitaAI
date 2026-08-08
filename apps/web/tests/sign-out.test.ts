@@ -30,4 +30,10 @@ describe("signOutMember", () => {
     await signOutMember("aad")
     expect(window.location.href).toBe("/.auth/logout?post_logout_redirect_uri=%2F")
   })
+
+  it("returns home for Google accounts without Easy Auth logout", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
+    await signOutMember("google")
+    expect(window.location.href).toBe("/")
+  })
 })

@@ -104,6 +104,7 @@ export default function SongDetailScreen() {
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
+  const lastAiOpenAt = useRef(0)
 
   useEffect(() => {
     let active = true
@@ -267,6 +268,13 @@ export default function SongDetailScreen() {
     playOrToggle(song, playQueue)
   }
 
+  const openAiCompanion = () => {
+    const now = Date.now()
+    if (now - lastAiOpenAt.current < 400) return
+    lastAiOpenAt.current = now
+    router.push(href(`/(tabs)/ai?song=${song.number}`))
+  }
+
   const shareSong = async () => {
     try {
       await Share.share({
@@ -350,14 +358,17 @@ export default function SongDetailScreen() {
           </View>
         </Animated.View>
 
-        <View style={styles.titleRow}>
-          <Text style={styles.englishTitle} numberOfLines={3}>
-            {displayTitle}
-          </Text>
+        <View style={styles.titleRow} pointerEvents="box-none">
+          <View style={styles.titleTextWrap} pointerEvents="none">
+            <Text style={styles.englishTitle} numberOfLines={3}>
+              {displayTitle}
+            </Text>
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open AI Companion for this song"
-            onPress={() => router.push(href(`/(tabs)/ai?song=${song.number}`))}
+            hitSlop={10}
+            onPressIn={openAiCompanion}
             style={({ pressed }) => [styles.aiCompanionChip, pressed && { opacity: 0.9 }]}
           >
             <Sparkles size={14} color={colors.white} />
@@ -552,9 +563,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.sm,
+    zIndex: 4,
   },
-  englishTitle: { ...typography.h2, color: colors.textPrimary, flex: 1 },
+  titleTextWrap: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  englishTitle: { ...typography.h2, color: colors.textPrimary },
   aiCompanionChip: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -563,6 +581,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginTop: 2,
+    minHeight: 44,
+    justifyContent: "center",
+    zIndex: 5,
+    elevation: 5,
     ...softShadow(1),
   },
   aiCompanionText: {

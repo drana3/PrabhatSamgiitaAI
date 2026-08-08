@@ -1,6 +1,7 @@
 import { clearGuestChatStorage } from "@/lib/chat"
 
-const EASY_AUTH_PROVIDERS = new Set(["aad", "google", "facebook"])
+/** Only Microsoft uses Azure Container Apps Easy Auth; Google/Facebook use app cookies. */
+const EASY_AUTH_PROVIDERS = new Set(["aad"])
 
 export async function signOutMember(identityProvider?: string) {
   clearGuestChatStorage()

@@ -40,9 +40,9 @@ export function SeekBar({
 
   return (
     <Pressable
-      accessibilityRole="adjustable"
+      accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ min: 0, max, now: position }}
+      accessibilityHint="Drag to change playback position"
       onLayout={onLayout}
       // Press-in: ScrollView must not cancel the seek gesture.
       onPressIn={(event) => seekFromX(event.nativeEvent.locationX)}
@@ -60,8 +60,6 @@ const styles = StyleSheet.create({
   hit: {
     height: 36,
     justifyContent: "center",
-    // Keep the touch target local — do not expand into neighboring controls.
-    zIndex: 1,
   },
   track: {
     height: 4,

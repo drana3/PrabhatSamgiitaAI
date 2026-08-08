@@ -80,7 +80,8 @@ export function TodaySongCard({ song, onPress, onWatch, onAskAi, playQueue }: Pr
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Ask AI about PS ${song.number}`}
-            onPress={onAskAi}
+            hitSlop={8}
+            onPressIn={onAskAi}
             style={({ pressed }) => [styles.aiBtn, pressed && { transform: [{ scale: 0.96 }] }]}
           >
             <Sparkles size={16} color={colors.white} />
@@ -147,6 +148,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     gap: spacing.sm,
+    zIndex: 3,
   },
   listenBtn: {
     flexDirection: "row",
@@ -179,6 +181,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   aiBtn: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -186,7 +189,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
-    minHeight: 40,
+    minHeight: 44,
+    zIndex: 4,
+    elevation: 4,
   },
   aiText: {
     ...typography.label,

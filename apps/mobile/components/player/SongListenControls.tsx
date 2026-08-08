@@ -144,13 +144,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.sm,
-    zIndex: 2,
   },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   playWrap: {
     width: 72,
     height: 72,
-    zIndex: 3,
   },
   bufferOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -165,7 +163,6 @@ const styles = StyleSheet.create({
   status: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   transport: {
     gap: spacing.xs,
-    zIndex: 3,
   },
   timeRow: { flexDirection: "row", justifyContent: "space-between" },
   time: { ...typography.caption, color: colors.textMuted },
