@@ -3,7 +3,8 @@ import * as WebBrowser from "expo-web-browser"
 import Constants from "expo-constants"
 
 import { identityFromIdToken, type MicrosoftIdentity } from "@/lib/msalToken"
-import { MICROSOFT_REDIRECT_PATH, MICROSOFT_REDIRECT_SCHEME } from "@/lib/msalRedirect"
+import { MICROSOFT_REDIRECT_PATH } from "@/lib/msalRedirect"
+import { makeOAuthRedirectUri, redirectUriMismatchMessage } from "@/lib/oauthRedirect"
 
 export type { MicrosoftIdentity }
 export { identityFromIdToken } from "@/lib/msalToken"
@@ -24,10 +25,7 @@ function azureConfig() {
 
 /** Redirect URI that must be registered on the Entra app (prabhatai-members). */
 export function getMicrosoftRedirectUri() {
-  return AuthSession.makeRedirectUri({
-    scheme: MICROSOFT_REDIRECT_SCHEME,
-    path: MICROSOFT_REDIRECT_PATH,
-  })
+  return makeOAuthRedirectUri({ path: MICROSOFT_REDIRECT_PATH })
 }
 
 export function microsoftAuthConfigured() {
@@ -63,6 +61,10 @@ export async function signInWithMicrosoft(): Promise<MicrosoftIdentity> {
   const result = await request.promptAsync(discovery, { showInRecents: true })
   if (result.type !== "success" || !result.params.code) {
     if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
+    const oauthError = result.params?.error_description || result.params?.error
+    if (typeof oauthError === "string" && /redirect_uri|AADSTS50011/i.test(oauthError)) {
+      throw new Error(redirectUriMismatchMessage("Microsoft"))
+    }
     throw new Error(
       "Microsoft sign-in didn’t finish. Try again, or choose “Continue with preview member” / “Continue without account”.",
     )

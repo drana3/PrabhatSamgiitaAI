@@ -26,6 +26,7 @@ import { typography } from "@/constants/typography"
 import { facebookAuthConfigured } from "@/lib/facebookAuth"
 import { googleAuthConfigured } from "@/lib/googleAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
+import { expoGoOAuthMessage } from "@/lib/oauthRedirect"
 import {
   microsoftAuthConfigured,
   signInMember,
@@ -83,6 +84,7 @@ export default function SignInScreen() {
   const msalReady = microsoftAuthConfigured()
   const googleReady = googleAuthConfigured()
   const facebookReady = facebookAuthConfigured()
+  const expoGoOAuthHint = expoGoOAuthMessage()
 
   const continueGuest = () => {
     signOut()
@@ -102,7 +104,7 @@ export default function SignInScreen() {
         router.replace(href("/complete-profile"))
         return
       }
-      router.replace(href("/(tabs)/index"))
+      router.replace(href("/(tabs)"))
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Sign-in failed.")
     } finally {
@@ -164,6 +166,12 @@ export default function SignInScreen() {
             {notice && !error ? (
               <View style={styles.noticeBox}>
                 <Text style={styles.noticeText}>{notice}</Text>
+              </View>
+            ) : null}
+
+            {expoGoOAuthHint && (msalReady || googleReady || facebookReady) ? (
+              <View style={styles.hintBox}>
+                <Text style={styles.hintText}>{expoGoOAuthHint}</Text>
               </View>
             ) : null}
 

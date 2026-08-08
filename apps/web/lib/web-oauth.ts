@@ -103,10 +103,15 @@ export async function completeGoogleOAuth(code: string) {
   })
   const tokenBody = (await tokenResponse.json().catch(() => null)) as {
     access_token?: string
+    error?: string
     error_description?: string
   } | null
   if (!tokenResponse.ok || !tokenBody?.access_token) {
-    throw new Error(tokenBody?.error_description || "Google sign-in did not complete.")
+    const detail =
+      tokenBody?.error_description ||
+      tokenBody?.error ||
+      (tokenResponse.status === 503 ? "Google sign-in is not configured on the server." : null)
+    throw new Error(detail || "Google sign-in did not complete.")
   }
 
   const profile = (await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {

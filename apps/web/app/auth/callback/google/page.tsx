@@ -1,14 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { completeGoogleOAuth } from "@/lib/web-oauth"
 
 export default function GoogleAuthCallbackPage() {
   const [error, setError] = useState<string | null>(null)
+  const started = useRef(false)
 
   useEffect(() => {
+    if (started.current) return
+    started.current = true
+
     const params = new URLSearchParams(window.location.search)
     const code = params.get("code")
     const oauthError = params.get("error_description") || params.get("error")

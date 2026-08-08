@@ -3,6 +3,7 @@ import * as WebBrowser from "expo-web-browser"
 import Constants from "expo-constants"
 
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
+import { makeOAuthRedirectUri, redirectUriMismatchMessage } from "@/lib/oauthRedirect"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -24,7 +25,7 @@ export function googleAuthConfigured() {
 }
 
 export function getGoogleRedirectUri() {
-  return AuthSession.makeRedirectUri({ scheme: "prabhatai", path: "auth/google" })
+  return makeOAuthRedirectUri({ path: "auth/google" })
 }
 
 export async function signInWithGoogle(): Promise<OAuthIdentity> {
@@ -47,6 +48,10 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
   const result = await request.promptAsync(discovery, { showInRecents: true })
   if (result.type !== "success" || !result.params.code) {
     if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
+    const oauthError = result.params?.error_description || result.params?.error
+    if (typeof oauthError === "string" && /redirect_uri/i.test(oauthError)) {
+      throw new Error(redirectUriMismatchMessage("Google"))
+    }
     throw new Error("Google sign-in didn’t finish. Try again.")
   }
 

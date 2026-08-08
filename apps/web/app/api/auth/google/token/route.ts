@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { runtimeEnv } from "@/lib/runtime-env"
+import { googleOAuthClientId, runtimeEnv } from "@/lib/runtime-env"
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     code_verifier?: string
   } | null
 
-  const clientId = runtimeEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID")
+  const clientId = googleOAuthClientId()
   if (!clientId) {
     return NextResponse.json({ detail: "Google sign-in is not configured" }, { status: 503 })
   }

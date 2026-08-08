@@ -9,3 +9,13 @@ export function runtimeEnv(name: string): string | undefined {
   const trimmed = value.trim()
   return trimmed.length ? trimmed : undefined
 }
+
+/** Google OAuth client id for server-side code exchange. */
+export function googleOAuthClientId(): string | undefined {
+  return (
+    runtimeEnv("GOOGLE_CLIENT_ID") ??
+    (typeof process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID === "string"
+      ? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.trim() || undefined
+      : undefined)
+  )
+}

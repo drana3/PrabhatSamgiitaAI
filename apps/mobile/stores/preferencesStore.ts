@@ -17,16 +17,12 @@ export type RecentPlay = {
 
 const MAX_RECENT = 12
 
-export const APP_LANGUAGES = ["English", "Hindi", "Bengali", "Sanskrit"] as const
-
 type PreferencesState = {
-  language: string
   savedSongIds: string[]
   recentPlays: RecentPlay[]
   searchRecents: string[]
   songNotes: Record<string, string>
   syncingFavorites: boolean
-  setLanguage: (language: string) => void
   setSavedFromNumbers: (numbers: number[]) => void
   toggleSaved: (songId: string) => Promise<void>
   hydrateFavoritesFromServer: () => Promise<void>
@@ -52,14 +48,11 @@ function toSongNumber(songId: string): number | null {
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set, get) => ({
-      language: "English",
       savedSongIds: [],
       recentPlays: [],
       searchRecents: [],
       songNotes: {},
       syncingFavorites: false,
-
-      setLanguage: (language) => set({ language }),
 
       setSavedFromNumbers: (numbers) => {
         set({ savedSongIds: numbers.map(toSongId) })
@@ -149,7 +142,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       name: "prabhat-preferences",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        language: state.language,
         savedSongIds: state.savedSongIds,
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,

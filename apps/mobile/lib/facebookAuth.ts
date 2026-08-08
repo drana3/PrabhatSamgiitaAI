@@ -3,6 +3,7 @@ import * as WebBrowser from "expo-web-browser"
 import Constants from "expo-constants"
 
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
+import { makeOAuthRedirectUri } from "@/lib/oauthRedirect"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -26,7 +27,7 @@ export function facebookAuthConfigured() {
 }
 
 export function getFacebookRedirectUri() {
-  return AuthSession.makeRedirectUri({ scheme: "prabhatai", path: "auth/facebook" })
+  return makeOAuthRedirectUri({ path: "auth/facebook" })
 }
 
 export async function signInWithFacebook(): Promise<OAuthIdentity> {

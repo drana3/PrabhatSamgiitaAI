@@ -215,6 +215,17 @@ az containerapp secret set \
   --resource-group "$RG" \
   --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
 
+WEB_COMMON_ENV=(
+  "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}"
+  "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}"
+  "API_BASE_URL=https://${API_FQDN}"
+  "MEMBER_PROXY_KEY=secretref:member-proxy-key"
+  "DEFAULT_ADMIN_EMAILS=${DEFAULT_ADMIN_EMAILS}"
+)
+if [[ -n "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" ]]; then
+  WEB_COMMON_ENV+=("GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}")
+fi
+
 if [[ -n "${GOOGLE_CLIENT_SECRET}" ]]; then
   az containerapp secret set \
     --name "$WEB_APP" \
@@ -225,23 +236,14 @@ if [[ -n "${GOOGLE_CLIENT_SECRET}" ]]; then
     --resource-group "$RG" \
     --image "$WEB_IMAGE" \
     --set-env-vars \
-      NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" \
-      NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
-      API_BASE_URL="https://${API_FQDN}" \
-      MEMBER_PROXY_KEY=secretref:member-proxy-key \
-      DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" \
+      "${WEB_COMMON_ENV[@]}" \
       GOOGLE_CLIENT_SECRET=secretref:google-client-secret >/dev/null
 else
   az containerapp update \
     --name "$WEB_APP" \
     --resource-group "$RG" \
     --image "$WEB_IMAGE" \
-    --set-env-vars \
-      NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" \
-      NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
-      API_BASE_URL="https://${API_FQDN}" \
-      MEMBER_PROXY_KEY=secretref:member-proxy-key \
-      DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" >/dev/null
+    --set-env-vars "${WEB_COMMON_ENV[@]}" >/dev/null
 fi
 
 WEB_REVISION="$(az containerapp revision list \

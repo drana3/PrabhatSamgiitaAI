@@ -5,7 +5,6 @@ import {
   Award,
   ChevronRight,
   Heart,
-  Languages,
   LogOut,
   MessageSquareHeart,
   Moon,
@@ -24,7 +23,7 @@ import { memberAuthAvailable } from "@/lib/memberAuth"
 import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
-import { APP_LANGUAGES, usePreferencesStore } from "@/stores/preferencesStore"
+import { usePreferencesStore } from "@/stores/preferencesStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
 
@@ -65,22 +64,6 @@ export default function ProfileScreen() {
   const identityProvider = useAuthStore((s) => s.identityProvider)
   const signOut = useAuthStore((s) => s.signOut)
   const resetWelcome = useAuthStore((s) => s.resetWelcome)
-  const language = usePreferencesStore((s) => s.language)
-  const setLanguage = usePreferencesStore((s) => s.setLanguage)
-
-  const pickLanguage = () => {
-    Alert.alert(
-      "App language",
-      "Preferred language for labels and defaults on this device.",
-      [
-        ...APP_LANGUAGES.map((item) => ({
-          text: item === language ? `${item} ✓` : item,
-          onPress: () => setLanguage(item),
-        })),
-        { text: "Cancel", style: "cancel" as const },
-      ],
-    )
-  }
   const savedCount = usePreferencesStore((s) => s.savedSongIds.length)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const getAccountId = useChatStore((s) => s.getAccountId)
@@ -210,12 +193,6 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>Preferences</Text>
         <View style={styles.section}>
-          <Row
-            icon={<Languages size={18} color={colors.primary} />}
-            label="Language"
-            value={language}
-            onPress={pickLanguage}
-          />
           <Row
             icon={<Moon size={18} color={colors.primary} />}
             label="Appearance"
