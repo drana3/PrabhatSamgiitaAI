@@ -56,7 +56,7 @@ Push mobile changes to `main` (or run **Mobile preview build** manually). With s
 - **prabhat-samgiita-ai-android-preview** — sideload APK
 - **prabhat-samgiita-ai-ios-simulator** — Simulator build for Mac QA
 
-### Required GitHub secrets
+**Full GitHub + Expo setup:** [.github/MOBILE_BUILD_SETUP.md](../../.github/MOBILE_BUILD_SETUP.md)
 
 | Secret | Purpose |
 |--------|---------|

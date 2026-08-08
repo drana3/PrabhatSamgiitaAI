@@ -235,9 +235,22 @@ npm run test:mobile
 make build
 ```
 
+## 6. Mobile cloud builds (share APK / iOS Simulator)
+
+EAS team project: **dewasheesh3s-team / prabhatsamgiitaai** (`7cbd8dae-da81-4236-a7c2-c9c707540afe`).
+
+Full GitHub + Expo setup: **[.github/MOBILE_BUILD_SETUP.md](../.github/MOBILE_BUILD_SETUP.md)**
+
+Quick sync secrets from `apps/mobile/.env`:
+
+```bash
+gh auth login
+EXPO_TOKEN=your_expo_token ./scripts/sync-mobile-github-secrets.sh
+```
+
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Issue | What to try |
 |-------|-------------|

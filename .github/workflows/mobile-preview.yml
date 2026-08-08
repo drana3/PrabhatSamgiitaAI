@@ -1,5 +1,8 @@
 name: Mobile preview build
 
+# EAS: dewasheesh3s-team / prabhatsamgiitaai (7cbd8dae-da81-4236-a7c2-c9c707540afe)
+# Setup: .github/MOBILE_BUILD_SETUP.md
+
 on:
   workflow_dispatch:
   push:
@@ -86,25 +89,42 @@ jobs:
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: "7cbd8dae-da81-4236-a7c2-c9c707540afe"
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
-            echo "::error::Add EXPO_TOKEN to GitHub repository secrets (expo.dev/settings/access-tokens)."
+            echo "::error::Add EXPO_TOKEN to GitHub repository secrets. See .github/MOBILE_BUILD_SETUP.md"
             exit 1
           fi
           eas whoami
+          INFO="$(eas project:info --json 2>/dev/null || eas project:info)"
+          echo "$INFO"
+          echo "$INFO" | grep -q "dewasheesh3s-team" || {
+            echo "::error::EAS project must belong to dewasheesh3s-team. Check apps/mobile/app.json owner + projectId."
+            exit 1
+          }
 
       - name: Validate EAS project config
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: "7cbd8dae-da81-4236-a7c2-c9c707540afe"
         run: npx expo config --type public > /dev/null
 
       - name: Build with EAS
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL }}
+          EAS_PROJECT_ID: "7cbd8dae-da81-4236-a7c2-c9c707540afe"
         run: |
+          set -a
+          [ -n "${{ secrets.MOBILE_API_BASE_URL }}" ] && export EXPO_PUBLIC_API_BASE_URL="${{ secrets.MOBILE_API_BASE_URL }}"
+          [ -n "${{ secrets.MOBILE_WEB_BASE_URL }}" ] && export EXPO_PUBLIC_WEB_BASE_URL="${{ secrets.MOBILE_WEB_BASE_URL }}"
+          [ -n "${{ secrets.MOBILE_MEMBER_PROXY_KEY }}" ] && export EXPO_PUBLIC_MEMBER_PROXY_KEY="${{ secrets.MOBILE_MEMBER_PROXY_KEY }}"
+          [ -n "${{ secrets.MOBILE_AZURE_CLIENT_ID }}" ] && export EXPO_PUBLIC_AZURE_CLIENT_ID="${{ secrets.MOBILE_AZURE_CLIENT_ID }}"
+          [ -n "${{ secrets.MOBILE_AZURE_TENANT_ID }}" ] && export EXPO_PUBLIC_AZURE_TENANT_ID="${{ secrets.MOBILE_AZURE_TENANT_ID }}"
+          [ -n "${{ secrets.MOBILE_GOOGLE_IOS_CLIENT_ID }}" ] && export EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID="${{ secrets.MOBILE_GOOGLE_IOS_CLIENT_ID }}"
+          [ -n "${{ secrets.MOBILE_GOOGLE_ANDROID_CLIENT_ID }}" ] && export EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID="${{ secrets.MOBILE_GOOGLE_ANDROID_CLIENT_ID }}"
+          set +a
           eas build \
             --platform "${{ matrix.platform }}" \
             --profile "${{ matrix.profile }}" \
@@ -116,6 +136,7 @@ jobs:
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: "7cbd8dae-da81-4236-a7c2-c9c707540afe"
         run: |
           URL="$(eas build:list --platform "${{ matrix.platform }}" --limit 1 --json --non-interactive | node -e "
             const rows = JSON.parse(require('fs').readFileSync(0, 'utf8'));
