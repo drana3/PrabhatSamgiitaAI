@@ -30,7 +30,7 @@ No $25 Play Console fee is required for sideloading.
 1. Create a free account at [expo.dev](https://expo.dev).
 2. In your GitHub repo → **Settings → Secrets → Actions**, add:
    - `EXPO_TOKEN` — from [expo.dev/settings/access-tokens](https://expo.dev/settings/access-tokens)
-   - `EAS_PROJECT_ID` — UUID from `apps/mobile/app.json` after `eas init` (`extra.eas.projectId`)
+   - `EAS_PROJECT_ID` — `7cbd8dae-da81-4236-a7c2-c9c707540afe` (`dewasheesh3s-team` / `prabhatsamgiitaai`)
    - `MOBILE_API_BASE_URL` (optional) — your live API, e.g. `https://prabhatai-api.<your-host>.azurecontainerapps.io`
 3. Link the project once from your machine:
 

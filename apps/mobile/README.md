@@ -61,7 +61,7 @@ Push mobile changes to `main` (or run **Mobile preview build** manually). With s
 | Secret | Purpose |
 |--------|---------|
 | `EXPO_TOKEN` | [expo.dev/settings/access-tokens](https://expo.dev/settings/access-tokens) |
-| `EAS_PROJECT_ID` | From `app.json` → `extra.eas.projectId` after `eas init` |
+| `EAS_PROJECT_ID` | `7cbd8dae-da81-4236-a7c2-c9c707540afe` (team project `dewasheesh3s-team/prabhatsamgiitaai`) |
 | `MOBILE_API_BASE_URL` | *(optional)* overrides API URL in cloud builds |
 
 ## Screens

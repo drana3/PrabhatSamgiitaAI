@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Prabhat Samgiita AI",
-    "slug": "prabhat-samgiita-ai",
+    "owner": "dewasheesh3s-team",
+    "slug": "prabhatsamgiitaai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -48,7 +49,7 @@
     "extra": {
       "apiBaseUrl": "http://localhost:8000",
       "eas": {
-        "projectId": "4a49bf45-0d4a-4362-bbcf-35851d255cc5"
+        "projectId": "7cbd8dae-da81-4236-a7c2-c9c707540afe"
       }
     }
   }
