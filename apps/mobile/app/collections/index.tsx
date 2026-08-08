@@ -51,7 +51,7 @@ export default function CollectionsScreen() {
           onMicPress={() =>
             router.push(
               href(
-                `/search?voice=1&q=${encodeURIComponent("Search Prabhat Samgiita for collections")}`,
+                `/search?listen=1&q=${encodeURIComponent("Search Prabhat Samgiita for collections")}`,
               ),
             )
           }

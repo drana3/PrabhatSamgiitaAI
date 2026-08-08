@@ -32,6 +32,7 @@ import {
 import { api } from "@/lib/client"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
+import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -49,6 +50,10 @@ export default function AIScreen() {
       : null
 
   const [draft, setDraft] = useState("")
+  const voice = useVoiceSearch({
+    onPartial: (text) => setDraft(text),
+    onFinal: (text) => setDraft(text),
+  })
   const [historyOpen, setHistoryOpen] = useState(false)
   const [serverHistoryDays, setServerHistoryDays] = useState<
     Array<{ date: string; turns: Array<{ role: "user" | "assistant"; content: string }> }>
@@ -300,15 +305,20 @@ export default function AIScreen() {
             value={draft}
             onChangeText={setDraft}
             onSend={() => void send(draft)}
-            onVoicePress={() => router.push(href("/search?voice=1"))}
+            voiceListening={voice.listening}
+            onVoicePress={() => void voice.toggle()}
             hint={
-              sending
-                ? "Companion is answering…"
-                : hasSong
-                  ? `Grounded on PS ${groundedNumber}`
-                  : mode === "guest"
-                    ? "Ask about a song number, or open a song first"
-                    : undefined
+              voice.listening
+                ? "Listening… speak your question."
+                : voice.error
+                  ? voice.error
+                  : sending
+                    ? "Companion is answering…"
+                    : hasSong
+                      ? `Grounded on PS ${groundedNumber}`
+                      : mode === "guest"
+                        ? "Ask about a song number, or open a song first"
+                        : undefined
             }
           />
         </View>

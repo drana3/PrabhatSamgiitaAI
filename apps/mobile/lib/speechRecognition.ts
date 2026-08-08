@@ -73,16 +73,34 @@ export async function shouldUseOnDeviceRecognition(
   return true
 }
 
+function isExpoGoClient(): boolean {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Constants = require("expo-constants").default as { appOwnership?: string }
+    return Constants.appOwnership === "expo"
+  } catch {
+    return false
+  }
+}
+
 /** Overridable for unit tests; production uses lazy require. */
 export const speechRecognitionRuntime = {
   load(): SpeechModule | null {
+    if (isExpoGoClient()) return null
     try {
       // Lazy require — static import breaks Expo Go when the native module is missing.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mod = require("expo-speech-recognition") as {
         ExpoSpeechRecognitionModule?: SpeechModule
       }
-      return mod.ExpoSpeechRecognitionModule ?? null
+      const speech = mod?.ExpoSpeechRecognitionModule
+      if (!speech || typeof speech.isRecognitionAvailable !== "function") return null
+      try {
+        if (!speech.isRecognitionAvailable()) return null
+      } catch {
+        return null
+      }
+      return speech
     } catch {
       return null
     }

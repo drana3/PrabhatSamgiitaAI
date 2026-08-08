@@ -21,8 +21,9 @@ describe("search mic UX contract", () => {
     expect(read("components/ai/AIComposer.tsx")).toMatch(/Mic/)
   })
 
-  it("wires voice search to the live /search/voice API path", () => {
+  it("uses inline voice search on the search screen", () => {
+    expect(read("app/search/index.tsx")).toMatch(/useVoiceSearch/)
     expect(read("app/search/index.tsx")).toMatch(/searchSongsByVoice/)
-    expect(read("components/common/VoiceSearchModal.tsx")).toMatch(/Voice search/)
+    expect(read("app/search/index.tsx")).toMatch(/params\.listen/)
   })
 })

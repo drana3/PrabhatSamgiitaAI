@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native"
+import { Pressable, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native"
 import { Mic, Send, Sparkles } from "lucide-react-native"
 
 import { colors } from "@/constants/colors"
@@ -11,10 +11,18 @@ type Props = {
   onChangeText: (text: string) => void
   onSend: () => void
   onVoicePress?: () => void
+  voiceListening?: boolean
   hint?: string
 }
 
-export function AIComposer({ value, onChangeText, onSend, onVoicePress, hint }: Props) {
+export function AIComposer({
+  value,
+  onChangeText,
+  onSend,
+  onVoicePress,
+  voiceListening = false,
+  hint,
+}: Props) {
   return (
     <View style={styles.wrap}>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
@@ -31,11 +39,19 @@ export function AIComposer({ value, onChangeText, onSend, onVoicePress, hint }: 
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Voice input"
+          accessibilityLabel={voiceListening ? "Stop voice input" : "Voice input"}
           onPress={onVoicePress}
-          style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.75 }]}
+          style={({ pressed }) => [
+            styles.iconBtn,
+            voiceListening && styles.iconBtnActive,
+            pressed && { opacity: 0.75 },
+          ]}
         >
-          <Mic size={18} color={colors.textSecondary} />
+          {voiceListening ? (
+            <ActivityIndicator size="small" color={colors.white} />
+          ) : (
+            <Mic size={18} color={colors.textSecondary} />
+          )}
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -88,6 +104,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surfaceSoft,
+  },
+  iconBtnActive: {
+    backgroundColor: colors.primary,
   },
   send: {
     width: 40,

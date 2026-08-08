@@ -79,7 +79,7 @@ export default function SongsScreen() {
           showFilter
           showMic
           onPress={() => router.push(href("/search"))}
-          onMicPress={() => router.push(href("/search?voice=1"))}
+          onMicPress={() => router.push(href("/search?listen=1"))}
           onFilterPress={() => router.push(href("/search"))}
         />
       </View>

@@ -149,7 +149,7 @@ export default function HomeScreen() {
           placeholder="Ask about any Prabhat Samgiita..."
           showMic
           onPress={() => router.push(href("/search"))}
-          onMicPress={() => router.push(href("/search?voice=1"))}
+          onMicPress={() => router.push(href("/search?listen=1"))}
         />
 
         <SiteAnnouncementsBanner />

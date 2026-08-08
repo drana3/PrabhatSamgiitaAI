@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
@@ -13,7 +14,6 @@ import { queryGuidanceFor, queryIsUseful } from "@prabhat/core"
 
 import { SearchBar } from "@/components/common/SearchBar"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
-import { VoiceSearchModal } from "@/components/common/VoiceSearchModal"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
@@ -22,6 +22,7 @@ import { popularSearches, type MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { resolveSearchMode } from "@/lib/searchMode"
 import { songSummaryToMockSong } from "@/lib/songMap"
+import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
@@ -29,7 +30,7 @@ const DEBOUNCE_MS = 350
 
 export default function SearchScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ q?: string; voice?: string }>()
+  const params = useLocalSearchParams<{ q?: string; listen?: string }>()
   const initial = typeof params.q === "string" ? params.q : ""
   const [query, setQuery] = useState(initial)
   const recents = usePreferencesStore((s) => s.searchRecents)
@@ -38,16 +39,56 @@ export default function SearchScreen() {
   const [results, setResults] = useState<MockSong[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [voiceOpen, setVoiceOpen] = useState(params.voice === "1")
   const [voiceBusy, setVoiceBusy] = useState(false)
-  const [voiceError, setVoiceError] = useState<string | null>(null)
   const [voiceNote, setVoiceNote] = useState<string | null>(null)
   const requestId = useRef(0)
+  const inputRef = useRef<TextInput>(null)
+  const autoListenStarted = useRef(false)
+
+  const submitVoice = useCallback(
+    async (transcript: string) => {
+      const trimmed = transcript.trim()
+      if (!trimmed) return
+      setVoiceBusy(true)
+      setError(null)
+      try {
+        const result = await api.searchSongsByVoice(trimmed)
+        setQuery(result.interpreted_as || result.heard || trimmed)
+        setResults(result.matches.map((match, index) => songSummaryToMockSong(match.song, index)))
+        setVoiceNote(
+          result.guidance ||
+            `Heard “${result.heard}” · interpreted as “${result.interpreted_as}” (${result.confidence})`,
+        )
+        setError(null)
+        addSearchRecent(result.interpreted_as || trimmed)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Voice search is temporarily unavailable.")
+      } finally {
+        setVoiceBusy(false)
+      }
+    },
+    [addSearchRecent],
+  )
+
+  const voice = useVoiceSearch({
+    onPartial: (text) => setQuery(text),
+    onFinal: (text) => {
+      setQuery(text)
+      void submitVoice(text)
+    },
+    onUnavailable: () => inputRef.current?.focus(),
+  })
+  const { listening, error: voiceError, setError: setVoiceError, start, stop, toggle } = voice
 
   useEffect(() => {
     if (typeof params.q === "string") setQuery(params.q)
-    if (params.voice === "1") setVoiceOpen(true)
-  }, [params.q, params.voice])
+  }, [params.q])
+
+  useEffect(() => {
+    if (params.listen !== "1" || autoListenStarted.current) return
+    autoListenStarted.current = true
+    void start()
+  }, [params.listen, start])
 
   const runSearch = useCallback(async (nextQuery: string) => {
     const trimmed = nextQuery.trim()
@@ -88,34 +129,13 @@ export default function SearchScreen() {
     return () => clearTimeout(handle)
   }, [query, runSearch])
 
-  const openVoice = () => {
-    setVoiceError(null)
-    setVoiceOpen(true)
-  }
-
-  const submitVoice = async (transcript: string) => {
-    setVoiceBusy(true)
-    setVoiceError(null)
-    try {
-      const result = await api.searchSongsByVoice(transcript)
-      setQuery(result.interpreted_as || result.heard || transcript)
-      setResults(result.matches.map((match, index) => songSummaryToMockSong(match.song, index)))
-      setVoiceNote(
-        result.guidance ||
-          `Heard “${result.heard}” · interpreted as “${result.interpreted_as}” (${result.confidence})`,
-      )
-      setError(null)
-      setVoiceOpen(false)
-      addSearchRecent(result.interpreted_as || transcript)
-    } catch (err) {
-      setVoiceError(err instanceof Error ? err.message : "Voice search is temporarily unavailable.")
-    } finally {
-      setVoiceBusy(false)
-    }
-  }
-
   const isCollectionQuery = query.toLowerCase().includes("search prabhat samgiita for")
   const showResults = query.trim().length >= 2
+  const voiceStatus = listening
+    ? "Listening… speak a song number or theme."
+    : voiceBusy
+      ? "Interpreting through the catalog…"
+      : voiceError
 
   return (
     <ScreenContainer edges={["top", "bottom"]} padded={false} title="Search">
@@ -124,21 +144,26 @@ export default function SearchScreen() {
           editable
           showSparkle={false}
           showMic
+          inputRef={inputRef}
+          voiceListening={listening}
           placeholder="Search songs, lyrics, themes..."
           value={query}
           onChangeText={(text) => {
             setVoiceNote(null)
+            setVoiceError(null)
             setQuery(text)
           }}
           onClear={() => {
+            stop()
             setQuery("")
             setVoiceNote(null)
             setResults([])
             setError(null)
           }}
-          onMicPress={openVoice}
+          onMicPress={() => void toggle()}
           onSubmitEditing={() => void runSearch(query)}
         />
+        {voiceStatus ? <Text style={styles.voiceStatus}>{voiceStatus}</Text> : null}
       </View>
 
       {showResults ? (
@@ -230,20 +255,13 @@ export default function SearchScreen() {
           </Pressable>
         </View>
       )}
-
-      <VoiceSearchModal
-        visible={voiceOpen}
-        busy={voiceBusy}
-        error={voiceError}
-        onClose={() => setVoiceOpen(false)}
-        onSubmit={(transcript) => void submitVoice(transcript)}
-      />
     </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
-  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, gap: spacing.xs },
+  voiceStatus: { ...typography.caption, color: colors.textMuted },
   emptyState: { paddingHorizontal: spacing.lg },
   recentHeader: {
     flexDirection: "row",

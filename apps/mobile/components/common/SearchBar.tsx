@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native"
+import { Pressable, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native"
+import type { RefObject } from "react"
 import { Filter, Mic, Search, Sparkles, X } from "lucide-react-native"
 
 import { colors } from "@/constants/colors"
@@ -20,18 +21,28 @@ type Props = {
   onMicPress?: () => void
   onFilterPress?: () => void
   onSubmitEditing?: () => void
+  voiceListening?: boolean
+  inputRef?: RefObject<TextInput | null>
 }
 
-function MicButton({ onPress }: { onPress?: () => void }) {
+function MicButton({ onPress, listening }: { onPress?: () => void; listening?: boolean }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Voice search"
+      accessibilityLabel={listening ? "Stop voice search" : "Voice search"}
       onPress={onPress}
       hitSlop={8}
-      style={({ pressed }) => [styles.micBtn, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.micBtn,
+        listening && styles.micBtnActive,
+        pressed && { opacity: 0.7 },
+      ]}
     >
-      <Mic size={18} color={colors.primaryDark} />
+      {listening ? (
+        <ActivityIndicator size="small" color={colors.white} />
+      ) : (
+        <Mic size={18} color={colors.primaryDark} />
+      )}
     </Pressable>
   )
 }
@@ -49,6 +60,8 @@ export function SearchBar({
   onMicPress,
   onFilterPress,
   onSubmitEditing,
+  voiceListening = false,
+  inputRef,
 }: Props) {
   const leading = showSparkle ? (
     <Sparkles size={18} color={colors.primary} strokeWidth={2} />
@@ -70,7 +83,7 @@ export function SearchBar({
             {placeholder}
           </Text>
         </Pressable>
-        {showMic ? <MicButton onPress={onMicPress ?? onPress} /> : null}
+        {showMic ? <MicButton onPress={onMicPress ?? onPress} listening={voiceListening} /> : null}
         {showFilter ? (
           <Pressable
             accessibilityRole="button"
@@ -90,6 +103,7 @@ export function SearchBar({
       <View style={styles.row}>
         {leading}
         <TextInput
+          ref={inputRef}
           autoFocus
           value={value}
           onChangeText={onChangeText}
@@ -105,7 +119,7 @@ export function SearchBar({
             <X size={18} color={colors.textMuted} />
           </Pressable>
         ) : null}
-        {showMic ? <MicButton onPress={onMicPress} /> : null}
+        {showMic ? <MicButton onPress={onMicPress} listening={voiceListening} /> : null}
         {showFilter ? (
           <Pressable
             accessibilityRole="button"
@@ -157,6 +171,13 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   micBtn: {
-    padding: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  micBtnActive: {
+    backgroundColor: colors.primary,
   },
 })
