@@ -124,9 +124,9 @@ describe("member proxy route", () => {
     const response = await PATCH(request, { params: Promise.resolve({ path: ["phone"] }) })
 
     expect(response.status).toBe(200)
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/members/phone"),
-      expect.objectContaining({ method: "PATCH" }),
-    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [target, init] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(String(target)).toContain("/api/v1/members/phone")
+    expect(init.method).toBe("PATCH")
   })
 })
