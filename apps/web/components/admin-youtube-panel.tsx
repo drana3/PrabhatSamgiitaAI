@@ -67,6 +67,23 @@ export function AdminYoutubePanel() {
     await load()
   }
 
+  async function clearQueue() {
+    if (!window.confirm("Dismiss all pending YouTube review items? This cannot be undone.")) return
+    setError("")
+    setNotice("")
+    const response = await fetch("/api/admin/youtube-reviews/clear-pending", {
+      method: "POST",
+      credentials: "same-origin",
+    })
+    const body = await response.json().catch(() => null)
+    if (!response.ok) {
+      setError(readErrorDetail(body, "Could not clear review queue"))
+      return
+    }
+    setNotice(`Cleared ${(body as { cleared?: number }).cleared ?? 0} pending item(s)`)
+    await load()
+  }
+
   async function approve(id: string) {
     const songNumber = Number(songNumbers[id])
     if (!Number.isFinite(songNumber) || songNumber < 1 || songNumber > 5018) {
@@ -97,9 +114,16 @@ export function AdminYoutubePanel() {
     >
         <AdminYoutubeChannelsPanel />
         <h2 className="mb-4 font-serif text-2xl text-navy-950">Review queue</h2>
+        <p className="mb-4 max-w-3xl text-sm leading-6 text-stone-600">
+          Pending videos matched from channel scans. The nightly sync job updates the batch file;
+          use sync below after a scheduled run. Clear stale items from before scope filtering.
+        </p>
         <div className="mb-4 flex flex-wrap gap-3">
           <button type="button" onClick={() => void syncQueue()} className="gold-button px-4 py-2 text-sm">
             Sync from batch output
+          </button>
+          <button type="button" onClick={() => void clearQueue()} className="outline-button px-4 py-2 text-sm">
+            Clear pending queue
           </button>
         </div>
         {notice ? <p className="mb-3 text-sm text-emerald-700">{notice}</p> : null}

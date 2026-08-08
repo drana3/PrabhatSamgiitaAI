@@ -1,10 +1,21 @@
-import { DEFAULT_PHONE_COUNTRY, formatPhonePayload, validateNationalPhoneNumber } from "@prabhat/core"
+import { DEFAULT_PHONE_COUNTRY } from "@prabhat/core"
 import { useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native"
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native"
 import { useRouter } from "expo-router"
 import { Image } from "expo-image"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { SecondaryButton } from "@/components/common/SecondaryButton"
 import { brandAssets } from "@/constants/brand"
@@ -16,7 +27,6 @@ import { facebookAuthConfigured } from "@/lib/facebookAuth"
 import { googleAuthConfigured } from "@/lib/googleAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import {
-  getMicrosoftRedirectUri,
   microsoftAuthConfigured,
   signInMember,
   signInWithEmailPassword,
@@ -29,12 +39,41 @@ import { href } from "@/utils/href"
 
 type EmailMode = "signin" | "signup"
 
+function ModeTab({
+  label,
+  active,
+  onPress,
+  disabled,
+}: {
+  label: string
+  active: boolean
+  onPress: () => void
+  disabled?: boolean
+}) {
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.modeTab, active && styles.modeTabActive]}
+    >
+      <Text style={[styles.modeTabText, active && styles.modeTabTextActive]}>{label}</Text>
+    </Pressable>
+  )
+}
+
+function FieldLabel({ children }: { children: string }) {
+  return <Text style={styles.fieldLabel}>{children}</Text>
+}
+
 export default function SignInScreen() {
   const router = useRouter()
   const completeWelcome = useAuthStore((s) => s.completeWelcome)
   const signOut = useAuthStore((s) => s.signOut)
   const [busy, setBusy] = useState(false)
-  const [status, setStatus] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [emailMode, setEmailMode] = useState<EmailMode>("signin")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -44,7 +83,6 @@ export default function SignInScreen() {
   const msalReady = microsoftAuthConfigured()
   const googleReady = googleAuthConfigured()
   const facebookReady = facebookAuthConfigured()
-  const redirectUri = msalReady ? getMicrosoftRedirectUri() : null
 
   const continueGuest = () => {
     signOut()
@@ -54,30 +92,31 @@ export default function SignInScreen() {
 
   const completeSignIn = async (action: () => Promise<{ message?: string; needsPhone?: boolean }>) => {
     setBusy(true)
-    setStatus(null)
+    setError(null)
+    setNotice(null)
     try {
       const result = await action()
-      setStatus(result.message ?? null)
+      setNotice(result.message ?? null)
       completeWelcome()
       if (result.needsPhone) {
         router.replace(href("/complete-profile"))
         return
       }
       router.replace(href("/(tabs)/index"))
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Sign-in failed.")
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Sign-in failed.")
     } finally {
       setBusy(false)
     }
   }
 
   const submitEmail = async () => {
+    setError(null)
+    if (emailMode === "signup" && !phoneInputValid(phoneCountryCode, phoneNumber)) {
+      setError("Enter a valid mobile number with country code.")
+      return
+    }
     if (emailMode === "signup") {
-      const phoneError = validateNationalPhoneNumber(phoneCountryCode, phoneNumber)
-      if (phoneError) {
-        setStatus(phoneError)
-        return
-      }
       await completeSignIn(() =>
         signUpWithEmailPassword(
           email,
@@ -92,172 +131,295 @@ export default function SignInScreen() {
     await completeSignIn(() => signInWithEmailPassword(email, password))
   }
 
+  const signupReady =
+    email.length > 0 &&
+    password.length >= 8 &&
+    (emailMode !== "signup" || phoneInputValid(phoneCountryCode, phoneNumber))
+
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.card}>
-        <Image source={brandAssets.emblemClear} style={styles.logo} contentFit="contain" />
-        <Text style={styles.title}>Sign in</Text>
-        <Text style={styles.body}>
-          Use the same account across website, Android, and iOS to sync favorites, quiz, certificates, and AI chat memory.
-        </Text>
-        <Text style={styles.list}>
-          {memberAuthAvailable()
-            ? "Your member profile is stored in the database and restored on every device you sign into."
-            : "Favorites can stay on this device if you continue without a synced member account."}
-        </Text>
-        {__DEV__ && redirectUri ? (
-          <Text style={styles.redirect}>Dev only — Azure redirect URI: {redirectUri}</Text>
-        ) : null}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            <Image source={brandAssets.emblemClear} style={styles.logo} contentFit="contain" />
+            <Text style={styles.eyebrow}>Member account</Text>
+            <Text style={styles.title}>Namaskar. Continue your journey.</Text>
+            <Text style={styles.body}>
+              Sign in to sync favorites, quiz progress, and AI chat across website, Android, and
+              iOS.
+            </Text>
 
-        {busy ? <ActivityIndicator color={colors.primary} /> : null}
-        {status ? <Text style={styles.status}>{status}</Text> : null}
+            {error ? (
+              <View style={styles.errorBox} accessibilityRole="alert">
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+            {notice && !error ? (
+              <View style={styles.noticeBox}>
+                <Text style={styles.noticeText}>{notice}</Text>
+              </View>
+            ) : null}
 
-        {msalReady ? (
-          <PrimaryButton
-            label="Continue with Microsoft"
-            onPress={() => void completeSignIn(() => signInMember())}
-            disabled={busy}
-          />
-        ) : null}
-        {googleReady ? (
-          <PrimaryButton
-            label="Continue with Google"
-            onPress={() => void completeSignIn(() => signInWithGoogleAccount())}
-            disabled={busy}
-          />
-        ) : null}
-        {facebookReady ? (
-          <PrimaryButton
-            label="Continue with Facebook"
-            onPress={() => void completeSignIn(() => signInWithFacebookAccount())}
-            disabled={busy}
-          />
-        ) : null}
-        {!msalReady && !googleReady && !facebookReady ? (
-          <PrimaryButton
-            label="Continue with preview member"
-            onPress={() => void completeSignIn(() => signInMember({ preferPreview: true }))}
-            disabled={busy}
-          />
-        ) : null}
+            <View style={styles.socialStack}>
+              {msalReady ? (
+                <PrimaryButton
+                  label="Continue with Microsoft"
+                  onPress={() => void completeSignIn(() => signInMember())}
+                  disabled={busy}
+                  loading={busy}
+                />
+              ) : null}
+              {googleReady ? (
+                <SecondaryButton
+                  label="Continue with Google"
+                  onPress={() => void completeSignIn(() => signInWithGoogleAccount())}
+                />
+              ) : (
+                <View style={styles.hintBox}>
+                  <Text style={styles.hintText}>
+                    Google sign-in: add EXPO_PUBLIC_GOOGLE_CLIENT_ID to apps/mobile/.env and restart
+                    Expo.
+                  </Text>
+                </View>
+              )}
+              {facebookReady ? (
+                <SecondaryButton
+                  label="Continue with Facebook"
+                  onPress={() => void completeSignIn(() => signInWithFacebookAccount())}
+                />
+              ) : null}
+              {!msalReady && !googleReady && !facebookReady ? (
+                <PrimaryButton
+                  label="Continue with preview member"
+                  onPress={() => void completeSignIn(() => signInMember({ preferPreview: true }))}
+                  disabled={busy}
+                />
+              ) : null}
+            </View>
 
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or email</Text>
-          <View style={styles.divider} />
+            <View style={styles.dividerRow}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>or email</Text>
+              <View style={styles.divider} />
+            </View>
+
+            <View style={styles.modeRow} accessibilityRole="tablist">
+              <ModeTab
+                label="Sign in"
+                active={emailMode === "signin"}
+                onPress={() => {
+                  setEmailMode("signin")
+                  setError(null)
+                }}
+                disabled={busy}
+              />
+              <ModeTab
+                label="Create account"
+                active={emailMode === "signup"}
+                onPress={() => {
+                  setEmailMode("signup")
+                  setError(null)
+                }}
+                disabled={busy}
+              />
+            </View>
+
+            <View style={styles.form}>
+              {emailMode === "signup" ? (
+                <View style={styles.field}>
+                  <FieldLabel>Name</FieldLabel>
+                  <TextInput
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="Your name"
+                    autoCapitalize="words"
+                    autoComplete="name"
+                    style={styles.input}
+                  />
+                </View>
+              ) : null}
+              {emailMode === "signup" ? (
+                <PhoneInput
+                  countryCode={phoneCountryCode}
+                  nationalNumber={phoneNumber}
+                  onCountryCodeChange={setPhoneCountryCode}
+                  onNationalNumberChange={setPhoneNumber}
+                  disabled={busy}
+                />
+              ) : null}
+              <View style={styles.field}>
+                <FieldLabel>Email</FieldLabel>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.field}>
+                <FieldLabel>Password</FieldLabel>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder={emailMode === "signup" ? "At least 8 characters" : "Your password"}
+                  secureTextEntry
+                  autoComplete={emailMode === "signup" ? "new-password" : "password"}
+                  style={styles.input}
+                />
+              </View>
+              <PrimaryButton
+                label={emailMode === "signup" ? "Create account" : "Sign in with email"}
+                onPress={() => void submitEmail()}
+                disabled={busy || !signupReady}
+                loading={busy}
+              />
+            </View>
+
+            {!memberAuthAvailable() ? (
+              <Text style={styles.syncHint}>
+                Add EXPO_PUBLIC_MEMBER_PROXY_KEY (same as website) to sync member data from the API.
+              </Text>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={continueGuest}
+              style={styles.guestLink}
+            >
+              <Text style={styles.guestLinkText}>Continue without account</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      {busy ? (
+        <View style={styles.busyOverlay} pointerEvents="none">
+          <ActivityIndicator color={colors.primary} size="large" />
         </View>
-
-        <View style={styles.modeRow}>
-          <SecondaryButton
-            label="Sign in"
-            onPress={() => setEmailMode("signin")}
-            disabled={busy || emailMode === "signin"}
-          />
-          <SecondaryButton
-            label="Sign up"
-            onPress={() => setEmailMode("signup")}
-            disabled={busy || emailMode === "signup"}
-          />
-        </View>
-
-        {emailMode === "signup" ? (
-          <TextInput
-            value={displayName}
-            onChangeText={setDisplayName}
-            placeholder="Your name"
-            autoCapitalize="words"
-            style={styles.input}
-          />
-        ) : null}
-        {emailMode === "signup" ? (
-          <>
-            <TextInput
-              value={phoneCountryCode}
-              onChangeText={(value) => setPhoneCountryCode(value.toUpperCase().slice(0, 2))}
-              placeholder="Country (IN)"
-              autoCapitalize="characters"
-              style={styles.input}
-            />
-            <TextInput
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              placeholder="Mobile number"
-              keyboardType="phone-pad"
-              style={styles.input}
-            />
-          </>
-        ) : null}
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={styles.input}
-        />
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder={emailMode === "signup" ? "Password (8+ characters)" : "Password"}
-          secureTextEntry
-          style={styles.input}
-        />
-        <PrimaryButton
-          label={emailMode === "signup" ? "Create account" : "Sign in with email"}
-          onPress={() => void submitEmail()}
-          disabled={
-            busy ||
-            !email ||
-            password.length < (emailMode === "signup" ? 8 : 1) ||
-            (emailMode === "signup" &&
-              validateNationalPhoneNumber(phoneCountryCode, phoneNumber) !== null)
-          }
-        />
-
-        <SecondaryButton label="Continue without account" onPress={continueGuest} />
-      </View>
+      ) : null}
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
+  root: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.xxl,
-    padding: spacing.xxl,
+    padding: spacing.xl,
     gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     ...softShadow(2),
   },
-  logo: { width: 72, height: 72, alignSelf: "center" },
+  logo: { width: 64, height: 64, alignSelf: "center" },
+  eyebrow: {
+    ...typography.caption,
+    textAlign: "center",
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    fontWeight: "700",
+  },
   title: {
     fontFamily: "Lora_700Bold",
-    fontSize: 28,
+    fontSize: 26,
+    lineHeight: 32,
     color: colors.textPrimary,
     textAlign: "center",
   },
   body: { ...typography.bodySmall, color: colors.textSecondary, textAlign: "center" },
-  list: { ...typography.caption, color: colors.textMuted, textAlign: "center", marginBottom: spacing.sm },
-  redirect: { ...typography.caption, color: colors.primaryDark, textAlign: "center" },
-  status: { ...typography.caption, color: colors.primaryDark, textAlign: "center" },
+  socialStack: { gap: spacing.sm, marginTop: spacing.xs },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginVertical: spacing.xs },
   divider: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: { ...typography.caption, color: colors.textMuted },
-  modeRow: { flexDirection: "row", gap: spacing.sm },
+  modeRow: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    padding: 4,
+  },
+  modeTab: {
+    flex: 1,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+  },
+  modeTabActive: {
+    backgroundColor: colors.textPrimary,
+  },
+  modeTabText: { ...typography.label, color: colors.textSecondary },
+  modeTabTextActive: { color: colors.white },
+  form: { gap: spacing.md },
+  field: { gap: spacing.xs },
+  fieldLabel: { ...typography.label, color: colors.textPrimary },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.background,
+    paddingVertical: spacing.sm + 2,
+    backgroundColor: colors.surface,
     color: colors.textPrimary,
+    fontSize: 16,
+  },
+  errorBox: {
+    backgroundColor: "#FDEEEE",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: "#F5C2C2",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  errorText: { ...typography.caption, color: colors.error, textAlign: "center" },
+  noticeBox: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  noticeText: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
+  hintBox: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  hintText: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
+  syncHint: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
+  guestLink: { alignSelf: "center", paddingVertical: spacing.sm },
+  guestLinkText: {
+    ...typography.label,
+    color: colors.secondary,
+    textDecorationLine: "underline",
+  },
+  busyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(250, 247, 242, 0.35)",
   },
 })

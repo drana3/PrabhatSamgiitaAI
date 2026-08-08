@@ -482,6 +482,11 @@ def main() -> None:
             encoding="utf-8",
         )
     rows = list(rows_by_id.values())
+    review_by_id = {
+        external_id: row
+        for external_id, row in review_by_id.items()
+        if youtube_video_in_scope(str(row.get("title") or ""))
+    }
     review_rows = list(review_by_id.values())
     rows.sort(key=lambda row: (row["song_number"], row["url"]))
     review_rows.sort(key=lambda row: row["external_id"])

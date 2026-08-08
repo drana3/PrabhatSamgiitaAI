@@ -72,6 +72,22 @@ async def sync_youtube_review_queue(session: AsyncSession) -> int:
     return imported
 
 
+async def clear_pending_youtube_reviews(session: AsyncSession) -> int:
+    rows = list(
+        (
+            await session.scalars(
+                select(YoutubeReviewQueue).where(YoutubeReviewQueue.status == "pending_review")
+            )
+        ).all()
+    )
+    for row in rows:
+        row.status = "dismissed"
+    if YOUTUBE_REVIEW_JSON.exists():
+        YOUTUBE_REVIEW_JSON.write_text("[]\n", encoding="utf-8")
+    await session.commit()
+    return len(rows)
+
+
 async def list_youtube_reviews(
     session: AsyncSession,
     *,

@@ -102,3 +102,35 @@ async def test_translate_meaning_from_english_accepts_override() -> None:
         )
 
     assert result.draft_text == "अनुवाद"
+
+
+@pytest.mark.asyncio
+async def test_clear_pending_youtube_reviews_dismisses_rows(tmp_path, monkeypatch) -> None:
+    from unittest.mock import AsyncMock
+    from uuid import uuid4
+
+    from app.models.admin_workflow import YoutubeReviewQueue
+    from app.services import admin_workflow
+
+    review_file = tmp_path / "youtube_review_queue.json"
+    review_file.write_text('[{"external_id": "abc"}]\n', encoding="utf-8")
+    monkeypatch.setattr(admin_workflow, "YOUTUBE_REVIEW_JSON", review_file)
+
+    pending = YoutubeReviewQueue(
+        id=uuid4(),
+        external_id="abc",
+        title="Pending",
+        url="https://example.com",
+        review_reason="pending_review",
+        status="pending_review",
+    )
+    session = AsyncMock()
+    session.scalars = AsyncMock(return_value=AsyncMock(all=lambda: [pending]))
+    session.commit = AsyncMock()
+
+    cleared = await admin_workflow.clear_pending_youtube_reviews(session)
+
+    assert cleared == 1
+    assert pending.status == "dismissed"
+    assert review_file.read_text(encoding="utf-8").strip() == "[]"
+    session.commit.assert_awaited_once()

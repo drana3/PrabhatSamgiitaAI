@@ -1,20 +1,16 @@
 import { useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native"
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { SafeAreaView } from "react-native-safe-area-context"
-
 import Constants from "expo-constants"
 
+import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { buildMemberAuthHeaders, memberAuthAvailable } from "@/lib/memberAuth"
-import {
-  DEFAULT_PHONE_COUNTRY,
-  formatPhonePayload,
-  validateNationalPhoneNumber,
-} from "@prabhat/core"
+import { DEFAULT_PHONE_COUNTRY, formatPhonePayload } from "@prabhat/core"
 import { useAuthStore } from "@/stores/authStore"
 
 const apiBaseUrl =
@@ -30,9 +26,8 @@ export default function CompleteProfileScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const submit = async () => {
-    const validationError = validateNationalPhoneNumber(countryCode, phoneNumber)
-    if (validationError) {
-      setError(validationError)
+    if (!phoneInputValid(countryCode, phoneNumber)) {
+      setError("Enter a valid mobile number with country code.")
       return
     }
     if (!memberAuthAvailable()) {
@@ -73,26 +68,27 @@ export default function CompleteProfileScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Add your mobile number</Text>
         <Text style={styles.body}>
-          Every member account needs a mobile number with country code. India uses +91 and a
-          10-digit number starting with 6–9.
+          Every member account needs a mobile number. Pick your country code and enter the number
+          without spaces.
         </Text>
-        <TextInput
-          value={countryCode}
-          onChangeText={(value) => setCountryCode(value.toUpperCase().slice(0, 2))}
-          placeholder="Country (IN)"
-          autoCapitalize="characters"
-          style={styles.input}
+        <PhoneInput
+          countryCode={countryCode}
+          nationalNumber={phoneNumber}
+          onCountryCodeChange={setCountryCode}
+          onNationalNumberChange={setPhoneNumber}
+          disabled={busy}
         />
-        <TextInput
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
-          placeholder="Mobile number"
-          keyboardType="phone-pad"
-          style={styles.input}
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.error}>{error}</Text>
+          </View>
+        ) : null}
+        <PrimaryButton
+          label="Continue"
+          onPress={() => void submit()}
+          disabled={busy || !phoneInputValid(countryCode, phoneNumber)}
+          loading={busy}
         />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {busy ? <ActivityIndicator color={colors.primary} /> : null}
-        <PrimaryButton label="Continue" onPress={() => void submit()} disabled={busy} />
       </View>
     </SafeAreaView>
   )
@@ -120,14 +116,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   body: { ...typography.bodySmall, color: colors.textSecondary, textAlign: "center" },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
+  errorBox: {
+    backgroundColor: "#FDEEEE",
     borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.background,
-    color: colors.textPrimary,
   },
   error: { ...typography.caption, color: colors.error, textAlign: "center" },
 })

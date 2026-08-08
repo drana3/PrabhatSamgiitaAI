@@ -243,7 +243,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   const songHeroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
   await expect(songHeroPortrait).toBeAttached()
   await expect(songHeroPortrait).toHaveCSS("background-position", /82% 0/)
-  const language = page.getByLabel("Reading language")
+  const language = page.getByLabel("Language")
   await expect(language).toBeVisible()
   await expect(language.locator("option")).toHaveCount(36)
   await expect(language.locator("optgroup")).toHaveCount(2)
@@ -259,7 +259,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(language).toBeEnabled()
   await language.selectOption("hi")
   await expect(page).toHaveURL(/\/songs\/1\?language=hi$/, { timeout: 20000 })
-  await expect(page.locator("#meaning").getByLabel("Reading language").first()).toHaveValue("hi")
+  await expect(page.locator("#meaning").getByLabel("Language").first()).toHaveValue("hi")
   await expect(page.locator("#meaning article")).toHaveCount(1)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(translationScroll)
 

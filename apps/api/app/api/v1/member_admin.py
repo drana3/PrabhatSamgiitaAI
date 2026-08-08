@@ -61,6 +61,7 @@ from app.services.admin_workflow import (
     song_ingestion_preview,
     submit_song_ingestion,
     sync_youtube_review_queue,
+    clear_pending_youtube_reviews,
     translate_meaning_from_english,
 )
 from app.services.announcements import (
@@ -439,6 +440,15 @@ async def admin_sync_youtube_reviews(request: Request, session: DatabaseSession)
     await admin_member(request, session)
     imported = await sync_youtube_review_queue(session)
     return {"imported": imported}
+
+
+@router.post("/youtube-reviews/clear-pending")
+async def admin_clear_pending_youtube_reviews(
+    request: Request, session: DatabaseSession
+) -> dict[str, int]:
+    await admin_member(request, session)
+    cleared = await clear_pending_youtube_reviews(session)
+    return {"cleared": cleared}
 
 
 @router.get("/youtube-reviews", response_model=YoutubeReviewListResponse)

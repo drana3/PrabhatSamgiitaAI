@@ -32,6 +32,7 @@ module.exports = ({ config }) => {
       azureClientId: process.env.EXPO_PUBLIC_AZURE_CLIENT_ID ?? config.extra?.azureClientId,
       azureTenantId:
         process.env.EXPO_PUBLIC_AZURE_TENANT_ID ?? config.extra?.azureTenantId ?? "common",
+      googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? config.extra?.googleClientId,
       ...(configuredProjectId ? { eas: { projectId: configuredProjectId } } : {}),
     },
   }

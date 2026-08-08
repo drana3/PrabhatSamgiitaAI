@@ -121,37 +121,6 @@ export function AdminYoutubeChannelsPanel() {
     }
   }
 
-  async function scanAll() {
-    setBusyId("all")
-    setError("")
-    setNotice("")
-    try {
-      const response = await fetch("/api/admin/youtube-channels/scan-all", {
-        method: "POST",
-        credentials: "same-origin",
-      })
-      const body = await response.json().catch(() => null)
-      if (!response.ok) {
-        setError(readErrorDetail(body, "Scan all failed"))
-        return
-      }
-      const totals = body as {
-        new_queued_for_review?: number
-        new_auto_linked?: number
-        already_known?: number
-        discovered?: number
-      }
-      setNotice(
-        `Scanned all channels: ${totals.new_queued_for_review ?? 0} new for review, ` +
-          `${totals.new_auto_linked ?? 0} auto-linked, ` +
-          `${totals.already_known ?? 0} already known.`,
-      )
-      await load()
-    } finally {
-      setBusyId(null)
-    }
-  }
-
   async function deactivateChannel(id: string) {
     setBusyId(`deactivate-${id}`)
     setError("")
@@ -177,8 +146,9 @@ export function AdminYoutubeChannelsPanel() {
     <section className="mb-10">
       <h2 className="font-serif text-2xl text-navy-950">Scan channels</h2>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-        Add YouTube channels to scan. Each scan compares videos against your database (linked media
-        and review queue) and only imports new items.
+        Add YouTube channels to scan. A scheduled job runs nightly and imports new in-scope videos
+        automatically. Use <strong>Scan now</strong> only when you need an immediate check after
+        adding a channel.
       </p>
 
       <form
@@ -226,17 +196,6 @@ export function AdminYoutubeChannelsPanel() {
           {busyId === "add" ? "Adding…" : "Add channel"}
         </button>
       </form>
-
-      <div className="mt-5 flex flex-wrap gap-3">
-        <button
-          type="button"
-          disabled={busyId === "all"}
-          onClick={() => void scanAll()}
-          className="gold-button px-4 py-2 text-sm"
-        >
-          {busyId === "all" ? "Scanning all…" : "Scan all channels"}
-        </button>
-      </div>
 
       {notice ? <p className="mt-4 text-sm text-emerald-700">{notice}</p> : null}
       {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}

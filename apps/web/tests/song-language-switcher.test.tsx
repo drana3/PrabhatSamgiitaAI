@@ -20,7 +20,7 @@ describe("song language translation state", () => {
     const user = userEvent.setup()
     const navigate = vi.fn()
     const view = render(<SongLanguageSwitcher selectedLanguage="en" navigate={navigate} />)
-    const language = screen.getByLabelText("Reading language")
+    const language = screen.getByLabelText("Language")
 
     await user.selectOptions(language, "hi")
 

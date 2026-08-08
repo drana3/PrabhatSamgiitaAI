@@ -66,7 +66,6 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="welcome" />
           <Stack.Screen name="auth" options={{ animation: "none" }} />
-          <Stack.Screen name="signin/index" />
           <Stack.Screen name="complete-profile" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="song/[songId]" options={{ presentation: "card" }} />

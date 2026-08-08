@@ -54,7 +54,7 @@ export function SongLanguageSwitcher({
   return (
     <div className="mx-auto w-full min-w-0 sm:w-auto sm:min-w-[14rem]" aria-busy={translating}>
       <label className="flex w-full flex-col items-center gap-2 rounded-2xl border border-navy-900/15 bg-white px-3 py-2.5 text-center text-sm text-navy-800 shadow-sm sm:min-w-[14rem] sm:flex-row sm:justify-center sm:rounded-full sm:px-4 sm:py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">Reading language</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy-600">Language</span>
         <select
           value={targetLanguage || selectedLanguage}
           disabled={translating}
@@ -75,7 +75,7 @@ export function SongLanguageSwitcher({
             go(url)
             router.refresh()
           }}
-          aria-label="Reading language"
+          aria-label="Language"
           className="w-full min-w-0 rounded-full border border-navy-900/15 bg-navy-50 px-3 py-1.5 pr-8 text-center text-sm text-navy-950 outline-none focus:border-gold-500 disabled:cursor-wait disabled:opacity-70 sm:w-auto sm:min-w-[10rem]"
         >
           {["Indian languages", "World languages"].map((group) => (
