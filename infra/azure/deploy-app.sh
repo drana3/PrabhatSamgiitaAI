@@ -21,7 +21,10 @@ AZURE_OPENAI_EMBEDDING_DEPLOYMENT="${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-${AZURE_
 AZURE_OPENAI_API_VERSION="${AZURE_OPENAI_API_VERSION:-2024-10-21}"
 MEMBER_PROXY_KEY="${MEMBER_PROXY_KEY:-}"
 DEFAULT_ADMIN_EMAILS="${DEFAULT_ADMIN_EMAILS:-}"
-PROTECTED_ADMIN_EMAILS="${PROTECTED_ADMIN_EMAILS:-}"
+PROTECTED_ADMIN_EMAILS="${PROTECTED_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
+ACS_EMAIL_ENABLED="${ACS_EMAIL_ENABLED:-true}"
+ACS_EMAIL_FROM="${ACS_EMAIL_FROM:-DoNotReply@a6f8f0fe-ff1d-4f62-8b88-43cd0f36675a.azurecomm.net}"
+ACS_EMAIL_CONNECTION_STRING="${ACS_EMAIL_CONNECTION_STRING:-}"
 
 if [[ -z "${PG_PASSWORD}" ]]; then
   echo "Set PG_PASSWORD to a strong password before running."
@@ -81,6 +84,13 @@ az containerapp secret set \
   --resource-group "$RG" \
   --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
 
+if [[ -n "${ACS_EMAIL_CONNECTION_STRING}" ]]; then
+  az containerapp secret set \
+    --name "$API_APP" \
+    --resource-group "$RG" \
+    --secrets acs-email-connection-string="$ACS_EMAIL_CONNECTION_STRING" >/dev/null
+fi
+
 az acr build \
   --registry "$ACR_NAME" \
   --image "prabhat-samgiita-api:${TAG}" \
@@ -110,6 +120,10 @@ az containerapp update \
     MEMBER_PROXY_KEY=secretref:member-proxy-key \
     DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" \
     PROTECTED_ADMIN_EMAILS="$PROTECTED_ADMIN_EMAILS" \
+    PUBLIC_SITE_URL="https://${WEB_FQDN}" \
+    ACS_EMAIL_ENABLED="$ACS_EMAIL_ENABLED" \
+    ACS_EMAIL_FROM="$ACS_EMAIL_FROM" \
+    ACS_EMAIL_CONNECTION_STRING=secretref:acs-email-connection-string \
     AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview >/dev/null
 
 API_READY=""
