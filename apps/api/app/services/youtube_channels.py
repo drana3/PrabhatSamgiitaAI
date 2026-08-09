@@ -20,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.sync_youtube import (  # noqa: E402
+    CHANNELS,
     channel_videos,
     fetch,
     initial_data,
@@ -39,6 +40,33 @@ def normalize_channel_url(url: str) -> str:
     return cleaned
 
 
+def _channel_id_from_item(item: dict[str, Any]) -> str | None:
+    metadata = item.get("metadata")
+    if isinstance(metadata, dict):
+        channel_id = metadata.get("externalId")
+        if isinstance(channel_id, str) and channel_id.startswith("UC"):
+            return channel_id
+    for key in ("channelId", "browseId", "externalId"):
+        channel_id = item.get(key)
+        if isinstance(channel_id, str) and channel_id.startswith("UC"):
+            return channel_id
+    return None
+
+
+def _channel_id_from_html(html: str) -> str | None:
+    for pattern in (
+        r'"browseId"\s*:\s*"(UC[\w-]+)"',
+        r'"channelId"\s*:\s*"(UC[\w-]+)"',
+        r'"externalId"\s*:\s*"(UC[\w-]+)"',
+        r'itemprop="channelId"\s+content="(UC[\w-]+)"',
+        r"/channel/(UC[\w-]+)",
+    ):
+        match = re.search(pattern, html)
+        if match:
+            return match.group(1)
+    return None
+
+
 def resolve_channel_id(channel_url: str, explicit_id: str | None = None) -> str:
     if explicit_id and explicit_id.strip().startswith("UC"):
         return explicit_id.strip()
@@ -46,8 +74,21 @@ def resolve_channel_id(channel_url: str, explicit_id: str | None = None) -> str:
     match = re.search(r"/channel/(UC[\w-]+)", normalized)
     if match:
         return match.group(1)
+    handle_match = re.search(r"youtube\.com/@([\w.-]+)", normalized, re.I)
+    if handle_match:
+        handle = handle_match.group(1).casefold()
+        for channel in CHANNELS:
+            url = str(channel.get("url", ""))
+            url_handle = re.search(r"youtube\.com/@([\w.-]+)", url, re.I)
+            if url_handle and url_handle.group(1).casefold() == handle:
+                channel_id = channel.get("id")
+                if isinstance(channel_id, str) and channel_id.startswith("UC"):
+                    return channel_id
     try:
         html = fetch(normalized)
+        channel_id = _channel_id_from_html(html)
+        if channel_id:
+            return channel_id
         payload = initial_data(html)
     except Exception as exc:
         raise HTTPException(
@@ -55,13 +96,8 @@ def resolve_channel_id(channel_url: str, explicit_id: str | None = None) -> str:
             detail="Could not resolve the YouTube channel ID from that URL.",
         ) from exc
     for item in walk(payload):
-        metadata = item.get("metadata")
-        if isinstance(metadata, dict):
-            channel_id = metadata.get("externalId")
-            if isinstance(channel_id, str) and channel_id.startswith("UC"):
-                return channel_id
-        channel_id = item.get("channelId")
-        if isinstance(channel_id, str) and channel_id.startswith("UC"):
+        channel_id = _channel_id_from_item(item)
+        if channel_id:
             return channel_id
     raise HTTPException(
         status_code=422,

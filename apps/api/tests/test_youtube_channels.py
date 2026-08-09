@@ -11,6 +11,7 @@ from app.models.admin_workflow import YoutubeReviewQueue, YoutubeScanChannel
 from app.services.youtube_channels import (
     create_youtube_scan_channel,
     normalize_channel_url,
+    resolve_channel_id,
     scan_youtube_channel,
 )
 
@@ -82,6 +83,11 @@ class _ScalarResult:
 
 def test_normalize_channel_url_appends_videos_suffix() -> None:
     assert normalize_channel_url("https://www.youtube.com/@AMPS0521spirituality").endswith("/videos")
+
+
+def test_resolve_channel_id_from_amps_handle() -> None:
+    channel_id = resolve_channel_id("https://youtube.com/@AMPS0521spirituality")
+    assert channel_id == "UCzJy4vdGKx6gzP782-5buOQ"
 
 
 @pytest.mark.asyncio

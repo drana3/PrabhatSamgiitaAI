@@ -181,8 +181,11 @@ export function AdminYoutubeChannelsPanel() {
             value={channelId}
             onChange={(event) => setChannelId(event.target.value)}
             className="rounded-xl border border-navy-900/10 px-3 py-3"
-            placeholder="UC…"
+            placeholder="UCzJy4vdGKx6gzP782-5buOQ"
           />
+          <p className="text-xs text-stone-500">
+            Optional. AMPS: <code className="text-stone-700">UCzJy4vdGKx6gzP782-5buOQ</code>
+          </p>
         </label>
         <label className="flex items-center gap-3 text-sm lg:col-span-2">
           <input
