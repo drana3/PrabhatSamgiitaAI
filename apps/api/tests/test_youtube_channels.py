@@ -13,8 +13,8 @@ from app.services.youtube_channels import (
     normalize_channel_url,
     resolve_channel_id,
     scan_youtube_channel,
-    update_youtube_scan_channel,
     seed_default_youtube_scan_channels,
+    update_youtube_scan_channel,
 )
 
 

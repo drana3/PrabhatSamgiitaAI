@@ -190,6 +190,8 @@ async def seed_default_youtube_scan_channels(
     rows: list[YoutubeScanChannel] = []
     for channel in CHANNELS:
         channel_id = str(channel["id"])
+        raw_notes = channel.get("notes")
+        notes = raw_notes if isinstance(raw_notes, str) else None
         existing = await session.scalar(
             select(YoutubeScanChannel).where(YoutubeScanChannel.channel_id == channel_id)
         )
@@ -199,7 +201,7 @@ async def seed_default_youtube_scan_channels(
                 existing.name = str(channel["name"])[:255]
                 existing.channel_url = normalize_channel_url(str(channel["url"]))
                 existing.is_trusted = bool(channel.get("trusted", True))
-                existing.notes = channel.get("notes")
+                existing.notes = notes
             rows.append(existing)
             continue
         row = YoutubeScanChannel(
@@ -208,7 +210,7 @@ async def seed_default_youtube_scan_channels(
             channel_url=normalize_channel_url(str(channel["url"])),
             is_trusted=bool(channel.get("trusted", True)),
             is_active=True,
-            notes=channel.get("notes"),
+            notes=notes,
             created_by=creator.id,
         )
         session.add(row)
