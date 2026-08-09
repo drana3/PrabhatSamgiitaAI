@@ -273,6 +273,27 @@
     }
   },
   {
+    "song_number": 25,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Prabhata Samgiita #25 DUNIYA WALON TAKTE RHO During New Year DMS Anandanagar 2022.",
+    "url": "https://www.youtube.com/watch?v=hdJUfqFhTZs",
+    "embed_url": "https://www.youtube-nocookie.com/embed/hdJUfqFhTZs",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "hdJUfqFhTZs",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.935,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 27,
     "kind": "video",
     "provider": "youtube",
@@ -4154,6 +4175,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 1412,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Prabhata Samgiita #1412 PRIYA TAMA PABHU AMAR Referred by Rev.  Purodha Pramukh dadaji.",
+    "url": "https://www.youtube.com/watch?v=U3knCJoHDag",
+    "embed_url": "https://www.youtube-nocookie.com/embed/U3knCJoHDag",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "U3knCJoHDag",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.938,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -13881,6 +13923,27 @@
     }
   },
   {
+    "song_number": 4135,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "RAOSHANII SE ÁYE HO TUM || रौशनी से आये हो तुम #4135 Prabhata Samgiita || प्रभात संगीत",
+    "url": "https://www.youtube.com/watch?v=MNZUJ_cFkfw",
+    "embed_url": "https://www.youtube-nocookie.com/embed/MNZUJ_cFkfw",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "MNZUJ_cFkfw",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 4138,
     "kind": "video",
     "provider": "youtube",
@@ -13920,6 +13983,27 @@
       "availability_status": "available",
       "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 4165,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Prabhát Saḿgiita PS 4165 \"Karatár Hamáre\" | Ananda Purnima DMS 2025, Ananda Nagar",
+    "url": "https://www.youtube.com/watch?v=K4EI1bSA5l0",
+    "embed_url": "https://www.youtube-nocookie.com/embed/K4EI1bSA5l0",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "K4EI1bSA5l0",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_then_canonical_title"
     }
   },
   {
@@ -14742,6 +14826,27 @@
     }
   },
   {
+    "song_number": 4513,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "MAGAH GELI MITHILÁ GELI  #4513 मगह गेलि मिथिला गेलि  || प्रभात संगीत - Prabháta Saḿgiita",
+    "url": "https://www.youtube.com/watch?v=7zxMQx_wIfI",
+    "embed_url": "https://www.youtube-nocookie.com/embed/7zxMQx_wIfI",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "7zxMQx_wIfI",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 4521,
     "kind": "video",
     "provider": "youtube",
@@ -14886,6 +14991,27 @@
       "availability_status": "available",
       "match_score": 0.967,
       "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 4579,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Prabháta Saḿgiita 4579 | Tumi Káche Thekeo Dúre Go | Ananda Purnima DMS 2026 | Ananda Nagar",
+    "url": "https://www.youtube.com/watch?v=iruH8zE7NQA",
+    "embed_url": "https://www.youtube-nocookie.com/embed/iruH8zE7NQA",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "iruH8zE7NQA",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_then_canonical_title"
     }
   },
   {
