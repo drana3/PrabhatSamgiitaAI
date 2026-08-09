@@ -194,6 +194,51 @@ async def deactivate_youtube_scan_channel(
     return row
 
 
+async def update_youtube_scan_channel(
+    session: AsyncSession,
+    channel_row_id: UUID,
+    *,
+    name: str | None = None,
+    channel_url: str | None = None,
+    channel_id: str | None = None,
+    is_trusted: bool | None = None,
+    notes: str | None = None,
+    is_active: bool | None = None,
+) -> YoutubeScanChannel:
+    row = await session.get(YoutubeScanChannel, channel_row_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="YouTube channel not found.")
+
+    next_url = normalize_channel_url(channel_url) if channel_url is not None else row.channel_url
+    explicit_id = channel_id if channel_id is not None else None
+    if channel_url is not None or explicit_id:
+        resolved_id = resolve_channel_id(next_url, explicit_id or row.channel_id)
+        if resolved_id != row.channel_id:
+            conflict = await session.scalar(
+                select(YoutubeScanChannel).where(YoutubeScanChannel.channel_id == resolved_id)
+            )
+            if conflict is not None and conflict.id != row.id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Another configured channel already uses that YouTube channel ID.",
+                )
+            row.channel_id = resolved_id
+        row.channel_url = next_url
+
+    if name is not None:
+        row.name = name.strip()[:255]
+    if is_trusted is not None:
+        row.is_trusted = is_trusted
+    if notes is not None:
+        row.notes = notes
+    if is_active is not None:
+        row.is_active = is_active
+
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
 async def _load_songs_map(session: AsyncSession) -> dict[int, dict[str, Any]]:
     rows = list((await session.scalars(select(Song))).all())
     return {

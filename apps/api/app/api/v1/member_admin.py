@@ -29,6 +29,7 @@ from app.schemas.admin_workflow import (
     YoutubeScanChannelItem,
     YoutubeScanChannelListResponse,
     YoutubeScanChannelScanResult,
+    YoutubeScanChannelUpdateWrite,
 )
 from app.schemas.announcements import (
     SiteAnnouncementCreateWrite,
@@ -89,6 +90,7 @@ from app.services.youtube_channels import (
     list_all_youtube_scan_channels,
     scan_all_youtube_channels,
     scan_youtube_channel,
+    update_youtube_scan_channel,
 )
 
 router = APIRouter(prefix="/members/admin", tags=["member-admin"])
@@ -432,6 +434,27 @@ async def admin_deactivate_youtube_channel(
 ) -> YoutubeScanChannelItem:
     await admin_member(request, session)
     row = await deactivate_youtube_scan_channel(session, channel_id)
+    return _youtube_channel_item(row)
+
+
+@router.patch("/youtube-channels/{channel_id}", response_model=YoutubeScanChannelItem)
+async def admin_update_youtube_channel(
+    channel_id: UUID,
+    payload: YoutubeScanChannelUpdateWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> YoutubeScanChannelItem:
+    await admin_member(request, session)
+    row = await update_youtube_scan_channel(
+        session,
+        channel_id,
+        name=payload.name,
+        channel_url=payload.channel_url,
+        channel_id=payload.channel_id,
+        is_trusted=payload.is_trusted,
+        notes=payload.notes,
+        is_active=payload.is_active,
+    )
     return _youtube_channel_item(row)
 
 

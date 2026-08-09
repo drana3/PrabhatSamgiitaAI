@@ -13,6 +13,7 @@ from app.services.youtube_channels import (
     normalize_channel_url,
     resolve_channel_id,
     scan_youtube_channel,
+    update_youtube_scan_channel,
 )
 
 
@@ -112,6 +113,31 @@ async def test_create_channel_rejects_duplicate_active_channel() -> None:
                 channel_url="https://www.youtube.com/@AMPS0521spirituality",
             )
     assert exc.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_channel_changes_name_and_reactivates() -> None:
+    session = _ChannelSession()
+    channel = YoutubeScanChannel(
+        id=uuid4(),
+        name="Old name",
+        channel_id="UCzJy4vdGKx6gzP782-5buOQ",
+        channel_url="https://www.youtube.com/@AMPS0521spirituality/videos",
+        is_trusted=True,
+        is_active=False,
+    )
+    session.channels.append(channel)
+
+    updated = await update_youtube_scan_channel(
+        session,  # type: ignore[arg-type]
+        channel.id,
+        name="AMPS Spirituality",
+        is_active=True,
+    )
+
+    assert updated.name == "AMPS Spirituality"
+    assert updated.is_active is True
+    assert session.committed == 1
 
 
 @pytest.mark.asyncio

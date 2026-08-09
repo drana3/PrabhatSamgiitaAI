@@ -126,6 +126,15 @@ class YoutubeScanChannelCreateWrite(BaseModel):
     notes: str | None = Field(default=None, max_length=2000)
 
 
+class YoutubeScanChannelUpdateWrite(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    channel_url: str | None = Field(default=None, min_length=8, max_length=1024)
+    channel_id: str | None = Field(default=None, max_length=128)
+    is_trusted: bool | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+    is_active: bool | None = None
+
+
 class YoutubeScanChannelScanResult(BaseModel):
     discovered: int
     already_known: int
