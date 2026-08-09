@@ -39,13 +39,15 @@ const DEFAULT_CHANNELS = [
     name: "AMPS Spirituality",
     url: "https://www.youtube.com/@AMPS0521spirituality",
     channelId: "UCzJy4vdGKx6gzP782-5buOQ",
+    notes: "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
   },
   {
     name: "ANANDA MARGA",
     url: "https://www.youtube.com/@Ananda_Marga",
     channelId: "UCc3f8g07me5NpqHfAsF8GIA",
+    notes: "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
   },
-]
+] as const
 
 function ChannelRow({
   channel,
@@ -352,6 +354,28 @@ export function AdminYoutubeChannelsPanel() {
     }
   }
 
+  async function seedDefaultChannels() {
+    setBusyId("seed-defaults")
+    setError("")
+    setNotice("")
+    try {
+      const response = await fetch("/api/admin/youtube-channels/seed-defaults", {
+        method: "POST",
+        credentials: "same-origin",
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        setError(readErrorDetail(body, "Could not add default channels"))
+        return
+      }
+      const count = (body as { items?: YoutubeScanChannel[] }).items?.length ?? 0
+      setNotice(`Added ${count} default channel(s). Use Scan now on each channel when ready.`)
+      await load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function scanChannel(id: string) {
     setBusyId(id)
     setError("")
@@ -370,6 +394,39 @@ export function AdminYoutubeChannelsPanel() {
         `Scan complete: ${body?.new_queued_for_review ?? 0} new for review, ` +
           `${body?.new_auto_linked ?? 0} auto-linked, ` +
           `${body?.already_known ?? 0} already in database (${body?.discovered ?? 0} found on channel).`,
+      )
+      await load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function scanAllChannels() {
+    setBusyId("scan-all")
+    setError("")
+    setNotice("")
+    try {
+      const response = await fetch("/api/admin/youtube-channels/scan-all", {
+        method: "POST",
+        credentials: "same-origin",
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        setError(readErrorDetail(body, "Scan all failed"))
+        return
+      }
+      const totals = body as {
+        new_queued_for_review?: number
+        new_auto_linked?: number
+        already_known?: number
+        discovered?: number
+        channels_scanned?: number
+      }
+      setNotice(
+        `Scanned ${totals.channels_scanned ?? 0} channel(s): ` +
+          `${totals.new_queued_for_review ?? 0} new for review, ` +
+          `${totals.new_auto_linked ?? 0} auto-linked, ` +
+          `${totals.already_known ?? 0} already known (${totals.discovered ?? 0} found).`,
       )
       await load()
     } finally {
@@ -429,14 +486,15 @@ export function AdminYoutubeChannelsPanel() {
       <h2 className="font-serif text-2xl text-navy-950">Scan channels</h2>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
         Configure which YouTube channels are scanned for new Prabhat Samgiita videos. A scheduled job
-        runs nightly; use <strong>Scan now</strong> for an immediate check after changes.
+        runs nightly. After channels are saved below, each row gets a <strong>Scan now</strong>{" "}
+        button for an immediate check.
       </p>
 
       {notice ? <p className="mt-4 text-sm text-emerald-700">{notice}</p> : null}
       {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
 
       <div className="mt-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-semibold text-navy-950">
             Configured channels
             {!loading ? (
@@ -446,14 +504,29 @@ export function AdminYoutubeChannelsPanel() {
               </span>
             ) : null}
           </h3>
+          {!loading && activeChannels.length > 0 ? (
+            <button
+              type="button"
+              disabled={busyId === "scan-all"}
+              onClick={() => void scanAllChannels()}
+              className="gold-button px-3 py-2 text-sm"
+            >
+              {busyId === "scan-all" ? "Scanning all…" : "Scan all channels"}
+            </button>
+          ) : null}
         </div>
 
         {loading ? <p className="mt-4 text-sm text-stone-600">Loading channels…</p> : null}
 
         {!loading && activeChannels.length === 0 && inactiveChannels.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-dashed border-navy-900/15 bg-stone-50 p-5 text-sm text-stone-600">
-            <p>No channels configured yet. Add one below, or use these defaults:</p>
-            <ul className="mt-3 grid gap-2">
+            <p>
+              Nothing is saved in the database yet, so there is no <strong>Scan now</strong> button.
+              The nightly batch job can still use built-in defaults, but this admin page only scans
+              channels you save here.
+            </p>
+            <p className="mt-3">Recommended defaults:</p>
+            <ul className="mt-2 grid gap-2">
               {DEFAULT_CHANNELS.map((channel) => (
                 <li key={channel.channelId} className="text-stone-700">
                   <strong>{channel.name}</strong> —{" "}
@@ -464,6 +537,14 @@ export function AdminYoutubeChannelsPanel() {
                 </li>
               ))}
             </ul>
+            <button
+              type="button"
+              disabled={busyId === "seed-defaults"}
+              onClick={() => void seedDefaultChannels()}
+              className="primary-button mt-4"
+            >
+              {busyId === "seed-defaults" ? "Adding defaults…" : "Add both default channels"}
+            </button>
           </div>
         ) : null}
 

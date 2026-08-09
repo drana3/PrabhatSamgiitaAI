@@ -14,6 +14,7 @@ from app.services.youtube_channels import (
     resolve_channel_id,
     scan_youtube_channel,
     update_youtube_scan_channel,
+    seed_default_youtube_scan_channels,
 )
 
 
@@ -138,6 +139,21 @@ async def test_update_channel_changes_name_and_reactivates() -> None:
     assert updated.name == "AMPS Spirituality"
     assert updated.is_active is True
     assert session.committed == 1
+
+
+@pytest.mark.asyncio
+async def test_seed_default_channels_inserts_both() -> None:
+    session = _ChannelSession()
+    creator = UserAccount(id=uuid4(), email="admin@example.com", display_name="Admin")
+
+    rows = await seed_default_youtube_scan_channels(session, creator=creator)  # type: ignore[arg-type]
+
+    assert len(rows) == 2
+    assert {row.channel_id for row in rows} == {
+        "UCzJy4vdGKx6gzP782-5buOQ",
+        "UCc3f8g07me5NpqHfAsF8GIA",
+    }
+    assert all(row.is_active for row in rows)
 
 
 @pytest.mark.asyncio

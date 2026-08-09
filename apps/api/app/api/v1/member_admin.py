@@ -90,6 +90,7 @@ from app.services.youtube_channels import (
     list_all_youtube_scan_channels,
     scan_all_youtube_channels,
     scan_youtube_channel,
+    seed_default_youtube_scan_channels,
     update_youtube_scan_channel,
 )
 
@@ -385,6 +386,16 @@ async def admin_list_youtube_channels(
 ) -> YoutubeScanChannelListResponse:
     await admin_member(request, session)
     rows = await list_all_youtube_scan_channels(session)
+    return YoutubeScanChannelListResponse(items=[_youtube_channel_item(row) for row in rows])
+
+
+@router.post("/youtube-channels/seed-defaults", response_model=YoutubeScanChannelListResponse)
+async def admin_seed_default_youtube_channels(
+    request: Request,
+    session: DatabaseSession,
+) -> YoutubeScanChannelListResponse:
+    creator = await admin_member(request, session)
+    rows = await seed_default_youtube_scan_channels(session, creator=creator)
     return YoutubeScanChannelListResponse(items=[_youtube_channel_item(row) for row in rows])
 
 

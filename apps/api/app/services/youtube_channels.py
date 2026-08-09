@@ -182,6 +182,43 @@ async def create_youtube_scan_channel(
     return row
 
 
+async def seed_default_youtube_scan_channels(
+    session: AsyncSession,
+    *,
+    creator: UserAccount,
+) -> list[YoutubeScanChannel]:
+    rows: list[YoutubeScanChannel] = []
+    for channel in CHANNELS:
+        channel_id = str(channel["id"])
+        existing = await session.scalar(
+            select(YoutubeScanChannel).where(YoutubeScanChannel.channel_id == channel_id)
+        )
+        if existing is not None:
+            if not existing.is_active:
+                existing.is_active = True
+                existing.name = str(channel["name"])[:255]
+                existing.channel_url = normalize_channel_url(str(channel["url"]))
+                existing.is_trusted = bool(channel.get("trusted", True))
+                existing.notes = channel.get("notes")
+            rows.append(existing)
+            continue
+        row = YoutubeScanChannel(
+            name=str(channel["name"])[:255],
+            channel_id=channel_id,
+            channel_url=normalize_channel_url(str(channel["url"])),
+            is_trusted=bool(channel.get("trusted", True)),
+            is_active=True,
+            notes=channel.get("notes"),
+            created_by=creator.id,
+        )
+        session.add(row)
+        rows.append(row)
+    await session.commit()
+    for row in rows:
+        await session.refresh(row)
+    return rows
+
+
 async def deactivate_youtube_scan_channel(
     session: AsyncSession, channel_id: UUID
 ) -> YoutubeScanChannel:
