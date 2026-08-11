@@ -8883,6 +8883,27 @@
     }
   },
   {
+    "song_number": 2733,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Nandana Madhu Nisyande - Prabhat Sangeet song #2733 - Singer - Shubhankar Haldar",
+    "url": "https://www.youtube.com/watch?v=eQl8weui3Xg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/eQl8weui3Xg",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "eQl8weui3Xg",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.945,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2734,
     "kind": "video",
     "provider": "youtube",
