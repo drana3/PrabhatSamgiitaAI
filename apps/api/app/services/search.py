@@ -18,7 +18,6 @@ from app.models import Media, Notation, Song, SongChunk
 from app.schemas.search import MediaSummary, SearchFilters, SearchResponse, SearchResultItem
 from app.services.ai import select_provider
 from app.services.catalog import (
-    CatalogService,
     catalog_media_snapshot,
     catalog_notation_snapshot,
     catalog_song_snapshot,
@@ -588,9 +587,6 @@ class HybridSearchService:
     def _seed_notations(self) -> list[Notation]:
         return list(catalog_notation_snapshot())
 
-    async def _song_index(self) -> list[Song]:
-        return await CatalogService(self.session).list_songs(limit=10000)
-
     def _build_seed_media_counts(self) -> dict[int, MediaSummary]:
         counts: dict[int, MediaSummary] = defaultdict(MediaSummary)
         for media_item in self._seed_media():
@@ -605,6 +601,25 @@ class HybridSearchService:
                 continue
             counts[int(song_number)].notation_count += 1
         return counts
+
+    @staticmethod
+    def _needs_live_media_counts(filters: SearchFilters) -> bool:
+        return any(
+            value is not None
+            for value in (filters.has_audio, filters.has_video, filters.has_notation)
+        )
+
+    def _snapshot_song_index(self) -> list[Song]:
+        return list(catalog_song_snapshot())
+
+    async def _load_search_catalog(
+        self,
+        filters: SearchFilters,
+    ) -> tuple[list[Song], dict[int, MediaSummary]]:
+        songs = self._snapshot_song_index()
+        if self._needs_live_media_counts(filters):
+            return songs, await self._media_counts()
+        return songs, self._build_seed_media_counts()
 
     async def _media_counts(self) -> dict[int, MediaSummary]:
         counts = self._build_seed_media_counts()
@@ -898,8 +913,7 @@ class HybridSearchService:
                 page_size,
             )
 
-        songs = await self._song_index()
-        media_counts = await self._media_counts()
+        songs, media_counts = await self._load_search_catalog(filters)
         if collection_match:
             return self._collection_search_response(
                 query,

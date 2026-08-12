@@ -399,3 +399,14 @@ async def test_festival_collection_query_returns_only_shravanii_song() -> None:
     )
 
     assert [item.song_number for item in response.items] == [4954]
+
+
+@pytest.mark.asyncio
+async def test_catalog_lyric_search_uses_snapshot_without_database() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search("bandhu he niye calo", mode="catalog", page_size=5)
+
+    assert response.items
+    assert response.items[0].song_number == 1
+    assert "opening_line" in response.items[0].matched_by or "full_text" in response.items[0].matched_by
