@@ -16,7 +16,7 @@ describe("hero search", () => {
   it("routes exact song numbers directly", async () => {
     const user = userEvent.setup()
     render(<HeroSearch />)
-    await user.type(screen.getByLabelText(/Ask by song/i), "111")
+    await user.type(screen.getByLabelText(/Search by song number/i), "111")
     await user.click(screen.getByRole("button", { name: "Search" }))
     expect(push).toHaveBeenCalledWith("/songs/111#ask")
   })
@@ -24,15 +24,31 @@ describe("hero search", () => {
   it("routes thematic queries to Explore", async () => {
     const user = userEvent.setup()
     render(<HeroSearch />)
-    await user.type(screen.getByLabelText(/Ask by song/i), "morning meditation")
+    await user.type(screen.getByLabelText(/Search by song number/i), "morning meditation")
     await user.click(screen.getByRole("button", { name: "Search" }))
     expect(push).toHaveBeenCalledWith("/explore?q=morning%20meditation")
+  })
+
+  it("routes example chips to the right destinations", async () => {
+    const user = userEvent.setup()
+    render(<HeroSearch />)
+
+    await user.click(screen.getByRole("button", { name: /By number/i }))
+    expect(push).toHaveBeenCalledWith("/songs/111#ask")
+
+    push.mockClear()
+    await user.click(screen.getByRole("button", { name: /By words/i }))
+    expect(push).toHaveBeenCalledWith("/explore?q=bandhu%20he%20niye%20calo")
+
+    push.mockClear()
+    await user.click(screen.getByRole("button", { name: /By feeling/i }))
+    expect(push).toHaveBeenCalledWith("/explore?q=peaceful%20devotion&kind=semantic")
   })
 
   it("opens grounded AI context for an explanation request containing a song number", async () => {
     const user = userEvent.setup()
     render(<HeroSearch />)
-    await user.type(screen.getByLabelText(/Ask by song/i), "explain about prabhat sagiat 223")
+    await user.type(screen.getByLabelText(/Search by song number/i), "explain about prabhat sagiat 223")
     await user.click(screen.getByRole("button", { name: "Search" }))
     expect(push).toHaveBeenCalledWith("/songs/223#ask")
   })
@@ -64,7 +80,7 @@ describe("hero search", () => {
   it("keeps malicious and meaningless input local", async () => {
     const user = userEvent.setup()
     render(<HeroSearch />)
-    await user.type(screen.getByLabelText(/Ask by song/i), "<script>alert(1)</script>")
+    await user.type(screen.getByLabelText(/Search by song number/i), "<script>alert(1)</script>")
     await user.click(screen.getByRole("button", { name: "Search" }))
     expect(push).not.toHaveBeenCalled()
     expect(screen.getByRole("alert")).toHaveTextContent("Please ask something specific")
