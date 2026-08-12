@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
@@ -55,6 +56,7 @@ def extract_responses_text(payload: dict[str, Any]) -> str:
 @dataclass(slots=True)
 class MockProvider:
     dimension: int = 16
+    hindi_meaning: str = "हे प्रिय सखा, मुझे आगे ले चलो।"
 
     async def embed(self, text: str) -> list[float]:
         seed = sum(ord(ch) for ch in text)
@@ -64,18 +66,34 @@ class MockProvider:
         return [await self.embed(text) for text in texts]
 
     async def complete(self, prompt: str) -> str:
+        if "DRAFT (" in prompt and "PRIMARY source" in prompt:
+            draft_match = re.search(
+                r"DRAFT \([^)]+\):\n(.+?)(?:\nAutomated review notes:|\Z)",
+                prompt,
+                flags=re.DOTALL,
+            )
+            if re.search(r"\bHindi\b|\(hi\)", prompt):
+                return self.hindi_meaning
+            if draft_match:
+                return draft_match.group(1).strip()
+            return self.hindi_meaning
         if "Return only valid JSON" in prompt:
             fields: dict[str, str] = {}
             for line in prompt.splitlines():
                 key, separator, value = line.partition(":")
                 if separator and key in {"Title", "First line", "English meaning"}:
                     fields[key] = value.strip()
+            localized_meaning = (
+                self.hindi_meaning
+                if re.search(r"\bHindi\b|\(hi\)", prompt)
+                else fields.get("English meaning")
+            )
             return json.dumps(
                 {
                     "localized_title": fields.get("Title"),
                     "localized_first_line": fields.get("First line"),
-                    "localized_meaning": fields.get("English meaning"),
-                    "localized_explanation": fields.get("English meaning"),
+                    "localized_meaning": localized_meaning,
+                    "localized_explanation": localized_meaning,
                 }
             )
         return f"Mock grounded explanation based on: {prompt[:160]}"

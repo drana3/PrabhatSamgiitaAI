@@ -261,9 +261,13 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page).toHaveURL(/\/songs\/1\?language=hi$/, { timeout: 20000 })
   await expect(page.locator("#meaning").getByLabel("Language").first()).toHaveValue("hi")
   await expect(page.getByRole("status", { name: /translating/i })).toHaveCount(0, { timeout: 20000 })
+  const hindiMeaningArticle = page.locator("#meaning article").filter({ hasText: /hindi meaning/i })
+  const englishMeaningArticle = page.locator("#meaning article").filter({
+    has: page.locator("p").filter({ hasText: /^English$/ }),
+  })
+  await expect(hindiMeaningArticle).toBeVisible({ timeout: 20000 })
+  await expect(englishMeaningArticle).toBeVisible()
   await expect(page.locator("#meaning article")).toHaveCount(2)
-  await expect(page.locator("#meaning").getByText(/hindi meaning/i)).toBeVisible()
-  await expect(page.locator("#meaning").getByText("English", { exact: true })).toBeVisible()
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(translationScroll)
 
   await expect(page.locator("#lyrics")).toBeVisible()
