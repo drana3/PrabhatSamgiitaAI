@@ -115,7 +115,7 @@ class LocalizationService:
                     localized_meaning=localized_meaning,
                     localized_explanation=self._text(payload, "localized_explanation"),
                 )
-        except Exception as exc:
+        except Exception:
             logger.exception("Localization failed for song %s in %s", song.number, normalized)
             result = LocalizedSongText(
                 language=display_language,

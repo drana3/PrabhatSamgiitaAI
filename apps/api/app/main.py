@@ -109,6 +109,9 @@ async def _ensure_member_schema() -> None:
 
 
 async def initialize_schema() -> None:
+    if settings.app_env == "test":
+        return
+
     try:
         await asyncio.to_thread(_run_alembic_migrations)
     except Exception:

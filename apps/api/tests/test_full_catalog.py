@@ -409,4 +409,5 @@ async def test_catalog_lyric_search_uses_snapshot_without_database() -> None:
 
     assert response.items
     assert response.items[0].song_number == 1
-    assert "opening_line" in response.items[0].matched_by or "full_text" in response.items[0].matched_by
+    matched_by = response.items[0].matched_by
+    assert "opening_line" in matched_by or "full_text" in matched_by

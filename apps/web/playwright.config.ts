@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test"
 
 const ci = Boolean(process.env.CI)
+const webPort = process.env.E2E_WEB_PORT || "3099"
+const webBaseUrl = `http://127.0.0.1:${webPort}`
 const apiServerCommand = ci
   ? ".venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011"
   : "uv run uvicorn app.main:app --host 127.0.0.1 --port 8011"
@@ -15,7 +17,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: ci ? [["github"], ["list"]] : [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: webBaseUrl,
     contextOptions: { reducedMotion: "reduce" },
     trace: ci ? "retain-on-failure" : "retain-on-failure",
     actionTimeout: 10_000,
@@ -29,8 +31,8 @@ export default defineConfig({
       timeout: 120000,
       env: {
         APP_ENV: "test",
-        API_CORS_ORIGINS: "http://127.0.0.1:3000",
-        DATABASE_URL: "postgresql+psycopg://test:test@127.0.0.1:9/test",
+        API_CORS_ORIGINS: webBaseUrl,
+        DATABASE_URL: "postgresql+psycopg://test:test@127.0.0.1:9/test?connect_timeout=3",
         LOG_LEVEL: "CRITICAL",
         SCHEDULER_ENABLED: "false",
         TRUSTED_HOSTS: "localhost,127.0.0.1,testserver,acceptance",
@@ -38,13 +40,15 @@ export default defineConfig({
     },
     {
       command: webServerCommand,
-      url: "http://127.0.0.1:3000",
+      url: webBaseUrl,
       reuseExistingServer: false,
       timeout: 120000,
       env: {
         NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8011",
         NEXT_PUBLIC_AUTH_ENABLED: "true",
         E2E_DISABLE_SEARCH_PREFETCH: "true",
+        PORT: webPort,
+        HOSTNAME: "127.0.0.1",
       },
     },
   ],

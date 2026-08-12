@@ -11,7 +11,7 @@ async function setDetailsOpen(page: Page, selector: string, open: boolean) {
 }
 
 async function clickSearchButton(page: Page) {
-  const heroInput = page.getByLabel(/Ask by song, feeling/i).first()
+  const heroInput = page.getByLabel(/Search by song number/i).first()
   if (await heroInput.count()) {
     await heroInput.press("Enter")
     return
@@ -351,7 +351,7 @@ test("garbage and hostile hero queries never reach search or AI", async ({ page 
   let protectedCalls = 0
   await page.route("**/api/v1/{search,ai}/**", async (route) => { protectedCalls += 1; await route.abort() })
   await page.goto("/")
-  const input = page.getByLabel(/Ask by song, feeling/i)
+  const input = page.getByLabel(/Search by song number/i)
   await input.fill("<script>alert(1)</script>")
   await clickSearchButton(page)
   await expect(page.getByRole("alert").filter({ hasText: /Please ask something specific/i })).toBeAttached()
@@ -378,7 +378,7 @@ test("random numbers and missing song identifiers stop before search", async ({ 
 
 test("a meaningful query moves naturally into exploration", async ({ page }) => {
   await page.goto("/")
-  await page.getByLabel(/Ask by song, feeling/i).fill("morning meditation")
+  await page.getByLabel(/Search by song number/i).fill("morning meditation")
   await clickSearchButton(page)
   await expect(page).toHaveURL(/\/explore\?q=morning(\+|%20)meditation/)
   await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
@@ -390,7 +390,7 @@ test("home search lands on explore with Searching before results arrive", async 
     await route.fulfill({ json: [songResult] })
   })
   await page.goto("/")
-  await page.getByLabel(/Ask by song, feeling/i).fill("Musafir aage badhate hain")
+  await page.getByLabel(/Search by song number/i).fill("Musafir aage badhate hain")
   await clickSearchButton(page)
   await expect(page).toHaveURL(/\/explore\?q=.*Musafir/i)
   await expect(page.getByRole("button", { name: "Searching" })).toBeVisible()
@@ -501,7 +501,7 @@ test("Explore search stays aligned and infers spoken language", async ({ page },
 
 test("home and Explore resolve natural-language song number intent before RAG", async ({ page }) => {
   await page.goto("/")
-  await page.getByLabel(/Ask by song, feeling/i).fill("explain about prabhat sagiat 223")
+  await page.getByLabel(/Search by song number/i).fill("explain about prabhat sagiat 223")
   await clickSearchButton(page)
   await expect(page).toHaveURL(/\/songs\/223#ask$/)
   await expect(page.locator("#ask")).toBeVisible()
@@ -705,7 +705,7 @@ test("guests are prompted to sign in before sending feedback", async ({ page }) 
 
 test("keyboard and assistive users can reach search and primary actions", async ({ page }, testInfo) => {
   await page.goto("/")
-  const search = page.getByLabel(/Ask by song, feeling/i)
+  const search = page.getByLabel(/Search by song number/i)
   await expect(search).toBeVisible()
   if (testInfo.project.name.includes("mobile")) {
     expect(await search.evaluate((node: HTMLInputElement) => !node.disabled && node.tabIndex >= 0 && Boolean(node.labels?.length))).toBe(true)
