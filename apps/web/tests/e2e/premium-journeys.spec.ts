@@ -454,7 +454,7 @@ test("collection click scrolls to search bar, shows Searching, and uses a friend
   await expect(page.getByRole("heading", { name: /Songs in the Rain, drought, and farmers collection/i }).first()).toBeVisible()
   await expect(page.getByRole("heading", { name: "Rain Song Example 1" })).toBeVisible({ timeout: 15_000 })
   await expect(page.locator("#results")).toBeInViewport()
-  await expect(page.getByText("2 shown", { exact: true })).toBeVisible()
+  await expect(page.getByText("2 songs", { exact: true })).toBeVisible()
 })
 
 test("Explore search stays aligned and infers spoken language", async ({ page }, testInfo) => {
