@@ -11,9 +11,13 @@ function apiBase() {
 export async function searchSongsOnServer(
   query: string,
   mode: "catalog" | "semantic" = "catalog",
+  timeoutMs = 8000,
 ): Promise<SongSummary[] | null> {
   const trimmed = query.trim()
   if (!trimmed) return null
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const response = await fetch(`${apiBase()}/api/v1/search`, {
@@ -21,11 +25,14 @@ export async function searchSongsOnServer(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: trimmed, mode }),
       cache: "no-store",
+      signal: controller.signal,
     })
     if (!response.ok) return null
     return await response.json() as SongSummary[]
   } catch {
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 

@@ -1,27 +1,20 @@
 import { ExploreClient } from "@/components/explore-client"
 import { MiniPlayer } from "@/components/mini-player"
 import { SiteHeader } from "@/components/site-header"
-import { shouldPrefetchExploreSearch } from "@/lib/explore-search"
-import { searchSongsOnServer } from "@/lib/server-api"
 import { exploreSearchKind } from "@/lib/special-collections"
 import seedSongs from "../../../../data/seed/songs.json"
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ q?: string; mode?: string; lang?: string; kind?: string }> }) {
   const { q = "", mode, lang, kind } = await searchParams
   const searchKind = exploreSearchKind(q, kind)
-  const prefetched = shouldPrefetchExploreSearch(q, searchKind)
-    ? await searchSongsOnServer(q, "catalog")
-    : null
-  const initialSongs = prefetched ?? seedSongs.slice(0, 12)
 
   return (
     <main className="min-h-screen bg-ivory-50">
       <SiteHeader active="Explore" />
       <ExploreClient
-        initialSongs={initialSongs}
+        initialSongs={seedSongs.slice(0, 12)}
         initialQuery={q}
         searchKind={searchKind}
-        searchPrefetched={Boolean(prefetched && q)}
         inputMode={mode === "voice" ? "voice" : "text"}
         spokenLanguage={lang}
       />
