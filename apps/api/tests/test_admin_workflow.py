@@ -37,8 +37,13 @@ async def test_translate_meaning_from_english_uses_db_english() -> None:
     session.scalar = AsyncMock(return_value=song)
 
     class FakeProvider:
+        calls = 0
+
         async def complete(self, prompt: str) -> str:
+            FakeProvider.calls += 1
             assert "This song speaks of devotion." in prompt
+            if "DRAFT" in prompt:
+                return "यह गीत भक्ति के विषय में है"
             assert "Hindi" in prompt
             return "यह गीत भक्ति के बारे में है"
 
@@ -48,7 +53,8 @@ async def test_translate_meaning_from_english_uses_db_english() -> None:
     ):
         result = await translate_meaning_from_english(session, 42, "hi")
 
-    assert result.draft_text == "यह गीत भक्ति के बारे में है"
+    assert FakeProvider.calls == 2
+    assert result.draft_text == "यह गीत भक्ति के विषय में है"
     assert result.source_language == "en"
     assert result.target_language == "hi"
     assert result.language_check_ok is True
@@ -88,6 +94,8 @@ async def test_translate_meaning_from_english_accepts_override() -> None:
         async def complete(self, prompt: str) -> str:
             assert "Override meaning" in prompt
             assert "Stored meaning" not in prompt
+            if "DRAFT" in prompt:
+                return "सुधारित अनुवाद"
             return "अनुवाद"
 
     with patch(
@@ -101,7 +109,7 @@ async def test_translate_meaning_from_english_accepts_override() -> None:
             english_text="Override meaning",
         )
 
-    assert result.draft_text == "अनुवाद"
+    assert result.draft_text == "सुधारित अनुवाद"
 
 
 @pytest.mark.asyncio

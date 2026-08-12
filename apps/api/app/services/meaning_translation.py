@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from app.models import Song
+from app.services.ingestion_language import validate_meaning_language
 from app.services.song_meanings import (
     LANGUAGE_LABELS,
     language_display_name,
@@ -43,6 +45,51 @@ Rules:
 6. When both Hindi and English sources are provided, treat Hindi as the closer
    authority for Indic targets.
 """.strip()
+
+META_COMMENTARY_PATTERNS = (
+    r"\bas an ai\b",
+    r"\bi (?:cannot|can't) translate\b",
+    r"\bhere is the translation\b",
+    r"\btranslated (?:from|into)\b",
+    r"\bthis translation\b",
+    r"\bthe (?:draft|source) (?:meaning|text)\b",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class MeaningTranslationAudit:
+    passed: bool
+    issues: tuple[str, ...]
+
+
+def audit_meaning_translation(
+    source_text: str,
+    draft_text: str,
+    target_language: str,
+) -> MeaningTranslationAudit:
+    issues: list[str] = []
+    source = source_text.strip()
+    draft = draft_text.strip()
+    if not draft:
+        issues.append("The draft is empty.")
+    if len(draft) < max(12, len(source) // 4):
+        issues.append("The draft is too short compared with the source meaning.")
+    if len(draft) > len(source) * 3 + 120:
+        issues.append("The draft is much longer than the source and may add commentary.")
+
+    source_lines = [line for line in source.splitlines() if line.strip()]
+    draft_lines = [line for line in draft.splitlines() if line.strip()]
+    if len(source_lines) >= 2 and len(draft_lines) < len(source_lines) - 1:
+        issues.append("The draft does not preserve the source line structure.")
+
+    if any(re.search(pattern, draft, re.IGNORECASE) for pattern in META_COMMENTARY_PATTERNS):
+        issues.append("The draft contains AI or translation meta-commentary.")
+
+    ok, message = validate_meaning_language(target_language, draft)
+    if not ok:
+        issues.append(message)
+
+    return MeaningTranslationAudit(not issues, tuple(issues))
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,3 +242,87 @@ def build_localization_prompt(
             "\n".join(line for line in context_lines if line.split(":", 1)[-1].strip()),
         ]
     )
+
+
+def build_meaning_review_prompt(
+    song: Song,
+    target_language: str,
+    *,
+    source_text: str,
+    source_code: str,
+    draft_text: str,
+    audit: MeaningTranslationAudit,
+) -> str:
+    target_code = normalize_language_code(target_language) or target_language.casefold()
+    target_label = language_display_name(target_language)
+    bundle = meaning_source_bundle(song)
+    context_lines = [
+        f"Song number: {song.number}",
+        f"Title: {bundle.title or ''}",
+        f"First line: {bundle.first_line or ''}",
+    ]
+    if bundle.canonical_source_url:
+        context_lines.append(f"Canonical source: {bundle.canonical_source_url}")
+    issue_block = (
+        "No automated issues were detected, but still verify fidelity and grammar."
+        if audit.passed
+        else "\n".join(f"- {issue}" for issue in audit.issues)
+    )
+    return "\n".join(
+        [
+            "You are a senior reviewer of Prabhat Samgiita meaning translations.",
+            FAITHFUL_TRANSLATION_RULES,
+            (
+                f"Review the DRAFT below against the PRIMARY source "
+                f"({source_code}) and produce the best faithful meaning in "
+                f"{target_label} ({target_code})."
+            ),
+            "Reviewer tasks:",
+            "1. Keep every idea from the source; remove anything not grounded in the source.",
+            "2. Fix grammar, spelling, idioms, and devotional register in the target language.",
+            "3. Preserve source line breaks and order when the source is line-by-line.",
+            "4. If the draft is already faithful and natural, return it unchanged.",
+            "Return only the final meaning text — no JSON, headings, notes, or process text.",
+            "Context:",
+            "\n".join(context_lines),
+            f"PRIMARY source ({source_code}):",
+            source_text,
+            f"DRAFT ({target_code}):",
+            draft_text,
+            "Automated review notes:",
+            issue_block,
+        ]
+    )
+
+
+async def refine_meaning_translation(
+    provider,
+    *,
+    song: Song,
+    target_language: str,
+    source_text: str,
+    source_code: str,
+    draft_text: str,
+) -> str:
+    """Run a reviewer pass so meaning text is faithful and grammatically natural."""
+    draft = draft_text.strip()
+    if not draft:
+        return draft
+
+    audit = audit_meaning_translation(source_text, draft, target_language)
+    review_prompt = build_meaning_review_prompt(
+        song,
+        target_language,
+        source_text=source_text,
+        source_code=source_code,
+        draft_text=draft,
+        audit=audit,
+    )
+    revised = (await provider.complete(review_prompt)).strip()
+    if not revised:
+        return draft
+
+    revised_audit = audit_meaning_translation(source_text, revised, target_language)
+    if revised_audit.passed or len(revised_audit.issues) < len(audit.issues):
+        return revised
+    return draft

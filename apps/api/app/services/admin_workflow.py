@@ -24,7 +24,11 @@ from app.schemas.admin_workflow import (
 from app.services.ai import select_provider
 from app.services.chat_language import _detect_text_language
 from app.services.ingestion_language import SUPPORTED_LANGUAGES, validate_meaning_language
-from app.services.meaning_translation import build_meaning_translation_prompt, pick_meaning_source
+from app.services.meaning_translation import (
+    build_meaning_translation_prompt,
+    pick_meaning_source,
+    refine_meaning_translation,
+)
 from app.services.media_quality import media_quality_key
 from app.services.song_meanings import collect_stored_meanings
 
@@ -394,12 +398,19 @@ async def translate_meaning_from_english(
     )
     provider = select_provider(get_settings())
     try:
-        async with asyncio.timeout(30):
+        async with asyncio.timeout(55):
             draft = await provider.complete(prompt)
+            draft_text = await refine_meaning_translation(
+                provider,
+                song=song,
+                target_language=code,
+                source_text=source,
+                source_code=source_language,
+                draft_text=draft.strip(),
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Translation failed: {exc}") from exc
 
-    draft_text = draft.strip()
     ok, message = validate_meaning_language(code, draft_text)
     detected = _detect_text_language(draft_text)
     return TranslateFromEnglishResponse(

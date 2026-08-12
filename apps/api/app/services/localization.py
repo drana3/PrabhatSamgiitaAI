@@ -11,7 +11,11 @@ from app.config import get_settings
 from app.core.cache import AsyncTTLCache
 from app.models import Song
 from app.services.ai import select_provider
-from app.services.meaning_translation import build_localization_prompt
+from app.services.meaning_translation import (
+    build_localization_prompt,
+    pick_meaning_source,
+    refine_meaning_translation,
+)
 from app.services.song_meanings import language_display_name, stored_meaning_for_language
 
 logger = logging.getLogger(__name__)
@@ -30,7 +34,7 @@ translation_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
     ttl_seconds=86400,
     maxsize=512,
 )
-LOCALIZATION_PROMPT_VERSION = 2
+LOCALIZATION_PROMPT_VERSION = 3
 
 
 class LocalizationService:
@@ -90,14 +94,25 @@ class LocalizationService:
 
         source_prompt = build_localization_prompt(song, normalized, explanation)
         try:
-            async with asyncio.timeout(25):
+            async with asyncio.timeout(50):
                 raw = await self.provider.complete(source_prompt)
             payload = self._extract_json(raw)
+            localized_meaning = self._text(payload, "localized_meaning")
+            source_text, source_code = pick_meaning_source(song, normalized)
+            if localized_meaning and source_text:
+                localized_meaning = await refine_meaning_translation(
+                    self.provider,
+                    song=song,
+                    target_language=normalized,
+                    source_text=source_text,
+                    source_code=source_code,
+                    draft_text=localized_meaning,
+                )
             result = LocalizedSongText(
                 language=normalized,
                 localized_title=self._text(payload, "localized_title"),
                 localized_first_line=self._text(payload, "localized_first_line"),
-                localized_meaning=self._text(payload, "localized_meaning"),
+                localized_meaning=localized_meaning,
                 localized_explanation=self._text(payload, "localized_explanation"),
             )
         except Exception as exc:
