@@ -77,7 +77,7 @@ export function ExploreClient({
   inputMode?: "text" | "voice"
   spokenLanguage?: string
 }) {
-  const pendingInitialSearch = Boolean(initialQuery)
+  const pendingInitialSearch = Boolean(initialQuery) && !searchPrefetched
   const [songs, setSongs] = useState<SongSummary[]>(pendingInitialSearch ? [] : initialSongs)
   const [activeQuery, setActiveQuery] = useState(initialQuery)
   const [activeKind, setActiveKind] = useState<ExploreSearchKind>(searchKind)
@@ -95,11 +95,6 @@ export function ExploreClient({
     void fetchSongs().then((value) => { if (active && value.length) setSongs(value) })
     return () => { active = false }
   }, [initialQuery])
-
-  useEffect(() => {
-    if (!searchPrefetched || !initialQuery) return
-    searchCache.current.set(cacheKey(initialQuery, searchKind), initialSongs)
-  }, [initialQuery, initialSongs, searchKind, searchPrefetched])
 
   const finishSearch = useCallback((trimmed: string) => {
     setCompletedQuery(trimmed)
@@ -213,12 +208,20 @@ export function ExploreClient({
     if (bootstrappedQuery.current === pendingKey) return
     bootstrappedQuery.current = pendingKey
 
+    if (searchPrefetched) {
+      searchCache.current.set(cacheKey(initialQuery, searchKind), initialSongs)
+      setSongs(initialSongs)
+      setSearching(false)
+      finishSearch(initialQuery)
+      return
+    }
+
     if (inputMode === "voice") {
       void runVoiceSearch(initialQuery)
       return
     }
     void runSearch(initialQuery, searchKind)
-  }, [initialQuery, inputMode, runSearch, runVoiceSearch, searchKind])
+  }, [initialQuery, initialSongs, inputMode, runSearch, runVoiceSearch, searchKind, searchPrefetched, finishSearch])
 
   function handleSearching(nextSearching: boolean) {
     setSearching(nextSearching)

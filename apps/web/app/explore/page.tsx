@@ -8,7 +8,10 @@ import seedSongs from "../../../../data/seed/songs.json"
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ q?: string; mode?: string; lang?: string; kind?: string }> }) {
   const { q = "", mode, lang, kind } = await searchParams
   const searchKind = exploreSearchKind(q, kind)
-  const prefetched = q && searchKind === "catalog" ? await searchSongsOnServer(q, "catalog") : null
+  const prefetchEnabled = process.env.E2E_DISABLE_SEARCH_PREFETCH !== "true"
+  const prefetched = prefetchEnabled && q && searchKind === "catalog"
+    ? await searchSongsOnServer(q, "catalog")
+    : null
   const initialSongs = prefetched ?? seedSongs.slice(0, 12)
 
   return (

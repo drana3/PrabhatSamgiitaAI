@@ -44,6 +44,7 @@ export default defineConfig({
       env: {
         NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8011",
         NEXT_PUBLIC_AUTH_ENABLED: "true",
+        E2E_DISABLE_SEARCH_PREFETCH: "true",
       },
     },
   ],
