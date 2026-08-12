@@ -323,7 +323,16 @@ export function collectionSearchDisplayLabel(query: string) {
 
 export type ExploreSearchKind = "catalog" | "semantic"
 
+const semanticSearchHints =
+  /\b(?:about|awakening|bliss|devotion|feel(?:ing)?|festival|help me|hope|joy|meaning|meditat|mood|morning|nature|occasion|peace|rain|recommend|service|spiritual|sorrow|suggest|theme|why)\b/i
+
 export function exploreSearchKind(query: string, explicitKind?: string | null): ExploreSearchKind {
   if (explicitKind === "catalog" || explicitKind === "semantic") return explicitKind
-  return isCollectionSearchQuery(query) ? "catalog" : "semantic"
+  if (isCollectionSearchQuery(query)) return "catalog"
+  const trimmed = query.trim()
+  if (!trimmed) return "semantic"
+  if (semanticSearchHints.test(trimmed)) return "semantic"
+  // Lyric lines and short lookups are much faster with catalog search.
+  if (trimmed.split(/\s+/).length <= 8) return "catalog"
+  return "semantic"
 }

@@ -23,6 +23,7 @@ from app.services.query_guard import assess_query
 from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
+    needs_semantic_expansion,
     prepare_voice_query,
 )
 
@@ -109,11 +110,12 @@ async def search_voice(
     # Voice and typed natural-language asks both need meaning search across the
     # full embedding index. Catalog/lexical mode misses feeling queries such as
     # "I am feeling very happy today".
+    search_mode = "semantic" if needs_semantic_expansion(interpreted_as) else "catalog"
     response = await HybridSearchService(session).search(
         interpreted_as,
         page_size=TOP_SEARCH_PREDICTIONS,
         input_mode="voice",
-        mode="semantic",
+        mode=search_mode,
     )
     songs_by_number = {song.number: song for song in catalog_song_snapshot()}
     matches: list[VoiceSearchMatch] = []

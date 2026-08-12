@@ -23,7 +23,7 @@ export function HeroSearch() {
       router.push(songIntentPath(songIntent))
       return
     }
-    router.push(`/explore?q=${encodeURIComponent(normalized)}&kind=semantic`)
+    router.push(`/explore?q=${encodeURIComponent(normalized)}`)
   }
 
   return (
@@ -55,7 +55,7 @@ export function HeroSearch() {
           router.push(songIntentPath(songIntent))
           return
         }
-        router.push(`/explore?q=${encodeURIComponent(transcript)}&kind=semantic&mode=voice&lang=${encodeURIComponent(language)}`)
+        router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
       }} />
       <button type="submit" aria-label="Search" data-feature="hero_search" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-600 text-lg text-white shadow-md transition hover:bg-gold-700">
         →

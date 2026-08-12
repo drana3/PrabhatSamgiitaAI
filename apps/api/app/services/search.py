@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import unicodedata
 from collections import defaultdict
+from collections.abc import Awaitable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
@@ -471,6 +473,46 @@ SEMANTIC_QUERY_PROMPT = (
     "Question: {query}"
 )
 
+SEMANTIC_EXPANSION_HINTS = (
+    "about",
+    "awakening",
+    "bliss",
+    "devotion",
+    "feel",
+    "feeling",
+    "festival",
+    "help me",
+    "hope",
+    "joy",
+    "meaning",
+    "meditat",
+    "mood",
+    "morning",
+    "nature",
+    "occasion",
+    "peace",
+    "rain",
+    "recommend",
+    "service",
+    "spiritual",
+    "sorrow",
+    "suggest",
+    "theme",
+    "why",
+)
+
+
+def needs_semantic_expansion(query: str) -> bool:
+    """Skip the LLM rewrite for lyric/number lookups that catalog search handles well."""
+    cleaned = normalize_query(query)
+    if not cleaned:
+        return False
+    if extract_song_number_intent(cleaned) is not None:
+        return False
+    if any(hint in cleaned for hint in SEMANTIC_EXPANSION_HINTS):
+        return True
+    return len(cleaned.split()) > 8
+
 
 # Typed and voice prediction UIs show a short ranked list, not the full candidate set.
 TOP_SEARCH_PREDICTIONS = 5
@@ -482,6 +524,8 @@ class HybridSearchService:
         self.provider = select_provider(get_settings())
 
     async def _expand_semantic_query(self, query: str) -> str:
+        if not needs_semantic_expansion(query):
+            return query
         try:
             expanded = await self.provider.complete(
                 SEMANTIC_QUERY_PROMPT.format(query=query.strip())
@@ -788,8 +832,9 @@ class HybridSearchService:
         mode: str = "catalog",
     ) -> SearchResponse:
         filters = filters or SearchFilters()
-        songs = await self._song_index()
-        media_counts = await self._media_counts()
+        semantic_mode = mode == "semantic"
+        exact_number = await self._exact_number_rank(query)
+        songs, media_counts = await asyncio.gather(self._song_index(), self._media_counts())
         collection_match = infer_canonical_collection(query)
         if collection_match:
             return self._collection_search_response(
@@ -802,7 +847,6 @@ class HybridSearchService:
                 page_size,
             )
 
-        semantic_mode = mode == "semantic"
         inferred_filters = SearchFilters() if semantic_mode else infer_search_filters(query, songs)
         filters = merge_search_filters(filters, inferred_filters)
         intent = (
@@ -813,12 +857,15 @@ class HybridSearchService:
             else detect_intent(query)
         )
 
-        exact_number = await self._exact_number_rank(query)
         if semantic_mode and input_mode == "voice":
             # Keep spoken feeling/meaning language for embeddings, and add
             # compact aliases so phonetic/catalog signals still help.
             voiced = expand_voice_query(query)
-            expanded = await self._expand_semantic_query(voiced or query)
+            expanded = (
+                await self._expand_semantic_query(voiced or query)
+                if needs_semantic_expansion(voiced or query)
+                else ""
+            )
             semantic_query = " ".join(dict.fromkeys(f"{query} {voiced} {expanded}".split()))
         elif semantic_mode:
             semantic_query = await self._expand_semantic_query(query)
@@ -827,29 +874,48 @@ class HybridSearchService:
         else:
             semantic_query = query
         query_embedding: list[float] = []
-        if not exact_number and await self._has_vector_index():
+        use_vectors = semantic_mode and not exact_number
+        if use_vectors and await self._has_vector_index():
             try:
                 query_embedding = await self.provider.embed(semantic_query)
             except Exception:
                 query_embedding = []
         # A catalog number is an identifier, not fuzzy text. Returning only the
         # exact number prevents queries such as 2256 from surfacing Song 226.
-        opening_rank = [] if exact_number else await self._opening_line_rank(query, songs, limit=50)
-        fts_rank = [] if exact_number else await self._fts_rank(query, songs, limit=50)
-        trigram_rank = [] if exact_number else await self._trigram_rank(query, songs, limit=50)
-        voice_phonetic_rank = (
-            []
-            if exact_number or input_mode != "voice"
-            else await self._voice_phonetic_rank(query, songs, limit=50)
-        )
-        vector_rank = (
-            [] if exact_number else await self._vector_rank(songs, query_embedding, limit=50)
-        )
-        rag_chunk_rank = (
-            []
-            if exact_number or not semantic_mode
-            else await self._rag_chunk_rank(query, query_embedding, songs, limit=80)
-        )
+        rank_tasks: list[tuple[str, Awaitable[list[str]]]] = []
+        if not exact_number:
+            rank_tasks.extend(
+                [
+                    ("opening_line", self._opening_line_rank(query, songs, limit=50)),
+                    ("full_text", self._fts_rank(query, songs, limit=50)),
+                    ("trigram", self._trigram_rank(query, songs, limit=50)),
+                ]
+            )
+            if input_mode == "voice":
+                rank_tasks.append(
+                    ("voice_phonetic", self._voice_phonetic_rank(query, songs, limit=50))
+                )
+            if use_vectors and query_embedding:
+                rank_tasks.extend(
+                    [
+                        ("vector", self._vector_rank(songs, query_embedding, limit=50)),
+                        (
+                            "rag_chunk",
+                            self._rag_chunk_rank(query, query_embedding, songs, limit=80),
+                        ),
+                    ]
+                )
+        rank_coroutines = [task for _, task in rank_tasks]
+        rank_results = await asyncio.gather(*rank_coroutines) if rank_coroutines else []
+        rank_by_label = {
+            label: result for (label, _), result in zip(rank_tasks, rank_results, strict=True)
+        }
+        opening_rank = rank_by_label.get("opening_line", [])
+        fts_rank = rank_by_label.get("full_text", [])
+        trigram_rank = rank_by_label.get("trigram", [])
+        voice_phonetic_rank = rank_by_label.get("voice_phonetic", [])
+        vector_rank = rank_by_label.get("vector", [])
+        rag_chunk_rank = rank_by_label.get("rag_chunk", [])
         structured_rank = (
             [
                 str(song.number)

@@ -74,7 +74,7 @@ export function SearchForm({
       return
     }
     const trimmed = values.query.trim()
-    const nextUrl = `/explore?q=${encodeURIComponent(trimmed)}&kind=semantic`
+    const nextUrl = `/explore?q=${encodeURIComponent(trimmed)}`
     if (!queryIsUseful(trimmed, 200)) {
       mutation.mutate({ query: trimmed })
       return
@@ -117,7 +117,7 @@ export function SearchForm({
             onVoiceSearch(transcript, language)
             return
           }
-          router.push(`/explore?q=${encodeURIComponent(transcript)}&kind=semantic&mode=voice&lang=${encodeURIComponent(language)}`)
+          router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
         }} />
         <button
           type="submit"

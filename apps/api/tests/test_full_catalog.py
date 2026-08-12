@@ -16,7 +16,10 @@ from app.services.media_quality import media_quality_key
 from app.services.search import (
     HybridSearchService,
     canonical_lexical_boost,
+    expand_voice_query,
     infer_canonical_collection,
+    needs_semantic_expansion,
+    prepare_voice_query,
 )
 from app.services.seed_data import load_rows
 
@@ -341,8 +344,6 @@ async def test_voice_song_number_remains_authoritative() -> None:
 
 
 def test_voice_feeling_query_keeps_meaning_terms_for_semantic_search() -> None:
-    from app.services.search import expand_voice_query, prepare_voice_query
-
     heard = "I am feeling very happy today"
     prepared = prepare_voice_query(heard)
     expanded = expand_voice_query(prepared)
@@ -350,6 +351,8 @@ def test_voice_feeling_query_keeps_meaning_terms_for_semantic_search() -> None:
     assert "happy" in prepared
     assert "feeling" in prepared
     assert "joy" in expanded or "bliss" in expanded
+    assert needs_semantic_expansion(prepared) is True
+    assert needs_semantic_expansion("bandhu he niye calo") is False
 
 
 @pytest.mark.asyncio

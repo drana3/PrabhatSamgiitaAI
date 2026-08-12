@@ -78,6 +78,7 @@ describe("reviewed discovery collections", () => {
     expect(isCollectionSearchQuery("Search Prabhat Samgiita for Hindi Songs")).toBe(true)
     expect(exploreSearchKind("Search Prabhat Samgiita for Hindi Songs")).toBe("catalog")
     expect(exploreSearchKind("song about rain")).toBe("semantic")
+    expect(exploreSearchKind("bandhu he niye calo")).toBe("catalog")
     expect(exploreSearchKind("morning meditation", "semantic")).toBe("semantic")
   })
 
