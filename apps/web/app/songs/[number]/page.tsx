@@ -1,21 +1,18 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Suspense } from "react"
 
 import { FavoriteSongButton } from "@/components/favorite-song-button"
-import { LoadingIndicator } from "@/components/loading-indicator"
 import { HarmoniumPractice } from "@/components/harmonium-practice"
 import { HashLanding } from "@/components/hash-landing"
 import { AudioRendition } from "@/components/audio-rendition"
 import { ShareMenu } from "@/components/share-menu"
 import { SiteHeader } from "@/components/site-header"
-import { SongLanguageSwitcher } from "@/components/song-language-switcher"
+import { SongMeaningSection } from "@/components/song-meaning-section"
 import { SongMobileNav } from "@/components/song-mobile-nav"
 import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
-import { fetchNotation, fetchSong, fetchSongLocalization } from "@/lib/api"
+import { fetchNotation, fetchSong } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
-import { storedMeaningForLanguage } from "@/lib/song-meanings"
 import { splitLyricLines } from "@/lib/sargam-display"
 import { songPagePath } from "@/lib/song-path"
 
@@ -25,16 +22,11 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   const song = await fetchSong(Number(number))
   if (!song) notFound()
   const notation = await fetchNotation(song.number)
-  const storedMeaning = storedMeaningForLanguage(song, language)
-  const shouldFetchLocalization = language !== "en" && !storedMeaning
-  const localized = shouldFetchLocalization ? await fetchSongLocalization(song.number, localeLabel(language)) : null
   const audio = song.media.filter((item) => item.kind === "audio")
   const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
   const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
   const hasLyrics = Boolean(lyrics)
-  const hasMeaning = Boolean(storedMeaning || localized?.localized_meaning || song.english_meaning || song.hindi_meaning)
-  const selectedMeaning = storedMeaning
-    ?? (language === "hi" ? song.hindi_meaning || localized?.localized_meaning : localized?.localized_meaning)
+  const hasMeaning = Boolean(song.english_meaning || song.hindi_meaning)
   const hasNotation = Boolean(notation)
   const details = [
     ["Theme", song.theme],
@@ -60,7 +52,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           />
           <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/85 to-navy-950/30" />
           <div className="relative flex min-h-[13rem] flex-col justify-between gap-5 p-5 sm:min-h-[18rem] sm:gap-6 sm:p-8 lg:p-10">
-            <div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-200 sm:text-xs">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-2 font-serif text-3xl leading-tight sm:mt-3 sm:text-5xl lg:text-6xl">{titleCase(localized?.localized_title || song.title)}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-white/85 sm:mt-3">{titleCase(localized?.localized_first_line || song.first_line || song.title)}</p><div className="mt-4 flex flex-wrap gap-2 sm:mt-5"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>
+            <div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-200 sm:text-xs">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-2 font-serif text-3xl leading-tight sm:mt-3 sm:text-5xl lg:text-6xl">{titleCase(song.title)}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-white/85 sm:mt-3">{titleCase(song.first_line || song.title)}</p><div className="mt-4 flex flex-wrap gap-2 sm:mt-5"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>
             <nav aria-label="Song actions" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0 xl:flex-nowrap"><a href="#ask" className="shrink-0 whitespace-nowrap rounded-full bg-gold-300 px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">✦ Ask AI</a>{audio.length ? <a href="#listen" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">♪ Listen</a> : null}{hasLyrics ? <a href="#lyrics" className="shrink-0 whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-3.5 py-2 text-xs font-semibold text-white sm:px-4 sm:text-sm">Lyrics</a> : null}{videos.length ? <a href="#watch" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">▶ Watch</a> : null}{hasNotation ? <a href="#notation" className="shrink-0 whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-3.5 py-2 text-xs font-semibold text-white sm:px-4 sm:text-sm">♬ Harmonium</a> : null}<FavoriteSongButton songNumber={song.number} /><ShareMenu title={`Song ${song.number}: ${song.title}`} /></nav>
           </div>
         </section>
@@ -69,7 +61,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           <div className={`grid gap-7 ${hasLyrics && hasMeaning ? "xl:grid-cols-2" : "max-w-4xl"}`}>
             {hasLyrics ? <section id="lyrics" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="eyebrow">Lyrics</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2></div>{audio.length ? <div id="listen" className="scroll-mt-28 sm:max-w-xs"><AudioRendition url={audio[0].url} title={audio[0].title} provider={audio[0].provider} compact /></div> : null}</div><p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">{lyrics}</p>{song.lyrics_original?.trim() && song.transliteration?.trim() ? <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4"><summary className="cursor-pointer text-sm font-semibold text-gold-700">Roman transliteration</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{song.transliteration.trim()}</p></details> : null}{audio.length > 1 ? <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4"><summary className="cursor-pointer text-sm font-semibold text-gold-700">More recordings ({Math.min(audio.length - 1, 4)})</summary><div className="mt-4 space-y-4">{audio.slice(1, 5).map((item) => <AudioRendition key={item.url} url={item.url} title={item.title} provider={item.provider} />)}</div></details> : null}</section> : null}
 
-            {hasMeaning ? <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7"><div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between"><div className="w-full sm:w-auto"><p className="eyebrow">Meaning</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Understand the song</h2></div><Suspense fallback={<div className="flex justify-center py-2 sm:justify-end"><LoadingIndicator label="Loading languages" compact /></div>}><SongLanguageSwitcher selectedLanguage={language} /></Suspense></div>{language !== "en" && selectedMeaning ? <MeaningBlock label={`${localeLabel(language)} meaning`} value={selectedMeaning} /> : null}<MeaningBlock label="English" value={song.english_meaning} />{language !== "hi" && !song.english_meaning ? <MeaningBlock label="हिन्दी" value={song.hindi_meaning} /> : null}</section> : null}
+            {hasMeaning ? <SongMeaningSection songNumber={song.number} song={song} initialLanguage={language} /> : null}
           </div>
 
           {hasNotation ? (
@@ -103,11 +95,6 @@ export default async function SongPage({ params, searchParams }: { params: Promi
       <SongMobileNav hasAudio={audio.length > 0} hasLyrics={hasLyrics} hasMeaning={hasMeaning} />
     </main>
   )
-}
-
-function MeaningBlock({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null
-  return <article className="mt-4 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">{label}</p><p dir="auto" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{value}</p></article>
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

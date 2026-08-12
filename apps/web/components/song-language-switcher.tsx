@@ -9,9 +9,11 @@ import { localeOptions } from "@/lib/languages"
 export function SongLanguageSwitcher({
   selectedLanguage,
   navigate,
+  onLanguageChange,
 }: {
   selectedLanguage: string
   navigate?: (url: string) => void
+  onLanguageChange?: (language: string) => void
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -72,6 +74,11 @@ export function SongLanguageSwitcher({
             const query = next.toString()
             const url = `${pathname}${query ? `?${query}` : ""}`
             window.history.replaceState(window.history.state, "", url)
+            if (onLanguageChange) {
+              onLanguageChange(value)
+              setTargetLanguage(null)
+              return
+            }
             go(url)
             router.refresh()
           }}

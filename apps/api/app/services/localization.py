@@ -83,7 +83,7 @@ class LocalizationService:
             )
 
         cached = await translation_cache.get(self._cache_key(song, normalized))
-        if isinstance(cached, dict):
+        if isinstance(cached, dict) and not cached.get("fallback_error"):
             return LocalizedSongText(
                 language=str(cached.get("language", normalized)),
                 localized_title=self._text(cached, "localized_title"),
@@ -118,22 +118,11 @@ class LocalizationService:
         except Exception as exc:
             logger.exception("Localization failed for song %s in %s", song.number, normalized)
             result = LocalizedSongText(
-                language=normalized,
+                language=display_language,
                 localized_title=song.title,
                 localized_first_line=song.first_line,
-                localized_meaning=song.english_meaning or song.hindi_meaning,
+                localized_meaning=None,
                 localized_explanation=explanation or None,
-            )
-            await translation_cache.set(
-                self._cache_key(song, normalized),
-                {
-                    "language": result.language,
-                    "localized_title": result.localized_title,
-                    "localized_first_line": result.localized_first_line,
-                    "localized_meaning": result.localized_meaning,
-                    "localized_explanation": result.localized_explanation,
-                    "fallback_error": str(exc),
-                },
             )
             return result
 

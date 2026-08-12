@@ -4,6 +4,7 @@ import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
 const requestTimeoutMs = 15000
 const searchTimeoutMs = 60000
+const localizationTimeoutMs = 90000
 
 function searchErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -275,16 +276,21 @@ export async function fetchSongLocalization(
   number: number,
   language: string,
 ): Promise<SongLocalization | null> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), localizationTimeoutMs)
   try {
-    const response = await fetchJson(
-      `/api/v1/songs/${number}/localized?language=${encodeURIComponent(language)}`,
-    )
+    const response = await fetch(`${apiBase}/api/v1/songs/${number}/localized?language=${encodeURIComponent(language)}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
     if (!response.ok) {
       return null
     }
     return songLocalizationSchema.parse(await response.json())
   } catch {
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
