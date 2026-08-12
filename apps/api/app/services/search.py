@@ -17,7 +17,12 @@ from app.config import get_settings
 from app.models import Media, Notation, Song, SongChunk
 from app.schemas.search import MediaSummary, SearchFilters, SearchResponse, SearchResultItem
 from app.services.ai import select_provider
-from app.services.catalog import CatalogService, catalog_media_snapshot, catalog_notation_snapshot
+from app.services.catalog import (
+    CatalogService,
+    catalog_media_snapshot,
+    catalog_notation_snapshot,
+    catalog_song_snapshot,
+)
 from app.services.rag import build_song_chunks, cosine_similarity, token_score
 from app.services.seed_data import load_rows
 
@@ -586,7 +591,7 @@ class HybridSearchService:
     async def _song_index(self) -> list[Song]:
         return await CatalogService(self.session).list_songs(limit=10000)
 
-    async def _media_counts(self) -> dict[int, MediaSummary]:
+    def _build_seed_media_counts(self) -> dict[int, MediaSummary]:
         counts: dict[int, MediaSummary] = defaultdict(MediaSummary)
         for media_item in self._seed_media():
             song_number = media_item.song_number
@@ -599,34 +604,38 @@ class HybridSearchService:
             if song_number is None:
                 continue
             counts[int(song_number)].notation_count += 1
+        return counts
+
+    async def _media_counts(self) -> dict[int, MediaSummary]:
+        counts = self._build_seed_media_counts()
         try:
-            media_result = await self.session.execute(
-                select(
-                    Media.song_number,
-                    func.sum(case((Media.kind == "audio", 1), else_=0)).label("audio_count"),
-                    func.sum(case((Media.kind == "video", 1), else_=0)).label("video_count"),
+            async with asyncio.timeout(8):
+                media_result = await self.session.execute(
+                    select(
+                        Media.song_number,
+                        func.sum(case((Media.kind == "audio", 1), else_=0)).label("audio_count"),
+                        func.sum(case((Media.kind == "video", 1), else_=0)).label("video_count"),
+                    )
+                    .where(Media.song_number.is_not(None))
+                    .group_by(Media.song_number)
                 )
-                .where(Media.song_number.is_not(None))
-                .group_by(Media.song_number)
-            )
-            notation_result = await self.session.execute(
-                select(
-                    Notation.song_number, func.count(Notation.id).label("notation_count")
-                ).group_by(Notation.song_number)
-            )
-            for row in media_result.all():
-                summary = counts[int(row.song_number)]
-                summary.audio_count = max(summary.audio_count, int(row.audio_count or 0))
-                summary.video_count = max(summary.video_count, int(row.video_count or 0))
-            for notation_row in notation_result.all():
-                summary = counts[int(notation_row.song_number)]
-                summary.notation_count = max(
-                    summary.notation_count, int(notation_row.notation_count or 0)
+                notation_result = await self.session.execute(
+                    select(
+                        Notation.song_number, func.count(Notation.id).label("notation_count")
+                    ).group_by(Notation.song_number)
                 )
-            return counts
-        except SQLAlchemyError:
+                for row in media_result.all():
+                    summary = counts[int(row.song_number)]
+                    summary.audio_count = max(summary.audio_count, int(row.audio_count or 0))
+                    summary.video_count = max(summary.video_count, int(row.video_count or 0))
+                for notation_row in notation_result.all():
+                    summary = counts[int(notation_row.song_number)]
+                    summary.notation_count = max(
+                        summary.notation_count, int(notation_row.notation_count or 0)
+                    )
+        except (SQLAlchemyError, TimeoutError):
             await self.session.rollback()
-            return counts
+        return counts
 
     async def _vector_rank(
         self, songs: list[Song], query_embedding: list[float], limit: int
@@ -822,6 +831,45 @@ class HybridSearchService:
             items=items[start:end],
         )
 
+    def _exact_number_response(
+        self,
+        query: str,
+        song_number: str,
+        songs: list[Song],
+        media_counts: dict[int, MediaSummary],
+        page: int,
+        page_size: int,
+    ) -> SearchResponse:
+        song = next((row for row in songs if str(row.number) == song_number), None)
+        if song is None:
+            return SearchResponse(
+                query=query,
+                detected_intent="song_number_search",
+                total=0,
+                items=[],
+            )
+        summary = media_counts.get(song.number, MediaSummary())
+        matched_by = ["exact_number"]
+        if song.is_verified or song.canonical_source_status == "verified":
+            matched_by.append("verified")
+        item = SearchResultItem(
+            song_number=song.number,
+            opening_line=song.first_line,
+            matched_by=matched_by,
+            score=10.0,
+            verification_status="officially_verified"
+            if song.is_verified or song.canonical_source_status == "verified"
+            else song.canonical_source_status,
+            themes=[value for value in [song.theme] if value],
+            media_summary=summary,
+        )
+        return SearchResponse(
+            query=query,
+            detected_intent="song_number_search",
+            total=1,
+            items=[item],
+        )
+
     async def search(
         self,
         query: str,
@@ -834,8 +882,24 @@ class HybridSearchService:
         filters = filters or SearchFilters()
         semantic_mode = mode == "semantic"
         exact_number = await self._exact_number_rank(query)
-        songs, media_counts = await asyncio.gather(self._song_index(), self._media_counts())
         collection_match = infer_canonical_collection(query)
+        if (
+            exact_number
+            and not semantic_mode
+            and not collection_match
+            and not has_search_filters(filters)
+        ):
+            return self._exact_number_response(
+                query,
+                exact_number[0],
+                list(catalog_song_snapshot()),
+                self._build_seed_media_counts(),
+                page,
+                page_size,
+            )
+
+        songs = await self._song_index()
+        media_counts = await self._media_counts()
         if collection_match:
             return self._collection_search_response(
                 query,
@@ -895,16 +959,6 @@ class HybridSearchService:
                 rank_tasks.append(
                     ("voice_phonetic", self._voice_phonetic_rank(query, songs, limit=50))
                 )
-            if use_vectors and query_embedding:
-                rank_tasks.extend(
-                    [
-                        ("vector", self._vector_rank(songs, query_embedding, limit=50)),
-                        (
-                            "rag_chunk",
-                            self._rag_chunk_rank(query, query_embedding, songs, limit=80),
-                        ),
-                    ]
-                )
         rank_coroutines = [task for _, task in rank_tasks]
         rank_results = await asyncio.gather(*rank_coroutines) if rank_coroutines else []
         rank_by_label = {
@@ -914,8 +968,14 @@ class HybridSearchService:
         fts_rank = rank_by_label.get("full_text", [])
         trigram_rank = rank_by_label.get("trigram", [])
         voice_phonetic_rank = rank_by_label.get("voice_phonetic", [])
-        vector_rank = rank_by_label.get("vector", [])
-        rag_chunk_rank = rank_by_label.get("rag_chunk", [])
+        vector_rank: list[str] = []
+        rag_chunk_rank: list[str] = []
+        if not exact_number and use_vectors and query_embedding:
+            vector_rank = await self._vector_rank(songs, query_embedding, limit=50)
+            if semantic_mode:
+                rag_chunk_rank = await self._rag_chunk_rank(
+                    query, query_embedding, songs, limit=80
+                )
         structured_rank = (
             [
                 str(song.number)

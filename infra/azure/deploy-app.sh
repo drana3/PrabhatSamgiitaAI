@@ -54,6 +54,7 @@ curl_retry() {
   local attempt body http_code last_status="unknown"
   local tmp_body
   tmp_body="$(mktemp)"
+  trap 'rm -f "$tmp_body"' RETURN
   for attempt in $(seq 1 "$attempts"); do
     http_code="$(
       curl --silent --show-error --max-time "$max_time" \
@@ -63,14 +64,17 @@ curl_retry() {
     )"
     if [[ "$http_code" =~ ^2 ]]; then
       cat "$tmp_body"
-      rm -f "$tmp_body"
       return 0
     fi
     last_status="$http_code"
     sleep "$sleep_seconds"
   done
-  rm -f "$tmp_body"
   echo "Request failed after ${attempts} attempts: ${label} (last HTTP ${last_status})" >&2
+  if [[ -s "$tmp_body" ]]; then
+    echo "Last response body:" >&2
+    head -c 2000 "$tmp_body" >&2
+    echo >&2
+  fi
   return 1
 }
 
