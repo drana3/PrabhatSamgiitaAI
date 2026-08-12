@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from app.models import Song
+from app.services.ai import TextProvider
 from app.services.ingestion_language import validate_meaning_language
 from app.services.song_meanings import (
     LANGUAGE_LABELS,
@@ -296,7 +297,7 @@ def build_meaning_review_prompt(
 
 
 async def refine_meaning_translation(
-    provider,
+    provider: TextProvider,
     *,
     song: Song,
     target_language: str,
@@ -318,11 +319,11 @@ async def refine_meaning_translation(
         draft_text=draft,
         audit=audit,
     )
-    revised = (await provider.complete(review_prompt)).strip()
-    if not revised:
+    revised_text: str = (await provider.complete(review_prompt)).strip()
+    if not revised_text:
         return draft
 
-    revised_audit = audit_meaning_translation(source_text, revised, target_language)
+    revised_audit = audit_meaning_translation(source_text, revised_text, target_language)
     if revised_audit.passed or len(revised_audit.issues) < len(audit.issues):
-        return revised
+        return revised_text
     return draft
