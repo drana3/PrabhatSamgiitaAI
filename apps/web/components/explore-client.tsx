@@ -12,7 +12,7 @@ import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
 import { scrollToSectionId } from "@/lib/scroll-to-section"
 import type { ExploreSearchKind } from "@/lib/special-collections"
-import { collectionSearchDisplayLabel, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
+import { collectionSearchDisplayLabel, exploreSearchKind, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
 
 const themes = [
   { label: "♡ Love & devotion", query: "love devotion" },
@@ -157,11 +157,6 @@ export function ExploreClient({
     [runSearch],
   )
 
-  const runSemanticSearch = useCallback(
-    (query: string) => void runSearch(query, "semantic"),
-    [runSearch],
-  )
-
   const runVoiceSearch = useCallback(async (query: string) => {
     const trimmed = query.trim()
     if (!trimmed) return
@@ -251,7 +246,9 @@ export function ExploreClient({
           onSearching={handleSearching}
           onVoiceResult={setVoiceResult}
           onQueryChange={setActiveQuery}
-          onSemanticSearch={runSemanticSearch}
+          onSemanticSearch={(query) => {
+            void runSearch(query, exploreSearchKind(query))
+          }}
           onVoiceSearch={(query) => { void runVoiceSearch(query) }}
           searchError={searchError}
         />

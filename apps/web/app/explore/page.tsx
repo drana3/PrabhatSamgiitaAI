@@ -1,6 +1,7 @@
 import { ExploreClient } from "@/components/explore-client"
 import { MiniPlayer } from "@/components/mini-player"
 import { SiteHeader } from "@/components/site-header"
+import { shouldPrefetchExploreSearch } from "@/lib/explore-search"
 import { searchSongsOnServer } from "@/lib/server-api"
 import { exploreSearchKind } from "@/lib/special-collections"
 import seedSongs from "../../../../data/seed/songs.json"
@@ -8,8 +9,7 @@ import seedSongs from "../../../../data/seed/songs.json"
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ q?: string; mode?: string; lang?: string; kind?: string }> }) {
   const { q = "", mode, lang, kind } = await searchParams
   const searchKind = exploreSearchKind(q, kind)
-  const prefetchEnabled = process.env.E2E_DISABLE_SEARCH_PREFETCH !== "true"
-  const prefetched = prefetchEnabled && q && searchKind === "catalog"
+  const prefetched = shouldPrefetchExploreSearch(q, searchKind)
     ? await searchSongsOnServer(q, "catalog")
     : null
   const initialSongs = prefetched ?? seedSongs.slice(0, 12)
