@@ -70,7 +70,7 @@ async def test_translate_meaning_from_english_requires_english_source() -> None:
     with pytest.raises(HTTPException) as exc:
         await translate_meaning_from_english(session, 42, "hi")
     assert exc.value.status_code == 400
-    assert "English" in str(exc.value.detail)
+    assert "source meaning" in str(exc.value.detail).casefold()
 
 
 @pytest.mark.asyncio

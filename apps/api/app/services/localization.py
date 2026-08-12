@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.core.cache import AsyncTTLCache
 from app.models import Song
 from app.services.ai import select_provider
+from app.services.meaning_translation import build_localization_prompt
 from app.services.song_meanings import language_display_name, stored_meaning_for_language
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ translation_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
     ttl_seconds=86400,
     maxsize=512,
 )
+LOCALIZATION_PROMPT_VERSION = 2
 
 
 class LocalizationService:
@@ -37,7 +39,11 @@ class LocalizationService:
 
     def _cache_key(self, song: Song, language: str) -> str:
         return json.dumps(
-            {"song_number": song.number, "language": language.lower().strip()},
+            {
+                "song_number": song.number,
+                "language": language.lower().strip(),
+                "prompt_version": LOCALIZATION_PROMPT_VERSION,
+            },
             sort_keys=True,
         )
 
@@ -82,34 +88,10 @@ class LocalizationService:
                 localized_explanation=self._text(cached, "localized_explanation"),
             )
 
-        source_prompt = "\n".join(
-            part
-            for part in (
-                f"Song number: {song.number}",
-                f"Title: {song.title}",
-                f"First line: {song.first_line or ''}",
-                f"English meaning: {song.english_meaning or ''}",
-                f"Hindi meaning: {song.hindi_meaning or ''}",
-                f"Grounded explanation: {explanation or ''}",
-            )
-            if part.strip()
-        )
-        prompt = "\n".join(
-            [
-                f"You translate Prabhat Samgiita content into {normalized}.",
-                "Preserve the devotional meaning and tone.",
-                "Do not add facts or interpret beyond the source.",
-                "Keep the original song title and first line if translation feels unnatural.",
-                "Return only valid JSON with these keys:",
-                "localized_title, localized_first_line, localized_meaning, localized_explanation",
-                "If a field cannot be translated cleanly, keep it as a faithful paraphrase.",
-                "Source text:",
-                source_prompt,
-            ]
-        )
+        source_prompt = build_localization_prompt(song, normalized, explanation)
         try:
             async with asyncio.timeout(25):
-                raw = await self.provider.complete(prompt)
+                raw = await self.provider.complete(source_prompt)
             payload = self._extract_json(raw)
             result = LocalizedSongText(
                 language=normalized,

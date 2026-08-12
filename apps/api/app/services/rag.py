@@ -286,9 +286,10 @@ def build_grounded_prompt(
     elif response_language == "other":
         target = explicit_target_language_label(query) or "the language the user requested"
         language_instruction = (
-            f"Reply in {target}. Translate and explain the grounded meaning faithfully "
-            f"in that language. Do not paste the English canonical meaning verbatim — "
-            f"explain it naturally so the user understands."
+            f"Reply in {target}. Translate the canonical song meaning faithfully from the "
+            f"retrieved source in that language. Use correct grammar and preserve the source "
+            f"imagery and line order when the meaning is line-by-line. Do not invent devotional "
+            f"commentary beyond the canonical text."
         )
     else:
         language_instruction = (

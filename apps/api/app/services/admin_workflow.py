@@ -24,8 +24,9 @@ from app.schemas.admin_workflow import (
 from app.services.ai import select_provider
 from app.services.chat_language import _detect_text_language
 from app.services.ingestion_language import SUPPORTED_LANGUAGES, validate_meaning_language
+from app.services.meaning_translation import build_meaning_translation_prompt, pick_meaning_source
 from app.services.media_quality import media_quality_key
-from app.services.song_meanings import LANGUAGE_LABELS, collect_stored_meanings
+from app.services.song_meanings import collect_stored_meanings
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 YOUTUBE_REVIEW_JSON = REPO_ROOT / "data" / "generated" / "youtube_review_queue.json"
@@ -375,26 +376,21 @@ async def translate_meaning_from_english(
     if song is None:
         raise HTTPException(status_code=404, detail="Song not found")
 
-    source = (english_text or "").strip() or (song.english_meaning or "").strip()
+    source, source_language = pick_meaning_source(
+        song,
+        code,
+        english_override=english_text,
+    )
     if not source:
         raise HTTPException(
             status_code=400,
-            detail="No English meaning available. Add an English meaning first.",
+            detail="No source meaning available. Add an English or Hindi meaning first.",
         )
 
-    label = LANGUAGE_LABELS.get(code, code)
-    prompt = "\n".join(
-        [
-            (
-                f"Translate this Prabhat Samgiita song meaning faithfully "
-                f"from English into {label} ({code})."
-            ),
-            "Preserve the devotional and spiritual tone. Do not add facts beyond the source.",
-            "Return only the translated meaning text — no JSON, no commentary.",
-            f"Song number: {song_number}",
-            "English meaning:",
-            source,
-        ]
+    prompt = build_meaning_translation_prompt(
+        song,
+        code,
+        english_override=english_text,
     )
     provider = select_provider(get_settings())
     try:
@@ -408,7 +404,7 @@ async def translate_meaning_from_english(
     detected = _detect_text_language(draft_text)
     return TranslateFromEnglishResponse(
         draft_text=draft_text,
-        source_language="en",
+        source_language=source_language,
         target_language=code,
         detected_language=detected,
         language_check_ok=ok,
