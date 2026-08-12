@@ -180,15 +180,26 @@ curl_retry "api-song-5018" "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
 # the readiness wait instead of stacking after it.
 WEB_BUILD_LOG="$(mktemp)"
 (
-  az acr build \
-    --registry "$ACR_NAME" \
-    --image "prabhat-samgiita-web:${TAG}" \
-    --file "${ROOT_DIR}/apps/web/Dockerfile" \
-    --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
-    --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
-    --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
-    --build-arg "NEXT_PUBLIC_FACEBOOK_APP_ID=${NEXT_PUBLIC_FACEBOOK_APP_ID}" \
-    "$ROOT_DIR" >/dev/null
+  web_build_attempts="${WEB_ACR_BUILD_ATTEMPTS:-3}"
+  for attempt in $(seq 1 "$web_build_attempts"); do
+    echo "Web image ACR build attempt ${attempt}/${web_build_attempts}..."
+    if az acr build \
+      --registry "$ACR_NAME" \
+      --image "prabhat-samgiita-web:${TAG}" \
+      --file "${ROOT_DIR}/apps/web/Dockerfile" \
+      --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
+      --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
+      --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
+      --build-arg "NEXT_PUBLIC_FACEBOOK_APP_ID=${NEXT_PUBLIC_FACEBOOK_APP_ID}" \
+      "$ROOT_DIR"; then
+      exit 0
+    fi
+    echo "Web image ACR build attempt ${attempt} failed."
+    if [[ "$attempt" -lt "$web_build_attempts" ]]; then
+      sleep "${WEB_ACR_BUILD_RETRY_SLEEP_SECONDS:-45}"
+    fi
+  done
+  exit 1
 ) >"$WEB_BUILD_LOG" 2>&1 &
 WEB_BUILD_PID=$!
 
