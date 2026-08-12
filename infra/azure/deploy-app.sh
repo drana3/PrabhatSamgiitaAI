@@ -50,15 +50,27 @@ curl_retry() {
   shift
   local attempts="${CURL_RETRY_ATTEMPTS:-30}"
   local sleep_seconds="${CURL_RETRY_SLEEP_SECONDS:-10}"
-  local attempt output
+  local max_time="${CURL_RETRY_MAX_TIME:-90}"
+  local attempt body http_code last_status="unknown"
+  local tmp_body
+  tmp_body="$(mktemp)"
   for attempt in $(seq 1 "$attempts"); do
-    if output="$(curl --fail --silent --show-error "$@" 2>/dev/null)"; then
-      printf '%s' "$output"
+    http_code="$(
+      curl --silent --show-error --max-time "$max_time" \
+        -o "$tmp_body" \
+        -w '%{http_code}' \
+        "$@" || true
+    )"
+    if [[ "$http_code" =~ ^2 ]]; then
+      cat "$tmp_body"
+      rm -f "$tmp_body"
       return 0
     fi
+    last_status="$http_code"
     sleep "$sleep_seconds"
   done
-  echo "Request failed after ${attempts} attempts: ${label}" >&2
+  rm -f "$tmp_body"
+  echo "Request failed after ${attempts} attempts: ${label} (last HTTP ${last_status})" >&2
   return 1
 }
 
@@ -129,6 +141,19 @@ az containerapp update \
     ACS_EMAIL_CONNECTION_STRING=secretref:acs-email-connection-string \
     AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview >/dev/null
 
+API_REVISION="$(az containerapp revision list \
+  --name "$API_APP" \
+  --resource-group "$RG" \
+  --query '[0].name' \
+  -o tsv)"
+if [[ -n "$API_REVISION" ]]; then
+  az containerapp revision restart \
+    --name "$API_APP" \
+    --resource-group "$RG" \
+    --revision "$API_REVISION" >/dev/null
+fi
+sleep 15
+
 API_READY=""
 for attempt in $(seq 1 45); do
   if API_READY="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null)"; then
@@ -146,12 +171,6 @@ if [[ -z "$API_READY" ]]; then
 fi
 
 curl_retry "api-song-5018" "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
-SEARCH_SMOKE="$(curl_retry "api-search-111" \
-  --request POST \
-  --header 'Content-Type: application/json' \
-  --data '{"query":"111"}' \
-  "https://${API_FQDN}/api/v1/search")"
-printf '%s' "$SEARCH_SMOKE" | python3 -c 'import json, sys; rows=json.load(sys.stdin); raise SystemExit(0 if any(row.get("number") == 111 for row in rows) else 1)'
 
 # Build the web image while the API finishes indexing so ACR time overlaps
 # the readiness wait instead of stacking after it.
@@ -198,6 +217,13 @@ if [[ -z "$INDEX_READY" ]]; then
   curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" || true
   exit 1
 fi
+
+SEARCH_SMOKE="$(curl_retry "api-search-111" \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --data '{"query":"111","mode":"catalog"}' \
+  "https://${API_FQDN}/api/v1/search")"
+printf '%s' "$SEARCH_SMOKE" | python3 -c 'import json, sys; rows=json.load(sys.stdin); raise SystemExit(0 if any(row.get("number") == 111 for row in rows) else 1)'
 
 if [[ -n "${WEB_BUILD_PID}" ]]; then
   if ! wait "$WEB_BUILD_PID"; then
