@@ -260,7 +260,7 @@ def main() -> None:
         base_url,
         "GET",
         "/api/v1/songs/1/localized?language=Hindi",
-        timeout=90,
+        timeout=120,
     )
     localized_text = " ".join(
         str(localized.get(key) or "")

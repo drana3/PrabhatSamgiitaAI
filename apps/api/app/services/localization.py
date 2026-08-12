@@ -94,27 +94,27 @@ class LocalizationService:
 
         source_prompt = build_localization_prompt(song, normalized, explanation)
         try:
-            async with asyncio.timeout(50):
+            async with asyncio.timeout(70):
                 raw = await self.provider.complete(source_prompt)
-            payload = self._extract_json(raw)
-            localized_meaning = self._text(payload, "localized_meaning")
-            source_text, source_code = pick_meaning_source(song, normalized)
-            if localized_meaning and source_text:
-                localized_meaning = await refine_meaning_translation(
-                    self.provider,
-                    song=song,
-                    target_language=normalized,
-                    source_text=source_text,
-                    source_code=source_code,
-                    draft_text=localized_meaning,
+                payload = self._extract_json(raw)
+                localized_meaning = self._text(payload, "localized_meaning")
+                source_text, source_code = pick_meaning_source(song, normalized)
+                if localized_meaning and source_text:
+                    localized_meaning = await refine_meaning_translation(
+                        self.provider,
+                        song=song,
+                        target_language=normalized,
+                        source_text=source_text,
+                        source_code=source_code,
+                        draft_text=localized_meaning,
+                    )
+                result = LocalizedSongText(
+                    language=normalized,
+                    localized_title=self._text(payload, "localized_title"),
+                    localized_first_line=self._text(payload, "localized_first_line"),
+                    localized_meaning=localized_meaning,
+                    localized_explanation=self._text(payload, "localized_explanation"),
                 )
-            result = LocalizedSongText(
-                language=normalized,
-                localized_title=self._text(payload, "localized_title"),
-                localized_first_line=self._text(payload, "localized_first_line"),
-                localized_meaning=localized_meaning,
-                localized_explanation=self._text(payload, "localized_explanation"),
-            )
         except Exception as exc:
             logger.exception("Localization failed for song %s in %s", song.number, normalized)
             result = LocalizedSongText(
