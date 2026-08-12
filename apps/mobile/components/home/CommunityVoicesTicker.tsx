@@ -33,14 +33,11 @@ function mergeLiveVoices(
     })
   }
 
-  if (!live.length) return communityVoices
-
-  const extras = communityVoices.filter((voice) => !seen.has(voice.quote.trim().toLowerCase()))
-  return [...live, ...extras.slice(0, 2)]
+  return live.length ? live : communityVoices
 }
 
 export function CommunityVoicesTicker() {
-  const [voices, setVoices] = useState<Voice[]>(communityVoices)
+  const [voices, setVoices] = useState<Voice[]>([])
   const [trackWidth, setTrackWidth] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(0)
   const offset = useRef(new Animated.Value(0)).current
@@ -50,7 +47,7 @@ export function CommunityVoicesTicker() {
     useCallback(() => {
       let active = true
       void api.fetchTestimonials(20).then((rows) => {
-        if (!active || !rows.length) return
+        if (!active) return
         setVoices(mergeLiveVoices(rows))
       })
       return () => {
