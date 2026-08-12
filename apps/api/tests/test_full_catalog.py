@@ -14,6 +14,7 @@ from app.services.catalog import (
 )
 from app.services.media_quality import media_quality_key
 from app.services.search import (
+    TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
     canonical_lexical_boost,
     expand_voice_query,
@@ -399,6 +400,20 @@ async def test_festival_collection_query_returns_only_shravanii_song() -> None:
     )
 
     assert [item.song_number for item in response.items] == [4954]
+
+
+@pytest.mark.asyncio
+async def test_urdu_collection_returns_full_list_when_page_size_allows() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search(
+        "Search Prabhat Samgiita for Urdu Songs",
+        page_size=200,
+    )
+
+    assert response.detected_intent == "collection_search"
+    assert response.total > TOP_SEARCH_PREDICTIONS
+    assert len(response.items) == response.total
 
 
 @pytest.mark.asyncio

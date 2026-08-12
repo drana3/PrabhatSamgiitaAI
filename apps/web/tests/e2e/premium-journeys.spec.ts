@@ -234,7 +234,7 @@ test("collections stay above results and English returns only its three canonica
   await expect(page.getByRole("heading", { name: "I love this tiny green island" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "WE LOVE THAT GREAT ENTITY" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "THIS LIFE IS FOR HIM" })).toBeVisible()
-  await expect(page.getByText("3 shown", { exact: true })).toBeVisible()
+  await expect(page.getByText("3 songs", { exact: true })).toBeVisible()
 })
 
 test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {

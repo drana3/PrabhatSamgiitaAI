@@ -23,6 +23,7 @@ from app.services.query_guard import assess_query
 from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
+    infer_canonical_collection,
     needs_semantic_expansion,
     prepare_voice_query,
 )
@@ -172,22 +173,28 @@ async def search(
         raise HTTPException(status_code=422, detail=assessment.guidance)
     query = assessment.normalized
     mode = payload.mode
-    cache_key = json.dumps({"query": query, "mode": mode}, sort_keys=True)
+    collection_match = infer_canonical_collection(query)
+    page_size = (
+        min(len(collection_match.song_numbers), 200)
+        if collection_match
+        else TOP_SEARCH_PREDICTIONS
+    )
+    cache_key = json.dumps({"query": query, "mode": mode, "page_size": page_size}, sort_keys=True)
     cached = await simple_search_cache.get(cache_key)
     if isinstance(cached, list):
         return [
             SongSummary.model_validate(item)
-            for item in cached[:TOP_SEARCH_PREDICTIONS]
+            for item in cached[:page_size]
         ]
 
     response = await HybridSearchService(session).search(
         query,
-        page_size=TOP_SEARCH_PREDICTIONS,
+        page_size=page_size,
         mode=mode,
     )
     songs_by_number = {song.number: song for song in catalog_song_snapshot()}
     results: list[SongSummary] = []
-    for item in response.items[:TOP_SEARCH_PREDICTIONS]:
+    for item in response.items[:page_size]:
         results.append(_song_summary(item, songs_by_number))
     await simple_search_cache.set(cache_key, [item.model_dump() for item in results])
     return results

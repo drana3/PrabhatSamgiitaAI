@@ -12,7 +12,7 @@ import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
 import { scrollToSectionId } from "@/lib/scroll-to-section"
 import type { ExploreSearchKind } from "@/lib/special-collections"
-import { collectionSearchDisplayLabel, exploreSearchKind, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
+import { collectionSearchDisplayLabel, collectionSearchCount, exploreSearchKind, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
 
 const themes = [
   { label: "♡ Love & devotion", query: "love devotion" },
@@ -229,6 +229,23 @@ export function ExploreClient({
 
   const queryLabel = collectionSearchDisplayLabel(activeQuery)
   const collectionSearch = isCollectionSearchQuery(activeQuery)
+  const collectionTotal = collectionSearchCount(activeQuery)
+  const isCollectionResult = collectionTotal !== null && collectionSearch
+  const showsTopPredictions = activeKind === "semantic" && !isCollectionResult
+  const resultsEyebrow = showsTopPredictions
+    ? "Top 5 predictions"
+    : isCollectionResult
+      ? "Collection results"
+      : "Catalog matches"
+  const resultsCountLabel = searching
+    ? "Searching…"
+    : searchError
+      ? "Unavailable"
+      : isCollectionResult
+        ? collectionTotal > songs.length
+          ? `${songs.length} of ${collectionTotal} shown`
+          : `${songs.length} song${songs.length === 1 ? "" : "s"}`
+        : `${songs.length} shown`
 
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
@@ -285,7 +302,7 @@ export function ExploreClient({
 
       <div ref={resultsRef} id="results" className="mt-8 flex scroll-mt-28 items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Top 5 predictions</p>
+          <p className="eyebrow">{resultsEyebrow}</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">
             {activeQuery ? (
               inputMode === "voice" ? (
@@ -298,14 +315,19 @@ export function ExploreClient({
             ) : "Explore the songs"}
           </h2>
         </div>
-        <span className="text-xs font-semibold text-stone-500">
-          {searching ? "Searching…" : searchError ? "Unavailable" : `${songs.length} shown`}
-        </span>
+        <span className="text-xs font-semibold text-stone-500">{resultsCountLabel}</span>
       </div>
       {searching ? (
         <div className="mt-6 rounded-2xl border border-gold-500/25 bg-white p-8"><LoadingIndicator label={loadingLabel} /></div>
       ) : songs.length ? (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{songs.map((song, index) => <SongCard key={song.number} song={song} index={index} />)}</div>
+        <div className="mt-6 space-y-4">
+          {isCollectionResult && collectionTotal > songs.length ? (
+            <p className="text-sm text-stone-600">
+              Showing the first {songs.length} of {collectionTotal} songs in this collection.
+            </p>
+          ) : null}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{songs.map((song, index) => <SongCard key={song.number} song={song} index={index} />)}</div>
+        </div>
       ) : (
         <div className="mt-6 space-y-6">
           <div role="status" className="rounded-2xl border border-dashed border-gold-500/40 bg-white p-8 text-center">

@@ -321,6 +321,18 @@ export function collectionSearchDisplayLabel(query: string) {
   return trimmed
 }
 
+export function collectionSearchCount(query: string): number | null {
+  const trimmed = query.trim()
+  for (const group of specialCollectionGroups) {
+    for (const collection of group.collections) {
+      if (queryMatchesCollection(trimmed, collection.query)) {
+        return collection.count
+      }
+    }
+  }
+  return null
+}
+
 export type ExploreSearchKind = "catalog" | "semantic"
 
 const semanticSearchHints =

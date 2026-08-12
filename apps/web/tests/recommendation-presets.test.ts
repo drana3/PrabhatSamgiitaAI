@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
-import { collectionSearchDisplayLabel, specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
+import { collectionSearchDisplayLabel, collectionSearchCount, specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
 import canonicalCollections from "../../../data/generated/theme_collections.json"
 
 describe("reviewed discovery collections", () => {
@@ -88,5 +88,10 @@ describe("reviewed discovery collections", () => {
     )).toBe("Rain, drought, and farmers")
     expect(collectionSearchDisplayLabel("Search Prabhat Samgiita for English Songs")).toBe("English")
     expect(collectionSearchDisplayLabel("morning meditation")).toBe("morning meditation")
+  })
+
+  it("exposes canonical collection counts for explore result labels", () => {
+    expect(collectionSearchCount("Search Prabhat Samgiita for Urdu Songs")).toBe(16)
+    expect(collectionSearchCount("bandhu he niye calo")).toBeNull()
   })
 })
