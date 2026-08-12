@@ -37,10 +37,21 @@ CI passes GitHub secrets when set; otherwise `eas.json` defaults and Expo env va
 
 ## 3. Trigger a build
 
+EAS dashboard: [dewasheesh3s-team / prabhatsamgiitaai](https://expo.dev/accounts/dewasheesh3s-team/projects/prabhatsamgiitaai)
+
+### Preview (QA / sideload)
+
 - **Automatic:** push to `main` under `apps/mobile/`
 - **Manual:** Actions → **Mobile preview build** → **Run workflow**
 
 Artifacts: Android `.apk` + iOS Simulator `.tar.gz`
+
+### Release (store-ready)
+
+- **Manual:** Actions → **Mobile release build** → **Run workflow**
+- **Local:** `npm run mobile:build:release` (from repo root)
+
+Artifacts: Android `.aab` (Play Store) + iOS `.ipa` (TestFlight / App Store)
 
 ## 4. After first Android team build
 

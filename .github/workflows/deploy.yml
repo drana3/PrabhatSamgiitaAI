@@ -14,6 +14,7 @@ on:
       - ".cursorignore"
       - "apps/mobile/**"
       - ".github/workflows/mobile-preview.yml"
+      - ".github/workflows/mobile-release.yml"
   workflow_dispatch:
 
 permissions:

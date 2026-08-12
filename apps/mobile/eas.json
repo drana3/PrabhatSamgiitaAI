@@ -31,9 +31,8 @@
       }
     },
     "production": {
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
-      },
+      "extends": "preview",
+      "distribution": "store",
       "android": {
         "buildType": "app-bundle"
       },

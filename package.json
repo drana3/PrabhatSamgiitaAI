@@ -14,6 +14,7 @@
     "mobile:build:android": "npm --prefix apps/mobile run build:preview:android",
     "mobile:build:ios": "npm --prefix apps/mobile run build:preview:ios",
     "mobile:build:ios-simulator": "npm --prefix apps/mobile run build:preview:ios-simulator",
+    "mobile:build:release": "npm --prefix apps/mobile run build:production:all",
     "build": "npm --workspace apps/web run build",
     "build:e2e": "NEXT_PUBLIC_AUTH_ENABLED=true NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8011 npm --workspace apps/web run build",
     "lint": "npm --workspace apps/web run lint && cd apps/api && uv run ruff check . && uv run mypy app",
