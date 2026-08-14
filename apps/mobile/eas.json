@@ -12,6 +12,7 @@
         "EXPO_PUBLIC_WEB_BASE_URL": "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
         "EXPO_PUBLIC_AZURE_TENANT_ID": "22cd8762-00e6-4945-850c-7b6ab1798844",
         "EXPO_PUBLIC_AZURE_CLIENT_ID": "14af4263-42b8-41fb-aac8-e730051a6864",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com"
       }

@@ -57,6 +57,7 @@ if [[ -f "$ENV_FILE" ]]; then
   set_secret "MOBILE_AZURE_TENANT_ID" "$(read_env EXPO_PUBLIC_AZURE_TENANT_ID || true)"
   set_secret "MOBILE_GOOGLE_IOS_CLIENT_ID" "$(read_env EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || true)"
   set_secret "MOBILE_GOOGLE_ANDROID_CLIENT_ID" "$(read_env EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || true)"
+  set_secret "MOBILE_GOOGLE_CLIENT_ID" "$(read_env EXPO_PUBLIC_GOOGLE_CLIENT_ID || true)"
 else
   echo "No $ENV_FILE — only EAS_PROJECT_ID (and EXPO_TOKEN if provided) were set."
 fi

@@ -44,7 +44,7 @@ export function useVoiceSearch(options: Options = {}) {
     if (!isNativeSpeechRecognitionAvailable()) {
       setNativeAvailable(false)
       setError(
-        "Built-in voice search needs a development build (npm run android). Use the keyboard mic or type your query.",
+        "Built-in voice search needs a development build (npm run android or npm run ios). Use the keyboard mic or type your query.",
       )
       optionsRef.current.onUnavailable?.()
       return false

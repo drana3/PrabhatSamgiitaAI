@@ -15,6 +15,7 @@ on:
       - "apps/mobile/**"
       - ".github/workflows/mobile-preview.yml"
       - ".github/workflows/mobile-release.yml"
+      - "scripts/sync-mobile-eas-env.sh"
   workflow_dispatch:
 
 permissions:

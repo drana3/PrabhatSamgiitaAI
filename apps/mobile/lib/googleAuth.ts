@@ -1,87 +1,71 @@
-import * as AuthSession from "expo-auth-session"
-import { discovery } from "expo-auth-session/providers/google"
-import * as WebBrowser from "expo-web-browser"
+import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin"
+import { Platform } from "react-native"
 
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
 import {
   googleAuthConfigured,
-  googleNativeClientId,
-  googleRedirectUriForClient,
+  googleIosClientId,
   googleSetupHint,
+  googleWebClientId,
 } from "@/lib/googleOAuthConfig"
-
-WebBrowser.maybeCompleteAuthSession()
 
 export { googleAuthConfigured, googleSetupHint } from "@/lib/googleOAuthConfig"
 
-function resolveGoogleClientId() {
-  return googleNativeClientId()
+let configured = false
+
+function ensureGoogleSignInConfigured() {
+  if (configured) return
+  const webClientId = googleWebClientId()
+  if (!webClientId) {
+    throw new Error(
+      "Google sign-in needs EXPO_PUBLIC_GOOGLE_CLIENT_ID (Web OAuth client from Google Cloud).",
+    )
+  }
+  GoogleSignin.configure({
+    webClientId,
+    iosClientId: Platform.OS === "ios" ? googleIosClientId() || undefined : undefined,
+    offlineAccess: false,
+  })
+  configured = true
 }
 
-function googleOAuthErrorMessage(
-  result: AuthSession.AuthSessionResult,
-  clientId: string,
-  redirectUri: string,
-) {
-  if (result.type === "dismiss") return "Sign-in was cancelled."
-  const oauthError = result.params?.error_description || result.params?.error
-  if (typeof oauthError === "string") {
-    if (/redirect_uri|invalid_request|client_id/i.test(oauthError)) {
-      const suffix = clientId.endsWith(".apps.googleusercontent.com") ? "" : " (check iOS client ID)"
-      return `${oauthError}${suffix}\nRedirect: ${redirectUri}\n${googleSetupHint()}`
-    }
-    return oauthError
+function googleSignInErrorMessage(error: unknown) {
+  const code = (error as { code?: string })?.code
+  if (code === statusCodes.SIGN_IN_CANCELLED) return "Sign-in was cancelled."
+  if (code === statusCodes.IN_PROGRESS) return "Google sign-in is already in progress."
+  if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    return "Google Play Services is required for sign-in on this device."
   }
+  if (error instanceof Error && error.message) return error.message
   return "Google sign-in didn’t finish. Try again."
 }
 
 export async function signInWithGoogle(): Promise<OAuthIdentity> {
-  const clientId = resolveGoogleClientId()
-  if (!clientId) {
+  if (!googleAuthConfigured()) {
     throw new Error(googleSetupHint())
   }
 
-  const redirectUri = googleRedirectUriForClient(clientId)
-  const request = new AuthSession.AuthRequest({
-    clientId,
-    redirectUri,
-    scopes: ["openid", "profile", "email"],
-    responseType: AuthSession.ResponseType.Code,
-    usePKCE: true,
-    extraParams: { prompt: "select_account" },
-  })
+  ensureGoogleSignInConfigured()
 
-  await request.makeAuthUrlAsync(discovery)
-  const result = await request.promptAsync(discovery, {
-    showInRecents: true,
-    preferEphemeralSession: true,
-  })
-  if (result.type !== "success" || !result.params.code) {
-    throw new Error(googleOAuthErrorMessage(result, clientId, redirectUri))
-  }
-
-  const tokenResult = await AuthSession.exchangeCodeAsync(
-    {
-      clientId,
-      code: result.params.code,
-      redirectUri,
-      extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
-    },
-    discovery,
-  )
-
-  const accessToken = tokenResult.accessToken
-  if (!accessToken) throw new Error("Google sign-in did not return an access token.")
-
-  const profile = (await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  }).then((response) => response.json())) as { sub?: string; email?: string; name?: string }
-
-  if (!profile.sub) throw new Error("Could not read your Google account profile.")
-  return {
-    id: profile.sub,
-    email: profile.email ?? null,
-    displayName: profile.name || profile.email || "Google member",
-    provider: "google",
+  try {
+    if (Platform.OS === "android") {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
+    }
+    const response = await GoogleSignin.signIn()
+    if (response.type !== "success") {
+      throw new Error("Sign-in was cancelled.")
+    }
+    const profile = response.data.user
+    if (!profile?.id) {
+      throw new Error("Could not read your Google account profile.")
+    }
+    return {
+      id: profile.id,
+      email: profile.email ?? null,
+      displayName: profile.name || profile.email || "Google member",
+      provider: "google",
+    }
+  } catch (error) {
+    throw new Error(googleSignInErrorMessage(error))
   }
 }

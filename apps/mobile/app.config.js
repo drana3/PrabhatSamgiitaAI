@@ -87,7 +87,10 @@ module.exports = ({ config }) => {
         process.env.EXPO_PUBLIC_AZURE_TENANT_ID ??
         config.extra?.azureTenantId ??
         "22cd8762-00e6-4945-850c-7b6ab1798844",
-      googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? config.extra?.googleClientId,
+      googleClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ??
+        config.extra?.googleClientId ??
+        "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
       googleIosClientId:
         process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ??
         config.extra?.googleIosClientId ??

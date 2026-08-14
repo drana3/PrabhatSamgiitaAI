@@ -114,6 +114,7 @@ jobs:
       - name: Verify mobile OAuth secrets
         env:
           MOBILE_AZURE_CLIENT_ID: ${{ secrets.MOBILE_AZURE_CLIENT_ID }}
+          MOBILE_GOOGLE_CLIENT_ID: ${{ secrets.MOBILE_GOOGLE_CLIENT_ID }}
           MOBILE_GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.MOBILE_GOOGLE_ANDROID_CLIENT_ID }}
           MOBILE_GOOGLE_IOS_CLIENT_ID: ${{ secrets.MOBILE_GOOGLE_IOS_CLIENT_ID }}
           MOBILE_MEMBER_PROXY_KEY: ${{ secrets.MOBILE_MEMBER_PROXY_KEY }}
@@ -140,6 +141,7 @@ jobs:
           [ -n "${{ secrets.MOBILE_AZURE_TENANT_ID }}" ] && export EXPO_PUBLIC_AZURE_TENANT_ID="${{ secrets.MOBILE_AZURE_TENANT_ID }}"
           [ -n "${{ secrets.MOBILE_GOOGLE_IOS_CLIENT_ID }}" ] && export EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID="${{ secrets.MOBILE_GOOGLE_IOS_CLIENT_ID }}"
           [ -n "${{ secrets.MOBILE_GOOGLE_ANDROID_CLIENT_ID }}" ] && export EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID="${{ secrets.MOBILE_GOOGLE_ANDROID_CLIENT_ID }}"
+          [ -n "${{ secrets.MOBILE_GOOGLE_CLIENT_ID }}" ] && export EXPO_PUBLIC_GOOGLE_CLIENT_ID="${{ secrets.MOBILE_GOOGLE_CLIENT_ID }}"
           set +a
           eas build \
             --platform "${{ matrix.platform }}" \

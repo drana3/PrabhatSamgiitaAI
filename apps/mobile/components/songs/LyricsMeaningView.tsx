@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native"
 
@@ -26,12 +25,11 @@ const QUICK_LOCALES = localeOptions.filter((option) =>
   (quickLocaleCodes as readonly string[]).includes(option.code),
 )
 
-export type UnderstandMode = "lyrics" | "meaning" | "together"
+export type UnderstandMode = "lyrics" | "meaning"
 
 const MODES: { id: UnderstandMode; label: string }[] = [
   { id: "lyrics", label: "Lyrics" },
   { id: "meaning", label: "Meaning" },
-  { id: "together", label: "Together" },
 ]
 
 type Props = {
@@ -136,14 +134,8 @@ export function LyricsMeaningView({
   meaning,
   onSelectLanguage,
 }: Props) {
-  const { height } = useWindowDimensions()
-  const [mode, setMode] = useState<UnderstandMode>("together")
+  const [mode, setMode] = useState<UnderstandMode>("lyrics")
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
-  const togetherPaneHeight = Math.max(220, Math.round(height * 0.31))
-
-  const showLyrics = mode === "lyrics" || mode === "together"
-  const showMeaning = mode === "meaning" || mode === "together"
-  const together = mode === "together"
 
   return (
     <View>
@@ -164,32 +156,16 @@ export function LyricsMeaningView({
         })}
       </View>
       <Text style={styles.lead}>
-        {mode === "together"
-          ? "Lyrics above, meaning below — each pane scrolls on its own."
-          : mode === "lyrics"
-            ? "Original words for singing."
-            : "Meaning in the language you choose."}
+        {mode === "lyrics" ? "Original words for singing." : "Meaning in the language you choose."}
       </Text>
 
-      {showLyrics ? (
-        <View style={[styles.pane, together && { height: togetherPaneHeight }]}>
+      {mode === "lyrics" ? (
+        <View style={styles.pane}>
           <Text style={styles.paneLabel}>Lyrics</Text>
-          {together ? (
-            <ScrollView
-              nestedScrollEnabled
-              style={styles.paneScroll}
-              contentContainerStyle={styles.paneScrollContent}
-            >
-              <Text style={styles.lyrics}>{lyrics}</Text>
-            </ScrollView>
-          ) : (
-            <Text style={styles.lyrics}>{lyrics}</Text>
-          )}
+          <Text style={styles.lyrics}>{lyrics}</Text>
         </View>
-      ) : null}
-
-      {showMeaning ? (
-        <View style={[styles.pane, together && { height: togetherPaneHeight }]}>
+      ) : (
+        <View style={styles.pane}>
           <Text style={styles.paneLabel}>Meaning</Text>
           <LanguageRow
             language={language}
@@ -197,19 +173,9 @@ export function LyricsMeaningView({
             onSelectLanguage={onSelectLanguage}
             onOpenMore={() => setLanguagePickerOpen(true)}
           />
-          {together ? (
-            <ScrollView
-              nestedScrollEnabled
-              style={styles.paneScroll}
-              contentContainerStyle={styles.paneScrollContent}
-            >
-              <MeaningBody language={language} meaning={meaning} />
-            </ScrollView>
-          ) : (
-            <MeaningBody language={language} meaning={meaning} />
-          )}
+          <MeaningBody language={language} meaning={meaning} />
         </View>
-      ) : null}
+      )}
 
       <LanguagePickerModal
         visible={languagePickerOpen}
@@ -265,8 +231,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: spacing.sm,
   },
-  paneScroll: { flex: 1 },
-  paneScrollContent: { paddingBottom: spacing.md },
   langRow: {
     flexDirection: "row",
     alignItems: "center",

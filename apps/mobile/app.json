@@ -33,6 +33,12 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs"
+        }
+      ],
       "./plugins/withIosProjectRootFix",
       [
         "expo-speech-recognition",

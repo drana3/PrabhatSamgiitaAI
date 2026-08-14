@@ -26,7 +26,7 @@ export function makeOAuthRedirectUri({ path }: OAuthRedirectOptions) {
 export function expoGoOAuthMessage() {
   if (!isExpoGoClient()) return null
   return (
-    "Microsoft and Google sign-in need a development build (npm run android from apps/mobile). " +
+    "Microsoft and Google sign-in need a development build (npm run android or npm run ios from apps/mobile). " +
     "Expo Go cannot use the prabhatai:// redirect registered in Azure and Google Cloud."
   )
 }
@@ -35,7 +35,7 @@ export function redirectUriMismatchMessage(provider: string) {
   if (isExpoGoClient()) {
     return (
       `${provider} rejected the redirect URI because Expo Go uses exp://… instead of prabhatai://. ` +
-      "Run npm run android to install a dev build, or sign in with email."
+      "Run npm run android or npm run ios to install a dev build, or sign in with email."
     )
   }
   return `${provider} sign-in failed. Confirm prabhatai:// is registered as a redirect URI for this app.`
