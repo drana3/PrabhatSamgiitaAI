@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
 import {
@@ -20,6 +20,7 @@ import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 import { friendlyPersonName } from "@/lib/displayName"
 import { memberAuthAvailable } from "@/lib/memberAuth"
+import type { QuizStatus } from "@/lib/quiz"
 import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
@@ -65,17 +66,40 @@ export default function ProfileScreen() {
   const signOut = useAuthStore((s) => s.signOut)
   const resetWelcome = useAuthStore((s) => s.resetWelcome)
   const savedCount = usePreferencesStore((s) => s.savedSongIds.length)
+  const hydrateFavoritesFromServer = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const [certCount, setCertCount] = useState<number | null>(null)
   const getAccountId = useChatStore((s) => s.getAccountId)
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
   const accountId = getAccountId(mode, email)
 
   useFocusEffect(
     useCallback(() => {
-      if (mode !== "signed_in" || !memberAuthAvailable()) return
-      void refreshMemberSession()
-    }, [mode]),
+      if (mode !== "signed_in") {
+        setCertCount(null)
+        return
+      }
+      if (!memberAuthAvailable()) {
+        setCertCount(null)
+        return
+      }
+      void (async () => {
+        await refreshMemberSession()
+        await hydrateFavoritesFromServer()
+        const status = (await api.fetchQuizStatus()) as QuizStatus | null
+        setCertCount(status?.certifications?.length ?? 0)
+      })()
+    }, [mode, hydrateFavoritesFromServer]),
   )
+
+  const quizValue =
+    mode !== "signed_in" || !memberAuthAvailable()
+      ? undefined
+      : certCount === null
+        ? undefined
+        : certCount > 0
+          ? `${certCount} earned`
+          : "None yet"
 
   return (
     <ScreenContainer padded={false} showGuru={false}>
@@ -104,6 +128,15 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {mode === "signed_in" && !memberBackend ? (
+          <View style={styles.syncWarning}>
+            <Text style={styles.syncWarningText}>
+              Saved songs, quiz certificates, and admin status from the website are not synced in
+              this build yet. Install the latest preview APK from the team.
+            </Text>
+          </View>
+        ) : null}
+
         {mode === "guest" ? (
           <PrimaryButton label="Login / Sign Up" onPress={() => router.push(href("/signin"))} />
         ) : null}
@@ -119,6 +152,7 @@ export default function ProfileScreen() {
           <Row
             icon={<Award size={18} color={colors.primary} />}
             label="Quiz & certificates"
+            value={quizValue}
             onPress={() => router.push(href(mode === "guest" ? "/signin" : "/quiz"))}
           />
           <Row
@@ -267,6 +301,14 @@ const styles = StyleSheet.create({
   name: { ...typography.h3, color: colors.textPrimary },
   role: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
   stat: { ...typography.caption, color: colors.primary, marginTop: spacing.xs },
+  syncWarning: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  syncWarningText: { ...typography.bodySmall, color: colors.textSecondary },
   sectionLabel: {
     ...typography.caption,
     color: colors.textMuted,

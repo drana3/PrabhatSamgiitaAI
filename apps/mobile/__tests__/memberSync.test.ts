@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const { fetchMemberSession } = vi.hoisted(() => ({
+const { fetchMemberSession, fetchMemberFavorites } = vi.hoisted(() => ({
   fetchMemberSession: vi.fn(),
+  fetchMemberFavorites: vi.fn(),
 }))
 
 vi.mock("@react-native-async-storage/async-storage", () => {
@@ -25,6 +26,7 @@ vi.mock("@react-native-async-storage/async-storage", () => {
 vi.mock("@/lib/client", () => ({
   api: {
     fetchMemberSession,
+    fetchMemberFavorites,
   },
 }))
 
@@ -68,8 +70,10 @@ describe("member sync from database", () => {
       memberBackend: true,
       identityProvider: "aad",
     })
-    usePreferencesStore.setState({ savedSongIds: [] })
+    usePreferencesStore.setState({ savedSongIds: [], favoritesScope: "member:oid-123", favoritesByScope: {} })
     fetchMemberSession.mockReset()
+    fetchMemberFavorites.mockReset()
+    fetchMemberFavorites.mockResolvedValue([])
   })
 
   afterEach(() => {

@@ -34,6 +34,13 @@ async function hydrateFromSession() {
   return { ok: true as const, memberBackend: true, profile }
 }
 
+async function syncMemberData() {
+  const hydrated = await hydrateFromSession()
+  if (!hydrated.ok) return hydrated
+  await usePreferencesStore.getState().hydrateFavoritesFromServer()
+  return hydrated
+}
+
 async function finishSignIn(input: {
   displayName: string
   email: string | null
@@ -57,7 +64,7 @@ async function finishSignIn(input: {
     }
   }
 
-  const hydrated = await hydrateFromSession()
+  const hydrated = await syncMemberData()
   if (!hydrated.ok) {
     return {
       ok: true as const,
@@ -86,7 +93,7 @@ export async function refreshMemberSession() {
   if (mode !== "signed_in" || !memberAuthAvailable()) {
     return { ok: false as const, memberBackend: false }
   }
-  return hydrateFromSession()
+  return syncMemberData()
 }
 
 export async function signInMember() {
