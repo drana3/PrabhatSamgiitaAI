@@ -42,17 +42,18 @@ export const useAuthStore = create<AuthState>()(
       identityProvider: null,
       hasCompletedWelcome: false,
 
-      setMode: (mode) =>
+      setMode: (mode) => {
+        if (mode !== "guest") return
         set({
-          mode,
-          displayName: mode === "guest" ? "Guest" : "Preview member",
-          // Never mint a real owner email as the principal — that forks admin/certs.
-          email: mode === "guest" ? null : "mobile-preview@prabhat.local",
-          memberId: mode === "guest" ? null : "mobile-preview",
+          mode: "guest",
+          displayName: "Guest",
+          email: null,
+          memberId: null,
           isAdmin: false,
           memberBackend: false,
-          identityProvider: mode === "signed_in" ? "preview" : null,
-        }),
+          identityProvider: null,
+        })
+      },
 
       applyMemberSession: (input) =>
         set({

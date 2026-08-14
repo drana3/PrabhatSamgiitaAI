@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
@@ -28,6 +28,7 @@ import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { isSameSong, songPlayback } from "@/lib/playback"
 import { resolveSongBundle } from "@/lib/songs"
+import { meaningUnavailableMessage, resolveSongMeaning } from "@/lib/songMeanings"
 import { storedMeaningForLanguage } from "@/lib/songMap"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -105,6 +106,24 @@ export default function SongDetailScreen() {
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
   const lastAiOpenAt = useRef(0)
+
+  const selectLanguage = useCallback(
+    (code: string) => {
+      setLanguage(code)
+      setLocalizedMeaning(null)
+      setLocalizedTitle(null)
+      if (!song) {
+        setLocalizing(false)
+        return
+      }
+      if (code === "en" || storedMeaningForLanguage(song, code)) {
+        setLocalizing(false)
+        return
+      }
+      setLocalizing(true)
+    },
+    [song],
+  )
 
   useEffect(() => {
     let active = true
@@ -225,7 +244,14 @@ export default function SongDetailScreen() {
         return
       }
       setLocalizedTitle(result.localized_title ?? null)
-      setLocalizedMeaning(result.localized_meaning ?? null)
+      const english = song.meaning?.trim() || ""
+      const translated = result.localized_meaning?.trim() || ""
+      setLocalizedMeaning(translated && translated !== english ? translated : null)
+    }).catch(() => {
+      if (!active) return
+      setLocalizing(false)
+      setLocalizedMeaning(null)
+      setLocalizedTitle(null)
     })
     return () => {
       active = false
@@ -285,11 +311,11 @@ export default function SongDetailScreen() {
     }
   }
 
-  const meaningText =
-    language === "en"
-      ? song.meaning
-      : storedMeaningForLanguage(song, language) || localizedMeaning || song.meaning
-  const displayTitle = localizedTitle || song.title
+  const meaningResolution = song
+    ? resolveSongMeaning(song, language, localizedMeaning, localizing)
+    : { status: "unavailable" as const }
+  const displayTitle =
+    language !== "en" && localizedTitle?.trim() ? localizedTitle : song?.title ?? ""
   const watchVideos = song.videos.filter((video) => video.embedUrl)
 
   return (
@@ -450,7 +476,7 @@ export default function SongDetailScreen() {
               {QUICK_LOCALES.map((option) => (
                 <Pressable
                   key={option.code}
-                  onPress={() => setLanguage(option.code)}
+                  onPress={() => selectLanguage(option.code)}
                   style={[styles.langChip, language === option.code && styles.langActive]}
                   accessibilityRole="button"
                   accessibilityState={{ selected: language === option.code }}
@@ -493,7 +519,7 @@ export default function SongDetailScreen() {
               visible={languagePickerOpen}
               selectedCode={language}
               onClose={() => setLanguagePickerOpen(false)}
-              onSelect={setLanguage}
+              onSelect={selectLanguage}
             />
             <Accordion
               title="Meaning"
@@ -501,7 +527,18 @@ export default function SongDetailScreen() {
               open={openMeaning}
               onToggle={() => setOpenMeaning((v) => !v)}
             >
-              <Text style={styles.body}>{meaningText}</Text>
+              {meaningResolution.status === "loading" ? (
+                <View style={styles.meaningLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.meaningUnavailable}>Translating meaning…</Text>
+                </View>
+              ) : meaningResolution.status === "ready" ? (
+                <Text style={styles.body}>{meaningResolution.text}</Text>
+              ) : (
+                <Text style={styles.meaningUnavailable}>
+                  {meaningUnavailableMessage(localeLabel(language))}
+                </Text>
+              )}
             </Accordion>
           </View>
         ) : null}
@@ -671,6 +708,12 @@ const styles = StyleSheet.create({
   accordionSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   accordionBody: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   body: { ...typography.bodySmall, color: colors.textSecondary },
+  meaningLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  meaningUnavailable: { ...typography.bodySmall, color: colors.textMuted },
   lyrics: { ...typography.body, color: colors.textPrimary },
   aiBtnText: { ...typography.caption, color: colors.primary },
 })

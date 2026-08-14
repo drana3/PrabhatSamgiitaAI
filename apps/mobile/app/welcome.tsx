@@ -23,8 +23,8 @@ export default function WelcomeScreen() {
   const setMode = useAuthStore((s) => s.setMode)
   const completeWelcome = useAuthStore((s) => s.completeWelcome)
 
-  const enter = (mode: "guest" | "signed_in") => {
-    setMode(mode)
+  const enterGuest = () => {
+    setMode("guest")
     completeWelcome()
     router.replace(href("/(tabs)"))
   }
@@ -61,7 +61,7 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.bottom}>
-          <PrimaryButton label="Continue as Guest" onPress={() => enter("guest")} />
+          <PrimaryButton label="Continue as Guest" onPress={enterGuest} />
           <SecondaryButton
             label="Login / Sign Up"
             onPress={() => router.push(href("/signin"))}
@@ -69,7 +69,7 @@ export default function WelcomeScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Explore app without sign up"
-            onPress={() => enter("guest")}
+            onPress={enterGuest}
             style={styles.tertiary}
           >
             <Eye size={16} color="rgba(255,255,255,0.92)" />

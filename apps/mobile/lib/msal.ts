@@ -66,7 +66,7 @@ export async function signInWithMicrosoft(): Promise<MicrosoftIdentity> {
       throw new Error(redirectUriMismatchMessage("Microsoft"))
     }
     throw new Error(
-      "Microsoft sign-in didn’t finish. Try again, or choose “Continue with preview member” / “Continue without account”.",
+      "Microsoft sign-in didn’t finish. Try again, or continue without an account.",
     )
   }
 

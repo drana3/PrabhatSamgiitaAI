@@ -22,17 +22,33 @@ function MeaningBlock({ label, value }: { label: string; value?: string | null }
   )
 }
 
+function sameText(left: string | null | undefined, right: string | null | undefined) {
+  const a = left?.trim()
+  const b = right?.trim()
+  return Boolean(a && b && a === b)
+}
+
 function selectedMeaningForLanguage(
   song: SongMeaningSource,
   language: string,
   localizedMeaning: string | null,
 ): string | null {
-  const stored = storedMeaningForLanguage(song, language)
-  if (stored) return stored
-  if (language === "hi") {
-    return song.hindi_meaning?.trim() || localizedMeaning
-  }
-  return localizedMeaning
+  const english = song.english_meaning?.trim() || ""
+  if (language === "en") return english || null
+
+  const stored = storedMeaningForLanguage(song, language)?.trim()
+  if (stored && !sameText(stored, english)) return stored
+
+  const translated = localizedMeaning?.trim() || null
+  if (translated && !sameText(translated, english)) return translated
+  return null
+}
+
+function meaningUnavailableMessage(language: string) {
+  const label = localeLabel(language)
+  if (language === "en") return "English meaning is not available for this song yet."
+  if (language === "hi") return "Hindi meaning is not available for this song yet."
+  return `${label} translation is not available yet. Try English or Hindi.`
 }
 
 export function SongMeaningSection({
@@ -54,6 +70,13 @@ export function SongMeaningSection({
     setLanguage(initialLanguage)
   }, [initialLanguage])
 
+  const handleLanguageChange = (nextLanguage: string) => {
+    setLanguage(nextLanguage)
+    setLocalizedMeaning(null)
+    setError(null)
+    setLoading(nextLanguage !== "en" && !hasStoredMeaningForLanguage(song, nextLanguage))
+  }
+
   useEffect(() => {
     if (language === "en" || hasStoredMeaningForLanguage(song, language)) {
       setLocalizedMeaning(null)
@@ -71,14 +94,16 @@ export function SongMeaningSection({
       .then((result) => {
         if (currentRequest !== requestId.current) return
         const meaning = result?.localized_meaning?.trim() || null
-        setLocalizedMeaning(meaning)
-        if (!meaning) {
-          setError("Translation is taking longer than expected. Please try again in a moment.")
+        const english = song.english_meaning?.trim() || ""
+        const usable = meaning && meaning !== english ? meaning : null
+        setLocalizedMeaning(usable)
+        if (!usable) {
+          setError(meaningUnavailableMessage(language))
         }
       })
       .catch(() => {
         if (currentRequest !== requestId.current) return
-        setError("Translation is temporarily unavailable. Please try again in a moment.")
+        setError(meaningUnavailableMessage(language))
       })
       .finally(() => {
         if (currentRequest === requestId.current) {
@@ -94,6 +119,9 @@ export function SongMeaningSection({
 
   if (!hasMeaning) return null
 
+  const meaningLabel =
+    language === "en" ? "English" : language === "hi" ? "हिन्दी" : `${localeLabel(language)} meaning`
+
   return (
     <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7">
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -103,7 +131,7 @@ export function SongMeaningSection({
         </div>
         <SongLanguageSwitcher
           selectedLanguage={language}
-          onLanguageChange={setLanguage}
+          onLanguageChange={handleLanguageChange}
         />
       </div>
       {loading ? (
@@ -112,13 +140,7 @@ export function SongMeaningSection({
         </div>
       ) : null}
       {error ? <p role="alert" className="mt-4 text-sm text-amber-800">{error}</p> : null}
-      {language !== "en" && selectedMeaning ? (
-        <MeaningBlock label={`${localeLabel(language)} meaning`} value={selectedMeaning} />
-      ) : null}
-      <MeaningBlock label="English" value={song.english_meaning} />
-      {language !== "hi" && !song.english_meaning ? (
-        <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
-      ) : null}
+      {selectedMeaning ? <MeaningBlock label={meaningLabel} value={selectedMeaning} /> : null}
     </section>
   )
 }

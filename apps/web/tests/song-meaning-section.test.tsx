@@ -55,6 +55,30 @@ describe("SongMeaningSection", () => {
     })
   })
 
+  it("does not show English meaning when Dutch translation fails", async () => {
+    fetchSongLocalization.mockResolvedValue({ localized_meaning: null })
+
+    render(
+      <SongMeaningSection songNumber={42} song={song} initialLanguage="nl" />,
+    )
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Dutch translation is not available")
+    expect(screen.queryByText("Piercing the veil of darkness.")).not.toBeInTheDocument()
+  })
+
+  it("does not keep English copy under a Dutch label when the API echoes English", async () => {
+    fetchSongLocalization.mockResolvedValue({
+      localized_meaning: "Piercing the veil of darkness.",
+    })
+
+    render(
+      <SongMeaningSection songNumber={42} song={song} initialLanguage="nl" />,
+    )
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Dutch translation is not available")
+    expect(screen.queryByText("Piercing the veil of darkness.")).not.toBeInTheDocument()
+  })
+
   it("uses stored Hindi without calling localization", async () => {
     render(
       <SongMeaningSection

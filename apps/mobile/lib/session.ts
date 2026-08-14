@@ -89,25 +89,16 @@ export async function refreshMemberSession() {
   return hydrateFromSession()
 }
 
-export async function signInMember(options?: { preferPreview?: boolean }) {
-  const preferPreview = options?.preferPreview === true || !microsoftAuthConfigured()
-
-  if (!preferPreview) {
-    const identity = await signInWithMicrosoft()
-    return finishSignIn({
-      displayName: identity.displayName,
-      email: identity.email,
-      memberId: identity.id,
-      identityProvider: "aad",
-    })
+export async function signInMember() {
+  if (!microsoftAuthConfigured()) {
+    throw new Error("Microsoft sign-in is not configured in this build.")
   }
-
-  useAuthStore.getState().setMode("signed_in")
+  const identity = await signInWithMicrosoft()
   return finishSignIn({
-    displayName: "Preview member",
-    email: "mobile-preview@prabhat.local",
-    memberId: "mobile-preview",
-    identityProvider: "preview",
+    displayName: identity.displayName,
+    email: identity.email,
+    memberId: identity.id,
+    identityProvider: "aad",
   })
 }
 

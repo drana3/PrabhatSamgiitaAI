@@ -211,13 +211,6 @@ export default function SignInScreen() {
                   onPress={() => void completeSignIn(() => signInWithFacebookAccount())}
                 />
               ) : null}
-              {!msalReady && !googleReady && !facebookReady && __DEV__ ? (
-                <PrimaryButton
-                  label="Continue with preview member"
-                  onPress={() => void completeSignIn(() => signInMember({ preferPreview: true }))}
-                  disabled={busy}
-                />
-              ) : null}
             </View>
 
             <View style={styles.dividerRow}>
