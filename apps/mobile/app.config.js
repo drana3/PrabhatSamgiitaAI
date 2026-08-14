@@ -79,14 +79,23 @@ module.exports = ({ config }) => {
         config.extra?.webBaseUrl ??
         "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
       memberProxyKey: process.env.EXPO_PUBLIC_MEMBER_PROXY_KEY ?? config.extra?.memberProxyKey,
-      azureClientId: process.env.EXPO_PUBLIC_AZURE_CLIENT_ID ?? config.extra?.azureClientId,
+      azureClientId:
+        process.env.EXPO_PUBLIC_AZURE_CLIENT_ID ??
+        config.extra?.azureClientId ??
+        "14af4263-42b8-41fb-aac8-e730051a6864",
       azureTenantId:
-        process.env.EXPO_PUBLIC_AZURE_TENANT_ID ?? config.extra?.azureTenantId ?? "common",
+        process.env.EXPO_PUBLIC_AZURE_TENANT_ID ??
+        config.extra?.azureTenantId ??
+        "22cd8762-00e6-4945-850c-7b6ab1798844",
       googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? config.extra?.googleClientId,
       googleIosClientId:
-        process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? config.extra?.googleIosClientId,
+        process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ??
+        config.extra?.googleIosClientId ??
+        "495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs.apps.googleusercontent.com",
       googleAndroidClientId:
-        process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? config.extra?.googleAndroidClientId,
+        process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ??
+        config.extra?.googleAndroidClientId ??
+        "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com",
       ...(configuredProjectId ? { eas: { projectId: configuredProjectId } } : {}),
     },
   }

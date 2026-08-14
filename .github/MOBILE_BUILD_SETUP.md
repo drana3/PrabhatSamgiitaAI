@@ -19,7 +19,9 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `MOBILE_GOOGLE_IOS_CLIENT_ID` | Recommended | Google sign-in on iOS builds |
 | `MOBILE_GOOGLE_ANDROID_CLIENT_ID` | Recommended | Google sign-in on Android builds |
 
-**All four** (`MOBILE_AZURE_CLIENT_ID`, both Google IDs, `MOBILE_MEMBER_PROXY_KEY`) are required — mobile CI fails the build if any are missing, so APK/IPA never ships without Microsoft/Google sign-in.
+**All four** (`MOBILE_AZURE_CLIENT_ID`, both Google IDs, `MOBILE_MEMBER_PROXY_KEY`) are required — mobile CI fails the build if any are missing.
+
+GitHub secrets are **not** forwarded to EAS cloud workers. Microsoft/Google client IDs (public OAuth IDs) are also set in `apps/mobile/eas.json` and `app.config.js` so preview/production APKs actually show those buttons. `MOBILE_MEMBER_PROXY_KEY` must still exist as an [EAS environment variable](https://expo.dev/accounts/dewasheesh3s-team/projects/prabhatsamgiitaai/environment-variables) for favorite/quiz sync.
 
 ### One-shot from your machine (after `gh auth login`)
 
