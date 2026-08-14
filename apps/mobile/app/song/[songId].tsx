@@ -14,7 +14,6 @@ import { LyricsMeaningView } from "@/components/songs/LyricsMeaningView"
 import { NotationPractice } from "@/components/songs/NotationPractice"
 import { SongJourneyTicker } from "@/components/songs/SongJourneyTicker"
 import { colors } from "@/constants/colors"
-import { localeLabel } from "@/constants/languages"
 import { softShadow } from "@/constants/shadows"
 import { visibleSongJourneyTabs, type SongJourneyTab } from "@/constants/songJourney"
 import { radius, spacing } from "@/constants/spacing"
@@ -23,6 +22,7 @@ import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { isSameSong, songPlayback } from "@/lib/playback"
 import { resolveSongBundle } from "@/lib/songs"
+import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
 import { storedMeaningForLanguage } from "@/lib/songMap"
 import { songShareMessage } from "@/lib/webLinks"
@@ -223,7 +223,7 @@ export default function SongDetailScreen() {
     }
     let active = true
     setLocalizing(true)
-    void api.fetchSongLocalization(song.number, localeLabel(language)).then((result) => {
+    void fetchSongMeaningLocalization(song.number, language).then((result) => {
       if (!active) return
       setLocalizing(false)
       if (!result) {

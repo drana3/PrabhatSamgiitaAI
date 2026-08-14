@@ -59,7 +59,7 @@ function MeaningBody({
     return <Text style={styles.body}>{meaning.text}</Text>
   }
   return (
-    <Text style={styles.meaningUnavailable}>{meaningUnavailableMessage(localeLabel(language))}</Text>
+    <Text style={styles.meaningUnavailable}>{meaningUnavailableMessage(language)}</Text>
   )
 }
 

@@ -1,15 +1,28 @@
+import * as AuthSession from "expo-auth-session"
+import * as WebBrowser from "expo-web-browser"
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin"
 import { Platform } from "react-native"
 
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
+import { identityFromIdToken } from "@/lib/msalToken"
 import {
   googleAuthConfigured,
   googleIosClientId,
+  googleNativeClientId,
+  googleRedirectUriForClient,
   googleSetupHint,
   googleWebClientId,
 } from "@/lib/googleOAuthConfig"
 
 export { googleAuthConfigured, googleSetupHint } from "@/lib/googleOAuthConfig"
+
+WebBrowser.maybeCompleteAuthSession()
+
+const GOOGLE_DISCOVERY = {
+  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+  tokenEndpoint: "https://oauth2.googleapis.com/token",
+  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
+}
 
 let configured = false
 
@@ -40,6 +53,65 @@ function googleSignInErrorMessage(error: unknown) {
   return "Google sign-in didn’t finish. Try again."
 }
 
+function shouldUseBrowserFallback(error: unknown) {
+  const code = (error as { code?: string })?.code
+  const message = error instanceof Error ? error.message : String(error ?? "")
+  return (
+    code === "10" ||
+    code === statusCodes.DEVELOPER_ERROR ||
+    /DEVELOPER_ERROR/i.test(message)
+  )
+}
+
+async function signInWithGoogleBrowser(): Promise<OAuthIdentity> {
+  const clientId = googleNativeClientId()
+  if (!clientId) {
+    throw new Error("Google browser sign-in is not configured for this platform.")
+  }
+
+  const redirectUri = googleRedirectUriForClient(clientId)
+  const request = new AuthSession.AuthRequest({
+    clientId,
+    redirectUri,
+    scopes: ["openid", "profile", "email"],
+    responseType: AuthSession.ResponseType.Code,
+    usePKCE: true,
+    extraParams: { prompt: "select_account" },
+  })
+
+  await request.makeAuthUrlAsync(GOOGLE_DISCOVERY)
+  const result = await request.promptAsync(GOOGLE_DISCOVERY, { showInRecents: true })
+  if (result.type !== "success" || !result.params.code) {
+    if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
+    throw new Error("Google sign-in didn’t finish. Try again.")
+  }
+
+  const tokenResult = await AuthSession.exchangeCodeAsync(
+    {
+      clientId,
+      code: result.params.code,
+      redirectUri,
+      extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
+    },
+    GOOGLE_DISCOVERY,
+  )
+
+  if (!tokenResult.idToken) {
+    throw new Error("Google did not return an identity token.")
+  }
+  const identity = identityFromIdToken(tokenResult.idToken)
+  if (!identity?.id) {
+    throw new Error("Could not read your Google account profile.")
+  }
+
+  return {
+    id: identity.id,
+    email: identity.email,
+    displayName: identity.displayName,
+    provider: "google",
+  }
+}
+
 export async function signInWithGoogle(): Promise<OAuthIdentity> {
   if (!googleAuthConfigured()) {
     throw new Error(googleSetupHint())
@@ -66,6 +138,9 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
       provider: "google",
     }
   } catch (error) {
+    if (shouldUseBrowserFallback(error)) {
+      return signInWithGoogleBrowser()
+    }
     throw new Error(googleSignInErrorMessage(error))
   }
 }

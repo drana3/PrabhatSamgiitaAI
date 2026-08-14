@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native"
 import { useRouter } from "expo-router"
 
 import { colors } from "@/constants/colors"
+import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
 /** Sink for Google OAuth deep links (`prabhatai://auth/google`). */
@@ -10,10 +11,32 @@ export default function GoogleAuthCallbackRoute() {
   const router = useRouter()
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      router.replace(href("/"))
-    })
-    return () => cancelAnimationFrame(id)
+    let cancelled = false
+    const started = Date.now()
+    const maxWaitMs = 5000
+
+    const finish = () => {
+      if (cancelled) return
+      const { mode, hasCompletedWelcome } = useAuthStore.getState()
+      if (mode === "signed_in") {
+        if (!hasCompletedWelcome) {
+          useAuthStore.getState().completeWelcome()
+        }
+        router.replace(href("/(tabs)"))
+        return
+      }
+      if (Date.now() - started < maxWaitMs) {
+        requestAnimationFrame(finish)
+        return
+      }
+      router.replace(href("/signin"))
+    }
+
+    const id = requestAnimationFrame(finish)
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(id)
+    }
   }, [router])
 
   return (

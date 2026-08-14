@@ -1,5 +1,14 @@
 import type { MockSong } from "@/data/mock"
+import { localeLabel, localeOptions } from "@/constants/languages"
 import { storedMeaningForLanguage } from "@/lib/songMap"
+
+function languageCode(input: string) {
+  const normalized = input.trim().toLowerCase()
+  const byCode = localeOptions.find((option) => option.code === normalized)
+  if (byCode) return byCode.code
+  const byLabel = localeOptions.find((option) => option.label.toLowerCase() === normalized)
+  return byLabel?.code ?? normalized
+}
 
 export type SongMeaningResolution =
   | { status: "ready"; text: string }
@@ -37,12 +46,13 @@ export function resolveSongMeaning(
   return { status: "unavailable" }
 }
 
-export function meaningUnavailableMessage(language: string) {
-  const label = language.toLowerCase() === "hi" ? "Hindi" : language
-  if (language.toLowerCase() === "en") {
+export function meaningUnavailableMessage(languageOrLabel: string) {
+  const code = languageCode(languageOrLabel)
+  const label = localeLabel(code)
+  if (code === "en") {
     return "English meaning is not available for this song yet."
   }
-  if (language.toLowerCase() === "hi") {
+  if (code === "hi") {
     return "Hindi meaning is not available for this song yet."
   }
   return `${label} translation is not available yet. Try English or Hindi.`

@@ -16,6 +16,7 @@ vi.mock("@react-native-google-signin/google-signin", () => ({
     SIGN_IN_CANCELLED: "SIGN_IN_CANCELLED",
     IN_PROGRESS: "IN_PROGRESS",
     PLAY_SERVICES_NOT_AVAILABLE: "PLAY_SERVICES_NOT_AVAILABLE",
+    DEVELOPER_ERROR: "10",
   },
 }))
 
@@ -29,12 +30,26 @@ vi.mock("react-native", () => ({
   },
 }))
 
+vi.mock("expo-auth-session", () => ({
+  AuthRequest: vi.fn(),
+  ResponseType: { Code: "code" },
+  exchangeCodeAsync: vi.fn(),
+}))
+
+vi.mock("expo-web-browser", () => ({
+  maybeCompleteAuthSession: vi.fn(),
+}))
+
 vi.mock("@/lib/googleOAuthConfig", () => ({
   googleAuthConfigured: () => true,
   googleWebClientId: () => "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
   googleIosClientId: () => "495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs.apps.googleusercontent.com",
   googleAndroidClientId: () =>
     "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com",
+  googleNativeClientId: () =>
+    "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com",
+  googleRedirectUriForClient: () =>
+    "com.googleusercontent.apps.495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv:/oauthredirect",
   googleSetupHint: () => "configure google",
 }))
 

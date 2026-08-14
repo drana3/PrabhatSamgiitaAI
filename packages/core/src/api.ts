@@ -459,6 +459,8 @@ export function createApiClient(options: ApiClientOptions) {
       try {
         const response = await fetchJson(
           `/api/v1/songs/${number}/localized?language=${encodeURIComponent(language)}`,
+          undefined,
+          90_000,
         )
         if (!response.ok) return null
         return songLocalizationSchema.parse(await response.json())
