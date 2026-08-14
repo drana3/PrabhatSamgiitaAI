@@ -8,18 +8,13 @@ import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { IconButton } from "@/components/common/IconButton"
-import { LanguagePickerModal } from "@/components/common/LanguagePickerModal"
 import { SongListenControls } from "@/components/player/SongListenControls"
 import { WatchVideoCard } from "@/components/player/WatchVideoCard"
+import { LyricsMeaningView } from "@/components/songs/LyricsMeaningView"
 import { NotationPractice } from "@/components/songs/NotationPractice"
 import { SongJourneyTicker } from "@/components/songs/SongJourneyTicker"
 import { colors } from "@/constants/colors"
-import {
-  localeLabel,
-  localeNativeLabel,
-  localeOptions,
-  quickLocaleCodes,
-} from "@/constants/languages"
+import { localeLabel } from "@/constants/languages"
 import { softShadow } from "@/constants/shadows"
 import { visibleSongJourneyTabs, type SongJourneyTab } from "@/constants/songJourney"
 import { radius, spacing } from "@/constants/spacing"
@@ -28,16 +23,12 @@ import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { isSameSong, songPlayback } from "@/lib/playback"
 import { resolveSongBundle } from "@/lib/songs"
-import { meaningUnavailableMessage, resolveSongMeaning } from "@/lib/songMeanings"
+import { resolveSongMeaning } from "@/lib/songMeanings"
 import { storedMeaningForLanguage } from "@/lib/songMap"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
-
-const QUICK_LOCALES = localeOptions.filter((option) =>
-  (quickLocaleCodes as readonly string[]).includes(option.code),
-)
 
 function Accordion({
   title,
@@ -99,10 +90,7 @@ export default function SongDetailScreen() {
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
   const [localizing, setLocalizing] = useState(false)
   const [journey, setJourney] = useState<SongJourneyTab>("listen")
-  const [openLyrics, setOpenLyrics] = useState(true)
-  const [openMeaning, setOpenMeaning] = useState(true)
   const [openNotation, setOpenNotation] = useState(true)
-  const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
   const lastAiOpenAt = useRef(0)
@@ -459,87 +447,13 @@ export default function SongDetailScreen() {
         {journey === "understand" ? (
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionEyebrow}>Lyrics & Meaning</Text>
-            <Text style={styles.sectionLead}>Lyrics first, then meaning.</Text>
-            <Accordion
-              title="Lyrics"
-              subtitle="Original language"
-              open={openLyrics}
-              onToggle={() => setOpenLyrics((v) => !v)}
-            >
-              <Text style={styles.lyrics}>{song.lyrics}</Text>
-            </Accordion>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.langRow}
-            >
-              {QUICK_LOCALES.map((option) => (
-                <Pressable
-                  key={option.code}
-                  onPress={() => selectLanguage(option.code)}
-                  style={[styles.langChip, language === option.code && styles.langActive]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: language === option.code }}
-                  accessibilityLabel={`Meaning in ${option.label}`}
-                >
-                  <Text style={styles.langText}>{option.nativeLabel}</Text>
-                </Pressable>
-              ))}
-              {!(quickLocaleCodes as readonly string[]).includes(language) ? (
-                <Pressable
-                  style={[styles.langChip, styles.langActive]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: true }}
-                  accessibilityLabel={`Meaning in ${localeLabel(language)}`}
-                  onPress={() => setLanguagePickerOpen(true)}
-                >
-                  <Text style={styles.langText}>{localeNativeLabel(language)}</Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={() => setLanguagePickerOpen(true)}
-                style={styles.langMore}
-                accessibilityRole="button"
-                accessibilityLabel="More languages"
-              >
-                <Text style={styles.langMoreText}>More</Text>
-              </Pressable>
-            </ScrollView>
-            <View style={styles.langHintRow}>
-              {localizing ? (
-                <>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.langHint}>{localeLabel(language)}</Text>
-                </>
-              ) : (
-                <Text style={styles.langHint}>Meaning language · {localeLabel(language)}</Text>
-              )}
-            </View>
-            <LanguagePickerModal
-              visible={languagePickerOpen}
-              selectedCode={language}
-              onClose={() => setLanguagePickerOpen(false)}
-              onSelect={selectLanguage}
+            <LyricsMeaningView
+              lyrics={song.lyrics}
+              language={language}
+              localizing={localizing}
+              meaning={meaningResolution}
+              onSelectLanguage={selectLanguage}
             />
-            <Accordion
-              title="Meaning"
-              subtitle={`Language · ${localeLabel(language)}`}
-              open={openMeaning}
-              onToggle={() => setOpenMeaning((v) => !v)}
-            >
-              {meaningResolution.status === "loading" ? (
-                <View style={styles.meaningLoadingRow}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.meaningUnavailable}>Translating meaning…</Text>
-                </View>
-              ) : meaningResolution.status === "ready" ? (
-                <Text style={styles.body}>{meaningResolution.text}</Text>
-              ) : (
-                <Text style={styles.meaningUnavailable}>
-                  {meaningUnavailableMessage(localeLabel(language))}
-                </Text>
-              )}
-            </Accordion>
           </View>
         ) : null}
 
@@ -654,40 +568,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.lg,
   },
-  langRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  langChip: {
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.surface,
-  },
-  langActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  langText: { ...typography.caption, color: colors.textPrimary },
-  langMore: {
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.textPrimary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.textPrimary,
-  },
-  langMoreText: { ...typography.caption, color: colors.white, fontFamily: "Inter_600SemiBold" },
-  langHintRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  langHint: { ...typography.caption, color: colors.textMuted },
   accordion: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -707,13 +587,5 @@ const styles = StyleSheet.create({
   accordionTitle: { ...typography.label, fontSize: 16, color: colors.textPrimary },
   accordionSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   accordionBody: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-  body: { ...typography.bodySmall, color: colors.textSecondary },
-  meaningLoadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  meaningUnavailable: { ...typography.bodySmall, color: colors.textMuted },
-  lyrics: { ...typography.body, color: colors.textPrimary },
   aiBtnText: { ...typography.caption, color: colors.primary },
 })
