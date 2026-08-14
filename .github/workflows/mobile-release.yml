@@ -98,6 +98,14 @@ jobs:
           EAS_PROJECT_ID: "7cbd8dae-da81-4236-a7c2-c9c707540afe"
         run: npx expo config --type public > /dev/null
 
+      - name: Verify mobile OAuth secrets
+        env:
+          MOBILE_AZURE_CLIENT_ID: ${{ secrets.MOBILE_AZURE_CLIENT_ID }}
+          MOBILE_GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.MOBILE_GOOGLE_ANDROID_CLIENT_ID }}
+          MOBILE_GOOGLE_IOS_CLIENT_ID: ${{ secrets.MOBILE_GOOGLE_IOS_CLIENT_ID }}
+          MOBILE_MEMBER_PROXY_KEY: ${{ secrets.MOBILE_MEMBER_PROXY_KEY }}
+        run: bash ./scripts/verify-mobile-build-secrets.sh
+
       - name: Build with EAS
         working-directory: apps/mobile
         env:

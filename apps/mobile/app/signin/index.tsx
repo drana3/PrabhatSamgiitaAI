@@ -27,6 +27,7 @@ import { facebookAuthConfigured } from "@/lib/facebookAuth"
 import { googleAuthConfigured, googleSetupHint } from "@/lib/googleAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { expoGoOAuthMessage } from "@/lib/oauthRedirect"
+import { oauthSignInConfigured } from "@/lib/authConfig"
 import {
   microsoftAuthConfigured,
   signInMember,
@@ -85,6 +86,7 @@ export default function SignInScreen() {
   const googleReady = googleAuthConfigured()
   const facebookReady = facebookAuthConfigured()
   const expoGoOAuthHint = expoGoOAuthMessage()
+  const oauthReady = oauthSignInConfigured()
 
   const continueGuest = () => {
     signOut()
@@ -169,9 +171,18 @@ export default function SignInScreen() {
               </View>
             ) : null}
 
-            {expoGoOAuthHint && (msalReady || googleReady || facebookReady) ? (
+            {expoGoOAuthHint && oauthReady ? (
               <View style={styles.hintBox}>
                 <Text style={styles.hintText}>{expoGoOAuthHint}</Text>
+              </View>
+            ) : null}
+
+            {!oauthReady && !__DEV__ ? (
+              <View style={styles.hintBox}>
+                <Text style={styles.hintText}>
+                  Microsoft and Google sign-in are not configured in this build. Use email sign-in
+                  below, or install an updated app build from the team.
+                </Text>
               </View>
             ) : null}
 
@@ -200,7 +211,7 @@ export default function SignInScreen() {
                   onPress={() => void completeSignIn(() => signInWithFacebookAccount())}
                 />
               ) : null}
-              {!msalReady && !googleReady && !facebookReady ? (
+              {!msalReady && !googleReady && !facebookReady && __DEV__ ? (
                 <PrimaryButton
                   label="Continue with preview member"
                   onPress={() => void completeSignIn(() => signInMember({ preferPreview: true }))}

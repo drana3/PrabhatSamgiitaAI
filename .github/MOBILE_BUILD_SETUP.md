@@ -19,6 +19,8 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `MOBILE_GOOGLE_IOS_CLIENT_ID` | Recommended | Google sign-in on iOS builds |
 | `MOBILE_GOOGLE_ANDROID_CLIENT_ID` | Recommended | Google sign-in on Android builds |
 
+**All four** (`MOBILE_AZURE_CLIENT_ID`, both Google IDs, `MOBILE_MEMBER_PROXY_KEY`) are required — mobile CI fails the build if any are missing, so APK/IPA never ships without Microsoft/Google sign-in.
+
 ### One-shot from your machine (after `gh auth login`)
 
 ```bash

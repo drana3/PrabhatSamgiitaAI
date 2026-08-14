@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
+import { favoritesScopeKey } from "@/lib/favoritesScope"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -18,11 +19,14 @@ export type RecentPlay = {
 const MAX_RECENT = 12
 
 type PreferencesState = {
+  favoritesScope: string
+  favoritesByScope: Record<string, string[]>
   savedSongIds: string[]
   recentPlays: RecentPlay[]
   searchRecents: string[]
   songNotes: Record<string, string>
   syncingFavorites: boolean
+  activateFavoritesScope: (scope: string) => void
   setSavedFromNumbers: (numbers: number[]) => void
   toggleSaved: (songId: string) => Promise<void>
   hydrateFavoritesFromServer: () => Promise<void>
@@ -45,17 +49,40 @@ function toSongNumber(songId: string): number | null {
   return Number.isFinite(number) ? number : null
 }
 
+function currentAuthScope() {
+  const { mode, memberId, identityProvider, email } = useAuthStore.getState()
+  return favoritesScopeKey({ mode, memberId, identityProvider, email })
+}
+
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set, get) => ({
+      favoritesScope: "guest",
+      favoritesByScope: {},
       savedSongIds: [],
       recentPlays: [],
       searchRecents: [],
       songNotes: {},
       syncingFavorites: false,
 
+      activateFavoritesScope: (scope) => {
+        const current = get().favoritesScope
+        if (current === scope) return
+        const favoritesByScope = { ...get().favoritesByScope, [current]: get().savedSongIds }
+        set({
+          favoritesScope: scope,
+          favoritesByScope,
+          savedSongIds: favoritesByScope[scope] ?? [],
+        })
+      },
+
       setSavedFromNumbers: (numbers) => {
-        set({ savedSongIds: numbers.map(toSongId) })
+        const savedSongIds = numbers.map(toSongId)
+        const scope = get().favoritesScope
+        set({
+          savedSongIds,
+          favoritesByScope: { ...get().favoritesByScope, [scope]: savedSongIds },
+        })
       },
 
       hydrateFavoritesFromServer: async () => {
@@ -64,20 +91,26 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ syncingFavorites: true })
         try {
           const remote = await api.fetchMemberFavorites()
-          // Keep device favorites if the member API is unreachable.
           if (remote === null) return
-          const localNumbers = get()
-            .savedSongIds.map(toSongNumber)
+          const scope = get().favoritesScope
+          const localNumbers = (get().favoritesByScope[scope] ?? get().savedSongIds)
+            .map(toSongNumber)
             .filter((n): n is number => n != null)
-          // Merge so a fresh empty account does not erase hearts saved on this device.
           const merged = [...new Set([...remote, ...localNumbers])]
-          set({ savedSongIds: merged.map(toSongId) })
-          // Push device-only favorites up so account sync catches up.
+          const savedSongIds = merged.map(toSongId)
+          set({
+            savedSongIds,
+            favoritesByScope: { ...get().favoritesByScope, [scope]: savedSongIds },
+          })
           for (const number of localNumbers) {
             if (remote.includes(number)) continue
             try {
               const next = await api.addMemberFavorite(number)
-              set({ savedSongIds: next.map(toSongId) })
+              const synced = next.map(toSongId)
+              set({
+                savedSongIds: synced,
+                favoritesByScope: { ...get().favoritesByScope, [scope]: synced },
+              })
             } catch {
               // Keep merged local list if upload fails.
             }
@@ -93,7 +126,11 @@ export const usePreferencesStore = create<PreferencesState>()(
         const optimistic = isSaved
           ? existing.filter((id) => id !== songId)
           : [...existing, songId]
-        set({ savedSongIds: optimistic })
+        const scope = get().favoritesScope
+        set({
+          savedSongIds: optimistic,
+          favoritesByScope: { ...get().favoritesByScope, [scope]: optimistic },
+        })
 
         const { mode } = useAuthStore.getState()
         const number = toSongNumber(songId)
@@ -103,7 +140,11 @@ export const usePreferencesStore = create<PreferencesState>()(
           const numbers = isSaved
             ? await api.removeMemberFavorite(number)
             : await api.addMemberFavorite(number)
-          set({ savedSongIds: numbers.map(toSongId) })
+          const savedSongIds = numbers.map(toSongId)
+          set({
+            savedSongIds,
+            favoritesByScope: { ...get().favoritesByScope, [scope]: savedSongIds },
+          })
         } catch {
           // Keep optimistic local state if member backend is unavailable.
         }
@@ -141,12 +182,67 @@ export const usePreferencesStore = create<PreferencesState>()(
     {
       name: "prabhat-preferences",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 2,
+      migrate: (persisted, version) => {
+        const state = persisted as {
+          savedSongIds?: string[]
+          favoritesByScope?: Record<string, string[]>
+          favoritesScope?: string
+          recentPlays?: RecentPlay[]
+          searchRecents?: string[]
+          songNotes?: Record<string, string>
+        }
+        if (version < 2) {
+          const legacySaved = state.savedSongIds ?? []
+          return {
+            ...state,
+            favoritesScope: state.favoritesScope ?? "guest",
+            favoritesByScope: {
+              ...(state.favoritesByScope ?? {}),
+              guest: state.favoritesByScope?.guest ?? legacySaved,
+            },
+            savedSongIds: legacySaved,
+          }
+        }
+        return state
+      },
       partialize: (state) => ({
+        favoritesScope: state.favoritesScope,
+        favoritesByScope: state.favoritesByScope,
         savedSongIds: state.savedSongIds,
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,
         songNotes: state.songNotes,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        const scope = currentAuthScope()
+        const favoritesByScope = { ...(state.favoritesByScope ?? {}) }
+        if (state.savedSongIds.length && !favoritesByScope[scope]?.length) {
+          favoritesByScope[scope] = state.savedSongIds
+        }
+        state.favoritesByScope = favoritesByScope
+        state.activateFavoritesScope(scope)
+      },
     },
   ),
 )
+
+useAuthStore.subscribe((state, previous) => {
+  if (
+    state.mode === previous.mode &&
+    state.memberId === previous.memberId &&
+    state.identityProvider === previous.identityProvider &&
+    state.email === previous.email
+  ) {
+    return
+  }
+  usePreferencesStore.getState().activateFavoritesScope(
+    favoritesScopeKey({
+      mode: state.mode,
+      memberId: state.memberId,
+      identityProvider: state.identityProvider,
+      email: state.email,
+    }),
+  )
+})
