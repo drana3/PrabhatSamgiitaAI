@@ -119,8 +119,7 @@ export function SongMeaningSection({
 
   if (!hasMeaning) return null
 
-  const meaningLabel =
-    language === "en" ? "English" : language === "hi" ? "हिन्दी" : `${localeLabel(language)} meaning`
+  const meaningLabel = language === "en" ? "English" : `${localeLabel(language)} meaning`
 
   return (
     <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7">
@@ -140,7 +139,13 @@ export function SongMeaningSection({
         </div>
       ) : null}
       {error ? <p role="alert" className="mt-4 text-sm text-amber-800">{error}</p> : null}
-      {selectedMeaning ? <MeaningBlock label={meaningLabel} value={selectedMeaning} /> : null}
+      {language !== "en" && selectedMeaning ? (
+        <MeaningBlock label={meaningLabel} value={selectedMeaning} />
+      ) : null}
+      <MeaningBlock label="English" value={song.english_meaning} />
+      {language !== "hi" && !song.english_meaning ? (
+        <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
+      ) : null}
     </section>
   )
 }

@@ -58,8 +58,37 @@ export default async function SongPage({ params, searchParams }: { params: Promi
         </section>
 
         <section className="mt-7 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-lg sm:p-7 lg:p-9">
+          {audio.length ? (
+            <div id="listen" className="mb-6 scroll-mt-28">
+              <AudioRendition url={audio[0].url} title={audio[0].title} provider={audio[0].provider} compact />
+            </div>
+          ) : null}
           <div className={`grid gap-7 ${hasLyrics && hasMeaning ? "xl:grid-cols-2" : "max-w-4xl"}`}>
-            {hasLyrics ? <section id="lyrics" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5 sm:p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="eyebrow">Lyrics</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2></div>{audio.length ? <div id="listen" className="scroll-mt-28 sm:max-w-xs"><AudioRendition url={audio[0].url} title={audio[0].title} provider={audio[0].provider} compact /></div> : null}</div><p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">{lyrics}</p>{song.lyrics_original?.trim() && song.transliteration?.trim() ? <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4"><summary className="cursor-pointer text-sm font-semibold text-gold-700">Roman transliteration</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{song.transliteration.trim()}</p></details> : null}{audio.length > 1 ? <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4"><summary className="cursor-pointer text-sm font-semibold text-gold-700">More recordings ({Math.min(audio.length - 1, 4)})</summary><div className="mt-4 space-y-4">{audio.slice(1, 5).map((item) => <AudioRendition key={item.url} url={item.url} title={item.title} provider={item.provider} />)}</div></details> : null}</section> : null}
+            {hasLyrics ? (
+              <section id="lyrics" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5 sm:p-7">
+                <div>
+                  <p className="eyebrow">Lyrics</p>
+                  <h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2>
+                </div>
+                <p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">{lyrics}</p>
+                {song.lyrics_original?.trim() && song.transliteration?.trim() ? (
+                  <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-gold-700">Roman transliteration</summary>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{song.transliteration.trim()}</p>
+                  </details>
+                ) : null}
+                {audio.length > 1 ? (
+                  <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-gold-700">More recordings ({Math.min(audio.length - 1, 4)})</summary>
+                    <div className="mt-4 space-y-4">
+                      {audio.slice(1, 5).map((item) => (
+                        <AudioRendition key={item.url} url={item.url} title={item.title} provider={item.provider} />
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </section>
+            ) : null}
 
             {hasMeaning ? <SongMeaningSection songNumber={song.number} song={song} initialLanguage={language} /> : null}
           </div>

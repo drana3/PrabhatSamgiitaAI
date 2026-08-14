@@ -22,6 +22,14 @@ const song: MockSong = {
   videos: [],
 }
 
+describe("storedMeaningForLanguage", () => {
+  it("returns curated meanings before AI fallback", () => {
+    expect(storedMeaningForLanguage(song, "hi")).toBe("हिन्दी अर्थ")
+    expect(storedMeaningForLanguage(song, "bn")).toBe("বাংলা অর্থ")
+    expect(storedMeaningForLanguage(song, "ta")).toBeNull()
+  })
+})
+
 describe("resolveSongMeaning", () => {
   it("returns language-specific meanings without cross-language fallback", () => {
     expect(resolveSongMeaning(song, "en", null, false)).toEqual({

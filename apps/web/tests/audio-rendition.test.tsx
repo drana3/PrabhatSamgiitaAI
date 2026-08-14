@@ -1,5 +1,5 @@
 import React from "react"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 
 import { AudioRendition } from "@/components/audio-rendition"
 
@@ -35,6 +35,9 @@ describe("authenticated audio controls", () => {
     expect(screen.getByRole("slider", { name: /Seek through Song 8/i })).toBeInTheDocument()
     expect(screen.getByRole("slider", { name: /Volume for Song 8/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Mute/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Mute/i })).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(screen.getByRole("button", { name: /Mute/i }))
+    expect(screen.getByRole("button", { name: /Unmute/i })).toHaveAttribute("aria-pressed", "true")
     expect(screen.queryByText(/Verified recording/i)).not.toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
   })

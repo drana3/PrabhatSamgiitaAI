@@ -106,17 +106,22 @@ function CompactPlayer({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
+  const [muted, setMuted] = useState(false)
 
   useEffect(() => {
     setPlaying(false)
     setCurrentTime(0)
     setDuration(0)
+    setMuted(false)
   }, [url])
 
   useEffect(() => {
     const audio = audioRef.current
-    if (audio) audio.volume = volume
-  }, [volume, url])
+    if (!audio) return
+    // iOS Safari ignores audio.volume; muted still works.
+    audio.muted = muted
+    audio.volume = muted ? 0 : volume
+  }, [muted, volume, url])
 
   function seekBy(deltaSeconds: number) {
     const audio = audioRef.current
@@ -145,13 +150,13 @@ function CompactPlayer({
   }
 
   function toggleMute() {
-    setVolume((current) => (current > 0 ? 0 : 1))
+    setMuted((current) => !current)
   }
 
   const fieldId = title.replace(/\s+/g, "-").toLowerCase()
 
   return (
-    <div className="w-full max-w-[20rem] overflow-hidden rounded-xl border border-navy-900/10 bg-white px-2 py-2 pr-2.5 shadow-sm">
+    <div className="w-full overflow-hidden rounded-xl border border-navy-900/10 bg-white px-2 py-2 pr-2.5 shadow-sm sm:max-w-[20rem]">
       <div className="flex min-w-0 items-center gap-1">
         <div className="flex shrink-0 items-center">
           <IconButton label={`Rewind ${skipSeconds} seconds`} onClick={() => seekBy(-skipSeconds)}>
@@ -191,14 +196,15 @@ function CompactPlayer({
           {formatTime(duration)}
         </span>
 
-        <div className="flex min-w-0 max-w-[3.75rem] shrink-0 items-center gap-0.5 overflow-hidden border-l border-navy-900/10 pl-1.5">
+        <div className="flex shrink-0 items-center gap-0.5 border-l border-navy-900/10 pl-1.5">
           <button
             type="button"
-            aria-label={volume > 0 ? "Mute" : "Unmute"}
+            aria-label={muted ? "Unmute" : "Mute"}
+            aria-pressed={muted}
             onClick={toggleMute}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-navy-950 transition hover:bg-ivory-100"
+            className="relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full text-navy-950 transition hover:bg-ivory-100"
           >
-            <VolumeIcon muted={volume === 0} />
+            <VolumeIcon muted={muted} />
           </button>
           <label className="sr-only" htmlFor={`audio-volume-${fieldId}`}>
             Volume for {title}
@@ -209,10 +215,14 @@ function CompactPlayer({
             min={0}
             max={1}
             step={0.05}
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-            className="h-1 w-full min-w-0 max-w-[2rem] cursor-pointer accent-gold-600 sm:max-w-[2.25rem]"
-            aria-valuetext={`${Math.round(volume * 100)} percent`}
+            value={muted ? 0 : volume}
+            onChange={(event) => {
+              const next = Number(event.target.value)
+              setVolume(next)
+              setMuted(next === 0)
+            }}
+            className="hidden h-1 w-full min-w-0 max-w-[2.25rem] cursor-pointer accent-gold-600 sm:block"
+            aria-valuetext={`${Math.round((muted ? 0 : volume) * 100)} percent`}
           />
         </div>
       </div>
