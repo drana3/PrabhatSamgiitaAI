@@ -27,7 +27,8 @@
       },
       "package": "net.prabhatasamgiita.ai",
       "versionCode": 1,
-      "icon": "./assets/icon.png"
+      "icon": "./assets/icon.png",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-router",

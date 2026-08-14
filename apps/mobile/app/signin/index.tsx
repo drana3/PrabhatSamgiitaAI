@@ -1,7 +1,7 @@
 import { DEFAULT_PHONE_COUNTRY } from "@prabhat/core"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
-  ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,7 +13,7 @@ import {
 } from "react-native"
 import { useRouter } from "expo-router"
 import { Image } from "expo-image"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
@@ -40,6 +40,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
 type EmailMode = "signin" | "signup"
+type BusyAction = "microsoft" | "google" | "facebook" | "email" | null
 
 function ModeTab({
   label,
@@ -71,9 +72,12 @@ function FieldLabel({ children }: { children: string }) {
 
 export default function SignInScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
+  const scrollRef = useRef<ScrollView>(null)
   const completeWelcome = useAuthStore((s) => s.completeWelcome)
   const signOut = useAuthStore((s) => s.signOut)
-  const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState<BusyAction>(null)
+  const [keyboardVisible, setKeyboardVisible] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [emailMode, setEmailMode] = useState<EmailMode>("signin")
@@ -87,6 +91,24 @@ export default function SignInScreen() {
   const facebookReady = facebookAuthConfigured()
   const expoGoOAuthHint = expoGoOAuthMessage()
   const oauthReady = oauthSignInConfigured()
+  const busy = busyAction !== null
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true))
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false))
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [])
+
+  const scrollFieldIntoView = () => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true })
+    })
+  }
 
   const continueGuest = () => {
     signOut()
@@ -94,12 +116,15 @@ export default function SignInScreen() {
     router.replace(href("/(tabs)"))
   }
 
-  const completeSignIn = async (action: () => Promise<{ message?: string; needsPhone?: boolean }>) => {
-    setBusy(true)
+  const completeSignIn = async (
+    action: Exclude<BusyAction, null>,
+    run: () => Promise<{ message?: string; needsPhone?: boolean }>,
+  ) => {
+    setBusyAction(action)
     setError(null)
     setNotice(null)
     try {
-      const result = await action()
+      const result = await run()
       setNotice(result.message ?? null)
       completeWelcome()
       if (result.needsPhone) {
@@ -110,7 +135,7 @@ export default function SignInScreen() {
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Sign-in failed.")
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
@@ -121,7 +146,7 @@ export default function SignInScreen() {
       return
     }
     if (emailMode === "signup") {
-      await completeSignIn(() =>
+      await completeSignIn("email", () =>
         signUpWithEmailPassword(
           email,
           password,
@@ -132,7 +157,7 @@ export default function SignInScreen() {
       )
       return
     }
-    await completeSignIn(() => signInWithEmailPassword(email, password))
+    await completeSignIn("email", () => signInWithEmailPassword(email, password))
   }
 
   const signupReady =
@@ -144,11 +169,18 @@ export default function SignInScreen() {
     <SafeAreaView style={styles.root}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.scroll,
+            keyboardVisible ? styles.scrollKeyboard : styles.scrollIdle,
+            { paddingBottom: keyboardVisible ? spacing.xxl * 4 : spacing.xl },
+          ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.card}>
@@ -190,15 +222,17 @@ export default function SignInScreen() {
               {msalReady ? (
                 <PrimaryButton
                   label="Continue with Microsoft"
-                  onPress={() => void completeSignIn(() => signInMember())}
+                  onPress={() => void completeSignIn("microsoft", () => signInMember())}
                   disabled={busy}
-                  loading={busy}
+                  loading={busyAction === "microsoft"}
                 />
               ) : null}
               {googleReady ? (
                 <SecondaryButton
                   label="Continue with Google"
-                  onPress={() => void completeSignIn(() => signInWithGoogleAccount())}
+                  onPress={() => void completeSignIn("google", () => signInWithGoogleAccount())}
+                  disabled={busy}
+                  loading={busyAction === "google"}
                 />
               ) : __DEV__ ? (
                 <View style={styles.hintBox}>
@@ -208,7 +242,9 @@ export default function SignInScreen() {
               {facebookReady ? (
                 <SecondaryButton
                   label="Continue with Facebook"
-                  onPress={() => void completeSignIn(() => signInWithFacebookAccount())}
+                  onPress={() => void completeSignIn("facebook", () => signInWithFacebookAccount())}
+                  disabled={busy}
+                  loading={busyAction === "facebook"}
                 />
               ) : null}
             </View>
@@ -251,6 +287,7 @@ export default function SignInScreen() {
                     autoCapitalize="words"
                     autoComplete="name"
                     style={styles.input}
+                    onFocus={scrollFieldIntoView}
                   />
                 </View>
               ) : null}
@@ -273,6 +310,7 @@ export default function SignInScreen() {
                   autoComplete="email"
                   keyboardType="email-address"
                   style={styles.input}
+                  onFocus={scrollFieldIntoView}
                 />
               </View>
               <View style={styles.field}>
@@ -284,13 +322,14 @@ export default function SignInScreen() {
                   secureTextEntry
                   autoComplete={emailMode === "signup" ? "new-password" : "password"}
                   style={styles.input}
+                  onFocus={scrollFieldIntoView}
                 />
               </View>
               <PrimaryButton
                 label={emailMode === "signup" ? "Create account" : "Sign in with email"}
                 onPress={() => void submitEmail()}
                 disabled={busy || !signupReady}
-                loading={busy}
+                loading={busyAction === "email"}
               />
             </View>
 
@@ -305,17 +344,13 @@ export default function SignInScreen() {
               accessibilityRole="button"
               onPress={continueGuest}
               style={styles.guestLink}
+              disabled={busy}
             >
               <Text style={styles.guestLinkText}>Continue without account</Text>
             </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      {busy ? (
-        <View style={styles.busyOverlay} pointerEvents="none">
-          <ActivityIndicator color={colors.primary} size="large" />
-        </View>
-      ) : null}
     </SafeAreaView>
   )
 }
@@ -325,9 +360,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
-    justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
+    paddingTop: spacing.lg,
+  },
+  scrollIdle: {
+    justifyContent: "center",
+  },
+  scrollKeyboard: {
+    justifyContent: "flex-start",
   },
   card: {
     backgroundColor: colors.surface,
@@ -425,11 +465,5 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.secondary,
     textDecorationLine: "underline",
-  },
-  busyOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(250, 247, 242, 0.35)",
   },
 })
