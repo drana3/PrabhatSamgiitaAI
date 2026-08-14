@@ -139,8 +139,7 @@ export function LyricsMeaningView({
   const { height } = useWindowDimensions()
   const [mode, setMode] = useState<UnderstandMode>("together")
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
-  const lyricsPaneHeight = Math.max(180, Math.round(height * 0.34))
-  const meaningPaneHeight = Math.max(160, Math.round(height * 0.28))
+  const togetherPaneHeight = Math.max(220, Math.round(height * 0.31))
 
   const showLyrics = mode === "lyrics" || mode === "together"
   const showMeaning = mode === "meaning" || mode === "together"
@@ -173,7 +172,7 @@ export function LyricsMeaningView({
       </Text>
 
       {showLyrics ? (
-        <View style={[styles.pane, together && { height: lyricsPaneHeight }]}>
+        <View style={[styles.pane, together && { height: togetherPaneHeight }]}>
           <Text style={styles.paneLabel}>Lyrics</Text>
           {together ? (
             <ScrollView
@@ -190,7 +189,7 @@ export function LyricsMeaningView({
       ) : null}
 
       {showMeaning ? (
-        <View style={[styles.pane, together && { height: meaningPaneHeight }]}>
+        <View style={[styles.pane, together && { height: togetherPaneHeight }]}>
           <Text style={styles.paneLabel}>Meaning</Text>
           <LanguageRow
             language={language}

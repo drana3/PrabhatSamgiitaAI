@@ -106,6 +106,13 @@ jobs:
           MOBILE_MEMBER_PROXY_KEY: ${{ secrets.MOBILE_MEMBER_PROXY_KEY }}
         run: bash ./scripts/verify-mobile-build-secrets.sh
 
+      - name: Sync member proxy to EAS production environment
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          MOBILE_MEMBER_PROXY_KEY: ${{ secrets.MOBILE_MEMBER_PROXY_KEY }}
+        run: bash ../../scripts/sync-mobile-eas-env.sh production
+
       - name: Build with EAS
         working-directory: apps/mobile
         env:

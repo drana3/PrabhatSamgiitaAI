@@ -21,7 +21,15 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 
 **All four** (`MOBILE_AZURE_CLIENT_ID`, both Google IDs, `MOBILE_MEMBER_PROXY_KEY`) are required — mobile CI fails the build if any are missing.
 
-GitHub secrets are **not** forwarded to EAS cloud workers. Microsoft/Google client IDs (public OAuth IDs) are also set in `apps/mobile/eas.json` and `app.config.js` so preview/production APKs actually show those buttons. `MOBILE_MEMBER_PROXY_KEY` must still exist as an [EAS environment variable](https://expo.dev/accounts/dewasheesh3s-team/projects/prabhatsamgiitaai/environment-variables) for favorite/quiz sync.
+GitHub secrets are **not** forwarded to EAS cloud workers. Microsoft/Google client IDs (public OAuth IDs) are also set in `apps/mobile/eas.json` and `app.config.js` so preview/production APKs actually show those buttons.
+
+`MOBILE_MEMBER_PROXY_KEY` is pushed to EAS automatically before each build (`scripts/sync-mobile-eas-env.sh` in CI). For a one-off local sync:
+
+```bash
+EXPO_TOKEN=... MOBILE_MEMBER_PROXY_KEY=... ./scripts/sync-mobile-eas-env.sh preview
+```
+
+Use **sensitive** visibility (not secret) so `EXPO_PUBLIC_MEMBER_PROXY_KEY` is embedded in the app bundle for member sync and admin status.
 
 ### One-shot from your machine (after `gh auth login`)
 

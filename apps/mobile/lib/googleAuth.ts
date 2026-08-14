@@ -1,4 +1,3 @@
-import * as Application from "expo-application"
 import * as AuthSession from "expo-auth-session"
 import { discovery } from "expo-auth-session/providers/google"
 import * as WebBrowser from "expo-web-browser"
@@ -42,10 +41,7 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
     throw new Error(googleSetupHint())
   }
 
-  const redirectUri =
-    Application.applicationId?.trim()
-      ? `${Application.applicationId}:/oauthredirect`
-      : googleRedirectUriForClient(clientId)
+  const redirectUri = googleRedirectUriForClient(clientId)
   const request = new AuthSession.AuthRequest({
     clientId,
     redirectUri,

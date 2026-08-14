@@ -13,6 +13,14 @@ describe("oauthRedirectHint", () => {
     expect(googleReversedClientId(clientId)).toBe(
       "com.googleusercontent.apps.495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs",
     )
-    expect(googleNativeRedirectUri(clientId)).toBe("net.prabhatasamgiita.ai:/oauthredirect")
+    expect(googleNativeRedirectUri(clientId)).toBe(
+      "com.googleusercontent.apps.495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs:/oauthredirect",
+    )
+    const androidClientId =
+      "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com"
+    expect(googleNativeRedirectUri(androidClientId)).toBe(
+      "com.googleusercontent.apps.495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv:/oauthredirect",
+    )
+    expect(googleNativeRedirectUri()).toBe("net.prabhatasamgiita.ai:/oauthredirect")
   })
 })

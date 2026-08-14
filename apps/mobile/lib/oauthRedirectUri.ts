@@ -16,9 +16,11 @@ export function googleReversedClientId(clientId: string) {
 
 /**
  * Redirect URI Google expects for native OAuth clients.
- * Matches expo-auth-session Google provider: `{bundleId}:/oauthredirect`.
+ * Uses the reversed client-id scheme (required for Android; also valid on iOS).
  */
-export function googleNativeRedirectUri(_clientId?: string) {
+export function googleNativeRedirectUri(clientId?: string) {
+  const reversed = clientId?.trim() ? googleReversedClientId(clientId) : ""
+  if (reversed) return `${reversed}:/oauthredirect`
   return `${APP_PACKAGE_ID}:/oauthredirect`
 }
 
