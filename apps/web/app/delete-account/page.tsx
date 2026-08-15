@@ -74,8 +74,11 @@ export default function DeleteAccountPage() {
         <section className="mt-6 rounded-3xl border border-navy-900/10 bg-white p-6 sm:p-8">
           <h2 className="font-serif text-2xl text-navy-950">Need help?</h2>
           <p className="mt-3 text-sm leading-6 text-stone-600">
-            If you cannot sign in or delete your account using the steps above, use the Feedback button on this
-            website or in the app. Include the email address linked to your account and ask for account deletion.
+            If you cannot sign in or delete your account using the steps above, email{" "}
+            <a href="mailto:anandamarga01@gmail.com" className="font-semibold text-navy-950 underline decoration-gold-500 underline-offset-4">
+              anandamarga01@gmail.com
+            </a>
+            . Include the email address linked to your account and ask for account deletion.
           </p>
         </section>
 

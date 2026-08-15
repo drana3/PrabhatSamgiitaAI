@@ -95,8 +95,24 @@ export default function PrivacyPage() {
                   account deletion page
                 </Link>
               </li>
-              <li>Contact us via the Feedback button on the website or in the app</li>
+              <li>
+                Email us at{" "}
+                <a href="mailto:anandamarga01@gmail.com" className="font-semibold text-navy-950 underline decoration-gold-500 underline-offset-4">
+                  anandamarga01@gmail.com
+                </a>
+              </li>
             </ul>
+          </div>
+
+          <div>
+            <h2 className="font-serif text-2xl text-navy-950">Contact</h2>
+            <p className="mt-4">
+              For privacy questions, account help, or deletion requests, email{" "}
+              <a href="mailto:anandamarga01@gmail.com" className="font-semibold text-navy-950 underline decoration-gold-500 underline-offset-4">
+                anandamarga01@gmail.com
+              </a>
+              .
+            </p>
           </div>
 
           <div>
