@@ -39,6 +39,10 @@ module.exports = ({ config }) => {
       buildNumber: config.ios?.buildNumber ?? "1",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSPhotoLibraryUsageDescription:
+          "Prabhat Samgiita AI does not access your photo library. This notice is required by an included sign-in component.",
+        NSPhotoLibraryAddUsageDescription:
+          "Prabhat Samgiita AI does not save images to your photo library. This notice is required by an included sign-in component.",
         ...(config.ios?.infoPlist ?? {}),
         CFBundleURLTypes: mergeUrlSchemes(config.ios?.infoPlist?.CFBundleURLTypes, [
           "prabhatai",

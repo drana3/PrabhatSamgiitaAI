@@ -43,11 +43,8 @@ export async function loadCatalog(): Promise<CatalogLoadResult> {
       return { songs, fromCache: false, error: null }
     }
     if (cached?.length) {
-      return {
-        songs: cached,
-        fromCache: true,
-        error: "Showing saved catalog — live refresh returned empty.",
-      }
+      // Keep serving saved catalog quietly — no scare banner on the home screen.
+      return { songs: cached, fromCache: true, error: null }
     }
     return {
       songs: [],
@@ -56,11 +53,7 @@ export async function loadCatalog(): Promise<CatalogLoadResult> {
     }
   } catch {
     if (cached?.length) {
-      return {
-        songs: cached,
-        fromCache: true,
-        error: "Showing saved catalog — live refresh failed.",
-      }
+      return { songs: cached, fromCache: true, error: null }
     }
     return {
       songs: [],

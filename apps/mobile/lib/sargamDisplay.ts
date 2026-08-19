@@ -3,19 +3,23 @@ import type { TransposedNotation } from "@prabhat/core"
 export type NotationLine = TransposedNotation["notation"]["lines"][number]
 export type NotationNote = NotationLine["measures"][number]["beats"][number]["notes"][number]
 
-const DEVANAGARI_BY_SARGAM: Record<string, string> = {
+/**
+ * Learner-facing Hindi Sargam translated from Andromeda Bengali swaralipi.
+ * कोमल = ॒ · तीव्र म = ॑ · मंद = ̱ · तार = ं
+ */
+const HINDI_BY_SARGAM: Record<string, string> = {
   S: "सा",
-  r: "रे",
+  r: "रे॒",
   R: "रे",
-  g: "ग",
+  g: "ग॒",
   G: "ग",
   m: "म",
-  M: "म",
+  M: "म॑",
   P: "प",
-  d: "ध",
+  d: "ध॒",
   D: "ध",
-  n: "न",
-  N: "न",
+  n: "नि॒",
+  N: "नि",
 }
 
 const LATIN_BY_SARGAM: Record<string, string> = {
@@ -33,12 +37,14 @@ const LATIN_BY_SARGAM: Record<string, string> = {
   N: "Ni",
 }
 
+export type SargamOctave = "lower" | "middle" | "upper"
+
 export type DisplayNote = {
   sargam: string
   latin: string
   devanagari: string
   key: string
-  octave: "lower" | "middle" | "upper"
+  octave: SargamOctave
 }
 
 export function lineNotes(line: NotationLine): NotationNote[] {
@@ -50,7 +56,7 @@ export function normalizeSargamToken(token: string): string {
   if (!trimmed) return ""
   if (trimmed.length === 1) return trimmed
   const first = trimmed[0]
-  if (first in DEVANAGARI_BY_SARGAM) return first
+  if (first in HINDI_BY_SARGAM) return first
   const lowered = trimmed.toLowerCase()
   const aliases: Record<string, string> = {
     sa: "S",
@@ -64,9 +70,17 @@ export function normalizeSargamToken(token: string): string {
   return aliases[lowered] ?? trimmed
 }
 
-export function toDevanagariSwara(token: string): string {
+export function applyHindiOctave(swara: string, octave: SargamOctave = "middle"): string {
+  if (!swara) return swara
+  if (octave === "lower") return `${swara}\u0331`
+  if (octave === "upper") return `${swara}ं`
+  return swara
+}
+
+export function toDevanagariSwara(token: string, octave: SargamOctave = "middle"): string {
   const normalized = normalizeSargamToken(token)
-  return DEVANAGARI_BY_SARGAM[normalized] ?? token
+  const base = HINDI_BY_SARGAM[normalized] ?? token
+  return applyHindiOctave(base, octave)
 }
 
 export function toLatinSwara(token: string): string {
@@ -85,12 +99,13 @@ export function harmoniumKeyLabel(western: string | null | undefined, fallbackSa
 export function buildDisplayNotes(line: NotationLine): DisplayNote[] {
   return lineNotes(line).map((note) => {
     const sargam = normalizeSargamToken(note.sargam)
+    const octave = note.octave ?? "middle"
     return {
       sargam,
       latin: toLatinSwara(sargam),
-      devanagari: toDevanagariSwara(sargam),
+      devanagari: toDevanagariSwara(sargam, octave),
       key: harmoniumKeyLabel(note.western, sargam),
-      octave: note.octave ?? "middle",
+      octave,
     }
   })
 }
@@ -103,21 +118,81 @@ export function formatPracticeSequence(
   return notes.map((note) => note[field]).join(" · ")
 }
 
+export function isBengaliText(text: string | null | undefined): boolean {
+  return Boolean(text && /[\u0980-\u09FF]/.test(text))
+}
+
+export function practiceLyricSource(options: {
+  lyricsOriginal?: string | null
+  transliteration?: string | null
+  firstLine?: string | null
+}): { practiceText: string; originalText: string | null } {
+  const original = options.lyricsOriginal?.trim() || null
+  const roman = options.transliteration?.trim() || null
+  if (original && isBengaliText(original) && roman) {
+    return { practiceText: roman, originalText: original }
+  }
+  return {
+    practiceText: original || roman || options.firstLine?.trim() || "",
+    originalText: original && roman && original !== roman ? original : original,
+  }
+}
+
 export function splitLyricLines(text: string | null | undefined): string[] {
   if (!text?.trim()) return []
-  return text
+  const byNewline = text
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
+  if (byNewline.length > 1) return byNewline
+  const byPunct = text
+    .split(/\s*(?:\||।|॥|\/)\s*/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  if (byPunct.length > 1) return byPunct
+  return byNewline
+}
+
+export function alignNotationToSongLines(
+  notationLines: NotationLine[],
+  songLyricLines: string[],
+): Array<{ line: NotationLine | null; lineIndex: number }> {
+  if (!songLyricLines.length && !notationLines.length) return []
+  if (!songLyricLines.length) {
+    return notationLines.map((line, lineIndex) => ({ line, lineIndex }))
+  }
+  if (!notationLines.length) {
+    return songLyricLines.map((_, lineIndex) => ({ line: null, lineIndex }))
+  }
+  const count = Math.max(songLyricLines.length, notationLines.length)
+  return Array.from({ length: count }, (_, lineIndex) => ({
+    line: notationLines[lineIndex] ?? null,
+    lineIndex,
+  }))
+}
+
+export function notationCoverage(
+  notationLineCount: number,
+  songLyricLineCount: number,
+): { covered: number; total: number; incomplete: boolean } {
+  const total = Math.max(notationLineCount, songLyricLineCount)
+  const covered = Math.min(notationLineCount, songLyricLineCount || notationLineCount)
+  return {
+    covered,
+    total,
+    incomplete: songLyricLineCount > 0 && notationLineCount < songLyricLineCount,
+  }
 }
 
 export function resolveLineLyrics(
   notationLine: NotationLine,
   lineIndex: number,
   songLyricLines: string[],
-): { roman: string } {
+  originalLyricLines: string[] = [],
+): { roman: string; original: string | null } {
   const roman = songLyricLines[lineIndex]?.trim() || notationLine.lyrics.trim()
-  return { roman }
+  const original = originalLyricLines[lineIndex]?.trim() || null
+  return { roman, original }
 }
 
 export function distributeNotesToWords(
@@ -144,3 +219,6 @@ export function distributeNotesToWords(
   }
   return groups
 }
+
+export const HINDI_SARGAM_LEGEND =
+  "बंगाली स्वरलिपि → हिंदी सारगम: सा रे ग म प ध नि · कोमल (रे॒ ग॒ ध॒ नि॒) · तीव्र म (म॑) · तार पर ं"

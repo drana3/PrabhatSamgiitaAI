@@ -2,15 +2,12 @@ import type { TodayRecommendationItem, TodayRecommendations } from "@prabhat/cor
 
 import type { MockSong } from "@/data/mock"
 import { toInAppVideoEmbedUrl } from "@/lib/mediaEmbed"
-
-const SCENIC = [
-  "https://images.unsplash.com/photo-1495616811223-4d98b6e70c9a?w=1200&q=80",
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80",
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200&q=80",
-]
+import { scenicHeroFor, scenicThumbFor } from "@/lib/scenicArt"
 
 export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): MockSong {
-  const scenic = SCENIC[index % SCENIC.length]
+  const number = item.number || index + 1
+  const hero = scenicHeroFor(number)
+  const thumb = scenicThumbFor(number)
   const embedUrl = toInAppVideoEmbedUrl(item.video_embed_url)
   const audioUrl = item.audio_url?.trim() || null
 
@@ -19,8 +16,8 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
     number: item.number,
     title: item.title,
     shortDescription: item.first_line || item.reasons[0] || "Recommended for today",
-    imageUrl: scenic,
-    thumbnailUrl: scenic,
+    imageUrl: hero,
+    thumbnailUrl: thumb,
     themes: item.reasons.slice(0, 2),
     meaning: item.reasons.join(" · ") || "A song selected for today’s context.",
     lyrics: item.first_line || item.title,
@@ -34,7 +31,7 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
             title: `Watch PS ${item.number}`,
             url: item.video_embed_url || "",
             embedUrl,
-            thumbnailUrl: scenic,
+            thumbnailUrl: thumb,
           },
         ]
       : [],

@@ -83,9 +83,12 @@ VOICE_CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
     "compassion": ("compassion", "daya"),
     "daya": ("compassion",),
     "devotion": ("devotion", "bhakti"),
+    "devotional": ("devotion", "bhakti"),
     "dukh": ("sorrow", "pain"),
     "feeling": ("feeling", "mood"),
+    "festival": ("festival", "utsav"),
     "gam": ("sorrow",),
+    "guru": ("guru", "master"),
     "happy": ("joy", "bliss", "happiness"),
     "happiness": ("joy", "bliss"),
     "hope": ("hope", "asha"),
@@ -95,17 +98,21 @@ VOICE_CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
     "joy": ("joy", "bliss"),
     "khushi": ("joy", "bliss"),
     "love": ("love", "devotion"),
+    "meditat": ("meditation", "contemplation"),
+    "meditation": ("meditation", "contemplation", "sadhana"),
     "mohabbat": ("love", "devotion"),
+    "morning": ("morning", "dawn", "pratah"),
     "musafir": ("journey", "traveller"),
     "musaaphir": ("journey", "traveller"),
     "nature": ("nature",),
     "nikah": ("marriage",),
-    "peace": ("peace", "shanti"),
-    "peaceful": ("peace", "shanti"),
+    "peace": ("peace", "shanti", "calm"),
+    "peaceful": ("peace", "shanti", "calm"),
     "prakriti": ("nature",),
     "prem": ("love", "devotion"),
     "pyar": ("love", "devotion"),
     "pyaar": ("love", "devotion"),
+    "rain": ("rain", "rainy", "baarish"),
     "sad": ("sorrow", "pain"),
     "safar": ("journey",),
     "salgirah": ("birthday",),
@@ -142,14 +149,22 @@ def prepare_voice_query(value: str) -> str:
     return " ".join(cleaned.split())
 
 
-def expand_voice_query(value: str) -> str:
-    cleaned = prepare_voice_query(value)
+def expand_concept_query(value: str) -> str:
+    """Local feeling/mood synonym expansion — no LLM round-trip."""
+    cleaned = " ".join(normalize_filter_text(value).split())
+    if not cleaned:
+        return ""
     aliases: list[str] = []
-    words = set(cleaned.split())
+    words = cleaned.split()
+    word_set = set(words)
     for word, expansions in VOICE_CONCEPT_ALIASES.items():
-        if word in words:
+        if word in word_set or any(token.startswith(word) for token in word_set if len(word) >= 5):
             aliases.extend(expansions)
-    return " ".join(dict.fromkeys([*cleaned.split(), *aliases]))
+    return " ".join(dict.fromkeys([*words, *aliases]))
+
+
+def expand_voice_query(value: str) -> str:
+    return expand_concept_query(prepare_voice_query(value))
 
 
 def phonetic_key(value: str) -> str:
@@ -264,7 +279,7 @@ def _search_doc(song: Song) -> str:
     )
 
 
-def canonical_lexical_boost(query: str, song: Song) -> float:
+def canonical_lexical_boost(query: str, song: Song, *, semantic_mode: bool = False) -> float:
     """Keep exact canonical text matches ahead of approximate vector neighbors."""
     query_norm = normalize_filter_text(query)
     if not query_norm:
@@ -273,16 +288,22 @@ def canonical_lexical_boost(query: str, song: Song) -> float:
     first_line = normalize_filter_text(song.first_line or "")
     if query_norm in {title, first_line}:
         return 3.0
+    title_similarity = max(
+        SequenceMatcher(None, query_norm, title).ratio(),
+        SequenceMatcher(None, query_norm, first_line).ratio(),
+    )
+    if semantic_mode:
+        # Feeling/meaning search must not promote songs that merely mention a mood
+        # word somewhere in lyrics or commentary — that surfaces wrong results.
+        if title_similarity >= 0.84:
+            return 1.0
+        return 0.0
     document = normalize_filter_text(_search_doc(song))
     if query_norm in document:
         return 1.5
     significant_terms = [term for term in query_norm.split() if len(term) > 2]
     if len(significant_terms) >= 2 and all(term in document for term in significant_terms):
         return 0.25
-    title_similarity = max(
-        SequenceMatcher(None, query_norm, title).ratio(),
-        SequenceMatcher(None, query_norm, first_line).ratio(),
-    )
     if title_similarity >= 0.84:
         return 1.0
     if title_similarity >= 0.7:
@@ -477,18 +498,33 @@ SEMANTIC_QUERY_PROMPT = (
     "Question: {query}"
 )
 
-SEMANTIC_EXPANSION_HINTS = (
+# Short mood chips ("peace", "devotion", "morning meditation") expand locally.
+# Only conversational asks pay for an LLM rewrite.
+LLM_EXPANSION_HINTS = (
     "about",
+    "feel",
+    "feeling",
+    "help me",
+    "i am",
+    "i'm",
+    "looking for",
+    "meaning",
+    "recommend",
+    "song for",
+    "songs for",
+    "suggest",
+    "which song",
+    "why",
+)
+
+# Kept for callers/tests that still refer to the broader semantic-mode hint list.
+SEMANTIC_EXPANSION_HINTS = LLM_EXPANSION_HINTS + (
     "awakening",
     "bliss",
     "devotion",
-    "feel",
-    "feeling",
     "festival",
-    "help me",
     "hope",
     "joy",
-    "meaning",
     "meditat",
     "mood",
     "morning",
@@ -496,24 +532,25 @@ SEMANTIC_EXPANSION_HINTS = (
     "occasion",
     "peace",
     "rain",
-    "recommend",
     "service",
     "spiritual",
     "sorrow",
-    "suggest",
     "theme",
-    "why",
 )
+
+_SEMANTIC_EXPANSION_CACHE: dict[str, str] = {}
+_SEMANTIC_EXPANSION_CACHE_MAX = 256
+_VECTOR_INDEX_AVAILABLE: bool | None = None
 
 
 def needs_semantic_expansion(query: str) -> bool:
-    """Skip the LLM rewrite for lyric/number lookups that catalog search handles well."""
+    """Return True only when an LLM keyword rewrite is worth the latency."""
     cleaned = normalize_query(query)
     if not cleaned:
         return False
     if extract_song_number_intent(cleaned) is not None:
         return False
-    if any(hint in cleaned for hint in SEMANTIC_EXPANSION_HINTS):
+    if any(hint in cleaned for hint in LLM_EXPANSION_HINTS):
         return True
     return len(cleaned.split()) > 8
 
@@ -528,16 +565,25 @@ class HybridSearchService:
         self.provider = select_provider(get_settings())
 
     async def _expand_semantic_query(self, query: str) -> str:
+        local = expand_concept_query(query) or query.strip()
         if not needs_semantic_expansion(query):
-            return query
+            return local
+        cache_key = normalize_query(query)
+        cached = _SEMANTIC_EXPANSION_CACHE.get(cache_key)
+        if cached:
+            return " ".join(dict.fromkeys(f"{local} {cached}".split()))
         try:
             expanded = await self.provider.complete(
                 SEMANTIC_QUERY_PROMPT.format(query=query.strip())
             )
             cleaned = " ".join(expanded.split())
-            return cleaned or query
+            if cleaned:
+                if len(_SEMANTIC_EXPANSION_CACHE) >= _SEMANTIC_EXPANSION_CACHE_MAX:
+                    _SEMANTIC_EXPANSION_CACHE.pop(next(iter(_SEMANTIC_EXPANSION_CACHE)))
+                _SEMANTIC_EXPANSION_CACHE[cache_key] = cleaned
+            return " ".join(dict.fromkeys(f"{local} {cleaned}".split())) or local
         except Exception:
-            return query
+            return local
 
     async def _rag_chunk_rank(
         self,
@@ -742,11 +788,18 @@ class HybridSearchService:
         return [item[0] for item in scored[:limit]]
 
     async def _has_vector_index(self) -> bool:
+        global _VECTOR_INDEX_AVAILABLE
+        if _VECTOR_INDEX_AVAILABLE is True:
+            return True
         try:
             result = await self.session.execute(
                 select(Song.id).where(Song.embeddings.is_not(None)).limit(1)
             )
-            return result.first() is not None
+            available = result.first() is not None
+            # Only cache positives — early misses must not disable vectors forever.
+            if available:
+                _VECTOR_INDEX_AVAILABLE = True
+            return available
         except SQLAlchemyError:
             await self.session.rollback()
             return False
@@ -962,17 +1015,28 @@ class HybridSearchService:
         # exact number prevents queries such as 2256 from surfacing Song 226.
         rank_tasks: list[tuple[str, Awaitable[list[str]]]] = []
         if not exact_number:
-            rank_tasks.extend(
-                [
-                    ("opening_line", self._opening_line_rank(query, songs, limit=50)),
-                    ("full_text", self._fts_rank(query, songs, limit=50)),
-                    ("trigram", self._trigram_rank(query, songs, limit=50)),
-                ]
-            )
-            if input_mode == "voice":
+            # Semantic feeling/meaning search: skip FTS/trigram while vectors work —
+            # keyword coincidences often return the wrong mood match.
+            if semantic_mode:
                 rank_tasks.append(
-                    ("voice_phonetic", self._voice_phonetic_rank(query, songs, limit=50))
+                    ("opening_line", self._opening_line_rank(query, songs, limit=50))
                 )
+                if input_mode == "voice":
+                    rank_tasks.append(
+                        ("voice_phonetic", self._voice_phonetic_rank(query, songs, limit=50))
+                    )
+            else:
+                rank_tasks.extend(
+                    [
+                        ("opening_line", self._opening_line_rank(query, songs, limit=50)),
+                        ("full_text", self._fts_rank(query, songs, limit=50)),
+                        ("trigram", self._trigram_rank(query, songs, limit=50)),
+                    ]
+                )
+                if input_mode == "voice":
+                    rank_tasks.append(
+                        ("voice_phonetic", self._voice_phonetic_rank(query, songs, limit=50))
+                    )
         rank_coroutines = [task for _, task in rank_tasks]
         rank_results = await asyncio.gather(*rank_coroutines) if rank_coroutines else []
         rank_by_label = {
@@ -985,11 +1049,20 @@ class HybridSearchService:
         vector_rank: list[str] = []
         rag_chunk_rank: list[str] = []
         if not exact_number and use_vectors and query_embedding:
-            vector_rank = await self._vector_rank(songs, query_embedding, limit=50)
             if semantic_mode:
-                rag_chunk_rank = await self._rag_chunk_rank(
-                    query, query_embedding, songs, limit=80
+                vector_rank, rag_chunk_rank = await asyncio.gather(
+                    self._vector_rank(songs, query_embedding, limit=50),
+                    self._rag_chunk_rank(query, query_embedding, songs, limit=80),
                 )
+            else:
+                vector_rank = await self._vector_rank(songs, query_embedding, limit=50)
+        # No embeddings available: lexical fallback uses the expanded mood query,
+        # not raw FTS on the original phrase alone.
+        if semantic_mode and not exact_number and not vector_rank and not rag_chunk_rank:
+            fts_rank, trigram_rank = await asyncio.gather(
+                self._fts_rank(semantic_query, songs, limit=50),
+                self._trigram_rank(semantic_query, songs, limit=50),
+            )
         structured_rank = (
             [
                 str(song.number)
@@ -1004,8 +1077,29 @@ class HybridSearchService:
             else []
         )
 
-        fused = reciprocal_rank_fusion(
-            [
+        meaning_ranks = [rag_chunk_rank, vector_rank]
+        has_meaning_hits = any(meaning_ranks)
+        if semantic_mode and has_meaning_hits:
+            fusion_lists = [
+                exact_number,
+                structured_rank,
+                rag_chunk_rank,
+                vector_rank,
+                opening_rank,
+            ]
+            if input_mode == "voice":
+                fusion_lists.append(voice_phonetic_rank)
+        elif semantic_mode:
+            fusion_lists = [
+                exact_number,
+                structured_rank,
+                opening_rank,
+                fts_rank,
+                trigram_rank,
+                voice_phonetic_rank,
+            ]
+        else:
+            fusion_lists = [
                 exact_number,
                 structured_rank,
                 rag_chunk_rank,
@@ -1015,22 +1109,10 @@ class HybridSearchService:
                 voice_phonetic_rank,
                 vector_rank,
             ]
-        )
+
+        fused = reciprocal_rank_fusion(fusion_lists)
         candidates = sorted(
-            {
-                item
-                for ranked in (
-                    exact_number,
-                    structured_rank,
-                    rag_chunk_rank,
-                    opening_rank,
-                    fts_rank,
-                    trigram_rank,
-                    voice_phonetic_rank,
-                    vector_rank,
-                )
-                for item in ranked
-            },
+            {item for ranked in fusion_lists for item in ranked},
             key=lambda item: fused.get(item, 0.0),
             reverse=True,
         )
@@ -1060,7 +1142,7 @@ class HybridSearchService:
             if song.is_verified or song.canonical_source_status == "verified":
                 matched_by.append("verified")
             score = fused.get(candidate, 0.0)
-            score += canonical_lexical_boost(query, song)
+            score += canonical_lexical_boost(query, song, semantic_mode=semantic_mode)
             score += 10.0 if candidate in exact_number else 0.0
             score += 0.005 if summary.audio_count else 0.0
             score += 0.002 if summary.notation_count else 0.0

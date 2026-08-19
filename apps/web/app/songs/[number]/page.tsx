@@ -13,7 +13,7 @@ import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
 import { fetchNotation, fetchSong } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
-import { splitLyricLines } from "@/lib/sargam-display"
+import { splitLyricLines, practiceLyricSource } from "@/lib/sargam-display"
 import { songPagePath } from "@/lib/song-path"
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
@@ -22,6 +22,11 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   const song = await fetchSong(Number(number))
   if (!song) notFound()
   const notation = await fetchNotation(song.number)
+  const practiceLyrics = practiceLyricSource({
+    lyricsOriginal: song.lyrics_original,
+    transliteration: song.transliteration,
+    firstLine: song.first_line,
+  })
   const audio = song.media.filter((item) => item.kind === "audio")
   const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
   const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
@@ -100,8 +105,8 @@ export default async function SongPage({ params, searchParams }: { params: Promi
                 initialNotation={notation}
                 sourceUrl={song.notation_source_url}
                 sourceStatus={song.notation_verification_status}
-                songLyricLines={splitLyricLines(song.transliteration || song.first_line)}
-                originalLyricLines={splitLyricLines(song.lyrics_original)}
+                songLyricLines={splitLyricLines(practiceLyrics.practiceText)}
+                originalLyricLines={splitLyricLines(practiceLyrics.originalText)}
               />
             </div>
           ) : null}

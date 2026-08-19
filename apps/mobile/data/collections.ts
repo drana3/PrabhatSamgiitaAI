@@ -5,6 +5,7 @@ export type CollectionItem = {
   category: "language" | "theme" | "festival" | "occasion" | "season" | string
   value: string
   count: number
+  songNumbers: number[]
   sourceUrl?: string
 }
 
@@ -50,6 +51,7 @@ export const allCollections: CollectionItem[] = (rawCollections as Array<{
   category: string
   value: string
   count: number
+  song_numbers?: number[]
   source_url?: string
 }>)
   .filter((row) => !hiddenCollectionLabels.has(row.label))
@@ -58,6 +60,9 @@ export const allCollections: CollectionItem[] = (rawCollections as Array<{
     category: row.category,
     value: row.value,
     count: row.count,
+    songNumbers: Array.isArray(row.song_numbers)
+      ? row.song_numbers.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+      : [],
     sourceUrl: row.source_url,
   }))
 

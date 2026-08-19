@@ -1,3 +1,4 @@
+/** Songs-tab CategoryGrid chips only — other common searches are precomputed but not shown here. */
 export const songCategories = [
   { id: "devotional", label: "Devotional", icon: "sparkles" },
   { id: "nature", label: "Nature", icon: "leaf" },

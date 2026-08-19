@@ -1,7 +1,8 @@
 import type { SongDetail, SongSummary } from "@prabhat/core"
 
-import { scenicArtList, type MockSong, type SongVideo } from "@/data/mock"
+import type { MockSong, SongVideo } from "@/data/mock"
 import { mediaVideosToEmbeds, pickPreferredAudioUrl } from "@/lib/mediaEmbed"
+import { scenicHeroFor, scenicThumbFor } from "@/lib/scenicArt"
 
 export function parseSongNumber(songId: string | undefined): number | null {
   if (!songId) return null
@@ -9,10 +10,6 @@ export function parseSongNumber(songId: string | undefined): number | null {
   if (match) return Number(match[1])
   const asNumber = Number(songId)
   return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null
-}
-
-function scenicFor(number: number) {
-  return scenicArtList[number % scenicArtList.length]
 }
 
 function readLocalizedMeanings(metadata: Record<string, unknown> | undefined): Record<string, string> {
@@ -38,7 +35,7 @@ export function storedMeaningForLanguage(
 }
 
 export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong {
-  const scenic = scenicArtList[index % scenicArtList.length]
+  const number = summary.number || index + 1
   const themes = [summary.theme, summary.mood, summary.occasion].filter(Boolean) as string[]
 
   return {
@@ -47,8 +44,8 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     title: summary.title,
     originalTitle: summary.first_line || undefined,
     shortDescription: summary.first_line || summary.theme || "Prabhat Samgiita",
-    imageUrl: scenic,
-    thumbnailUrl: scenic,
+    imageUrl: scenicHeroFor(number),
+    thumbnailUrl: scenicThumbFor(number),
     themes: themes.length ? themes : ["Prabhat Samgiita"],
     meaning: summary.theme || "A song from the Prabhat Samgiita collection.",
     lyrics: summary.first_line || summary.title,
@@ -61,8 +58,9 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
 }
 
 export function songDetailToMockSong(detail: SongDetail): MockSong {
-  const scenic = scenicFor(detail.number)
-  const embeds = mediaVideosToEmbeds(detail.media, scenic, detail.number)
+  const hero = scenicHeroFor(detail.number)
+  const thumb = scenicThumbFor(detail.number)
+  const embeds = mediaVideosToEmbeds(detail.media, thumb, detail.number)
   const videos: SongVideo[] = embeds.map((item) => ({
     id: item.id,
     title: item.title,
@@ -79,8 +77,8 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     title: detail.title,
     originalTitle: detail.first_line || undefined,
     shortDescription: detail.first_line || detail.theme || "Prabhat Samgiita",
-    imageUrl: scenic,
-    thumbnailUrl: scenic,
+    imageUrl: hero,
+    thumbnailUrl: thumb,
     themes: themes.length ? themes : ["Prabhat Samgiita"],
     meaning:
       detail.english_meaning ||
@@ -90,11 +88,13 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     hindiMeaning: detail.hindi_meaning?.trim() || null,
     localizedMeanings: readLocalizedMeanings(detail.metadata_json),
     lyrics: detail.lyrics_original || detail.transliteration || detail.first_line || detail.title,
+    transliteration: detail.transliteration?.trim() || null,
     translation: detail.english_meaning || detail.hindi_meaning || detail.first_line || detail.title,
     durationSeconds: 300,
     performer: "Prabhat Samgiita Collection",
     videos,
     audioUrl: pickPreferredAudioUrl(detail.media),
+    notationSourceUrl: detail.notation_source_url?.trim() || null,
     mediaHydrated: true,
   }
 }

@@ -30,6 +30,8 @@ export default function TabLayout() {
         initialRouteName="index"
         screenOptions={{
           headerShown: false,
+          lazy: true,
+          freezeOnBlur: true,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
           tabBarStyle: {

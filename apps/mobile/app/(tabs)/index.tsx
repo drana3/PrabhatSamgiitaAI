@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Alert, InteractionManager, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { queryGuidanceFor, queryIsUseful, type TodayRecommendations } from "@prabhat/core"
 
@@ -70,6 +70,12 @@ export default function HomeScreen() {
   const [suggestedSongs, setSuggestedSongs] = useState<MockSong[]>([])
   const [homeError, setHomeError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [showRest, setShowRest] = useState(false)
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setShowRest(true))
+    return () => task.cancel()
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -97,12 +103,13 @@ export default function HomeScreen() {
 
       if (result.today) {
         applyToday(result.today)
-        if (result.error) setHomeError(result.error)
+        // Only surface hard failures — cache fallbacks stay silent.
+        if (result.error && !result.fromCache) setHomeError(result.error)
         setLoadingToday(false)
         return
       }
 
-      if (result.error) setHomeError(result.error)
+      if (result.error && !result.fromCache) setHomeError(result.error)
       const catalog = await loadCatalog()
       if (!active) return
       if (catalog.error && !catalog.songs.length) setHomeError(catalog.error)
@@ -127,11 +134,40 @@ export default function HomeScreen() {
     return first ? todayItemToMockSong(first, 0) : suggestedSongs[0] ?? recentSongs[0] ?? null
   }, [today, suggestedSongs, recentSongs])
 
+  useEffect(() => {
+    if (!continueSongs.length && !featuredSong) return
+    const warm = InteractionManager.runAfterInteractions(() => {
+      if (featuredSong) usePlayerStore.getState().warmAudio(featuredSong)
+      for (const song of continueSongs.slice(0, 3)) {
+        usePlayerStore.getState().warmAudio(song)
+      }
+    })
+    return () => warm.cancel()
+  }, [featuredSong, continueSongs])
+
   const openSongNumber = (number: number) => {
+    usePlayerStore.getState().warmAudio({
+      id: `ps-${number}`,
+      number,
+      title: "",
+      shortDescription: "",
+      imageUrl: "",
+      thumbnailUrl: "",
+      themes: [],
+      meaning: "",
+      lyrics: "",
+      translation: "",
+      durationSeconds: 300,
+      performer: "",
+      videos: [],
+      audioUrl: null,
+      mediaHydrated: false,
+    })
     router.push(href(`/song/ps-${number}`))
   }
 
   const openSong = (song: MockSong) => {
+    usePlayerStore.getState().warmAudio(song)
     router.push(href(`/song/${song.id}`))
   }
 
@@ -150,12 +186,7 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer padded={false} showGuru={false}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
-      >
-        <ScrollView
+      <ScrollView
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
@@ -236,6 +267,8 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {showRest ? (
+          <>
         <View style={styles.block}>
           <Text style={styles.groupLabel}>Discover</Text>
           <UpcomingFestivalsRow
@@ -291,14 +324,14 @@ export default function HomeScreen() {
             onPress={() => router.push(href(mode === "guest" ? "/signin" : "/feedback"))}
           />
         </View>
+          </>
+        ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
     </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   searchSlot: {
     marginTop: -spacing.lg,
     marginBottom: spacing.md,

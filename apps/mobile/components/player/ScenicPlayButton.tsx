@@ -70,7 +70,16 @@ export function ScenicPlayButton({
         style,
       ]}
     >
-      <Image source={source} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <Image
+        source={source}
+        style={StyleSheet.absoluteFillObject}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        recyclingKey={imageUrl || "dawn"}
+        placeholder={brandAssets.dawn}
+        placeholderContentFit="cover"
+        transition={100}
+      />
       <LinearGradient
         colors={["rgba(20,14,10,0.05)", "rgba(20,14,10,0.45)"]}
         style={StyleSheet.absoluteFill}

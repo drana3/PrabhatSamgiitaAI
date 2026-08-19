@@ -81,10 +81,15 @@ def validate() -> list[str]:
             errors.append(f"media[{index}].verification_status is required")
 
     notation_pairs: set[tuple[int, str]] = set()
+    notation_songs: set[int] = set()
     for index, notation in enumerate(notations):
         song_number = notation.get("song_number")
         if song_number not in numbers:
             errors.append(f"notations[{index}] references unknown song {song_number}")
+        elif isinstance(song_number, int) and song_number > 0:
+            if song_number in notation_songs:
+                errors.append(f"duplicate notation song_number {song_number} (Andromeda parts must be grouped)")
+            notation_songs.add(song_number)
         source_url = notation.get("source_url")
         if source_url and not valid_url(source_url):
             errors.append(f"notations[{index}].source_url must be a valid URL")
@@ -92,6 +97,30 @@ def validate() -> list[str]:
         if key in notation_pairs:
             errors.append(f"duplicate notation source for song {song_number}: {source_url}")
         notation_pairs.add(key)
+        meta = notation.get("metadata_json") or {}
+        if isinstance(meta, dict):
+            archive = meta.get("archive_url")
+            if archive and not valid_url(archive):
+                errors.append(f"notations[{index}].metadata_json.archive_url must be a valid URL")
+
+    practice_path = GENERATED / "notation_practice.json"
+    if practice_path.exists():
+        practice = json.loads(practice_path.read_text(encoding="utf-8"))
+        if isinstance(practice, list):
+            practice_songs: set[int] = set()
+            for index, draft in enumerate(practice):
+                song_number = draft.get("song_number")
+                if not isinstance(song_number, int) or song_number not in notation_songs:
+                    errors.append(
+                        f"notation_practice[{index}] song {song_number} missing from Andromeda notations inventory"
+                    )
+                elif song_number in practice_songs:
+                    errors.append(f"duplicate notation_practice song_number {song_number}")
+                else:
+                    practice_songs.add(song_number)
+                if not draft.get("notation_text"):
+                    errors.append(f"notation_practice[{index}] for song {song_number} has empty notation_text")
+
 
     inventory_urls: set[str] = set()
     for index, item in enumerate(inventory):

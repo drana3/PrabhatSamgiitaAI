@@ -21,13 +21,38 @@ import { typography } from "@/constants/typography"
 import { collectionCount } from "@/data/collections"
 import { popularSearches, type MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
+import {
+  categoryLabel,
+  isSongCategoryId,
+  loadCategorySongs,
+  resolveCategoryQuery,
+} from "@/lib/categorySongs"
 import { resolveSearchMode } from "@/lib/searchMode"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
-const DEBOUNCE_MS = 350
+const DEBOUNCE_MS = 280
+const SEARCH_CACHE_LIMIT = 40
+
+type SearchCacheEntry = { songs: MockSong[]; at: number }
+const searchCache = new Map<string, SearchCacheEntry>()
+
+function cacheKey(query: string, mode: "catalog" | "semantic") {
+  return `${mode}:${query.trim().toLowerCase()}`
+}
+
+function readSearchCache(query: string, mode: "catalog" | "semantic") {
+  return searchCache.get(cacheKey(query, mode))?.songs ?? null
+}
+
+function writeSearchCache(query: string, mode: "catalog" | "semantic", songs: MockSong[]) {
+  searchCache.set(cacheKey(query, mode), { songs, at: Date.now() })
+  if (searchCache.size <= SEARCH_CACHE_LIMIT) return
+  const oldest = [...searchCache.entries()].sort((a, b) => a[1].at - b[1].at)[0]
+  if (oldest) searchCache.delete(oldest[0])
+}
 
 function shouldRunSearch(value: string) {
   const trimmed = value.trim()
@@ -36,14 +61,29 @@ function shouldRunSearch(value: string) {
 
 export default function SearchScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ q?: string; listen?: string; focus?: string }>()
-  const initial = typeof params.q === "string" ? params.q : ""
+  const params = useLocalSearchParams<{
+    q?: string
+    category?: string
+    listen?: string
+    focus?: string
+  }>()
+  const initialCategory =
+    typeof params.category === "string" && isSongCategoryId(params.category)
+      ? params.category
+      : null
+  const initial =
+    typeof params.q === "string"
+      ? params.q
+      : initialCategory
+        ? categoryLabel(initialCategory)
+        : ""
   const [query, setQuery] = useState(initial)
+  const [activeCategory, setActiveCategory] = useState<string | null>(initialCategory)
   const recents = usePreferencesStore((s) => s.searchRecents)
   const addSearchRecent = usePreferencesStore((s) => s.addSearchRecent)
   const clearSearchRecents = usePreferencesStore((s) => s.clearSearchRecents)
   const [results, setResults] = useState<MockSong[]>([])
-  const [loading, setLoading] = useState(() => shouldRunSearch(initial))
+  const [loading, setLoading] = useState(() => Boolean(initialCategory) || shouldRunSearch(initial))
   const [error, setError] = useState<string | null>(null)
   const [voiceBusy, setVoiceBusy] = useState(false)
   const [voiceNote, setVoiceNote] = useState<string | null>(null)
@@ -87,6 +127,7 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (typeof params.q !== "string") return
+    setActiveCategory(null)
     setQuery(params.q)
     if (shouldRunSearch(params.q)) {
       setResults([])
@@ -94,6 +135,40 @@ export default function SearchScreen() {
       setLoading(true)
     }
   }, [params.q])
+
+  useEffect(() => {
+    const categoryId =
+      typeof params.category === "string" && isSongCategoryId(params.category)
+        ? params.category
+        : null
+    if (!categoryId) return
+
+    const label = categoryLabel(categoryId)
+    setActiveCategory(categoryId)
+    setQuery(label)
+    setResults([])
+    setError(null)
+    setLoading(true)
+    setVoiceNote(null)
+
+    let active = true
+    void (async () => {
+      const result = await loadCategorySongs(categoryId)
+      if (!active) return
+      setResults(result.songs)
+      setLoading(false)
+      setError(
+        result.songs.length
+          ? null
+          : "No curated songs for this category yet. Try a word search above.",
+      )
+      addSearchRecent(result.label)
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [params.category, addSearchRecent])
 
   useFocusEffect(
     useCallback(() => {
@@ -129,13 +204,52 @@ export default function SearchScreen() {
       return
     }
 
+    const categoryId = resolveCategoryQuery(trimmed)
+    if (categoryId) {
+      const id = ++requestId.current
+      setActiveCategory(categoryId)
+      setLoading(true)
+      setError(null)
+      try {
+        const result = await loadCategorySongs(categoryId)
+        if (id !== requestId.current) return
+        setResults(result.songs)
+        writeSearchCache(trimmed, "catalog", result.songs)
+        addSearchRecent(trimmed)
+        setError(
+          result.songs.length
+            ? null
+            : "No curated songs for this theme yet. Try a more specific search.",
+        )
+      } finally {
+        if (id === requestId.current) setLoading(false)
+      }
+      return
+    }
+
+    const mode = resolveSearchMode(trimmed)
+    const cached = readSearchCache(trimmed, mode)
+    if (cached) {
+      setResults(cached)
+      setLoading(false)
+      setError(null)
+      addSearchRecent(trimmed)
+      return
+    }
+
     const id = ++requestId.current
+    // Clear immediately so a previous query's songs are never shown as if they match.
+    setResults([])
     setLoading(true)
     setError(null)
     try {
-      const rows = await api.searchSongs(trimmed, { mode: resolveSearchMode(trimmed) })
+      // Feeling/meaning asks must wait for semantic results only — catalog lexical
+      // hits are often wrong for mood queries and must not be shown as a preview.
+      const rows = await api.searchSongs(trimmed, { mode })
       if (id !== requestId.current) return
-      setResults(rows.map((row, index) => songSummaryToMockSong(row, index)))
+      const mapped = rows.map((row, index) => songSummaryToMockSong(row, index))
+      writeSearchCache(trimmed, mode, mapped)
+      setResults(mapped)
       addSearchRecent(trimmed)
     } catch (err) {
       if (id !== requestId.current) return
@@ -147,15 +261,28 @@ export default function SearchScreen() {
   }, [addSearchRecent])
 
   useEffect(() => {
+    if (activeCategory && query.trim().toLowerCase() === categoryLabel(activeCategory).toLowerCase()) {
+      return
+    }
+    if (activeCategory) setActiveCategory(null)
+
     const handle = setTimeout(() => {
       void runSearch(query)
     }, DEBOUNCE_MS)
     return () => clearTimeout(handle)
-  }, [query, runSearch])
+  }, [query, runSearch, activeCategory])
 
   const isCollectionQuery = query.toLowerCase().includes("search prabhat samgiita for")
-  const showResults = query.trim().length >= 2
-  const resultsTitle = loading ? "Searching…" : isCollectionQuery ? "Collection results" : "Songs"
+  const showResults = Boolean(activeCategory) || query.trim().length >= 2
+  const resultsTitle = loading
+    ? activeCategory
+      ? "Loading category…"
+      : "Searching…"
+    : activeCategory
+      ? `${categoryLabel(activeCategory)} · ${results.length}`
+      : isCollectionQuery
+        ? "Collection results"
+        : "Songs"
   const voiceStatus = listening
     ? "Listening… speak a song number or theme."
     : voiceBusy
@@ -177,10 +304,12 @@ export default function SearchScreen() {
           onChangeText={(text) => {
             setVoiceNote(null)
             setVoiceError(null)
+            if (activeCategory) setActiveCategory(null)
             setQuery(text)
           }}
           onClear={() => {
             stop()
+            setActiveCategory(null)
             setQuery("")
             setVoiceNote(null)
             setResults([])
@@ -205,7 +334,11 @@ export default function SearchScreen() {
               </View>
               {loading ? (
                 <Text style={styles.searching}>
-                  Searching meanings and themes across the catalog…
+                  {activeCategory
+                    ? "Opening curated songs from your catalog cache…"
+                    : resolveSearchMode(query) === "semantic"
+                      ? "Matching feelings and meanings across the catalog…"
+                      : "Searching the catalog…"}
                 </Text>
               ) : null}
               {voiceNote ? <Text style={styles.hint}>{voiceNote}</Text> : null}

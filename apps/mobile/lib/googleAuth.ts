@@ -138,13 +138,18 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
     }
   } catch (error) {
     if (shouldUseBrowserFallback(error)) {
-      try {
-        return await signInWithGoogleBrowser()
-      } catch {
-        throw new Error(
-          "Google sign-in failed on this build. If you installed from Play Store, add the Play App signing SHA-1 fingerprint to your Google Cloud Android OAuth client (Setup → App signing in Play Console).",
-        )
+      if (Platform.OS === "android") {
+        try {
+          return await signInWithGoogleBrowser()
+        } catch {
+          throw new Error(
+            "Google sign-in failed on this build. If you installed from Play Store, add the Play App signing SHA-1 fingerprint to your Google Cloud Android OAuth client (Setup → App signing in Play Console).",
+          )
+        }
       }
+      throw new Error(
+        "Google sign-in failed. Confirm the iOS OAuth client in Google Cloud uses bundle ID net.prabhatasamgiita.ai and matches EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in this build.",
+      )
     }
     throw new Error(googleSignInErrorMessage(error))
   }

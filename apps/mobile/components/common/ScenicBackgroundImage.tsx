@@ -2,6 +2,7 @@ import { StyleSheet, type StyleProp, type ViewStyle } from "react-native"
 import { Image, type ImageStyle } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 
+import { brandAssets } from "@/constants/brand"
 import { colors } from "@/constants/colors"
 
 type Props = {
@@ -25,7 +26,10 @@ export function ScenicBackgroundImage({ uri, style, priority = "normal" }: Props
         contentFit="cover"
         cachePolicy="memory-disk"
         priority={priority}
-        transition={180}
+        recyclingKey={uri}
+        placeholder={brandAssets.dawn}
+        placeholderContentFit="cover"
+        transition={120}
       />
       <LinearGradient colors={gradient} style={[StyleSheet.absoluteFill, style as StyleProp<ViewStyle>]} />
     </>

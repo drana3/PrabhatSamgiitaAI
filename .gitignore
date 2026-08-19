@@ -30,5 +30,7 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/mobile/.expo/
 apps/mobile/dist/
+apps/mobile/*.ipa
+.ios-simulator-preview/
 *.tsbuildinfo
 data/generated/cache/

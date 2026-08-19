@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  alignNotationToSongLines,
   buildDisplayNotes,
   distributeNotesToWords,
   formatPracticeSequence,
   harmoniumKeyLabel,
+  isBengaliText,
   lineNotes,
+  notationCoverage,
+  practiceLyricSource,
   resolveLineLyrics,
   sargamVariant,
   toDevanagariSwara,
@@ -32,10 +36,14 @@ describe("sargam-display", () => {
     expect(lineNotes(sampleLine)).toHaveLength(3)
   })
 
-  it("maps latin sargam to devanagari swaras", () => {
+  it("maps sargam tokens to learner-friendly Hindi Devanagari", () => {
     expect(toDevanagariSwara("P")).toBe("प")
     expect(toDevanagariSwara("m")).toBe("म")
-    expect(toDevanagariSwara("N")).toBe("न")
+    expect(toDevanagariSwara("N")).toBe("नि")
+    expect(toDevanagariSwara("n")).toBe("नि॒")
+    expect(toDevanagariSwara("M")).toBe("म॑")
+    expect(toDevanagariSwara("r")).toBe("रे॒")
+    expect(toDevanagariSwara("S", "upper")).toBe("सां")
   })
 
   it("marks komal and tivra variants", () => {
@@ -50,6 +58,16 @@ describe("sargam-display", () => {
     expect(formatPracticeSequence(notes, "devanagari")).toBe("प · म · ग")
     expect(formatPracticeSequence(notes, "latin")).toBe("Pa · ma · Ga")
     expect(formatPracticeSequence(notes, "key")).toBe("G · F · D")
+  })
+
+  it("prefers Roman transliteration when lyrics are Bengali", () => {
+    expect(isBengaliText("এ গান আমার")).toBe(true)
+    const source = practiceLyricSource({
+      lyricsOriginal: "এ গান আমার\nউপল পথে",
+      transliteration: "E gan amar\nUpala pathe",
+    })
+    expect(source.practiceText).toContain("E gan amar")
+    expect(source.originalText).toContain("এ গান")
   })
 
   it("extracts harmonium key labels from western notes", () => {
@@ -73,5 +91,13 @@ describe("sargam-display", () => {
     )
     expect(resolved.roman).toBe("BANDHU HE NIYE CALO")
     expect(resolved.original).toBe("बंधु हे")
+  })
+
+  it("aligns to the union of lyric and notation lines", () => {
+    const aligned = alignNotationToSongLines([sampleLine], ["one", "two", "three"])
+    expect(aligned).toHaveLength(3)
+    expect(aligned[0]?.line).toBeTruthy()
+    expect(aligned[2]?.line).toBeNull()
+    expect(notationCoverage(1, 3).incomplete).toBe(true)
   })
 })

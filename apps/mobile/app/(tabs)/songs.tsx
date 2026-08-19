@@ -21,6 +21,7 @@ import { typography } from "@/constants/typography"
 import { collectionCount } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
 import { CATALOG_PAGE_SIZE, loadCatalog, pageSongs, readCatalogCache } from "@/lib/catalog"
+import { prefetchCategorySongs } from "@/lib/categorySongs"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
@@ -39,6 +40,7 @@ export default function SongsScreen() {
     setRefreshing(true)
     const result = await loadCatalog()
     setAllSongs(result.songs.map((row, index) => songSummaryToMockSong(row, index)))
+    prefetchCategorySongs(result.songs)
     setFromCache(result.fromCache)
     setError(result.error)
     setPage(1)
@@ -53,6 +55,7 @@ export default function SongsScreen() {
       if (!active) return
       if (cached?.length) {
         setAllSongs(cached.map((row, index) => songSummaryToMockSong(row, index)))
+        prefetchCategorySongs(cached)
         setFromCache(true)
         setLoading(false)
       }
@@ -115,7 +118,7 @@ export default function SongsScreen() {
             <SectionHeader title="Categories" />
             <CategoryGrid
               onSelect={(categoryId) =>
-                router.push(href(`/search?q=${encodeURIComponent(categoryId)}`))
+                router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
               }
             />
             <View style={styles.popularHeader}>

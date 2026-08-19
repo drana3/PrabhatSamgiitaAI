@@ -88,6 +88,16 @@ describe("signInWithGoogle", () => {
     )
   })
 
+  it("surfaces an iOS-specific setup hint instead of the Android browser fallback", async () => {
+    vi.resetModules()
+    platformState.os = "ios"
+    const developerError = Object.assign(new Error("DEVELOPER_ERROR"), { code: "10" })
+    signIn.mockRejectedValue(developerError)
+
+    const { signInWithGoogle: signInOnIos } = await import("@/lib/googleAuth")
+    await expect(signInOnIos()).rejects.toThrow(/iOS OAuth client/)
+  })
+
   it("configures the iOS client id on iPhone builds", async () => {
     vi.resetModules()
     platformState.os = "ios"

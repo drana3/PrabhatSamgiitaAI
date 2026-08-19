@@ -17,6 +17,7 @@ from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
     canonical_lexical_boost,
+    expand_concept_query,
     expand_voice_query,
     infer_canonical_collection,
     needs_semantic_expansion,
@@ -105,6 +106,9 @@ def test_exact_canonical_meaning_phrase_gets_strong_search_boost() -> None:
     )
 
     assert canonical_lexical_boost("fountain of effulgence", song) == 1.5
+    # Semantic feeling search must not promote mere keyword mentions in the document.
+    assert canonical_lexical_boost("fountain of effulgence", song, semantic_mode=True) == 0.0
+    assert canonical_lexical_boost(song.title or "", song, semantic_mode=True) == 3.0
 
 
 def test_numbered_youtube_videos_preserve_multiple_renditions() -> None:
@@ -354,6 +358,17 @@ def test_voice_feeling_query_keeps_meaning_terms_for_semantic_search() -> None:
     assert "joy" in expanded or "bliss" in expanded
     assert needs_semantic_expansion(prepared) is True
     assert needs_semantic_expansion("bandhu he niye calo") is False
+    # Short mood chips expand locally — no LLM rewrite.
+    assert needs_semantic_expansion("peace") is False
+    assert needs_semantic_expansion("morning meditation") is False
+    assert needs_semantic_expansion("Devotional") is False
+    assert needs_semantic_expansion("songs for peace of mind") is True
+
+
+def test_short_feeling_queries_expand_locally() -> None:
+    assert "shanti" in expand_concept_query("peace")
+    assert "bhakti" in expand_concept_query("Devotional")
+    assert "contemplation" in expand_concept_query("morning meditation")
 
 
 @pytest.mark.asyncio

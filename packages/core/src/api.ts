@@ -39,7 +39,10 @@ export const songDetailSchema = songSummarySchema.extend({
       }),
     )
     .default([]),
+  notation_scale: z.string().nullable().optional(),
+  notation_source_url: z.string().nullable().optional(),
   notation_verification_status: z.string().nullable().optional(),
+  notation_transposition_available: z.boolean().optional().default(false),
   metadata_json: z.record(z.unknown()).optional().default({}),
 })
 
@@ -152,10 +155,11 @@ export const inspirationStoryDetailSchema = inspirationStorySchema.extend({
 
 export const todayContextSignalSchema = z.object({
   title: z.string(),
-  category: z.string(),
-  summary: z.string(),
-  source_name: z.string(),
-  source_url: z.string(),
+  category: z.string().optional().default("news"),
+  summary: z.string().nullable().optional().default(""),
+  source_name: z.string().nullable().optional().default(""),
+  source_url: z.string().nullable().optional().default(""),
+  keywords: z.array(z.string()).optional().default([]),
 })
 
 export const todayRecommendationItemSchema = z.object({
@@ -171,25 +175,27 @@ export const todayRecommendationItemSchema = z.object({
 })
 
 /** Matches GET /api/v1/recommendations/today (live API + website). */
-export const todayRecommendationSchema = z.object({
-  context: z
-    .object({
-      date: z.string().optional(),
-      timezone: z.string().optional(),
-      time_of_day: z.string().nullable().optional(),
-      season: z.string().nullable().optional(),
-      festival: z.string().nullable().optional(),
-      observance: z.string().nullable().optional(),
-      recommendation_mode: z.string().optional(),
-      humanitarian_context: z.string().nullable().optional(),
-      canonical_collections: z.array(z.string()).optional(),
-    })
-    .passthrough()
-    .default({}),
-  signals: z.array(todayContextSignalSchema).default([]),
-  recommendations: z.array(todayRecommendationItemSchema).default([]),
-  disclaimer: z.string().optional().default(""),
-})
+export const todayRecommendationSchema = z
+  .object({
+    context: z
+      .object({
+        date: z.string().optional(),
+        timezone: z.string().optional(),
+        time_of_day: z.string().nullable().optional(),
+        season: z.string().nullable().optional(),
+        festival: z.string().nullable().optional(),
+        observance: z.string().nullable().optional(),
+        recommendation_mode: z.string().optional(),
+        humanitarian_context: z.string().nullable().optional(),
+        canonical_collections: z.array(z.string()).optional(),
+      })
+      .passthrough()
+      .default({}),
+    signals: z.array(todayContextSignalSchema.passthrough()).default([]),
+    recommendations: z.array(todayRecommendationItemSchema.passthrough()).default([]),
+    disclaimer: z.string().optional().default(""),
+  })
+  .passthrough()
 
 /** Matches GET /api/v1/reflections/today (live API + website). */
 export const reflectionQuoteSchema = z
@@ -629,13 +635,26 @@ export function createApiClient(options: ApiClientOptions) {
     },
 
     async fetchTodayRecommendations(): Promise<TodayRecommendations | null> {
-      try {
-        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"
-        const response = await fetchJson(`/api/v1/recommendations/today?timezone=${encodeURIComponent(timezone)}`)
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"
+      const url = `/api/v1/recommendations/today?timezone=${encodeURIComponent(timezone)}`
+      // Today builds news + ranking; allow more than the default 15s client timeout.
+      const attempt = async () => {
+        const response = await fetchJson(url, undefined, 25_000)
         if (!response.ok) return null
-        return todayRecommendationSchema.parse(await response.json())
+        const parsed = todayRecommendationSchema.safeParse(await response.json())
+        return parsed.success ? parsed.data : null
+      }
+      try {
+        const first = await attempt()
+        if (first) return first
+        // One quiet retry for transient empty/timeouts — keeps home smooth.
+        return await attempt()
       } catch {
-        return null
+        try {
+          return await attempt()
+        } catch {
+          return null
+        }
       }
     },
 

@@ -138,12 +138,13 @@ export function SongListenControls({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   playWrap: {

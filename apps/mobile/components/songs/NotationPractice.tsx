@@ -1,34 +1,45 @@
 import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import type { TransposedNotation } from "@prabhat/core"
 
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { api } from "@/lib/client"
 import {
+  alignNotationToSongLines,
   buildDisplayNotes,
   distributeNotesToWords,
   formatPracticeSequence,
+  HINDI_SARGAM_LEGEND,
+  notationCoverage,
   resolveLineLyrics,
   splitLyricLines,
   type NotationLine,
 } from "@/lib/sargamDisplay"
+import { fetchNotationCached } from "@/lib/songCache"
 
 const TONICS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+const ANDROMEDA_ARCHIVE = "https://prabhatasamgiita.net/notations/andromeda.php"
 
 function LinePracticeCard({
   line,
   lineIndex,
   songLyricLines,
+  originalLyricLines = [],
 }: {
-  line: NotationLine
+  line: NotationLine | null
   lineIndex: number
   songLyricLines: string[]
+  originalLyricLines?: string[]
 }) {
-  const notes = buildDisplayNotes(line)
-  const lyrics = resolveLineLyrics(line, lineIndex, songLyricLines)
+  const notes = line ? buildDisplayNotes(line) : []
+  const lyrics = line
+    ? resolveLineLyrics(line, lineIndex, songLyricLines, originalLyricLines)
+    : {
+        roman: songLyricLines[lineIndex]?.trim() || "",
+        original: originalLyricLines[lineIndex]?.trim() || null,
+      }
   const wordGroups = distributeNotesToWords(lyrics.roman.split(/\s+/).filter(Boolean), notes)
   const hasNotes = notes.length > 0
 
@@ -39,8 +50,8 @@ function LinePracticeCard({
           पंक्ति {lineIndex + 1} · Song line {lineIndex + 1}
         </Text>
         <Text style={styles.lineLyrics}>{lyrics.roman}</Text>
-        {line.transliteration && line.transliteration !== lyrics.roman ? (
-          <Text style={styles.lineTranslit}>{line.transliteration}</Text>
+        {lyrics.original && lyrics.original !== lyrics.roman ? (
+          <Text style={styles.lineOriginal}>{lyrics.original}</Text>
         ) : null}
       </View>
 
@@ -57,17 +68,17 @@ function LinePracticeCard({
               contentContainerStyle={styles.wordRow}
             >
               {wordGroups.map((group, index) => (
-                <View key={`${line.line_number}-word-${index}`} style={styles.wordCard}>
-                  <Text style={styles.wordLabel} numberOfLines={1}>
+                <View key={`${line?.line_number ?? "empty"}-word-${index}`} style={styles.wordCard}>
+                  <Text style={styles.wordLabel}>
                     {group.word}
                   </Text>
-                  <Text style={styles.wordDevanagari} numberOfLines={2}>
+                  <Text style={styles.wordDevanagari}>
                     {formatPracticeSequence(group.notes, "devanagari").replace(/ · /g, " ")}
                   </Text>
-                  <Text style={styles.wordLatin} numberOfLines={2}>
+                  <Text style={styles.wordLatin}>
                     {formatPracticeSequence(group.notes, "latin").replace(/ · /g, " ")}
                   </Text>
-                  <Text style={styles.wordKeys} numberOfLines={1}>
+                  <Text style={styles.wordKeys}>
                     {formatPracticeSequence(group.notes, "key").replace(/ · /g, " ")}
                   </Text>
                 </View>
@@ -81,7 +92,9 @@ function LinePracticeCard({
           <Text style={styles.fullKeys}>Keys: {formatPracticeSequence(notes, "key")}</Text>
         </View>
       ) : (
-        <Text style={styles.missing}>Notation for this line is not available yet.</Text>
+        <Text style={styles.missing}>
+          इस पंक्ति का सारगम अभ्यास ड्राफ्ट में नहीं है — पूरी धुन के लिए स्रोत PDF देखें.
+        </Text>
       )}
     </View>
   )
@@ -91,40 +104,68 @@ export function NotationPractice({
   songNumber,
   embedded = false,
   lyricText,
+  originalLyricText,
+  sourceUrl,
 }: {
   songNumber: number
   /** Drop outer card chrome when nested in an accordion. */
   embedded?: boolean
-  /** Song lyrics / transliteration — same line split as the website. */
+  /** Practice lyric lines (Roman when source lyrics are Bengali). */
   lyricText?: string | null
+  /** Original Bengali (or other) lyrics shown under the practice line. */
+  originalLyricText?: string | null
+  /** Canonical Andromeda PDF for the full melody. */
+  sourceUrl?: string | null
 }) {
   const [notation, setNotation] = useState<TransposedNotation | null>(null)
   const [tonic, setTonic] = useState("C")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const songLyricLines = useMemo(() => splitLyricLines(lyricText), [lyricText])
+  const originalLyricLines = useMemo(() => splitLyricLines(originalLyricText), [originalLyricText])
+  const pdfUrl = sourceUrl?.trim() || null
 
   useEffect(() => {
     let active = true
     setLoading(true)
     setError(null)
-    void api.fetchNotation(songNumber, tonic).then((next) => {
+    void fetchNotationCached(songNumber, tonic).then((next) => {
       if (!active) return
       setNotation(next)
       setLoading(false)
-      if (!next) setError("Notation is not available for this song yet.")
+      if (!next && !pdfUrl) setError("Notation is not available for this song yet.")
     })
     return () => {
       active = false
     }
-  }, [songNumber, tonic])
+  }, [songNumber, tonic, pdfUrl])
 
   return (
     <View style={embedded ? styles.embedded : styles.card}>
       {embedded ? null : <Text style={styles.title}>Practise on harmonium</Text>}
       <Text style={styles.lead}>
-        Choose your Sa, then follow Sa Re Ga Ma under each lyric line — same layout as the website.
+        {HINDI_SARGAM_LEGEND}
       </Text>
+
+      {pdfUrl ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open full notation PDF from Andromeda"
+          onPress={() => void Linking.openURL(pdfUrl)}
+          style={styles.pdfButton}
+        >
+          <Text style={styles.pdfButtonText}>पूरी स्वरलिपि PDF · Open full Andromeda PDF</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open Andromeda notation archive"
+          onPress={() => void Linking.openURL(ANDROMEDA_ARCHIVE)}
+          style={styles.pdfButtonSecondary}
+        >
+          <Text style={styles.pdfButtonSecondaryText}>Andromeda notation archive</Text>
+        </Pressable>
+      )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonicRow}>
         {TONICS.map((value) => (
@@ -158,16 +199,38 @@ export function NotationPractice({
             {" · "}
             {notation.verification_status}
           </Text>
-          <Text style={styles.sectionHeading}>Lyric · Sargam · Harmonium keys</Text>
-          {notation.notation.lines.map((line, index) => (
-            <LinePracticeCard
-              key={line.line_number}
-              line={line}
-              lineIndex={index}
-              songLyricLines={songLyricLines}
-            />
-          ))}
+          <Text style={styles.sectionHeading}>Lyric · Hindi Sargam · Harmonium keys</Text>
+          {(() => {
+            const coverage = notationCoverage(notation.notation.lines.length, songLyricLines.length)
+            if (!coverage.incomplete) return null
+            return (
+              <Text style={styles.coverage}>
+                अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का सारगम है (अक्सर PDF के पहले
+                पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के सूचीबद्ध रहती हैं — पूरी धुन के लिए PDF खोलें।
+              </Text>
+            )
+          })()}
+          {songLyricLines.length === 0 && notation.notation.lines.length === 0 ? (
+            <Text style={styles.missing}>No lyric lines available for notation.</Text>
+          ) : (
+            alignNotationToSongLines(notation.notation.lines, songLyricLines).map(({ line, lineIndex }) => (
+              <LinePracticeCard
+                key={`notation-line-${lineIndex}`}
+                line={line}
+                lineIndex={lineIndex}
+                songLyricLines={songLyricLines}
+                originalLyricLines={originalLyricLines}
+              />
+            ))
+          )}
         </>
+      ) : null}
+
+      {!notation && !loading && pdfUrl ? (
+        <Text style={styles.missing}>
+          Interactive Hindi Sargam is not extracted yet for this song. The Andromeda PDF above is the learner source of
+          truth.
+        </Text>
       ) : null}
     </View>
   )
@@ -188,6 +251,31 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.h3, color: colors.textPrimary },
   lead: { ...typography.bodySmall, color: colors.textSecondary },
+  pdfButton: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  pdfButtonText: {
+    ...typography.label,
+    color: colors.primaryDark,
+    textAlign: "center",
+  },
+  pdfButtonSecondary: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  pdfButtonSecondaryText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
   tonicRow: { gap: spacing.xs, paddingVertical: spacing.xs },
   tonicChip: {
     paddingHorizontal: spacing.md,
@@ -208,6 +296,16 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  coverage: {
+    ...typography.caption,
+    color: colors.warning,
+    backgroundColor: "rgba(216,155,43,0.12)",
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    lineHeight: 18,
+    marginBottom: spacing.sm,
   },
   lineCard: {
     borderRadius: radius.lg,
@@ -239,7 +337,11 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: colors.textPrimary,
   },
-  lineTranslit: { ...typography.caption, color: colors.textMuted },
+  lineOriginal: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   practiceBlock: {
     borderLeftWidth: 4,
     borderLeftColor: colors.spiritualGold,

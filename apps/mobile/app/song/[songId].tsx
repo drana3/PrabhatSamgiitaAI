@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native"
 import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { ChevronDown, ChevronLeft, Heart, Pause, Play, Share2, Sparkles } from "lucide-react-native"
+import { ChevronLeft, Heart, Pause, Play, Share2, Sparkles } from "lucide-react-native"
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -18,53 +18,18 @@ import { visibleSongJourneyTabs, type SongJourneyTab } from "@/constants/songJou
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
-import { api } from "@/lib/client"
 import { isSameSong, songPlayback } from "@/lib/playback"
-import { resolveSongBundle } from "@/lib/songs"
+import { resolveSongBundle, peekResolvedSong } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
-import { storedMeaningForLanguage } from "@/lib/songMap"
+import { parseSongNumber, storedMeaningForLanguage } from "@/lib/songMap"
+import { practiceLyricSource } from "@/lib/sargamDisplay"
+import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
+import { fetchNotationCached } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
-
-function Accordion({
-  title,
-  subtitle,
-  open,
-  onToggle,
-  children,
-}: {
-  title: string
-  subtitle: string
-  open: boolean
-  onToggle: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <View style={styles.accordion}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        accessibilityLabel={title}
-        onPress={onToggle}
-        style={styles.accordionHeader}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.accordionTitle}>{title}</Text>
-          <Text style={styles.accordionSub}>{subtitle}</Text>
-        </View>
-        <ChevronDown
-          size={20}
-          color={colors.textMuted}
-          style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}
-        />
-      </Pressable>
-      {open ? <View style={styles.accordionBody}>{children}</View> : null}
-    </View>
-  )
-}
 
 export default function SongDetailScreen() {
   const { songId, tab: tabParam } = useLocalSearchParams<{ songId: string; tab?: string }>()
@@ -89,7 +54,7 @@ export default function SongDetailScreen() {
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
   const [localizing, setLocalizing] = useState(false)
   const [journey, setJourney] = useState<SongJourneyTab>("listen")
-  const [openNotation, setOpenNotation] = useState(true)
+  const [watchPlaying, setWatchPlaying] = useState(false)
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
   const lastAiOpenAt = useRef(0)
@@ -114,16 +79,31 @@ export default function SongDetailScreen() {
 
   useEffect(() => {
     let active = true
-    setLoadingSong(true)
     setLoadError(null)
     setHasNotation(false)
+    setWatchPlaying(false)
     autoPlayedFor.current = null
+
+    const peeked = peekResolvedSong(typeof songId === "string" ? songId : undefined)
+    if (peeked) {
+      setSong(peeked.song)
+      setRelated(peeked.related)
+      setLoadingSong(false)
+      usePlayerStore.getState().warmAudio(peeked.song)
+    } else {
+      setLoadingSong(true)
+    }
+
+    const number = parseSongNumber(typeof songId === "string" ? songId : undefined)
+    if (number) prefetchScenicForSong(number)
     void resolveSongBundle(songId).then((bundle) => {
       if (!active) return
       if (!bundle) {
-        setSong(null)
-        setRelated([])
-        setLoadError("Song not found.")
+        if (!peeked) {
+          setSong(null)
+          setRelated([])
+          setLoadError("Song not found.")
+        }
         setLoadingSong(false)
         return
       }
@@ -133,10 +113,12 @@ export default function SongDetailScreen() {
       setLocalizedTitle(null)
       setLanguage("en")
       setLoadingSong(false)
-      void api.fetchNotation(bundle.song.number, "C").then((notation) => {
+      setHasNotation(Boolean(bundle.song.notationSourceUrl))
+      usePlayerStore.getState().warmAudio(bundle.song)
+      void fetchNotationCached(bundle.song.number, "C").then((notation) => {
         if (!active) return
         const lines = notation?.notation?.lines?.length ?? 0
-        setHasNotation(lines > 0)
+        setHasNotation(lines > 0 || Boolean(bundle.song.notationSourceUrl))
       })
     })
     return () => {
@@ -398,7 +380,7 @@ export default function SongDetailScreen() {
         />
 
         {journey === "listen" ? (
-          <View style={styles.sectionBlock}>
+          <View style={styles.sectionPanel}>
             <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
             <Text style={styles.sectionLead}>Listen to this song.</Text>
             <SongListenControls
@@ -412,35 +394,68 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
 
-        {journey === "watch" && hasVideo ? (
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionEyebrow}>Experience · Watch</Text>
-            <Text style={styles.sectionLead}>
-              See the song with nature and sunrise — same spirit as the website Watch section.
-            </Text>
-            {watchVideos.map((video) => (
-              <WatchVideoCard key={video.id} video={video} songNumber={song.number} />
-            ))}
+        {hasVideo && (journey === "watch" || watchPlaying) ? (
+          <View style={styles.sectionPanel}>
+            {journey === "watch" ? (
+              <>
+                <Text style={styles.sectionEyebrow}>Experience · Watch</Text>
+                <Text style={styles.sectionLead}>
+                  See the song with nature and sunrise — same spirit as the website Watch section.
+                </Text>
+              </>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Return to Watch"
+                onPress={() => setJourney("watch")}
+                style={styles.watchKeepAlive}
+              >
+                <Text style={styles.watchKeepAliveText}>Video still playing · tap to return to Watch</Text>
+              </Pressable>
+            )}
+            <View style={styles.watchStack}>
+              {watchVideos.map((video) => (
+                <WatchVideoCard
+                  key={video.id}
+                  video={video}
+                  songNumber={song.number}
+                  onPlayingChange={setWatchPlaying}
+                />
+              ))}
+            </View>
           </View>
         ) : null}
 
         {journey === "notation" && hasNotation ? (
-          <View style={styles.sectionBlock}>
+          <View style={styles.sectionPanel}>
             <Text style={styles.sectionEyebrow}>Experience · Notation</Text>
-            <Text style={styles.sectionLead}>Harmonium practice for songs that have verified notation.</Text>
-            <Accordion
-              title="Harmonium notation"
-              subtitle="Expand to practise Sargam and keys"
-              open={openNotation}
-              onToggle={() => setOpenNotation((v) => !v)}
-            >
-              <NotationPractice songNumber={song.number} embedded lyricText={song.lyrics} />
-            </Accordion>
+            <Text style={styles.sectionLead}>
+              बंगाली स्वरलिपि को हिंदी सारगम में अभ्यास करें — हर पंक्ति के नीचे keys के साथ।
+            </Text>
+            <NotationPractice
+              songNumber={song.number}
+              embedded
+              lyricText={
+                practiceLyricSource({
+                  lyricsOriginal: song.lyrics,
+                  transliteration: song.transliteration,
+                  firstLine: song.originalTitle,
+                }).practiceText
+              }
+              originalLyricText={
+                practiceLyricSource({
+                  lyricsOriginal: song.lyrics,
+                  transliteration: song.transliteration,
+                  firstLine: song.originalTitle,
+                }).originalText
+              }
+              sourceUrl={song.notationSourceUrl}
+            />
           </View>
         ) : null}
 
         {journey === "understand" ? (
-          <View style={styles.sectionBlock}>
+          <View style={styles.sectionPanel}>
             <Text style={styles.sectionEyebrow}>Lyrics & Meaning</Text>
             <LyricsMeaningView
               lyrics={song.lyrics}
@@ -550,37 +565,43 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.md,
   },
-  sectionBlock: { marginBottom: spacing.lg },
+  sectionPanel: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    ...softShadow(1),
+  },
   sectionEyebrow: {
     ...typography.caption,
     color: colors.primaryDark,
     textTransform: "uppercase",
     letterSpacing: 0.8,
-    marginBottom: spacing.xs,
   },
   sectionLead: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
-  accordion: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+  watchStack: {
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  watchKeepAlive: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.sm,
-    overflow: "hidden",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  accordionHeader: {
-    minHeight: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
+  watchKeepAliveText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontFamily: "Inter_600SemiBold",
   },
-  accordionTitle: { ...typography.label, fontSize: 16, color: colors.textPrimary },
-  accordionSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  accordionBody: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   aiBtnText: { ...typography.caption, color: colors.primary },
 })

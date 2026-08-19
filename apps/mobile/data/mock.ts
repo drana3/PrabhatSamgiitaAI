@@ -1,3 +1,5 @@
+import { scenicHeroList } from "@/lib/scenicArt"
+
 export type SongVideo = {
   id: string
   title: string
@@ -24,29 +26,38 @@ export type MockSong = {
   /** Admin-approved meanings keyed by language code (e.g. bn, ta). */
   localizedMeanings?: Record<string, string>
   lyrics: string
+  /** Roman transliteration when available from the catalog. */
+  transliteration?: string | null
   translation: string
   durationSeconds: number
   performer: string
   videos: SongVideo[]
   /** Direct audio stream when available from the catalog. */
   audioUrl?: string | null
+  /** Canonical Andromeda notation PDF when available. */
+  notationSourceUrl?: string | null
   /** True after GET /songs/{n} media has been applied. */
   mediaHydrated?: boolean
 }
 
-/** Scenic fallback art when catalog has no thumbnails. */
-export const scenicArt = {
-  sunrise: "https://images.unsplash.com/photo-1495616811223-4d98b6e70c9a?w=1200&q=80",
-  dawnLake: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80",
-  lotus: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&q=80",
-  dusk: "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=1200&q=80",
-  mist: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=1200&q=80",
-  mountains: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200&q=80",
-  meadow: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200&q=80",
-  river: "https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=1200&q=80",
-} as const
+export {
+  scenicHeroFor as scenicFor,
+  scenicHeroList as scenicArtList,
+  scenicThumbFor,
+  scenicThumbList,
+} from "@/lib/scenicArt"
 
-export const scenicArtList = Object.values(scenicArt)
+/** Named scenic heroes — prefer scenicHeroFor / scenicThumbFor by song number. */
+export const scenicArt = {
+  sunrise: scenicHeroList[0],
+  dawnLake: scenicHeroList[1],
+  lotus: scenicHeroList[2],
+  dusk: scenicHeroList[3],
+  mist: scenicHeroList[4],
+  mountains: scenicHeroList[5],
+  meadow: scenicHeroList[6],
+  river: scenicHeroList[7],
+} as const
 
 /** Prompt chips for browse/search UIs — not used by song-grounded AI companion. */
 export const aiSuggestions = [

@@ -89,15 +89,34 @@ def _merge_notation_practice(
     for source in sources:
         row = dict(source)
         draft = drafts.get(row.get("song_number"))
+        source_meta = dict(row.get("metadata_json") or {})
         if draft:
             source_verification_status = row.get("verification_status", "unverified")
+            draft_meta = dict(draft.get("metadata_json") or {})
             row["notation_text"] = draft.get("notation_text")
             row["scale"] = draft.get("scale") or "C"
             row["verification_status"] = draft.get("verification_status", "practice_draft")
+            # Keep Andromeda inventory fields; overlay OCR learner metadata.
             row["metadata_json"] = {
-                **(row.get("metadata_json") or {}),
-                **(draft.get("metadata_json") or {}),
+                **source_meta,
+                **draft_meta,
                 "source_verification_status": source_verification_status,
+                "archive_url": source_meta.get("archive_url")
+                or draft_meta.get("archive_url")
+                or "https://prabhatasamgiita.net/notations/andromeda.php",
+                "source_urls": source_meta.get("source_urls")
+                or draft_meta.get("source_urls")
+                or ([row["source_url"]] if row.get("source_url") else []),
+            }
+        else:
+            row["metadata_json"] = {
+                **source_meta,
+                "archive_url": source_meta.get("archive_url")
+                or "https://prabhatasamgiita.net/notations/andromeda.php",
+                "learner_notice": (
+                    "Canonical Andromeda notation PDF is available. "
+                    "Interactive Hindi Sargam appears after OCR practice extraction."
+                ),
             }
         merged.append(row)
     return merged

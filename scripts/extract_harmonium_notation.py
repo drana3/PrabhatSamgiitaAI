@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""Extract learner practice drafts from Andromeda notation PDFs.
+
+Source PDFs are photographed book pages (scans), not digital typesetting — so we
+upscale, contrast-normalize, and multi-pass OCR before scoring sargam rows.
+"""
 from __future__ import annotations
 
 import argparse
@@ -12,16 +17,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+
 ROOT = Path(__file__).resolve().parents[1]
 NOTATION_SOURCES = ROOT / "data" / "generated" / "notations.json"
 SONGS = ROOT / "data" / "generated" / "songs.json"
 OUTPUT = ROOT / "data" / "generated" / "notation_practice.json"
 MODEL_URL = "https://github.com/tesseract-ocr/tessdata_best/raw/main/ben.traineddata"
 MODEL_DIR = Path.home() / ".cache" / "prabhatai" / "tessdata"
+
+# Bengali sargam glyphs + frequent OCR confusions from book photos.
 SWARA_MAP = {
     "স": "S",
     "শ": "S",
+    "ষ": "S",
     "র": "R",
+    "ড়": "R",
     "গ": "G",
     "ম": "m",
     "প": "P",
@@ -29,7 +40,25 @@ SWARA_MAP = {
     "ঢ": "D",
     "ন": "N",
     "ণ": "N",
+    # Latin bleed from noisy OCR on photographed pages
+    "S": "S",
+    "s": "S",
+    "R": "R",
+    "r": "R",
+    "G": "G",
+    "g": "G",
+    "m": "m",
+    "M": "m",
+    "P": "P",
+    "p": "P",
+    "D": "D",
+    "d": "D",
+    "N": "N",
+    "n": "N",
 }
+
+# Photo OCR often turns bar lines into punctuation.
+BAR_CHARS = "-–—|/।॥:·.•…_=~"
 
 
 def ensure_tools() -> None:
@@ -43,15 +72,96 @@ def ensure_tools() -> None:
         urllib.request.urlretrieve(MODEL_URL, model)
 
 
-def notation_lines(ocr_text: str) -> list[str]:
+def preprocess_book_photo(image_path: Path, output_path: Path) -> Path:
+    """Prepare a photographed book page for OCR (grayscale, contrast, mild deskew proxy)."""
+    with Image.open(image_path) as raw:
+        image = ImageOps.exif_transpose(raw).convert("L")
+    # Upscale small phone/scanner captures so swara glyphs are clearer.
+    width, height = image.size
+    if max(width, height) < 2200:
+        scale = 2200 / max(width, height)
+        image = image.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
+    image = ImageOps.autocontrast(image, cutoff=1)
+    image = ImageEnhance.Contrast(image).enhance(1.35)
+    image = ImageEnhance.Sharpness(image).enhance(1.45)
+    # Light denoise without erasing thin bar dashes.
+    image = image.filter(ImageFilter.MedianFilter(size=3))
+    image = ImageOps.autocontrast(image, cutoff=0.5)
+    image.save(output_path, format="PNG")
+    return output_path
+
+
+def ocr_image(image_path: Path, *, psm: str) -> str:
+    result = subprocess.run(
+        [
+            "tesseract",
+            str(image_path),
+            "stdout",
+            "-l",
+            "ben",
+            "--tessdata-dir",
+            str(MODEL_DIR),
+            "--psm",
+            psm,
+            "-c",
+            "preserve_interword_spaces=1",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout or ""
+
+
+def merge_ocr_passes(primary: str, secondary: str) -> str:
+    """Keep primary order; append secondary lines that look like extra sargam rows."""
+    if not secondary.strip():
+        return primary
+    primary_lines = { " ".join(line.split()) for line in primary.splitlines() if line.strip() }
+    extras = []
+    for line in secondary.splitlines():
+        cleaned = " ".join(line.split())
+        if cleaned and cleaned not in primary_lines and score_notation_line(cleaned) > 0:
+            extras.append(cleaned)
+    if not extras:
+        return primary
+    return primary.rstrip() + "\n" + "\n".join(extras)
+
+
+def score_notation_line(line: str) -> float:
+    """Score whether a noisy OCR line is a sargam row from a book photo."""
+    cleaned = " ".join(line.split())
+    if len(cleaned) < 3:
+        return 0.0
+    swaras = sum(character in SWARA_MAP for character in cleaned)
+    markers = sum(cleaned.count(char) for char in BAR_CHARS)
+    bengali_letters = sum(1 for character in cleaned if "\u0980" <= character <= "\u09FF")
+    other_bengali = sum(
+        1
+        for character in cleaned
+        if "\u0980" <= character <= "\u09FF"
+        and character not in SWARA_MAP
+        and unicodedata.category(character)[0] != "M"
+    )
+    if swaras < 3:
+        return 0.0
+    density = swaras / max(bengali_letters or len(cleaned), 1)
+    # Lyric prose shares some letters (র, ন, ম…) but has many non-swara glyphs.
+    if other_bengali >= swaras and markers == 0 and density < 0.5:
+        return 0.0
+    score = swaras * 1.6 + markers * 2.2 + density * 12 - other_bengali * 0.55
+    if markers == 0:
+        # Photographed pages often lose dashes; keep only dense swara rows.
+        if density < 0.42 or swaras < 5:
+            return 0.0
+        score *= 0.72
+    return score
+
+
+def notation_lines(ocr_text: str) -> list[tuple[float, str]]:
     lines = [" ".join(line.split()) for line in ocr_text.splitlines()]
-    candidates = []
-    for line in lines:
-        swaras = sum(character in SWARA_MAP for character in line)
-        markers = line.count("-") + line.count("|") + line.count("।")
-        if swaras >= 3 and markers >= 2:
-            candidates.append(line)
-    return candidates
+    scored = [(score_notation_line(line), line) for line in lines]
+    return [(score, line) for score, line in scored if score > 0]
 
 
 def parse_swaras(line: str) -> list[str]:
@@ -60,7 +170,7 @@ def parse_swaras(line: str) -> list[str]:
 
 
 def lyric_lines(song: dict[str, Any]) -> list[str]:
-    value = song.get("transliteration") or song.get("lyrics_original") or song.get("first_line")
+    value = song.get("lyrics_original") or song.get("transliteration") or song.get("first_line")
     return [line.strip() for line in str(value or "").splitlines() if line.strip()]
 
 
@@ -80,11 +190,40 @@ def detect_tala(ocr_text: str) -> tuple[str, int, list[int]]:
     return "Refer to canonical source", 8, [4, 4]
 
 
+def select_sargam_rows(
+    scored_rows: list[tuple[float, list[str]]],
+    lyric_count: int,
+) -> list[list[str]]:
+    """Keep document order, drop near-duplicates, prefer stronger photo-OCR rows."""
+    unique: list[tuple[float, list[str]]] = []
+    seen: list[tuple[str, ...]] = []
+    for score, notes in scored_rows:
+        if len(notes) < 3:
+            continue
+        key = tuple(notes)
+        if any(
+            len(key) == len(prev)
+            and sum(a != b for a, b in zip(key, prev)) <= max(1, len(key) // 8)
+            for prev in seen
+        ):
+            continue
+        seen.append(key)
+        unique.append((score, notes))
+
+    if lyric_count > 0 and len(unique) > lyric_count:
+        # Too many noisy rows from book photos: keep the strongest lyric_count
+        # rows, then restore page order so melody still reads top→bottom.
+        ranked = sorted(enumerate(unique), key=lambda item: (-item[1][0], item[0]))[:lyric_count]
+        ranked.sort(key=lambda item: item[0])
+        return [notes for _, (_score, notes) in ranked]
+    return [notes for _score, notes in unique]
+
+
 def build_notation(song: dict[str, Any], ocr_text: str) -> tuple[dict[str, Any] | None, float]:
-    rows = notation_lines(ocr_text)
+    scored_lines = notation_lines(ocr_text)
     lyrics = lyric_lines(song)
-    parsed = [parse_swaras(row) for row in rows]
-    parsed = [notes for notes in parsed if len(notes) >= 3]
+    scored_parsed = [(score, parse_swaras(line)) for score, line in scored_lines]
+    parsed = select_sargam_rows(scored_parsed, len(lyrics))
     if not parsed:
         return None, 0.0
     lines = []
@@ -103,15 +242,20 @@ def build_notation(song: dict[str, Any], ocr_text: str) -> tuple[dict[str, Any] 
             for beat, note in enumerate(notes)
         ]
         measures = [{"beats": beats[start : start + 8]} for start in range(0, len(beats), 8)]
+        lyric = lyrics[index] if index < len(lyrics) else f"Line {index + 1}"
         lines.append(
             {
                 "line_number": index + 1,
-                "lyrics": lyrics[index % len(lyrics)] if lyrics else f"Line {index + 1}",
+                "lyrics": lyric,
                 "measures": measures,
             }
         )
+    coverage_bonus = 0.0
+    if lyrics:
+        coverage_bonus = min(len(lines) / max(len(lyrics), 1), 1.0) * 0.08
     confidence = min(
-        0.68, 0.34 + min(len(lines), 5) * 0.045 + min(sum(map(len, parsed)), 40) * 0.002
+        0.88,
+        0.44 + min(len(lines), 20) * 0.025 + min(sum(map(len, parsed)), 120) * 0.0012 + coverage_bonus,
     )
     tala_name, tala_beats, tala_groups = detect_tala(ocr_text)
     return {
@@ -123,59 +267,108 @@ def build_notation(song: dict[str, Any], ocr_text: str) -> tuple[dict[str, Any] 
     }, round(confidence, 3)
 
 
+def ocr_pdf_pages(pdf_path: Path, work: Path) -> str:
+    """Rasterize photographed book pages at high DPI, preprocess, multi-pass OCR."""
+    prefix = work / "page"
+    subprocess.run(
+        [
+            "pdftoppm",
+            "-png",
+            "-r",
+            "300",
+            str(pdf_path),
+            str(prefix),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    images = sorted(work.glob("page*.png"))
+    if not images:
+        raise RuntimeError("pdftoppm produced no page images")
+    chunks: list[str] = []
+    for image in images:
+        prepared = work / f"{image.stem}-prep.png"
+        preprocess_book_photo(image, prepared)
+        # psm 6 = block of text (typical notation page); psm 4 = single column.
+        primary = ocr_image(prepared, psm="6")
+        secondary = ocr_image(prepared, psm="4")
+        chunks.append(merge_ocr_passes(primary, secondary))
+    return "\n".join(chunks)
+
+
+def source_urls_for(row: dict[str, Any]) -> list[str]:
+    meta = row.get("metadata_json") or {}
+    urls = meta.get("source_urls") if isinstance(meta, dict) else None
+    if isinstance(urls, list) and urls:
+        return [str(url) for url in urls if str(url).strip()]
+    primary = str(row.get("source_url") or "").strip()
+    return [primary] if primary else []
+
+
+def draft_quality(row: dict[str, Any]) -> tuple[int, int, float]:
+    """Prefer more lines and notes for learners; confidence is a tie-breaker."""
+    try:
+        payload = row.get("notation_text")
+        notation = json.loads(payload) if isinstance(payload, str) else (payload or {})
+        lines = notation.get("lines") or []
+        notes = 0
+        for line in lines:
+            for measure in line.get("measures") or []:
+                for beat in measure.get("beats") or []:
+                    notes += len(beat.get("notes") or [])
+        confidence = float((row.get("metadata_json") or {}).get("confidence") or 0)
+        return (len(lines), notes, confidence)
+    except Exception:
+        return (0, 0, 0.0)
+
+
 def extract(row: dict[str, Any], song: dict[str, Any]) -> dict[str, Any] | None:
+    urls = source_urls_for(row)
+    if not urls:
+        return None
     with tempfile.TemporaryDirectory(prefix=f"ps-{row['song_number']}-") as directory:
         work = Path(directory)
-        pdf = work / "source.pdf"
-        image = work / "page.png"
-        with urllib.request.urlopen(str(row["source_url"]), timeout=20) as response:
-            with pdf.open("wb") as target:
-                shutil.copyfileobj(response, target)
-        subprocess.run(
-            [
-                "pdftoppm",
-                "-f",
-                "1",
-                "-singlefile",
-                "-png",
-                "-r",
-                "150",
-                str(pdf),
-                str(image.with_suffix("")),
-            ],
-            check=True,
-            capture_output=True,
-        )
-        result = subprocess.run(
-            [
-                "tesseract",
-                str(image),
-                "stdout",
-                "-l",
-                "ben",
-                "--tessdata-dir",
-                str(MODEL_DIR),
-                "--psm",
-                "6",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    notation, confidence = build_notation(song, result.stdout)
+        chunks: list[str] = []
+        page_count = 0
+        for index, url in enumerate(urls):
+            pdf = work / f"source-{index + 1}.pdf"
+            with urllib.request.urlopen(str(url), timeout=45) as response:
+                with pdf.open("wb") as target:
+                    shutil.copyfileobj(response, target)
+            part_work = work / f"part-{index + 1}"
+            part_work.mkdir(parents=True, exist_ok=True)
+            text = ocr_pdf_pages(pdf, part_work)
+            page_count += len(
+                [path for path in part_work.glob("page*.png") if "-prep" not in path.name]
+            )
+            chunks.append(text)
+        ocr_text = "\n".join(chunks)
+    notation, confidence = build_notation(song, ocr_text)
     if not notation or confidence < 0.5:
         return None
+    lyric_count = len(lyric_lines(song))
     return {
         "song_number": row["song_number"],
-        "source_url": row["source_url"],
+        "source_url": urls[0],
         "notation_text": json.dumps(notation, ensure_ascii=False, separators=(",", ":")),
         "scale": "C",
         "verification_status": "practice_draft",
         "metadata_json": {
-            "extraction_method": "tesseract_bengali_source_pdf",
+            "extraction_method": "tesseract_bengali_book_photo_multipass",
             "confidence": confidence,
             "requires_human_review": True,
-            "learner_notice": "OCR-derived practice draft; compare with the canonical PDF.",
+            "learner_notice": (
+                "Practice draft OCR'd from photographed Andromeda book pages, shown as Hindi Sargam. "
+                "Compare with the canonical PDF for the complete melody."
+            ),
+            "line_count": len(notation["lines"]),
+            "lyric_line_count": lyric_count,
+            "coverage_incomplete": bool(lyric_count and len(notation["lines"]) < lyric_count),
+            "source_urls": urls,
+            "pdf_page_count": page_count,
+            "archive_url": "https://prabhatasamgiita.net/notations/andromeda.php",
+            "display_script": "hi",
+            "source_kind": "book_photo_scan",
         },
     }
 
@@ -187,6 +380,11 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--output", type=Path, default=OUTPUT)
     parser.add_argument("--fresh", action="store_true")
+    parser.add_argument(
+        "--missing-only",
+        action="store_true",
+        help="Only extract songs that have an Andromeda PDF but no practice draft yet.",
+    )
     args = parser.parse_args()
     ensure_tools()
     sources = json.loads(NOTATION_SOURCES.read_text(encoding="utf-8"))
@@ -195,23 +393,26 @@ def main() -> None:
         sources = [row for row in sources if row["song_number"] == args.song]
     if args.limit:
         sources = sources[: args.limit]
-    output = []
-    if args.output.exists() and not args.fresh:
+    output: list[dict[str, Any]] = []
+    if args.output.exists() and (not args.fresh or args.song):
+        # Never wipe the catalog when refreshing a single song.
         output = json.loads(args.output.read_text(encoding="utf-8"))
         completed_numbers = {row["song_number"] for row in output}
-        sources = [row for row in sources if row["song_number"] not in completed_numbers]
-        print(f"resuming with {len(output)} existing drafts")
+        if args.song and args.fresh:
+            output = [row for row in output if int(row["song_number"]) != int(args.song)]
+            completed_numbers = {row["song_number"] for row in output}
+        if args.missing_only or not args.song:
+            sources = [row for row in sources if row["song_number"] not in completed_numbers]
+        print(f"resuming with {len(output)} existing drafts; queued {len(sources)}")
+    elif args.fresh and not args.song:
+        print("fresh full rebuild — existing practice drafts will be replaced as songs complete")
 
     def checkpoint() -> None:
         best_by_song: dict[int, dict[str, Any]] = {}
         for row in output:
             number = int(row["song_number"])
             current = best_by_song.get(number)
-            confidence = float((row.get("metadata_json") or {}).get("confidence", 0))
-            current_confidence = float(
-                ((current or {}).get("metadata_json") or {}).get("confidence", 0)
-            )
-            if current is None or confidence > current_confidence:
+            if current is None or draft_quality(row) > draft_quality(current):
                 best_by_song[number] = row
         output[:] = sorted(best_by_song.values(), key=lambda row: row["song_number"])
         args.output.parent.mkdir(parents=True, exist_ok=True)

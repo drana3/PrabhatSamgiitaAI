@@ -5,16 +5,25 @@ import { memberAuthAvailable } from "@/lib/memberAuth"
 import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 
-/** Re-fetch member profile (admin, favorites) when the app returns to foreground. */
+function syncIfSignedIn() {
+  if (useAuthStore.getState().mode !== "signed_in" || !memberAuthAvailable()) return
+  void refreshMemberSession()
+}
+
+/** Pull website member data (admin, favorites) on launch and when returning to foreground. */
 export function MemberSessionSync() {
   useEffect(() => {
+    const unsub = useAuthStore.persist.onFinishHydration(syncIfSignedIn)
+    if (useAuthStore.persist.hasHydrated()) syncIfSignedIn()
+
     const onChange = (next: AppStateStatus) => {
-      if (next !== "active") return
-      if (useAuthStore.getState().mode !== "signed_in" || !memberAuthAvailable()) return
-      void refreshMemberSession()
+      if (next === "active") syncIfSignedIn()
     }
     const sub = AppState.addEventListener("change", onChange)
-    return () => sub.remove()
+    return () => {
+      unsub()
+      sub.remove()
+    }
   }, [])
 
   return null

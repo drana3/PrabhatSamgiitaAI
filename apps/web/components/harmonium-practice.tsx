@@ -7,9 +7,12 @@ import { PracticeCoach } from "@/components/practice-coach"
 import { fetchNotation } from "@/lib/api"
 import type { NotationLine, TransposedNotation } from "@/lib/api"
 import {
+  alignNotationToSongLines,
   buildDisplayNotes,
   distributeNotesToWords,
   formatPracticeSequence,
+  HINDI_SARGAM_LEGEND,
+  notationCoverage,
   resolveLineLyrics,
   toDevanagariSwara,
   toLatinSwara,
@@ -18,7 +21,7 @@ import {
 const tonics = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const scaleSteps = [0, 2, 4, 5, 7, 9, 11, 12]
 const swaras = ["Sa", "Re", "Ga", "Ma", "Pa", "Dha", "Ni", "Sa′"]
-const devanagariSwaras = ["सा", "रे", "ग", "म", "प", "ध", "नि", "सां"]
+const hindiSwaras = ["सा", "रे", "ग", "म", "प", "ध", "नि", "सां"]
 const beginnerAlankar = "Sa Re Ga Re · Re Ga Ma Ga · Ga Ma Pa Ma · Ma Pa Dha Pa · Pa Dha Ni Dha · Dha Ni Sa′ Ni"
 const beginnerAlankarDescending = "Sa′ Ni Dha Ni · Ni Dha Pa Dha · Dha Pa Ma Pa · Pa Ma Ga Ma · Ma Ga Re Ga · Ga Re Sa Re"
 
@@ -94,7 +97,7 @@ export function HarmoniumPractice({
           <p className="eyebrow">Optional learning studio</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">Practise on harmonium</h2>
           <p className="mt-2 text-sm text-stone-600">
-            हर पंक्ति के नीचे सारगम और harmonium keys देखें · See Sargam and keys under each lyric line.
+            बंगाली PDF की धुन को हिंदी सारगम में अभ्यास करें · Hindi Sargam under each lyric line.
           </p>
         </div>
         <span
@@ -136,7 +139,7 @@ export function HarmoniumPractice({
             </label>
             <div className="flex flex-wrap rounded-lg border border-navy-900/10 bg-white p-1">
               <ModeButton active={system === "sargam"} onClick={() => setSystem("sargam")}>
-                सारगम + keys
+                हिंदी सारगम + keys
               </ModeButton>
               <ModeButton active={system === "keys"} onClick={() => setSystem("keys")}>
                 Keys only
@@ -158,16 +161,40 @@ export function HarmoniumPractice({
               <div className="rounded-2xl border border-gold-500/25 bg-white p-4 sm:p-5">
                 <p className="eyebrow">Song melody</p>
                 <h3 className="mt-2 font-serif text-2xl text-navy-950">
-                  {system === "sargam" ? "Lyric · Sargam · Harmonium keys" : "Lyric · Harmonium keys"}
+                  {system === "sargam" ? "पंक्ति · हिंदी सारगम · Keys" : "Lyric · Harmonium keys"}
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  हर पंक्ति के तुरंत नीचे अभ्यास के लिए सारगम और keys दिखाई देती हैं। छोटे अक्षर komal swara
-                  हैं (जैसे ma, ni)। “Hear slowly” से धीरे सुनकर अभ्यास करें।
+                  {HINDI_SARGAM_LEGEND}. छोटे अक्षर (re, ga…) कोमल स्वर हैं। “Hear slowly” से धीरे सुनकर अभ्यास करें।
                 </p>
+                {(() => {
+                  const coverage = notationCoverage(
+                    notation.notation.lines.length,
+                    Math.max(songLyricLines.length, originalLyricLines.length),
+                  )
+                  if (!coverage.incomplete) return null
+                  return (
+                    <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
+                      अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का हिंदी सारगम है (अक्सर
+                      Andromeda PDF के पहले पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के रहती हैं
+                      {sourceUrl ? (
+                        <>
+                          {" · "}
+                          <a href={sourceUrl} target="_blank" rel="noreferrer" className="font-semibold underline">
+                            पूरी स्वरलिपि PDF खोलें
+                          </a>
+                        </>
+                      ) : null}
+                      .
+                    </p>
+                  )
+                })()}
               </div>
-              {notation.notation.lines.map((line, lineIndex) => (
+              {alignNotationToSongLines(
+                notation.notation.lines,
+                songLyricLines.length >= originalLyricLines.length ? songLyricLines : originalLyricLines,
+              ).map(({ line, lineIndex }) => (
                 <LinePracticeCard
-                  key={line.line_number}
+                  key={`notation-line-${lineIndex}`}
                   line={line}
                   lineIndex={lineIndex}
                   system={system}
@@ -182,14 +209,14 @@ export function HarmoniumPractice({
         </div>
       ) : (
         <div className="border-t border-gold-500/20 p-5 sm:p-6">
-          <h3 className="font-serif text-xl font-semibold text-navy-950">Canonical notation source available</h3>
+          <h3 className="font-serif text-xl font-semibold text-navy-950">Andromeda notation PDF available</h3>
           <p className="mt-2 text-sm leading-6 text-stone-600">
-            A learner-friendly version is not published until the source has been extracted and checked. This avoids
-            teaching an invented melody.
+            Interactive Hindi Sargam is shown only after OCR extraction. Until then, the Andromeda PDF is the learner
+            source of truth — we never invent missing melody.
           </p>
           {sourceUrl ? (
             <a href={sourceUrl} target="_blank" rel="noreferrer" className="outline-button mt-4">
-              View original notation PDF
+              पूरी स्वरलिपि PDF · Open Andromeda PDF
             </a>
           ) : null}{" "}
           {sourceStatus ? (
@@ -209,16 +236,21 @@ function LinePracticeCard({
   originalLyricLines,
   onHear,
 }: {
-  line: NotationLine
+  line: NotationLine | null
   lineIndex: number
   system: "keys" | "sargam"
   songLyricLines: string[]
   originalLyricLines: string[]
   onHear: () => void
 }) {
-  const notes = buildDisplayNotes(line)
+  const notes = line ? buildDisplayNotes(line) : []
   const hasNotes = notes.length > 0
-  const lyrics = resolveLineLyrics(line, lineIndex, songLyricLines, originalLyricLines)
+  const lyrics = line
+    ? resolveLineLyrics(line, lineIndex, songLyricLines, originalLyricLines)
+    : {
+        roman: songLyricLines[lineIndex]?.trim() || originalLyricLines[lineIndex]?.trim() || `Line ${lineIndex + 1}`,
+        original: originalLyricLines[lineIndex]?.trim() || null,
+      }
   const wordGroups = distributeNotesToWords(lyrics.roman.split(/\s+/).filter(Boolean), notes)
 
   return (
@@ -235,13 +267,15 @@ function LinePracticeCard({
                 {lyrics.original}
               </p>
             ) : null}
-            {line.transliteration && line.transliteration !== lyrics.roman ? (
+            {line?.transliteration && line.transliteration !== lyrics.roman ? (
               <p className="mt-1 text-xs text-stone-500">{line.transliteration}</p>
             ) : null}
           </div>
-          <button type="button" onClick={onHear} className="soft-chip shrink-0">
-            ▶ Hear slowly
-          </button>
+          {hasNotes ? (
+            <button type="button" onClick={onHear} className="soft-chip shrink-0">
+              ▶ Hear slowly
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -256,7 +290,7 @@ function LinePracticeCard({
               <div className="inline-flex min-w-full gap-3">
                 {wordGroups.map((group, index) => (
                   <div
-                    key={`${line.line_number}-word-${index}`}
+                    key={`${line?.line_number ?? "empty"}-word-${index}`}
                     className="min-w-[4.5rem] flex-1 rounded-xl border border-navy-900/10 bg-white px-2 py-3 text-center"
                   >
                     <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-stone-500">
@@ -297,10 +331,12 @@ function LinePracticeCard({
           </div>
         </div>
       ) : (
-        <p className="px-4 py-4 text-sm text-stone-500 sm:px-5">Notation for this line is not available yet.</p>
+        <p className="px-4 py-4 text-sm text-stone-500 sm:px-5">
+          Notation for this lyric line is not in the practice draft yet — use the source PDF for the full melody.
+        </p>
       )}
 
-      {hasNotes ? (
+      {hasNotes && line ? (
         <details className="border-t border-navy-900/8 bg-ivory-50/80">
           <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-navy-950 marker:content-none sm:px-5">
             Beat-by-beat detail · विस्तार से देखें
@@ -314,7 +350,7 @@ function LinePracticeCard({
                 >
                   <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-stone-400">Beat {beat.beat}</p>
                   <p className="mt-2 font-serif text-xl font-bold text-navy-950" lang="hi">
-                    {beat.notes.map((note) => toDevanagariSwara(note.sargam)).join(" ") || "–"}
+                    {beat.notes.map((note) => toDevanagariSwara(note.sargam, note.octave ?? "middle")).join(" ") || "–"}
                   </p>
                   <p className="mt-1 font-serif text-sm text-navy-800">
                     {beat.notes.map((note) => toLatinSwara(note.sargam)).join(" ") || "–"}
@@ -363,7 +399,7 @@ function SargamGuide({ tonic }: { tonic: string }) {
         {swaras.map((swara, index) => (
           <div key={swara} className="rounded-xl border border-white/15 bg-white/8 p-3 text-center">
             <p className="text-2xl font-semibold text-gold-200" lang="hi">
-              {devanagariSwaras[index]}
+              {hindiSwaras[index]}
             </p>
             <p className="mt-1 font-serif text-sm font-semibold text-white">{swara}</p>
             <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-navy-100">Key {keys[index]}</p>
@@ -392,7 +428,7 @@ function SargamGuide({ tonic }: { tonic: string }) {
                 {key}
               </span>
               <span className="text-lg font-semibold" lang="hi">
-                {devanagariSwaras[index]}
+                {hindiSwaras[index]}
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wide text-stone-500">{swaras[index]}</span>
             </div>

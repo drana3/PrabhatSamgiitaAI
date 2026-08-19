@@ -103,11 +103,19 @@ describe("playerStore song-page handoff", () => {
       __psLoadId?: number
       __psPlayToken?: number
       __psAudioChain?: Promise<void>
+      __psModeReady?: boolean
+      __psMediaCache?: Map<number, unknown>
+      __psPreload?: unknown
     }
     bag.__psSound = null
     bag.__psLoadId = 0
     bag.__psPlayToken = 0
     bag.__psAudioChain = Promise.resolve()
+    bag.__psModeReady = false
+    bag.__psMediaCache = new Map()
+    bag.__psPreload = null
+    bag.__psWantPlaying = false
+    bag.__psLastResumeNudgeMs = 0
   })
 
   it("syncCurrentSong does not create a second Sound while one is playing", async () => {
@@ -171,5 +179,28 @@ describe("playerStore song-page handoff", () => {
     usePlayerStore.getState().loadSong(song as never, [1, 3])
     await Promise.resolve()
     expect(createAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it("reuses a preloaded Sound so play does not create a second stream", async () => {
+    const preloaded = createMockSound({
+      isLoaded: true,
+      isPlaying: false,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    const bag = globalThis as typeof globalThis & {
+      __psPreload?: { uri: string; number: number; sound: unknown }
+    }
+    bag.__psPreload = {
+      uri: song.audioUrl,
+      number: song.number,
+      sound: preloaded,
+    }
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(song as never)
+    await vi.waitFor(() => expect(preloaded.playAsync).toHaveBeenCalled())
+    expect(createAsync).not.toHaveBeenCalled()
+    expect(usePlayerStore.getState().isPlaying).toBe(true)
   })
 })

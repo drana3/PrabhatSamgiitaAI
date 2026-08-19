@@ -17,9 +17,10 @@ type Props = {
   video: SongVideo
   songNumber: number
   compact?: boolean
+  onPlayingChange?: (playing: boolean) => void
 }
 
-export function WatchVideoCard({ video, songNumber, compact = false }: Props) {
+export function WatchVideoCard({ video, songNumber, compact = false, onPlayingChange }: Props) {
   const pauseAudio = usePlayerStore((s) => s.pause)
   const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -56,16 +57,18 @@ export function WatchVideoCard({ video, songNumber, compact = false }: Props) {
     pauseAudio()
     setLoading(true)
     setPlaying(true)
-  }, [embedUrl, pauseAudio])
+    onPlayingChange?.(true)
+  }, [embedUrl, pauseAudio, onPlayingChange])
 
   const stop = useCallback(() => {
     setPlaying(false)
     setLoading(false)
-  }, [])
+    onPlayingChange?.(false)
+  }, [onPlayingChange])
 
   if (playing && embedUrl && webSource) {
     return (
-      <View style={[styles.card, compact && styles.compact, styles.playerCard]}>
+      <View style={[styles.card, compact && styles.compact, styles.playerCard]} collapsable={false}>
         <View style={styles.playerTop}>
           <Text style={styles.playingLabel} numberOfLines={1}>
             Watching in app · PS {songNumber}
@@ -151,7 +154,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     overflow: "hidden",
     backgroundColor: colors.surfaceWarm,
-    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...softShadow(1),
   },
   compact: {

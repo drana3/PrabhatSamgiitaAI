@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ActivityIndicator, StyleSheet, View } from "react-native"
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native"
 import { Stack } from "expo-router"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
@@ -15,7 +15,9 @@ import { Lora_700Bold, useFonts as useLora } from "@expo-google-fonts/lora"
 import * as SplashScreen from "expo-splash-screen"
 
 import { prefetchScenicArt } from "@/lib/scenicPrefetch"
+import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
+import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined)
@@ -32,9 +34,14 @@ export default function RootLayout() {
   const fontsReady = (interLoaded && loraLoaded) || fontWaitExpired
 
   useEffect(() => {
+    const timer = setTimeout(() => setFontWaitExpired(true), 800)
+    // Thumbs warm immediately; heroes continue after interactions inside prefetch.
     prefetchScenicArt()
-    const timer = setTimeout(() => setFontWaitExpired(true), 4000)
-    return () => clearTimeout(timer)
+    // Precompute category browse lists from catalog cache (no live search).
+    void warmCategorySongsCache()
+    return () => {
+      clearTimeout(timer)
+    }
   }, [])
 
   useEffect(() => {
@@ -61,7 +68,8 @@ export default function RootLayout() {
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: colors.background },
-            animation: "fade",
+            animation: Platform.OS === "ios" ? "slide_from_right" : "fade_from_bottom",
+            animationDuration: 220,
           }}
         >
           <Stack.Screen name="index" />
@@ -69,7 +77,7 @@ export default function RootLayout() {
           <Stack.Screen name="auth" options={{ animation: "none" }} />
           <Stack.Screen name="auth/google" options={{ animation: "none" }} />
           <Stack.Screen name="complete-profile" />
-          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
           <Stack.Screen name="song/[songId]" options={{ presentation: "card" }} />
           <Stack.Screen
             name="player/index"

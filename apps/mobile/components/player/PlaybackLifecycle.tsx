@@ -13,6 +13,8 @@ import { usePlayerStore } from "@/stores/playerStore"
  */
 export function PlaybackLifecycle() {
   useEffect(() => {
+    // Warm AVAudioSession early so the first Play is not blocked on mode setup.
+    usePlayerStore.getState().warmAudio()
     const onChange = (next: AppStateStatus) => {
       if (next === "background") {
         usePlayerStore.getState().pause()

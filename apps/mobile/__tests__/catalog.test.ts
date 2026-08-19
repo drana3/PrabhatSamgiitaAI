@@ -54,7 +54,7 @@ describe("catalog cache helpers", () => {
     expect(cached?.[0]?.number).toBe(1)
   })
 
-  it("falls back to cache with an error when live catalog is empty", async () => {
+  it("falls back to cache quietly when live catalog is empty", async () => {
     await AsyncStorage.setItem(
       "prabhat-catalog-songs-v1",
       JSON.stringify([{ number: 8, title: "Cached", is_verified: false }]),
@@ -63,7 +63,7 @@ describe("catalog cache helpers", () => {
     const result = await loadCatalog()
     expect(result.fromCache).toBe(true)
     expect(result.songs[0]?.number).toBe(8)
-    expect(result.error).toMatch(/saved catalog/i)
+    expect(result.error).toBeNull()
   })
 
   it("surfaces a clear error when live and cache are both empty", async () => {

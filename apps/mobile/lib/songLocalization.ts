@@ -1,5 +1,5 @@
 import { localeLabel } from "@/constants/languages"
-import { api } from "@/lib/client"
+import { fetchSongLocalizationCached, peekSongLocalization } from "@/lib/songCache"
 
 function pause(ms: number) {
   return new Promise<void>((resolve) => {
@@ -7,18 +7,20 @@ function pause(ms: number) {
   })
 }
 
-/** AI meaning translation can take ~70s on first request; retry on transient failures. */
+/** AI meaning translation — use memory cache first; retry briefly on miss. */
 export async function fetchSongMeaningLocalization(songNumber: number, languageCode: string) {
   const language = localeLabel(languageCode)
-  const attempts = 3
+  const cached = peekSongLocalization(songNumber, language)
+  if (cached?.localized_meaning?.trim()) return cached
 
+  const attempts = 2
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const result = await api.fetchSongLocalization(songNumber, language)
+    const result = await fetchSongLocalizationCached(songNumber, language)
     if (result?.localized_meaning?.trim()) return result
     if (attempt < attempts - 1) {
-      await pause(1200 * (attempt + 1))
+      await pause(800 * (attempt + 1))
     }
   }
 
-  return api.fetchSongLocalization(songNumber, language)
+  return fetchSongLocalizationCached(songNumber, language)
 }
