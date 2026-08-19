@@ -26,9 +26,10 @@ import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { collectionSearchPrompt } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
-import { api } from "@/lib/client"
 import { loadCatalog } from "@/lib/catalog"
+import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { songSummaryToMockSong } from "@/lib/songMap"
+import { readTodayCache, refreshTodayRecommendations } from "@/lib/todayCache"
 import { todayItemToMockSong } from "@/lib/today"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -72,35 +73,43 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let active = true
+    prefetchScenicArt()
     setLoadingToday(true)
     setHomeError(null)
-    void api
-      .fetchTodayRecommendations()
-      .then((value) => {
-        if (!active) return
-        setToday(value)
-        const fromToday = (value?.recommendations ?? [])
-          .slice(0, 8)
-          .map((item, index) => todayItemToMockSong(item, index))
-        if (fromToday.length) {
-          setSuggestedSongs(fromToday)
-          return
-        }
-        return loadCatalog().then((catalog) => {
-          if (!active) return
-          if (catalog.error && !catalog.songs.length) setHomeError(catalog.error)
-          setSuggestedSongs(
-            catalog.songs.slice(0, 8).map((row, index) => songSummaryToMockSong(row, index)),
-          )
-        })
-      })
-      .catch(() => {
-        if (!active) return
-        setHomeError("Could not load today’s recommendations. Check your connection.")
-      })
-      .finally(() => {
-        if (active) setLoadingToday(false)
-      })
+
+    const applyToday = (value: TodayRecommendations) => {
+      setToday(value)
+      const fromToday = (value.recommendations ?? [])
+        .slice(0, 8)
+        .map((item, index) => todayItemToMockSong(item, index))
+      if (fromToday.length) setSuggestedSongs(fromToday)
+    }
+
+    void (async () => {
+      const cached = await readTodayCache()
+      if (active && cached) {
+        applyToday(cached)
+        setLoadingToday(false)
+      }
+
+      const result = await refreshTodayRecommendations()
+      if (!active) return
+
+      if (result.today) {
+        applyToday(result.today)
+        if (result.error) setHomeError(result.error)
+        setLoadingToday(false)
+        return
+      }
+
+      if (result.error) setHomeError(result.error)
+      const catalog = await loadCatalog()
+      if (!active) return
+      if (catalog.error && !catalog.songs.length) setHomeError(catalog.error)
+      setSuggestedSongs(catalog.songs.slice(0, 8).map((row, index) => songSummaryToMockSong(row, index)))
+      setLoadingToday(false)
+    })()
+
     return () => {
       active = false
     }

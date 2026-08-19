@@ -58,6 +58,25 @@ cd apps/mobile && eas credentials -p android
 
 Add the keystore **SHA-1** to the Android OAuth client in Google Cloud.
 
+### Play Store (AAB) — required extra SHA-1
+
+APK sideloads and Play Store installs use **different signing certificates**.
+
+| Build source | Certificate |
+|--------------|-------------|
+| EAS preview APK | EAS upload keystore SHA-1 |
+| Play Store AAB | **App signing key** SHA-1 from Play Console |
+
+If Google Sign-In works on APK but fails on Play (`DEVELOPER_ERROR` / `invalid_request`):
+
+1. Play Console → **Setup** → **App signing**
+2. Copy **App signing key certificate** → **SHA-1**
+3. Google Cloud → **APIs & Services** → **Credentials** → your **Android** OAuth client
+4. **Add** that SHA-1 (keep the EAS SHA-1 too — you can have multiple)
+5. Also add to the **Web** OAuth client authorized redirect URIs: `prabhatai://auth/google` (browser fallback)
+
+Save, wait ~5 minutes, reinstall from Play.
+
 ## 3. Trigger a build
 
 EAS dashboard: [dewasheesh3s-team / prabhatsamgiitaai](https://expo.dev/accounts/dewasheesh3s-team/projects/prabhatsamgiitaai)

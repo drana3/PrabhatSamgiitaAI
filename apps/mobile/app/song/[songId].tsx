@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native"
-import { Image } from "expo-image"
-import { LinearGradient } from "expo-linear-gradient"
+import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { ChevronDown, ChevronLeft, Heart, Pause, Play, Share2, Sparkles } from "lucide-react-native"
 import Animated, { FadeInDown } from "react-native-reanimated"
@@ -348,11 +347,7 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
         <Animated.View entering={FadeInDown.duration(240)} style={styles.hero}>
-          <Image source={{ uri: song.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <LinearGradient
-            colors={["transparent", "rgba(20,14,10,0.72)"]}
-            style={StyleSheet.absoluteFill}
-          />
+          <ScenicBackgroundImage uri={song.imageUrl} style={StyleSheet.absoluteFill} priority="high" />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={showPause ? `Pause ${song.title}` : `Listen to ${song.title}`}

@@ -14,7 +14,7 @@ import {
 import { Lora_700Bold, useFonts as useLora } from "@expo-google-fonts/lora"
 import * as SplashScreen from "expo-splash-screen"
 
-import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
+import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { colors } from "@/constants/colors"
 
@@ -32,6 +32,7 @@ export default function RootLayout() {
   const fontsReady = (interLoaded && loraLoaded) || fontWaitExpired
 
   useEffect(() => {
+    prefetchScenicArt()
     const timer = setTimeout(() => setFontWaitExpired(true), 4000)
     return () => clearTimeout(timer)
   }, [])

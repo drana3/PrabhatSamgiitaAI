@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native"
-import { Image } from "expo-image"
-import { LinearGradient } from "expo-linear-gradient"
+import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
 import { Clapperboard, Headphones, Pause, Sparkles } from "lucide-react-native"
 
 import { colors } from "@/constants/colors"
@@ -32,11 +31,7 @@ export function TodaySongCard({ song, onPress, onWatch, onAskAi, playQueue }: Pr
         onPress={onPress}
         style={({ pressed }) => [styles.cardPress, pressed && styles.pressed]}
       >
-        <Image source={{ uri: song.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        <LinearGradient
-          colors={["rgba(20,14,10,0.12)", "rgba(20,14,10,0.78)"]}
-          style={StyleSheet.absoluteFill}
-        />
+        <ScenicBackgroundImage uri={song.imageUrl} style={StyleSheet.absoluteFill} priority="high" />
         <View style={styles.badge}>
           <Text style={styles.badgeText}>Today’s Prabhat Samgiita</Text>
         </View>

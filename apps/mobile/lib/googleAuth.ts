@@ -8,11 +8,10 @@ import { identityFromIdToken } from "@/lib/msalToken"
 import {
   googleAuthConfigured,
   googleIosClientId,
-  googleNativeClientId,
-  googleRedirectUriForClient,
   googleSetupHint,
   googleWebClientId,
 } from "@/lib/googleOAuthConfig"
+import { oauthRedirectHint } from "@/lib/oauthRedirectUri"
 
 export { googleAuthConfigured, googleSetupHint } from "@/lib/googleOAuthConfig"
 
@@ -64,12 +63,12 @@ function shouldUseBrowserFallback(error: unknown) {
 }
 
 async function signInWithGoogleBrowser(): Promise<OAuthIdentity> {
-  const clientId = googleNativeClientId()
+  const clientId = googleWebClientId()
   if (!clientId) {
     throw new Error("Google browser sign-in is not configured for this platform.")
   }
 
-  const redirectUri = googleRedirectUriForClient(clientId)
+  const redirectUri = oauthRedirectHint("auth/google")
   const request = new AuthSession.AuthRequest({
     clientId,
     redirectUri,
@@ -139,7 +138,13 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
     }
   } catch (error) {
     if (shouldUseBrowserFallback(error)) {
-      return signInWithGoogleBrowser()
+      try {
+        return await signInWithGoogleBrowser()
+      } catch {
+        throw new Error(
+          "Google sign-in failed on this build. If you installed from Play Store, add the Play App signing SHA-1 fingerprint to your Google Cloud Android OAuth client (Setup → App signing in Play Console).",
+        )
+      }
     }
     throw new Error(googleSignInErrorMessage(error))
   }
