@@ -13,6 +13,13 @@ import type { SongSummary, VoiceSearchResult } from "@/lib/api"
 import { scrollToSectionId } from "@/lib/scroll-to-section"
 import type { ExploreSearchKind } from "@/lib/special-collections"
 import { collectionSearchDisplayLabel, collectionSearchCount, exploreSearchKind, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
+import {
+  COMPLETE_SARGAM_LABEL,
+  COMPLETE_SARGAM_QUERY,
+  completeSargamCount,
+  completeSargamSongs,
+  isCompleteSargamQuery,
+} from "@/lib/complete-sargam"
 
 const themes = [
   { label: "♡ Love & devotion", query: "love devotion" },
@@ -20,6 +27,7 @@ const themes = [
   { label: "☀ Spiritual awakening", query: "spiritual awakening" },
   { label: "♙ Service & humanity", query: "service humanity" },
   { label: "♧ Nature", query: "nature river mountain" },
+  { label: "♪ Full Sargam", query: COMPLETE_SARGAM_QUERY },
 ]
 
 function cacheKey(query: string, kind: ExploreSearchKind) {
@@ -140,7 +148,9 @@ export function ExploreClient({
     window.history.replaceState(null, "", exploreUrl(trimmed, kind))
 
     try {
-      const results = await searchSongs(trimmed, { mode: kind === "catalog" ? "catalog" : "semantic" })
+      const results = isCompleteSargamQuery(trimmed)
+        ? completeSargamSongs()
+        : await searchSongs(trimmed, { mode: kind === "catalog" ? "catalog" : "semantic" })
       searchCache.current.set(key, results)
       setSongs(results)
       finishSearch(trimmed)
@@ -230,11 +240,13 @@ export function ExploreClient({
   const queryLabel = collectionSearchDisplayLabel(activeQuery)
   const collectionSearch = isCollectionSearchQuery(activeQuery)
   const collectionTotal = collectionSearchCount(activeQuery)
+  const completeSargamSearch = isCompleteSargamQuery(activeQuery)
+  const completeSargamTotal = completeSargamSearch ? completeSargamCount() : null
   const isCollectionResult = collectionTotal !== null && collectionSearch
-  const showsTopPredictions = activeKind === "semantic" && !isCollectionResult
+  const showsTopPredictions = activeKind === "semantic" && !isCollectionResult && !completeSargamSearch
   const resultsEyebrow = showsTopPredictions
     ? "Top 5 predictions"
-    : isCollectionResult
+    : isCollectionResult || completeSargamSearch
       ? "Collection results"
       : "Catalog matches"
   const resultsCountLabel = searching
@@ -245,6 +257,8 @@ export function ExploreClient({
         ? collectionTotal > songs.length
           ? `${songs.length} of ${collectionTotal} shown`
           : `${songs.length} song${songs.length === 1 ? "" : "s"}`
+        : completeSargamSearch && completeSargamTotal !== null
+          ? `${songs.length} song${songs.length === 1 ? "" : "s"}`
         : `${songs.length} shown`
 
   return (
@@ -294,7 +308,7 @@ export function ExploreClient({
         <div id="active-filter" role="status" className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold-500/35 bg-gold-50 px-5 py-4">
           <p className="text-sm text-stone-700">
             <span className="font-semibold text-navy-950">Showing songs for:</span>{" "}
-            {collectionSearch ? queryLabel : activeQuery}
+            {collectionSearch ? queryLabel : completeSargamSearch ? COMPLETE_SARGAM_LABEL : activeQuery}
           </p>
           <Link href="/explore" className="text-xs font-semibold text-gold-700 underline underline-offset-4">Clear search</Link>
         </div>
@@ -309,6 +323,8 @@ export function ExploreClient({
                 <>Top voice matches for <span className="text-gold-700">“{queryLabel}”</span></>
               ) : collectionSearch ? (
                 <>Songs in the <span className="text-gold-700">{queryLabel}</span> collection</>
+              ) : completeSargamSearch ? (
+                <>Songs with complete <span className="text-gold-700">Sargam</span></>
               ) : (
                 <>Songs matching <span className="text-gold-700">“{queryLabel}”</span></>
               )

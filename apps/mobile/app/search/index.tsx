@@ -22,37 +22,23 @@ import { collectionCount } from "@/data/collections"
 import { popularSearches, type MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import {
+  categoryCollectionPrompt,
   categoryLabel,
   isSongCategoryId,
   loadCategorySongs,
+  mergeSongs,
+  rememberCategorySongs,
   resolveCategoryQuery,
+  seedCategoryForQuery,
+  semanticQueryForCategory,
 } from "@/lib/categorySongs"
-import { resolveSearchMode } from "@/lib/searchMode"
+import { resolveSearchMode, searchResultsTitle } from "@/lib/searchMode"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
 const DEBOUNCE_MS = 280
-const SEARCH_CACHE_LIMIT = 40
-
-type SearchCacheEntry = { songs: MockSong[]; at: number }
-const searchCache = new Map<string, SearchCacheEntry>()
-
-function cacheKey(query: string, mode: "catalog" | "semantic") {
-  return `${mode}:${query.trim().toLowerCase()}`
-}
-
-function readSearchCache(query: string, mode: "catalog" | "semantic") {
-  return searchCache.get(cacheKey(query, mode))?.songs ?? null
-}
-
-function writeSearchCache(query: string, mode: "catalog" | "semantic", songs: MockSong[]) {
-  searchCache.set(cacheKey(query, mode), { songs, at: Date.now() })
-  if (searchCache.size <= SEARCH_CACHE_LIMIT) return
-  const oldest = [...searchCache.entries()].sort((a, b) => a[1].at - b[1].at)[0]
-  if (oldest) searchCache.delete(oldest[0])
-}
 
 function shouldRunSearch(value: string) {
   const trimmed = value.trim()
@@ -85,39 +71,119 @@ export default function SearchScreen() {
   const [results, setResults] = useState<MockSong[]>([])
   const [loading, setLoading] = useState(() => Boolean(initialCategory) || shouldRunSearch(initial))
   const [error, setError] = useState<string | null>(null)
-  const [voiceBusy, setVoiceBusy] = useState(false)
-  const [voiceNote, setVoiceNote] = useState<string | null>(null)
   const requestId = useRef(0)
   const inputRef = useRef<TextInput>(null)
+  const skipQueryDebounceRef = useRef(false)
+  const runSearchRef = useRef<(nextQuery: string) => Promise<void>>(async () => {})
 
-  const submitVoice = useCallback(
-    async (transcript: string) => {
-      const trimmed = transcript.trim()
-      if (!trimmed) return
-      setVoiceBusy(true)
-      setError(null)
-      try {
-        const result = await api.searchSongsByVoice(trimmed)
-        setQuery(result.interpreted_as || result.heard || trimmed)
-        setResults(result.matches.map((match, index) => songSummaryToMockSong(match.song, index)))
-        setVoiceNote(
-          result.guidance ||
-            `Heard “${result.heard}” · interpreted as “${result.interpreted_as}” (${result.confidence})`,
-        )
-        setError(null)
-        addSearchRecent(result.interpreted_as || trimmed)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Voice search is temporarily unavailable.")
-      } finally {
-        setVoiceBusy(false)
+  const browseTheme = useCallback(
+    async (searchId: string, spokenQuery: string, token: number) => {
+      const result = await loadCategorySongs(searchId)
+      if (token !== requestId.current) return
+      if (result.songs.length) setResults(result.songs)
+      addSearchRecent(spokenQuery || result.label)
+
+      let extra: MockSong[] = []
+      let reachedSearch = false
+
+      const catalogPrompt = categoryCollectionPrompt(searchId)
+      if (catalogPrompt) {
+        try {
+          const rows = await api.searchSongs(catalogPrompt, { mode: "catalog" })
+          reachedSearch = true
+          extra = rows.map((row, index) => songSummaryToMockSong(row, index))
+          if (token !== requestId.current) return
+          if (extra.length) setResults(mergeSongs(result.songs, extra))
+        } catch {
+          /* still run semantic */
+        }
       }
+
+      const semanticQueries = [
+        spokenQuery.trim(),
+        semanticQueryForCategory(searchId, spokenQuery),
+        result.label,
+      ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index)
+
+      for (const nextQuery of semanticQueries) {
+        try {
+          const rows = await api.searchSongs(nextQuery, { mode: "semantic" })
+          reachedSearch = true
+          if (!rows.length) continue
+          extra = mergeSongs(
+            extra,
+            rows.map((row, index) => songSummaryToMockSong(row, index)),
+          )
+          break
+        } catch {
+          /* try the next semantic phrasing */
+        }
+      }
+
+      if (token !== requestId.current) return
+      const merged = mergeSongs(result.songs, extra)
+      setResults(merged)
+      if (merged.length) {
+        rememberCategorySongs(searchId, merged)
+        setError(null)
+        return
+      }
+      setError(
+        reachedSearch
+          ? null
+          : "Could not reach search. Try again to search all 5,018 songs.",
+      )
     },
     [addSearchRecent],
   )
 
+  const runAllCatalogSearch = useCallback(async () => {
+    const nextQuery = activeCategory
+      ? semanticQueryForCategory(activeCategory, query)
+      : query.trim()
+    if (!nextQuery) return
+    const token = ++requestId.current
+    setLoading(true)
+    setError(null)
+    try {
+      const rows = await api.searchSongs(nextQuery, { mode: "semantic" })
+      if (token !== requestId.current) return
+      const mapped = rows.map((row, index) => songSummaryToMockSong(row, index))
+      setResults(mapped)
+      if (activeCategory && mapped.length) rememberCategorySongs(activeCategory, mapped)
+      if (!mapped.length) setError(null)
+    } catch (err) {
+      if (token !== requestId.current) return
+      setError(err instanceof Error ? err.message : "Search is temporarily unavailable.")
+    } finally {
+      if (token === requestId.current) setLoading(false)
+    }
+  }, [activeCategory, query])
+
+  const submitVoice = useCallback(async (transcript: string) => {
+    const trimmed = transcript.trim()
+    if (!trimmed) return
+    setError(null)
+    try {
+      await runSearchRef.current(trimmed)
+    } catch {
+      /* runSearch already surfaces errors */
+    }
+    void api
+      .searchSongsByVoice(trimmed)
+      .then((result) => {
+        const extra = result.matches.map((match, index) => songSummaryToMockSong(match.song, index))
+        setResults((prev) => mergeSongs(prev, extra))
+      })
+      .catch(() => {
+        // Keep on-screen results. Do not surface "voice search unavailable".
+      })
+  }, [])
+
   const voice = useVoiceSearch({
     onPartial: (text) => setQuery(text),
     onFinal: (text) => {
+      skipQueryDebounceRef.current = true
       setQuery(text)
       void submitVoice(text)
     },
@@ -149,26 +215,21 @@ export default function SearchScreen() {
     setResults([])
     setError(null)
     setLoading(true)
-    setVoiceNote(null)
 
     let active = true
+    const token = ++requestId.current
     void (async () => {
-      const result = await loadCategorySongs(categoryId)
-      if (!active) return
-      setResults(result.songs)
-      setLoading(false)
-      setError(
-        result.songs.length
-          ? null
-          : "No curated songs for this category yet. Try a word search above.",
-      )
-      addSearchRecent(result.label)
+      try {
+        await browseTheme(categoryId, label, token)
+      } finally {
+        if (active && token === requestId.current) setLoading(false)
+      }
     })()
 
     return () => {
       active = false
     }
-  }, [params.category, addSearchRecent])
+  }, [params.category, addSearchRecent, browseTheme])
 
   useFocusEffect(
     useCallback(() => {
@@ -204,23 +265,17 @@ export default function SearchScreen() {
       return
     }
 
-    const categoryId = resolveCategoryQuery(trimmed)
-    if (categoryId) {
+    const chipId = resolveCategoryQuery(trimmed)
+    const seedId = seedCategoryForQuery(trimmed)
+    if (chipId) setActiveCategory(chipId)
+    else setActiveCategory(null)
+
+    if (seedId) {
       const id = ++requestId.current
-      setActiveCategory(categoryId)
       setLoading(true)
       setError(null)
       try {
-        const result = await loadCategorySongs(categoryId)
-        if (id !== requestId.current) return
-        setResults(result.songs)
-        writeSearchCache(trimmed, "catalog", result.songs)
-        addSearchRecent(trimmed)
-        setError(
-          result.songs.length
-            ? null
-            : "No curated songs for this theme yet. Try a more specific search.",
-        )
+        await browseTheme(seedId, trimmed, id)
       } finally {
         if (id === requestId.current) setLoading(false)
       }
@@ -228,27 +283,14 @@ export default function SearchScreen() {
     }
 
     const mode = resolveSearchMode(trimmed)
-    const cached = readSearchCache(trimmed, mode)
-    if (cached) {
-      setResults(cached)
-      setLoading(false)
-      setError(null)
-      addSearchRecent(trimmed)
-      return
-    }
-
     const id = ++requestId.current
-    // Clear immediately so a previous query's songs are never shown as if they match.
     setResults([])
     setLoading(true)
     setError(null)
     try {
-      // Feeling/meaning asks must wait for semantic results only — catalog lexical
-      // hits are often wrong for mood queries and must not be shown as a preview.
       const rows = await api.searchSongs(trimmed, { mode })
       if (id !== requestId.current) return
       const mapped = rows.map((row, index) => songSummaryToMockSong(row, index))
-      writeSearchCache(trimmed, mode, mapped)
       setResults(mapped)
       addSearchRecent(trimmed)
     } catch (err) {
@@ -258,9 +300,15 @@ export default function SearchScreen() {
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [addSearchRecent])
+  }, [addSearchRecent, browseTheme])
+
+  runSearchRef.current = runSearch
 
   useEffect(() => {
+    if (skipQueryDebounceRef.current) {
+      skipQueryDebounceRef.current = false
+      return
+    }
     if (activeCategory && query.trim().toLowerCase() === categoryLabel(activeCategory).toLowerCase()) {
       return
     }
@@ -272,22 +320,11 @@ export default function SearchScreen() {
     return () => clearTimeout(handle)
   }, [query, runSearch, activeCategory])
 
-  const isCollectionQuery = query.toLowerCase().includes("search prabhat samgiita for")
   const showResults = Boolean(activeCategory) || query.trim().length >= 2
-  const resultsTitle = loading
-    ? activeCategory
-      ? "Loading category…"
-      : "Searching…"
-    : activeCategory
-      ? `${categoryLabel(activeCategory)} · ${results.length}`
-      : isCollectionQuery
-        ? "Collection results"
-        : "Songs"
-  const voiceStatus = listening
-    ? "Listening… speak a song number or theme."
-    : voiceBusy
-      ? "Interpreting through the catalog…"
-      : voiceError
+  const resultsTitle = searchResultsTitle(
+    activeCategory ? categoryLabel(activeCategory) : null,
+    results.length,
+  )
 
   return (
     <ScreenContainer edges={["top", "bottom"]} padded={false} title="Explore">
@@ -302,7 +339,6 @@ export default function SearchScreen() {
           placeholder="Search songs, lyrics, themes..."
           value={query}
           onChangeText={(text) => {
-            setVoiceNote(null)
             setVoiceError(null)
             if (activeCategory) setActiveCategory(null)
             setQuery(text)
@@ -311,14 +347,13 @@ export default function SearchScreen() {
             stop()
             setActiveCategory(null)
             setQuery("")
-            setVoiceNote(null)
             setResults([])
             setError(null)
           }}
           onMicPress={() => void toggle()}
           onSubmitEditing={() => void runSearch(query)}
         />
-        {voiceStatus ? <Text style={styles.voiceStatus}>{voiceStatus}</Text> : null}
+        {voiceError ? <Text style={styles.errorInline}>{voiceError}</Text> : null}
       </View>
 
       {showResults ? (
@@ -332,19 +367,19 @@ export default function SearchScreen() {
                 <Text style={styles.section}>{resultsTitle}</Text>
                 {loading ? <ActivityIndicator color={colors.primary} /> : null}
               </View>
-              {loading ? (
-                <Text style={styles.searching}>
-                  {activeCategory
-                    ? "Opening curated songs from your catalog cache…"
-                    : resolveSearchMode(query) === "semantic"
-                      ? "Matching feelings and meanings across the catalog…"
-                      : "Searching the catalog…"}
-                </Text>
-              ) : null}
-              {voiceNote ? <Text style={styles.hint}>{voiceNote}</Text> : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
-              {!loading && !error && results.length === 0 ? (
-                <Text style={styles.empty}>No songs matched “{query.trim()}”.</Text>
+              {!loading && results.length === 0 ? (
+                <View style={styles.emptyBlock}>
+                  <Text style={styles.empty}>No songs matched “{query.trim()}” yet.</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Search all 5018 Prabhat Samgiita songs"
+                    onPress={() => void runAllCatalogSearch()}
+                    style={({ pressed }) => [styles.allCatalogButton, pressed && styles.chipPressed]}
+                  >
+                    <Text style={styles.allCatalogText}>Search all 5,018 songs</Text>
+                  </Pressable>
+                </View>
               ) : null}
             </View>
           }
@@ -425,7 +460,7 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, gap: spacing.xs },
-  voiceStatus: { ...typography.caption, color: colors.textMuted },
+  errorInline: { ...typography.caption, color: colors.error },
   emptyState: { paddingHorizontal: spacing.lg },
   recentHeader: {
     flexDirection: "row",
@@ -441,8 +476,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: spacing.sm,
   },
-  hint: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
-  searching: { ...typography.bodySmall, color: colors.textSecondary, marginBottom: spacing.sm },
   error: { ...typography.bodySmall, color: colors.error, marginBottom: spacing.sm },
   recentRow: {
     flexDirection: "row",
@@ -467,4 +500,14 @@ const styles = StyleSheet.create({
   collectionsText: { ...typography.label, color: colors.primary },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section },
   empty: { ...typography.bodySmall, color: colors.textSecondary },
+  emptyBlock: { gap: spacing.md },
+  allCatalogButton: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  allCatalogText: { ...typography.caption, color: colors.white, fontWeight: "700" },
+  chipPressed: { opacity: 0.85 },
 })

@@ -14,7 +14,7 @@ import { NotationPractice } from "@/components/songs/NotationPractice"
 import { SongJourneyTicker } from "@/components/songs/SongJourneyTicker"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
-import { visibleSongJourneyTabs, type SongJourneyTab } from "@/constants/songJourney"
+import { visibleSongJourneyTabs, songWatchLayout, type SongJourneyTab } from "@/constants/songJourney"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
@@ -55,6 +55,8 @@ export default function SongDetailScreen() {
   const [localizing, setLocalizing] = useState(false)
   const [journey, setJourney] = useState<SongJourneyTab>("listen")
   const [watchPlaying, setWatchPlaying] = useState(false)
+  const scrollRef = useRef<ScrollView>(null)
+  const journeyFocusY = useRef(0)
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
   const lastAiOpenAt = useRef(0)
@@ -131,6 +133,7 @@ export default function SongDetailScreen() {
     () => visibleSongJourneyTabs({ hasVideo, hasNotation }),
     [hasVideo, hasNotation],
   )
+  const watchLayout = songWatchLayout(journey, { hasVideo, watchPlaying })
 
   const requestedTab =
     tabParam === "watch" ||
@@ -317,6 +320,7 @@ export default function SongDetailScreen() {
       </SafeAreaView>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -373,11 +377,36 @@ export default function SongDetailScreen() {
           <Text style={styles.audioHint}>No direct audio stream yet — player opens when media exists.</Text>
         )}
 
-        <SongJourneyTicker
-          tabs={journeyTabs}
-          selected={journey}
-          onSelect={setJourney}
-        />
+        <View
+          onLayout={(event) => {
+            journeyFocusY.current = event.nativeEvent.layout.y
+          }}
+        >
+          <SongJourneyTicker
+            tabs={journeyTabs}
+            selected={journey}
+            onSelect={(id) => {
+              setJourney(id)
+              requestAnimationFrame(() => {
+                scrollRef.current?.scrollTo({
+                  y: Math.max(0, journeyFocusY.current - 8),
+                  animated: true,
+                })
+              })
+            }}
+          />
+        </View>
+
+        {watchLayout.showKeepAliveBar ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Return to Watch"
+            onPress={() => setJourney("watch")}
+            style={styles.watchKeepAlive}
+          >
+            <Text style={styles.watchKeepAliveText}>Video still playing · tap to return to Watch</Text>
+          </Pressable>
+        ) : null}
 
         {journey === "listen" ? (
           <View style={styles.sectionPanel}>
@@ -394,26 +423,22 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
 
-        {hasVideo && (journey === "watch" || watchPlaying) ? (
-          <View style={styles.sectionPanel}>
-            {journey === "watch" ? (
+        {watchLayout.showPlayer ? (
+          <View
+            style={[styles.sectionPanel, watchLayout.collapsePlayer && styles.watchOffscreen]}
+            pointerEvents={watchLayout.collapsePlayer ? "none" : "auto"}
+            importantForAccessibility={watchLayout.collapsePlayer ? "no-hide-descendants" : "auto"}
+            collapsable={false}
+          >
+            {watchLayout.collapsePlayer ? null : (
               <>
                 <Text style={styles.sectionEyebrow}>Experience · Watch</Text>
                 <Text style={styles.sectionLead}>
                   See the song with nature and sunrise — same spirit as the website Watch section.
                 </Text>
               </>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Return to Watch"
-                onPress={() => setJourney("watch")}
-                style={styles.watchKeepAlive}
-              >
-                <Text style={styles.watchKeepAliveText}>Video still playing · tap to return to Watch</Text>
-              </Pressable>
             )}
-            <View style={styles.watchStack}>
+            <View style={styles.watchStack} collapsable={false}>
               {watchVideos.map((video) => (
                 <WatchVideoCard
                   key={video.id}
@@ -430,7 +455,7 @@ export default function SongDetailScreen() {
           <View style={styles.sectionPanel}>
             <Text style={styles.sectionEyebrow}>Experience · Notation</Text>
             <Text style={styles.sectionLead}>
-              बंगाली स्वरलिपि को हिंदी सारगम में अभ्यास करें — हर पंक्ति के नीचे keys के साथ।
+              पूरी जानकारी PDF में है · Full details are available in the PDF.
             </Text>
             <NotationPractice
               songNumber={song.number}
@@ -590,6 +615,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.xs,
   },
+  watchOffscreen: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    overflow: "hidden",
+    opacity: 0,
+    left: 0,
+    top: 0,
+  },
   watchKeepAlive: {
     backgroundColor: colors.surfaceSoft,
     borderRadius: radius.md,
@@ -597,6 +631,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
   },
   watchKeepAliveText: {
     ...typography.caption,

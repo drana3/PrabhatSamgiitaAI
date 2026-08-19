@@ -235,6 +235,15 @@ export function distributeNotesToWords(
   return groups
 }
 
-/** Short learner legend for Bengali PDF → Hindi Sargam. */
+export const ANDROMEDA_ARCHIVE = "https://prabhatasamgiita.net/notations/andromeda.php"
+
+export function learnerNotationPdfUrl(url?: string | null): string {
+  const trimmed = url?.trim() ?? ""
+  if (trimmed && !/sarkarverse\.org/i.test(trimmed) && /prabhatasamgiita\.net/i.test(trimmed)) {
+    return trimmed
+  }
+  return ANDROMEDA_ARCHIVE
+}
+
 export const HINDI_SARGAM_LEGEND =
-  "बंगाली स्वरलिपि → हिंदी सारगम: सा रे ग म प ध नि · कोमल स्वर (रे॒ ग॒ ध॒ नि॒) · तीव्र म (म॑) · तार स्वर पर ं"
+  "पूरी जानकारी PDF में है · Full details are available in the PDF."

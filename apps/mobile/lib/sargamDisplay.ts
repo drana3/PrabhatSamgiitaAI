@@ -220,5 +220,15 @@ export function distributeNotesToWords(
   return groups
 }
 
+export const ANDROMEDA_ARCHIVE = "https://prabhatasamgiita.net/notations/andromeda.php"
+
+export function learnerNotationPdfUrl(url?: string | null): string {
+  const trimmed = url?.trim() ?? ""
+  if (trimmed && !/sarkarverse\.org/i.test(trimmed) && /prabhatasamgiita\.net/i.test(trimmed)) {
+    return trimmed
+  }
+  return ANDROMEDA_ARCHIVE
+}
+
 export const HINDI_SARGAM_LEGEND =
-  "बंगाली स्वरलिपि → हिंदी सारगम: सा रे ग म प ध नि · कोमल (रे॒ ग॒ ध॒ नि॒) · तीव्र म (म॑) · तार पर ं"
+  "पूरी जानकारी PDF में है · Full details are available in the PDF."

@@ -13,6 +13,7 @@ from app.schemas.song import MediaItemResponse, SongDetail, SongLocalizationResp
 from app.services.catalog import CatalogService
 from app.services.localization import LocalizationService
 from app.services.media_quality import media_quality_key
+from app.services.notation_links import learner_notation_url
 
 router = APIRouter(prefix="/songs", tags=["songs"])
 
@@ -179,7 +180,10 @@ async def get_song(
         related_songs=related_summaries,
         media=media_responses,
         notation_scale=notation.scale if notation else None,
-        notation_source_url=notation.source_url if notation else None,
+        notation_source_url=learner_notation_url(
+            notation.source_url if notation else None,
+            *((notation.metadata_json or {}).get("source_urls") or []) if notation else (),
+        ),
         notation_verification_status=notation.verification_status if notation else None,
         notation_transposition_available=bool(
             notation and notation.notation_text and notation.notation_text.strip().startswith("{")

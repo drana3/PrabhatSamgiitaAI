@@ -24,7 +24,9 @@ export function DailyReflection({ initialReflection }: DailyReflectionProps) {
     <article className="glass-card text-center">
       <p className="eyebrow">Today&apos;s reflection</p>
       <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-800">{reflection.context_label}</p>
-      <blockquote className="mt-4 font-serif text-xl italic leading-8 text-navy-950">“{reflection.quote_text}”</blockquote>
+      <blockquote className="mt-4 whitespace-pre-line font-serif text-xl italic leading-8 text-navy-950">
+        “{reflection.quote_text}”
+      </blockquote>
       <p className="mt-3 text-xs font-semibold text-navy-950">— {reflection.attribution}</p>
       <a
         href={reflection.source_url}

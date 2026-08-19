@@ -5,6 +5,7 @@ import {
   Flower2,
   Heart,
   Leaf,
+  Library,
   Moon,
   PartyPopper,
   Sparkles,
@@ -15,7 +16,7 @@ import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { songCategories } from "@/constants/categories"
+import { collectionCount } from "@/data/collections"
 
 const iconMap = {
   sparkles: Sparkles,
@@ -30,14 +31,22 @@ const iconMap = {
   peace: Flower2,
 } as const
 
-type Props = {
-  onSelect?: (id: string) => void
+export type CategoryChip = {
+  id: string
+  label: string
+  icon: keyof typeof iconMap
 }
 
-export function CategoryGrid({ onSelect }: Props) {
+type Props = {
+  items: readonly CategoryChip[]
+  onSelect?: (id: string) => void
+  onSeeAll?: () => void
+}
+
+export function CategoryGrid({ items, onSelect, onSeeAll }: Props) {
   return (
     <View style={styles.grid}>
-      {songCategories.map((cat) => {
+      {items.map((cat) => {
         const Icon = iconMap[cat.icon]
         return (
           <Pressable
@@ -52,6 +61,17 @@ export function CategoryGrid({ onSelect }: Props) {
           </Pressable>
         )
       })}
+      {onSeeAll ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Browse all ${collectionCount} collections`}
+          onPress={onSeeAll}
+          style={({ pressed }) => [styles.chip, styles.allChip, pressed && styles.pressed]}
+        >
+          <Library size={16} color={colors.primary} strokeWidth={2} />
+          <Text style={styles.label}>All {collectionCount}</Text>
+        </Pressable>
+      ) : null}
     </View>
   )
 }
@@ -73,6 +93,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     ...softShadow(1),
+  },
+  allChip: {
+    borderColor: colors.primary,
   },
   pressed: {
     backgroundColor: colors.primaryLight,

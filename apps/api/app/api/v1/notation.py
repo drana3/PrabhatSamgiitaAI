@@ -9,6 +9,7 @@ from app.core.db import get_session
 from app.schemas.notation import NotationSourceResponse, TransposedNotationResponse
 from app.services.catalog import CatalogService
 from app.services.harmonium import load_song_notation, normalize_tonic, transpose_notation
+from app.services.notation_links import learner_notation_url
 
 router = APIRouter(prefix="/songs", tags=["notation"])
 
@@ -30,7 +31,10 @@ async def get_notation_source(
     )
     return NotationSourceResponse(
         song_number=number,
-        source_url=notation.source_url,
+        source_url=learner_notation_url(
+            notation.source_url,
+            *((notation.metadata_json or {}).get("source_urls") or []),
+        ),
         verification_status=str(
             (notation.metadata_json or {}).get(
                 "source_verification_status", notation.verification_status

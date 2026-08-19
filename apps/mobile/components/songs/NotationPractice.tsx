@@ -12,6 +12,7 @@ import {
   distributeNotesToWords,
   formatPracticeSequence,
   HINDI_SARGAM_LEGEND,
+  learnerNotationPdfUrl,
   notationCoverage,
   resolveLineLyrics,
   splitLyricLines,
@@ -20,7 +21,6 @@ import {
 import { fetchNotationCached } from "@/lib/songCache"
 
 const TONICS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-const ANDROMEDA_ARCHIVE = "https://prabhatasamgiita.net/notations/andromeda.php"
 
 function LinePracticeCard({
   line,
@@ -123,7 +123,7 @@ export function NotationPractice({
   const [error, setError] = useState<string | null>(null)
   const songLyricLines = useMemo(() => splitLyricLines(lyricText), [lyricText])
   const originalLyricLines = useMemo(() => splitLyricLines(originalLyricText), [originalLyricText])
-  const pdfUrl = sourceUrl?.trim() || null
+  const pdfUrl = learnerNotationPdfUrl(sourceUrl)
 
   useEffect(() => {
     let active = true
@@ -142,30 +142,21 @@ export function NotationPractice({
 
   return (
     <View style={embedded ? styles.embedded : styles.card}>
-      {embedded ? null : <Text style={styles.title}>Practise on harmonium</Text>}
-      <Text style={styles.lead}>
-        {HINDI_SARGAM_LEGEND}
-      </Text>
-
-      {pdfUrl ? (
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel="Open full notation PDF from Andromeda"
-          onPress={() => void Linking.openURL(pdfUrl)}
-          style={styles.pdfButton}
-        >
-          <Text style={styles.pdfButtonText}>पूरी स्वरलिपि PDF · Open full Andromeda PDF</Text>
-        </Pressable>
-      ) : (
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel="Open Andromeda notation archive"
-          onPress={() => void Linking.openURL(ANDROMEDA_ARCHIVE)}
-          style={styles.pdfButtonSecondary}
-        >
-          <Text style={styles.pdfButtonSecondaryText}>Andromeda notation archive</Text>
-        </Pressable>
+      {embedded ? null : (
+        <>
+          <Text style={styles.title}>Practise on harmonium</Text>
+          <Text style={styles.lead}>{HINDI_SARGAM_LEGEND}</Text>
+        </>
       )}
+
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Open notation PDF on prabhatasamgiita.net"
+        onPress={() => void Linking.openURL(pdfUrl)}
+        style={styles.pdfButton}
+      >
+        <Text style={styles.pdfButtonText}>पूरी स्वरलिपि PDF · Open Andromeda PDF</Text>
+      </Pressable>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonicRow}>
         {TONICS.map((value) => (
@@ -227,10 +218,7 @@ export function NotationPractice({
       ) : null}
 
       {!notation && !loading && pdfUrl ? (
-        <Text style={styles.missing}>
-          Interactive Hindi Sargam is not extracted yet for this song. The Andromeda PDF above is the learner source of
-          truth.
-        </Text>
+        <Text style={styles.missing}>{HINDI_SARGAM_LEGEND}</Text>
       ) : null}
     </View>
   )

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -58,6 +59,22 @@ SWARA_MAP = {
 # Photo OCR often turns bar lines into punctuation.
 BAR_CHARS = "-–—|/।॥:·.•…_=~"
 
+# Roman booklet scans (Sarkarverse RS_*.pdf): Sa Re Ga under lyrics.
+ROMAN_SWARA_RE = re.compile(
+    r"(?<![A-Za-z])(dha|ni|sa|re|ra|ga|ma|pa)(?:['’`]*)(?![A-Za-z])",
+    re.I,
+)
+ROMAN_SWARA_MAP = {
+    "sa": "S",
+    "re": "R",
+    "ra": "R",
+    "ga": "G",
+    "ma": "m",
+    "pa": "P",
+    "dha": "D",
+    "ni": "N",
+}
+
 
 def ensure_tools() -> None:
     for command in ("pdftoppm", "tesseract"):
@@ -91,21 +108,13 @@ def preprocess_book_photo(image_path: Path, output_path: Path) -> Path:
     return output_path
 
 
-def ocr_image(image_path: Path, *, psm: str) -> str:
+def ocr_image(image_path: Path, *, psm: str, lang: str = "ben") -> str:
+    command = ["tesseract", str(image_path), "stdout", "-l", lang]
+    if lang == "ben":
+        command.extend(["--tessdata-dir", str(MODEL_DIR)])
+    command.extend(["--psm", psm, "-c", "preserve_interword_spaces=1"])
     result = subprocess.run(
-        [
-            "tesseract",
-            str(image_path),
-            "stdout",
-            "-l",
-            "ben",
-            "--tessdata-dir",
-            str(MODEL_DIR),
-            "--psm",
-            psm,
-            "-c",
-            "preserve_interword_spaces=1",
-        ],
+        command,
         check=True,
         capture_output=True,
         text=True,
@@ -128,14 +137,29 @@ def merge_ocr_passes(primary: str, secondary: str) -> str:
     return primary.rstrip() + "\n" + "\n".join(extras)
 
 
+def parse_roman_swaras(line: str) -> list[str]:
+    notes: list[str] = []
+    for match in ROMAN_SWARA_RE.finditer(line):
+        mapped = ROMAN_SWARA_MAP.get(match.group(1).lower())
+        if mapped:
+            notes.append(mapped)
+    return notes
+
+
 def score_notation_line(line: str) -> float:
     """Score whether a noisy OCR line is a sargam row from a book photo."""
     cleaned = " ".join(line.split())
     if len(cleaned) < 3:
         return 0.0
+    roman = parse_roman_swaras(cleaned)
+    if len(roman) >= 4:
+        markers = sum(cleaned.count(char) for char in BAR_CHARS)
+        return len(roman) * 1.6 + markers * 2.2
+    bengali_letters = sum(1 for character in cleaned if "\u0980" <= character <= "\u09FF")
+    if bengali_letters == 0:
+        return 0.0
     swaras = sum(character in SWARA_MAP for character in cleaned)
     markers = sum(cleaned.count(char) for char in BAR_CHARS)
-    bengali_letters = sum(1 for character in cleaned if "\u0980" <= character <= "\u09FF")
     other_bengali = sum(
         1
         for character in cleaned
@@ -165,7 +189,12 @@ def notation_lines(ocr_text: str) -> list[tuple[float, str]]:
 
 
 def parse_swaras(line: str) -> list[str]:
+    roman = parse_roman_swaras(line)
+    if len(roman) >= 4:
+        return roman
     normalized = unicodedata.normalize("NFC", line)
+    if not any("\u0980" <= character <= "\u09FF" for character in normalized):
+        return []
     return [SWARA_MAP[character] for character in normalized if character in SWARA_MAP]
 
 
@@ -183,9 +212,13 @@ def detect_tala(ocr_text: str) -> tuple[str, int, list[int]]:
         (("একতাল",), "Ektal", 12, [2, 2, 2, 2, 2, 2]),
         (("ঝাঁপতাল", "ঝাপতাল"), "Jhaptal", 10, [2, 3, 2, 3]),
         (("রূপক",), "Rupak", 7, [3, 2, 2]),
+        (("dadra", "da'dra", "daadra"), "Dadra", 6, [3, 3]),
+        (("kaharva", "kaharba", "kaharwa"), "Kaharva", 8, [4, 4]),
+        (("teental", "tintal", "trital"), "Tintal", 16, [4, 4, 4, 4]),
     )
+    haystack = normalized.lower()
     for markers, name, beats, groups in known:
-        if any(marker in normalized for marker in markers):
+        if any(marker.lower() in haystack for marker in markers):
             return name, beats, groups
     return "Refer to canonical source", 8, [4, 4]
 
@@ -267,7 +300,14 @@ def build_notation(song: dict[str, Any], ocr_text: str) -> tuple[dict[str, Any] 
     }, round(confidence, 3)
 
 
-def ocr_pdf_pages(pdf_path: Path, work: Path) -> str:
+def ocr_pdf_pages(
+    pdf_path: Path,
+    work: Path,
+    *,
+    lang: str = "ben",
+    dpi: int = 300,
+    multipass: bool = True,
+) -> str:
     """Rasterize photographed book pages at high DPI, preprocess, multi-pass OCR."""
     prefix = work / "page"
     subprocess.run(
@@ -275,7 +315,7 @@ def ocr_pdf_pages(pdf_path: Path, work: Path) -> str:
             "pdftoppm",
             "-png",
             "-r",
-            "300",
+            str(dpi),
             str(pdf_path),
             str(prefix),
         ],
@@ -290,9 +330,12 @@ def ocr_pdf_pages(pdf_path: Path, work: Path) -> str:
         prepared = work / f"{image.stem}-prep.png"
         preprocess_book_photo(image, prepared)
         # psm 6 = block of text (typical notation page); psm 4 = single column.
-        primary = ocr_image(prepared, psm="6")
-        secondary = ocr_image(prepared, psm="4")
-        chunks.append(merge_ocr_passes(primary, secondary))
+        primary = ocr_image(prepared, psm="6", lang=lang)
+        if multipass:
+            secondary = ocr_image(prepared, psm="4", lang=lang)
+            chunks.append(merge_ocr_passes(primary, secondary))
+        else:
+            chunks.append(primary)
     return "\n".join(chunks)
 
 

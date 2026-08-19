@@ -211,7 +211,20 @@ class BootstrapService:
                 )
             ).scalar_one()
         )
-        if existing >= desired:
+        existing_numbers = set(
+            (
+                await self.session.execute(
+                    select(Notation.song_number).where(Notation.notation_text.like("{%"))
+                )
+            ).scalars()
+        )
+        desired_numbers = {
+            int(row["song_number"])
+            for row in rows
+            if str(row.get("notation_text") or "").lstrip().startswith("{")
+            and row.get("song_number") is not None
+        }
+        if existing >= desired and desired_numbers <= existing_numbers:
             return
         logger.info("Refreshing machine-readable notation: %s -> %s", existing, desired)
         await self.session.execute(delete(Notation))

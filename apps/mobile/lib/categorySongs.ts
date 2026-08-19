@@ -1,81 +1,89 @@
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import type { SongSummary } from "@prabhat/core"
 
-import { songCategories } from "@/constants/categories"
+import {
+  songCategories,
+  songCollectionChips,
+  type SongBrowseId,
+  type SongCategoryId,
+} from "@/constants/categories"
 import type { MockSong } from "@/data/mock"
-import { loadCatalog, readCatalogCache } from "@/lib/catalog"
+import { allCollections, collectionSearchPrompt, type CollectionItem } from "@/data/collections"
+import { readCatalogCache } from "@/lib/catalog"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import precomputedCategories from "../../../data/generated/mobile_category_songs.json"
 
-export type SongCategoryId = (typeof songCategories)[number]["id"]
+export type { SongBrowseId, SongCategoryId }
 export type FastSearchId = string
 
 type PrecomputedSearch = {
   label: string
   song_numbers: number[]
+  songs?: SongSummary[]
   ui?: boolean
   collection_labels?: string[]
-  curated_count?: number
-  total_count?: number
 }
 
 type PrecomputedFile = {
   version: number
-  ui_category_ids?: string[]
   categories?: Record<string, PrecomputedSearch>
   searches?: Record<string, PrecomputedSearch>
 }
 
 const PRECOMPUTED = precomputedCategories as PrecomputedFile
-const CATEGORY_CACHE_KEY = "prabhat-category-songs-v3"
+const REMEMBER_KEY = "prabhat-browse-chip-results-v1"
 
-/** Theme/mood index for Songs-tab chips (+ devotion-style aliases). Catalog search is separate. */
 const SEARCH_INDEX: Record<string, PrecomputedSearch> = {
   ...(PRECOMPUTED.categories ?? {}),
   ...(PRECOMPUTED.searches ?? {}),
 }
 
-const numbersBySearch = new Map<string, number[]>()
-for (const [id, row] of Object.entries(SEARCH_INDEX)) {
-  const numbers = Array.isArray(row?.song_numbers)
-    ? row.song_numbers.map(Number).filter((n) => Number.isFinite(n) && n > 0)
-    : []
-  numbersBySearch.set(id, numbers)
-}
+const allBrowseChips = [...songCategories, ...songCollectionChips]
 
 const memorySongs = new Map<string, MockSong[]>()
 let warmPromise: Promise<void> | null = null
 
-/** Test helper — clears the in-memory theme-search warm cache. */
+/** Test helper — clears the in-memory browse-chip cache. */
 export function resetCategorySongsMemory() {
   memorySongs.clear()
   warmPromise = null
 }
 
-export function isSongCategoryId(value: string): value is SongCategoryId {
+export function isSongCategoryId(value: string): value is SongBrowseId {
+  return allBrowseChips.some((row) => row.id === value)
+}
+
+export function isMoodCategoryId(value: string): value is SongCategoryId {
   return songCategories.some((row) => row.id === value)
 }
 
 export function isFastSearchId(value: string): boolean {
-  return numbersBySearch.has(value)
+  return isSongCategoryId(value) || Boolean(SEARCH_INDEX[value])
 }
 
-export function categoryLabel(categoryId: SongCategoryId): string {
+export function collectionForCategory(searchId: FastSearchId): CollectionItem | undefined {
+  const chip = songCollectionChips.find((row) => row.id === searchId)
+  if (!chip) return undefined
+  return allCollections.find((row) => row.label === chip.collectionLabel)
+}
+
+export function categoryLabel(categoryId: SongBrowseId): string {
   return fastSearchLabel(categoryId)
 }
 
 export function fastSearchLabel(searchId: FastSearchId): string {
   return (
+    allBrowseChips.find((row) => row.id === searchId)?.label ??
     SEARCH_INDEX[searchId]?.label ??
-    songCategories.find((row) => row.id === searchId)?.label ??
     searchId
   )
 }
 
-/**
- * Theme/mood aliases → precomputed chip lists.
- * Do not add Hindi / Shiva / Spring / collection names here — those use catalog search.
- */
+export function categoryCollectionPrompt(searchId: FastSearchId): string | null {
+  const collection = collectionForCategory(searchId)
+  return collection ? collectionSearchPrompt(collection.label) : null
+}
+
 const THEME_QUERY_ALIASES: Record<string, FastSearchId> = {
   devotion: "devotional",
   devotional: "devotional",
@@ -125,8 +133,26 @@ const THEME_QUERY_ALIASES: Record<string, FastSearchId> = {
   festivals: "festival",
   guru: "guru",
   baba: "guru",
+  guruji: "guru",
+  gurudev: "guru",
+  sadguru: "guru",
+  preceptor: "guru",
   peace: "peace",
   peaceful: "peace",
+  hindi: "hindi",
+  urdu: "urdu",
+  english: "english",
+  sanskrit: "sanskrit",
+  shiva: "shiva",
+  krsna: "krsna",
+  krishna: "krsna",
+  spring: "spring",
+  children: "children",
+  kids: "children",
+  child: "children",
+  neohumanism: "neohumanism",
+  "neo-humanism": "neohumanism",
+  "neo humanism": "neohumanism",
 }
 
 function normalizeThemeQuery(query: string): string {
@@ -134,13 +160,14 @@ function normalizeThemeQuery(query: string): string {
     .trim()
     .toLowerCase()
     .replace(/[’']/g, "")
+    .replace(/ś/g, "s")
+    .replace(/ń/g, "n")
     .replace(/\s+/g, " ")
     .replace(/^(?:songs?(?:\s+(?:of|for|about|on))?)\s+/, "")
     .replace(/\s+(?:songs?|music|bhajans?|kirtans?|kiirtans?)$/, "")
     .trim()
 }
 
-/** True for catalog intents that must never use theme precompute. */
 export function isCatalogSearchQuery(query: string): boolean {
   const trimmed = query.trim()
   if (!trimmed) return false
@@ -149,97 +176,204 @@ export function isCatalogSearchQuery(query: string): boolean {
   return false
 }
 
-/**
- * Resolve theme/mood typed search to a precomputed chip list.
- * Returns null for catalog queries (lyrics, numbers, collection prompts).
- */
 export function resolveCategoryQuery(query: string): FastSearchId | null {
   if (isCatalogSearchQuery(query)) return null
 
   const raw = query.trim().toLowerCase().replace(/\s+/g, " ")
   if (!raw) return null
-  if (numbersBySearch.has(raw)) return raw
-  const byUiLabel = songCategories.find((row) => row.label.toLowerCase() === raw)
+  const byUiLabel = allBrowseChips.find((row) => row.label.toLowerCase() === raw)
   if (byUiLabel) return byUiLabel.id
   if (THEME_QUERY_ALIASES[raw]) return THEME_QUERY_ALIASES[raw]
+  if (SEARCH_INDEX[raw]) return raw
 
   const key = normalizeThemeQuery(raw)
-  if (!key || key === raw) return null
-  if (numbersBySearch.has(key)) return key
-  const byNormalizedUi = songCategories.find((row) => row.label.toLowerCase() === key)
+  if (!key) return null
+  const byNormalizedUi = allBrowseChips.find((row) => normalizeThemeQuery(row.label) === key)
   if (byNormalizedUi) return byNormalizedUi.id
-  return THEME_QUERY_ALIASES[key] ?? null
+  if (THEME_QUERY_ALIASES[key]) return THEME_QUERY_ALIASES[key]
+  return SEARCH_INDEX[key] ? key : null
+}
+
+export function seedCategoryForQuery(query: string): FastSearchId | null {
+  const q = query.trim().toLowerCase()
+  if (
+    /\b(?:stress(?:ful|ed)?|anxiet(?:y|ies)|anxious|tense|tension|worried|overwhelm(?:ed)?)\b/.test(
+      q,
+    )
+  ) {
+    return "peace"
+  }
+  return resolveCategoryQuery(query)
+}
+
+export function semanticQueryForCategory(searchId: FastSearchId, spokenQuery?: string): string {
+  const spoken = spokenQuery?.trim() ?? ""
+  const themed: Record<string, string> = {
+    guru: "songs about guru Baba teacher sadguru",
+    peace: "songs for peace calm relief from stress",
+    devotional: "devotional bhakti songs",
+    meditation: "meditation quiet mind",
+    love: "songs of divine love",
+    nature: "songs of nature",
+    morning: "morning dawn songs",
+    evening: "evening dusk sunset twilight songs",
+    rain: "rain monsoon songs",
+    festival: "festival celebration songs",
+  }
+  const collection = collectionForCategory(searchId)
+  const base = themed[searchId]
+    ?? (collection ? `${collection.value} songs` : `${fastSearchLabel(searchId)} songs`)
+  const label = fastSearchLabel(searchId)
+  if (spoken && spoken.toLowerCase() !== label.toLowerCase() && spoken.toLowerCase() !== searchId) {
+    return `${spoken} ${base}`
+  }
+  return base
+}
+
+function isPlaceholderTitle(song: MockSong): boolean {
+  return song.title === `Song ${song.number}`
+}
+
+export function mergeSongs(primary: MockSong[], extra: MockSong[]): MockSong[] {
+  const extraByKey = new Map(extra.map((song) => [String(song.number || song.id), song]))
+  const seen = new Set<string>()
+  const out: MockSong[] = []
+  for (const song of primary) {
+    const key = String(song.number || song.id)
+    if (seen.has(key)) continue
+    seen.add(key)
+    const richer = extraByKey.get(key)
+    out.push(richer && isPlaceholderTitle(song) ? richer : song)
+  }
+  for (const song of extra) {
+    const key = String(song.number || song.id)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(song)
+  }
+  return out
+}
+
+function bundledNumbers(searchId: FastSearchId): number[] {
+  const numbers = SEARCH_INDEX[searchId]?.song_numbers
+  if (!Array.isArray(numbers)) return []
+  return numbers.map(Number).filter((n) => Number.isFinite(n) && n > 0)
 }
 
 export function songNumbersForCategory(searchId: FastSearchId): number[] {
-  return numbersBySearch.get(searchId) ?? []
+  const fromCollection = collectionForCategory(searchId)?.songNumbers
+  if (fromCollection?.length) return fromCollection
+  return bundledNumbers(searchId)
 }
 
-export function songsForCategoryFromCatalog(
-  searchId: FastSearchId,
-  catalog: SongSummary[],
-): SongSummary[] {
-  const wanted = songNumbersForCategory(searchId)
-  if (!wanted.length || !catalog.length) return []
-  const byNumber = new Map(catalog.map((row) => [row.number, row]))
-  const ordered: SongSummary[] = []
-  for (const number of wanted) {
-    const row = byNumber.get(number)
-    if (row) ordered.push(row)
+function placeholderSummary(number: number): SongSummary {
+  return {
+    number,
+    title: `Song ${number}`,
+    first_line: null,
+    is_verified: true,
   }
-  return ordered
 }
 
 function toMockSongs(rows: SongSummary[]): MockSong[] {
   return rows.map((row, index) => songSummaryToMockSong(row, index))
 }
 
-function snapshotNumbers(): Record<string, number[]> {
-  const out: Record<string, number[]> = {}
-  for (const [id, numbers] of numbersBySearch) {
-    out[id] = numbers
+function overlayCatalogTitles(rows: SongSummary[], catalog: SongSummary[]): SongSummary[] {
+  if (!catalog.length) return rows
+  const byNumber = new Map(catalog.map((row) => [row.number, row]))
+  return rows.map((row) => byNumber.get(row.number) ?? row)
+}
+
+export function songsForCategoryFromCatalog(
+  searchId: FastSearchId,
+  catalog: SongSummary[],
+): SongSummary[] {
+  const bundled = SEARCH_INDEX[searchId]?.songs
+  if (Array.isArray(bundled) && bundled.length) {
+    return overlayCatalogTitles(bundled, catalog)
+  }
+  const wanted = songNumbersForCategory(searchId)
+  if (!wanted.length) return []
+  const byNumber = new Map(catalog.map((row) => [row.number, row]))
+  return wanted.map((number) => byNumber.get(number) ?? placeholderSummary(number))
+}
+
+function snapshotRemembered(): Record<string, SongSummary[]> {
+  const out: Record<string, SongSummary[]> = {}
+  for (const [id, songs] of memorySongs) {
+    if (!songs.length) continue
+    out[id] = songs.map((song) => ({
+      number: song.number,
+      title: song.title,
+      first_line: song.originalTitle ?? null,
+      is_verified: true,
+    }))
   }
   return out
 }
 
-async function persistCategoryIndex() {
+async function persistRemembered() {
   try {
-    await AsyncStorage.setItem(
-      CATEGORY_CACHE_KEY,
-      JSON.stringify({
-        version: PRECOMPUTED.version,
-        searches: snapshotNumbers(),
-        warmedAt: Date.now(),
-      }),
-    )
+    await AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify(snapshotRemembered()))
   } catch {
     /* ignore quota / storage failures */
   }
 }
 
-/** Warm in-memory lists for every precomputed theme search. */
-export function prefetchCategorySongs(catalog: SongSummary[]) {
-  if (!catalog.length) return
-  for (const searchId of numbersBySearch.keys()) {
-    memorySongs.set(searchId, toMockSongs(songsForCategoryFromCatalog(searchId, catalog)))
+/** Cache a non-empty chip result. Never cache generic/voice search. Never cache []. */
+export function rememberCategorySongs(searchId: FastSearchId, songs: MockSong[]) {
+  if (!songs.length) return
+  const bundled = songsForCategoryFromCatalog(searchId, [])
+  if (bundled.length > songs.length) {
+    memorySongs.set(searchId, toMockSongs(bundled))
+    return
   }
-  void persistCategoryIndex()
+  memorySongs.set(searchId, songs)
+  void persistRemembered()
 }
 
-/**
- * Pre-warm theme lists from the local catalog cache.
- * Safe to call on app boot — does not touch live catalog search.
- */
+function seedFromBundled(searchId: FastSearchId, catalog: SongSummary[] = []) {
+  const rows = songsForCategoryFromCatalog(searchId, catalog)
+  if (!rows.length) return
+  const current = memorySongs.get(searchId)
+  if (current && current.length >= rows.length) return
+  memorySongs.set(searchId, toMockSongs(rows))
+}
+
+/** Overlay live titles onto bundled/collection lists. Never shrink a prepopulated list. */
+export function prefetchCategorySongs(catalog: SongSummary[]) {
+  for (const chip of allBrowseChips) {
+    seedFromBundled(chip.id, catalog)
+  }
+  for (const searchId of Object.keys(SEARCH_INDEX)) {
+    seedFromBundled(searchId, catalog)
+  }
+  void persistRemembered()
+}
+
 export function warmCategorySongsCache(): Promise<void> {
   if (warmPromise) return warmPromise
   warmPromise = (async () => {
-    const cached = await readCatalogCache()
-    if (cached?.length) {
-      prefetchCategorySongs(cached)
-      return
+    for (const chip of allBrowseChips) {
+      seedFromBundled(chip.id)
     }
-    const live = await loadCatalog()
-    if (live.songs.length) prefetchCategorySongs(live.songs)
+    try {
+      const stored = await AsyncStorage.getItem(REMEMBER_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, SongSummary[]>
+        for (const [id, rows] of Object.entries(parsed)) {
+          if (!Array.isArray(rows) || !rows.length) continue
+          const bundled = songsForCategoryFromCatalog(id, [])
+          if (bundled.length && bundled.length > rows.length) continue
+          memorySongs.set(id, toMockSongs(rows))
+        }
+      }
+    } catch {
+      /* ignore corrupt cache */
+    }
+    const cached = await readCatalogCache()
+    if (cached?.length) prefetchCategorySongs(cached)
   })().catch(() => {
     warmPromise = null
   })
@@ -252,12 +386,13 @@ export type CategorySongsResult = {
   fromCache: boolean
 }
 
-/** Instant theme browse from precomputed song numbers × local song catalog cache. */
+/** Instant browse from bundled mood lists or verified collection numbers. */
 export async function loadCategorySongs(searchId: FastSearchId): Promise<CategorySongsResult> {
   const label = fastSearchLabel(searchId)
-  const warm = memorySongs.get(searchId)
-  if (warm?.length) {
-    return { songs: warm, label, fromCache: true }
+  seedFromBundled(searchId)
+  const local = memorySongs.get(searchId)
+  if (local?.length) {
+    return { songs: local, label, fromCache: true }
   }
 
   await warmCategorySongsCache()
@@ -266,17 +401,8 @@ export async function loadCategorySongs(searchId: FastSearchId): Promise<Categor
     return { songs: afterWarm, label, fromCache: true }
   }
 
-  const cachedCatalog = await readCatalogCache()
-  if (cachedCatalog?.length) {
-    const songs = toMockSongs(songsForCategoryFromCatalog(searchId, cachedCatalog))
-    if (songs.length) {
-      memorySongs.set(searchId, songs)
-      return { songs, label, fromCache: true }
-    }
-  }
-
-  const live = await loadCatalog()
-  const songs = toMockSongs(songsForCategoryFromCatalog(searchId, live.songs))
+  const cachedCatalog = (await readCatalogCache()) ?? []
+  const songs = toMockSongs(songsForCategoryFromCatalog(searchId, cachedCatalog))
   if (songs.length) memorySongs.set(searchId, songs)
-  return { songs, label, fromCache: live.fromCache }
+  return { songs, label, fromCache: true }
 }

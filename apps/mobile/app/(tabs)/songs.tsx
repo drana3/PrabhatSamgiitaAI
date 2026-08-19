@@ -14,6 +14,7 @@ import { SearchBar } from "@/components/common/SearchBar"
 import { ScreenContainer, SectionHeader } from "@/components/common/ScreenContainer"
 import { CategoryGrid } from "@/components/songs/CategoryGrid"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
+import { songCategories, songCollectionChips } from "@/constants/categories"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -117,9 +118,18 @@ export default function SongsScreen() {
 
             <SectionHeader title="Categories" />
             <CategoryGrid
+              items={songCategories}
               onSelect={(categoryId) =>
                 router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
               }
+            />
+            <SectionHeader title="Top collections" />
+            <CategoryGrid
+              items={songCollectionChips}
+              onSelect={(categoryId) =>
+                router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
+              }
+              onSeeAll={() => router.push(href("/collections"))}
             />
             <View style={styles.popularHeader}>
               <SectionHeader

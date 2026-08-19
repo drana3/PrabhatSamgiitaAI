@@ -1,0 +1,107 @@
+name: Ingest Sarkarverse Sargam
+
+# Trigger from Actions → Ingest Sarkarverse Sargam → Run workflow.
+# Loops OCR batches until every booklet is in the stamp. If the job hits the
+# time box with work left, it re-dispatches itself on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-extract even if the stamp already matches"
+        type: boolean
+        default: false
+      booklet_limit:
+        description: "Scan PDFs per batch (keep small so progress can be committed)"
+        type: number
+        default: 4
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: ingest-sarkarverse-sargam
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    name: Scan sargam PDFs until complete
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    outputs:
+      remaining: ${{ steps.loop.outputs.remaining }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install OCR tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-ben
+          python3 -m pip install pillow
+
+      - name: Scan until every booklet is processed
+        id: loop
+        env:
+          FORCE: ${{ inputs.force }}
+          BOOKLET_LIMIT: ${{ inputs.booklet_limit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "prabhat-sargam-bot"
+          git config user.email "prabhat-sargam-bot@users.noreply.github.com"
+          LIMIT="${BOOKLET_LIMIT:-4}"
+          if [ "$FORCE" = "true" ]; then
+            rm -f data/generated/sarkarverse_sargam.stamp
+            echo "Force: stamp removed so extract starts from the first booklet"
+          fi
+
+          remaining=true
+          # Leave headroom so we can commit and re-dispatch before the 350m job timeout.
+          DEADLINE=$((SECONDS + 300 * 60))
+          while [ "$SECONDS" -lt "$DEADLINE" ]; do
+            python3 scripts/ingest_sarkarverse_sargam.py --check | tee /tmp/sargam-check.txt
+            REQUIRED="$(awk -F= '/^required=/ { print $2 }' /tmp/sargam-check.txt)"
+            if [ "${REQUIRED:-true}" != "true" ]; then
+              remaining=false
+              echo "All booklets are scanned."
+              break
+            fi
+
+            echo "::group::Extract batch (limit ${LIMIT})"
+            python3 scripts/ingest_sarkarverse_sargam.py --extract --booklet-limit "$LIMIT"
+            echo "::endgroup::"
+
+            if git diff --quiet -- data/generated/notation_practice.json data/generated/sarkarverse_sargam.stamp; then
+              echo "Batch produced no git changes — stopping to avoid a tight loop."
+              remaining=true
+              break
+            fi
+            git add data/generated/notation_practice.json data/generated/sarkarverse_sargam.stamp
+            git commit -m "chore: ingest Sarkarverse sargam scans"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          done
+
+          if [ "$remaining" = "true" ]; then
+            echo "Stopping this runner with scans still remaining."
+          fi
+
+          echo "remaining=${remaining}" >> "$GITHUB_OUTPUT"
+
+      - name: Continue on a fresh runner if scans remain
+        if: steps.loop.outputs.remaining == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Time or batch stop with scans still remaining — dispatching another run."
+          gh workflow run ingest-sarkarverse-sargam.yml --ref main

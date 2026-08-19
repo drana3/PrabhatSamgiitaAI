@@ -8,6 +8,7 @@ Catalog search (lyrics, song numbers, “Search Prabhat Samgiita for …”)
 stays on the normal catalog API — already fast; do not replace it here.
 
 Output: data/generated/mobile_category_songs.json
+Also writes data/generated/complete_sargam_songs.json for website Explore.
 """
 
 from __future__ import annotations
@@ -18,7 +19,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SONGS_PATH = ROOT / "data" / "generated" / "songs.json"
 COLLECTIONS_PATH = ROOT / "data" / "generated" / "theme_collections.json"
+PRACTICE_PATH = ROOT / "data" / "generated" / "notation_practice.json"
 OUT_PATH = ROOT / "data" / "generated" / "mobile_category_songs.json"
+COMPLETE_SARGAM_PATH = ROOT / "data" / "generated" / "complete_sargam_songs.json"
 
 # Visible only on mobile Songs-tab CategoryGrid.
 UI_CATEGORY_IDS = [
@@ -83,6 +86,8 @@ SEARCH_COLLECTION_LABELS: dict[str, list[str]] = {
         "Guru Sakasha Song",
         "Bábá Birthday Songs",
         "Ánanda Nagar Song",
+        "Classicalised kiirtan-style song",
+        "Song with sanyasii spirit",
     ],
     "peace": ["Neo-Humanism Songs", "PROUT Song", "AMURT Song"],
 }
@@ -170,8 +175,22 @@ SEARCH_KEYWORDS: dict[str, list[str]] = {
         "new year",
         "victory",
     ],
-    "guru": ["guru", "baba", "master", "teacher", "gurukula", "sakasha"],
-    "peace": ["peace", "peaceful", "calm", "harmony", "tranqu", "serene", "gentle"],
+    "guru": [
+        "guru",
+        "baba",
+        "master",
+        "teacher",
+        "gurukula",
+        "sakasha",
+        "sadguru",
+        "gurudev",
+        "guruji",
+        "preceptor",
+        "anandamurti",
+        "ananda murti",
+    ],
+    "peace": ["peace", "peaceful", "calm", "harmony", "tranqu", "serene", "gentle", "stress", "anxious"],
+    "harmonium": [],
 }
 
 SEARCH_LABELS = {
@@ -207,11 +226,90 @@ def haystack(song: dict) -> str:
     return " ".join(str(part) for part in parts).lower()
 
 
+def lyric_line_count(song: dict) -> int:
+    value = song.get("lyrics_original") or song.get("transliteration") or song.get("first_line")
+    return len([line.strip() for line in str(value or "").splitlines() if line.strip()])
+
+
+def is_complete_practice(draft: dict, song: dict) -> bool:
+    """Same rule as the practice UI: every lyric line has extracted sargam."""
+    meta = draft.get("metadata_json") or {}
+    if meta.get("coverage_incomplete") is True:
+        return False
+    raw = draft.get("notation_text")
+    if not raw:
+        return False
+    try:
+        notation = json.loads(raw) if isinstance(raw, str) else raw
+    except json.JSONDecodeError:
+        return False
+    lines = notation.get("lines") or []
+    notes = 0
+    for line in lines:
+        for measure in line.get("measures") or []:
+            for beat in measure.get("beats") or []:
+                notes += len(beat.get("notes") or [])
+    if len(lines) < 2 or notes < 8:
+        return False
+    lyrics = lyric_line_count(song)
+    if lyrics and len(lines) < lyrics:
+        return False
+    return True
+
+
+def complete_notation_entry(songs: list[dict]) -> dict:
+    practice_rows = json.loads(PRACTICE_PATH.read_text(encoding="utf-8")) if PRACTICE_PATH.exists() else []
+    by_number = {int(song["number"]): song for song in songs}
+    numbers: list[int] = []
+    for draft in practice_rows:
+        number = int(draft.get("song_number") or 0)
+        if number < 1:
+            continue
+        if is_complete_practice(draft, by_number.get(number, {})):
+            numbers.append(number)
+    numbers = sorted(set(numbers))
+    return {
+        "label": "Full Sargam",
+        "ui": False,
+        "collection_labels": [],
+        "song_numbers": numbers,
+        "curated_count": len(numbers),
+        "total_count": len(numbers),
+    }
+
+
+def complete_sargam_web_payload(songs: list[dict]) -> dict:
+    entry = complete_notation_entry(songs)
+    by_number = {int(song["number"]): song for song in songs}
+    summaries = []
+    for number in entry["song_numbers"]:
+        song = by_number.get(number, {})
+        summaries.append(
+            {
+                "number": number,
+                "title": song.get("title") or f"Song {number}",
+                "first_line": song.get("first_line"),
+                "theme": song.get("theme"),
+                "mood": song.get("mood"),
+                "language": song.get("language"),
+                "is_verified": bool(song.get("is_verified")),
+            }
+        )
+    return {
+        "label": "Full Sargam",
+        "query": "full sargam",
+        "count": len(summaries),
+        "songs": summaries,
+        "note": "Complete in-app Sargam only. Website Explore, not mobile chips.",
+    }
+
+
 def build_entry(
     search_id: str,
     collection_labels: list[str],
     by_label: dict[str, list[int]],
     song_text: dict[int, str],
+    by_number: dict[int, dict],
 ) -> dict:
     curated: set[int] = set()
     for label in collection_labels:
@@ -241,9 +339,29 @@ def build_entry(
         "ui": search_id in UI_CATEGORY_IDS,
         "collection_labels": collection_labels,
         "song_numbers": ordered,
+        "songs": song_summaries(ordered, by_number),
         "curated_count": len(curated),
         "total_count": len(ordered),
     }
+
+
+def song_summaries(numbers: list[int], by_number: dict[int, dict]) -> list[dict]:
+    """Titles shipped with the app so theme chips do not need the live catalog."""
+    summaries = []
+    for number in numbers:
+        song = by_number.get(number, {})
+        summaries.append(
+            {
+                "number": number,
+                "title": song.get("title") or f"Song {number}",
+                "first_line": song.get("first_line"),
+                "theme": song.get("theme"),
+                "mood": song.get("mood"),
+                "language": song.get("language"),
+                "is_verified": bool(song.get("is_verified")),
+            }
+        )
+    return summaries
 
 
 def main() -> None:
@@ -260,14 +378,22 @@ def main() -> None:
     ]
 
     song_text = {int(song["number"]): haystack(song) for song in songs}
+    by_number = {int(song["number"]): song for song in songs}
     searches: dict[str, dict] = {}
     for search_id, collection_labels in labels.items():
-        entry = build_entry(search_id, collection_labels, by_label, song_text)
+        entry = build_entry(search_id, collection_labels, by_label, song_text, by_number)
         searches[search_id] = entry
         print(f"ui {search_id:14} curated={entry['curated_count']:3} total={entry['total_count']:3}")
 
+    complete_sargam = complete_sargam_web_payload(songs)
+    COMPLETE_SARGAM_PATH.write_text(
+        json.dumps(complete_sargam, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    print(f"web Full Sargam   count={complete_sargam['count']:3} -> {COMPLETE_SARGAM_PATH}")
+
     payload = {
-        "version": 3,
+        "version": 4,
         "ui_category_ids": UI_CATEGORY_IDS,
         "categories": {cid: searches[cid] for cid in UI_CATEGORY_IDS},
         "searches": searches,

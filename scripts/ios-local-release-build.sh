@@ -17,8 +17,15 @@ curl -fsSL -o "$TMPDIR_CERTS/AppleWWDRCAG6.cer" "https://www.apple.com/certifica
 security add-trusted-cert -d -r unspecified -k ~/Library/Keychains/login.keychain-db "$TMPDIR_CERTS/AppleWWDRCAG3.cer" || true
 security add-trusted-cert -d -r unspecified -k ~/Library/Keychains/login.keychain-db "$TMPDIR_CERTS/AppleWWDRCAG6.cer" || true
 
-echo "==> Unlocking login keychain (enter your Mac password if prompted)..."
-security unlock-keychain ~/Library/Keychains/login.keychain-db || true
+echo "==> Unlocking login keychain..."
+if [[ -n "${KEYCHAIN_PASSWORD:-}" ]]; then
+  security unlock-keychain -p "$KEYCHAIN_PASSWORD" ~/Library/Keychains/login.keychain-db
+elif [[ -t 0 ]]; then
+  security unlock-keychain ~/Library/Keychains/login.keychain-db || true
+else
+  echo "    Non-interactive shell — skipping unlock prompt."
+  echo "    If signing fails, run: security unlock-keychain ~/Library/Keychains/login.keychain-db"
+fi
 
 echo "==> Patching EAS build-tools for macOS Tahoe keychain validation..."
 # eas-cli-local-build-plugin downloads @expo/build-tools into npx cache on each run.

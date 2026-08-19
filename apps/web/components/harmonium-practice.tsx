@@ -12,6 +12,7 @@ import {
   distributeNotesToWords,
   formatPracticeSequence,
   HINDI_SARGAM_LEGEND,
+  learnerNotationPdfUrl,
   notationCoverage,
   resolveLineLyrics,
   toDevanagariSwara,
@@ -49,6 +50,7 @@ export function HarmoniumPractice({
   const [tonic, setTonic] = useState(initialNotation?.target_scale || "C")
   const [system, setSystem] = useState<"guide" | "keys" | "sargam">("sargam")
   const [loading, setLoading] = useState(false)
+  const pdfHref = learnerNotationPdfUrl(sourceUrl)
 
   async function changeTonic(value: string) {
     setTonic(value)
@@ -96,9 +98,7 @@ export function HarmoniumPractice({
         <div>
           <p className="eyebrow">Optional learning studio</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">Practise on harmonium</h2>
-          <p className="mt-2 text-sm text-stone-600">
-            बंगाली PDF की धुन को हिंदी सारगम में अभ्यास करें · Hindi Sargam under each lyric line.
-          </p>
+          <p className="mt-2 text-sm text-stone-600">{HINDI_SARGAM_LEGEND}</p>
         </div>
         <span
           aria-hidden="true"
@@ -163,9 +163,7 @@ export function HarmoniumPractice({
                 <h3 className="mt-2 font-serif text-2xl text-navy-950">
                   {system === "sargam" ? "पंक्ति · हिंदी सारगम · Keys" : "Lyric · Harmonium keys"}
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  {HINDI_SARGAM_LEGEND}. छोटे अक्षर (re, ga…) कोमल स्वर हैं। “Hear slowly” से धीरे सुनकर अभ्यास करें।
-                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">{HINDI_SARGAM_LEGEND}</p>
                 {(() => {
                   const coverage = notationCoverage(
                     notation.notation.lines.length,
@@ -176,14 +174,10 @@ export function HarmoniumPractice({
                     <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
                       अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का हिंदी सारगम है (अक्सर
                       Andromeda PDF के पहले पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के रहती हैं
-                      {sourceUrl ? (
-                        <>
-                          {" · "}
-                          <a href={sourceUrl} target="_blank" rel="noreferrer" className="font-semibold underline">
-                            पूरी स्वरलिपि PDF खोलें
-                          </a>
-                        </>
-                      ) : null}
+                      {" · "}
+                      <a href={pdfHref} target="_blank" rel="noreferrer" className="font-semibold underline">
+                        पूरी स्वरलिपि PDF खोलें
+                      </a>
                       .
                     </p>
                   )
@@ -210,15 +204,10 @@ export function HarmoniumPractice({
       ) : (
         <div className="border-t border-gold-500/20 p-5 sm:p-6">
           <h3 className="font-serif text-xl font-semibold text-navy-950">Andromeda notation PDF available</h3>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
-            Interactive Hindi Sargam is shown only after OCR extraction. Until then, the Andromeda PDF is the learner
-            source of truth — we never invent missing melody.
-          </p>
-          {sourceUrl ? (
-            <a href={sourceUrl} target="_blank" rel="noreferrer" className="outline-button mt-4">
-              पूरी स्वरलिपि PDF · Open Andromeda PDF
-            </a>
-          ) : null}{" "}
+          <p className="mt-2 text-sm leading-6 text-stone-600">{HINDI_SARGAM_LEGEND}</p>
+          <a href={pdfHref} target="_blank" rel="noreferrer" className="outline-button mt-4">
+            पूरी स्वरलिपि PDF · Open Andromeda PDF
+          </a>
           {sourceStatus ? (
             <p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-stone-500">Source status: {sourceStatus}</p>
           ) : null}

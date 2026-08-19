@@ -129,4 +129,23 @@ describe("ExploreClient prefetch hydration", () => {
       expect(searchSongs).toHaveBeenCalledWith("songs about peace", { mode: "semantic" })
     })
   })
+
+  it("lists complete Sargam from the local catalog without calling search", async () => {
+    const user = userEvent.setup()
+
+    renderExplore(
+      <ExploreClient
+        initialSongs={[]}
+        initialQuery=""
+        searchKind="catalog"
+      />,
+    )
+
+    await user.click(screen.getByRole("button", { name: /Full Sargam/i }))
+
+    await waitFor(() => {
+      expect(searchSongs).not.toHaveBeenCalled()
+    })
+    expect(await screen.findByRole("heading", { name: /Songs with complete Sargam/i })).toBeInTheDocument()
+  })
 })

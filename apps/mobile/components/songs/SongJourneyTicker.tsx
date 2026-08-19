@@ -1,16 +1,7 @@
-import { useEffect, useRef, useState } from "react"
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native"
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 
 import { colors } from "@/constants/colors"
-import type { SongJourneyTab } from "@/constants/songJourney"
+import { partitionSongJourneyTabs, type SongJourneyTab } from "@/constants/songJourney"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 
@@ -49,119 +40,34 @@ function TabChip({
   )
 }
 
-/**
- * Journey tabs. Auto-scroll only when chips overflow (e.g. 4 tabs).
- * Overflow mode duplicates the row for a seamless circular marquee.
- * Three-or-fewer tabs stay static — no ticker flicker.
- */
+/** One row: Lyrics / Notation, then a gap, then Listen / Watch. */
 export function SongJourneyTicker({ tabs, selected, onSelect }: Props) {
-  const scrollRef = useRef<ScrollView>(null)
-  const offsetRef = useRef(0)
-  const pausedUntilRef = useRef(0)
-  const cycleWidthRef = useRef(0)
-  const [cycleWidth, setCycleWidth] = useState(0)
-  const [viewportWidth, setViewportWidth] = useState(0)
-
-  const shouldMarquee = tabs.length > 3 && cycleWidth > viewportWidth + 24
-  cycleWidthRef.current = cycleWidth
-
-  useEffect(() => {
-    if (!shouldMarquee || cycleWidth < 24) {
-      offsetRef.current = 0
-      scrollRef.current?.scrollTo({ x: 0, animated: false })
-      return
-    }
-    const step = 0.7
-    const id = setInterval(() => {
-      if (Date.now() < pausedUntilRef.current) return
-      let next = offsetRef.current + step
-      const cycle = cycleWidthRef.current
-      if (cycle > 0 && next >= cycle) next -= cycle
-      offsetRef.current = next
-      scrollRef.current?.scrollTo({ x: next, animated: false })
-    }, 32)
-    return () => clearInterval(id)
-  }, [shouldMarquee, cycleWidth, tabs.length])
-
-  const pause = (ms = 2800) => {
-    pausedUntilRef.current = Date.now() + ms
-  }
-
-  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const x = event.nativeEvent.contentOffset.x
-    const cycle = cycleWidthRef.current
-    if (shouldMarquee && cycle > 0 && x >= cycle) {
-      const wrapped = x - cycle
-      offsetRef.current = wrapped
-      scrollRef.current?.scrollTo({ x: wrapped, animated: false })
-      return
-    }
-    offsetRef.current = x
-  }
-
-  const renderChips = (keyPrefix: string) =>
-    tabs.map((item) => (
-      <TabChip
-        key={`${keyPrefix}-${item.id}`}
-        item={item}
-        active={selected === item.id}
-        onPress={() => {
-          pause(3500)
-          onSelect(item.id)
-        }}
-      />
-    ))
-
-  // Static row when 3 or fewer tabs — no ScrollView, no flicker.
-  if (tabs.length <= 3) {
-    return (
-      <View style={styles.wrap} accessibilityRole="tablist" accessibilityLabel="Song sections">
-        <View style={styles.staticRow}>
-          {tabs.map((item) => (
-            <TabChip
-              key={item.id}
-              item={item}
-              active={selected === item.id}
-              onPress={() => onSelect(item.id)}
-            />
-          ))}
-        </View>
-      </View>
-    )
-  }
+  const { learn, media } = partitionSongJourneyTabs(tabs)
 
   return (
-    <View
-      style={styles.wrap}
-      onLayout={(e) => setViewportWidth(e.nativeEvent.layout.width)}
-      accessibilityRole="tablist"
-      accessibilityLabel="Song sections"
-    >
+    <View style={styles.wrap} accessibilityRole="tablist" accessibilityLabel="Song sections">
       <ScrollView
-        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        scrollEnabled
         contentContainerStyle={styles.row}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        onScrollBeginDrag={() => pause(4000)}
-        onTouchStart={() => pause(4000)}
       >
-        <View
-          style={styles.loopSet}
-          onLayout={(e) => {
-            // Include trailing gap so wrap lands on the start of the copy.
-            setCycleWidth(e.nativeEvent.layout.width + spacing.sm)
-          }}
-        >
-          {renderChips("a")}
-        </View>
-        {shouldMarquee || cycleWidth === 0 ? (
-          <View style={styles.loopSet} importantForAccessibility="no-hide-descendants">
-            {renderChips("b")}
-          </View>
-        ) : null}
+        {learn.map((item) => (
+          <TabChip
+            key={item.id}
+            item={item}
+            active={selected === item.id}
+            onPress={() => onSelect(item.id)}
+          />
+        ))}
+        {learn.length > 0 && media.length > 0 ? <View style={styles.groupGap} /> : null}
+        {media.map((item) => (
+          <TabChip
+            key={item.id}
+            item={item}
+            active={selected === item.id}
+            onPress={() => onSelect(item.id)}
+          />
+        ))}
       </ScrollView>
     </View>
   )
@@ -171,19 +77,13 @@ const styles = StyleSheet.create({
   wrap: {
     marginBottom: spacing.lg,
   },
-  staticRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
   row: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  loopSet: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: spacing.sm,
+  },
+  groupGap: {
+    width: spacing.xxxl,
   },
   chip: {
     borderRadius: radius.lg,

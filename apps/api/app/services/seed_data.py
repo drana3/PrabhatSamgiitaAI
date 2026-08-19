@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urljoin
 
+from app.services.notation_links import ANDROMEDA_ARCHIVE, learner_notation_url
+
 DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 
 
@@ -96,17 +98,26 @@ def _merge_notation_practice(
             row["notation_text"] = draft.get("notation_text")
             row["scale"] = draft.get("scale") or "C"
             row["verification_status"] = draft.get("verification_status", "practice_draft")
-            # Keep Andromeda inventory fields; overlay OCR learner metadata.
+            row["source_url"] = learner_notation_url(
+                row.get("source_url"),
+                *(source_meta.get("source_urls") or []),
+                draft.get("source_url"),
+                *(draft_meta.get("source_urls") or []),
+            )
             row["metadata_json"] = {
                 **source_meta,
                 **draft_meta,
                 "source_verification_status": source_verification_status,
-                "archive_url": source_meta.get("archive_url")
-                or draft_meta.get("archive_url")
-                or "https://prabhatasamgiita.net/notations/andromeda.php",
-                "source_urls": source_meta.get("source_urls")
-                or draft_meta.get("source_urls")
-                or ([row["source_url"]] if row.get("source_url") else []),
+                "archive_url": ANDROMEDA_ARCHIVE,
+                "source_urls": [
+                    url
+                    for url in (
+                        *(source_meta.get("source_urls") or []),
+                        row.get("source_url"),
+                    )
+                    if url and "sarkarverse.org" not in str(url).lower()
+                ]
+                or [row["source_url"]],
             }
         else:
             row["metadata_json"] = {
@@ -119,6 +130,36 @@ def _merge_notation_practice(
                 ),
             }
         merged.append(row)
+    covered = {row.get("song_number") for row in merged}
+    for number, draft in drafts.items():
+        if number in covered or not draft.get("notation_text"):
+            continue
+        draft_meta = dict(draft.get("metadata_json") or {})
+        merged.append(
+            {
+                "song_number": number,
+                "source_url": learner_notation_url(
+                    draft.get("source_url"),
+                    *(draft_meta.get("source_urls") or []),
+                ),
+                "notation_text": draft.get("notation_text"),
+                "scale": draft.get("scale") or "C",
+                "verification_status": draft.get("verification_status", "practice_draft"),
+                "metadata_json": {
+                    **draft_meta,
+                    "source_verification_status": draft.get(
+                        "verification_status", "practice_draft"
+                    ),
+                    "archive_url": ANDROMEDA_ARCHIVE,
+                    "source_urls": [
+                        learner_notation_url(
+                            draft.get("source_url"),
+                            *(draft_meta.get("source_urls") or []),
+                        )
+                    ],
+                },
+            }
+        )
     return merged
 
 

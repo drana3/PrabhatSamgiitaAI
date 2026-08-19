@@ -110,9 +110,9 @@ def validate() -> list[str]:
             practice_songs: set[int] = set()
             for index, draft in enumerate(practice):
                 song_number = draft.get("song_number")
-                if not isinstance(song_number, int) or song_number not in notation_songs:
+                if not isinstance(song_number, int) or song_number not in numbers:
                     errors.append(
-                        f"notation_practice[{index}] song {song_number} missing from Andromeda notations inventory"
+                        f"notation_practice[{index}] references unknown song {song_number}"
                     )
                 elif song_number in practice_songs:
                     errors.append(f"duplicate notation_practice song_number {song_number}")

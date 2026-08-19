@@ -1,4 +1,5 @@
 import canonicalCollections from "../../../data/generated/theme_collections.json"
+import { isCompleteSargamQuery } from "@/lib/complete-sargam"
 
 export type SpecialCollection = {
   label: string
@@ -343,6 +344,7 @@ export function exploreSearchKind(query: string, explicitKind?: string | null): 
   if (isCollectionSearchQuery(query)) return "catalog"
   const trimmed = query.trim()
   if (!trimmed) return "semantic"
+  if (isCompleteSargamQuery(trimmed)) return "catalog"
   if (semanticSearchHints.test(trimmed)) return "semantic"
   // Lyric lines and short lookups are much faster with catalog search.
   if (trimmed.split(/\s+/).length <= 8) return "catalog"
