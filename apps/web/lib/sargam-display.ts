@@ -200,7 +200,9 @@ export function notationCoverage(
 }
 
 /** True only when a learner can practise sargam — a PDF link is not enough. */
-export function hasPlayableNotation(notation: { notation?: { lines?: NotationLine[] } } | null | undefined) {
+export function hasPlayableNotation<T extends { notation?: { lines?: NotationLine[] } }>(
+  notation: T | null | undefined,
+): notation is T {
   const lines = notation?.notation?.lines
   if (!lines?.length) return false
   return lines.some((line) => lineNotes(line).length > 0)

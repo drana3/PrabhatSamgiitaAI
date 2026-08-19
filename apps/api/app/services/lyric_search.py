@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from app.models import Song
-from app.schemas.search import MediaSummary, SearchResultItem, SearchResponse
+from app.schemas.search import MediaSummary, SearchResponse, SearchResultItem
 from app.services.catalog import catalog_song_snapshot
 
 LYRIC_RESULT_LIMIT = 5
@@ -14,7 +14,10 @@ LYRIC_PHRASE_SCORE = 48.0
 LYRIC_ENGLISH_SCORE = 40.0
 _TOKEN = re.compile(r"[^a-z0-9]+")
 _STOP = frozenset(
-    "a an and as at be but by can do for from i if in is it me my no not o of oh on or so that the this to us we with you your".split()
+    (
+        "a an and as at be but by can do for from i if in is it me my no not o of oh "
+        "on or so that the this to us we with you your"
+    ).split()
 )
 
 
@@ -125,7 +128,11 @@ def search_lyrics(query: str, limit: int = LYRIC_RESULT_LIMIT) -> list[LyricHit]
 
 
 def confident_lyric_hits(hits: list[LyricHit]) -> list[LyricHit]:
-    return [hit for hit in hits if hit.matched_by == "opening_line" or hit.score >= LYRIC_ENGLISH_SCORE]
+    return [
+        hit
+        for hit in hits
+        if hit.matched_by == "opening_line" or hit.score >= LYRIC_ENGLISH_SCORE
+    ]
 
 
 def lyric_search_response(
