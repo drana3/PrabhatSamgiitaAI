@@ -150,7 +150,12 @@ def main() -> None:
     require(ready["snapshot"]["songs"] == 5018, str(ready))
     require(ready["database"]["songs"] == 5018, str(ready))
     require(ready["database"]["media"] >= 10570, str(ready))
-    require(ready["database"]["notations"] >= 1100, str(ready))
+    # Notation PDFs in git are ~1,098; do not use a round 1,100 floor.
+    require(ready["snapshot"]["notations"] >= 1000, str(ready))
+    require(
+        ready["database"]["notations"] >= ready["snapshot"]["notations"],
+        str(ready),
+    )
     require(ready["database"]["inventory"] >= 17644, str(ready))
     require(ready["rag_chunks_ready"] is True, str(ready))
     require(ready["database"]["rag_chunks"] > 5018, str(ready))
