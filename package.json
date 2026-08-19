@@ -16,7 +16,7 @@
     "mobile:build:ios-simulator": "npm --prefix apps/mobile run build:preview:ios-simulator",
     "mobile:build:release": "npm --prefix apps/mobile run build:production:all",
     "build": "npm --workspace apps/web run build",
-    "build:e2e": "NEXT_PUBLIC_AUTH_ENABLED=true NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8011 npm --workspace apps/web run build",
+    "build:e2e": "NEXT_PUBLIC_AUTH_ENABLED=true NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8011 NEXT_PUBLIC_E2E_DISABLE_SEARCH_PREFETCH=true npm --workspace apps/web run build",
     "lint": "npm --workspace apps/web run lint && cd apps/api && uv run ruff check . && uv run mypy app",
     "test": "npm --workspace apps/web run test && npm --workspace packages/core run test && cd apps/api && uv run pytest",
     "test:mobile": "npm --prefix apps/mobile ci && npm --prefix apps/mobile run test",

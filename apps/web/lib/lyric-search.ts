@@ -44,6 +44,7 @@ export function lyricHitsToSongs(hits: LyricSearchHit[]): SongSummary[] {
 }
 
 export function shouldSearchCatalogLyrics(query: string, _kind?: ExploreSearchKind) {
+  if (process.env.NEXT_PUBLIC_E2E_DISABLE_SEARCH_PREFETCH === "true") return false
   const trimmed = query.trim()
   if (isCatalogNumberQuery(trimmed)) return false
   if (isCollectionSearchQuery(trimmed)) return false

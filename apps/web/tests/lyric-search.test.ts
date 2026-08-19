@@ -45,4 +45,11 @@ describe("web lyric search", () => {
     expect(shouldSearchCatalogLyrics("songs about peace", "semantic")).toBe(false)
     expect(shouldSearchCatalogLyrics("bandhu he niye calo", "catalog")).toBe(true)
   })
+
+  it("does not intercept Playwright search mocks", () => {
+    const previous = process.env.NEXT_PUBLIC_E2E_DISABLE_SEARCH_PREFETCH
+    process.env.NEXT_PUBLIC_E2E_DISABLE_SEARCH_PREFETCH = "true"
+    expect(shouldSearchCatalogLyrics("tomar katha", "catalog")).toBe(false)
+    process.env.NEXT_PUBLIC_E2E_DISABLE_SEARCH_PREFETCH = previous
+  })
 })

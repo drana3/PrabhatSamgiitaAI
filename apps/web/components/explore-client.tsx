@@ -354,7 +354,7 @@ export function ExploreClient({
         </div>
         <span className="text-xs font-semibold text-stone-500">{resultsCountLabel}</span>
       </div>
-      {searching && songs.length === 0 ? (
+      {searching && (songs.length === 0 || collectionSearch) ? (
         <div className="mt-6 rounded-2xl border border-gold-500/25 bg-white p-8"><LoadingIndicator label={loadingLabel} /></div>
       ) : songs.length ? (
         <div className="mt-6 space-y-4">
