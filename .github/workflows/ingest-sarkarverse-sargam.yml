@@ -15,6 +15,13 @@ on:
         description: "Scan PDFs per batch (keep small so progress can be committed)"
         type: number
         default: 4
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ingest-sarkarverse-sargam.yml"
+      - "scripts/ingest_sarkarverse_sargam.py"
+      - "data/generated/sarkarverse_sargam_index.json"
 
 permissions:
   contents: write
@@ -52,8 +59,8 @@ jobs:
       - name: Scan until every booklet is processed
         id: loop
         env:
-          FORCE: ${{ inputs.force }}
-          BOOKLET_LIMIT: ${{ inputs.booklet_limit }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+          BOOKLET_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.booklet_limit || 4 }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
