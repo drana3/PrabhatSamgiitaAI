@@ -1,6 +1,6 @@
 {
   "fingerprint": "8aae9953655b138c30d2c8c61e082953def84e50b1e355960688cf96f7095b5b",
-  "extracted_count": 4,
+  "extracted_count": 13,
   "divyadyuti_count": 161,
   "processed_booklets": [
     "https://sarkarverse.org/SARGAM/0001-1000/RS_0001-0025.pdf",
@@ -18,7 +18,11 @@
     "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3826-38250.pdf",
     "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3851-3875.pdf",
     "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3901-3925.pdf",
-    "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3926-3950.pdf"
+    "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3926-3950.pdf",
+    "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3951-3975.pdf",
+    "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3976-4000.pdf",
+    "https://sarkarverse.org/SARGAM/3001-4000/Songs%203201-3225.pdf",
+    "https://sarkarverse.org/SARGAM/3001-4000/Songs%203501-3525.pdf"
   ],
   "booklet_total": 54
 }
