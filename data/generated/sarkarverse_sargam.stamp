@@ -1,0 +1,12 @@
+{
+  "fingerprint": "8aae9953655b138c30d2c8c61e082953def84e50b1e355960688cf96f7095b5b",
+  "extracted_count": 205,
+  "divyadyuti_count": 161,
+  "processed_booklets": [
+    "https://sarkarverse.org/SARGAM/0001-1000/RS_0001-0025.pdf",
+    "https://sarkarverse.org/SARGAM/0001-1000/RS_0026-0050.pdf",
+    "https://sarkarverse.org/SARGAM/0001-1000/RS_0051-0075.pdf",
+    "https://sarkarverse.org/SARGAM/0001-1000/RS_0076-0100.pdf"
+  ],
+  "booklet_total": 54
+}
