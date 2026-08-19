@@ -9,6 +9,8 @@ import {
   isBengaliText,
   lineNotes,
   notationCoverage,
+  hasPlayableNotation,
+  notationPdfHref,
   practiceLyricSource,
   resolveLineLyrics,
   sargamVariant,
@@ -99,5 +101,22 @@ describe("sargam-display", () => {
     expect(aligned[0]?.line).toBeTruthy()
     expect(aligned[2]?.line).toBeNull()
     expect(notationCoverage(1, 3).incomplete).toBe(true)
+  })
+
+  it("does not treat a PDF-only song as playable notation", () => {
+    expect(hasPlayableNotation(null)).toBe(false)
+    expect(hasPlayableNotation({ notation: { lines: [] } })).toBe(false)
+    expect(hasPlayableNotation({ notation: { lines: [sampleLine] } })).toBe(true)
+  })
+
+  it("keeps a PDF link only when the app already has sargam", () => {
+    expect(notationPdfHref(null, { playable: false, incomplete: true })).toBeNull()
+    expect(
+      notationPdfHref("https://prabhatasamgiita.net/notations/1.pdf", {
+        playable: true,
+        incomplete: false,
+      }),
+    ).toBe("https://prabhatasamgiita.net/notations/1.pdf")
+    expect(notationPdfHref(null, { playable: true, incomplete: true })).toContain("andromeda.php")
   })
 })

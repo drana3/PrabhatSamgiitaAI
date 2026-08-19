@@ -6,7 +6,7 @@
  *
  * User jobs:
  * 1. Learn — Lyrics & Meaning, Notation
- * 2. Media — Listen (audio), Watch (video), visually spaced from learn chips
+ * 2. Media — Listen (audio), Watch (video)
  * 3. Ask AI — AI Companion beside the song title
  * 4. Discover — Today, Festivals, Collections, Search
  * 5. Belong — Saved, Quiz, Feedback, Profile
@@ -32,6 +32,11 @@ export function isMediaSongJourneyTab(id: SongJourneyTab): boolean {
   return MEDIA_TAB_IDS.has(id)
 }
 
+/** Width of one chip set plus the same gap used between Notation and Listen, and at the loop join. */
+export function journeyMarqueeCycleWidth(setWidth: number, gap: number) {
+  return Math.max(0, setWidth) + Math.max(0, gap)
+}
+
 export function partitionSongJourneyTabs<T extends { id: SongJourneyTab }>(tabs: readonly T[]) {
   return {
     learn: tabs.filter((tab) => !isMediaSongJourneyTab(tab.id)),
@@ -48,7 +53,7 @@ export function visibleSongJourneyTabs(options: { hasVideo: boolean; hasNotation
   })
 }
 
-/** Keep the video player mounted while leaving Watch, but never take layout from Lyrics. */
+/** Keep the video player mounted while leaving Watch, at full size off-screen. */
 export function songWatchLayout(
   journey: SongJourneyTab,
   options: { hasVideo: boolean; watchPlaying: boolean },

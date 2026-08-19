@@ -6,6 +6,7 @@ import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { songPlayback } from "@/lib/playback"
+import { songCardTitle } from "@/lib/songMap"
 import { usePlayerStore } from "@/stores/playerStore"
 
 type Props = {
@@ -14,12 +15,18 @@ type Props = {
   onPress: () => void
   /** Optional queue when this row starts playback. */
   playQueue?: number[]
+  /** Matching lyric line for search results. */
+  lyricLine?: string
 }
 
-export function CompactSongRow({ song, onPress }: Props) {
+export function CompactSongRow({ song, onPress, lyricLine }: Props) {
   const showPause = usePlayerStore((s) => songPlayback(s, song).showPause)
   const isBuffering = usePlayerStore((s) => songPlayback(s, song).isBuffering)
   const pause = usePlayerStore((s) => s.pause)
+  const title = songCardTitle(song)
+  const lyrics = (lyricLine || song.originalTitle || song.lyrics || song.shortDescription || "").trim()
+  const showLyrics = Boolean(lyrics) && lyrics.toLowerCase() !== title.toLowerCase()
+  const lyricSearchRow = Boolean(lyricLine?.trim())
 
   return (
     <View style={styles.row}>
@@ -43,13 +50,19 @@ export function CompactSongRow({ song, onPress }: Props) {
         style={({ pressed }) => [styles.meta, pressed && styles.pressed]}
       >
         <Text style={styles.number}>PS {song.number}</Text>
-        <Text style={styles.title} numberOfLines={1}>
-          {song.title}
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
         </Text>
-        <Text style={styles.themes} numberOfLines={1}>
-          {song.themes.join(" · ")}
-          {isBuffering ? " · Loading…" : ""}
-        </Text>
+        {showLyrics ? (
+          <Text style={styles.lyrics} numberOfLines={3}>
+            {lyrics}
+          </Text>
+        ) : lyricSearchRow ? null : (
+          <Text style={styles.themes} numberOfLines={1}>
+            {song.themes.join(" · ")}
+            {isBuffering ? " · Loading…" : ""}
+          </Text>
+        )}
       </Pressable>
     </View>
   )
@@ -78,6 +91,12 @@ const styles = StyleSheet.create({
     ...typography.label,
     fontSize: 15,
     color: colors.textPrimary,
+  },
+  lyrics: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
   },
   themes: {
     ...typography.caption,

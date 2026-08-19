@@ -432,12 +432,11 @@ async def test_urdu_collection_returns_full_list_when_page_size_allows() -> None
 
 
 @pytest.mark.asyncio
-async def test_catalog_lyric_search_uses_snapshot_without_database() -> None:
+async def test_catalog_search_is_unchanged_for_opening_line_lookups() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 
     response = await service.search("bandhu he niye calo", mode="catalog", page_size=5)
 
     assert response.items
+    assert response.detected_intent != "lyric_search"
     assert response.items[0].song_number == 1
-    matched_by = response.items[0].matched_by
-    assert "opening_line" in matched_by or "full_text" in matched_by

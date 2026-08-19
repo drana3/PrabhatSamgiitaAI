@@ -36,6 +36,37 @@ def test_pick_meaning_source_uses_english_when_no_hindi() -> None:
     assert code == "en"
 
 
+def test_pick_meaning_source_uses_english_lyrics_when_meaning_column_is_empty() -> None:
+    song = Song(
+        id=1,
+        number=99,
+        title="Come with me",
+        language="English",
+        lyrics_original="Come with me to the land of light.\nLeave the shadows behind.",
+        first_line="Come with me to the land of light.",
+        english_meaning=None,
+        hindi_meaning=None,
+    )
+    text, code = pick_meaning_source(song, "hi")
+    assert "Come with me to the land of light." in text
+    assert code == "en"
+
+
+def test_pick_meaning_source_does_not_use_non_english_lyrics_as_meaning() -> None:
+    song = Song(
+        id=1,
+        number=1,
+        title="Bandhu",
+        language="Bengali",
+        lyrics_original="বন্ধু হে নিয়ে চলো",
+        english_meaning=None,
+        hindi_meaning=None,
+    )
+    text, code = pick_meaning_source(song, "hi")
+    assert text == ""
+    assert code == ""
+
+
 def test_build_meaning_translation_prompt_preserves_line_break_rules() -> None:
     song = Song(
         id=1,

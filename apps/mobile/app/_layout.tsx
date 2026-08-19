@@ -15,6 +15,7 @@ import { Lora_700Bold, useFonts as useLora } from "@expo-google-fonts/lora"
 import * as SplashScreen from "expo-splash-screen"
 
 import { prefetchScenicArt } from "@/lib/scenicPrefetch"
+import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
@@ -39,6 +40,7 @@ export default function RootLayout() {
     prefetchScenicArt()
     // Precompute category browse lists from catalog cache (no live search).
     void warmCategorySongsCache()
+    void hydrateOfflineAudio()
     return () => {
       clearTimeout(timer)
     }

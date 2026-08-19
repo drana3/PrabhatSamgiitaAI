@@ -1,7 +1,7 @@
 import type { SongSummary } from "@prabhat/core"
 import { describe, expect, it } from "vitest"
 
-import { parseSongNumber, songSummaryToMockSong } from "@/lib/songMap"
+import { parseSongNumber, songSummaryToMockSong, englishMeaningFromDetail } from "@/lib/songMap"
 import { todayHeadline, todayModeLabel, todaySummary } from "@/lib/today"
 
 describe("song mappers", () => {
@@ -23,6 +23,35 @@ describe("song mappers", () => {
     expect(song.id).toBe("ps-3")
     expect(song.number).toBe(3)
     expect(song.themes).toContain("Service")
+  })
+
+  it("uses the first line when the catalog title is only a song number", () => {
+    const song = songSummaryToMockSong({
+      number: 4062,
+      title: "Song 4062",
+      first_line: "DUNIÁVÁNLO, TÁKATE RAHO",
+      is_verified: true,
+    })
+    expect(song.title).toBe("DUNIÁVÁNLO, TÁKATE RAHO")
+  })
+
+  it("uses English lyrics as the meaning source when the catalog has no English meaning column", () => {
+    expect(
+      englishMeaningFromDetail({
+        language: "English",
+        lyrics_original: "Come with me to the land of light.",
+        first_line: "Come with me to the land of light.",
+        english_meaning: null,
+      }),
+    ).toBe("Come with me to the land of light.")
+    expect(
+      englishMeaningFromDetail({
+        language: "Bengali",
+        lyrics_original: "বন্ধু হে নিয়ে চলো",
+        english_meaning: null,
+        theme: "Devotion",
+      }),
+    ).toBe("Devotion")
   })
 })
 

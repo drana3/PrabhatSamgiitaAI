@@ -39,6 +39,36 @@ export function generalCompanionSuggestions(): string[] {
   ]
 }
 
+/** Unused starters stay visible after one tap; follow-ups appear once a chat has started. */
+export function remainingCompanionSuggestions(starters: string[], askedTexts: string[]): string[] {
+  const asked = new Set(
+    askedTexts.map((text) => text.trim().toLowerCase()).filter(Boolean),
+  )
+  const unused = starters.filter((item) => !asked.has(item.trim().toLowerCase()))
+  if (!asked.size) return unused
+  const extra = FOLLOW_UP_PROMPTS.filter((item) => {
+    const key = item.trim().toLowerCase()
+    return !asked.has(key) && !unused.some((starter) => starter.trim().toLowerCase() === key)
+  })
+  return [...unused, ...extra]
+}
+
+export type CompanionLeaveAction =
+  | { type: "back" }
+  | { type: "home" }
+  | { type: "song"; number: number }
+
+/** Song-grounded chat returns to that song; the AI tab itself goes Home. */
+export function companionLeaveAction(
+  songNumber: number | null,
+  canGoBack: boolean,
+): CompanionLeaveAction {
+  if (songNumber && songNumber >= 1) {
+    return canGoBack ? { type: "back" } : { type: "song", number: songNumber }
+  }
+  return { type: "home" }
+}
+
 export function formatAssistantMessage(text: string): string {
   return text
     .replace(/\nSources:\n[\s\S]*$/i, "")

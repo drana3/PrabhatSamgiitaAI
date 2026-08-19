@@ -22,7 +22,7 @@ export function LanguagePickerModal({ visible, selectedCode, onClose, onSelect }
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Dismiss" />
-        <SafeAreaView edges={["bottom"]} style={styles.sheet}>
+        <SafeAreaView edges={["bottom"]} style={styles.sheet} pointerEvents="box-none">
           <View style={styles.handle} />
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -57,6 +57,7 @@ export function LanguagePickerModal({ visible, selectedCode, onClose, onSelect }
                             onSelect(option.code)
                             onClose()
                           }}
+                          delayPressIn={0}
                           style={[styles.chip, selected && styles.chipActive]}
                         >
                           <Text style={[styles.chipNative, selected && styles.chipTextActive]}>
@@ -86,6 +87,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(20,14,10,0.35)",
   },
   sheet: {
+    zIndex: 2,
     maxHeight: "78%",
     backgroundColor: colors.background,
     borderTopLeftRadius: radius.xxl,

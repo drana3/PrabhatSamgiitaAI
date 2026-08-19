@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   fallbackReflection,
+  formatReflectionQuote,
   reflectionBookCitation,
   reflectionSourceLabel,
 } from "@/data/homeContent"
@@ -41,5 +42,11 @@ describe("daily reflection book citation", () => {
         source_date: null,
       }),
     ).toBe("Ánanda Sútram")
+  })
+
+  it("collapses line breaks so the quote can wrap as a paragraph", () => {
+    expect(formatReflectionQuote("Brahma is\nthe composite\nof Shiva")).toBe(
+      "Brahma is the composite of Shiva",
+    )
   })
 })

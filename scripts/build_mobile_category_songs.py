@@ -22,6 +22,7 @@ COLLECTIONS_PATH = ROOT / "data" / "generated" / "theme_collections.json"
 PRACTICE_PATH = ROOT / "data" / "generated" / "notation_practice.json"
 OUT_PATH = ROOT / "data" / "generated" / "mobile_category_songs.json"
 COMPLETE_SARGAM_PATH = ROOT / "data" / "generated" / "complete_sargam_songs.json"
+COLLECTION_TITLES_PATH = ROOT / "data" / "generated" / "collection_song_titles.json"
 
 # Visible only on mobile Songs-tab CategoryGrid.
 UI_CATEGORY_IDS = [
@@ -345,6 +346,30 @@ def build_entry(
     }
 
 
+def write_collection_titles(collections: list[dict], by_number: dict[int, dict]) -> None:
+    """Titles for verified collection lists so mobile rows are not 'Song 123'."""
+    numbers: set[int] = set()
+    for row in collections:
+        for raw in row.get("song_numbers") or []:
+            number = int(raw)
+            if number > 0:
+                numbers.add(number)
+    payload = {
+        str(number): {
+            "title": (by_number.get(number) or {}).get("title")
+            or (by_number.get(number) or {}).get("first_line")
+            or f"Song {number}",
+            "first_line": (by_number.get(number) or {}).get("first_line"),
+        }
+        for number in sorted(numbers)
+    }
+    COLLECTION_TITLES_PATH.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    print(f"collection titles {len(payload):3} -> {COLLECTION_TITLES_PATH}")
+
+
 def song_summaries(numbers: list[int], by_number: dict[int, dict]) -> list[dict]:
     """Titles shipped with the app so theme chips do not need the live catalog."""
     summaries = []
@@ -384,6 +409,8 @@ def main() -> None:
         entry = build_entry(search_id, collection_labels, by_label, song_text, by_number)
         searches[search_id] = entry
         print(f"ui {search_id:14} curated={entry['curated_count']:3} total={entry['total_count']:3}")
+
+    write_collection_titles(collections, by_number)
 
     complete_sargam = complete_sargam_web_payload(songs)
     COMPLETE_SARGAM_PATH.write_text(

@@ -8,6 +8,8 @@ import {
   harmoniumKeyLabel,
   isBengaliText,
   notationCoverage,
+  hasPlayableNotation,
+  notationPdfHref,
   practiceLyricSource,
   resolveLineLyrics,
   splitLyricLines,
@@ -100,5 +102,31 @@ describe("sargamDisplay (mobile)", () => {
   it("reports incomplete coverage when notation is shorter than lyrics", () => {
     expect(notationCoverage(4, 12)).toEqual({ covered: 4, total: 12, incomplete: true })
     expect(notationCoverage(8, 6).incomplete).toBe(false)
+  })
+
+  it("does not treat a PDF-only song as playable notation", () => {
+    expect(hasPlayableNotation(null)).toBe(false)
+    expect(hasPlayableNotation({ notation: { lines: [] } })).toBe(false)
+    expect(
+      hasPlayableNotation({
+        notation: {
+          lines: [{ line_number: 1, lyrics: "Come with me", measures: [{ beats: [] }] }],
+        },
+      }),
+    ).toBe(false)
+    expect(hasPlayableNotation({ notation: { lines: [sampleLine] } })).toBe(true)
+  })
+
+  it("keeps a PDF link only when the app already has sargam", () => {
+    expect(notationPdfHref(null, { playable: false, incomplete: false })).toBeNull()
+    expect(notationPdfHref("https://prabhatasamgiita.net/notations/andromeda.php", { playable: false, incomplete: true })).toBeNull()
+    expect(
+      notationPdfHref("https://prabhatasamgiita.net/notations/1.pdf", {
+        playable: true,
+        incomplete: false,
+      }),
+    ).toBe("https://prabhatasamgiita.net/notations/1.pdf")
+    expect(notationPdfHref(null, { playable: true, incomplete: true })).toContain("andromeda.php")
+    expect(notationPdfHref(null, { playable: true, incomplete: false })).toBeNull()
   })
 })

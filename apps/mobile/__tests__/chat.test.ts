@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   formatAssistantMessage,
   generalCompanionSuggestions,
+  remainingCompanionSuggestions,
+  companionLeaveAction,
   resolveExplainSongNumber,
   songCompanionSuggestions,
   validatePrompt,
@@ -36,5 +38,19 @@ describe("mobile AI chat helpers", () => {
     const prompts = generalCompanionSuggestions()
     expect(prompts.some((item) => /meditation|morning|peace/i.test(item))).toBe(true)
     expect(prompts.some((item) => item.includes("PS "))).toBe(false)
+  })
+
+  it("keeps unused suggested questions after one is asked", () => {
+    const starters = generalCompanionSuggestions()
+    const remaining = remainingCompanionSuggestions(starters, [starters[0]!])
+    expect(remaining).not.toContain(starters[0])
+    expect(remaining.length).toBeGreaterThan(0)
+    expect(starters.slice(1).every((item) => remaining.includes(item))).toBe(true)
+  })
+
+  it("sends song-grounded chat back to the song, and the AI tab home", () => {
+    expect(companionLeaveAction(2256, true)).toEqual({ type: "back" })
+    expect(companionLeaveAction(2256, false)).toEqual({ type: "song", number: 2256 })
+    expect(companionLeaveAction(null, true)).toEqual({ type: "home" })
   })
 })

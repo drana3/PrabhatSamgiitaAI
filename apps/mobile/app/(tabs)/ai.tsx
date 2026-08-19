@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { History, Plus, X } from "lucide-react-native"
+import { History, Home, Plus, X, ChevronLeft } from "lucide-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AIComposer } from "@/components/ai/AIComposer"
@@ -25,6 +25,8 @@ import type { MockSong } from "@/data/mock"
 import {
   formatAssistantMessage,
   generalCompanionSuggestions,
+  remainingCompanionSuggestions,
+  companionLeaveAction,
   resolveExplainSongNumber,
   songCompanionSuggestions,
   validatePrompt,
@@ -104,6 +106,28 @@ export default function AIScreen() {
     }
     return generalCompanionSuggestions()
   }, [companionSong, focusedSongNumber])
+
+  const askedTexts = useMemo(
+    () => messages.filter((message) => message.role === "user").map((message) => message.text),
+    [messages],
+  )
+  const visibleSuggestions = useMemo(
+    () => remainingCompanionSuggestions(suggestions, askedTexts),
+    [suggestions, askedTexts],
+  )
+
+  const leaveCompanion = () => {
+    const action = companionLeaveAction(focusedSongNumber, router.canGoBack())
+    if (action.type === "back") {
+      router.back()
+      return
+    }
+    if (action.type === "song") {
+      router.replace(href(`/song/ps-${action.number}`))
+      return
+    }
+    router.replace(href("/(tabs)"))
+  }
 
   useEffect(() => {
     if (!focusedSongNumber) {
@@ -237,17 +261,33 @@ export default function AIScreen() {
         keyboardVerticalOffset={8}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>AI Companion</Text>
-            <Text style={styles.subtitle}>
-              {mode === "signed_in"
-                ? memberBackend
-                  ? "Synced with your member chat memory"
-                  : "History saved on this device"
-                : "Guest history on this device"}
-            </Text>
+          <View style={styles.headerLead}>
+            <IconButton
+              soft
+              accessibilityLabel={groundedNumber ? "Back to song" : "Go back"}
+              onPress={leaveCompanion}
+            >
+              <ChevronLeft size={22} color={colors.textPrimary} />
+            </IconButton>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>AI Companion</Text>
+              <Text style={styles.subtitle}>
+                {mode === "signed_in"
+                  ? memberBackend
+                    ? "Synced with your member chat memory"
+                    : "History saved on this device"
+                  : "Guest history on this device"}
+              </Text>
+            </View>
           </View>
           <View style={styles.headerActions}>
+            <IconButton
+              soft
+              accessibilityLabel="Go to Home"
+              onPress={() => router.replace(href("/(tabs)"))}
+            >
+              <Home size={20} color={colors.textPrimary} />
+            </IconButton>
             <IconButton
               soft
               accessibilityLabel="New chat"
@@ -276,7 +316,7 @@ export default function AIScreen() {
               <Text style={styles.section}>
                 {groundedNumber ? `Ask about PS ${groundedNumber}` : "Suggested for you"}
               </Text>
-              {suggestions.map((item) => (
+              {visibleSuggestions.map((item) => (
                 <SuggestionRow key={item} label={item} onPress={() => void send(item)} />
               ))}
             </>
@@ -296,6 +336,16 @@ export default function AIScreen() {
                   </View>
                 )
               })}
+              {visibleSuggestions.length ? (
+                <View style={styles.followUps}>
+                  <Text style={styles.section}>
+                    {askedTexts.length ? "Ask next" : "Suggested for you"}
+                  </Text>
+                  {visibleSuggestions.map((item) => (
+                    <SuggestionRow key={item} label={item} onPress={() => void send(item)} />
+                  ))}
+                </View>
+              ) : null}
             </View>
           )}
         </ScrollView>
@@ -447,20 +497,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  headerLead: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
   },
   title: {
-    ...typography.h1,
+    ...typography.h2,
     color: colors.textPrimary,
   },
   subtitle: {
@@ -481,6 +542,9 @@ const styles = StyleSheet.create({
   thread: {
     gap: spacing.md,
     paddingTop: spacing.md,
+  },
+  followUps: {
+    marginTop: spacing.sm,
   },
   bubble: {
     borderRadius: 16,

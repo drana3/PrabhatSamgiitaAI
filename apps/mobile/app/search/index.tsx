@@ -22,23 +22,45 @@ import { collectionCount } from "@/data/collections"
 import { popularSearches, type MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import {
+  CATEGORY_RESULT_LIMIT,
   categoryCollectionPrompt,
   categoryLabel,
+  composeBrowseResults,
+  collectionFromQuery,
+  browseResultsHeading,
+  isMoodCategoryId,
   isSongCategoryId,
+  limitSearchResults,
   loadCategorySongs,
   mergeSongs,
   rememberCategorySongs,
   resolveCategoryQuery,
   seedCategoryForQuery,
+  queryMatchesBrowseCategory,
   semanticQueryForCategory,
 } from "@/lib/categorySongs"
-import { resolveSearchMode, searchResultsTitle } from "@/lib/searchMode"
+import { resolveSearchMode } from "@/lib/searchMode"
+import { isLyricCatalogQuery, searchCatalogLyrics, warmLyricSearchIndex } from "@/lib/lyricSearch"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
-const DEBOUNCE_MS = 280
+function lyricHitsToSongs(queryHits: ReturnType<typeof searchCatalogLyrics>): MockSong[] {
+  return queryHits.map((hit, index) =>
+    songSummaryToMockSong(
+      {
+        number: hit.number,
+        title: hit.firstLine || hit.title,
+        first_line: hit.snippet || hit.firstLine || hit.title,
+        is_verified: true,
+      },
+      index,
+    ),
+  )
+}
+
+const DEBOUNCE_MS = 50
 
 function shouldRunSearch(value: string) {
   const trimmed = value.trim()
@@ -56,7 +78,9 @@ export default function SearchScreen() {
   const initialCategory =
     typeof params.category === "string" && isSongCategoryId(params.category)
       ? params.category
-      : null
+      : typeof params.q === "string"
+        ? resolveCategoryQuery(params.q)
+        : null
   const initial =
     typeof params.q === "string"
       ? params.q
@@ -76,52 +100,67 @@ export default function SearchScreen() {
   const skipQueryDebounceRef = useRef(false)
   const runSearchRef = useRef<(nextQuery: string) => Promise<void>>(async () => {})
 
+  useEffect(() => {
+    warmLyricSearchIndex()
+  }, [])
+
   const browseTheme = useCallback(
     async (searchId: string, spokenQuery: string, token: number) => {
       const result = await loadCategorySongs(searchId)
       if (token !== requestId.current) return
-      if (result.songs.length) setResults(result.songs)
+      const curated = composeBrowseResults(searchId, result.songs)
+      if (curated.length) setResults(curated)
       addSearchRecent(spokenQuery || result.label)
 
       let extra: MockSong[] = []
       let reachedSearch = false
+      const moodChip = isMoodCategoryId(searchId)
 
       const catalogPrompt = categoryCollectionPrompt(searchId)
-      if (catalogPrompt) {
+      const needsTitles = curated.some(
+        (song) => !song.title || /^song\s+\d+$/i.test(song.title) || song.title === String(song.number),
+      )
+      if (catalogPrompt && (moodChip ? curated.length < CATEGORY_RESULT_LIMIT : needsTitles)) {
         try {
           const rows = await api.searchSongs(catalogPrompt, { mode: "catalog" })
           reachedSearch = true
           extra = rows.map((row, index) => songSummaryToMockSong(row, index))
           if (token !== requestId.current) return
-          if (extra.length) setResults(mergeSongs(result.songs, extra))
+          const filled = composeBrowseResults(searchId, curated, extra)
+          if (filled.length) setResults(filled)
         } catch {
-          /* still run semantic */
+          /* still run semantic if a mood list is short */
         }
       }
 
-      const semanticQueries = [
-        spokenQuery.trim(),
-        semanticQueryForCategory(searchId, spokenQuery),
-        result.label,
-      ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index)
+      if (moodChip && composeBrowseResults(searchId, curated, extra).length < CATEGORY_RESULT_LIMIT) {
+        const semanticQueries = [
+          spokenQuery.trim(),
+          semanticQueryForCategory(searchId, spokenQuery),
+          result.label,
+        ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index)
 
-      for (const nextQuery of semanticQueries) {
-        try {
-          const rows = await api.searchSongs(nextQuery, { mode: "semantic" })
-          reachedSearch = true
-          if (!rows.length) continue
-          extra = mergeSongs(
-            extra,
-            rows.map((row, index) => songSummaryToMockSong(row, index)),
-          )
-          break
-        } catch {
-          /* try the next semantic phrasing */
+        for (const nextQuery of semanticQueries) {
+          try {
+            const rows = await api.searchSongs(nextQuery, { mode: "semantic" })
+            reachedSearch = true
+            if (!rows.length) continue
+            extra = mergeSongs(
+              extra,
+              limitSearchResults(
+                rows.map((row, index) => songSummaryToMockSong(row, index)),
+                "semantic",
+              ),
+            )
+            break
+          } catch {
+            /* try the next semantic phrasing */
+          }
         }
       }
 
       if (token !== requestId.current) return
-      const merged = mergeSongs(result.songs, extra)
+      const merged = composeBrowseResults(searchId, curated, extra)
       setResults(merged)
       if (merged.length) {
         rememberCategorySongs(searchId, merged)
@@ -173,12 +212,16 @@ export default function SearchScreen() {
       .searchSongsByVoice(trimmed)
       .then((result) => {
         const extra = result.matches.map((match, index) => songSummaryToMockSong(match.song, index))
-        setResults((prev) => mergeSongs(prev, extra))
+        setResults((prev) =>
+          activeCategory
+            ? composeBrowseResults(activeCategory, prev, extra)
+            : mergeSongs(prev, extra),
+        )
       })
       .catch(() => {
         // Keep on-screen results. Do not surface "voice search unavailable".
       })
-  }, [])
+  }, [activeCategory])
 
   const voice = useVoiceSearch({
     onPartial: (text) => setQuery(text),
@@ -193,12 +236,13 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (typeof params.q !== "string") return
-    setActiveCategory(null)
-    setQuery(params.q)
-    if (shouldRunSearch(params.q)) {
-      setResults([])
+    const nextQuery = params.q
+    skipQueryDebounceRef.current = true
+    setActiveCategory(resolveCategoryQuery(nextQuery))
+    setQuery(nextQuery)
+    if (shouldRunSearch(nextQuery)) {
       setError(null)
-      setLoading(true)
+      void runSearchRef.current(nextQuery)
     }
   }, [params.q])
 
@@ -284,14 +328,24 @@ export default function SearchScreen() {
 
     const mode = resolveSearchMode(trimmed)
     const id = ++requestId.current
-    setResults([])
+    if (isLyricCatalogQuery(trimmed)) {
+      const localHits = searchCatalogLyrics(trimmed)
+      if (localHits.length) {
+        setResults(lyricHitsToSongs(localHits))
+        setError(null)
+        setLoading(false)
+        addSearchRecent(trimmed)
+        return
+      }
+    }
+    if (!chipId) setResults([])
     setLoading(true)
     setError(null)
     try {
       const rows = await api.searchSongs(trimmed, { mode })
       if (id !== requestId.current) return
       const mapped = rows.map((row, index) => songSummaryToMockSong(row, index))
-      setResults(mapped)
+      setResults(mode === "semantic" ? limitSearchResults(mapped, "semantic") : mapped)
       addSearchRecent(trimmed)
     } catch (err) {
       if (id !== requestId.current) return
@@ -309,7 +363,7 @@ export default function SearchScreen() {
       skipQueryDebounceRef.current = false
       return
     }
-    if (activeCategory && query.trim().toLowerCase() === categoryLabel(activeCategory).toLowerCase()) {
+    if (activeCategory && queryMatchesBrowseCategory(query, activeCategory)) {
       return
     }
     if (activeCategory) setActiveCategory(null)
@@ -321,10 +375,7 @@ export default function SearchScreen() {
   }, [query, runSearch, activeCategory])
 
   const showResults = Boolean(activeCategory) || query.trim().length >= 2
-  const resultsTitle = searchResultsTitle(
-    activeCategory ? categoryLabel(activeCategory) : null,
-    results.length,
-  )
+  const resultsTitle = browseResultsHeading(query, results.length, activeCategory)
 
   return (
     <ScreenContainer edges={["top", "bottom"]} padded={false} title="Explore">
@@ -365,7 +416,9 @@ export default function SearchScreen() {
             <View style={{ marginBottom: spacing.md }}>
               <View style={styles.resultHeader}>
                 <Text style={styles.section}>{resultsTitle}</Text>
-                {loading ? <ActivityIndicator color={colors.primary} /> : null}
+                {loading && results.length === 0 && !collectionFromQuery(query) ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : null}
               </View>
               {error ? <Text style={styles.error}>{error}</Text> : null}
               {!loading && results.length === 0 ? (
@@ -386,6 +439,7 @@ export default function SearchScreen() {
           renderItem={({ item }) => (
             <CompactSongRow
               song={item}
+              lyricLine={item.lyrics || item.originalTitle}
               onPress={() => {
                 // Search is presented as a modal; a card song screen can open
                 // underneath it. Dismiss first so the main player is visible.

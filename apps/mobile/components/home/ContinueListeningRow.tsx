@@ -7,6 +7,7 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { songPlayback } from "@/lib/playback"
+import { songCardTitle } from "@/lib/songMap"
 import { usePlayerStore } from "@/stores/playerStore"
 
 type Props = {
@@ -45,7 +46,7 @@ export function ContinueListeningRow({ songs, onOpen }: Props) {
             <View style={styles.meta}>
               <Text style={styles.ps}>PS {song.number}</Text>
               <Text style={styles.title} numberOfLines={1}>
-                {song.title}
+                {songCardTitle(song)}
               </Text>
               <Text style={styles.themes} numberOfLines={1}>
                 {songBuffering ? "Loading…" : song.themes.slice(0, 2).join(" · ")}

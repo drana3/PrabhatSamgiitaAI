@@ -10,6 +10,11 @@ import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
 import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
+import {
+  lyricHitsToSongs,
+  searchCatalogLyrics,
+  shouldSearchCatalogLyrics,
+} from "@/lib/lyric-search"
 import { scrollToSectionId } from "@/lib/scroll-to-section"
 import type { ExploreSearchKind } from "@/lib/special-collections"
 import { collectionSearchDisplayLabel, collectionSearchCount, exploreSearchKind, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
@@ -119,38 +124,39 @@ export function ExploreClient({
     const cached = searchCache.current.get(key)
     if (cached) {
       beginSearchState(() => {
-        setSearching(true)
+        setSearching(false)
         setActiveQuery(trimmed)
         setActiveKind(kind)
         setCompletedQuery("")
-        setSongs([])
+        setSongs(cached)
         setVoiceResult(null)
         setSearchError(null)
       })
       window.history.replaceState(null, "", exploreUrl(trimmed, kind))
-      flushSync(() => {
-        setSongs(cached)
-        setSearching(false)
-      })
       finishSearch(trimmed)
       return
     }
 
+    const keepSongs = isCollectionSearchQuery(trimmed)
     beginSearchState(() => {
       setSearching(true)
       setActiveQuery(trimmed)
       setActiveKind(kind)
       setCompletedQuery("")
-      setSongs([])
+      if (!keepSongs) setSongs([])
       setVoiceResult(null)
       setSearchError(null)
     })
     window.history.replaceState(null, "", exploreUrl(trimmed, kind))
 
     try {
+      const localHits =
+        shouldSearchCatalogLyrics(trimmed, kind) ? searchCatalogLyrics(trimmed) : []
       const results = isCompleteSargamQuery(trimmed)
         ? completeSargamSongs()
-        : await searchSongs(trimmed, { mode: kind === "catalog" ? "catalog" : "semantic" })
+        : localHits.length
+          ? lyricHitsToSongs(localHits)
+          : await searchSongs(trimmed, { mode: kind === "catalog" ? "catalog" : "semantic" })
       searchCache.current.set(key, results)
       setSongs(results)
       finishSearch(trimmed)
@@ -182,6 +188,16 @@ export function ExploreClient({
     window.history.replaceState(null, "", exploreUrl(trimmed, "semantic", { voice: true, lang: spokenLanguage }))
 
     try {
+      if (shouldSearchCatalogLyrics(trimmed, "semantic")) {
+        const localHits = searchCatalogLyrics(trimmed)
+        if (localHits.length) {
+          const songs = lyricHitsToSongs(localHits)
+          searchCache.current.set(cacheKey(trimmed, "catalog"), songs)
+          setSongs(songs)
+          finishSearch(trimmed)
+          return
+        }
+      }
       const voiceResult = await searchSongsByVoice(trimmed, spokenLanguage)
       setVoiceResult(voiceResult)
       if (voiceResult.matches.length) {
@@ -249,17 +265,22 @@ export function ExploreClient({
     : isCollectionResult || completeSargamSearch
       ? "Collection results"
       : "Catalog matches"
-  const resultsCountLabel = searching
-    ? "Searching…"
-    : searchError
-      ? "Unavailable"
-      : isCollectionResult
-        ? collectionTotal > songs.length
-          ? `${songs.length} of ${collectionTotal} shown`
-          : `${songs.length} song${songs.length === 1 ? "" : "s"}`
+  const collectionCountShown = isCollectionResult && collectionTotal !== null
+    ? !searching && songs.length > 0
+      ? songs.length
+      : collectionTotal
+    : null
+  const resultsCountLabel = collectionCountShown !== null
+    ? !searching && songs.length > 0 && collectionTotal !== null && collectionTotal > songs.length
+      ? `${songs.length} of ${collectionTotal} shown`
+      : `${collectionCountShown} song${collectionCountShown === 1 ? "" : "s"}`
+    : searching
+      ? "Searching…"
+      : searchError
+        ? "Unavailable"
         : completeSargamSearch && completeSargamTotal !== null
           ? `${songs.length} song${songs.length === 1 ? "" : "s"}`
-        : `${songs.length} shown`
+          : `${songs.length} shown`
 
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
@@ -333,7 +354,7 @@ export function ExploreClient({
         </div>
         <span className="text-xs font-semibold text-stone-500">{resultsCountLabel}</span>
       </div>
-      {searching ? (
+      {searching && songs.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-gold-500/25 bg-white p-8"><LoadingIndicator label={loadingLabel} /></div>
       ) : songs.length ? (
         <div className="mt-6 space-y-4">

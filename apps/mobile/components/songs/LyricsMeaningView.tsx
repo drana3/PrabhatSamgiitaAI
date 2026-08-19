@@ -2,7 +2,6 @@ import { useState } from "react"
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -18,14 +17,13 @@ import {
 } from "@/constants/languages"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import type { UnderstandMode } from "@/lib/lyricsMeaningPager"
 import type { SongMeaningResolution } from "@/lib/songMeanings"
 import { meaningUnavailableMessage } from "@/lib/songMeanings"
 
 const QUICK_LOCALES = localeOptions.filter((option) =>
   (quickLocaleCodes as readonly string[]).includes(option.code),
 )
-
-export type UnderstandMode = "lyrics" | "meaning"
 
 const MODES: { id: UnderstandMode; label: string }[] = [
   { id: "lyrics", label: "Lyrics" },
@@ -76,15 +74,13 @@ function LanguageRow({
 }) {
   return (
     <>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.langRow}
-      >
+      <View style={styles.langRow} collapsable={false}>
         {QUICK_LOCALES.map((option) => (
           <Pressable
             key={option.code}
             onPress={() => onSelectLanguage(option.code)}
+            delayPressIn={0}
+            hitSlop={8}
             style={[styles.langChip, language === option.code && styles.langActive]}
             accessibilityRole="button"
             accessibilityState={{ selected: language === option.code }}
@@ -100,24 +96,28 @@ function LanguageRow({
             accessibilityState={{ selected: true }}
             accessibilityLabel={`Meaning in ${localeLabel(language)}`}
             onPress={onOpenMore}
+            delayPressIn={0}
+            hitSlop={8}
           >
             <Text style={styles.langText}>{localeNativeLabel(language)}</Text>
           </Pressable>
         ) : null}
         <Pressable
           onPress={onOpenMore}
+          delayPressIn={0}
+          hitSlop={8}
           style={styles.langMore}
           accessibilityRole="button"
           accessibilityLabel="More languages"
         >
           <Text style={styles.langMoreText}>More</Text>
         </Pressable>
-      </ScrollView>
+      </View>
       <View style={styles.langHintRow}>
         {localizing ? (
           <>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.langHint}>{localeLabel(language)}</Text>
+            <Text style={styles.langHint}>Updating {localeLabel(language)}…</Text>
           </>
         ) : (
           <Text style={styles.langHint}>Meaning language · {localeLabel(language)}</Text>
@@ -159,23 +159,18 @@ export function LyricsMeaningView({
         {mode === "lyrics" ? "Original words for singing." : "Meaning in the language you choose."}
       </Text>
 
-      {mode === "lyrics" ? (
-        <View style={styles.pane}>
-          <Text style={styles.paneLabel}>Lyrics</Text>
-          <Text style={styles.lyrics}>{lyrics}</Text>
-        </View>
-      ) : (
-        <View style={styles.pane}>
-          <Text style={styles.paneLabel}>Meaning</Text>
-          <LanguageRow
-            language={language}
-            localizing={localizing}
-            onSelectLanguage={onSelectLanguage}
-            onOpenMore={() => setLanguagePickerOpen(true)}
-          />
-          <MeaningBody language={language} meaning={meaning} />
-        </View>
-      )}
+      <View style={[styles.pane, mode !== "lyrics" && styles.hiddenPane]} pointerEvents={mode === "lyrics" ? "auto" : "none"}>
+        <Text style={styles.lyrics}>{lyrics}</Text>
+      </View>
+      <View style={[styles.pane, mode !== "meaning" && styles.hiddenPane]} pointerEvents={mode === "meaning" ? "auto" : "none"}>
+        <LanguageRow
+          language={language}
+          localizing={localizing}
+          onSelectLanguage={onSelectLanguage}
+          onOpenMore={() => setLanguagePickerOpen(true)}
+        />
+        <MeaningBody language={language} meaning={meaning} />
+      </View>
 
       <LanguagePickerModal
         visible={languagePickerOpen}
@@ -203,7 +198,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
     alignItems: "center",
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: "center",
   },
   modeTabActive: {
@@ -224,15 +219,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  paneLabel: {
-    ...typography.caption,
-    color: colors.primaryDark,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: spacing.sm,
+  hiddenPane: {
+    display: "none",
   },
   langRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: spacing.sm,
     paddingBottom: spacing.sm,
@@ -242,7 +234,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: "center",
     backgroundColor: colors.surface,
   },
   langActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
@@ -252,7 +246,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.textPrimary,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: "center",
     backgroundColor: colors.textPrimary,
   },
   langMoreText: { ...typography.caption, color: colors.white, fontFamily: "Inter_600SemiBold" },

@@ -184,6 +184,13 @@ export function notationCoverage(
   }
 }
 
+/** True only when a learner can practise sargam — a PDF link is not enough. */
+export function hasPlayableNotation(notation: { notation?: { lines?: NotationLine[] } } | null | undefined) {
+  const lines = notation?.notation?.lines
+  if (!lines?.length) return false
+  return lines.some((line) => lineNotes(line).length > 0)
+}
+
 export function resolveLineLyrics(
   notationLine: NotationLine,
   lineIndex: number,
@@ -222,12 +229,21 @@ export function distributeNotesToWords(
 
 export const ANDROMEDA_ARCHIVE = "https://prabhatasamgiita.net/notations/andromeda.php"
 
-export function learnerNotationPdfUrl(url?: string | null): string {
+export function learnerNotationPdfUrl(url?: string | null): string | null {
   const trimmed = url?.trim() ?? ""
-  if (trimmed && !/sarkarverse\.org/i.test(trimmed) && /prabhatasamgiita\.net/i.test(trimmed)) {
-    return trimmed
-  }
-  return ANDROMEDA_ARCHIVE
+  if (!trimmed || /sarkarverse\.org/i.test(trimmed)) return null
+  if (!/prabhatasamgiita\.net/i.test(trimmed)) return null
+  if (!/\.pdf(?:[?#]|$)/i.test(trimmed)) return null
+  return trimmed
+}
+
+/** PDF only when the app already has sargam. Semi/incomplete drafts may fall back to the archive. */
+export function notationPdfHref(
+  sourceUrl: string | null | undefined,
+  options: { playable: boolean; incomplete: boolean },
+): string | null {
+  if (!options.playable) return null
+  return learnerNotationPdfUrl(sourceUrl) ?? (options.incomplete ? ANDROMEDA_ARCHIVE : null)
 }
 
 export const HINDI_SARGAM_LEGEND =

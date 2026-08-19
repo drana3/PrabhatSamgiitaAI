@@ -17,8 +17,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "8",
-      "icon": "./assets/icon.png"
+      "buildNumber": "13",
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,12 +31,19 @@
       "package": "net.prabhatasamgiita.ai",
       "versionCode": 2,
       "icon": "./assets/icon.png",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
+      "expo-file-system",
       "expo-web-browser",
+      "expo-av",
       [
         "@react-native-google-signin/google-signin",
         {

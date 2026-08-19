@@ -104,11 +104,24 @@ class MeaningSourceBundle:
     transliteration: str | None
 
 
+def is_english_song_language(value: str | None) -> bool:
+    token = (value or "").casefold()
+    return "english" in token or token in {"en", "eng"}
+
+
 def meaning_source_bundle(song: Song) -> MeaningSourceBundle:
     metadata = song.metadata_json or {}
     purport = metadata.get("purport")
+    english = (song.english_meaning or "").strip() or None
+    if not english and is_english_song_language(song.language):
+        english = (
+            (song.lyrics_original or "").strip()
+            or (song.first_line or "").strip()
+            or (song.title or "").strip()
+            or None
+        )
     return MeaningSourceBundle(
-        english=(song.english_meaning or "").strip() or None,
+        english=english,
         hindi=(song.hindi_meaning or "").strip() or None,
         purport=purport.strip() if isinstance(purport, str) and purport.strip() else None,
         canonical_source_url=(song.canonical_source_url or "").strip() or None,

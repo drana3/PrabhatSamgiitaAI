@@ -11,9 +11,10 @@ import {
   buildDisplayNotes,
   distributeNotesToWords,
   formatPracticeSequence,
+  hasPlayableNotation,
   HINDI_SARGAM_LEGEND,
-  learnerNotationPdfUrl,
   notationCoverage,
+  notationPdfHref,
   resolveLineLyrics,
   splitLyricLines,
   type NotationLine,
@@ -27,11 +28,13 @@ function LinePracticeCard({
   lineIndex,
   songLyricLines,
   originalLyricLines = [],
+  hasPdfLink = false,
 }: {
   line: NotationLine | null
   lineIndex: number
   songLyricLines: string[]
   originalLyricLines?: string[]
+  hasPdfLink?: boolean
 }) {
   const notes = line ? buildDisplayNotes(line) : []
   const lyrics = line
@@ -93,7 +96,8 @@ function LinePracticeCard({
         </View>
       ) : (
         <Text style={styles.missing}>
-          इस पंक्ति का सारगम अभ्यास ड्राफ्ट में नहीं है — पूरी धुन के लिए स्रोत PDF देखें.
+          इस पंक्ति का सारगम अभ्यास ड्राफ्ट में नहीं है
+          {hasPdfLink ? " — पूरी धुन के लिए स्रोत PDF देखें." : "।"}
         </Text>
       )}
     </View>
@@ -123,7 +127,11 @@ export function NotationPractice({
   const [error, setError] = useState<string | null>(null)
   const songLyricLines = useMemo(() => splitLyricLines(lyricText), [lyricText])
   const originalLyricLines = useMemo(() => splitLyricLines(originalLyricText), [originalLyricText])
-  const pdfUrl = learnerNotationPdfUrl(sourceUrl)
+  const playable = hasPlayableNotation(notation)
+  const incomplete = notation
+    ? notationCoverage(notation.notation.lines.length, songLyricLines.length).incomplete
+    : false
+  const pdfUrl = notationPdfHref(sourceUrl, { playable, incomplete })
 
   useEffect(() => {
     let active = true
@@ -133,30 +141,34 @@ export function NotationPractice({
       if (!active) return
       setNotation(next)
       setLoading(false)
-      if (!next && !pdfUrl) setError("Notation is not available for this song yet.")
+      if (!next) setError("Notation is not available for this song yet.")
     })
     return () => {
       active = false
     }
-  }, [songNumber, tonic, pdfUrl])
+  }, [songNumber, tonic])
 
   return (
     <View style={embedded ? styles.embedded : styles.card}>
       {embedded ? null : (
         <>
           <Text style={styles.title}>Practise on harmonium</Text>
-          <Text style={styles.lead}>{HINDI_SARGAM_LEGEND}</Text>
+          <Text style={styles.lead}>
+            {pdfUrl ? HINDI_SARGAM_LEGEND : "Practice the sargam available in the app."}
+          </Text>
         </>
       )}
 
-      <Pressable
-        accessibilityRole="link"
-        accessibilityLabel="Open notation PDF on prabhatasamgiita.net"
-        onPress={() => void Linking.openURL(pdfUrl)}
-        style={styles.pdfButton}
-      >
-        <Text style={styles.pdfButtonText}>पूरी स्वरलिपि PDF · Open Andromeda PDF</Text>
-      </Pressable>
+      {pdfUrl && !loading ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open notation PDF on prabhatasamgiita.net"
+          onPress={() => void Linking.openURL(pdfUrl)}
+          style={styles.pdfButton}
+        >
+          <Text style={styles.pdfButtonText}>पूरी स्वरलिपि PDF · Open Andromeda PDF</Text>
+        </Pressable>
+      ) : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonicRow}>
         {TONICS.map((value) => (
@@ -197,7 +209,8 @@ export function NotationPractice({
             return (
               <Text style={styles.coverage}>
                 अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का सारगम है (अक्सर PDF के पहले
-                पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के सूचीबद्ध रहती हैं — पूरी धुन के लिए PDF खोलें।
+                पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के सूचीबद्ध रहती हैं
+                {pdfUrl ? " — पूरी धुन के लिए PDF खोलें।" : "।"}
               </Text>
             )
           })()}
@@ -211,14 +224,11 @@ export function NotationPractice({
                 lineIndex={lineIndex}
                 songLyricLines={songLyricLines}
                 originalLyricLines={originalLyricLines}
+                hasPdfLink={Boolean(pdfUrl)}
               />
             ))
           )}
         </>
-      ) : null}
-
-      {!notation && !loading && pdfUrl ? (
-        <Text style={styles.missing}>{HINDI_SARGAM_LEGEND}</Text>
       ) : null}
     </View>
   )

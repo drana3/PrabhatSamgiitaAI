@@ -4,6 +4,7 @@ import { create } from "zustand"
 import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { isSameSong } from "@/lib/playback"
+import { resolvePlaybackUri } from "@/lib/offlineAudio"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -86,7 +87,7 @@ async function setPlaybackMode() {
   await Audio.setAudioModeAsync({
     playsInSilentModeIOS: true,
     allowsRecordingIOS: false,
-    staysActiveInBackground: false,
+    staysActiveInBackground: true,
     shouldDuckAndroid: true,
     playThroughEarpieceAndroid: false,
   })
@@ -154,13 +155,18 @@ async function destroySound() {
 
 /** Touch the CDN so TLS + first bytes are ready before AVPlayer opens the stream. */
 async function warmNetwork(uri: string) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 1200)
   try {
     await fetch(uri, {
       method: "GET",
       headers: { Range: "bytes=0-2047" },
+      signal: controller.signal,
     })
   } catch {
-    /* ignore — best-effort only */
+    /* ignore — best-effort only; never block playback */
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -232,9 +238,8 @@ function prefetchNextInQueue(currentNumber: number, queue: number[]) {
       const ready = await hydrate(stub)
       const uri = ready.audioUrl?.trim()
       if (!uri) return
-      await warmNetwork(uri)
-      // Only build a paused Sound when the current player is idle.
-      if (!getSound()) await preloadSound(nextNumber, uri)
+      bag.__psMediaCache.set(nextNumber, ready)
+      // Do not fetch the next MP3 until the user plays or saves it.
     } catch {
       /* ignore */
     }
@@ -283,7 +288,7 @@ function bindStatus(owner: Audio.Sound) {
 
     usePlayerStore.setState({
       isPlaying: status.isPlaying || (wantPlaying && Boolean(status.isBuffering)),
-      isBuffering: Boolean(status.isBuffering) || (wantPlaying && !status.isPlaying),
+      isBuffering: Boolean(status.isBuffering) && !status.isPlaying,
       position: Math.floor((status.positionMillis || 0) / 1000),
       duration: Math.max(1, Math.floor((status.durationMillis || 0) / 1000)),
       hasAudio: true,
@@ -337,8 +342,8 @@ async function attachSound(
   song: MockSong,
   options: { shouldPlay: boolean; positionMillis?: number; id: number; token: number },
 ) {
-  const uri = song.audioUrl?.trim()
-  if (!uri) {
+  const source = await resolvePlaybackUri(song.number, song.audioUrl)
+  if (!source) {
     usePlayerStore.setState({
       hasAudio: false,
       isPlaying: false,
@@ -347,6 +352,7 @@ async function attachSound(
     })
     return
   }
+  const { uri } = source
 
   await setPlaybackMode()
   if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) return
@@ -399,10 +405,11 @@ async function attachSound(
     }
   }
 
-  // Warm CDN while tearing down the previous track.
-  const networkWarm = warmNetwork(uri)
+  // Warm CDN in parallel for remote streams only. Local files skip the network.
+  if (!source.local && !uri.startsWith("file:")) {
+    void warmNetwork(uri)
+  }
   await destroySound()
-  await networkWarm
   if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) return
 
   const created = await Audio.Sound.createAsync(
@@ -471,6 +478,19 @@ async function openAndPlay(song: MockSong, queue: number[] | undefined, id: numb
     hasAudio: Boolean(song.audioUrl),
     audioError: null,
   })
+
+  // Play a downloaded file immediately — no network needed.
+  const offline = await resolvePlaybackUri(song.number, song.audioUrl)
+  if (offline?.local) {
+    bag.__psMediaCache.set(song.number, song)
+    await attachSound(song, {
+      shouldPlay: true,
+      positionMillis: 0,
+      id,
+      token: bag.__psPlayToken,
+    })
+    return
+  }
 
   // If we already have a stream URL, start audio immediately (don't block on metadata merge).
   if (song.mediaHydrated && song.audioUrl?.trim()) {
@@ -544,15 +564,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       try {
         const ready =
           song.mediaHydrated && song.audioUrl?.trim() ? song : await hydrate(song)
-        const uri = ready.audioUrl?.trim()
-        if (!uri) return
-        bag.__psMediaCache.set(ready.number, ready)
-        // Always safe: HTTP warm does not interrupt AVPlayer.
-        await warmNetwork(uri)
-        // Never create a second Sound while one is playing — that stops streams mid-song on iOS.
-        if (!getSound()) {
-          await enqueueAudio(() => preloadSound(ready.number, uri))
-        }
+        if (ready.audioUrl?.trim()) bag.__psMediaCache.set(ready.number, ready)
+        // Metadata only. Do not fetch/save the MP3 until the user taps Play or Save.
       } catch {
         /* ignore */
       }

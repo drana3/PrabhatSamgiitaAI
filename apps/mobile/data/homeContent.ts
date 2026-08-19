@@ -18,6 +18,11 @@ export function reflectionSourceLabel(reflection: ReflectionQuote) {
   return `Source: ${reflectionBookCitation(reflection)}`
 }
 
+/** Keep the quote as a centered paragraph, not one word per line. */
+export function formatReflectionQuote(text: string) {
+  return text.replace(/\s+/g, " ").trim()
+}
+
 export const communityVoices = [
   {
     id: "1",

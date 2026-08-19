@@ -73,6 +73,15 @@ vi.mock("@/stores/preferencesStore", () => ({
   },
 }))
 
+vi.mock("@/lib/offlineAudio", () => ({
+  resolvePlaybackUri: vi.fn(async (_number: number, remoteUrl?: string | null) =>
+    remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
+  ),
+  useOfflineAudioStore: {
+    getState: () => ({ files: {} }),
+  },
+}))
+
 const song = {
   id: "ps-1",
   number: 1,
@@ -141,6 +150,23 @@ describe("playerStore song-page handoff", () => {
     expect(usePlayerStore.getState().queue).toEqual([1, 2])
   })
 
+  it("configures the audio session to keep playing when the screen locks", async () => {
+    const sound = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync.mockResolvedValue({ sound })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(song as never)
+    await vi.waitFor(() => expect(setAudioModeAsync).toHaveBeenCalled())
+    expect(setAudioModeAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ staysActiveInBackground: true, playsInSilentModeIOS: true }),
+    )
+  })
+
   it("pause after syncCurrentSong stops the same Sound instance", async () => {
     const sound = createMockSound({
       isLoaded: true,
@@ -202,5 +228,52 @@ describe("playerStore song-page handoff", () => {
     await vi.waitFor(() => expect(preloaded.playAsync).toHaveBeenCalled())
     expect(createAsync).not.toHaveBeenCalled()
     expect(usePlayerStore.getState().isPlaying).toBe(true)
+  })
+
+  it("does not stay on Starting stream when the player is loaded but idle", async () => {
+    const sound = createMockSound({
+      isLoaded: true,
+      isPlaying: false,
+      isBuffering: false,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync.mockResolvedValue({ sound })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(song as never)
+    await vi.waitFor(() => expect(sound.setOnPlaybackStatusUpdate).toHaveBeenCalled())
+
+    const onStatus = sound.setOnPlaybackStatusUpdate.mock.calls.at(-1)?.[0] as (status: object) => void
+    onStatus({
+      isLoaded: true,
+      isPlaying: false,
+      isBuffering: false,
+      positionMillis: 0,
+      durationMillis: 120_000,
+      didJustFinish: false,
+    })
+    expect(usePlayerStore.getState().isBuffering).toBe(false)
+  })
+
+  it("opens the local file instead of the remote stream", async () => {
+    const { resolvePlaybackUri } = await import("@/lib/offlineAudio")
+    vi.mocked(resolvePlaybackUri).mockResolvedValue({
+      uri: "file:///docs/offline-audio/1.mp3",
+      local: true,
+    })
+    const sound = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      isBuffering: false,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync.mockResolvedValue({ sound })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(song as never)
+    await vi.waitFor(() => expect(createAsync).toHaveBeenCalled())
+    expect(createAsync.mock.calls[0]?.[0]).toEqual({ uri: "file:///docs/offline-audio/1.mp3" })
   })
 })

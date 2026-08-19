@@ -32,12 +32,18 @@ import {
   categoryLabel,
   isCatalogSearchQuery,
   isSongCategoryId,
+  composeBrowseResults,
+  composeCategoryResults,
+  limitSearchResults,
+  overlaySongTitles,
   loadCategorySongs,
   mergeSongs,
   prefetchCategorySongs,
   rememberCategorySongs,
   resetCategorySongsMemory,
   resolveCategoryQuery,
+  queryMatchesBrowseCategory,
+  browseResultsHeading,
   seedCategoryForQuery,
   semanticQueryForCategory,
   songNumbersForCategory,
@@ -63,11 +69,14 @@ describe("categorySongs", () => {
     expect(resolveCategoryQuery("bandhu he")).toBeNull()
   })
 
-  it("seeds a theme list for feeling phrases", () => {
+  it("does not treat feeling sentences as a category chip", () => {
     expect(resolveCategoryQuery("i am feeling stressful")).toBeNull()
-    expect(seedCategoryForQuery("i am feeling stressful")).toBe("peace")
+    expect(seedCategoryForQuery("i am feeling stressful")).toBeNull()
+    expect(resolveCategoryQuery("songs for peace of mind")).toBeNull()
+    expect(resolveCategoryQuery("help me find guru songs")).toBeNull()
     expect(seedCategoryForQuery("Guru")).toBe("guru")
     expect(seedCategoryForQuery("Hindi")).toBe("hindi")
+    expect(seedCategoryForQuery("devotional songs")).toBe("devotional")
   })
 
   it("puts precomputed songs first, then joins extra matches", () => {
@@ -79,11 +88,19 @@ describe("categorySongs", () => {
     expect(mergeSongs(primary, extra).map((row) => row.number)).toEqual(["1", "2"])
   })
 
-  it("does not intercept catalog search queries", () => {
+  it("does not intercept song-number catalog search", () => {
     expect(isCatalogSearchQuery("274")).toBe(true)
     expect(isCatalogSearchQuery("Search Prabhat Samgiita for Hindi Songs")).toBe(true)
     expect(resolveCategoryQuery("274")).toBeNull()
-    expect(resolveCategoryQuery("Search Prabhat Samgiita for Hindi Songs")).toBeNull()
+    expect(resolveCategoryQuery("Search Prabhat Samgiita for Hindi Songs")).toBe("hindi")
+    expect(queryMatchesBrowseCategory("Search Prabhat Samgiita for Hindi Songs", "hindi")).toBe(true)
+    expect(queryMatchesBrowseCategory("Hindi", "hindi")).toBe(true)
+    expect(queryMatchesBrowseCategory("bandhu he", "hindi")).toBe(false)
+    expect(resolveCategoryQuery("Search Prabhat Samgiita for River Songs")).toBe("River Songs")
+    const hindiPrompt = "Search Prabhat Samgiita for Hindi Songs"
+    expect(browseResultsHeading(hindiPrompt, 0)).toBe(browseResultsHeading(hindiPrompt, 99))
+    expect(browseResultsHeading(hindiPrompt, 0)).toMatch(/^Hindi · \d+$/)
+    expect(browseResultsHeading(hindiPrompt, 0)).not.toMatch(/^Songs/)
   })
 
   it("ships prepopulated numbers for mood categories and collection chips", () => {
@@ -158,5 +175,60 @@ describe("categorySongs", () => {
       { id: "ps-88", number: 88, title: "Duplicate evening" },
     ] as never[]
     expect(mergeSongs(category, semantic).map((row) => row.number)).toEqual([88, 90, 12])
+  })
+
+  it("shows 10 curated category songs and does not dump semantic extras on top", () => {
+    const curated = Array.from({ length: 40 }, (_, index) => ({
+      id: `ps-${index + 1}`,
+      number: index + 1,
+      title: `Song ${index + 1}`,
+    })) as never[]
+    const semantic = [{ id: "ps-999", number: 999, title: "Semantic" }] as never[]
+    const shown = composeCategoryResults(curated, semantic)
+    expect(shown).toHaveLength(10)
+    expect(shown.map((row) => row.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+  })
+
+  it("keeps every collection song and shows first-line titles", () => {
+    const hindiNumbers = songNumbersForCategory("hindi")
+    const rows = songsForCategoryFromCatalog("hindi", [])
+    expect(rows.length).toBe(hindiNumbers.length)
+    expect(rows.length).toBeGreaterThan(10)
+    expect(rows[0]?.title).toBeTruthy()
+    expect(rows[0]?.title).not.toMatch(/^Song\s+\d+$/)
+    const shown = composeBrowseResults(
+      "hindi",
+      rows.map((row, index) => ({ id: `ps-${row.number}`, number: row.number, title: row.title }) as never),
+    )
+    expect(shown).toHaveLength(hindiNumbers.length)
+    expect(composeBrowseResults("evening", Array.from({ length: 40 }, (_, index) => ({
+      id: `ps-${index + 1}`,
+      number: index + 1,
+      title: `Song ${index + 1}`,
+    })) as never[])).toHaveLength(10)
+  })
+
+  it("caps mood semantic fill at 5; catalog helper stays at 10", () => {
+    const rows = Array.from({ length: 20 }, (_, index) => ({
+      id: `ps-${index + 1}`,
+      number: index + 1,
+    })) as never[]
+    expect(limitSearchResults(rows, "semantic")).toHaveLength(5)
+    expect(limitSearchResults(rows, "catalog")).toHaveLength(10)
+  })
+
+  it("does not append extra songs onto a named collection", () => {
+    const hindi = [
+      { id: "ps-25", number: 25, title: "Song 25" },
+      { id: "ps-4062", number: 4062, title: "Song 4062" },
+    ] as never[]
+    const extra = [
+      { id: "ps-25", number: 25, title: "DUNIÁVÁNLO, TÁKATE RAHO" },
+      { id: "ps-1", number: 1, title: "Not in Hindi" },
+    ] as never[]
+    const shown = composeBrowseResults("hindi", hindi, extra)
+    expect(shown.map((row) => row.number)).toEqual([25, 4062])
+    expect(shown[0]?.title).toBe("DUNIÁVÁNLO, TÁKATE RAHO")
+    expect(overlaySongTitles(hindi, extra).map((row) => row.number)).toEqual([25, 4062])
   })
 })

@@ -12,8 +12,9 @@ import { SongMobileNav } from "@/components/song-mobile-nav"
 import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
 import { fetchNotation, fetchSong } from "@/lib/api"
+import { englishMeaningText } from "@/lib/song-meanings"
 import { localeLabel } from "@/lib/languages"
-import { splitLyricLines, practiceLyricSource } from "@/lib/sargam-display"
+import { splitLyricLines, practiceLyricSource, hasPlayableNotation } from "@/lib/sargam-display"
 import { songPagePath } from "@/lib/song-path"
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
@@ -31,8 +32,8 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
   const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
   const hasLyrics = Boolean(lyrics)
-  const hasMeaning = Boolean(song.english_meaning || song.hindi_meaning)
-  const hasNotation = Boolean(notation)
+  const hasMeaning = Boolean(englishMeaningText(song) || song.hindi_meaning)
+  const hasNotation = hasPlayableNotation(notation)
   const details = [
     ["Theme", song.theme],
     ["Occasion", song.occasion],

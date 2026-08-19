@@ -9,6 +9,7 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import {
   fallbackReflection,
+  formatReflectionQuote,
   reflectionBookCitation,
   reflectionSourceLabel,
 } from "@/data/homeContent"
@@ -34,7 +35,7 @@ export function DailyReflectionCard() {
     <View style={styles.reflection}>
       <Text style={styles.eyebrow}>Today’s reflection</Text>
       <Text style={styles.context}>{reflection.context_label}</Text>
-      <Text style={styles.quote}>“{reflection.quote_text}”</Text>
+      <Text style={styles.quote}>“{formatReflectionQuote(reflection.quote_text)}”</Text>
       <Text style={styles.attr}>— {reflection.attribution}</Text>
       <Pressable
         accessibilityRole="link"
@@ -81,7 +82,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: "center",
     ...softShadow(1),
   },
   eyebrow: {
@@ -89,6 +89,8 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     textTransform: "uppercase",
     letterSpacing: 0.8,
+    textAlign: "center",
+    width: "100%",
   },
   context: {
     ...typography.caption,
@@ -97,6 +99,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: spacing.sm,
     fontSize: 10,
+    textAlign: "center",
+    width: "100%",
   },
   quote: {
     fontFamily: "Lora_700Bold",
@@ -106,14 +110,17 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     textAlign: "center",
     fontStyle: "italic",
+    width: "100%",
+    alignSelf: "stretch",
   },
   attr: {
     ...typography.label,
     color: colors.textPrimary,
     marginTop: spacing.md,
     textAlign: "center",
+    width: "100%",
   },
-  sourceLink: { marginTop: spacing.xs },
+  sourceLink: { marginTop: spacing.xs, alignSelf: "center" },
   source: {
     ...typography.caption,
     color: colors.primaryDark,

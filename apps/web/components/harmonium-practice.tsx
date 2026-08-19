@@ -11,9 +11,10 @@ import {
   buildDisplayNotes,
   distributeNotesToWords,
   formatPracticeSequence,
+  hasPlayableNotation,
   HINDI_SARGAM_LEGEND,
-  learnerNotationPdfUrl,
   notationCoverage,
+  notationPdfHref,
   resolveLineLyrics,
   toDevanagariSwara,
   toLatinSwara,
@@ -35,7 +36,7 @@ export function HarmoniumPractice({
   songNumber,
   initialNotation,
   sourceUrl,
-  sourceStatus,
+  sourceStatus: _sourceStatus,
   songLyricLines = [],
   originalLyricLines = [],
 }: {
@@ -50,7 +51,14 @@ export function HarmoniumPractice({
   const [tonic, setTonic] = useState(initialNotation?.target_scale || "C")
   const [system, setSystem] = useState<"guide" | "keys" | "sargam">("sargam")
   const [loading, setLoading] = useState(false)
-  const pdfHref = learnerNotationPdfUrl(sourceUrl)
+  const playable = hasPlayableNotation(notation)
+  const incomplete = notation
+    ? notationCoverage(
+        notation.notation.lines.length,
+        Math.max(songLyricLines.length, originalLyricLines.length),
+      ).incomplete
+    : false
+  const pdfHref = notationPdfHref(sourceUrl, { playable, incomplete })
 
   async function changeTonic(value: string) {
     setTonic(value)
@@ -98,7 +106,9 @@ export function HarmoniumPractice({
         <div>
           <p className="eyebrow">Optional learning studio</p>
           <h2 className="mt-2 font-serif text-3xl text-navy-950">Practise on harmonium</h2>
-          <p className="mt-2 text-sm text-stone-600">{HINDI_SARGAM_LEGEND}</p>
+          <p className="mt-2 text-sm text-stone-600">
+            {pdfHref ? HINDI_SARGAM_LEGEND : "Practice the sargam available in the app."}
+          </p>
         </div>
         <span
           aria-hidden="true"
@@ -108,7 +118,7 @@ export function HarmoniumPractice({
         </span>
       </summary>
 
-      {notation ? (
+      {hasPlayableNotation(notation) ? (
         <div className="border-t border-gold-500/20 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-stone-600">
@@ -163,7 +173,9 @@ export function HarmoniumPractice({
                 <h3 className="mt-2 font-serif text-2xl text-navy-950">
                   {system === "sargam" ? "पंक्ति · हिंदी सारगम · Keys" : "Lyric · Harmonium keys"}
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-stone-600">{HINDI_SARGAM_LEGEND}</p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  {pdfHref ? HINDI_SARGAM_LEGEND : "Practice the sargam available in the app."}
+                </p>
                 {(() => {
                   const coverage = notationCoverage(
                     notation.notation.lines.length,
@@ -174,11 +186,17 @@ export function HarmoniumPractice({
                     <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
                       अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का हिंदी सारगम है (अक्सर
                       Andromeda PDF के पहले पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के रहती हैं
-                      {" · "}
-                      <a href={pdfHref} target="_blank" rel="noreferrer" className="font-semibold underline">
-                        पूरी स्वरलिपि PDF खोलें
-                      </a>
-                      .
+                      {pdfHref ? (
+                        <>
+                          {" · "}
+                          <a href={pdfHref} target="_blank" rel="noreferrer" className="font-semibold underline">
+                            पूरी स्वरलिपि PDF खोलें
+                          </a>
+                          .
+                        </>
+                      ) : (
+                        "."
+                      )}
                     </p>
                   )
                 })()}
@@ -195,24 +213,14 @@ export function HarmoniumPractice({
                   songLyricLines={songLyricLines}
                   originalLyricLines={originalLyricLines}
                   onHear={() => hearLine(lineIndex)}
+                  hasPdfLink={Boolean(pdfHref)}
                 />
               ))}
             </div>
           )}
           <PracticeCoach notation={notation} lyricLines={songLyricLines} />
         </div>
-      ) : (
-        <div className="border-t border-gold-500/20 p-5 sm:p-6">
-          <h3 className="font-serif text-xl font-semibold text-navy-950">Andromeda notation PDF available</h3>
-          <p className="mt-2 text-sm leading-6 text-stone-600">{HINDI_SARGAM_LEGEND}</p>
-          <a href={pdfHref} target="_blank" rel="noreferrer" className="outline-button mt-4">
-            पूरी स्वरलिपि PDF · Open Andromeda PDF
-          </a>
-          {sourceStatus ? (
-            <p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-stone-500">Source status: {sourceStatus}</p>
-          ) : null}
-        </div>
-      )}
+      ) : null}
     </details>
   )
 }
@@ -224,6 +232,7 @@ function LinePracticeCard({
   songLyricLines,
   originalLyricLines,
   onHear,
+  hasPdfLink = false,
 }: {
   line: NotationLine | null
   lineIndex: number
@@ -231,6 +240,7 @@ function LinePracticeCard({
   songLyricLines: string[]
   originalLyricLines: string[]
   onHear: () => void
+  hasPdfLink?: boolean
 }) {
   const notes = line ? buildDisplayNotes(line) : []
   const hasNotes = notes.length > 0
@@ -321,7 +331,9 @@ function LinePracticeCard({
         </div>
       ) : (
         <p className="px-4 py-4 text-sm text-stone-500 sm:px-5">
-          Notation for this lyric line is not in the practice draft yet — use the source PDF for the full melody.
+          {hasPdfLink
+            ? "Notation for this lyric line is not in the practice draft yet — use the source PDF for the full melody."
+            : "Notation for this lyric line is not in the practice draft yet."}
         </p>
       )}
 

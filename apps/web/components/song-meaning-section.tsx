@@ -9,6 +9,7 @@ import { localeLabel } from "@/lib/languages"
 import {
   hasStoredMeaningForLanguage,
   storedMeaningForLanguage,
+  englishMeaningText,
   type SongMeaningSource,
 } from "@/lib/song-meanings"
 
@@ -33,7 +34,7 @@ function selectedMeaningForLanguage(
   language: string,
   localizedMeaning: string | null,
 ): string | null {
-  const english = song.english_meaning?.trim() || ""
+  const english = englishMeaningText(song)
   if (language === "en") return english || null
 
   const stored = storedMeaningForLanguage(song, language)?.trim()
@@ -94,7 +95,7 @@ export function SongMeaningSection({
       .then((result) => {
         if (currentRequest !== requestId.current) return
         const meaning = result?.localized_meaning?.trim() || null
-        const english = song.english_meaning?.trim() || ""
+        const english = englishMeaningText(song)
         const usable = meaning && meaning !== english ? meaning : null
         setLocalizedMeaning(usable)
         if (!usable) {
@@ -113,9 +114,8 @@ export function SongMeaningSection({
   }, [language, song, songNumber])
 
   const selectedMeaning = selectedMeaningForLanguage(song, language, localizedMeaning)
-  const hasMeaning = Boolean(
-    selectedMeaning || song.english_meaning || song.hindi_meaning,
-  )
+  const english = englishMeaningText(song)
+  const hasMeaning = Boolean(selectedMeaning || english || song.hindi_meaning)
 
   if (!hasMeaning) return null
 
@@ -142,8 +142,8 @@ export function SongMeaningSection({
       {language !== "en" && selectedMeaning ? (
         <MeaningBlock label={meaningLabel} value={selectedMeaning} />
       ) : null}
-      <MeaningBlock label="English" value={song.english_meaning} />
-      {language !== "hi" && !song.english_meaning ? (
+      <MeaningBlock label="English" value={english} />
+      {language !== "hi" && !english ? (
         <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
       ) : null}
     </section>

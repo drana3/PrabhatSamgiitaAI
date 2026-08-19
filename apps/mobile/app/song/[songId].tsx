@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native"
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native"
 import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { ChevronLeft, Heart, Pause, Play, Share2, Sparkles } from "lucide-react-native"
@@ -23,9 +33,10 @@ import { resolveSongBundle, peekResolvedSong } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
 import { parseSongNumber, storedMeaningForLanguage } from "@/lib/songMap"
-import { practiceLyricSource } from "@/lib/sargamDisplay"
+import { localeLabel } from "@/constants/languages"
+import { practiceLyricSource, hasPlayableNotation } from "@/lib/sargamDisplay"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
-import { fetchNotationCached } from "@/lib/songCache"
+import { fetchNotationCached, peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -34,6 +45,7 @@ import { href } from "@/utils/href"
 export default function SongDetailScreen() {
   const { songId, tab: tabParam } = useLocalSearchParams<{ songId: string; tab?: string }>()
   const router = useRouter()
+  const { width: windowWidth } = useWindowDimensions()
   const [song, setSong] = useState<MockSong | null>(null)
   const [related, setRelated] = useState<MockSong[]>([])
   const [loadingSong, setLoadingSong] = useState(true)
@@ -46,6 +58,9 @@ export default function SongDetailScreen() {
   const setQueue = usePlayerStore((s) => s.setQueue)
   const showPause = usePlayerStore((s) =>
     song ? songPlayback(s, song).showPause : false,
+  )
+  const isCurrent = usePlayerStore((s) =>
+    song ? songPlayback(s, song).isCurrent : false,
   )
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
@@ -60,17 +75,40 @@ export default function SongDetailScreen() {
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
   const lastAiOpenAt = useRef(0)
+  const meaningCache = useRef<Record<string, { meaning: string | null; title: string | null }>>({})
 
   const selectLanguage = useCallback(
     (code: string) => {
       setLanguage(code)
-      setLocalizedMeaning(null)
-      setLocalizedTitle(null)
       if (!song) {
         setLocalizing(false)
         return
       }
-      if (code === "en" || storedMeaningForLanguage(song, code)) {
+      if (code === "en") {
+        setLocalizedMeaning(null)
+        setLocalizedTitle(null)
+        setLocalizing(false)
+        return
+      }
+      const stored = storedMeaningForLanguage(song, code)
+      if (stored) {
+        setLocalizedMeaning(stored)
+        setLocalizedTitle(null)
+        setLocalizing(false)
+        return
+      }
+      const remembered = meaningCache.current[code]
+      if (remembered) {
+        setLocalizedMeaning(remembered.meaning)
+        setLocalizedTitle(remembered.title)
+        setLocalizing(false)
+        return
+      }
+      const peeked = peekSongLocalization(song.number, localeLabel(code))
+      const peekedText = peeked?.localized_meaning?.trim() || ""
+      if (peekedText) {
+        setLocalizedMeaning(peekedText)
+        setLocalizedTitle(peeked.localized_title ?? null)
         setLocalizing(false)
         return
       }
@@ -85,6 +123,11 @@ export default function SongDetailScreen() {
     setHasNotation(false)
     setWatchPlaying(false)
     autoPlayedFor.current = null
+    meaningCache.current = {}
+    setLanguage("en")
+    setLocalizedMeaning(null)
+    setLocalizedTitle(null)
+    setLocalizing(false)
 
     const peeked = peekResolvedSong(typeof songId === "string" ? songId : undefined)
     if (peeked) {
@@ -111,16 +154,12 @@ export default function SongDetailScreen() {
       }
       setSong(bundle.song)
       setRelated(bundle.related)
-      setLocalizedMeaning(null)
-      setLocalizedTitle(null)
-      setLanguage("en")
       setLoadingSong(false)
-      setHasNotation(Boolean(bundle.song.notationSourceUrl))
+      setHasNotation(false)
       usePlayerStore.getState().warmAudio(bundle.song)
       void fetchNotationCached(bundle.song.number, "C").then((notation) => {
         if (!active) return
-        const lines = notation?.notation?.lines?.length ?? 0
-        setHasNotation(lines > 0 || Boolean(bundle.song.notationSourceUrl))
+        setHasNotation(hasPlayableNotation(notation))
       })
     })
     return () => {
@@ -205,6 +244,24 @@ export default function SongDetailScreen() {
       setLocalizing(false)
       return
     }
+    const remembered = meaningCache.current[language]
+    if (remembered) {
+      setLocalizedMeaning(remembered.meaning)
+      setLocalizedTitle(remembered.title)
+      setLocalizing(false)
+      return
+    }
+    const peeked = peekSongLocalization(song.number, localeLabel(language))
+    if (peeked?.localized_meaning?.trim()) {
+      const english = song.meaning?.trim() || ""
+      const translated = peeked.localized_meaning.trim()
+      const meaning = translated !== english ? translated : null
+      meaningCache.current[language] = { meaning, title: peeked.localized_title ?? null }
+      setLocalizedMeaning(meaning)
+      setLocalizedTitle(peeked.localized_title ?? null)
+      setLocalizing(false)
+      return
+    }
     let active = true
     setLocalizing(true)
     void fetchSongMeaningLocalization(song.number, language).then((result) => {
@@ -215,10 +272,15 @@ export default function SongDetailScreen() {
         setLocalizedTitle(null)
         return
       }
-      setLocalizedTitle(result.localized_title ?? null)
       const english = song.meaning?.trim() || ""
       const translated = result.localized_meaning?.trim() || ""
-      setLocalizedMeaning(translated && translated !== english ? translated : null)
+      const meaning = translated && translated !== english ? translated : null
+      meaningCache.current[language] = {
+        meaning,
+        title: result.localized_title ?? null,
+      }
+      setLocalizedMeaning(meaning)
+      setLocalizedTitle(result.localized_title ?? null)
     }).catch(() => {
       if (!active) return
       setLocalizing(false)
@@ -289,6 +351,12 @@ export default function SongDetailScreen() {
   const displayTitle =
     language !== "en" && localizedTitle?.trim() ? localizedTitle : song?.title ?? ""
   const watchVideos = song.videos.filter((video) => video.embedUrl)
+  const practiceLyrics = practiceLyricSource({
+    lyricsOriginal: song.lyrics,
+    transliteration: song.transliteration,
+    firstLine: song.originalTitle,
+  })
+  const parkedWatchWidth = Math.max(280, windowWidth - spacing.lg * 2)
 
   return (
     <View style={styles.root}>
@@ -323,7 +391,7 @@ export default function SongDetailScreen() {
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         nestedScrollEnabled
       >
         {loadingSong ? (
@@ -387,11 +455,9 @@ export default function SongDetailScreen() {
             selected={journey}
             onSelect={(id) => {
               setJourney(id)
-              requestAnimationFrame(() => {
-                scrollRef.current?.scrollTo({
-                  y: Math.max(0, journeyFocusY.current - 8),
-                  animated: true,
-                })
+              scrollRef.current?.scrollTo({
+                y: Math.max(0, journeyFocusY.current - 8),
+                animated: false,
               })
             }}
           />
@@ -408,24 +474,30 @@ export default function SongDetailScreen() {
           </Pressable>
         ) : null}
 
-        {journey === "listen" ? (
-          <View style={styles.sectionPanel}>
-            <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
-            <Text style={styles.sectionLead}>Listen to this song.</Text>
-            <SongListenControls
-              songId={song.id}
-              songNumber={song.number}
-              imageUrl={song.thumbnailUrl}
-              title={song.title}
-              performer={song.performer}
-              onTogglePlay={handlePlayToggle}
-            />
-          </View>
-        ) : null}
+        <View
+          style={[styles.sectionPanel, journey !== "listen" && styles.hiddenPanel]}
+          pointerEvents={journey === "listen" ? "auto" : "none"}
+          importantForAccessibility={journey === "listen" ? "auto" : "no-hide-descendants"}
+        >
+          <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
+          <Text style={styles.sectionLead}>Listen to this song.</Text>
+          <SongListenControls
+            songId={song.id}
+            songNumber={song.number}
+            imageUrl={song.thumbnailUrl}
+            title={song.title}
+            performer={song.performer}
+            audioUrl={song.audioUrl}
+            onTogglePlay={handlePlayToggle}
+          />
+        </View>
 
         {watchLayout.showPlayer ? (
           <View
-            style={[styles.sectionPanel, watchLayout.collapsePlayer && styles.watchOffscreen]}
+            style={[
+              styles.sectionPanel,
+              watchLayout.collapsePlayer && [styles.watchParked, { width: parkedWatchWidth }],
+            ]}
             pointerEvents={watchLayout.collapsePlayer ? "none" : "auto"}
             importantForAccessibility={watchLayout.collapsePlayer ? "no-hide-descendants" : "auto"}
             collapsable={false}
@@ -460,37 +532,39 @@ export default function SongDetailScreen() {
             <NotationPractice
               songNumber={song.number}
               embedded
-              lyricText={
-                practiceLyricSource({
-                  lyricsOriginal: song.lyrics,
-                  transliteration: song.transliteration,
-                  firstLine: song.originalTitle,
-                }).practiceText
-              }
-              originalLyricText={
-                practiceLyricSource({
-                  lyricsOriginal: song.lyrics,
-                  transliteration: song.transliteration,
-                  firstLine: song.originalTitle,
-                }).originalText
-              }
+              lyricText={practiceLyrics.practiceText}
+              originalLyricText={practiceLyrics.originalText}
               sourceUrl={song.notationSourceUrl}
             />
           </View>
         ) : null}
 
-        {journey === "understand" ? (
-          <View style={styles.sectionPanel}>
-            <Text style={styles.sectionEyebrow}>Lyrics & Meaning</Text>
-            <LyricsMeaningView
-              lyrics={song.lyrics}
-              language={language}
-              localizing={localizing}
-              meaning={meaningResolution}
-              onSelectLanguage={selectLanguage}
+        <View
+          style={[styles.sectionPanel, journey !== "understand" && styles.hiddenPanel]}
+          pointerEvents={journey === "understand" ? "auto" : "none"}
+          importantForAccessibility={journey === "understand" ? "auto" : "no-hide-descendants"}
+        >
+          <Text style={styles.sectionEyebrow}>Lyrics & Meaning</Text>
+          {isCurrent ? (
+            <SongListenControls
+              songId={song.id}
+              songNumber={song.number}
+              imageUrl={song.thumbnailUrl}
+              title={song.title}
+              performer={song.performer}
+              audioUrl={song.audioUrl}
+              onTogglePlay={handlePlayToggle}
+              compact
             />
-          </View>
-        ) : null}
+          ) : null}
+          <LyricsMeaningView
+            lyrics={song.lyrics}
+            language={language}
+            localizing={localizing}
+            meaning={meaningResolution}
+            onSelectLanguage={selectLanguage}
+          />
+        </View>
 
       </ScrollView>
     </View>
@@ -615,14 +689,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.xs,
   },
-  watchOffscreen: {
+  hiddenPanel: {
+    display: "none",
+  },
+  watchParked: {
     position: "absolute",
-    width: 1,
-    height: 1,
-    overflow: "hidden",
-    opacity: 0,
-    left: 0,
+    left: -4000,
     top: 0,
+    opacity: 0,
+    elevation: 0,
   },
   watchKeepAlive: {
     backgroundColor: colors.surfaceSoft,

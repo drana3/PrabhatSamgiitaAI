@@ -143,7 +143,9 @@ async def bootstrap_data() -> None:
 
 
 async def initialize_catalog_and_embeddings() -> None:
-    await bootstrap_data()
+    from app.services.lyric_search import lyric_index
+
+    await asyncio.gather(bootstrap_data(), asyncio.to_thread(lyric_index))
     await build_embedding_indexes(settings)
 
 

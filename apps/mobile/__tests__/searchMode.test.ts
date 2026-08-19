@@ -9,7 +9,9 @@ describe("resolveSearchMode", () => {
     expect(resolveSearchMode("Search Prabhat Samgiita for Morning songs")).toBe("catalog")
     expect(resolveSearchMode("Search Prabhat Samgiita for Hindi Songs")).toBe("catalog")
     expect(resolveSearchMode("bandhu he niye calo")).toBe("catalog")
-    expect(resolveSearchMode("What should I sing at dawn?")).toBe("catalog")
+    expect(
+      resolveSearchMode("alor oi jharana dharara pane andharer vyatha ar saye na prane"),
+    ).toBe("catalog")
   })
 
   it("uses local lists for mood and collection chip words", () => {
@@ -26,6 +28,8 @@ describe("resolveSearchMode", () => {
     expect(resolveSearchMode("song about rain in monsoons")).toBe("semantic")
     expect(resolveSearchMode("morning meditation")).toBe("semantic")
     expect(resolveSearchMode("i am feeling stressful")).toBe("semantic")
+    expect(resolveSearchMode("What should I sing at dawn?")).toBe("semantic")
+    expect(resolveSearchMode("help me find guru songs")).toBe("semantic")
   })
 })
 

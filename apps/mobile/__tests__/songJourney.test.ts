@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  journeyMarqueeCycleWidth,
   isMediaSongJourneyTab,
   partitionSongJourneyTabs,
   songJourneyTabs,
@@ -23,7 +24,7 @@ describe("visibleSongJourneyTabs", () => {
     expect(isMediaSongJourneyTab("notation")).toBe(false)
   })
 
-  it("puts a physical gap between learn chips and Listen/Watch", () => {
+  it("keeps Lyrics and Notation before Listen and Watch", () => {
     const { learn, media } = partitionSongJourneyTabs(
       visibleSongJourneyTabs({ hasVideo: true, hasNotation: true }),
     )
@@ -58,6 +59,7 @@ describe("songWatchLayout", () => {
       collapsePlayer: true,
       showKeepAliveBar: true,
     })
+    expect(songWatchLayout("listen", { hasVideo: true, watchPlaying: true }).collapsePlayer).toBe(true)
   })
 
   it("hides video when it is not playing", () => {
@@ -66,5 +68,11 @@ describe("songWatchLayout", () => {
       collapsePlayer: false,
       showKeepAliveBar: false,
     })
+  })
+})
+
+describe("journeyMarqueeCycleWidth", () => {
+  it("adds the same gap at the loop join as between chips", () => {
+    expect(journeyMarqueeCycleWidth(400, 12)).toBe(412)
   })
 })

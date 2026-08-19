@@ -12,8 +12,11 @@ export function SongCard({ song, index = 0 }: { song: SongSummary; index?: numbe
         <div className="flex items-start gap-4">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-gold-500/30 bg-gold-50 font-serif text-lg font-bold text-gold-700">{song.number}</span>
           <div className="min-w-0 flex-1">
-            <h3 className="font-serif text-xl font-semibold leading-snug text-navy-950 group-hover:text-gold-700">{titleCase(song.title)}</h3>
-            {song.first_line ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">{titleCase(song.first_line)}</p> : null}
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-gold-700">PS {song.number}</p>
+            <h3 className="mt-1 font-serif text-xl font-semibold leading-snug text-navy-950 group-hover:text-gold-700">{titleCase(song.title)}</h3>
+            {song.first_line && song.first_line.trim().toLocaleLowerCase() !== song.title.trim().toLocaleLowerCase() ? (
+              <p className="mt-2 line-clamp-3 text-sm leading-6 text-stone-600">{formatLyricLine(song.first_line)}</p>
+            ) : null}
           </div>
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-navy-900/15 text-xs text-navy-950 transition group-hover:border-gold-600 group-hover:bg-gold-600 group-hover:text-white">▶</span>
         </div>
@@ -30,4 +33,9 @@ export function SongCard({ song, index = 0 }: { song: SongSummary; index?: numbe
 
 function titleCase(value: string) {
   return value.toLocaleLowerCase().replace(/(^|[\s'’-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
+}
+
+function formatLyricLine(value: string) {
+  if (value.includes("…") || value === value.toLocaleLowerCase()) return titleCase(value)
+  return value
 }

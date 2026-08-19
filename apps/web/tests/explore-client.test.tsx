@@ -9,11 +9,25 @@ import { ExploreClient } from "@/components/explore-client"
 const searchSongs = vi.fn()
 const searchSongsByVoice = vi.fn()
 const fetchSongs = vi.fn()
+const searchCatalogLyrics = vi.fn(() => [])
+const shouldSearchCatalogLyrics = vi.fn(() => false)
 
 vi.mock("@/lib/api", () => ({
   searchSongs: (...args: unknown[]) => searchSongs(...args),
   searchSongsByVoice: (...args: unknown[]) => searchSongsByVoice(...args),
   fetchSongs: (...args: unknown[]) => fetchSongs(...args),
+}))
+
+vi.mock("@/lib/lyric-search", () => ({
+  searchCatalogLyrics: (...args: unknown[]) => searchCatalogLyrics(...args),
+  shouldSearchCatalogLyrics: (...args: unknown[]) => shouldSearchCatalogLyrics(...args),
+  lyricHitsToSongs: (hits: Array<{ number: number; title: string; firstLine: string; snippet?: string }>) =>
+    hits.map((hit) => ({
+      number: hit.number,
+      title: hit.firstLine || hit.title,
+      first_line: hit.snippet || hit.firstLine || hit.title,
+      is_verified: true,
+    })),
 }))
 
 vi.mock("next/navigation", () => ({
@@ -51,7 +65,11 @@ describe("ExploreClient prefetch hydration", () => {
     searchSongs.mockReset()
     searchSongsByVoice.mockReset()
     fetchSongs.mockReset()
+    searchCatalogLyrics.mockReset()
+    shouldSearchCatalogLyrics.mockReset()
     fetchSongs.mockResolvedValue([])
+    searchCatalogLyrics.mockReturnValue([])
+    shouldSearchCatalogLyrics.mockReturnValue(false)
   })
 
   it("shows prefetched catalog results without a client search", async () => {
@@ -90,8 +108,18 @@ describe("ExploreClient prefetch hydration", () => {
     expect(await screen.findByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeInTheDocument()
   })
 
-  it("routes explore form lyric lookups to catalog search", async () => {
-    searchSongs.mockResolvedValue([prefetchedSong])
+  it("resolves lyric lines locally without calling the search API", async () => {
+    shouldSearchCatalogLyrics.mockReturnValue(true)
+    searchCatalogLyrics.mockReturnValue([
+      {
+        number: 1,
+        title: "BANDHU HE NIYE CALO",
+        firstLine: "BANDHU HE NIYE CALO",
+        snippet: "BANDHU HE NIYE CALO",
+        score: 100,
+        matchedBy: "opening_line",
+      },
+    ])
     const user = userEvent.setup()
 
     renderExplore(
@@ -105,9 +133,8 @@ describe("ExploreClient prefetch hydration", () => {
     await user.type(screen.getByLabelText(/Search by number/i), "bandhu he niye calo")
     await user.click(screen.getByRole("button", { name: "Search", exact: true }))
 
-    await waitFor(() => {
-      expect(searchSongs).toHaveBeenCalledWith("bandhu he niye calo", { mode: "catalog" })
-    })
+    expect(await screen.findByRole("heading", { name: "Bandhu He Niye Calo" })).toBeInTheDocument()
+    expect(searchSongs).not.toHaveBeenCalled()
   })
 
   it("routes explore form theme asks to semantic search", async () => {

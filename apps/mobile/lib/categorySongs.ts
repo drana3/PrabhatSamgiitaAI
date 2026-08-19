@@ -10,7 +10,9 @@ import {
 import type { MockSong } from "@/data/mock"
 import { allCollections, collectionSearchPrompt, type CollectionItem } from "@/data/collections"
 import { readCatalogCache } from "@/lib/catalog"
+import { isNaturalLanguageSearch } from "@/lib/searchMode"
 import { songSummaryToMockSong } from "@/lib/songMap"
+import collectionSongTitles from "../../../data/generated/collection_song_titles.json"
 import precomputedCategories from "../../../data/generated/mobile_category_songs.json"
 
 export type { SongBrowseId, SongCategoryId }
@@ -38,6 +40,31 @@ const SEARCH_INDEX: Record<string, PrecomputedSearch> = {
   ...(PRECOMPUTED.searches ?? {}),
 }
 
+type CollectionTitleRow = { title?: string; first_line?: string | null }
+const COLLECTION_TITLES = collectionSongTitles as Record<string, CollectionTitleRow>
+
+function bundledTitleIndex(): Map<number, SongSummary> {
+  const map = new Map<number, SongSummary>()
+  for (const entry of Object.values(SEARCH_INDEX)) {
+    for (const song of entry.songs ?? []) {
+      map.set(song.number, song)
+    }
+  }
+  for (const [raw, row] of Object.entries(COLLECTION_TITLES)) {
+    const number = Number(raw)
+    if (!Number.isFinite(number) || number < 1 || map.has(number)) continue
+    map.set(number, {
+      number,
+      title: row.title || row.first_line || `Song ${number}`,
+      first_line: row.first_line ?? null,
+      is_verified: true,
+    })
+  }
+  return map
+}
+
+const BUNDLED_TITLES = bundledTitleIndex()
+
 const allBrowseChips = [...songCategories, ...songCollectionChips]
 
 const memorySongs = new Map<string, MockSong[]>()
@@ -63,8 +90,18 @@ export function isFastSearchId(value: string): boolean {
 
 export function collectionForCategory(searchId: FastSearchId): CollectionItem | undefined {
   const chip = songCollectionChips.find((row) => row.id === searchId)
-  if (!chip) return undefined
-  return allCollections.find((row) => row.label === chip.collectionLabel)
+  if (chip) return allCollections.find((row) => row.label === chip.collectionLabel)
+  const lowered = searchId.trim().toLowerCase()
+  return allCollections.find(
+    (row) => row.label.toLowerCase() === lowered || row.value.toLowerCase() === lowered,
+  )
+}
+
+export function collectionFromQuery(query: string): CollectionItem | undefined {
+  const trimmed = query.trim()
+  if (!trimmed) return undefined
+  const prompt = /^search prabhat samgiita for\s+(.+)$/i.exec(trimmed)
+  return collectionForCategory(prompt?.[1]?.trim() || trimmed)
 }
 
 export function categoryLabel(categoryId: SongBrowseId): string {
@@ -74,6 +111,7 @@ export function categoryLabel(categoryId: SongBrowseId): string {
 export function fastSearchLabel(searchId: FastSearchId): string {
   return (
     allBrowseChips.find((row) => row.id === searchId)?.label ??
+    collectionForCategory(searchId)?.label ??
     SEARCH_INDEX[searchId]?.label ??
     searchId
   )
@@ -177,6 +215,15 @@ export function isCatalogSearchQuery(query: string): boolean {
 }
 
 export function resolveCategoryQuery(query: string): FastSearchId | null {
+  if (/^\s*(?:ps[\s-]*)?\d{1,4}\s*$/i.test(query)) return null
+  if (isNaturalLanguageSearch(query)) return null
+
+  const collection = collectionFromQuery(query)
+  if (collection) {
+    const chip = songCollectionChips.find((row) => row.collectionLabel === collection.label)
+    return chip?.id ?? collection.label
+  }
+
   if (isCatalogSearchQuery(query)) return null
 
   const raw = query.trim().toLowerCase().replace(/\s+/g, " ")
@@ -194,15 +241,30 @@ export function resolveCategoryQuery(query: string): FastSearchId | null {
   return SEARCH_INDEX[key] ? key : null
 }
 
+/** Keep the collection/mood header when the query is that same browse path. */
+export function queryMatchesBrowseCategory(query: string, categoryId: string) {
+  if (!categoryId) return false
+  if (resolveCategoryQuery(query) === categoryId) return true
+  return query.trim().toLowerCase() === fastSearchLabel(categoryId).toLowerCase()
+}
+
+/** Stable list heading so collection taps do not flash “Songs · N”. */
+export function browseResultsHeading(
+  query: string,
+  resultCount: number,
+  activeCategory?: string | null,
+) {
+  const browseId = resolveCategoryQuery(query) ?? activeCategory ?? null
+  const collection =
+    collectionFromQuery(query) ?? (browseId ? collectionForCategory(browseId) : undefined)
+  const label = browseId ? categoryLabel(browseId) : null
+  const count = collection?.count ?? resultCount
+  if (label) return count > 0 ? `${label} · ${count}` : label
+  return count > 0 ? `Songs · ${count}` : "Songs"
+}
+
+/** Only exact chip-style queries. Feeling sentences stay on semantic search. */
 export function seedCategoryForQuery(query: string): FastSearchId | null {
-  const q = query.trim().toLowerCase()
-  if (
-    /\b(?:stress(?:ful|ed)?|anxiet(?:y|ies)|anxious|tense|tension|worried|overwhelm(?:ed)?)\b/.test(
-      q,
-    )
-  ) {
-    return "peace"
-  }
   return resolveCategoryQuery(query)
 }
 
@@ -231,8 +293,12 @@ export function semanticQueryForCategory(searchId: FastSearchId, spokenQuery?: s
 }
 
 function isPlaceholderTitle(song: MockSong): boolean {
-  return song.title === `Song ${song.number}`
+  return !song.title || song.title === `Song ${song.number}` || song.title === String(song.number)
 }
+
+export const CATEGORY_RESULT_LIMIT = 10
+export const SEMANTIC_RESULT_LIMIT = 5
+export const CATALOG_RESULT_LIMIT = 10
 
 export function mergeSongs(primary: MockSong[], extra: MockSong[]): MockSong[] {
   const extraByKey = new Map(extra.map((song) => [String(song.number || song.id), song]))
@@ -254,6 +320,38 @@ export function mergeSongs(primary: MockSong[], extra: MockSong[]): MockSong[] {
   return out
 }
 
+/** Fill missing titles without adding songs that are not in the collection. */
+export function overlaySongTitles(primary: MockSong[], extra: MockSong[]): MockSong[] {
+  const extraByKey = new Map(extra.map((song) => [String(song.number || song.id), song]))
+  return primary.map((song) => {
+    const key = String(song.number || song.id)
+    const richer = extraByKey.get(key)
+    return richer && isPlaceholderTitle(song) ? richer : song
+  })
+}
+
+/** Chip / typed category: 10 curated songs. Semantic only fills if the list is short. */
+export function composeCategoryResults(curated: MockSong[], semantic: MockSong[] = []): MockSong[] {
+  const top = curated.slice(0, CATEGORY_RESULT_LIMIT)
+  if (top.length >= CATEGORY_RESULT_LIMIT) return top
+  return mergeSongs(top, semantic).slice(0, CATEGORY_RESULT_LIMIT)
+}
+
+/** Mood chips stay at 10. Named collections keep every listed song. */
+export function composeBrowseResults(
+  searchId: FastSearchId,
+  curated: MockSong[],
+  extra: MockSong[] = [],
+): MockSong[] {
+  if (isMoodCategoryId(searchId)) return composeCategoryResults(curated, extra)
+  return overlaySongTitles(curated, extra)
+}
+
+export function limitSearchResults(songs: MockSong[], mode: "catalog" | "semantic"): MockSong[] {
+  const limit = mode === "semantic" ? SEMANTIC_RESULT_LIMIT : CATALOG_RESULT_LIMIT
+  return songs.slice(0, limit)
+}
+
 function bundledNumbers(searchId: FastSearchId): number[] {
   const numbers = SEARCH_INDEX[searchId]?.song_numbers
   if (!Array.isArray(numbers)) return []
@@ -267,6 +365,8 @@ export function songNumbersForCategory(searchId: FastSearchId): number[] {
 }
 
 function placeholderSummary(number: number): SongSummary {
+  const bundled = BUNDLED_TITLES.get(number)
+  if (bundled) return bundled
   return {
     number,
     title: `Song ${number}`,
@@ -289,14 +389,24 @@ export function songsForCategoryFromCatalog(
   searchId: FastSearchId,
   catalog: SongSummary[],
 ): SongSummary[] {
-  const bundled = SEARCH_INDEX[searchId]?.songs
-  if (Array.isArray(bundled) && bundled.length) {
-    return overlayCatalogTitles(bundled, catalog)
+  const byNumber = new Map(catalog.map((row) => [row.number, row]))
+  if (isMoodCategoryId(searchId)) {
+    const bundled = SEARCH_INDEX[searchId]?.songs
+    if (Array.isArray(bundled) && bundled.length) {
+      return overlayCatalogTitles(bundled, catalog)
+    }
   }
   const wanted = songNumbersForCategory(searchId)
-  if (!wanted.length) return []
-  const byNumber = new Map(catalog.map((row) => [row.number, row]))
-  return wanted.map((number) => byNumber.get(number) ?? placeholderSummary(number))
+  if (!wanted.length) {
+    const bundled = SEARCH_INDEX[searchId]?.songs
+    if (Array.isArray(bundled) && bundled.length) {
+      return overlayCatalogTitles(bundled, catalog)
+    }
+    return []
+  }
+  return wanted.map(
+    (number) => byNumber.get(number) ?? BUNDLED_TITLES.get(number) ?? placeholderSummary(number),
+  )
 }
 
 function snapshotRemembered(): Record<string, SongSummary[]> {
@@ -345,6 +455,10 @@ function seedFromBundled(searchId: FastSearchId, catalog: SongSummary[] = []) {
 export function prefetchCategorySongs(catalog: SongSummary[]) {
   for (const chip of allBrowseChips) {
     seedFromBundled(chip.id, catalog)
+  }
+  for (const collection of allCollections) {
+    const chip = songCollectionChips.find((row) => row.collectionLabel === collection.label)
+    seedFromBundled(chip?.id ?? collection.label, catalog)
   }
   for (const searchId of Object.keys(SEARCH_INDEX)) {
     seedFromBundled(searchId, catalog)

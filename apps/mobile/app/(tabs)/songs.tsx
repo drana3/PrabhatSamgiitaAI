@@ -116,21 +116,25 @@ export default function SongsScreen() {
               </View>
             </Pressable>
 
-            <SectionHeader title="Categories" />
-            <CategoryGrid
-              items={songCategories}
-              onSelect={(categoryId) =>
-                router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
-              }
-            />
-            <SectionHeader title="Top collections" />
-            <CategoryGrid
-              items={songCollectionChips}
-              onSelect={(categoryId) =>
-                router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
-              }
-              onSeeAll={() => router.push(href("/collections"))}
-            />
+            <View style={styles.categorySection}>
+              <SectionHeader title="Categories" />
+              <CategoryGrid
+                items={songCategories}
+                onSelect={(categoryId) =>
+                  router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
+                }
+              />
+            </View>
+            <View style={styles.collectionsSection}>
+              <SectionHeader title="Top collections" />
+              <CategoryGrid
+                items={songCollectionChips}
+                onSelect={(categoryId) =>
+                  router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
+                }
+                onSeeAll={() => router.push(href("/collections"))}
+              />
+            </View>
             <View style={styles.popularHeader}>
               <SectionHeader
                 title={
@@ -198,6 +202,13 @@ const styles = StyleSheet.create({
   title: { ...typography.h1, color: colors.textPrimary },
   list: { paddingHorizontal: spacing.lg },
   listHeader: { paddingTop: spacing.lg },
+  categorySection: {
+    marginBottom: spacing.section,
+  },
+  collectionsSection: {
+    paddingTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
   collectionsBanner: {
     flexDirection: "row",
     alignItems: "center",
