@@ -1,6 +1,6 @@
 {
   "fingerprint": "8aae9953655b138c30d2c8c61e082953def84e50b1e355960688cf96f7095b5b",
-  "extracted_count": 32,
+  "extracted_count": 31,
   "divyadyuti_count": 161,
   "processed_booklets": [
     "https://sarkarverse.org/SARGAM/0001-1000/RS_0001-0025.pdf",
@@ -30,7 +30,11 @@
     "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_05_Song_4101_tp_4125.pdf",
     "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_06_Song_4126_to_4150.pdf",
     "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_07_Song_4151_to_4175.pdf",
-    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_08_Song_4176_to_4200.pdf"
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_08_Song_4176_to_4200.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_10_Song_4226_to_4250.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_11_Song_4251_to_4275.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_12_Song_4276_to_4300.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_13_Song_4301_to_4325.pdf"
   ],
   "booklet_total": 54
 }
