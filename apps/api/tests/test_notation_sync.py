@@ -1,6 +1,6 @@
+import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-import sys
 from typing import Any
 
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "sync_prabhata.py"

@@ -17,8 +17,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps
-
 ROOT = Path(__file__).resolve().parents[1]
 NOTATION_SOURCES = ROOT / "data" / "generated" / "notations.json"
 SONGS = ROOT / "data" / "generated" / "songs.json"
@@ -74,6 +72,8 @@ def ensure_tools() -> None:
 
 def preprocess_book_photo(image_path: Path, output_path: Path) -> Path:
     """Prepare a photographed book page for OCR (grayscale, contrast, mild deskew proxy)."""
+    from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+
     with Image.open(image_path) as raw:
         image = ImageOps.exif_transpose(raw).convert("L")
     # Upscale small phone/scanner captures so swara glyphs are clearer.
