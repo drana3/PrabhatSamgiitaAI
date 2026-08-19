@@ -1,6 +1,6 @@
 {
   "fingerprint": "8aae9953655b138c30d2c8c61e082953def84e50b1e355960688cf96f7095b5b",
-  "extracted_count": 13,
+  "extracted_count": 6,
   "divyadyuti_count": 161,
   "processed_booklets": [
     "https://sarkarverse.org/SARGAM/0001-1000/RS_0001-0025.pdf",
@@ -22,7 +22,11 @@
     "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3951-3975.pdf",
     "https://sarkarverse.org/SARGAM/3001-4000/PrabhatSangeet_3976-4000.pdf",
     "https://sarkarverse.org/SARGAM/3001-4000/Songs%203201-3225.pdf",
-    "https://sarkarverse.org/SARGAM/3001-4000/Songs%203501-3525.pdf"
+    "https://sarkarverse.org/SARGAM/3001-4000/Songs%203501-3525.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_01_Song_4001_to_4025.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_02_Song_4026_to_4050.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_03_Song_4051_to_4075.pdf",
+    "https://sarkarverse.org/SARGAM/4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_04_Song_4076_to_4100.pdf"
   ],
   "booklet_total": 54
 }
