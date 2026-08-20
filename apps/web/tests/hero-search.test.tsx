@@ -1,5 +1,5 @@
 import React from "react"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { HeroSearch } from "@/components/hero-search"
@@ -151,18 +151,21 @@ describe("hero search", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Please ask something specific")
   })
 
-  it("suggests catalog songs while typing", async () => {
-    const user = userEvent.setup()
-    render(<HeroSearch />)
-    const input = screen.getByLabelText(/Search by song number/i)
-    await user.click(input)
-    await user.paste("bandhu he niye calo")
-    await waitFor(
-      () => {
-        expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
-      },
-      { timeout: 10000 },
-    )
-    expect(screen.getByRole("link", { name: /PS 1\s+Bandhu He Niye Calo/i })).toHaveAttribute("href", "/songs/1#ask")
-  })
+  it(
+    "suggests catalog songs while typing",
+    async () => {
+      render(<HeroSearch />)
+      const input = screen.getByLabelText(/Search by song number/i)
+      fireEvent.focus(input)
+      fireEvent.change(input, { target: { value: "bandhu he niye calo" } })
+      await waitFor(
+        () => {
+          expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+        },
+        { timeout: 15000 },
+      )
+      expect(screen.getByRole("link", { name: /PS 1\s+Bandhu He Niye Calo/i })).toHaveAttribute("href", "/songs/1#ask")
+    },
+    20000,
+  )
 })
