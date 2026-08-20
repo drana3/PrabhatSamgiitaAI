@@ -1,6 +1,6 @@
 import React from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { SearchForm } from "@/components/search-form"
@@ -43,7 +43,9 @@ describe("SearchForm", () => {
       </QueryClientProvider>,
     )
     await user.type(screen.getByLabelText(/Search by number/i), "1")
-    expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+    })
     expect(screen.getByRole("link", { name: /PS 1\b/i })).toHaveAttribute("href", "/songs/1#ask")
   })
 })

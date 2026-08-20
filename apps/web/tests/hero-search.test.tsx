@@ -1,5 +1,5 @@
 import React from "react"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { HeroSearch } from "@/components/hero-search"
@@ -93,7 +93,9 @@ describe("hero search", () => {
     const user = userEvent.setup()
     render(<HeroSearch />)
     await user.type(screen.getByLabelText(/Search by song number/i), "bandhu he niye calo")
-    expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+    })
     expect(screen.getByRole("link", { name: /PS 1\s+Bandhu He Niye Calo/i })).toHaveAttribute("href", "/songs/1#ask")
   })
 })

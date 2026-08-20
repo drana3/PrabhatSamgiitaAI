@@ -1,10 +1,13 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
 
 import { instantExploreSongs } from "@/lib/lyric-search"
 import { useSearchAuth } from "@/lib/feeling-search"
 import { songPagePath } from "@/lib/song-path"
+
+const SUGGEST_DEBOUNCE_MS = 180
 
 export function InstantSearchSuggestions({
   query,
@@ -14,7 +17,20 @@ export function InstantSearchSuggestions({
   id?: string
 }) {
   const searchAuth = useSearchAuth()
-  const songs = instantExploreSongs(query.trim(), undefined, searchAuth) ?? []
+  const [debouncedQuery, setDebouncedQuery] = useState(query)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query), SUGGEST_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  const songs = useMemo(() => {
+    const trimmed = debouncedQuery.trim()
+    if (!trimmed) return []
+    if (trimmed.length < 3 && !/^\d+$/.test(trimmed)) return []
+    return instantExploreSongs(trimmed, undefined, searchAuth) ?? []
+  }, [debouncedQuery, searchAuth])
+
   if (!songs.length) return null
 
   return (
