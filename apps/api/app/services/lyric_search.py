@@ -152,7 +152,10 @@ def lyric_tokens_match(left: str, right: str) -> bool:
     return within_lyric_edits(a, b, 1)
 
 
-def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: tuple[str, ...] | list[str]) -> float:
+def ordered_lyric_coverage(
+    query_tokens: list[str],
+    haystack_tokens: tuple[str, ...] | list[str],
+) -> float:
     if not query_tokens or not haystack_tokens:
         return 0.0
     best = 0.0
@@ -180,7 +183,8 @@ def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: tuple[str, 
 
 
 def ordered_folded_lyric_coverage(
-    query_tokens: list[str], haystack_tokens: tuple[str, ...] | list[str]
+    query_tokens: list[str],
+    haystack_tokens: tuple[str, ...] | list[str],
 ) -> float:
     """Like ordered_lyric_coverage but assumes tokens are already phonetically folded."""
     if not query_tokens or not haystack_tokens:
@@ -214,9 +218,19 @@ def _folded_token_near_match(left: str, right: str) -> bool:
         return False
     if left == right:
         return True
-    if len(left) >= 5 and len(right) > len(left) and right.startswith(left) and len(right) - len(left) <= 2:
+    if (
+        len(left) >= 5
+        and len(right) > len(left)
+        and right.startswith(left)
+        and len(right) - len(left) <= 2
+    ):
         return True
-    if len(right) >= 5 and len(left) > len(right) and left.startswith(right) and len(left) - len(right) <= 2:
+    if (
+        len(right) >= 5
+        and len(left) > len(right)
+        and left.startswith(right)
+        and len(left) - len(right) <= 2
+    ):
         return True
     if len(left) < 5 or len(right) < 5 or left[:4] != right[:4]:
         return False
