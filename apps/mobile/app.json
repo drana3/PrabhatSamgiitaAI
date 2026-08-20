@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "17",
+      "buildNumber": "18",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
