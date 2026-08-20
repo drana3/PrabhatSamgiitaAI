@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event"
 import { vi } from "vitest"
 
 import { ExploreClient } from "@/components/explore-client"
+import { COMPLETE_SARGAM_LABEL } from "@/lib/complete-sargam"
 
 const searchSongs = vi.fn()
 const searchSongsByVoice = vi.fn()
@@ -189,7 +190,8 @@ describe("ExploreClient prefetch hydration", () => {
     await waitFor(() => {
       expect(searchSongs).not.toHaveBeenCalled()
     })
-    expect(await screen.findByRole("heading", { name: /Songs with complete Sargam/i })).toBeInTheDocument()
+    expect(await screen.findByText(/Showing songs for:/i)).toBeInTheDocument()
+    expect(screen.getByText(COMPLETE_SARGAM_LABEL)).toBeInTheDocument()
   })
 
   it("loads collection prompts from the catalog search API", async () => {

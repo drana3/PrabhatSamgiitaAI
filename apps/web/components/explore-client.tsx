@@ -25,7 +25,6 @@ import { collectionSearchDisplayLabel, collectionSearchCount, exploreSearchKind,
 import {
   COMPLETE_SARGAM_LABEL,
   COMPLETE_SARGAM_QUERY,
-  completeSargamCount,
   completeSargamSongs,
   isCompleteSargamQuery,
 } from "@/lib/complete-sargam"
@@ -331,30 +330,7 @@ export function ExploreClient({
   const collectionSearch = isCollectionSearchQuery(activeQuery)
   const collectionTotal = collectionSearchCount(activeQuery)
   const completeSargamSearch = isCompleteSargamQuery(activeQuery)
-  const completeSargamTotal = completeSargamSearch ? completeSargamCount() : null
   const isCollectionResult = collectionTotal !== null && collectionSearch
-  const showsTopPredictions = activeKind === "semantic" && !isCollectionResult && !completeSargamSearch
-  const resultsEyebrow = showsTopPredictions
-    ? "Top 5 predictions"
-    : isCollectionResult || completeSargamSearch
-      ? "Collection results"
-      : "Catalog matches"
-  const collectionCountShown = isCollectionResult && collectionTotal !== null
-    ? !searching && songs.length > 0
-      ? songs.length
-      : collectionTotal
-    : null
-  const resultsCountLabel = collectionCountShown !== null
-    ? !searching && songs.length > 0 && collectionTotal !== null && collectionTotal > songs.length
-      ? `${songs.length} of ${collectionTotal} shown`
-      : `${collectionCountShown} song${collectionCountShown === 1 ? "" : "s"}`
-    : searching
-      ? "Searching…"
-      : searchError
-        ? "Unavailable"
-        : completeSargamSearch && completeSargamTotal !== null
-          ? `${songs.length} song${songs.length === 1 ? "" : "s"}`
-          : `${songs.length} shown`
 
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
@@ -373,25 +349,7 @@ export function ExploreClient({
         </div>
       ) : null}
 
-      <div ref={resultsRef} id="results" className="mt-8 flex scroll-mt-28 items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">{resultsEyebrow}</p>
-          <h2 className="mt-2 font-serif text-3xl text-navy-950">
-            {activeQuery ? (
-              inputMode === "voice" ? (
-                <>Top voice matches for <span className="text-gold-700">“{queryLabel}”</span></>
-              ) : collectionSearch ? (
-                <>Songs in the <span className="text-gold-700">{queryLabel}</span> collection</>
-              ) : completeSargamSearch ? (
-                <>Songs with complete <span className="text-gold-700">Sargam</span></>
-              ) : (
-                <>Songs matching <span className="text-gold-700">“{queryLabel}”</span></>
-              )
-            ) : "Explore the songs"}
-          </h2>
-        </div>
-        <span className="text-xs font-semibold text-stone-500">{resultsCountLabel}</span>
-      </div>
+      <div ref={resultsRef} id="results" className="scroll-mt-28">
       {searching && (songs.length === 0 || collectionSearch) ? (
         <div className="mt-6 rounded-2xl border border-gold-500/25 bg-white p-8"><LoadingIndicator label={loadingLabel} /></div>
       ) : songs.length ? (
@@ -421,6 +379,7 @@ export function ExploreClient({
           ) : null}
         </div>
       )}
+      </div>
 
       <div className="mt-8 max-w-4xl">
         <SearchForm
