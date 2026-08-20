@@ -246,14 +246,53 @@ export function orderedLyricCoverage(queryTokens: string[], haystackTokens: stri
   return best
 }
 
-function hasLyricPhraseAnchor(anchors: string[], folded: FoldedLyric, openingWords: string[], bodyWords: string[]) {
-  for (const anchor of anchors) {
-    if (anchor.length < 4 || COMMON_LYRIC_TOKENS.has(anchor)) continue
-    if (folded.tokens.has(anchor) || folded.openingTokenSet.has(anchor)) return true
-    if (openingWords.some((token) => lyricTokensMatch(anchor, token))) return true
-    if (bodyWords.some((token) => lyricTokensMatch(anchor, token))) return true
+/** Ordered coverage for already-folded tokens (no re-folding per comparison). */
+export function orderedFoldedLyricCoverage(queryTokens: string[], haystackTokens: string[]) {
+  if (!queryTokens.length || !haystackTokens.length) return 0
+  let best = 0
+  const maxGap = queryTokens.length >= 4 ? 1 : 2
+  const first = queryTokens[0]
+  for (let start = 0; start < haystackTokens.length; start += 1) {
+    if (!foldedTokenNearMatch(first, haystackTokens[start])) continue
+    let qi = 1
+    let gaps = 0
+    for (let hi = start + 1; hi < haystackTokens.length && qi < queryTokens.length; hi += 1) {
+      if (foldedTokenNearMatch(queryTokens[qi], haystackTokens[hi])) {
+        qi += 1
+        gaps = 0
+        continue
+      }
+      gaps += 1
+      if (gaps > maxGap) break
+    }
+    best = Math.max(best, qi / queryTokens.length)
+    if (best === 1) return 1
   }
-  return false
+  return best
+}
+
+function foldedTokenNearMatch(left: string, right: string) {
+  if (!left || !right) return false
+  if (left === right) return true
+  if (left.length >= 5 && right.length > left.length && right.startsWith(left) && right.length - left.length <= 2) {
+    return true
+  }
+  if (right.length >= 5 && left.length > right.length && left.startsWith(right) && left.length - right.length <= 2) {
+    return true
+  }
+  if (left.length < 5 || right.length < 5 || left.slice(0, 4) !== right.slice(0, 4)) return false
+  return withinLyricEdits(left, right, 1)
+}
+
+function hasLyricPhraseAnchor(anchors: string[], folded: FoldedLyric) {
+  // Require two distinctive exact folded hits — a single token like "pane" gates
+  // hundreds of songs and makes ordered coverage too slow on the full catalog.
+  const distinctive = anchors.filter((anchor) => anchor.length >= 4 && !COMMON_LYRIC_TOKENS.has(anchor))
+  if (!distinctive.length) return false
+  const hits = distinctive.filter(
+    (anchor) => folded.tokens.has(anchor) || folded.openingTokenSet.has(anchor),
+  ).length
+  return hits >= Math.min(2, distinctive.length)
 }
 
 
@@ -387,17 +426,15 @@ function scoreRow(
     score = 44
     matchedBy = "full_text"
   } else if (tokens.length >= 3) {
-    const openingWords = `${title} ${opening}`.split(" ").filter(Boolean)
-    const bodyWords = body.split(" ").filter(Boolean)
     const foldedQueryTokens = tokens.map((token) => foldedTokenByExact.get(token) ?? foldLyricPhonetic(token))
-    if (hasLyricPhraseAnchor(foldedQueryTokens, folded, openingWords, bodyWords)) {
-      const openingCoverage = Math.max(
-        orderedLyricCoverage(tokens, openingWords),
-        orderedLyricCoverage(foldedQueryTokens, `${folded.title} ${folded.opening}`.split(" ").filter(Boolean)),
+    if (hasLyricPhraseAnchor(foldedQueryTokens, folded)) {
+      const openingCoverage = orderedFoldedLyricCoverage(
+        foldedQueryTokens,
+        `${folded.title} ${folded.opening}`.split(" ").filter(Boolean),
       )
-      const bodyCoverage = Math.max(
-        orderedLyricCoverage(tokens, bodyWords),
-        orderedLyricCoverage(foldedQueryTokens, folded.body.split(" ").filter(Boolean)),
+      const bodyCoverage = orderedFoldedLyricCoverage(
+        foldedQueryTokens,
+        folded.body.split(" ").filter(Boolean),
       )
       const bestCoverage = Math.max(openingCoverage, bodyCoverage)
       if (bestCoverage >= 0.8) {
@@ -429,7 +466,13 @@ function scoreRow(
       unmatched.push({ token, foldedToken })
     }
     const matched = openingHits + bodyHits
-    if (!(matched / scored.length >= 0.6) && unmatched.length && (scored.length <= 2 || matched > 0)) {
+    // Multi-word queries rely on exact + ordered phrase scoring; fuzzy is for short typos.
+    if (
+      unmatched.length &&
+      scored.length <= 2 &&
+      matched / scored.length < 0.6 &&
+      (matched + unmatched.length) / scored.length >= 0.6
+    ) {
       for (const { token, foldedToken } of unmatched) {
         if (
           fuzzyTokenMatch(token, folded.rawOpeningTokens) ||
@@ -454,9 +497,7 @@ function scoreRow(
       const foldedToken = foldedTokenByExact.get(token) ?? foldLyricPhonetic(token)
       return (
         folded.rawOpeningTokens.includes(token) ||
-        (foldedToken.length >= 3 && folded.openingTokenSet.has(foldedToken)) ||
-        fuzzyTokenMatch(token, folded.rawOpeningTokens) ||
-        fuzzyTokenMatch(foldedToken, folded.openingTokens)
+        (foldedToken.length >= 3 && folded.openingTokenSet.has(foldedToken))
       )
     }).length
     if (openingHits && openingHits / scored.length >= 0.6) {

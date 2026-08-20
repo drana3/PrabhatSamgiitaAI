@@ -152,7 +152,7 @@ def lyric_tokens_match(left: str, right: str) -> bool:
     return within_lyric_edits(a, b, 1)
 
 
-def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: list[str]) -> float:
+def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: tuple[str, ...] | list[str]) -> float:
     if not query_tokens or not haystack_tokens:
         return 0.0
     best = 0.0
@@ -179,22 +179,69 @@ def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: list[str]) 
     return best
 
 
-def _has_lyric_phrase_anchor(
-    anchors: list[str],
-    record: LyricRecord,
-    opening_words: list[str],
-    body_words: list[str],
-) -> bool:
-    for anchor in anchors:
-        if len(anchor) < 4 or anchor in _COMMON_LYRIC_TOKENS:
+def ordered_folded_lyric_coverage(
+    query_tokens: list[str], haystack_tokens: tuple[str, ...] | list[str]
+) -> float:
+    """Like ordered_lyric_coverage but assumes tokens are already phonetically folded."""
+    if not query_tokens or not haystack_tokens:
+        return 0.0
+    best = 0.0
+    max_gap = 1 if len(query_tokens) >= 4 else 2
+    first = query_tokens[0]
+    for start, hay in enumerate(haystack_tokens):
+        if not _folded_token_near_match(first, hay):
             continue
-        if anchor in record.folded_tokens or anchor in record.opening_token_set:
-            return True
-        if any(lyric_tokens_match(anchor, token) for token in opening_words):
-            return True
-        if any(lyric_tokens_match(anchor, token) for token in body_words):
-            return True
-    return False
+        qi = 1
+        gaps = 0
+        for hi in range(start + 1, len(haystack_tokens)):
+            if qi >= len(query_tokens):
+                break
+            if _folded_token_near_match(query_tokens[qi], haystack_tokens[hi]):
+                qi += 1
+                gaps = 0
+                continue
+            gaps += 1
+            if gaps > max_gap:
+                break
+        best = max(best, qi / len(query_tokens))
+        if best == 1:
+            return 1.0
+    return best
+
+
+def _folded_token_near_match(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+    if left == right:
+        return True
+    if len(left) >= 5 and len(right) > len(left) and right.startswith(left) and len(right) - len(left) <= 2:
+        return True
+    if len(right) >= 5 and len(left) > len(right) and left.startswith(right) and len(left) - len(right) <= 2:
+        return True
+    if len(left) < 5 or len(right) < 5 or left[:4] != right[:4]:
+        return False
+    return within_lyric_edits(left, right, 1)
+
+
+def _has_lyric_phrase_anchor(anchors: list[str], record: LyricRecord) -> bool:
+    """Require two distinctive exact folded hits before ordered phrase scoring.
+
+    A single common-ish token (e.g. \"pane\") gates hundreds of songs; fuzzy body
+    scans over those were ~45s/query on CI.
+    """
+    distinctive = [
+        anchor
+        for anchor in anchors
+        if len(anchor) >= 4 and anchor not in _COMMON_LYRIC_TOKENS
+    ]
+    if not distinctive:
+        return False
+    hits = sum(
+        1
+        for anchor in distinctive
+        if anchor in record.folded_tokens or anchor in record.opening_token_set
+    )
+    return hits >= min(2, len(distinctive))
 
 
 _COMMON_LYRIC_TOKENS = frozenset(
@@ -228,6 +275,10 @@ class LyricRecord:
     token_list: tuple[str, ...]
     opening_raw_tokens: tuple[str, ...]
     raw_token_list: tuple[str, ...]
+    opening_words: tuple[str, ...]
+    body_words: tuple[str, ...]
+    folded_opening_words: tuple[str, ...]
+    folded_body_words: tuple[str, ...]
 
 
 def _record_from_song(song: Song) -> LyricRecord:
@@ -255,6 +306,10 @@ def _record_from_song(song: Song) -> LyricRecord:
         )
     )
     raw_token_list = tuple(dict.fromkeys(token for token in body.split() if len(token) >= 3))
+    opening_words = tuple(f"{title} {opening}".split())
+    body_words = tuple(body.split())
+    folded_opening_words = tuple(f"{folded_title} {folded_opening}".split())
+    folded_body_words = tuple(folded_body.split())
     return LyricRecord(
         number=int(song.number),
         title=title,
@@ -270,6 +325,10 @@ def _record_from_song(song: Song) -> LyricRecord:
         token_list=tuple(folded_tokens),
         opening_raw_tokens=opening_raw_tokens,
         raw_token_list=raw_token_list,
+        opening_words=opening_words,
+        body_words=body_words,
+        folded_opening_words=folded_opening_words,
+        folded_body_words=folded_body_words,
     )
 
 
@@ -337,24 +396,18 @@ def _score_record(
     if len(folded_query) >= 3 and folded_query in record.folded_tokens:
         return LyricHit(record.number, 44.0, "full_text")
 
-    if len(tokens) >= 3:
-        opening_words = f"{record.title} {record.opening}".split()
-        body_words = record.body.split()
-        folded_opening_words = f"{record.folded_title} {record.folded_opening}".split()
-        if _has_lyric_phrase_anchor(folded_tokens, record, opening_words, body_words):
-            opening_coverage = max(
-                ordered_lyric_coverage(tokens, opening_words),
-                ordered_lyric_coverage(folded_tokens, folded_opening_words),
-            )
-            body_coverage = max(
-                ordered_lyric_coverage(tokens, body_words),
-                ordered_lyric_coverage(folded_tokens, record.folded_body.split()),
-            )
-            best_coverage = max(opening_coverage, body_coverage)
-            if best_coverage >= 0.8:
-                score = round(70 + best_coverage * 18)
-                matched_by = "opening_line" if opening_coverage >= body_coverage else "full_text"
-                return LyricHit(record.number, float(score), matched_by)
+    if len(tokens) >= 3 and _has_lyric_phrase_anchor(folded_tokens, record):
+        opening_coverage = ordered_folded_lyric_coverage(
+            folded_tokens, record.folded_opening_words
+        )
+        body_coverage = ordered_folded_lyric_coverage(
+            folded_tokens, record.folded_body_words
+        )
+        best_coverage = max(opening_coverage, body_coverage)
+        if best_coverage >= 0.8:
+            score = round(70 + best_coverage * 18)
+            matched_by = "opening_line" if opening_coverage >= body_coverage else "full_text"
+            return LyricHit(record.number, float(score), matched_by)
 
     if not tokens:
         return None
@@ -378,7 +431,14 @@ def _score_record(
             continue
         unmatched.append((token, folded_token))
     matched = opening_hits + body_hits
-    if not (matched / len(scored) >= 0.6) and unmatched and (len(scored) <= 2 or matched > 0):
+    # Multi-word queries rely on exact + ordered phrase scoring. Fuzzy over the full
+    # catalog made multi-word search ~45s on CI after phrase ranking landed.
+    if (
+        unmatched
+        and len(scored) <= 2
+        and matched / len(scored) < 0.6
+        and (matched + len(unmatched)) / len(scored) >= 0.6
+    ):
         for token, folded_token in unmatched:
             if fuzzy_token_match(token, record.opening_raw_tokens) or fuzzy_token_match(
                 folded_token, record.opening_tokens
@@ -395,11 +455,8 @@ def _score_record(
         folded_token = folded_map[token]
         if token in _COMMON_LYRIC_TOKENS or folded_token in _COMMON_LYRIC_TOKENS:
             continue
-        if (
-            token in record.opening_raw_tokens
-            or (len(folded_token) >= 3 and folded_token in record.opening_token_set)
-            or fuzzy_token_match(token, record.opening_raw_tokens)
-            or fuzzy_token_match(folded_token, record.opening_tokens)
+        if token in record.opening_raw_tokens or (
+            len(folded_token) >= 3 and folded_token in record.opening_token_set
         ):
             rare_opening_hits += 1
     if opening_hits and opening_hits / len(scored) >= 0.6:
