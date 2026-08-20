@@ -234,7 +234,7 @@ test("results sit just above search and English returns only its three canonical
   await expect(page.getByRole("heading", { name: "I love this tiny green island" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "WE LOVE THAT GREAT ENTITY" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "THIS LIFE IS FOR HIM" })).toBeVisible()
-}))
+})
 
 test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {
   await page.goto("/songs/1")
