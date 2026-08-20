@@ -20,13 +20,49 @@ EPHEMERAL_MEMBER_MARKERS = (
 )
 
 
+def normalize_member_email(value: str | None) -> str | None:
+    """Canonical mailbox. Microsoft guest UPNs become the original Gmail/Outlook address."""
+    raw = str(value or "").strip().casefold()
+    if not raw:
+        return None
+    ext_at = raw.find("#ext#@")
+    if ext_at != -1:
+        mailbox = raw[:ext_at]
+        if "_" in mailbox:
+            local, domain = mailbox.rsplit("_", 1)
+            if "." in domain:
+                raw = f"{local}@{domain}"
+    return raw[:320]
+
+
 def _email_set(raw: str) -> set[str]:
-    return {email.strip().casefold() for email in raw.split(",") if email.strip()}
+    emails: set[str] = set()
+    for part in raw.split(","):
+        normalized = normalize_member_email(part)
+        if normalized:
+            emails.add(normalized)
+    return emails
 
 
 def protected_admin_emails(settings: Settings | None = None) -> set[str]:
     settings = settings or get_settings()
     return _email_set(settings.protected_admin_emails)
+
+
+def owner_admin_emails(settings: Settings | None = None) -> set[str]:
+    settings = settings or get_settings()
+    return _email_set(settings.default_admin_emails) | protected_admin_emails(settings)
+
+
+def apply_default_admin(member: UserAccount, settings: Settings | None = None) -> bool:
+    """Grant admin to configured owner emails. Returns True if the row changed."""
+    email = normalize_member_email(member.email)
+    if not email or email not in owner_admin_emails(settings):
+        return False
+    if member.is_admin:
+        return False
+    member.is_admin = True
+    return True
 
 
 def ensure_ephemeral_smoke_admin(member: UserAccount) -> None:
@@ -43,7 +79,7 @@ def is_ephemeral_member(member: UserAccount) -> bool:
 def is_protected_admin(member: UserAccount, settings: Settings | None = None) -> bool:
     if is_ephemeral_member(member):
         return False
-    email = (member.email or "").casefold()
+    email = normalize_member_email(member.email)
     if not email:
         return False
     return email in protected_admin_emails(settings)
@@ -52,6 +88,7 @@ def is_protected_admin(member: UserAccount, settings: Settings | None = None) ->
 async def require_admin_member(session: AsyncSession, member: UserAccount) -> UserAccount:
     was_admin = member.is_admin
     ensure_ephemeral_smoke_admin(member)
+    apply_default_admin(member)
     if member.is_admin and not was_admin:
         await session.commit()
         await session.refresh(member)
@@ -150,7 +187,7 @@ async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
 
 
 async def find_member_by_email(session: AsyncSession, email: str) -> UserAccount | None:
-    normalized = email.strip().casefold()
+    normalized = normalize_member_email(email)
     if not normalized:
         return None
     rows = list(

@@ -35,6 +35,26 @@ def test_authenticated_principal_maps_to_stable_member_identity() -> None:
     assert identity.email == "ananda@example.com"
 
 
+def test_microsoft_guest_upn_maps_to_original_gmail() -> None:
+    payload = {
+        "auth_typ": "aad",
+        "claims": [
+            {"typ": "oid", "val": "11111111-2222-3333-4444-555555555555"},
+            {"typ": "name", "val": "Dewasheesh Rana"},
+            {
+                "typ": "preferred_username",
+                "val": "dewasheesh.rana3_gmail.com#EXT#@tenant.onmicrosoft.com",
+            },
+        ],
+    }
+    principal = base64.b64encode(json.dumps(payload).encode()).decode()
+
+    identity = decode_client_principal(principal)
+
+    assert identity.provider == "aad"
+    assert identity.email == "dewasheesh.rana3@gmail.com"
+
+
 def test_principal_without_subject_is_rejected() -> None:
     principal = encoded_principal([{"typ": "name", "val": "No Identifier"}])
 

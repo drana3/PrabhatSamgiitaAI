@@ -227,10 +227,12 @@ async def test_merge_fork_moves_chat_memory_to_canonical_account() -> None:
         side_effect=[
             MagicMock(scalars=MagicMock(return_value=[])),
             MagicMock(scalars=MagicMock(return_value=[])),
+            MagicMock(scalars=MagicMock(return_value=[])),
         ]
     )
     session.scalars = AsyncMock(
         side_effect=[
+            MagicMock(all=MagicMock(return_value=[])),
             MagicMock(all=MagicMock(return_value=[])),
             MagicMock(all=MagicMock(return_value=[])),
             MagicMock(all=MagicMock(return_value=[])),
@@ -243,7 +245,39 @@ async def test_merge_fork_moves_chat_memory_to_canonical_account() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_member_does_not_promote_admin_from_email_env() -> None:
+async def test_merge_fork_moves_quiz_certification_to_canonical_account() -> None:
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.models import QuizCertification
+
+    canonical = _member(subject="aad:website-oid", email="dewasheesh.rana3@gmail.com")
+    fork = _member(subject="google:old-id", email="dewasheesh.rana3@gmail.com")
+    cert = QuizCertification(id=uuid4(), user_id=fork.id, level="beginner")
+
+    session = AsyncMock()
+    session.execute = AsyncMock(
+        side_effect=[
+            MagicMock(scalars=MagicMock(return_value=[])),
+            MagicMock(scalars=MagicMock(return_value=[])),
+            MagicMock(scalars=MagicMock(return_value=[])),
+        ]
+    )
+    session.scalars = AsyncMock(
+        side_effect=[
+            MagicMock(all=MagicMock(return_value=[])),
+            MagicMock(all=MagicMock(return_value=[cert])),
+            MagicMock(all=MagicMock(return_value=[])),
+            MagicMock(all=MagicMock(return_value=[])),
+            MagicMock(all=MagicMock(return_value=[])),
+        ]
+    )
+
+    await _merge_fork_into_canonical(session, fork, canonical)
+    assert cert.user_id == canonical.id
+
+
+@pytest.mark.asyncio
+async def test_sync_member_does_not_promote_unlisted_email() -> None:
     member = _member(subject="aad:website-oid", email="owner@example.com")
     member.is_admin = False
     session = _SyncSession([member])
@@ -260,3 +294,32 @@ async def test_sync_member_does_not_promote_admin_from_email_env() -> None:
     )
 
     assert result.is_admin is False
+
+
+@pytest.mark.asyncio
+async def test_sync_member_promotes_configured_owner_email(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.services.admin_members.get_settings",
+        lambda: Settings(
+            DEFAULT_ADMIN_EMAILS="dewasheesh.rana3@gmail.com",
+            PROTECTED_ADMIN_EMAILS="dewasheesh.rana3@gmail.com",
+        ),
+    )
+    member = _member(subject="aad:website-oid", email="dewasheesh.rana3@gmail.com")
+    member.is_admin = False
+    session = _SyncSession([member])
+
+    result = await sync_member(
+        session,  # type: ignore[arg-type]
+        MemberIdentity(
+            subject="aad:website-oid",
+            provider="aad",
+            email="dewasheesh.rana3@gmail.com",
+            display_name="Dewasheesh",
+            avatar_url=None,
+        ),
+    )
+
+    assert result.is_admin is True

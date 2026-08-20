@@ -60,7 +60,7 @@ async function finishSignIn(input: {
       ok: true as const,
       memberBackend: false,
       message:
-        "Signed in on this device. Favorites, quiz, and chat memory will sync after this build is fully configured.",
+        "Signed in on this device. Favorites, quiz, and admin status will sync after you install an app update that includes member sync.",
     }
   }
 

@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
-import { fetchSong, type SongSummary } from "@/lib/api"
+import type { SongSummary } from "@/lib/api"
+import { songsByNumbers } from "@/lib/lyric-search"
 import { removeFavoriteSong } from "@/lib/member"
 import { songPagePath } from "@/lib/song-path"
 
@@ -14,34 +15,8 @@ export function SavedSongsList({
   songNumbers: number[]
   onChange: () => Promise<void>
 }) {
-  const [songs, setSongs] = useState<SongSummary[]>([])
-  const [loading, setLoading] = useState(true)
+  const songs: SongSummary[] = songsByNumbers(songNumbers)
   const [pending, setPending] = useState<number | null>(null)
-
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    void Promise.all(songNumbers.map((number) => fetchSong(number))).then((results) => {
-      if (!active) return
-      const loaded = results.flatMap((song, index) => {
-        if (!song) return []
-        return [{
-          number: songNumbers[index],
-          title: song.title,
-          is_verified: song.is_verified,
-          theme: song.theme,
-          first_line: song.first_line,
-          occasion: song.occasion,
-          mood: song.mood,
-          language: song.language,
-          difficulty: song.difficulty,
-        } satisfies SongSummary]
-      })
-      setSongs(loaded)
-      setLoading(false)
-    })
-    return () => { active = false }
-  }, [songNumbers])
 
   async function remove(number: number) {
     setPending(number)
@@ -58,8 +33,6 @@ export function SavedSongsList({
       </p>
     )
   }
-
-  if (loading) return <p className="mt-3 text-sm text-stone-500">Loading your playlist…</p>
 
   return (
     <ul className="mt-4 space-y-3">

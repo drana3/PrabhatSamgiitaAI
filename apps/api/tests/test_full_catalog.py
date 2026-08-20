@@ -196,6 +196,69 @@ async def test_catalog_falls_back_to_full_snapshot() -> None:
 
 
 @pytest.mark.asyncio
+async def test_song_page_reads_come_from_the_packaged_snapshot() -> None:
+    service = CatalogService(UnavailableSession())  # type: ignore[arg-type]
+    song = await service.get_song(1)
+    assert song is not None
+    related = await service.related_songs(song)
+    media = await service.get_media(1)
+    notation = await service.get_notation(1)
+
+    assert song.lyrics_original
+    assert related
+    assert media
+    assert all(item.song_number == 1 for item in media)
+    assert notation is None or notation.song_number == 1
+
+
+@pytest.mark.asyncio
+async def test_neon_song_edits_patch_the_in_memory_catalog() -> None:
+    from app.models import Song
+    from app.services.catalog import refresh_catalog_song, reset_catalog_memory, songs_by_number
+
+    reset_catalog_memory()
+    original = songs_by_number()[1].lyrics_original
+    updated = Song(
+        number=1,
+        title="BANDHU HE NIYE CALO",
+        lyrics_original="UPDATED LYRICS FROM NEON",
+        canonical_source_status="verified",
+        is_verified=True,
+        metadata_json={},
+    )
+    calls = {"n": 0}
+
+    class Session:
+        async def execute(self, statement: Any) -> Any:
+            del statement
+            calls["n"] += 1
+            if calls["n"] == 1:
+                class SongResult:
+                    def scalar_one_or_none(self) -> Song:
+                        return updated
+                return SongResult()
+            if calls["n"] == 2:
+                class MediaResult:
+                    def scalars(self):
+                        return self
+                    def all(self) -> list[Any]:
+                        return []
+                return MediaResult()
+            class NotationResult:
+                def scalar_one_or_none(self) -> None:
+                    return None
+            return NotationResult()
+
+        async def rollback(self) -> None:
+            return None
+
+    assert await refresh_catalog_song(Session(), 1)  # type: ignore[arg-type]
+    assert songs_by_number()[1].lyrics_original == "UPDATED LYRICS FROM NEON"
+    reset_catalog_memory()
+    assert songs_by_number()[1].lyrics_original == original
+
+
+@pytest.mark.asyncio
 async def test_exact_number_search_works_without_database() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 

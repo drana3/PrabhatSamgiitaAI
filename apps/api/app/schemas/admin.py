@@ -113,6 +113,15 @@ class AdminActionResponse(BaseModel):
     entity_id: str
 
 
+class CatalogRefreshWrite(BaseModel):
+    song_numbers: list[int] = Field(default_factory=list)
+    recent_minutes: int | None = Field(default=None, ge=1, le=180)
+
+
+class CatalogRefreshResponse(BaseModel):
+    refreshed: int
+
+
 class AdminAnalyticsItem(BaseModel):
     date: str
     metric_type: str

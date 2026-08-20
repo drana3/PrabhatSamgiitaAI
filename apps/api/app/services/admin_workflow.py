@@ -22,6 +22,7 @@ from app.schemas.admin_workflow import (
     collect_language_warnings,
 )
 from app.services.ai import select_provider
+from app.services.catalog import refresh_catalog_song
 from app.services.chat_language import _detect_text_language
 from app.services.ingestion_language import SUPPORTED_LANGUAGES, validate_meaning_language
 from app.services.meaning_translation import (
@@ -167,6 +168,7 @@ async def approve_youtube_review(
     review.reviewed_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(media)
+    await refresh_catalog_song(session, payload.song_number)
     return media
 
 
@@ -357,6 +359,7 @@ async def review_song_ingestion(
     submission.status = "approved"
     await session.commit()
     await session.refresh(submission)
+    await refresh_catalog_song(session, payload.song_number)
     return submission
 
 

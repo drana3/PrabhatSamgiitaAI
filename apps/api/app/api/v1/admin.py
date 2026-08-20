@@ -25,8 +25,15 @@ from app.schemas.admin import (
     AdminNotationWrite,
     AdminSongUpdate,
     AdminSongWrite,
+    CatalogRefreshResponse,
+    CatalogRefreshWrite,
 )
 from app.schemas.song import MediaItemResponse, SongSummary
+from app.services.catalog import (
+    refresh_catalog_song,
+    refresh_catalog_songs,
+    refresh_recent_catalog_changes,
+)
 from app.services.embedding_index import build_embedding_indexes
 from app.services.feedback_live import publish_feedback_to_live, unpublish_feedback_from_live
 from app.services.feedback_triage import feedback_is_priority
@@ -120,6 +127,7 @@ async def create_song(
         review_note="Created through authenticated admin API",
     )
     await session.commit()
+    await refresh_catalog_song(session, payload.number)
     return _song_summary(song)
 
 
@@ -149,6 +157,7 @@ async def update_song(
             review_note=review_note,
         )
     await session.commit()
+    await refresh_catalog_song(session, song_number)
     return _song_summary(song)
 
 
@@ -173,6 +182,7 @@ async def create_media(
         review_note="Created through authenticated admin API",
     )
     await session.commit()
+    await refresh_catalog_song(session, payload.song_number)
     return _media_response(media)
 
 
@@ -202,6 +212,8 @@ async def update_media(
             review_note=review_note,
         )
     await session.commit()
+    if media.song_number:
+        await refresh_catalog_song(session, media.song_number)
     return _media_response(media)
 
 
@@ -229,6 +241,8 @@ async def approve_media(
         review_note="Approved through authenticated admin API",
     )
     await session.commit()
+    if media.song_number:
+        await refresh_catalog_song(session, media.song_number)
     return AdminActionResponse(status="approved", entity_type="media", entity_id=str(media_id))
 
 
@@ -257,11 +271,28 @@ async def create_notation(
         review_note="Created through authenticated admin API",
     )
     await session.commit()
+    await refresh_catalog_song(session, payload.song_number)
     return AdminActionResponse(status="created", entity_type="notation", entity_id=str(notation.id))
 
 
 async def _refresh_embeddings(settings: Settings) -> None:
     await build_embedding_indexes(settings, force=True)
+
+
+@router.post("/catalog/refresh", response_model=CatalogRefreshResponse)
+async def refresh_catalog_memory(
+    payload: CatalogRefreshWrite,
+    admin: AdminIdentity,
+    session: DatabaseSession,
+) -> CatalogRefreshResponse:
+    del admin
+    numbers = list(dict.fromkeys(payload.song_numbers))
+    refreshed = await refresh_catalog_songs(session, numbers)
+    if payload.recent_minutes:
+        refreshed += await refresh_recent_catalog_changes(session, minutes=payload.recent_minutes)
+    elif not numbers:
+        refreshed += await refresh_recent_catalog_changes(session, minutes=30)
+    return CatalogRefreshResponse(refreshed=refreshed)
 
 
 @router.post("/reindex", response_model=AdminActionResponse, status_code=status.HTTP_202_ACCEPTED)

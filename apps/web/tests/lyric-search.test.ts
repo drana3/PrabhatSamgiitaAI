@@ -5,6 +5,7 @@ import {
   instantExploreSongs,
   searchCatalogLyrics,
   shouldSearchCatalogLyrics,
+  songsByNumbers,
 } from "@/lib/lyric-search"
 
 describe("web lyric search", () => {
@@ -90,6 +91,14 @@ describe("web lyric search", () => {
       instantExploreSongs("krishna")?.map((song) => song.number),
     )
     expect(instantExploreSongs("kishna")?.length).toBeGreaterThan(0)
-    expect(instantExploreSongs("Search Prabhat Samgiita for Hindi Songs")).toBeNull()
+    expect(instantExploreSongs("Search Prabhat Samgiita for Hindi Songs")?.length).toBeGreaterThan(0)
+  })
+
+  it("resolves saved-song numbers from the shipped index without a network wait", () => {
+    const songs = songsByNumbers([1, 5018, 99999])
+    expect(songs[0]?.number).toBe(1)
+    expect(songs[0]?.title).toBeTruthy()
+    expect(songs[1]?.number).toBe(5018)
+    expect(songs[2]).toEqual({ number: 99999, title: "Prabhat Samgiita 99999", is_verified: false })
   })
 })

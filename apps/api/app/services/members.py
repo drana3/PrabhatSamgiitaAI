@@ -9,20 +9,26 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, Request
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models import (
     QuizAttempt,
     QuizCertification,
+    QuizEventSubmission,
     UserAccount,
     UserChatMessage,
     UserFavorite,
     UserInterestProfile,
 )
 from app.schemas.member import ChatHistoryDay, ChatMemoryTurn, ChatMemoryWrite, MemberProfile
-from app.services.admin_members import ensure_ephemeral_smoke_admin, is_ephemeral_member
+from app.services.admin_members import (
+    apply_default_admin,
+    ensure_ephemeral_smoke_admin,
+    is_ephemeral_member,
+    normalize_member_email,
+)
 from app.services.member_phone import phone_profile_fields
 
 NAME_CLAIMS = {
@@ -34,7 +40,9 @@ EMAIL_CLAIMS = {
     "email",
     "emails",
     "preferred_username",
+    "upn",
     "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
 }
 SUBJECT_CLAIMS = {
     "sub",
@@ -163,6 +171,24 @@ def _claim_value(claims: list[dict[str, Any]], accepted: set[str]) -> str | None
     return None
 
 
+def _email_from_claims(claims: list[dict[str, Any]], fallback: Any = None) -> str | None:
+    candidates: list[str] = []
+    for claim in claims:
+        claim_type = str(claim.get("typ") or claim.get("type") or "").casefold()
+        if claim_type not in EMAIL_CLAIMS:
+            continue
+        value = str(claim.get("val") or claim.get("value") or "").strip()
+        if value:
+            candidates.append(value)
+    if fallback:
+        candidates.append(str(fallback))
+    normalized = [email for email in (normalize_member_email(item) for item in candidates) if email]
+    for email in normalized:
+        if "@" in email and "#ext#" not in email:
+            return email
+    return normalized[0] if normalized else None
+
+
 def decode_client_principal(encoded: str) -> MemberIdentity:
     try:
         payload = json.loads(base64.b64decode(encoded + "===").decode("utf-8"))
@@ -171,7 +197,7 @@ def decode_client_principal(encoded: str) -> MemberIdentity:
     claims = payload.get("claims") if isinstance(payload.get("claims"), list) else []
     provider = str(payload.get("auth_typ") or payload.get("identity_provider") or "entra")
     subject = _claim_value(claims, SUBJECT_CLAIMS) or str(payload.get("user_id") or "")
-    email = _claim_value(claims, EMAIL_CLAIMS) or payload.get("user_details")
+    email = _email_from_claims(claims, payload.get("user_details"))
     display_name = _claim_value(claims, NAME_CLAIMS) or email or "Prabhat Samgiita member"
     if not subject:
         raise HTTPException(status_code=401, detail="Authenticated identity has no subject")
@@ -235,26 +261,52 @@ def _account_preference(row: UserAccount) -> tuple[int, int, datetime]:
     )
 
 
-async def _find_canonical_by_email(
-    session: AsyncSession, email: str
-) -> UserAccount | None:
-    normalized = email.strip().casefold()
+async def _accounts_sharing_mailbox(
+    session: AsyncSession, email: str | None
+) -> list[UserAccount]:
+    normalized = normalize_member_email(email)
     if not normalized or normalized.endswith("@prabhat.local"):
-        return None
+        return []
+    clauses = [func.lower(UserAccount.email) == normalized]
+    local, _, domain = normalized.partition("@")
+    if local and domain:
+        clauses.append(func.lower(UserAccount.email).like(f"{local}_{domain}#ext#%"))
     rows = list(
         (
             await session.scalars(
-                select(UserAccount).where(
-                    UserAccount.deleted_at.is_(None),
-                    func.lower(UserAccount.email) == normalized,
-                )
+                select(UserAccount).where(UserAccount.deleted_at.is_(None), or_(*clauses))
             )
         ).all()
     )
+    return [
+        row
+        for row in rows
+        if normalize_member_email(row.email) == normalized
+    ]
+
+
+async def _find_canonical_by_email(
+    session: AsyncSession, email: str
+) -> UserAccount | None:
+    rows = await _accounts_sharing_mailbox(session, email)
     if not rows:
         return None
     rows.sort(key=_account_preference)
     return rows[0]
+
+
+async def _absorb_mailbox_twins(
+    session: AsyncSession, member: UserAccount, email: str | None
+) -> UserAccount:
+    """Fold every account for this mailbox into one, keeping quiz/admin/chat."""
+    twins = [row for row in await _accounts_sharing_mailbox(session, email) if row.id != member.id]
+    for twin in twins:
+        if _account_preference(twin) < _account_preference(member):
+            await _merge_fork_into_canonical(session, member, twin)
+            member = twin
+        else:
+            await _merge_fork_into_canonical(session, twin, member)
+    return member
 
 
 async def _merge_fork_into_canonical(
@@ -309,6 +361,28 @@ async def _merge_fork_into_canonical(
     for attempt in fork_attempts:
         attempt.user_id = canonical.id
 
+    canon_event_ids = set(
+        (
+            await session.execute(
+                select(QuizEventSubmission.event_id).where(
+                    QuizEventSubmission.user_id == canonical.id
+                )
+            )
+        ).scalars()
+    )
+    fork_events = list(
+        (
+            await session.scalars(
+                select(QuizEventSubmission).where(QuizEventSubmission.user_id == fork.id)
+            )
+        ).all()
+    )
+    for submission in fork_events:
+        if submission.event_id in canon_event_ids:
+            await session.delete(submission)
+        else:
+            submission.user_id = canonical.id
+
     fork_chats = list(
         (
             await session.scalars(
@@ -327,7 +401,10 @@ async def _merge_fork_into_canonical(
 async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAccount:
     now = datetime.now(UTC)
     member = await session.scalar(
-        select(UserAccount).where(UserAccount.external_subject == identity.subject)
+        select(UserAccount).where(
+            UserAccount.external_subject == identity.subject,
+            UserAccount.deleted_at.is_(None),
+        )
     )
     if member is None and identity.email:
         canonical = await _find_canonical_by_email(session, identity.email)
@@ -346,39 +423,16 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         session.add(member)
         await session.flush()
     else:
-        # Existing fork subject (mobile UUID / email principal): fold into website OID account.
-        if identity.email:
-            canonical = await _find_canonical_by_email(session, identity.email)
-            if (
-                canonical is not None
-                and canonical.id != member.id
-                and _account_preference(canonical) < _account_preference(member)
-            ):
-                await _merge_fork_into_canonical(session, member, canonical)
-                member = canonical
-            # Website/OID sign-in: absorb weaker email twins (orphaned mobile UUID forks)
-            # so quiz certs and admin are restored onto the canonical account.
-            twins = list(
-                (
-                    await session.scalars(
-                        select(UserAccount).where(
-                            UserAccount.deleted_at.is_(None),
-                            func.lower(UserAccount.email) == identity.email.strip().casefold(),
-                            UserAccount.id != member.id,
-                        )
-                    )
-                ).all()
-            )
-            for twin in twins:
-                if _account_preference(member) < _account_preference(twin):
-                    await _merge_fork_into_canonical(session, twin, member)
-        member.identity_provider = identity.provider
-        member.email = identity.email or member.email
-        member.display_name = identity.display_name
-        member.avatar_url = identity.avatar_url or member.avatar_url
-        member.last_seen_at = now
         member.deleted_at = None
+    if identity.email:
+        member = await _absorb_mailbox_twins(session, member, identity.email)
+    member.identity_provider = identity.provider
+    member.email = normalize_member_email(identity.email) or member.email
+    member.display_name = identity.display_name
+    member.avatar_url = identity.avatar_url or member.avatar_url
+    member.last_seen_at = now
     ensure_ephemeral_smoke_admin(member)
+    apply_default_admin(member)
     await session.commit()
     await session.refresh(member)
     return member

@@ -148,6 +148,21 @@ async def initialize_catalog_and_embeddings() -> None:
     await build_embedding_indexes(settings)
 
 
+async def _poll_catalog_updates() -> None:
+    from app.services.catalog import refresh_recent_catalog_changes
+
+    await asyncio.sleep(60)
+    while True:
+        try:
+            async with SessionLocal() as session:
+                await refresh_recent_catalog_changes(session, minutes=15)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Catalog memory refresh from Neon failed")
+        await asyncio.sleep(300)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await initialize_schema()
@@ -155,12 +170,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if settings.scheduler_enabled:
         scheduler.start()
     bootstrap_task = asyncio.create_task(initialize_catalog_and_embeddings())
+    catalog_poll_task = None
+    if settings.app_env != "test":
+        catalog_poll_task = asyncio.create_task(_poll_catalog_updates())
     try:
         yield
     finally:
         bootstrap_task.cancel()
+        if catalog_poll_task is not None:
+            catalog_poll_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await bootstrap_task
+            if catalog_poll_task is not None:
+                await catalog_poll_task
         if settings.scheduler_enabled:
             scheduler.shutdown(wait=False)
         await engine.dispose()

@@ -71,6 +71,14 @@ class _ChannelSession:
     async def commit(self) -> None:
         self.committed += 1
 
+    async def execute(self, statement):
+        from sqlalchemy.exc import SQLAlchemyError
+
+        raise SQLAlchemyError("catalog refresh uses a real database session")
+
+    async def rollback(self) -> None:
+        return None
+
     async def refresh(self, row: object) -> None:
         return None
 

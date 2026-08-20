@@ -37,6 +37,8 @@ jobs:
       - name: Scan configured YouTube channels into Neon
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CATALOG_API_URL: ${{ secrets.CATALOG_API_URL || 'https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io' }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "Set GitHub secret DATABASE_URL to the Neon pooled postgresql+psycopg URL."

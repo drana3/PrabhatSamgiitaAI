@@ -71,17 +71,23 @@ def persist_youtube_inventory(
     review_rows: list[dict[str, Any]],
     discovered_by_channel: dict[str, int],
     database_url: str | None = None,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     """Upsert scanned media and review-queue rows into Postgres (Neon)."""
     database_url = database_url or os.environ.get("DATABASE_URL")
     if not database_url:
         print("Skipping Neon persist because DATABASE_URL is unset", file=sys.stderr)
-        return {"inserted_media": 0, "inserted_reviews": 0, "updated_reviews": 0}
+        return {
+            "inserted_media": 0,
+            "inserted_reviews": 0,
+            "updated_reviews": 0,
+            "inserted_song_numbers": [],
+        }
     import psycopg
     from psycopg.types.json import Json
 
     inserted_media = 0
     inserted_reviews = 0
+    inserted_song_numbers: list[int] = []
     with psycopg.connect(_libpq_url(database_url), connect_timeout=30) as conn:
         with conn.cursor() as cur:
             cur.execute("SET statement_timeout = '5min'")
@@ -126,6 +132,7 @@ def persist_youtube_inventory(
                     ),
                 )
                 inserted_media += 1
+                inserted_song_numbers.append(int(row["song_number"]))
             for row in review_rows:
                 external_id = str(row.get("external_id") or "").strip()
                 if not external_id:
@@ -176,7 +183,45 @@ def persist_youtube_inventory(
         "inserted_media": inserted_media,
         "inserted_reviews": inserted_reviews,
         "updated_reviews": 0,
+        "inserted_song_numbers": list(dict.fromkeys(inserted_song_numbers)),
     }
+
+
+def notify_live_catalog_refresh(
+    song_numbers: list[int] | None = None,
+    *,
+    recent_minutes: int | None = 30,
+) -> None:
+    """Ask the running API to patch its in-memory catalog after this CI job writes Neon."""
+    api = (os.environ.get("CATALOG_API_URL") or os.environ.get("API_BASE_URL") or "").rstrip("/")
+    key = os.environ.get("ADMIN_API_KEY") or ""
+    if not api or not key:
+        print(
+            "Skipping live catalog refresh because CATALOG_API_URL/API_BASE_URL or ADMIN_API_KEY is unset",
+            file=sys.stderr,
+        )
+        return
+    body = json.dumps(
+        {
+            "song_numbers": list(dict.fromkeys(int(number) for number in (song_numbers or []))),
+            "recent_minutes": recent_minutes,
+        }
+    ).encode("utf-8")
+    request = Request(
+        f"{api}/api/v1/admin/catalog/refresh",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Admin-Key": key,
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=60) as response:
+            payload = response.read().decode("utf-8")
+        print(f"Live catalog refresh: {payload}", file=sys.stderr)
+    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+        print(f"Live catalog refresh failed: {exc}", file=sys.stderr)
 
 
 def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
@@ -614,6 +659,10 @@ def main() -> None:
         encoding="utf-8",
     )
     persisted = persist_youtube_inventory(rows, review_rows, discovered_by_channel)
+    notify_live_catalog_refresh(
+        persisted.get("inserted_song_numbers") or [],
+        recent_minutes=30,
+    )
     print(
         json.dumps(
             {

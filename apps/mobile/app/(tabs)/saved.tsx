@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { Heart } from "lucide-react-native"
@@ -11,9 +11,9 @@ import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
-import { api } from "@/lib/client"
+import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { memberAuthAvailable } from "@/lib/memberAuth"
-import { parseSongNumber, songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
+import { parseSongNumber, songSummaryToMockSong } from "@/lib/songMap"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -26,44 +26,37 @@ export default function SavedScreen() {
   const syncingFavorites = usePreferencesStore((s) => s.syncingFavorites)
   const hydrateFavoritesFromServer = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
-  const [songs, setSongs] = useState<MockSong[]>([])
-  const [loading, setLoading] = useState(false)
+  const songs = useMemo<MockSong[]>(() => {
+    const numbers = savedSongIds.flatMap((id) => {
+      const number = parseSongNumber(id)
+      return number ? [number] : []
+    })
+    const byNumber = new Map(
+      catalogSongsByNumbers(numbers, numbers.length).map((hit) => [hit.number, hit]),
+    )
+    return numbers.map((number) => {
+      const hit = byNumber.get(number)
+      if (!hit) {
+        return songSummaryToMockSong({
+          number,
+          title: `Prabhat Samgiita ${number}`,
+          is_verified: false,
+        })
+      }
+      return songSummaryToMockSong({
+        number: hit.number,
+        title: hit.firstLine || hit.title,
+        first_line: hit.snippet || hit.firstLine || hit.title,
+        is_verified: true,
+      })
+    })
+  }, [savedSongIds])
 
   useEffect(() => {
     if (mode === "signed_in") {
       void hydrateFavoritesFromServer()
     }
   }, [mode, hydrateFavoritesFromServer])
-
-  useEffect(() => {
-    let active = true
-    const load = async () => {
-      if (!savedSongIds.length) {
-        setSongs([])
-        return
-      }
-      setLoading(true)
-      const resolved: MockSong[] = []
-      for (const id of savedSongIds) {
-        const number = parseSongNumber(id)
-        if (!number) continue
-        const detail = await api.fetchSong(number)
-        if (detail) resolved.push(songDetailToMockSong(detail))
-        else
-          resolved.push(
-            songSummaryToMockSong({ number, title: `Prabhat Samgiita ${number}`, is_verified: false }),
-          )
-      }
-      if (active) {
-        setSongs(resolved)
-        setLoading(false)
-      }
-    }
-    void load()
-    return () => {
-      active = false
-    }
-  }, [savedSongIds])
 
   return (
     <ScreenContainer padded={false} showGuru={false}>
@@ -76,10 +69,10 @@ export default function SavedScreen() {
                 ? "Tap ♥ on any song · stored on this device"
                 : memberAuthAvailable()
                   ? "Tap ♥ on any song · synced with your account"
-                  : "Tap ♥ on any song · account sync needs member API key"}
+                  : "Tap ♥ on any song · this build cannot sync the website playlist yet"}
             </Text>
           </View>
-          {loading || syncingFavorites ? <ActivityIndicator color={colors.primary} /> : null}
+          {syncingFavorites ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
       </View>
 

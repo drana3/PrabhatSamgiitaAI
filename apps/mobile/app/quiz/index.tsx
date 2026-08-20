@@ -235,8 +235,8 @@ export default function QuizScreen() {
 
             {!memberAuthAvailable() ? (
               <Text style={styles.hint}>
-                The live quiz is not available on this build yet. Please try again after the team
-                shares an updated app build.
+                The live quiz is not available on this build yet. Install the latest app update to
+                sync certificates with the website.
               </Text>
             ) : null}
           </>

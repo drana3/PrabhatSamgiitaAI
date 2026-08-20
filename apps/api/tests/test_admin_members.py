@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.config import Settings
 from app.models import UserAccount
 from app.services.admin_members import (
+    apply_default_admin,
     ensure_ephemeral_smoke_admin,
     is_ephemeral_member,
     is_protected_admin,
@@ -94,6 +95,37 @@ def test_protected_admin_uses_explicit_list() -> None:
     cfg = settings(protected="owner@example.com")
     assert is_protected_admin(owner(), cfg) is True
     assert is_protected_admin(admin(), cfg) is False
+
+
+def test_apply_default_admin_promotes_owner_and_protected_emails() -> None:
+    cfg = Settings(
+        DEFAULT_ADMIN_EMAILS="dewasheesh.rana3@gmail.com",
+        PROTECTED_ADMIN_EMAILS="owner@example.com",
+    )
+    gmail = owner("dewasheesh.rana3@gmail.com")
+    gmail.is_admin = False
+    protected = owner("owner@example.com")
+    protected.is_admin = False
+    other = owner("member@example.com")
+    other.is_admin = False
+
+    assert apply_default_admin(gmail, cfg) is True
+    assert gmail.is_admin is True
+    assert apply_default_admin(protected, cfg) is True
+    assert protected.is_admin is True
+    assert apply_default_admin(other, cfg) is False
+    assert other.is_admin is False
+
+
+def test_apply_default_admin_accepts_microsoft_guest_upn() -> None:
+    cfg = Settings(
+        DEFAULT_ADMIN_EMAILS="dewasheesh.rana3@gmail.com",
+        PROTECTED_ADMIN_EMAILS="dewasheesh.rana3@gmail.com",
+    )
+    member = owner("dewasheesh.rana3_gmail.com#EXT#@tenant.onmicrosoft.com")
+    member.is_admin = False
+    assert apply_default_admin(member, cfg) is True
+    assert member.is_admin is True
 
 
 @pytest.mark.asyncio

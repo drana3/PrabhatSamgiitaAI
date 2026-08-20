@@ -183,8 +183,8 @@ export default function AdminScreen() {
 
       {!memberAuthAvailable() ? (
         <Text style={styles.warn}>
-          Member sync is not configured on this build. Admin data cannot load until the app is set up
-          for your environment.
+          Member sync is not configured on this build. Admin data from the website cannot load until
+          you install an app update that includes member sync.
         </Text>
       ) : null}
 

@@ -11,18 +11,18 @@ import { SongMeaningSection } from "@/components/song-meaning-section"
 import { SongMobileNav } from "@/components/song-mobile-nav"
 import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
-import { fetchNotation, fetchSong } from "@/lib/api"
+import { fetchSong } from "@/lib/api"
+import { localSongDetail } from "@/lib/local-song-catalog"
 import { englishMeaningText } from "@/lib/song-meanings"
 import { localeLabel } from "@/lib/languages"
-import { splitLyricLines, practiceLyricSource, hasPlayableNotation } from "@/lib/sargam-display"
+import { splitLyricLines, practiceLyricSource } from "@/lib/sargam-display"
 import { songPagePath } from "@/lib/song-path"
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
   const { number } = await params
   const { language = "en" } = await searchParams
-  const song = await fetchSong(Number(number))
+  const song = await fetchSong(Number(number)) ?? localSongDetail(Number(number))
   if (!song) notFound()
-  const notation = await fetchNotation(song.number)
   const practiceLyrics = practiceLyricSource({
     lyricsOriginal: song.lyrics_original,
     transliteration: song.transliteration,
@@ -33,14 +33,14 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
   const hasLyrics = Boolean(lyrics)
   const hasMeaning = Boolean(englishMeaningText(song) || song.hindi_meaning)
-  const hasNotation = hasPlayableNotation(notation)
+  const hasNotation = song.notation_transposition_available
   const details = [
     ["Theme", song.theme],
     ["Occasion", song.occasion],
     ["Festival", song.festival],
     ["Season", song.season],
     ["Raga", song.raga],
-    ["Tala", song.tala || notation?.notation.tala?.name],
+    ["Tala", song.tala],
   ].filter((detail): detail is [string, string] => Boolean(detail[1]))
 
   return (
@@ -103,7 +103,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
             <div className="mt-7 border-t border-navy-900/10 pt-7">
               <HarmoniumPractice
                 songNumber={song.number}
-                initialNotation={notation}
+                initialNotation={null}
                 sourceUrl={song.notation_source_url}
                 sourceStatus={song.notation_verification_status}
                 songLyricLines={splitLyricLines(practiceLyrics.practiceText)}

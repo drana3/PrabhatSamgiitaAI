@@ -335,6 +335,7 @@ async def scan_youtube_channel(
     new_queued = 0
     new_linked = 0
     known_count = 0
+    linked_numbers: list[int] = []
 
     for video in discovered_videos:
         external_id = video["video_id"]
@@ -365,6 +366,7 @@ async def scan_youtube_channel(
                     )
                 )
                 new_linked += 1
+                linked_numbers.append(int(matched["song_number"]))
                 known_ids.add(external_id)
                 continue
 
@@ -393,6 +395,10 @@ async def scan_youtube_channel(
     channel_row.last_scan_new = new_queued + new_linked
     channel_row.last_scan_known = known_count
     await session.commit()
+    if linked_numbers:
+        from app.services.catalog import refresh_catalog_songs
+
+        await refresh_catalog_songs(session, linked_numbers)
 
     return {
         "discovered": len(discovered_videos),

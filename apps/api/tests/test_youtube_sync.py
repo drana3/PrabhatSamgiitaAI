@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+from typing import Any
 from urllib.error import URLError
+from urllib.request import Request
 
 from scripts.sync_youtube import (
     CHANNELS,
@@ -180,3 +183,46 @@ def test_persist_youtube_inventory_skips_without_database_url(monkeypatch) -> No
     result = persist_youtube_inventory([], [], {})
     assert result["inserted_media"] == 0
     assert result["inserted_reviews"] == 0
+    assert result["inserted_song_numbers"] == []
+
+
+def test_notify_live_catalog_refresh_skips_without_credentials(monkeypatch, capsys) -> None:
+    monkeypatch.delenv("CATALOG_API_URL", raising=False)
+    monkeypatch.delenv("API_BASE_URL", raising=False)
+    monkeypatch.delenv("ADMIN_API_KEY", raising=False)
+    from scripts.sync_youtube import notify_live_catalog_refresh
+
+    notify_live_catalog_refresh([1])
+    captured = capsys.readouterr()
+    assert "Skipping live catalog refresh" in captured.err
+
+
+def test_notify_live_catalog_refresh_posts_song_numbers(monkeypatch) -> None:
+    monkeypatch.setenv("CATALOG_API_URL", "https://api.example.test")
+    monkeypatch.setenv("ADMIN_API_KEY", "secret-admin-key")
+    captured: dict[str, Any] = {}
+
+    class Response:
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return b'{"refreshed": 1}'
+
+    def fake_urlopen(request: Request, timeout: int = 0) -> Response:
+        captured["url"] = request.get_full_url()
+        captured["timeout"] = timeout
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        captured["admin_key"] = request.get_header("X-admin-key")
+        return Response()
+
+    monkeypatch.setattr("scripts.sync_youtube.urlopen", fake_urlopen)
+    from scripts.sync_youtube import notify_live_catalog_refresh
+
+    notify_live_catalog_refresh([12, 12, 40], recent_minutes=30)
+    assert captured["url"] == "https://api.example.test/api/v1/admin/catalog/refresh"
+    assert captured["body"] == {"song_numbers": [12, 40], "recent_minutes": 30}
+    assert captured["admin_key"] == "secret-admin-key"

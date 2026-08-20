@@ -85,6 +85,15 @@ export function catalogSongByNumber(query: string): SongSummary | null {
   return row ? rowToSong(row) : null
 }
 
+export function songsByNumbers(numbers: number[]): SongSummary[] {
+  return numbers.map((number) => {
+    const row = rowsByNumber.get(number)
+    return row
+      ? rowToSong(row)
+      : { number, title: `Prabhat Samgiita ${number}`, is_verified: false }
+  })
+}
+
 export function songsFromMoodList(moodId: string, limit = 10): SongSummary[] {
   const numbers = moodCategories[moodId]?.song_numbers ?? []
   return numbers.slice(0, limit).flatMap((number) => {
@@ -124,7 +133,6 @@ export function instantExploreSongs(
   if (process.env.NEXT_PUBLIC_E2E_DISABLE_SEARCH_PREFETCH === "true") return null
   const trimmed = query.trim()
   if (!trimmed) return null
-  if (isCollectionSearchQuery(trimmed)) return null
   if (isCompleteSargamQuery(trimmed)) return null
 
   const numbered = catalogSongByNumber(trimmed)

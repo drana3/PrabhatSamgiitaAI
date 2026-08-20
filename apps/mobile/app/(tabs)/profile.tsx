@@ -20,7 +20,7 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 import { friendlyPersonName } from "@/lib/displayName"
-import { memberAuthAvailable } from "@/lib/memberAuth"
+import { memberAuthAvailable, memberSyncUnavailableCopy } from "@/lib/memberAuth"
 import type { QuizStatus } from "@/lib/quiz"
 import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
@@ -134,8 +134,7 @@ export default function ProfileScreen() {
         {mode === "signed_in" && !memberBackend ? (
           <View style={styles.syncWarning}>
             <Text style={styles.syncWarningText}>
-              Saved songs, quiz certificates, and admin status from the website are not synced in
-              this build yet. Install the latest preview APK from the team.
+              {memberSyncUnavailableCopy()}
             </Text>
           </View>
         ) : null}

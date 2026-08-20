@@ -24,7 +24,6 @@ import { popularSearches, type MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import {
   CATEGORY_RESULT_LIMIT,
-  categoryCollectionPrompt,
   categoryLabel,
   composeBrowseResults,
   collectionFromQuery,
@@ -41,7 +40,7 @@ import {
   semanticQueryForCategory,
 } from "@/lib/categorySongs"
 import { searchDebounceMs } from "@/lib/searchMode"
-import { searchCatalogLyrics, warmLyricSearchIndex } from "@/lib/lyricSearch"
+import { searchCatalogLyrics, catalogSongsByNumbers, warmLyricSearchIndex } from "@/lib/lyricSearch"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { useAuthStore } from "@/stores/authStore"
@@ -124,21 +123,19 @@ export default function SearchScreen() {
       let reachedSearch = false
       const moodChip = isMoodCategoryId(searchId)
 
-      const catalogPrompt = categoryCollectionPrompt(searchId)
       const needsTitles = curated.some(
         (song) => !song.title || /^song\s+\d+$/i.test(song.title) || song.title === String(song.number),
       )
-      if (catalogPrompt && (moodChip ? curated.length < CATEGORY_RESULT_LIMIT : needsTitles)) {
-        try {
-          const rows = await api.searchSongs(catalogPrompt, { mode: "catalog" })
-          reachedSearch = true
-          extra = rows.map((row, index) => songSummaryToMockSong(row, index))
-          if (token !== requestId.current) return
-          const filled = composeBrowseResults(searchId, curated, extra)
-          if (filled.length) setResults(filled)
-        } catch {
-          /* still run semantic if a mood list is short */
-        }
+      if (needsTitles) {
+        extra = lyricHitsToSongs(
+          catalogSongsByNumbers(
+            curated.map((song) => song.number),
+            Math.max(curated.length, CATEGORY_RESULT_LIMIT),
+          ),
+        )
+        if (token !== requestId.current) return
+        const filled = composeBrowseResults(searchId, curated, extra)
+        if (filled.length) setResults(filled)
       }
 
       if (
@@ -197,6 +194,14 @@ export default function SearchScreen() {
     setLoading(true)
     setError(null)
     try {
+      const localHits = searchCatalogLyrics(nextQuery, CATEGORY_RESULT_LIMIT, { interpret: true })
+      if (localHits.length) {
+        const mapped = lyricHitsToSongs(localHits)
+        setResults(mapped)
+        if (activeCategory && mapped.length) rememberCategorySongs(activeCategory, mapped)
+        setError(null)
+        return
+      }
       const rows = await api.searchSongs(nextQuery, { mode: "catalog" })
       if (token !== requestId.current) return
       const mapped = rows.map((row, index) => songSummaryToMockSong(row, index))
@@ -354,6 +359,21 @@ export default function SearchScreen() {
         if (id === requestId.current) setLoading(false)
       }
       return
+    }
+
+    if (plan.layer === "collection") {
+      const collection = collectionFromQuery(trimmed)
+      if (collection?.songNumbers.length) {
+        setResults(
+          lyricHitsToSongs(
+            catalogSongsByNumbers(collection.songNumbers, CATEGORY_RESULT_LIMIT),
+          ),
+        )
+        setError(null)
+        setLoading(false)
+        addSearchRecent(trimmed)
+        return
+      }
     }
 
     if (plan.layer !== "semantic") {

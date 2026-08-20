@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { catalogLyricCount, searchLyrics, type LyricSearchRow } from "@/lib/lyricSearch"
+import { catalogLyricCount, catalogSongsByNumbers, searchLyrics, type LyricSearchRow } from "@/lib/lyricSearch"
 
 const rows: LyricSearchRow[] = [
   {
@@ -41,5 +41,10 @@ describe("lyric search", () => {
 
   it("indexes all 5018 songs", () => {
     expect(catalogLyricCount()).toBe(5018)
+  })
+
+  it("looks up many saved songs past the default search limit of 5", () => {
+    const hits = catalogSongsByNumbers([1, 2, 3, 4, 5, 6, 5018], 7)
+    expect(hits.map((hit) => hit.number)).toEqual([1, 2, 3, 4, 5, 6, 5018])
   })
 })

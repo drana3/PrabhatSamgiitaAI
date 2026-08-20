@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { PracticeCoach } from "@/components/practice-coach"
@@ -50,7 +50,28 @@ export function HarmoniumPractice({
   const [notation, setNotation] = useState(initialNotation)
   const [tonic, setTonic] = useState(initialNotation?.target_scale || "C")
   const [system, setSystem] = useState<"guide" | "keys" | "sargam">("sargam")
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(!initialNotation)
+
+  useEffect(() => {
+    if (initialNotation) return
+    let active = true
+    setLoading(true)
+    void fetchNotation(songNumber)
+      .then((next) => {
+        if (!active) return
+        if (next) {
+          setNotation(next)
+          setTonic(next.target_scale || "C")
+        }
+        setLoading(false)
+      })
+      .catch(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [initialNotation, songNumber])
   const playable = hasPlayableNotation(notation)
   const incomplete = notation
     ? notationCoverage(
