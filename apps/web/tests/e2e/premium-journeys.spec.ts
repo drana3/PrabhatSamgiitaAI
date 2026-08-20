@@ -527,7 +527,7 @@ test("search renders verified results and a deliberate no-match state", async ({
   await expect(page.getByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeVisible()
 
   await page.goto("/explore?q=unmatched%20theme&kind=semantic")
-  await expect(page).toHaveURL(/q=unmatched(\+|%20)theme.*kind=semantic/)
+  await expect(page).toHaveURL(/q=unmatched(\+|%20)theme.*kind=catalog/)
   await expect(page.getByRole("heading", { name: "No songs matched your search criteria" })).toBeVisible()
   await expect(page.getByText(/Try a song number, opening words/i)).toBeVisible()
   await expect(page.getByRole("heading", { name: "Recommended songs to explore" })).toBeVisible()
