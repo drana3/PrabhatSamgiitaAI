@@ -97,6 +97,13 @@ VOICE_CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
     "janmadin": ("birthday",),
     "joy": ("joy", "bliss"),
     "khushi": ("joy", "bliss"),
+    "kishan": ("krsna", "krishna"),
+    "kisna": ("krsna", "krishna"),
+    "kishna": ("krsna", "krishna"),
+    "krishna": ("krsna",),
+    "krisna": ("krsna", "krishna"),
+    "krsna": ("krishna",),
+    "krushna": ("krsna", "krishna"),
     "love": ("love", "devotion"),
     "meditat": ("meditation", "contemplation"),
     "meditation": ("meditation", "contemplation", "sadhana"),
@@ -120,9 +127,23 @@ VOICE_CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
     "sewa": ("service", "humanity"),
     "shaadi": ("marriage",),
     "shadi": ("marriage",),
+    "shankar": ("shiva",),
     "shanti": ("peace",),
     "shaanti": ("peace",),
+    "shiv": ("shiva",),
+    "shiva": ("shiva",),
+    "siv": ("shiva",),
+    "siva": ("shiva",),
     "sorrow": ("sorrow", "pain"),
+    "stress": ("peace", "shanti", "calm"),
+    "stressed": ("peace", "shanti", "calm"),
+    "stressful": ("peace", "shanti", "calm"),
+    "anxious": ("peace", "shanti", "calm"),
+    "anxiety": ("peace", "shanti", "calm"),
+    "tense": ("peace", "shanti", "calm"),
+    "worried": ("peace", "shanti", "calm"),
+    "overwhelm": ("peace", "shanti", "calm"),
+    "overwhelmed": ("peace", "shanti", "calm"),
     "ummid": ("hope",),
     "umeed": ("hope",),
     "vivah": ("marriage",),
@@ -326,7 +347,25 @@ def normalize_filter_text(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", unidecode(value).casefold())
     plain = "".join(character for character in decomposed if not unicodedata.combining(character))
     normalized = re.sub(r"[^a-z0-9]+", " ", plain).strip()
-    return normalized.replace("krishna", "krsna").replace("maethili", "maithili")
+    swapped = {
+        "krishna": "krsna",
+        "krisna": "krsna",
+        "kishan": "krsna",
+        "kisan": "krsna",
+        "kisna": "krsna",
+        "kishna": "krsna",
+        "krishn": "krsna",
+        "krushna": "krsna",
+        "krsna": "krsna",
+        "siv": "shiva",
+        "shiv": "shiva",
+        "siva": "shiva",
+        "mahadev": "shiva",
+        "shankar": "shiva",
+        "sadashiva": "shiva",
+        "maethili": "maithili",
+    }
+    return " ".join(swapped.get(word, word) for word in normalized.split())
 
 
 @dataclass(frozen=True, slots=True)

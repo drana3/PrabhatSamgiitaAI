@@ -408,10 +408,17 @@ export function createApiClient(options: ApiClientOptions) {
   async function fetchJson(path: string, init?: RequestInit, timeout = timeoutMs) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeout)
+    const userSignal = init?.signal
+    const onUserAbort = () => controller.abort()
+    if (userSignal) {
+      if (userSignal.aborted) controller.abort()
+      else userSignal.addEventListener("abort", onUserAbort, { once: true })
+    }
     try {
       const extraAuth = await authHeaders()
+      const { signal: _userSignal, ...rest } = init ?? {}
       return await fetchImpl(`${baseUrl}${path}`, {
-        ...init,
+        ...rest,
         signal: controller.signal,
         headers: {
           Accept: "application/json",
@@ -421,6 +428,7 @@ export function createApiClient(options: ApiClientOptions) {
       })
     } finally {
       clearTimeout(timer)
+      userSignal?.removeEventListener("abort", onUserAbort)
     }
   }
 
@@ -562,7 +570,7 @@ export function createApiClient(options: ApiClientOptions) {
 
     async searchSongs(
       query: string,
-      searchOptions: { mode?: "catalog" | "semantic" } = {},
+      searchOptions: { mode?: "catalog" | "semantic"; signal?: AbortSignal } = {},
     ): Promise<SongSummary[]> {
       if (!queryIsUseful(query, 200)) throw new Error(queryGuidanceFor(query))
       const mode = searchOptions.mode ?? "catalog"
@@ -573,6 +581,7 @@ export function createApiClient(options: ApiClientOptions) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ query, mode }),
+            signal: searchOptions.signal,
           },
           searchTimeoutMs,
         )
@@ -585,6 +594,7 @@ export function createApiClient(options: ApiClientOptions) {
         return z.array(songSummarySchema).parse(await response.json())
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
+          if (searchOptions.signal?.aborted) throw error
           throw new Error("Search is taking longer than expected. Please try again.")
         }
         if (error instanceof Error) throw error

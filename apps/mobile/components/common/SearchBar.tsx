@@ -2,6 +2,8 @@ import { Pressable, StyleSheet, Text, TextInput, View, ActivityIndicator } from 
 import type { RefObject } from "react"
 import { Filter, Mic, Search, Sparkles, X } from "lucide-react-native"
 
+import { SEARCH_PLACEHOLDER } from "@prabhat/core"
+
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -50,7 +52,7 @@ function MicButton({ onPress, listening }: { onPress?: () => void; listening?: b
 }
 
 export function SearchBar({
-  placeholder = "Ask about any Prabhat Samgiita...",
+  placeholder = SEARCH_PLACEHOLDER,
   value,
   editable = false,
   onPress,

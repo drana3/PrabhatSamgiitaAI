@@ -4,13 +4,28 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import Link from "next/link"
 
+import { planSearch } from "@prabhat/core"
+
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { SearchForm } from "@/components/search-form"
 import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
 import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
+import { useSearchAuth } from "@/lib/feeling-search"
 import {
+  instantExploreSongs,
+  lyricHitsToSongs,
+  searchCatalogLyrics,
+  shouldSearchCatalogLyrics,
+} from "@/lib/lyric-search"
+import { SearchForm } from "@/components/search-form"
+import { SongCard } from "@/components/song-card"
+import { SpecialCollections } from "@/components/special-collections"
+import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
+import type { SongSummary, VoiceSearchResult } from "@/lib/api"
+import {
+  instantExploreSongs,
   lyricHitsToSongs,
   searchCatalogLyrics,
   shouldSearchCatalogLyrics,
@@ -90,16 +105,26 @@ export function ExploreClient({
   inputMode?: "text" | "voice"
   spokenLanguage?: string
 }) {
+  const searchAuth = useSearchAuth()
   const pendingInitialSearch = Boolean(initialQuery) && !searchPrefetched
-  const [songs, setSongs] = useState<SongSummary[]>(pendingInitialSearch ? [] : initialSongs)
+  const instantInitial = initialQuery.trim() ? instantExploreSongs(initialQuery.trim(), searchKind, searchAuth) : null
+  const [songs, setSongs] = useState<SongSummary[]>(
+    instantInitial !== null ? instantInitial : pendingInitialSearch ? [] : initialSongs,
+  )
   const [activeQuery, setActiveQuery] = useState(initialQuery)
   const [activeKind, setActiveKind] = useState<ExploreSearchKind>(searchKind)
-  const [searching, setSearching] = useState(pendingInitialSearch)
+  const [searching, setSearching] = useState(pendingInitialSearch && instantInitial === null)
   const [completedQuery, setCompletedQuery] = useState("")
   const [voiceResult, setVoiceResult] = useState<VoiceSearchResult | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
   const resultsRef = useRef<HTMLDivElement | null>(null)
-  const searchCache = useRef(new Map<string, SongSummary[]>())
+  const searchCache = useRef((() => {
+    const map = new Map<string, SongSummary[]>()
+    if (instantInitial !== null && initialQuery.trim()) {
+      map.set(cacheKey(initialQuery.trim(), searchKind), instantInitial)
+    }
+    return map
+  })())
   const bootstrappedQuery = useRef<string | null>(null)
 
   useEffect(() => {
@@ -137,9 +162,27 @@ export function ExploreClient({
       return
     }
 
+    const instant = instantExploreSongs(trimmed, kind, searchAuth)
+    if (instant !== null) {
+      searchCache.current.set(key, instant)
+      beginSearchState(() => {
+        setSearching(false)
+        setActiveQuery(trimmed)
+        setActiveKind(kind)
+        setCompletedQuery("")
+        setSongs(instant)
+        setVoiceResult(null)
+        setSearchError(null)
+      })
+      window.history.replaceState(null, "", exploreUrl(trimmed, kind))
+      finishSearch(trimmed)
+      return
+    }
+
+    const plan = planSearch(trimmed, searchAuth)
     const keepSongs = isCollectionSearchQuery(trimmed)
     beginSearchState(() => {
-      setSearching(true)
+      setSearching(plan.layer === "semantic")
       setActiveQuery(trimmed)
       setActiveKind(kind)
       setCompletedQuery("")
@@ -156,7 +199,9 @@ export function ExploreClient({
         ? completeSargamSongs()
         : localHits.length
           ? lyricHitsToSongs(localHits)
-          : await searchSongs(trimmed, { mode: kind === "catalog" ? "catalog" : "semantic" })
+          : plan.layer === "semantic"
+            ? await searchSongs(trimmed, { mode: "semantic" })
+            : []
       searchCache.current.set(key, results)
       setSongs(results)
       finishSearch(trimmed)
@@ -166,12 +211,30 @@ export function ExploreClient({
     } finally {
       setSearching(false)
     }
-  }, [finishSearch])
+  }, [finishSearch, searchAuth])
 
   const runCatalogSearch = useCallback(
     (query: string) => void runSearch(query, "catalog"),
     [runSearch],
   )
+
+  const handleQueryInput = useCallback((query: string) => {
+    setActiveQuery(query)
+    const trimmed = query.trim()
+    if (!trimmed) {
+      setSearching(false)
+      setSongs(initialSongs)
+      return
+    }
+    const instant = instantExploreSongs(trimmed, undefined, searchAuth)
+    if (instant?.length) {
+      searchCache.current.set(cacheKey(trimmed, "catalog"), instant)
+      setSongs(instant)
+      setSearching(false)
+      setActiveKind("catalog")
+      setSearchError(null)
+    }
+  }, [initialSongs, searchAuth])
 
   const runVoiceSearch = useCallback(async (query: string) => {
     const trimmed = query.trim()
@@ -180,15 +243,22 @@ export function ExploreClient({
     beginSearchState(() => {
       setSearching(true)
       setActiveQuery(trimmed)
-      setActiveKind("semantic")
+      setActiveKind("catalog")
       setCompletedQuery("")
       setSongs([])
       setSearchError(null)
     })
-    window.history.replaceState(null, "", exploreUrl(trimmed, "semantic", { voice: true, lang: spokenLanguage }))
+    window.history.replaceState(null, "", exploreUrl(trimmed, "catalog", { voice: true, lang: spokenLanguage }))
 
     try {
-      if (shouldSearchCatalogLyrics(trimmed, "semantic")) {
+      const instant = instantExploreSongs(trimmed, undefined, searchAuth)
+      if (instant !== null) {
+        searchCache.current.set(cacheKey(trimmed, "catalog"), instant)
+        setSongs(instant)
+        finishSearch(trimmed)
+        return
+      }
+      if (shouldSearchCatalogLyrics(trimmed, "catalog")) {
         const localHits = searchCatalogLyrics(trimmed)
         if (localHits.length) {
           const songs = lyricHitsToSongs(localHits)
@@ -198,18 +268,24 @@ export function ExploreClient({
           return
         }
       }
+      const plan = planSearch(trimmed, searchAuth)
+      if (plan.layer !== "semantic") {
+        setSongs([])
+        finishSearch(trimmed)
+        return
+      }
       const voiceResult = await searchSongsByVoice(trimmed, spokenLanguage)
       setVoiceResult(voiceResult)
       if (voiceResult.matches.length) {
         setSongs(voiceResult.matches.map((match) => match.song))
       } else {
-        // Feeling/meaning asks should still land on embedding search results.
         const semanticResults = await searchSongs(trimmed, { mode: "semantic" })
         setSongs(semanticResults)
       }
       finishSearch(trimmed)
     } catch (error) {
       try {
+        if (planSearch(trimmed, searchAuth).layer !== "semantic") throw error
         const semanticResults = await searchSongs(trimmed, { mode: "semantic" })
         setVoiceResult(null)
         setSongs(semanticResults)
@@ -221,7 +297,7 @@ export function ExploreClient({
     } finally {
       setSearching(false)
     }
-  }, [finishSearch, spokenLanguage])
+  }, [finishSearch, searchAuth, spokenLanguage])
 
   useEffect(() => {
     if (!initialQuery) return
@@ -288,42 +364,6 @@ export function ExploreClient({
         <h1 className="font-serif text-4xl text-navy-950 sm:text-5xl">Explore Prabhat Samgiita</h1>
         <span className="text-sm font-semibold text-gold-700">5,018 songs</span>
       </div>
-      <div className="mt-6 max-w-4xl">
-        <SearchForm
-          initialQuery={activeQuery}
-          inputMode={inputMode}
-          spokenLanguage={spokenLanguage}
-          isSearching={searching}
-          onResults={setSongs}
-          onSearching={handleSearching}
-          onVoiceResult={setVoiceResult}
-          onQueryChange={setActiveQuery}
-          onSemanticSearch={(query) => {
-            void runSearch(query, exploreSearchKind(query))
-          }}
-          onVoiceSearch={(query) => { void runVoiceSearch(query) }}
-          searchError={searchError}
-        />
-      </div>
-
-      {voiceResult ? (
-        <div role="status" className={`mt-4 max-w-4xl rounded-2xl border px-5 py-4 ${voiceResult.confidence === "low" || voiceResult.confidence === "none" ? "border-amber-500/40 bg-amber-50" : "border-emerald-700/20 bg-emerald-50"}`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-stone-700"><span className="font-semibold text-navy-950">We heard:</span> “{voiceResult.heard}”</p>
-            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-navy-950">{voiceResult.confidence} confidence</span>
-          </div>
-          {voiceResult.interpreted_as && voiceResult.interpreted_as.toLocaleLowerCase() !== voiceResult.heard.toLocaleLowerCase() ? <p className="mt-2 text-xs text-stone-600">Interpreted for search as “{voiceResult.interpreted_as}”.</p> : null}
-          {voiceResult.guidance ? <p className="mt-2 text-sm font-medium text-amber-900">{voiceResult.guidance}</p> : <p className="mt-2 text-xs text-stone-600">Searching meanings and feelings across all 5,018 songs.</p>}
-        </div>
-      ) : null}
-
-      <div className="mt-8 space-y-5 border-y border-navy-900/10 py-6">
-        <FilterRow label="Browse by theme" items={themes} onSelect={runCatalogSearch} />
-        <a href="#collections" className="inline-flex text-sm font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Browse all {specialCollectionCount} special collections →</a>
-        <p className="text-xs leading-5 text-stone-500"><strong className="text-navy-950">Raga & tala:</strong> the musical index is published progressively as canonical notation pages are reviewed.</p>
-      </div>
-
-      <div className="mt-8"><SpecialCollections activeQuery={activeQuery} onSelect={runCatalogSearch} /></div>
 
       {activeQuery ? (
         <div id="active-filter" role="status" className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold-500/35 bg-gold-50 px-5 py-4">
@@ -383,6 +423,43 @@ export function ExploreClient({
           ) : null}
         </div>
       )}
+
+      <div className="mt-8 max-w-4xl">
+        <SearchForm
+          initialQuery={activeQuery}
+          inputMode={inputMode}
+          spokenLanguage={spokenLanguage}
+          isSearching={searching}
+          onResults={setSongs}
+          onSearching={handleSearching}
+          onVoiceResult={setVoiceResult}
+          onQueryChange={handleQueryInput}
+          onSemanticSearch={(query) => {
+            void runSearch(query, exploreSearchKind(query, null, searchAuth))
+          }}
+          onVoiceSearch={(query) => { void runVoiceSearch(query) }}
+          searchError={searchError}
+        />
+      </div>
+
+      {voiceResult ? (
+        <div role="status" className={`mt-4 max-w-4xl rounded-2xl border px-5 py-4 ${voiceResult.confidence === "low" || voiceResult.confidence === "none" ? "border-amber-500/40 bg-amber-50" : "border-emerald-700/20 bg-emerald-50"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-stone-700"><span className="font-semibold text-navy-950">We heard:</span> “{voiceResult.heard}”</p>
+            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-navy-950">{voiceResult.confidence} confidence</span>
+          </div>
+          {voiceResult.interpreted_as && voiceResult.interpreted_as.toLocaleLowerCase() !== voiceResult.heard.toLocaleLowerCase() ? <p className="mt-2 text-xs text-stone-600">Interpreted for search as “{voiceResult.interpreted_as}”.</p> : null}
+          {voiceResult.guidance ? <p className="mt-2 text-sm font-medium text-amber-900">{voiceResult.guidance}</p> : <p className="mt-2 text-xs text-stone-600">Searching meanings and feelings across all 5,018 songs.</p>}
+        </div>
+      ) : null}
+
+      <div className="mt-8 space-y-5 border-y border-navy-900/10 py-6">
+        <FilterRow label="Browse by theme" items={themes} onSelect={runCatalogSearch} />
+        <a href="#collections" className="inline-flex text-sm font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Browse all {specialCollectionCount} special collections →</a>
+        <p className="text-xs leading-5 text-stone-500"><strong className="text-navy-950">Raga & tala:</strong> the musical index is published progressively as canonical notation pages are reviewed.</p>
+      </div>
+
+      <div className="mt-8"><SpecialCollections activeQuery={activeQuery} onSelect={runCatalogSearch} /></div>
 
     </div>
   )

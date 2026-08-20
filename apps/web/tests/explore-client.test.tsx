@@ -21,6 +21,22 @@ vi.mock("@/lib/api", () => ({
 vi.mock("@/lib/lyric-search", () => ({
   searchCatalogLyrics: (...args: unknown[]) => searchCatalogLyrics(...args),
   shouldSearchCatalogLyrics: (...args: unknown[]) => shouldSearchCatalogLyrics(...args),
+  instantExploreSongs: (query: string) => {
+    if (!shouldSearchCatalogLyrics(query)) return null
+    const hits = searchCatalogLyrics(query) as Array<{
+      number: number
+      title: string
+      firstLine: string
+      snippet?: string
+    }>
+    if (!hits.length) return null
+    return hits.map((hit) => ({
+      number: hit.number,
+      title: hit.firstLine || hit.title,
+      first_line: hit.snippet || hit.firstLine || hit.title,
+      is_verified: true,
+    }))
+  },
   lyricHitsToSongs: (hits: Array<{ number: number; title: string; firstLine: string; snippet?: string }>) =>
     hits.map((hit) => ({
       number: hit.number,
@@ -32,6 +48,7 @@ vi.mock("@/lib/lyric-search", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/explore",
 }))
 
 vi.mock("next/link", () => ({
@@ -42,6 +59,10 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/lib/scroll-to-section", () => ({
   scrollToSectionId: vi.fn(),
+}))
+
+vi.mock("@/components/member-provider", () => ({
+  useMember: () => ({ loading: false, session: { authenticated: false }, refresh: vi.fn() }),
 }))
 
 vi.mock("@/components/voice-search-button", () => ({
@@ -88,9 +109,7 @@ describe("ExploreClient prefetch hydration", () => {
     })
   })
 
-  it("runs a client catalog search when results were not prefetched", async () => {
-    searchSongs.mockResolvedValue([prefetchedSong])
-
+  it("runs a local catalog lookup when results were not prefetched", async () => {
     renderExplore(
       <ExploreClient
         initialSongs={[]}
@@ -100,12 +119,8 @@ describe("ExploreClient prefetch hydration", () => {
     )
 
     await waitFor(() => {
-      expect(searchSongs).toHaveBeenCalledWith(
-        "Musafir aage badhate hain",
-        { mode: "catalog" },
-      )
+      expect(searchSongs).not.toHaveBeenCalled()
     })
-    expect(await screen.findByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeInTheDocument()
   })
 
   it("resolves lyric lines locally without calling the search API", async () => {
@@ -131,14 +146,11 @@ describe("ExploreClient prefetch hydration", () => {
     )
 
     await user.type(screen.getByLabelText(/Search by number/i), "bandhu he niye calo")
-    await user.click(screen.getByRole("button", { name: "Search", exact: true }))
-
     expect(await screen.findByRole("heading", { name: "Bandhu He Niye Calo" })).toBeInTheDocument()
     expect(searchSongs).not.toHaveBeenCalled()
   })
 
-  it("routes explore form theme asks to semantic search", async () => {
-    searchSongs.mockResolvedValue([prefetchedSong])
+  it("keeps theme asks on the local catalog instead of embeddings", async () => {
     const user = userEvent.setup()
 
     renderExplore(
@@ -153,7 +165,7 @@ describe("ExploreClient prefetch hydration", () => {
     await user.click(screen.getByRole("button", { name: "Search", exact: true }))
 
     await waitFor(() => {
-      expect(searchSongs).toHaveBeenCalledWith("songs about peace", { mode: "semantic" })
+      expect(searchSongs).not.toHaveBeenCalled()
     })
   })
 

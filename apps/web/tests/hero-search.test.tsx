@@ -5,7 +5,10 @@ import userEvent from "@testing-library/user-event"
 import { HeroSearch } from "@/components/hero-search"
 
 const push = vi.fn()
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/" }))
+vi.mock("@/components/member-provider", () => ({
+  useMember: () => ({ loading: false, session: { authenticated: false }, refresh: vi.fn() }),
+}))
 
 afterEach(() => {
   push.mockClear()
@@ -42,7 +45,7 @@ describe("hero search", () => {
 
     push.mockClear()
     await user.click(screen.getByRole("button", { name: /By feeling/i }))
-    expect(push).toHaveBeenCalledWith("/explore?q=peaceful%20devotion&kind=semantic")
+    expect(push).toHaveBeenCalledWith("/explore?q=peaceful%20devotion")
   })
 
   it("opens grounded AI context for an explanation request containing a song number", async () => {
@@ -84,5 +87,13 @@ describe("hero search", () => {
     await user.click(screen.getByRole("button", { name: "Search" }))
     expect(push).not.toHaveBeenCalled()
     expect(screen.getByRole("alert")).toHaveTextContent("Please ask something specific")
+  })
+
+  it("suggests catalog songs while typing", async () => {
+    const user = userEvent.setup()
+    render(<HeroSearch />)
+    await user.type(screen.getByLabelText(/Search by song number/i), "bandhu he niye calo")
+    expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /PS 1\s+Bandhu He Niye Calo/i })).toHaveAttribute("href", "/songs/1#ask")
   })
 })

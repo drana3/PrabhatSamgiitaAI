@@ -3,7 +3,7 @@ import { create } from "zustand"
 
 import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
-import { isSameSong } from "@/lib/playback"
+import { isSameAudioTrack, isSameSong } from "@/lib/playback"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -527,6 +527,7 @@ function mergeSong(current: MockSong | null, song: MockSong): MockSong {
     ...current,
     ...song,
     audioUrl: song.audioUrl || current.audioUrl || null,
+    audioRecordings: song.audioRecordings?.length ? song.audioRecordings : current.audioRecordings,
     mediaHydrated: Boolean(song.audioUrl || current.audioUrl || song.mediaHydrated || current.mediaHydrated),
   }
 }
@@ -573,7 +574,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   loadSong: (song, queue) => {
-    if (isSameSong(get().currentSong, song)) {
+    if (isSameAudioTrack(get().currentSong, song)) {
       get().syncCurrentSong(song, queue)
       return
     }
@@ -584,7 +585,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   playOrToggle: (song, queue) => {
-    if (isSameSong(get().currentSong, song)) {
+    if (isSameAudioTrack(get().currentSong, song)) {
       if (queue?.length) set({ queue })
       get().togglePlay()
       return

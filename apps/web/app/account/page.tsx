@@ -5,6 +5,7 @@ import Link from "next/link"
 
 import { SavedSongsList } from "@/components/saved-songs-list"
 import { QuizCertificate } from "@/components/quiz-certificate"
+import { FeelingSearchToggle } from "@/components/feeling-search-toggle"
 import { useMember } from "@/components/member-provider"
 import { SiteHeader } from "@/components/site-header"
 import { memberFirstName } from "@/lib/member"
@@ -102,6 +103,11 @@ export default function AccountPage() {
             ) : (
               <p className="mt-5 text-sm text-stone-600">No certificates yet. Start with the Starter quiz when you feel ready.</p>
             )}
+          </article>
+
+          <article className="rounded-3xl border border-navy-900/10 bg-white p-6">
+            <h2 className="font-serif text-2xl text-navy-950">Search</h2>
+            <FeelingSearchToggle />
           </article>
 
           <article className="rounded-3xl border border-navy-900/10 bg-white p-6">

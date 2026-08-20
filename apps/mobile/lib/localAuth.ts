@@ -1,11 +1,5 @@
-import Constants from "expo-constants"
-
 import type { AuthSessionPayload } from "@/lib/oauthIdentity"
-
-const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL ??
-  (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
-  "http://localhost:8000"
+import { apiBaseUrl } from "@/lib/client"
 
 async function postAuth(path: "register" | "login", body: Record<string, string>) {
   const response = await fetch(`${apiBaseUrl}/api/v1/auth/${path}`, {

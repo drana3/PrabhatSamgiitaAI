@@ -217,11 +217,12 @@ export async function fetchJson(path: string, init: RequestInit = {}) {
   }
 }
 
-async function fetchSearchJson(path: string, init: RequestInit) {
+async function fetchSearchJson(path: string, init: RequestInit, feelingSearch = false) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), searchTimeoutMs)
+  const url = feelingSearch ? "/api/search" : `${apiBase}${path}`
   try {
-    return await fetch(`${apiBase}${path}`, {
+    return await fetch(url, {
       ...init,
       signal: controller.signal,
       cache: "no-store",
@@ -305,7 +306,7 @@ export async function searchSongs(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, mode }),
-    })
+    }, mode === "semantic")
     if (!response.ok) {
       const payload = await response.json().catch(() => null)
       throw new Error(typeof payload?.detail === "string" ? payload.detail : "Search is temporarily unavailable.")

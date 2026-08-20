@@ -328,6 +328,16 @@ export default function SongDetailScreen() {
     playOrToggle(song, playQueue)
   }
 
+  const selectRecording = (url: string) => {
+    if (song.audioUrl === url) {
+      handlePlayToggle()
+      return
+    }
+    const next = { ...song, audioUrl: url, mediaHydrated: true as const }
+    setSong(next)
+    playOrToggle(next, playQueue)
+  }
+
   const openAiCompanion = () => {
     const now = Date.now()
     if (now - lastAiOpenAt.current < 400) return
@@ -488,6 +498,8 @@ export default function SongDetailScreen() {
             title={song.title}
             performer={song.performer}
             audioUrl={song.audioUrl}
+            recordings={song.audioRecordings}
+            onSelectRecording={selectRecording}
             onTogglePlay={handlePlayToggle}
           />
         </View>

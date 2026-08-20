@@ -24,6 +24,7 @@ type PreferencesState = {
   savedSongIds: string[]
   recentPlays: RecentPlay[]
   searchRecents: string[]
+  feelingSearchEnabled: boolean
   songNotes: Record<string, string>
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
@@ -35,6 +36,7 @@ type PreferencesState = {
   ) => void
   addSearchRecent: (query: string) => void
   clearSearchRecents: () => void
+  setFeelingSearchEnabled: (enabled: boolean) => void
   setSongNote: (songId: string, note: string) => void
 }
 
@@ -62,6 +64,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       savedSongIds: [],
       recentPlays: [],
       searchRecents: [],
+      feelingSearchEnabled: false,
       songNotes: {},
       syncingFavorites: false,
 
@@ -170,6 +173,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
 
       clearSearchRecents: () => set({ searchRecents: [] }),
+      setFeelingSearchEnabled: (enabled) => set({ feelingSearchEnabled: enabled }),
 
       setSongNote: (songId, note) => {
         const trimmed = note.trim()
@@ -212,6 +216,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         savedSongIds: state.savedSongIds,
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,
+        feelingSearchEnabled: state.feelingSearchEnabled,
         songNotes: state.songNotes,
       }),
       onRehydrateStorage: () => (state) => {

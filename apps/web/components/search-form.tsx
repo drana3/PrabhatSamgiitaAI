@@ -9,10 +9,13 @@ import { z } from "zod"
 
 import { searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { VoiceSearchResult } from "@/lib/api"
+import { InstantSearchSuggestions } from "@/components/instant-search-suggestions"
+import { FeelingSearchToggle } from "@/components/feeling-search-toggle"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { VoiceSearchButton } from "@/components/voice-search-button"
 import { queryIsUseful } from "@/lib/query-guard"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
+import { SEARCH_PLACEHOLDER } from "@prabhat/core"
 
 const schema = z.object({
   query: z.string().min(1, "Enter a song number, first line, or theme"),
@@ -57,7 +60,7 @@ export function SearchForm({
         const voiceResult = await searchSongsByVoice(values.query, spokenLanguage)
         return { songs: voiceResult.matches.map((match) => match.song), voiceResult }
       }
-      return { songs: await searchSongs(values.query, { mode: "semantic" }), voiceResult: null }
+      return { songs: await searchSongs(values.query, { mode: "catalog" }), voiceResult: null }
     },
     onMutate: () => onSearching?.(true),
     onSuccess: ({ songs, voiceResult }) => {
@@ -95,6 +98,8 @@ export function SearchForm({
     onQueryChange?.(initialQuery)
   }, [initialQuery, form, onQueryChange])
 
+  const typedQuery = form.watch("query")
+
   return (
     <form
       id="catalog-search"
@@ -102,17 +107,22 @@ export function SearchForm({
       onSubmit={form.handleSubmit(submit)}
     >
       <label className="mb-2 block text-xs font-bold text-navy-950" htmlFor="query">
-        Search by number, lyrics, meaning, or moment
+        Search by number, lyrics, or a feeling
       </label>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
         <input
           id="query"
-          {...form.register("query")}
-          placeholder="Try 1, bandhu he, or devotional dawn"
+          {...form.register("query", {
+            onChange: (event) => onQueryChange?.(event.target.value),
+          })}
+          placeholder={SEARCH_PLACEHOLDER}
           className="min-h-12 min-w-0 flex-1 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-navy-950 outline-none transition placeholder:text-stone-400 focus:border-gold-500"
+          aria-autocomplete="list"
+          aria-controls="explore-search-suggestions"
         />
         <VoiceSearchButton onTranscript={({ transcript, language }) => {
           form.setValue("query", transcript, { shouldValidate: true })
+          onQueryChange?.(transcript)
           if (onVoiceSearch) {
             onVoiceSearch(transcript, language)
             return
@@ -130,6 +140,8 @@ export function SearchForm({
           {mutation.isPending || isSearching ? <LoadingIndicator label="Searching" compact /> : "Search"}
         </button>
       </div>
+      <InstantSearchSuggestions query={typedQuery} id="explore-search-suggestions" />
+      <FeelingSearchToggle compact />
       <div className="min-h-5 pt-1">
         {form.formState.errors.query ? (
           <p className="text-sm text-red-700">{form.formState.errors.query.message}</p>

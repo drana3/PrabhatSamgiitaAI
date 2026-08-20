@@ -200,7 +200,7 @@ test("all special collections are organized and lead to catalog search", async (
   await expect(page.locator("#results").first()).toBeVisible()
 })
 
-test("collections stay above results and English returns only its three canonical songs", async ({ page }) => {
+test("results sit just above search and English returns only its three canonical songs", async ({ page }) => {
   const englishSongs = [
     { ...songResult, number: 68, title: "I love this tiny green island", language: "English" },
     { ...songResult, number: 5008, title: "WE LOVE THAT GREAT ENTITY", language: "English" },
@@ -213,21 +213,21 @@ test("collections stay above results and English returns only its three canonica
   })
   await page.goto("/explore")
   await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
-  const collections = page.locator("#collections").first()
   await setDetailsOpen(page, "#collections", true)
   const results = page.locator("#results").first()
-  const collectionBounds = await collections.boundingBox()
+  const search = page.locator("#catalog-search").first()
   const resultBounds = await results.boundingBox()
-  expect(collectionBounds).not.toBeNull()
+  const searchBounds = await search.boundingBox()
   expect(resultBounds).not.toBeNull()
-  expect(collectionBounds!.y + collectionBounds!.height).toBeLessThan(resultBounds!.y)
+  expect(searchBounds).not.toBeNull()
+  expect(resultBounds!.y).toBeLessThan(searchBounds!.y)
 
   await clickCollectionLink(page, /English 3/)
   await expect(page.getByRole("heading", { name: /Songs in the English collection/i }).first()).toBeVisible()
   await expect(page.locator("#results").first()).toBeInViewport()
-  const searchBounds = await page.locator("#catalog-search").first().boundingBox()
+  const searchAfterBounds = await page.locator("#catalog-search").first().boundingBox()
   const resultsAfterBounds = await page.locator("#results").first().boundingBox()
-  expect(searchBounds!.y).toBeLessThan(resultsAfterBounds!.y)
+  expect(resultsAfterBounds!.y + resultsAfterBounds!.height).toBeLessThan(searchAfterBounds!.y)
   await expect(page.locator("#collections").first().locator("a[aria-current='true']")).toHaveCount(1)
   await setDetailsOpen(page, "#collections", true)
   await expect(page.getByRole("link", { name: /English 3/ })).toHaveAttribute("href", "/explore#catalog-search")

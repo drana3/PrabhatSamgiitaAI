@@ -74,12 +74,18 @@ describe("reviewed discovery collections", () => {
     expect(events).toEqual([])
   })
 
-  it("routes collection prompts to catalog search and free text to semantic search", () => {
+  it("routes collection prompts and lyrics to catalog; feelings stay local unless Feeling search is on", () => {
     expect(isCollectionSearchQuery("Search Prabhat Samgiita for Hindi Songs")).toBe(true)
     expect(exploreSearchKind("Search Prabhat Samgiita for Hindi Songs")).toBe("catalog")
-    expect(exploreSearchKind("song about rain")).toBe("semantic")
+    expect(exploreSearchKind("song about rain")).toBe("catalog")
     expect(exploreSearchKind("bandhu he niye calo")).toBe("catalog")
-    expect(exploreSearchKind("morning meditation", "semantic")).toBe("semantic")
+    expect(exploreSearchKind("morning meditation", "semantic")).toBe("catalog")
+    expect(
+      exploreSearchKind("I am feeling stressful", "semantic", {
+        signedIn: true,
+        feelingSearchEnabled: true,
+      }),
+    ).toBe("semantic")
   })
 
   it("maps collection search prompts to friendly display labels", () => {

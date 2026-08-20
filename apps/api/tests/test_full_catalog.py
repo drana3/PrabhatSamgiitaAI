@@ -367,8 +367,14 @@ def test_voice_feeling_query_keeps_meaning_terms_for_semantic_search() -> None:
 
 def test_short_feeling_queries_expand_locally() -> None:
     assert "shanti" in expand_concept_query("peace")
+    assert "shanti" in expand_concept_query("I am feeling very stressful today")
     assert "bhakti" in expand_concept_query("Devotional")
     assert "contemplation" in expand_concept_query("morning meditation")
+    assert "shiva" in expand_concept_query("siv")
+    assert "shiva" in expand_concept_query("shiv")
+    assert "krsna" in expand_concept_query("kisna")
+    assert "krsna" in expand_concept_query("kishna")
+    assert "krsna" in expand_concept_query("krishna")
 
 
 @pytest.mark.asyncio

@@ -9,6 +9,7 @@ import {
   MessageSquareHeart,
   Moon,
   Shield,
+  Sparkles,
 } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
@@ -66,6 +67,8 @@ export default function ProfileScreen() {
   const signOut = useAuthStore((s) => s.signOut)
   const resetWelcome = useAuthStore((s) => s.resetWelcome)
   const savedCount = usePreferencesStore((s) => s.savedSongIds.length)
+  const feelingSearchEnabled = usePreferencesStore((s) => s.feelingSearchEnabled)
+  const setFeelingSearchEnabled = usePreferencesStore((s) => s.setFeelingSearchEnabled)
   const hydrateFavoritesFromServer = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const [certCount, setCertCount] = useState<number | null>(null)
@@ -227,6 +230,18 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>Preferences</Text>
         <View style={styles.section}>
+          <Row
+            icon={<Sparkles size={18} color={colors.primary} />}
+            label="Feeling search"
+            value={mode === "signed_in" && feelingSearchEnabled ? "On" : "Off"}
+            onPress={() => {
+              if (mode !== "signed_in") {
+                router.push(href("/signin"))
+                return
+              }
+              setFeelingSearchEnabled(!feelingSearchEnabled)
+            }}
+          />
           <Row
             icon={<Moon size={18} color={colors.primary} />}
             label="Appearance"

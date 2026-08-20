@@ -176,6 +176,15 @@ describe("offline audio", () => {
     expect(source).toEqual({ uri: fileUriFor(memberA, 12), local: true })
   })
 
+  it("streams an alternate recording instead of a saved different file", async () => {
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
+    useOfflineAudioStore.setState({
+      files: { 12: { remoteUrl: "https://cdn.test/12.mp3", fileUri: fileUriFor(memberA, 12) } },
+    })
+    const source = await resolvePlaybackUri(12, "https://cdn.test/12-alt.mp3")
+    expect(source).toEqual({ uri: "https://cdn.test/12-alt.mp3", local: false })
+  })
+
   it("falls back to the remote stream when nothing is downloaded", async () => {
     const source = await resolvePlaybackUri(3, "https://cdn.test/3.mp3")
     expect(source).toEqual({ uri: "https://cdn.test/3.mp3", local: false })

@@ -302,7 +302,8 @@ export async function resolvePlaybackUri(
   const signedIn = useAuthStore.getState().mode === "signed_in"
   if (signedIn) {
     const entry = useOfflineAudioStore.getState().files[songNumber]
-    if (entry && (await fileExists(entry.fileUri))) {
+    const remote = remoteUrl?.trim() || ""
+    if (entry && (!remote || entry.remoteUrl === remote) && (await fileExists(entry.fileUri))) {
       return { uri: entry.fileUri, local: true }
     }
   }

@@ -29,9 +29,9 @@ describe("explore search prefetch", () => {
     ).toBe(false)
   })
 
-  it("respects explicit explore search kind", () => {
+  it("respects explicit explore search kind only when Feeling search is allowed", () => {
     expect(resolveExploreSearchKind("bandhu he niye calo")).toBe("catalog")
-    expect(resolveExploreSearchKind("morning meditation", "semantic")).toBe("semantic")
+    expect(resolveExploreSearchKind("morning meditation", "semantic")).toBe("catalog")
   })
 
   it("treats missing env as prefetch enabled", () => {

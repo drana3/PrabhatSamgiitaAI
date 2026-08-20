@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { resolveSearchMode, searchResultsTitle } from "@/lib/searchMode"
+import {
+  feelingBrowseId,
+  resolveSearchMode,
+  searchDebounceMs,
+  searchResultsTitle,
+} from "@/lib/searchMode"
 
 describe("resolveSearchMode", () => {
   it("keeps song numbers, collections, and lyric lookups on catalog", () => {
@@ -21,15 +26,40 @@ describe("resolveSearchMode", () => {
     expect(resolveSearchMode("Hindi")).toBe("catalog")
     expect(resolveSearchMode("rain")).toBe("catalog")
     expect(resolveSearchMode("love")).toBe("catalog")
+    expect(resolveSearchMode("siv")).toBe("catalog")
+    expect(resolveSearchMode("shiv")).toBe("catalog")
+    expect(resolveSearchMode("shiva")).toBe("catalog")
+    expect(resolveSearchMode("kisna")).toBe("catalog")
+    expect(resolveSearchMode("kishna")).toBe("catalog")
+    expect(resolveSearchMode("krishna")).toBe("catalog")
   })
 
-  it("uses semantic for natural-language questions", () => {
-    expect(resolveSearchMode("songs for peace of mind")).toBe("semantic")
-    expect(resolveSearchMode("song about rain in monsoons")).toBe("semantic")
-    expect(resolveSearchMode("morning meditation")).toBe("semantic")
-    expect(resolveSearchMode("i am feeling stressful")).toBe("semantic")
-    expect(resolveSearchMode("What should I sing at dawn?")).toBe("semantic")
-    expect(resolveSearchMode("help me find guru songs")).toBe("semantic")
+  it("uses embeddings only when Feeling search is enabled for a signed-in member", () => {
+    expect(resolveSearchMode("songs for peace of mind")).toBe("catalog")
+    expect(resolveSearchMode("song about rain in monsoons")).toBe("catalog")
+    expect(resolveSearchMode("morning meditation")).toBe("catalog")
+    expect(resolveSearchMode("i am feeling stressful")).toBe("catalog")
+    expect(resolveSearchMode("What should I sing at dawn?")).toBe("catalog")
+    expect(
+      resolveSearchMode("I am feeling very stressful today", {
+        signedIn: true,
+        feelingSearchEnabled: true,
+      }),
+    ).toBe("semantic")
+  })
+
+  it("maps feeling sentences to a local mood list", () => {
+    expect(feelingBrowseId("I am feeling very stressful today")).toBe("peace")
+    expect(feelingBrowseId("help me find guru songs")).toBe("guru")
+    expect(feelingBrowseId("diwali")).toBeNull()
+    expect(searchDebounceMs("I am feeling very stressful today")).toBe(50)
+    expect(
+      searchDebounceMs("I am feeling very stressful today", {
+        signedIn: true,
+        feelingSearchEnabled: true,
+      }),
+    ).toBe(400)
+    expect(searchDebounceMs("bandhu he")).toBe(50)
   })
 })
 

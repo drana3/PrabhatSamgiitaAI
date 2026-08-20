@@ -65,7 +65,13 @@ describe("categorySongs", () => {
     expect(resolveCategoryQuery("evening")).toBe("evening")
     expect(resolveCategoryQuery("hindi")).toBe("hindi")
     expect(resolveCategoryQuery("shiva")).toBe("shiva")
+    expect(resolveCategoryQuery("siv")).toBe("shiva")
+    expect(resolveCategoryQuery("shiv")).toBe("shiva")
+    expect(resolveCategoryQuery("siva")).toBe("shiva")
     expect(resolveCategoryQuery("krishna")).toBe("krsna")
+    expect(resolveCategoryQuery("kisna")).toBe("krsna")
+    expect(resolveCategoryQuery("kishna")).toBe("krsna")
+    expect(resolveCategoryQuery("kishan")).toBe("krsna")
     expect(resolveCategoryQuery("bandhu he")).toBeNull()
   })
 

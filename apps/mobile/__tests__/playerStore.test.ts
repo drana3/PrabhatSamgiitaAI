@@ -207,6 +207,30 @@ describe("playerStore song-page handoff", () => {
     expect(createAsync).toHaveBeenCalledTimes(1)
   })
 
+  it("reloads audio when another recording of the same song is chosen", async () => {
+    const first = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 5_000,
+      durationMillis: 120_000,
+    })
+    const second = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 0,
+      durationMillis: 90_000,
+    })
+    createAsync.mockResolvedValueOnce({ sound: first }).mockResolvedValueOnce({ sound: second })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(song as never)
+    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
+
+    usePlayerStore.getState().playOrToggle({ ...song, audioUrl: "https://example.com/b.mp3" } as never)
+    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(2))
+    expect(createAsync.mock.calls[1]?.[0]).toEqual({ uri: "https://example.com/b.mp3" })
+  })
+
   it("reuses a preloaded Sound so play does not create a second stream", async () => {
     const preloaded = createMockSound({
       isLoaded: true,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
@@ -10,9 +10,10 @@ import {
 } from "react-native"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { Clock, X } from "lucide-react-native"
-import { queryGuidanceFor, queryIsUseful } from "@prabhat/core"
+import { planSearch, queryGuidanceFor, queryIsUseful, SEARCH_PLACEHOLDER } from "@prabhat/core"
 
 import { SearchBar } from "@/components/common/SearchBar"
+import { FeelingSearchSwitch } from "@/components/search/FeelingSearchSwitch"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { colors } from "@/constants/colors"
@@ -39,10 +40,11 @@ import {
   queryMatchesBrowseCategory,
   semanticQueryForCategory,
 } from "@/lib/categorySongs"
-import { resolveSearchMode } from "@/lib/searchMode"
-import { isLyricCatalogQuery, searchCatalogLyrics, warmLyricSearchIndex } from "@/lib/lyricSearch"
+import { searchDebounceMs } from "@/lib/searchMode"
+import { searchCatalogLyrics, warmLyricSearchIndex } from "@/lib/lyricSearch"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
+import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
@@ -60,7 +62,6 @@ function lyricHitsToSongs(queryHits: ReturnType<typeof searchCatalogLyrics>): Mo
   )
 }
 
-const DEBOUNCE_MS = 50
 
 function shouldRunSearch(value: string) {
   const trimmed = value.trim()
@@ -92,10 +93,17 @@ export default function SearchScreen() {
   const recents = usePreferencesStore((s) => s.searchRecents)
   const addSearchRecent = usePreferencesStore((s) => s.addSearchRecent)
   const clearSearchRecents = usePreferencesStore((s) => s.clearSearchRecents)
+  const feelingSearchEnabled = usePreferencesStore((s) => s.feelingSearchEnabled)
+  const signedIn = useAuthStore((s) => s.mode === "signed_in")
+  const searchAuth = useMemo(
+    () => ({ signedIn, feelingSearchEnabled: signedIn && feelingSearchEnabled }),
+    [signedIn, feelingSearchEnabled],
+  )
   const [results, setResults] = useState<MockSong[]>([])
   const [loading, setLoading] = useState(() => Boolean(initialCategory) || shouldRunSearch(initial))
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
+  const searchAbortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<TextInput>(null)
   const skipQueryDebounceRef = useRef(false)
   const runSearchRef = useRef<(nextQuery: string) => Promise<void>>(async () => {})
@@ -133,7 +141,11 @@ export default function SearchScreen() {
         }
       }
 
-      if (moodChip && composeBrowseResults(searchId, curated, extra).length < CATEGORY_RESULT_LIMIT) {
+      if (
+        moodChip &&
+        searchAuth.feelingSearchEnabled &&
+        composeBrowseResults(searchId, curated, extra).length < CATEGORY_RESULT_LIMIT
+      ) {
         const semanticQueries = [
           spokenQuery.trim(),
           semanticQueryForCategory(searchId, spokenQuery),
@@ -173,7 +185,7 @@ export default function SearchScreen() {
           : "Could not reach search. Try again to search all 5,018 songs.",
       )
     },
-    [addSearchRecent],
+    [addSearchRecent, searchAuth.feelingSearchEnabled],
   )
 
   const runAllCatalogSearch = useCallback(async () => {
@@ -185,7 +197,7 @@ export default function SearchScreen() {
     setLoading(true)
     setError(null)
     try {
-      const rows = await api.searchSongs(nextQuery, { mode: "semantic" })
+      const rows = await api.searchSongs(nextQuery, { mode: "catalog" })
       if (token !== requestId.current) return
       const mapped = rows.map((row, index) => songSummaryToMockSong(row, index))
       setResults(mapped)
@@ -314,7 +326,9 @@ export default function SearchScreen() {
     if (chipId) setActiveCategory(chipId)
     else setActiveCategory(null)
 
-    if (seedId) {
+    const plan = planSearch(trimmed, searchAuth)
+
+    if (seedId && plan.layer !== "mood" && plan.layer !== "semantic") {
       const id = ++requestId.current
       setLoading(true)
       setError(null)
@@ -326,10 +340,24 @@ export default function SearchScreen() {
       return
     }
 
-    const mode = resolveSearchMode(trimmed)
     const id = ++requestId.current
-    if (isLyricCatalogQuery(trimmed)) {
-      const localHits = searchCatalogLyrics(trimmed)
+    searchAbortRef.current?.abort()
+    const abort = new AbortController()
+    searchAbortRef.current = abort
+
+    if (plan.layer === "mood" && plan.moodId) {
+      setLoading(true)
+      setError(null)
+      try {
+        await browseTheme(plan.moodId, trimmed, id)
+      } finally {
+        if (id === requestId.current) setLoading(false)
+      }
+      return
+    }
+
+    if (plan.layer !== "semantic") {
+      const localHits = searchCatalogLyrics(trimmed, 5, { interpret: true })
       if (localHits.length) {
         setResults(lyricHitsToSongs(localHits))
         setError(null)
@@ -337,24 +365,32 @@ export default function SearchScreen() {
         addSearchRecent(trimmed)
         return
       }
+      if (!chipId) setResults([])
+      setError(null)
+      setLoading(false)
+      addSearchRecent(trimmed)
+      return
     }
+
     if (!chipId) setResults([])
     setLoading(true)
     setError(null)
+
     try {
-      const rows = await api.searchSongs(trimmed, { mode })
+      const rows = await api.searchSongs(trimmed, { mode: "semantic", signal: abort.signal })
       if (id !== requestId.current) return
       const mapped = rows.map((row, index) => songSummaryToMockSong(row, index))
-      setResults(mode === "semantic" ? limitSearchResults(mapped, "semantic") : mapped)
+      setResults(limitSearchResults(mapped, "semantic"))
       addSearchRecent(trimmed)
+      setError(null)
     } catch (err) {
-      if (id !== requestId.current) return
+      if (id !== requestId.current || abort.signal.aborted) return
       setResults([])
       setError(err instanceof Error ? err.message : "Search is temporarily unavailable.")
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [addSearchRecent, browseTheme])
+  }, [addSearchRecent, browseTheme, searchAuth])
 
   runSearchRef.current = runSearch
 
@@ -370,7 +406,7 @@ export default function SearchScreen() {
 
     const handle = setTimeout(() => {
       void runSearch(query)
-    }, DEBOUNCE_MS)
+    }, searchDebounceMs(query, searchAuth))
     return () => clearTimeout(handle)
   }, [query, runSearch, activeCategory])
 
@@ -387,7 +423,7 @@ export default function SearchScreen() {
           showMic
           inputRef={inputRef}
           voiceListening={listening}
-          placeholder="Search songs, lyrics, themes..."
+          placeholder={SEARCH_PLACEHOLDER}
           value={query}
           onChangeText={(text) => {
             setVoiceError(null)
@@ -405,6 +441,7 @@ export default function SearchScreen() {
           onSubmitEditing={() => void runSearch(query)}
         />
         {voiceError ? <Text style={styles.errorInline}>{voiceError}</Text> : null}
+        <FeelingSearchSwitch />
       </View>
 
       {showResults ? (

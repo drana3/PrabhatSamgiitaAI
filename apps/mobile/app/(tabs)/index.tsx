@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { Alert, InteractionManager, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
-import { queryGuidanceFor, queryIsUseful, type TodayRecommendations } from "@prabhat/core"
+import { queryGuidanceFor, queryIsUseful, SEARCH_PLACEHOLDER, type TodayRecommendations } from "@prabhat/core"
 
 import { HomeHeroSearch } from "@/components/home/HomeHeroSearch"
 import { ScreenContainer, SectionHeader } from "@/components/common/ScreenContainer"
+import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { CollectionsPreview } from "@/components/home/CollectionsPreview"
 import { ContinueListeningRow } from "@/components/home/ContinueListeningRow"
 import { FeedbackEntryCard, QuizBanner } from "@/components/home/EngagementCards"
@@ -22,11 +23,13 @@ import { TodayContextCard } from "@/components/home/TodayContextCard"
 import { TodaySongCard } from "@/components/home/TodaySongCard"
 import { UpcomingFestivalsRow } from "@/components/home/UpcomingFestivalsRow"
 import { colors } from "@/constants/colors"
-import { spacing } from "@/constants/spacing"
+import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { collectionSearchPrompt } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
 import { loadCatalog } from "@/lib/catalog"
+import { homeSearchSuggestions } from "@/lib/homeSearchSuggestions"
+import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { readTodayCache, refreshTodayRecommendations } from "@/lib/todayCache"
@@ -63,6 +66,11 @@ function recentPlayToMockSong(play: {
 export default function HomeScreen() {
   const router = useRouter()
   const mode = useAuthStore((s) => s.mode)
+  const feelingSearchEnabled = usePreferencesStore((s) => s.feelingSearchEnabled)
+  const searchAuth = {
+    signedIn: mode === "signed_in",
+    feelingSearchEnabled: mode === "signed_in" && feelingSearchEnabled,
+  }
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const recentPlays = usePreferencesStore((s) => s.recentPlays)
   const [today, setToday] = useState<TodayRecommendations | null>(null)
@@ -73,7 +81,10 @@ export default function HomeScreen() {
   const [showRest, setShowRest] = useState(false)
 
   useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => setShowRest(true))
+    const task = InteractionManager.runAfterInteractions(() => {
+      setShowRest(true)
+      warmLyricSearchIndex()
+    })
     return () => task.cancel()
   }, [])
 
@@ -128,6 +139,10 @@ export default function HomeScreen() {
   )
   const continueSongs = recentSongs.length ? recentSongs : suggestedSongs
   const continueTitle = recentSongs.length ? "Continue listening" : "Suggested for you"
+  const searchSuggestions = useMemo(
+    () => homeSearchSuggestions(searchQuery, 5, searchAuth),
+    [searchQuery, searchAuth.signedIn, searchAuth.feelingSearchEnabled],
+  )
 
   const featuredSong = useMemo(() => {
     const first = today?.recommendations?.[0]
@@ -212,7 +227,21 @@ export default function HomeScreen() {
               onChangeText={setSearchQuery}
               onSubmit={submitHomeSearch}
               onMicPress={() => router.push(href("/search?listen=1"))}
+              placeholder={SEARCH_PLACEHOLDER}
             />
+            {searchSuggestions.length ? (
+              <View style={styles.suggestionCard}>
+                <Text style={styles.suggestionLabel}>Songs</Text>
+                {searchSuggestions.map((song) => (
+                  <CompactSongRow
+                    key={song.id}
+                    song={song}
+                    lyricLine={song.shortDescription}
+                    onPress={() => openSong(song)}
+                  />
+                ))}
+              </View>
+            ) : null}
           </View>
 
           <SiteAnnouncementsBanner />
@@ -337,6 +366,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     zIndex: 100,
     elevation: 100,
+  },
+  suggestionCard: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  suggestionLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
   },
   content: {
     paddingHorizontal: spacing.lg,

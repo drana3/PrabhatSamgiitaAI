@@ -2,6 +2,7 @@ import { useRef } from "react"
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { Mic, Search } from "lucide-react-native"
 
+import { SEARCH_PLACEHOLDER } from "@prabhat/core"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -12,6 +13,7 @@ type Props = {
   onChangeText: (text: string) => void
   onSubmit: () => void
   onMicPress: () => void
+  placeholder?: string
 }
 
 /** Home hero search — type here, submit to Explore (website parity). */
@@ -20,6 +22,7 @@ export function HomeHeroSearch({
   onChangeText,
   onSubmit,
   onMicPress,
+  placeholder = SEARCH_PLACEHOLDER,
 }: Props) {
   const inputRef = useRef<TextInput>(null)
 
@@ -31,7 +34,7 @@ export function HomeHeroSearch({
         editable
         value={value}
         onChangeText={onChangeText}
-        placeholder="Ask by song, feeling, meaning, or moment..."
+        placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
         style={styles.input}
         returnKeyType="search"

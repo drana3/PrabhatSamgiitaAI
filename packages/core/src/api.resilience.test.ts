@@ -218,6 +218,28 @@ describe("API client resilience (shared with website)", () => {
     expect(localized?.localized_meaning).toContain("प्रिय")
   })
 
+  it("does not treat a cancelled search as a timeout", async () => {
+    const abort = new AbortController()
+    globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
+      return new Promise((_, reject) => {
+        const signal = init?.signal as AbortSignal | undefined
+        const fail = () => {
+          const error = new Error("aborted")
+          error.name = "AbortError"
+          reject(error)
+        }
+        if (signal?.aborted) fail()
+        else signal?.addEventListener("abort", fail, { once: true })
+      })
+    })
+    const pending = client().searchSongs("I am feeling very stressful today", {
+      mode: "semantic",
+      signal: abort.signal,
+    })
+    abort.abort()
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" })
+  })
+
   it("returns empty admin lists when unauthorized", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("deny", { status: 403 }))
     await expect(client().fetchAdminFeedback()).resolves.toEqual({ total: 0, items: [] })

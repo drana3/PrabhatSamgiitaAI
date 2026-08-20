@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
+import { InstantSearchSuggestions } from "@/components/instant-search-suggestions"
 import { VoiceSearchButton } from "@/components/voice-search-button"
+import { SEARCH_PLACEHOLDER } from "@prabhat/core"
 
 const searchExamples = [
   { label: "By number", query: "111", description: "Open a song directly" },
@@ -12,7 +14,6 @@ const searchExamples = [
   {
     label: "By feeling",
     query: "peaceful devotion",
-    kind: "semantic" as const,
     description: "Find songs by theme or mood",
   },
 ] as const
@@ -22,7 +23,7 @@ export function HeroSearch() {
   const router = useRouter()
   const [guidance, setGuidance] = useState("")
 
-  function search(value: string, kind?: "catalog" | "semantic") {
+  function search(value: string) {
     const normalized = value.trim()
     if (!queryIsUseful(normalized, 200)) {
       setGuidance(queryGuidanceFor(value))
@@ -34,16 +35,13 @@ export function HeroSearch() {
       router.push(songIntentPath(songIntent))
       return
     }
-    const exploreUrl = kind
-      ? `/explore?q=${encodeURIComponent(normalized)}&kind=${kind}`
-      : `/explore?q=${encodeURIComponent(normalized)}`
-    router.push(exploreUrl)
+    router.push(`/explore?q=${encodeURIComponent(normalized)}`)
   }
 
   return (
     <div className="space-y-3">
       <form
-        className="hero-search"
+        className="hero-search relative z-20"
         onSubmit={(event) => {
           event.preventDefault()
           search(query)
@@ -57,8 +55,10 @@ export function HeroSearch() {
           id="hero-query"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Song number, remembered words, or a feeling..."
+          placeholder={SEARCH_PLACEHOLDER}
           className="min-w-0 flex-1 bg-transparent text-sm text-navy-950 outline-none placeholder:text-stone-500"
+          aria-autocomplete="list"
+          aria-controls="hero-search-suggestions"
         />
         <VoiceSearchButton compact onTranscript={({ transcript, language }) => {
           setQuery(transcript)
@@ -79,6 +79,7 @@ export function HeroSearch() {
         </button>
         {guidance ? <span className="sr-only" role="alert">{guidance}</span> : null}
       </form>
+      <InstantSearchSuggestions query={query} id="hero-search-suggestions" />
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Search examples">
         {searchExamples.map((example) => (
@@ -89,7 +90,7 @@ export function HeroSearch() {
             aria-label={`${example.label}: ${example.description}`}
             onClick={() => {
               setQuery(example.query)
-              search(example.query, "kind" in example ? example.kind : undefined)
+              search(example.query)
             }}
             className="rounded-full border border-navy-900/10 bg-white/90 px-3.5 py-1.5 text-xs font-semibold text-navy-900 shadow-sm transition hover:border-gold-500 hover:bg-gold-50"
           >

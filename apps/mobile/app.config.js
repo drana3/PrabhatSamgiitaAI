@@ -76,8 +76,7 @@ module.exports = ({ config }) => {
     },
     extra: {
       ...config.extra,
-      apiBaseUrl:
-        process.env.EXPO_PUBLIC_API_BASE_URL ?? config.extra?.apiBaseUrl ?? productionApi,
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || productionApi,
       webBaseUrl:
         process.env.EXPO_PUBLIC_WEB_BASE_URL ??
         config.extra?.webBaseUrl ??

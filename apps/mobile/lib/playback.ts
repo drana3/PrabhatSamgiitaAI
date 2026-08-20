@@ -22,6 +22,15 @@ export function isSameSong(
   return Number(current.number) === Number(song.number)
 }
 
+/** Same catalog song and the same audio stream (alternate recordings are distinct). */
+export function isSameAudioTrack(
+  current: Pick<MockSong, "id" | "number" | "audioUrl"> | null | undefined,
+  song: Pick<MockSong, "id" | "number" | "audioUrl">,
+): boolean {
+  if (!isSameSong(current, song)) return false
+  return (current?.audioUrl || "") === (song.audioUrl || "")
+}
+
 /** Single playback status used by mini player, song page, home, lists, etc. */
 export function songPlayback(
   state: PlayerPlaybackSlice,

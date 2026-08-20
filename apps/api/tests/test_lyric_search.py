@@ -31,6 +31,19 @@ def test_english_meaning_is_not_used_for_lyric_search() -> None:
     assert 1 not in [hit.number for hit in hits]
 
 
+def test_transliteration_spelling_variants_match_the_same_lyric() -> None:
+    from app.services.lyric_search import fold_lyric_phonetic
+
+    assert fold_lyric_phonetic("humdardi") == fold_lyric_phonetic("hamdardii")
+    hits = search_lyrics("humdardi")
+    assert 4170 in [hit.number for hit in hits]
+
+
+def test_missing_letter_still_matches_the_lyric() -> None:
+    hits = search_lyrics("hamdrdi")
+    assert 4170 in [hit.number for hit in hits]
+
+
 def test_lyric_search_returns_within_milliseconds() -> None:
     search_lyrics("bandhu")  # warm index
     started = time.perf_counter()

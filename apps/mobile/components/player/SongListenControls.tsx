@@ -1,6 +1,6 @@
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
-import { Download, RotateCcw, Trash2, Volume1, Volume2, VolumeX } from "lucide-react-native"
+import { Download, RotateCcw, Trash2, Volume1, Volume2, VolumeX, ChevronDown } from "lucide-react-native"
 
 import { ScenicPlayButton } from "@/components/player/ScenicPlayButton"
 import { SeekBar } from "@/components/player/SeekBar"
@@ -8,6 +8,7 @@ import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { offlineSaveControls, useOfflineAudioStore } from "@/lib/offlineAudio"
+import { audioRecordingLabel } from "@/lib/mediaEmbed"
 import { songPlayback } from "@/lib/playback"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -20,6 +21,8 @@ type Props = {
   title: string
   performer: string
   audioUrl?: string | null
+  recordings?: Array<{ title: string; url: string; provider: string }>
+  onSelectRecording?: (url: string) => void
   onTogglePlay: () => void
   /** Slim transport while reading lyrics/meaning. */
   compact?: boolean
@@ -32,9 +35,12 @@ export function SongListenControls({
   title,
   performer,
   audioUrl,
+  recordings = [],
+  onSelectRecording,
   onTogglePlay,
   compact = false,
 }: Props) {
+  const [showMore, setShowMore] = useState(false)
   const signedIn = useAuthStore((s) => s.mode === "signed_in")
   const downloaded = useOfflineAudioStore((s) => Boolean(s.files[songNumber]))
   const downloadProgress = useOfflineAudioStore((s) => s.progress[songNumber])
@@ -79,6 +85,13 @@ export function SongListenControls({
   }
 
   const bufferingLabel = saveUi.bufferingLabel
+  const extraRecordings = recordings.slice(1)
+  const selectedIndex = Math.max(
+    0,
+    recordings.findIndex((item) => item.url === audioUrl),
+  )
+  const listenTitle =
+    recordings[selectedIndex] ? audioRecordingLabel(recordings[selectedIndex], selectedIndex) : "Original rendition"
 
   if (compact) {
     return (
@@ -127,7 +140,7 @@ export function SongListenControls({
           ) : null}
         </View>
         <View style={styles.meta}>
-          <Text style={styles.listenTitle}>Original rendition</Text>
+          <Text style={styles.listenTitle}>{listenTitle}</Text>
           <Text style={styles.listenSub}>{performer}</Text>
           {isCurrent && audioError ? <Text style={styles.status}>{audioError}</Text> : null}
           {isCurrent && !audioError && isBuffering ? (
@@ -170,6 +183,47 @@ export function SongListenControls({
         </Pressable>
       ) : null}
       {saveUi.showError && downloadError ? <Text style={styles.status}>{downloadError}</Text> : null}
+
+      {extraRecordings.length > 0 && onSelectRecording ? (
+        <View style={styles.moreWrap}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showMore }}
+            accessibilityLabel={`More recordings (${extraRecordings.length})`}
+            onPress={() => setShowMore((open) => !open)}
+            style={({ pressed }) => [styles.moreToggle, pressed && styles.ctrlPressed]}
+          >
+            <Text style={styles.moreToggleText}>More recordings ({extraRecordings.length})</Text>
+            <View style={{ transform: [{ rotate: showMore ? "180deg" : "0deg" }] }}>
+              <ChevronDown size={16} color={colors.primaryDark} />
+            </View>
+          </Pressable>
+          {showMore
+            ? recordings.map((item, index) => {
+                const selected = item.url === audioUrl
+                return (
+                  <Pressable
+                    key={item.url}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Play ${audioRecordingLabel(item, index)}`}
+                    onPress={() => onSelectRecording(item.url)}
+                    style={({ pressed }) => [
+                      styles.recordingRow,
+                      selected && styles.recordingRowSelected,
+                      pressed && styles.ctrlPressed,
+                    ]}
+                  >
+                    <Text style={[styles.recordingTitle, selected && styles.recordingTitleSelected]}>
+                      {audioRecordingLabel(item, index)}
+                    </Text>
+                    <Text style={styles.recordingAction}>{selected ? "Playing" : "Play"}</Text>
+                  </Pressable>
+                )
+              })
+            : null}
+        </View>
+      ) : null}
 
       {showTransport ? (
         <View style={styles.transport}>
@@ -302,4 +356,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   downloadLabel: { ...typography.label, color: colors.textPrimary },
+  moreWrap: { gap: spacing.xs },
+  moreToggle: {
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexDirection: "row",
+    paddingHorizontal: spacing.md,
+  },
+  moreToggleText: { ...typography.label, color: colors.primaryDark },
+  recordingRow: {
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  recordingRowSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  recordingTitle: { ...typography.caption, color: colors.textPrimary, flex: 1 },
+  recordingTitleSelected: { color: colors.textPrimary, fontWeight: "600" },
+  recordingAction: { ...typography.caption, color: colors.primaryDark },
 })

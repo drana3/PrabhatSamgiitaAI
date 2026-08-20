@@ -2,21 +2,15 @@ import { useState } from "react"
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { SafeAreaView } from "react-native-safe-area-context"
-import Constants from "expo-constants"
-
 import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { apiBaseUrl } from "@/lib/client"
 import { buildMemberAuthHeaders, memberAuthAvailable } from "@/lib/memberAuth"
 import { DEFAULT_PHONE_COUNTRY, formatPhonePayload } from "@prabhat/core"
 import { useAuthStore } from "@/stores/authStore"
-
-const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL ??
-  (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
-  "http://localhost:8000"
 
 export default function CompleteProfileScreen() {
   const router = useRouter()

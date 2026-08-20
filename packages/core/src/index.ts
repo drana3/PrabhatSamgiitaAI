@@ -1,5 +1,6 @@
 export * from "./api"
 export * from "./lyric-search"
+export * from "./search-plan"
 export * from "./phone"
 export * from "./query-guard"
 export * from "./reflections"

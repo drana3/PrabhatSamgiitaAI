@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest"
 
-import { isLyricCatalogQuery, searchLyrics, type LyricSearchRow } from "./lyric-search"
+import {
+  isLyricCatalogQuery,
+  searchLyrics,
+  foldLyricPhonetic,
+  canonicalSearchKey,
+  catalogLookupKeys,
+  stripCatalogSearchFraming,
+  type LyricSearchRow,
+} from "./lyric-search"
 
 const rows: LyricSearchRow[] = [
   {
@@ -38,6 +46,36 @@ describe("lyric search", () => {
     const hits = searchLyrics("andharer vyatha ar saye na prane", rows)
     expect(hits.map((hit) => hit.number)).toContain(1)
     expect(hits[0]?.snippet.toLowerCase()).toContain("andharer vyatha")
+  })
+
+  it("treats common transliteration spellings as the same lyric", () => {
+    expect(foldLyricPhonetic("humdardi")).toBe(foldLyricPhonetic("hamdardii"))
+    expect(foldLyricPhonetic("chalo")).toBe(foldLyricPhonetic("calo"))
+    expect(foldLyricPhonetic("siv")).toBe(foldLyricPhonetic("shiva"))
+    expect(foldLyricPhonetic("shiv")).toBe(foldLyricPhonetic("shiva"))
+    expect(canonicalSearchKey("siv")).toBe("shiva")
+    expect(canonicalSearchKey("shiv")).toBe("shiva")
+    expect(canonicalSearchKey("siva")).toBe("shiva")
+    expect(canonicalSearchKey("kisna")).toBe("krsna")
+    expect(canonicalSearchKey("kishna")).toBe("krsna")
+    expect(canonicalSearchKey("krishna")).toBe("krsna")
+    expect(canonicalSearchKey("kishan")).toBe("krsna")
+    expect(stripCatalogSearchFraming("songs of siv")).toBe("siv")
+    expect(catalogLookupKeys("songs of hindi")).toContain("hindi")
+    const catalog: LyricSearchRow[] = [
+      {
+        n: 4170,
+        t: "HAMDARDII IAH , KISANE DALII",
+        o: "HAMDARDII IAH , KISANE DALII",
+        b: "hamdardii iah kisane dalii tum ho meri hamdardii",
+      },
+      ...rows,
+    ]
+    expect(searchLyrics("hamdardi", catalog)[0]?.number).toBe(4170)
+    expect(searchLyrics("humdardi", catalog)[0]?.number).toBe(4170)
+    expect(searchLyrics("chalo", catalog).map((hit) => hit.number)).toContain(1)
+    expect(searchLyrics("hamdrdi", catalog)[0]?.number).toBe(4170)
+    expect(searchLyrics("bandu he niye calo", catalog)[0]?.number).toBe(1)
   })
 
   it("does not treat English meaning translations as lyrics", () => {

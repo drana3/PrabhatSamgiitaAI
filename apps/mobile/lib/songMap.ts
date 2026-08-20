@@ -1,7 +1,7 @@
 import type { SongDetail, SongSummary } from "@prabhat/core"
 
 import type { MockSong, SongVideo } from "@/data/mock"
-import { mediaVideosToEmbeds, pickPreferredAudioUrl } from "@/lib/mediaEmbed"
+import { listPlayableAudio, mediaVideosToEmbeds, pickPreferredAudioUrl } from "@/lib/mediaEmbed"
 import { scenicHeroFor, scenicThumbFor } from "@/lib/scenicArt"
 
 export function isBareSongTitle(title: string | null | undefined, number: number): boolean {
@@ -143,6 +143,7 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     performer: "Prabhat Samgiita Collection",
     videos,
     audioUrl: pickPreferredAudioUrl(detail.media),
+    audioRecordings: listPlayableAudio(detail.media).slice(0, 5),
     notationSourceUrl: detail.notation_source_url?.trim() || null,
     mediaHydrated: true,
   }

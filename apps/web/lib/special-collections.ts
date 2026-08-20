@@ -1,5 +1,12 @@
 import canonicalCollections from "../../../data/generated/theme_collections.json"
-import { isLyricCatalogQuery } from "@prabhat/core"
+import {
+  canonicalSearchKey,
+  catalogLookupKeys,
+  feelingSearchAllowed,
+  foldLyricPhonetic,
+  planSearch,
+  type SearchAuth,
+} from "@prabhat/core"
 import { isCompleteSargamQuery } from "@/lib/complete-sargam"
 
 export type SpecialCollection = {
@@ -304,8 +311,86 @@ export function queryMatchesCollection(query: string, collectionQuery: string) {
 
 const collectionPromptPrefix = "search prabhat samgiita for "
 
+const collectionKeywordAliases: Record<string, string> = {
+  diwali: "Dipavali (Colour Festival) Day Songs",
+  deepavali: "Dipavali (Colour Festival) Day Songs",
+  dipavali: "Dipavali (Colour Festival) Day Songs",
+  deepawali: "Dipavali (Colour Festival) Day Songs",
+  deewali: "Dipavali (Colour Festival) Day Songs",
+  siv: "Shiva Songs",
+  shiv: "Shiva Songs",
+  siva: "Shiva Songs",
+  shiva: "Shiva Songs",
+  mahadev: "Shiva Songs",
+  shankar: "Shiva Songs",
+  kisna: "Krśńa Songs",
+  kishna: "Krśńa Songs",
+  kishan: "Krśńa Songs",
+  krisna: "Krśńa Songs",
+  krishna: "Krśńa Songs",
+  krsna: "Krśńa Songs",
+  krushna: "Krśńa Songs",
+}
+
+function foldCollectionKeyword(value: string) {
+  return value.normalize("NFKD").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+}
+
+const COLLECTION_STOP = new Set(
+  "a an and based ceremony containing day for in memory of on song songs the to tune with".split(" "),
+)
+
+function collectionHaystackMatches(queryKey: string, haystack: string) {
+  if (!queryKey || queryKey.length < 3) return false
+  if (haystack === queryKey || haystack.split(" ").includes(queryKey)) return true
+  const needle = foldLyricPhonetic(queryKey)
+  const canon = canonicalSearchKey(queryKey)
+  for (const word of haystack.split(" ")) {
+    if (word.length < 3 || COLLECTION_STOP.has(word)) continue
+    if (word === queryKey || word === canon) return true
+    if (canonicalSearchKey(word) === canon && canon.length >= 3) return true
+    const folded = foldLyricPhonetic(word)
+    if (needle && folded === needle) return true
+    if (
+      needle.length >= 5 &&
+      folded.length >= 5 &&
+      Math.abs(folded.length - needle.length) <= 3 &&
+      (folded.startsWith(needle) || needle.startsWith(folded))
+    ) {
+      return true
+    }
+    if (queryKey.length >= 4 && word.startsWith(queryKey) && word.length - queryKey.length <= 3) {
+      return true
+    }
+  }
+  return false
+}
+
 export function isCollectionSearchQuery(query: string) {
   return query.trim().toLocaleLowerCase().startsWith(collectionPromptPrefix)
+}
+
+export function collectionSongNumbersForKeyword(query: string): number[] | null {
+  const keys = catalogLookupKeys(query)
+  if (!keys.length) return null
+
+  for (const key of keys) {
+    const aliasLabel =
+      collectionKeywordAliases[key.replace(/ /g, "")] ?? collectionKeywordAliases[canonicalSearchKey(key)]
+    if (!aliasLabel) continue
+    const numbers = canonicalByLabel.get(aliasLabel)?.song_numbers
+    if (numbers?.length) return numbers
+  }
+
+  let matched: CanonicalCollection | null = null
+  for (const row of canonicalCollections as CanonicalCollection[]) {
+    const haystack = foldCollectionKeyword(
+      `${row.label} ${row.value} ${displayLabelOverrides[row.label] ?? ""}`,
+    )
+    if (!keys.some((key) => collectionHaystackMatches(key, haystack))) continue
+    if (!matched || row.count < matched.count) matched = row
+  }
+  return matched?.song_numbers.length ? matched.song_numbers : null
 }
 
 export function collectionSearchDisplayLabel(query: string) {
@@ -337,18 +422,15 @@ export function collectionSearchCount(query: string): number | null {
 
 export type ExploreSearchKind = "catalog" | "semantic"
 
-const semanticSearchHints =
-  /\b(?:about|awakening|bliss|devotion|feel(?:ing)?|festival|help me|hope|joy|meaning|meditat|mood|morning|nature|occasion|peace|rain|recommend|service|spiritual|sorrow|suggest|theme|why)\b/i
-
-export function exploreSearchKind(query: string, explicitKind?: string | null): ExploreSearchKind {
-  if (explicitKind === "catalog" || explicitKind === "semantic") return explicitKind
+export function exploreSearchKind(
+  query: string,
+  explicitKind?: string | null,
+  auth?: SearchAuth,
+): ExploreSearchKind {
+  if (explicitKind === "catalog") return "catalog"
   if (isCollectionSearchQuery(query)) return "catalog"
   const trimmed = query.trim()
-  if (!trimmed) return "semantic"
   if (isCompleteSargamQuery(trimmed)) return "catalog"
-  if (isLyricCatalogQuery(trimmed) && trimmed.split(/\s+/).length >= 3) return "catalog"
-  if (semanticSearchHints.test(trimmed)) return "semantic"
-  // Lyric lines and short lookups are much faster with catalog search.
-  if (trimmed.split(/\s+/).length <= 8) return "catalog"
-  return "semantic"
+  if (explicitKind === "semantic" && feelingSearchAllowed(auth)) return "semantic"
+  return planSearch(query, auth).networkMode === "semantic" ? "semantic" : "catalog"
 }

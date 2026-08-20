@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import type { SongSummary } from "@prabhat/core"
+import { canonicalSearchKey, type SongSummary } from "@prabhat/core"
 
 import {
   songCategories,
@@ -181,9 +181,27 @@ const THEME_QUERY_ALIASES: Record<string, FastSearchId> = {
   urdu: "urdu",
   english: "english",
   sanskrit: "sanskrit",
+  siv: "shiva",
+  shiv: "shiva",
+  siva: "shiva",
   shiva: "shiva",
+  mahadev: "shiva",
+  mahadeva: "shiva",
+  shankar: "shiva",
+  shankara: "shiva",
+  sadashiv: "shiva",
+  sadashiva: "shiva",
   krsna: "krsna",
+  krsn: "krsna",
+  krishn: "krsna",
   krishna: "krsna",
+  krisna: "krsna",
+  kishan: "krsna",
+  kisan: "krsna",
+  kisna: "krsna",
+  kishna: "krsna",
+  krshna: "krsna",
+  krushna: "krsna",
   spring: "spring",
   children: "children",
   kids: "children",
@@ -191,6 +209,11 @@ const THEME_QUERY_ALIASES: Record<string, FastSearchId> = {
   neohumanism: "neohumanism",
   "neo-humanism": "neohumanism",
   "neo humanism": "neohumanism",
+  diwali: "Dipavali (Colour Festival) Day Songs",
+  deepavali: "Dipavali (Colour Festival) Day Songs",
+  dipavali: "Dipavali (Colour Festival) Day Songs",
+  deepawali: "Dipavali (Colour Festival) Day Songs",
+  deewali: "Dipavali (Colour Festival) Day Songs",
 }
 
 function normalizeThemeQuery(query: string): string {
@@ -238,6 +261,9 @@ export function resolveCategoryQuery(query: string): FastSearchId | null {
   const byNormalizedUi = allBrowseChips.find((row) => normalizeThemeQuery(row.label) === key)
   if (byNormalizedUi) return byNormalizedUi.id
   if (THEME_QUERY_ALIASES[key]) return THEME_QUERY_ALIASES[key]
+  const canon = canonicalSearchKey(key)
+  if (THEME_QUERY_ALIASES[canon]) return THEME_QUERY_ALIASES[canon]
+  if (SEARCH_INDEX[canon]) return canon
   return SEARCH_INDEX[key] ? key : null
 }
 

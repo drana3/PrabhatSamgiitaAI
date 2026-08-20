@@ -19,6 +19,7 @@ from app.schemas.song import (
     VoiceSearchResponse,
 )
 from app.services.catalog import catalog_song_snapshot
+from app.services.members import require_member_identity
 from app.services.query_guard import assess_query
 from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
@@ -112,6 +113,8 @@ async def search_voice(
     # full embedding index. Catalog/lexical mode misses feeling queries such as
     # "I am feeling very happy today".
     search_mode = "semantic" if needs_semantic_expansion(interpreted_as) else "catalog"
+    if search_mode == "semantic":
+        require_member_identity(request)
     response = await HybridSearchService(session).search(
         interpreted_as,
         page_size=TOP_SEARCH_PREDICTIONS,
@@ -168,6 +171,8 @@ async def search(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SongSummary]:
     require_public_quota(request, bucket="search", limit=40)
+    if payload.mode == "semantic":
+        require_member_identity(request)
     assessment = assess_query(payload.query, max_length=200)
     if not assessment.allowed:
         raise HTTPException(status_code=422, detail=assessment.guidance)

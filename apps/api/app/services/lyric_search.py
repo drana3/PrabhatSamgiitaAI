@@ -27,6 +27,107 @@ def normalize_lyric_text(value: str | None) -> str:
     return _TOKEN.sub(" ", plain).strip()
 
 
+def fold_lyric_phonetic(value: str) -> str:
+    """Fold common Roman-transliteration spellings: humdardi ≈ hamdardi, siv ≈ shiva."""
+    return " ".join(token for token in (_fold_lyric_token(part) for part in value.split()) if token)
+
+
+def _fold_lyric_token(token: str) -> str:
+    folded = token
+    replacements = (
+        (r"aa+", "a"),
+        (r"ee+", "i"),
+        (r"oo+", "u"),
+        (r"uu+", "u"),
+        (r"kh", "k"),
+        (r"gh", "g"),
+        (r"bh", "b"),
+        (r"dh", "d"),
+        (r"ph", "f"),
+        (r"th", "t"),
+        (r"sh", "s"),
+        (r"ch", "c"),
+        (r"v", "w"),
+        (r"y", "i"),
+    )
+    for pattern, replacement in replacements:
+        folded = re.sub(pattern, replacement, folded)
+    if len(folded) >= 4 and folded.endswith("a"):
+        folded = folded[:-1]
+    folded = re.sub(r"[ou]", "a", folded)
+    folded = re.sub(r"i{2,}", "i", folded)
+    folded = re.sub(r"a{2,}", "a", folded)
+    return folded
+
+
+def max_lyric_edits(length: int) -> int:
+    if length < 5:
+        return 0
+    if length < 8:
+        return 1
+    return 2
+
+
+def _adjacent_transpose(left: str, right: str) -> bool:
+    if len(left) != len(right) or len(left) < 2:
+        return False
+    index = 0
+    while index < len(left) and left[index] == right[index]:
+        index += 1
+    if index >= len(left) - 1:
+        return False
+    if left[index] != right[index + 1] or left[index + 1] != right[index]:
+        return False
+    return left[index + 2 :] == right[index + 2 :]
+
+
+def within_lyric_edits(left: str, right: str, max_edits: int | None = None) -> bool:
+    allowed = max_lyric_edits(len(left)) if max_edits is None else max_edits
+    if left == right:
+        return True
+    if allowed <= 0:
+        return False
+    if abs(len(left) - len(right)) > allowed:
+        return False
+    if len(left) == len(right) and _adjacent_transpose(left, right):
+        return True
+    previous = list(range(len(right) + 1))
+    current = [0] * (len(right) + 1)
+    for row, left_ch in enumerate(left, start=1):
+        current[0] = row
+        best = current[0]
+        for col, right_ch in enumerate(right, start=1):
+            cost = 0 if left_ch == right_ch else 1
+            value = min(previous[col] + 1, current[col - 1] + 1, previous[col - 1] + cost)
+            current[col] = value
+            if value < best:
+                best = value
+        if best > allowed:
+            return False
+        previous, current = current, previous
+    return previous[len(right)] <= allowed
+
+
+def fuzzy_token_match(needle: str, tokens: tuple[str, ...] | frozenset[str]) -> bool:
+    allowed = max_lyric_edits(len(needle))
+    if allowed <= 0 or len(needle) < 2:
+        return False
+    first = needle[0]
+    second = needle[1]
+    for token in tokens:
+        if not token or (token[0] != first and token[0] != second):
+            continue
+        if token == needle:
+            return True
+        if len(needle) >= 5 and token.startswith(needle) and len(token) - len(needle) <= allowed:
+            return True
+        if len(token) >= 5 and needle.startswith(token) and len(needle) - len(token) <= allowed:
+            return True
+        if within_lyric_edits(needle, token, allowed):
+            return True
+    return False
+
+
 @dataclass(frozen=True, slots=True)
 class LyricHit:
     number: int
@@ -41,6 +142,12 @@ class LyricRecord:
     opening: str
     body: str
     tokens: frozenset[str]
+    folded_title: str
+    folded_opening: str
+    folded_body: str
+    folded_tokens: frozenset[str]
+    opening_tokens: tuple[str, ...]
+    token_list: tuple[str, ...]
 
 
 def _record_from_song(song: Song) -> LyricRecord:
@@ -49,12 +156,29 @@ def _record_from_song(song: Song) -> LyricRecord:
     lyrics = normalize_lyric_text(song.lyrics_original)
     translit = normalize_lyric_text(song.transliteration)
     body = " ".join(part for part in (title, opening, lyrics, translit) if part)
+    folded_title = fold_lyric_phonetic(title)
+    folded_opening = fold_lyric_phonetic(opening)
+    folded_body = fold_lyric_phonetic(body)
+    folded_tokens = frozenset(folded_body.split())
+    opening_tokens = tuple(
+        dict.fromkeys(
+            token
+            for token in f"{folded_title} {folded_opening}".split()
+            if len(token) >= 4
+        )
+    )
     return LyricRecord(
         number=int(song.number),
         title=title,
         opening=opening,
         body=body,
         tokens=frozenset(body.split()),
+        folded_title=folded_title,
+        folded_opening=folded_opening,
+        folded_body=folded_body,
+        folded_tokens=folded_tokens,
+        opening_tokens=opening_tokens,
+        token_list=tuple(folded_tokens),
     )
 
 
@@ -88,7 +212,21 @@ def _candidate_indexes(tokens: list[str], postings: dict[str, frozenset[int]]) -
     return set(lists[0])
 
 
-def _score_record(query: str, tokens: list[str], record: LyricRecord) -> LyricHit | None:
+def _token_in_record(token: str, folded_token: str, record: LyricRecord) -> bool:
+    if token in record.tokens:
+        return True
+    if len(token) < 4:
+        return False
+    return folded_token in record.folded_tokens
+
+
+def _score_record(
+    query: str,
+    tokens: list[str],
+    record: LyricRecord,
+    folded_query: str,
+    folded_tokens: list[str],
+) -> LyricHit | None:
     if query == record.opening or query == record.title:
         return LyricHit(record.number, 100.0, "opening_line")
     if record.opening.startswith(query) or record.title.startswith(query):
@@ -97,19 +235,41 @@ def _score_record(query: str, tokens: list[str], record: LyricRecord) -> LyricHi
         return LyricHit(record.number, 72.0, "opening_line")
     if query in record.body:
         return LyricHit(record.number, 48.0, "full_text")
+    if len(folded_query) >= 4 and (
+        folded_query in record.folded_opening or folded_query in record.folded_title
+    ):
+        return LyricHit(record.number, 64.0, "opening_line")
+    if len(folded_query) >= 4 and folded_query in record.folded_body:
+        return LyricHit(record.number, 44.0, "full_text")
     if not tokens:
         return None
     distinctive = [token for token in tokens if token not in _STOP]
     scored = distinctive or tokens
-    hits = sum(1 for token in scored if token in record.tokens)
-    if hits == 0:
-        return None
-    coverage = hits / len(scored)
-    if distinctive and len(distinctive) >= 3 and coverage >= 0.7:
+    folded_map = dict(zip(tokens, folded_tokens, strict=True))
+    exact_hits = sum(
+        1
+        for token in scored
+        if _token_in_record(token, folded_map[token], record)
+    )
+    coverage = exact_hits / len(scored)
+    if exact_hits and distinctive and len(distinctive) >= 3 and coverage >= 0.7:
         return LyricHit(record.number, LYRIC_ENGLISH_SCORE, "full_text")
-    if coverage < 0.6:
-        return None
-    return LyricHit(record.number, 12.0 * coverage, "full_text")
+    needles = [
+        folded_map[token]
+        for token in scored
+        if len(folded_map[token]) >= 5
+    ]
+    if needles:
+        opening_hits = sum(1 for needle in needles if fuzzy_token_match(needle, record.opening_tokens))
+        if opening_hits / len(needles) >= 0.6:
+            return LyricHit(record.number, 58.0, "opening_line")
+        if len(needles) == 1:
+            body_hits = sum(1 for needle in needles if fuzzy_token_match(needle, record.token_list))
+            if body_hits / len(needles) >= 0.6:
+                return LyricHit(record.number, 42.0, "full_text")
+    if exact_hits and coverage >= 0.6:
+        return LyricHit(record.number, 12.0 * coverage, "full_text")
+    return None
 
 
 def search_lyrics(query: str, limit: int = LYRIC_RESULT_LIMIT) -> list[LyricHit]:
@@ -118,9 +278,11 @@ def search_lyrics(query: str, limit: int = LYRIC_RESULT_LIMIT) -> list[LyricHit]
         return []
     records, _postings = lyric_index()
     tokens = normalized.split()
+    folded_query = fold_lyric_phonetic(normalized)
+    folded_tokens = [fold_lyric_phonetic(token) for token in tokens]
     hits: list[LyricHit] = []
     for record in records:
-        hit = _score_record(normalized, tokens, record)
+        hit = _score_record(normalized, tokens, record, folded_query, folded_tokens)
         if hit:
             hits.append(hit)
     hits.sort(key=lambda item: (-item.score, item.number))

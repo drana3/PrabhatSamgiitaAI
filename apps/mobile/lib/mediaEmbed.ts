@@ -49,13 +49,58 @@ type MediaLike = {
   verification_status: string
 }
 
+export type PlayableAudio = {
+  title: string
+  url: string
+  provider: string
+}
+
+function audioStreamUrl(item: MediaLike): string | null {
+  const url = item.url?.trim() || item.embed_url?.trim() || ""
+  if (!url) return null
+  if (/youtube\.com\/results|youtube\.com\/watch|youtu\.be\//i.test(url)) return null
+  return url
+}
+
+function audioRank(item: MediaLike) {
+  let rank = 0
+  if (item.verification_status.includes("verified")) rank += 2
+  if (item.provider === "official") rank += 1
+  return rank
+}
+
+/** Direct audio streams, preferred recording first. YouTube stays on Watch. */
+export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
+  const ranked = media
+    .filter((item) => item.kind === "audio" || item.provider === "direct_audio")
+    .slice()
+    .sort((left, right) => audioRank(right) - audioRank(left))
+  const seen = new Set<string>()
+  const items: PlayableAudio[] = []
+  for (const item of ranked) {
+    const url = audioStreamUrl(item)
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    items.push({
+      title: item.title?.trim() || "Recording",
+      url,
+      provider: item.provider,
+    })
+  }
+  return items
+}
+
+export function audioRecordingLabel(item: PlayableAudio, index: number) {
+  const title = item.title.trim()
+  if (title && !/^(?:audio|recording)$/i.test(title)) return title
+  if (index === 0) return "Original rendition"
+  const provider = item.provider.replace(/_/g, " ").trim()
+  if (provider && provider !== "official") return `Recording ${index + 1} · ${provider}`
+  return `Recording ${index + 1}`
+}
+
 export function pickPreferredAudioUrl(media: MediaLike[]): string | null {
-  const audios = media.filter((item) => item.kind === "audio" || item.provider === "direct_audio")
-  const preferred =
-    audios.find((item) => item.verification_status.includes("verified") && item.provider === "official") ||
-    audios.find((item) => item.verification_status.includes("verified")) ||
-    audios[0]
-  return preferred?.url?.trim() || preferred?.embed_url?.trim() || null
+  return listPlayableAudio(media)[0]?.url ?? null
 }
 
 export function mediaVideosToEmbeds(
