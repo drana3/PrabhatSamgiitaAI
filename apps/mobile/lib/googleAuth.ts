@@ -154,3 +154,14 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
     throw new Error(googleSignInErrorMessage(error))
   }
 }
+
+/** Best-effort Google SDK sign-out so the next login is not silent. */
+export async function signOutWithGoogle(): Promise<void> {
+  if (!googleAuthConfigured()) return
+  try {
+    ensureGoogleSignInConfigured()
+    await GoogleSignin.signOut()
+  } catch {
+    // Local app session is cleared separately.
+  }
+}

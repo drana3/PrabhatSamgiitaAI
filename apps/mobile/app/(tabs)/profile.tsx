@@ -29,7 +29,7 @@ import {
 } from "@/lib/homeFeedCache"
 import { memberAuthAvailable, memberSyncFailedCopy, memberSyncUnavailableCopy } from "@/lib/memberAuth"
 import type { QuizStatus } from "@/lib/quiz"
-import { refreshMemberSession, signOutMember } from "@/lib/session"
+import { refreshMemberSession, completeMemberSignOut } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -281,8 +281,12 @@ export default function ProfileScreen() {
                           void (async () => {
                             clearAccountMemory(accountId)
                             if (memberAuthAvailable()) await api.deleteMemberAccount()
-                            await signOutMember()
-                            Alert.alert("Deleted", "Your local session and member data request completed.")
+                            await completeMemberSignOut()
+                            router.replace(href("/welcome"))
+                            Alert.alert(
+                              "Deleted",
+                              "Your local session and member data request completed.",
+                            )
                           })()
                         },
                       },
@@ -327,13 +331,13 @@ export default function ProfileScreen() {
             label={mode === "guest" ? "Show welcome again" : "Sign out"}
             onPress={() => {
               if (mode === "signed_in") {
-                void (async () => {
-                  await signOutMember()
-                  Alert.alert(
-                    "Signed out",
-                    "Your AI chat history stays with your account. Sign back in to continue those conversations.",
-                  )
-                })()
+                // Local clear is synchronous; alert immediately for email/Google/Microsoft alike.
+                void completeMemberSignOut()
+                router.replace(href("/welcome"))
+                Alert.alert(
+                  "Signed out",
+                  "Your AI chat history stays with your account. Sign back in to continue those conversations.",
+                )
               } else {
                 resetWelcome()
                 router.replace(href("/welcome"))

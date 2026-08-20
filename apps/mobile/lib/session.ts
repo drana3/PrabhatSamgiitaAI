@@ -2,7 +2,7 @@ import type { MemberProfile } from "@prabhat/core"
 
 import { api } from "@/lib/client"
 import { signInWithFacebook } from "@/lib/facebookAuth"
-import { signInWithGoogle } from "@/lib/googleAuth"
+import { googleAuthConfigured, signInWithGoogle, signOutWithGoogle } from "@/lib/googleAuth"
 import { loginWithEmail, registerWithEmail } from "@/lib/localAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import {
@@ -21,16 +21,34 @@ export { googleAuthConfigured } from "@/lib/googleAuth"
 export { facebookAuthConfigured } from "@/lib/facebookAuth"
 
 async function hydrateFromSession() {
+  const epoch = useAuthStore.getState().sessionEpoch
   const session = await api.fetchMemberSession()
+  // Sign-out (email, Google, Microsoft, …) can finish while this request is in flight.
+  if (
+    useAuthStore.getState().sessionEpoch !== epoch ||
+    useAuthStore.getState().mode !== "signed_in"
+  ) {
+    return { ok: false as const, memberBackend: false }
+  }
   if (!session.authenticated) {
+    const auth = useAuthStore.getState()
+    if (auth.mode !== "signed_in" || auth.sessionEpoch !== epoch) {
+      return { ok: false as const, memberBackend: false }
+    }
     useAuthStore.getState().applyMemberSession({
-      displayName: useAuthStore.getState().displayName,
-      email: useAuthStore.getState().email,
-      memberId: useAuthStore.getState().memberId,
-      isAdmin: useAuthStore.getState().isAdmin,
+      displayName: auth.displayName,
+      email: auth.email,
+      memberId: auth.memberId,
+      isAdmin: auth.isAdmin,
       memberBackend: false,
-      identityProvider: useAuthStore.getState().identityProvider,
+      identityProvider: auth.identityProvider,
     })
+    return { ok: false as const, memberBackend: false }
+  }
+  if (
+    useAuthStore.getState().sessionEpoch !== epoch ||
+    useAuthStore.getState().mode !== "signed_in"
+  ) {
     return { ok: false as const, memberBackend: false }
   }
   const profile = session as MemberProfile
@@ -43,6 +61,15 @@ async function hydrateFromSession() {
     memberBackend: true,
     identityProvider: profile.identity_provider || useAuthStore.getState().identityProvider || "aad",
   })
+  if (
+    useAuthStore.getState().sessionEpoch !== epoch ||
+    useAuthStore.getState().mode !== "signed_in"
+  ) {
+    // applyMemberSession raced a sign-out — force guest again.
+    useAuthStore.getState().signOut()
+    usePreferencesStore.getState().resetAfterSignOut()
+    return { ok: false as const, memberBackend: false }
+  }
   usePreferencesStore.getState().setSavedFromNumbers(profile.favorite_song_numbers ?? [])
   return { ok: true as const, memberBackend: true, profile }
 }
@@ -50,6 +77,9 @@ async function hydrateFromSession() {
 async function syncMemberData() {
   const hydrated = await hydrateFromSession()
   if (!hydrated.ok) return hydrated
+  if (useAuthStore.getState().mode !== "signed_in") {
+    return { ok: false as const, memberBackend: false }
+  }
   await usePreferencesStore.getState().hydrateFavoritesFromServer()
   return hydrated
 }
@@ -109,14 +139,32 @@ export async function refreshMemberSession() {
   return syncMemberData()
 }
 
-/** Clears local auth + prefs; ends Microsoft SSO when the active provider is Entra. */
+/** Clears local auth for every login type; provider SSO logout is best-effort and non-blocking. */
 export async function signOutMember() {
   const provider = useAuthStore.getState().identityProvider
-  if (provider === "aad" && microsoftAuthConfigured()) {
-    await signOutWithMicrosoft()
-  }
+  // Always clear local session first (email/password, Google, Microsoft, Facebook).
+  // In-flight Profile/AppState member sync must not revive the session after the alert.
   useAuthStore.getState().signOut()
   usePreferencesStore.getState().resetAfterSignOut()
+
+  // Do not await browser/SSO UI — that delayed the "Signed out" alert and raced sync.
+  void (async () => {
+    try {
+      if (provider === "aad" && microsoftAuthConfigured()) {
+        await signOutWithMicrosoft()
+      } else if (provider === "google" && googleAuthConfigured()) {
+        await signOutWithGoogle()
+      }
+    } catch {
+      // Local session already cleared.
+    }
+  })()
+}
+
+/** Sign out and mark welcome incomplete so callers can route to `/welcome`. */
+export async function completeMemberSignOut() {
+  await signOutMember()
+  useAuthStore.getState().resetWelcome()
 }
 
 export async function signInMember() {

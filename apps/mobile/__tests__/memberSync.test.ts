@@ -44,6 +44,7 @@ vi.mock("@/lib/msal", () => ({
 vi.mock("@/lib/googleAuth", () => ({
   googleAuthConfigured: () => false,
   signInWithGoogle: vi.fn(),
+  signOutWithGoogle: vi.fn(async () => undefined),
 }))
 
 vi.mock("@/lib/facebookAuth", () => ({
@@ -117,5 +118,56 @@ describe("member sync from database", () => {
     await refreshMemberSession()
 
     expect(useAuthStore.getState().isAdmin).toBe(false)
+  })
+
+  it("does not revive a guest session if sign-out races a member sync", async () => {
+    fetchMemberSession.mockImplementation(async () => {
+      useAuthStore.getState().signOut()
+      return {
+        authenticated: true,
+        id: "11111111-1111-1111-1111-111111111111",
+        display_name: "Member",
+        email: "member@example.com",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        is_admin: true,
+        favorite_song_numbers: [1],
+      }
+    })
+
+    const result = await refreshMemberSession()
+
+    expect(result.ok).toBe(false)
+    expect(useAuthStore.getState().mode).toBe("guest")
+    expect(useAuthStore.getState().email).toBeNull()
+  })
+
+  it("does not revive after email sign-out when a sync response arrives late", async () => {
+    useAuthStore.setState({ sessionEpoch: 2 })
+    let finishFetch: ((value: unknown) => void) | undefined
+    fetchMemberSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishFetch = resolve
+        }),
+    )
+
+    const pending = refreshMemberSession()
+    useAuthStore.getState().signOut()
+    finishFetch?.({
+      authenticated: true,
+      id: "11111111-1111-1111-1111-111111111111",
+      display_name: "Member",
+      email: "member@example.com",
+      identity_provider: "local",
+      personalization_enabled: true,
+      is_admin: false,
+      favorite_song_numbers: [7],
+    })
+
+    const result = await pending
+    expect(result.ok).toBe(false)
+    expect(useAuthStore.getState().mode).toBe("guest")
+    expect(usePreferencesStore.getState().savedSongIds).toEqual([])
   })
 })

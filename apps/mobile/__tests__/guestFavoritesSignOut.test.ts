@@ -45,6 +45,7 @@ vi.mock("@/lib/memberAuth", () => ({
 vi.mock("@/lib/googleAuth", () => ({
   googleAuthConfigured: () => false,
   signInWithGoogle: vi.fn(),
+  signOutWithGoogle: vi.fn(async () => undefined),
 }))
 
 vi.mock("@/lib/facebookAuth", () => ({
@@ -129,5 +130,48 @@ describe("guest favorites and Microsoft sign-out", () => {
     await signOutMember()
     expect(signOutWithMicrosoft).not.toHaveBeenCalled()
     expect(usePreferencesStore.getState().feelingSearchEnabled).toBe(false)
+  })
+
+  it("clears local session before Microsoft SSO logout so foreground sync cannot revive it", async () => {
+    let resolveLogout: (() => void) | undefined
+    signOutWithMicrosoft.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLogout = resolve
+        }),
+    )
+    useAuthStore.setState({
+      mode: "signed_in",
+      displayName: "Member",
+      email: "member@example.com",
+      memberId: "oid-1",
+      identityProvider: "aad",
+      sessionEpoch: 0,
+    })
+
+    await signOutMember()
+    expect(useAuthStore.getState().mode).toBe("guest")
+    expect(useAuthStore.getState().sessionEpoch).toBe(1)
+    // Provider logout is fire-and-forget — flush the queued microtask.
+    await Promise.resolve()
+    expect(signOutWithMicrosoft).toHaveBeenCalledTimes(1)
+
+    resolveLogout?.()
+    expect(useAuthStore.getState().mode).toBe("guest")
+  })
+
+  it("clears email/password sessions immediately without waiting on SSO", async () => {
+    useAuthStore.setState({
+      mode: "signed_in",
+      displayName: "Member",
+      email: "member@example.com",
+      memberId: "local-1",
+      identityProvider: "local",
+      sessionEpoch: 3,
+    })
+    await signOutMember()
+    expect(signOutWithMicrosoft).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().mode).toBe("guest")
+    expect(useAuthStore.getState().sessionEpoch).toBe(4)
   })
 })

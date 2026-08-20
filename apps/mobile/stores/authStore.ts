@@ -14,6 +14,8 @@ type AuthState = {
   isAdmin: boolean
   memberBackend: boolean
   identityProvider: string | null
+  /** Bumped on every sign-out so in-flight member sync cannot revive the session. */
+  sessionEpoch: number
   hasCompletedWelcome: boolean
   setMode: (mode: AuthMode) => void
   applyMemberSession: (input: {
@@ -40,6 +42,7 @@ export const useAuthStore = create<AuthState>()(
       isAdmin: false,
       memberBackend: false,
       identityProvider: null,
+      sessionEpoch: 0,
       hasCompletedWelcome: false,
 
       setMode: (mode) => {
@@ -52,6 +55,7 @@ export const useAuthStore = create<AuthState>()(
           isAdmin: false,
           memberBackend: false,
           identityProvider: null,
+          sessionEpoch: get().sessionEpoch + 1,
         })
       },
 
@@ -75,6 +79,7 @@ export const useAuthStore = create<AuthState>()(
           isAdmin: false,
           memberBackend: false,
           identityProvider: null,
+          sessionEpoch: get().sessionEpoch + 1,
         }),
 
       completeWelcome: () => set({ hasCompletedWelcome: true }),
@@ -97,6 +102,7 @@ export const useAuthStore = create<AuthState>()(
         memberBackend: state.memberBackend,
         identityProvider: state.identityProvider,
         hasCompletedWelcome: state.hasCompletedWelcome,
+        // sessionEpoch stays in-memory only — survives the current JS lifetime / in-flight syncs.
       }),
     },
   ),
