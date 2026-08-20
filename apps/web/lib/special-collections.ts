@@ -4,6 +4,7 @@ import {
   catalogLookupKeys,
   feelingSearchAllowed,
   foldLyricPhonetic,
+  normalizeLyricText,
   planSearch,
   type SearchAuth,
 } from "@prabhat/core"
@@ -356,8 +357,15 @@ const collectionKeywordAliases: Record<string, string> = {
 }
 
 function foldCollectionKeyword(value: string) {
-  return value.normalize("NFKD").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+  const decomposed = value.normalize("NFKD").toLowerCase()
+  let plain = ""
+  for (const character of decomposed) {
+    if (character.charCodeAt(0) >= 0x300 && character.charCodeAt(0) <= 0x36f) continue
+    plain += character
+  }
+  return plain.replace(/[^a-z0-9]+/g, " ").trim()
 }
+
 
 const COLLECTION_STOP = new Set(
   "a an and based ceremony containing day for in memory of on song songs the to tune with".split(" "),
@@ -399,6 +407,12 @@ export function collectionSongNumbersForKeyword(query: string): number[] | null 
 
   const keys = catalogLookupKeys(query)
   if (!keys.length) return null
+  const distinctiveWordCount = normalizeLyricText(query)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !COLLECTION_STOP.has(token)).length
+  // Multi-word lyric lines must not match a theme collection via one fuzzy token
+  // ("nagariya" ≈ "nagar" → Ánanda Nagar). Keep fuzzy word matches for short queries.
+  const allowFuzzyWordMatch = distinctiveWordCount <= 1
 
   for (const key of keys) {
     const aliasLabel =
@@ -420,6 +434,8 @@ export function collectionSongNumbersForKeyword(query: string): number[] | null 
       }
     }
   }
+
+  if (!allowFuzzyWordMatch) return null
 
   let matched: CanonicalCollection | null = null
   for (const row of canonicalCollections as CanonicalCollection[]) {

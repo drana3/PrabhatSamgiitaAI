@@ -202,6 +202,57 @@ function fuzzyTokenMatch(needle: string, tokens: Iterable<string>) {
   return false
 }
 
+/** Match romanized tokens that differ by compound endings (tomake ≈ tomakei). */
+export function lyricTokensMatch(left: string, right: string) {
+  if (!left || !right) return false
+  if (left === right) return true
+  const a = foldLyricPhonetic(left)
+  const b = foldLyricPhonetic(right)
+  if (!a || !b) return false
+  if (a === b) return true
+  // Compound / elongated endings only (tomake → tomakei), not soft near-misses like tomake≈tomar.
+  if (a.length >= 5 && b.length > a.length && b.startsWith(a) && b.length - a.length <= 2) return true
+  if (b.length >= 5 && a.length > b.length && a.startsWith(b) && a.length - b.length <= 2) return true
+  if (a.length < 5 || b.length < 5) return false
+  if (a.slice(0, 4) !== b.slice(0, 4)) return false
+  return withinLyricEdits(a, b, 1)
+}
+
+/**
+ * Fraction of query tokens found nearly consecutively in the haystack.
+ * Prefers real lyric lines over bag-of-words title hits on common words like "ami".
+ */
+export function orderedLyricCoverage(queryTokens: string[], haystackTokens: string[]) {
+  if (!queryTokens.length || !haystackTokens.length) return 0
+  let best = 0
+  const maxGap = queryTokens.length >= 4 ? 1 : 2
+  for (let start = 0; start < haystackTokens.length; start += 1) {
+    let qi = 0
+    let gaps = 0
+    for (let hi = start; hi < haystackTokens.length && qi < queryTokens.length; hi += 1) {
+      if (lyricTokensMatch(queryTokens[qi], haystackTokens[hi])) {
+        qi += 1
+        gaps = 0
+        continue
+      }
+      if (qi === 0) break
+      gaps += 1
+      if (gaps > maxGap) break
+    }
+    best = Math.max(best, qi / queryTokens.length)
+    if (best === 1) return 1
+  }
+  return best
+}
+
+
+const COMMON_LYRIC_TOKENS = new Set(
+  "ami tumi tomar tomay tomake tomakei mora mor mama go re se oi ei ar na ki kii he ogo prabhu more moreke amay amake".split(
+    " ",
+  ),
+)
+
+
 function lyricSnippet(query: string, tokens: string[], opening: string, body: string) {
   const source = body.includes(query) ? body : opening
   const at = source.indexOf(query)
@@ -324,7 +375,26 @@ function scoreRow(
   } else if (foldedQuery.length >= 3 && folded.tokens.has(foldedQuery)) {
     score = 44
     matchedBy = "full_text"
-  } else if (tokens.length) {
+  } else if (tokens.length >= 3) {
+    const openingWords = `${title} ${opening}`.split(" ").filter(Boolean)
+    const bodyWords = body.split(" ").filter(Boolean)
+    const foldedQueryTokens = tokens.map((token) => foldedTokenByExact.get(token) ?? foldLyricPhonetic(token))
+    const openingCoverage = Math.max(
+      orderedLyricCoverage(tokens, openingWords),
+      orderedLyricCoverage(foldedQueryTokens, `${folded.title} ${folded.opening}`.split(" ").filter(Boolean)),
+    )
+    const bodyCoverage = Math.max(
+      orderedLyricCoverage(tokens, bodyWords),
+      orderedLyricCoverage(foldedQueryTokens, folded.body.split(" ").filter(Boolean)),
+    )
+    const bestCoverage = Math.max(openingCoverage, bodyCoverage)
+    if (bestCoverage >= 0.8) {
+      score = Math.round(70 + bestCoverage * 18)
+      matchedBy = openingCoverage >= bodyCoverage ? "opening_line" : "full_text"
+    }
+  }
+
+  if (!score && tokens.length) {
     const distinctive = tokens.filter((token) => !STOP.has(token))
     const scored = distinctive.length ? distinctive : tokens
     let openingHits = 0
@@ -347,7 +417,6 @@ function scoreRow(
     }
     const matched = openingHits + bodyHits
     if (!(matched / scored.length >= 0.6) && unmatched.length && (scored.length <= 2 || matched > 0)) {
-      const tryBody = scored.length <= 3
       for (const { token, foldedToken } of unmatched) {
         if (
           fuzzyTokenMatch(token, folded.rawOpeningTokens) ||
@@ -357,24 +426,43 @@ function scoreRow(
           continue
         }
         if (
-          tryBody &&
-          (fuzzyTokenMatch(token, folded.rawTokenList) || fuzzyTokenMatch(foldedToken, folded.tokenList))
+          fuzzyTokenMatch(token, folded.rawTokenList) ||
+          fuzzyTokenMatch(foldedToken, folded.tokenList)
         ) {
           bodyHits += 1
         }
       }
     }
     const coverage = (openingHits + bodyHits) / scored.length
+    const rareOpeningHits = scored.filter((token) => {
+      if (COMMON_LYRIC_TOKENS.has(token) || COMMON_LYRIC_TOKENS.has(foldLyricPhonetic(token))) {
+        return false
+      }
+      const foldedToken = foldedTokenByExact.get(token) ?? foldLyricPhonetic(token)
+      return (
+        folded.rawOpeningTokens.includes(token) ||
+        (foldedToken.length >= 3 && folded.openingTokenSet.has(foldedToken)) ||
+        fuzzyTokenMatch(token, folded.rawOpeningTokens) ||
+        fuzzyTokenMatch(foldedToken, folded.openingTokens)
+      )
+    }).length
     if (openingHits && openingHits / scored.length >= 0.6) {
-      score = scored.length === 1 ? 64 : 58
-      matchedBy = "opening_line"
+      // Multi-word lyric queries: common title words ("ami", "jani") alone must not
+      // outrank a real in-verse phrase match.
+      if (scored.length >= 3 && rareOpeningHits === 0) {
+        score = 36
+        matchedBy = "opening_line"
+      } else {
+        score = scored.length === 1 ? 64 : scored.length >= 3 ? 52 : 58
+        matchedBy = "opening_line"
+      }
     } else if (openingHits + bodyHits && coverage >= 0.6) {
       score = scored.length === 1 ? 44 : 42
       matchedBy = "full_text"
     } else {
       return null
     }
-  } else {
+  } else if (!score) {
     return null
   }
   return {

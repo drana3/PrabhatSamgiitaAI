@@ -87,9 +87,15 @@ test("home delivers a complete, nonblank spiritual journey", async ({ page }) =>
   expect(shadowedText).toBe(0)
 })
 
-test("general song links settle on the AI Companion after layout", async ({ page }) => {
+test("general song links settle on the AI Companion after layout", async ({ page }, testInfo) => {
   await page.goto("/")
   await page.getByRole("link", { name: "Start with Song 1" }).click()
+  if (testInfo.project.name === "mobile-chromium") {
+    await expect(page).toHaveURL(/\/songs\/1\/?$/)
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+    await expect(page.getByRole("heading", { name: /Bandhu He Niye Calo/i })).toBeInViewport()
+    return
+  }
   await expect(page).toHaveURL(/\/songs\/1#ask$/)
   await expect(page.locator("#ask")).toBeInViewport()
   await expect(page.getByRole("heading", { name: "Know more about this song" })).toBeVisible()
@@ -329,8 +335,14 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 
-test("opening a song lands on the AI companion", async ({ page }) => {
+test("opening a song lands on the AI companion", async ({ page }, testInfo) => {
   await page.goto("/songs/1")
+  if (testInfo.project.name === "mobile-chromium") {
+    await expect.poll(() => new URL(page.url()).hash).toBe("")
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+    await expect(page.getByRole("heading", { name: /Bandhu He Niye Calo/i })).toBeInViewport()
+    return
+  }
   await expect.poll(() => new URL(page.url()).hash).toBe("#ask")
   await expect(page.getByRole("status", { name: "AI companion ready to help" })).toBeVisible()
 })
@@ -498,12 +510,18 @@ test("Explore search stays aligned and infers spoken language", async ({ page },
   }
 })
 
-test("home and Explore resolve natural-language song number intent before RAG", async ({ page }) => {
+test("home and Explore resolve natural-language song number intent before RAG", async ({ page }, testInfo) => {
   await page.goto("/")
   await page.getByLabel(/Search by song number/i).fill("explain about prabhat sagiat 223")
   await clickSearchButton(page)
-  await expect(page).toHaveURL(/\/songs\/223#ask$/)
-  await expect(page.locator("#ask")).toBeVisible()
+  if (testInfo.project.name === "mobile-chromium") {
+    await expect(page).toHaveURL(/\/songs\/223\/?$/)
+    await expect.poll(() => new URL(page.url()).hash).toBe("")
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+  } else {
+    await expect(page).toHaveURL(/\/songs\/223#ask$/)
+    await expect(page.locator("#ask")).toBeVisible()
+  }
 
   await page.goto("/explore")
   await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")

@@ -84,14 +84,12 @@ describe("Prabhat Samgiita AI companion", () => {
   })
 
   it("restores a signed-in conversation from member chat memory after sign-in", async () => {
-    fetchMemberChatMock.mockResolvedValue({
-      ok: true,
-      summary: "often explores meaning",
-      recent_turns: [
-        { role: "user", content: "Explain this song line by line" },
-        { role: "assistant", content: "1. Lyric: restored answer" },
-      ],
-    })
+    let resolveMemory: ((value: Awaited<ReturnType<typeof fetchMemberChat>>) => void) | null = null
+    fetchMemberChatMock.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveMemory = resolve
+      }),
+    )
 
     memberState.value = { loading: false, session: { authenticated: false } }
     const { rerender } = render(<StreamExplanation songNumber={135} />)
@@ -111,8 +109,25 @@ describe("Prabhat Samgiita AI companion", () => {
     }
     rerender(<StreamExplanation songNumber={135} />)
 
+    expect(await screen.findByText(/Syncing your chat history/i)).toBeVisible()
+    expect(screen.getByRole("status", { name: /Syncing your chat history/i })).toBeVisible()
+    expect(screen.queryByText("Try asking")).not.toBeInTheDocument()
+
+    resolveMemory?.({
+      ok: true,
+      summary: "often explores meaning",
+      recent_turns: [
+        { role: "user", content: "Explain this song line by line" },
+        { role: "assistant", content: "1. Lyric: restored answer" },
+      ],
+      history_days: [],
+      archived_summary: "",
+      monthly_summaries: {},
+    })
+
     expect(await screen.findByText(/Explain this song line by line/i)).toBeVisible()
     expect(screen.getByText(/restored answer/i)).toBeVisible()
+    expect(screen.getByRole("status", { name: /ready to help/i })).toBeVisible()
     expect(fetchMemberChatMock).toHaveBeenCalledWith(135)
   })
 
@@ -180,6 +195,7 @@ describe("Prabhat Samgiita AI companion", () => {
       },
     }
     render(<StreamExplanation songNumber={135} />)
+    expect(await screen.findByRole("status", { name: /ready to help/i })).toBeVisible()
 
     await user.type(screen.getByLabelText("Ask about this song"), "What is this song about?")
     await user.click(screen.getByRole("button", { name: "Send question" }))

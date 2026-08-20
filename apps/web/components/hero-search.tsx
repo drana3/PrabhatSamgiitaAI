@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   FEELING_ENABLE_IN_PROFILE_BODY,
   FEELING_ENABLE_IN_PROFILE_TITLE,
@@ -14,6 +14,7 @@ import { VoiceSearchButton } from "@/components/voice-search-button"
 import { useSearchAuth } from "@/lib/feeling-search"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
+import { scrollElementAboveKeyboard } from "@/lib/scroll-to-section"
 import { signInHref } from "@/lib/sign-in"
 
 export function HeroSearch() {
@@ -24,6 +25,29 @@ export function HeroSearch() {
   const feelingOn = searchAuth.feelingSearchEnabled
   const [guidance, setGuidance] = useState("")
   const [feelingPrompt, setFeelingPrompt] = useState(false)
+  const searchShellRef = useRef<HTMLDivElement | null>(null)
+  const inputFocused = useRef(false)
+
+  useEffect(() => {
+    if (!query.trim() || !inputFocused.current) return
+    scrollElementAboveKeyboard(searchShellRef.current)
+  }, [query])
+
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+
+    const onViewportChange = () => {
+      if (!inputFocused.current) return
+      scrollElementAboveKeyboard(searchShellRef.current)
+    }
+    viewport.addEventListener("resize", onViewportChange)
+    viewport.addEventListener("scroll", onViewportChange)
+    return () => {
+      viewport.removeEventListener("resize", onViewportChange)
+      viewport.removeEventListener("scroll", onViewportChange)
+    }
+  }, [])
 
   function search(value: string, mode: "catalog" | "feeling" = "catalog") {
     const normalized = value.trim()
@@ -58,53 +82,63 @@ export function HeroSearch() {
 
   return (
     <div className="space-y-3">
-      <form
-        className="hero-search relative z-20"
-        onSubmit={(event) => {
-          event.preventDefault()
-          search(query)
-        }}
-      >
-        <span aria-hidden="true" className="text-xl text-navy-700">⌕</span>
-        <label htmlFor="hero-query" className="sr-only">
-          Search by song number, remembered words, or feeling
-        </label>
-        <input
-          id="hero-query"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={SEARCH_PLACEHOLDER}
-          className="min-w-0 flex-1 bg-transparent text-sm text-navy-950 outline-none placeholder:text-stone-500"
-          aria-autocomplete="list"
-          aria-controls="hero-search-suggestions"
-        />
-        <VoiceSearchButton compact onTranscript={({ transcript, language }) => {
-          setQuery(transcript)
-          if (!queryIsUseful(transcript, 200)) {
-            setGuidance(queryGuidanceFor(transcript))
-            return
-          }
-          setGuidance("")
-          const songIntent = extractSongSearchIntent(transcript)
-          if (songIntent) {
-            router.push(songIntentPath(songIntent))
-            return
-          }
-          router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
-        }} />
-        <button type="submit" aria-label="Search" data-feature="hero_search" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-600 text-lg text-white shadow-md transition hover:bg-gold-700">
-          →
-        </button>
-        {guidance ? <span className="sr-only" role="alert">{guidance}</span> : null}
-      </form>
-      <div className="relative z-20">
-        <InstantSearchSuggestions query={query} id="hero-search-suggestions" />
+      <div ref={searchShellRef} className="space-y-2">
+        <form
+          className="hero-search relative z-20"
+          onSubmit={(event) => {
+            event.preventDefault()
+            search(query)
+          }}
+        >
+          <span aria-hidden="true" className="text-xl text-navy-700">⌕</span>
+          <label htmlFor="hero-query" className="sr-only">
+            Search by song number, remembered words, or feeling
+          </label>
+          <input
+            id="hero-query"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onFocus={() => {
+              inputFocused.current = true
+              scrollElementAboveKeyboard(searchShellRef.current)
+            }}
+            onBlur={() => {
+              inputFocused.current = false
+            }}
+            placeholder={SEARCH_PLACEHOLDER}
+            className="min-w-0 flex-1 bg-transparent text-sm text-navy-950 outline-none placeholder:text-stone-500"
+            aria-autocomplete="list"
+            aria-controls="hero-search-suggestions"
+          />
+          <VoiceSearchButton compact onTranscript={({ transcript, language }) => {
+            setQuery(transcript)
+            if (!queryIsUseful(transcript, 200)) {
+              setGuidance(queryGuidanceFor(transcript))
+              return
+            }
+            setGuidance("")
+            const songIntent = extractSongSearchIntent(transcript)
+            if (songIntent) {
+              router.push(songIntentPath(songIntent))
+              return
+            }
+            router.push(`/explore?q=${encodeURIComponent(transcript)}&mode=voice&lang=${encodeURIComponent(language)}`)
+          }} />
+          <button type="submit" aria-label="Search" data-feature="hero_search" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-600 text-lg text-white shadow-md transition hover:bg-gold-700">
+            →
+          </button>
+          {guidance ? <span className="sr-only" role="alert">{guidance}</span> : null}
+        </form>
+        <div className="relative z-20">
+          <InstantSearchSuggestions query={query} id="hero-search-suggestions" />
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Search examples">
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Search examples">
         {HOME_SEARCH_EXAMPLES.map((example) => {
           const feelingGuest = example.mode === "feeling" && !signedIn
           const feelingNeedsEnable = example.mode === "feeling" && signedIn && !feelingOn
+          const showQuery = !feelingGuest && !feelingNeedsEnable
           return (
             <button
               key={example.label}
@@ -121,19 +155,27 @@ export function HeroSearch() {
                 setQuery(example.query)
                 search(example.query, example.mode)
               }}
-              className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-sm transition ${
+              className={`inline-flex max-w-full items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-sm transition ${
                 feelingGuest || feelingNeedsEnable
                   ? "border-navy-900/10 bg-white/70 text-navy-900/70 hover:border-gold-500 hover:bg-gold-50"
                   : "border-navy-900/10 bg-white/90 text-navy-900 hover:border-gold-500 hover:bg-gold-50"
               }`}
             >
-              {example.label}
-              <span className="ml-1.5 font-normal text-stone-600">· {example.query}</span>
+              <span className="truncate">
+                {example.label}
+                {showQuery ? (
+                  <span className="ml-1.5 font-normal text-stone-600">· {example.query}</span>
+                ) : null}
+              </span>
               {feelingGuest ? (
-                <span className="ml-1.5 font-semibold text-gold-700">· Sign in</span>
+                <span className="ml-2 shrink-0 rounded-full bg-gold-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-gold-800">
+                  Sign in
+                </span>
               ) : null}
               {feelingNeedsEnable ? (
-                <span className="ml-1.5 font-semibold text-gold-700">· Enable in Profile</span>
+                <span className="ml-2 shrink-0 rounded-full bg-gold-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-gold-800">
+                  Profile
+                </span>
               ) : null}
             </button>
           )

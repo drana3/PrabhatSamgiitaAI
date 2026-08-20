@@ -25,15 +25,47 @@ describe("HashLanding", () => {
       callback(0)
       return 0
     })
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
   })
 
-  it("defaults to the AI companion when a song opens without a hash", async () => {
+  it("defaults to the AI companion when a song opens without a hash on desktop", async () => {
     render(<HashLanding />)
 
     await waitFor(() => {
       expect(window.location.hash).toBe("#ask")
       expect(scrollToSectionId).toHaveBeenCalledWith("ask")
     })
+  })
+
+  it("lands at the song start on mobile instead of the AI companion", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      matches: query.includes("max-width: 767px"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    window.history.replaceState(null, "", "/songs/135#ask")
+    render(<HashLanding />)
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe("")
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" })
+    })
+    expect(scrollToSectionId).not.toHaveBeenCalled()
   })
 
   it("honors an explicit section hash", async () => {
@@ -44,6 +76,26 @@ describe("HashLanding", () => {
       expect(scrollToSectionId).toHaveBeenCalledWith("notation")
     })
     expect(window.location.hash).toBe("#notation")
+  })
+
+  it("honors explicit non-ask hashes on mobile", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      matches: query.includes("max-width: 767px"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    window.history.replaceState(null, "", "/songs/135#lyrics")
+    render(<HashLanding />)
+
+    await waitFor(() => {
+      expect(scrollToSectionId).toHaveBeenCalledWith("lyrics")
+    })
+    expect(window.location.hash).toBe("#lyrics")
   })
 
   it("does not auto-open the AI companion when returning from sign-in", async () => {

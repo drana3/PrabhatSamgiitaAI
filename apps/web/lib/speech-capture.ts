@@ -1,3 +1,5 @@
+import { resolveVoiceSearchLang } from "@/lib/voice-search-lang"
+
 type SpeechCapture = {
   stop: () => void
   supported: boolean
@@ -47,7 +49,7 @@ export function startSpeechCapture(
   const recognition = new Recognition()
   recognition.continuous = true
   recognition.interimResults = true
-  recognition.lang = navigator.language?.startsWith("hi") ? "hi-IN" : "en-IN"
+  recognition.lang = resolveVoiceSearchLang(typeof navigator !== "undefined" ? navigator.language : null)
   recognition.maxAlternatives = 1
   recognition.onresult = (event) => {
     const parts: string[] = []

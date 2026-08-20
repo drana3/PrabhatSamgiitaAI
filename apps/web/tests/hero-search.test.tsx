@@ -8,6 +8,10 @@ const push = vi.fn()
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/" }))
 
+vi.mock("@/lib/scroll-to-section", () => ({
+  scrollElementAboveKeyboard: vi.fn(),
+}))
+
 let signedIn = false
 let feelingSearchEnabled = false
 
@@ -109,15 +113,24 @@ describe("hero search", () => {
     class Recognition {
       lang = ""
       interimResults = false
+      continuous = false
       maxAlternatives = 1
-      onresult: ((event: { results: { 0: { 0: { transcript: string } } } }) => void) | null = null
+      onresult: ((event: { results: { 0: { 0: { transcript: string }; length: number; isFinal?: boolean } } }) => void) | null = null
       onerror: (() => void) | null = null
       onend: (() => void) | null = null
 
       start() {
-        this.onresult?.({ results: { 0: { 0: { transcript: "musafir aage badhte jana" }, length: 1 } } })
+        this.onresult?.({
+          results: {
+            length: 1,
+            0: { 0: { transcript: "musafir aage badhte jana" }, length: 1, isFinal: true },
+          },
+        })
         this.onend?.()
       }
+
+      stop() {}
+      abort() {}
     }
     Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, value: Recognition })
     const user = userEvent.setup()
@@ -126,7 +139,7 @@ describe("hero search", () => {
     await user.click(await screen.findByRole("button", { name: "Search by voice" }))
 
     expect(screen.queryByRole("combobox", { name: "Spoken language" })).not.toBeInTheDocument()
-    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana&mode=voice&lang=auto")
+    expect(push).toHaveBeenCalledWith("/explore?q=musafir%20aage%20badhte%20jana&mode=voice&lang=en-IN")
   })
 
   it("keeps malicious and meaningless input local", async () => {

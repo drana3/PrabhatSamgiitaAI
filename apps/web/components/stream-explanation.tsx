@@ -40,6 +40,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
   const [query, setQuery] = useState(prompt ?? "")
   const [inputError, setInputError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const [syncingHistory, setSyncingHistory] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([greeting()])
   const [profileSummary, setProfileSummary] = useState("")
   const conversationEnd = useRef<HTMLDivElement | null>(null)
@@ -59,7 +60,10 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
   }
 
   useEffect(() => {
-    if (memberLoading) return
+    if (memberLoading) {
+      setSyncingHistory(Boolean(session.authenticated))
+      return
+    }
 
     const signedOut = previousAuth.current && !session.authenticated
     previousAuth.current = session.authenticated
@@ -68,6 +72,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
       clearGuestChatStorage()
       setMessages([greeting()])
       setProfileSummary("")
+      setSyncingHistory(false)
       setHydrated(true)
       return
     }
@@ -89,9 +94,13 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
     if (!session.authenticated) {
       setMessages(restored.length ? [greeting(), ...restored] : [greeting()])
       setProfileSummary("")
+      setSyncingHistory(false)
       setHydrated(true)
       return
     }
+
+    setMessages(restored.length ? [greeting(), ...restored] : [greeting()])
+    setSyncingHistory(true)
     let active = true
     async function loadMemberConversation() {
       let memory = await fetchMemberChat(songNumber)
@@ -117,6 +126,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
         return true
       }).slice(-maximumConversationTurns)
       setMessages([greeting(), ...merged])
+      setSyncingHistory(false)
       setHydrated(true)
     }
     void loadMemberConversation()
@@ -192,6 +202,9 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
   const suggestedPrompts = starterPrompts(conversationLanguage(
     messages.filter((message) => message.role === "user").map((message) => message.text),
   ))
+  const companionStatus = syncingHistory
+    ? { label: "Syncing chat history", ready: false }
+    : { label: "Ready to help", ready: true }
 
   return (
     <section id="ask" className="scroll-mt-28 overflow-hidden rounded-2xl border border-navy-900/10 bg-ivory-50 shadow-[0_18px_50px_rgba(34,28,18,0.08)]">
@@ -200,20 +213,28 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
         <div className="relative flex items-start gap-4">
           <div className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-gold-500/25 bg-white shadow-sm">
             <Image src="/brand/prabhat-samgiita-emblem.png" alt="" width={42} height={42} className="h-10 w-10 object-contain" />
-            <span aria-hidden="true" className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-white bg-emerald-500" />
+            <span aria-hidden="true" className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-white ${companionStatus.ready ? "bg-emerald-500" : "bg-gold-500"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <p className="eyebrow">Prabhat Samgiita AI Companion</p>
-              <p role="status" aria-label="AI companion ready to help" className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/15 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Ready to help
+              <p
+                role="status"
+                aria-label={companionStatus.ready ? "AI companion ready to help" : "Syncing your chat history"}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                  companionStatus.ready
+                    ? "border-emerald-700/15 bg-emerald-50 text-emerald-700"
+                    : "border-gold-700/20 bg-gold-50 text-gold-800"
+                }`}
+              >
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${companionStatus.ready ? "bg-emerald-500" : "animate-pulse bg-gold-600"}`} />
+                {companionStatus.label}
               </p>
             </div>
             <h2 className="mt-2 font-serif text-3xl leading-tight text-navy-950 sm:text-[2rem]">Know more about this song</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Ask about meaning, imagery, spiritual context, pronunciation, or related songs in the language that feels natural to you.</p>
-            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Signed in · grounded answers first · 50 deeper AI questions/day" : "Guest · grounded answers first · 15 deeper AI questions/day"}</p>
-            {hasUserMessages(messages) ? (
+            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Signed in · grounded answers first · 50 deeper AI requests/day" : "Guest · grounded answers first · 15 deeper AI questions/day"}</p>
+            {hasUserMessages(messages) && !syncingHistory ? (
               <button
                 type="button"
                 onClick={resetConversation}
@@ -225,7 +246,15 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
           </div>
         </div>
       </div>
-      <div aria-live="polite" aria-busy={loading} className="max-h-[32rem] space-y-4 overflow-y-auto bg-[linear-gradient(rgba(9,45,86,0.025)_1px,transparent_1px)] bg-[length:100%_3rem] p-4 sm:p-5">
+      <div aria-live="polite" aria-busy={loading || syncingHistory} className="max-h-[32rem] space-y-4 overflow-y-auto bg-[linear-gradient(rgba(9,45,86,0.025)_1px,transparent_1px)] bg-[length:100%_3rem] p-4 sm:p-5">
+        {syncingHistory ? (
+          <div className="rounded-2xl border border-gold-500/25 bg-white px-4 py-3 shadow-sm">
+            <LoadingIndicator label="Syncing your chat history" />
+            <p className="mt-2 text-xs leading-5 text-stone-600">
+              Loading earlier questions for this song so they appear in order.
+            </p>
+          </div>
+        ) : null}
         {messages.map((message, index) => {
           const isGreeting = index === 0 && message.role === "assistant"
           const isLatestAnswer = message.role === "assistant" && index === messages.length - 1 && Boolean(message.text) && !loading
@@ -240,7 +269,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
               <div className={`max-w-[88%] px-4 py-3 text-sm leading-7 sm:max-w-[82%] ${message.role === "user" ? "rounded-2xl rounded-br-md bg-navy-950 text-white shadow-sm" : "rounded-2xl rounded-bl-md border border-navy-900/10 bg-white text-stone-700 shadow-sm"}`}>
                 <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.16em] ${message.role === "user" ? "text-gold-200" : "text-gold-700"}`}>{message.role === "user" ? "You" : "Prabhat Samgiita AI"}</p>
                 {loading && index === messages.length - 1 && !message.text ? <LoadingIndicator label="Reading the song and preparing your answer" /> : <p dir="auto" className="whitespace-pre-wrap">{displayText}</p>}
-                {isGreeting && !userTurns && !loading ? (
+                {isGreeting && !userTurns && !loading && !syncingHistory ? (
                   <div className="mt-4 border-t border-navy-900/10 pt-3">
                     <p className="text-xs font-semibold text-navy-950">Try asking</p>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -281,23 +310,24 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
             id={`ask-${songNumber}`}
             value={query}
             onChange={(event) => { setQuery(event.target.value); if (inputError) setInputError(null) }}
-            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (!loading) void ask() } }}
+            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (!loading && !syncingHistory) void ask() } }}
             placeholder="Ask Prabhat Samgiita AI about this song..."
             rows={2}
             maxLength={800}
+            disabled={syncingHistory}
             aria-invalid={Boolean(inputError)}
             aria-describedby={inputError ? `ask-${songNumber}-error` : undefined}
-            className="min-h-12 flex-1 resize-none bg-transparent px-3 py-2 text-sm text-navy-950 outline-none placeholder:text-stone-400"
+            className="min-h-12 flex-1 resize-none bg-transparent px-3 py-2 text-sm text-navy-950 outline-none placeholder:text-stone-400 disabled:opacity-60"
           />
           <VoiceQuestionButton
-            disabled={loading}
+            disabled={loading || syncingHistory}
             onTranscript={(transcript) => {
               setQuery(transcript)
               setInputError(null)
             }}
             onError={setInputError}
           />
-          <button type="button" onClick={() => void ask()} disabled={loading} aria-label="Send question" data-feature="ai_companion" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold-600 text-lg text-white shadow-sm transition hover:bg-gold-700 disabled:opacity-50">→</button>
+          <button type="button" onClick={() => void ask()} disabled={loading || syncingHistory} aria-label="Send question" data-feature="ai_companion" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gold-600 text-lg text-white shadow-sm transition hover:bg-gold-700 disabled:opacity-50">→</button>
         </div>
         {inputError ? <p id={`ask-${songNumber}-error`} role="alert" className="mt-2 text-sm leading-6 text-red-700">{inputError}</p> : null}
       </div>

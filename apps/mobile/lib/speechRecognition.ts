@@ -52,7 +52,7 @@ function platformOS(): string {
  */
 export async function shouldUseOnDeviceRecognition(
   speech: Pick<SpeechModule, "supportsOnDeviceRecognition" | "getSupportedLocales">,
-  lang = "en-US",
+  lang = "en-IN",
   options?: { platform?: string },
 ): Promise<boolean> {
   if (!speech.supportsOnDeviceRecognition?.()) return false
@@ -269,7 +269,7 @@ export async function startNativeSpeechRecognition(
   }
 
   const onSimulator = isLikelyIosSimulator()
-  const lang = "en-US"
+  const lang = "en-IN"
   // Android: use Google network STT unless the offline pack is installed.
   // iOS: keep on-device when available (avoids flaky network Siri on Simulator).
   const onDevice = await shouldUseOnDeviceRecognition(speech, lang)
@@ -301,12 +301,18 @@ export async function startNativeSpeechRecognition(
     requiresOnDeviceRecognition: onDevice,
     contextualStrings: [
       "Prabhat Samgiita",
+      "Bandhu He Niye Calo",
+      "Jadu Nagariya",
+      "Jiivane Marane",
       "song",
       "morning",
       "meditation",
       "devotion",
       "peace",
       "harmonium",
+      "ami",
+      "tumi",
+      "tomar",
     ],
   }
   if (platformOS() === "android") {

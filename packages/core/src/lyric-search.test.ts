@@ -51,6 +51,31 @@ describe("lyric search", () => {
     expect(hits[0]?.snippet.toLowerCase()).toContain("andharer vyatha")
   })
 
+  it("ranks an ordered lyric phrase above common title-word bag matches", () => {
+    const catalog: LyricSearchRow[] = [
+      {
+        n: 61,
+        t: "AMI PARAN DHARIA DII TOMARI CARANE",
+        o: "AMI PARAN DHARIA DII TOMARI CARANE",
+        b: "ami paran dharia dii tomari carane",
+      },
+      {
+        n: 3570,
+        t: "JIIVANE MARANE",
+        o: "JIIVANE MARANE",
+        b: "jiivane marane jiivane marane tomakei ami jani aloke andhare tomakei shudhu cini",
+      },
+      {
+        n: 4062,
+        t: "JADU NAGARIYA SE",
+        o: "JADU NAGARIYA SE",
+        b: "jadu nagariya se jadu nagariya se",
+      },
+    ]
+    expect(searchLyrics("Jivane marane tomake ami jani", catalog)[0]?.number).toBe(3570)
+    expect(searchLyrics("Jadu nagariya", catalog)[0]?.number).toBe(4062)
+  })
+
   it("treats common transliteration spellings as the same lyric", () => {
     expect(foldLyricPhonetic("humdardi")).toBe(foldLyricPhonetic("hamdardii"))
     expect(foldLyricPhonetic("chalo")).toBe(foldLyricPhonetic("calo"))

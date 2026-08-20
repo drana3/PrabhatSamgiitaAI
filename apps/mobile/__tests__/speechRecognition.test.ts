@@ -50,7 +50,7 @@ describe("speech recognition wrapper", () => {
     const stopFn = await startNativeSpeechRecognition({})
     expect(start).toHaveBeenCalled()
     expect(start.mock.calls[0]?.[0]).toMatchObject({
-      lang: "en-US",
+      lang: "en-IN",
     })
     stopFn()
     expect(stop).toHaveBeenCalled()
@@ -64,7 +64,7 @@ describe("speech recognition wrapper", () => {
           supportsOnDeviceRecognition: () => true,
           getSupportedLocales: async () => ({ installedLocales: [] }),
         },
-        "en-US",
+        "en-IN",
         { platform: "android" },
       ),
     ).resolves.toBe(false)

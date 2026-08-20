@@ -18,6 +18,7 @@ export function HomeSearchExamples({ signedIn, feelingOn, onSelect }: Props) {
       {HOME_SEARCH_EXAMPLES.map((example) => {
         const feelingGuest = example.mode === "feeling" && !signedIn
         const feelingNeedsEnable = example.mode === "feeling" && signedIn && !feelingOn
+        const showQuery = !feelingGuest && !feelingNeedsEnable
         return (
           <Pressable
             key={example.label}
@@ -33,9 +34,9 @@ export function HomeSearchExamples({ signedIn, feelingOn, onSelect }: Props) {
             style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
           >
             <Text style={styles.label}>{example.label}</Text>
-            <Text style={styles.query}> · {example.query}</Text>
-            {feelingGuest ? <Text style={styles.badge}> · Sign in</Text> : null}
-            {feelingNeedsEnable ? <Text style={styles.badge}> · Enable in Profile</Text> : null}
+            {showQuery ? <Text style={styles.query}> · {example.query}</Text> : null}
+            {feelingGuest ? <Text style={styles.badge}>Sign in</Text> : null}
+            {feelingNeedsEnable ? <Text style={styles.badge}>Profile</Text> : null}
           </Pressable>
         )
       })}
@@ -47,12 +48,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "center",
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
   chip: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     alignItems: "center",
     maxWidth: "100%",
     paddingHorizontal: spacing.md,
@@ -74,7 +76,15 @@ const styles = StyleSheet.create({
   },
   badge: {
     ...typography.caption,
+    marginLeft: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    overflow: "hidden",
     fontWeight: "700",
+    fontSize: 10,
+    textTransform: "uppercase",
     color: colors.primaryDark,
+    backgroundColor: colors.primaryLight,
   },
 })

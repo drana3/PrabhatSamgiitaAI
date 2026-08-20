@@ -99,6 +99,12 @@ describe("reviewed discovery collections", () => {
     expect(collectionSearchCount("bandhu he niye calo")).toBeNull()
   })
 
+  it("does not hijack lyric phrases that share a fuzzy collection word", () => {
+    expect(collectionSongNumbersForKeyword("Jadu nagariya")).toBeNull()
+    expect(collectionSongNumbersForKeyword("nagariya")).toEqual([5017])
+    expect(collectionSongNumbersForKeyword("ananda nagar")).toEqual([5017])
+  })
+
   it("resolves every special-collection prompt to its full song list", () => {
     for (const group of specialCollectionGroups) {
       for (const collection of group.collections) {

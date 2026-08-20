@@ -130,6 +130,62 @@ def fuzzy_token_match(needle: str, tokens: tuple[str, ...] | frozenset[str]) -> 
     return False
 
 
+def lyric_tokens_match(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+    if left == right:
+        return True
+    a = fold_lyric_phonetic(left)
+    b = fold_lyric_phonetic(right)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    if len(a) >= 5 and len(b) > len(a) and b.startswith(a) and len(b) - len(a) <= 2:
+        return True
+    if len(b) >= 5 and len(a) > len(b) and a.startswith(b) and len(a) - len(b) <= 2:
+        return True
+    if len(a) < 5 or len(b) < 5:
+        return False
+    if a[:4] != b[:4]:
+        return False
+    return within_lyric_edits(a, b, 1)
+
+
+def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: list[str]) -> float:
+    if not query_tokens or not haystack_tokens:
+        return 0.0
+    best = 0.0
+    max_gap = 1 if len(query_tokens) >= 4 else 2
+    for start in range(len(haystack_tokens)):
+        qi = 0
+        gaps = 0
+        for hi in range(start, len(haystack_tokens)):
+            if qi >= len(query_tokens):
+                break
+            if lyric_tokens_match(query_tokens[qi], haystack_tokens[hi]):
+                qi += 1
+                gaps = 0
+                continue
+            if qi == 0:
+                break
+            gaps += 1
+            if gaps > max_gap:
+                break
+        best = max(best, qi / len(query_tokens))
+        if best == 1:
+            return 1.0
+    return best
+
+
+_COMMON_LYRIC_TOKENS = frozenset(
+    (
+        "ami tumi tomar tomay tomake tomakei mora mor mama go re se oi ei ar na ki kii he "
+        "ogo prabhu more moreke amay amake"
+    ).split()
+)
+
+
 @dataclass(frozen=True, slots=True)
 class LyricHit:
     number: int
@@ -261,6 +317,24 @@ def _score_record(
         return LyricHit(record.number, 44.0, "full_text")
     if len(folded_query) >= 3 and folded_query in record.folded_tokens:
         return LyricHit(record.number, 44.0, "full_text")
+
+    if len(tokens) >= 3:
+        opening_words = f"{record.title} {record.opening}".split()
+        body_words = record.body.split()
+        opening_coverage = max(
+            ordered_lyric_coverage(tokens, opening_words),
+            ordered_lyric_coverage(folded_tokens, f"{record.folded_title} {record.folded_opening}".split()),
+        )
+        body_coverage = max(
+            ordered_lyric_coverage(tokens, body_words),
+            ordered_lyric_coverage(folded_tokens, record.folded_body.split()),
+        )
+        best_coverage = max(opening_coverage, body_coverage)
+        if best_coverage >= 0.8:
+            score = round(70 + best_coverage * 18)
+            matched_by = "opening_line" if opening_coverage >= body_coverage else "full_text"
+            return LyricHit(record.number, float(score), matched_by)
+
     if not tokens:
         return None
     distinctive = [token for token in tokens if token not in _STOP]
@@ -284,21 +358,37 @@ def _score_record(
         unmatched.append((token, folded_token))
     matched = opening_hits + body_hits
     if not (matched / len(scored) >= 0.6) and unmatched and (len(scored) <= 2 or matched > 0):
-        try_body = len(scored) <= 3
         for token, folded_token in unmatched:
             if fuzzy_token_match(token, record.opening_raw_tokens) or fuzzy_token_match(
                 folded_token, record.opening_tokens
             ):
                 opening_hits += 1
                 continue
-            if try_body and (
-                fuzzy_token_match(token, record.raw_token_list)
-                or fuzzy_token_match(folded_token, record.token_list)
+            if fuzzy_token_match(token, record.raw_token_list) or fuzzy_token_match(
+                folded_token, record.token_list
             ):
                 body_hits += 1
     coverage = (opening_hits + body_hits) / len(scored)
+    rare_opening_hits = 0
+    for token in scored:
+        folded_token = folded_map[token]
+        if token in _COMMON_LYRIC_TOKENS or folded_token in _COMMON_LYRIC_TOKENS:
+            continue
+        if (
+            token in record.opening_raw_tokens
+            or (len(folded_token) >= 3 and folded_token in record.opening_token_set)
+            or fuzzy_token_match(token, record.opening_raw_tokens)
+            or fuzzy_token_match(folded_token, record.opening_tokens)
+        ):
+            rare_opening_hits += 1
     if opening_hits and opening_hits / len(scored) >= 0.6:
-        return LyricHit(record.number, 64.0 if len(scored) == 1 else 58.0, "opening_line")
+        if len(scored) >= 3 and rare_opening_hits == 0:
+            return LyricHit(record.number, 36.0, "opening_line")
+        if len(scored) == 1:
+            return LyricHit(record.number, 64.0, "opening_line")
+        if len(scored) >= 3:
+            return LyricHit(record.number, 52.0, "opening_line")
+        return LyricHit(record.number, 58.0, "opening_line")
     if opening_hits + body_hits and coverage >= 0.6:
         return LyricHit(record.number, 44.0 if len(scored) == 1 else 42.0, "full_text")
     return None

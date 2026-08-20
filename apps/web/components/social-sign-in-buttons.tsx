@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 
+import { LoadingIndicator } from "@/components/loading-indicator"
 import {
   startFacebookOAuth,
   startGoogleOAuth,
@@ -16,7 +17,7 @@ export function GoogleSignInButton({ next }: { next: string }) {
   const directOAuth = webGoogleOAuthConfigured()
 
   const onClick = () => {
-    if (!directOAuth) return
+    if (!directOAuth || busy) return
     setBusy(true)
     setError(null)
     void startGoogleOAuth(next).catch((submitError) => {
@@ -41,8 +42,13 @@ export function GoogleSignInButton({ next }: { next: string }) {
         onClick={onClick}
         className="outline-button justify-center py-3.5"
       >
-        {busy ? "Redirecting to Google…" : "Continue with Google"}
+        {busy ? <LoadingIndicator label="Opening Google…" compact /> : "Continue with Google"}
       </button>
+      {busy ? (
+        <p className="text-xs leading-5 text-stone-600">
+          Preparing a secure sign-in. This can take a few seconds on mobile.
+        </p>
+      ) : null}
       {error ? <p className="text-xs text-red-700">{error}</p> : null}
     </div>
   )
@@ -54,7 +60,7 @@ export function FacebookSignInButton({ next }: { next: string }) {
   const directOAuth = webFacebookOAuthConfigured()
 
   const onClick = () => {
-    if (!directOAuth) return
+    if (!directOAuth || busy) return
     setBusy(true)
     setError(null)
     try {
@@ -81,7 +87,7 @@ export function FacebookSignInButton({ next }: { next: string }) {
         onClick={onClick}
         className="outline-button justify-center py-3.5"
       >
-        {busy ? "Redirecting to Facebook…" : "Continue with Facebook"}
+        {busy ? <LoadingIndicator label="Opening Facebook…" compact /> : "Continue with Facebook"}
       </button>
       {error ? <p className="text-xs text-red-700">{error}</p> : null}
     </div>

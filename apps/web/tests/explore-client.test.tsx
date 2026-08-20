@@ -48,7 +48,7 @@ vi.mock("@/lib/lyric-search", () => ({
 }))
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/explore",
 }))
 
@@ -258,5 +258,30 @@ describe("ExploreClient prefetch hydration", () => {
       expect(fetchSongs).not.toHaveBeenCalled()
     })
     expect(screen.queryByRole("heading", { name: "Seed" })).not.toBeInTheDocument()
+  })
+
+  it("clears collection search without showing Feeling empty state", async () => {
+    searchSongs.mockResolvedValue([prefetchedSong])
+    const user = userEvent.setup()
+
+    renderExplore(
+      <ExploreClient
+        initialSongs={[]}
+        initialQuery=""
+        searchKind="catalog"
+      />,
+    )
+
+    await user.click(screen.getByRole("link", { name: /English 3/ }))
+    expect(await screen.findByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/Search by number/i)).toHaveValue("English")
+    expect(screen.queryByDisplayValue(/Search Prabhat Samgiita for/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+    await waitFor(() => {
+      expect(screen.queryByText(/Showing songs for:/i)).not.toBeInTheDocument()
+    })
+    expect(screen.queryByRole("heading", { name: /No songs matched — try Feeling search/i })).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Search by number/i)).toHaveValue("")
   })
 })

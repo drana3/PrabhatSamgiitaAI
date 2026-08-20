@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { flushSync } from "react-dom"
-import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
 import {
@@ -238,14 +237,31 @@ export function ExploreClient({
     [runSearch],
   )
 
-  // Typing must not update activeQuery — SearchForm uses that as initialQuery and
-  // would reset the input on every keystroke. Suggestions stay in the dropdown;
-  // results update on submit / theme / collection only.
+  // Typing must not update activeQuery while the user is still typing a new query.
+  // Clearing the box fully resets Explore so we never flash Feeling-search empty UI.
+  const clearSearch = useCallback(() => {
+    setSearching(false)
+    setSongs([])
+    setSearchError(null)
+    setActiveQuery("")
+    setActiveKind("catalog")
+    setCompletedQuery("")
+    setVoiceResult(null)
+    bootstrappedQuery.current = null
+    router.replace("/explore")
+  }, [router])
+
   const handleQueryInput = useCallback((query: string) => {
     if (query.trim()) return
     setSearching(false)
     setSongs([])
     setSearchError(null)
+    setActiveQuery("")
+    setActiveKind("catalog")
+    setCompletedQuery("")
+    setVoiceResult(null)
+    bootstrappedQuery.current = null
+    window.history.replaceState(null, "", "/explore")
   }, [])
 
   const tryFeelingSearch = useCallback(() => {
@@ -321,24 +337,39 @@ export function ExploreClient({
   }, [finishSearch, searchAuth, spokenLanguage])
 
   useEffect(() => {
-    if (!initialQuery) return
-    const pendingKey = `${inputMode}:${searchKind}:${initialQuery}`
+    const trimmedInitial = initialQuery.trim()
+    if (!trimmedInitial) {
+      // URL cleared (Clear search / back) — reset client state so Feeling empty UI does not linger.
+      bootstrappedQuery.current = null
+      setSearching(false)
+      setActiveQuery("")
+      setActiveKind("catalog")
+      setCompletedQuery("")
+      setSongs([])
+      setVoiceResult(null)
+      setSearchError(null)
+      return
+    }
+
+    const pendingKey = `${inputMode}:${searchKind}:${trimmedInitial}`
     if (bootstrappedQuery.current === pendingKey) return
     bootstrappedQuery.current = pendingKey
 
     if (searchPrefetched) {
-      searchCache.current.set(cacheKey(initialQuery, searchKind), initialSongs)
+      searchCache.current.set(cacheKey(trimmedInitial, searchKind), initialSongs)
+      setActiveQuery(trimmedInitial)
+      setActiveKind(searchKind)
       setSongs(initialSongs)
       setSearching(false)
-      finishSearch(initialQuery)
+      finishSearch(trimmedInitial)
       return
     }
 
     if (inputMode === "voice") {
-      void runVoiceSearch(initialQuery)
+      void runVoiceSearch(trimmedInitial)
       return
     }
-    void runSearch(initialQuery, searchKind)
+    void runSearch(trimmedInitial, searchKind)
   }, [initialQuery, initialSongs, inputMode, runSearch, runVoiceSearch, searchKind, searchPrefetched, finishSearch])
 
   function handleSearching(nextSearching: boolean) {
@@ -356,18 +387,25 @@ export function ExploreClient({
   const collectionTotal = collectionSearchCount(activeQuery)
   const completeSargamSearch = isCompleteSargamQuery(activeQuery)
   const isCollectionResult = collectionTotal !== null && collectionSearch
+  // Only after a finished search with zero hits — not while the user is clearing the box.
   const catalogEmpty =
-    Boolean(activeQuery.trim()) &&
+    Boolean(completedQuery.trim()) &&
     !searching &&
     songs.length === 0 &&
-    !collectionSearch &&
-    !completeSargamSearch &&
+    !isCollectionSearchQuery(completedQuery) &&
+    !isCompleteSargamQuery(completedQuery) &&
     !searchError
   // Feeling search on: only declare no matches after a finished semantic attempt.
   const showSemanticNoMatch = catalogEmpty && feelingOn && activeKind === "semantic"
   // Feeling search off: prompt to enable deep search (sign-in required for guests).
   const showFeelingEnablePrompt = catalogEmpty && !feelingOn
   const showEmptyState = showSemanticNoMatch || showFeelingEnablePrompt
+  // Keep the long collection prompt for search logic; show a short label in the box.
+  const searchFormQuery = collectionSearch
+    ? queryLabel
+    : completeSargamSearch
+      ? COMPLETE_SARGAM_LABEL
+      : activeQuery
 
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
@@ -382,7 +420,13 @@ export function ExploreClient({
             <span className="font-semibold text-navy-950">Showing songs for:</span>{" "}
             {collectionSearch ? queryLabel : completeSargamSearch ? COMPLETE_SARGAM_LABEL : activeQuery}
           </p>
-          <Link href="/explore" className="text-xs font-semibold text-gold-700 underline underline-offset-4">Clear search</Link>
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="text-xs font-semibold text-gold-700 underline underline-offset-4"
+          >
+            Clear search
+          </button>
         </div>
       ) : null}
 
@@ -454,7 +498,7 @@ export function ExploreClient({
 
       <div className="mt-8 max-w-4xl">
         <SearchForm
-          initialQuery={activeQuery}
+          initialQuery={searchFormQuery}
           inputMode={inputMode}
           spokenLanguage={spokenLanguage}
           isSearching={searching}
@@ -463,7 +507,14 @@ export function ExploreClient({
           onVoiceResult={setVoiceResult}
           onQueryChange={handleQueryInput}
           onSemanticSearch={(query) => {
-            void runSearch(query, exploreSearchKind(query, null, searchAuth))
+            const trimmed = query.trim()
+            const effective =
+              collectionSearch && trimmed.toLocaleLowerCase() === queryLabel.toLocaleLowerCase()
+                ? activeQuery
+                : completeSargamSearch && trimmed === COMPLETE_SARGAM_LABEL
+                  ? COMPLETE_SARGAM_QUERY
+                  : trimmed
+            void runSearch(effective, exploreSearchKind(effective, null, searchAuth))
           }}
           onVoiceSearch={(query) => { void runVoiceSearch(query) }}
           searchError={searchError}
