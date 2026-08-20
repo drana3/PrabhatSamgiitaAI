@@ -226,16 +226,17 @@ export function orderedLyricCoverage(queryTokens: string[], haystackTokens: stri
   if (!queryTokens.length || !haystackTokens.length) return 0
   let best = 0
   const maxGap = queryTokens.length >= 4 ? 1 : 2
+  const first = queryTokens[0]
   for (let start = 0; start < haystackTokens.length; start += 1) {
-    let qi = 0
+    if (!lyricTokensMatch(first, haystackTokens[start])) continue
+    let qi = 1
     let gaps = 0
-    for (let hi = start; hi < haystackTokens.length && qi < queryTokens.length; hi += 1) {
+    for (let hi = start + 1; hi < haystackTokens.length && qi < queryTokens.length; hi += 1) {
       if (lyricTokensMatch(queryTokens[qi], haystackTokens[hi])) {
         qi += 1
         gaps = 0
         continue
       }
-      if (qi === 0) break
       gaps += 1
       if (gaps > maxGap) break
     }
@@ -243,6 +244,16 @@ export function orderedLyricCoverage(queryTokens: string[], haystackTokens: stri
     if (best === 1) return 1
   }
   return best
+}
+
+function hasLyricPhraseAnchor(anchors: string[], folded: FoldedLyric, openingWords: string[], bodyWords: string[]) {
+  for (const anchor of anchors) {
+    if (anchor.length < 4 || COMMON_LYRIC_TOKENS.has(anchor)) continue
+    if (folded.tokens.has(anchor) || folded.openingTokenSet.has(anchor)) return true
+    if (openingWords.some((token) => lyricTokensMatch(anchor, token))) return true
+    if (bodyWords.some((token) => lyricTokensMatch(anchor, token))) return true
+  }
+  return false
 }
 
 
@@ -379,18 +390,20 @@ function scoreRow(
     const openingWords = `${title} ${opening}`.split(" ").filter(Boolean)
     const bodyWords = body.split(" ").filter(Boolean)
     const foldedQueryTokens = tokens.map((token) => foldedTokenByExact.get(token) ?? foldLyricPhonetic(token))
-    const openingCoverage = Math.max(
-      orderedLyricCoverage(tokens, openingWords),
-      orderedLyricCoverage(foldedQueryTokens, `${folded.title} ${folded.opening}`.split(" ").filter(Boolean)),
-    )
-    const bodyCoverage = Math.max(
-      orderedLyricCoverage(tokens, bodyWords),
-      orderedLyricCoverage(foldedQueryTokens, folded.body.split(" ").filter(Boolean)),
-    )
-    const bestCoverage = Math.max(openingCoverage, bodyCoverage)
-    if (bestCoverage >= 0.8) {
-      score = Math.round(70 + bestCoverage * 18)
-      matchedBy = openingCoverage >= bodyCoverage ? "opening_line" : "full_text"
+    if (hasLyricPhraseAnchor(foldedQueryTokens, folded, openingWords, bodyWords)) {
+      const openingCoverage = Math.max(
+        orderedLyricCoverage(tokens, openingWords),
+        orderedLyricCoverage(foldedQueryTokens, `${folded.title} ${folded.opening}`.split(" ").filter(Boolean)),
+      )
+      const bodyCoverage = Math.max(
+        orderedLyricCoverage(tokens, bodyWords),
+        orderedLyricCoverage(foldedQueryTokens, folded.body.split(" ").filter(Boolean)),
+      )
+      const bestCoverage = Math.max(openingCoverage, bodyCoverage)
+      if (bestCoverage >= 0.8) {
+        score = Math.round(70 + bestCoverage * 18)
+        matchedBy = openingCoverage >= bodyCoverage ? "opening_line" : "full_text"
+      }
     }
   }
 

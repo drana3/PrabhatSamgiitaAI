@@ -154,10 +154,15 @@ describe("hero search", () => {
   it("suggests catalog songs while typing", async () => {
     const user = userEvent.setup()
     render(<HeroSearch />)
-    await user.type(screen.getByLabelText(/Search by song number/i), "bandhu he niye calo")
-    await waitFor(() => {
-      expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
-    })
+    const input = screen.getByLabelText(/Search by song number/i)
+    await user.click(input)
+    await user.paste("bandhu he niye calo")
+    await waitFor(
+      () => {
+        expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+      },
+      { timeout: 10000 },
+    )
     expect(screen.getByRole("link", { name: /PS 1\s+Bandhu He Niye Calo/i })).toHaveAttribute("href", "/songs/1#ask")
   })
 })

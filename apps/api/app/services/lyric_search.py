@@ -157,18 +157,19 @@ def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: list[str]) 
         return 0.0
     best = 0.0
     max_gap = 1 if len(query_tokens) >= 4 else 2
-    for start in range(len(haystack_tokens)):
-        qi = 0
+    first = query_tokens[0]
+    for start, hay in enumerate(haystack_tokens):
+        if not lyric_tokens_match(first, hay):
+            continue
+        qi = 1
         gaps = 0
-        for hi in range(start, len(haystack_tokens)):
+        for hi in range(start + 1, len(haystack_tokens)):
             if qi >= len(query_tokens):
                 break
             if lyric_tokens_match(query_tokens[qi], haystack_tokens[hi]):
                 qi += 1
                 gaps = 0
                 continue
-            if qi == 0:
-                break
             gaps += 1
             if gaps > max_gap:
                 break
@@ -176,6 +177,24 @@ def ordered_lyric_coverage(query_tokens: list[str], haystack_tokens: list[str]) 
         if best == 1:
             return 1.0
     return best
+
+
+def _has_lyric_phrase_anchor(
+    anchors: list[str],
+    record: LyricRecord,
+    opening_words: list[str],
+    body_words: list[str],
+) -> bool:
+    for anchor in anchors:
+        if len(anchor) < 4 or anchor in _COMMON_LYRIC_TOKENS:
+            continue
+        if anchor in record.folded_tokens or anchor in record.opening_token_set:
+            return True
+        if any(lyric_tokens_match(anchor, token) for token in opening_words):
+            return True
+        if any(lyric_tokens_match(anchor, token) for token in body_words):
+            return True
+    return False
 
 
 _COMMON_LYRIC_TOKENS = frozenset(
@@ -321,19 +340,21 @@ def _score_record(
     if len(tokens) >= 3:
         opening_words = f"{record.title} {record.opening}".split()
         body_words = record.body.split()
-        opening_coverage = max(
-            ordered_lyric_coverage(tokens, opening_words),
-            ordered_lyric_coverage(folded_tokens, f"{record.folded_title} {record.folded_opening}".split()),
-        )
-        body_coverage = max(
-            ordered_lyric_coverage(tokens, body_words),
-            ordered_lyric_coverage(folded_tokens, record.folded_body.split()),
-        )
-        best_coverage = max(opening_coverage, body_coverage)
-        if best_coverage >= 0.8:
-            score = round(70 + best_coverage * 18)
-            matched_by = "opening_line" if opening_coverage >= body_coverage else "full_text"
-            return LyricHit(record.number, float(score), matched_by)
+        folded_opening_words = f"{record.folded_title} {record.folded_opening}".split()
+        if _has_lyric_phrase_anchor(folded_tokens, record, opening_words, body_words):
+            opening_coverage = max(
+                ordered_lyric_coverage(tokens, opening_words),
+                ordered_lyric_coverage(folded_tokens, folded_opening_words),
+            )
+            body_coverage = max(
+                ordered_lyric_coverage(tokens, body_words),
+                ordered_lyric_coverage(folded_tokens, record.folded_body.split()),
+            )
+            best_coverage = max(opening_coverage, body_coverage)
+            if best_coverage >= 0.8:
+                score = round(70 + best_coverage * 18)
+                matched_by = "opening_line" if opening_coverage >= body_coverage else "full_text"
+                return LyricHit(record.number, float(score), matched_by)
 
     if not tokens:
         return None
