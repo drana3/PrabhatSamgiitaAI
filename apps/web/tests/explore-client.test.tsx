@@ -89,6 +89,7 @@ describe("ExploreClient prefetch hydration", () => {
     searchCatalogLyrics.mockReset()
     shouldSearchCatalogLyrics.mockReset()
     fetchSongs.mockResolvedValue([])
+    searchSongs.mockResolvedValue([])
     searchCatalogLyrics.mockReturnValue([])
     shouldSearchCatalogLyrics.mockReturnValue(false)
   })
@@ -109,7 +110,8 @@ describe("ExploreClient prefetch hydration", () => {
     })
   })
 
-  it("runs a local catalog lookup when results were not prefetched", async () => {
+  it("falls through to catalog search when local prefetch is unavailable", async () => {
+    searchSongs.mockResolvedValue([prefetchedSong])
     renderExplore(
       <ExploreClient
         initialSongs={[]}
@@ -119,8 +121,9 @@ describe("ExploreClient prefetch hydration", () => {
     )
 
     await waitFor(() => {
-      expect(searchSongs).not.toHaveBeenCalled()
+      expect(searchSongs).toHaveBeenCalledWith("Musafir aage badhate hain", { mode: "catalog" })
     })
+    expect(await screen.findByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeInTheDocument()
   })
 
   it("resolves lyric lines locally without calling the search API", async () => {
@@ -150,7 +153,7 @@ describe("ExploreClient prefetch hydration", () => {
     expect(searchSongs).not.toHaveBeenCalled()
   })
 
-  it("keeps theme asks on the local catalog instead of embeddings", async () => {
+  it("keeps theme asks on catalog search instead of embeddings", async () => {
     const user = userEvent.setup()
 
     renderExplore(
@@ -165,8 +168,9 @@ describe("ExploreClient prefetch hydration", () => {
     await user.click(screen.getByRole("button", { name: "Search", exact: true }))
 
     await waitFor(() => {
-      expect(searchSongs).not.toHaveBeenCalled()
+      expect(searchSongs).toHaveBeenCalledWith("songs about peace", { mode: "catalog" })
     })
+    expect(searchSongs).not.toHaveBeenCalledWith("songs about peace", { mode: "semantic" })
   })
 
   it("lists complete Sargam from the local catalog without calling search", async () => {
@@ -186,5 +190,28 @@ describe("ExploreClient prefetch hydration", () => {
       expect(searchSongs).not.toHaveBeenCalled()
     })
     expect(await screen.findByRole("heading", { name: /Songs with complete Sargam/i })).toBeInTheDocument()
+  })
+
+  it("loads collection prompts from the catalog search API", async () => {
+    searchSongs.mockResolvedValue([prefetchedSong])
+    const user = userEvent.setup()
+
+    renderExplore(
+      <ExploreClient
+        initialSongs={[]}
+        initialQuery=""
+        searchKind="catalog"
+      />,
+    )
+
+    await user.click(screen.getByRole("link", { name: /English 3/ }))
+
+    await waitFor(() => {
+      expect(searchSongs).toHaveBeenCalledWith(
+        "Search Prabhat Samgiita for English Songs",
+        { mode: "catalog" },
+      )
+    })
+    expect(await screen.findByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeInTheDocument()
   })
 })

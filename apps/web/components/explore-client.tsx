@@ -127,6 +127,7 @@ export function ExploreClient({
     setCompletedQuery(trimmed)
     window.requestAnimationFrame(() => {
       scrollToResults()
+      window.setTimeout(scrollToResults, 50)
     })
   }, [])
 
@@ -170,8 +171,18 @@ export function ExploreClient({
 
     const plan = planSearch(trimmed, searchAuth)
     const keepSongs = isCollectionSearchQuery(trimmed)
+    const sargam = isCompleteSargamQuery(trimmed)
+    const localHits =
+      !sargam && shouldSearchCatalogLyrics(trimmed, kind)
+        ? searchCatalogLyrics(trimmed, 5, { interpret: true })
+        : []
+    const networkMode = plan.layer === "semantic" ? "semantic" as const : "catalog" as const
+    const needsNetwork =
+      !sargam &&
+      localHits.length === 0 &&
+      (plan.layer === "semantic" || plan.layer === "collection" || plan.layer === "catalog")
     beginSearchState(() => {
-      setSearching(plan.layer === "semantic")
+      setSearching(needsNetwork)
       setActiveQuery(trimmed)
       setActiveKind(kind)
       setCompletedQuery("")
@@ -182,14 +193,12 @@ export function ExploreClient({
     window.history.replaceState(null, "", exploreUrl(trimmed, kind))
 
     try {
-      const localHits =
-        shouldSearchCatalogLyrics(trimmed, kind) ? searchCatalogLyrics(trimmed, 5, { interpret: true }) : []
-      const results = isCompleteSargamQuery(trimmed)
+      const results = sargam
         ? completeSargamSongs()
         : localHits.length
           ? lyricHitsToSongs(localHits)
-          : plan.layer === "semantic"
-            ? await searchSongs(trimmed, { mode: "semantic" })
+          : needsNetwork
+            ? await searchSongs(trimmed, { mode: networkMode })
             : []
       searchCache.current.set(key, results)
       setSongs(results)
