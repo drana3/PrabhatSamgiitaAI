@@ -203,7 +203,7 @@ def test_notify_live_catalog_refresh_posts_song_numbers(monkeypatch) -> None:
     captured: dict[str, Any] = {}
 
     class Response:
-        def __enter__(self) -> "Response":
+        def __enter__(self) -> Response:
             return self
 
         def __exit__(self, *_args: object) -> None:

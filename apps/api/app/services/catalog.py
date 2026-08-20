@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, or_, select
@@ -160,7 +160,9 @@ async def refresh_catalog_song(session: AsyncSession, number: int) -> bool:
             await session.execute(select(Song).where(Song.number == number))
         ).scalar_one_or_none()
         media_rows = list(
-            (await session.execute(select(Media).where(Media.song_number == number))).scalars().all()
+            (
+                await session.execute(select(Media).where(Media.song_number == number))
+            ).scalars().all()
         )
         notation = (
             await session.execute(select(Notation).where(Notation.song_number == number))
@@ -197,7 +199,10 @@ async def refresh_recent_catalog_changes(session: AsyncSession, *, minutes: int 
         song_numbers = await session.execute(select(Song.number).where(Song.updated_at >= cutoff))
         numbers.update(int(value) for value in song_numbers.scalars().all())
         media_numbers = await session.execute(
-            select(Media.song_number).where(Media.updated_at >= cutoff, Media.song_number.is_not(None))
+            select(Media.song_number).where(
+                Media.updated_at >= cutoff,
+                Media.song_number.is_not(None),
+            )
         )
         numbers.update(int(value) for value in media_numbers.scalars().all() if value is not None)
         notation_numbers = await session.execute(
