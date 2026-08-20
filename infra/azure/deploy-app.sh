@@ -6,12 +6,9 @@ RG="${RG:-prabhatai-rg}"
 LOCATION="${LOCATION:-centralindia}"
 PREFIX="${PREFIX:-prabhatai}"
 TAG="${TAG:-$(date +%Y%m%d%H%M%S)}"
-PG_ADMIN="${PG_ADMIN:-codexadmin}"
-PG_PASSWORD="${PG_PASSWORD:-}"
+DATABASE_URL="${DATABASE_URL:-}"
 ACR_NAME="${ACR_NAME:-${PREFIX}acr}"
 ACA_ENV="${ACA_ENV:-${PREFIX}-env}"
-PG_SERVER="${PG_SERVER:-${PREFIX}-pg}"
-PG_DB="${PG_DB:-prabhatai}"
 WEB_APP="${WEB_APP:-${PREFIX}-web}"
 API_APP="${API_APP:-${PREFIX}-api}"
 AZURE_OPENAI_ENDPOINT="${AZURE_OPENAI_ENDPOINT:-}"
@@ -28,20 +25,17 @@ ACS_EMAIL_CONNECTION_STRING="${ACS_EMAIL_CONNECTION_STRING:-}"
 NEXT_PUBLIC_GOOGLE_CLIENT_ID="${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
 NEXT_PUBLIC_FACEBOOK_APP_ID="${NEXT_PUBLIC_FACEBOOK_APP_ID:-}"
 GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
+FAISS_INDEX_URL="${FAISS_INDEX_URL:-}"
 
-if [[ -z "${PG_PASSWORD}" ]]; then
-  echo "Set PG_PASSWORD to a strong password before running."
+if [[ -z "${DATABASE_URL}" ]]; then
+  echo "Set DATABASE_URL to the Neon pooled postgresql+psycopg URL (sslmode=require)."
   exit 1
 fi
 
 if [[ -z "${MEMBER_PROXY_KEY}" ]]; then
   # v2 salt rotates any proxy key that was previously leaked into CI logs.
-  MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:v2:%s' "$PG_PASSWORD" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
+  MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:v2:%s' "$DATABASE_URL" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
 fi
-
-urlencode() {
-  python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip("\n"), safe=""))'
-}
 
 # Container Apps often return 503 while a new revision is warming or swapping traffic.
 # First argument is a safe label for logs; never print raw curl args (they may include secrets).
@@ -83,14 +77,10 @@ command -v az >/dev/null || { echo "Azure CLI is required."; exit 1; }
 az group show --name "$RG" >/dev/null
 az acr show --name "$ACR_NAME" --resource-group "$RG" >/dev/null
 az containerapp env show --name "$ACA_ENV" --resource-group "$RG" >/dev/null
-az postgres flexible-server show --name "$PG_SERVER" --resource-group "$RG" >/dev/null
 az containerapp show --name "$API_APP" --resource-group "$RG" >/dev/null
 az containerapp show --name "$WEB_APP" --resource-group "$RG" >/dev/null
 
 ACR_LOGIN_SERVER="$(az acr show --name "$ACR_NAME" --resource-group "$RG" --query loginServer -o tsv)"
-PG_HOST="$(az postgres flexible-server show --resource-group "$RG" --name "$PG_SERVER" --query fullyQualifiedDomainName -o tsv)"
-PG_PASSWORD_ENC="$(printf '%s' "$PG_PASSWORD" | urlencode)"
-DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASSWORD_ENC}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
 WEB_FQDN="$(az containerapp show --name "$WEB_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 AUTH_ENABLED="$(az containerapp auth show --name "$WEB_APP" --resource-group "$RG" --query platform.enabled -o tsv 2>/dev/null || true)"
@@ -101,7 +91,14 @@ fi
 az containerapp secret set \
   --name "$API_APP" \
   --resource-group "$RG" \
-  --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
+  --secrets member-proxy-key="$MEMBER_PROXY_KEY" database-url="$DATABASE_URL" >/dev/null
+
+if [[ -n "${FAISS_INDEX_URL}" ]]; then
+  az containerapp secret set \
+    --name "$API_APP" \
+    --resource-group "$RG" \
+    --secrets faiss-index-url="$FAISS_INDEX_URL" >/dev/null
+fi
 
 if [[ -n "${ACS_EMAIL_CONNECTION_STRING}" ]]; then
   az containerapp secret set \
@@ -118,32 +115,39 @@ az acr build \
 
 API_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-api:${TAG}"
 
+API_ENV_VARS=(
+  DATABASE_URL=secretref:database-url
+  FAISS_INDEX_DIR=/app/data/generated/faiss
+  APP_ENV=production
+  API_CORS_ORIGINS="https://${WEB_FQDN}"
+  TRUSTED_HOSTS="${API_FQDN},localhost,127.0.0.1"
+  CONTENT_SOURCE_URL=https://prabhatasamgiita.net
+  CONTENT_CACHE_DIR=/tmp/content-cache
+  LOG_LEVEL=INFO
+  AZURE_OPENAI_ENDPOINT="$AZURE_OPENAI_ENDPOINT"
+  AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY"
+  AZURE_OPENAI_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT"
+  AZURE_OPENAI_CHAT_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT"
+  AZURE_OPENAI_EMBEDDING_DEPLOYMENT="$AZURE_OPENAI_EMBEDDING_DEPLOYMENT"
+  AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION"
+  MEMBER_PROXY_KEY=secretref:member-proxy-key
+  DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS"
+  PROTECTED_ADMIN_EMAILS="$PROTECTED_ADMIN_EMAILS"
+  PUBLIC_SITE_URL="https://${WEB_FQDN}"
+  ACS_EMAIL_ENABLED="$ACS_EMAIL_ENABLED"
+  ACS_EMAIL_FROM="$ACS_EMAIL_FROM"
+  ACS_EMAIL_CONNECTION_STRING=secretref:acs-email-connection-string
+  AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview
+)
+if [[ -n "${FAISS_INDEX_URL}" ]]; then
+  API_ENV_VARS+=(FAISS_INDEX_URL=secretref:faiss-index-url)
+fi
+
 az containerapp update \
   --name "$API_APP" \
   --resource-group "$RG" \
   --image "$API_IMAGE" \
-  --set-env-vars \
-    DATABASE_URL="$DATABASE_URL" \
-    APP_ENV=production \
-    API_CORS_ORIGINS="https://${WEB_FQDN}" \
-    TRUSTED_HOSTS="${API_FQDN},localhost,127.0.0.1" \
-    CONTENT_SOURCE_URL=https://prabhatasamgiita.net \
-    CONTENT_CACHE_DIR=/tmp/content-cache \
-    LOG_LEVEL=INFO \
-    AZURE_OPENAI_ENDPOINT="$AZURE_OPENAI_ENDPOINT" \
-    AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY" \
-    AZURE_OPENAI_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT" \
-    AZURE_OPENAI_CHAT_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT" \
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT="$AZURE_OPENAI_EMBEDDING_DEPLOYMENT" \
-    AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION" \
-    MEMBER_PROXY_KEY=secretref:member-proxy-key \
-    DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS" \
-    PROTECTED_ADMIN_EMAILS="$PROTECTED_ADMIN_EMAILS" \
-    PUBLIC_SITE_URL="https://${WEB_FQDN}" \
-    ACS_EMAIL_ENABLED="$ACS_EMAIL_ENABLED" \
-    ACS_EMAIL_FROM="$ACS_EMAIL_FROM" \
-    ACS_EMAIL_CONNECTION_STRING=secretref:acs-email-connection-string \
-    AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview >/dev/null
+  --set-env-vars "${API_ENV_VARS[@]}" >/dev/null
 
 API_REVISION="$(az containerapp revision list \
   --name "$API_APP" \

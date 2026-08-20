@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unidecode import unidecode
 
 from app.config import get_settings
-from app.models import Media, Notation, Song, SongChunk
+from app.models import Media, Notation, Song
 from app.schemas.search import MediaSummary, SearchFilters, SearchResponse, SearchResultItem
 from app.services.ai import select_provider
 from app.services.catalog import (
@@ -22,7 +22,7 @@ from app.services.catalog import (
     catalog_notation_snapshot,
     catalog_song_snapshot,
 )
-from app.services.rag import build_song_chunks, cosine_similarity, token_score
+from app.services.faiss_store import get_faiss_store
 from app.services.seed_data import load_rows
 
 
@@ -579,7 +579,6 @@ SEMANTIC_EXPANSION_HINTS = LLM_EXPANSION_HINTS + (
 
 _SEMANTIC_EXPANSION_CACHE: dict[str, str] = {}
 _SEMANTIC_EXPANSION_CACHE_MAX = 256
-_VECTOR_INDEX_AVAILABLE: bool | None = None
 
 
 def needs_semantic_expansion(query: str) -> bool:
@@ -631,38 +630,14 @@ class HybridSearchService:
         songs: list[Song],
         limit: int = 80,
     ) -> list[str]:
+        del query, songs
         if not query_embedding:
             return []
         scored: dict[int, float] = {}
-        try:
-            stmt = (
-                select(SongChunk)
-                .where(SongChunk.embeddings.is_not(None))
-                .order_by(SongChunk.embeddings.op("<=>")(query_embedding))
-                .limit(limit)
-            )
-            result = await self.session.execute(stmt)
-            chunks = list(result.scalars().all())
-        except Exception:
-            await self.session.rollback()
-            chunks = []
-        if not chunks:
-            for song in songs:
-                for row in build_song_chunks(song):
-                    chunk_embedding = row.get("embeddings")
-                    if not chunk_embedding:
-                        continue
-                    similarity = cosine_similarity(query_embedding, chunk_embedding)
-                    lexical = token_score(query, row.get("content", "")) * 0.35
-                    total = similarity + lexical
-                    song_number = int(row["song_number"])
-                    scored[song_number] = max(scored.get(song_number, 0.0), total)
-        else:
-            for chunk in chunks:
-                similarity = cosine_similarity(query_embedding, chunk.embeddings or [])
-                lexical = token_score(query, chunk.content) * 0.35
-                total = similarity + lexical
-                scored[chunk.song_number] = max(scored.get(chunk.song_number, 0.0), total)
+        for _chunk_id, score, song_number in get_faiss_store().search_chunks(
+            query_embedding, limit
+        ):
+            scored[song_number] = max(scored.get(song_number, 0.0), score)
         ranked = sorted(scored.items(), key=lambda item: item[1], reverse=True)
         return [str(number) for number, _ in ranked[:limit]]
 
@@ -740,29 +715,13 @@ class HybridSearchService:
     async def _vector_rank(
         self, songs: list[Song], query_embedding: list[float], limit: int
     ) -> list[str]:
+        del songs
         if not query_embedding:
             return []
-        # Use pgvector ordering when available, but keep the service functional
-        # with the in-memory fallback.
-        try:
-            stmt = (
-                select(Song.number)
-                .where(Song.embeddings.is_not(None))
-                .order_by(Song.embeddings.op("<=>")(query_embedding))
-                .limit(limit)
-            )
-            result = await self.session.execute(stmt)
-            return [str(number) for number in result.scalars().all()]
-        except Exception:
-            await self.session.rollback()
-            scored: list[tuple[str, float]] = []
-            for song in songs:
-                if not song.embeddings:
-                    continue
-                score = sum(a * b for a, b in zip(song.embeddings, query_embedding, strict=False))
-                scored.append((str(song.number), score))
-            scored.sort(key=lambda item: item[1], reverse=True)
-            return [item[0] for item in scored[:limit]]
+        return [
+            str(number)
+            for number, _score in get_faiss_store().search_songs(query_embedding, limit)
+        ]
 
     async def _fts_rank(self, query: str, songs: list[Song], limit: int) -> list[str]:
         query_norm = normalize_filter_text(query)
@@ -827,21 +786,7 @@ class HybridSearchService:
         return [item[0] for item in scored[:limit]]
 
     async def _has_vector_index(self) -> bool:
-        global _VECTOR_INDEX_AVAILABLE
-        if _VECTOR_INDEX_AVAILABLE is True:
-            return True
-        try:
-            result = await self.session.execute(
-                select(Song.id).where(Song.embeddings.is_not(None)).limit(1)
-            )
-            available = result.first() is not None
-            # Only cache positives — early misses must not disable vectors forever.
-            if available:
-                _VECTOR_INDEX_AVAILABLE = True
-            return available
-        except SQLAlchemyError:
-            await self.session.rollback()
-            return False
+        return get_faiss_store().ready()
 
     async def _exact_number_rank(self, query: str) -> list[str]:
         number = extract_song_number_intent(query)

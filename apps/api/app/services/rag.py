@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import sqrt
 from typing import Any
@@ -14,6 +14,7 @@ from app.models import Song, SongChunk
 from app.services.ai import GroundedProvider
 from app.services.catalog import CatalogService
 from app.services.chat_language import explicit_target_language_label
+from app.services.faiss_store import get_faiss_store
 from app.services.structured_answers import try_structured_answer
 
 
@@ -372,38 +373,6 @@ class RAGService:
         except SQLAlchemyError:
             return []
 
-    async def _ensure_embeddings(self, chunks: Iterable[SongChunk]) -> bool:
-        pending = [chunk for chunk in chunks if chunk.embeddings is None]
-        if not pending:
-            return True
-        try:
-            vectors = await self.provider.embed_many(
-                [self.chunk_embedding_text(chunk) for chunk in pending]
-            )
-        except Exception:
-            return False
-        for chunk, vector in zip(pending, vectors, strict=True):
-            chunk.embeddings = vector
-        try:
-            await self.session.commit()
-            return True
-        except SQLAlchemyError:
-            await self.session.rollback()
-            return False
-
-    def chunk_embedding_text(self, chunk: SongChunk) -> str:
-        return "\n".join(
-            part
-            for part in (
-                chunk.title,
-                f"Song {chunk.song_number}",
-                chunk.content,
-                chunk.metadata_json.get("song_title"),
-                chunk.metadata_json.get("first_line"),
-            )
-            if part
-        )
-
     async def retrieve(
         self,
         song: Song,
@@ -430,18 +399,25 @@ class RAGService:
             if not chunks:
                 return self._fallback_chunks(song, limit)
             fallback = selected_chunks[:limit]
-            if not await self._ensure_embeddings(chunks):
-                return fallback
-
             try:
                 query_embedding = await self.provider.embed(query or song.title)
             except Exception:
                 query_embedding = []
+            if not query_embedding:
+                return fallback
+            allowed = set(candidate_song_numbers)
+            faiss_scores = {
+                chunk_id: score
+                for chunk_id, score, song_number in get_faiss_store().search_chunks(
+                    query_embedding, 80
+                )
+                if song_number in allowed
+            }
             scored: list[RetrievedChunk] = []
             for chunk in chunks:
                 lexical = token_score(query, chunk.title) * 0.4
                 lexical += token_score(query, chunk.content) * 0.6
-                similarity = cosine_similarity(query_embedding, chunk.embeddings or [])
+                similarity = faiss_scores.get(chunk.id, 0.0)
                 boost = 0.15 if chunk.song_number == song.number else 0.0
                 total = lexical + similarity + boost
                 scored.append(

@@ -76,6 +76,10 @@ describe("lyric search", () => {
     expect(searchLyrics("chalo", catalog).map((hit) => hit.number)).toContain(1)
     expect(searchLyrics("hamdrdi", catalog)[0]?.number).toBe(4170)
     expect(searchLyrics("bandu he niye calo", catalog)[0]?.number).toBe(1)
+    expect(searchLyrics("pandhu he niye calo", catalog)[0]?.number).toBe(1)
+    expect(searchLyrics("bnadhu", catalog)[0]?.number).toBe(1)
+    expect(searchLyrics("kalo", catalog).map((hit) => hit.number)).toContain(1)
+    expect(searchLyrics("vandhu", catalog)[0]?.number).toBe(1)
   })
 
   it("does not treat English meaning translations as lyrics", () => {

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     database_url: str = Field(default="", alias="DATABASE_URL")
+    faiss_index_dir: str = Field(default="./data/generated/faiss", alias="FAISS_INDEX_DIR")
+    faiss_index_url: str | None = Field(default=None, alias="FAISS_INDEX_URL")
     api_cors_origins: str = Field(default="http://localhost:3000", alias="API_CORS_ORIGINS")
     trusted_hosts: str = Field(
         default="localhost,127.0.0.1,testserver,acceptance",

@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import InventoryItem, Media, Notation, Song, SongChunk
+from app.services.faiss_store import get_faiss_store
 from app.services.seed_data import load_rows
 
 
@@ -244,14 +245,9 @@ class CatalogService:
             database["rag_song_chunks"] = int(chunked.scalar_one())
             chunk_count = await self.session.execute(select(func.count()).select_from(SongChunk))
             database["rag_chunks"] = int(chunk_count.scalar_one())
-            embedded_songs = await self.session.execute(
-                select(func.count()).select_from(Song).where(Song.embeddings.is_not(None))
-            )
-            database["embedded_songs"] = int(embedded_songs.scalar_one())
-            embedded_chunks = await self.session.execute(
-                select(func.count()).select_from(SongChunk).where(SongChunk.embeddings.is_not(None))
-            )
-            database["embedded_chunks"] = int(embedded_chunks.scalar_one())
+            faiss_stats = get_faiss_store().stats()
+            database["embedded_songs"] = int(faiss_stats["songs"])
+            database["embedded_chunks"] = int(faiss_stats["chunks"])
         except SQLAlchemyError:
             await self.session.rollback()
         return {"snapshot": snapshot, "database": database}

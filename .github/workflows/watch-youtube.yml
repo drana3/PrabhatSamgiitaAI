@@ -18,10 +18,10 @@ jobs:
     name: Sync channel inventory
     runs-on: ubuntu-latest
     steps:
-      - name: Check out main
+      - name: Check out workflow ref
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref_name }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,12 +34,14 @@ jobs:
           cd apps/api
           uv sync --frozen --extra dev
 
-      - name: Scan configured YouTube channels
+      - name: Scan configured YouTube channels into Neon
         env:
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          PG_HOST=prabhatai-pg.postgres.database.azure.com
-          export DATABASE_URL="postgresql+psycopg://codexadmin:${PG_PASSWORD}@${PG_HOST}:5432/prabhatai?sslmode=require"
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Set GitHub secret DATABASE_URL to the Neon pooled postgresql+psycopg URL."
+            exit 1
+          fi
           apps/api/.venv/bin/python scripts/sync_youtube.py --general-search-limit 0
 
       - name: Validate media inventory
@@ -59,11 +61,11 @@ jobs:
           git config user.email "prabhat-media-bot@users.noreply.github.com"
           git add data/generated/youtube_videos.json data/generated/youtube_review_queue.json data/generated/youtube_search_state.json
           git commit -m "chore: sync AMPS YouTube catalog"
-          git push origin HEAD:main
+          git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Deploy updated catalog
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.changed == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run deploy.yml --ref main
+        run: gh workflow run deploy.yml --ref ${{ github.event.repository.default_branch }}

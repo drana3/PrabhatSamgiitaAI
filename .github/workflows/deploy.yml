@@ -214,11 +214,9 @@ jobs:
       PREFIX: prabhatai
       ACR_NAME: prabhataiacr30800
       ACA_ENV: prabhatai-env
-      PG_SERVER: prabhatai-pg
       PG_DB: prabhatai
       WEB_APP: prabhatai-web
       API_APP: prabhatai-api
-      PG_ADMIN: codexadmin
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -232,7 +230,8 @@ jobs:
 
       - name: Deploy app stack
         env:
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FAISS_INDEX_URL: ${{ secrets.FAISS_INDEX_URL }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_CHAT_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_CHAT_DEPLOYMENT }}

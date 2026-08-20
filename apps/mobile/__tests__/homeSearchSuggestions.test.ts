@@ -55,6 +55,9 @@ describe("home search suggestions", () => {
 
   it("interprets any catalog word from the local list, not only name aliases", () => {
     expect(homeSearchSuggestions("chalo").map((song) => song.number)).toContain(1)
+    expect(homeSearchSuggestions("pandhu").map((song) => song.number)).toContain(1)
+    expect(homeSearchSuggestions("bnadhu").map((song) => song.number)).toContain(1)
+    expect(homeSearchSuggestions("bandhu he niye kalo").map((song) => song.number)).toContain(1)
     expect(homeSearchSuggestions("humdardi")[0]?.number).toBe(4170)
     expect(homeSearchSuggestions("songs of siv").length).toBeGreaterThan(0)
     expect(homeSearchSuggestions("hindi").length).toBeGreaterThan(0)

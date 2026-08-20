@@ -8,6 +8,7 @@ from scripts.sync_youtube import (
     fetch,
     media_row,
     mentions_prabhat_samgiita,
+    persist_youtube_inventory,
     review_row,
     youtube_video_in_scope,
 )
@@ -172,3 +173,10 @@ def test_fetch_retries_transient_youtube_errors(monkeypatch) -> None:  # type: i
 
     assert fetch("https://example.test") == "ok"
     assert attempts == 3
+
+
+def test_persist_youtube_inventory_skips_without_database_url(monkeypatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    result = persist_youtube_inventory([], [], {})
+    assert result["inserted_media"] == 0
+    assert result["inserted_reviews"] == 0

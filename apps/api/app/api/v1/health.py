@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.core.db import get_session
 from app.services.catalog import CatalogService
 from app.services.embedding_index import embedding_provider_configured
+from app.services.faiss_store import get_faiss_store
 
 router = APIRouter(tags=["health"])
 
@@ -52,6 +53,6 @@ async def readiness(
         "embedding_progress": embedding_progress,
         "song_embedding_progress": song_embedding_progress,
         "chunk_embedding_progress": chunk_embedding_progress,
-        "vector_index_ready": embedding_progress >= 1.0,
+        "vector_index_ready": get_faiss_store().ready() and embedding_progress >= 1.0,
         **stats,
     }

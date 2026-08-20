@@ -62,6 +62,123 @@ PRABHAT_ROOT = "prabhat"
 SAMGIITA_ROOTS = ("samgiita", "samgita", "sangeet", "sangeeta", "samgeeta")
 
 
+def _libpq_url(database_url: str) -> str:
+    return database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+
+
+def persist_youtube_inventory(
+    rows: list[dict[str, Any]],
+    review_rows: list[dict[str, Any]],
+    discovered_by_channel: dict[str, int],
+    database_url: str | None = None,
+) -> dict[str, int]:
+    """Upsert scanned media and review-queue rows into Postgres (Neon)."""
+    database_url = database_url or os.environ.get("DATABASE_URL")
+    if not database_url:
+        print("Skipping Neon persist because DATABASE_URL is unset", file=sys.stderr)
+        return {"inserted_media": 0, "inserted_reviews": 0, "updated_reviews": 0}
+    import psycopg
+    from psycopg.types.json import Json
+
+    inserted_media = 0
+    inserted_reviews = 0
+    with psycopg.connect(_libpq_url(database_url), connect_timeout=30) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SET statement_timeout = '5min'")
+            for row in rows:
+                metadata = dict(row.get("metadata_json") or {})
+                external_id = str(metadata.get("external_id") or "").strip()
+                if not external_id:
+                    continue
+                cur.execute(
+                    """
+                    SELECT id FROM media
+                    WHERE provider = 'youtube'
+                      AND (
+                        metadata_json->>'external_id' = %s
+                        OR url LIKE %s
+                      )
+                    LIMIT 1
+                    """,
+                    (external_id, f"%{external_id}%"),
+                )
+                if cur.fetchone():
+                    continue
+                cur.execute(
+                    """
+                    INSERT INTO media (
+                        song_number, kind, provider, title, url, embed_url,
+                        verification_status, source_url, notes, metadata_json
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        int(row["song_number"]),
+                        str(row.get("kind") or "video"),
+                        str(row.get("provider") or "youtube"),
+                        str(row.get("title") or "")[:255],
+                        str(row.get("url") or ""),
+                        row.get("embed_url"),
+                        str(row.get("verification_status") or "unverified"),
+                        row.get("source_url"),
+                        row.get("notes"),
+                        Json(metadata),
+                    ),
+                )
+                inserted_media += 1
+            for row in review_rows:
+                external_id = str(row.get("external_id") or "").strip()
+                if not external_id:
+                    continue
+                cur.execute(
+                    """
+                    INSERT INTO youtube_review_queue (
+                        id, external_id, title, url, channel_id, channel_name,
+                        source_url, candidate_song_number, title_similarity,
+                        review_reason, status
+                    )
+                    VALUES (
+                        gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending_review'
+                    )
+                    ON CONFLICT (external_id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        candidate_song_number = EXCLUDED.candidate_song_number,
+                        title_similarity = EXCLUDED.title_similarity,
+                        review_reason = EXCLUDED.review_reason,
+                        source_url = EXCLUDED.source_url
+                    WHERE youtube_review_queue.status = 'pending_review'
+                    """,
+                    (
+                        external_id,
+                        str(row.get("title") or "Untitled video"),
+                        str(row.get("url") or ""),
+                        row.get("channel_id"),
+                        row.get("channel_name"),
+                        row.get("source_url"),
+                        row.get("candidate_song_number"),
+                        row.get("title_similarity"),
+                        str(row.get("review_reason") or "pending_review"),
+                    ),
+                )
+                inserted_reviews += max(cur.rowcount or 0, 0)
+            for channel_name, discovered in discovered_by_channel.items():
+                cur.execute(
+                    """
+                    UPDATE youtube_scan_channels
+                    SET last_scanned_at = NOW(),
+                        last_scan_discovered = %s
+                    WHERE name = %s AND is_active = true
+                    """,
+                    (int(discovered), channel_name),
+                )
+        conn.commit()
+    return {
+        "inserted_media": inserted_media,
+        "inserted_reviews": inserted_reviews,
+        "updated_reviews": 0,
+    }
+
+
 def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
     database_url = database_url or os.environ.get("DATABASE_URL")
     if not database_url:
@@ -69,8 +186,8 @@ def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
     try:
         import psycopg
 
-        url = database_url.replace("postgresql+psycopg://", "postgresql://")
-        with psycopg.connect(url) as conn, conn.cursor() as cur:
+        url = _libpq_url(database_url)
+        with psycopg.connect(url, connect_timeout=30) as conn, conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT channel_id, channel_url, name, is_trusted, notes
@@ -496,6 +613,7 @@ def main() -> None:
         json.dumps(review_rows, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    persisted = persist_youtube_inventory(rows, review_rows, discovered_by_channel)
     print(
         json.dumps(
             {
@@ -504,6 +622,8 @@ def main() -> None:
                 "songs_with_video": len({row["song_number"] for row in rows}),
                 "videos_pending_review": len(review_rows),
                 "general_youtube_matches_added": general_discovered,
+                "neon_inserted_media": persisted["inserted_media"],
+                "neon_inserted_reviews": persisted["inserted_reviews"],
                 "output": str(args.output),
                 "review_output": str(args.review_output),
             },

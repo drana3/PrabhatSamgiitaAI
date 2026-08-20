@@ -261,7 +261,7 @@ async def create_notation(
 
 
 async def _refresh_embeddings(settings: Settings) -> None:
-    await build_embedding_indexes(settings)
+    await build_embedding_indexes(settings, force=True)
 
 
 @router.post("/reindex", response_model=AdminActionResponse, status_code=status.HTTP_202_ACCEPTED)

@@ -5,28 +5,10 @@ Revises:
 Create Date: 2026-07-31 00:00:00
 """
 
-from typing import Any
-
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 from alembic import op
-
-try:
-    from pgvector.sqlalchemy import Vector
-except ImportError:  # pragma: no cover - migration fallback in lightweight envs
-    from sqlalchemy.types import JSON, TypeDecorator
-
-    class Vector(TypeDecorator[Any]):  # type: ignore[no-redef]
-        impl = JSON
-        cache_ok = True
-
-        def __init__(self, dimension: int) -> None:
-            super().__init__()
-            self.dimension = dimension
-
-
-from app.core.vector import VECTOR_DIMENSION
 
 revision = "0001_initial"
 down_revision = None
@@ -35,7 +17,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.create_table(
         "songs",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -65,7 +46,6 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("is_verified", sa.Boolean(), server_default="false"),
-        sa.Column("embeddings", Vector(VECTOR_DIMENSION)),
         sa.Column("metadata_json", JSONB(), server_default=sa.text("'{}'::jsonb")),
     )
     op.create_index("ix_songs_number", "songs", ["number"], unique=True)

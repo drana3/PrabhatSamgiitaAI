@@ -25,7 +25,7 @@ export function InstantSearchSuggestions({
       className="mt-2 max-h-72 overflow-auto rounded-2xl border border-navy-900/10 bg-white py-2 shadow-lg"
     >
       {songs.map((song) => (
-        <li key={song.number} role="option">
+        <li key={song.number} role="option" aria-selected="false">
           <Link
             href={songPagePath(song.number)}
             className="flex items-start gap-3 px-4 py-2.5 text-left transition hover:bg-gold-50"

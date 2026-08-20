@@ -20,7 +20,7 @@ from app.core.middleware import RequestContextMiddleware
 from app.logging import configure_logging
 from app.models import Base
 from app.services.bootstrap import BootstrapService
-from app.services.embedding_index import build_embedding_indexes
+from app.services.embedding_index import build_embedding_indexes, load_faiss_snapshot
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -118,7 +118,6 @@ async def initialize_schema() -> None:
         logger.exception("Alembic upgrade failed; continuing with idempotent schema ensure")
 
     for statement, label in (
-        ("CREATE EXTENSION IF NOT EXISTS vector", "vector"),
         ("CREATE EXTENSION IF NOT EXISTS pg_trgm", "pg_trgm"),
         ("CREATE EXTENSION IF NOT EXISTS unaccent", "unaccent"),
     ):
@@ -152,6 +151,7 @@ async def initialize_catalog_and_embeddings() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await initialize_schema()
+    load_faiss_snapshot(settings)
     if settings.scheduler_enabled:
         scheduler.start()
     bootstrap_task = asyncio.create_task(initialize_catalog_and_embeddings())

@@ -34,5 +34,6 @@ apps/mobile/*.ipa
 .ios-simulator-preview/
 *.tsbuildinfo
 data/generated/cache/
+data/generated/faiss/
 .tmp-ocr/
 

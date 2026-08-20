@@ -61,9 +61,9 @@ def _fold_lyric_token(token: str) -> str:
 
 
 def max_lyric_edits(length: int) -> int:
-    if length < 5:
+    if length < 4:
         return 0
-    if length < 8:
+    if length < 6:
         return 1
     return 2
 
@@ -109,20 +109,22 @@ def within_lyric_edits(left: str, right: str, max_edits: int | None = None) -> b
 
 
 def fuzzy_token_match(needle: str, tokens: tuple[str, ...] | frozenset[str]) -> bool:
-    allowed = max_lyric_edits(len(needle))
-    if allowed <= 0 or len(needle) < 2:
+    if not needle or len(needle) < 4:
         return False
-    first = needle[0]
-    second = needle[1]
+    allowed = max_lyric_edits(len(needle))
+    if allowed <= 0:
+        return False
     for token in tokens:
-        if not token or (token[0] != first and token[0] != second):
+        if not token or len(token) < 3:
             continue
         if token == needle:
             return True
-        if len(needle) >= 5 and token.startswith(needle) and len(token) - len(needle) <= allowed:
+        if token.startswith(needle) and len(token) - len(needle) <= allowed + 1:
             return True
-        if len(token) >= 5 and needle.startswith(token) and len(needle) - len(token) <= allowed:
+        if needle.startswith(token) and len(needle) - len(token) <= allowed + 1:
             return True
+        if abs(len(token) - len(needle)) > allowed:
+            continue
         if within_lyric_edits(needle, token, allowed):
             return True
     return False
@@ -147,7 +149,10 @@ class LyricRecord:
     folded_body: str
     folded_tokens: frozenset[str]
     opening_tokens: tuple[str, ...]
+    opening_token_set: frozenset[str]
     token_list: tuple[str, ...]
+    opening_raw_tokens: tuple[str, ...]
+    raw_token_list: tuple[str, ...]
 
 
 def _record_from_song(song: Song) -> LyricRecord:
@@ -164,9 +169,17 @@ def _record_from_song(song: Song) -> LyricRecord:
         dict.fromkeys(
             token
             for token in f"{folded_title} {folded_opening}".split()
-            if len(token) >= 4
+            if len(token) >= 3
         )
     )
+    opening_raw_tokens = tuple(
+        dict.fromkeys(
+            token
+            for token in f"{title} {opening}".split()
+            if len(token) >= 3
+        )
+    )
+    raw_token_list = tuple(dict.fromkeys(token for token in body.split() if len(token) >= 3))
     return LyricRecord(
         number=int(song.number),
         title=title,
@@ -178,7 +191,10 @@ def _record_from_song(song: Song) -> LyricRecord:
         folded_body=folded_body,
         folded_tokens=folded_tokens,
         opening_tokens=opening_tokens,
+        opening_token_set=frozenset(opening_tokens),
         token_list=tuple(folded_tokens),
+        opening_raw_tokens=opening_raw_tokens,
+        raw_token_list=raw_token_list,
     )
 
 
@@ -239,36 +255,52 @@ def _score_record(
         folded_query in record.folded_opening or folded_query in record.folded_title
     ):
         return LyricHit(record.number, 64.0, "opening_line")
+    if len(folded_query) >= 3 and folded_query in record.opening_token_set:
+        return LyricHit(record.number, 64.0, "opening_line")
     if len(folded_query) >= 4 and folded_query in record.folded_body:
+        return LyricHit(record.number, 44.0, "full_text")
+    if len(folded_query) >= 3 and folded_query in record.folded_tokens:
         return LyricHit(record.number, 44.0, "full_text")
     if not tokens:
         return None
     distinctive = [token for token in tokens if token not in _STOP]
     scored = distinctive or tokens
     folded_map = dict(zip(tokens, folded_tokens, strict=True))
-    exact_hits = sum(
-        1
-        for token in scored
-        if _token_in_record(token, folded_map[token], record)
-    )
-    coverage = exact_hits / len(scored)
-    if exact_hits and distinctive and len(distinctive) >= 3 and coverage >= 0.7:
-        return LyricHit(record.number, LYRIC_ENGLISH_SCORE, "full_text")
-    needles = [
-        folded_map[token]
-        for token in scored
-        if len(folded_map[token]) >= 5
-    ]
-    if needles:
-        opening_hits = sum(1 for needle in needles if fuzzy_token_match(needle, record.opening_tokens))
-        if opening_hits / len(needles) >= 0.6:
-            return LyricHit(record.number, 58.0, "opening_line")
-        if len(needles) == 1:
-            body_hits = sum(1 for needle in needles if fuzzy_token_match(needle, record.token_list))
-            if body_hits / len(needles) >= 0.6:
-                return LyricHit(record.number, 42.0, "full_text")
-    if exact_hits and coverage >= 0.6:
-        return LyricHit(record.number, 12.0 * coverage, "full_text")
+    opening_hits = 0
+    body_hits = 0
+    unmatched: list[tuple[str, str]] = []
+    for token in scored:
+        folded_token = folded_map[token]
+        if token in record.opening_raw_tokens or (
+            len(folded_token) >= 3 and folded_token in record.opening_token_set
+        ):
+            opening_hits += 1
+            continue
+        if token in record.tokens or (
+            len(folded_token) >= 3 and folded_token in record.folded_tokens
+        ):
+            body_hits += 1
+            continue
+        unmatched.append((token, folded_token))
+    matched = opening_hits + body_hits
+    if not (matched / len(scored) >= 0.6) and unmatched and (len(scored) <= 2 or matched > 0):
+        try_body = len(scored) <= 3
+        for token, folded_token in unmatched:
+            if fuzzy_token_match(token, record.opening_raw_tokens) or fuzzy_token_match(
+                folded_token, record.opening_tokens
+            ):
+                opening_hits += 1
+                continue
+            if try_body and (
+                fuzzy_token_match(token, record.raw_token_list)
+                or fuzzy_token_match(folded_token, record.token_list)
+            ):
+                body_hits += 1
+    coverage = (opening_hits + body_hits) / len(scored)
+    if opening_hits and opening_hits / len(scored) >= 0.6:
+        return LyricHit(record.number, 64.0 if len(scored) == 1 else 58.0, "opening_line")
+    if opening_hits + body_hits and coverage >= 0.6:
+        return LyricHit(record.number, 44.0 if len(scored) == 1 else 42.0, "full_text")
     return None
 
 

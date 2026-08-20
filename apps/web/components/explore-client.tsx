@@ -19,20 +19,9 @@ import {
   searchCatalogLyrics,
   shouldSearchCatalogLyrics,
 } from "@/lib/lyric-search"
-import { SearchForm } from "@/components/search-form"
-import { SongCard } from "@/components/song-card"
-import { SpecialCollections } from "@/components/special-collections"
-import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
-import type { SongSummary, VoiceSearchResult } from "@/lib/api"
-import {
-  instantExploreSongs,
-  lyricHitsToSongs,
-  searchCatalogLyrics,
-  shouldSearchCatalogLyrics,
-} from "@/lib/lyric-search"
 import { scrollToSectionId } from "@/lib/scroll-to-section"
 import type { ExploreSearchKind } from "@/lib/special-collections"
-import { collectionSearchDisplayLabel, collectionSearchCount, exploreSearchKind, isCollectionSearchQuery, specialCollectionCount } from "@/lib/special-collections"
+import { collectionSearchDisplayLabel, collectionSearchCount, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
 import {
   COMPLETE_SARGAM_LABEL,
   COMPLETE_SARGAM_QUERY,
@@ -194,7 +183,7 @@ export function ExploreClient({
 
     try {
       const localHits =
-        shouldSearchCatalogLyrics(trimmed, kind) ? searchCatalogLyrics(trimmed) : []
+        shouldSearchCatalogLyrics(trimmed, kind) ? searchCatalogLyrics(trimmed, 5, { interpret: true }) : []
       const results = isCompleteSargamQuery(trimmed)
         ? completeSargamSongs()
         : localHits.length
@@ -259,7 +248,7 @@ export function ExploreClient({
         return
       }
       if (shouldSearchCatalogLyrics(trimmed, "catalog")) {
-        const localHits = searchCatalogLyrics(trimmed)
+        const localHits = searchCatalogLyrics(trimmed, 5, { interpret: true })
         if (localHits.length) {
           const songs = lyricHitsToSongs(localHits)
           searchCache.current.set(cacheKey(trimmed, "catalog"), songs)
@@ -455,11 +444,8 @@ export function ExploreClient({
 
       <div className="mt-8 space-y-5 border-y border-navy-900/10 py-6">
         <FilterRow label="Browse by theme" items={themes} onSelect={runCatalogSearch} />
-        <a href="#collections" className="inline-flex text-sm font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Browse all {specialCollectionCount} special collections →</a>
-        <p className="text-xs leading-5 text-stone-500"><strong className="text-navy-950">Raga & tala:</strong> the musical index is published progressively as canonical notation pages are reviewed.</p>
+        <SpecialCollections activeQuery={activeQuery} onSelect={runCatalogSearch} />
       </div>
-
-      <div className="mt-8"><SpecialCollections activeQuery={activeQuery} onSelect={runCatalogSearch} /></div>
 
     </div>
   )

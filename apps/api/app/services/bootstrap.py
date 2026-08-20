@@ -190,7 +190,6 @@ class BootstrapService:
             update(cast(Any, Song.__table__))
             .where(Song.number == bindparam("_catalog_number"))
             .values({field: bindparam(field) for field in content_fields})
-            .values(embeddings=None)
         )
         await self.session.execute(statement, payload)
         await self.session.commit()

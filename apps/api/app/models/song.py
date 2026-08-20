@@ -1,28 +1,10 @@
-from collections.abc import Callable
-from importlib import import_module
 from typing import Any
 
 from sqlalchemy import Boolean, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.types import JSON, TypeDecorator
 
-from app.core.vector import VECTOR_DIMENSION
 from app.models.base import Base, TimestampMixin
-
-try:
-    vector_factory: Callable[[int], Any] = import_module("pgvector.sqlalchemy").Vector
-except ImportError:  # pragma: no cover - fallback for lightweight test environments
-
-    class FallbackVector(TypeDecorator[list[float]]):
-        impl = JSON
-        cache_ok = True
-
-        def __init__(self, dimension: int) -> None:
-            super().__init__()
-            self.dimension = dimension
-
-    vector_factory = FallbackVector
 
 
 class Song(Base, TimestampMixin):
@@ -52,7 +34,6 @@ class Song(Base, TimestampMixin):
         String(32), default="pending", server_default="pending", nullable=False
     )
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    embeddings: Mapped[list[float] | None] = mapped_column(vector_factory(VECTOR_DIMENSION))
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         default=dict,

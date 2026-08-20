@@ -180,10 +180,10 @@ test("About navigation lands below the sticky header", async ({ page }) => {
 
 test("all special collections are organized and lead to catalog search", async ({ page }) => {
   await page.goto("/explore")
-  await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Browse 68 collections" })).toBeVisible()
   const collectionBrowser = page.locator("#collections").first()
   const languages = collectionBrowser.getByText("Languages", { exact: true })
-  await expect(collectionBrowser.getByText("68 collections", { exact: true })).toBeVisible()
+  await expect(collectionBrowser.getByRole("heading", { name: "Browse 68 collections" })).toBeVisible()
   await expect(languages).toBeHidden()
   await setDetailsOpen(page, "#collections", true)
   await expect(languages).toBeVisible()
@@ -212,7 +212,7 @@ test("results sit just above search and English returns only its three canonical
     await route.fulfill({ json: payload.query.includes("English Songs") ? englishSongs : [] })
   })
   await page.goto("/explore")
-  await expect(page.getByRole("heading", { name: "Find the songs that meet your moment" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Browse 68 collections" })).toBeVisible()
   await setDetailsOpen(page, "#collections", true)
   const results = page.locator("#results").first()
   const search = page.locator("#catalog-search").first()

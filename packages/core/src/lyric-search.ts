@@ -138,10 +138,10 @@ export function catalogLookupKeys(query: string): string[] {
   return keys
 }
 
-/** One typo for short words, two for longer ones. */
+/** One typo from 4 letters, two from 6 — voice and typing often miss the first letter. */
 export function maxLyricEdits(length: number) {
-  if (length < 5) return 0
-  if (length < 8) return 1
+  if (length < 4) return 0
+  if (length < 6) return 1
   return 2
 }
 
@@ -184,16 +184,16 @@ export function withinLyricEdits(left: string, right: string, max = maxLyricEdit
 }
 
 function fuzzyTokenMatch(needle: string, tokens: Iterable<string>) {
+  if (!needle || needle.length < 4) return false
   const max = maxLyricEdits(needle.length)
-  if (max <= 0 || needle.length < 2) return false
-  const first = needle[0]
-  const second = needle[1]
+  if (max <= 0) return false
   for (const token of tokens) {
-    if (!token) continue
-    if (token[0] !== first && token[0] !== second) continue
+    if (!token || token.length < 3) continue
+    const gap = Math.abs(token.length - needle.length)
     if (token === needle) return true
-    if (needle.length >= 5 && token.startsWith(needle) && token.length - needle.length <= max) return true
-    if (token.length >= 5 && needle.startsWith(token) && needle.length - token.length <= max) return true
+    if (token.startsWith(needle) && token.length - needle.length <= max + 1) return true
+    if (needle.startsWith(token) && needle.length - token.length <= max + 1) return true
+    if (gap > max) continue
     if (withinLyricEdits(needle, token, max)) return true
   }
   return false
@@ -226,7 +226,10 @@ function lyricSnippet(query: string, tokens: string[], opening: string, body: st
     const needle = foldedQuery.split(" ")[0] ?? ""
     const index = words.findIndex((word) => {
       const folded = foldLyricPhonetic(word)
-      return folded.includes(needle) || (needle.length >= 5 && withinLyricEdits(needle, folded))
+      return (
+        folded.includes(needle) ||
+        (needle.length >= 4 && (fuzzyTokenMatch(needle, [folded]) || fuzzyTokenMatch(needle, [word])))
+      )
     })
     if (index >= 0) {
       const start = Math.max(0, index - 2)
@@ -242,29 +245,39 @@ type FoldedLyric = {
   opening: string
   body: string
   tokens: Set<string>
+  openingTokenSet: Set<string>
   openingTokens: string[]
   tokenList: string[]
+  rawOpeningTokens: string[]
+  rawTokenList: string[]
 }
 
 const foldedCache = new WeakMap<LyricSearchRow, FoldedLyric>()
 
+function uniqueTokens(value: string, minLength = 3) {
+  return Array.from(new Set(value.split(" ").filter((token) => token.length >= minLength)))
+}
+
 function foldedLyric(row: LyricSearchRow): FoldedLyric {
   const cached = foldedCache.get(row)
   if (cached) return cached
-  const title = foldLyricPhonetic(normalizeLyricText(row.t))
-  const opening = foldLyricPhonetic(normalizeLyricText(row.o))
+  const rawTitle = normalizeLyricText(row.t)
+  const rawOpening = normalizeLyricText(row.o)
+  const title = foldLyricPhonetic(rawTitle)
+  const opening = foldLyricPhonetic(rawOpening)
   const body = foldLyricPhonetic(row.b)
   const tokens = new Set(body.split(" ").filter(Boolean))
-  const openingTokens = Array.from(
-    new Set(`${title} ${opening}`.split(" ").filter((token) => token.length >= 4)),
-  )
+  const openingTokens = uniqueTokens(`${title} ${opening}`)
   const next = {
     title,
     opening,
     body,
     tokens,
+    openingTokenSet: new Set(openingTokens),
     openingTokens,
     tokenList: Array.from(tokens),
+    rawOpeningTokens: uniqueTokens(`${rawTitle} ${rawOpening}`),
+    rawTokenList: uniqueTokens(row.b),
   }
   foldedCache.set(row, next)
   return next
@@ -299,47 +312,64 @@ function scoreRow(
   } else if (foldedQuery.length >= 4 && (folded.opening.includes(foldedQuery) || folded.title.includes(foldedQuery))) {
     score = 64
     matchedBy = "opening_line"
+  } else if (foldedQuery.length >= 3 && folded.openingTokenSet.has(foldedQuery)) {
+    score = 64
+    matchedBy = "opening_line"
   } else if (foldedQuery.length >= 4 && folded.body.includes(foldedQuery)) {
+    score = 44
+    matchedBy = "full_text"
+  } else if (foldedQuery.length >= 3 && folded.tokens.has(foldedQuery)) {
     score = 44
     matchedBy = "full_text"
   } else if (tokens.length) {
     const distinctive = tokens.filter((token) => !STOP.has(token))
     const scored = distinctive.length ? distinctive : tokens
-    const exactHits = scored.filter((token) => {
-      if (bodyTokens.has(token)) return true
-      if (token.length < 4) return false
-      const foldedToken = foldedTokenByExact.get(token)
-      return Boolean(foldedToken) && folded.tokens.has(foldedToken)
-    }).length
-    const coverage = exactHits / scored.length
-    if (exactHits && distinctive.length >= 3 && coverage >= 0.7) {
-      score = 40
+    let openingHits = 0
+    let bodyHits = 0
+    const unmatched: Array<{ token: string; foldedToken: string }> = []
+    for (const token of scored) {
+      const foldedToken = foldedTokenByExact.get(token) ?? foldLyricPhonetic(token)
+      if (
+        folded.rawOpeningTokens.includes(token) ||
+        (foldedToken.length >= 3 && folded.openingTokenSet.has(foldedToken))
+      ) {
+        openingHits += 1
+        continue
+      }
+      if (bodyTokens.has(token) || (foldedToken.length >= 3 && folded.tokens.has(foldedToken))) {
+        bodyHits += 1
+        continue
+      }
+      unmatched.push({ token, foldedToken })
+    }
+    const matched = openingHits + bodyHits
+    if (!(matched / scored.length >= 0.6) && unmatched.length && (scored.length <= 2 || matched > 0)) {
+      const tryBody = scored.length <= 3
+      for (const { token, foldedToken } of unmatched) {
+        if (
+          fuzzyTokenMatch(token, folded.rawOpeningTokens) ||
+          fuzzyTokenMatch(foldedToken, folded.openingTokens)
+        ) {
+          openingHits += 1
+          continue
+        }
+        if (
+          tryBody &&
+          (fuzzyTokenMatch(token, folded.rawTokenList) || fuzzyTokenMatch(foldedToken, folded.tokenList))
+        ) {
+          bodyHits += 1
+        }
+      }
+    }
+    const coverage = (openingHits + bodyHits) / scored.length
+    if (openingHits && openingHits / scored.length >= 0.6) {
+      score = scored.length === 1 ? 64 : 58
+      matchedBy = "opening_line"
+    } else if (openingHits + bodyHits && coverage >= 0.6) {
+      score = scored.length === 1 ? 44 : 42
       matchedBy = "full_text"
     } else {
-      const needles = scored
-        .map((token) => foldedTokenByExact.get(token) ?? foldLyricPhonetic(token))
-        .filter((token) => token.length >= 5)
-      if (needles.length) {
-        const openingHits = needles.filter((needle) => fuzzyTokenMatch(needle, folded.openingTokens)).length
-        if (openingHits / needles.length >= 0.6) {
-          score = 58
-          matchedBy = "opening_line"
-        } else if (needles.length === 1) {
-          const bodyHits = needles.filter((needle) => fuzzyTokenMatch(needle, folded.tokenList)).length
-          if (bodyHits / needles.length >= 0.6) {
-            score = 42
-            matchedBy = "full_text"
-          }
-        }
-      }
-      if (!score) {
-        if (exactHits && coverage >= 0.6) {
-          score = 12 * coverage
-          matchedBy = "full_text"
-        } else {
-          return null
-        }
-      }
+      return null
     }
   } else {
     return null
