@@ -9156,6 +9156,27 @@
     }
   },
   {
+    "song_number": 2749,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ghor Tamasay - Prabhat Sangeet song #2749 - Singer - Gargi Das Bakshi",
+    "url": "https://www.youtube.com/watch?v=aMIbh-v5uQY",
+    "embed_url": "https://www.youtube-nocookie.com/embed/aMIbh-v5uQY",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "aMIbh-v5uQY",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.945,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2751,
     "kind": "video",
     "provider": "youtube",
