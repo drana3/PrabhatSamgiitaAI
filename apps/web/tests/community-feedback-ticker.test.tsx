@@ -4,7 +4,10 @@ import { render, screen, waitFor } from "@testing-library/react"
 import { CommunityFeedbackTicker } from "@/components/community-feedback-ticker"
 import { fetchTestimonials } from "@/lib/api"
 
-vi.mock("@/lib/api", () => ({ fetchTestimonials: vi.fn() }))
+vi.mock("@/lib/api", () => ({
+  fetchTestimonials: vi.fn(),
+  readCachedTestimonials: vi.fn(() => []),
+}))
 const fetchTestimonialsMock = vi.mocked(fetchTestimonials)
 
 afterEach(() => vi.clearAllMocks())

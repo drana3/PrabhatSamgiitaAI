@@ -27,7 +27,9 @@ export function writeFeelingSearchEnabled(enabled: boolean) {
 
 export function useSearchAuth(): SearchAuth {
   const { session } = useMember()
-  const [feelingSearchEnabled, setFeelingSearchEnabled] = useState(false)
+  const [feelingSearchEnabled, setFeelingSearchEnabled] = useState(() =>
+    typeof window === "undefined" ? false : readFeelingSearchEnabled(),
+  )
 
   useEffect(() => {
     setFeelingSearchEnabled(readFeelingSearchEnabled())

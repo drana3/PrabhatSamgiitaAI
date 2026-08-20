@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest"
 import {
   isLyricCatalogQuery,
   searchLyrics,
+  searchMeanings,
+  mergeLyricAndMeaningHits,
+  isMeaningCatalogQuery,
   foldLyricPhonetic,
   canonicalSearchKey,
   catalogLookupKeys,
@@ -85,6 +88,34 @@ describe("lyric search", () => {
   it("does not treat English meaning translations as lyrics", () => {
     const hits = searchLyrics("i can no longer bear the pain of darkness in my heart", rows)
     expect(hits.map((hit) => hit.number)).not.toContain(1)
+  })
+
+  it("finds English meaning text via searchMeanings without touching lyric body", () => {
+    const withMeaning: LyricSearchRow[] = [
+      {
+        ...rows[0],
+        e: "o friend lead me on i can no longer bear the pain of darkness in my heart",
+      },
+      rows[1],
+    ]
+    expect(searchLyrics("i can no longer bear the pain of darkness in my heart", withMeaning)).toHaveLength(0)
+    const meaningHits = searchMeanings("i can no longer bear the pain of darkness in my heart", withMeaning)
+    expect(meaningHits[0]?.number).toBe(1)
+    expect(meaningHits[0]?.matchedBy).toBe("meaning")
+    const merged = mergeLyricAndMeaningHits(
+      searchLyrics("bandhu he niye calo", withMeaning),
+      meaningHits,
+    )
+    expect(merged[0]?.matchedBy).toBe("opening_line")
+    expect(merged[0]?.number).toBe(1)
+  })
+
+  it("treats english prose as a meaning catalog query", () => {
+    expect(isMeaningCatalogQuery("who came without telling me")).toBe(true)
+    expect(isMeaningCatalogQuery("i can no longer bear the pain of darkness")).toBe(true)
+    expect(isMeaningCatalogQuery("bandhu he")).toBe(false)
+    expect(isMeaningCatalogQuery("songs about peace")).toBe(false)
+    expect(isMeaningCatalogQuery("I am feeling stressful today")).toBe(false)
   })
 
   it("returns at most five songs", () => {

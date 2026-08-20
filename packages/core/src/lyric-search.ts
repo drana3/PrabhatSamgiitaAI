@@ -2,7 +2,10 @@ export type LyricSearchRow = {
   n: number
   t: string
   o: string
+  /** Normalized romanized lyrics / transliteration — never English meaning. */
   b: string
+  /** Optional normalized English meaning (separate from `b`). */
+  e?: string
 }
 
 export type LyricSearchHit = {
@@ -11,7 +14,7 @@ export type LyricSearchHit = {
   firstLine: string
   snippet: string
   score: number
-  matchedBy: "opening_line" | "full_text"
+  matchedBy: "opening_line" | "full_text" | "meaning"
 }
 
 const TOKEN = /[^a-z0-9]+/g
@@ -405,7 +408,12 @@ export function isLyricCatalogQuery(value: string) {
 }
 
 export function confidentLyricHits(hits: LyricSearchHit[]): LyricSearchHit[] {
-  return hits.filter((hit) => hit.matchedBy === "opening_line" || hit.score >= 40)
+  return hits.filter(
+    (hit) =>
+      hit.matchedBy === "opening_line" ||
+      hit.matchedBy === "meaning" ||
+      hit.score >= 40,
+  )
 }
 
 export function interpretLyricHits(hits: LyricSearchHit[]): LyricSearchHit[] {
@@ -427,4 +435,121 @@ export function searchLyrics(query: string, rows: LyricSearchRow[], limit = 5): 
   }
   hits.sort((left, right) => right.score - left.score || left.number - right.number)
   return hits.slice(0, Math.max(1, limit))
+}
+
+const MEANING_PHRASE_SCORE = 36
+const MEANING_TOKEN_SCORE = 30
+
+function meaningSnippet(query: string, tokens: string[], meaning: string, opening: string) {
+  const at = meaning.indexOf(query)
+  if (at >= 0) {
+    const start = Math.max(0, at - 24)
+    const end = Math.min(meaning.length, at + Math.max(query.length, 56) + 24)
+    let slice = meaning.slice(start, end).trim()
+    if (start > 0) slice = `…${slice}`
+    if (end < meaning.length) slice = `${slice}…`
+    return slice
+  }
+  const distinctive = tokens.filter((token) => !STOP.has(token) && meaning.includes(token))
+  if (distinctive.length) {
+    const first = meaning.indexOf(distinctive[0])
+    const start = Math.max(0, first - 16)
+    const end = Math.min(meaning.length, first + 80)
+    let slice = meaning.slice(start, end).trim()
+    if (start > 0) slice = `…${slice}`
+    if (end < meaning.length) slice = `${slice}…`
+    return slice
+  }
+  return opening
+}
+
+function scoreMeaningRow(query: string, tokens: string[], row: LyricSearchRow): LyricSearchHit | null {
+  const meaning = normalizeLyricText(row.e)
+  if (!meaning || meaning.length < 8) return null
+  let score = 0
+  if (meaning === query || meaning.startsWith(query) || query.startsWith(meaning.slice(0, Math.min(meaning.length, 48)))) {
+    score = MEANING_PHRASE_SCORE + 4
+  } else if (meaning.includes(query) && query.length >= 8) {
+    score = MEANING_PHRASE_SCORE
+  } else if (tokens.length) {
+    const distinctive = tokens.filter((token) => !STOP.has(token) && token.length >= 3)
+    const scored = distinctive.length ? distinctive : tokens.filter((token) => token.length >= 3)
+    if (!scored.length) return null
+    const meaningTokens = new Set(meaning.split(" ").filter(Boolean))
+    let hits = 0
+    for (const token of scored) {
+      if (meaningTokens.has(token)) hits += 1
+    }
+    const coverage = hits / scored.length
+    if (coverage < 0.6 || hits < 2) return null
+    score = MEANING_TOKEN_SCORE + Math.min(6, hits)
+  } else {
+    return null
+  }
+  return {
+    number: row.n,
+    title: row.t,
+    firstLine: row.o,
+    snippet: meaningSnippet(query, tokens, meaning, row.o || row.t),
+    score,
+    matchedBy: "meaning",
+  }
+}
+
+/** Lexical search over the separate English-meaning field (`e`). Never searches `b`. */
+export function searchMeanings(query: string, rows: LyricSearchRow[], limit = 5): LyricSearchHit[] {
+  const normalized = normalizeLyricText(query)
+  if (normalized.length < 4) return []
+  const tokens = normalized.split(" ").filter(Boolean)
+  if (tokens.length < 2 && normalized.length < 10) return []
+  const hits: LyricSearchHit[] = []
+  for (const row of rows) {
+    const hit = scoreMeaningRow(normalized, tokens, row)
+    if (hit) hits.push(hit)
+  }
+  hits.sort((left, right) => right.score - left.score || left.number - right.number)
+  return hits.slice(0, Math.max(1, limit))
+}
+
+/** Merge lyric + meaning hits; opening-line lyrics stay above meaning matches. */
+export function mergeLyricAndMeaningHits(
+  lyricHits: LyricSearchHit[],
+  meaningHits: LyricSearchHit[],
+  limit = 5,
+): LyricSearchHit[] {
+  const byNumber = new Map<number, LyricSearchHit>()
+  for (const hit of [...lyricHits, ...meaningHits]) {
+    const prior = byNumber.get(hit.number)
+    if (!prior || hit.score > prior.score) byNumber.set(hit.number, hit)
+  }
+  return Array.from(byNumber.values())
+    .sort((left, right) => {
+      const leftOpening = left.matchedBy === "opening_line" ? 1 : 0
+      const rightOpening = right.matchedBy === "opening_line" ? 1 : 0
+      if (leftOpening !== rightOpening) return rightOpening - leftOpening
+      return right.score - left.score || left.number - right.number
+    })
+    .slice(0, Math.max(1, limit))
+}
+
+/** English prose that can match the meaning field — not song numbers or feeling asks. */
+export function isMeaningCatalogQuery(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.length < 8) return false
+  if (isCatalogNumberQuery(trimmed)) return false
+  if (/^search prabhat samgiita for\s+/i.test(trimmed)) return false
+  if (/\?/.test(trimmed)) return false
+  if (/^(?:songs?|song)\s+(?:for|about|on)\b/i.test(trimmed)) return false
+  if (
+    /\b(?:i(?:'m| am)|we are|feel(?:ing)?|help me|recommend|suggest|what|why|how|should i|can you|please)\b/i.test(
+      trimmed,
+    )
+  ) {
+    return false
+  }
+  const normalized = normalizeLyricText(trimmed)
+  const words = normalized.split(" ").filter(Boolean)
+  if (words.length < 4) return false
+  const latin = words.filter((word) => /^[a-z]+$/.test(word))
+  return latin.length / words.length >= 0.7
 }

@@ -7,6 +7,13 @@ import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { communityVoices } from "@/data/homeContent"
 import { api } from "@/lib/client"
+import {
+  HOME_FEED_KEYS,
+  HOME_FEED_TTL_MS,
+  readHomeFeedCache,
+  readHomeFeedCacheStale,
+  writeHomeFeedCache,
+} from "@/lib/homeFeedCache"
 
 type Voice = { id: string; quote: string; name: string }
 
@@ -37,7 +44,7 @@ function mergeLiveVoices(
 }
 
 export function CommunityVoicesTicker() {
-  const [voices, setVoices] = useState<Voice[]>([])
+  const [voices, setVoices] = useState<Voice[]>(communityVoices)
   const [trackWidth, setTrackWidth] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(0)
   const offset = useRef(new Animated.Value(0)).current
@@ -46,10 +53,29 @@ export function CommunityVoicesTicker() {
   useFocusEffect(
     useCallback(() => {
       let active = true
-      void api.fetchTestimonials(20).then((rows) => {
-        if (!active) return
-        setVoices(mergeLiveVoices(rows))
-      })
+      void (async () => {
+        const fresh = await readHomeFeedCache<Voice[]>(
+          HOME_FEED_KEYS.testimonials,
+          HOME_FEED_TTL_MS.testimonials,
+        )
+        if (fresh?.length) {
+          if (active) setVoices(fresh)
+          return
+        }
+
+        const stale = await readHomeFeedCacheStale<Voice[]>(HOME_FEED_KEYS.testimonials)
+        if (active && stale?.length) setVoices(stale)
+
+        try {
+          const rows = await api.fetchTestimonials(20)
+          if (!active) return
+          const next = mergeLiveVoices(rows)
+          setVoices(next)
+          void writeHomeFeedCache(HOME_FEED_KEYS.testimonials, next)
+        } catch {
+          /* keep cached / seed voices */
+        }
+      })()
       return () => {
         active = false
       }

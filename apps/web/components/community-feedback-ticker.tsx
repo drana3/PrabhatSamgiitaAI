@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
-import { fetchTestimonials } from "@/lib/api"
+import { fetchTestimonials, readCachedTestimonials } from "@/lib/api"
 import type { CommunityTestimonial } from "@/lib/api"
 import { mergeCommunityVoices } from "@/lib/community-voices"
 
@@ -22,25 +22,14 @@ function TickerItem({ item }: { item: CommunityTestimonial }) {
 }
 
 export function CommunityFeedbackTicker() {
-  const [items, setItems] = useState<CommunityTestimonial[]>([])
-
-  const reload = useCallback(() => {
-    void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
-  }, [])
+  const [items, setItems] = useState<CommunityTestimonial[]>(() =>
+    mergeCommunityVoices(readCachedTestimonials()),
+  )
 
   useEffect(() => {
-    reload()
-    const onFocus = () => reload()
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") reload()
-    }
-    window.addEventListener("focus", onFocus)
-    document.addEventListener("visibilitychange", onVisibility)
-    return () => {
-      window.removeEventListener("focus", onFocus)
-      document.removeEventListener("visibilitychange", onVisibility)
-    }
-  }, [reload])
+    // Cache-first paint; one background DB sync — not on every focus/tab switch.
+    void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
+  }, [])
 
   const track = useMemo(() => (items.length ? [...items, ...items] : []), [items])
 

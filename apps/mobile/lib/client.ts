@@ -27,8 +27,14 @@ export const api = createApiClient({
   baseUrl: apiBaseUrl,
   getAuthHeaders: (): Record<string, string> => {
     const { mode, email, displayName, memberId, identityProvider } = useAuthStore.getState()
-    if (mode !== "signed_in" || !email) return {}
-    return buildMemberAuthHeaders(email, displayName, memberId, identityProvider || "aad")
+    // Member sync must work with OID alone — Microsoft sometimes omits email claims.
+    if (mode !== "signed_in" || (!email && !memberId)) return {}
+    return buildMemberAuthHeaders(
+      email ?? "",
+      displayName || email || "Member",
+      memberId,
+      identityProvider || "aad",
+    )
   },
 })
 

@@ -2,28 +2,42 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
-import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
-import { InstantSearchSuggestions } from "@/components/instant-search-suggestions"
-import { VoiceSearchButton } from "@/components/voice-search-button"
 import { SEARCH_PLACEHOLDER } from "@prabhat/core"
 
+import { InstantSearchSuggestions } from "@/components/instant-search-suggestions"
+import { useMember } from "@/components/member-provider"
+import { VoiceSearchButton } from "@/components/voice-search-button"
+import { writeFeelingSearchEnabled } from "@/lib/feeling-search"
+import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
+import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
+import { signInHref } from "@/lib/sign-in"
+
+const FEELING_EXAMPLE_QUERY = "peaceful devotion"
+
 const searchExamples = [
-  { label: "By number", query: "111", description: "Open a song directly" },
-  { label: "By words", query: "bandhu he niye calo", description: "Search remembered lyrics" },
+  { label: "By number", query: "111", description: "Open a song directly", mode: "catalog" as const },
+  {
+    label: "By words",
+    query: "bandhu he niye calo",
+    description: "Search remembered lyrics",
+    mode: "catalog" as const,
+  },
   {
     label: "By feeling",
-    query: "peaceful devotion",
-    description: "Find songs by theme or mood",
+    query: FEELING_EXAMPLE_QUERY,
+    description: "Find songs by mood with Feeling search",
+    mode: "feeling" as const,
   },
 ] as const
 
 export function HeroSearch() {
   const [query, setQuery] = useState("")
   const router = useRouter()
+  const { session } = useMember()
+  const signedIn = session.authenticated
   const [guidance, setGuidance] = useState("")
 
-  function search(value: string) {
+  function search(value: string, mode: "catalog" | "feeling" = "catalog") {
     const normalized = value.trim()
     if (!queryIsUseful(normalized, 200)) {
       setGuidance(queryGuidanceFor(value))
@@ -35,6 +49,18 @@ export function HeroSearch() {
       router.push(songIntentPath(songIntent))
       return
     }
+
+    if (mode === "feeling") {
+      const exploreFeeling = `/explore?q=${encodeURIComponent(normalized)}&kind=semantic`
+      if (!signedIn) {
+        router.push(signInHref(exploreFeeling))
+        return
+      }
+      writeFeelingSearchEnabled(true)
+      router.push(exploreFeeling)
+      return
+    }
+
     router.push(`/explore?q=${encodeURIComponent(normalized)}`)
   }
 
@@ -79,25 +105,41 @@ export function HeroSearch() {
         </button>
         {guidance ? <span className="sr-only" role="alert">{guidance}</span> : null}
       </form>
-      <InstantSearchSuggestions query={query} id="hero-search-suggestions" />
+      <div className="relative z-20">
+        <InstantSearchSuggestions query={query} id="hero-search-suggestions" />
+      </div>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Search examples">
-        {searchExamples.map((example) => (
-          <button
-            key={example.label}
-            type="button"
-            data-feature={`hero_search_${example.label.toLowerCase().replace(/\s+/g, "_")}`}
-            aria-label={`${example.label}: ${example.description}`}
-            onClick={() => {
-              setQuery(example.query)
-              search(example.query)
-            }}
-            className="rounded-full border border-navy-900/10 bg-white/90 px-3.5 py-1.5 text-xs font-semibold text-navy-900 shadow-sm transition hover:border-gold-500 hover:bg-gold-50"
-          >
-            {example.label}
-            <span className="ml-1.5 font-normal text-stone-600">· {example.query}</span>
-          </button>
-        ))}
+        {searchExamples.map((example) => {
+          const feelingLocked = example.mode === "feeling" && !signedIn
+          return (
+            <button
+              key={example.label}
+              type="button"
+              data-feature={`hero_search_${example.label.toLowerCase().replace(/\s+/g, "_")}`}
+              aria-label={
+                feelingLocked
+                  ? `${example.label}: Sign in to use Feeling search`
+                  : `${example.label}: ${example.description}`
+              }
+              onClick={() => {
+                setQuery(example.query)
+                search(example.query, example.mode)
+              }}
+              className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-sm transition ${
+                feelingLocked
+                  ? "border-navy-900/10 bg-white/70 text-navy-900/70 hover:border-gold-500 hover:bg-gold-50"
+                  : "border-navy-900/10 bg-white/90 text-navy-900 hover:border-gold-500 hover:bg-gold-50"
+              }`}
+            >
+              {example.label}
+              <span className="ml-1.5 font-normal text-stone-600">· {example.query}</span>
+              {feelingLocked ? (
+                <span className="ml-1.5 font-semibold text-gold-700">· Sign in</span>
+              ) : null}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

@@ -61,6 +61,11 @@ jobs:
             artifact_name: prabhat-samgiita-ai-android-preview
             output_file: prabhat-samgiita-ai-preview.apk
           - platform: ios
+            profile: preview-ios
+            label: iOS IPA
+            artifact_name: prabhat-samgiita-ai-ios-preview
+            output_file: prabhat-samgiita-ai-preview.ipa
+          - platform: ios
             profile: preview-ios-simulator
             label: iOS Simulator
             artifact_name: prabhat-samgiita-ai-ios-simulator
@@ -191,6 +196,9 @@ jobs:
             echo "### Android (real devices, no Play Store fee)"
             echo "Download **prabhat-samgiita-ai-android-preview** from this workflow run."
             echo "Share the \`.apk\` via Drive/WhatsApp/USB. Users enable *Install unknown apps* once."
+            echo ""
+            echo "### iOS on a real iPhone (IPA)"
+            echo "Download **prabhat-samgiita-ai-ios-preview** (\`.ipa\`) and install from the EAS / TestFlight internal link."
             echo ""
             echo "### iOS Simulator (Mac developers / QA)"
             echo "Download **prabhat-samgiita-ai-ios-simulator** (\`.tar.gz\`)."

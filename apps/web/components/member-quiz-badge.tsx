@@ -4,15 +4,23 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 
 import { useMember } from "@/components/member-provider"
-import { fetchQuizStatus, type QuizCertification } from "@/lib/quiz"
+import { fetchQuizStatus, readCachedQuizStatus, type QuizCertification } from "@/lib/quiz"
 
 export function MemberQuizBadge() {
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
   const { session } = useMember()
-  const [certifications, setCertifications] = useState<QuizCertification[]>([])
+  const [certifications, setCertifications] = useState<QuizCertification[]>(() => {
+    if (typeof window === "undefined") return []
+    return readCachedQuizStatus()?.certifications ?? []
+  })
 
   useEffect(() => {
-    if (!session.authenticated) return
+    if (!session.authenticated) {
+      setCertifications([])
+      return
+    }
+    const cached = readCachedQuizStatus()?.certifications
+    if (cached?.length) setCertifications(cached)
     void fetchQuizStatus().then((status) => {
       if (status) setCertifications(status.certifications)
     })

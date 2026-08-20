@@ -50,8 +50,9 @@ export function feelingBrowseId(query: string): FeelingMoodId | null {
 
 /**
  * One search stack for web and iOS.
- * Numbers / collections / lyrics stay local. Feeling sentences use a local mood
- * list unless the signed-in member turned Feeling search on (embeddings).
+ * Numbers / collections stay local. When Feeling search is on, free text skips
+ * suggestion lists and hits embeddings. Otherwise lyrics stay local and feeling
+ * sentences use a local mood list.
  */
 export function planSearch(query: string, auth: SearchAuth = DEFAULT_AUTH): SearchPlan {
   const trimmed = query.trim()
@@ -60,10 +61,10 @@ export function planSearch(query: string, auth: SearchAuth = DEFAULT_AUTH): Sear
   if (/^search prabhat samgiita for\s+/i.test(trimmed)) {
     return { layer: "collection", networkMode: null }
   }
+  if (feelingSearchAllowed(auth)) {
+    return { layer: "semantic", networkMode: "semantic" }
+  }
   if (isNaturalLanguageSearch(trimmed)) {
-    if (feelingSearchAllowed(auth)) {
-      return { layer: "semantic", networkMode: "semantic" }
-    }
     return {
       layer: "mood",
       moodId: feelingBrowseId(trimmed) ?? "peace",

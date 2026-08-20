@@ -12,7 +12,9 @@ export function FeelingSearchToggle({ compact = false }: { compact?: boolean }) 
   const signedIn = session.authenticated
   const router = useRouter()
   const pathname = usePathname()
-  const [enabled, setEnabled] = useState(false)
+  const [enabled, setEnabled] = useState(() =>
+    typeof window === "undefined" ? false : readFeelingSearchEnabled(),
+  )
 
   useEffect(() => {
     setEnabled(readFeelingSearchEnabled())
@@ -45,7 +47,7 @@ export function FeelingSearchToggle({ compact = false }: { compact?: boolean }) 
         <p className="text-sm font-semibold text-navy-950">Feeling search</p>
         <p className="mt-0.5 text-xs leading-5 text-stone-600">
           {signedIn
-            ? "When on, mood and sentiment go through meaning search. Lyrics stay local."
+            ? "When on, free text uses meaning search (no lyric suggestions). Turn off for song numbers and lyrics."
             : "Sign in to search songs by feeling."}
         </p>
       </div>

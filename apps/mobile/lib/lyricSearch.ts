@@ -2,8 +2,10 @@ import {
   confidentLyricHits,
   interpretLyricHits,
   isCatalogNumberQuery,
+  mergeLyricAndMeaningHits,
   normalizeLyricText,
   searchLyrics,
+  searchMeanings,
   stripCatalogSearchFraming,
   type LyricSearchHit,
   type LyricSearchRow,
@@ -84,13 +86,22 @@ export function searchCatalogLyrics(
 ): LyricSearchHit[] {
   const rows = loadCatalogRows()
   if (!rows.length) return []
-  const pick = (value: string) => {
+  const pickLyrics = (value: string) => {
     const hits = searchLyrics(value, rows, limit)
     return options?.interpret ? interpretLyricHits(hits) : confidentLyricHits(hits)
   }
-  const primary = pick(query)
-  if (primary.length) return primary
+  const pickMeanings = (value: string) => {
+    const hits = searchMeanings(value, rows, limit)
+    return options?.interpret ? interpretLyricHits(hits) : hits.filter((hit) => hit.score >= 30)
+  }
+  const primary = pickLyrics(query)
+  const meaningPrimary = pickMeanings(query)
+  if (primary.length || meaningPrimary.length) {
+    return mergeLyricAndMeaningHits(primary, meaningPrimary, limit)
+  }
   const stripped = stripCatalogSearchFraming(query)
-  if (stripped && stripped !== normalizeLyricText(query)) return pick(stripped)
+  if (stripped && stripped !== normalizeLyricText(query)) {
+    return mergeLyricAndMeaningHits(pickLyrics(stripped), pickMeanings(stripped), limit)
+  }
   return []
 }

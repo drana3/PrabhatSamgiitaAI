@@ -1,5 +1,12 @@
 import { z } from "zod"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
+import {
+  HOME_CACHE_KEYS,
+  HOME_CACHE_TTL,
+  readHomeCache,
+  readHomeCacheStale,
+  writeHomeCache,
+} from "@/lib/home-cache"
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
 const requestTimeoutMs = 15000
@@ -224,6 +231,8 @@ async function fetchSearchJson(path: string, init: RequestInit, feelingSearch = 
   try {
     return await fetch(url, {
       ...init,
+      // Feeling search is member-gated; cookies/principal must reach /api/search.
+      credentials: feelingSearch ? "same-origin" : init.credentials,
       signal: controller.signal,
       cache: "no-store",
     })
@@ -377,10 +386,27 @@ export async function fetchTodayReflection(): Promise<ReflectionQuote | null> {
 }
 
 export async function fetchTestimonials(limit = 20): Promise<CommunityTestimonial[]> {
+  const clamped = Math.min(20, Math.max(1, limit))
+  const cacheKey = HOME_CACHE_KEYS.testimonials
+
+  if (typeof window !== "undefined") {
+    const fresh = readHomeCache<CommunityTestimonial[]>(cacheKey, HOME_CACHE_TTL.testimonials)
+    if (fresh?.length) return fresh
+    const stale = readHomeCacheStale<CommunityTestimonial[]>(cacheKey)
+    if (stale?.length) {
+      void refreshTestimonials(clamped, cacheKey)
+      return stale
+    }
+  }
+
+  return refreshTestimonials(clamped, cacheKey)
+}
+
+async function refreshTestimonials(
+  clamped: number,
+  cacheKey: string,
+): Promise<CommunityTestimonial[]> {
   try {
-    const clamped = Math.min(20, Math.max(1, limit))
-    // Browser: same-origin Next proxy (works on custom domains without API CORS).
-    // Server: call the API directly.
     const path =
       typeof window !== "undefined"
         ? `/api/testimonials?limit=${clamped}`
@@ -389,11 +415,24 @@ export async function fetchTestimonials(limit = 20): Promise<CommunityTestimonia
       typeof window !== "undefined"
         ? await fetch(path, { cache: "no-store" })
         : await fetchJson(path)
-    if (!response.ok) return []
-    return z.array(testimonialSchema).parse(await response.json())
+    if (!response.ok) {
+      return typeof window !== "undefined"
+        ? readHomeCacheStale<CommunityTestimonial[]>(cacheKey) ?? []
+        : []
+    }
+    const rows = z.array(testimonialSchema).parse(await response.json())
+    if (typeof window !== "undefined") writeHomeCache(cacheKey, rows)
+    return rows
   } catch {
-    return []
+    return typeof window !== "undefined"
+      ? readHomeCacheStale<CommunityTestimonial[]>(cacheKey) ?? []
+      : []
   }
+}
+
+export function readCachedTestimonials(): CommunityTestimonial[] {
+  if (typeof window === "undefined") return []
+  return readHomeCacheStale<CommunityTestimonial[]>(HOME_CACHE_KEYS.testimonials) ?? []
 }
 
 export async function fetchStories(options: { songNumber?: number; limit?: number } = {}): Promise<InspirationStory[]> {

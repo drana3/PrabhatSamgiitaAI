@@ -20,7 +20,7 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 import { friendlyPersonName } from "@/lib/displayName"
-import { memberAuthAvailable, memberSyncUnavailableCopy } from "@/lib/memberAuth"
+import { memberAuthAvailable, memberSyncFailedCopy, memberSyncUnavailableCopy } from "@/lib/memberAuth"
 import type { QuizStatus } from "@/lib/quiz"
 import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
@@ -72,9 +72,29 @@ export default function ProfileScreen() {
   const hydrateFavoritesFromServer = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const [certCount, setCertCount] = useState<number | null>(null)
+  const [syncBusy, setSyncBusy] = useState(false)
   const getAccountId = useChatStore((s) => s.getAccountId)
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
   const accountId = getAccountId(mode, email)
+
+  const retryMemberSync = useCallback(async () => {
+    if (!memberAuthAvailable()) {
+      Alert.alert("Member sync unavailable", memberSyncUnavailableCopy())
+      return
+    }
+    setSyncBusy(true)
+    try {
+      const result = await refreshMemberSession()
+      await hydrateFavoritesFromServer()
+      const status = (await api.fetchQuizStatus()) as QuizStatus | null
+      setCertCount(status?.certifications?.length ?? 0)
+      if (!result.ok || !result.memberBackend) {
+        Alert.alert("Sync incomplete", memberSyncFailedCopy())
+      }
+    } finally {
+      setSyncBusy(false)
+    }
+  }, [hydrateFavoritesFromServer])
 
   useFocusEffect(
     useCallback(() => {
@@ -86,13 +106,8 @@ export default function ProfileScreen() {
         setCertCount(null)
         return
       }
-      void (async () => {
-        await refreshMemberSession()
-        await hydrateFavoritesFromServer()
-        const status = (await api.fetchQuizStatus()) as QuizStatus | null
-        setCertCount(status?.certifications?.length ?? 0)
-      })()
-    }, [mode, hydrateFavoritesFromServer]),
+      void retryMemberSync()
+    }, [mode, retryMemberSync]),
   )
 
   const quizValue =
@@ -134,8 +149,19 @@ export default function ProfileScreen() {
         {mode === "signed_in" && !memberBackend ? (
           <View style={styles.syncWarning}>
             <Text style={styles.syncWarningText}>
-              {memberSyncUnavailableCopy()}
+              {memberAuthAvailable() ? memberSyncFailedCopy() : memberSyncUnavailableCopy()}
             </Text>
+            {memberAuthAvailable() ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retry member sync"
+                onPress={() => void retryMemberSync()}
+                disabled={syncBusy}
+                style={({ pressed }) => [styles.syncRetry, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.syncRetryText}>{syncBusy ? "Syncing…" : "Retry sync"}</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
@@ -321,8 +347,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+    gap: spacing.sm,
   },
   syncWarningText: { ...typography.bodySmall, color: colors.textSecondary },
+  syncRetry: {
+    alignSelf: "flex-start",
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  syncRetryText: { ...typography.caption, color: colors.white, fontWeight: "700" },
   sectionLabel: {
     ...typography.caption,
     color: colors.textMuted,

@@ -290,6 +290,33 @@ const groupDefinitions: GroupDefinition[] = [
   },
 ]
 
+function songNumbersForRef(ref: CollectionRef): number[] {
+  if ("canonicalLabel" in ref) {
+    return [...(canonicalByLabel.get(ref.canonicalLabel)?.song_numbers ?? [])]
+  }
+  const numbers = new Set<number>()
+  for (const label of ref.sourceLabels) {
+    for (const number of canonicalByLabel.get(label)?.song_numbers ?? []) {
+      numbers.add(number)
+    }
+  }
+  return [...numbers].sort((a, b) => a - b)
+}
+
+export function collectionPrompt(label: string) {
+  return `Search Prabhat Samgiita for ${label}`
+}
+
+const songNumbersByCollectionPrompt = new Map<string, number[]>()
+for (const group of groupDefinitions) {
+  for (const ref of group.collections) {
+    const collection = resolveCollection(ref)
+    const numbers = songNumbersForRef(ref)
+    if (!numbers.length) continue
+    songNumbersByCollectionPrompt.set(collectionPrompt(collection.query).toLocaleLowerCase(), numbers)
+  }
+}
+
 export const specialCollectionGroups: SpecialCollectionGroup[] = groupDefinitions.map((group) => ({
   title: group.title,
   description: group.description,
@@ -300,10 +327,6 @@ export const specialCollectionCount = specialCollectionGroups.reduce(
   (total, group) => total + group.collections.length,
   0,
 )
-
-export function collectionPrompt(label: string) {
-  return `Search Prabhat Samgiita for ${label}`
-}
 
 export function queryMatchesCollection(query: string, collectionQuery: string) {
   return query.trim().toLocaleLowerCase() === collectionPrompt(collectionQuery).toLocaleLowerCase()
@@ -371,6 +394,9 @@ export function isCollectionSearchQuery(query: string) {
 }
 
 export function collectionSongNumbersForKeyword(query: string): number[] | null {
+  const exact = songNumbersByCollectionPrompt.get(query.trim().toLocaleLowerCase())
+  if (exact?.length) return exact
+
   const keys = catalogLookupKeys(query)
   if (!keys.length) return null
 
@@ -379,7 +405,20 @@ export function collectionSongNumbersForKeyword(query: string): number[] | null 
       collectionKeywordAliases[key.replace(/ /g, "")] ?? collectionKeywordAliases[canonicalSearchKey(key)]
     if (!aliasLabel) continue
     const numbers = canonicalByLabel.get(aliasLabel)?.song_numbers
-    if (numbers?.length) return numbers
+    if (numbers?.length) return [...numbers]
+  }
+
+  for (const key of keys) {
+    const folded = foldCollectionKeyword(key)
+    if (!folded) continue
+    for (const row of canonicalCollections as CanonicalCollection[]) {
+      const labelKey = foldCollectionKeyword(row.label)
+      const valueKey = foldCollectionKeyword(row.value)
+      const displayKey = foldCollectionKeyword(displayLabelOverrides[row.label] ?? "")
+      if (folded === labelKey || folded === valueKey || (displayKey && folded === displayKey)) {
+        return [...row.song_numbers]
+      }
+    }
   }
 
   let matched: CanonicalCollection | null = null
@@ -390,7 +429,7 @@ export function collectionSongNumbersForKeyword(query: string): number[] | null 
     if (!keys.some((key) => collectionHaystackMatches(key, haystack))) continue
     if (!matched || row.count < matched.count) matched = row
   }
-  return matched?.song_numbers.length ? matched.song_numbers : null
+  return matched?.song_numbers.length ? [...matched.song_numbers] : null
 }
 
 export function collectionSearchDisplayLabel(query: string) {

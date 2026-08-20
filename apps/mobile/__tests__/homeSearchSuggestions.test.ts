@@ -66,4 +66,12 @@ describe("home search suggestions", () => {
   it("suggests a local mood list for feeling sentences", () => {
     expect(homeSearchSuggestions("I am feeling stressful").length).toBeGreaterThan(0)
   })
+
+  it("hides suggestions when Feeling search is on so free text hits semantic", () => {
+    const memberOn = { signedIn: true, feelingSearchEnabled: true }
+    expect(homeSearchSuggestions("bandhu he niye calo", 5, memberOn)).toEqual([])
+    expect(homeSearchSuggestions("I am feeling stressful", 5, memberOn)).toEqual([])
+    expect(homeSearchSuggestions("songs about peace", 5, memberOn)).toEqual([])
+    expect(homeSearchSuggestions("1", 5, memberOn)[0]?.number).toBe(1)
+  })
 })

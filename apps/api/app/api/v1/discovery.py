@@ -79,6 +79,7 @@ router = APIRouter(tags=["discovery"])
 logger = logging.getLogger(__name__)
 ANANDA_MARGA_CALENDAR_URL = "https://india.anandamarga.org/ananda-marga-festivals-imp-days/"
 today_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(ttl_seconds=3600, maxsize=128)
+_home_feed_cache: AsyncTTLCache[object] = AsyncTTLCache(ttl_seconds=120, maxsize=32)
 report_attempts: dict[str, deque[float]] = defaultdict(deque)
 feedback_attempts: dict[str, deque[float]] = defaultdict(deque)
 logger = logging.getLogger(__name__)
@@ -120,8 +121,11 @@ async def list_festivals() -> list[FestivalResponse]:
 async def active_announcements(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ActiveSiteAnnouncementListResponse:
+    cached = await _home_feed_cache.get("announcements")
+    if isinstance(cached, dict) and "items" in cached:
+        return ActiveSiteAnnouncementListResponse.model_validate(cached)
     rows = await list_active_announcements(session)
-    return ActiveSiteAnnouncementListResponse(
+    payload = ActiveSiteAnnouncementListResponse(
         items=[
             ActiveSiteAnnouncementItem(
                 id=str(row.id),
@@ -134,6 +138,8 @@ async def active_announcements(
             for row in rows
         ]
     )
+    await _home_feed_cache.set("announcements", payload.model_dump(mode="json"))
+    return payload
 
 
 @router.get("/reflections/today", response_model=ReflectionQuoteResponse)
@@ -168,13 +174,17 @@ async def approved_testimonials(
     session: Annotated[AsyncSession, Depends(get_session)],
     limit: int = Query(default=8, ge=1, le=20),
 ) -> list[CommunityTestimonialResponse]:
+    cache_key = f"testimonials:{limit}"
+    cached = await _home_feed_cache.get(cache_key)
+    if isinstance(cached, list):
+        return [CommunityTestimonialResponse.model_validate(item) for item in cached]
     result = await session.execute(
         select(CommunityTestimonial)
         .where(CommunityTestimonial.status == "approved")
         .order_by(CommunityTestimonial.approved_at.desc())
         .limit(limit)
     )
-    return [
+    rows = [
         CommunityTestimonialResponse(
             quote_text=item.quote_text,
             display_name=item.display_name,
@@ -183,6 +193,8 @@ async def approved_testimonials(
         )
         for item in result.scalars()
     ]
+    await _home_feed_cache.set(cache_key, [row.model_dump(mode="json") for row in rows])
+    return rows
 
 
 def _story_response(story: InspirationStory) -> InspirationStoryResponse:

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 
-import { fetchQuizWinners, type QuizWinnersGroup } from "@/lib/quiz-events"
+import { fetchQuizWinners, readCachedQuizWinners, type QuizWinnersGroup } from "@/lib/quiz-events"
 
 export function QuizWinnersSection() {
-  const [groups, setGroups] = useState<QuizWinnersGroup[]>([])
+  const [groups, setGroups] = useState<QuizWinnersGroup[]>(() => readCachedQuizWinners())
 
   useEffect(() => {
     void fetchQuizWinners().then(setGroups)

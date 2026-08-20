@@ -3,10 +3,13 @@ import {
   interpretLyricHits,
   isCatalogNumberQuery,
   isLyricCatalogQuery,
+  isMeaningCatalogQuery,
   isNaturalLanguageSearch,
+  mergeLyricAndMeaningHits,
   normalizeLyricText,
   planSearch,
   searchLyrics,
+  searchMeanings,
   stripCatalogSearchFraming,
   type FeelingMoodId,
   type LyricSearchHit,
@@ -58,14 +61,23 @@ export function searchCatalogLyrics(
   options?: { interpret?: boolean },
 ): LyricSearchHit[] {
   if (!rows.length) return []
-  const pick = (value: string) => {
+  const pickLyrics = (value: string) => {
     const hits = searchLyrics(value, rows, limit)
     return options?.interpret ? interpretLyricHits(hits) : confidentLyricHits(hits)
   }
-  const primary = pick(query)
-  if (primary.length) return primary
+  const pickMeanings = (value: string) => {
+    const hits = searchMeanings(value, rows, limit)
+    return options?.interpret ? interpretLyricHits(hits) : hits.filter((hit) => hit.score >= 30)
+  }
+  const primary = pickLyrics(query)
+  const meaningPrimary = pickMeanings(query)
+  if (primary.length || meaningPrimary.length) {
+    return mergeLyricAndMeaningHits(primary, meaningPrimary, limit)
+  }
   const stripped = stripCatalogSearchFraming(query)
-  if (stripped && stripped !== normalizeLyricText(query)) return pick(stripped)
+  if (stripped && stripped !== normalizeLyricText(query)) {
+    return mergeLyricAndMeaningHits(pickLyrics(stripped), pickMeanings(stripped), limit)
+  }
   return []
 }
 
@@ -110,16 +122,13 @@ export function shouldSearchCatalogLyrics(query: string, _kind?: ExploreSearchKi
   if (isCompleteSargamQuery(trimmed)) return false
   if (THEME_CHIP_MOOD[trimmed.toLowerCase().replace(/\s+/g, " ")]) return false
   if (isNaturalLanguageSearch(trimmed)) return false
-  return isLyricCatalogQuery(trimmed)
+  return isLyricCatalogQuery(trimmed) || isMeaningCatalogQuery(trimmed)
 }
 
 function songsFromCollection(query: string): SongSummary[] | null {
   const collectionNumbers = collectionSongNumbersForKeyword(query)
   if (!collectionNumbers?.length) return null
-  return collectionNumbers.slice(0, 5).flatMap((number) => {
-    const row = rowsByNumber.get(number)
-    return row ? [rowToSong(row)] : []
-  })
+  return songsByNumbers(collectionNumbers)
 }
 
 const DEFAULT_AUTH: SearchAuth = { signedIn: false, feelingSearchEnabled: false }
@@ -139,22 +148,29 @@ export function instantExploreSongs(
   if (numbered) return [numbered]
   if (isCatalogNumberQuery(trimmed)) return []
 
+  const plan = planSearch(trimmed, auth)
+  if (plan.layer === "semantic") return null
+  if (plan.layer === "collection") {
+    const collection = songsFromCollection(trimmed)
+    if (collection !== null) return collection
+    return []
+  }
+
   const chipId = THEME_CHIP_MOOD[trimmed.toLowerCase().replace(/\s+/g, " ")]
   if (chipId) {
     const chipSongs = songsFromMoodList(chipId)
     return chipSongs.length ? chipSongs : []
   }
 
-  const plan = planSearch(trimmed, auth)
   if (plan.layer === "mood" && plan.moodId) {
     const moodSongs = songsFromMoodList(plan.moodId)
     return moodSongs.length ? moodSongs : []
   }
-  if (plan.layer === "semantic") return null
 
   const collection = songsFromCollection(trimmed)
-  if (collection?.length) return collection
+  if (collection !== null) return collection
   const hits = searchCatalogLyrics(trimmed, 5, { interpret: true })
   if (hits.length) return lyricHitsToSongs(hits)
-  return []
+  // null = fall through to network (catalog or Feeling search), not a hard empty.
+  return null
 }

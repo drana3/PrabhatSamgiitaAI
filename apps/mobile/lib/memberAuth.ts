@@ -29,6 +29,10 @@ export function memberSyncUnavailableCopy() {
   return "Saved songs, quiz certificates, and admin status from the website are not synced in this build yet. Install the latest app update from the team."
 }
 
+export function memberSyncFailedCopy() {
+  return "Could not sync with your website account yet. Check your connection, then tap Retry sync."
+}
+
 export function buildMemberAuthHeaders(
   email: string,
   displayName: string,

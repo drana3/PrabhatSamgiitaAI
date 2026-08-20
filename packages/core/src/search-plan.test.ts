@@ -34,7 +34,7 @@ describe("planSearch", () => {
     expect(searchNetworkMode("I am feeling very stressful today", guest)).toBe("catalog")
   })
 
-  it("sends embeddings only when a signed-in member enabled Feeling search", () => {
+  it("sends free text to embeddings when a signed-in member enabled Feeling search", () => {
     expect(feelingSearchAllowed(guest)).toBe(false)
     expect(feelingSearchAllowed(memberOn)).toBe(true)
     expect(planSearch("I am feeling very stressful today", memberOn)).toEqual({
@@ -42,6 +42,14 @@ describe("planSearch", () => {
       networkMode: "semantic",
     })
     expect(searchNetworkMode("I am feeling very stressful today", memberOn)).toBe("semantic")
-    expect(planSearch("humdardi", memberOn).layer).toBe("catalog")
+    expect(planSearch("humdardi", memberOn)).toEqual({
+      layer: "semantic",
+      networkMode: "semantic",
+    })
+    expect(planSearch("songs about peace", memberOn).layer).toBe("semantic")
+    expect(planSearch("274", memberOn).layer).toBe("number")
+    expect(planSearch("Search Prabhat Samgiita for Hindi Songs", memberOn).layer).toBe(
+      "collection",
+    )
   })
 })

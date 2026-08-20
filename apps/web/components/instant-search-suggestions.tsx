@@ -38,7 +38,7 @@ export function InstantSearchSuggestions({
       id={id}
       role="listbox"
       aria-label="Song suggestions"
-      className="mt-2 max-h-72 overflow-auto rounded-2xl border border-navy-900/10 bg-white py-2 shadow-lg"
+      className="absolute left-0 right-0 top-2 z-30 max-h-72 overflow-auto rounded-2xl border border-navy-900/10 bg-white py-2 shadow-lg"
     >
       {songs.map((song) => (
         <li key={song.number} role="option" aria-selected="false">

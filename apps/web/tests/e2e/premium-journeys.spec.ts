@@ -530,6 +530,7 @@ test("search renders verified results and a deliberate no-match state", async ({
   await expect(page).toHaveURL(/q=unmatched(\+|%20)theme.*kind=catalog/)
   await expect(page.getByRole("heading", { name: "No songs matched your search criteria" })).toBeVisible()
   await expect(page.getByText(/Try a song number, opening words/i)).toBeVisible()
+  await expect(page.getByRole("button", { name: /Sign in for Feeling search/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Recommended songs to explore" })).toBeVisible()
   await expect(page.getByText("These are suggestions, not matches for your search.")).toBeVisible()
 })

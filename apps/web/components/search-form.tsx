@@ -93,23 +93,25 @@ export function SearchForm({
     mutation.mutate({ query: trimmed })
   }
 
+  // Only sync from parent when a committed search changes (URL, chip, submit).
+  // Do not echo keystrokes back through initialQuery — that resets the input mid-type.
   useEffect(() => {
+    if (form.getValues("query") === initialQuery) return
     form.reset({ query: initialQuery })
-    onQueryChange?.(initialQuery)
-  }, [initialQuery, form, onQueryChange])
+  }, [initialQuery, form])
 
   const typedQuery = form.watch("query")
 
   return (
     <form
       id="catalog-search"
-      className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-3 shadow-sm"
+      className="relative scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-3 shadow-sm"
       onSubmit={form.handleSubmit(submit)}
     >
       <label className="mb-2 block text-xs font-bold text-navy-950" htmlFor="query">
         Search by number, lyrics, or a feeling
       </label>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+      <div className="relative flex flex-col gap-2 sm:flex-row sm:items-stretch">
         <input
           id="query"
           {...form.register("query", {
@@ -119,6 +121,7 @@ export function SearchForm({
           className="min-h-12 min-w-0 flex-1 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-navy-950 outline-none transition placeholder:text-stone-400 focus:border-gold-500"
           aria-autocomplete="list"
           aria-controls="explore-search-suggestions"
+          autoComplete="off"
         />
         <VoiceSearchButton onTranscript={({ transcript, language }) => {
           form.setValue("query", transcript, { shouldValidate: true })
@@ -140,7 +143,9 @@ export function SearchForm({
           {mutation.isPending || isSearching ? <LoadingIndicator label="Searching" compact /> : "Search"}
         </button>
       </div>
-      <InstantSearchSuggestions query={typedQuery} id="explore-search-suggestions" />
+      <div className="relative z-20">
+        <InstantSearchSuggestions query={typedQuery} id="explore-search-suggestions" />
+      </div>
       <FeelingSearchToggle compact />
       <div className="min-h-5 pt-1">
         {form.formState.errors.query ? (

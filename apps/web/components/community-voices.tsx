@@ -3,27 +3,26 @@
 import Image from "next/image"
 import { useEffect, useState } from "react"
 
-import { fetchTestimonials } from "@/lib/api"
+import { fetchTestimonials, readCachedTestimonials } from "@/lib/api"
 import type { CommunityTestimonial } from "@/lib/api"
 import { mergeCommunityVoices } from "@/lib/community-voices"
 
 export function CommunityVoices() {
-  const [items, setItems] = useState<CommunityTestimonial[]>([])
+  const [items, setItems] = useState<CommunityTestimonial[]>(() =>
+    mergeCommunityVoices(readCachedTestimonials()),
+  )
   const [active, setActive] = useState(0)
+
   useEffect(() => {
-    const reload = () => {
-      void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
-    }
-    reload()
-    const onFocus = () => reload()
-    window.addEventListener("focus", onFocus)
-    return () => window.removeEventListener("focus", onFocus)
+    void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
   }, [])
+
   useEffect(() => {
     if (items.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
     const timer = window.setInterval(() => setActive((value) => (value + 1) % items.length), 8000)
     return () => window.clearInterval(timer)
   }, [items.length])
+
   if (!items.length) return null
   const item = items[active]
   return (

@@ -1,3 +1,12 @@
+import {
+  HOME_CACHE_KEYS,
+  HOME_CACHE_TTL,
+  clearHomeCache,
+  readHomeCache,
+  readHomeCacheStale,
+  writeHomeCache,
+} from "@/lib/home-cache"
+
 export type QuizLevel = "starter" | "intermediate" | "experienced"
 
 export type QuizCertification = {
@@ -53,10 +62,49 @@ export type QuizSubmitResult = {
   newly_earned: boolean
 }
 
-export async function fetchQuizStatus(): Promise<QuizStatus | null> {
-  const response = await fetch("/api/member/quiz/status", { credentials: "same-origin", cache: "no-store" })
-  if (!response.ok) return null
-  return await response.json() as QuizStatus
+function quizStatusCacheKey(memberKey = "self") {
+  return HOME_CACHE_KEYS.quizStatus(memberKey)
+}
+
+/** Instant paint from cache (may be slightly stale). */
+export function readCachedQuizStatus(memberKey = "self"): QuizStatus | null {
+  return (
+    readHomeCache<QuizStatus>(quizStatusCacheKey(memberKey), HOME_CACHE_TTL.quizStatus) ??
+    readHomeCacheStale<QuizStatus>(quizStatusCacheKey(memberKey))
+  )
+}
+
+export async function fetchQuizStatus(options?: {
+  memberKey?: string
+  bypassCache?: boolean
+}): Promise<QuizStatus | null> {
+  const memberKey = options?.memberKey ?? "self"
+  const cacheKey = quizStatusCacheKey(memberKey)
+  if (!options?.bypassCache) {
+    const fresh = readHomeCache<QuizStatus>(cacheKey, HOME_CACHE_TTL.quizStatus)
+    if (fresh) return fresh
+    const stale = readHomeCacheStale<QuizStatus>(cacheKey)
+    if (stale) {
+      void refreshQuizStatus(cacheKey)
+      return stale
+    }
+  }
+  return refreshQuizStatus(cacheKey)
+}
+
+async function refreshQuizStatus(cacheKey: string): Promise<QuizStatus | null> {
+  try {
+    const response = await fetch("/api/member/quiz/status", {
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+    if (!response.ok) return readHomeCacheStale<QuizStatus>(cacheKey)
+    const status = (await response.json()) as QuizStatus
+    writeHomeCache(cacheKey, status)
+    return status
+  } catch {
+    return readHomeCacheStale<QuizStatus>(cacheKey)
+  }
 }
 
 export async function startQuiz(level: QuizLevel): Promise<QuizStart | null> {
@@ -67,7 +115,7 @@ export async function startQuiz(level: QuizLevel): Promise<QuizStart | null> {
     body: JSON.stringify({ level }),
   })
   if (!response.ok) return null
-  return await response.json() as QuizStart
+  return (await response.json()) as QuizStart
 }
 
 export async function submitQuiz(payload: {
@@ -81,7 +129,9 @@ export async function submitQuiz(payload: {
     body: JSON.stringify(payload),
   })
   if (!response.ok) return null
-  return await response.json() as QuizSubmitResult
+  const result = (await response.json()) as QuizSubmitResult
+  clearHomeCache(quizStatusCacheKey())
+  return result
 }
 
 export const QUIZ_LEVEL_COPY: Record<QuizLevel, { title: string; description: string }> = {

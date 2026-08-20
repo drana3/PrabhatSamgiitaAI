@@ -31,7 +31,9 @@ describe("explore search prefetch", () => {
 
   it("respects explicit explore search kind only when Feeling search is allowed", () => {
     expect(resolveExploreSearchKind("bandhu he niye calo")).toBe("catalog")
+    // Guests / Feeling search off: URL kind=semantic must not force embeddings.
     expect(resolveExploreSearchKind("morning meditation", "semantic")).toBe("catalog")
+    expect(resolveExploreSearchKind("unmatched theme", "semantic")).toBe("catalog")
   })
 
   it("treats missing env as prefetch enabled", () => {

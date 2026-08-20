@@ -34,18 +34,17 @@ describe("resolveSearchMode", () => {
     expect(resolveSearchMode("krishna")).toBe("catalog")
   })
 
-  it("uses embeddings only when Feeling search is enabled for a signed-in member", () => {
+  it("sends free text to embeddings when Feeling search is enabled for a signed-in member", () => {
     expect(resolveSearchMode("songs for peace of mind")).toBe("catalog")
     expect(resolveSearchMode("song about rain in monsoons")).toBe("catalog")
     expect(resolveSearchMode("morning meditation")).toBe("catalog")
     expect(resolveSearchMode("i am feeling stressful")).toBe("catalog")
     expect(resolveSearchMode("What should I sing at dawn?")).toBe("catalog")
-    expect(
-      resolveSearchMode("I am feeling very stressful today", {
-        signedIn: true,
-        feelingSearchEnabled: true,
-      }),
-    ).toBe("semantic")
+    const memberOn = { signedIn: true, feelingSearchEnabled: true }
+    expect(resolveSearchMode("I am feeling very stressful today", memberOn)).toBe("semantic")
+    expect(resolveSearchMode("songs about peace", memberOn)).toBe("semantic")
+    expect(resolveSearchMode("humdardi", memberOn)).toBe("semantic")
+    expect(resolveSearchMode("274", memberOn)).toBe("catalog")
   })
 
   it("maps feeling sentences to a local mood list", () => {

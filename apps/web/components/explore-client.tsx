@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 
 import { planSearch } from "@prabhat/core"
 
@@ -12,7 +13,7 @@ import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
 import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
-import { useSearchAuth } from "@/lib/feeling-search"
+import { useSearchAuth, writeFeelingSearchEnabled } from "@/lib/feeling-search"
 import {
   instantExploreSongs,
   lyricHitsToSongs,
@@ -20,6 +21,7 @@ import {
   shouldSearchCatalogLyrics,
 } from "@/lib/lyric-search"
 import { scrollToSectionId } from "@/lib/scroll-to-section"
+import { signInHref } from "@/lib/sign-in"
 import type { ExploreSearchKind } from "@/lib/special-collections"
 import { collectionSearchDisplayLabel, collectionSearchCount, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
 import {
@@ -94,6 +96,8 @@ export function ExploreClient({
   spokenLanguage?: string
 }) {
   const searchAuth = useSearchAuth()
+  const router = useRouter()
+  const pathname = usePathname()
   const pendingInitialSearch = Boolean(initialQuery) && !searchPrefetched
   const instantInitial = initialQuery.trim() ? instantExploreSongs(initialQuery.trim(), searchKind, searchAuth) : null
   const [songs, setSongs] = useState<SongSummary[]>(
@@ -134,6 +138,11 @@ export function ExploreClient({
     const trimmed = query.trim()
     if (!trimmed) return
 
+    const effectiveAuth =
+      kind === "semantic" && searchAuth.signedIn
+        ? { signedIn: true, feelingSearchEnabled: true }
+        : searchAuth
+
     const key = cacheKey(trimmed, kind)
     const cached = searchCache.current.get(key)
     if (cached) {
@@ -151,7 +160,7 @@ export function ExploreClient({
       return
     }
 
-    const instant = instantExploreSongs(trimmed, kind, searchAuth)
+    const instant = instantExploreSongs(trimmed, kind, effectiveAuth)
     if (instant !== null) {
       searchCache.current.set(key, instant)
       beginSearchState(() => {
@@ -168,18 +177,21 @@ export function ExploreClient({
       return
     }
 
-    const plan = planSearch(trimmed, searchAuth)
+    const plan = planSearch(trimmed, effectiveAuth)
     const keepSongs = isCollectionSearchQuery(trimmed)
     const sargam = isCompleteSargamQuery(trimmed)
+    // Honor an explicit semantic kind (e.g. empty-state "Try Feeling search") even
+    // if localStorage auth state has not re-rendered yet.
+    const useSemantic = kind === "semantic" || plan.layer === "semantic"
     const localHits =
-      !sargam && shouldSearchCatalogLyrics(trimmed, kind)
+      !sargam && !useSemantic && shouldSearchCatalogLyrics(trimmed, kind)
         ? searchCatalogLyrics(trimmed, 5, { interpret: true })
         : []
-    const networkMode = plan.layer === "semantic" ? "semantic" as const : "catalog" as const
+    const networkMode = useSemantic ? "semantic" as const : "catalog" as const
     const needsNetwork =
       !sargam &&
       localHits.length === 0 &&
-      (plan.layer === "semantic" || plan.layer === "collection" || plan.layer === "catalog")
+      (useSemantic || plan.layer === "collection" || plan.layer === "catalog")
     beginSearchState(() => {
       setSearching(needsNetwork)
       setActiveQuery(trimmed)
@@ -215,23 +227,29 @@ export function ExploreClient({
     [runSearch],
   )
 
+  // Typing must not update activeQuery — SearchForm uses that as initialQuery and
+  // would reset the input on every keystroke. Suggestions stay in the dropdown;
+  // results update on submit / theme / collection only.
   const handleQueryInput = useCallback((query: string) => {
-    setActiveQuery(query)
-    const trimmed = query.trim()
-    if (!trimmed) {
-      setSearching(false)
-      setSongs(initialSongs)
+    if (query.trim()) return
+    setSearching(false)
+    setSongs(initialSongs)
+    setSearchError(null)
+  }, [initialSongs])
+
+  const tryFeelingSearch = useCallback(() => {
+    const trimmed = activeQuery.trim()
+    if (!trimmed) return
+    if (!searchAuth.signedIn) {
+      router.push(signInHref(pathname))
       return
     }
-    const instant = instantExploreSongs(trimmed, undefined, searchAuth)
-    if (instant?.length) {
-      searchCache.current.set(cacheKey(trimmed, "catalog"), instant)
-      setSongs(instant)
-      setSearching(false)
-      setActiveKind("catalog")
-      setSearchError(null)
-    }
-  }, [initialSongs, searchAuth])
+    writeFeelingSearchEnabled(true)
+    searchCache.current.delete(cacheKey(trimmed, "catalog"))
+    searchCache.current.delete(cacheKey(trimmed, "semantic"))
+    void runSearch(trimmed, "semantic")
+    window.requestAnimationFrame(() => scrollToSearchBar())
+  }, [activeQuery, pathname, router, runSearch, searchAuth.signedIn])
 
   const runVoiceSearch = useCallback(async (query: string) => {
     const trimmed = query.trim()
@@ -331,6 +349,14 @@ export function ExploreClient({
   const collectionTotal = collectionSearchCount(activeQuery)
   const completeSargamSearch = isCompleteSargamQuery(activeQuery)
   const isCollectionResult = collectionTotal !== null && collectionSearch
+  const feelingOn = searchAuth.feelingSearchEnabled
+  const showEmptyFeelingHint =
+    Boolean(activeQuery.trim()) &&
+    !searching &&
+    songs.length === 0 &&
+    !collectionSearch &&
+    !completeSargamSearch &&
+    !feelingOn
 
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
@@ -361,11 +387,32 @@ export function ExploreClient({
           ) : null}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{songs.map((song, index) => <SongCard key={song.number} song={song} index={index} />)}</div>
         </div>
-      ) : (
+      ) : activeQuery.trim() ? (
         <div className="mt-6 space-y-6">
           <div role="status" className="rounded-2xl border border-dashed border-gold-500/40 bg-white p-8 text-center">
             <h3 className="font-serif text-2xl text-navy-950">No songs matched your search criteria</h3>
-            <p className="mt-2 text-sm text-stone-600">Try a song number, opening words, feeling, language, festival, or occasion.</p>
+            <p className="mt-2 text-sm text-stone-600">
+              {feelingOn
+                ? "Try a song number, opening words, or a clearer feeling such as peace, devotion, or joy."
+                : "Try a song number, opening words, language, festival, or occasion."}
+            </p>
+            {showEmptyFeelingHint ? (
+              <div className="mx-auto mt-5 max-w-md space-y-3 rounded-2xl border border-gold-500/30 bg-gold-50 px-5 py-4 text-left">
+                <p className="text-sm font-semibold text-navy-950">Try Feeling search</p>
+                <p className="text-sm text-stone-700">
+                  {searchAuth.signedIn
+                    ? "Turn on Feeling search to look for meaning and mood across all 5,018 songs (for example “peaceful devotion”)."
+                    : "Sign in to unlock Feeling search — meaning and mood search across all 5,018 songs."}
+                </p>
+                <button
+                  type="button"
+                  onClick={tryFeelingSearch}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-navy-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gold-700 sm:w-auto"
+                >
+                  {searchAuth.signedIn ? "Turn on Feeling search" : "Sign in for Feeling search"}
+                </button>
+              </div>
+            ) : null}
           </div>
           {initialSongs.length ? (
             <section aria-labelledby="recommended-after-search-title">
@@ -378,7 +425,7 @@ export function ExploreClient({
             </section>
           ) : null}
         </div>
-      )}
+      ) : null}
       </div>
 
       <div className="mt-8 max-w-4xl">

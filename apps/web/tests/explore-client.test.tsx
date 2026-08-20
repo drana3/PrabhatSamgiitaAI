@@ -149,7 +149,12 @@ describe("ExploreClient prefetch hydration", () => {
       />,
     )
 
-    await user.type(screen.getByLabelText(/Search by number/i), "bandhu he niye calo")
+    const input = screen.getByLabelText(/Search by number/i)
+    await user.type(input, "bandhu he niye calo")
+    expect(input).toHaveValue("bandhu he niye calo")
+    expect(await screen.findByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Search", exact: true }))
     expect(await screen.findByRole("heading", { name: "Bandhu He Niye Calo" })).toBeInTheDocument()
     expect(searchSongs).not.toHaveBeenCalled()
   })
@@ -215,5 +220,25 @@ describe("ExploreClient prefetch hydration", () => {
       )
     })
     expect(await screen.findByRole("heading", { name: /Tomar Katha Bhavi/i })).toBeInTheDocument()
+  })
+
+  it("suggests Feeling search when catalog finds nothing", async () => {
+    searchSongs.mockResolvedValue([])
+    const user = userEvent.setup()
+
+    renderExplore(
+      <ExploreClient
+        initialSongs={[]}
+        initialQuery=""
+        searchKind="catalog"
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/Search by number/i), "peaceful devotion")
+    await user.click(screen.getByRole("button", { name: "Search", exact: true }))
+
+    expect(await screen.findByRole("heading", { name: "No songs matched your search criteria" })).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to unlock Feeling search/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Sign in for Feeling search" })).toBeInTheDocument()
   })
 })

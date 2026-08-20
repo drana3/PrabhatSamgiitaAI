@@ -7,15 +7,46 @@ import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
+import {
+  HOME_FEED_KEYS,
+  HOME_FEED_TTL_MS,
+  readHomeFeedCache,
+  readHomeFeedCacheStale,
+  writeHomeFeedCache,
+} from "@/lib/homeFeedCache"
 import type { QuizWinnersGroup } from "@/lib/quizEvent"
 
 export function QuizWinnersRow() {
   const [groups, setGroups] = useState<QuizWinnersGroup[]>([])
 
   useEffect(() => {
-    void api.fetchQuizWinners().then((value) => {
-      if (Array.isArray(value)) setGroups(value as QuizWinnersGroup[])
-    })
+    let active = true
+    void (async () => {
+      const fresh = await readHomeFeedCache<QuizWinnersGroup[]>(
+        HOME_FEED_KEYS.quizWinners,
+        HOME_FEED_TTL_MS.quizWinners,
+      )
+      if (fresh?.length) {
+        if (active) setGroups(fresh)
+        return
+      }
+
+      const stale = await readHomeFeedCacheStale<QuizWinnersGroup[]>(HOME_FEED_KEYS.quizWinners)
+      if (active && Array.isArray(stale) && stale.length) setGroups(stale)
+
+      try {
+        const value = await api.fetchQuizWinners()
+        if (!active || !Array.isArray(value)) return
+        const next = value as QuizWinnersGroup[]
+        setGroups(next)
+        void writeHomeFeedCache(HOME_FEED_KEYS.quizWinners, next)
+      } catch {
+        /* keep cached winners */
+      }
+    })()
+    return () => {
+      active = false
+    }
   }, [])
 
   if (!groups.length) return null

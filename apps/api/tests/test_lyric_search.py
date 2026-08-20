@@ -27,6 +27,7 @@ def test_searches_all_5018_songs_including_late_catalog_verses() -> None:
 
 
 def test_english_meaning_is_not_used_for_lyric_search() -> None:
+    """English stays out of lyric body; clients use the separate meaning index."""
     hits = search_lyrics("I can no longer bear the pain of darkness in my heart")
     assert 1 not in [hit.number for hit in hits]
 

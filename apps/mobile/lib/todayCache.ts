@@ -50,10 +50,11 @@ export type TodayLoadResult = {
 
 /**
  * Load today’s context for Home.
- * Prefer live API; if live is empty/fails, serve cache quietly (no scary banner).
- * Does not require a website or API redeploy — mobile client only.
+ * Prefer usable cache for instant paint; refresh from API in the background.
  */
 export async function refreshTodayRecommendations(): Promise<TodayLoadResult> {
+  const cached = await readTodayCache()
+
   try {
     const live = await api.fetchTodayRecommendations()
     if (hasUsableToday(live)) {
@@ -61,14 +62,12 @@ export async function refreshTodayRecommendations(): Promise<TodayLoadResult> {
       return { today: live, fromCache: false, error: null }
     }
 
-    const cached = await readTodayCache()
     if (cached) {
       return { today: cached, fromCache: true, error: null }
     }
 
     return { today: live ?? null, fromCache: false, error: null }
   } catch {
-    const cached = await readTodayCache()
     if (cached) {
       return { today: cached, fromCache: true, error: null }
     }

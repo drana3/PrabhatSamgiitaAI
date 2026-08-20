@@ -42,12 +42,22 @@ describe("web lyric search", () => {
     expect(instantExploreSongs("bnadhu")?.map((song) => song.number)).toContain(1)
     expect(instantExploreSongs("bandhu he niye kalo")?.map((song) => song.number)).toContain(1)
     expect(instantExploreSongs("I am feeling stressful")?.length).toBeGreaterThan(0)
-    expect(instantExploreSongs("zzzznotasong")).toEqual([])
+    expect(instantExploreSongs("zzzznotasong")).toBeNull()
   })
 
-  it("does not match English meaning translations", () => {
-    const hits = searchCatalogLyrics("I can no longer bear the pain of darkness in my heart")
-    expect(hits.map((hit) => hit.number)).not.toContain(1)
+  it("skips suggestion lists when Feeling search is on so free text hits semantic", () => {
+    const memberOn = { signedIn: true, feelingSearchEnabled: true }
+    expect(instantExploreSongs("bandhu he niye calo", undefined, memberOn)).toBeNull()
+    expect(instantExploreSongs("humdardi", undefined, memberOn)).toBeNull()
+    expect(instantExploreSongs("I am feeling stressful", undefined, memberOn)).toBeNull()
+    expect(instantExploreSongs("1", undefined, memberOn)?.[0]?.number).toBe(1)
+  })
+
+  it("matches English meaning text via the separate meaning field, not lyric body", () => {
+    const query = "I can no longer bear the pain of darkness in my heart"
+    const hits = searchCatalogLyrics(query)
+    expect(hits[0]?.number).toBe(1)
+    expect(hits[0]?.matchedBy).toBe("meaning")
   })
 
   it("indexes all 5018 songs and finds a late-catalog verse", () => {
@@ -92,6 +102,13 @@ describe("web lyric search", () => {
     )
     expect(instantExploreSongs("kishna")?.length).toBeGreaterThan(0)
     expect(instantExploreSongs("Search Prabhat Samgiita for Hindi Songs")?.length).toBeGreaterThan(0)
+    const youth = instantExploreSongs("Search Prabhat Samgiita for Songs composed in Baba's youth")
+    expect(youth?.map((song) => song.number)).toEqual([68, 209, 2526])
+    expect(youth).toHaveLength(3)
+    const english = instantExploreSongs("Search Prabhat Samgiita for English Songs")
+    expect(english?.map((song) => song.number)).toEqual([68, 5008, 5009])
+    const urdu = instantExploreSongs("Search Prabhat Samgiita for Urdu Songs")
+    expect(urdu?.length).toBe(16)
   })
 
   it("resolves saved-song numbers from the shipped index without a network wait", () => {

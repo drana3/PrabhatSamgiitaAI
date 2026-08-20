@@ -45,17 +45,18 @@ describe("member preview auth", () => {
     expect(oid?.val).toMatch(/^preview:/)
   })
 
-  it("sends a person name claim, not the email address as display name", () => {
+  it("builds member headers with OID when email is empty", () => {
     const headers = buildMemberAuthHeaders(
-      "dewasheesh.rana@gmail.com",
-      "dewasheesh.rana@gmail.com",
+      "",
+      "Member",
       "proxy-key",
+      "11111111-2222-3333-4444-555555555555",
     )
-    const json = Buffer.from(headers["X-MS-CLIENT-PRINCIPAL"], "base64").toString("utf8")
-    expect(json).toContain("Dewasheesh Rana")
-    expect(json).toContain("dewasheesh.rana@gmail.com")
-    const payload = JSON.parse(json) as { claims: Array<{ typ: string; val: string }> }
-    const nameClaim = payload.claims.find((claim) => claim.typ === "name")
-    expect(nameClaim?.val).toBe("Dewasheesh Rana")
+    expect(headers["X-Member-Proxy-Key"]).toBe("proxy-key")
+    const payload = JSON.parse(
+      Buffer.from(headers["X-MS-CLIENT-PRINCIPAL"], "base64").toString("utf8"),
+    ) as { claims: Array<{ typ: string; val: string }> }
+    const oid = payload.claims.find((claim) => claim.typ.includes("objectidentifier"))
+    expect(oid?.val).toBe("11111111-2222-3333-4444-555555555555")
   })
 })

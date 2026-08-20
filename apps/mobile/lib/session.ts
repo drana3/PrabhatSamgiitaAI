@@ -18,17 +18,25 @@ export { facebookAuthConfigured } from "@/lib/facebookAuth"
 async function hydrateFromSession() {
   const session = await api.fetchMemberSession()
   if (!session.authenticated) {
+    useAuthStore.getState().applyMemberSession({
+      displayName: useAuthStore.getState().displayName,
+      email: useAuthStore.getState().email,
+      memberId: useAuthStore.getState().memberId,
+      isAdmin: useAuthStore.getState().isAdmin,
+      memberBackend: false,
+      identityProvider: useAuthStore.getState().identityProvider,
+    })
     return { ok: false as const, memberBackend: false }
   }
   const profile = session as MemberProfile
   const existingSubject = useAuthStore.getState().memberId
   useAuthStore.getState().applyMemberSession({
     displayName: profile.display_name,
-    email: profile.email ?? null,
+    email: profile.email ?? useAuthStore.getState().email,
     memberId: existingSubject,
     isAdmin: profile.is_admin,
     memberBackend: true,
-    identityProvider: profile.identity_provider || "aad",
+    identityProvider: profile.identity_provider || useAuthStore.getState().identityProvider || "aad",
   })
   usePreferencesStore.getState().setSavedFromNumbers(profile.favorite_song_numbers ?? [])
   return { ok: true as const, memberBackend: true, profile }

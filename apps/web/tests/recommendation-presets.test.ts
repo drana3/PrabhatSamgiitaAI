@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
-import { collectionSearchDisplayLabel, collectionSearchCount, specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
+import { collectionSearchDisplayLabel, collectionSearchCount, collectionSongNumbersForKeyword, collectionPrompt, specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
 import canonicalCollections from "../../../data/generated/theme_collections.json"
 
 describe("reviewed discovery collections", () => {
@@ -74,18 +74,16 @@ describe("reviewed discovery collections", () => {
     expect(events).toEqual([])
   })
 
-  it("routes collection prompts and lyrics to catalog; feelings stay local unless Feeling search is on", () => {
+  it("routes collection prompts and lyrics to catalog; Feeling search sends free text to semantic", () => {
     expect(isCollectionSearchQuery("Search Prabhat Samgiita for Hindi Songs")).toBe(true)
     expect(exploreSearchKind("Search Prabhat Samgiita for Hindi Songs")).toBe("catalog")
     expect(exploreSearchKind("song about rain")).toBe("catalog")
     expect(exploreSearchKind("bandhu he niye calo")).toBe("catalog")
     expect(exploreSearchKind("morning meditation", "semantic")).toBe("catalog")
-    expect(
-      exploreSearchKind("I am feeling stressful", "semantic", {
-        signedIn: true,
-        feelingSearchEnabled: true,
-      }),
-    ).toBe("semantic")
+    const memberOn = { signedIn: true, feelingSearchEnabled: true }
+    expect(exploreSearchKind("I am feeling stressful", "semantic", memberOn)).toBe("semantic")
+    expect(exploreSearchKind("songs about peace", undefined, memberOn)).toBe("semantic")
+    expect(exploreSearchKind("humdardi", undefined, memberOn)).toBe("semantic")
   })
 
   it("maps collection search prompts to friendly display labels", () => {
@@ -99,5 +97,15 @@ describe("reviewed discovery collections", () => {
   it("exposes canonical collection counts for explore result labels", () => {
     expect(collectionSearchCount("Search Prabhat Samgiita for Urdu Songs")).toBe(16)
     expect(collectionSearchCount("bandhu he niye calo")).toBeNull()
+  })
+
+  it("resolves every special-collection prompt to its full song list", () => {
+    for (const group of specialCollectionGroups) {
+      for (const collection of group.collections) {
+        const numbers = collectionSongNumbersForKeyword(collectionPrompt(collection.query))
+        expect(numbers, collection.label).toBeTruthy()
+        expect(numbers, collection.label).toHaveLength(collection.count)
+      }
+    }
   })
 })

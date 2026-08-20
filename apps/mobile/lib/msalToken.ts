@@ -26,6 +26,9 @@ export function identityFromIdToken(idToken: string): MicrosoftIdentity | null {
     (typeof claims.email === "string" && claims.email) ||
     (typeof claims.preferred_username === "string" && claims.preferred_username) ||
     (typeof claims.upn === "string" && claims.upn) ||
+    (typeof claims.unique_name === "string" && claims.unique_name.includes("@")
+      ? claims.unique_name
+      : null) ||
     null
   const id =
     (typeof claims.oid === "string" && claims.oid) ||

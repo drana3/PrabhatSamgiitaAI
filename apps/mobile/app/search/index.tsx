@@ -331,7 +331,12 @@ export default function SearchScreen() {
     if (chipId) setActiveCategory(chipId)
     else setActiveCategory(null)
 
-    const plan = planSearch(trimmed, searchAuth)
+    const liveAuth = {
+      signedIn,
+      feelingSearchEnabled:
+        signedIn && usePreferencesStore.getState().feelingSearchEnabled,
+    }
+    const plan = planSearch(trimmed, liveAuth)
 
     if (seedId && plan.layer !== "mood" && plan.layer !== "semantic") {
       const id = ++requestId.current
@@ -366,7 +371,7 @@ export default function SearchScreen() {
       if (collection?.songNumbers.length) {
         setResults(
           lyricHitsToSongs(
-            catalogSongsByNumbers(collection.songNumbers, CATEGORY_RESULT_LIMIT),
+            catalogSongsByNumbers(collection.songNumbers, collection.songNumbers.length),
           ),
         )
         setError(null)
@@ -410,7 +415,7 @@ export default function SearchScreen() {
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [addSearchRecent, browseTheme, searchAuth])
+  }, [addSearchRecent, browseTheme, signedIn])
 
   runSearchRef.current = runSearch
 
@@ -481,6 +486,35 @@ export default function SearchScreen() {
               {!loading && results.length === 0 ? (
                 <View style={styles.emptyBlock}>
                   <Text style={styles.empty}>No songs matched “{query.trim()}” yet.</Text>
+                  {!searchAuth.feelingSearchEnabled ? (
+                    <View style={styles.feelingHint}>
+                      <Text style={styles.feelingHintTitle}>Try Feeling search</Text>
+                      <Text style={styles.feelingHintBody}>
+                        {signedIn
+                          ? "Turn on Feeling search to look for meaning and mood across all 5,018 songs."
+                          : "Sign in to unlock Feeling search — meaning and mood search across all 5,018 songs."}
+                      </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          signedIn ? "Turn on Feeling search" : "Sign in for Feeling search"
+                        }
+                        onPress={() => {
+                          if (!signedIn) {
+                            router.push(href("/signin"))
+                            return
+                          }
+                          usePreferencesStore.getState().setFeelingSearchEnabled(true)
+                          void runSearch(query.trim())
+                        }}
+                        style={({ pressed }) => [styles.allCatalogButton, pressed && styles.chipPressed]}
+                      >
+                        <Text style={styles.allCatalogText}>
+                          {signedIn ? "Turn on Feeling search" : "Sign in for Feeling search"}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Search all 5018 Prabhat Samgiita songs"
@@ -612,6 +646,16 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section },
   empty: { ...typography.bodySmall, color: colors.textSecondary },
   emptyBlock: { gap: spacing.md },
+  feelingHint: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  feelingHintTitle: { ...typography.label, color: colors.textPrimary },
+  feelingHintBody: { ...typography.bodySmall, color: colors.textSecondary },
   allCatalogButton: {
     alignSelf: "flex-start",
     backgroundColor: colors.primary,

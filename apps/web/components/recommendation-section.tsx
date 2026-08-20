@@ -7,22 +7,38 @@ import { LoadingIndicator } from "@/components/loading-indicator"
 import { fetchTodayRecommendations, recommendSongs } from "@/lib/api"
 import type { SongSummary, TodayRecommendations } from "@/lib/api"
 import { publicContextLink } from "@/lib/context-links"
+import {
+  HOME_CACHE_KEYS,
+  HOME_CACHE_TTL,
+  readHomeCache,
+  readHomeCacheStale,
+  writeHomeCache,
+} from "@/lib/home-cache"
 import { getAutoRecommendationPreset, getUpcomingObservances } from "@/lib/recommendation-presets"
 import { songPagePath } from "@/lib/song-path"
 
+function readCachedToday(): TodayRecommendations | null {
+  return (
+    readHomeCache<TodayRecommendations>(HOME_CACHE_KEYS.today(), HOME_CACHE_TTL.today) ??
+    readHomeCacheStale<TodayRecommendations>(HOME_CACHE_KEYS.today())
+  )
+}
+
 export function RecommendationSection() {
   const [results, setResults] = useState<SongSummary[]>([])
-  const [today, setToday] = useState<TodayRecommendations | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [today, setToday] = useState<TodayRecommendations | null>(() => readCachedToday())
+  const [loading, setLoading] = useState(() => !readCachedToday())
   const upcoming = useMemo(() => getUpcomingObservances(), [])
   const fallbackPreset = useMemo(() => getAutoRecommendationPreset(), [])
 
   useEffect(() => {
     let active = true
-    setLoading(true)
+    const cached = readCachedToday()
+    if (!cached) setLoading(true)
     void fetchTodayRecommendations().then(async (value) => {
       if (!active) return
       if (value) {
+        writeHomeCache(HOME_CACHE_KEYS.today(), value)
         setToday(value)
         setResults([])
         return

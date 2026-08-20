@@ -39,6 +39,7 @@ export function homeSearchSuggestions(
   if (numbered) return hitsToSongs([numbered])
 
   const plan = planSearch(trimmed, auth)
+  // Feeling search on → no lyric/mood suggestions; submit hits semantic.
   if (plan.layer === "semantic") return []
   if (plan.layer === "mood" && plan.moodId) {
     return hitsToSongs(catalogSongsByNumbers(songNumbersForCategory(plan.moodId), limit))

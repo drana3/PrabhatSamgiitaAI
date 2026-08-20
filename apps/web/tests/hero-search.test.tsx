@@ -5,13 +5,30 @@ import userEvent from "@testing-library/user-event"
 import { HeroSearch } from "@/components/hero-search"
 
 const push = vi.fn()
+const writeFeelingSearchEnabled = vi.fn()
+
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/" }))
+vi.mock("@/lib/feeling-search", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/feeling-search")>("@/lib/feeling-search")
+  return {
+    ...actual,
+    writeFeelingSearchEnabled: (...args: unknown[]) => writeFeelingSearchEnabled(...args),
+  }
+})
+
+let signedIn = false
 vi.mock("@/components/member-provider", () => ({
-  useMember: () => ({ loading: false, session: { authenticated: false }, refresh: vi.fn() }),
+  useMember: () => ({
+    loading: false,
+    session: { authenticated: signedIn },
+    refresh: vi.fn(),
+  }),
 }))
 
 afterEach(() => {
   push.mockClear()
+  writeFeelingSearchEnabled.mockClear()
+  signedIn = false
   Reflect.deleteProperty(window, "webkitSpeechRecognition")
 })
 
@@ -42,10 +59,26 @@ describe("hero search", () => {
     push.mockClear()
     await user.click(screen.getByRole("button", { name: /By words/i }))
     expect(push).toHaveBeenCalledWith("/explore?q=bandhu%20he%20niye%20calo")
+  })
 
-    push.mockClear()
+  it("sends guests to sign in for By feeling", async () => {
+    const user = userEvent.setup()
+    render(<HeroSearch />)
+    expect(screen.getByRole("button", { name: /Sign in to use Feeling search/i })).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: /By feeling/i }))
-    expect(push).toHaveBeenCalledWith("/explore?q=peaceful%20devotion")
+    expect(writeFeelingSearchEnabled).not.toHaveBeenCalled()
+    expect(push).toHaveBeenCalledWith(
+      "/signin?next=%2Fexplore%3Fq%3Dpeaceful%2520devotion%26kind%3Dsemantic",
+    )
+  })
+
+  it("enables Feeling search and opens semantic Explore for signed-in members", async () => {
+    signedIn = true
+    const user = userEvent.setup()
+    render(<HeroSearch />)
+    await user.click(screen.getByRole("button", { name: /By feeling/i }))
+    expect(writeFeelingSearchEnabled).toHaveBeenCalledWith(true)
+    expect(push).toHaveBeenCalledWith("/explore?q=peaceful%20devotion&kind=semantic")
   })
 
   it("opens grounded AI context for an explanation request containing a song number", async () => {

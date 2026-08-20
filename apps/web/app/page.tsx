@@ -17,7 +17,7 @@ import { StoriesInspiration } from "@/components/stories-inspiration"
 import seedInventory from "../../../data/seed/inventory.json"
 import seedSongs from "../../../data/seed/songs.json"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 60
 
 export default async function HomePage() {
   const initialReflection = todayReflectionFallback()

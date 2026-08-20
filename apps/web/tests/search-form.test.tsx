@@ -48,4 +48,28 @@ describe("SearchForm", () => {
     })
     expect(screen.getByRole("link", { name: /PS 1\b/i })).toHaveAttribute("href", "/songs/1#ask")
   })
+
+  it("keeps typed text stable when parent echoes a committed query", async () => {
+    const user = userEvent.setup()
+    const client = new QueryClient()
+    const onQueryChange = vi.fn()
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <SearchForm initialQuery="" onResults={() => void 0} onQueryChange={onQueryChange} />
+      </QueryClientProvider>,
+    )
+    const input = screen.getByLabelText(/Search by number/i)
+    await user.type(input, "bandhu")
+    expect(input).toHaveValue("bandhu")
+
+    rerender(
+      <QueryClientProvider client={client}>
+        <SearchForm initialQuery="" onResults={() => void 0} onQueryChange={onQueryChange} />
+      </QueryClientProvider>,
+    )
+    expect(input).toHaveValue("bandhu")
+
+    await user.type(input, " he")
+    expect(input).toHaveValue("bandhu he")
+  })
 })

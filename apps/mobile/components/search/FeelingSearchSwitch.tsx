@@ -34,7 +34,7 @@ export function FeelingSearchSwitch() {
         <Text style={styles.title}>Feeling search</Text>
         <Text style={styles.hint}>
           {signedIn
-            ? "When on, mood searches use meaning. Lyrics stay on this device."
+            ? "When on, free text uses meaning search. Turn off for lyrics on this device."
             : "Sign in to search songs by feeling."}
         </Text>
       </View>

@@ -39,7 +39,8 @@ export async function searchSongsOnServer(
 export async function fetchActiveAnnouncementsOnServer(): Promise<ActiveSiteAnnouncement[]> {
   try {
     const response = await fetch(`${apiBase()}/api/v1/announcements/active`, {
-      cache: "no-store",
+      // Short CDN/edge cache — home shell should not wait on a cold DB every hit.
+      next: { revalidate: 60 },
     })
     if (!response.ok) return []
     const payload = (await response.json()) as { items?: ActiveSiteAnnouncement[] }
