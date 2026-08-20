@@ -1,5 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
+import {
+  FEELING_ENABLE_IN_PROFILE_BODY,
+  FEELING_ENABLE_IN_PROFILE_TITLE,
+  FEELING_SEARCH_HINT_GUEST,
+  FEELING_SEARCH_HINT_SIGNED_IN,
+} from "@prabhat/core"
 
 import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
@@ -8,12 +14,11 @@ import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
-/** Same Feeling search control on Home and Explore. */
+/** Feeling search is managed in Profile — Home / Explore only point there. */
 export function FeelingSearchSwitch() {
   const router = useRouter()
   const signedIn = useAuthStore((s) => s.mode === "signed_in")
   const feelingSearchEnabled = usePreferencesStore((s) => s.feelingSearchEnabled)
-  const setFeelingSearchEnabled = usePreferencesStore((s) => s.setFeelingSearchEnabled)
   const on = signedIn && feelingSearchEnabled
 
   return (
@@ -26,16 +31,21 @@ export function FeelingSearchSwitch() {
           router.push(href("/signin"))
           return
         }
-        setFeelingSearchEnabled(!feelingSearchEnabled)
+        if (on) {
+          usePreferencesStore.getState().setFeelingSearchEnabled(false)
+          return
+        }
+        Alert.alert(FEELING_ENABLE_IN_PROFILE_TITLE, FEELING_ENABLE_IN_PROFILE_BODY, [
+          { text: "Not now", style: "cancel" },
+          { text: "Open Profile", onPress: () => router.push(href("/(tabs)/profile")) },
+        ])
       }}
       style={styles.row}
     >
       <View style={styles.copy}>
         <Text style={styles.title}>Feeling search</Text>
         <Text style={styles.hint}>
-          {signedIn
-            ? "When on, free text uses meaning search. Turn off for lyrics on this device."
-            : "Sign in to search songs by feeling."}
+          {signedIn ? FEELING_SEARCH_HINT_SIGNED_IN : FEELING_SEARCH_HINT_GUEST}
         </Text>
       </View>
       <View style={[styles.track, on && styles.trackOn]}>

@@ -6,6 +6,51 @@ export const FEELING_SEARCH_STORAGE_KEY = "prabhat-feeling-search"
 /** Same prompt on Home and Explore, web and iOS. */
 export const SEARCH_PLACEHOLDER = "Song number, lyrics, or a feeling..."
 
+/** Toggle / account copy — Feeling search stays off until the member turns it on. */
+export const FEELING_SEARCH_HINT_SIGNED_IN =
+  "Off by default. Enable it in Profile to search by mood or meaning. Lyric suggestions stay off while it is on."
+
+export const FEELING_SEARCH_HINT_GUEST =
+  "Off by default. Sign in, then enable Feeling search in Profile when a normal search finds nothing."
+
+export const FEELING_SEARCH_EMPTY_TITLE = "No songs matched — try Feeling search"
+
+export const FEELING_SEARCH_EMPTY_BODY_SIGNED_IN =
+  "Normal search looks up numbers and lyrics. Feeling search finds songs by mood or meaning across all 5,018 songs. Enable it in Profile, then search again."
+
+export const FEELING_SEARCH_EMPTY_BODY_GUEST =
+  "Normal search looks up numbers and lyrics. Sign in, then enable Feeling search in Profile to find songs by mood or meaning across all 5,018 songs."
+
+export const FEELING_SEARCH_EMPTY_NO_MATCH =
+  "Feeling search found no matches. Try a clearer feeling (peace, devotion, joy), or turn it off and search by song number or opening words."
+
+/** Home hero example chips — same on web and iOS. */
+export const HOME_SEARCH_EXAMPLES = [
+  {
+    label: "By number",
+    query: "111",
+    description: "Open a song directly",
+    mode: "catalog" as const,
+  },
+  {
+    label: "By words",
+    query: "bandhu he niye calo",
+    description: "Search remembered lyrics",
+    mode: "catalog" as const,
+  },
+  {
+    label: "By feeling",
+    query: "peaceful devotion",
+    description: "Find songs by mood with Feeling search",
+    mode: "feeling" as const,
+  },
+] as const
+
+export const FEELING_ENABLE_IN_PROFILE_TITLE = "Enable Feeling search in Profile"
+
+export const FEELING_ENABLE_IN_PROFILE_BODY =
+  "Feeling search stays off by default. Open Profile to turn it on, then search by mood or meaning."
+
 export type FeelingMoodId = "peace" | "meditation" | "guru" | "devotional"
 
 export type SearchAuth = {

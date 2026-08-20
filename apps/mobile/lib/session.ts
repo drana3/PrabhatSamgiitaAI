@@ -5,7 +5,12 @@ import { signInWithFacebook } from "@/lib/facebookAuth"
 import { signInWithGoogle } from "@/lib/googleAuth"
 import { loginWithEmail, registerWithEmail } from "@/lib/localAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
-import { microsoftAuthConfigured, signInWithMicrosoft, getMicrosoftRedirectUri } from "@/lib/msal"
+import {
+  microsoftAuthConfigured,
+  signInWithMicrosoft,
+  signOutWithMicrosoft,
+  getMicrosoftRedirectUri,
+} from "@/lib/msal"
 import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
 import { useAuthStore } from "@/stores/authStore"
@@ -102,6 +107,16 @@ export async function refreshMemberSession() {
     return { ok: false as const, memberBackend: false }
   }
   return syncMemberData()
+}
+
+/** Clears local auth + prefs; ends Microsoft SSO when the active provider is Entra. */
+export async function signOutMember() {
+  const provider = useAuthStore.getState().identityProvider
+  if (provider === "aad" && microsoftAuthConfigured()) {
+    await signOutWithMicrosoft()
+  }
+  useAuthStore.getState().signOut()
+  usePreferencesStore.getState().resetAfterSignOut()
 }
 
 export async function signInMember() {

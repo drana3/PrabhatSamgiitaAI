@@ -5,18 +5,24 @@ import userEvent from "@testing-library/user-event"
 import { HeroSearch } from "@/components/hero-search"
 
 const push = vi.fn()
-const writeFeelingSearchEnabled = vi.fn()
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/" }))
+
+let signedIn = false
+let feelingSearchEnabled = false
+
 vi.mock("@/lib/feeling-search", async () => {
   const actual = await vi.importActual<typeof import("@/lib/feeling-search")>("@/lib/feeling-search")
   return {
     ...actual,
-    writeFeelingSearchEnabled: (...args: unknown[]) => writeFeelingSearchEnabled(...args),
+    useSearchAuth: () => ({
+      signedIn,
+      feelingSearchEnabled: signedIn && feelingSearchEnabled,
+    }),
+    writeFeelingSearchEnabled: vi.fn(),
   }
 })
 
-let signedIn = false
 vi.mock("@/components/member-provider", () => ({
   useMember: () => ({
     loading: false,
@@ -27,8 +33,8 @@ vi.mock("@/components/member-provider", () => ({
 
 afterEach(() => {
   push.mockClear()
-  writeFeelingSearchEnabled.mockClear()
   signedIn = false
+  feelingSearchEnabled = false
   Reflect.deleteProperty(window, "webkitSpeechRecognition")
 })
 
@@ -66,18 +72,28 @@ describe("hero search", () => {
     render(<HeroSearch />)
     expect(screen.getByRole("button", { name: /Sign in to use Feeling search/i })).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: /By feeling/i }))
-    expect(writeFeelingSearchEnabled).not.toHaveBeenCalled()
-    expect(push).toHaveBeenCalledWith(
-      "/signin?next=%2Fexplore%3Fq%3Dpeaceful%2520devotion%26kind%3Dsemantic",
-    )
+    expect(push).toHaveBeenCalledWith("/signin?next=%2Faccount")
   })
 
-  it("enables Feeling search and opens semantic Explore for signed-in members", async () => {
+  it("asks signed-in members to enable Feeling search in Profile when it is off", async () => {
     signedIn = true
+    feelingSearchEnabled = false
+    const user = userEvent.setup()
+    render(<HeroSearch />)
+    expect(screen.getByRole("button", { name: /Enable Feeling search in Profile/i })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: /By feeling/i }))
+    expect(push).not.toHaveBeenCalled()
+    expect(screen.getByText(/Enable Feeling search in Profile/i)).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Open Profile" }))
+    expect(push).toHaveBeenCalledWith("/account#feeling-search")
+  })
+
+  it("opens Feeling search Explore when the member already enabled it", async () => {
+    signedIn = true
+    feelingSearchEnabled = true
     const user = userEvent.setup()
     render(<HeroSearch />)
     await user.click(screen.getByRole("button", { name: /By feeling/i }))
-    expect(writeFeelingSearchEnabled).toHaveBeenCalledWith(true)
     expect(push).toHaveBeenCalledWith("/explore?q=peaceful%20devotion&kind=semantic")
   })
 

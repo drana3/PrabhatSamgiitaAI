@@ -237,8 +237,26 @@ describe("ExploreClient prefetch hydration", () => {
     await user.type(screen.getByLabelText(/Search by number/i), "peaceful devotion")
     await user.click(screen.getByRole("button", { name: "Search", exact: true }))
 
-    expect(await screen.findByRole("heading", { name: "No songs matched your search criteria" })).toBeInTheDocument()
-    expect(screen.getByText(/Sign in to unlock Feeling search/i)).toBeInTheDocument()
+    expect(
+      await screen.findByRole("heading", { name: "No songs matched — try Feeling search" }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/Sign in, then enable Feeling search in Profile/i).length).toBeGreaterThan(0)
     expect(screen.getByRole("button", { name: "Sign in for Feeling search" })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "No songs matched your search criteria" })).not.toBeInTheDocument()
+  })
+
+  it("does not fetch the browse song list when Explore has no query", async () => {
+    renderExplore(
+      <ExploreClient
+        initialSongs={[{ number: 1, title: "Seed", first_line: "Seed", is_verified: true }]}
+        initialQuery=""
+        searchKind="catalog"
+      />,
+    )
+
+    await waitFor(() => {
+      expect(fetchSongs).not.toHaveBeenCalled()
+    })
+    expect(screen.queryByRole("heading", { name: "Seed" })).not.toBeInTheDocument()
   })
 })

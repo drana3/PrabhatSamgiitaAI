@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -10,7 +11,16 @@ import {
 } from "react-native"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { Clock, X } from "lucide-react-native"
-import { planSearch, queryGuidanceFor, queryIsUseful, SEARCH_PLACEHOLDER } from "@prabhat/core"
+import {
+  FEELING_SEARCH_EMPTY_BODY_GUEST,
+  FEELING_SEARCH_EMPTY_BODY_SIGNED_IN,
+  FEELING_SEARCH_EMPTY_NO_MATCH,
+  FEELING_SEARCH_EMPTY_TITLE,
+  planSearch,
+  queryGuidanceFor,
+  queryIsUseful,
+  SEARCH_PLACEHOLDER,
+} from "@prabhat/core"
 
 import { SearchBar } from "@/components/common/SearchBar"
 import { FeelingSearchSwitch } from "@/components/search/FeelingSearchSwitch"
@@ -485,14 +495,13 @@ export default function SearchScreen() {
               {error ? <Text style={styles.error}>{error}</Text> : null}
               {!loading && results.length === 0 ? (
                 <View style={styles.emptyBlock}>
-                  <Text style={styles.empty}>No songs matched “{query.trim()}” yet.</Text>
                   {!searchAuth.feelingSearchEnabled ? (
                     <View style={styles.feelingHint}>
-                      <Text style={styles.feelingHintTitle}>Try Feeling search</Text>
+                      <Text style={styles.feelingHintTitle}>{FEELING_SEARCH_EMPTY_TITLE}</Text>
                       <Text style={styles.feelingHintBody}>
                         {signedIn
-                          ? "Turn on Feeling search to look for meaning and mood across all 5,018 songs."
-                          : "Sign in to unlock Feeling search — meaning and mood search across all 5,018 songs."}
+                          ? FEELING_SEARCH_EMPTY_BODY_SIGNED_IN
+                          : FEELING_SEARCH_EMPTY_BODY_GUEST}
                       </Text>
                       <Pressable
                         accessibilityRole="button"
@@ -504,17 +513,28 @@ export default function SearchScreen() {
                             router.push(href("/signin"))
                             return
                           }
-                          usePreferencesStore.getState().setFeelingSearchEnabled(true)
-                          void runSearch(query.trim())
+                          Alert.alert(
+                            "Enable Feeling search in Profile",
+                            "Feeling search stays off by default. Open Profile to turn it on, then search again.",
+                            [
+                              { text: "Not now", style: "cancel" },
+                              {
+                                text: "Open Profile",
+                                onPress: () => router.push(href("/(tabs)/profile")),
+                              },
+                            ],
+                          )
                         }}
                         style={({ pressed }) => [styles.allCatalogButton, pressed && styles.chipPressed]}
                       >
                         <Text style={styles.allCatalogText}>
-                          {signedIn ? "Turn on Feeling search" : "Sign in for Feeling search"}
+                          {signedIn ? "Open Profile to enable" : "Sign in for Feeling search"}
                         </Text>
                       </Pressable>
                     </View>
-                  ) : null}
+                  ) : (
+                    <Text style={styles.empty}>{FEELING_SEARCH_EMPTY_NO_MATCH}</Text>
+                  )}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Search all 5018 Prabhat Samgiita songs"

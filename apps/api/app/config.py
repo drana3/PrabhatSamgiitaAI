@@ -25,6 +25,20 @@ class Settings(BaseSettings):
     scheduler_enabled: bool = Field(default=False, alias="SCHEDULER_ENABLED")
     cache_ttl_seconds: int = Field(default=300, alias="CACHE_TTL_SECONDS", ge=1)
     cache_max_entries: int = Field(default=500, alias="CACHE_MAX_ENTRIES", ge=1)
+    # Keep in-process catalog memory aligned with Postgres (Neon) without user-visible lag.
+    catalog_poll_enabled: bool = Field(default=True, alias="CATALOG_POLL_ENABLED")
+    catalog_poll_interval_seconds: int = Field(
+        default=30, alias="CATALOG_POLL_INTERVAL_SECONDS", ge=5, le=600
+    )
+    catalog_poll_initial_delay_seconds: int = Field(
+        default=5, alias="CATALOG_POLL_INITIAL_DELAY_SECONDS", ge=0, le=120
+    )
+    catalog_poll_lookback_minutes: int = Field(
+        default=30, alias="CATALOG_POLL_LOOKBACK_MINUTES", ge=1, le=1440
+    )
+    catalog_poll_overlap_seconds: int = Field(
+        default=90, alias="CATALOG_POLL_OVERLAP_SECONDS", ge=0, le=600
+    )
     content_source_url: str = Field(
         default="https://prabhatasamgiita.net",
         alias="CONTENT_SOURCE_URL",

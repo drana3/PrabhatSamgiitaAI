@@ -37,6 +37,7 @@ vi.mock("@/lib/memberAuth", () => ({
 vi.mock("@/lib/msal", () => ({
   microsoftAuthConfigured: () => false,
   signInWithMicrosoft: vi.fn(),
+  signOutWithMicrosoft: vi.fn(),
   getMicrosoftRedirectUri: () => "prabhat://auth",
 }))
 

@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 
+import { feelingSearchAllowed } from "@prabhat/core"
+
 import { instantExploreSongs } from "@/lib/lyric-search"
 import { useSearchAuth } from "@/lib/feeling-search"
 import { songPagePath } from "@/lib/song-path"
@@ -25,6 +27,8 @@ export function InstantSearchSuggestions({
   }, [query])
 
   const songs = useMemo(() => {
+    // Feeling search uses meaning search only — no lyric/number suggestion dropdown.
+    if (feelingSearchAllowed(searchAuth)) return []
     const trimmed = debouncedQuery.trim()
     if (!trimmed) return []
     if (trimmed.length < 3 && !/^\d+$/.test(trimmed)) return []

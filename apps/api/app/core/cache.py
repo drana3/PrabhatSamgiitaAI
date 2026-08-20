@@ -42,3 +42,11 @@ class AsyncTTLCache[T]:
                 oldest_key = next(iter(self._entries))
                 self._entries.pop(oldest_key, None)
             self._entries[key] = CacheEntry(value=value, expires_at=monotonic() + self.ttl_seconds)
+
+    async def clear(self) -> None:
+        async with self._lock:
+            self._entries.clear()
+
+    def clear_sync(self) -> None:
+        """Drop all entries without awaiting — safe for catalog refresh hooks."""
+        self._entries.clear()

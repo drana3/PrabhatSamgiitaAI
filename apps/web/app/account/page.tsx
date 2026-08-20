@@ -105,8 +105,11 @@ export default function AccountPage() {
             )}
           </article>
 
-          <article className="rounded-3xl border border-navy-900/10 bg-white p-6">
-            <h2 className="font-serif text-2xl text-navy-950">Search</h2>
+          <article id="feeling-search" className="scroll-mt-28 rounded-3xl border border-navy-900/10 bg-white p-6">
+            <h2 className="font-serif text-2xl text-navy-950">Feeling search</h2>
+            <p className="mt-2 text-sm text-stone-600">
+              Off by default. Turn it on here to search songs by mood or meaning from Explore.
+            </p>
             <FeelingSearchToggle />
           </article>
 

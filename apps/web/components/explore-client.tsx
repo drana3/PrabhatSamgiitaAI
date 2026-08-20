@@ -5,15 +5,21 @@ import { flushSync } from "react-dom"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
-import { planSearch } from "@prabhat/core"
+import {
+  FEELING_SEARCH_EMPTY_BODY_GUEST,
+  FEELING_SEARCH_EMPTY_BODY_SIGNED_IN,
+  FEELING_SEARCH_EMPTY_NO_MATCH,
+  FEELING_SEARCH_EMPTY_TITLE,
+  planSearch,
+} from "@prabhat/core"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { SearchForm } from "@/components/search-form"
 import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
-import { fetchSongs, searchSongs, searchSongsByVoice } from "@/lib/api"
+import { searchSongs, searchSongsByVoice } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
-import { useSearchAuth, writeFeelingSearchEnabled } from "@/lib/feeling-search"
+import { useSearchAuth } from "@/lib/feeling-search"
 import {
   instantExploreSongs,
   lyricHitsToSongs,
@@ -101,7 +107,7 @@ export function ExploreClient({
   const pendingInitialSearch = Boolean(initialQuery) && !searchPrefetched
   const instantInitial = initialQuery.trim() ? instantExploreSongs(initialQuery.trim(), searchKind, searchAuth) : null
   const [songs, setSongs] = useState<SongSummary[]>(
-    instantInitial !== null ? instantInitial : pendingInitialSearch ? [] : initialSongs,
+    instantInitial !== null ? instantInitial : [],
   )
   const [activeQuery, setActiveQuery] = useState(initialQuery)
   const [activeKind, setActiveKind] = useState<ExploreSearchKind>(searchKind)
@@ -119,13 +125,6 @@ export function ExploreClient({
   })())
   const bootstrappedQuery = useRef<string | null>(null)
 
-  useEffect(() => {
-    if (initialQuery) return
-    let active = true
-    void fetchSongs().then((value) => { if (active && value.length) setSongs(value) })
-    return () => { active = false }
-  }, [initialQuery])
-
   const finishSearch = useCallback((trimmed: string) => {
     setCompletedQuery(trimmed)
     window.requestAnimationFrame(() => {
@@ -138,41 +137,53 @@ export function ExploreClient({
     const trimmed = query.trim()
     if (!trimmed) return
 
+    // Feeling search on (signed-in): treat as semantic for free text — same path for every
+    // signed-in member with the toggle enabled.
+    const feelingAllowed = searchAuth.signedIn && searchAuth.feelingSearchEnabled
     const effectiveAuth =
-      kind === "semantic" && searchAuth.signedIn
+      (kind === "semantic" || feelingAllowed) && searchAuth.signedIn
         ? { signedIn: true, feelingSearchEnabled: true }
         : searchAuth
 
-    const key = cacheKey(trimmed, kind)
+    const key = cacheKey(trimmed, kind === "semantic" || feelingAllowed ? "semantic" : kind)
     const cached = searchCache.current.get(key)
     if (cached) {
       beginSearchState(() => {
         setSearching(false)
         setActiveQuery(trimmed)
-        setActiveKind(kind)
+        setActiveKind(feelingAllowed || kind === "semantic" ? "semantic" : kind)
         setCompletedQuery("")
         setSongs(cached)
         setVoiceResult(null)
         setSearchError(null)
       })
-      window.history.replaceState(null, "", exploreUrl(trimmed, kind))
+      window.history.replaceState(
+        null,
+        "",
+        exploreUrl(trimmed, feelingAllowed || kind === "semantic" ? "semantic" : kind),
+      )
       finishSearch(trimmed)
       return
     }
 
-    const instant = instantExploreSongs(trimmed, kind, effectiveAuth)
+    const resolvedKind: ExploreSearchKind =
+      feelingAllowed || kind === "semantic"
+        ? exploreSearchKind(trimmed, "semantic", effectiveAuth)
+        : kind
+
+    const instant = instantExploreSongs(trimmed, resolvedKind, effectiveAuth)
     if (instant !== null) {
       searchCache.current.set(key, instant)
       beginSearchState(() => {
         setSearching(false)
         setActiveQuery(trimmed)
-        setActiveKind(kind)
+        setActiveKind(resolvedKind)
         setCompletedQuery("")
         setSongs(instant)
         setVoiceResult(null)
         setSearchError(null)
       })
-      window.history.replaceState(null, "", exploreUrl(trimmed, kind))
+      window.history.replaceState(null, "", exploreUrl(trimmed, resolvedKind))
       finishSearch(trimmed)
       return
     }
@@ -180,28 +191,28 @@ export function ExploreClient({
     const plan = planSearch(trimmed, effectiveAuth)
     const keepSongs = isCollectionSearchQuery(trimmed)
     const sargam = isCompleteSargamQuery(trimmed)
-    // Honor an explicit semantic kind (e.g. empty-state "Try Feeling search") even
-    // if localStorage auth state has not re-rendered yet.
-    const useSemantic = kind === "semantic" || plan.layer === "semantic"
+    const useSemantic = resolvedKind === "semantic" || plan.layer === "semantic"
     const localHits =
-      !sargam && !useSemantic && shouldSearchCatalogLyrics(trimmed, kind)
+      !sargam && !useSemantic && shouldSearchCatalogLyrics(trimmed, resolvedKind)
         ? searchCatalogLyrics(trimmed, 5, { interpret: true })
         : []
-    const networkMode = useSemantic ? "semantic" as const : "catalog" as const
+    const networkMode = useSemantic ? ("semantic" as const) : ("catalog" as const)
     const needsNetwork =
       !sargam &&
       localHits.length === 0 &&
       (useSemantic || plan.layer === "collection" || plan.layer === "catalog")
     beginSearchState(() => {
-      setSearching(needsNetwork)
+      // Feeling search must show loading until the semantic API finishes — never flash
+      // "no songs matched" mid-request.
+      setSearching(needsNetwork || useSemantic)
       setActiveQuery(trimmed)
-      setActiveKind(kind)
+      setActiveKind(useSemantic ? "semantic" : resolvedKind)
       setCompletedQuery("")
       if (!keepSongs) setSongs([])
       setVoiceResult(null)
       setSearchError(null)
     })
-    window.history.replaceState(null, "", exploreUrl(trimmed, kind))
+    window.history.replaceState(null, "", exploreUrl(trimmed, useSemantic ? "semantic" : resolvedKind))
 
     try {
       const results = sargam
@@ -211,7 +222,7 @@ export function ExploreClient({
           : needsNetwork
             ? await searchSongs(trimmed, { mode: networkMode })
             : []
-      searchCache.current.set(key, results)
+      searchCache.current.set(cacheKey(trimmed, useSemantic ? "semantic" : resolvedKind), results)
       setSongs(results)
       finishSearch(trimmed)
     } catch (error) {
@@ -233,23 +244,18 @@ export function ExploreClient({
   const handleQueryInput = useCallback((query: string) => {
     if (query.trim()) return
     setSearching(false)
-    setSongs(initialSongs)
+    setSongs([])
     setSearchError(null)
-  }, [initialSongs])
+  }, [])
 
   const tryFeelingSearch = useCallback(() => {
-    const trimmed = activeQuery.trim()
-    if (!trimmed) return
     if (!searchAuth.signedIn) {
       router.push(signInHref(pathname))
       return
     }
-    writeFeelingSearchEnabled(true)
-    searchCache.current.delete(cacheKey(trimmed, "catalog"))
-    searchCache.current.delete(cacheKey(trimmed, "semantic"))
-    void runSearch(trimmed, "semantic")
-    window.requestAnimationFrame(() => scrollToSearchBar())
-  }, [activeQuery, pathname, router, runSearch, searchAuth.signedIn])
+    // Feeling stays off by default — enable it in Account / Profile.
+    router.push("/account#feeling-search")
+  }, [pathname, router, searchAuth.signedIn])
 
   const runVoiceSearch = useCallback(async (query: string) => {
     const trimmed = query.trim()
@@ -340,23 +346,28 @@ export function ExploreClient({
     setCompletedQuery(nextSearching ? "" : activeQuery)
   }
 
-  const loadingLabel = activeKind === "catalog"
-    ? "Finding the verified songs in this collection"
-    : "Searching meanings and themes across the catalog"
+  const feelingOn = Boolean(searchAuth.signedIn && searchAuth.feelingSearchEnabled)
+  const loadingLabel = activeKind === "semantic" || feelingOn
+    ? "Searching meanings and themes across the catalog"
+    : "Finding the verified songs in this collection"
 
   const queryLabel = collectionSearchDisplayLabel(activeQuery)
   const collectionSearch = isCollectionSearchQuery(activeQuery)
   const collectionTotal = collectionSearchCount(activeQuery)
   const completeSargamSearch = isCompleteSargamQuery(activeQuery)
   const isCollectionResult = collectionTotal !== null && collectionSearch
-  const feelingOn = searchAuth.feelingSearchEnabled
-  const showEmptyFeelingHint =
+  const catalogEmpty =
     Boolean(activeQuery.trim()) &&
     !searching &&
     songs.length === 0 &&
     !collectionSearch &&
     !completeSargamSearch &&
-    !feelingOn
+    !searchError
+  // Feeling search on: only declare no matches after a finished semantic attempt.
+  const showSemanticNoMatch = catalogEmpty && feelingOn && activeKind === "semantic"
+  // Feeling search off: prompt to enable deep search (sign-in required for guests).
+  const showFeelingEnablePrompt = catalogEmpty && !feelingOn
+  const showEmptyState = showSemanticNoMatch || showFeelingEnablePrompt
 
   return (
     <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-10">
@@ -387,32 +398,45 @@ export function ExploreClient({
           ) : null}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{songs.map((song, index) => <SongCard key={song.number} song={song} index={index} />)}</div>
         </div>
-      ) : activeQuery.trim() ? (
+      ) : searchError ? (
+        <div role="status" className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-50 p-8 text-center">
+          <h3 className="font-serif text-2xl text-navy-950">Search could not finish</h3>
+          <p className="mt-2 text-sm text-stone-700">{searchError}</p>
+          <p className="mt-3 text-sm text-stone-600">Try again in a moment, or search by song number or opening words.</p>
+        </div>
+      ) : showEmptyState ? (
         <div className="mt-6 space-y-6">
           <div role="status" className="rounded-2xl border border-dashed border-gold-500/40 bg-white p-8 text-center">
-            <h3 className="font-serif text-2xl text-navy-950">No songs matched your search criteria</h3>
-            <p className="mt-2 text-sm text-stone-600">
-              {feelingOn
-                ? "Try a song number, opening words, or a clearer feeling such as peace, devotion, or joy."
-                : "Try a song number, opening words, language, festival, or occasion."}
-            </p>
-            {showEmptyFeelingHint ? (
-              <div className="mx-auto mt-5 max-w-md space-y-3 rounded-2xl border border-gold-500/30 bg-gold-50 px-5 py-4 text-left">
-                <p className="text-sm font-semibold text-navy-950">Try Feeling search</p>
-                <p className="text-sm text-stone-700">
+            {showFeelingEnablePrompt ? (
+              <>
+                <h3 className="font-serif text-2xl text-navy-950">{FEELING_SEARCH_EMPTY_TITLE}</h3>
+                <p className="mt-2 text-sm text-stone-600">
                   {searchAuth.signedIn
-                    ? "Turn on Feeling search to look for meaning and mood across all 5,018 songs (for example “peaceful devotion”)."
-                    : "Sign in to unlock Feeling search — meaning and mood search across all 5,018 songs."}
+                    ? FEELING_SEARCH_EMPTY_BODY_SIGNED_IN
+                    : FEELING_SEARCH_EMPTY_BODY_GUEST}
                 </p>
-                <button
-                  type="button"
-                  onClick={tryFeelingSearch}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-navy-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gold-700 sm:w-auto"
-                >
-                  {searchAuth.signedIn ? "Turn on Feeling search" : "Sign in for Feeling search"}
-                </button>
-              </div>
-            ) : null}
+                <div className="mx-auto mt-5 max-w-md space-y-3 rounded-2xl border border-gold-500/30 bg-gold-50 px-5 py-4 text-left">
+                  <p className="text-sm font-semibold text-navy-950">Feeling search</p>
+                  <p className="text-sm text-stone-700">
+                    {searchAuth.signedIn
+                      ? "Open your Profile to turn on Feeling search, then search again by mood or meaning (for example “peaceful devotion”)."
+                      : "Sign in, then enable Feeling search in Profile for mood and meaning search across the catalog."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={tryFeelingSearch}
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-navy-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gold-700 sm:w-auto"
+                  >
+                    {searchAuth.signedIn ? "Open Profile to enable" : "Sign in for Feeling search"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-serif text-2xl text-navy-950">No songs matched your search criteria</h3>
+                <p className="mt-2 text-sm text-stone-600">{FEELING_SEARCH_EMPTY_NO_MATCH}</p>
+              </>
+            )}
           </div>
           {initialSongs.length ? (
             <section aria-labelledby="recommended-after-search-title">

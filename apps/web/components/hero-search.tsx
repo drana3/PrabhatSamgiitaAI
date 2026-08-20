@@ -2,40 +2,28 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { SEARCH_PLACEHOLDER } from "@prabhat/core"
+import {
+  FEELING_ENABLE_IN_PROFILE_BODY,
+  FEELING_ENABLE_IN_PROFILE_TITLE,
+  HOME_SEARCH_EXAMPLES,
+  SEARCH_PLACEHOLDER,
+} from "@prabhat/core"
 
 import { InstantSearchSuggestions } from "@/components/instant-search-suggestions"
-import { useMember } from "@/components/member-provider"
 import { VoiceSearchButton } from "@/components/voice-search-button"
-import { writeFeelingSearchEnabled } from "@/lib/feeling-search"
+import { useSearchAuth } from "@/lib/feeling-search"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
 import { signInHref } from "@/lib/sign-in"
 
-const FEELING_EXAMPLE_QUERY = "peaceful devotion"
-
-const searchExamples = [
-  { label: "By number", query: "111", description: "Open a song directly", mode: "catalog" as const },
-  {
-    label: "By words",
-    query: "bandhu he niye calo",
-    description: "Search remembered lyrics",
-    mode: "catalog" as const,
-  },
-  {
-    label: "By feeling",
-    query: FEELING_EXAMPLE_QUERY,
-    description: "Find songs by mood with Feeling search",
-    mode: "feeling" as const,
-  },
-] as const
-
 export function HeroSearch() {
   const [query, setQuery] = useState("")
   const router = useRouter()
-  const { session } = useMember()
-  const signedIn = session.authenticated
+  const searchAuth = useSearchAuth()
+  const signedIn = searchAuth.signedIn
+  const feelingOn = searchAuth.feelingSearchEnabled
   const [guidance, setGuidance] = useState("")
+  const [feelingPrompt, setFeelingPrompt] = useState(false)
 
   function search(value: string, mode: "catalog" | "feeling" = "catalog") {
     const normalized = value.trim()
@@ -51,16 +39,20 @@ export function HeroSearch() {
     }
 
     if (mode === "feeling") {
-      const exploreFeeling = `/explore?q=${encodeURIComponent(normalized)}&kind=semantic`
       if (!signedIn) {
-        router.push(signInHref(exploreFeeling))
+        router.push(signInHref("/account"))
         return
       }
-      writeFeelingSearchEnabled(true)
-      router.push(exploreFeeling)
+      // Feeling stays off by default — ask the member to enable it in Account / Profile.
+      if (!feelingOn) {
+        setFeelingPrompt(true)
+        return
+      }
+      router.push(`/explore?q=${encodeURIComponent(normalized)}&kind=semantic`)
       return
     }
 
+    setFeelingPrompt(false)
     router.push(`/explore?q=${encodeURIComponent(normalized)}`)
   }
 
@@ -110,37 +102,69 @@ export function HeroSearch() {
       </div>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Search examples">
-        {searchExamples.map((example) => {
-          const feelingLocked = example.mode === "feeling" && !signedIn
+        {HOME_SEARCH_EXAMPLES.map((example) => {
+          const feelingGuest = example.mode === "feeling" && !signedIn
+          const feelingNeedsEnable = example.mode === "feeling" && signedIn && !feelingOn
           return (
             <button
               key={example.label}
               type="button"
               data-feature={`hero_search_${example.label.toLowerCase().replace(/\s+/g, "_")}`}
               aria-label={
-                feelingLocked
+                feelingGuest
                   ? `${example.label}: Sign in to use Feeling search`
-                  : `${example.label}: ${example.description}`
+                  : feelingNeedsEnable
+                    ? `${example.label}: Enable Feeling search in Profile`
+                    : `${example.label}: ${example.description}`
               }
               onClick={() => {
                 setQuery(example.query)
                 search(example.query, example.mode)
               }}
               className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-sm transition ${
-                feelingLocked
+                feelingGuest || feelingNeedsEnable
                   ? "border-navy-900/10 bg-white/70 text-navy-900/70 hover:border-gold-500 hover:bg-gold-50"
                   : "border-navy-900/10 bg-white/90 text-navy-900 hover:border-gold-500 hover:bg-gold-50"
               }`}
             >
               {example.label}
               <span className="ml-1.5 font-normal text-stone-600">· {example.query}</span>
-              {feelingLocked ? (
+              {feelingGuest ? (
                 <span className="ml-1.5 font-semibold text-gold-700">· Sign in</span>
+              ) : null}
+              {feelingNeedsEnable ? (
+                <span className="ml-1.5 font-semibold text-gold-700">· Enable in Profile</span>
               ) : null}
             </button>
           )
         })}
       </div>
+
+      {feelingPrompt ? (
+        <div
+          role="status"
+          className="rounded-2xl border border-gold-500/35 bg-gold-50 px-4 py-3 text-left"
+        >
+          <p className="text-sm font-semibold text-navy-950">{FEELING_ENABLE_IN_PROFILE_TITLE}</p>
+          <p className="mt-1 text-xs leading-5 text-stone-700">{FEELING_ENABLE_IN_PROFILE_BODY}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-xl bg-navy-950 px-4 py-2 text-xs font-semibold text-white transition hover:bg-gold-700"
+              onClick={() => router.push("/account#feeling-search")}
+            >
+              Open Profile
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-navy-900/15 bg-white px-4 py-2 text-xs font-semibold text-navy-950"
+              onClick={() => setFeelingPrompt(false)}
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

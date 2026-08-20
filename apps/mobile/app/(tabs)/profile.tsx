@@ -20,14 +20,24 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 import { friendlyPersonName } from "@/lib/displayName"
+import {
+  HOME_FEED_KEYS,
+  HOME_FEED_TTL_MS,
+  readHomeFeedCache,
+  readHomeFeedCacheStale,
+  writeHomeFeedCache,
+} from "@/lib/homeFeedCache"
 import { memberAuthAvailable, memberSyncFailedCopy, memberSyncUnavailableCopy } from "@/lib/memberAuth"
 import type { QuizStatus } from "@/lib/quiz"
-import { refreshMemberSession } from "@/lib/session"
+import { refreshMemberSession, signOutMember } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
+
+const SESSION_REFRESH_TTL_MS = 60_000
+let lastProfileSessionRefreshAt = 0
 
 function Row({
   icon,
@@ -64,7 +74,6 @@ export default function ProfileScreen() {
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const memberBackend = useAuthStore((s) => s.memberBackend)
   const identityProvider = useAuthStore((s) => s.identityProvider)
-  const signOut = useAuthStore((s) => s.signOut)
   const resetWelcome = useAuthStore((s) => s.resetWelcome)
   const savedCount = usePreferencesStore((s) => s.savedSongIds.length)
   const feelingSearchEnabled = usePreferencesStore((s) => s.feelingSearchEnabled)
@@ -77,6 +86,30 @@ export default function ProfileScreen() {
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
   const accountId = getAccountId(mode, email)
 
+  const loadQuizCerts = useCallback(async (forceNetwork = false) => {
+    if (!memberAuthAvailable()) {
+      setCertCount(null)
+      return
+    }
+    if (!forceNetwork) {
+      const fresh = await readHomeFeedCache<QuizStatus>(
+        HOME_FEED_KEYS.quizStatus,
+        HOME_FEED_TTL_MS.quizStatus,
+      )
+      if (fresh) {
+        setCertCount(fresh.certifications?.length ?? 0)
+        return
+      }
+      const stale = await readHomeFeedCacheStale<QuizStatus>(HOME_FEED_KEYS.quizStatus)
+      if (stale) setCertCount(stale.certifications?.length ?? 0)
+    }
+    const status = (await api.fetchQuizStatus()) as QuizStatus | null
+    if (status) {
+      await writeHomeFeedCache(HOME_FEED_KEYS.quizStatus, status)
+      setCertCount(status.certifications?.length ?? 0)
+    }
+  }, [])
+
   const retryMemberSync = useCallback(async () => {
     if (!memberAuthAvailable()) {
       Alert.alert("Member sync unavailable", memberSyncUnavailableCopy())
@@ -85,16 +118,16 @@ export default function ProfileScreen() {
     setSyncBusy(true)
     try {
       const result = await refreshMemberSession()
+      lastProfileSessionRefreshAt = Date.now()
       await hydrateFavoritesFromServer()
-      const status = (await api.fetchQuizStatus()) as QuizStatus | null
-      setCertCount(status?.certifications?.length ?? 0)
+      await loadQuizCerts(true)
       if (!result.ok || !result.memberBackend) {
         Alert.alert("Sync incomplete", memberSyncFailedCopy())
       }
     } finally {
       setSyncBusy(false)
     }
-  }, [hydrateFavoritesFromServer])
+  }, [hydrateFavoritesFromServer, loadQuizCerts])
 
   useFocusEffect(
     useCallback(() => {
@@ -106,8 +139,16 @@ export default function ProfileScreen() {
         setCertCount(null)
         return
       }
-      void retryMemberSync()
-    }, [mode, retryMemberSync]),
+      void (async () => {
+        await loadQuizCerts(false)
+        const now = Date.now()
+        if (now - lastProfileSessionRefreshAt < SESSION_REFRESH_TTL_MS) return
+        lastProfileSessionRefreshAt = now
+        await refreshMemberSession()
+        await hydrateFavoritesFromServer()
+        await loadQuizCerts(true)
+      })()
+    }, [mode, loadQuizCerts, hydrateFavoritesFromServer]),
   )
 
   const quizValue =
@@ -240,7 +281,7 @@ export default function ProfileScreen() {
                           void (async () => {
                             clearAccountMemory(accountId)
                             if (memberAuthAvailable()) await api.deleteMemberAccount()
-                            signOut()
+                            await signOutMember()
                             Alert.alert("Deleted", "Your local session and member data request completed.")
                           })()
                         },
@@ -286,11 +327,13 @@ export default function ProfileScreen() {
             label={mode === "guest" ? "Show welcome again" : "Sign out"}
             onPress={() => {
               if (mode === "signed_in") {
-                signOut()
-                Alert.alert(
-                  "Signed out",
-                  "Your AI chat history stays with your account. Sign back in to continue those conversations.",
-                )
+                void (async () => {
+                  await signOutMember()
+                  Alert.alert(
+                    "Signed out",
+                    "Your AI chat history stays with your account. Sign back in to continue those conversations.",
+                  )
+                })()
               } else {
                 resetWelcome()
                 router.replace(href("/welcome"))

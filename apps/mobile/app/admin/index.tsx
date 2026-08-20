@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native"
 import type { AdminFeedbackItem, AdminMember } from "@prabhat/core"
-import { useFocusEffect, useRouter } from "expo-router"
+import { useRouter } from "expo-router"
 import { MessageSquare, Shield, Users } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
@@ -21,7 +21,6 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 import { memberAuthAvailable } from "@/lib/memberAuth"
-import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
@@ -40,34 +39,33 @@ export default function AdminScreen() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const mode = useAuthStore((s) => s.mode)
+  const hasFeedbackRef = useRef(false)
+  const hasMembersRef = useRef(false)
 
   const loadFeedback = useCallback(async () => {
     if (!memberAuthAvailable()) {
       setFeedback([])
+      hasFeedbackRef.current = false
       return
     }
-    setLoading(true)
+    if (!hasFeedbackRef.current) setLoading(true)
     const result = await api.fetchAdminFeedback(filter)
     setFeedback(result.items)
+    hasFeedbackRef.current = true
     setLoading(false)
   }, [filter])
 
   const loadMembers = useCallback(async () => {
     if (!memberAuthAvailable()) {
       setMembers([])
+      hasMembersRef.current = false
       return
     }
-    setLoading(true)
+    if (!hasMembersRef.current) setLoading(true)
     setMembers(await api.fetchAdminMembers())
+    hasMembersRef.current = true
     setLoading(false)
   }, [])
-
-  useFocusEffect(
-    useCallback(() => {
-      if (mode !== "signed_in" || !memberAuthAvailable()) return
-      void refreshMemberSession()
-    }, [mode]),
-  )
 
   useEffect(() => {
     if (mode !== "signed_in" || !isAdmin) return

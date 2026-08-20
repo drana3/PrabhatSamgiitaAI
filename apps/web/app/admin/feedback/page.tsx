@@ -1,12 +1,8 @@
-import { headers } from "next/headers"
+"use client"
 
 import { AdminFeedbackPanel } from "@/components/admin-feedback-panel"
-import { fetchAdminFeedback } from "@/lib/member-admin-proxy"
 
-export const dynamic = "force-dynamic"
-
-export default async function AdminFeedbackPage() {
-  const headerList = await headers()
-  const initialData = await fetchAdminFeedback(headerList, "new")
-  return <AdminFeedbackPanel initialStatus="new" initialData={initialData} />
+/** Client-first so AdminShell paints immediately; feedback loads after navigation. */
+export default function AdminFeedbackPage() {
+  return <AdminFeedbackPanel initialStatus="new" />
 }

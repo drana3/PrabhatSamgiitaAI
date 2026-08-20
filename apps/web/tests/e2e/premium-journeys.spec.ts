@@ -525,11 +525,17 @@ test("search renders verified results and a deliberate no-match state", async ({
 
   await page.goto("/explore?q=unmatched%20theme&kind=semantic")
   await expect(page).toHaveURL(/q=unmatched(\+|%20)theme.*kind=catalog/)
-  await expect(page.getByRole("heading", { name: "No songs matched your search criteria" })).toBeVisible()
-  await expect(page.getByText(/Try a song number, opening words/i)).toBeVisible()
+  await expect(page.getByRole("heading", { name: "No songs matched — try Feeling search" })).toBeVisible()
   await expect(page.getByRole("button", { name: /Sign in for Feeling search/i })).toBeVisible()
+  await expect(page.getByText(/Normal search looks up numbers and lyrics/i)).toBeVisible()
   await expect(page.getByRole("heading", { name: "Recommended songs to explore" })).toBeVisible()
   await expect(page.getByText("These are suggestions, not matches for your search.")).toBeVisible()
+})
+
+test("explore browse does not dump a large song grid before search", async ({ page }) => {
+  await page.goto("/explore")
+  await expect(page.getByRole("heading", { name: "Explore Prabhat Samgiita" })).toBeVisible()
+  await expect(page.locator("#results .grid a")).toHaveCount(0)
 })
 
 test("AI companion remembers context, accepts Romanized Hindi, and blocks nonsense", async ({ page }) => {

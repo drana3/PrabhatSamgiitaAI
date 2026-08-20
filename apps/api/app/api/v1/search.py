@@ -40,6 +40,17 @@ rich_search_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
 )
 
 
+def clear_search_result_caches_sync() -> None:
+    """Invalidate cached search payloads after catalog memory updates."""
+    simple_search_cache.clear_sync()
+    rich_search_cache.clear_sync()
+
+
+async def clear_search_result_caches() -> None:
+    await simple_search_cache.clear()
+    await rich_search_cache.clear()
+
+
 def _song_summary(item: SearchResultItem, songs_by_number: dict[int, Song]) -> SongSummary:
     song_number = item.song_number
     song = songs_by_number.get(song_number)

@@ -29,7 +29,8 @@ type PreferencesState = {
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
   setSavedFromNumbers: (numbers: number[]) => void
-  toggleSaved: (songId: string) => Promise<void>
+  toggleSaved: (songId: string) => Promise<{ needsAuth: boolean }>
+  resetAfterSignOut: () => void
   hydrateFavoritesFromServer: () => Promise<void>
   recordRecentPlay: (
     song: Pick<MockSong, "id" | "number" | "title" | "thumbnailUrl" | "themes">,
@@ -124,6 +125,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
 
       toggleSaved: async (songId) => {
+        const { mode } = useAuthStore.getState()
+        if (mode !== "signed_in") {
+          return { needsAuth: true }
+        }
+
         const existing = get().savedSongIds
         const isSaved = existing.includes(songId)
         const optimistic = isSaved
@@ -135,9 +141,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           favoritesByScope: { ...get().favoritesByScope, [scope]: optimistic },
         })
 
-        const { mode } = useAuthStore.getState()
         const number = toSongNumber(songId)
-        if (mode !== "signed_in" || !memberAuthAvailable() || !number) return
+        if (!memberAuthAvailable() || !number) return { needsAuth: false }
 
         try {
           const numbers = isSaved
@@ -151,6 +156,17 @@ export const usePreferencesStore = create<PreferencesState>()(
         } catch {
           // Keep optimistic local state if member backend is unavailable.
         }
+        return { needsAuth: false }
+      },
+
+      resetAfterSignOut: () => {
+        const favoritesByScope = { ...get().favoritesByScope, guest: [] as string[] }
+        set({
+          feelingSearchEnabled: false,
+          favoritesScope: "guest",
+          savedSongIds: [],
+          favoritesByScope,
+        })
       },
 
       recordRecentPlay: (song) => {

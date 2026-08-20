@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { Alert, InteractionManager, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
-import { queryGuidanceFor, queryIsUseful, SEARCH_PLACEHOLDER, type TodayRecommendations } from "@prabhat/core"
+import {
+  FEELING_ENABLE_IN_PROFILE_BODY,
+  FEELING_ENABLE_IN_PROFILE_TITLE,
+  HOME_SEARCH_EXAMPLES,
+  queryGuidanceFor,
+  queryIsUseful,
+  SEARCH_PLACEHOLDER,
+  type TodayRecommendations,
+} from "@prabhat/core"
 
 import { HomeHeroSearch } from "@/components/home/HomeHeroSearch"
+import { HomeSearchExamples } from "@/components/home/HomeSearchExamples"
 import { ScreenContainer, SectionHeader } from "@/components/common/ScreenContainer"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { CollectionsPreview } from "@/components/home/CollectionsPreview"
@@ -199,6 +208,30 @@ export default function HomeScreen() {
     router.push(href(`/search?focus=1&q=${encodeURIComponent(trimmed)}`))
   }
 
+  const onSearchExample = (example: (typeof HOME_SEARCH_EXAMPLES)[number]) => {
+    setSearchQuery(example.query)
+    if (example.mode === "feeling") {
+      if (mode !== "signed_in") {
+        router.push(href("/signin"))
+        return
+      }
+      if (!feelingSearchEnabled) {
+        Alert.alert(FEELING_ENABLE_IN_PROFILE_TITLE, FEELING_ENABLE_IN_PROFILE_BODY, [
+          { text: "Not now", style: "cancel" },
+          { text: "Open Profile", onPress: () => router.push(href("/(tabs)/profile")) },
+        ])
+        return
+      }
+      router.push(href(`/search?focus=1&q=${encodeURIComponent(example.query)}`))
+      return
+    }
+    if (/^\d+$/.test(example.query.trim())) {
+      openSongNumber(Number(example.query.trim()))
+      return
+    }
+    router.push(href(`/search?focus=1&q=${encodeURIComponent(example.query)}`))
+  }
+
   return (
     <ScreenContainer padded={false} showGuru={false}>
       <ScrollView
@@ -228,6 +261,11 @@ export default function HomeScreen() {
               onSubmit={submitHomeSearch}
               onMicPress={() => router.push(href("/search?listen=1"))}
               placeholder={SEARCH_PLACEHOLDER}
+            />
+            <HomeSearchExamples
+              signedIn={mode === "signed_in"}
+              feelingOn={mode === "signed_in" && feelingSearchEnabled}
+              onSelect={onSearchExample}
             />
             {searchSuggestions.length ? (
               <View style={styles.suggestionCard}>

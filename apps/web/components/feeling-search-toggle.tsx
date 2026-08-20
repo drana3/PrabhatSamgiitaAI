@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
+import { FEELING_SEARCH_HINT_GUEST, FEELING_SEARCH_HINT_SIGNED_IN } from "@prabhat/core"
 
 import { useMember } from "@/components/member-provider"
 import { readFeelingSearchEnabled, writeFeelingSearchEnabled } from "@/lib/feeling-search"
@@ -46,9 +47,7 @@ export function FeelingSearchToggle({ compact = false }: { compact?: boolean }) 
       <div className="min-w-0">
         <p className="text-sm font-semibold text-navy-950">Feeling search</p>
         <p className="mt-0.5 text-xs leading-5 text-stone-600">
-          {signedIn
-            ? "When on, free text uses meaning search (no lyric suggestions). Turn off for song numbers and lyrics."
-            : "Sign in to search songs by feeling."}
+          {signedIn ? FEELING_SEARCH_HINT_SIGNED_IN : FEELING_SEARCH_HINT_GUEST}
         </p>
       </div>
       <button

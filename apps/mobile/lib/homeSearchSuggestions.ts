@@ -1,4 +1,8 @@
-import { planSearch, type SearchAuth } from "@prabhat/core"
+import {
+  feelingSearchAllowed,
+  planSearch,
+  type SearchAuth,
+} from "@prabhat/core"
 
 import type { MockSong } from "@/data/mock"
 import { seedCategoryForQuery, songNumbersForCategory } from "@/lib/categorySongs"
@@ -34,12 +38,13 @@ export function homeSearchSuggestions(
 ): MockSong[] {
   const trimmed = query.trim()
   if (!trimmed) return []
+  // Feeling search on → no auto-suggestions; submit hits meaning search.
+  if (feelingSearchAllowed(auth)) return []
 
   const numbered = catalogSongByNumber(trimmed)
   if (numbered) return hitsToSongs([numbered])
 
   const plan = planSearch(trimmed, auth)
-  // Feeling search on → no lyric/mood suggestions; submit hits semantic.
   if (plan.layer === "semantic") return []
   if (plan.layer === "mood" && plan.moodId) {
     return hitsToSongs(catalogSongsByNumbers(songNumbersForCategory(plan.moodId), limit))

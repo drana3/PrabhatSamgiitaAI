@@ -39,6 +39,7 @@ import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
 import { fetchNotationCached, peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
+import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
@@ -62,6 +63,7 @@ export default function SongDetailScreen() {
   const isCurrent = usePlayerStore((s) =>
     song ? songPlayback(s, song).isCurrent : false,
   )
+  const authMode = useAuthStore((s) => s.mode)
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
   const [language, setLanguage] = useState("en")
@@ -312,7 +314,7 @@ export default function SongDetailScreen() {
     )
   }
 
-  const isSaved = savedSongIds.includes(song.id)
+  const isSaved = authMode === "signed_in" && savedSongIds.includes(song.id)
   const playQueue = [song.number, ...related.map((item) => item.number)]
 
   const handlePlayToggle = () => {
@@ -382,7 +384,13 @@ export default function SongDetailScreen() {
             <IconButton
               soft
               accessibilityLabel={isSaved ? "Remove favorite" : "Save favorite"}
-              onPress={() => void toggleSaved(song.id)}
+              onPress={() => {
+                if (authMode !== "signed_in") {
+                  router.push(href("/signin"))
+                  return
+                }
+                void toggleSaved(song.id)
+              }}
             >
               <Heart
                 size={20}

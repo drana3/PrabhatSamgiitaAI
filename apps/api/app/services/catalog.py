@@ -149,9 +149,22 @@ def _invalidate_derived_indexes() -> None:
     from app.services.lyric_search import lyric_index
 
     lyric_index.cache_clear()
+    # Drop search response caches so clients never keep stale song metadata/media.
+    try:
+        from app.api.v1.search import clear_search_result_caches_sync
+
+        clear_search_result_caches_sync()
+    except Exception:
+        # Search router may not be imported yet during early bootstrap.
+        pass
 
 
-async def refresh_catalog_song(session: AsyncSession, number: int) -> bool:
+async def refresh_catalog_song(
+    session: AsyncSession,
+    number: int,
+    *,
+    invalidate: bool = True,
+) -> bool:
     """Copy one Neon song (plus its media/notation) into the in-process catalog."""
     _ensure_catalog_loaded()
     assert _songs is not None and _media is not None and _notations is not None
@@ -179,40 +192,48 @@ async def refresh_catalog_song(session: AsyncSession, number: int) -> bool:
     _media[song.number] = list(merged.values())
     if notation is not None:
         _notations[song.number] = _detach_notation(notation)
-    _invalidate_derived_indexes()
+    if invalidate:
+        _invalidate_derived_indexes()
     return True
 
 
 async def refresh_catalog_songs(session: AsyncSession, numbers: Iterable[int]) -> int:
     refreshed = 0
     for number in dict.fromkeys(int(value) for value in numbers):
-        if await refresh_catalog_song(session, number):
+        if await refresh_catalog_song(session, number, invalidate=False):
             refreshed += 1
+    if refreshed:
+        _invalidate_derived_indexes()
     return refreshed
 
 
-async def refresh_recent_catalog_changes(session: AsyncSession, *, minutes: int = 15) -> int:
-    """Reload songs that Neon reports as updated in the last `minutes`."""
-    cutoff = datetime.now(UTC) - timedelta(minutes=minutes)
+async def refresh_catalog_changes_since(session: AsyncSession, since: datetime) -> int:
+    """Reload songs/media/notation rows with updated_at >= since into memory."""
     numbers: set[int] = set()
     try:
-        song_numbers = await session.execute(select(Song.number).where(Song.updated_at >= cutoff))
+        song_numbers = await session.execute(select(Song.number).where(Song.updated_at >= since))
         numbers.update(int(value) for value in song_numbers.scalars().all())
         media_numbers = await session.execute(
             select(Media.song_number).where(
-                Media.updated_at >= cutoff,
+                Media.updated_at >= since,
                 Media.song_number.is_not(None),
             )
         )
         numbers.update(int(value) for value in media_numbers.scalars().all() if value is not None)
         notation_numbers = await session.execute(
-            select(Notation.song_number).where(Notation.updated_at >= cutoff)
+            select(Notation.song_number).where(Notation.updated_at >= since)
         )
         numbers.update(int(value) for value in notation_numbers.scalars().all())
     except SQLAlchemyError:
         await session.rollback()
         return 0
     return await refresh_catalog_songs(session, numbers)
+
+
+async def refresh_recent_catalog_changes(session: AsyncSession, *, minutes: int = 15) -> int:
+    """Reload songs that Neon reports as updated in the last `minutes`."""
+    cutoff = datetime.now(UTC) - timedelta(minutes=minutes)
+    return await refresh_catalog_changes_since(session, cutoff)
 
 
 class CatalogService:

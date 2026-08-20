@@ -12,7 +12,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     <main className="min-h-screen bg-ivory-50">
       <SiteHeader active="Explore" />
       <ExploreClient
-        initialSongs={seedSongs.slice(0, 12)}
+        initialSongs={seedSongs.slice(0, 3)}
         initialQuery={q}
         searchKind={searchKind}
         inputMode={mode === "voice" ? "voice" : "text"}
