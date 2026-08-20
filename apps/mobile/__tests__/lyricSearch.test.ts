@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { catalogLyricCount, catalogSongsByNumbers, searchLyrics, type LyricSearchRow } from "@/lib/lyricSearch"
+import {
+  catalogLyricCount,
+  catalogSongByNumber,
+  catalogSongsByNumbers,
+  searchLyrics,
+  type LyricSearchRow,
+} from "@/lib/lyricSearch"
 
 const rows: LyricSearchRow[] = [
   {
@@ -46,5 +52,11 @@ describe("lyric search", () => {
   it("looks up many saved songs past the default search limit of 5", () => {
     const hits = catalogSongsByNumbers([1, 2, 3, 4, 5, 6, 5018], 7)
     expect(hits.map((hit) => hit.number)).toEqual([1, 2, 3, 4, 5, 6, 5018])
+  })
+
+  it("resolves catalog numbers from the bundled index (Explore must use this, not lyric text)", () => {
+    expect(catalogSongByNumber("2000")?.number).toBe(2000)
+    expect(catalogSongByNumber("ps 2000")?.number).toBe(2000)
+    expect(catalogSongByNumber("9999")).toBeNull()
   })
 })

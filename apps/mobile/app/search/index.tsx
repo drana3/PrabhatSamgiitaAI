@@ -50,7 +50,13 @@ import {
   semanticQueryForCategory,
 } from "@/lib/categorySongs"
 import { searchDebounceMs } from "@/lib/searchMode"
-import { searchCatalogLyrics, catalogSongsByNumbers, warmLyricSearchIndex } from "@/lib/lyricSearch"
+import {
+  catalogSongByNumber,
+  catalogSongsByNumbers,
+  isCatalogNumberQuery,
+  searchCatalogLyrics,
+  warmLyricSearchIndex,
+} from "@/lib/lyricSearch"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { useAuthStore } from "@/stores/authStore"
@@ -204,6 +210,12 @@ export default function SearchScreen() {
     setLoading(true)
     setError(null)
     try {
+      const numbered = catalogSongByNumber(nextQuery)
+      if (numbered) {
+        setResults(lyricHitsToSongs([numbered]))
+        setError(null)
+        return
+      }
       const localHits = searchCatalogLyrics(nextQuery, CATEGORY_RESULT_LIMIT, { interpret: true })
       if (localHits.length) {
         const mapped = lyricHitsToSongs(localHits)
@@ -376,6 +388,17 @@ export default function SearchScreen() {
       return
     }
 
+    // Number lookup is local (same as Home suggestions / web instantExploreSongs).
+    // Lyric text search never matches `row.n`, so skipping this shows a false empty state.
+    if (plan.layer === "number") {
+      const numbered = catalogSongByNumber(trimmed)
+      setResults(numbered ? lyricHitsToSongs([numbered]) : [])
+      setError(null)
+      setLoading(false)
+      if (numbered) addSearchRecent(trimmed)
+      return
+    }
+
     if (plan.layer === "collection") {
       const collection = collectionFromQuery(trimmed)
       if (collection?.songNumbers.length) {
@@ -495,7 +518,9 @@ export default function SearchScreen() {
               {error ? <Text style={styles.error}>{error}</Text> : null}
               {!loading && results.length === 0 ? (
                 <View style={styles.emptyBlock}>
-                  {!searchAuth.feelingSearchEnabled ? (
+                  {isCatalogNumberQuery(query) ? (
+                    <Text style={styles.empty}>No Prabhat Samgiita song with that number.</Text>
+                  ) : !searchAuth.feelingSearchEnabled ? (
                     <View style={styles.feelingHint}>
                       <Text style={styles.feelingHintTitle}>{FEELING_SEARCH_EMPTY_TITLE}</Text>
                       <Text style={styles.feelingHintBody}>
@@ -535,14 +560,16 @@ export default function SearchScreen() {
                   ) : (
                     <Text style={styles.empty}>{FEELING_SEARCH_EMPTY_NO_MATCH}</Text>
                   )}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Search all 5018 Prabhat Samgiita songs"
-                    onPress={() => void runAllCatalogSearch()}
-                    style={({ pressed }) => [styles.allCatalogButton, pressed && styles.chipPressed]}
-                  >
-                    <Text style={styles.allCatalogText}>Search all 5,018 songs</Text>
-                  </Pressable>
+                  {!isCatalogNumberQuery(query) ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Search all 5018 Prabhat Samgiita songs"
+                      onPress={() => void runAllCatalogSearch()}
+                      style={({ pressed }) => [styles.allCatalogButton, pressed && styles.chipPressed]}
+                    >
+                      <Text style={styles.allCatalogText}>Search all 5,018 songs</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               ) : null}
             </View>

@@ -1,5 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
-import { Alert, InteractionManager, ScrollView, StyleSheet, Text, View } from "react-native"
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  Alert,
+  InteractionManager,
+  Keyboard,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native"
 import { useRouter } from "expo-router"
 import {
   FEELING_ENABLE_IN_PROFILE_BODY,
@@ -88,6 +97,14 @@ export default function HomeScreen() {
   const [homeError, setHomeError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [showRest, setShowRest] = useState(false)
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const scrollRef = useRef<ScrollView>(null)
+  const searchSlotOffsetY = useRef(0)
+
+  const bringSearchAboveKeyboard = () => {
+    const y = Math.max(0, searchSlotOffsetY.current - spacing.sm)
+    scrollRef.current?.scrollTo({ y, animated: true })
+  }
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -152,6 +169,32 @@ export default function HomeScreen() {
     () => homeSearchSuggestions(searchQuery, 5, searchAuth),
     [searchQuery, searchAuth.signedIn, searchAuth.feelingSearchEnabled],
   )
+  const searching = searchQuery.trim().length > 0
+
+  // Keep the search field + suggestions visible above the iOS keyboard.
+  useEffect(() => {
+    if (!searching) return
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height)
+      requestAnimationFrame(bringSearchAboveKeyboard)
+    })
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0))
+    const handle = requestAnimationFrame(bringSearchAboveKeyboard)
+    const retry = setTimeout(bringSearchAboveKeyboard, 120)
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+      cancelAnimationFrame(handle)
+      clearTimeout(retry)
+    }
+  }, [searching, searchSuggestions.length])
+
+  useEffect(() => {
+    if (searching) return
+    setKeyboardHeight(0)
+  }, [searching])
 
   const featuredSong = useMemo(() => {
     const first = today?.recommendations?.[0]
@@ -235,10 +278,17 @@ export default function HomeScreen() {
   return (
     <ScreenContainer padded={false} showGuru={false}>
       <ScrollView
+          ref={scrollRef}
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.content, { paddingBottom: hasSong ? 160 : 110 }]}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingBottom:
+                (hasSong ? 160 : 110) + (searching && keyboardHeight ? keyboardHeight * 0.55 : 0),
+            },
+          ]}
         >
           <GreetingHeader
             onNotifyPress={() =>
@@ -254,7 +304,12 @@ export default function HomeScreen() {
                   )
             }
           />
-          <View style={styles.searchSlot}>
+          <View
+            style={styles.searchSlot}
+            onLayout={(event) => {
+              searchSlotOffsetY.current = event.nativeEvent.layout.y
+            }}
+          >
             <HomeHeroSearch
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -262,11 +317,13 @@ export default function HomeScreen() {
               onMicPress={() => router.push(href("/search?listen=1"))}
               placeholder={SEARCH_PLACEHOLDER}
             />
-            <HomeSearchExamples
-              signedIn={mode === "signed_in"}
-              feelingOn={mode === "signed_in" && feelingSearchEnabled}
-              onSelect={onSearchExample}
-            />
+            {!searching ? (
+              <HomeSearchExamples
+                signedIn={mode === "signed_in"}
+                feelingOn={mode === "signed_in" && feelingSearchEnabled}
+                onSelect={onSearchExample}
+              />
+            ) : null}
             {searchSuggestions.length ? (
               <View style={styles.suggestionCard}>
                 <Text style={styles.suggestionLabel}>Songs</Text>
