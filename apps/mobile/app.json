@@ -17,10 +17,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "16",
+      "buildNumber": "17",
       "icon": "./assets/icon.png",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -56,7 +58,9 @@
         {
           "microphonePermission": "Allow Prabhat Samgiita AI to use the microphone for voice search.",
           "speechRecognitionPermission": "Allow Prabhat Samgiita AI to turn speech into search text.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ]
     ],
