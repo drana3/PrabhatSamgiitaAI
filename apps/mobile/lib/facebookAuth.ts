@@ -46,7 +46,10 @@ export async function signInWithFacebook(): Promise<OAuthIdentity> {
   })
 
   await request.makeAuthUrlAsync(discovery)
-  const result = await request.promptAsync(discovery, { showInRecents: true })
+  const result = await request.promptAsync(discovery, {
+    showInRecents: false,
+    createTask: false,
+  })
   if (result.type !== "success" || !result.params.code) {
     if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
     throw new Error("Facebook sign-in didn’t finish. Try again.")

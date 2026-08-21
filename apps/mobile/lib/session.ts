@@ -147,7 +147,7 @@ export async function signOutMember() {
   useAuthStore.getState().signOut()
   usePreferencesStore.getState().resetAfterSignOut()
 
-  // Do not await browser/SSO UI — that delayed the "Signed out" alert and raced sync.
+  // Provider SSO cleanup is best-effort and non-blocking (no Microsoft browser logout).
   void (async () => {
     try {
       if (provider === "aad" && microsoftAuthConfigured()) {

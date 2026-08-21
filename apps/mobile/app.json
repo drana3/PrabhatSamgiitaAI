@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "21",
+      "buildNumber": "24",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -31,7 +31,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 3,
+      "versionCode": 6,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
 import { HOME_SEARCH_EXAMPLES } from "@prabhat/core"
 
 import { colors } from "@/constants/colors"
@@ -33,8 +33,14 @@ export function HomeSearchExamples({ signedIn, feelingOn, onSelect }: Props) {
             onPress={() => onSelect(example)}
             style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
           >
-            <Text style={styles.label}>{example.label}</Text>
-            {showQuery ? <Text style={styles.query}> · {example.query}</Text> : null}
+            {/*
+              Single Text tree (like web). Avoid fontWeight on a weight-specific
+              Inter face — Android then drops glyphs (e.g. "number" / "feeling").
+            */}
+            <Text style={styles.label}>
+              {example.label}
+              {showQuery ? <Text style={styles.query}> · {example.query}</Text> : null}
+            </Text>
             {feelingGuest ? <Text style={styles.badge}>Sign in</Text> : null}
             {feelingNeedsEnable ? <Text style={styles.badge}>Profile</Text> : null}
           </Pressable>
@@ -67,12 +73,16 @@ const styles = StyleSheet.create({
   chipPressed: { opacity: 0.85 },
   label: {
     ...typography.caption,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: colors.textPrimary,
+    ...(Platform.OS === "android" ? { includeFontPadding: false } : null),
   },
   query: {
-    ...typography.caption,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.textSecondary,
+    ...(Platform.OS === "android" ? { includeFontPadding: false } : null),
   },
   badge: {
     ...typography.caption,
@@ -81,10 +91,11 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.pill,
     overflow: "hidden",
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     fontSize: 10,
     textTransform: "uppercase",
     color: colors.primaryDark,
     backgroundColor: colors.primaryLight,
+    ...(Platform.OS === "android" ? { includeFontPadding: false } : null),
   },
 })
