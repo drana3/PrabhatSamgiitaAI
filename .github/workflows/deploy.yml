@@ -283,6 +283,11 @@ jobs:
             API=true
             WEB=true
           fi
+          # Preserve prior web deploy behavior: any real app image deploy always
+          # rebuilds web (API-only commits used to update both containers).
+          if [ "$API" = true ] || [ "$WEB" = true ]; then
+            WEB=true
+          fi
           echo "api=$API" >> "$GITHUB_OUTPUT"
           echo "web=$WEB" >> "$GITHUB_OUTPUT"
           echo "Deploy targets → API=$API WEB=$WEB"
