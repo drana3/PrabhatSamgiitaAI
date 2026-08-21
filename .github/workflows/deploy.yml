@@ -251,7 +251,7 @@ jobs:
           echo "$CHANGED"
           API=false
           WEB=false
-          if echo "$CHANGED" | grep -qE '^(infra/|packages/|data/|\.dockerignore$|\.github/workflows/deploy\.yml$)'; then
+          if echo "$CHANGED" | grep -qE '^(infra/|packages/|data/|\.dockerignore$)'; then
             API=true
             WEB=true
           fi
@@ -265,7 +265,14 @@ jobs:
           if echo "$CHANGED" | grep -qE '^(apps/web/|package\.json$|package-lock\.json$)'; then
             WEB=true
           fi
+          # Workflow-only edits should not force ACR image rebuilds.
           if [ "$API" = false ] && [ "$WEB" = false ]; then
+            if echo "$CHANGED" | grep -qE '^\.github/workflows/deploy\.yml$'; then
+              echo "api=false" >> "$GITHUB_OUTPUT"
+              echo "web=false" >> "$GITHUB_OUTPUT"
+              echo "Deploy workflow-only change → skip ACR rebuilds"
+              exit 0
+            fi
             API=true
             WEB=true
           fi

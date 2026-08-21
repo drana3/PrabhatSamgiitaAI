@@ -103,6 +103,15 @@ fi
 
 echo "Deploy targets: API=${DEPLOY_API} WEB=${DEPLOY_WEB} TAG=${TAG}"
 
+if [[ "$DEPLOY_API" != "1" && "$DEPLOY_WEB" != "1" ]]; then
+  cat <<EOF
+No container images to rebuild (DEPLOY_API=0, DEPLOY_WEB=0).
+Web: https://${WEB_FQDN}
+API: https://${API_FQDN}
+EOF
+  exit 0
+fi
+
 current_image() {
   local app_name="$1"
   az containerapp show \
