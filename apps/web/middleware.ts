@@ -33,11 +33,14 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next()
   const principal = memberPrincipalFor(request)
   if (principal) {
-    response.cookies.set(
-      ADMIN_GATE_COOKIE,
-      buildAdminGateToken(principal),
-      adminGateCookieOptions(),
-    )
+    const token = await buildAdminGateToken(principal)
+    if (token) {
+      response.cookies.set(
+        ADMIN_GATE_COOKIE,
+        token,
+        adminGateCookieOptions(),
+      )
+    }
   }
   return response
 }

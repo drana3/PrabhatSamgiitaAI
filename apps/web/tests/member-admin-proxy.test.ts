@@ -44,7 +44,7 @@ describe("member admin session", () => {
     const request = new NextRequest("https://example.test/admin/youtube", {
       headers: { "x-ms-client-principal": principal },
     })
-    request.cookies.set("psa_admin_gate", buildAdminGateToken(principal))
+    request.cookies.set("psa_admin_gate", await buildAdminGateToken(principal))
 
     await expect(memberSessionIsAdmin(request)).resolves.toBe(true)
     expect(fetchMock).not.toHaveBeenCalled()
