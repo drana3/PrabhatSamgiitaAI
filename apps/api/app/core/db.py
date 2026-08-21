@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
+from app.core.database_url import normalize_async_database_url
 
 settings = get_settings()
 
@@ -25,7 +26,8 @@ def _engine_kwargs(database_url: str) -> dict[str, object]:
     return kwargs
 
 
-engine = create_async_engine(settings.database_url, **_engine_kwargs(settings.database_url))
+_ASYNC_DATABASE_URL = normalize_async_database_url(settings.database_url)
+engine = create_async_engine(_ASYNC_DATABASE_URL, **_engine_kwargs(_ASYNC_DATABASE_URL))
 SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 

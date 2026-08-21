@@ -44,6 +44,12 @@ if [[ -z "${DATABASE_URL}" ]]; then
   echo "Set DATABASE_URL to the Neon pooled postgresql+psycopg URL (sslmode=require)."
   exit 1
 fi
+# SQLAlchemy async needs +psycopg; plain postgresql:// imports missing psycopg2 and crash-loops the API.
+case "${DATABASE_URL}" in
+  postgresql+psycopg://*) ;;
+  postgresql://*) DATABASE_URL="postgresql+psycopg://${DATABASE_URL#postgresql://}" ;;
+  postgres://*) DATABASE_URL="postgresql+psycopg://${DATABASE_URL#postgres://}" ;;
+esac
 
 if [[ -z "${MEMBER_PROXY_KEY}" ]]; then
   # v2 salt rotates any proxy key that was previously leaked into CI logs.

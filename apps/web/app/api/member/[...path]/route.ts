@@ -72,16 +72,29 @@ async function forward(request: NextRequest, segments: string[]) {
   const target = new URL(`/api/v1/members/${segments.map(encodeURIComponent).join("/")}`, backendBase())
   target.search = incomingUrl.search
   const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.text()
-  const response = await fetch(target, {
-    method: request.method,
-    headers: {
-      "Content-Type": request.headers.get("content-type") ?? "application/json",
-      "X-MS-CLIENT-PRINCIPAL": principal,
-      "X-Member-Proxy-Key": proxyKey,
-    },
-    body,
-    cache: "no-store",
-  })
+  // Bound upstream waits: a hung API previously made /api/member/session stall until the
+  // browser aborted (~8s) and the header fell back to "Sign in" despite a valid cookie.
+  const upstreamTimeoutMs = root === "session" ? 4_000 : 12_000
+  let response: Response
+  try {
+    response = await fetch(target, {
+      method: request.method,
+      headers: {
+        "Content-Type": request.headers.get("content-type") ?? "application/json",
+        "X-MS-CLIENT-PRINCIPAL": principal,
+        "X-Member-Proxy-Key": proxyKey,
+      },
+      body,
+      cache: "no-store",
+      signal: AbortSignal.timeout(upstreamTimeoutMs),
+    })
+  } catch {
+    if (root === "session") {
+      const fallback = principalSessionFallback(principal, true)
+      if (fallback) return sessionResponse(fallback)
+    }
+    return sessionResponse({ detail: "Member services are temporarily unavailable" }, 503)
+  }
 
   if (root === "session" && !response.ok) {
     // Keep Azure identity visible so the UI does not bounce Sign in → /signin.

@@ -73,6 +73,35 @@ describe("member proxy route", () => {
     expect(body.personalization_enabled).toBe(true)
   })
 
+  it("keeps signed-in session when upstream member API hangs/times out", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.NODE_ENV = "production"
+    const principal = buildClientPrincipal("user-oid-42", "member@example.com")
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((_url: URL, init?: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        const signal = init?.signal
+        if (signal?.aborted) {
+          reject(new DOMException("The operation was aborted.", "AbortError"))
+          return
+        }
+        signal?.addEventListener("abort", () => {
+          reject(new DOMException("The operation was aborted.", "AbortError"))
+        })
+      })
+    }))
+
+    const request = new NextRequest("https://example.test/api/member/session", {
+      headers: { "x-ms-client-principal": principal },
+    })
+    const response = await GET(request, { params: Promise.resolve({ path: ["session"] }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.authenticated).toBe(true)
+    expect(body.member_backend).toBe(true)
+    expect(body.email).toBe("member@example.com")
+  })
+
   it("marks live member sessions as backend-ready", async () => {
     process.env.MEMBER_PROXY_KEY = "proxy-key"
     process.env.NODE_ENV = "production"
