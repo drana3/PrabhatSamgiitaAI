@@ -112,11 +112,11 @@ export function AdminYoutubePanel() {
       title="YouTube channels & review"
       description="Configure channels to scan, import only new videos, then approve matches in the review queue."
     >
-        <AdminYoutubeChannelsPanel />
+        <AdminYoutubeChannelsPanel onScanComplete={() => load()} />
         <h2 className="mb-4 font-serif text-2xl text-navy-950">Review queue</h2>
         <p className="mb-4 max-w-3xl text-sm leading-6 text-stone-600">
-          Pending videos matched from channel scans. The nightly sync job updates the batch file;
-          use sync below after a scheduled run. Clear stale items from before scope filtering.
+          Pending videos from channel scans appear here automatically. Scan now checks the latest
+          uploads on each channel; the nightly job also syncs the full catalog into the database.
         </p>
         <div className="mb-4 flex flex-wrap gap-3">
           <button type="button" onClick={() => void syncQueue()} className="gold-button px-4 py-2 text-sm">

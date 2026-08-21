@@ -8,6 +8,7 @@ from urllib.request import Request
 from scripts.sync_youtube import (
     CHANNELS,
     GENERAL_YOUTUBE,
+    extract_videos,
     fetch,
     media_row,
     mentions_prabhat_samgiita,
@@ -17,6 +18,26 @@ from scripts.sync_youtube import (
 )
 
 SONGS = {1: {"number": 1, "title": "Bandhu He Niye Calo", "first_line": "Bandhu He"}}
+
+
+def test_extract_videos_reads_classic_grid_renderer() -> None:
+    payload = {
+        "contents": {
+            "gridVideoRenderer": {
+                "videoId": "abc123xyz01",
+                "title": {"runs": [{"text": "Prabhat Sangeet song #42 - Morning melody"}]},
+            }
+        }
+    }
+
+    videos = extract_videos(payload)
+
+    assert videos == [
+        {
+            "video_id": "abc123xyz01",
+            "title": "Prabhat Sangeet song #42 - Morning melody",
+        }
+    ]
 
 
 def test_numbered_channel_video_is_published_by_song_number() -> None:

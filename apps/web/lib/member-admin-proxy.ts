@@ -1,5 +1,9 @@
 import type { NextRequest } from "next/server"
 
+import {
+  ADMIN_GATE_COOKIE,
+  verifyAdminGateToken,
+} from "@/lib/admin-gate"
 import { azureAuthForwardHeaders, resolveClientPrincipal } from "@/lib/azure-principal"
 import { fetchBackendMemberSession, memberPrincipalFor } from "@/lib/member-request"
 import { runtimeEnv } from "@/lib/runtime-env"
@@ -11,6 +15,9 @@ export function memberForwardHeaders(request: NextRequest) {
 export async function memberSessionIsAdmin(request: NextRequest) {
   const principal = memberPrincipalFor(request)
   if (!principal) return false
+
+  const gate = request.cookies.get(ADMIN_GATE_COOKIE)?.value
+  if (verifyAdminGateToken(gate, principal)) return true
 
   const session = await fetchBackendMemberSession(principal)
   return session?.authenticated === true && session?.is_admin === true

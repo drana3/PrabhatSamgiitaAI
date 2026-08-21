@@ -420,10 +420,12 @@ async def admin_create_youtube_channel(
 
 @router.post("/youtube-channels/scan-all", response_model=dict[str, object])
 async def admin_scan_all_youtube_channels(
-    request: Request, session: DatabaseSession
+    request: Request,
+    session: DatabaseSession,
+    max_pages: int = Query(default=12, ge=1, le=50),
 ) -> dict[str, object]:
     await admin_member(request, session)
-    return await scan_all_youtube_channels(session)
+    return await scan_all_youtube_channels(session, max_pages=max_pages)
 
 
 @router.post("/youtube-channels/{channel_id}/scan", response_model=YoutubeScanChannelScanResult)
@@ -431,9 +433,10 @@ async def admin_scan_youtube_channel(
     channel_id: UUID,
     request: Request,
     session: DatabaseSession,
+    max_pages: int = Query(default=12, ge=1, le=50),
 ) -> YoutubeScanChannelScanResult:
     await admin_member(request, session)
-    result = await scan_youtube_channel(session, channel_id)
+    result = await scan_youtube_channel(session, channel_id, max_pages=max_pages)
     return YoutubeScanChannelScanResult(**result)
 
 

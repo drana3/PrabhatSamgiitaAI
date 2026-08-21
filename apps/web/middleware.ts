@@ -1,7 +1,9 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 
+import { adminGateCookieOptions, buildAdminGateToken, ADMIN_GATE_COOKIE } from "@/lib/admin-gate"
 import { memberSessionIsAdmin } from "@/lib/member-admin-proxy"
+import { memberPrincipalFor } from "@/lib/member-request"
 
 function unauthorizedApi() {
   return NextResponse.json({ detail: "Admin access is required" }, { status: 403 })
@@ -28,7 +30,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signin)
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next()
+  const principal = memberPrincipalFor(request)
+  if (principal) {
+    response.cookies.set(
+      ADMIN_GATE_COOKIE,
+      buildAdminGateToken(principal),
+      adminGateCookieOptions(),
+    )
+  }
+  return response
 }
 
 export const config = {

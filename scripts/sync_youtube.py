@@ -46,7 +46,15 @@ SEARCH_STATE_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_search_state.json"
 )
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
-USER_AGENT = "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://github.com/drana3/PrabhatSamgiitaAI)"
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+DEFAULT_FETCH_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept": "text/html,application/json,*/*;q=0.8",
+}
 MIN_SONG_NUMBER = 1
 MAX_SONG_NUMBER = 5018
 PRABHAT_SAMGIITA_RE = re.compile(
@@ -262,11 +270,14 @@ def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
 
 def fetch(url: str, payload: dict[str, Any] | None = None) -> str:
     body = json.dumps(payload).encode() if payload is not None else None
+    headers = dict(DEFAULT_FETCH_HEADERS)
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
     for attempt in range(3):
         request = Request(
             url,
             data=body,
-            headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"},
+            headers=headers,
         )
         try:
             with urlopen(request, timeout=45) as response:
@@ -307,18 +318,51 @@ def nested(value: dict[str, Any], *keys: str) -> Any:
     return current
 
 
+def _title_from_runs(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, dict):
+        content = value.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+        runs = value.get("runs")
+        if isinstance(runs, list):
+            parts = [
+                str(run.get("text") or "").strip()
+                for run in runs
+                if isinstance(run, dict) and str(run.get("text") or "").strip()
+            ]
+            if parts:
+                return " ".join(parts).strip()
+        simple = value.get("simpleText")
+        if isinstance(simple, str) and simple.strip():
+            return simple.strip()
+    return None
+
+
 def extract_videos(payload: dict[str, Any]) -> list[dict[str, str]]:
     videos: dict[str, dict[str, str]] = {}
     for item in walk(payload):
         model = item.get("lockupViewModel")
-        if not isinstance(model, dict) or model.get("contentType") != "LOCKUP_CONTENT_TYPE_VIDEO":
+        if isinstance(model, dict) and model.get("contentType") == "LOCKUP_CONTENT_TYPE_VIDEO":
+            video_id = model.get("contentId")
+            title = nested(model, "metadata", "lockupMetadataViewModel", "title", "content")
+            if not isinstance(title, str):
+                title = nested(model, "rendererContext", "accessibilityContext", "label")
+            if isinstance(video_id, str) and isinstance(title, str):
+                videos[video_id] = {"video_id": video_id, "title": title.strip()}
             continue
-        video_id = model.get("contentId")
-        title = nested(model, "metadata", "lockupMetadataViewModel", "title", "content")
-        if not isinstance(title, str):
-            title = nested(model, "rendererContext", "accessibilityContext", "label")
-        if isinstance(video_id, str) and isinstance(title, str):
-            videos[video_id] = {"video_id": video_id, "title": title.strip()}
+
+        for renderer_key in ("gridVideoRenderer", "videoRenderer", "compactVideoRenderer"):
+            renderer = item.get(renderer_key)
+            if not isinstance(renderer, dict):
+                continue
+            video_id = renderer.get("videoId")
+            title = _title_from_runs(renderer.get("title"))
+            if not title:
+                title = _title_from_runs(nested(renderer, "headline", "content"))
+            if isinstance(video_id, str) and isinstance(title, str):
+                videos[video_id] = {"video_id": video_id, "title": title.strip()}
     return list(videos.values())
 
 

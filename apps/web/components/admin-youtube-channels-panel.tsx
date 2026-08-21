@@ -226,7 +226,11 @@ function ChannelRow({
   )
 }
 
-export function AdminYoutubeChannelsPanel() {
+export function AdminYoutubeChannelsPanel({
+  onScanComplete,
+}: {
+  onScanComplete?: (result: YoutubeScanResult) => void | Promise<void>
+}) {
   const [channels, setChannels] = useState<YoutubeScanChannel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -381,10 +385,13 @@ export function AdminYoutubeChannelsPanel() {
     setError("")
     setNotice("")
     try {
-      const response = await fetch(`/api/admin/youtube-channels/${encodeURIComponent(id)}/scan`, {
+      const response = await fetch(
+        `/api/admin/youtube-channels/${encodeURIComponent(id)}/scan?max_pages=12`,
+        {
         method: "POST",
         credentials: "same-origin",
-      })
+        },
+      )
       const body = (await response.json().catch(() => null)) as YoutubeScanResult | null
       if (!response.ok) {
         setError(readErrorDetail(body, "Scan failed"))
@@ -396,6 +403,9 @@ export function AdminYoutubeChannelsPanel() {
           `${body?.already_known ?? 0} already in database (${body?.discovered ?? 0} found on channel).`,
       )
       await load()
+      if (body) {
+        await onScanComplete?.(body)
+      }
     } finally {
       setBusyId(null)
     }
@@ -406,7 +416,7 @@ export function AdminYoutubeChannelsPanel() {
     setError("")
     setNotice("")
     try {
-      const response = await fetch("/api/admin/youtube-channels/scan-all", {
+      const response = await fetch("/api/admin/youtube-channels/scan-all?max_pages=12", {
         method: "POST",
         credentials: "same-origin",
       })
@@ -429,6 +439,12 @@ export function AdminYoutubeChannelsPanel() {
           `${totals.already_known ?? 0} already known (${totals.discovered ?? 0} found).`,
       )
       await load()
+      await onScanComplete?.({
+        discovered: totals.discovered ?? 0,
+        already_known: totals.already_known ?? 0,
+        new_queued_for_review: totals.new_queued_for_review ?? 0,
+        new_auto_linked: totals.new_auto_linked ?? 0,
+      })
     } finally {
       setBusyId(null)
     }

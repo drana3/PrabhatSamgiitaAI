@@ -58,7 +58,7 @@ class _ChannelSession:
         elif "from media" in sql:
             rows = self.media
         elif "from youtube_review_queue" in sql:
-            rows = self.reviews
+            rows = [review.external_id for review in self.reviews]
         elif "from youtube_scan_channels" in sql:
             rows = [row for row in self.channels if row.is_active]
         return _ScalarResult(rows)
@@ -72,6 +72,10 @@ class _ChannelSession:
         self.committed += 1
 
     async def execute(self, statement):
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True})).casefold()
+        if "from media" in sql:
+            rows = [(media.metadata_json, media.url) for media in self.media]
+            return _ExecuteResult(rows)
         from sqlalchemy.exc import SQLAlchemyError
 
         raise SQLAlchemyError("catalog refresh uses a real database session")
@@ -89,6 +93,14 @@ class _ScalarResult:
 
     def all(self):
         return self._items
+
+
+class _ExecuteResult:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return self._rows
 
 
 def test_normalize_channel_url_appends_videos_suffix() -> None:

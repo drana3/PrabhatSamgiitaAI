@@ -30,6 +30,9 @@ from scripts.sync_youtube import (  # noqa: E402
     youtube_video_in_scope,
 )
 
+ADMIN_SCAN_MAX_PAGES = 12
+BATCH_SCAN_MAX_PAGES = 50
+
 
 def normalize_channel_url(url: str) -> str:
     cleaned = url.strip().rstrip("/")
@@ -291,22 +294,21 @@ async def _load_songs_map(session: AsyncSession) -> dict[int, dict[str, Any]]:
 
 
 async def _known_external_ids(session: AsyncSession) -> set[str]:
-    media_rows = list(
-        (await session.scalars(select(Media).where(Media.provider == "youtube"))).all()
-    )
     known: set[str] = set()
-    for media in media_rows:
-        metadata = media.metadata_json or {}
+    media_rows = await session.execute(
+        select(Media.metadata_json, Media.url).where(Media.provider == "youtube")
+    )
+    for metadata_json, url in media_rows.all():
+        metadata = metadata_json or {}
         external_id = metadata.get("external_id")
         if isinstance(external_id, str) and external_id:
             known.add(external_id)
-        if "watch?v=" in media.url:
-            match = re.search(r"[?&]v=([\w-]{6,})", media.url)
+        if isinstance(url, str) and "watch?v=" in url:
+            match = re.search(r"[?&]v=([\w-]{6,})", url)
             if match:
                 known.add(match.group(1))
-    review_rows = list((await session.scalars(select(YoutubeReviewQueue))).all())
-    for review in review_rows:
-        known.add(review.external_id)
+    review_rows = await session.scalars(select(YoutubeReviewQueue.external_id))
+    known.update(review_rows.all())
     return known
 
 
@@ -314,7 +316,7 @@ async def scan_youtube_channel(
     session: AsyncSession,
     channel_row_id: UUID,
     *,
-    max_pages: int = 50,
+    max_pages: int = ADMIN_SCAN_MAX_PAGES,
 ) -> dict[str, int]:
     channel_row = await session.get(YoutubeScanChannel, channel_row_id)
     if channel_row is None or not channel_row.is_active:
@@ -398,7 +400,11 @@ async def scan_youtube_channel(
     if linked_numbers:
         from app.services.catalog import refresh_catalog_songs
 
-        await refresh_catalog_songs(session, linked_numbers)
+        try:
+            await refresh_catalog_songs(session, linked_numbers)
+        except Exception:
+            # Scan results are already persisted; catalog refresh can be retried separately.
+            pass
 
     return {
         "discovered": len(discovered_videos),
@@ -409,7 +415,7 @@ async def scan_youtube_channel(
 
 
 async def scan_all_youtube_channels(
-    session: AsyncSession, *, max_pages: int = 50
+    session: AsyncSession, *, max_pages: int = ADMIN_SCAN_MAX_PAGES
 ) -> dict[str, Any]:
     channels = await list_youtube_scan_channels(session)
     totals: dict[str, Any] = {
