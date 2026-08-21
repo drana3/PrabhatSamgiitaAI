@@ -1,5 +1,8 @@
 def normalize_async_database_url(database_url: str) -> str:
-    """Force the async psycopg driver. Plain postgresql:// defaults to psycopg2 and crashes import."""
+    """Force the async psycopg driver.
+
+    Plain postgresql:// defaults to psycopg2 and crashes import.
+    """
     url = database_url.strip()
     if not url:
         return url
