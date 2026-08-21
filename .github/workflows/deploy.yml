@@ -251,8 +251,15 @@ jobs:
           echo "$CHANGED"
           API=false
           WEB=false
-          if echo "$CHANGED" | grep -qE '^(infra/|packages/|data/|\.dockerignore$)'; then
+          if echo "$CHANGED" | grep -qE '^(packages/|data/|\.dockerignore$)'; then
             API=true
+            WEB=true
+          fi
+          # infra/azure/deploy-app.sh runs in CI; only Dockerfiles force image rebuilds.
+          if echo "$CHANGED" | grep -qE '^apps/api/Dockerfile$|^infra/azure/.*api'; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^infra/azure/.*web'; then
             WEB=true
           fi
           # Only scripts that affect the live API/web containers (not mobile helpers).
@@ -265,12 +272,12 @@ jobs:
           if echo "$CHANGED" | grep -qE '^(apps/web/|package\.json$|package-lock\.json$)'; then
             WEB=true
           fi
-          # Workflow-only edits should not force ACR image rebuilds.
+          # Workflow / deploy-script-only edits should not force ACR image rebuilds.
           if [ "$API" = false ] && [ "$WEB" = false ]; then
-            if echo "$CHANGED" | grep -qE '^\.github/workflows/deploy\.yml$'; then
+            if echo "$CHANGED" | grep -qE '^(\.github/workflows/deploy\.yml|infra/azure/deploy-app\.sh)$'; then
               echo "api=false" >> "$GITHUB_OUTPUT"
               echo "web=false" >> "$GITHUB_OUTPUT"
-              echo "Deploy workflow-only change → skip ACR rebuilds"
+              echo "Deploy tooling-only change → skip ACR rebuilds"
               exit 0
             fi
             API=true
