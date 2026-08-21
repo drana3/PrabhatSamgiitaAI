@@ -15,7 +15,12 @@ on:
       - "apps/mobile/**"
       - ".github/workflows/mobile-preview.yml"
       - ".github/workflows/mobile-release.yml"
+      - ".github/MOBILE_BUILD_SETUP.md"
       - "scripts/sync-mobile-eas-env.sh"
+      - "scripts/sync-mobile-github-secrets.sh"
+      - "scripts/android-*.sh"
+      - "scripts/ios-*.sh"
+      - "scripts/verify-mobile-build-secrets.sh"
   workflow_dispatch:
 
 permissions:
@@ -246,9 +251,13 @@ jobs:
           echo "$CHANGED"
           API=false
           WEB=false
-          if echo "$CHANGED" | grep -qE '^(infra/|scripts/|packages/|data/|\.dockerignore$|\.github/workflows/deploy\.yml$)'; then
+          if echo "$CHANGED" | grep -qE '^(infra/|packages/|data/|\.dockerignore$|\.github/workflows/deploy\.yml$)'; then
             API=true
             WEB=true
+          fi
+          # Only scripts that affect the live API/web containers (not mobile helpers).
+          if echo "$CHANGED" | grep -qE '^scripts/(sync_youtube|validate_|export_embeddings|list_feedback)' ; then
+            API=true
           fi
           if echo "$CHANGED" | grep -qE '^apps/api/'; then
             API=true
