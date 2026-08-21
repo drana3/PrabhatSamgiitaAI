@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -285,9 +285,8 @@ async def update_youtube_scan_channel(
 
 
 async def _load_songs_map(session: AsyncSession) -> dict[int, dict[str, Any]]:
-    rows = (
-        await session.execute(select(Song.number, Song.title, Song.first_line).order_by(Song.number))
-    ).all()
+    stmt = select(Song.number, Song.title, Song.first_line).order_by(Song.number)
+    rows = (await session.execute(stmt)).all()
     return {
         number: {
             "number": number,
