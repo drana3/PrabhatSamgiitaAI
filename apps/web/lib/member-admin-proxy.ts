@@ -17,7 +17,11 @@ export async function memberSessionIsAdmin(request: NextRequest) {
   if (!principal) return false
 
   const gate = request.cookies.get(ADMIN_GATE_COOKIE)?.value
-  if (await verifyAdminGateToken(gate, principal)) return true
+  try {
+    if (await verifyAdminGateToken(gate, principal)) return true
+  } catch {
+    // Fall back to the live member session check below.
+  }
 
   const session = await fetchBackendMemberSession(principal)
   return session?.authenticated === true && session?.is_admin === true

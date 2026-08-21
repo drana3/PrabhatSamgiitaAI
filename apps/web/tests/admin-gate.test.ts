@@ -23,4 +23,10 @@ describe("admin gate cookie", () => {
     const token = await buildAdminGateToken(principal, Math.floor(Date.now() / 1000) - 400)
     expect(await verifyAdminGateToken(token, principal)).toBe(false)
   })
+
+  it("rejects malformed tokens without throwing", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    expect(await verifyAdminGateToken("not-a-valid-token", "encoded-principal")).toBe(false)
+    expect(await buildAdminGateToken("", Math.floor(Date.now() / 1000))).toBe("")
+  })
 })

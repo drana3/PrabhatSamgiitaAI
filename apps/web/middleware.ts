@@ -33,13 +33,17 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next()
   const principal = memberPrincipalFor(request)
   if (principal) {
-    const token = await buildAdminGateToken(principal)
-    if (token) {
-      response.cookies.set(
-        ADMIN_GATE_COOKIE,
-        token,
-        adminGateCookieOptions(),
-      )
+    try {
+      const token = await buildAdminGateToken(principal)
+      if (token) {
+        response.cookies.set(
+          ADMIN_GATE_COOKIE,
+          token,
+          adminGateCookieOptions(),
+        )
+      }
+    } catch {
+      // Gate cookie is optional; admin access still works via live session checks.
     }
   }
   return response

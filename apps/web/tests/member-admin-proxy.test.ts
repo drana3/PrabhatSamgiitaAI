@@ -50,6 +50,25 @@ describe("member admin session", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it("falls back to the backend session when the gate cookie is invalid", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.API_BASE_URL = "https://api.example.test"
+    const principal = buildClientPrincipal("user-oid-42", "owner@example.com")
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ authenticated: true, is_admin: true }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const request = new NextRequest("https://example.test/admin/feedback", {
+      headers: { "x-ms-client-principal": principal },
+    })
+    request.cookies.set("psa_admin_gate", "invalid-token")
+
+    await expect(memberSessionIsAdmin(request)).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it("returns false when session says member is not admin", async () => {
     process.env.MEMBER_PROXY_KEY = "proxy-key"
     process.env.API_BASE_URL = "https://api.example.test"
