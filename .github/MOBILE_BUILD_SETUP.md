@@ -67,24 +67,30 @@ Add the keystore **SHA-1** to the Android OAuth client in Google Cloud.
 
 APK sideloads and Play Store installs use **different signing certificates**.
 
-| Build source | Certificate |
-|--------------|-------------|
-| EAS preview APK | EAS upload keystore SHA-1 |
-| Play Store AAB | **App signing key** SHA-1 from Play Console |
+| Build source | Certificate | SHA-1 (this project) |
+|--------------|-------------|------------------------|
+| EAS preview APK | Upload keystore | `29:36:BD:D1:9B:F2:C7:96:13:4C:13:CD:12:8D:E5:B8:21:B2:F7:9D` |
+| Play Store (classical app signing) | App signing key | `0A:CD:27:EE:73:CC:3D:6B:BB:41:9A:F2:7D:45:64:07:67:0B:A6:75` |
+| Play Store (post-quantum signing, beta) | Post-quantum app signing key | `27:C2:FB:E5:B3:9A:26:33:4D:35:98:3B:0E:4B:4D:B8:71:17:AE:06` |
+| Play Store (previous / legacy classical) | Previous app signing keys | Copy from Play Console — required with Quantum-ready |
 
 If Google Sign-In works on APK but fails on Play (`DEVELOPER_ERROR` / `invalid_request`):
 
-1. Play Console → **Protected with Play** → **Play Store protection** → **Manage Play app signing**  
-   (or open [key management](https://play.google.com/console/developers/app/keymanagement) and select the app)
-2. Copy **App signing key certificate** → **SHA-1** (not the upload key — that matches EAS)
-3. Google Cloud → **Credentials** → **Create credentials** → **OAuth client ID** → **Android**
-4. Same package `net.prabhatasamgiita.ai`, name e.g. `Prabhat Samgiita AI (Play Store)`, paste the Play **app signing** SHA-1  
-   (Each Android OAuth client accepts **one** SHA-1. Keep the existing EAS client; add a **second** Android client for Play.)
-5. No change to `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` in the app — native sign-in uses the Web client ID; Google matches the install certificate automatically.
+1. Play Console → **App signing**
+2. Copy **SHA-1** for **every** key shown: current classical, post-quantum, **and Previous app signing keys** (Quantum-ready uses multiple classical keys)
+3. Google Cloud → **Credentials** → **Create credentials** → **OAuth client ID** → **Android** — **one new client per SHA-1**
+4. Same package `net.prabhatasamgiita.ai` each time
+5. No change to `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` — native sign-in uses the Web client ID; Google matches the install certificate automatically.
 
 Do **not** add `prabhatai://` to the Web OAuth client — Google only allows `https://` redirect URIs there.
 
-Save, wait ~5–10 minutes, reinstall from Play.
+Save, wait ~5–10 minutes, uninstall the Play build, reinstall, retry.
+
+### If every Play SHA-1 (including Previous) is already in Google Cloud
+
+Check **OAuth consent screen** (Testing → add your Google account as a Test user, or publish to Production).
+
+Optional hardening: Firebase + `google-services.json` (same GCP project `495992354696`, all SHA-1 fingerprints on the Android app). Rebuild only if you add that file.
 
 ## 3. Trigger a build
 

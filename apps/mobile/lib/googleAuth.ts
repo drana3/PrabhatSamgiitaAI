@@ -54,11 +54,21 @@ function isDeveloperConfigError(error: unknown) {
 }
 
 const ANDROID_SHA_HINT =
-  "Google Sign-In needs Android OAuth clients in Google Cloud project 495992354696 " +
-  "for package net.prabhatasamgiita.ai with BOTH SHA-1 fingerprints: " +
-  "upload key 29:36:BD:D1:9B:F2:C7:96:13:4C:13:CD:12:8D:E5:B8:21:B2:F7:9D and " +
-  "Play Internal test / App signing SHA-1. Do not use browser OAuth with prabhatai:// " +
-  "(Google blocks that under OAuth 2.0 policy). Wait ~10 minutes after saving, then retry."
+  "Play Store Google Sign-In failed (DEVELOPER_ERROR). Quantum-ready Play App Signing " +
+  "uses multiple app-signing keys — add ANY missing SHA-1 as its own Android OAuth client " +
+  "in GCP project 495992354696 for package net.prabhatasamgiita.ai: " +
+  "upload 29:36:BD:D1:9B:F2:C7:96:13:4C:13:CD:12:8D:E5:B8:21:B2:F7:9D, " +
+  "Play classical 0A:CD:27:EE:73:CC:3D:6B:BB:41:9A:F2:7D:45:64:07:67:0B:A6:75, " +
+  "Play post-quantum 27:C2:FB:E5:B3:9A:26:33:4D:35:98:3B:0E:4B:4D:B8:71:17:AE:06, " +
+  "plus Previous app signing key SHA-1 from Play Console → App signing (dated ~15 Aug 2026). " +
+  "No app rebuild needed. Wait ~10 minutes, uninstall Play build, reinstall, retry."
+
+function developerErrorDetail(error: unknown) {
+  const code = (error as { code?: string })?.code
+  const message = error instanceof Error ? error.message : String(error ?? "")
+  const parts = [code ? `code ${code}` : null, message || null].filter(Boolean)
+  return parts.join(": ") || "DEVELOPER_ERROR"
+}
 
 /**
  * Native Google Sign-In only. Browser OAuth with a Web client + custom scheme
@@ -91,8 +101,13 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
     }
   } catch (error) {
     if (isDeveloperConfigError(error)) {
+      const sdkDetail = developerErrorDetail(error)
+      const webClientId = googleWebClientId()
+      const webSuffix = webClientId ? webClientId.slice(-24) : "missing"
       if (Platform.OS === "android") {
-        throw new Error(ANDROID_SHA_HINT)
+        throw new Error(
+          `${ANDROID_SHA_HINT}\n\nGoogle SDK: ${sdkDetail}\nWeb client suffix: …${webSuffix}`,
+        )
       }
       throw new Error(
         "Google sign-in failed. Confirm the iOS OAuth client in Google Cloud uses bundle ID net.prabhatasamgiita.ai and matches EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in this build.",

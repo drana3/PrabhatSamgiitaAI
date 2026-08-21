@@ -91,6 +91,16 @@ if [[ -f "$MOBILE/.env" ]]; then
   source "$MOBILE/.env"
   set +a
 fi
+for key in EXPO_PUBLIC_GOOGLE_CLIENT_ID EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID; do
+  if [[ -z "${!key:-}" ]]; then
+    unset "$key"
+  fi
+done
+if [[ ! -f "$MOBILE/google-services.json" ]]; then
+  echo "WARNING: apps/mobile/google-services.json is missing."
+  echo "         Play Store Google Sign-In usually needs Firebase + google-services.json"
+  echo "         even when Android OAuth clients exist in Google Cloud. See .github/MOBILE_BUILD_SETUP.md"
+fi
 if [[ -z "${EXPO_PUBLIC_MEMBER_PROXY_KEY:-}" ]]; then
   echo "ERROR: EXPO_PUBLIC_MEMBER_PROXY_KEY is missing. Website favorites, quiz, and admin will not sync."
   echo "Add it to apps/mobile/.env (same value as API MEMBER_PROXY_KEY) and rebuild."
