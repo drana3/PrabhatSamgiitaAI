@@ -459,8 +459,6 @@ const styles = StyleSheet.create({
   searchSlot: {
     marginTop: -spacing.lg,
     marginBottom: spacing.md,
-    zIndex: 100,
-    elevation: 100,
   },
   suggestionCard: {
     marginTop: spacing.sm,

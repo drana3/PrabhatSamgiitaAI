@@ -34,13 +34,11 @@ export function HomeSearchExamples({ signedIn, feelingOn, onSelect }: Props) {
             style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
           >
             {/*
-              Single Text tree (like web). Avoid fontWeight on a weight-specific
-              Inter face — Android then drops glyphs (e.g. "number" / "feeling").
+              Separate Text nodes (not nested weighted Inter faces). Android often
+              drops glyphs like "number" / "feeling" when fontWeight fights the face.
             */}
-            <Text style={styles.label}>
-              {example.label}
-              {showQuery ? <Text style={styles.query}> · {example.query}</Text> : null}
-            </Text>
+            <Text style={styles.label}>{example.label}</Text>
+            {showQuery ? <Text style={styles.query}> · {example.query}</Text> : null}
             {feelingGuest ? <Text style={styles.badge}>Sign in</Text> : null}
             {feelingNeedsEnable ? <Text style={styles.badge}>Profile</Text> : null}
           </Pressable>
@@ -56,11 +54,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   chip: {
     flexDirection: "row",
-    flexWrap: "nowrap",
+    flexWrap: "wrap",
     alignItems: "center",
     maxWidth: "100%",
     paddingHorizontal: spacing.md,
@@ -73,12 +71,12 @@ const styles = StyleSheet.create({
   chipPressed: { opacity: 0.85 },
   label: {
     ...typography.caption,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Platform.OS === "android" ? "sans-serif-medium" : "Inter_700Bold",
     color: colors.textPrimary,
     ...(Platform.OS === "android" ? { includeFontPadding: false } : null),
   },
   query: {
-    fontFamily: "Inter_500Medium",
+    fontFamily: Platform.OS === "android" ? "sans-serif" : "Inter_500Medium",
     fontSize: 12,
     lineHeight: 16,
     color: colors.textSecondary,
@@ -91,7 +89,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.pill,
     overflow: "hidden",
-    fontFamily: "Inter_700Bold",
+    fontFamily: Platform.OS === "android" ? "sans-serif-medium" : "Inter_700Bold",
     fontSize: 10,
     textTransform: "uppercase",
     color: colors.primaryDark,

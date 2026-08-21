@@ -86,8 +86,6 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
     paddingVertical: spacing.sm,
     minHeight: 52,
-    zIndex: 100,
-    elevation: 100,
     ...softShadow(1),
   },
   input: {
