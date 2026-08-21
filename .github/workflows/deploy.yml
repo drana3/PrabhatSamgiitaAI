@@ -220,6 +220,49 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect deploy targets
+        id: targets
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch → deploy API + web"
+            exit 0
+          fi
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "Missing before SHA → deploy API + web"
+            exit 0
+          fi
+          CHANGED="$(git diff --name-only "$BEFORE" "$AFTER" || true)"
+          echo "Changed files:"
+          echo "$CHANGED"
+          API=false
+          WEB=false
+          if echo "$CHANGED" | grep -qE '^(infra/|scripts/|packages/|data/|\.dockerignore$|\.github/workflows/deploy\.yml$)'; then
+            API=true
+            WEB=true
+          fi
+          if echo "$CHANGED" | grep -qE '^apps/api/'; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^(apps/web/|package\.json$|package-lock\.json$)'; then
+            WEB=true
+          fi
+          if [ "$API" = false ] && [ "$WEB" = false ]; then
+            API=true
+            WEB=true
+          fi
+          echo "api=$API" >> "$GITHUB_OUTPUT"
+          echo "web=$WEB" >> "$GITHUB_OUTPUT"
+          echo "Deploy targets → API=$API WEB=$WEB"
 
       - name: Azure login
         uses: azure/login@v2
@@ -240,4 +283,6 @@ jobs:
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          DEPLOY_API: ${{ steps.targets.outputs.api == 'true' && '1' || '0' }}
+          DEPLOY_WEB: ${{ steps.targets.outputs.web == 'true' && '1' || '0' }}
         run: bash ./infra/azure/deploy-app.sh

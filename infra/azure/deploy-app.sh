@@ -26,6 +26,19 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID="${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
 NEXT_PUBLIC_FACEBOOK_APP_ID="${NEXT_PUBLIC_FACEBOOK_APP_ID:-}"
 GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
 FAISS_INDEX_URL="${FAISS_INDEX_URL:-}"
+# Selective deploy: set DEPLOY_API=0 or DEPLOY_WEB=0 to skip that image rebuild/update.
+DEPLOY_API="${DEPLOY_API:-1}"
+DEPLOY_WEB="${DEPLOY_WEB:-1}"
+# When FAISS ships via URL/baked snapshot, do not wait up to an hour for re-embed.
+INDEX_WAIT_ATTEMPTS="${INDEX_WAIT_ATTEMPTS:-}"
+if [[ -z "$INDEX_WAIT_ATTEMPTS" ]]; then
+  if [[ -n "$FAISS_INDEX_URL" ]]; then
+    INDEX_WAIT_ATTEMPTS=36
+  else
+    INDEX_WAIT_ATTEMPTS=360
+  fi
+fi
+INDEX_WAIT_SLEEP_SECONDS="${INDEX_WAIT_SLEEP_SECONDS:-10}"
 
 if [[ -z "${DATABASE_URL}" ]]; then
   echo "Set DATABASE_URL to the Neon pooled postgresql+psycopg URL (sslmode=require)."
@@ -88,161 +101,201 @@ if [[ "$AUTH_ENABLED" != "true" ]]; then
   AUTH_ENABLED=false
 fi
 
-az containerapp secret set \
-  --name "$API_APP" \
-  --resource-group "$RG" \
-  --secrets member-proxy-key="$MEMBER_PROXY_KEY" database-url="$DATABASE_URL" >/dev/null
+echo "Deploy targets: API=${DEPLOY_API} WEB=${DEPLOY_WEB} TAG=${TAG}"
 
-if [[ -n "${FAISS_INDEX_URL}" ]]; then
+current_image() {
+  local app_name="$1"
+  az containerapp show \
+    --name "$app_name" \
+    --resource-group "$RG" \
+    --query "properties.template.containers[0].image" \
+    -o tsv
+}
+
+if [[ "$DEPLOY_API" == "1" ]]; then
   az containerapp secret set \
     --name "$API_APP" \
     --resource-group "$RG" \
-    --secrets faiss-index-url="$FAISS_INDEX_URL" >/dev/null
-fi
+    --secrets member-proxy-key="$MEMBER_PROXY_KEY" database-url="$DATABASE_URL" >/dev/null
 
-if [[ -n "${ACS_EMAIL_CONNECTION_STRING}" ]]; then
-  az containerapp secret set \
-    --name "$API_APP" \
-    --resource-group "$RG" \
-    --secrets acs-email-connection-string="$ACS_EMAIL_CONNECTION_STRING" >/dev/null
-fi
-
-az acr build \
-  --registry "$ACR_NAME" \
-  --image "prabhat-samgiita-api:${TAG}" \
-  --file "${ROOT_DIR}/apps/api/Dockerfile" \
-  "$ROOT_DIR" >/dev/null
-
-API_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-api:${TAG}"
-
-API_ENV_VARS=(
-  DATABASE_URL=secretref:database-url
-  FAISS_INDEX_DIR=/app/data/generated/faiss
-  APP_ENV=production
-  API_CORS_ORIGINS="https://${WEB_FQDN}"
-  TRUSTED_HOSTS="${API_FQDN},localhost,127.0.0.1"
-  CONTENT_SOURCE_URL=https://prabhatasamgiita.net
-  CONTENT_CACHE_DIR=/tmp/content-cache
-  LOG_LEVEL=INFO
-  AZURE_OPENAI_ENDPOINT="$AZURE_OPENAI_ENDPOINT"
-  AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY"
-  AZURE_OPENAI_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT"
-  AZURE_OPENAI_CHAT_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT"
-  AZURE_OPENAI_EMBEDDING_DEPLOYMENT="$AZURE_OPENAI_EMBEDDING_DEPLOYMENT"
-  AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION"
-  MEMBER_PROXY_KEY=secretref:member-proxy-key
-  DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS"
-  PROTECTED_ADMIN_EMAILS="$PROTECTED_ADMIN_EMAILS"
-  PUBLIC_SITE_URL="https://${WEB_FQDN}"
-  ACS_EMAIL_ENABLED="$ACS_EMAIL_ENABLED"
-  ACS_EMAIL_FROM="$ACS_EMAIL_FROM"
-  ACS_EMAIL_CONNECTION_STRING=secretref:acs-email-connection-string
-  AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview
-)
-if [[ -n "${FAISS_INDEX_URL}" ]]; then
-  API_ENV_VARS+=(FAISS_INDEX_URL=secretref:faiss-index-url)
-fi
-
-az containerapp update \
-  --name "$API_APP" \
-  --resource-group "$RG" \
-  --image "$API_IMAGE" \
-  --set-env-vars "${API_ENV_VARS[@]}" >/dev/null
-
-API_REVISION="$(az containerapp revision list \
-  --name "$API_APP" \
-  --resource-group "$RG" \
-  --query '[0].name' \
-  -o tsv)"
-if [[ -n "$API_REVISION" ]]; then
-  az containerapp revision restart \
-    --name "$API_APP" \
-    --resource-group "$RG" \
-    --revision "$API_REVISION" >/dev/null
-fi
-sleep 15
-
-API_READY=""
-for attempt in $(seq 1 45); do
-  if API_READY="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null)"; then
-    if printf '%s' "$API_READY" | python3 -c 'import json, sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("snapshot_complete") and data.get("snapshot", {}).get("songs") == 5018 else 1)'; then
-      break
-    fi
+  if [[ -n "${FAISS_INDEX_URL}" ]]; then
+    az containerapp secret set \
+      --name "$API_APP" \
+      --resource-group "$RG" \
+      --secrets faiss-index-url="$FAISS_INDEX_URL" >/dev/null
   fi
-  API_READY=""
-  sleep 10
-done
 
-if [[ -z "$API_READY" ]]; then
-  echo "API readiness check failed: the packaged 5,018-song catalog is unavailable."
-  exit 1
+  if [[ -n "${ACS_EMAIL_CONNECTION_STRING}" ]]; then
+    az containerapp secret set \
+      --name "$API_APP" \
+      --resource-group "$RG" \
+      --secrets acs-email-connection-string="$ACS_EMAIL_CONNECTION_STRING" >/dev/null
+  fi
+
+  echo "Building API image in ACR (prabhat-samgiita-api:${TAG})..."
+  az acr build \
+    --registry "$ACR_NAME" \
+    --image "prabhat-samgiita-api:${TAG}" \
+    --file "${ROOT_DIR}/apps/api/Dockerfile" \
+    "$ROOT_DIR"
+
+  API_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-api:${TAG}"
+else
+  API_IMAGE="$(current_image "$API_APP")"
+  echo "Skipping API image rebuild; reusing ${API_IMAGE}"
 fi
 
-curl_retry "api-song-5018" "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
+if [[ "$DEPLOY_API" == "1" ]]; then
+  API_ENV_VARS=(
+    DATABASE_URL=secretref:database-url
+    FAISS_INDEX_DIR=/app/data/generated/faiss
+    APP_ENV=production
+    API_CORS_ORIGINS="https://${WEB_FQDN}"
+    TRUSTED_HOSTS="${API_FQDN},localhost,127.0.0.1"
+    CONTENT_SOURCE_URL=https://prabhatasamgiita.net
+    CONTENT_CACHE_DIR=/tmp/content-cache
+    LOG_LEVEL=INFO
+    AZURE_OPENAI_ENDPOINT="$AZURE_OPENAI_ENDPOINT"
+    AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY"
+    AZURE_OPENAI_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT"
+    AZURE_OPENAI_CHAT_DEPLOYMENT="$AZURE_OPENAI_CHAT_DEPLOYMENT"
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT="$AZURE_OPENAI_EMBEDDING_DEPLOYMENT"
+    AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION"
+    MEMBER_PROXY_KEY=secretref:member-proxy-key
+    DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS"
+    PROTECTED_ADMIN_EMAILS="$PROTECTED_ADMIN_EMAILS"
+    PUBLIC_SITE_URL="https://${WEB_FQDN}"
+    ACS_EMAIL_ENABLED="$ACS_EMAIL_ENABLED"
+    ACS_EMAIL_FROM="$ACS_EMAIL_FROM"
+    ACS_EMAIL_CONNECTION_STRING=secretref:acs-email-connection-string
+    AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview
+  )
+  if [[ -n "${FAISS_INDEX_URL}" ]]; then
+    API_ENV_VARS+=(FAISS_INDEX_URL=secretref:faiss-index-url)
+  fi
+
+  az containerapp update \
+    --name "$API_APP" \
+    --resource-group "$RG" \
+    --image "$API_IMAGE" \
+    --set-env-vars "${API_ENV_VARS[@]}" >/dev/null
+
+  API_REVISION="$(az containerapp revision list \
+    --name "$API_APP" \
+    --resource-group "$RG" \
+    --query '[0].name' \
+    -o tsv)"
+  if [[ -n "$API_REVISION" ]]; then
+    az containerapp revision restart \
+      --name "$API_APP" \
+      --resource-group "$RG" \
+      --revision "$API_REVISION" >/dev/null
+  fi
+  sleep 15
+
+  API_READY=""
+  for attempt in $(seq 1 45); do
+    if API_READY="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null)"; then
+      if printf '%s' "$API_READY" | python3 -c 'import json, sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("snapshot_complete") and data.get("snapshot", {}).get("songs") == 5018 else 1)'; then
+        break
+      fi
+    fi
+    API_READY=""
+    sleep 10
+  done
+
+  if [[ -z "$API_READY" ]]; then
+    echo "API readiness check failed: the packaged 5,018-song catalog is unavailable."
+    exit 1
+  fi
+
+  curl_retry "api-song-5018" "https://${API_FQDN}/api/v1/songs/5018" >/dev/null
+fi
 
 # Build the web image while the API finishes indexing so ACR time overlaps
 # the readiness wait instead of stacking after it.
 WEB_BUILD_LOG="$(mktemp)"
-(
-  web_build_attempts="${WEB_ACR_BUILD_ATTEMPTS:-3}"
-  for attempt in $(seq 1 "$web_build_attempts"); do
-    echo "Web image ACR build attempt ${attempt}/${web_build_attempts}..."
-    if az acr build \
-      --registry "$ACR_NAME" \
-      --image "prabhat-samgiita-web:${TAG}" \
-      --file "${ROOT_DIR}/apps/web/Dockerfile" \
-      --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
-      --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
-      --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
-      --build-arg "NEXT_PUBLIC_FACEBOOK_APP_ID=${NEXT_PUBLIC_FACEBOOK_APP_ID}" \
-      "$ROOT_DIR"; then
-      exit 0
-    fi
-    echo "Web image ACR build attempt ${attempt} failed."
-    if [[ "$attempt" -lt "$web_build_attempts" ]]; then
-      sleep "${WEB_ACR_BUILD_RETRY_SLEEP_SECONDS:-45}"
-    fi
-  done
-  exit 1
-) >"$WEB_BUILD_LOG" 2>&1 &
-WEB_BUILD_PID=$!
-
-INDEX_READY=""
-for attempt in $(seq 1 360); do
-  if [[ -n "${WEB_BUILD_PID}" ]] && ! kill -0 "$WEB_BUILD_PID" 2>/dev/null; then
-    if ! wait "$WEB_BUILD_PID"; then
-      echo "Web image build failed while waiting for API indexing."
-      cat "$WEB_BUILD_LOG" || true
-      exit 1
-    fi
-    WEB_BUILD_PID=""
-  fi
-  READINESS="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null || true)"
-  if [[ -n "$READINESS" ]]; then
-    if printf '%s' "$READINESS" | python3 -c 'import json, sys; data=json.load(sys.stdin); provider=data.get("embedding_provider_configured", False); indexed=data.get("embedding_progress", 0) >= 1; ready=data.get("database_synced") and data.get("rag_chunks_ready") and (indexed if provider else True); raise SystemExit(0 if ready else 1)'; then
-      INDEX_READY="$READINESS"
-      break
-    fi
-  fi
-  sleep 10
-done
-
-if [[ -z "$INDEX_READY" ]]; then
-  if [[ -n "${WEB_BUILD_PID}" ]]; then
-    kill "$WEB_BUILD_PID" 2>/dev/null || true
-    wait "$WEB_BUILD_PID" 2>/dev/null || true
-  fi
-  echo "API indexing did not finish within 60 minutes."
-  curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" || true
-  exit 1
+WEB_BUILD_PID=""
+if [[ "$DEPLOY_WEB" == "1" ]]; then
+  (
+    web_build_attempts="${WEB_ACR_BUILD_ATTEMPTS:-3}"
+    for attempt in $(seq 1 "$web_build_attempts"); do
+      echo "Web image ACR build attempt ${attempt}/${web_build_attempts}..."
+      if az acr build \
+        --registry "$ACR_NAME" \
+        --image "prabhat-samgiita-web:${TAG}" \
+        --file "${ROOT_DIR}/apps/web/Dockerfile" \
+        --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
+        --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
+        --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
+        --build-arg "NEXT_PUBLIC_FACEBOOK_APP_ID=${NEXT_PUBLIC_FACEBOOK_APP_ID}" \
+        "$ROOT_DIR"; then
+        exit 0
+      fi
+      echo "Web image ACR build attempt ${attempt} failed."
+      if [[ "$attempt" -lt "$web_build_attempts" ]]; then
+        sleep "${WEB_ACR_BUILD_RETRY_SLEEP_SECONDS:-45}"
+      fi
+    done
+    exit 1
+  ) >"$WEB_BUILD_LOG" 2>&1 &
+  WEB_BUILD_PID=$!
+else
+  echo "Skipping web image rebuild; reusing $(current_image "$WEB_APP")"
 fi
 
-SEARCH_SMOKE="$(curl_retry "api-search-111" \
-  --request POST \
-  --header 'Content-Type: application/json' \
-  --data '{"query":"111","mode":"catalog"}' \
-  "https://${API_FQDN}/api/v1/search")"
-printf '%s' "$SEARCH_SMOKE" | python3 -c 'import json, sys; rows=json.load(sys.stdin); raise SystemExit(0 if any(row.get("number") == 111 for row in rows) else 1)'
+INDEX_READY=""
+if [[ "$DEPLOY_API" == "1" ]]; then
+  echo "Waiting for API index readiness (up to $((INDEX_WAIT_ATTEMPTS * INDEX_WAIT_SLEEP_SECONDS))s)..."
+  for attempt in $(seq 1 "$INDEX_WAIT_ATTEMPTS"); do
+    if [[ -n "${WEB_BUILD_PID}" ]] && ! kill -0 "$WEB_BUILD_PID" 2>/dev/null; then
+      if ! wait "$WEB_BUILD_PID"; then
+        echo "Web image build failed while waiting for API indexing."
+        cat "$WEB_BUILD_LOG" || true
+        exit 1
+      fi
+      WEB_BUILD_PID=""
+    fi
+    READINESS="$(curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" 2>/dev/null || true)"
+    if [[ -n "$READINESS" ]]; then
+      if printf '%s' "$READINESS" | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+provider = data.get("embedding_provider_configured", False)
+# Prefer FAISS vector_index_ready (snapshot URL / baked index). Fall back to
+# embedding_progress for legacy re-embed boots.
+indexed = bool(data.get("vector_index_ready")) or float(data.get("embedding_progress") or 0) >= 1
+ready = (
+    data.get("database_synced")
+    and data.get("rag_chunks_ready")
+    and (indexed if provider else True)
+)
+raise SystemExit(0 if ready else 1)
+'; then
+        INDEX_READY="$READINESS"
+        break
+      fi
+    fi
+    sleep "$INDEX_WAIT_SLEEP_SECONDS"
+  done
+
+  if [[ -z "$INDEX_READY" ]]; then
+    if [[ -n "${WEB_BUILD_PID}" ]]; then
+      kill "$WEB_BUILD_PID" 2>/dev/null || true
+      wait "$WEB_BUILD_PID" 2>/dev/null || true
+    fi
+    echo "API indexing did not finish within the configured wait window."
+    curl --fail --silent --show-error "https://${API_FQDN}/api/v1/health/readiness" || true
+    exit 1
+  fi
+
+  SEARCH_SMOKE="$(curl_retry "api-search-111" \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data '{"query":"111","mode":"catalog"}' \
+    "https://${API_FQDN}/api/v1/search")"
+  printf '%s' "$SEARCH_SMOKE" | python3 -c 'import json, sys; rows=json.load(sys.stdin); raise SystemExit(0 if any(row.get("number") == 111 for row in rows) else 1)'
+fi
 
 if [[ -n "${WEB_BUILD_PID}" ]]; then
   if ! wait "$WEB_BUILD_PID"; then
@@ -253,72 +306,78 @@ if [[ -n "${WEB_BUILD_PID}" ]]; then
 fi
 rm -f "$WEB_BUILD_LOG"
 
-WEB_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}"
-
-az containerapp secret set \
-  --name "$WEB_APP" \
-  --resource-group "$RG" \
-  --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
-
-WEB_COMMON_ENV=(
-  "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}"
-  "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}"
-  "API_BASE_URL=https://${API_FQDN}"
-  "MEMBER_PROXY_KEY=secretref:member-proxy-key"
-  "DEFAULT_ADMIN_EMAILS=${DEFAULT_ADMIN_EMAILS}"
-)
-if [[ -n "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" ]]; then
-  WEB_COMMON_ENV+=("GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}")
+if [[ "$DEPLOY_WEB" == "1" ]]; then
+  WEB_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}"
+else
+  WEB_IMAGE="$(current_image "$WEB_APP")"
 fi
 
-if [[ -n "${GOOGLE_CLIENT_SECRET}" ]]; then
+if [[ "$DEPLOY_WEB" == "1" ]]; then
   az containerapp secret set \
     --name "$WEB_APP" \
     --resource-group "$RG" \
-    --secrets google-client-secret="$GOOGLE_CLIENT_SECRET" >/dev/null
-  az containerapp update \
-    --name "$WEB_APP" \
-    --resource-group "$RG" \
-    --image "$WEB_IMAGE" \
-    --set-env-vars \
-      "${WEB_COMMON_ENV[@]}" \
-      GOOGLE_CLIENT_SECRET=secretref:google-client-secret >/dev/null
-else
-  az containerapp update \
-    --name "$WEB_APP" \
-    --resource-group "$RG" \
-    --image "$WEB_IMAGE" \
-    --set-env-vars "${WEB_COMMON_ENV[@]}" >/dev/null
-fi
+    --secrets member-proxy-key="$MEMBER_PROXY_KEY" >/dev/null
 
-WEB_REVISION="$(az containerapp revision list \
-  --name "$WEB_APP" \
-  --resource-group "$RG" \
-  --query '[0].name' \
-  -o tsv)"
-if [[ -n "$WEB_REVISION" ]]; then
-  az containerapp revision restart \
+  WEB_COMMON_ENV=(
+    "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}"
+    "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}"
+    "API_BASE_URL=https://${API_FQDN}"
+    "MEMBER_PROXY_KEY=secretref:member-proxy-key"
+    "DEFAULT_ADMIN_EMAILS=${DEFAULT_ADMIN_EMAILS}"
+  )
+  if [[ -n "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" ]]; then
+    WEB_COMMON_ENV+=("GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}")
+  fi
+
+  if [[ -n "${GOOGLE_CLIENT_SECRET}" ]]; then
+    az containerapp secret set \
+      --name "$WEB_APP" \
+      --resource-group "$RG" \
+      --secrets google-client-secret="$GOOGLE_CLIENT_SECRET" >/dev/null
+    az containerapp update \
+      --name "$WEB_APP" \
+      --resource-group "$RG" \
+      --image "$WEB_IMAGE" \
+      --set-env-vars \
+        "${WEB_COMMON_ENV[@]}" \
+        GOOGLE_CLIENT_SECRET=secretref:google-client-secret >/dev/null
+  else
+    az containerapp update \
+      --name "$WEB_APP" \
+      --resource-group "$RG" \
+      --image "$WEB_IMAGE" \
+      --set-env-vars "${WEB_COMMON_ENV[@]}" >/dev/null
+  fi
+
+  WEB_REVISION="$(az containerapp revision list \
     --name "$WEB_APP" \
     --resource-group "$RG" \
-    --revision "$WEB_REVISION" >/dev/null
-fi
-sleep 15
+    --query '[0].name' \
+    -o tsv)"
+  if [[ -n "$WEB_REVISION" ]]; then
+    az containerapp revision restart \
+      --name "$WEB_APP" \
+      --resource-group "$RG" \
+      --revision "$WEB_REVISION" >/dev/null
+  fi
+  sleep 15
 
-WEB_AUTH_READY=""
-if [[ "$AUTH_ENABLED" == "true" ]]; then
-  for attempt in $(seq 1 45); do
-    SIGNIN_HTML="$(curl --fail --silent --show-error "https://${WEB_FQDN}/signin" 2>/dev/null || true)"
-    if grep -q 'Continue with Microsoft' <<<"$SIGNIN_HTML" && \
-      grep -q '/.auth/login/aad' <<<"$SIGNIN_HTML"; then
-      WEB_AUTH_READY=true
-      break
+  WEB_AUTH_READY=""
+  if [[ "$AUTH_ENABLED" == "true" ]]; then
+    for attempt in $(seq 1 45); do
+      SIGNIN_HTML="$(curl --fail --silent --show-error "https://${WEB_FQDN}/signin" 2>/dev/null || true)"
+      if grep -q 'Continue with Microsoft' <<<"$SIGNIN_HTML" && \
+        grep -q '/.auth/login/aad' <<<"$SIGNIN_HTML"; then
+        WEB_AUTH_READY=true
+        break
+      fi
+      sleep 10
+    done
+
+    if [[ -z "$WEB_AUTH_READY" ]]; then
+      echo "Web authentication smoke check failed: Microsoft sign-in is not visible."
+      exit 1
     fi
-    sleep 10
-  done
-
-  if [[ -z "$WEB_AUTH_READY" ]]; then
-    echo "Web authentication smoke check failed: Microsoft sign-in is not visible."
-    exit 1
   fi
 fi
 

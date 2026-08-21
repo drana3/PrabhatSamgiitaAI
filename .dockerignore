@@ -2,8 +2,13 @@
 .gitignore
 .env
 .env.*
+.cursor
+.cursorignore
+**/.DS_Store
+
+# Dependencies and local build caches
 node_modules
-apps/web/node_modules
+**/node_modules
 apps/web/.next
 apps/web/coverage
 apps/web/playwright-report
@@ -13,9 +18,19 @@ apps/api/.pytest_cache
 apps/api/.mypy_cache
 apps/api/.ruff_cache
 __pycache__
+**/__pycache__
 *.pyc
 coverage
 dist
 build
 htmlcov
-.DS_Store
+
+# Mobile never ships in Azure web/API images — was ~700MB+ per ACR upload.
+apps/mobile
+**/*.aab
+**/*.apk
+**/*.ipa
+
+# Docs / CI noise (not needed inside container images)
+docs
+.github
