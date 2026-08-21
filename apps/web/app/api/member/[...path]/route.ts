@@ -72,9 +72,10 @@ async function forward(request: NextRequest, segments: string[]) {
   const target = new URL(`/api/v1/members/${segments.map(encodeURIComponent).join("/")}`, backendBase())
   target.search = incomingUrl.search
   const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.text()
-  // Bound upstream waits: a hung API previously made /api/member/session stall until the
-  // browser aborted (~8s) and the header fell back to "Sign in" despite a valid cookie.
-  const upstreamTimeoutMs = root === "session" ? 4_000 : 12_000
+  // Bound upstream waits so a hung API cannot stall forever. Session sync against Neon
+  // often needs ~4–6s; a 4s cap was aborting live profiles and falling back to
+  // principal-only payloads with is_admin:false (Admin missing in the header menu).
+  const upstreamTimeoutMs = root === "session" ? 12_000 : 20_000
   let response: Response
   try {
     response = await fetch(target, {

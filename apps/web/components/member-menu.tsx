@@ -25,7 +25,18 @@ export function MemberMenu() {
   }, [])
 
   if (!authEnabled) return null
-  if (loading) return <span aria-label="Checking sign-in" className="h-10 w-20 animate-pulse rounded-full bg-navy-900/5" />
+  if (loading) {
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs text-navy-950/70 sm:px-4 sm:text-sm"
+      >
+        Signing in…
+      </span>
+    )
+  }
   if (!session.authenticated) {
     return <Link href={signInHref(pathname)} className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">Sign in</Link>
   }

@@ -36,7 +36,9 @@ export function memberFirstName(displayName: string): string {
 
 export async function fetchMemberSession(): Promise<MemberSession> {
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 8000)
+  // Must stay above the member proxy session upstream timeout (12s) so we receive the
+  // live API profile (including is_admin) instead of aborting into signed-out UI.
+  const timeout = window.setTimeout(() => controller.abort(), 15_000)
   try {
     const response = await fetch("/api/member/session", {
       credentials: "same-origin",
