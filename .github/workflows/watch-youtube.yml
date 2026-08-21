@@ -1,4 +1,4 @@
-name: Watch AMPS YouTube
+name: Watch trusted Prabhat Samgiita channels
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: watch-amps-youtube
+  group: watch-prabhat-youtube
   cancel-in-progress: false
 
 jobs:
@@ -34,8 +34,17 @@ jobs:
           cd apps/api
           uv sync --frozen --extra dev
 
-      - name: Scan allow-listed AMPS channel
-        run: apps/api/.venv/bin/python scripts/sync_youtube.py
+      - name: Scan configured YouTube channels into Neon
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CATALOG_API_URL: ${{ secrets.CATALOG_API_URL || 'https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io' }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Set GitHub secret DATABASE_URL to the Neon pooled postgresql+psycopg URL."
+            exit 1
+          fi
+          apps/api/.venv/bin/python scripts/sync_youtube.py --general-search-limit 0
 
       - name: Validate media inventory
         run: |
@@ -46,13 +55,13 @@ jobs:
       - name: Commit inventory changes
         id: changes
         run: |
-          if git diff --quiet -- data/generated/youtube_videos.json data/generated/youtube_review_queue.json; then
+          if git diff --quiet -- data/generated/youtube_videos.json data/generated/youtube_review_queue.json data/generated/youtube_search_state.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "prabhat-media-bot"
           git config user.email "prabhat-media-bot@users.noreply.github.com"
-          git add data/generated/youtube_videos.json data/generated/youtube_review_queue.json
+          git add data/generated/youtube_videos.json data/generated/youtube_review_queue.json data/generated/youtube_search_state.json
           git commit -m "chore: sync AMPS YouTube catalog"
           git push origin HEAD:main
           echo "changed=true" >> "$GITHUB_OUTPUT"
