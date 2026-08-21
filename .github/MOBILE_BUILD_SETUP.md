@@ -16,6 +16,7 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `MOBILE_API_BASE_URL` | Optional | Overrides production API URL in CI builds |
 | `MOBILE_WEB_BASE_URL` | Optional | Share links base URL |
 | `MOBILE_MEMBER_PROXY_KEY` | **Yes** | Member sync (same as API `MEMBER_PROXY_KEY`) |
+| `MEMBER_PROXY_KEY` | **Yes** (Deploy) | Same value as `MOBILE_MEMBER_PROXY_KEY`. Deploy passes this to Azure so the key is not regenerated from `DATABASE_URL` (scheme tweaks would otherwise break Retry sync on existing iOS/Android installs). |
 | `MOBILE_AZURE_CLIENT_ID` | **Yes** | Microsoft sign-in (both platforms) |
 | `MOBILE_AZURE_TENANT_ID` | Optional | Defaults in `eas.json` if unset |
 | `MOBILE_GOOGLE_CLIENT_ID` | **Yes** | Google **Web** client (native sign-in on Android + iOS) |

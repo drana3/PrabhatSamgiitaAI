@@ -302,6 +302,10 @@ jobs:
       - name: Deploy app stack
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Must stay aligned with MOBILE_MEMBER_PROXY_KEY / EXPO_PUBLIC_MEMBER_PROXY_KEY in
+          # shipped iOS/Android builds. Do not derive from DATABASE_URL alone — scheme changes
+          # rotate the key and break Retry sync on existing installs.
+          MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
           FAISS_INDEX_URL: ${{ secrets.FAISS_INDEX_URL }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}

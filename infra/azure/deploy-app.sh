@@ -52,8 +52,21 @@ case "${DATABASE_URL}" in
 esac
 
 if [[ -z "${MEMBER_PROXY_KEY}" ]]; then
-  # v2 salt rotates any proxy key that was previously leaked into CI logs.
-  MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:v2:%s' "$DATABASE_URL" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
+  # Prefer the key already on the API app so DATABASE_URL scheme tweaks cannot rotate it
+  # out from under shipped mobile builds (EXPO_PUBLIC_MEMBER_PROXY_KEY).
+  EXISTING_PROXY_KEY="$(
+    az containerapp secret show \
+      --name "$API_APP" \
+      --resource-group "$RG" \
+      --secret-name member-proxy-key \
+      --query value -o tsv 2>/dev/null || true
+  )"
+  if [[ -n "${EXISTING_PROXY_KEY}" ]]; then
+    MEMBER_PROXY_KEY="$EXISTING_PROXY_KEY"
+  else
+    # First-time bootstrap only. Keep in sync with MOBILE_MEMBER_PROXY_KEY after this.
+    MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:v2:%s' "$DATABASE_URL" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
+  fi
 fi
 
 # Container Apps often return 503 while a new revision is warming or swapping traffic.
