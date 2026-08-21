@@ -60,7 +60,7 @@ const ANDROID_SHA_HINT =
   "upload 29:36:BD:D1:9B:F2:C7:96:13:4C:13:CD:12:8D:E5:B8:21:B2:F7:9D, " +
   "Play classical 0A:CD:27:EE:73:CC:3D:6B:BB:41:9A:F2:7D:45:64:07:67:0B:A6:75, " +
   "Play post-quantum 27:C2:FB:E5:B3:9A:26:33:4D:35:98:3B:0E:4B:4D:B8:71:17:AE:06, " +
-  "plus Previous app signing key SHA-1 from Play Console → App signing (dated ~15 Aug 2026). " +
+  "Play previous 64:1F:F2:68:70:D1:73:F0:6C:8A:F3:43:D9:2B:08:0D:EE:AE:62:40. " +
   "No app rebuild needed. Wait ~10 minutes, uninstall Play build, reinstall, retry."
 
 function developerErrorDetail(error: unknown) {
