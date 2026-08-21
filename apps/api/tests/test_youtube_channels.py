@@ -76,6 +76,9 @@ class _ChannelSession:
         if "from media" in sql:
             rows = [(media.metadata_json, media.url) for media in self.media]
             return _ExecuteResult(rows)
+        if "from songs" in sql:
+            rows = [(song.number, song.title, song.first_line) for song in self.songs]
+            return _ExecuteResult(rows)
         from sqlalchemy.exc import SQLAlchemyError
 
         raise SQLAlchemyError("catalog refresh uses a real database session")

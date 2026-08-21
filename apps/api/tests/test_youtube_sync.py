@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request
@@ -8,10 +9,12 @@ from urllib.request import Request
 from scripts.sync_youtube import (
     CHANNELS,
     GENERAL_YOUTUBE,
+    _should_stop_scan_page,
     extract_videos,
     fetch,
     media_row,
     mentions_prabhat_samgiita,
+    parse_youtube_relative_time,
     persist_youtube_inventory,
     review_row,
     youtube_video_in_scope,
@@ -26,18 +29,44 @@ def test_extract_videos_reads_classic_grid_renderer() -> None:
             "gridVideoRenderer": {
                 "videoId": "abc123xyz01",
                 "title": {"runs": [{"text": "Prabhat Sangeet song #42 - Morning melody"}]},
+                "publishedTimeText": {"simpleText": "2 days ago"},
             }
         }
     }
 
     videos = extract_videos(payload)
 
-    assert videos == [
+    assert videos[0]["video_id"] == "abc123xyz01"
+    assert videos[0]["title"] == "Prabhat Sangeet song #42 - Morning melody"
+    assert isinstance(videos[0].get("published_at"), datetime)
+
+
+def test_parse_youtube_relative_time() -> None:
+    now = datetime(2026, 8, 21, 12, 0, tzinfo=UTC)
+    assert parse_youtube_relative_time("2 days ago", now=now) == now - timedelta(days=2)
+    assert parse_youtube_relative_time("Streamed 3 weeks ago", now=now) == now - timedelta(weeks=3)
+    assert parse_youtube_relative_time("just now", now=now) == now
+
+
+def test_should_stop_scan_page_on_known_ids() -> None:
+    page = [
+        {"video_id": "a", "title": "A"},
+        {"video_id": "b", "title": "B"},
+    ]
+    assert _should_stop_scan_page(page, since=None, known_ids={"a", "b"}) is True
+    assert _should_stop_scan_page(page, since=None, known_ids={"a"}) is False
+
+
+def test_should_stop_scan_page_on_since() -> None:
+    now = datetime(2026, 8, 21, 12, 0, tzinfo=UTC)
+    page = [
         {
-            "video_id": "abc123xyz01",
-            "title": "Prabhat Sangeet song #42 - Morning melody",
+            "video_id": "old",
+            "title": "Old upload",
+            "published_at": now - timedelta(days=30),
         }
     ]
+    assert _should_stop_scan_page(page, since=now - timedelta(days=7), known_ids=None) is True
 
 
 def test_numbered_channel_video_is_published_by_song_number() -> None:

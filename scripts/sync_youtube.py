@@ -8,6 +8,7 @@ import sys
 import time
 import unicodedata
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,10 @@ SEARCH_STATE_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_search_state.json"
 )
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
+SCAN_LOOKBACK = timedelta(hours=12)
+RELATIVE_TIME_RE = re.compile(
+    r"(?i)(?:streamed|premiered)?\s*(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago"
+)
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -244,7 +249,7 @@ def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
         with psycopg.connect(url, connect_timeout=30) as conn, conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT channel_id, channel_url, name, is_trusted, notes
+                SELECT channel_id, channel_url, name, is_trusted, notes, last_scanned_at
                 FROM youtube_scan_channels
                 WHERE is_active = true
                 ORDER BY name
@@ -261,12 +266,46 @@ def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
                 "trusted": bool(row[3]),
                 "notes": row[4]
                 or f"Scanned from {row[2]}; embedded only, not re-hosted.",
+                "last_scanned_at": row[5],
             }
             for row in rows
         ]
     except Exception as exc:
         print(f"Using default channels after DB load failed: {exc}", file=sys.stderr)
         return list(CHANNELS)
+
+
+def load_known_youtube_external_ids(database_url: str | None = None) -> set[str]:
+    database_url = database_url or os.environ.get("DATABASE_URL")
+    if not database_url:
+        return set()
+    known: set[str] = set()
+    try:
+        import psycopg
+
+        url = _libpq_url(database_url)
+        with psycopg.connect(url, connect_timeout=30) as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT metadata_json->>'external_id', url
+                FROM media
+                WHERE provider = 'youtube'
+                """
+            )
+            for external_id, media_url in cur.fetchall():
+                if isinstance(external_id, str) and external_id:
+                    known.add(external_id)
+                if isinstance(media_url, str):
+                    match = re.search(r"[?&]v=([\w-]{6,})", media_url)
+                    if match:
+                        known.add(match.group(1))
+            cur.execute("SELECT external_id FROM youtube_review_queue")
+            for (external_id,) in cur.fetchall():
+                if isinstance(external_id, str) and external_id:
+                    known.add(external_id)
+    except Exception as exc:
+        print(f"Could not load known YouTube IDs from DB: {exc}", file=sys.stderr)
+    return known
 
 
 def fetch(url: str, payload: dict[str, Any] | None = None) -> str:
@@ -341,8 +380,73 @@ def _title_from_runs(value: Any) -> str | None:
     return None
 
 
-def extract_videos(payload: dict[str, Any]) -> list[dict[str, str]]:
-    videos: dict[str, dict[str, str]] = {}
+def parse_youtube_relative_time(text: str, *, now: datetime | None = None) -> datetime | None:
+    cleaned = text.strip()
+    if not cleaned:
+        return None
+    current = now or datetime.now(UTC)
+    if cleaned.casefold() in {"just now", "moments ago"}:
+        return current
+    match = RELATIVE_TIME_RE.search(cleaned)
+    if not match:
+        return None
+    amount = int(match.group(1))
+    unit = match.group(2).lower()
+    deltas = {
+        "second": timedelta(seconds=amount),
+        "minute": timedelta(minutes=amount),
+        "hour": timedelta(hours=amount),
+        "day": timedelta(days=amount),
+        "week": timedelta(weeks=amount),
+        "month": timedelta(days=amount * 30),
+        "year": timedelta(days=amount * 365),
+    }
+    delta = deltas.get(unit)
+    if delta is None:
+        return None
+    return current - delta
+
+
+def _published_text_from_renderer(renderer: dict[str, Any]) -> str | None:
+    text = _title_from_runs(renderer.get("publishedTimeText"))
+    if text:
+        return text
+    return _title_from_runs(nested(renderer, "publishedTime", "simpleText"))
+
+
+def _published_text_from_lockup(model: dict[str, Any]) -> str | None:
+    rows = nested(
+        model,
+        "metadata",
+        "lockupMetadataViewModel",
+        "metadata",
+        "contentMetadataViewModel",
+        "metadataRows",
+    )
+    if not isinstance(rows, list):
+        return None
+    for row in rows:
+        parts = nested(row, "metadataParts")
+        if not isinstance(parts, list):
+            continue
+        for part in reversed(parts):
+            text = _title_from_runs(nested(part, "text"))
+            if text and RELATIVE_TIME_RE.search(text):
+                return text
+    return None
+
+
+def _video_entry(video_id: str, title: str, published_text: str | None = None) -> dict[str, Any]:
+    entry: dict[str, Any] = {"video_id": video_id, "title": title.strip()}
+    if published_text:
+        published_at = parse_youtube_relative_time(published_text)
+        if published_at is not None:
+            entry["published_at"] = published_at
+    return entry
+
+
+def extract_videos(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    videos: dict[str, dict[str, Any]] = {}
     for item in walk(payload):
         model = item.get("lockupViewModel")
         if isinstance(model, dict) and model.get("contentType") == "LOCKUP_CONTENT_TYPE_VIDEO":
@@ -350,8 +454,9 @@ def extract_videos(payload: dict[str, Any]) -> list[dict[str, str]]:
             title = nested(model, "metadata", "lockupMetadataViewModel", "title", "content")
             if not isinstance(title, str):
                 title = nested(model, "rendererContext", "accessibilityContext", "label")
+            published_text = _published_text_from_lockup(model)
             if isinstance(video_id, str) and isinstance(title, str):
-                videos[video_id] = {"video_id": video_id, "title": title.strip()}
+                videos[video_id] = _video_entry(video_id, title, published_text)
             continue
 
         for renderer_key in ("gridVideoRenderer", "videoRenderer", "compactVideoRenderer"):
@@ -362,9 +467,31 @@ def extract_videos(payload: dict[str, Any]) -> list[dict[str, str]]:
             title = _title_from_runs(renderer.get("title"))
             if not title:
                 title = _title_from_runs(nested(renderer, "headline", "content"))
+            published_text = _published_text_from_renderer(renderer)
             if isinstance(video_id, str) and isinstance(title, str):
-                videos[video_id] = {"video_id": video_id, "title": title.strip()}
+                videos[video_id] = _video_entry(video_id, title, published_text)
     return list(videos.values())
+
+
+def _should_stop_scan_page(
+    page_videos: list[dict[str, Any]],
+    *,
+    since: datetime | None,
+    known_ids: set[str] | None,
+) -> bool:
+    if not page_videos:
+        return False
+    if known_ids and all(video["video_id"] in known_ids for video in page_videos):
+        return True
+    if since is not None:
+        published_times = [
+            published_at
+            for video in page_videos
+            if isinstance((published_at := video.get("published_at")), datetime)
+        ]
+        if published_times and min(published_times) < since:
+            return True
+    return False
 
 
 def continuation_tokens(payload: dict[str, Any]) -> list[str]:
@@ -384,11 +511,28 @@ def youtube_config(html: str) -> tuple[str, str]:
     return key_match.group(1), version_match.group(1)
 
 
-def channel_videos(channel: dict[str, Any], max_pages: int = 50) -> list[dict[str, str]]:
+def channel_videos(
+    channel: dict[str, Any],
+    max_pages: int = 50,
+    *,
+    since: datetime | None = None,
+    known_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
     html = fetch(channel["url"])
     payload = initial_data(html)
     api_key, client_version = youtube_config(html)
-    videos = {item["video_id"]: item for item in extract_videos(payload)}
+    videos: dict[str, dict[str, Any]] = {}
+
+    def ingest(page_payload: dict[str, Any]) -> list[dict[str, Any]]:
+        page_videos = extract_videos(page_payload)
+        for item in page_videos:
+            videos[item["video_id"]] = item
+        return page_videos
+
+    first_page = ingest(payload)
+    if _should_stop_scan_page(first_page, since=since, known_ids=known_ids):
+        return list(videos.values())
+
     pending = continuation_tokens(payload)
     seen_tokens: set[str] = set()
     pages = 1
@@ -418,9 +562,11 @@ def channel_videos(channel: dict[str, Any], max_pages: int = 50) -> list[dict[st
                 file=sys.stderr,
             )
             break
-        videos.update({item["video_id"]: item for item in extract_videos(response)})
+        page_videos = ingest(response)
         pending.extend(continuation_tokens(response))
         pages += 1
+        if _should_stop_scan_page(page_videos, since=since, known_ids=known_ids):
+            break
     return list(videos.values())
 
 
@@ -632,9 +778,19 @@ def main() -> None:
     review_by_id = {row["external_id"]: row for row in existing_review_rows}
     discovered_by_channel: dict[str, int] = {}
     scan_channels = load_scan_channels()
+    known_external_ids = load_known_youtube_external_ids()
     for channel in scan_channels:
+        last_scanned_at = channel.get("last_scanned_at")
+        since = None
+        if isinstance(last_scanned_at, datetime):
+            since = last_scanned_at.astimezone(UTC) - SCAN_LOOKBACK
         try:
-            discovered = channel_videos(channel, max_pages=args.max_pages)
+            discovered = channel_videos(
+                channel,
+                max_pages=args.max_pages,
+                since=since,
+                known_ids=known_external_ids or None,
+            )
         except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
             discovered_by_channel[channel["name"]] = 0
             print(

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -21,6 +21,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.sync_youtube import (  # noqa: E402
     CHANNELS,
+    SCAN_LOOKBACK,
     channel_videos,
     fetch,
     initial_data,
@@ -32,6 +33,7 @@ from scripts.sync_youtube import (  # noqa: E402
 
 ADMIN_SCAN_MAX_PAGES = 4
 BATCH_SCAN_MAX_PAGES = 50
+INCREMENTAL_SCAN_MAX_PAGES = 4
 
 
 def normalize_channel_url(url: str) -> str:
@@ -283,14 +285,16 @@ async def update_youtube_scan_channel(
 
 
 async def _load_songs_map(session: AsyncSession) -> dict[int, dict[str, Any]]:
-    rows = list((await session.scalars(select(Song))).all())
+    rows = (
+        await session.execute(select(Song.number, Song.title, Song.first_line).order_by(Song.number))
+    ).all()
     return {
-        row.number: {
-            "number": row.number,
-            "title": row.title,
-            "first_line": row.first_line,
+        number: {
+            "number": number,
+            "title": title,
+            "first_line": first_line,
         }
-        for row in rows
+        for number, title, first_line in rows
     }
 
 
@@ -327,8 +331,20 @@ async def scan_youtube_channel(
     known_ids = await _known_external_ids(session)
     channel = channel_dict(channel_row)
 
+    since = None
+    effective_max_pages = max_pages
+    if channel_row.last_scanned_at is not None:
+        since = channel_row.last_scanned_at.astimezone(UTC) - SCAN_LOOKBACK
+        effective_max_pages = min(max_pages, INCREMENTAL_SCAN_MAX_PAGES)
+
     try:
-        discovered_videos = await asyncio.to_thread(channel_videos, channel, max_pages)
+        discovered_videos = await asyncio.to_thread(
+            channel_videos,
+            channel,
+            effective_max_pages,
+            since=since,
+            known_ids=known_ids,
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=503,
