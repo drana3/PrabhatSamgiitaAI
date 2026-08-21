@@ -108,7 +108,7 @@ export async function fetchAdminFeedback(
 export async function forwardMemberAdmin(
   request: NextRequest,
   path: string,
-  init?: RequestInit,
+  init?: RequestInit & { timeoutMs?: number },
 ) {
   const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   const principal = resolveClientPrincipal(request.headers)
@@ -124,21 +124,42 @@ export async function forwardMemberAdmin(
   const target = new URL(`/api/v1/members/admin/${path}`, backendBaseUrl())
   target.search = incoming.search
 
-  const response = await fetch(target, {
-    ...init,
-    method: init?.method ?? request.method,
-    headers: {
-      "Content-Type": request.headers.get("content-type") ?? "application/json",
-      "X-MS-CLIENT-PRINCIPAL": principal,
-      "X-Member-Proxy-Key": proxyKey,
-      ...(init?.headers ?? {}),
-    },
-    body: init?.body ?? (request.method === "GET" || request.method === "HEAD" ? undefined : await request.text()),
-    cache: "no-store",
-  })
+  const timeoutMs = init?.timeoutMs ?? 30_000
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const { timeoutMs: _timeout, ...requestInit } = init ?? {}
 
-  return new Response(await response.text(), {
-    status: response.status,
-    headers: { "Content-Type": response.headers.get("content-type") ?? "application/json" },
-  })
+  try {
+    const response = await fetch(target, {
+      ...requestInit,
+      method: requestInit.method ?? request.method,
+      headers: {
+        "Content-Type": request.headers.get("content-type") ?? "application/json",
+        "X-MS-CLIENT-PRINCIPAL": principal,
+        "X-Member-Proxy-Key": proxyKey,
+        ...(requestInit.headers ?? {}),
+      },
+      body:
+        requestInit.body ??
+        (request.method === "GET" || request.method === "HEAD" ? undefined : await request.text()),
+      cache: "no-store",
+      signal: controller.signal,
+    })
+
+    return new Response(await response.text(), {
+      status: response.status,
+      headers: { "Content-Type": response.headers.get("content-type") ?? "application/json" },
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error && error.name === "AbortError"
+        ? `Admin request timed out after ${Math.round(timeoutMs / 1000)}s`
+        : "Could not reach the admin service"
+    return new Response(JSON.stringify({ detail: message }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    })
+  } finally {
+    clearTimeout(timer)
+  }
 }

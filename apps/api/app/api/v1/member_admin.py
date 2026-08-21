@@ -422,7 +422,7 @@ async def admin_create_youtube_channel(
 async def admin_scan_all_youtube_channels(
     request: Request,
     session: DatabaseSession,
-    max_pages: int = Query(default=12, ge=1, le=50),
+    max_pages: int = Query(default=4, ge=1, le=50),
 ) -> dict[str, object]:
     await admin_member(request, session)
     return await scan_all_youtube_channels(session, max_pages=max_pages)
@@ -433,10 +433,18 @@ async def admin_scan_youtube_channel(
     channel_id: UUID,
     request: Request,
     session: DatabaseSession,
-    max_pages: int = Query(default=12, ge=1, le=50),
+    max_pages: int = Query(default=4, ge=1, le=50),
 ) -> YoutubeScanChannelScanResult:
     await admin_member(request, session)
-    result = await scan_youtube_channel(session, channel_id, max_pages=max_pages)
+    try:
+        result = await scan_youtube_channel(session, channel_id, max_pages=max_pages)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Could not scan channel: {exc}",
+        ) from exc
     return YoutubeScanChannelScanResult(**result)
 
 

@@ -11,5 +11,6 @@ export async function POST(
   const { id } = await context.params
   return forwardMemberAdmin(request, `youtube-channels/${encodeURIComponent(id)}/scan`, {
     method: "POST",
+    timeoutMs: 120_000,
   })
 }

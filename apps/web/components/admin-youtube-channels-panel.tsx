@@ -386,15 +386,17 @@ export function AdminYoutubeChannelsPanel({
     setNotice("")
     try {
       const response = await fetch(
-        `/api/admin/youtube-channels/${encodeURIComponent(id)}/scan?max_pages=12`,
+        `/api/admin/youtube-channels/${encodeURIComponent(id)}/scan?max_pages=4`,
         {
-        method: "POST",
-        credentials: "same-origin",
+          method: "POST",
+          credentials: "same-origin",
         },
       )
       const body = (await response.json().catch(() => null)) as YoutubeScanResult | null
       if (!response.ok) {
-        setError(readErrorDetail(body, "Scan failed"))
+        setError(
+          readErrorDetail(body, `Scan failed (HTTP ${response.status})`),
+        )
         return
       }
       setNotice(
@@ -406,6 +408,8 @@ export function AdminYoutubeChannelsPanel({
       if (body) {
         await onScanComplete?.(body)
       }
+    } catch {
+      setError("Could not reach the admin service while scanning. Try again in a moment.")
     } finally {
       setBusyId(null)
     }
@@ -416,7 +420,7 @@ export function AdminYoutubeChannelsPanel({
     setError("")
     setNotice("")
     try {
-      const response = await fetch("/api/admin/youtube-channels/scan-all?max_pages=12", {
+      const response = await fetch("/api/admin/youtube-channels/scan-all?max_pages=4", {
         method: "POST",
         credentials: "same-origin",
       })
@@ -445,6 +449,8 @@ export function AdminYoutubeChannelsPanel({
         new_queued_for_review: totals.new_queued_for_review ?? 0,
         new_auto_linked: totals.new_auto_linked ?? 0,
       })
+    } catch {
+      setError("Could not reach the admin service while scanning. Try again in a moment.")
     } finally {
       setBusyId(null)
     }

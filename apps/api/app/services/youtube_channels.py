@@ -30,7 +30,7 @@ from scripts.sync_youtube import (  # noqa: E402
     youtube_video_in_scope,
 )
 
-ADMIN_SCAN_MAX_PAGES = 12
+ADMIN_SCAN_MAX_PAGES = 4
 BATCH_SCAN_MAX_PAGES = 50
 
 
@@ -109,8 +109,9 @@ def resolve_channel_id(channel_url: str, explicit_id: str | None = None) -> str:
 
 
 def channel_dict(row: YoutubeScanChannel) -> dict[str, Any]:
+    scan_url = f"https://www.youtube.com/channel/{row.channel_id}/videos"
     return {
-        "url": normalize_channel_url(row.channel_url),
+        "url": scan_url,
         "id": row.channel_id,
         "name": row.name,
         "trusted": row.is_trusted,
