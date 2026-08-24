@@ -197,6 +197,7 @@ if [[ "$DEPLOY_API" == "1" ]]; then
     ACS_EMAIL_FROM="$ACS_EMAIL_FROM"
     ACS_EMAIL_CONNECTION_STRING=secretref:acs-email-connection-string
     AZURE_OPENAI_RESPONSES_API_VERSION=2025-04-01-preview
+    CATALOG_POLL_INTERVAL_SECONDS=600
   )
   if [[ -n "${FAISS_INDEX_URL}" ]]; then
     API_ENV_VARS+=(FAISS_INDEX_URL=secretref:faiss-index-url)

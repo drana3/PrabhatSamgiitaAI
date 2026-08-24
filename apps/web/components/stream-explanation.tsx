@@ -21,6 +21,7 @@ import {
 } from "@/lib/chat"
 import type { ChatMessage } from "@/lib/chat"
 import { conversationLanguage } from "@/lib/chat-language"
+import { AssistantMarkdown } from "@/components/assistant-markdown"
 import { streamExplanation } from "@/lib/explain"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { useMember } from "@/components/member-provider"
@@ -268,7 +269,13 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
               ) : null}
               <div className={`max-w-[88%] px-4 py-3 text-sm leading-7 sm:max-w-[82%] ${message.role === "user" ? "rounded-2xl rounded-br-md bg-navy-950 text-white shadow-sm" : "rounded-2xl rounded-bl-md border border-navy-900/10 bg-white text-stone-700 shadow-sm"}`}>
                 <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.16em] ${message.role === "user" ? "text-gold-200" : "text-gold-700"}`}>{message.role === "user" ? "You" : "Prabhat Samgiita AI"}</p>
-                {loading && index === messages.length - 1 && !message.text ? <LoadingIndicator label="Reading the song and preparing your answer" /> : <p dir="auto" className="whitespace-pre-wrap">{displayText}</p>}
+                {loading && index === messages.length - 1 && !message.text ? (
+                  <LoadingIndicator label="Reading the song and preparing your answer" />
+                ) : message.role === "assistant" ? (
+                  <AssistantMarkdown text={displayText} />
+                ) : (
+                  <p dir="auto" className="whitespace-pre-wrap">{displayText}</p>
+                )}
                 {isGreeting && !userTurns && !loading && !syncingHistory ? (
                   <div className="mt-4 border-t border-navy-900/10 pt-3">
                     <p className="text-xs font-semibold text-navy-950">Try asking</p>

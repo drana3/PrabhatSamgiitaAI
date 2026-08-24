@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # Keep in-process catalog memory aligned with Postgres (Neon) without user-visible lag.
     catalog_poll_enabled: bool = Field(default=True, alias="CATALOG_POLL_ENABLED")
     catalog_poll_interval_seconds: int = Field(
-        default=30, alias="CATALOG_POLL_INTERVAL_SECONDS", ge=5, le=600
+        default=600, alias="CATALOG_POLL_INTERVAL_SECONDS", ge=5, le=600
     )
     catalog_poll_initial_delay_seconds: int = Field(
         default=5, alias="CATALOG_POLL_INITIAL_DELAY_SECONDS", ge=0, le=120

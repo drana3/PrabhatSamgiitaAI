@@ -15,12 +15,18 @@ from app.core.db import get_session
 from app.core.security import require_public_quota
 from app.schemas.song import ExplanationRequest
 from app.services.ai import select_provider
-from app.services.ai_quota import check_daily_ai_quota, client_ip, record_daily_ai_question
+from app.services.ai_quota import (
+    check_daily_ai_quota_persisted,
+    client_ip,
+    record_daily_ai_question_persisted,
+)
 from app.services.catalog import CatalogService
+from app.services.chat_history import cap_chat_history
 from app.services.chat_language import detect_response_language
 from app.services.conversation import try_conversation_answer
 from app.services.direct_answers import try_direct_answer
 from app.services.members import try_member_identity
+from app.services.output_guard import sanitize_model_output
 from app.services.query_guard import assess_query
 from app.services.rag import RAGService
 from app.services.streaming import stream_text
@@ -64,6 +70,7 @@ async def explain(
         if turn.role == "user" and not assess_query(content, max_length=2000).allowed:
             continue
         history.append((turn.role, content))
+    history = cap_chat_history(history)
 
     response_language = detect_response_language(prompt, history)
     cache_key = json.dumps(
@@ -82,31 +89,36 @@ async def explain(
 
     conversation_answer = try_conversation_answer(prompt, history)
     if conversation_answer:
-        streamed = [conversation_answer]
+        streamed = [sanitize_model_output(conversation_answer)]
         await explanation_cache.set(cache_key, streamed)
         return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
 
     direct = try_direct_answer(prompt, song)
     if direct:
-        streamed = [direct.text]
+        streamed = [sanitize_model_output(direct.text)]
         await explanation_cache.set(cache_key, streamed)
         return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
 
     related = await catalog.related_songs(song)
     structured = try_structured_answer(prompt, song, history, related)
     if structured:
-        streamed = _stream_answer([structured])
+        streamed = _stream_answer([sanitize_model_output(structured)])
         await explanation_cache.set(cache_key, streamed)
         return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
 
-    quota = check_daily_ai_quota(
+    quota = await check_daily_ai_quota_persisted(
         is_member=member is not None,
         identity=quota_identity,
+        session=session,
         settings=settings,
     )
     if not quota.allowed:
         return StreamingResponse(stream_text([quota.guidance]), media_type="text/event-stream")
-    record_daily_ai_question(is_member=member is not None, identity=quota_identity)
+    await record_daily_ai_question_persisted(
+        is_member=member is not None,
+        identity=quota_identity,
+        session=session,
+    )
 
     provider = select_provider(settings)
     rag = RAGService(session, provider)
@@ -126,6 +138,6 @@ async def explain(
             f"{song.english_meaning or song.hindi_meaning or song.first_line or ''}".strip()
         )
 
-    streamed = _stream_answer([answer])
+    streamed = _stream_answer([sanitize_model_output(answer)])
     await explanation_cache.set(cache_key, streamed)
     return StreamingResponse(stream_text(streamed), media_type="text/event-stream")

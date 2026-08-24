@@ -15,6 +15,7 @@ import { History, Home, Plus, X, ChevronLeft } from "lucide-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AIComposer } from "@/components/ai/AIComposer"
+import { AssistantMarkdown } from "@/components/ai/AssistantMarkdown"
 import { AIWelcomeCard, SuggestionRow } from "@/components/ai/AIWelcomeCard"
 import { IconButton } from "@/components/common/IconButton"
 import { colors } from "@/constants/colors"
@@ -330,9 +331,11 @@ export default function AIScreen() {
                     key={msg.id}
                     style={[styles.bubble, msg.role === "user" ? styles.user : styles.assistant]}
                   >
-                    <Text style={msg.role === "user" ? styles.userText : styles.assistantText}>
-                      {msg.text}
-                    </Text>
+                    {msg.role === "assistant" ? (
+                      <AssistantMarkdown text={msg.text} />
+                    ) : (
+                      <Text style={styles.userText}>{msg.text}</Text>
+                    )}
                   </View>
                 )
               })}

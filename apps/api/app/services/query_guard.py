@@ -12,6 +12,11 @@ COLLECTION_PROMPT_PREFIX = "search prabhat samgiita for "
 SONG_RANGE_GUIDANCE = (
     "Prabhat Samgiita song numbers run from 1 to 5,018. Please enter a number within that range."
 )
+OUT_OF_SCOPE_GUIDANCE = (
+    "I'm your Prabhat Samgiita companion — I help with song meaning, lyrics, themes, "
+    "meditation, and related spiritual questions. I can't help with general programming, "
+    "homework coding, or unrelated tech tasks. Ask me about a song or spiritual theme."
+)
 BLOCKED_PATTERNS = (
     r"https?://",
     r"<\s*script",
@@ -20,6 +25,18 @@ BLOCKED_PATTERNS = (
     r"\bjailbreak\b",
     r"\bdrop\s+table\b",
     r"\brm\s+-rf\b",
+)
+# General-purpose coding / tool misuse (OWASP LLM01 scope abuse + LLM10 cost).
+OUT_OF_SCOPE_PATTERNS = (
+    r"\b(?:write|create|generate|build|make|code|develop)\b.{0,40}\b(?:python|javascript|"
+    r"typescript|java|golang|rust|kotlin|swift|c\+\+|c#|php|ruby|sql|bash|powershell)\b"
+    r".{0,40}\b(?:program|script|code|function|class|app|application|module|snippet)\b",
+    r"\b(?:python|javascript|typescript|java|golang|rust|kotlin|swift|c\+\+|c#|php|ruby|"
+    r"sql)\s+(?:program|script|code|function|class|app)\b",
+    r"\b(?:write|create|generate)\s+(?:a\s+)?(?:program|script|function|class)\b",
+    r"\b(?:leetcode|hackerrank|coding\s+interview|debug\s+this\s+code)\b",
+    r"\b(?:write|generate)\s+(?:me\s+)?(?:an?\s+)?(?:essay|homework|assignment)\b"
+    r"(?!.{0,40}\b(?:song|samgiita|sangeet|prabhat|lyric|meaning)\b)",
 )
 KEYBOARD_RUNS = ("qwerty", "asdf", "zxcv", "qazwsx", "poiuy", "lkjhg")
 LOW_VALUE_WORDS = {"fuck", "shit", "bitch", "idiot", "stupid", "testtest", "blah"}
@@ -41,6 +58,13 @@ def assess_query(value: str | None, *, max_length: int = 600) -> QueryAssessment
         return QueryAssessment(False, normalized[:max_length], "too_long")
     if any(re.search(pattern, normalized, re.IGNORECASE) for pattern in BLOCKED_PATTERNS):
         return QueryAssessment(False, normalized, "unsafe_or_unrelated_instruction")
+    if any(re.search(pattern, normalized, re.IGNORECASE) for pattern in OUT_OF_SCOPE_PATTERNS):
+        return QueryAssessment(
+            False,
+            normalized,
+            "out_of_scope_request",
+            OUT_OF_SCOPE_GUIDANCE,
+        )
 
     if normalized.casefold().startswith(COLLECTION_PROMPT_PREFIX):
         return QueryAssessment(True, normalized)

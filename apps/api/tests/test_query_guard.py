@@ -59,3 +59,19 @@ def test_query_guard_accepts_curated_collection_prompts() -> None:
 
     assert assessment.allowed is True
     assert assessment.reason is None
+
+
+def test_query_guard_rejects_general_programming_requests() -> None:
+    for query in (
+        "create a python program",
+        "Write a Python script to sort a list",
+        "generate javascript code for a todo app",
+        "debug this code please",
+    ):
+        assessment = assess_query(query)
+        assert assessment.allowed is False, query
+        assert assessment.reason == "out_of_scope_request"
+        assert "programming" in assessment.guidance.casefold()
+
+    assert assess_query("what does song 12 mean spiritually").allowed is True
+    assert assess_query("explain the imagery in this song").allowed is True
