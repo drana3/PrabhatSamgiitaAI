@@ -10668,6 +10668,48 @@
     }
   },
   {
+    "song_number": 3017,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Aso Na - Prabhat Sangeet song #3017 - Singer - Swarup Paul",
+    "url": "https://www.youtube.com/watch?v=vNsTfQW5elg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/vNsTfQW5elg",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "vNsTfQW5elg",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.937,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3018,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Jiivaner Pratham Dine - Prabhat Sangeet song #3018 - Singer - Chancharika Biswas",
+    "url": "https://www.youtube.com/watch?v=OJE-9cYpvBU",
+    "embed_url": "https://www.youtube-nocookie.com/embed/OJE-9cYpvBU",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "OJE-9cYpvBU",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3019,
     "kind": "video",
     "provider": "youtube",
