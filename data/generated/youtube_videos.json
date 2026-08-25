@@ -9177,6 +9177,27 @@
     }
   },
   {
+    "song_number": 2750,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Kon Se Atiite - Prabhat Sangeet song #2750 - Singer - Sonali Saha Maitra",
+    "url": "https://www.youtube.com/watch?v=5m-BkQLa7FI",
+    "embed_url": "https://www.youtube-nocookie.com/embed/5m-BkQLa7FI",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "5m-BkQLa7FI",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2751,
     "kind": "video",
     "provider": "youtube",
@@ -10773,6 +10794,27 @@
     }
   },
   {
+    "song_number": 3022,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Kichu Na Janiye Se Esechilo - Prabhat Sangeet song #3022 - Singer - Shuveccha Mandal",
+    "url": "https://www.youtube.com/watch?v=Iseu4wAw6cw",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Iseu4wAw6cw",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "Iseu4wAw6cw",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.951,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3023,
     "kind": "video",
     "provider": "youtube",
@@ -10790,6 +10832,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3024,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Asibe Bole Gele Keno Ele Na - Prabhat Sangeet song #3024 - Singer - Shuveccha Mandal",
+    "url": "https://www.youtube.com/watch?v=IolkECwa9Co",
+    "embed_url": "https://www.youtube-nocookie.com/embed/IolkECwa9Co",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "IolkECwa9Co",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.931,
       "match_method": "explicit_song_number_marker"
     }
   },
