@@ -383,13 +383,27 @@ export default function SongDetailScreen() {
           <View style={styles.navActions}>
             <IconButton
               soft
-              accessibilityLabel={isSaved ? "Remove favorite" : "Save favorite"}
+              accessibilityLabel={isSaved ? "Remove from Saved" : "Save to Saved"}
               onPress={() => {
                 if (authMode !== "signed_in") {
                   router.push(href("/signin"))
                   return
                 }
-                void toggleSaved(song.id)
+                const wasSaved = isSaved
+                void toggleSaved(song.id).then(() => {
+                  if (wasSaved) return
+                  Alert.alert(
+                    "Saved",
+                    "Find this song anytime under Saved (bottom tab) or Profile → Saved songs.",
+                    [
+                      { text: "OK", style: "cancel" },
+                      {
+                        text: "Open Saved",
+                        onPress: () => router.push(href("/(tabs)/saved")),
+                      },
+                    ],
+                  )
+                })
               }}
             >
               <Heart

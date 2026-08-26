@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { FavoriteSongButton } from "@/components/favorite-song-button"
+import { CopyTextButton } from "@/components/copy-text-button"
 import { HarmoniumPractice } from "@/components/harmonium-practice"
 import { HashLanding } from "@/components/hash-landing"
 import { AudioRendition } from "@/components/audio-rendition"
@@ -77,6 +78,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
                   <h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2>
                 </div>
                 <p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">{lyrics}</p>
+                <CopyTextButton text={lyrics ?? ""} label="Copy lyrics" />
                 {song.lyrics_original?.trim() && song.transliteration?.trim() ? (
                   <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4">
                     <summary className="cursor-pointer text-sm font-semibold text-gold-700">Roman transliteration</summary>

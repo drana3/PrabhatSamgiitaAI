@@ -1,0 +1,7 @@
+{
+  "engine": "reed_harmonic_v1",
+  "sample_rate": 22050,
+  "duration_sec": 0.85,
+  "range": "C3-C6",
+  "count": 37
+}

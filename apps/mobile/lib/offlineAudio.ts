@@ -56,8 +56,8 @@ export function offlineSaveControls(input: {
     label: downloading
       ? `Downloading ${Math.round((input.progress ?? 0) * 100)}%`
       : input.downloaded
-        ? "Remove from this app"
-        : "Save in this app",
+        ? "Remove offline download"
+        : "Download for offline",
     bufferingLabel: input.downloaded ? "Opening downloaded audio…" : "Starting stream…",
   }
 }

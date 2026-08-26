@@ -90,8 +90,12 @@ export function toLatinSwara(token: string): string {
 
 export function harmoniumKeyLabel(western: string | null | undefined, fallbackSargam?: string): string {
   if (western) {
-    const match = western.match(/^([A-G](?:#|b)?)/i)
-    if (match?.[1]) return match[1].toUpperCase().replace("B", "b")
+    const match = western.match(/^([A-G])([#b]?)/i)
+    if (match?.[1]) {
+      const letter = match[1].toUpperCase()
+      const accidental = (match[2] || "").toLowerCase()
+      return `${letter}${accidental}`
+    }
   }
   return fallbackSargam ? toLatinSwara(fallbackSargam) : "–"
 }

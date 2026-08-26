@@ -69,6 +69,11 @@ async def update_preferences(
     payload: MemberPreferencesWrite, request: Request, session: DatabaseSession
 ) -> MemberProfile:
     member = await current_member(request, session)
+    if payload.display_name is not None:
+        cleaned = " ".join(payload.display_name.split()).strip()
+        if not cleaned:
+            raise HTTPException(status_code=422, detail="Display name cannot be empty")
+        member.display_name = cleaned[:255]
     if payload.preferred_language is not None:
         member.preferred_language = payload.preferred_language
     if payload.country is not None:

@@ -119,11 +119,11 @@ describe("offline save UI", () => {
 
   it("shows save, progress, and remove only for signed-in members", () => {
     expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).visible).toBe(true)
-    expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).label).toBe("Save in this app")
+    expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).label).toBe("Download for offline")
     expect(offlineSaveControls({ mode: "signed_in", downloaded: false, progress: 0.4 }).label).toBe(
       "Downloading 40%",
     )
-    expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).label).toBe("Remove from this app")
+    expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).label).toBe("Remove offline download")
     expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).badge).toBe(true)
   })
 })

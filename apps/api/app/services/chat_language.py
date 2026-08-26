@@ -69,6 +69,23 @@ AMBIGUOUS_FOLLOW_UP = re.compile(
 )
 
 
+def prefers_devanagari_hindi(query: str) -> bool:
+    """Prefer Devanagari for Hindi replies unless the user wrote Romanized Hindi."""
+    cleaned = query.strip()
+    if not cleaned:
+        return True
+    if re.search(r"[\u0900-\u097F]", cleaned):
+        return True
+    # Explicit "in hindi" / "translate to hindi" → proper Devanagari explanation.
+    if EXPLICIT_HINDI.search(cleaned) and not ROMANIZED_HINDI.search(
+        re.sub(r"\bhindi\b", " ", cleaned, flags=re.IGNORECASE)
+    ):
+        return True
+    if ROMANIZED_HINDI.search(cleaned):
+        return False
+    return True
+
+
 def explicit_target_language_label(text: str) -> str | None:
     cleaned = text.strip()
     if not cleaned:

@@ -80,6 +80,7 @@ class FavoriteWrite(BaseModel):
 
 
 class MemberPreferencesWrite(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=120)
     preferred_language: str | None = Field(default=None, max_length=32)
     country: str | None = Field(default=None, max_length=128)
     personalization_enabled: bool | None = None

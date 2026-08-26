@@ -8,7 +8,7 @@ import { QuizCertificate } from "@/components/quiz-certificate"
 import { FeelingSearchToggle } from "@/components/feeling-search-toggle"
 import { useMember } from "@/components/member-provider"
 import { SiteHeader } from "@/components/site-header"
-import { memberFirstName } from "@/lib/member"
+import { memberFirstName, updateMemberPreferences } from "@/lib/member"
 import { clearSongChatStorage } from "@/lib/chat"
 import { signOutMember } from "@/lib/sign-out"
 import { fetchQuizStatus, type QuizStatus } from "@/lib/quiz"
@@ -17,16 +17,35 @@ export default function AccountPage() {
   const { loading, session, refresh } = useMember()
   const [notice, setNotice] = useState("")
   const [quizStatus, setQuizStatus] = useState<QuizStatus | null>(null)
+  const [displayNameDraft, setDisplayNameDraft] = useState("")
+  const [savingName, setSavingName] = useState(false)
 
   useEffect(() => {
     if (!session.authenticated) return
     void fetchQuizStatus().then(setQuizStatus)
-  }, [session.authenticated])
+    setDisplayNameDraft(session.display_name)
+  }, [session])
   if (loading) return <main className="min-h-screen bg-ivory-50"><SiteHeader /><p className="p-10 text-center">Preparing your profile…</p></main>
   if (!session.authenticated) return <main className="min-h-screen bg-ivory-50"><SiteHeader /><div className="mx-auto max-w-xl p-10 text-center"><h1 className="font-serif text-4xl text-navy-950">Sign in to continue</h1><Link href="/signin?next=/account" className="gold-button mt-6">Sign in</Link></div></main>
 
   const firstName = memberFirstName(session.display_name)
   const identityProvider = session.identity_provider
+  const nameChanged = displayNameDraft.trim() !== session.display_name.trim()
+
+  async function saveDisplayName() {
+    const next = displayNameDraft.trim()
+    if (!next || !nameChanged) return
+    setSavingName(true)
+    setNotice("")
+    const result = await updateMemberPreferences({ display_name: next })
+    setSavingName(false)
+    if (!result.ok) {
+      setNotice(result.error)
+      return
+    }
+    await refresh({ silent: true })
+    setNotice("Display name updated.")
+  }
 
   async function clearMemory() {
     const response = await fetch("/api/member/chat-memory", { method: "DELETE" })
@@ -59,10 +78,27 @@ export default function AccountPage() {
         <article className="mt-8 rounded-3xl border border-navy-900/10 bg-white p-6">
           <div className="flex items-start gap-4">
             <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gold-100 font-serif text-2xl text-gold-800">{firstName.slice(0, 1).toUpperCase()}</span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h2 className="font-serif text-2xl text-navy-950">{firstName}</h2>
               {session.email ? <p className="mt-1 truncate text-sm text-stone-600">{session.email}</p> : null}
               <p className="mt-2 text-sm text-stone-500">Signed in with {session.identity_provider}</p>
+              <label className="mt-5 block text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">
+                Display name
+                <input
+                  value={displayNameDraft}
+                  onChange={(event) => setDisplayNameDraft(event.target.value)}
+                  maxLength={120}
+                  className="mt-2 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-3 py-2.5 text-sm font-semibold normal-case tracking-normal text-navy-950 outline-none focus:border-gold-500"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={!nameChanged || savingName || !displayNameDraft.trim()}
+                onClick={() => void saveDisplayName()}
+                className="outline-button mt-3 disabled:opacity-50"
+              >
+                {savingName ? "Saving…" : "Save name"}
+              </button>
             </div>
           </div>
         </article>
@@ -71,8 +107,8 @@ export default function AccountPage() {
           <article className="rounded-3xl border border-navy-900/10 bg-white p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-serif text-2xl text-navy-950">My playlist</h2>
-                <p className="mt-2 text-sm text-stone-600">{session.favorite_song_numbers.length} saved song{session.favorite_song_numbers.length === 1 ? "" : "s"} across your devices.</p>
+                <h2 className="font-serif text-2xl text-navy-950">Saved songs</h2>
+                <p className="mt-2 text-sm text-stone-600">{session.favorite_song_numbers.length} song{session.favorite_song_numbers.length === 1 ? "" : "s"} saved with ♡ across your devices.</p>
               </div>
               <Link href="/explore" className="outline-button">Explore more songs</Link>
             </div>

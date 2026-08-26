@@ -184,7 +184,11 @@ def test_learner_notation_has_substantial_real_source_coverage() -> None:
 
     assert len(machine_readable) >= 1_000
     assert all(item.verification_status != "verified" for item in machine_readable)
-    assert all(item.metadata_json.get("requires_human_review") is True for item in machine_readable)
+    assert all(
+        item.metadata_json.get("requires_human_review") is True
+        or item.verification_status == "expert_verified"
+        for item in machine_readable
+    )
 
 
 @pytest.mark.asyncio

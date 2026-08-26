@@ -55,6 +55,8 @@ module.exports = ({ config }) => {
         NSPhotoLibraryAddUsageDescription:
           "Prabhat Samgiita AI does not save images to your photo library. This notice is required by an included sign-in component.",
         ...(config.ios?.infoPlist ?? {}),
+        // Keep explicit so merges never drop background Listen audio.
+        UIBackgroundModes: ["audio"],
         CFBundleURLTypes: mergeUrlSchemes(config.ios?.infoPlist?.CFBundleURLTypes, [
           "prabhatai",
           APP_PACKAGE,

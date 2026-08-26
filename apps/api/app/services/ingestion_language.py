@@ -67,7 +67,10 @@ SCRIPT_PATTERNS: dict[str, re.Pattern[str]] = {
 
 
 def validate_meaning_language(language: str, text: str) -> tuple[bool, str]:
-    code = language.strip().casefold()
+    # Lazy import avoids a circular dependency with song_meanings.
+    from app.services.song_meanings import normalize_language_code
+
+    code = normalize_language_code(language) or language.strip().casefold()
     cleaned = text.strip()
     if not cleaned:
         return True, ""

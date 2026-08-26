@@ -14,6 +14,14 @@ def test_explicit_hindi_from_in_hindi_request() -> None:
     assert detect_response_language("explain this song in hindi") == "hi"
 
 
+def test_prefers_devanagari_for_explicit_hindi_and_romanized_for_chat() -> None:
+    from app.services.chat_language import prefers_devanagari_hindi
+
+    assert prefers_devanagari_hindi("explain this song in hindi") is True
+    assert prefers_devanagari_hindi("इस गीत का अर्थ समझाइए") is True
+    assert prefers_devanagari_hindi("is gaane ka arth batao") is False
+
+
 def test_explicit_english_overrides_romanized_hindi_terms() -> None:
     assert detect_response_language("is gaane ka arth batao in english") == "en"
 
@@ -39,6 +47,20 @@ def test_ambiguous_follow_up_can_inherit_hindi() -> None:
 
     assert detect_response_language("ok", history) == "hi"
     assert detect_response_language("in hindi", history) == "hi"
+
+
+def test_english_follow_up_after_hindi_switches_back() -> None:
+    """FB-03: after Hindi turns, a clear English question must request English again."""
+    history = [
+        ("user", "What is this song about?"),
+        ("assistant", "This song is about devotion at dawn."),
+        ("user", "is gaane ka arth batao"),
+        ("assistant", "Yeh gaana prem aur bhakti ke bare mein hai."),
+    ]
+
+    assert detect_response_language("What emotion drives this PS?", history) == "en"
+    assert detect_response_language("in english", history) == "en"
+    assert detect_response_language("Tell me more about the imagery", history) == "en"
 
 
 def test_language_rephrase_requires_history_for_structured_explain() -> None:
@@ -68,7 +90,8 @@ def test_hindi_explanation_skips_structured_answer_without_hindi_meaning() -> No
     assert try_structured_answer("explain this song in hindi", song) is None
 
 
-def test_hindi_explanation_uses_canonical_hindi_meaning_when_available() -> None:
+def test_hindi_explanation_prefers_llm_over_stiff_structured_paste() -> None:
+    """Natural Hindi prose should come from the grounded LLM, not a catalog dump."""
     song = Song(
         number=16,
         title="ÁJI, SAJALA PAVANE SAGHANA SVAPANE",
@@ -77,11 +100,8 @@ def test_hindi_explanation_uses_canonical_hindi_meaning_when_available() -> None
         theme="Mysticism",
     )
 
-    answer = try_structured_answer("explain this song in hindi", song)
-
-    assert answer is not None
-    assert "गहरी स्वप्न" in answer
-    assert "Deep in dream" not in answer
+    assert try_structured_answer("explain this song in hindi", song) is None
+    assert try_structured_answer("is gaane ka arth batao", song) is None
 
 
 def test_magahi_explanation_skips_structured_answer_and_uses_llm_path() -> None:

@@ -40,11 +40,14 @@ Rules:
 1. Translate ONLY what the source says. Do not add interpretation, commentary,
    theology, or new imagery.
 2. Preserve the devotional tone and spiritual register of the source.
-3. Use correct, natural grammar and spelling in the target language.
+3. Use correct, natural grammar and spelling in the target language — fluent
+   native phrasing, not stiff word-for-word calques from English.
 4. If the source is line-by-line, keep the same line breaks and order.
 5. Do not mention song numbers, AI, translation, or your process.
 6. When both Hindi and English sources are provided, treat Hindi as the closer
    authority for Indic targets.
+7. For Hindi (hi): write idiomatic Devanagari Hindi that a devotee would read
+   aloud; prefer साधारण, भावपूर्ण भाषा over literal English-to-Hindi glosses.
 """.strip()
 
 META_COMMENTARY_PATTERNS = (

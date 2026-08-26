@@ -143,6 +143,32 @@ def test_practice_drafts_outside_andromeda_are_appended_for_the_db() -> None:
     assert extra["source_url"].endswith("andromeda.php")
 
 
+def test_expert_curated_4961_overrides_practice_draft() -> None:
+    import json
+
+    from app.schemas.notation import HarmoniumNotation
+    from app.services.seed_data import load_rows
+
+    load_rows.cache_clear()
+    rows = load_rows("notations.json")
+    row = next(item for item in rows if item.get("song_number") == 4961)
+    assert row["verification_status"] == "expert_verified"
+    assert (row.get("metadata_json") or {}).get("expert_overrides_practice") is True
+    payload = row["notation_text"]
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    notation = HarmoniumNotation.model_validate(payload)
+    assert notation.tala is not None
+    assert notation.tala.beats == 8
+    assert len(notation.lines) == 3
+    first = notation.lines[0].measures[0].beats[0].notes[0]
+    assert first.sargam == "P"
+    assert first.western == "G4"
+    hold = notation.lines[0].measures[0].beats[1].notes[0]
+    assert hold.sargam == "-"
+    assert hold.western is None
+
+
 def test_learner_notation_url_never_returns_sarkarverse() -> None:
     assert "sarkarverse.org" not in MODULE.learner_notation_url(
         "https://sarkarverse.org/SARGAM/Divyadyuti/2094sl.pdf"

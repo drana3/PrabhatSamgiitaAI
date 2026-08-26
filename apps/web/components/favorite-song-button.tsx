@@ -62,8 +62,8 @@ export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
         return
       }
       await refresh({ silent: true })
-      setNotice(saved ? "Removed from your playlist." : "Saved to your playlist.")
-      window.setTimeout(() => setNotice(null), 2200)
+      setNotice(saved ? "Removed from Saved songs." : "Saved — open Account to see your Saved songs.")
+      window.setTimeout(() => setNotice(null), 2800)
     } finally {
       setPending(false)
     }
@@ -74,7 +74,7 @@ export function FavoriteSongButton({ songNumber }: { songNumber: number }) {
       <button
         type="button"
         aria-pressed={saved}
-        aria-label={saved ? "Remove from playlist" : "Save to playlist"}
+        aria-label={saved ? "Remove from Saved songs" : "Save to Saved songs"}
         disabled={pending}
         onClick={(event) => void toggleFavorite(event)}
         data-feature="save_song"

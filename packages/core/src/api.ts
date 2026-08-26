@@ -801,6 +801,25 @@ export function createApiClient(options: ApiClientOptions) {
       }
     },
 
+    async updateMemberPreferences(payload: {
+      display_name?: string
+      preferred_language?: string | null
+      country?: string | null
+      personalization_enabled?: boolean
+    }): Promise<MemberProfile | null> {
+      try {
+        const response = await fetchJson("/api/v1/members/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+        if (!response.ok) return null
+        return memberProfileSchema.parse(await response.json())
+      } catch {
+        return null
+      }
+    },
+
     async deleteMemberAccount(): Promise<boolean> {
       try {
         const response = await fetchJson("/api/v1/members/me", { method: "DELETE" })

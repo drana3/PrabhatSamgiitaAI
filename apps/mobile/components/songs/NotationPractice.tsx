@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import type { TransposedNotation } from "@prabhat/core"
 
+import { NotationMatraSheet, ExpertSheetImage } from "@/components/songs/NotationMatraSheet"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -29,12 +30,20 @@ function LinePracticeCard({
   songLyricLines,
   originalLyricLines = [],
   hasPdfLink = false,
+  songNumber,
+  tala,
+  expertVerified = false,
+  tempoBpm,
 }: {
   line: NotationLine | null
   lineIndex: number
   songLyricLines: string[]
   originalLyricLines?: string[]
   hasPdfLink?: boolean
+  songNumber: number
+  tala?: { name: string; beats: number; groups?: number[] } | null
+  expertVerified?: boolean
+  tempoBpm?: number | null
 }) {
   const notes = line ? buildDisplayNotes(line) : []
   const lyrics = line
@@ -93,6 +102,16 @@ function LinePracticeCard({
           <Text style={styles.fullDevanagari}>{formatPracticeSequence(notes, "devanagari")}</Text>
           <Text style={styles.fullLatin}>{formatPracticeSequence(notes, "latin")}</Text>
           <Text style={styles.fullKeys}>Keys: {formatPracticeSequence(notes, "key")}</Text>
+          {line ? (
+            <NotationMatraSheet
+              songNumber={songNumber}
+              line={line}
+              lineIndex={lineIndex}
+              tala={tala}
+              tempoBpm={tempoBpm}
+              expertVerified={expertVerified}
+            />
+          ) : null}
         </View>
       ) : (
         <Text style={styles.missing}>
@@ -200,8 +219,13 @@ export function NotationPractice({
             Scale {notation.target_scale}
             {notation.notation.tala ? ` · ${notation.notation.tala.name}` : ""}
             {" · "}
-            {notation.verification_status}
+            {notation.verification_status === "expert_verified"
+              ? "Expert-verified sheet"
+              : notation.verification_status}
           </Text>
+          {notation.verification_status === "expert_verified" ? (
+            <ExpertSheetImage songNumber={songNumber} />
+          ) : null}
           <Text style={styles.sectionHeading}>Lyric · Hindi Sargam · Harmonium keys</Text>
           {(() => {
             const coverage = notationCoverage(notation.notation.lines.length, songLyricLines.length)
@@ -225,6 +249,10 @@ export function NotationPractice({
                 songLyricLines={songLyricLines}
                 originalLyricLines={originalLyricLines}
                 hasPdfLink={Boolean(pdfUrl)}
+                songNumber={songNumber}
+                tala={notation.notation.tala}
+                tempoBpm={notation.notation.tempo_bpm}
+                expertVerified={notation.verification_status === "expert_verified"}
               />
             ))
           )}

@@ -14,7 +14,7 @@ from app.models import Song, SongChunk
 from app.services.ai import GroundedProvider
 from app.services.catalog import CatalogService
 from app.services.chat_history import cap_chat_history
-from app.services.chat_language import explicit_target_language_label
+from app.services.chat_language import explicit_target_language_label, prefers_devanagari_hindi
 from app.services.faiss_store import get_faiss_store
 from app.services.output_guard import sanitize_model_output
 from app.services.structured_answers import try_structured_answer
@@ -282,23 +282,40 @@ def build_grounded_prompt(
         f"{role.title()}: {content}" for role, content in (history or [])
     )
     if response_language == "hi":
+        if prefers_devanagari_hindi(query):
+            script_note = (
+                "Write in clear Devanagari Hindi (देवनागरी). Do not reply in Romanized Hindi "
+                "for this turn."
+            )
+        else:
+            script_note = (
+                "The user wrote Romanized Hindi — reply in natural Romanized Hindi (not "
+                "Devanagari), the way a devotee chats."
+            )
         language_instruction = (
-            "Reply in Hindi, matching the user's script when possible: Devanagari if they used "
-            "Devanagari, otherwise natural Romanized Hindi."
+            "CRITICAL — reply language for THIS turn only: Hindi. "
+            f"{script_note} "
+            "Sound like a warm Hindi-speaking spiritual guide, not a machine translation. "
+            "Use fluent, idiomatic Hindi with natural sentence rhythm. Explain feeling, "
+            "imagery, and devotion in flowing prose — do not paste stiff catalog labels or "
+            "word-for-word English calques. Keep English song titles as-is when needed, but "
+            "surround them with Hindi. Avoid mixing full English sentences into the reply. "
+            "Do not stay in English just because earlier turns used it."
         )
     elif response_language == "other":
         target = explicit_target_language_label(query) or "the language the user requested"
         language_instruction = (
-            f"Reply in {target}. Translate the canonical song meaning faithfully from the "
-            f"retrieved source in that language. Use correct grammar and preserve the source "
-            f"imagery and line order when the meaning is line-by-line. Do not invent devotional "
-            f"commentary beyond the canonical text."
+            f"CRITICAL — reply language for THIS turn only: {target}. Translate the canonical "
+            f"song meaning faithfully from the retrieved source in that language. Use correct "
+            f"grammar and preserve the source imagery and line order when the meaning is "
+            f"line-by-line. Do not invent devotional commentary beyond the canonical text. "
+            f"Do not stay in a previous language from earlier turns."
         )
     else:
         language_instruction = (
-            "Reply in clear, natural English by default. Only switch away from English when the "
-            "user's current question or recent user turns are clearly written in another "
-            "language or script."
+            "CRITICAL — reply language for THIS turn only: clear, natural English. "
+            "Do not continue in Hindi, Romanized Hindi, or any other language from earlier "
+            "turns — the user's current message is English (or they asked for English)."
         )
     line_by_line_instruction = (
         "The user asked for a detailed reading of this song. Explain the grounded meaning in "

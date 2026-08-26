@@ -428,7 +428,9 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         member = await _absorb_mailbox_twins(session, member, identity.email)
     member.identity_provider = identity.provider
     member.email = normalize_member_email(identity.email) or member.email
-    member.display_name = identity.display_name
+    # Keep a member-edited display name; only fill from OAuth when blank.
+    if not (member.display_name or "").strip():
+        member.display_name = identity.display_name
     member.avatar_url = identity.avatar_url or member.avatar_url
     member.last_seen_at = now
     ensure_ephemeral_smoke_admin(member)

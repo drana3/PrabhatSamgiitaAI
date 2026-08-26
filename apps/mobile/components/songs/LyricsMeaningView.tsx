@@ -1,7 +1,9 @@
 import { useState } from "react"
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -137,6 +139,24 @@ export function LyricsMeaningView({
   const [mode, setMode] = useState<UnderstandMode>("lyrics")
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
 
+  const copyVisibleText = async () => {
+    const text =
+      mode === "lyrics"
+        ? lyrics.trim()
+        : meaning.status === "ready"
+          ? meaning.text.trim()
+          : ""
+    if (!text) {
+      Alert.alert("Copy", "Nothing to copy yet.")
+      return
+    }
+    try {
+      await Share.share({ message: text })
+    } catch {
+      Alert.alert("Copy", "Could not open the share sheet.")
+    }
+  }
+
   return (
     <View>
       <View style={styles.modeRow} accessibilityRole="tablist">
@@ -155,12 +175,24 @@ export function LyricsMeaningView({
           )
         })}
       </View>
-      <Text style={styles.lead}>
-        {mode === "lyrics" ? "Original words for singing." : "Meaning in the language you choose."}
-      </Text>
+      <View style={styles.leadRow}>
+        <Text style={styles.lead}>
+          {mode === "lyrics" ? "Original words for singing." : "Meaning in the language you choose."}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={mode === "lyrics" ? "Copy lyrics" : "Copy meaning"}
+          onPress={() => void copyVisibleText()}
+          style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.copyBtnText}>{mode === "lyrics" ? "Copy" : "Copy"}</Text>
+        </Pressable>
+      </View>
 
       <View style={[styles.pane, mode !== "lyrics" && styles.hiddenPane]} pointerEvents={mode === "lyrics" ? "auto" : "none"}>
-        <Text style={styles.lyrics}>{lyrics}</Text>
+        <Text style={styles.lyrics} selectable>
+          {lyrics}
+        </Text>
       </View>
       <View style={[styles.pane, mode !== "meaning" && styles.hiddenPane]} pointerEvents={mode === "meaning" ? "auto" : "none"}>
         <LanguageRow
@@ -169,7 +201,13 @@ export function LyricsMeaningView({
           onSelectLanguage={onSelectLanguage}
           onOpenMore={() => setLanguagePickerOpen(true)}
         />
-        <MeaningBody language={language} meaning={meaning} />
+        {meaning.status === "ready" ? (
+          <Text style={styles.body} selectable>
+            {meaning.text}
+          </Text>
+        ) : (
+          <MeaningBody language={language} meaning={meaning} />
+        )}
       </View>
 
       <LanguagePickerModal
@@ -206,11 +244,28 @@ const styles = StyleSheet.create({
   },
   modeTabText: { ...typography.label, color: colors.textSecondary },
   modeTabTextActive: { color: colors.white },
+  leadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   lead: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    marginBottom: spacing.md,
+    flex: 1,
   },
+  copyBtn: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  copyBtnText: { ...typography.caption, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
   pane: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

@@ -130,21 +130,27 @@ def build_overview_answer(song: Song, language: str = "en") -> str | None:
     if not meaning:
         return None
 
-    details = []
+    if language == "hi":
+        opener = f"**गीत {song.number}** «{song.title}» का सार इस प्रकार है:"
+    else:
+        opener = (
+            f"**Song {song.number}**, «{song.title}», "
+            "expresses the following grounded meaning:"
+        )
+
+    detail_lines: list[str] = []
     if song.theme:
-        details.append(f"{'विषय' if language == 'hi' else 'Theme'}: {song.theme}.")
+        detail_lines.append(f"- **{'विषय' if language == 'hi' else 'Theme'}:** {song.theme}")
     if song.occasion:
-        details.append(f"{'अवसर' if language == 'hi' else 'Occasion'}: {song.occasion}.")
+        detail_lines.append(f"- **{'अवसर' if language == 'hi' else 'Occasion'}:** {song.occasion}")
     if song.meditation_context:
         label = "ध्यान संदर्भ" if language == "hi" else "Meditation context"
-        details.append(f"{label}: {song.meditation_context}.")
+        detail_lines.append(f"- **{label}:** {song.meditation_context}")
 
-    if language == "hi":
-        opener = f"गीत {song.number} «{song.title}» का सार इस प्रकार है:"
-    else:
-        opener = f"Song {song.number}, «{song.title}», expresses the following grounded meaning:"
-
-    sections = [opener, " ".join(details).strip(), meaning]
+    sections = [opener]
+    if detail_lines:
+        sections.append("\n".join(detail_lines))
+    sections.append(meaning)
     return "\n\n".join(part for part in sections if part.strip())
 
 
@@ -154,9 +160,16 @@ def build_meditation_answer(song: Song, language: str = "en") -> str | None:
     if not meaning and not context:
         return None
     if language == "hi":
-        opener = f"गीत {song.number} «{song.title}» पर ध्यान के लिए:"
-    else:
-        opener = f"To reflect on song {song.number}, «{song.title}», in meditation:"
+        opener = f"**गीत {song.number}** «{song.title}» पर ध्यान के लिए:"
+        parts = [opener]
+        if context:
+            parts.append(f"इस भाव को हृदय में संजोकर गीत को धीरे-धीरे पढ़ें या गाएँ: **{context}**।")
+        if meaning:
+            parts.append(f"अर्थ की भूमि पर टिककर चिंतन करें:\n\n{meaning}")
+        parts.append("आराम से बैठें, श्वास पर ध्यान रखें, और एक-एक पंक्ति को हृदय में उतरने दें।")
+        return "\n\n".join(parts)
+
+    opener = f"To reflect on song {song.number}, «{song.title}», in meditation:"
     parts = [opener]
     if context:
         parts.append(f"Hold the feeling of {context.lower()} as you read or sing the song quietly.")
@@ -165,8 +178,6 @@ def build_meditation_answer(song: Song, language: str = "en") -> str | None:
     parts.append(
         "Sit comfortably, follow your breath, and let one line settle in the heart "
         "before moving on."
-        if language != "hi"
-        else "आराम से बैठें, श्वास पर ध्यान रखें, और एक-एक पंक्ति को हृदय में उतरने दें।"
     )
     return "\n\n".join(parts)
 
@@ -179,12 +190,17 @@ def build_related_songs_answer(
     if not related:
         return None
     if language == "hi":
-        opener = f"गीत {song.number} «{song.title}» से जुड़े कुछ Prabhat Samgiita:"
-    else:
-        opener = (
-            f"Here are related Prabhat Samgiita songs connected to song {song.number}, "
-            f"«{song.title}»:"
-        )
+        opener = f"**गीत {song.number}** «{song.title}» से जुड़े कुछ प्रभात संगीत:"
+        lines = []
+        for item in related[:5]:
+            detail = f" — {item.theme}" if item.theme else ""
+            lines.append(f"• गीत {item.number}: {item.title}{detail}")
+        return f"{opener}\n\n" + "\n".join(lines)
+
+    opener = (
+        f"Here are related Prabhat Samgiita songs connected to song {song.number}, "
+        f"«{song.title}»:"
+    )
     lines = []
     for item in related[:5]:
         detail = f" — {item.theme}" if item.theme else ""
@@ -241,6 +257,15 @@ def try_structured_answer(
 ) -> str | None:
     language = detect_response_language(query, history)
     cleaned = query.casefold()
+    # Hindi explanations feel stiff when we paste canonical meaning + English metadata.
+    # Prefer the grounded LLM path for natural devotee-facing Hindi prose.
+    hindi_wants_natural_prose = language == "hi" and (
+        requests_line_by_line(query)
+        or requests_song_explanation(query, history)
+        or bool(re.search(r"\b(?:meditation|meditate|dhyan|reflect)\b", cleaned))
+    )
+    if hindi_wants_natural_prose:
+        return None
     if requests_line_by_line(query):
         if not has_canonical_structured_meaning(song, language):
             return None

@@ -170,7 +170,8 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
     let streamed = ""
     try {
       await streamExplanation(songNumber, (chunk) => {
-        streamed = streamed ? `${streamed}\n${chunk}` : chunk
+        // Paragraph frames are split server-side; rejoin with blank lines for Markdown.
+        streamed = streamed ? `${streamed}\n\n${chunk}` : chunk
         setMessages((current) => {
           const next = [...current]
           next[next.length - 1] = { role: "assistant", text: streamed, createdAt: Date.now() }

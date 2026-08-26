@@ -58,7 +58,7 @@ def test_structured_answer_line_by_line_uses_overview_not_pairs() -> None:
     assert answer is not None
     assert "Lyric:" not in answer
     assert "Unknown Traveler" in answer
-    assert "Theme: Mysticism" in answer
+    assert "**Theme:** Mysticism" in answer
 
 
 def test_structured_answer_handles_explain_requests() -> None:
@@ -73,7 +73,7 @@ def test_structured_answer_handles_explain_requests() -> None:
 
     assert answer is not None
     assert "formless beauty" in answer
-    assert "Theme: Devotion" in answer
+    assert "**Theme:** Devotion" in answer
 
 
 def test_structured_answer_skips_regional_language_requests() -> None:

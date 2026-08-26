@@ -62,7 +62,7 @@ describe("SongMeaningSection", () => {
       <SongMeaningSection songNumber={42} song={song} initialLanguage="nl" />,
     )
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Dutch translation is not available")
+    expect(await screen.findByRole("alert")).toHaveTextContent("Dutch translation isn’t available")
     expect(screen.queryByText("Dutch meaning")).not.toBeInTheDocument()
     expect(screen.getByText("English")).toBeInTheDocument()
     expect(screen.getByText("Piercing the veil of darkness.")).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe("SongMeaningSection", () => {
       <SongMeaningSection songNumber={42} song={song} initialLanguage="nl" />,
     )
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Dutch translation is not available")
+    expect(await screen.findByRole("alert")).toHaveTextContent("Dutch translation isn’t available")
     expect(screen.queryByText("Dutch meaning")).not.toBeInTheDocument()
     expect(screen.getByText("English")).toBeInTheDocument()
   })

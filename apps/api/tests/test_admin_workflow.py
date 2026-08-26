@@ -20,6 +20,19 @@ def test_validate_meaning_language_accepts_devanagari_for_hindi() -> None:
     assert ok is True
 
 
+def test_validate_meaning_language_accepts_labels_for_tamil_and_nepali() -> None:
+    ok_ta, _ = validate_meaning_language("Tamil", "இந்த பாடல் பக்தியைப் பற்றி")
+    ok_ne, _ = validate_meaning_language("Nepali", "यो गीत भक्ति बारेमा छ")
+    assert ok_ta is True
+    assert ok_ne is True
+
+
+def test_validate_meaning_language_rejects_english_for_tamil_label() -> None:
+    ok, message = validate_meaning_language("Tamil", "This song speaks of devotion.")
+    assert ok is False
+    assert "does not appear to match" in message
+
+
 @pytest.mark.asyncio
 async def test_translate_meaning_from_english_uses_db_english() -> None:
     from unittest.mock import AsyncMock, patch

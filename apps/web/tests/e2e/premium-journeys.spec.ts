@@ -299,7 +299,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.locator("#notation")).toBeVisible()
   await page.getByRole("heading", { name: "Practise on harmonium" }).click()
   await expect(
-    page.getByRole("heading", { name: /पंक्ति · हिंदी सारगम · Keys|Lyric · Harmonium keys/i }),
+    page.getByRole("heading", { name: /पंक्ति · हिंदी सारगम · .*Keys|Lyric · Harmonium keys/i }),
   ).toBeVisible()
   await expect(page.locator("#notation").getByText("BANDHU HE NIYE CALO", { exact: true }).first()).toBeVisible()
   await page.getByRole("button", { name: "Warm-up guide" }).click()
@@ -310,7 +310,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByRole("img", { name: /Harmonium key guide/i })).toBeVisible()
   await expect(page.getByText(/Beginner alankar · ascending/i)).toBeVisible()
   await page.getByRole("button", { name: /हिंदी सारगम \+ keys|सारगम \+ keys/ }).click()
-  await expect(page.getByRole("button", { name: "Hear slowly" }).first()).toBeVisible()
+  await expect(page.getByRole("button", { name: /▶ Harmonium/i }).first()).toBeVisible()
   await expect(songActions.getByRole("link", { name: /Listen/i })).toHaveAttribute("href", "#listen")
   if (testInfo.project.name === "desktop-chromium") {
     const companionListening = page.getByRole("heading", { name: "Listen to this song" }).locator("..")

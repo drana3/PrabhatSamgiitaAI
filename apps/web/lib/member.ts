@@ -164,3 +164,38 @@ export async function removeFavoriteSong(songNumber: number): Promise<FavoriteUp
     return { ok: false, error: "Could not reach playlist services. Please try again." }
   }
 }
+
+export type PreferencesUpdateResult =
+  | { ok: true; profile: MemberProfile }
+  | { ok: false; error: string }
+
+export async function updateMemberPreferences(payload: {
+  display_name?: string
+  preferred_language?: string | null
+  country?: string | null
+  personalization_enabled?: boolean
+}): Promise<PreferencesUpdateResult> {
+  try {
+    const response = await fetch("/api/member/preferences", {
+      method: "PATCH",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    const body = await response.json().catch(() => null)
+    if (!response.ok) {
+      const detail =
+        body && typeof body === "object" && typeof (body as { detail?: unknown }).detail === "string"
+          ? (body as { detail: string }).detail
+          : "Could not update your profile."
+      return { ok: false, error: detail }
+    }
+    if (!body || typeof body !== "object" || (body as { authenticated?: unknown }).authenticated !== true) {
+      return { ok: false, error: "Could not update your profile." }
+    }
+    return { ok: true, profile: body as MemberProfile }
+  } catch {
+    return { ok: false, error: "Could not reach profile services. Please try again." }
+  }
+}

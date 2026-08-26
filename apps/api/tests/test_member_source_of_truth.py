@@ -297,6 +297,26 @@ async def test_sync_member_does_not_promote_unlisted_email() -> None:
 
 
 @pytest.mark.asyncio
+async def test_sync_member_preserves_edited_display_name() -> None:
+    member = _member(subject="aad:website-oid", email="member@example.com")
+    member.display_name = "Custom Name"
+    session = _SyncSession([member])
+
+    result = await sync_member(
+        session,  # type: ignore[arg-type]
+        MemberIdentity(
+            subject="aad:website-oid",
+            provider="aad",
+            email="member@example.com",
+            display_name="Google Name",
+            avatar_url=None,
+        ),
+    )
+
+    assert result.display_name == "Custom Name"
+
+
+@pytest.mark.asyncio
 async def test_sync_member_promotes_configured_owner_email(monkeypatch) -> None:
     from app.config import Settings
 

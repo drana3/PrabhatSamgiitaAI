@@ -18,7 +18,7 @@ function MeaningBlock({ label, value }: { label: string; value?: string | null }
   return (
     <article className="mt-4 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5">
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">{label}</p>
-      <p dir="auto" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{value}</p>
+      <p dir="auto" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700 select-text">{value}</p>
     </article>
   )
 }
@@ -49,7 +49,7 @@ function meaningUnavailableMessage(language: string) {
   const label = localeLabel(language)
   if (language === "en") return "English meaning is not available for this song yet."
   if (language === "hi") return "Hindi meaning is not available for this song yet."
-  return `${label} translation is not available yet. Try English or Hindi.`
+  return `${label} translation isn’t available for this song yet. English meaning is shown below — try again later, or pick another language.`
 }
 
 export function SongMeaningSection({

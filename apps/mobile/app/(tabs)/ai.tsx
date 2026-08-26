@@ -219,7 +219,8 @@ export default function AIScreen() {
       await api.streamExplanation(
         songNumber,
         (chunk) => {
-          buffer += chunk
+          // Paragraph frames are split server-side; rejoin with blank lines for Markdown.
+          buffer = buffer ? `${buffer}\n\n${chunk}` : chunk
           updateAssistantMessage(accountId, assistantId, formatAssistantMessage(buffer) || "…")
         },
         trimmed,

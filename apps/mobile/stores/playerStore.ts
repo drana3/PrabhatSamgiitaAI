@@ -83,7 +83,7 @@ function enqueueAudio(op: () => Promise<void>) {
 }
 
 async function setPlaybackMode() {
-  if (bag.__psModeReady) return
+  // Always re-apply: speech capture temporarily disables background audio on iOS.
   await Audio.setAudioModeAsync({
     playsInSilentModeIOS: true,
     allowsRecordingIOS: false,

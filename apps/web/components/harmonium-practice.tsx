@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { ExpertSheetImage, NotationMatraSheet, playCellsInBrowser } from "@/components/notation-matra-sheet"
 import { PracticeCoach } from "@/components/practice-coach"
 import { fetchNotation } from "@/lib/api"
 import type { NotationLine, TransposedNotation } from "@/lib/api"
@@ -19,6 +20,7 @@ import {
   toDevanagariSwara,
   toLatinSwara,
 } from "@/lib/sargam-display"
+import { buildNotationSheetLine } from "@prabhat/core"
 
 const tonics = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const scaleSteps = [0, 2, 4, 5, 7, 9, 11, 12]
@@ -91,34 +93,11 @@ export function HarmoniumPractice({
   }
 
   function hearLine(lineIndex: number) {
-    if (!notation || typeof window === "undefined") return
-    const notes =
-      notation.notation.lines[lineIndex]?.measures.flatMap((measure) =>
-        measure.beats.flatMap((beat) => beat.notes.map((note) => note.western).filter(Boolean)),
-      ) || []
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (!AudioContextClass) return
-    const context = new AudioContextClass()
-    notes.forEach((note, index) => {
-      if (!note) return
-      const match = note.match(/^([A-G])(#?)(-?\d+)$/)
-      if (!match) return
-      const semitones: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }
-      const midi = (Number(match[3]) + 1) * 12 + semitones[match[1]] + (match[2] ? 1 : 0)
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      const start = context.currentTime + index * 0.55
-      oscillator.type = "sine"
-      oscillator.frequency.value = 440 * 2 ** ((midi - 69) / 12)
-      gain.gain.setValueAtTime(0.0001, start)
-      gain.gain.exponentialRampToValueAtTime(0.14, start + 0.03)
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.45)
-      oscillator.connect(gain).connect(context.destination)
-      oscillator.start(start)
-      oscillator.stop(start + 0.5)
-    })
+    if (!notation) return
+    const line = notation.notation.lines[lineIndex]
+    if (!line) return
+    const sheet = buildNotationSheetLine(line, notation.notation.tala)
+    void playCellsInBrowser(sheet.cells, notation.notation.tempo_bpm)
   }
 
   return (
@@ -152,9 +131,16 @@ export function HarmoniumPractice({
                   : "bg-amber-100 text-amber-900"
               }`}
             >
-              {notation.verification_status.includes("verified") ? "Verified notation" : "Practice draft"}
+              {notation.verification_status === "expert_verified"
+                ? "Expert-verified sheet"
+                : notation.verification_status.includes("verified")
+                  ? "Verified notation"
+                  : "Practice draft"}
             </span>
           </div>
+          {notation.verification_status === "expert_verified" ? (
+            <ExpertSheetImage songNumber={songNumber} />
+          ) : null}
           <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-navy-900/10 bg-gold-50 p-3">
             <label className="flex items-center gap-2 text-xs font-bold text-navy-950">
               Your Sa / आपका Sa
@@ -190,9 +176,11 @@ export function HarmoniumPractice({
           ) : (
             <div className="mt-4 space-y-4">
               <div className="rounded-2xl border border-gold-500/25 bg-white p-4 sm:p-5">
-                <p className="eyebrow">Song melody</p>
+                  <p className="eyebrow">Song melody</p>
                 <h3 className="mt-2 font-serif text-2xl text-navy-950">
-                  {system === "sargam" ? "पंक्ति · हिंदी सारगम · Keys" : "Lyric · Harmonium keys"}
+                  {system === "sargam"
+                    ? "पंक्ति · हिंदी सारगम · मात्रा शीट · Keys"
+                    : "Lyric · Harmonium keys"}
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
                   {pdfHref ? HINDI_SARGAM_LEGEND : "Practice the sargam available in the app."}
@@ -226,16 +214,27 @@ export function HarmoniumPractice({
                 notation.notation.lines,
                 songLyricLines.length >= originalLyricLines.length ? songLyricLines : originalLyricLines,
               ).map(({ line, lineIndex }) => (
-                <LinePracticeCard
-                  key={`notation-line-${lineIndex}`}
-                  line={line}
-                  lineIndex={lineIndex}
-                  system={system}
-                  songLyricLines={songLyricLines}
-                  originalLyricLines={originalLyricLines}
-                  onHear={() => hearLine(lineIndex)}
-                  hasPdfLink={Boolean(pdfHref)}
-                />
+                <div key={`notation-line-${lineIndex}`}>
+                  <LinePracticeCard
+                    line={line}
+                    lineIndex={lineIndex}
+                    system={system}
+                    songLyricLines={songLyricLines}
+                    originalLyricLines={originalLyricLines}
+                    onHear={() => hearLine(lineIndex)}
+                    hasPdfLink={Boolean(pdfHref)}
+                  />
+                  {line ? (
+                    <NotationMatraSheet
+                      songNumber={songNumber}
+                      line={line}
+                      lineIndex={lineIndex}
+                      tala={notation.notation.tala}
+                      tempoBpm={notation.notation.tempo_bpm}
+                      expertVerified={notation.verification_status === "expert_verified"}
+                    />
+                  ) : null}
+                </div>
               ))}
             </div>
           )}
@@ -293,7 +292,7 @@ function LinePracticeCard({
           </div>
           {hasNotes ? (
             <button type="button" onClick={onHear} className="soft-chip shrink-0">
-              ▶ Hear slowly
+              ▶ Harmonium
             </button>
           ) : null}
         </div>

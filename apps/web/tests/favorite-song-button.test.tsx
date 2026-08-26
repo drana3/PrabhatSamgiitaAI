@@ -45,9 +45,9 @@ describe("FavoriteSongButton", () => {
       refresh,
     })
     render(<FavoriteSongButton songNumber={135} />)
-    await user.click(screen.getByRole("button", { name: "Save to playlist" }))
+    await user.click(screen.getByRole("button", { name: "Save to Saved songs" }))
     expect(refresh).toHaveBeenCalledWith({ silent: true })
-    expect(await screen.findByRole("status")).toHaveTextContent("Saved to your playlist.")
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved — open Account to see your Saved songs.")
   })
 
   it("explains auth failures instead of a generic playlist error", async () => {
@@ -59,7 +59,7 @@ describe("FavoriteSongButton", () => {
       refresh,
     })
     render(<FavoriteSongButton songNumber={135} />)
-    await user.click(screen.getByRole("button", { name: "Save to playlist" }))
+    await user.click(screen.getByRole("button", { name: "Save to Saved songs" }))
     expect(await screen.findByRole("status")).toHaveTextContent("Please sign in again to update your playlist.")
   })
 
@@ -70,7 +70,7 @@ describe("FavoriteSongButton", () => {
       refresh,
     })
     render(<FavoriteSongButton songNumber={135} />)
-    expect(screen.getByRole("button", { name: "Remove from playlist" })).toHaveTextContent("♥ Saved")
+    expect(screen.getByRole("button", { name: "Remove from Saved songs" })).toHaveTextContent("♥ Saved")
   })
 
   it("does not pretend playlist writes work when member backend is unavailable", async () => {
@@ -85,7 +85,7 @@ describe("FavoriteSongButton", () => {
       refresh,
     })
     render(<FavoriteSongButton songNumber={135} />)
-    await user.click(screen.getByRole("button", { name: "Save to playlist" }))
+    await user.click(screen.getByRole("button", { name: "Save to Saved songs" }))
     expect(addFavoriteSongMock).not.toHaveBeenCalled()
     expect(await screen.findByRole("status")).toHaveTextContent("Playlist saving is temporarily unavailable.")
   })

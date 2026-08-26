@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react"
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
 import {
   Award,
@@ -8,6 +8,7 @@ import {
   LogOut,
   MessageSquareHeart,
   Moon,
+  Pencil,
   Shield,
 } from "lucide-react-native"
 
@@ -83,6 +84,38 @@ export default function ProfileScreen() {
   const getAccountId = useChatStore((s) => s.getAccountId)
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
   const accountId = getAccountId(mode, email)
+  const applyMemberSession = useAuthStore((s) => s.applyMemberSession)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState("")
+  const [savingName, setSavingName] = useState(false)
+
+  const saveDisplayName = useCallback(async () => {
+    const next = nameDraft.trim()
+    if (!next || next === (rawDisplayName || "").trim()) {
+      setEditingName(false)
+      return
+    }
+    if (!memberAuthAvailable()) {
+      Alert.alert("Profile", "Profile sync is not available in this build yet.")
+      return
+    }
+    setSavingName(true)
+    const profile = await api.updateMemberPreferences({ display_name: next })
+    setSavingName(false)
+    if (!profile) {
+      Alert.alert("Profile", "Could not update your display name. Please try again.")
+      return
+    }
+    applyMemberSession({
+      displayName: profile.display_name,
+      email: profile.email ?? email,
+      memberId: profile.id,
+      isAdmin: profile.is_admin,
+      memberBackend: true,
+      identityProvider: profile.identity_provider ?? identityProvider,
+    })
+    setEditingName(false)
+  }, [applyMemberSession, email, identityProvider, nameDraft, rawDisplayName])
 
   const loadQuizCerts = useCallback(async (forceNetwork = false) => {
     if (!memberAuthAvailable()) {
@@ -173,7 +206,43 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
           </View>
           <View style={styles.cardMeta}>
-            <Text style={styles.name}>{displayName}</Text>
+            {mode === "signed_in" && editingName ? (
+              <View style={styles.nameEditRow}>
+                <TextInput
+                  value={nameDraft}
+                  onChangeText={setNameDraft}
+                  maxLength={120}
+                  autoFocus
+                  placeholder="Display name"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.nameInput}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Save display name"
+                  disabled={savingName}
+                  onPress={() => void saveDisplayName()}
+                  style={({ pressed }) => [styles.nameSaveBtn, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={styles.nameSaveText}>{savingName ? "…" : "Save"}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={mode === "signed_in" ? "Edit display name" : undefined}
+                disabled={mode !== "signed_in"}
+                onPress={() => {
+                  if (mode !== "signed_in") return
+                  setNameDraft(rawDisplayName || displayName)
+                  setEditingName(true)
+                }}
+                style={styles.nameRow}
+              >
+                <Text style={styles.name}>{displayName}</Text>
+                {mode === "signed_in" ? <Pencil size={14} color={colors.textMuted} /> : null}
+              </Pressable>
+            )}
             <Text style={styles.role}>{mode === "guest" ? "Guest explorer" : email}</Text>
             {mode === "signed_in" ? (
               <Text style={styles.stat}>
@@ -213,7 +282,7 @@ export default function ProfileScreen() {
           <Row
             icon={<Heart size={18} color={colors.primary} />}
             label="Saved songs"
-            value={savedCount ? `${savedCount}` : "None yet"}
+            value={savedCount ? `${savedCount} · open Saved tab` : "None yet · tap ♥ on a song"}
             onPress={() => router.push(href("/(tabs)/saved"))}
           />
           <Row
@@ -374,7 +443,29 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontFamily: "Lora_700Bold", fontSize: 28, color: colors.primaryDark },
   cardMeta: { flex: 1 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { ...typography.h3, color: colors.textPrimary },
+  nameEditRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  nameInput: {
+    flex: 1,
+    minHeight: 40,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    ...typography.body,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceSoft,
+  },
+  nameSaveBtn: {
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nameSaveText: { ...typography.label, color: colors.white },
   role: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
   stat: { ...typography.caption, color: colors.primary, marginTop: spacing.xs },
   syncWarning: {

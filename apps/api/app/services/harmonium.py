@@ -74,6 +74,16 @@ SARGAM_TO_SEMITONE = {
 
 SEMITONE_TO_SARGAM = {value: key for key, value in SARGAM_TO_SEMITONE.items()}
 
+OCTAVE_NUMBERS = {
+    "lower": 3,
+    "middle": 4,
+    "upper": 5,
+}
+
+
+def note_octave_number(octave: str | None) -> int:
+    return OCTAVE_NUMBERS.get((octave or "middle").strip().lower(), 4)
+
 
 @dataclass(slots=True)
 class ParsedWesternNote:
@@ -138,6 +148,16 @@ def western_to_sargam(note: str, tonic: str) -> str:
     return SEMITONE_TO_SARGAM.get(relative, "S")
 
 
+def is_hold_note(note: NotationNote) -> bool:
+    """Sustain/hold cells use '-' (or S without a western pitch)."""
+    token = note.sargam.strip()
+    if token in {"-", "–", "—", ".", "।", "ऽ"}:
+        return True
+    if token in {"S", "s"} and not (note.western and note.western.strip()):
+        return True
+    return False
+
+
 def transpose_notation(notation: HarmoniumNotation, target_scale: str) -> HarmoniumNotation:
     source_tonic = normalize_tonic(notation.source_scale)
     target_tonic = normalize_tonic(target_scale)
@@ -151,17 +171,21 @@ def transpose_notation(notation: HarmoniumNotation, target_scale: str) -> Harmon
             for beat in measure.beats:
                 notes: list[NotationNote] = []
                 for note in beat.notes:
+                    if is_hold_note(note):
+                        notes.append(note.model_copy(update={"western": None}))
+                        continue
                     western = note.western or sargam_to_western(
                         note.sargam,
                         notation.source_scale,
-                        4,
+                        note_octave_number(note.octave),
                     )
                     transposed_western = transpose_note(western, semitone_shift)
                     notes.append(
                         note.model_copy(
                             update={
                                 "western": transposed_western,
-                                "sargam": western_to_sargam(transposed_western, target_scale),
+                                # Sargam is tonic-relative; keep the source tokens so a bad
+                                # western pitch never rewrites every swara after transpose.
                             }
                         )
                     )

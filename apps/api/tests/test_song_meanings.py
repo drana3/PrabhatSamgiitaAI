@@ -60,3 +60,28 @@ async def test_localize_returns_db_meaning_without_ai() -> None:
     assert result.localized_meaning == "বাংলা অর্থ"
     assert result.localized_title == "Test song"
     provider.complete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_localize_retries_when_json_path_returns_english_for_tamil() -> None:
+    song = Song(
+        id=1,
+        number=42,
+        title="Test song",
+        first_line="First line",
+        english_meaning="Piercing the veil of darkness.",
+    )
+    provider = AsyncMock()
+    provider.complete = AsyncMock(
+        side_effect=[
+            '{"localized_title":"Test","localized_first_line":"First",'
+            '"localized_meaning":"Piercing the veil of darkness.",'
+            '"localized_explanation":null}',
+            "இருளின் திரையைத் துளைத்து.",
+            "இருளின் திரையைத் துளைத்து.",
+        ]
+    )
+    with patch("app.services.localization.select_provider", return_value=provider):
+        result = await LocalizationService().localize(song, "Tamil")
+    assert result.localized_meaning == "இருளின் திரையைத் துளைத்து."
+    assert provider.complete.await_count >= 2

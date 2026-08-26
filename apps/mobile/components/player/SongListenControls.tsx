@@ -159,7 +159,9 @@ export function SongListenControls({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            downloaded ? `Remove in-app copy of ${title}` : `Save ${title} in this app for offline play`
+            downloaded
+              ? `Remove offline download of ${title}`
+              : `Download ${title} for offline listening`
           }
           disabled={downloading}
           onPress={() => {
