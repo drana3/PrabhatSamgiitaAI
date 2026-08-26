@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import type { TransposedNotation } from "@prabhat/core"
 
+import { HarmoniumPracticeGate } from "@/components/songs/HarmoniumPracticeGate"
 import { NotationMatraSheet, ExpertSheetImage } from "@/components/songs/NotationMatraSheet"
+import { VirtualHarmonium } from "@/components/songs/VirtualHarmonium"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -20,6 +22,7 @@ import {
   splitLyricLines,
   type NotationLine,
 } from "@/lib/sargamDisplay"
+import { useHarmoniumPracticeEnabled } from "@/lib/harmoniumPracticeAccess"
 import { fetchNotationCached } from "@/lib/songCache"
 
 const TONICS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -140,6 +143,7 @@ export function NotationPractice({
   /** Canonical Andromeda PDF for the full melody. */
   sourceUrl?: string | null
 }) {
+  const harmoniumEnabled = useHarmoniumPracticeEnabled()
   const [notation, setNotation] = useState<TransposedNotation | null>(null)
   const [tonic, setTonic] = useState("C")
   const [loading, setLoading] = useState(true)
@@ -166,6 +170,14 @@ export function NotationPractice({
       active = false
     }
   }, [songNumber, tonic])
+
+  if (!harmoniumEnabled) {
+    return (
+      <View style={embedded ? styles.embedded : styles.card}>
+        <HarmoniumPracticeGate />
+      </View>
+    )
+  }
 
   return (
     <View style={embedded ? styles.embedded : styles.card}>
@@ -203,6 +215,8 @@ export function NotationPractice({
           </Pressable>
         ))}
       </ScrollView>
+
+      <VirtualHarmonium tonic={tonic} onTonicChange={setTonic} />
 
       {loading ? (
         <View style={styles.loading}>

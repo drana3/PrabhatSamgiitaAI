@@ -25,6 +25,7 @@ type PreferencesState = {
   recentPlays: RecentPlay[]
   searchRecents: string[]
   feelingSearchEnabled: boolean
+  harmoniumPracticeEnabled: boolean
   songNotes: Record<string, string>
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
@@ -38,6 +39,7 @@ type PreferencesState = {
   addSearchRecent: (query: string) => void
   clearSearchRecents: () => void
   setFeelingSearchEnabled: (enabled: boolean) => void
+  setHarmoniumPracticeEnabled: (enabled: boolean) => void
   setSongNote: (songId: string, note: string) => void
 }
 
@@ -66,6 +68,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       recentPlays: [],
       searchRecents: [],
       feelingSearchEnabled: false,
+      harmoniumPracticeEnabled: false,
       songNotes: {},
       syncingFavorites: false,
 
@@ -163,6 +166,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         const favoritesByScope = { ...get().favoritesByScope, guest: [] as string[] }
         set({
           feelingSearchEnabled: false,
+          harmoniumPracticeEnabled: false,
           favoritesScope: "guest",
           savedSongIds: [],
           favoritesByScope,
@@ -190,6 +194,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       clearSearchRecents: () => set({ searchRecents: [] }),
       setFeelingSearchEnabled: (enabled) => set({ feelingSearchEnabled: enabled }),
+      setHarmoniumPracticeEnabled: (enabled) => set({ harmoniumPracticeEnabled: enabled }),
 
       setSongNote: (songId, note) => {
         const trimmed = note.trim()
@@ -202,7 +207,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     {
       name: "prabhat-preferences",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const state = persisted as {
           savedSongIds?: string[]
@@ -211,6 +216,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           recentPlays?: RecentPlay[]
           searchRecents?: string[]
           songNotes?: Record<string, string>
+          feelingSearchEnabled?: boolean
+          harmoniumPracticeEnabled?: boolean
         }
         if (version < 2) {
           const legacySaved = state.savedSongIds ?? []
@@ -224,6 +231,12 @@ export const usePreferencesStore = create<PreferencesState>()(
             savedSongIds: legacySaved,
           }
         }
+        if (version < 3) {
+          return {
+            ...state,
+            harmoniumPracticeEnabled: state.harmoniumPracticeEnabled ?? false,
+          }
+        }
         return state
       },
       partialize: (state) => ({
@@ -233,6 +246,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,
         feelingSearchEnabled: state.feelingSearchEnabled,
+        harmoniumPracticeEnabled: state.harmoniumPracticeEnabled,
         songNotes: state.songNotes,
       }),
       onRehydrateStorage: () => (state) => {

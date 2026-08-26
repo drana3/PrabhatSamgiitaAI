@@ -15,6 +15,7 @@ import {
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { FeelingSearchSwitch } from "@/components/search/FeelingSearchSwitch"
+import { HarmoniumPracticeSwitch } from "@/components/songs/HarmoniumPracticeSwitch"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -369,6 +370,9 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.feelingBlock}>
             <FeelingSearchSwitch mode="manage" />
+          </View>
+          <View style={styles.feelingBlock}>
+            <HarmoniumPracticeSwitch mode="manage" />
           </View>
           <Row
             icon={<Moon size={18} color={colors.primary} />}

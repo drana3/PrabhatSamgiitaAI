@@ -35,6 +35,7 @@ import { resolveSongMeaning } from "@/lib/songMeanings"
 import { parseSongNumber, storedMeaningForLanguage } from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
 import { practiceLyricSource, hasPlayableNotation } from "@/lib/sargamDisplay"
+import { useHarmoniumPracticeEnabled } from "@/lib/harmoniumPracticeAccess"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
 import { fetchNotationCached, peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
@@ -169,13 +170,8 @@ export default function SongDetailScreen() {
     }
   }, [songId])
 
+  const harmoniumEnabled = useHarmoniumPracticeEnabled()
   const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
-  const journeyTabs = useMemo(
-    () => visibleSongJourneyTabs({ hasVideo, hasNotation }),
-    [hasVideo, hasNotation],
-  )
-  const watchLayout = songWatchLayout(journey, { hasVideo, watchPlaying })
-
   const requestedTab =
     tabParam === "watch" ||
     tabParam === "understand" ||
@@ -183,6 +179,12 @@ export default function SongDetailScreen() {
     tabParam === "notation"
       ? tabParam
       : null
+  const notationDeepLink = requestedTab === "notation"
+  const journeyTabs = useMemo(
+    () => visibleSongJourneyTabs({ hasVideo, harmoniumEnabled: harmoniumEnabled || notationDeepLink }),
+    [hasVideo, harmoniumEnabled, notationDeepLink],
+  )
+  const watchLayout = songWatchLayout(journey, { hasVideo, watchPlaying })
 
   useEffect(() => {
     if (requestedTab) setJourney(requestedTab)
@@ -557,11 +559,11 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
 
-        {journey === "notation" && hasNotation ? (
+        {journey === "notation" ? (
           <View style={styles.sectionPanel}>
-            <Text style={styles.sectionEyebrow}>Experience · Notation</Text>
+            <Text style={styles.sectionEyebrow}>Experience · Harmonium</Text>
             <Text style={styles.sectionLead}>
-              पूरी जानकारी PDF में है · Full details are available in the PDF.
+              Tap Sa Re Ga Ma or type sargam · Song notation when available below.
             </Text>
             <NotationPractice
               songNumber={song.number}

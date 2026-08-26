@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { VirtualHarmonium } from "@/components/virtual-harmonium"
 import { ExpertSheetImage, NotationMatraSheet, playCellsInBrowser } from "@/components/notation-matra-sheet"
 import { PracticeCoach } from "@/components/practice-coach"
 import { fetchNotation } from "@/lib/api"
@@ -51,7 +52,7 @@ export function HarmoniumPractice({
 }) {
   const [notation, setNotation] = useState(initialNotation)
   const [tonic, setTonic] = useState(initialNotation?.target_scale || "C")
-  const [system, setSystem] = useState<"guide" | "keys" | "sargam">("sargam")
+  const [system, setSystem] = useState<"keyboard" | "guide" | "keys" | "sargam">("keyboard")
   const [loading, setLoading] = useState(!initialNotation)
 
   useEffect(() => {
@@ -118,12 +119,12 @@ export function HarmoniumPractice({
         </span>
       </summary>
 
-      {hasPlayableNotation(notation) ? (
-        <div className="border-t border-gold-500/20 p-5 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-stone-600">
-              अपना Sa चुनें, फिर एक-एक पंक्ति अभ्यास करें · Choose your Sa, then practise one line at a time.
-            </p>
+      <div className="border-t border-gold-500/20 p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-stone-600">
+            अपना Sa चुनें · Tap keys, type sargam, or practise song lines.
+          </p>
+          {hasPlayableNotation(notation) ? (
             <span
               className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] ${
                 notation.verification_status.includes("verified")
@@ -137,44 +138,55 @@ export function HarmoniumPractice({
                   ? "Verified notation"
                   : "Practice draft"}
             </span>
-          </div>
-          {notation.verification_status === "expert_verified" ? (
-            <ExpertSheetImage songNumber={songNumber} />
           ) : null}
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-navy-900/10 bg-gold-50 p-3">
-            <label className="flex items-center gap-2 text-xs font-bold text-navy-950">
-              Your Sa / आपका Sa
-              <select
-                value={tonic}
-                onChange={(event) => void changeTonic(event.target.value)}
-                className="rounded-lg border border-gold-500/40 bg-white px-3 py-2"
-              >
-                {tonics.map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
-              </select>
-            </label>
-            <div className="flex flex-wrap rounded-lg border border-navy-900/10 bg-white p-1">
-              <ModeButton active={system === "sargam"} onClick={() => setSystem("sargam")}>
-                हिंदी सारगम + keys
-              </ModeButton>
-              <ModeButton active={system === "keys"} onClick={() => setSystem("keys")}>
-                Keys only
-              </ModeButton>
-              <ModeButton active={system === "guide"} onClick={() => setSystem("guide")}>
-                Warm-up guide
-              </ModeButton>
-            </div>
-            {loading ? (
-              <LoadingIndicator label="Changing Sa" compact />
-            ) : (
-              <span className="ml-auto text-xs text-stone-600">Sa = {tonic}</span>
-            )}
+        </div>
+        {hasPlayableNotation(notation) && notation.verification_status === "expert_verified" ? (
+          <ExpertSheetImage songNumber={songNumber} />
+        ) : null}
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-navy-900/10 bg-gold-50 p-3">
+          <label className="flex items-center gap-2 text-xs font-bold text-navy-950">
+            Your Sa / आपका Sa
+            <select
+              value={tonic}
+              onChange={(event) => void changeTonic(event.target.value)}
+              className="rounded-lg border border-gold-500/40 bg-white px-3 py-2"
+            >
+              {tonics.map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-wrap rounded-lg border border-navy-900/10 bg-white p-1">
+            <ModeButton active={system === "keyboard"} onClick={() => setSystem("keyboard")}>
+              Live keyboard
+            </ModeButton>
+            <ModeButton active={system === "sargam"} onClick={() => setSystem("sargam")}>
+              हिंदी सारगम + keys
+            </ModeButton>
+            <ModeButton active={system === "keys"} onClick={() => setSystem("keys")}>
+              Keys only
+            </ModeButton>
+            <ModeButton active={system === "guide"} onClick={() => setSystem("guide")}>
+              Warm-up guide
+            </ModeButton>
           </div>
-          {system === "guide" ? (
-            <SargamGuide tonic={tonic} />
+          {loading ? (
+            <LoadingIndicator label="Changing Sa" compact />
           ) : (
-            <div className="mt-4 space-y-4">
+            <span className="ml-auto text-xs text-stone-600">Sa = {tonic}</span>
+          )}
+        </div>
+
+        {system === "keyboard" ? (
+          <div className="mt-4">
+            <VirtualHarmonium tonic={tonic} />
+          </div>
+        ) : null}
+
+        {system === "guide" ? <SargamGuide tonic={tonic} /> : null}
+
+        {hasPlayableNotation(notation) && (system === "sargam" || system === "keys") ? (
+          <div className="mt-4 space-y-4">
               <div className="rounded-2xl border border-gold-500/25 bg-white p-4 sm:p-5">
                   <p className="eyebrow">Song melody</p>
                 <h3 className="mt-2 font-serif text-2xl text-navy-950">
@@ -237,10 +249,16 @@ export function HarmoniumPractice({
                 </div>
               ))}
             </div>
-          )}
-          <PracticeCoach notation={notation} lyricLines={songLyricLines} />
-        </div>
-      ) : null}
+          ) : null}
+
+        {!hasPlayableNotation(notation) && system !== "keyboard" && system !== "guide" ? (
+          <p className="mt-4 rounded-xl border border-navy-900/10 bg-white px-4 py-3 text-sm text-stone-600">
+            Song notation is not available yet — use the live keyboard to practise Sa Re Ga Ma.
+          </p>
+        ) : null}
+
+        {hasPlayableNotation(notation) ? <PracticeCoach notation={notation} lyricLines={songLyricLines} /> : null}
+      </div>
     </details>
   )
 }

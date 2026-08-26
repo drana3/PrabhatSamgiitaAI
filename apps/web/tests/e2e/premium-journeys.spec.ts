@@ -1,5 +1,31 @@
 import { expect, test, type Page } from "@playwright/test"
 
+async function stubSignedInMember(page: Page) {
+  await page.route("**/api/member/session", async (route) =>
+    route.fulfill({
+      status: 200,
+      json: {
+        authenticated: true,
+        id: "aad:e2e-user",
+        display_name: "E2E Member",
+        email: "e2e@example.com",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        favorite_song_numbers: [],
+        is_admin: false,
+        is_super_admin: false,
+        member_backend: true,
+      },
+    }),
+  )
+}
+
+async function enableHarmoniumPractice(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("prabhat-harmonium-practice", "1")
+  })
+}
+
 async function setDetailsOpen(page: Page, selector: string, open: boolean) {
   const details = page.locator(selector).first()
   await details.scrollIntoViewIfNeeded()
@@ -123,7 +149,7 @@ test("general song links settle on the AI Companion after layout", async ({ page
   expect(landing.notationTop).not.toBeNull()
   expect(landing.askTop!).toBeGreaterThanOrEqual(0)
   expect(landing.askTop!).toBeLessThanOrEqual(maximumLandingTop)
-  expect(landing.notationTop!).toBeLessThan(landing.askTop!)
+  expect(landing.notationTop!).toBeGreaterThan(landing.askTop!)
 })
 
 test("Guru portrait and reflection remain aligned without overlap", async ({ page }, testInfo) => {
@@ -255,6 +281,8 @@ test("results sit just above search and English returns only its three canonical
 })
 
 test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {
+  await stubSignedInMember(page)
+  await enableHarmoniumPractice(page)
   await page.goto("/songs/1")
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   const songHeroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
@@ -520,6 +548,16 @@ test("Explore search stays aligned and infers spoken language", async ({ page },
   }
 })
 
+test("harmonium search lands on notation gate for guests", async ({ page }) => {
+  await page.goto("/explore")
+  await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")
+  await clickSearchButton(page)
+  await expect(page).toHaveURL(/\/songs\/1#notation$/)
+  await expect(page.locator("#notation")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Harmonium practice" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible()
+})
+
 test("home and Explore resolve natural-language song number intent before RAG", async ({ page }, testInfo) => {
   await page.goto("/")
   await page.getByLabel(/Search by song number/i).fill("explain about prabhat sagiat 223")
@@ -532,6 +570,8 @@ test("home and Explore resolve natural-language song number intent before RAG", 
     await expect(page.locator("#ask")).toBeVisible()
   }
 
+  await stubSignedInMember(page)
+  await enableHarmoniumPractice(page)
   await page.goto("/explore")
   await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")
   await clickSearchButton(page)
@@ -658,6 +698,8 @@ test("catalog titles and source-only content never render fabricated blank secti
 })
 
 test("practice coach always reports microphone and audio-analysis outcomes", async ({ page }) => {
+  await stubSignedInMember(page)
+  await enableHarmoniumPractice(page)
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,

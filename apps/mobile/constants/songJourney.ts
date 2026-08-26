@@ -44,11 +44,11 @@ export function partitionSongJourneyTabs<T extends { id: SongJourneyTab }>(tabs:
   }
 }
 
-/** Watch / Notation chips only appear when the song actually has that media. */
-export function visibleSongJourneyTabs(options: { hasVideo: boolean; hasNotation: boolean }) {
+/** Watch chip only appears when the song has video; notation when harmonium practice is enabled. */
+export function visibleSongJourneyTabs(options: { hasVideo: boolean; harmoniumEnabled?: boolean }) {
   return songJourneyTabs.filter((tab) => {
     if (tab.id === "watch") return options.hasVideo
-    if (tab.id === "notation") return options.hasNotation
+    if (tab.id === "notation") return Boolean(options.harmoniumEnabled)
     return true
   })
 }
