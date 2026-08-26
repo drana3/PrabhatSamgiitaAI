@@ -1,7 +1,13 @@
 {
-  "engine": "reed_harmonic_v1",
+  "engine": "reed_harmonic_v2",
   "sample_rate": 22050,
-  "duration_sec": 0.85,
+  "duration_sec": 1.25,
   "range": "C3-C6",
-  "count": 37
+  "count": 37,
+  "features": [
+    "odd_harmonics",
+    "reed_flutter",
+    "octave_coupler",
+    "soft_clip"
+  ]
 }

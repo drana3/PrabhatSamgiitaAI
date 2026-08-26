@@ -30,12 +30,16 @@ function scheduleOscillator(
 ) {
   const oscillator = context.createOscillator()
   const gain = context.createGain()
+  const lowpass = context.createBiquadFilter()
+  lowpass.type = "lowpass"
+  lowpass.frequency.value = 3200
+  lowpass.Q.value = 0.7
   oscillator.type = "sawtooth"
   oscillator.frequency.value = frequencyHz
   gain.gain.setValueAtTime(0.0001, start)
-  gain.gain.exponentialRampToValueAtTime(0.12, start + 0.02)
+  gain.gain.exponentialRampToValueAtTime(0.1, start + 0.04)
   gain.gain.exponentialRampToValueAtTime(0.0001, start + durationSec)
-  oscillator.connect(gain).connect(context.destination)
+  oscillator.connect(lowpass).connect(gain).connect(context.destination)
   oscillator.start(start)
   oscillator.stop(start + durationSec + 0.02)
 }
@@ -48,13 +52,18 @@ function scheduleBuffer(
 ) {
   const source = context.createBufferSource()
   const gain = context.createGain()
+  const lowpass = context.createBiquadFilter()
+  lowpass.type = "lowpass"
+  lowpass.frequency.value = 3400
+  lowpass.Q.value = 0.65
   source.buffer = buffer
+  const playDuration = Math.min(durationSec, buffer.duration)
   gain.gain.setValueAtTime(0.0001, start)
-  gain.gain.exponentialRampToValueAtTime(0.55, start + 0.02)
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + durationSec)
-  source.connect(gain).connect(context.destination)
-  source.start(start)
-  source.stop(start + durationSec + 0.02)
+  gain.gain.exponentialRampToValueAtTime(0.72, start + 0.045)
+  gain.gain.setValueAtTime(0.72, start + playDuration * 0.65)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + playDuration)
+  source.connect(lowpass).connect(gain).connect(context.destination)
+  source.start(start, 0, playDuration)
 }
 
 async function loadSampleBuffer(context: AudioContext, western: string): Promise<AudioBuffer | null> {
@@ -91,7 +100,12 @@ async function playCellsInBrowser(cells: SheetCell[], tempoBpm?: number | null) 
     if (buffer) {
       scheduleBuffer(context, buffer, start, event.durationSec)
     } else {
-      scheduleOscillator(context, event.frequencyHz, start, event.durationSec)
+      const fallbackUri = reedWavDataUri(event.frequencyHz, Math.max(0.2, event.durationSec))
+      void fetch(fallbackUri)
+        .then((response) => response.arrayBuffer())
+        .then((arrayBuffer) => context.decodeAudioData(arrayBuffer))
+        .then((decoded) => scheduleBuffer(context, decoded, start, event.durationSec))
+        .catch(() => scheduleOscillator(context, event.frequencyHz, start, event.durationSec))
     }
   })
 }

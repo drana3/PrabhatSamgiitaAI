@@ -94,4 +94,12 @@ describe("SongMeaningSection", () => {
     expect(await screen.findByText("हिन्दी अर्थ")).toBeInTheDocument()
     expect(fetchSongLocalization).not.toHaveBeenCalled()
   })
+
+  it("offers copy for the visible meaning", async () => {
+    render(
+      <SongMeaningSection songNumber={42} song={song} initialLanguage="en" />,
+    )
+
+    expect(screen.getByRole("button", { name: "Copy meaning" })).toBeInTheDocument()
+  })
 })

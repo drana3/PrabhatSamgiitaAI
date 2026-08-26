@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { CopyTextButton } from "@/components/copy-text-button"
 import { SongLanguageSwitcher } from "@/components/song-language-switcher"
 import { fetchSongLocalization } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
@@ -120,6 +121,7 @@ export function SongMeaningSection({
   if (!hasMeaning) return null
 
   const meaningLabel = language === "en" ? "English" : `${localeLabel(language)} meaning`
+  const copyText = selectedMeaning || english || song.hindi_meaning?.trim() || ""
 
   return (
     <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7">
@@ -146,6 +148,7 @@ export function SongMeaningSection({
       {language !== "hi" && !english ? (
         <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
       ) : null}
+      {!loading ? <CopyTextButton text={copyText} label="Copy meaning" /> : null}
     </section>
   )
 }

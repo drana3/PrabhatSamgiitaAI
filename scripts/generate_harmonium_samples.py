@@ -13,7 +13,19 @@ WEB_DIR = ROOT / "apps" / "web" / "public" / "audio" / "harmonium"
 MOBILE_DIR = ROOT / "apps" / "mobile" / "assets" / "audio" / "harmonium"
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 SAMPLE_RATE = 22050
-DURATION = 0.85
+DURATION = 1.25
+
+# Odd-heavy spectrum + weak evens — closer to metal reed tongues.
+HARMONICS = (
+    (1.0, 1),
+    (0.07, 2),
+    (0.78, 3),
+    (0.11, 4),
+    (0.52, 5),
+    (0.06, 6),
+    (0.32, 7),
+    (0.14, 9),
+)
 
 
 def midi_to_hz(midi: int) -> float:
@@ -24,31 +36,35 @@ def note_name(midi: int) -> str:
     return f"{NOTES[midi % 12]}{midi // 12 - 1}"
 
 
+def soft_clip(value: float) -> float:
+    return math.tanh(value * 1.15)
+
+
 def reed_samples(frequency: float, duration: float = DURATION, sample_rate: int = SAMPLE_RATE) -> list[int]:
     total = int(sample_rate * duration)
     out: list[int] = []
-    # Harmonium-ish: strong odd harmonics + soft even, slow attack, gentle vibrato.
-    harmonics = (
-        (1.0, 1.0),
-        (0.55, 2.0),
-        (0.35, 3.0),
-        (0.18, 4.0),
-        (0.12, 5.0),
-        (0.08, 6.0),
-        (0.05, 7.0),
-    )
     for i in range(total):
         t = i / sample_rate
-        attack = min(1.0, t / 0.04)
-        release = min(1.0, (duration - t) / 0.12) if t < duration else 0.0
-        vibrato = 1.0 + 0.004 * math.sin(2 * math.pi * 5.5 * t)
+        attack = min(1.0, t / 0.085)
+        release = min(1.0, max(0.0, duration - t) / 0.22)
+        # Reed flutter + slow bellows sway (typical of hand-pumped harmonium).
+        flutter = 1.0 + 0.038 * math.sin(2 * math.pi * 46 * t) + 0.014 * math.sin(2 * math.pi * 71 * t)
+        sway = 1.0 + 0.0035 * math.sin(2 * math.pi * 4.1 * t)
+        pitch = frequency * sway
+
         sample = 0.0
-        for amp, mult in harmonics:
-            sample += amp * math.sin(2 * math.pi * frequency * mult * vibrato * t)
-        # Soft breath noise
-        sample += 0.015 * math.sin(2 * math.pi * (frequency * 0.5) * t + i * 0.7)
+        for amp, mult in HARMONICS:
+            sample += amp * math.sin(2 * math.pi * pitch * mult * flutter * t)
+
+        # Coupler octave (bass reed) — common in traditional practice harmoniums.
+        sample += 0.24 * math.sin(2 * math.pi * pitch * 0.5 * t) * (0.75 + 0.25 * flutter)
+
+        # Air / reed chatter (deterministic, reproducible).
+        sample += 0.018 * math.sin(2 * math.pi * (pitch * 1.7) * t + i * 0.91)
+        sample += 0.012 * math.sin(2 * math.pi * (pitch * 2.3) * t + i * 1.37)
+
         envelope = attack * release
-        value = max(-1.0, min(1.0, sample * 0.22 * envelope))
+        value = max(-1.0, min(1.0, soft_clip(sample * 0.28) * envelope))
         out.append(int(value * 32767))
     return out
 
@@ -63,18 +79,18 @@ def write_wav(path: Path, samples: list[int], sample_rate: int = SAMPLE_RATE) ->
 
 
 def main() -> None:
-    # C3 (48) through C6 (84)
     for midi in range(48, 85):
-        name = note_name(midi).replace("#", "s")  # C#4 -> Cs4 for safe filenames
+        name = note_name(midi).replace("#", "s")
         samples = reed_samples(midi_to_hz(midi))
         for target in (WEB_DIR, MOBILE_DIR):
             write_wav(target / f"{name}.wav", samples)
     manifest = {
-        "engine": "reed_harmonic_v1",
+        "engine": "reed_harmonic_v2",
         "sample_rate": SAMPLE_RATE,
         "duration_sec": DURATION,
         "range": "C3-C6",
         "count": 85 - 48,
+        "features": ["odd_harmonics", "reed_flutter", "octave_coupler", "soft_clip"],
     }
     for target in (WEB_DIR, MOBILE_DIR):
         (target / "manifest.json").write_text(

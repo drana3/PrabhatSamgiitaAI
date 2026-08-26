@@ -304,24 +304,31 @@ export function reedWavDataUri(frequencyHz: number, durationSec: number, sampleR
 
   const harmonics: Array<[number, number]> = [
     [1.0, 1],
-    [0.55, 2],
-    [0.35, 3],
-    [0.18, 4],
-    [0.12, 5],
-    [0.08, 6],
-    [0.05, 7],
+    [0.07, 2],
+    [0.78, 3],
+    [0.11, 4],
+    [0.52, 5],
+    [0.06, 6],
+    [0.32, 7],
+    [0.14, 9],
   ]
+  const softClip = (value: number) => Math.tanh(value * 1.15)
+
   for (let i = 0; i < samples; i += 1) {
     const t = i / sampleRate
-    const attack = Math.min(1, t / 0.04)
-    const release = Math.min(1, Math.max(0, durationSec - t) / 0.12)
-    const vibrato = 1 + 0.004 * Math.sin(2 * Math.PI * 5.5 * t)
+    const attack = Math.min(1, t / 0.085)
+    const release = Math.min(1, Math.max(0, durationSec - t) / 0.22)
+    const flutter = 1 + 0.038 * Math.sin(2 * Math.PI * 46 * t) + 0.014 * Math.sin(2 * Math.PI * 71 * t)
+    const sway = 1 + 0.0035 * Math.sin(2 * Math.PI * 4.1 * t)
+    const pitch = frequencyHz * sway
     let sample = 0
     for (const [amp, mult] of harmonics) {
-      sample += amp * Math.sin(2 * Math.PI * frequencyHz * mult * vibrato * t)
+      sample += amp * Math.sin(2 * Math.PI * pitch * mult * flutter * t)
     }
-    sample += 0.015 * Math.sin(2 * Math.PI * frequencyHz * 0.5 * t + i * 0.7)
-    const value = Math.max(-1, Math.min(1, sample * 0.22 * attack * release))
+    sample += 0.24 * Math.sin(2 * Math.PI * pitch * 0.5 * t) * (0.75 + 0.25 * flutter)
+    sample += 0.018 * Math.sin(2 * Math.PI * pitch * 1.7 * t + i * 0.91)
+    sample += 0.012 * Math.sin(2 * Math.PI * pitch * 2.3 * t + i * 1.37)
+    const value = Math.max(-1, Math.min(1, softClip(sample * 0.28) * attack * release))
     view.setInt16(44 + i * 2, value * 0x7fff, true)
   }
 
