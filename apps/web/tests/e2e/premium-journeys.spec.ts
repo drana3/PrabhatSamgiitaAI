@@ -149,7 +149,8 @@ test("general song links settle on the AI Companion after layout", async ({ page
   expect(landing.notationTop).not.toBeNull()
   expect(landing.askTop!).toBeGreaterThanOrEqual(0)
   expect(landing.askTop!).toBeLessThanOrEqual(maximumLandingTop)
-  expect(landing.notationTop!).toBeGreaterThan(landing.askTop!)
+  // Harmonium (#notation) sits above the companion in the page; after #ask landing it is off-screen above.
+  expect(landing.notationTop!).toBeLessThan(landing.askTop!)
 })
 
 test("Guru portrait and reflection remain aligned without overlap", async ({ page }, testInfo) => {
@@ -338,6 +339,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await page.locator("#notation").scrollIntoViewIfNeeded()
   await expect(page.locator("#notation")).toBeVisible()
   await page.getByRole("heading", { name: "Practise on harmonium" }).click()
+  await page.getByRole("button", { name: /हिंदी सारगम \+ keys|सारगम \+ keys/ }).click()
   await expect(
     page.getByRole("heading", { name: /पंक्ति · हिंदी सारगम · .*Keys|Lyric · Harmonium keys/i }),
   ).toBeVisible()
@@ -555,7 +557,7 @@ test("harmonium search lands on notation gate for guests", async ({ page }) => {
   await expect(page).toHaveURL(/\/songs\/1#notation$/)
   await expect(page.locator("#notation")).toBeVisible()
   await expect(page.getByRole("heading", { name: "Harmonium practice" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible()
+  await expect(page.locator("#notation").getByRole("link", { name: "Sign in" })).toBeVisible()
 })
 
 test("home and Explore resolve natural-language song number intent before RAG", async ({ page }, testInfo) => {
