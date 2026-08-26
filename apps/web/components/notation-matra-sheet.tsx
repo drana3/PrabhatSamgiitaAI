@@ -34,10 +34,10 @@ function scheduleOscillator(
   lowpass.type = "lowpass"
   lowpass.frequency.value = 3200
   lowpass.Q.value = 0.7
-  oscillator.type = "sawtooth"
+  oscillator.type = "triangle"
   oscillator.frequency.value = frequencyHz
   gain.gain.setValueAtTime(0.0001, start)
-  gain.gain.exponentialRampToValueAtTime(0.1, start + 0.04)
+  gain.gain.exponentialRampToValueAtTime(0.08, start + 0.03)
   gain.gain.exponentialRampToValueAtTime(0.0001, start + durationSec)
   oscillator.connect(lowpass).connect(gain).connect(context.destination)
   oscillator.start(start)
@@ -54,14 +54,14 @@ function scheduleBuffer(
   const gain = context.createGain()
   const lowpass = context.createBiquadFilter()
   lowpass.type = "lowpass"
-  lowpass.frequency.value = 3400
-  lowpass.Q.value = 0.65
+  lowpass.frequency.value = 2800
+  lowpass.Q.value = 0.5
   source.buffer = buffer
   const playDuration = Math.min(durationSec, buffer.duration)
-  gain.gain.setValueAtTime(0.0001, start)
-  gain.gain.exponentialRampToValueAtTime(0.72, start + 0.045)
-  gain.gain.setValueAtTime(0.72, start + playDuration * 0.65)
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + playDuration)
+  // Samples already carry attack/release — only trim level and add a short fade-out.
+  gain.gain.setValueAtTime(0.5, start)
+  gain.gain.setValueAtTime(0.5, start + Math.max(0, playDuration - 0.04))
+  gain.gain.linearRampToValueAtTime(0.001, start + playDuration)
   source.connect(lowpass).connect(gain).connect(context.destination)
   source.start(start, 0, playDuration)
 }

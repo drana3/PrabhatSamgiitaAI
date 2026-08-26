@@ -262,7 +262,7 @@ export function sheetPlayEvents(
           western: cell.western,
           frequencyHz: hz,
           startSec: cursor,
-          durationSec: Math.min(span * 0.92, span),
+          durationSec: Math.min(span * 0.82, Math.max(span - 0.04, span * 0.7)),
         })
       }
     }
@@ -304,31 +304,26 @@ export function reedWavDataUri(frequencyHz: number, durationSec: number, sampleR
 
   const harmonics: Array<[number, number]> = [
     [1.0, 1],
-    [0.07, 2],
-    [0.78, 3],
-    [0.11, 4],
-    [0.52, 5],
-    [0.06, 6],
-    [0.32, 7],
-    [0.14, 9],
+    [0.28, 2],
+    [0.42, 3],
+    [0.10, 4],
+    [0.18, 5],
+    [0.05, 6],
+    [0.06, 7],
   ]
-  const softClip = (value: number) => Math.tanh(value * 1.15)
 
   for (let i = 0; i < samples; i += 1) {
     const t = i / sampleRate
-    const attack = Math.min(1, t / 0.085)
-    const release = Math.min(1, Math.max(0, durationSec - t) / 0.22)
-    const flutter = 1 + 0.038 * Math.sin(2 * Math.PI * 46 * t) + 0.014 * Math.sin(2 * Math.PI * 71 * t)
-    const sway = 1 + 0.0035 * Math.sin(2 * Math.PI * 4.1 * t)
-    const pitch = frequencyHz * sway
+    const attack = Math.min(1, t / 0.035)
+    const release = Math.min(1, Math.max(0, durationSec - t) / 0.14)
+    const vibrato = 1 + 0.003 * Math.sin(2 * Math.PI * 5.2 * t)
+    const pitch = frequencyHz * vibrato
     let sample = 0
     for (const [amp, mult] of harmonics) {
-      sample += amp * Math.sin(2 * Math.PI * pitch * mult * flutter * t)
+      sample += amp * Math.sin(2 * Math.PI * pitch * mult * t)
     }
-    sample += 0.24 * Math.sin(2 * Math.PI * pitch * 0.5 * t) * (0.75 + 0.25 * flutter)
-    sample += 0.018 * Math.sin(2 * Math.PI * pitch * 1.7 * t + i * 0.91)
-    sample += 0.012 * Math.sin(2 * Math.PI * pitch * 2.3 * t + i * 1.37)
-    const value = Math.max(-1, Math.min(1, softClip(sample * 0.28) * attack * release))
+    sample += 0.06 * Math.sin(2 * Math.PI * pitch * 0.5 * t)
+    const value = Math.max(-1, Math.min(1, Math.tanh(sample * 0.26) * attack * release))
     view.setInt16(44 + i * 2, value * 0x7fff, true)
   }
 
