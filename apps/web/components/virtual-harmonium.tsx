@@ -35,6 +35,23 @@ export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Prop
     }
   }, [])
 
+  const releaseKey = useCallback((index: number) => {
+    setActiveIndex((current) => {
+      if (current !== index) return current
+      stopRef.current?.()
+      stopRef.current = null
+      stopActiveWesternNote()
+      return null
+    })
+  }, [])
+
+  const pressKey = useCallback(async (key: HarmoniumKeyboardKey | undefined, index: number) => {
+    if (!key) return
+    setActiveIndex(index)
+    stopRef.current?.()
+    stopRef.current = await startWesternNote(key.western)
+  }, [])
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return
@@ -59,24 +76,7 @@ export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Prop
       window.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("keyup", onKeyUp)
     }
-  }, [keys, releaseKey])
-
-  async function pressKey(key: HarmoniumKeyboardKey | undefined, index: number) {
-    if (!key) return
-    setActiveIndex(index)
-    stopRef.current?.()
-    stopRef.current = await startWesternNote(key.western)
-  }
-
-  const releaseKey = useCallback((index: number) => {
-    setActiveIndex((current) => {
-      if (current !== index) return current
-      stopRef.current?.()
-      stopRef.current = null
-      stopActiveWesternNote()
-      return null
-    })
-  }, [])
+  }, [keys, pressKey, releaseKey])
 
   async function playTyped() {
     if (!typed.trim() || playing) return
