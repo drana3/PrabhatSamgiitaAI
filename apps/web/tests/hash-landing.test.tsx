@@ -63,7 +63,7 @@ describe("HashLanding", () => {
 
     await waitFor(() => {
       expect(window.location.hash).toBe("")
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" })
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" })
     })
     expect(scrollToSectionId).not.toHaveBeenCalled()
   })
