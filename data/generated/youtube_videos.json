@@ -10857,6 +10857,27 @@
     }
   },
   {
+    "song_number": 3025,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ghana Megh Dale Ele - Prabhat Sangeet song #3025 - Singer - Shuveccha Mandal",
+    "url": "https://www.youtube.com/watch?v=IpNpUFPiwHE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/IpNpUFPiwHE",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "IpNpUFPiwHE",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.94,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3028,
     "kind": "video",
     "provider": "youtube",
@@ -10916,6 +10937,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.959,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3101,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Krishna Song - Banshi Bajiya Uthilo Yamunay - Prabhat Sangeet song #3101 - Singer - Poushali Ghosh",
+    "url": "https://www.youtube.com/watch?v=zNATpGLaRwQ",
+    "embed_url": "https://www.youtube-nocookie.com/embed/zNATpGLaRwQ",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "zNATpGLaRwQ",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.915,
       "match_method": "explicit_song_number_marker"
     }
   },
