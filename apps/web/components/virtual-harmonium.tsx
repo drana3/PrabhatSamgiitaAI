@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   HARMONIUM_TONICS,
@@ -59,7 +59,7 @@ export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Prop
       window.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("keyup", onKeyUp)
     }
-  }, [keys])
+  }, [keys, releaseKey])
 
   async function pressKey(key: HarmoniumKeyboardKey | undefined, index: number) {
     if (!key) return
@@ -68,13 +68,15 @@ export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Prop
     stopRef.current = await startWesternNote(key.western)
   }
 
-  function releaseKey(index: number) {
-    if (activeIndex !== index) return
-    stopRef.current?.()
-    stopRef.current = null
-    stopActiveWesternNote()
-    setActiveIndex(null)
-  }
+  const releaseKey = useCallback((index: number) => {
+    setActiveIndex((current) => {
+      if (current !== index) return current
+      stopRef.current?.()
+      stopRef.current = null
+      stopActiveWesternNote()
+      return null
+    })
+  }, [])
 
   async function playTyped() {
     if (!typed.trim() || playing) return
