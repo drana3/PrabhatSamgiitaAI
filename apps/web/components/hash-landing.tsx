@@ -13,7 +13,9 @@ function isMobileViewport() {
 }
 
 function scrollToSongStart() {
-  window.scrollTo({ top: 0, behavior: "auto" })
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
 }
 
 export function HashLanding() {
@@ -44,9 +46,11 @@ export function HashLanding() {
       requestAnimationFrame(() => requestAnimationFrame(settle))
       void document.fonts.ready.then(settle)
       const timeout = window.setTimeout(settle, 300)
+      const lateTimeout = window.setTimeout(settle, 900)
       return () => {
         cancelled = true
         window.clearTimeout(timeout)
+        window.clearTimeout(lateTimeout)
       }
     }
 

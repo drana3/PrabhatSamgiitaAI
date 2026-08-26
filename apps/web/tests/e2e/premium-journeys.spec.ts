@@ -26,6 +26,19 @@ async function clickCollectionLink(page: Page, name: RegExp | string) {
   await link.click()
 }
 
+/** Mobile song pages should open at the hero, not auto-jump to #ask. */
+async function expectMobileSongLanding(page: Page, heading?: RegExp | string) {
+  await expect.poll(() => new URL(page.url()).hash).toBe("")
+  const hero = heading
+    ? page.getByRole("heading", { name: heading })
+    : page.locator("h1").first()
+  await expect(hero).toBeInViewport()
+  await expect.poll(async () => {
+    const top = await hero.evaluate((element) => element.getBoundingClientRect().top)
+    return top >= 0 && top <= 240
+  }).toBe(true)
+}
+
 const songResult = {
   number: 111,
   title: "Tomar Katha Bhavi",
@@ -92,8 +105,7 @@ test("general song links settle on the AI Companion after layout", async ({ page
   await page.getByRole("link", { name: "Start with Song 1" }).click()
   if (testInfo.project.name === "mobile-chromium") {
     await expect(page).toHaveURL(/\/songs\/1\/?$/)
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
-    await expect(page.getByRole("heading", { name: /Bandhu He Niye Calo/i })).toBeInViewport()
+    await expectMobileSongLanding(page, /Bandhu He Niye Calo/i)
     return
   }
   await expect(page).toHaveURL(/\/songs\/1#ask$/)
@@ -338,9 +350,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
 test("opening a song lands on the AI companion", async ({ page }, testInfo) => {
   await page.goto("/songs/1")
   if (testInfo.project.name === "mobile-chromium") {
-    await expect.poll(() => new URL(page.url()).hash).toBe("")
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
-    await expect(page.getByRole("heading", { name: /Bandhu He Niye Calo/i })).toBeInViewport()
+    await expectMobileSongLanding(page, /Bandhu He Niye Calo/i)
     return
   }
   await expect.poll(() => new URL(page.url()).hash).toBe("#ask")
@@ -516,8 +526,7 @@ test("home and Explore resolve natural-language song number intent before RAG", 
   await clickSearchButton(page)
   if (testInfo.project.name === "mobile-chromium") {
     await expect(page).toHaveURL(/\/songs\/223\/?$/)
-    await expect.poll(() => new URL(page.url()).hash).toBe("")
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+    await expectMobileSongLanding(page)
   } else {
     await expect(page).toHaveURL(/\/songs\/223#ask$/)
     await expect(page.locator("#ask")).toBeVisible()
