@@ -7,7 +7,7 @@ import {
 
 let sharedContext: AudioContext | null = null
 const bufferCache = new Map<string, AudioBuffer>()
-let activeVoice: { stop: () => void } | null = null
+const heldVoices = new Map<string, { stop: () => void }>()
 
 async function getAudioContext(): Promise<AudioContext | null> {
   if (typeof window === "undefined") return null
@@ -78,6 +78,58 @@ function playBuffer(
   }
 }
 
+function fadeStop(context: AudioContext, gain: GainNode, stopNode: AudioScheduledSourceNode): () => void {
+  return () => {
+    const now = context.currentTime
+    try {
+      gain.gain.cancelScheduledValues(now)
+      const current = Math.max(gain.gain.value, 0.001)
+      gain.gain.setValueAtTime(current, now)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08)
+      stopNode.stop(now + 0.1)
+    } catch {
+      /* already stopped */
+    }
+  }
+}
+
+function startHeldBuffer(context: AudioContext, buffer: AudioBuffer): () => void {
+  const source = context.createBufferSource()
+  const gain = context.createGain()
+  const lowpass = context.createBiquadFilter()
+  lowpass.type = "lowpass"
+  lowpass.frequency.value = 2800
+  lowpass.Q.value = 0.5
+  source.buffer = buffer
+  source.loop = true
+  const loopStart = Math.min(0.07, Math.max(0.02, buffer.duration * 0.08))
+  const loopEnd = Math.min(buffer.duration - 0.04, Math.max(loopStart + 0.2, buffer.duration * 0.72))
+  source.loopStart = loopStart
+  source.loopEnd = loopEnd
+  const now = context.currentTime
+  gain.gain.setValueAtTime(0.0001, now)
+  gain.gain.exponentialRampToValueAtTime(0.34, now + 0.025)
+  source.connect(lowpass).connect(gain).connect(context.destination)
+  source.start(now)
+  return fadeStop(context, gain, source)
+}
+
+function startHeldOscillator(context: AudioContext, frequencyHz: number): () => void {
+  const oscillator = context.createOscillator()
+  const gain = context.createGain()
+  const lowpass = context.createBiquadFilter()
+  lowpass.type = "lowpass"
+  lowpass.frequency.value = 2800
+  oscillator.type = "triangle"
+  oscillator.frequency.value = frequencyHz
+  const now = context.currentTime
+  gain.gain.setValueAtTime(0.0001, now)
+  gain.gain.exponentialRampToValueAtTime(0.08, now + 0.03)
+  oscillator.connect(lowpass).connect(gain).connect(context.destination)
+  oscillator.start(now)
+  return fadeStop(context, gain, oscillator)
+}
+
 function playOscillator(context: AudioContext, frequencyHz: number, durationSec: number, startAt: number): () => void {
   const oscillator = context.createOscillator()
   const gain = context.createGain()
@@ -115,35 +167,30 @@ export async function playWesternNote(western: string, durationSec = 0.45): Prom
 }
 
 export async function startWesternNote(western: string): Promise<() => void> {
-  activeVoice?.stop()
-  activeVoice = null
+  heldVoices.get(western)?.stop()
+  heldVoices.delete(western)
 
   const context = await getAudioContext()
   if (!context) return () => undefined
 
   const buffer = await loadSampleBuffer(context, western)
-  if (buffer) {
-    const stop = playBuffer(context, buffer, 1.2)
-    activeVoice = { stop }
-    return () => {
-      stop()
-      if (activeVoice?.stop === stop) activeVoice = null
-    }
-  }
+  const stop = buffer
+    ? startHeldBuffer(context, buffer)
+    : (() => {
+        const hz = westernToHz(western)
+        return hz ? startHeldOscillator(context, hz) : () => undefined
+      })()
 
-  const hz = westernToHz(western)
-  if (!hz) return () => undefined
-  const stop = playOscillator(context, hz, 1.2, context.currentTime + 0.01)
-  activeVoice = { stop }
+  heldVoices.set(western, { stop })
   return () => {
     stop()
-    if (activeVoice?.stop === stop) activeVoice = null
+    if (heldVoices.get(western)?.stop === stop) heldVoices.delete(western)
   }
 }
 
 export function stopActiveWesternNote(): void {
-  activeVoice?.stop()
-  activeVoice = null
+  for (const voice of heldVoices.values()) voice.stop()
+  heldVoices.clear()
 }
 
 export async function playSheetEvents(events: SheetPlayEvent[]): Promise<void> {

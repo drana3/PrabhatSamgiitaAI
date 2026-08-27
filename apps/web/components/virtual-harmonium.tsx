@@ -4,10 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   HARMONIUM_TONICS,
+  RAGHUPATI_RAGHAV_SONG,
   SARGAM_EXAMPLES,
   harmoniumKeyboardLayout,
   keyboardIndexForShortcut,
+  keyboardIndexForWestern,
   parseSargamInput,
+  sampleSongLineEvents,
+  sampleSongPlayEvents,
   sargamPlayEvents,
   type HarmoniumKeyboardKey,
 } from "@prabhat/core"
@@ -22,39 +26,65 @@ type Props = {
 
 export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Props) {
   const [typed, setTyped] = useState("")
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const [activeIndexes, setActiveIndexes] = useState<Set<number>>(new Set())
   const [playing, setPlaying] = useState(false)
-  const stopRef = useRef<(() => void) | null>(null)
+  const [songLineIndex, setSongLineIndex] = useState<number | null>(null)
+  const stopsRef = useRef(new Map<number, () => void>())
+  const highlightTimers = useRef<number[]>([])
   const keys = useMemo(() => harmoniumKeyboardLayout(tonic), [tonic])
+  const whiteKeys = useMemo(() => keys.filter((key) => !key.isBlack), [keys])
+  const blackKeys = useMemo(() => keys.filter((key) => key.isBlack), [keys])
   const parsedPreview = useMemo(() => parseSargamInput(typed, tonic), [typed, tonic])
+  const song = RAGHUPATI_RAGHAV_SONG
+
+  const clearHighlights = useCallback(() => {
+    highlightTimers.current.forEach((timer) => window.clearTimeout(timer))
+    highlightTimers.current = []
+    setSongLineIndex(null)
+  }, [])
 
   useEffect(() => {
     return () => {
-      stopRef.current?.()
+      stopsRef.current.forEach((stop) => stop())
+      stopsRef.current.clear()
       stopActiveWesternNote()
+      highlightTimers.current.forEach((timer) => window.clearTimeout(timer))
     }
   }, [])
 
   const releaseKey = useCallback((index: number) => {
-    setActiveIndex((current) => {
-      if (current !== index) return current
-      stopRef.current?.()
-      stopRef.current = null
-      stopActiveWesternNote()
-      return null
+    const stop = stopsRef.current.get(index)
+    if (!stop) return
+    stop()
+    stopsRef.current.delete(index)
+    setActiveIndexes((current) => {
+      if (!current.has(index)) return current
+      const next = new Set(current)
+      next.delete(index)
+      return next
     })
   }, [])
 
   const pressKey = useCallback(async (key: HarmoniumKeyboardKey | undefined, index: number) => {
-    if (!key) return
-    setActiveIndex(index)
-    stopRef.current?.()
-    stopRef.current = await startWesternNote(key.western)
+    if (!key || stopsRef.current.has(index)) return
+    stopsRef.current.set(index, () => undefined)
+    setActiveIndexes((current) => {
+      const next = new Set(current)
+      next.add(index)
+      return next
+    })
+    const stop = await startWesternNote(key.western)
+    if (!stopsRef.current.has(index)) {
+      stop()
+      return
+    }
+    stopsRef.current.set(index, stop)
   }, [])
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (event.repeat) return
       const target = event.target as HTMLElement | null
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return
 
@@ -78,9 +108,25 @@ export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Prop
     }
   }, [keys, pressKey, releaseKey])
 
+  function keyPointerHandlers(key: HarmoniumKeyboardKey, index: number) {
+    return {
+      onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+        event.preventDefault()
+        event.currentTarget.setPointerCapture(event.pointerId)
+        void pressKey(key, index)
+      },
+      onPointerUp: () => releaseKey(index),
+      onPointerCancel: () => releaseKey(index),
+      onPointerLeave: (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (event.buttons === 0) releaseKey(index)
+      },
+    }
+  }
+
   async function playTyped() {
     if (!typed.trim() || playing) return
     setPlaying(true)
+    clearHighlights()
     try {
       await playSheetEvents(sargamPlayEvents(tonic, typed))
     } finally {
@@ -88,20 +134,50 @@ export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Prop
     }
   }
 
+  async function playSampleSong() {
+    if (playing) return
+    setPlaying(true)
+    clearHighlights()
+    const events = sampleSongPlayEvents(tonic, song)
+    const lines = sampleSongLineEvents(tonic, song)
+    for (const [lineIndex, line] of lines.entries()) {
+      highlightTimers.current.push(
+        window.setTimeout(() => setSongLineIndex(lineIndex), Math.round(line.startSec * 1000)),
+      )
+    }
+    for (const event of events) {
+      highlightTimers.current.push(
+        window.setTimeout(() => {
+          const index = keyboardIndexForWestern(keys, event.western)
+          setActiveIndexes(index >= 0 ? new Set([index]) : new Set())
+        }, Math.round(event.startSec * 1000)),
+      )
+    }
+    try {
+      await playSheetEvents(events)
+    } finally {
+      setPlaying(false)
+      setActiveIndexes(new Set())
+      setSongLineIndex(null)
+    }
+  }
+
+  const activeLine = songLineIndex != null ? song.lines[songLineIndex] : null
+
   return (
-    <section className="rounded-2xl border border-navy-900/10 bg-navy-950 p-4 text-white sm:p-5">
+    <section className="rounded-2xl border border-amber-900/40 bg-[#3b2416] p-4 text-white sm:p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-300">Live harmonium</p>
-          <h3 className="mt-1 font-serif text-2xl text-white">Tap keys or type sargam</h3>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-300">Classic harmonium</p>
+          <h3 className="mt-1 font-serif text-2xl text-white">Two-octave keyboard</h3>
           {!compact ? (
-            <p className="mt-1 text-xs text-navy-100">
-              Keyboard: Z X C V B N M , · Hold a key to sustain · Type Sa Re Ga Ma…
+            <p className="mt-1 text-xs text-amber-100/80">
+              Hold keys like a real harmonium — they keep sounding until you lift. Play chords. White: E R T Y U I O P · Black: 4 5 7 8 9 · Gold dot is Sa
             </p>
           ) : null}
         </div>
         {onTonicChange ? (
-          <label className="flex items-center gap-2 text-xs font-bold text-navy-100">
+          <label className="flex items-center gap-2 text-xs font-bold text-amber-100">
             Sa
             <select
               value={tonic}
@@ -114,50 +190,120 @@ export function VirtualHarmonium({ tonic, onTonicChange, compact = false }: Prop
             </select>
           </label>
         ) : (
-          <p className="text-xs text-navy-100">
+          <p className="text-xs text-amber-100">
             Sa = <strong className="text-white">{tonic}</strong>
           </p>
         )}
       </div>
 
       <div
-        className="mt-4 flex min-w-0 overflow-x-auto rounded-xl border-4 border-gold-900/55 bg-gold-900/55 p-1"
+        className="relative mt-4 overflow-x-auto rounded-xl border-4 border-[#2a160c] bg-[#2a160c] p-2"
         role="group"
         aria-label="Virtual harmonium keyboard"
       >
-        {keys.map((key, index) => {
-          const active = activeIndex === index
-          return (
-            <button
-              key={`${key.western}-${index}`}
-              type="button"
-              className={`relative flex h-32 min-w-[3.4rem] flex-1 flex-col items-center justify-end border-r border-stone-300 px-1 pb-2 text-navy-950 transition last:border-r-0 sm:min-w-16 ${
-                active ? "translate-y-1 bg-gold-200 shadow-inner" : "bg-ivory-50 hover:bg-gold-50"
+        <div className="relative h-40 min-w-[36rem]">
+          <div className="flex h-full">
+            {whiteKeys.map((key) => {
+              const index = keys.indexOf(key)
+              const active = activeIndexes.has(index)
+              return (
+                <button
+                  key={key.western}
+                  type="button"
+                  className={`relative flex flex-1 flex-col items-center justify-end border-r border-stone-400 pb-2 last:border-r-0 ${
+                    active ? "bg-gold-200" : key.isSa ? "bg-ivory-50" : "bg-[#f4efe4] hover:bg-gold-50"
+                  }`}
+                  aria-pressed={active}
+                  aria-label={`${key.latin} ${key.keyLabel}`}
+                  {...keyPointerHandlers(key, index)}
+                >
+                  {key.isSa ? (
+                    <span className="absolute top-2 h-2.5 w-2.5 rounded-full bg-gold-500" aria-hidden="true" />
+                  ) : null}
+                  <span className="text-[10px] font-bold uppercase text-stone-500">{key.shortcut}</span>
+                  <span className="text-sm font-semibold text-navy-950" lang="hi">
+                    {key.devanagari}
+                  </span>
+                  <span className="text-[9px] font-bold text-stone-600">{key.latin}</span>
+                </button>
+              )
+            })}
+          </div>
+          {blackKeys.map((key) => {
+            const index = keys.indexOf(key)
+            const active = activeIndexes.has(index)
+            return (
+              <button
+                key={key.western}
+                type="button"
+                className={`absolute top-2 z-10 flex h-[58%] w-[4.6%] -translate-x-1/2 flex-col items-center justify-end rounded-b-md border border-black/70 pb-1.5 text-white ${
+                  active ? "bg-gold-600" : "bg-navy-950 hover:bg-navy-800"
+                }`}
+                style={{ left: `${key.blackLeftPercent}%` }}
+                aria-pressed={active}
+                aria-label={`${key.latin} ${key.keyLabel}`}
+                {...keyPointerHandlers(key, index)}
+              >
+                <span className="text-[8px] font-bold text-gold-300">{key.shortcut}</span>
+                <span className="text-[10px]" lang="hi">
+                  {key.devanagari}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/15 bg-black/20 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-300">Sample song</p>
+            <h4 className="font-serif text-xl">{song.title}</h4>
+            <p className="text-sm text-amber-100/80" lang="hi">
+              {song.titleHi}
+            </p>
+            <p className="mt-1 text-xs text-amber-100/70">
+              Set Sa, then each sargam syllable lights the matching key — white = shuddha, black = komal/tivra.
+            </p>
+            {song.sourceUrl ? (
+              <a
+                href={song.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-block text-xs font-semibold text-gold-300 underline"
+              >
+                {song.sourceLabel ?? "Lesson"}
+              </a>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => void playSampleSong()}
+            disabled={playing}
+            className="rounded-xl bg-gold-300 px-4 py-2.5 text-sm font-bold text-navy-950 disabled:opacity-50"
+          >
+            {playing && songLineIndex != null ? "Playing…" : "▶ Play on keys"}
+          </button>
+        </div>
+        <ol className="mt-3 space-y-2 text-sm">
+          {song.lines.map((line, index) => (
+            <li
+              key={line.lyric}
+              className={`rounded-xl px-3 py-2 ${
+                songLineIndex === index ? "bg-gold-300/20 text-white" : "text-amber-100/80"
               }`}
-              aria-pressed={active}
-              aria-label={`${key.latin} ${key.keyLabel}`}
-              onPointerDown={(event) => {
-                event.preventDefault()
-                event.currentTarget.setPointerCapture(event.pointerId)
-                void pressKey(key, index)
-              }}
-              onPointerUp={() => releaseKey(index)}
-              onPointerCancel={() => releaseKey(index)}
-              onPointerLeave={(event) => {
-                if (event.buttons === 0) releaseKey(index)
-              }}
             >
-              <span className="absolute inset-x-1 top-2 rounded-md bg-navy-950 px-1 py-1.5 text-center text-[10px] font-bold text-white">
-                {key.keyLabel}
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-stone-500">{key.shortcut}</span>
-              <span className="text-lg font-semibold" lang="hi">
-                {key.devanagari}
-              </span>
-              <span className="text-[10px] font-bold text-stone-600">{key.latin}</span>
-            </button>
-          )
-        })}
+              <p className="font-semibold">{line.lyric}</p>
+              <p className="text-xs" lang="hi">
+                {line.lyricHi}
+              </p>
+              <p className="mt-0.5 font-mono text-[11px] text-gold-200">{line.sargam}</p>
+            </li>
+          ))}
+        </ol>
+        {activeLine ? (
+          <p className="mt-2 text-xs text-gold-200">Now: {activeLine.lyric}</p>
+        ) : null}
       </div>
 
       <div className="mt-4 rounded-2xl border border-white/15 bg-white/8 p-4">

@@ -9,6 +9,7 @@ import {
 import { HARMONIUM_SAMPLE_MODULES } from "@/lib/harmoniumSamples"
 
 let activeSound: Audio.Sound | null = null
+const heldSounds = new Map<string, Audio.Sound>()
 
 async function ensureAudioMode() {
   await Audio.setAudioModeAsync({
@@ -20,7 +21,7 @@ async function ensureAudioMode() {
   })
 }
 
-async function loadSound(western: string): Promise<Audio.Sound> {
+async function loadSound(western: string, loop = false): Promise<Audio.Sound> {
   const stem = westernToSampleStem(western)
   const moduleId = stem ? HARMONIUM_SAMPLE_MODULES[stem] : undefined
   const hz = westernToHz(western)
@@ -30,40 +31,47 @@ async function loadSound(western: string): Promise<Audio.Sound> {
       ? { uri: reedWavDataUri(hz, 0.95) }
       : null
   if (!source) throw new Error("Unable to resolve harmonium sample")
-  const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: false, volume: 0.85 })
+  const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: false, volume: 0.72, isLooping: loop })
   return sound
 }
 
-export async function stopActiveHarmoniumNote(): Promise<void> {
-  if (!activeSound) return
+async function unloadSound(sound: Audio.Sound | null): Promise<void> {
+  if (!sound) return
   try {
-    await activeSound.stopAsync()
-    await activeSound.unloadAsync()
+    await sound.stopAsync()
+    await sound.unloadAsync()
   } catch {
     /* ignore */
   }
+}
+
+export async function stopActiveHarmoniumNote(): Promise<void> {
+  await unloadSound(activeSound)
   activeSound = null
+  await Promise.all([...heldSounds.values()].map((sound) => unloadSound(sound)))
+  heldSounds.clear()
 }
 
 export async function playWesternNote(western: string, durationSec = 0.45): Promise<void> {
   await ensureAudioMode()
-  await stopActiveHarmoniumNote()
-  const sound = await loadSound(western)
-  activeSound = sound
+  const sound = await loadSound(western, false)
   await sound.playAsync()
   setTimeout(() => {
-    void stopActiveHarmoniumNote()
+    void unloadSound(sound)
   }, Math.max(120, Math.round(durationSec * 1000)))
 }
 
 export async function startWesternNote(western: string): Promise<() => void> {
   await ensureAudioMode()
-  await stopActiveHarmoniumNote()
-  const sound = await loadSound(western)
-  activeSound = sound
+  const previous = heldSounds.get(western)
+  heldSounds.delete(western)
+  await unloadSound(previous)
+  const sound = await loadSound(western, true)
+  heldSounds.set(western, sound)
   await sound.playAsync()
   return () => {
-    void stopActiveHarmoniumNote()
+    heldSounds.delete(western)
+    void unloadSound(sound)
   }
 }
 

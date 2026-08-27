@@ -11,11 +11,13 @@ vi.mock("@/lib/harmonium-playback", () => ({
 }))
 
 describe("VirtualHarmonium", () => {
-  it("renders eight playable swara keys and type-to-play input", () => {
+  it("renders a chromatic keyboard, sample song, and type-to-play input", () => {
     render(<VirtualHarmonium tonic="C" />)
 
     expect(screen.getByRole("group", { name: "Virtual harmonium keyboard" })).toBeInTheDocument()
-    expect(screen.getByRole("group", { name: "Virtual harmonium keyboard" }).querySelectorAll("button")).toHaveLength(8)
+    expect(screen.getByRole("group", { name: "Virtual harmonium keyboard" }).querySelectorAll("button")).toHaveLength(25)
+    expect(screen.getByRole("button", { name: "▶ Play on keys" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Raghupati Raghav Raja Ram" })).toBeInTheDocument()
     expect(screen.getByLabelText("Type sargam")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "▶ Play" })).toBeDisabled()
   })

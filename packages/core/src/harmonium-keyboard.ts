@@ -27,6 +27,10 @@ export type HarmoniumKeyboardKey = {
   western: string
   keyLabel: string
   frequencyHz: number
+  isBlack: boolean
+  isSa: boolean
+  whiteIndex: number
+  blackLeftPercent: number
 }
 
 export type ParsedSwara = {
@@ -39,16 +43,38 @@ export type ParsedSwara = {
 /** Shuddha major scale semitone steps from Sa (matches common learner harmoniums). */
 export const SHUDDHA_SCALE_STEPS = [0, 2, 4, 5, 7, 9, 11, 12] as const
 
-const KEYBOARD_SWARAS = [
-  { token: "S", latin: "Sa", devanagari: "सा", shortcut: "Z" },
-  { token: "R", latin: "Re", devanagari: "रे", shortcut: "X" },
-  { token: "G", latin: "Ga", devanagari: "ग", shortcut: "C" },
-  { token: "m", latin: "Ma", devanagari: "म", shortcut: "V" },
-  { token: "P", latin: "Pa", devanagari: "प", shortcut: "B" },
-  { token: "D", latin: "Dha", devanagari: "ध", shortcut: "N" },
-  { token: "N", latin: "Ni", devanagari: "नि", shortcut: "M" },
-  { token: "S", latin: "Sa′", devanagari: "सां", shortcut: "," },
+/** 12-pitch sargam names, indexed by semitones above Sa. */
+const SWARA_CHROMA = [
+  { token: "S", latin: "Sa", devanagari: "सा" },
+  { token: "r", latin: "re", devanagari: "रे॒" },
+  { token: "R", latin: "Re", devanagari: "रे" },
+  { token: "g", latin: "ga", devanagari: "ग॒" },
+  { token: "G", latin: "Ga", devanagari: "ग" },
+  { token: "m", latin: "Ma", devanagari: "म" },
+  { token: "M", latin: "Ma♯", devanagari: "म॑" },
+  { token: "P", latin: "Pa", devanagari: "प" },
+  { token: "d", latin: "dha", devanagari: "ध॒" },
+  { token: "D", latin: "Dha", devanagari: "ध" },
+  { token: "n", latin: "ni", devanagari: "नि॒" },
+  { token: "N", latin: "Ni", devanagari: "नि" },
 ] as const
+
+/** Physical piano/harmonium black keys (C# D# F# G# A#). */
+const PIANO_BLACK_PC = new Set([1, 3, 6, 8, 10])
+
+/**
+ * Laptop map from https://web-harmonium.com/harmonium-notes
+ * Middle whites: E R T Y U I O P (Sa Re Ga Ma Pa Dha Ni Sa′)
+ * Middle blacks: 4 5 7 8 9 (komal Re/Ga, tivra Ma, komal Dha/Ni)
+ */
+const CHROMATIC_SHORTCUTS = [
+  "z", "3", "x", "d", "c", "v", "g", "s", "1", "q", "2", "w",
+  "e", "4", "r", "5", "t", "y", "7", "u", "8", "i", "9", "o",
+  "p",
+] as const
+
+const KEYBOARD_START_MIDI = 48 // C3
+const KEYBOARD_KEY_COUNT = 25 // C3 through C5
 
 const SWARA_SEMITONES: Record<string, number> = {
   S: 0,
@@ -80,16 +106,22 @@ const LATIN_ALIASES: Record<string, string> = {
 const DEVANAGARI_SWARAS: Array<{ text: string; token: string; octave: SwaraOctave }> = [
   { text: "सां", token: "S", octave: "upper" },
   { text: "सा", token: "S", octave: "middle" },
+  { text: "रे़", token: "r", octave: "middle" },
   { text: "रे॒", token: "r", octave: "middle" },
   { text: "रे", token: "R", octave: "middle" },
+  { text: "ग़", token: "g", octave: "middle" },
   { text: "ग॒", token: "g", octave: "middle" },
   { text: "ग", token: "G", octave: "middle" },
   { text: "म॑", token: "M", octave: "middle" },
   { text: "म", token: "m", octave: "middle" },
   { text: "प", token: "P", octave: "middle" },
+  { text: "ध़", token: "d", octave: "middle" },
   { text: "ध॒", token: "d", octave: "middle" },
   { text: "ध", token: "D", octave: "middle" },
+  { text: "नी़", token: "n", octave: "middle" },
+  { text: "नि़", token: "n", octave: "middle" },
   { text: "नि॒", token: "n", octave: "middle" },
+  { text: "नी", token: "N", octave: "middle" },
   { text: "नि", token: "N", octave: "middle" },
 ]
 
@@ -160,6 +192,24 @@ export function parseSargamInput(text: string, tonic: string): ParsedSwara[] {
       continue
     }
 
+    if (ch === "." || ch === "_") {
+      const next = input.slice(index + 1)
+      const marked = parseDevanagariToken(next)
+      if (marked) {
+        const octave: SwaraOctave = ch === "." ? "lower" : marked.octave
+        const token = ch === "_" && marked.token === marked.token.toUpperCase()
+          ? komalToken(marked.token)
+          : marked.token
+        const western = swaraToWestern(tonic, token, octave)
+        const frequencyHz = western ? westernToHz(western) : null
+        if (western && frequencyHz) {
+          out.push({ token, octave, western, frequencyHz })
+        }
+        index += 1 + marked.length
+        continue
+      }
+    }
+
     const devanagari = parseDevanagariToken(input.slice(index))
     if (devanagari) {
       const western = swaraToWestern(tonic, devanagari.token, devanagari.octave)
@@ -177,8 +227,9 @@ export function parseSargamInput(text: string, tonic: string): ParsedSwara[] {
     }
 
     const chunk = input.slice(index).match(/^[\p{L}\p{M}'′`._-]+/u)?.[0] ?? input[index]
+    const stripped = chunk.replace(/^\./, "")
     const octave = octaveFromToken(chunk)
-    const token = normalizeSwaraToken(chunk)
+    const token = normalizeSwaraToken(stripped)
     if (token) {
       const resolvedOctave = /['′`]/i.test(chunk) ? "upper" : octave
       const western = swaraToWestern(tonic, token, resolvedOctave)
@@ -200,16 +251,104 @@ export function swaraToWestern(tonic: string, token: string, octave: SwaraOctave
   return semitonesToWestern(tonic, offset + octaveShift, 4)
 }
 
-/** Eight-key shuddha layout used by global virtual harmonium apps. */
-export function harmoniumKeyboardLayout(tonic: string): HarmoniumKeyboardKey[] {
-  return KEYBOARD_SWARAS.map((swara, index) => {
-    const western = semitonesToWestern(tonic, SHUDDHA_SCALE_STEPS[index] ?? 0, 4)
-    const frequencyHz = westernToHz(western) ?? 0
+function komalToken(token: string): string {
+  if (token === "R") return "r"
+  if (token === "G") return "g"
+  if (token === "D") return "d"
+  if (token === "N") return "n"
+  return token
+}
+
+function midiToWestern(midi: number): string {
+  const clipped = Math.max(48, Math.min(84, Math.round(midi)))
+  const note = clipped % 12
+  const outOctave = Math.floor(clipped / 12) - 1
+  return `${HARMONIUM_TONICS[note]}${outOctave}`
+}
+
+function decorateSwaraName(
+  chroma: (typeof SWARA_CHROMA)[number],
+  octave: SwaraOctave,
+): { latin: string; devanagari: string } {
+  if (octave === "upper") {
     return {
-      ...swara,
+      latin: `${chroma.latin}′`,
+      devanagari: chroma.token === "S" ? "सां" : `${chroma.devanagari}ं`,
+    }
+  }
+  if (octave === "lower") {
+    return {
+      latin: `.${chroma.latin}`,
+      devanagari: `.${chroma.devanagari}`,
+    }
+  }
+  return { latin: chroma.latin, devanagari: chroma.devanagari }
+}
+
+function whitesBefore(midi: number, startMidi: number): number {
+  let count = 0
+  for (let current = startMidi; current < midi; current += 1) {
+    if (!PIANO_BLACK_PC.has(current % 12)) count += 1
+  }
+  return count
+}
+
+/** Classic 2-octave chromatic harmonium (C3–C5), sargam names relative to Sa. */
+export function harmoniumKeyboardLayout(tonic: string): HarmoniumKeyboardKey[] {
+  const saMidi = tonicMidiBase(tonic, 4)
+  const whiteCount = whitesBefore(KEYBOARD_START_MIDI + KEYBOARD_KEY_COUNT, KEYBOARD_START_MIDI)
+  const keys: HarmoniumKeyboardKey[] = []
+
+  for (let index = 0; index < KEYBOARD_KEY_COUNT; index += 1) {
+    const midi = KEYBOARD_START_MIDI + index
+    const western = midiToWestern(midi)
+    const frequencyHz = westernToHz(western) ?? 0
+    const isBlack = PIANO_BLACK_PC.has(midi % 12)
+    const fromSa = midi - saMidi
+    const chroma = SWARA_CHROMA[((fromSa % 12) + 12) % 12]
+    const octave: SwaraOctave = fromSa < 0 ? "lower" : fromSa >= 12 ? "upper" : "middle"
+    const names = decorateSwaraName(chroma, octave)
+    const whiteIndex = isBlack ? whitesBefore(midi, KEYBOARD_START_MIDI) - 1 : whitesBefore(midi, KEYBOARD_START_MIDI)
+    const blackLeftPercent = isBlack ? ((whiteIndex + 0.72) / whiteCount) * 100 : 0
+
+    keys.push({
+      token: chroma.token,
+      latin: names.latin,
+      devanagari: names.devanagari,
+      shortcut: CHROMATIC_SHORTCUTS[index] ?? "",
       western,
       keyLabel: westernKeyLabel(western),
       frequencyHz,
+      isBlack,
+      isSa: fromSa % 12 === 0,
+      whiteIndex,
+      blackLeftPercent,
+    })
+  }
+
+  return keys
+}
+
+/** Eight-key shuddha strip (Sa–Sa′) for compact practice rows. */
+export function shuddhaHarmoniumLayout(tonic: string): HarmoniumKeyboardKey[] {
+  return SHUDDHA_SCALE_STEPS.map((step, index) => {
+    const western = semitonesToWestern(tonic, step, 4)
+    const frequencyHz = westernToHz(western) ?? 0
+    const chroma = SWARA_CHROMA[step === 12 ? 0 : step]
+    const octave: SwaraOctave = step >= 12 ? "upper" : "middle"
+    const names = decorateSwaraName(chroma, octave)
+    return {
+      token: chroma.token,
+      latin: names.latin,
+      devanagari: names.devanagari,
+      shortcut: ["z", "x", "c", "v", "b", "n", "m", ","][index] ?? "",
+      western,
+      keyLabel: westernKeyLabel(western),
+      frequencyHz,
+      isBlack: false,
+      isSa: step === 0 || step === 12,
+      whiteIndex: index,
+      blackLeftPercent: 0,
     }
   })
 }
@@ -235,10 +374,14 @@ export function sargamPlayEvents(
 }
 
 export function shortcutForKeyIndex(index: number): string | null {
-  return KEYBOARD_SWARAS[index]?.shortcut ?? null
+  return CHROMATIC_SHORTCUTS[index] ?? null
 }
 
 export function keyboardIndexForShortcut(key: string): number {
-  const normalized = key.length === 1 ? key.toUpperCase() : key
-  return KEYBOARD_SWARAS.findIndex((swara) => swara.shortcut.toUpperCase() === normalized)
+  const normalized = key.length === 1 ? key.toLowerCase() : key
+  return CHROMATIC_SHORTCUTS.findIndex((shortcut) => shortcut === normalized)
+}
+
+export function keyboardIndexForWestern(keys: HarmoniumKeyboardKey[], western: string): number {
+  return keys.findIndex((key) => key.western === western)
 }
