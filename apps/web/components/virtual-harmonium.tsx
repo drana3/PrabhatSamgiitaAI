@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   BANDHU_HE_NIYE_CALO_SONG,
@@ -38,7 +38,7 @@ type Props = {
   onReleaseKey?: (key: HarmoniumKeyboardKey) => void
 }
 
-export function VirtualHarmonium({
+export const VirtualHarmonium = memo(function VirtualHarmonium({
   tonic,
   onTonicChange,
   compact = false,
@@ -286,13 +286,25 @@ export function VirtualHarmonium({
     <section className="surface-card rounded-[1.75rem] p-5 text-navy-950 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow">Harmonium player</p>
-          <h3 className="mt-2 font-serif text-3xl text-navy-950">Real reed samples</h3>
-          {!compact ? (
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              {ready ? "Yale Euterpea reeds · hold keys, play chords, add Sa–Pa drone" : "Loading reed samples… tap a key after they load"}
-            </p>
-          ) : null}
+          {keyboardOnly ? (
+            <>
+              <p className="eyebrow">Line capture</p>
+              <h3 className="mt-2 font-serif text-2xl text-navy-950">Virtual harmonium</h3>
+              <p className="mt-1 text-sm text-stone-600">
+                {ready ? "Hold keys to record · Sa below" : "Loading samples…"}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="eyebrow">Harmonium player</p>
+              <h3 className="mt-2 font-serif text-3xl text-navy-950">Real reed samples</h3>
+              {!compact ? (
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  {ready ? "Yale Euterpea reeds · hold keys, play chords, add Sa–Pa drone" : "Loading reed samples… tap a key after they load"}
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
         {onTonicChange ? (
           <label className="flex items-center gap-2 text-xs font-bold text-navy-950">
@@ -314,6 +326,8 @@ export function VirtualHarmonium({
         )}
       </div>
 
+      {!keyboardOnly ? (
+      <>
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-navy-900/10 bg-gold-50 p-3">
         <label className="flex items-center gap-2 text-xs font-semibold text-navy-800">
           Bellows
@@ -376,6 +390,8 @@ export function VirtualHarmonium({
         ))}
         <span className="text-[11px] text-stone-500">Bass −8ve · Female +5th · High +8ve</span>
       </div>
+      </>
+      ) : null}
 
       <div
         className="relative mt-4 overflow-x-auto rounded-[1.25rem] border border-navy-900/10 bg-navy-950 p-2 shadow-[0_16px_45px_rgba(42,31,15,0.12)]"
@@ -581,7 +597,7 @@ export function VirtualHarmonium({
       )}
     </section>
   )
-}
+})
 
 function chipClass(active: boolean): string {
   return active

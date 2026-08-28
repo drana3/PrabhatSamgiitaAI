@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { AdminShell } from "@/components/admin-shell"
@@ -46,6 +46,13 @@ type CapturePayload = {
   lines: CaptureLine[]
 }
 
+type PendingAction = "save" | "confirm" | "retake" | "submit" | "visibility" | "play" | null
+
+const actionButtonClass =
+  "outline-button px-4 py-2 text-sm transition-transform duration-75 active:scale-[0.98] disabled:opacity-50 touch-manipulation"
+const goldButtonClass =
+  "gold-button px-4 py-2 text-sm transition-transform duration-75 active:scale-[0.98] disabled:opacity-50 touch-manipulation"
+
 function eventsToSheet(events: CaptureEvent[]): SheetPlayEvent[] {
   return events.map((event) => ({
     western: event.western,
@@ -69,6 +76,51 @@ function concatenateLines(lines: CaptureLine[], restSec: number): SheetPlayEvent
   return all
 }
 
+function canSubmitLines(lines: CaptureLine[]): boolean {
+  return lines.length > 0 && lines.every((line) => line.status === "confirmed")
+}
+
+function applyLineAction(
+  capture: CapturePayload,
+  lineNumber: number,
+  action: "confirm" | "retake",
+): CapturePayload {
+  const lines = capture.lines.map((line) => {
+    if (line.line_number !== lineNumber) return line
+    if (action === "confirm") {
+      return { ...line, status: "confirmed" as const }
+    }
+    return { ...line, status: "empty" as const, events: [], sargam: null }
+  })
+  return {
+    ...capture,
+    lines,
+    can_submit: canSubmitLines(lines),
+  }
+}
+
+const CaptureKeyboard = memo(function CaptureKeyboard({
+  tonic,
+  onTonicChange,
+  onPressKey,
+  onReleaseKey,
+}: {
+  tonic: string
+  onTonicChange: (tonic: string) => void
+  onPressKey: (key: HarmoniumKeyboardKey) => void
+  onReleaseKey: (key: HarmoniumKeyboardKey) => void
+}) {
+  return (
+    <VirtualHarmonium
+      tonic={tonic}
+      onTonicChange={onTonicChange}
+      keyboardOnly
+      onPressKey={onPressKey}
+      onReleaseKey={onReleaseKey}
+    />
+  )
+})
+
 export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) {
   const router = useRouter()
   const [songNumber, setSongNumber] = useState(initialNumber ? String(initialNumber) : "")
@@ -78,12 +130,23 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
   const [recording, setRecording] = useState(false)
   const [studioOpen, setStudioOpen] = useState(false)
   const [activeLine, setActiveLine] = useState(1)
-  const [liveEvents, setLiveEvents] = useState<CaptureEvent[]>([])
+  const [notesCaptured, setNotesCaptured] = useState(0)
   const [tonic, setTonic] = useState("C")
   const [tempoBpm, setTempoBpm] = useState(HARMONIUM_PLAY_TEMPOS.medium.bpm)
-  const [saving, setSaving] = useState(false)
+  const [pending, setPending] = useState<PendingAction>(null)
   const originMs = useRef(0)
-  const pending = useRef(new Map<string, { startMs: number; key: HarmoniumKeyboardKey }>())
+  const pendingKeys = useRef(new Map<string, { startMs: number; key: HarmoniumKeyboardKey }>())
+  const liveEventsRef = useRef<CaptureEvent[]>([])
+  const recordingRef = useRef(false)
+  const captureRef = useRef<CapturePayload | null>(null)
+
+  useEffect(() => {
+    recordingRef.current = recording
+  }, [recording])
+
+  useEffect(() => {
+    captureRef.current = capture
+  }, [capture])
 
   const loadCapture = useCallback(async (number: number) => {
     setLoading(true)
@@ -125,44 +188,47 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
   const currentLine = capture?.lines.find((line) => line.line_number === activeLine)
 
   const onPressKey = useCallback((key: HarmoniumKeyboardKey) => {
-    if (!recording) return
-    pending.current.set(key.western, { startMs: Date.now(), key })
-  }, [recording])
+    if (!recordingRef.current) return
+    pendingKeys.current.set(key.western, { startMs: Date.now(), key })
+  }, [])
 
   const onReleaseKey = useCallback((key: HarmoniumKeyboardKey) => {
-    if (!recording) return
-    const held = pending.current.get(key.western)
-    pending.current.delete(key.western)
+    if (!recordingRef.current) return
+    const held = pendingKeys.current.get(key.western)
+    pendingKeys.current.delete(key.western)
     if (!held) return
     const startSec = Math.max(0, (held.startMs - originMs.current) / 1000)
     const durationSec = Math.max(0.12, (Date.now() - held.startMs) / 1000)
     const octave = Number(key.western.slice(-1))
     const sargam =
       octave <= 3 ? `.${key.token}` : octave >= 5 ? `${key.token}'` : key.token
-    setLiveEvents((current) => [
-      ...current,
-      { sargam, western: key.western, startSec, durationSec },
-    ])
-  }, [recording])
+    liveEventsRef.current.push({ sargam, western: key.western, startSec, durationSec })
+    setNotesCaptured(liveEventsRef.current.length)
+  }, [])
 
   function startRecord() {
     if (capture?.booklet_locked) return
-    pending.current.clear()
+    pendingKeys.current.clear()
+    liveEventsRef.current = []
+    setNotesCaptured(0)
     originMs.current = Date.now()
-    setLiveEvents([])
+    recordingRef.current = true
     setRecording(true)
   }
 
   async function stopAndSave() {
-    if (!capture || !currentLine) return
+    const snapshot = captureRef.current
+    const line = snapshot?.lines.find((item) => item.line_number === activeLine)
+    if (!snapshot || !line) return
+    recordingRef.current = false
     setRecording(false)
-    const events = [...liveEvents]
+    const events = [...liveEventsRef.current]
     if (!events.length) return
-    setSaving(true)
+    setPending("save")
     setError("")
     try {
       const response = await fetch(
-        `/api/admin/sargam-capture/${capture.song_number}/lines/${currentLine.line_number}/takes`,
+        `/api/admin/sargam-capture/${snapshot.song_number}/lines/${line.line_number}/takes`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -175,56 +241,77 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
         return
       }
       setCapture(body as CapturePayload)
-      setLiveEvents([])
+      liveEventsRef.current = []
+      setNotesCaptured(0)
     } finally {
-      setSaving(false)
+      setPending(null)
     }
   }
 
   async function postLine(action: "confirm" | "retake") {
-    if (!capture || !currentLine) return
-    setSaving(true)
+    const snapshot = captureRef.current
+    const line = snapshot?.lines.find((item) => item.line_number === activeLine)
+    if (!snapshot || !line || pending) return
+
+    const previous = snapshot
+    const optimistic = applyLineAction(snapshot, line.line_number, action)
+    setCapture(optimistic)
+    if (action === "confirm") {
+      const next = optimistic.lines.find((item) => item.status !== "confirmed")
+      if (next) setActiveLine(next.line_number)
+    } else {
+      liveEventsRef.current = []
+      setNotesCaptured(0)
+    }
+
+    setPending(action === "confirm" ? "confirm" : "retake")
     setError("")
     try {
       const response = await fetch(
-        `/api/admin/sargam-capture/${capture.song_number}/lines/${currentLine.line_number}/${action}`,
+        `/api/admin/sargam-capture/${snapshot.song_number}/lines/${line.line_number}/${action}`,
         { method: "POST" },
       )
       const body = await response.json().catch(() => null)
       if (!response.ok) {
+        setCapture(previous)
         setError(readErrorDetail(body, `Could not ${action} this line`))
         return
       }
-      const payload = body as CapturePayload
-      setCapture(payload)
-      if (action === "confirm") {
-        const next = payload.lines.find((line) => line.status !== "confirmed")
-        if (next) setActiveLine(next.line_number)
-      } else {
-        setLiveEvents([])
-      }
+      setCapture(body as CapturePayload)
     } finally {
-      setSaving(false)
+      setPending(null)
     }
   }
 
   async function playEvents(events: CaptureEvent[]) {
-    if (!events.length) return
-    await playSheetEvents(eventsToSheet(events))
+    if (!events.length || pending === "play") return
+    setPending("play")
+    try {
+      await playSheetEvents(eventsToSheet(events))
+    } finally {
+      setPending(null)
+    }
   }
 
   async function playFinal() {
-    if (!capture) return
-    const timing = sampleSongTiming(tempoBpm)
-    await playSheetEvents(concatenateLines(capture.lines, timing.lineRestSec))
+    const snapshot = captureRef.current
+    if (!snapshot || pending === "play") return
+    setPending("play")
+    try {
+      const timing = sampleSongTiming(tempoBpm)
+      await playSheetEvents(concatenateLines(snapshot.lines, timing.lineRestSec))
+    } finally {
+      setPending(null)
+    }
   }
 
   async function submitSong() {
-    if (!capture) return
-    setSaving(true)
+    const snapshot = captureRef.current
+    if (!snapshot || pending) return
+    setPending("submit")
     setError("")
     try {
-      const response = await fetch(`/api/admin/sargam-capture/${capture.song_number}/submit`, {
+      const response = await fetch(`/api/admin/sargam-capture/${snapshot.song_number}/submit`, {
         method: "POST",
       })
       const body = await response.json().catch(() => null)
@@ -234,30 +321,39 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
       }
       setCapture(body as CapturePayload)
     } finally {
-      setSaving(false)
+      setPending(null)
     }
   }
 
   async function setNotationEnabled(enabled: boolean) {
-    if (!capture) return
-    setSaving(true)
+    const snapshot = captureRef.current
+    if (!snapshot || pending) return
+    const previous = snapshot
+    setCapture({ ...snapshot, notation_enabled: enabled })
+    setPending("visibility")
     setError("")
     try {
-      const response = await fetch(`/api/admin/sargam-capture/${capture.song_number}/visibility`, {
+      const response = await fetch(`/api/admin/sargam-capture/${snapshot.song_number}/visibility`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) {
+        setCapture(previous)
         setError(readErrorDetail(body, "Could not update notation visibility"))
         return
       }
       setCapture(body as CapturePayload)
     } finally {
-      setSaving(false)
+      setPending(null)
     }
   }
+
+  const lineEvents = currentLine?.events || []
+  const previewEvents = recording && notesCaptured > 0 ? liveEventsRef.current : lineEvents
+  const playDisabled = previewEvents.length === 0 || pending === "play"
+  const replayDisabled = lineEvents.length === 0 || pending === "play"
 
   return (
     <AdminShell
@@ -277,7 +373,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
             aria-label="Song number"
           />
         </label>
-        <button type="submit" className="gold-button px-5 py-2.5 text-sm" disabled={loading}>
+        <button type="submit" className={goldButtonClass} disabled={loading}>
           {loading ? "Loading…" : "Load lyrics"}
         </button>
       </form>
@@ -313,15 +409,15 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
                 role="switch"
                 aria-checked={capture.notation_enabled}
                 aria-label="Show notation for this song"
-                disabled={saving}
+                disabled={pending === "visibility"}
                 onClick={() => void setNotationEnabled(!capture.notation_enabled)}
-                className={`relative h-8 w-14 rounded-full transition ${
+                className={`relative h-8 w-14 rounded-full transition-colors duration-150 ${
                   capture.notation_enabled ? "bg-navy-950" : "bg-stone-300"
                 }`}
               >
                 <span
-                  className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
-                    capture.notation_enabled ? "left-7" : "left-1"
+                  className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-transform duration-150 ${
+                    capture.notation_enabled ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -349,10 +445,10 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
                   <button
                     type="button"
                     onClick={() => setActiveLine(line.line_number)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left ${
+                    className={`w-full rounded-xl border px-3 py-2 text-left transition-colors duration-75 active:scale-[0.99] touch-manipulation ${
                       activeLine === line.line_number
                         ? "border-gold-500/40 bg-gold-50"
-                        : "border-navy-900/8 bg-white"
+                        : "border-navy-900/8 bg-white hover:bg-gold-50/40"
                     }`}
                   >
                     <span className="text-[10px] font-bold uppercase text-gold-700">
@@ -369,7 +465,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
             {!studioOpen ? (
               <button
                 type="button"
-                className="gold-button mt-4 px-5 py-2.5 text-sm"
+                className={`${goldButtonClass} mt-4`}
                 onClick={() => setStudioOpen(true)}
                 disabled={!capture.lines.length || capture.booklet_locked}
               >
@@ -380,23 +476,28 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
 
           {studioOpen ? (
             <div className="space-y-4">
-              <div className="sticky bottom-auto top-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl border border-navy-900/10 bg-white p-3">
+              <div className="sticky bottom-auto top-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl border border-navy-900/10 bg-white p-3 shadow-sm">
                 <button
                   type="button"
-                  className="outline-button px-4 py-2 text-sm"
-                  onClick={() => void playEvents(currentLine?.events || liveEvents)}
-                  disabled={!((currentLine?.events.length || liveEvents.length) > 0)}
+                  className={actionButtonClass}
+                  onClick={() => void playEvents(previewEvents)}
+                  disabled={playDisabled}
                 >
-                  Play this line
+                  {pending === "play" ? "Playing…" : "Play this line"}
                 </button>
                 {recording ? (
-                  <button type="button" className="gold-button px-4 py-2 text-sm" onClick={() => void stopAndSave()}>
-                    Stop & save take
+                  <button
+                    type="button"
+                    className={goldButtonClass}
+                    onClick={() => void stopAndSave()}
+                    disabled={pending === "save" || notesCaptured === 0}
+                  >
+                    {pending === "save" ? "Saving…" : "Stop & save take"}
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="gold-button px-4 py-2 text-sm"
+                    className={goldButtonClass}
                     onClick={startRecord}
                     disabled={capture.booklet_locked || currentLine?.status === "confirmed"}
                   >
@@ -405,45 +506,52 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
                 )}
                 <button
                   type="button"
-                  className="outline-button px-4 py-2 text-sm"
-                  onClick={() => void playEvents(currentLine?.events || [])}
-                  disabled={!currentLine?.events.length}
+                  className={actionButtonClass}
+                  onClick={() => void playEvents(lineEvents)}
+                  disabled={replayDisabled}
                 >
                   Replay
                 </button>
                 <button
                   type="button"
-                  className="outline-button px-4 py-2 text-sm"
+                  className={actionButtonClass}
                   onClick={() => void postLine("confirm")}
-                  disabled={saving || currentLine?.status !== "recorded"}
+                  disabled={pending === "confirm" || currentLine?.status !== "recorded"}
                 >
-                  Confirm
+                  {pending === "confirm" ? "Confirming…" : "Confirm"}
                 </button>
                 <button
                   type="button"
-                  className="outline-button px-4 py-2 text-sm"
+                  className={actionButtonClass}
                   onClick={() => void postLine("retake")}
-                  disabled={saving || currentLine?.status === "empty"}
+                  disabled={pending === "retake" || currentLine?.status === "empty"}
                 >
-                  Retake
+                  {pending === "retake" ? "Resetting…" : "Retake"}
                 </button>
                 <button
                   type="button"
-                  className="outline-button px-4 py-2 text-sm"
+                  className={actionButtonClass}
                   onClick={() => void playFinal()}
-                  disabled={!capture.can_submit && !capture.lines.every((line) => line.status === "confirmed")}
+                  disabled={
+                    pending === "play" ||
+                    (!capture.can_submit && !capture.lines.every((line) => line.status === "confirmed"))
+                  }
                 >
                   Final play
                 </button>
                 <button
                   type="button"
-                  className="gold-button px-4 py-2 text-sm"
+                  className={goldButtonClass}
                   onClick={() => void submitSong()}
-                  disabled={saving || !capture.can_submit}
+                  disabled={pending === "submit" || !capture.can_submit}
                 >
-                  Submit song
+                  {pending === "submit" ? "Submitting…" : "Submit song"}
                 </button>
-                {recording ? <span className="text-xs font-semibold text-red-700">Recording… play this lyric line</span> : null}
+                {recording ? (
+                  <span className="text-xs font-semibold text-red-700">
+                    Recording… {notesCaptured} note{notesCaptured === 1 ? "" : "s"}
+                  </span>
+                ) : null}
               </div>
 
               {currentLine ? (
@@ -452,10 +560,9 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
                 </p>
               ) : null}
 
-              <VirtualHarmonium
+              <CaptureKeyboard
                 tonic={tonic}
                 onTonicChange={setTonic}
-                keyboardOnly
                 onPressKey={onPressKey}
                 onReleaseKey={onReleaseKey}
               />
@@ -466,10 +573,10 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
                     key={id}
                     type="button"
                     onClick={() => setTempoBpm(HARMONIUM_PLAY_TEMPOS[id].bpm)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-75 active:scale-[0.98] touch-manipulation ${
                       tempoBpm === HARMONIUM_PLAY_TEMPOS[id].bpm
                         ? "bg-navy-950 text-white"
-                        : "bg-white text-navy-950"
+                        : "bg-white text-navy-950 hover:bg-gold-50"
                     }`}
                   >
                     {HARMONIUM_PLAY_TEMPOS[id].label}
