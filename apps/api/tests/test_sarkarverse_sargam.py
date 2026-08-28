@@ -34,6 +34,7 @@ def test_roman_and_bengali_files_are_classified() -> None:
     assert bengali["family"] == "svaralipi"
     assert bengali["song_start"] == 4001
     assert bengali["song_end"] == 4025
+    assert bengali["extract_role"] == "skip_not_roman"
     typo = MODULE.classify(
         "4001-5018",
         "4001-5018/Prabhata_Samgiita_Svaralipi_Volume_09_Part_05_Song_4101_tp_4125.pdf",
@@ -60,9 +61,8 @@ def test_plan_picks_one_primary_per_song_without_dump_duplicates() -> None:
     plan = MODULE.build_plan({"files": files})
     assert plan["songs"]["27"]["script"] == "roman"
     assert plan["songs"]["27"]["primary_file"] == "RS_0026-0050.pdf"
-    assert plan["songs"]["27"]["duplicates"][0]["file"] == "0027sl.pdf"
-    assert plan["songs"]["2094"]["family"] == "divyadyuti"
-    assert plan["songs"]["4001"]["script"] == "bengali"
+    assert "2094" not in plan["songs"]
+    assert "4001" not in plan["songs"]
     primaries = [row["primary_file"] for row in plan["songs"].values()]
     assert "0001-1000.pdf" not in primaries
     assert len(plan["songs"]) == len(set(plan["songs"]))
@@ -90,6 +90,16 @@ def test_roman_sargam_rows_parse_into_learner_notes() -> None:
     assert notes[:4] == ["G", "P", "P", "P"]
     assert "D" in notes
     assert confidence > 0
+
+
+def test_roman_booklet_parser_reads_sarkarverse_rs_holds() -> None:
+    extract = MODULE.extract
+    beats = extract.parse_roman_booklet_beats(
+        "II Sa ra ga a I ga dha pa a I ra a ga a I sa a ra a I"
+    )
+    assert sum(item["beats"] for item in beats) == 16
+    assert beats[0]["sargam"] == "S"
+    assert beats[2]["beats"] == 2
 
 
 def test_digital_rows_keep_sargam_and_drop_lyrics() -> None:
@@ -131,12 +141,28 @@ def test_practice_drafts_outside_andromeda_are_appended_for_the_db() -> None:
                 "source_kind": "sarkarverse_divyadyuti",
                 "requires_human_review": True,
             },
-        }
+        },
+        {
+            "song_number": 27,
+            "source_url": "https://sarkarverse.org/SARGAM/0001-1000/RS_0026-0050.pdf",
+            "notation_text": (
+                '{"version":1,"lines":[{"line_number":1,"lyrics":"Dao","measures":[]}]}'
+            ),
+            "scale": "C",
+            "verification_status": "practice_draft",
+            "metadata_json": {
+                "source_kind": "sarkarverse_roman_ocr",
+                "extraction_method": "sarkarverse_roman_tesseract",
+            },
+        },
     ]
     merged = _merge_notation_practice(sources, drafts)
     numbers = {row["song_number"] for row in merged}
-    assert numbers == {1, 2094}
-    extra = next(row for row in merged if row["song_number"] == 2094)
+    assert 2094 not in numbers
+    assert 1 in numbers and 27 in numbers
+    song1 = next(row for row in merged if row["song_number"] == 1)
+    assert not song1.get("notation_text")
+    extra = next(row for row in merged if row["song_number"] == 27)
     assert extra["notation_text"].startswith("{")
     assert "prabhatasamgiita.net" in extra["source_url"]
     assert "sarkarverse.org" not in extra["source_url"]

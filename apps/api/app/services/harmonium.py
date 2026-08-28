@@ -17,6 +17,7 @@ from app.schemas.notation import (
     NotationNote,
 )
 from app.services.catalog import CatalogService
+from app.services.sargam_capture import is_learner_playable_notation, is_notation_enabled
 
 CHROMATIC_ROOTS = {
     "C": 0,
@@ -209,25 +210,23 @@ def notation_from_json(text: str) -> HarmoniumNotation:
 
 
 async def load_song_notation(session: AsyncSession, song: Song) -> HarmoniumNotation | None:
-    if song.harmonium_notation:
-        raw = song.harmonium_notation.strip()
-        if raw.startswith("{"):
-            return notation_from_json(raw)
+    row = None
     try:
         result = await session.execute(select(Notation).where(Notation.song_number == song.number))
         row = result.scalar_one_or_none()
-        if not row:
-            return None
-        notation_text = row.notation_text
-        if not notation_text or not str(notation_text).strip().startswith("{"):
-            return None
-        return notation_from_json(str(notation_text))
     except SQLAlchemyError:
-        snapshot = await CatalogService(session).get_notation(song.number)
-        if (
-            not snapshot
-            or not snapshot.notation_text
-            or not snapshot.notation_text.strip().startswith("{")
-        ):
-            return None
-        return notation_from_json(snapshot.notation_text)
+        await session.rollback()
+        row = await CatalogService(session).get_notation(song.number)
+
+    if row and is_learner_playable_notation(
+        song.number, row.verification_status, row.notation_text, row.metadata_json
+    ):
+        return notation_from_json(str(row.notation_text))
+    if row and not is_notation_enabled(row.metadata_json):
+        return None
+
+    if song.harmonium_notation:
+        raw = song.harmonium_notation.strip()
+        if is_learner_playable_notation(song.number, "verified", raw):
+            return notation_from_json(raw)
+    return None

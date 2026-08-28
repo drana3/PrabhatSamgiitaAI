@@ -394,6 +394,15 @@ class CatalogService:
             return []
 
     async def get_notation(self, song_number: int) -> Notation | None:
+        try:
+            result = await self.session.execute(
+                select(Notation).where(Notation.song_number == song_number)
+            )
+            row = result.scalar_one_or_none()
+            if row and row.verification_status == "admin_submitted":
+                return row
+        except SQLAlchemyError:
+            await self.session.rollback()
         seeded = notations_by_song_number().get(song_number)
         if seeded is not None:
             return seeded

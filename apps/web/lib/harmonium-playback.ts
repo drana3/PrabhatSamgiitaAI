@@ -1,213 +1,238 @@
+"use client"
+
 import {
-  harmoniumSampleUrl,
-  reedWavDataUri,
+  shiftWesternPitch,
+  swaraToWestern,
   type SheetPlayEvent,
-  westernToHz,
 } from "@prabhat/core"
 
-let sharedContext: AudioContext | null = null
-const bufferCache = new Map<string, AudioBuffer>()
-const heldVoices = new Map<string, { stop: () => void }>()
+const SAMPLE_FILES = [
+  "A2.mp3", "A3.mp3", "A4.mp3", "As2.mp3", "As3.mp3", "As4.mp3",
+  "B2.mp3", "B3.mp3", "B4.mp3",
+  "C2.mp3", "C3.mp3", "C4.mp3", "C5.mp3", "Cs2.mp3", "Cs3.mp3", "Cs4.mp3", "Cs5.mp3",
+  "D2.mp3", "D3.mp3", "D4.mp3", "D5.mp3", "Ds2.mp3", "Ds3.mp3", "Ds4.mp3",
+  "E2.mp3", "E3.mp3", "E4.mp3",
+  "F2.mp3", "F3.mp3", "F4.mp3", "Fs2.mp3", "Fs3.mp3",
+  "G2.mp3", "G3.mp3", "G4.mp3", "Gs2.mp3", "Gs3.mp3", "Gs4.mp3",
+] as const
 
-async function getAudioContext(): Promise<AudioContext | null> {
+const SAMPLE_BASE = "/audio/harmonium-player/"
+
+type ToneModule = typeof import("tone")
+
+type Player = {
+  Tone: ToneModule
+  sampler: import("tone").Sampler
+  volume: import("tone").Volume
+}
+
+let playerPromise: Promise<Player | null> | null = null
+let droneNotes: string[] = []
+let voiceSemitones = 0
+let playbackGeneration = 0
+let sheetFinished: (() => void) | null = null
+let cachedPlayer: Player | null = null
+
+function fileToNote(file: string): string {
+  const match = file.match(/^([A-G])(s)?(\d)\.mp3$/)
+  if (!match) return file.replace(".mp3", "")
+  return match[2] ? `${match[1]}#${match[3]}` : `${match[1]}${match[3]}`
+}
+
+function sampleUrls(): Record<string, string> {
+  return Object.fromEntries(SAMPLE_FILES.map((file) => [fileToNote(file), file]))
+}
+
+async function createPlayer(): Promise<Player | null> {
   if (typeof window === "undefined") return null
-  const AudioContextClass =
-    window.AudioContext ||
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-  if (!AudioContextClass) return null
-  if (!sharedContext) sharedContext = new AudioContextClass()
-  await sharedContext.resume()
-  return sharedContext
+  const Tone = await import("tone")
+  await Tone.start()
+  const volume = new Tone.Volume(-8).toDestination()
+  const sampler = new Tone.Sampler({
+    urls: sampleUrls(),
+    baseUrl: SAMPLE_BASE,
+    attack: 0.04,
+    release: 0.32,
+  }).connect(volume)
+  await Tone.loaded()
+  const created = { Tone, sampler, volume }
+  cachedPlayer = created
+  return created
 }
 
-async function loadSampleBuffer(context: AudioContext, western: string): Promise<AudioBuffer | null> {
-  const cached = bufferCache.get(western)
-  if (cached) return cached
+export async function ensureHarmoniumPlayer(): Promise<boolean> {
+  if (!playerPromise) playerPromise = createPlayer().catch(() => null)
+  const player = await playerPromise
+  return Boolean(player)
+}
 
-  const url = harmoniumSampleUrl(western)
-  if (url) {
-    try {
-      const response = await fetch(url)
-      if (response.ok) {
-        const decoded = await context.decodeAudioData(await response.arrayBuffer())
-        bufferCache.set(western, decoded)
-        return decoded
-      }
-    } catch {
-      /* fallback below */
+async function getPlayer(): Promise<Player | null> {
+  if (!playerPromise) playerPromise = createPlayer().catch(() => null)
+  return playerPromise
+}
+
+export function setHarmoniumBellows(amount: number): void {
+  const gain = Math.min(1, Math.max(0.08, amount))
+  void getPlayer().then((player) => {
+    if (!player) return
+    player.volume.volume.value = player.Tone.gainToDb(gain)
+  })
+}
+
+function soundingNote(western: string): string {
+  return shiftWesternPitch(western, voiceSemitones)
+}
+
+export function setHarmoniumVoiceRegister(semitones: number): void {
+  voiceSemitones = semitones
+}
+
+export function setHarmoniumFineTune(cents: number): void {
+  const detune = Math.min(50, Math.max(-50, cents))
+  void getPlayer().then((player) => {
+    if (!player) return
+    const sampler = player.sampler as import("tone").Sampler & {
+      detune?: { value: number }
     }
-  }
-
-  const hz = westernToHz(western)
-  if (!hz) return null
-  try {
-    const response = await fetch(reedWavDataUri(hz, 0.95))
-    const decoded = await context.decodeAudioData(await response.arrayBuffer())
-    bufferCache.set(western, decoded)
-    return decoded
-  } catch {
-    return null
-  }
-}
-
-function playBuffer(
-  context: AudioContext,
-  buffer: AudioBuffer,
-  durationSec: number,
-  startAt = context.currentTime + 0.01,
-): () => void {
-  const source = context.createBufferSource()
-  const gain = context.createGain()
-  const lowpass = context.createBiquadFilter()
-  lowpass.type = "lowpass"
-  lowpass.frequency.value = 2800
-  lowpass.Q.value = 0.5
-  source.buffer = buffer
-  const playDuration = Math.min(durationSec, buffer.duration)
-  gain.gain.setValueAtTime(0.5, startAt)
-  gain.gain.setValueAtTime(0.5, startAt + Math.max(0, playDuration - 0.04))
-  gain.gain.linearRampToValueAtTime(0.001, startAt + playDuration)
-  source.connect(lowpass).connect(gain).connect(context.destination)
-  source.start(startAt, 0, playDuration)
-  return () => {
-    try {
-      source.stop()
-    } catch {
-      /* already stopped */
-    }
-  }
-}
-
-function fadeStop(context: AudioContext, gain: GainNode, stopNode: AudioScheduledSourceNode): () => void {
-  return () => {
-    const now = context.currentTime
-    try {
-      gain.gain.cancelScheduledValues(now)
-      const current = Math.max(gain.gain.value, 0.001)
-      gain.gain.setValueAtTime(current, now)
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08)
-      stopNode.stop(now + 0.1)
-    } catch {
-      /* already stopped */
-    }
-  }
-}
-
-function startHeldBuffer(context: AudioContext, buffer: AudioBuffer): () => void {
-  const source = context.createBufferSource()
-  const gain = context.createGain()
-  const lowpass = context.createBiquadFilter()
-  lowpass.type = "lowpass"
-  lowpass.frequency.value = 2800
-  lowpass.Q.value = 0.5
-  source.buffer = buffer
-  source.loop = true
-  const loopStart = Math.min(0.07, Math.max(0.02, buffer.duration * 0.08))
-  const loopEnd = Math.min(buffer.duration - 0.04, Math.max(loopStart + 0.2, buffer.duration * 0.72))
-  source.loopStart = loopStart
-  source.loopEnd = loopEnd
-  const now = context.currentTime
-  gain.gain.setValueAtTime(0.0001, now)
-  gain.gain.exponentialRampToValueAtTime(0.34, now + 0.025)
-  source.connect(lowpass).connect(gain).connect(context.destination)
-  source.start(now)
-  return fadeStop(context, gain, source)
-}
-
-function startHeldOscillator(context: AudioContext, frequencyHz: number): () => void {
-  const oscillator = context.createOscillator()
-  const gain = context.createGain()
-  const lowpass = context.createBiquadFilter()
-  lowpass.type = "lowpass"
-  lowpass.frequency.value = 2800
-  oscillator.type = "triangle"
-  oscillator.frequency.value = frequencyHz
-  const now = context.currentTime
-  gain.gain.setValueAtTime(0.0001, now)
-  gain.gain.exponentialRampToValueAtTime(0.08, now + 0.03)
-  oscillator.connect(lowpass).connect(gain).connect(context.destination)
-  oscillator.start(now)
-  return fadeStop(context, gain, oscillator)
-}
-
-function playOscillator(context: AudioContext, frequencyHz: number, durationSec: number, startAt: number): () => void {
-  const oscillator = context.createOscillator()
-  const gain = context.createGain()
-  const lowpass = context.createBiquadFilter()
-  lowpass.type = "lowpass"
-  lowpass.frequency.value = 2800
-  oscillator.type = "triangle"
-  oscillator.frequency.value = frequencyHz
-  gain.gain.setValueAtTime(0.0001, startAt)
-  gain.gain.exponentialRampToValueAtTime(0.08, startAt + 0.03)
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + durationSec)
-  oscillator.connect(lowpass).connect(gain).connect(context.destination)
-  oscillator.start(startAt)
-  oscillator.stop(startAt + durationSec + 0.02)
-  return () => {
-    try {
-      oscillator.stop()
-    } catch {
-      /* already stopped */
-    }
-  }
-}
-
-export async function playWesternNote(western: string, durationSec = 0.45): Promise<void> {
-  const context = await getAudioContext()
-  if (!context) return
-  const buffer = await loadSampleBuffer(context, western)
-  if (buffer) {
-    playBuffer(context, buffer, durationSec)
-    return
-  }
-  const hz = westernToHz(western)
-  if (!hz) return
-  playOscillator(context, hz, durationSec, context.currentTime + 0.01)
+    if (sampler.detune) sampler.detune.value = detune
+  })
 }
 
 export async function startWesternNote(western: string): Promise<() => void> {
-  heldVoices.get(western)?.stop()
-  heldVoices.delete(western)
-
-  const context = await getAudioContext()
-  if (!context) return () => undefined
-
-  const buffer = await loadSampleBuffer(context, western)
-  const stop = buffer
-    ? startHeldBuffer(context, buffer)
-    : (() => {
-        const hz = westernToHz(western)
-        return hz ? startHeldOscillator(context, hz) : () => undefined
-      })()
-
-  heldVoices.set(western, { stop })
+  const player = await getPlayer()
+  if (!player) return () => undefined
+  const now = player.Tone.now()
+  const pitch = soundingNote(western)
+  player.sampler.triggerAttack(pitch, now)
   return () => {
-    stop()
-    if (heldVoices.get(western)?.stop === stop) heldVoices.delete(western)
+    player.sampler.triggerRelease(pitch, player.Tone.now())
   }
 }
 
 export function stopActiveWesternNote(): void {
-  for (const voice of heldVoices.values()) voice.stop()
-  heldVoices.clear()
+  void getPlayer().then((player) => {
+    player?.sampler.releaseAll()
+  })
+  droneNotes = []
+}
+
+export async function playWesternNote(western: string, durationSec = 0.45): Promise<void> {
+  const player = await getPlayer()
+  if (!player) return
+  player.sampler.triggerAttackRelease(soundingNote(western), durationSec, player.Tone.now())
 }
 
 export async function playSheetEvents(events: SheetPlayEvent[]): Promise<void> {
-  const context = await getAudioContext()
-  if (!context || !events.length) return
+  return playSheetOnTransport(events)
+}
 
-  const buffers = await Promise.all(events.map((event) => loadSampleBuffer(context, event.western)))
-  const baseTime = context.currentTime + 0.05
+export function pauseHarmoniumSheet(): void {
+  const player = cachedPlayer
+  if (!player) return
+  player.Tone.Transport.pause()
+  player.sampler.releaseAll()
+}
 
-  events.forEach((event, index) => {
-    const start = baseTime + event.startSec
-    const buffer = buffers[index]
-    if (buffer) {
-      playBuffer(context, buffer, event.durationSec, start)
-      return
+export function resumeHarmoniumSheet(): void {
+  cachedPlayer?.Tone.Transport.start()
+}
+
+export function stopHarmoniumSheet(): void {
+  playbackGeneration += 1
+  const player = cachedPlayer
+  if (player) {
+    player.Tone.Transport.stop()
+    player.Tone.Transport.cancel()
+    player.sampler.releaseAll()
+  }
+  sheetFinished?.()
+  sheetFinished = null
+}
+
+export function getHarmoniumSheetSeconds(): number {
+  return cachedPlayer?.Tone.Transport.seconds ?? 0
+}
+
+function sheetEndSec(events: SheetPlayEvent[]): number {
+  const last = events[events.length - 1]
+  return last ? last.startSec + last.durationSec + 0.08 : 0
+}
+
+function scheduleSheetEvents(player: Player, events: SheetPlayEvent[], gen: number): number {
+  for (const event of events) {
+    player.Tone.Transport.schedule((time) => {
+      if (gen !== playbackGeneration) return
+      player.sampler.triggerAttackRelease(soundingNote(event.western), event.durationSec, time)
+    }, event.startSec)
+  }
+  const endSec = sheetEndSec(events)
+  player.Tone.Transport.scheduleOnce(() => {
+    if (gen !== playbackGeneration) return
+    const done = sheetFinished
+    sheetFinished = null
+    done?.()
+  }, endSec)
+  return endSec
+}
+
+/** Rebuild the playing sheet at a new tempo, keeping the same place in the song. */
+export function retargetHarmoniumSheet(events: SheetPlayEvent[], seconds: number, shouldPlay: boolean): void {
+  const player = cachedPlayer
+  if (!player || !events.length) return
+  const gen = playbackGeneration
+  player.Tone.Transport.pause()
+  player.Tone.Transport.cancel()
+  player.sampler.releaseAll()
+  const endSec = scheduleSheetEvents(player, events, gen)
+  const clipped = Math.max(0, Math.min(seconds, endSec))
+  player.Tone.Transport.seconds = clipped
+  if (shouldPlay) {
+    for (const event of events) {
+      if (clipped < event.startSec || clipped >= event.startSec + event.durationSec) continue
+      player.sampler.triggerAttackRelease(
+        soundingNote(event.western),
+        event.startSec + event.durationSec - clipped,
+        player.Tone.now(),
+      )
     }
-    const hz = westernToHz(event.western)
-    if (hz) playOscillator(context, hz, event.durationSec, start)
+    player.Tone.Transport.start()
+  }
+}
+
+export async function playSheetOnTransport(events: SheetPlayEvent[]): Promise<void> {
+  const player = await getPlayer()
+  if (!player || !events.length) return
+  const gen = playbackGeneration + 1
+  playbackGeneration = gen
+  player.Tone.Transport.stop()
+  player.Tone.Transport.cancel()
+  player.Tone.Transport.seconds = 0
+  scheduleSheetEvents(player, events, gen)
+  await new Promise<void>((resolve) => {
+    sheetFinished = resolve
+    player.Tone.Transport.start()
+  })
+}
+
+export async function startHarmoniumDrone(tonic: string): Promise<void> {
+  const player = await getPlayer()
+  if (!player) return
+  stopHarmoniumDrone()
+  const sa = swaraToWestern(tonic, "S", "middle")
+  const pa = swaraToWestern(tonic, "P", "middle")
+  droneNotes = [sa, pa]
+    .filter((note): note is string => Boolean(note))
+    .map((note) => soundingNote(note))
+  if (!droneNotes.length) return
+  player.sampler.triggerAttack(droneNotes, player.Tone.now())
+}
+
+export function stopHarmoniumDrone(): void {
+  if (!droneNotes.length) return
+  const notes = droneNotes
+  droneNotes = []
+  void getPlayer().then((player) => {
+    if (!player) return
+    player.sampler.triggerRelease(notes, player.Tone.now())
   })
 }

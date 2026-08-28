@@ -73,8 +73,7 @@ const CHROMATIC_SHORTCUTS = [
   "p",
 ] as const
 
-const KEYBOARD_START_MIDI = 48 // C3
-const KEYBOARD_KEY_COUNT = 25 // C3 through C5
+const KEYBOARD_KEY_COUNT = 25 // mandra Sa through taar Sa
 
 const SWARA_SEMITONES: Record<string, number> = {
   S: 0,
@@ -143,10 +142,43 @@ function tonicMidiBase(tonic: string, octave = 4): number {
 /** Map tonic + semitone offset to a western pitch in the sample bank range. */
 export function semitonesToWestern(tonic: string, semitones: number, octave = 4): string {
   const midi = Math.max(48, Math.min(84, Math.round(tonicMidiBase(tonic, octave) + semitones)))
-  const note = midi % 12
-  const outOctave = Math.floor(midi / 12) - 1
+  return midiToPitch(midi)
+}
+
+export function westernToMidi(western: string): number | null {
+  const match = western.trim().match(/^([A-G]#?)(-?\d+)$/)
+  if (!match) return null
+  const pc = HARMONIUM_TONICS.indexOf(match[1] as (typeof HARMONIUM_TONICS)[number])
+  if (pc < 0) return null
+  return (Number(match[2]) + 1) * 12 + pc
+}
+
+function midiToPitch(midi: number): string {
+  const clipped = Math.max(36, Math.min(84, Math.round(midi)))
+  const note = ((clipped % 12) + 12) % 12
+  const outOctave = Math.floor(clipped / 12) - 1
   return `${HARMONIUM_TONICS[note]}${outOctave}`
 }
+
+/** Shift a western pitch for bass / male / female / high singing range. */
+export function shiftWesternPitch(western: string, semitones: number): string {
+  const midi = westernToMidi(western)
+  if (midi == null) return western
+  return midiToPitch(midi + semitones)
+}
+
+export type HarmoniumVoiceRegister = "bass" | "male" | "female" | "high"
+
+export const HARMONIUM_VOICE_REGISTERS: Array<{
+  id: HarmoniumVoiceRegister
+  label: string
+  semitones: number
+}> = [
+  { id: "bass", label: "Bass", semitones: -12 },
+  { id: "male", label: "Male", semitones: 0 },
+  { id: "female", label: "Female", semitones: 7 },
+  { id: "high", label: "High", semitones: 12 },
+]
 
 export function westernKeyLabel(western: string): string {
   return western.replace(/\d+$/, "")
@@ -293,14 +325,15 @@ function whitesBefore(midi: number, startMidi: number): number {
   return count
 }
 
-/** Classic 2-octave chromatic harmonium (C3–C5), sargam names relative to Sa. */
+/** Classic 2-octave chromatic harmonium starting at mandra Sa. */
 export function harmoniumKeyboardLayout(tonic: string): HarmoniumKeyboardKey[] {
   const saMidi = tonicMidiBase(tonic, 4)
-  const whiteCount = whitesBefore(KEYBOARD_START_MIDI + KEYBOARD_KEY_COUNT, KEYBOARD_START_MIDI)
+  const startMidi = saMidi - 12
+  const whiteCount = whitesBefore(startMidi + KEYBOARD_KEY_COUNT, startMidi)
   const keys: HarmoniumKeyboardKey[] = []
 
   for (let index = 0; index < KEYBOARD_KEY_COUNT; index += 1) {
-    const midi = KEYBOARD_START_MIDI + index
+    const midi = startMidi + index
     const western = midiToWestern(midi)
     const frequencyHz = westernToHz(western) ?? 0
     const isBlack = PIANO_BLACK_PC.has(midi % 12)
@@ -308,7 +341,7 @@ export function harmoniumKeyboardLayout(tonic: string): HarmoniumKeyboardKey[] {
     const chroma = SWARA_CHROMA[((fromSa % 12) + 12) % 12]
     const octave: SwaraOctave = fromSa < 0 ? "lower" : fromSa >= 12 ? "upper" : "middle"
     const names = decorateSwaraName(chroma, octave)
-    const whiteIndex = isBlack ? whitesBefore(midi, KEYBOARD_START_MIDI) - 1 : whitesBefore(midi, KEYBOARD_START_MIDI)
+    const whiteIndex = isBlack ? whitesBefore(midi, startMidi) - 1 : whitesBefore(midi, startMidi)
     const blackLeftPercent = isBlack ? ((whiteIndex + 0.72) / whiteCount) * 100 : 0
 
     keys.push({
@@ -357,20 +390,28 @@ export function sargamPlayEvents(
   tonic: string,
   text: string,
   noteSec = 0.42,
-  gapSec = 0.08,
+  gapSec = 0.04,
 ): SheetPlayEvent[] {
   const swaras = parseSargamInput(text, tonic)
+  const events: SheetPlayEvent[] = []
   let cursor = 0
-  return swaras.map((swara) => {
-    const event: SheetPlayEvent = {
+  for (const swara of swaras) {
+    const last = events[events.length - 1]
+    if (last && last.western === swara.western) {
+      last.durationSec += noteSec + gapSec
+      cursor += noteSec + gapSec
+      continue
+    }
+    if (events.length) cursor += gapSec
+    events.push({
       western: swara.western,
       frequencyHz: swara.frequencyHz,
       startSec: cursor,
       durationSec: noteSec,
-    }
-    cursor += noteSec + gapSec
-    return event
-  })
+    })
+    cursor += noteSec
+  }
+  return events
 }
 
 export function shortcutForKeyIndex(index: number): string | null {

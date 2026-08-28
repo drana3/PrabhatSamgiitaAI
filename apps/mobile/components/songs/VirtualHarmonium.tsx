@@ -9,40 +9,55 @@ import {
 } from "react-native"
 
 import {
+  BANDHU_HE_NIYE_CALO_SONG,
+  HARMONIUM_PLAY_TEMPO_ORDER,
+  HARMONIUM_PLAY_TEMPOS,
   HARMONIUM_TONICS,
-  RAGHUPATI_RAGHAV_SONG,
+  HARMONIUM_VOICE_REGISTERS,
   SARGAM_EXAMPLES,
   harmoniumKeyboardLayout,
   keyboardIndexForWestern,
   parseSargamInput,
   sampleSongLineEvents,
   sampleSongPlayEvents,
+  sampleSongTiming,
   sargamPlayEvents,
   type HarmoniumKeyboardKey,
+  type HarmoniumPlayTempo,
+  type HarmoniumSampleSong,
+  type HarmoniumVoiceRegister,
 } from "@prabhat/core"
 
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { playSheetEvents, startWesternNote, stopActiveHarmoniumNote } from "@/lib/harmoniumPlayback"
+import { playSheetEvents, setHarmoniumVoiceRegister, startWesternNote, stopActiveHarmoniumNote } from "@/lib/harmoniumPlayback"
 
 type Props = {
   tonic: string
   onTonicChange?: (tonic: string) => void
+  song?: HarmoniumSampleSong
 }
 
-export function VirtualHarmonium({ tonic, onTonicChange }: Props) {
+export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_CALO_SONG }: Props) {
   const [typed, setTyped] = useState("")
   const [activeIndexes, setActiveIndexes] = useState<Set<number>>(new Set())
   const [playing, setPlaying] = useState(false)
   const [songLineIndex, setSongLineIndex] = useState<number | null>(null)
+  const [tempo, setTempo] = useState<HarmoniumPlayTempo>("medium")
+  const [voiceRegister, setVoiceRegister] = useState<HarmoniumVoiceRegister>("male")
   const stopsRef = useRef(new Map<number, () => void>())
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const keys = useMemo(() => harmoniumKeyboardLayout(tonic), [tonic])
   const whiteKeys = useMemo(() => keys.filter((key) => !key.isBlack), [keys])
   const blackKeys = useMemo(() => keys.filter((key) => key.isBlack), [keys])
   const parsedPreview = useMemo(() => parseSargamInput(typed, tonic), [typed, tonic])
-  const song = RAGHUPATI_RAGHAV_SONG
+  const tempoPreset = sampleSongTiming(tempo)
+
+  useEffect(() => {
+    const register = HARMONIUM_VOICE_REGISTERS.find((item) => item.id === voiceRegister)
+    setHarmoniumVoiceRegister(register?.semitones ?? 0)
+  }, [voiceRegister])
 
   useEffect(() => {
     return () => {
@@ -81,7 +96,7 @@ export function VirtualHarmonium({ tonic, onTonicChange }: Props) {
     if (!typed.trim() || playing) return
     setPlaying(true)
     try {
-      await playSheetEvents(sargamPlayEvents(tonic, typed))
+      await playSheetEvents(sargamPlayEvents(tonic, typed, tempoPreset.noteSec, tempoPreset.gapSec))
     } finally {
       setPlaying(false)
     }
@@ -92,8 +107,8 @@ export function VirtualHarmonium({ tonic, onTonicChange }: Props) {
     setPlaying(true)
     timers.current.forEach(clearTimeout)
     timers.current = []
-    const events = sampleSongPlayEvents(tonic, song)
-    const lines = sampleSongLineEvents(tonic, song)
+    const events = sampleSongPlayEvents(tonic, song, tempo)
+    const lines = sampleSongLineEvents(tonic, song, tempo)
     for (const [lineIndex, line] of lines.entries()) {
       timers.current.push(setTimeout(() => setSongLineIndex(lineIndex), Math.round(line.startSec * 1000)))
     }
@@ -138,6 +153,24 @@ export function VirtualHarmonium({ tonic, onTonicChange }: Props) {
         <Text style={styles.tonicLabel}>Sa = {tonic}</Text>
       )}
 
+      <Text style={styles.inputLabel}>Voice</Text>
+      <View style={styles.tempoRow}>
+        {HARMONIUM_VOICE_REGISTERS.map((register) => (
+          <Pressable
+            key={register.id}
+            onPress={() => setVoiceRegister(register.id)}
+            style={[styles.tonicChip, voiceRegister === register.id && styles.tonicActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: voiceRegister === register.id }}
+            accessibilityLabel={register.label}
+          >
+            <Text style={[styles.tonicText, voiceRegister === register.id && styles.tonicTextActive]}>
+              {register.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.keyboard}>
           <View style={styles.whiteRow}>
@@ -179,10 +212,30 @@ export function VirtualHarmonium({ tonic, onTonicChange }: Props) {
         </View>
       </ScrollView>
 
-      <Text style={styles.inputLabel}>Sample song</Text>
+      <Text style={styles.inputLabel}>{song.id === BANDHU_HE_NIYE_CALO_SONG.id ? "Sample song" : "Full sargam"}</Text>
       <Text style={styles.songTitle}>{song.title}</Text>
       <Text style={styles.songHi}>{song.titleHi}</Text>
-      <Text style={styles.lead}>Set Sa, then play each sargam syllable on the matching key.</Text>
+      <Text style={styles.lead}>Set Sa, then play each sargam beat on the matching key. There is a breath after every line.</Text>
+      <Text style={styles.inputLabel}>Tempo tuner</Text>
+      <View style={styles.tempoRow}>
+        {HARMONIUM_PLAY_TEMPO_ORDER.map((id) => (
+          <Pressable
+            key={id}
+            onPress={() => setTempo(id)}
+            style={[styles.tonicChip, tempo === id && styles.tonicActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: tempo === id }}
+            accessibilityLabel={HARMONIUM_PLAY_TEMPOS[id].label}
+          >
+            <Text style={[styles.tonicText, tempo === id && styles.tonicTextActive]}>
+              {HARMONIUM_PLAY_TEMPOS[id].label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.songHi}>
+        {tempoPreset.label} · {tempoPreset.bpm} BPM
+      </Text>
       <Pressable
         onPress={() => void playSampleSong()}
         disabled={playing}
@@ -193,7 +246,7 @@ export function VirtualHarmonium({ tonic, onTonicChange }: Props) {
         <Text style={styles.playBtnText}>{playing && songLineIndex != null ? "Playing…" : "▶ Play on keys"}</Text>
       </Pressable>
       {song.lines.map((line, index) => (
-        <Text key={line.lyric} style={[styles.songLine, songLineIndex === index && styles.songLineActive]}>
+        <Text key={`${index}-${line.lyric}`} style={[styles.songLine, songLineIndex === index && styles.songLineActive]}>
           {line.lyric}
         </Text>
       ))}
@@ -260,6 +313,7 @@ const styles = StyleSheet.create({
   },
   lead: { ...typography.bodySmall, color: colors.playerMuted },
   tonicRow: { gap: spacing.sm, paddingVertical: spacing.xs },
+  tempoRow: { flexDirection: "row", gap: spacing.sm, paddingVertical: spacing.xs },
   tonicChip: {
     borderRadius: radius.pill,
     borderWidth: 1,

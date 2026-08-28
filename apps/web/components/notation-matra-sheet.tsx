@@ -20,6 +20,7 @@ type Props = {
   onPlay?: () => void
   playing?: boolean
   expertVerified?: boolean
+  allowPlay?: boolean
 }
 
 function scheduleOscillator(
@@ -119,11 +120,13 @@ export function NotationMatraSheet({
   onPlay,
   playing = false,
   expertVerified = false,
+  allowPlay = false,
 }: Props) {
   const sheet = buildNotationSheetLine(line, tala)
   if (!sheet.cells.length) return null
 
   const handlePlay = () => {
+    if (!allowPlay) return
     void playCellsInBrowser(sheet.cells, tempoBpm)
     onPlay?.()
   }
@@ -135,14 +138,16 @@ export function NotationMatraSheet({
           {formatTalaHeader(tala, songNumber)} · पंक्ति {lineIndex + 1}
           {expertVerified ? " · Expert sheet" : ""}
         </p>
-        <button
-          type="button"
-          onClick={handlePlay}
-          className="inline-flex items-center gap-1.5 rounded-full border border-gold-600/40 bg-gold-100 px-3 py-1.5 text-xs font-bold text-navy-950"
-          aria-label={`Play harmonium for line ${lineIndex + 1}`}
-        >
-          {playing ? "… Playing" : "▶ Harmonium"}
-        </button>
+        {allowPlay ? (
+          <button
+            type="button"
+            onClick={handlePlay}
+            className="inline-flex items-center gap-1.5 rounded-full border border-gold-600/40 bg-gold-100 px-3 py-1.5 text-xs font-bold text-navy-950"
+            aria-label={`Play harmonium for line ${lineIndex + 1}`}
+          >
+            {playing ? "… Playing" : "▶ Harmonium"}
+          </button>
+        ) : null}
       </div>
       <div className="inline-flex min-w-full">
         {sheet.cells.map((cell, index) => (

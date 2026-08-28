@@ -9,11 +9,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_session
 from app.models import Media
 from app.models.song import Song
-from app.schemas.song import MediaItemResponse, SongDetail, SongLocalizationResponse, SongSummary
+from app.schemas.song import (
+    MediaItemResponse,
+    SargamAttribution,
+    SongDetail,
+    SongLocalizationResponse,
+    SongSummary,
+)
 from app.services.catalog import CatalogService
 from app.services.localization import LocalizationService
 from app.services.media_quality import media_quality_key
 from app.services.notation_links import learner_notation_url
+from app.services.sargam_capture import (
+    is_learner_playable_notation,
+    is_notation_enabled,
+    sargam_attribution_payload,
+)
 
 router = APIRouter(prefix="/songs", tags=["songs"])
 
@@ -186,7 +197,20 @@ async def get_song(
         ),
         notation_verification_status=notation.verification_status if notation else None,
         notation_transposition_available=bool(
-            notation and notation.notation_text and notation.notation_text.strip().startswith("{")
+            notation
+            and is_learner_playable_notation(
+                number, notation.verification_status, notation.notation_text, notation.metadata_json
+            )
+        ),
+        notation_enabled=is_notation_enabled(notation.metadata_json if notation else None),
+        sargam_attribution=(
+            SargamAttribution.model_validate(
+                sargam_attribution_payload(notation.metadata_json, notation.verification_status)
+            )
+            if notation
+            and is_notation_enabled(notation.metadata_json)
+            and sargam_attribution_payload(notation.metadata_json, notation.verification_status)
+            else None
         ),
         metadata_json=metadata_json,
     )

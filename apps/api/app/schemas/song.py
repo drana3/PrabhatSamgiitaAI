@@ -33,6 +33,11 @@ class MediaItemResponse(BaseModel):
     match_score: float | None = None
 
 
+class SargamAttribution(BaseModel):
+    display_name: str
+    submitted_at: str | None = None
+
+
 class SongDetail(SongSummary):
     lyrics_original: str | None = None
     transliteration: str | None = None
@@ -52,6 +57,8 @@ class SongDetail(SongSummary):
     notation_source_url: str | None = None
     notation_verification_status: str | None = None
     notation_transposition_available: bool = False
+    notation_enabled: bool = True
+    sargam_attribution: SargamAttribution | None = None
     metadata_json: dict[str, Any] = Field(default_factory=dict)
 
 

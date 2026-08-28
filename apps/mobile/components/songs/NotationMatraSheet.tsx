@@ -23,6 +23,7 @@ type Props = {
   tala?: SheetTala | null
   tempoBpm?: number | null
   expertVerified?: boolean
+  allowPlay?: boolean
 }
 
 export function NotationMatraSheet({
@@ -32,6 +33,7 @@ export function NotationMatraSheet({
   tala,
   tempoBpm,
   expertVerified = false,
+  allowPlay = false,
 }: Props) {
   const sheet = buildNotationSheetLine(line, tala)
   const [playing, setPlaying] = useState(false)
@@ -127,6 +129,7 @@ export function NotationMatraSheet({
           {formatTalaHeader(tala, songNumber)} · पंक्ति {lineIndex + 1}
           {expertVerified ? " · Expert" : ""}
         </Text>
+        {allowPlay ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Play harmonium for line ${lineIndex + 1}`}
@@ -135,6 +138,7 @@ export function NotationMatraSheet({
         >
           <Text style={styles.playText}>{playing ? "Stop" : "▶ Harmonium"}</Text>
         </Pressable>
+        ) : null}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.row}>

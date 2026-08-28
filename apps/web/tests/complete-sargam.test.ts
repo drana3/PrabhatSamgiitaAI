@@ -5,6 +5,7 @@ import {
   completeSargamCount,
   completeSargamSongs,
   isCompleteSargamQuery,
+  isCompleteSargamSong,
 } from "@/lib/complete-sargam"
 import { exploreSearchKind } from "@/lib/special-collections"
 import { shouldPrefetchExploreSearch } from "@/lib/explore-search"
@@ -18,11 +19,15 @@ describe("complete Sargam website list", () => {
     expect(isCompleteSargamQuery("harmonium")).toBe(false)
   })
 
-  it("ships a non-empty complete-notation catalog", () => {
+  it("lists every Roman RS booklet song and excludes Bengali-PDF-only numbers", () => {
     const songs = completeSargamSongs()
-    expect(songs.length).toBeGreaterThan(20)
+    expect(songs.length).toBeGreaterThan(100)
     expect(completeSargamCount()).toBe(songs.length)
-    expect(songs[0]).toMatchObject({ number: expect.any(Number), title: expect.any(String) })
+    expect(songs[0]).toMatchObject({ number: 1, title: expect.any(String) })
+    expect(isCompleteSargamSong(1)).toBe(true)
+    expect(isCompleteSargamSong(175)).toBe(true)
+    expect(isCompleteSargamSong(176)).toBe(false)
+    expect(isCompleteSargamSong(296)).toBe(false)
   })
 
   it("uses catalog Explore without API prefetch", () => {

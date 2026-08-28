@@ -178,17 +178,17 @@ def test_canonical_inventory_titles_are_not_truncated() -> None:
     assert len([item for item in inventory if item.source_kind == "audio"]) >= 10_000
 
 
-def test_learner_notation_has_substantial_real_source_coverage() -> None:
+def test_learner_notation_does_not_publish_ocr_practice_drafts() -> None:
     notations = catalog_notation_snapshot()
     machine_readable = [item for item in notations if item.notation_text]
 
-    assert len(machine_readable) >= 1_000
     assert all(item.verification_status != "verified" for item in machine_readable)
-    assert all(
-        item.metadata_json.get("requires_human_review") is True
-        or item.verification_status == "expert_verified"
-        for item in machine_readable
-    )
+    for item in machine_readable:
+        meta = item.metadata_json or {}
+        method = str(meta.get("extraction_method") or "").lower()
+        assert item.verification_status == "expert_verified"
+        assert str(meta.get("source_kind") or "") != "sarkarverse_roman_ocr"
+        assert "bengali" not in method
 
 
 @pytest.mark.asyncio

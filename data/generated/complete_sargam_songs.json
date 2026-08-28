@@ -1,12 +1,291 @@
 {
   "label": "Full Sargam",
   "query": "full sargam",
-  "count": 35,
+  "count": 175,
   "songs": [
+    {
+      "number": 1,
+      "title": "BANDHU HE NIYE CALO",
+      "first_line": "BANDHU HE NIYE CALO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
     {
       "number": 2,
       "title": "E GÁN ÁMÁR, ÁLOR JHARAŃÁ DHÁRÁ",
       "first_line": "E GÁN ÁMÁR, ÁLOR JHARAŃÁ DHÁRÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 3,
+      "title": "ÁNDHÁRA SHEŚE ÁLORA DESHE",
+      "first_line": "ÁNDHÁRA SHEŚE ÁLORA DESHE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 4,
+      "title": "SAKAL MANER VIIŃÁ EK SURE BÁJE ÁJ",
+      "first_line": "SAKAL MANER VIIŃÁ EK SURE BÁJE ÁJ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 5,
+      "title": "ELO, ANEK JUGER SEI AJÁNÁ PATHIK",
+      "first_line": "ELO, ANEK JUGER SEI AJÁNÁ PATHIK",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 6,
+      "title": "BANDHU ÁMÁR",
+      "first_line": "BANDHU ÁMÁR",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 7,
+      "title": "NIIRAVATÁ MÁJHE KE GO TUMI ELE",
+      "first_line": "NIIRAVATÁ MÁJHE KE GO TUMI ELE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 8,
+      "title": "ÁMI JETE CÁI, TUMI NIYE JÁO",
+      "first_line": "ÁMI JETE CÁI, TUMI NIYE JÁO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 9,
+      "title": "ÁNDHÁRER SEI HATÁSHÁ",
+      "first_line": "ÁNDHÁRER SEI HATÁSHÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 10,
+      "title": "MÁYÁ MUKURE KE KI BHÁVE KI KARE",
+      "first_line": "MÁYÁ MUKURE KE KI BHÁVE KI KARE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 11,
+      "title": "NÁCER TÁLE EGIYE CALE ÁLTÁ RÁḾGÁ MÁT́I",
+      "first_line": "NÁCER TÁLE EGIYE CALE ÁLTÁ RÁḾGÁ MÁT́I",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 12,
+      "title": "NAYANE MAMATÁ BHARÁ",
+      "first_line": "NAYANE MAMATÁ BHARÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 13,
+      "title": "ÁMI SHUDHU HESECHI, NECECHI, GEYECHI",
+      "first_line": "ÁMI SHUDHU HESECHI, NECECHI, GEYECHI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 14,
+      "title": "ÁJ MANE PAŔE, ÁJ MANE PAŔE, HÁRÁNO DINETE",
+      "first_line": "ÁJ MANE PAŔE, ÁJ MANE PAŔE, HÁRÁNO DINETE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 15,
+      "title": "JEONÁ JEONÁ OGO BANDHU",
+      "first_line": "JEONÁ JEONÁ OGO BANDHU",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 16,
+      "title": "ÁJI, SAJALA PAVANE SAGHANA SVAPANE",
+      "first_line": "ÁJI, SAJALA PAVANE SAGHANA SVAPANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 17,
+      "title": "KET́E GECHE MEGH, GECHE UDVEG",
+      "first_line": "KET́E GECHE MEGH, GECHE UDVEG",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 18,
+      "title": "KE JENO ÁSIÁ KAYE GECHE KÁNE",
+      "first_line": "KE JENO ÁSIÁ KAYE GECHE KÁNE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 19,
+      "title": "NAVIINA PRÁTE EI ARUŃ ÁLOTE",
+      "first_line": "NAVIINA PRÁTE EI ARUŃ ÁLOTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 20,
+      "title": "DÚR ÁKÁSHER TÁRÁ OGO",
+      "first_line": "DÚR ÁKÁSHER TÁRÁ OGO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 21,
+      "title": "TUMI ÁLO JHALAMALA PÚRŃIMÁ DIIP",
+      "first_line": "TUMI ÁLO JHALAMALA PÚRŃIMÁ DIIP",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 22,
+      "title": "O GO BANDHU, BOLITE PÁRO",
+      "first_line": "O GO BANDHU, BOLITE PÁRO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 23,
+      "title": "NÚTANER ÁLOK OGO",
+      "first_line": "NÚTANER ÁLOK OGO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 24,
+      "title": "BANDHU HE",
+      "first_line": "BANDHU HE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 25,
+      "title": "DUNIÁVÁNLO, TÁKATE RAHO",
+      "first_line": "DUNIÁVÁNLO, TÁKATE RAHO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 26,
+      "title": "BANDHU GÁO GÁO GÁO MADHUGIITI",
+      "first_line": "BANDHU GÁO GÁO GÁO MADHUGIITI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 27,
+      "title": "DÁO SÁŔÁ OGO PRABHU CHANDE GÁNE",
+      "first_line": "DÁO SÁŔÁ OGO PRABHU CHANDE GÁNE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 28,
+      "title": "BANDHU TOMÁY KII BOLIBO",
+      "first_line": "BANDHU TOMÁY KII BOLIBO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 29,
+      "title": "ÁMÁY CHOT́T́A EKT́I MAN DIYECHO",
+      "first_line": "ÁMÁY CHOT́T́A EKT́I MAN DIYECHO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 30,
+      "title": "TUMI MARME ESE ÁMÁR GHUM BHÁḾGÁLE",
+      "first_line": "TUMI MARME ESE ÁMÁR GHUM BHÁḾGÁLE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 31,
+      "title": "KON TIMIRER PÁR HOTE PHUT́E UT́HECHO",
+      "first_line": "KON TIMIRER PÁR HOTE PHUT́E UT́HECHO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 32,
+      "title": "UCCÁT́ANA MANA NÁ MÁNE BÁRAŃA",
+      "first_line": "UCCÁT́ANA MANA NÁ MÁNE BÁRAŃA",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -22,9 +301,171 @@
       "is_verified": true
     },
     {
+      "number": 34,
+      "title": "TOMÁR NAYAN TALE SAB KICHU NECE CALE",
+      "first_line": "TOMÁR NAYAN TALE SAB KICHU NECE CALE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 35,
+      "title": "ÁKÁSH VÁTÁS SUDHÁ NIRYÁS",
+      "first_line": "ÁKÁSH VÁTÁS SUDHÁ NIRYÁS",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 36,
+      "title": "SABÁR BANDHU SABÁR ÁPAN",
+      "first_line": "SABÁR BANDHU SABÁR ÁPAN",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 37,
+      "title": "KON BHULE JÁOÁ BHORE, SAHÁS SAMIIRE",
+      "first_line": "KON BHULE JÁOÁ BHORE, SAHÁS SAMIIRE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 38,
+      "title": "SE JE ESECHE MOR HRIDAYE GUNJÁRIÁ",
+      "first_line": "SE JE ESECHE MOR HRIDAYE GUNJÁRIÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 39,
+      "title": "TUMI ÁSIÁCHO SHATA JANAPAD VÁHIÁ",
+      "first_line": "TUMI ÁSIÁCHO SHATA JANAPAD VÁHIÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 40,
+      "title": "CAMPAK VANE DAKHINÁ PAVANE",
+      "first_line": "CAMPAK VANE DAKHINÁ PAVANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 41,
+      "title": "ÁNDHÁR PERIYE ÁPANI ESECHO",
+      "first_line": "ÁNDHÁR PERIYE ÁPANI ESECHO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 42,
+      "title": "TOMÁRE PEYECHI",
+      "first_line": "TOMÁRE PEYECHI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 43,
+      "title": "TOMRÁ JÁ KHUSHI TÁI BOLO",
+      "first_line": "TOMRÁ JÁ KHUSHI TÁI BOLO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 44,
+      "title": "ÁR KONO KATHÁ ÁMI MÁNI NÁ",
+      "first_line": "ÁR KONO KATHÁ ÁMI MÁNI NÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 45,
+      "title": "BAKUL GANDHE MADHURÁNANDE",
+      "first_line": "BAKUL GANDHE MADHURÁNANDE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
       "number": 46,
       "title": "ERÁ KÁNNÁY BHÁUNGÁ RUDHIRETE RÁNGÁ",
       "first_line": "ERÁ KÁNNÁY BHÁUNGÁ RUDHIRETE RÁNGÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 47,
+      "title": "KUINJA VANETE GUNJARŃETE",
+      "first_line": "KUINJA VANETE GUNJARŃETE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 48,
+      "title": "ÁLO JHARE PAŔE JHALAKE JHALAKE",
+      "first_line": "ÁLO JHARE PAŔE JHALAKE JHALAKE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 49,
+      "title": "D́ÁK DIYE JÁI JÁI JÁI",
+      "first_line": "D́ÁK DIYE JÁI JÁI JÁI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 50,
+      "title": "RAKTIM KISHALAY, ÁMI RAKTIM KISHALAY",
+      "first_line": "RAKTIM KISHALAY, ÁMI RAKTIM KISHALAY",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 51,
+      "title": "MOR MADHUKÁR VANE SPANDANA ENE",
+      "first_line": "MOR MADHUKÁR VANE SPANDANA ENE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 52,
+      "title": "TUMI UJJVAL DHRUVA TÁRÁ",
+      "first_line": "TUMI UJJVAL DHRUVA TÁRÁ",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -40,9 +481,126 @@
       "is_verified": true
     },
     {
+      "number": 54,
+      "title": "ÁMI RJU PATHE CALE CALI BHÁI",
+      "first_line": "ÁMI RJU PATHE CALE CALI BHÁI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 55,
+      "title": "SUR SAPTAKE MÁDHURI BHARI",
+      "first_line": "SUR SAPTAKE MÁDHURI BHARI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 56,
+      "title": "KE GO TUMI PATH PÁSHE DÁNŔIE EKÁ",
+      "first_line": "KE GO TUMI PATH PÁSHE DÁNŔIE EKÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 57,
+      "title": "CHANDA,",
+      "first_line": "CHANDA,",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 58,
+      "title": "DU JANE JAKHAN, MILICHE TAKHAN",
+      "first_line": "DU JANE JAKHAN, MILICHE TAKHAN",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 59,
+      "title": "NANIR PUTUL, T́UT́ULT́UT́UL",
+      "first_line": "NANIR PUTUL, T́UT́ULT́UT́UL",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 60,
+      "title": "TOMÁR JINIS TOMÁKE DIYECHI",
+      "first_line": "TOMÁR JINIS TOMÁKE DIYECHI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
       "number": 61,
       "title": "ÁMI PARÁŃ DHARIÁ DII TOMÁRI CARAŃE",
       "first_line": "ÁMI PARÁŃ DHARIÁ DII TOMÁRI CARAŃE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 62,
+      "title": "NAYANE ESE CHILE SVAPANE",
+      "first_line": "NAYANE ESE CHILE SVAPANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 63,
+      "title": "DIIPÁVALII SÁJÁYECHI PRABHU",
+      "first_line": "DIIPÁVALII SÁJÁYECHI PRABHU",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 64,
+      "title": "ÁKÁSHE ÁJ RANGER MELÁ",
+      "first_line": "ÁKÁSHE ÁJ RANGER MELÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 65,
+      "title": "KÁCHE ELE BOLE GELE NÁ",
+      "first_line": "KÁCHE ELE BOLE GELE NÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 66,
+      "title": "RUM JHUM, RUM JHUM, NÚPUR BÁJÁYE",
+      "first_line": "RUM JHUM, RUM JHUM, NÚPUR BÁJÁYE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 67,
+      "title": "TÁRI PATH PÁNE MAN CHUT́E JÁY",
+      "first_line": "TÁRI PATH PÁNE MAN CHUT́E JÁY",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -58,9 +616,135 @@
       "is_verified": true
     },
     {
+      "number": 69,
+      "title": "KE ELE NÁ BOLE ELE",
+      "first_line": "KE ELE NÁ BOLE ELE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 70,
+      "title": "JÁBO NÁ, ÁMI JÁBO NÁ, JÁBO NÁ RE",
+      "first_line": "JÁBO NÁ, ÁMI JÁBO NÁ, JÁBO NÁ RE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 71,
+      "title": "JAGAT T́Á NAY MITHYE MÁYÁ",
+      "first_line": "JAGAT T́Á NAY MITHYE MÁYÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 72,
+      "title": "MAO MÁCHI GUNGUNIE",
+      "first_line": "MAO MÁCHI GUNGUNIE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 73,
+      "title": "O GO PRIYA, O GO PRIYA",
+      "first_line": "O GO PRIYA, O GO PRIYA",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 74,
+      "title": "CAL CAL CAL CAL GÁN GEYE CAL",
+      "first_line": "CAL CAL CAL CAL GÁN GEYE CAL",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 75,
+      "title": "KE ELE ÁJI KE ELE",
+      "first_line": "KE ELE ÁJI KE ELE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 76,
+      "title": "SVAPANE KHONJ PEYE CHINU",
+      "first_line": "SVAPANE KHONJ PEYE CHINU",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 77,
+      "title": "SVAPANE TÁRE CINECHI",
+      "first_line": "SVAPANE TÁRE CINECHI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 78,
+      "title": "SVAPANE SE ESECHILO",
+      "first_line": "SVAPANE SE ESECHILO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 79,
+      "title": "SVAPANER CHONYÁ LEGE",
+      "first_line": "SVAPANER CHONYÁ LEGE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 80,
+      "title": "SVAPANE ESECHO ÁNANDA GHANA TUMI",
+      "first_line": "SVAPANE ESECHO ÁNANDA GHANA TUMI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 81,
+      "title": "SVAPANER GHORE",
+      "first_line": "SVAPANER GHORE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
       "number": 82,
       "title": "TUMI ESECHO, PRÁŃE ESECHO",
       "first_line": "TUMI ESECHO, PRÁŃE ESECHO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 83,
+      "title": "CIR NÚTANER ÁHVÁNE",
+      "first_line": "CIR NÚTANER ÁHVÁNE",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -76,9 +760,72 @@
       "is_verified": true
     },
     {
+      "number": 85,
+      "title": "DIN GULI CALE JÁY",
+      "first_line": "DIN GULI CALE JÁY",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 86,
+      "title": "MEGHER MÁJHE ÁGUN JVELE",
+      "first_line": "MEGHER MÁJHE ÁGUN JVELE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 87,
+      "title": "KATA JANAMER PRATIIKŚÁ PARE",
+      "first_line": "KATA JANAMER PRATIIKŚÁ PARE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 88,
+      "title": "HEMANTE SHIRSHIRE HAOÁTE",
+      "first_line": "HEMANTE SHIRSHIRE HAOÁTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 89,
+      "title": "KICHU PHÚL CÁY HÁT BÁŔHÁTE",
+      "first_line": "KICHU PHÚL CÁY HÁT BÁŔHÁTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 90,
+      "title": "HEMANTE MOR PHULER SÁJI BHARABE GO",
+      "first_line": "HEMANTE MOR PHULER SÁJI BHARABE GO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
       "number": 91,
       "title": "SHEŚ HEMANTE HIMEL HAOÁY",
       "first_line": "SHEŚ HEMANTE HIMEL HAOÁY",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 92,
+      "title": "HEMANTA ÁJI PRÁTE ESE CHE",
+      "first_line": "HEMANTA ÁJI PRÁTE ESE CHE",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -94,9 +841,432 @@
       "is_verified": true
     },
     {
+      "number": 94,
+      "title": "SHIITER KÁMPUNI NIYE ELE, KE GO TUMI",
+      "first_line": "SHIITER KÁMPUNI NIYE ELE, KE GO TUMI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 95,
+      "title": "CANDAN VIITHI KUHÁSÁY D́HÁKI",
+      "first_line": "CANDAN VIITHI KUHÁSÁY D́HÁKI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 96,
+      "title": "SHISHIR SIKTA KHARJUR VIITHI",
+      "first_line": "SHISHIR SIKTA KHARJUR VIITHI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 97,
+      "title": "SHIITE SHIULI KENO PHOT́E NÁ",
+      "first_line": "SHIITE SHIULI KENO PHOT́E NÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 98,
+      "title": "SHIIT ÁSIÁCHE SÁTHE ÁNIÁCHE",
+      "first_line": "SHIIT ÁSIÁCHE SÁTHE ÁNIÁCHE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
       "number": 99,
       "title": "BHÁVI NIKO ÁSABE TUMI SHIITER RÁTE",
       "first_line": "BHÁVI NIKO ÁSABE TUMI SHIITER RÁTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 100,
+      "title": "KAMALÁ NEBUR VARŃE GANDHE",
+      "first_line": "KAMALÁ NEBUR VARŃE GANDHE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 101,
+      "title": "SHITER SHEŚETE NAVA PÁTÁ ÁSE",
+      "first_line": "SHITER SHEŚETE NAVA PÁTÁ ÁSE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 102,
+      "title": "ASHOKE PALÁSHE NAVA ULLÁSE",
+      "first_line": "ASHOKE PALÁSHE NAVA ULLÁSE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 103,
+      "title": "VASANTA ÁJ JÁGLO",
+      "first_line": "VASANTA ÁJ JÁGLO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 104,
+      "title": "NRITYER TÁLE TÁLE NRITYER CHANDE",
+      "first_line": "NRITYER TÁLE TÁLE NRITYER CHANDE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 105,
+      "title": "ÁJI, VASANTA PAVANE LIILÁYITA CARAŃE",
+      "first_line": "ÁJI, VASANTA PAVANE LIILÁYITA CARAŃE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 106,
+      "title": "PHULER SÁJI SÁTHE NIYE",
+      "first_line": "PHULER SÁJI SÁTHE NIYE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 107,
+      "title": "VASANTA ÁJ HÁSALO",
+      "first_line": "VASANTA ÁJ HÁSALO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 108,
+      "title": "RAODRER KHARATÁPE",
+      "first_line": "RAODRER KHARATÁPE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 109,
+      "title": "BANDHU, TOMÁR GOPAN KATHÁ",
+      "first_line": "BANDHU, TOMÁR GOPAN KATHÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 110,
+      "title": "GRIIŚMÁVAKÁSHE SE YADI ÁSE",
+      "first_line": "GRIIŚMÁVAKÁSHE SE YADI ÁSE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 111,
+      "title": "VEŃUKÁR VAN KII KATHÁ KAY",
+      "first_line": "VEŃUKÁR VAN KII KATHÁ KAY",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 112,
+      "title": "IISHÁN KOŃETE MEGH JAMIÁCHE",
+      "first_line": "IISHÁN KOŃETE MEGH JAMIÁCHE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 113,
+      "title": "VISHÁKHÁ TANAY VAESHÁKHA TUMI",
+      "first_line": "VISHÁKHÁ TANAY VAESHÁKHA TUMI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 114,
+      "title": "KEKÁ KALARAVA MUKHARITA PRÁTE",
+      "first_line": "KEKÁ KALARAVA MUKHARITA PRÁTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 115,
+      "title": "VARŚÁR RÁTE TUMI ESE CHILE",
+      "first_line": "VARŚÁR RÁTE TUMI ESE CHILE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 116,
+      "title": "VARAŚÁ ESECHE NIIP NIKUINJE",
+      "first_line": "VARAŚÁ ESECHE NIIP NIKUINJE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 117,
+      "title": "VARAŚÁR DINE SABÁKÁR SANE",
+      "first_line": "VARAŚÁR DINE SABÁKÁR SANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 118,
+      "title": "VARAŚÁ ESECHE BHAROSÁ ESECHE",
+      "first_line": "VARAŚÁ ESECHE BHAROSÁ ESECHE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 119,
+      "title": "MEGH TUMI KÁCHE ESO",
+      "first_line": "MEGH TUMI KÁCHE ESO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 120,
+      "title": "SHÁRAD PRÁTE MOR EKTÁRÁTE",
+      "first_line": "SHÁRAD PRÁTE MOR EKTÁRÁTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 121,
+      "title": "ÁMI SHARAT SAKÁLE SHISHIRETE DHUE",
+      "first_line": "ÁMI SHARAT SAKÁLE SHISHIRETE DHUE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 122,
+      "title": "PATHIK TUMI EKÁKI ESE",
+      "first_line": "PATHIK TUMI EKÁKI ESE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 123,
+      "title": "SHARAT AE ÁSE AE ÁSE AE ÁSE",
+      "first_line": "SHARAT AE ÁSE AE ÁSE AE ÁSE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 124,
+      "title": "SHARAT, TOMÁR SURER MÁYAY",
+      "first_line": "SHARAT, TOMÁR SURER MÁYAY",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 125,
+      "title": "ÁJ, ÁKÁSHE TÁRÁR MELÁ",
+      "first_line": "ÁJ, ÁKÁSHE TÁRÁR MELÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 126,
+      "title": "EK, PARIKRAMÁR HOLO ANTA",
+      "first_line": "EK, PARIKRAMÁR HOLO ANTA",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 127,
+      "title": "EK NÚTANER SUR ÁJI BÁJALO, BÁJALO",
+      "first_line": "EK NÚTANER SUR ÁJI BÁJALO, BÁJALO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 128,
+      "title": "VATSAR, NAVA VATSAR",
+      "first_line": "VATSAR, NAVA VATSAR",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 129,
+      "title": "SURER DHÁRÁ EGIE CALE",
+      "first_line": "SURER DHÁRÁ EGIE CALE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 130,
+      "title": "SONÁLI BHOR JIIVANE MOR",
+      "first_line": "SONÁLI BHOR JIIVANE MOR",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 131,
+      "title": "NAVA VARŚA ELO ÁJI",
+      "first_line": "NAVA VARŚA ELO ÁJI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 132,
+      "title": "JANMA TITHITE NÚTANERA SROTE",
+      "first_line": "JANMA TITHITE NÚTANERA SROTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 133,
+      "title": "TAVA, SHUBHA JANMA DINE",
+      "first_line": "TAVA, SHUBHA JANMA DINE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 134,
+      "title": "JANAMA LAGANE",
+      "first_line": "JANAMA LAGANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 135,
+      "title": "JANMA DINE EI SHUBHA KŚAŃE",
+      "first_line": "JANMA DINE EI SHUBHA KŚAŃE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 136,
+      "title": "ÁJKERA EI SHISHU TARU",
+      "first_line": "ÁJKERA EI SHISHU TARU",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 137,
+      "title": "BESHI KICHU NÁHI CÁI",
+      "first_line": "BESHI KICHU NÁHI CÁI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 138,
+      "title": "ÁMI JE DIKE TÁKÁI HERI O RÚPA KEVAL",
+      "first_line": "ÁMI JE DIKE TÁKÁI HERI O RÚPA KEVAL",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 139,
+      "title": "TUMI ESE CHILE NIIRAVA NISHIITHE",
+      "first_line": "TUMI ESE CHILE NIIRAVA NISHIITHE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 140,
+      "title": "ÁCHO, KABARII VEŃIITE KÁLO D́OR HOY",
+      "first_line": "ÁCHO, KABARII VEŃIITE KÁLO D́OR HOY",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 141,
+      "title": "SE JE ÁKÁSHE SÁGARE VANE KÁNTÁRE",
+      "first_line": "SE JE ÁKÁSHE SÁGARE VANE KÁNTÁRE",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -130,9 +1300,27 @@
       "is_verified": true
     },
     {
+      "number": 145,
+      "title": "DÚR NIILÁKÁSHE, DAKHINÁ VÁTÁSE",
+      "first_line": "DÚR NIILÁKÁSHE, DAKHINÁ VÁTÁSE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
       "number": 146,
       "title": "AYUTA CHANDE ESE CHILE TUMI",
       "first_line": "AYUTA CHANDE ESE CHILE TUMI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 147,
+      "title": "ÁLO JHALAMALA MADHUR NISHIITHE",
+      "first_line": "ÁLO JHALAMALA MADHUR NISHIITHE",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -148,9 +1336,207 @@
       "is_verified": true
     },
     {
+      "number": 149,
+      "title": "MADHUR SVAPANE MANERI GAHANE",
+      "first_line": "MADHUR SVAPANE MANERI GAHANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
       "number": 150,
       "title": "BAL DÁO MORE BAL DÁO",
       "first_line": "BAL DÁO MORE BAL DÁO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 151,
+      "title": "ESE CHILE TUMI PRABHU",
+      "first_line": "ESE CHILE TUMI PRABHU",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 152,
+      "title": "CAMPAKA VANE MADHURA SVAPANE",
+      "first_line": "CAMPAKA VANE MADHURA SVAPANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 153,
+      "title": "ÁLOR PÁRETE ÁLO, TÁR PARE ÁRO ÁLO",
+      "first_line": "ÁLOR PÁRETE ÁLO, TÁR PARE ÁRO ÁLO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 154,
+      "title": "ESO ESO, PRABHU, ESO ESO",
+      "first_line": "ESO ESO, PRABHU, ESO ESO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 155,
+      "title": "D́ÁKITE CHO ÁMÁY",
+      "first_line": "D́ÁKITE CHO ÁMÁY",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 156,
+      "title": "EGIYE CALO, EGIYE CALO",
+      "first_line": "EGIYE CALO, EGIYE CALO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 157,
+      "title": "NÁ CINIÁI JÁHÁKE D́EKECHI",
+      "first_line": "NÁ CINIÁI JÁHÁKE D́EKECHI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 158,
+      "title": "TUMI SABÁR MANE ÁCHO",
+      "first_line": "TUMI SABÁR MANE ÁCHO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 159,
+      "title": "PRABHU, ÁMI BHÁLOBÁSI, TOMÁY BHÁLOBÁSI",
+      "first_line": "PRABHU, ÁMI BHÁLOBÁSI, TOMÁY BHÁLOBÁSI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 160,
+      "title": "TOMÁKE PEYECHI PRABHU SMARAŃE MANANE",
+      "first_line": "TOMÁKE PEYECHI PRABHU SMARAŃE MANANE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 161,
+      "title": "GÁNER SURE, TAVA GÁNER SURE",
+      "first_line": "GÁNER SURE, TAVA GÁNER SURE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 162,
+      "title": "KICHU KAYE JÁO KICHU SUNE JÁO",
+      "first_line": "KICHU KAYE JÁO KICHU SUNE JÁO",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 163,
+      "title": "MAN KE KONO CHOT́O KÁJEI",
+      "first_line": "MAN KE KONO CHOT́O KÁJEI",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 164,
+      "title": "KE NIVI ÁYE, ÁYE CHUT́E ÁYE",
+      "first_line": "KE NIVI ÁYE, ÁYE CHUT́E ÁYE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 165,
+      "title": "PÁYE CALÁR PATHER KATHÁ",
+      "first_line": "PÁYE CALÁR PATHER KATHÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 166,
+      "title": "ÁLOKER D́HEU ÁNDHÁR BHEDIÁ",
+      "first_line": "ÁLOKER D́HEU ÁNDHÁR BHEDIÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 167,
+      "title": "VISHVA TRÁTÁR CARAŃERA REŃU",
+      "first_line": "VISHVA TRÁTÁR CARAŃERA REŃU",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 168,
+      "title": "ÁJ, ARUŃE RÁUNGÁNO SAB ÁSHÁ",
+      "first_line": "ÁJ, ARUŃE RÁUNGÁNO SAB ÁSHÁ",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 169,
+      "title": "ESECHILE PRABHU GHUM BHÁUNGÁTE",
+      "first_line": "ESECHILE PRABHU GHUM BHÁUNGÁTE",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 170,
+      "title": "SABÁR ÁPAN TUMI SABÁR ÁPAN",
+      "first_line": "SABÁR ÁPAN TUMI SABÁR ÁPAN",
+      "theme": null,
+      "mood": null,
+      "language": "Roman",
+      "is_verified": true
+    },
+    {
+      "number": 171,
+      "title": "MAN MANJÚŚÁ MOR SATATA JÁGIÁ ÁCHE",
+      "first_line": "MAN MANJÚŚÁ MOR SATATA JÁGIÁ ÁCHE",
       "theme": null,
       "mood": null,
       "language": "Roman",
@@ -166,158 +1552,32 @@
       "is_verified": true
     },
     {
-      "number": 296,
-      "title": "PRABHU TOMÁR PARASHA MOR",
-      "first_line": "PRABHU TOMÁR PARASHA MOR",
+      "number": 173,
+      "title": "DYULOKE BHULOKE TÁRI PADADHVANI",
+      "first_line": "DYULOKE BHULOKE TÁRI PADADHVANI",
       "theme": null,
       "mood": null,
       "language": "Roman",
       "is_verified": true
     },
     {
-      "number": 362,
-      "title": "NÚTAN PRABHÁTE ARUŃ ÁLOTE",
-      "first_line": "NÚTAN PRABHÁTE ARUŃ ÁLOTE",
+      "number": 174,
+      "title": "ÁMÁR MANETE TUMI SABÁR MANETE TUMI",
+      "first_line": "ÁMÁR MANETE TUMI SABÁR MANETE TUMI",
       "theme": null,
       "mood": null,
       "language": "Roman",
       "is_verified": true
     },
     {
-      "number": 490,
-      "title": "BHÁLGO AJÁNÁ PATHIK EK DESH KE ESECHE",
-      "first_line": "BHÁLGO AJÁNÁ PATHIK EK DESH KE ESECHE",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 667,
-      "title": "HÁSITE PHUL PHOT́ÁLE ALI JOT́ÁLE",
-      "first_line": "HÁSITE PHUL PHOT́ÁLE ALI JOT́ÁLE",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 873,
-      "title": "ÁLOKER EI JHARŃÁ DHÁRÁY",
-      "first_line": "ÁLOKER EI JHARŃÁ DHÁRÁY",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 875,
-      "title": "ÁMI CÁI ÁLOKER PATH DHARE JÁI",
-      "first_line": "ÁMI CÁI ÁLOKER PATH DHARE JÁI",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 876,
-      "title": "EGIYE CALE TOMÁR RATHER CÁKÁ",
-      "first_line": "EGIYE CALE TOMÁR RATHER CÁKÁ",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 880,
-      "title": "MÁNAVA SAMÁJ AVIBHÁJYA",
-      "first_line": "MÁNAVA SAMÁJ AVIBHÁJYA",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 882,
-      "title": "TOMÁR NÁMER BHAROSÁY (VARAŚÁY?) PRABHU",
-      "first_line": "TOMÁR NÁMER BHAROSÁY (VARAŚÁY?) PRABHU",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 885,
-      "title": "ÁMÁR GHARE ESO PRABHU",
-      "first_line": "ÁMÁR GHARE ESO PRABHU",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 886,
-      "title": "ÁJ TOMÁY PELUM",
-      "first_line": "ÁJ TOMÁY PELUM",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 889,
-      "title": "TOMÁR LÁGI RÁTI JÁGI",
-      "first_line": "TOMÁR LÁGI RÁTI JÁGI",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 891,
-      "title": "BHÁLOBESECHI HIYÁ SAOMPECHI",
-      "first_line": "BHÁLOBESECHI HIYÁ SAOMPECHI",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 892,
-      "title": "TANDRÁ BHENGE DIO",
-      "first_line": "TANDRÁ BHENGE DIO",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 896,
-      "title": "DAMAKÁ HAOÁY KE GO CALE JÁY",
-      "first_line": "DAMAKÁ HAOÁY KE GO CALE JÁY",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 1015,
-      "title": "SÚRYA TAKHAN DIKVALAYE",
-      "first_line": "SÚRYA TAKHAN DIKVALAYE",
-      "theme": null,
-      "mood": null,
-      "language": "Roman",
-      "is_verified": true
-    },
-    {
-      "number": 1088,
-      "title": "MAN NIKUNJE HARAŚA PUNJE",
-      "first_line": "MAN NIKUNJE HARAŚA PUNJE",
+      "number": 175,
+      "title": "TOMÁR GOPANA KATHÁ",
+      "first_line": "TOMÁR GOPANA KATHÁ",
       "theme": null,
       "mood": null,
       "language": "Roman",
       "is_verified": true
     }
   ],
-  "note": "Complete in-app Sargam only. Website Explore, not mobile chips."
+  "note": "Roman RS_* sargam only. Bengali PDF sources are not listed."
 }

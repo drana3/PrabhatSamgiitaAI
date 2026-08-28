@@ -26,16 +26,16 @@ describe("visibleSongJourneyTabs", () => {
 
   it("keeps Lyrics and Notation before Listen and Watch", () => {
     const { learn, media } = partitionSongJourneyTabs(
-      visibleSongJourneyTabs({ hasVideo: true, harmoniumEnabled: true }),
+      visibleSongJourneyTabs({ hasVideo: true, harmoniumEnabled: true, hasFullSargam: true }),
     )
     expect(learn.map((t) => t.id)).toEqual(["understand", "notation"])
     expect(media.map((t) => t.id)).toEqual(["listen", "watch"])
   })
 
   it("hides Watch when there is no video", () => {
-    const tabs = visibleSongJourneyTabs({ hasVideo: false, harmoniumEnabled: true }).map((t) => t.id)
+    const tabs = visibleSongJourneyTabs({ hasVideo: false, harmoniumEnabled: true, hasFullSargam: true }).map((t) => t.id)
     expect(tabs).toEqual(["understand", "notation", "listen"])
-    expect(partitionSongJourneyTabs(visibleSongJourneyTabs({ hasVideo: false, harmoniumEnabled: true })).media.map((t) => t.id)).toEqual(["listen"])
+    expect(partitionSongJourneyTabs(visibleSongJourneyTabs({ hasVideo: false, harmoniumEnabled: true, hasFullSargam: true })).media.map((t) => t.id)).toEqual(["listen"])
   })
 
   it("hides Notation when harmonium practice is off", () => {
@@ -43,8 +43,13 @@ describe("visibleSongJourneyTabs", () => {
     expect(tabs).toEqual(["understand", "listen", "watch"])
   })
 
+  it("hides Notation when the song has no full sargam", () => {
+    const tabs = visibleSongJourneyTabs({ hasVideo: true, harmoniumEnabled: true, hasFullSargam: false }).map((t) => t.id)
+    expect(tabs).toEqual(["understand", "listen", "watch"])
+  })
+
   it("shows Notation when harmonium practice is enabled", () => {
-    const tabs = visibleSongJourneyTabs({ hasVideo: false, harmoniumEnabled: true }).map((t) => t.id)
+    const tabs = visibleSongJourneyTabs({ hasVideo: false, harmoniumEnabled: true, hasFullSargam: true }).map((t) => t.id)
     expect(tabs).toEqual(["understand", "notation", "listen"])
   })
 })

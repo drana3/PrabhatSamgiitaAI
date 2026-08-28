@@ -38,6 +38,10 @@ export type MockSong = {
   audioRecordings?: Array<{ title: string; url: string; provider: string }>
   /** Canonical Andromeda notation PDF when available. */
   notationSourceUrl?: string | null
+  notationVerificationStatus?: string | null
+  notationEnabled?: boolean
+  sargamSubmittedBy?: string | null
+  sargamSubmittedAt?: string | null
   /** True after GET /songs/{n} media has been applied. */
   mediaHydrated?: boolean
 }

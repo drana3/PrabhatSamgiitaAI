@@ -12,23 +12,29 @@ import { SongMeaningSection } from "@/components/song-meaning-section"
 import { SongMobileNav } from "@/components/song-mobile-nav"
 import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
-import { fetchSong } from "@/lib/api"
-import { localSongDetail } from "@/lib/local-song-catalog"
+import { fetchSong, fetchNotation } from "@/lib/api"
+import { localSongDetail, localTransposedNotation, coalesceSongDetail } from "@/lib/local-song-catalog"
 import { englishMeaningText } from "@/lib/song-meanings"
 import { localeLabel } from "@/lib/languages"
-import { splitLyricLines, practiceLyricSource } from "@/lib/sargam-display"
+import { splitLyricLines, practiceLyricSource, buildDisplayNotes, formatPracticeSequence } from "@/lib/sargam-display"
 import { songPagePath } from "@/lib/song-path"
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
   const { number } = await params
   const { language = "en" } = await searchParams
-  const song = await fetchSong(Number(number)) ?? localSongDetail(Number(number))
+  const song = coalesceSongDetail(await fetchSong(Number(number)), localSongDetail(Number(number)))
   if (!song) notFound()
   const practiceLyrics = practiceLyricSource({
     lyricsOriginal: song.lyrics_original,
     transliteration: song.transliteration,
     firstLine: song.first_line,
   })
+  const notationOn = song.notation_enabled !== false
+  const submittedNotation =
+    notationOn && song.notation_verification_status === "admin_submitted"
+      ? await fetchNotation(song.number)
+      : null
+  const initialNotation = notationOn ? localTransposedNotation(song.number) ?? submittedNotation : null
   const audio = song.media.filter((item) => item.kind === "audio")
   const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
   const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
@@ -59,7 +65,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/85 to-navy-950/30" />
           <div className="relative flex min-h-[13rem] flex-col justify-between gap-5 p-5 sm:min-h-[18rem] sm:gap-6 sm:p-8 lg:p-10">
             <div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-200 sm:text-xs">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-2 font-serif text-3xl leading-tight sm:mt-3 sm:text-5xl lg:text-6xl">{titleCase(song.title)}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-white/85 sm:mt-3">{titleCase(song.first_line || song.title)}</p><div className="mt-4 flex flex-wrap gap-2 sm:mt-5"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>
-            <nav aria-label="Song actions" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0 xl:flex-nowrap"><a href="#ask" className="shrink-0 whitespace-nowrap rounded-full bg-gold-300 px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">✦ Ask AI</a>{audio.length ? <a href="#listen" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">♪ Listen</a> : null}{hasLyrics ? <a href="#lyrics" className="shrink-0 whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-3.5 py-2 text-xs font-semibold text-white sm:px-4 sm:text-sm">Lyrics</a> : null}{videos.length ? <a href="#watch" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">▶ Watch</a> : null}<HarmoniumNavLink /><FavoriteSongButton songNumber={song.number} /><ShareMenu title={`Song ${song.number}: ${song.title}`} /></nav>
+            <nav aria-label="Song actions" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0 xl:flex-nowrap"><a href="#ask" className="shrink-0 whitespace-nowrap rounded-full bg-gold-300 px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">✦ Ask AI</a>{audio.length ? <a href="#listen" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">♪ Listen</a> : null}{hasLyrics ? <a href="#lyrics" className="shrink-0 whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-3.5 py-2 text-xs font-semibold text-white sm:px-4 sm:text-sm">Lyrics</a> : null}{videos.length ? <a href="#watch" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">▶ Watch</a> : null}<HarmoniumNavLink songNumber={song.number} sourceStatus={song.notation_verification_status} notationEnabled={song.notation_enabled} /><FavoriteSongButton songNumber={song.number} /><ShareMenu title={`Song ${song.number}: ${song.title}`} /></nav>
           </div>
         </section>
 
@@ -77,6 +83,24 @@ export default async function SongPage({ params, searchParams }: { params: Promi
                   <h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2>
                 </div>
                 <p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">{lyrics}</p>
+                {notationOn && song.sargam_attribution && submittedNotation?.notation.lines.length ? (
+                  <div className="mt-5 space-y-3 rounded-2xl border border-gold-500/25 bg-white p-4">
+                    <p className="text-sm font-semibold text-navy-800">
+                      Sargam submitted by {song.sargam_attribution.display_name}
+                      {song.sargam_attribution.submitted_at
+                        ? ` · ${new Date(song.sargam_attribution.submitted_at).toLocaleDateString()}`
+                        : ""}
+                    </p>
+                    {submittedNotation.notation.lines.map((line) => (
+                      <div key={line.line_number}>
+                        <p className="font-serif text-navy-950">{line.lyrics}</p>
+                        <p className="mt-1 font-serif text-sm text-gold-900">
+                          {formatPracticeSequence(buildDisplayNotes(line), "latin")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 <CopyTextButton text={lyrics ?? ""} label="Copy lyrics" />
                 {song.lyrics_original?.trim() && song.transliteration?.trim() ? (
                   <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4">
@@ -102,10 +126,14 @@ export default async function SongPage({ params, searchParams }: { params: Promi
 
           <HarmoniumPracticeSection
             songNumber={song.number}
+            songTitle={titleCase(song.title)}
+            initialNotation={initialNotation}
             sourceUrl={song.notation_source_url}
             sourceStatus={song.notation_verification_status}
             songLyricLines={splitLyricLines(practiceLyrics.practiceText)}
             originalLyricLines={splitLyricLines(practiceLyrics.originalText)}
+            attribution={song.sargam_attribution}
+            notationEnabled={song.notation_enabled}
           />
         </section>
 

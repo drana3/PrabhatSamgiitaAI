@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
-import type { TransposedNotation } from "@prabhat/core"
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { bookletHarmoniumSong, hasPublishedLearnerSargam, notationToHarmoniumSong, type TransposedNotation } from "@prabhat/core"
 
 import { HarmoniumPracticeGate } from "@/components/songs/HarmoniumPracticeGate"
 import { NotationMatraSheet, ExpertSheetImage } from "@/components/songs/NotationMatraSheet"
@@ -32,7 +32,6 @@ function LinePracticeCard({
   lineIndex,
   songLyricLines,
   originalLyricLines = [],
-  hasPdfLink = false,
   songNumber,
   tala,
   expertVerified = false,
@@ -42,7 +41,6 @@ function LinePracticeCard({
   lineIndex: number
   songLyricLines: string[]
   originalLyricLines?: string[]
-  hasPdfLink?: boolean
   songNumber: number
   tala?: { name: string; beats: number; groups?: number[] } | null
   expertVerified?: boolean
@@ -118,8 +116,7 @@ function LinePracticeCard({
         </View>
       ) : (
         <Text style={styles.missing}>
-          इस पंक्ति का सारगम अभ्यास ड्राफ्ट में नहीं है
-          {hasPdfLink ? " — पूरी धुन के लिए स्रोत PDF देखें." : "।"}
+          इस पंक्ति का सारगम अभ्यास ड्राफ्ट में नहीं है।
         </Text>
       )}
     </View>
@@ -132,6 +129,10 @@ export function NotationPractice({
   lyricText,
   originalLyricText,
   sourceUrl,
+  verificationStatus,
+  submittedBy,
+  submittedAt,
+  notationEnabled,
 }: {
   songNumber: number
   /** Drop outer card chrome when nested in an accordion. */
@@ -142,6 +143,10 @@ export function NotationPractice({
   originalLyricText?: string | null
   /** Canonical Andromeda PDF for the full melody. */
   sourceUrl?: string | null
+  verificationStatus?: string | null
+  submittedBy?: string | null
+  submittedAt?: string | null
+  notationEnabled?: boolean | null
 }) {
   const harmoniumEnabled = useHarmoniumPracticeEnabled()
   const [notation, setNotation] = useState<TransposedNotation | null>(null)
@@ -154,9 +159,26 @@ export function NotationPractice({
   const incomplete = notation
     ? notationCoverage(notation.notation.lines.length, songLyricLines.length).incomplete
     : false
+  const published = hasPublishedLearnerSargam(songNumber, verificationStatus, notationEnabled)
+  const keyboardSong =
+    bookletHarmoniumSong(songNumber) ||
+    (notation
+      ? notationToHarmoniumSong(notation.notation.lines, {
+          id: `admin-${songNumber}`,
+          title: `Song ${songNumber}`,
+          songLyricLines,
+          originalLyricLines,
+        })
+      : null)
+  const fullSargam = Boolean(keyboardSong)
   const pdfUrl = notationPdfHref(sourceUrl, { playable, incomplete })
 
   useEffect(() => {
+    if (!published) {
+      setLoading(false)
+      setNotation(null)
+      return
+    }
     let active = true
     setLoading(true)
     setError(null)
@@ -169,7 +191,9 @@ export function NotationPractice({
     return () => {
       active = false
     }
-  }, [songNumber, tonic])
+  }, [songNumber, tonic, published])
+
+  if (!published) return null
 
   if (!harmoniumEnabled) {
     return (
@@ -187,20 +211,16 @@ export function NotationPractice({
           <Text style={styles.lead}>
             {pdfUrl ? HINDI_SARGAM_LEGEND : "Practice the sargam available in the app."}
           </Text>
+          {submittedBy ? (
+            <Text style={styles.lead}>
+              Sargam submitted by {submittedBy}
+              {submittedAt ? ` · ${new Date(submittedAt).toLocaleDateString()}` : ""}
+            </Text>
+          ) : null}
         </>
       )}
 
-      {pdfUrl && !loading ? (
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel="Open notation PDF on prabhatasamgiita.net"
-          onPress={() => void Linking.openURL(pdfUrl)}
-          style={styles.pdfButton}
-        >
-          <Text style={styles.pdfButtonText}>पूरी स्वरलिपि PDF · Open Andromeda PDF</Text>
-        </Pressable>
-      ) : null}
-
+      {keyboardSong ? null : (
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonicRow}>
         {TONICS.map((value) => (
           <Pressable
@@ -215,8 +235,9 @@ export function NotationPractice({
           </Pressable>
         ))}
       </ScrollView>
+      )}
 
-      <VirtualHarmonium tonic={tonic} onTonicChange={setTonic} />
+      {keyboardSong ? <VirtualHarmonium tonic={tonic} onTonicChange={setTonic} song={keyboardSong} /> : null}
 
       {loading ? (
         <View style={styles.loading}>
@@ -227,7 +248,7 @@ export function NotationPractice({
 
       {error && !loading ? <Text style={styles.error}>{error}</Text> : null}
 
-      {notation && !loading ? (
+      {notation && !loading && !fullSargam ? (
         <>
           <Text style={styles.meta}>
             Scale {notation.target_scale}
@@ -246,9 +267,8 @@ export function NotationPractice({
             if (!coverage.incomplete) return null
             return (
               <Text style={styles.coverage}>
-                अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का सारगम है (अक्सर PDF के पहले
-                पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के सूचीबद्ध रहती हैं
-                {pdfUrl ? " — पूरी धुन के लिए PDF खोलें।" : "।"}
+                अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का सारगम है (अक्सर स्रोत PDF
+                के पहले पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के सूचीबद्ध रहती हैं।
               </Text>
             )
           })()}
@@ -262,7 +282,6 @@ export function NotationPractice({
                 lineIndex={lineIndex}
                 songLyricLines={songLyricLines}
                 originalLyricLines={originalLyricLines}
-                hasPdfLink={Boolean(pdfUrl)}
                 songNumber={songNumber}
                 tala={notation.notation.tala}
                 tempoBpm={notation.notation.tempo_bpm}
@@ -291,31 +310,6 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.h3, color: colors.textPrimary },
   lead: { ...typography.bodySmall, color: colors.textSecondary },
-  pdfButton: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  pdfButtonText: {
-    ...typography.label,
-    color: colors.primaryDark,
-    textAlign: "center",
-  },
-  pdfButtonSecondary: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  pdfButtonSecondaryText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
   tonicRow: { gap: spacing.xs, paddingVertical: spacing.xs },
   tonicChip: {
     paddingHorizontal: spacing.md,

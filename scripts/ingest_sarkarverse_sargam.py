@@ -49,6 +49,7 @@ draft_quality = extract.draft_quality
 INDEX_PATH = ROOT / "data" / "generated" / "sarkarverse_sargam_index.json"
 PLAN_PATH = ROOT / "data" / "generated" / "sarkarverse_sargam_plan.json"
 STAMP_PATH = ROOT / "data" / "generated" / "sarkarverse_sargam.stamp"
+BOOKLET_SONGS_PATH = ROOT / "data" / "generated" / "roman_booklet_songs.json"
 SARGAM_BASE = "https://sarkarverse.org/SARGAM/"
 ANDROMEDA_ARCHIVE = "https://prabhatasamgiita.net/notations/andromeda.php"
 
@@ -96,7 +97,8 @@ FAMILY_SCORE = {
     "single_song": 40,
 }
 DIGITAL_SWARA = re.compile(r"সা|রে|রা|গা|মা|পা|ধা|নি")
-SONG_HEADER = re.compile(r"^\s*\(\s*(\d{1,4})\s*\)\s*$")
+# Round-paren song numbers only. ``{ 26 }`` / ``[ 34 ]`` are page footers.
+SONG_HEADER = re.compile(r"\(\s*(\d{1,3})\s*[.)]*\)")
 SOURCE_KIND_RANK = {
     "sarkarverse_roman_ocr": 3,
     "sarkarverse_divyadyuti": 2,
@@ -190,20 +192,18 @@ def classify(folder: str, href: str) -> dict[str, Any]:
 
     script, family = script_and_family(folder, name, kind)
     parse = "index_only"
-    if kind == "divyadyuti":
-        parse = "digital_text"
-    elif family == "rs_roman" and start and end and end - start <= 75:
-        parse = "roman_ocr"
-    elif kind == "booklet_scan" and start and end and 0 <= end - start <= 50:
-        parse = "scan_ocr"
-
-    extract_role = "extract"
+    extract_role = "skip_not_roman"
     if kind in {"range_dump", "psnet_dump"}:
         extract_role = "skip_duplicate"
     elif start and end and end - start > 50:
         extract_role = "skip_duplicate"
-    elif parse == "index_only":
-        extract_role = "skip_duplicate"
+    if family == "rs_roman" and start and end and end - start <= 75:
+        parse = "roman_ocr"
+        extract_role = "extract"
+    elif kind == "divyadyuti":
+        parse = "digital_text"
+    elif kind == "booklet_scan" and start and end and 0 <= end - start <= 50:
+        parse = "scan_ocr"
 
     return {
         "kind": kind,
@@ -414,7 +414,7 @@ def ocrable_booklets(index: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         row
         for row in enrich_files(list(index.get("files") or []))
-        if row.get("extract_role") == "extract" and row.get("kind") != "divyadyuti"
+        if is_roman_ocr_row(row) and row.get("extract_role") == "extract"
     ]
 
 
@@ -423,8 +423,9 @@ def split_booklet_by_song(ocr_text: str, start: int, end: int) -> dict[int, str]
     chunks: dict[int, list[str]] = {}
     current: int | None = None
     for line in ocr_text.splitlines():
-        header = SONG_HEADER.match(line.strip())
-        if header:
+        stripped = line.strip()
+        header = SONG_HEADER.search(stripped)
+        if header and header.start() <= 12:
             number = int(header.group(1))
             if start <= number <= end:
                 current = number
@@ -448,7 +449,12 @@ def draft_from_ocr(
     source_kind: str,
     method: str,
 ) -> dict[str, Any] | None:
-    notation, confidence = build_notation(song, ocr_text)
+    notation = extract.parse_rs_song_page(ocr_text, song)
+    confidence = 0.0
+    if notation and notation.get("lines"):
+        confidence = min(0.88, 0.5 + min(len(notation["lines"]), 16) * 0.03)
+    else:
+        notation, confidence = build_notation(song, ocr_text)
     if not notation or not notation.get("lines"):
         return None
     number = int(song.get("number") or 0)
@@ -513,12 +519,23 @@ def extract_divyadyuti_pdf(
     }
 
 
+def roman_practice_only(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    kept: list[dict[str, Any]] = []
+    for row in rows:
+        meta = row.get("metadata_json") if isinstance(row.get("metadata_json"), dict) else {}
+        kind = str(meta.get("source_kind") or "")
+        method = str(meta.get("extraction_method") or "").lower()
+        if kind == "sarkarverse_roman_ocr" or "roman" in method:
+            kept.append(row)
+    return kept
+
+
 def merge_practice(
     existing: list[dict[str, Any]],
     incoming: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     best: dict[int, dict[str, Any]] = {}
-    for row in [*existing, *incoming]:
+    for row in [*roman_practice_only(existing), *incoming]:
         number = int(row["song_number"])
         current = best.get(number)
         if current is None:
@@ -531,6 +548,28 @@ def merge_practice(
         elif new_rank == old_rank and draft_quality(row) > draft_quality(current):
             best[number] = row
     return sorted(best.values(), key=lambda row: int(row["song_number"]))
+
+
+def write_roman_booklet_songs(_rows: list[dict[str, Any]] | None = None) -> None:
+    """OCR booklet JSON is not published. Playable copies live in packages/core (songs 1, 2, 27)."""
+    payload = {
+        "source": "https://sarkarverse.org/SARGAM/?dir=0001-1000",
+        "files": [
+            "RS_0001-0025.pdf",
+            "RS_0026-0050.pdf",
+            "RS_0051-0075.pdf",
+            "RS_0076-0100.pdf",
+            "RS_0101-0125.pdf",
+            "RS_0126-0150.pdf",
+            "RS_0151-0175.pdf",
+        ],
+        "count": 0,
+        "songs": {},
+        "published_booklet_songs": [1, 2, 27],
+        "note": "Playable Roman booklet sargam is hardcoded in packages/core/src/harmonium-sample-songs.ts",
+    }
+    BOOKLET_SONGS_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {BOOKLET_SONGS_PATH} (0 OCR songs; published copies are 1, 2, 27)")
 
 
 def extract_divyadyuti(index: dict[str, Any], *, song: int | None, limit: int | None) -> int:
@@ -606,9 +645,6 @@ def extract_booklets(
                 raise SystemExit(f"{command} is required for booklet OCR")
         if any(is_scan_ocr_row(row) for row in targets):
             extract.ensure_tools()
-    existing: list[dict[str, Any]] = []
-    if PRACTICE_OUTPUT.exists():
-        existing = json.loads(PRACTICE_OUTPUT.read_text(encoding="utf-8"))
     extracted = 0
     done = set(processed)
     for item in targets:
@@ -619,6 +655,10 @@ def extract_booklets(
             continue
         start, end = span
         roman = is_roman_ocr_row(item)
+        if not roman:
+            print(f"skip {item['filename']} (Bengali PDF, not extracted)")
+            done.add(url)
+            continue
         lang = "eng" if roman else "ben"
         source_kind = "sarkarverse_roman_ocr" if roman else "sarkarverse_scan_ocr"
         method = "sarkarverse_roman_tesseract" if roman else "sarkarverse_scan_tesseract"
@@ -661,27 +701,21 @@ def extract_booklets(
                 print(f"song {number}: {draft['metadata_json']['line_count']} OCR lines")
             else:
                 print(f"song {number}: no sargam rows in OCR")
-        existing = merge_practice(existing, drafts)
-        PRACTICE_OUTPUT.write_text(
-            json.dumps(existing, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
         extracted += len(drafts)
         done.add(url)
-        print(f"{item['filename']}: {len(drafts)} drafts; practice catalog now {len(existing)}")
+        print(f"{item['filename']}: {len(drafts)} OCR drafts (not published)")
+    PRACTICE_OUTPUT.write_text("[]\n", encoding="utf-8")
+    write_roman_booklet_songs([])
     return extracted, done
 
 
 def source_fingerprint(index: dict[str, Any]) -> str:
     """Hash ingest script + extractable PDF list. Stamp this after a successful extract."""
-    digital = [
-        [int(row["song_number"]), str(row["source_url"])]
-        for row in index.get("files", [])
-        if row.get("kind") == "divyadyuti"
-    ]
+    digital = []
     booklets = [str(row["source_url"]) for row in ocrable_booklets(index)]
     payload = {
         "script": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "divyadyuti": sorted(digital),
+        "divyadyuti": digital,
         "booklets": sorted(booklets),
     }
     return hashlib.sha256(
@@ -774,14 +808,6 @@ def main() -> None:
         stamp = load_stamp()
         fingerprint = source_fingerprint(index)
         processed = set(stamp.get("processed_booklets") or []) if stamp and stamp.get("fingerprint") == fingerprint else set()
-        digital_count = 0
-        run_digital = args.song is not None or stamp is None or stamp.get("fingerprint") != fingerprint
-        if args.song is None or any(
-            row.get("kind") == "divyadyuti" and int(row.get("song_number") or 0) == args.song
-            for row in index.get("files", [])
-        ):
-            if run_digital:
-                digital_count = extract_divyadyuti(index, song=args.song, limit=args.limit)
         booklet_count, processed = extract_booklets(
             index,
             processed=processed,
@@ -789,9 +815,9 @@ def main() -> None:
             limit=None if args.song else args.booklet_limit,
         )
         if args.song is None:
-            write_stamp(index, digital_count + booklet_count, sorted(processed))
+            write_stamp(index, booklet_count, sorted(processed))
             print(f"wrote {STAMP_PATH} ({len(processed)}/{len(ocrable_booklets(index))} booklets)")
-            if digital_count < 1 and booklet_count < 1 and not processed:
+            if booklet_count < 1 and not processed:
                 raise SystemExit("extract produced no drafts")
     elif not args.index_only:
         parser.print_help()

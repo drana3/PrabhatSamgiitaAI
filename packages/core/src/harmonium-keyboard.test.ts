@@ -3,19 +3,26 @@ import { describe, expect, it } from "vitest"
 import {
   harmoniumKeyboardLayout,
   keyboardIndexForShortcut,
+  keyboardIndexForWestern,
   parseSargamInput,
+  sampleSongLineEvents,
+  sampleSongPlayEvents,
+  sampleSongTiming,
   sargamPlayEvents,
   semitonesToWestern,
+  shiftWesternPitch,
   swaraToWestern,
 } from "./harmonium-keyboard"
 
 describe("harmonium-keyboard", () => {
-  it("builds a 2-octave chromatic piano/harmonium from C3 to C5", () => {
+  it("builds a 2-octave chromatic harmonium starting at mandra Sa", () => {
     const keys = harmoniumKeyboardLayout("C")
     expect(keys).toHaveLength(25)
     expect(keys.filter((key) => !key.isBlack)).toHaveLength(15)
     expect(keys.filter((key) => key.isBlack)).toHaveLength(10)
     expect(keys[0]?.western).toBe("C3")
+    expect(keys[0]?.latin).toBe(".Sa")
+    expect(keys[0]?.devanagari).toBe(".सा")
     expect(keys[24]?.western).toBe("C5")
     const middleSa = keys.find((key) => key.western === "C4")
     expect(middleSa?.isSa).toBe(true)
@@ -23,8 +30,10 @@ describe("harmonium-keyboard", () => {
     expect(keys.find((key) => key.western === "C#4")?.token).toBe("r")
   })
 
-  it("shifts sargam names when Sa tonic changes", () => {
+  it("keeps the leftmost key as mandra Sa when the tonic moves", () => {
     const keys = harmoniumKeyboardLayout("G")
+    expect(keys[0]?.western).toBe("G3")
+    expect(keys[0]?.latin).toBe(".Sa")
     expect(keys.find((key) => key.western === "G4")?.isSa).toBe(true)
     expect(keys.find((key) => key.western === "G4")?.latin).toBe("Sa")
     expect(keys.find((key) => key.western === "A4")?.latin).toBe("Re")
@@ -66,6 +75,13 @@ describe("harmonium-keyboard", () => {
     expect(events[1]?.western).toBe("D4")
   })
 
+  it("holds repeated swaras as one note instead of re-striking", () => {
+    const events = sargamPlayEvents("C", "S S S S", 0.4, 0.05)
+    expect(events).toHaveLength(1)
+    expect(events[0]?.western).toBe("C4")
+    expect(events[0]?.durationSec).toBeCloseTo(0.4 + 3 * 0.45, 5)
+  })
+
   it("maps laptop keys like web-harmonium notes (E=Sa, R=Re)", () => {
     const keys = harmoniumKeyboardLayout("C")
     expect(keyboardIndexForShortcut("z")).toBe(0)
@@ -74,5 +90,12 @@ describe("harmonium-keyboard", () => {
     expect(keys[keyboardIndexForShortcut("4")]?.western).toBe("C#4")
     expect(keys[keyboardIndexForShortcut("p")]?.western).toBe("C5")
     expect(semitonesToWestern("C", 0)).toBe("C4")
+  })
+
+  it("shifts pitch for bass, male, female, and high registers", () => {
+    expect(shiftWesternPitch("C4", -12)).toBe("C3")
+    expect(shiftWesternPitch("C4", 0)).toBe("C4")
+    expect(shiftWesternPitch("C4", 7)).toBe("G4")
+    expect(shiftWesternPitch("C4", 12)).toBe("C5")
   })
 })

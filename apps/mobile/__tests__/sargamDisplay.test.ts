@@ -9,6 +9,7 @@ import {
   isBengaliText,
   notationCoverage,
   hasPlayableNotation,
+  isRomanPracticeNotation,
   notationPdfHref,
   practiceLyricSource,
   resolveLineLyrics,
@@ -102,6 +103,19 @@ describe("sargamDisplay (mobile)", () => {
   it("reports incomplete coverage when notation is shorter than lyrics", () => {
     expect(notationCoverage(4, 12)).toEqual({ covered: 4, total: 12, incomplete: true })
     expect(notationCoverage(8, 6).incomplete).toBe(false)
+  })
+
+  it("accepts Roman RS drafts and rejects Bengali PDF OCR", () => {
+    expect(
+      isRomanPracticeNotation({
+        metadata_json: { source_kind: "sarkarverse_roman_ocr" },
+      }),
+    ).toBe(true)
+    expect(
+      isRomanPracticeNotation({
+        metadata_json: { extraction_method: "tesseract_bengali_source_pdf" },
+      }),
+    ).toBe(false)
   })
 
   it("does not treat a PDF-only song as playable notation", () => {

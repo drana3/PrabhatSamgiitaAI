@@ -1,15 +1,26 @@
 import { Audio } from "expo-av"
 import {
   reedWavDataUri,
+  shiftWesternPitch,
   type SheetPlayEvent,
   westernToHz,
   westernToSampleStem,
 } from "@prabhat/core"
 
+import { HARMONIUM_PLAYER_SAMPLE_MODULES } from "@/lib/harmoniumPlayerSamples"
 import { HARMONIUM_SAMPLE_MODULES } from "@/lib/harmoniumSamples"
 
+let voiceSemitones = 0
 let activeSound: Audio.Sound | null = null
 const heldSounds = new Map<string, Audio.Sound>()
+
+function soundingNote(western: string): string {
+  return shiftWesternPitch(western, voiceSemitones)
+}
+
+export function setHarmoniumVoiceRegister(semitones: number): void {
+  voiceSemitones = semitones
+}
 
 async function ensureAudioMode() {
   await Audio.setAudioModeAsync({
@@ -23,7 +34,9 @@ async function ensureAudioMode() {
 
 async function loadSound(western: string, loop = false): Promise<Audio.Sound> {
   const stem = westernToSampleStem(western)
-  const moduleId = stem ? HARMONIUM_SAMPLE_MODULES[stem] : undefined
+  const moduleId = stem
+    ? HARMONIUM_PLAYER_SAMPLE_MODULES[stem] ?? HARMONIUM_SAMPLE_MODULES[stem]
+    : undefined
   const hz = westernToHz(western)
   const source = moduleId
     ? moduleId
@@ -54,7 +67,7 @@ export async function stopActiveHarmoniumNote(): Promise<void> {
 
 export async function playWesternNote(western: string, durationSec = 0.45): Promise<void> {
   await ensureAudioMode()
-  const sound = await loadSound(western, false)
+  const sound = await loadSound(soundingNote(western), false)
   await sound.playAsync()
   setTimeout(() => {
     void unloadSound(sound)
@@ -66,7 +79,7 @@ export async function startWesternNote(western: string): Promise<() => void> {
   const previous = heldSounds.get(western)
   heldSounds.delete(western)
   await unloadSound(previous)
-  const sound = await loadSound(western, true)
+  const sound = await loadSound(soundingNote(western), true)
   heldSounds.set(western, sound)
   await sound.playAsync()
   return () => {
@@ -83,7 +96,7 @@ export async function playSheetEvents(events: SheetPlayEvent[]): Promise<void> {
 
   try {
     for (const event of events) {
-      sounds.push(await loadSound(event.western))
+      sounds.push(await loadSound(soundingNote(event.western)))
     }
 
     await Promise.all(

@@ -34,10 +34,11 @@ import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
 import { parseSongNumber, storedMeaningForLanguage } from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
-import { practiceLyricSource, hasPlayableNotation } from "@/lib/sargamDisplay"
+import { hasPublishedLearnerSargam } from "@prabhat/core"
+import { practiceLyricSource } from "@/lib/sargamDisplay"
 import { useHarmoniumPracticeEnabled } from "@/lib/harmoniumPracticeAccess"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
-import { fetchNotationCached, peekSongLocalization } from "@/lib/songCache"
+import { peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
@@ -52,7 +53,6 @@ export default function SongDetailScreen() {
   const [related, setRelated] = useState<MockSong[]>([])
   const [loadingSong, setLoadingSong] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [hasNotation, setHasNotation] = useState(false)
   const loadSong = usePlayerStore((s) => s.loadSong)
   const syncCurrentSong = usePlayerStore((s) => s.syncCurrentSong)
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
@@ -158,12 +158,7 @@ export default function SongDetailScreen() {
       setSong(bundle.song)
       setRelated(bundle.related)
       setLoadingSong(false)
-      setHasNotation(false)
       usePlayerStore.getState().warmAudio(bundle.song)
-      void fetchNotationCached(bundle.song.number, "C").then((notation) => {
-        if (!active) return
-        setHasNotation(hasPlayableNotation(notation))
-      })
     })
     return () => {
       active = false
@@ -172,6 +167,10 @@ export default function SongDetailScreen() {
 
   const harmoniumEnabled = useHarmoniumPracticeEnabled()
   const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
+  const hasFullSargam = Boolean(
+    song &&
+      hasPublishedLearnerSargam(song.number, song.notationVerificationStatus, song.notationEnabled),
+  )
   const requestedTab =
     tabParam === "watch" ||
     tabParam === "understand" ||
@@ -181,8 +180,13 @@ export default function SongDetailScreen() {
       : null
   const notationDeepLink = requestedTab === "notation"
   const journeyTabs = useMemo(
-    () => visibleSongJourneyTabs({ hasVideo, harmoniumEnabled: harmoniumEnabled || notationDeepLink }),
-    [hasVideo, harmoniumEnabled, notationDeepLink],
+    () =>
+      visibleSongJourneyTabs({
+        hasVideo,
+        harmoniumEnabled: (harmoniumEnabled || notationDeepLink) && hasFullSargam,
+        hasFullSargam,
+      }),
+    [hasVideo, harmoniumEnabled, notationDeepLink, hasFullSargam],
   )
   const watchLayout = songWatchLayout(journey, { hasVideo, watchPlaying })
 
@@ -559,7 +563,7 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
 
-        {journey === "notation" ? (
+        {journey === "notation" && hasFullSargam ? (
           <View style={styles.sectionPanel}>
             <Text style={styles.sectionEyebrow}>Experience · Harmonium</Text>
             <Text style={styles.sectionLead}>
@@ -571,6 +575,10 @@ export default function SongDetailScreen() {
               lyricText={practiceLyrics.practiceText}
               originalLyricText={practiceLyrics.originalText}
               sourceUrl={song.notationSourceUrl}
+              verificationStatus={song.notationVerificationStatus}
+              submittedBy={song.sargamSubmittedBy}
+              submittedAt={song.sargamSubmittedAt}
+              notationEnabled={song.notationEnabled}
             />
           </View>
         ) : null}

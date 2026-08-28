@@ -36,4 +36,5 @@ apps/mobile/*.ipa
 data/generated/cache/
 data/generated/faiss/
 .tmp-ocr/
+.tmp-rs/
 

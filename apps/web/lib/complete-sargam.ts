@@ -22,3 +22,7 @@ export function completeSargamSongs(): SongSummary[] {
 export function completeSargamCount(): number {
   return payload.count ?? completeSargamSongs().length
 }
+
+export function isCompleteSargamSong(songNumber: number): boolean {
+  return completeSargamSongs().some((song) => song.number === songNumber)
+}

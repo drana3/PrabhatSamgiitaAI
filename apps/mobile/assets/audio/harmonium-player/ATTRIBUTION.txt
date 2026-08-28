@@ -1,0 +1,3 @@
+ATTRIBUTION
+Real harmonium reeds recorded at Yale Euterpea Studio (Freesound 330410, CC0)
+and prepared for Tone.js by nbrosowsky/tonejs-instruments.

@@ -42,6 +42,11 @@ from app.schemas.member import (
     AdminMemberItem,
     QuizEventCreateWrite,
 )
+from app.schemas.sargam_capture import (
+    CaptureTakeWrite,
+    NotationVisibilityWrite,
+    SargamCaptureResponse,
+)
 from app.services.admin_members import (
     grant_admin,
     grant_admin_bulk,
@@ -83,6 +88,15 @@ from app.services.quiz_events import (
     list_quiz_events,
     publish_quiz_event,
     verify_quiz_event,
+)
+from app.services.sargam_capture import (
+    capture_payload,
+    confirm_capture_line,
+    get_or_create_capture,
+    retake_capture_line,
+    save_take,
+    set_notation_visibility,
+    submit_capture,
 )
 from app.services.youtube_channels import (
     create_youtube_scan_channel,
@@ -655,3 +669,118 @@ async def admin_review_ingestion(
         submitted_by_email=reviewer.email,
         created_at=submission.created_at.isoformat() if submission.created_at else "",
     )
+
+
+def _capture_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, LookupError):
+        return HTTPException(status_code=404, detail=str(exc) or "Song not found")
+    if isinstance(exc, PermissionError):
+        return HTTPException(status_code=409, detail=str(exc))
+    if isinstance(exc, ValueError):
+        return HTTPException(status_code=400, detail=str(exc))
+    raise exc
+
+
+async def _capture_response(
+    session: DatabaseSession, member: UserAccount, number: int
+) -> SargamCaptureResponse:
+    from app.services.catalog import CatalogService
+
+    song = await CatalogService(session).get_song(number)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    try:
+        row = await get_or_create_capture(session, member, number)
+    except LookupError as exc:
+        raise _capture_http_error(exc) from exc
+    notation = await CatalogService(session).get_notation(number)
+    return SargamCaptureResponse.model_validate(capture_payload(song, row, notation))
+
+
+@router.get("/songs/{number}/sargam-capture", response_model=SargamCaptureResponse)
+async def admin_get_sargam_capture(
+    number: int, request: Request, session: DatabaseSession
+) -> SargamCaptureResponse:
+    member = await admin_member(request, session)
+    return await _capture_response(session, member, number)
+
+
+@router.post(
+    "/songs/{number}/sargam-capture/lines/{line_number}/takes",
+    response_model=SargamCaptureResponse,
+)
+async def admin_save_sargam_take(
+    number: int,
+    line_number: int,
+    payload: CaptureTakeWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> SargamCaptureResponse:
+    member = await admin_member(request, session)
+    try:
+        await save_take(
+            session,
+            member,
+            number,
+            line_number,
+            [item.model_dump(by_alias=True) for item in payload.events],
+            payload.source_scale,
+            payload.tempo_bpm,
+        )
+    except (LookupError, PermissionError, ValueError) as exc:
+        raise _capture_http_error(exc) from exc
+    return await _capture_response(session, member, number)
+
+
+@router.post(
+    "/songs/{number}/sargam-capture/lines/{line_number}/confirm",
+    response_model=SargamCaptureResponse,
+)
+async def admin_confirm_sargam_line(
+    number: int, line_number: int, request: Request, session: DatabaseSession
+) -> SargamCaptureResponse:
+    member = await admin_member(request, session)
+    try:
+        await confirm_capture_line(session, member, number, line_number)
+    except (LookupError, PermissionError, ValueError) as exc:
+        raise _capture_http_error(exc) from exc
+    return await _capture_response(session, member, number)
+
+
+@router.post(
+    "/songs/{number}/sargam-capture/lines/{line_number}/retake",
+    response_model=SargamCaptureResponse,
+)
+async def admin_retake_sargam_line(
+    number: int, line_number: int, request: Request, session: DatabaseSession
+) -> SargamCaptureResponse:
+    member = await admin_member(request, session)
+    try:
+        await retake_capture_line(session, member, number, line_number)
+    except (LookupError, PermissionError, ValueError) as exc:
+        raise _capture_http_error(exc) from exc
+    return await _capture_response(session, member, number)
+
+
+@router.post("/songs/{number}/sargam-capture/submit", response_model=SargamCaptureResponse)
+async def admin_submit_sargam_capture(
+    number: int, request: Request, session: DatabaseSession
+) -> SargamCaptureResponse:
+    member = await admin_member(request, session)
+    try:
+        await submit_capture(session, member, number)
+    except (LookupError, PermissionError, ValueError) as exc:
+        raise _capture_http_error(exc) from exc
+    return await _capture_response(session, member, number)
+
+
+@router.post("/songs/{number}/sargam-capture/visibility", response_model=SargamCaptureResponse)
+async def admin_set_sargam_visibility(
+    number: int, payload: NotationVisibilityWrite, request: Request, session: DatabaseSession
+) -> SargamCaptureResponse:
+    member = await admin_member(request, session)
+    try:
+        await set_notation_visibility(session, number, payload.enabled)
+    except (LookupError, PermissionError, ValueError) as exc:
+        raise _capture_http_error(exc) from exc
+    return await _capture_response(session, member, number)

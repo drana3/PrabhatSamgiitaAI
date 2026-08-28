@@ -179,19 +179,19 @@ def validate_notation_source(response: httpx.Response) -> None:
     require(response.status_code == 200, response.text)
     require(payload["song_number"] == 1, response.text)
     require(payload["verification_status"] == "verified", response.text)
-    require(payload["learner_verification_status"] == "practice_draft", response.text)
+    require(payload.get("learner_verification_status") in (None, "practice_draft"), response.text)
     require(payload["source_url"].startswith("https://"), response.text)
-    require(payload["machine_readable"] is True, response.text)
-    require(payload["transposition_available"] is True, response.text)
+    require(payload["machine_readable"] is False, response.text)
+    require(payload["transposition_available"] is False, response.text)
 
 
-def validate_transposed_practice_notation(response: httpx.Response) -> None:
+def validate_transposed_expert_notation(response: httpx.Response) -> None:
     payload = response.json()
     require(response.status_code == 200, response.text)
-    require(payload["song_number"] == 1, response.text)
+    require(payload["song_number"] == 4961, response.text)
     require(payload["source_scale"] == "C", response.text)
     require(payload["target_scale"] == "D", response.text)
-    require(payload["verification_status"] == "practice_draft", response.text)
+    require(payload["verification_status"] == "expert_verified", response.text)
     require(bool(payload["notation"]["lines"]), response.text)
 
 
@@ -440,17 +440,17 @@ CASES = [
     ),
     AcceptanceCase(
         "Is official notation available for song 1?",
-        "The canonical source and learner-draft statuses are reported separately.",
+        "The canonical PDF source is reported; machine-readable OCR drafts are not published.",
         "GET",
         "/api/v1/songs/1/notation/source",
         validate_notation_source,
     ),
     AcceptanceCase(
-        "Transpose song 1 to D on harmonium.",
-        "The OCR-derived practice draft is transposed to D and remains clearly labelled.",
+        "Transpose expert-verified song 4961 to D on harmonium.",
+        "The expert-curated sheet is transposed to D and remains labelled expert_verified.",
         "GET",
-        "/api/v1/songs/1/notation?scale=D&system=sargam",
-        validate_transposed_practice_notation,
+        "/api/v1/songs/4961/notation?scale=D&system=sargam",
+        validate_transposed_expert_notation,
     ),
     AcceptanceCase(
         "Play the verified YouTube performance for song 1.",

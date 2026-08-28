@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
+  hasPublishedLearnerSargam,
   HARMONIUM_GATE_ACTION_GUEST,
   HARMONIUM_GATE_ACTION_PROFILE,
   HARMONIUM_GATE_BODY_GUEST,
@@ -12,12 +13,22 @@ import {
 
 import { useMember } from "@/components/member-provider"
 import { HarmoniumPractice } from "@/components/harmonium-practice"
+import type { TransposedNotation } from "@/lib/api"
 import { useHarmoniumPracticeEnabled } from "@/lib/harmonium-practice-pref"
 import { signInHref } from "@/lib/sign-in"
 
-export function HarmoniumNavLink() {
+export function HarmoniumNavLink({
+  songNumber,
+  sourceStatus,
+  notationEnabled,
+}: {
+  songNumber: number
+  sourceStatus?: string | null
+  notationEnabled?: boolean | null
+}) {
   const enabled = useHarmoniumPracticeEnabled()
   if (!enabled) return null
+  if (!hasPublishedLearnerSargam(songNumber, sourceStatus, notationEnabled)) return null
   return (
     <a
       href="#notation"
@@ -63,29 +74,40 @@ function HarmoniumPracticeGate() {
 
 export function HarmoniumPracticeSection({
   songNumber,
+  initialNotation = null,
   sourceUrl,
   sourceStatus,
   songLyricLines,
   originalLyricLines,
+  songTitle,
+  attribution,
+  notationEnabled,
 }: {
   songNumber: number
+  initialNotation?: TransposedNotation | null
   sourceUrl?: string | null
   sourceStatus?: string | null
   songLyricLines?: string[]
   originalLyricLines?: string[]
+  songTitle?: string
+  attribution?: { display_name: string; submitted_at?: string | null } | null
+  notationEnabled?: boolean | null
 }) {
   const enabled = useHarmoniumPracticeEnabled()
+  if (!hasPublishedLearnerSargam(songNumber, sourceStatus, notationEnabled)) return null
 
   return (
     <div className="mt-7 border-t border-navy-900/10 pt-7">
       {enabled ? (
         <HarmoniumPractice
           songNumber={songNumber}
-          initialNotation={null}
+          initialNotation={initialNotation}
           sourceUrl={sourceUrl}
           sourceStatus={sourceStatus}
           songLyricLines={songLyricLines}
           originalLyricLines={originalLyricLines}
+          songTitle={songTitle}
+          attribution={attribution}
         />
       ) : (
         <HarmoniumPracticeGate />

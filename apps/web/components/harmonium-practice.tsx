@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { VirtualHarmonium } from "@/components/virtual-harmonium"
-import { ExpertSheetImage, NotationMatraSheet, playCellsInBrowser } from "@/components/notation-matra-sheet"
+import { ExpertSheetImage, NotationMatraSheet } from "@/components/notation-matra-sheet"
 import { PracticeCoach } from "@/components/practice-coach"
 import { fetchNotation } from "@/lib/api"
 import type { NotationLine, TransposedNotation } from "@/lib/api"
@@ -21,7 +21,7 @@ import {
   toDevanagariSwara,
   toLatinSwara,
 } from "@/lib/sargam-display"
-import { buildNotationSheetLine } from "@prabhat/core"
+import { bookletHarmoniumSong, notationToHarmoniumSong } from "@prabhat/core"
 
 const tonics = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const scaleSteps = [0, 2, 4, 5, 7, 9, 11, 12]
@@ -42,6 +42,8 @@ export function HarmoniumPractice({
   sourceStatus: _sourceStatus,
   songLyricLines = [],
   originalLyricLines = [],
+  songTitle: _songTitle,
+  attribution = null,
 }: {
   songNumber: number
   initialNotation: TransposedNotation | null
@@ -49,10 +51,12 @@ export function HarmoniumPractice({
   sourceStatus?: string | null
   songLyricLines?: string[]
   originalLyricLines?: string[]
+  songTitle?: string
+  attribution?: { display_name: string; submitted_at?: string | null } | null
 }) {
   const [notation, setNotation] = useState(initialNotation)
   const [tonic, setTonic] = useState(initialNotation?.target_scale || "C")
-  const [system, setSystem] = useState<"keyboard" | "guide" | "keys" | "sargam">("keyboard")
+  const [system, setSystem] = useState<"guide" | "keys" | "sargam">("sargam")
   const [loading, setLoading] = useState(!initialNotation)
 
   useEffect(() => {
@@ -82,23 +86,26 @@ export function HarmoniumPractice({
         Math.max(songLyricLines.length, originalLyricLines.length),
       ).incomplete
     : false
+  const keyboardSong =
+    bookletHarmoniumSong(songNumber) ||
+    (notation
+      ? notationToHarmoniumSong(notation.notation.lines, {
+          id: `admin-${songNumber}`,
+          title: _songTitle || `Song ${songNumber}`,
+          songLyricLines,
+          originalLyricLines,
+        })
+      : null)
+  const fullSargam = Boolean(keyboardSong)
   const pdfHref = notationPdfHref(sourceUrl, { playable, incomplete })
 
   async function changeTonic(value: string) {
     setTonic(value)
-    if (!initialNotation) return
+    if (!notation) return
     setLoading(true)
     const next = await fetchNotation(songNumber, value)
     if (next) setNotation(next)
     setLoading(false)
-  }
-
-  function hearLine(lineIndex: number) {
-    if (!notation) return
-    const line = notation.notation.lines[lineIndex]
-    if (!line) return
-    const sheet = buildNotationSheetLine(line, notation.notation.tala)
-    void playCellsInBrowser(sheet.cells, notation.notation.tempo_bpm)
   }
 
   return (
@@ -110,6 +117,14 @@ export function HarmoniumPractice({
           <p className="mt-2 text-sm text-stone-600">
             {pdfHref ? HINDI_SARGAM_LEGEND : "Practice the sargam available in the app."}
           </p>
+          {attribution?.display_name ? (
+            <p className="mt-2 text-sm font-semibold text-navy-800">
+              Sargam submitted by {attribution.display_name}
+              {attribution.submitted_at
+                ? ` · ${new Date(attribution.submitted_at).toLocaleDateString()}`
+                : ""}
+            </p>
+          ) : null}
         </div>
         <span
           aria-hidden="true"
@@ -122,7 +137,9 @@ export function HarmoniumPractice({
       <div className="border-t border-gold-500/20 p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-stone-600">
-            अपना Sa चुनें · Tap keys, type sargam, or practise song lines.
+            {fullSargam
+              ? "Full sargam is available — play it on this reed keyboard."
+              : "अपना Sa चुनें · Tap keys, type sargam, or practise song lines."}
           </p>
           {hasPlayableNotation(notation) ? (
             <span
@@ -134,15 +151,18 @@ export function HarmoniumPractice({
             >
               {notation.verification_status === "expert_verified"
                 ? "Expert-verified sheet"
-                : notation.verification_status.includes("verified")
-                  ? "Verified notation"
-                  : "Practice draft"}
+                : notation.verification_status === "admin_submitted"
+                  ? "Submitted sargam"
+                  : notation.verification_status.includes("verified")
+                    ? "Verified notation"
+                    : "Practice draft"}
             </span>
           ) : null}
         </div>
         {hasPlayableNotation(notation) && notation.verification_status === "expert_verified" ? (
           <ExpertSheetImage songNumber={songNumber} />
         ) : null}
+        {fullSargam ? null : (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-navy-900/10 bg-gold-50 p-3">
           <label className="flex items-center gap-2 text-xs font-bold text-navy-950">
             Your Sa / आपका Sa
@@ -157,35 +177,33 @@ export function HarmoniumPractice({
             </select>
           </label>
           <div className="flex flex-wrap rounded-lg border border-navy-900/10 bg-white p-1">
-            <ModeButton active={system === "keyboard"} onClick={() => setSystem("keyboard")}>
-              Live keyboard
-            </ModeButton>
-            <ModeButton active={system === "sargam"} onClick={() => setSystem("sargam")}>
-              हिंदी सारगम + keys
-            </ModeButton>
-            <ModeButton active={system === "keys"} onClick={() => setSystem("keys")}>
-              Keys only
-            </ModeButton>
-            <ModeButton active={system === "guide"} onClick={() => setSystem("guide")}>
-              Warm-up guide
-            </ModeButton>
-          </div>
+              <ModeButton active={system === "sargam"} onClick={() => setSystem("sargam")}>
+                हिंदी सारगम + keys
+              </ModeButton>
+              <ModeButton active={system === "keys"} onClick={() => setSystem("keys")}>
+                Keys only
+              </ModeButton>
+              <ModeButton active={system === "guide"} onClick={() => setSystem("guide")}>
+                Warm-up guide
+              </ModeButton>
+            </div>
           {loading ? (
             <LoadingIndicator label="Changing Sa" compact />
           ) : (
             <span className="ml-auto text-xs text-stone-600">Sa = {tonic}</span>
           )}
         </div>
+        )}
 
-        {system === "keyboard" ? (
+        {keyboardSong ? (
           <div className="mt-4">
-            <VirtualHarmonium tonic={tonic} />
+            <VirtualHarmonium tonic={tonic} onTonicChange={(value) => void changeTonic(value)} song={keyboardSong} />
           </div>
         ) : null}
 
-        {system === "guide" ? <SargamGuide tonic={tonic} /> : null}
+        {!fullSargam && system === "guide" ? <SargamGuide tonic={tonic} /> : null}
 
-        {hasPlayableNotation(notation) && (system === "sargam" || system === "keys") ? (
+        {!fullSargam && notation && playable && (system === "sargam" || system === "keys") ? (
           <div className="mt-4 space-y-4">
               <div className="rounded-2xl border border-gold-500/25 bg-white p-4 sm:p-5">
                   <p className="eyebrow">Song melody</p>
@@ -206,18 +224,7 @@ export function HarmoniumPractice({
                   return (
                     <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
                       अभ्यास ड्राफ्ट में {coverage.covered}/{coverage.total} पंक्तियों का हिंदी सारगम है (अक्सर
-                      Andromeda PDF के पहले पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के रहती हैं
-                      {pdfHref ? (
-                        <>
-                          {" · "}
-                          <a href={pdfHref} target="_blank" rel="noreferrer" className="font-semibold underline">
-                            पूरी स्वरलिपि PDF खोलें
-                          </a>
-                          .
-                        </>
-                      ) : (
-                        "."
-                      )}
+                      स्रोत PDF के पहले पृष्ठ से)। बाकी पंक्तियाँ बिना अनुमानित notes के रहती हैं.
                     </p>
                   )
                 })()}
@@ -233,8 +240,6 @@ export function HarmoniumPractice({
                     system={system}
                     songLyricLines={songLyricLines}
                     originalLyricLines={originalLyricLines}
-                    onHear={() => hearLine(lineIndex)}
-                    hasPdfLink={Boolean(pdfHref)}
                   />
                   {line ? (
                     <NotationMatraSheet
@@ -244,6 +249,7 @@ export function HarmoniumPractice({
                       tala={notation.notation.tala}
                       tempoBpm={notation.notation.tempo_bpm}
                       expertVerified={notation.verification_status === "expert_verified"}
+                      allowPlay={false}
                     />
                   ) : null}
                 </div>
@@ -251,13 +257,15 @@ export function HarmoniumPractice({
             </div>
           ) : null}
 
-        {!hasPlayableNotation(notation) && system !== "keyboard" && system !== "guide" ? (
+        {!playable && !fullSargam && system !== "guide" ? (
           <p className="mt-4 rounded-xl border border-navy-900/10 bg-white px-4 py-3 text-sm text-stone-600">
-            Song notation is not available yet — use the live keyboard to practise Sa Re Ga Ma.
+            Full sargam is not available for this song yet. Practise with the warm-up guide.
           </p>
         ) : null}
 
-        {hasPlayableNotation(notation) ? <PracticeCoach notation={notation} lyricLines={songLyricLines} /> : null}
+        {fullSargam && notation ? (
+          <PracticeCoach notation={notation} lyricLines={songLyricLines} />
+        ) : null}
       </div>
     </details>
   )
@@ -269,16 +277,12 @@ function LinePracticeCard({
   system,
   songLyricLines,
   originalLyricLines,
-  onHear,
-  hasPdfLink = false,
 }: {
   line: NotationLine | null
   lineIndex: number
   system: "keys" | "sargam"
   songLyricLines: string[]
   originalLyricLines: string[]
-  onHear: () => void
-  hasPdfLink?: boolean
 }) {
   const notes = line ? buildDisplayNotes(line) : []
   const hasNotes = notes.length > 0
@@ -308,11 +312,6 @@ function LinePracticeCard({
               <p className="mt-1 text-xs text-stone-500">{line.transliteration}</p>
             ) : null}
           </div>
-          {hasNotes ? (
-            <button type="button" onClick={onHear} className="soft-chip shrink-0">
-              ▶ Harmonium
-            </button>
-          ) : null}
         </div>
       </div>
 
@@ -369,9 +368,7 @@ function LinePracticeCard({
         </div>
       ) : (
         <p className="px-4 py-4 text-sm text-stone-500 sm:px-5">
-          {hasPdfLink
-            ? "Notation for this lyric line is not in the practice draft yet — use the source PDF for the full melody."
-            : "Notation for this lyric line is not in the practice draft yet."}
+          Notation for this lyric line is not in the practice draft yet.
         </p>
       )}
 

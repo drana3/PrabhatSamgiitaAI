@@ -61,7 +61,7 @@ BAR_CHARS = "-–—|/।॥:·.•…_=~"
 
 # Roman booklet scans (Sarkarverse RS_*.pdf): Sa Re Ga under lyrics.
 ROMAN_SWARA_RE = re.compile(
-    r"(?<![A-Za-z])(dha|ni|sa|re|ra|ga|ma|pa)(?:['’`]*)(?![A-Za-z])",
+    r"(?<![A-Za-z])(k[sśṣ]a|dha|ni|na|sa|re|ra|ga|ma|pa)(?:['’`]*)(?![A-Za-z])",
     re.I,
 )
 ROMAN_SWARA_MAP = {
@@ -73,7 +73,21 @@ ROMAN_SWARA_MAP = {
     "pa": "P",
     "dha": "D",
     "ni": "N",
+    "na": "N",
+    "ksa": "D",
+    "kśa": "D",
+    "kṣa": "D",
 }
+
+# RS_* booklets: Sa ra ga á | …  (á / a' = hold, I or | = bar).
+BOOKLET_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z])(?:k[sśṣ]a|dha|ni|na|sa|re|ra|ga|ma|pa)['’`]*(?![A-Za-z])"
+    r"|á"
+    r"|(?<![A-Za-z])a['’`]?(?![A-Za-z])"
+    r"|[—–\-]+"
+    r"|[|I/]{1,2}",
+    re.I,
+)
 
 
 def ensure_tools() -> None:
@@ -144,6 +158,284 @@ def parse_roman_swaras(line: str) -> list[str]:
         if mapped:
             notes.append(mapped)
     return notes
+
+
+def parse_roman_booklet_beats(line: str) -> list[dict[str, Any]]:
+    """Sa ra ga á | ga dha pa á → sargam + matra length (kaharva holds)."""
+    beats: list[dict[str, Any]] = []
+    for raw in BOOKLET_TOKEN_RE.findall(line):
+        token = raw.strip()
+        if not token or re.fullmatch(r"[|I/]+", token):
+            continue
+        if token in {"á", "Á"} or re.fullmatch(r"a['’`]?", token, re.I) or re.fullmatch(r"[—–\-]+", token):
+            if beats:
+                beats[-1]["beats"] += 1
+            continue
+        core = re.sub(r"['’`]+$", "", token).lower()
+        sargam = ROMAN_SWARA_MAP.get(core)
+        if not sargam:
+            continue
+        beats.append({"sargam": sargam, "beats": 1})
+    return beats
+
+
+BOOKLET_LATIN = {
+    "S": "Sa",
+    "r": "re",
+    "R": "Re",
+    "g": "ga",
+    "G": "Ga",
+    "m": "ma",
+    "M": "Ma",
+    "P": "Pa",
+    "d": "dha",
+    "D": "Dha",
+    "n": "ni",
+    "N": "Ni",
+}
+TAL_RE = re.compile(r"^ta['’`]?l\b", re.I)
+DATE_RE = re.compile(
+    r"deoghar|jamalpur|kolkata|purulia|ananda nagar|\(\s*\d{1,2}\s+\w+",
+    re.I,
+)
+BEAT_MARK_RE = re.compile(r"^[1lIioO0'’`.\s]+$")
+SECTION_TITLE_RE = re.compile(r"giit[ai]\s*$", re.I)
+FOOTER_RE = re.compile(r"^\[\s*\d+\s*\]$")
+SONG_NUM_RE = re.compile(r"^\(\s*\d{1,4}\s*\)$")
+
+
+def booklet_sargam_line(beats: list[dict[str, Any]], group_size: int = 4) -> str:
+    parts: list[str] = []
+    cycle = 0
+    group = max(1, group_size)
+    for beat in beats:
+        core = str(beat["sargam"]).replace(".", "").replace("'", "")
+        latin = BOOKLET_LATIN.get(core, core)
+        if str(beat["sargam"]).startswith("."):
+            latin = f".{latin}"
+        count = max(1, int(round(float(beat["beats"]))))
+        if cycle > 0 and cycle % group == 0:
+            parts.append("|")
+        parts.append(latin)
+        for _ in range(1, count):
+            parts.append("á")
+        cycle += count
+    return " ".join(parts)
+
+
+def fold_lyric(text: str) -> str:
+    stripped = unicodedata.normalize("NFKD", text or "")
+    return "".join(character.lower() for character in stripped if character.isalnum())
+
+
+def is_sargam_row(line: str) -> bool:
+    play = parse_roman_booklet_beats(line)
+    matras = sum(item["beats"] for item in play)
+    return len(play) >= 3 and matras >= 4
+
+
+def is_section_title(line: str) -> bool:
+    words = line.split()
+    if not words or len(words) > 4:
+        return False
+    return bool(SECTION_TITLE_RE.search(line)) and not is_sargam_row(line)
+
+
+def stanza_and_sargam_rows(ocr_text: str) -> tuple[list[str], list[dict[str, Any]]]:
+    """Split a Roman RS song page: lyric stanza above Tal, then sargam rows."""
+    raw_lines = [" ".join(line.split()) for line in ocr_text.splitlines()]
+    lines = [line for line in raw_lines if line and not FOOTER_RE.match(line)]
+    stanza: list[str] = []
+    sargam_lines: list[str] = []
+    mode = "lyrics"
+    for line in lines:
+        if SONG_NUM_RE.match(line):
+            continue
+        if DATE_RE.search(line):
+            continue
+        if TAL_RE.match(line):
+            mode = "sargam"
+            continue
+        if mode == "lyrics":
+            if DATE_RE.search(line) or is_section_title(line) or BEAT_MARK_RE.match(line):
+                continue
+            if is_sargam_row(line) and stanza:
+                mode = "sargam"
+                sargam_lines.append(line)
+                continue
+            stanza.append(line.rstrip(" ."))
+        else:
+            if BEAT_MARK_RE.match(line) or TAL_RE.match(line) or DATE_RE.search(line):
+                continue
+            sargam_lines.append(line)
+
+    rows: list[dict[str, Any]] = []
+    index = 0
+    while index < len(sargam_lines):
+        line = sargam_lines[index]
+        if not is_sargam_row(line):
+            index += 1
+            continue
+        play = parse_roman_booklet_beats(line)
+        syllables = ""
+        nxt = sargam_lines[index + 1] if index + 1 < len(sargam_lines) else ""
+        if nxt and not is_sargam_row(nxt):
+            syllables = nxt
+            index += 1
+        rows.append(
+            {
+                "play": play,
+                "sargam": booklet_sargam_line(play),
+                "syllables": syllables,
+            }
+        )
+        index += 1
+    return stanza, rows
+
+
+def _coverage(needle: str, haystack: str) -> float:
+    if not needle or not haystack:
+        return 0.0
+    if needle in haystack or haystack in needle:
+        return 1.0
+    from difflib import SequenceMatcher
+
+    return SequenceMatcher(None, needle, haystack).ratio()
+
+
+def _play_total(play: list[dict[str, Any]]) -> int:
+    return sum(max(1, int(round(float(item["beats"])))) for item in play)
+
+
+def _split_play(play: list[dict[str, Any]], cut: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    left: list[dict[str, Any]] = []
+    right: list[dict[str, Any]] = []
+    remaining = cut
+    for item in play:
+        beats = max(1, int(round(float(item["beats"]))))
+        if remaining <= 0:
+            right.append({"sargam": item["sargam"], "beats": beats})
+            continue
+        if beats <= remaining:
+            left.append({"sargam": item["sargam"], "beats": beats})
+            remaining -= beats
+        else:
+            left.append({"sargam": item["sargam"], "beats": remaining})
+            right.append({"sargam": item["sargam"], "beats": beats - remaining})
+            remaining = 0
+    return left, right
+
+
+def _best_stanza(text: str, stanza: list[str], used: set[int]) -> tuple[int | None, float]:
+    haystack = fold_lyric(text)
+    best_index = None
+    best_score = 0.0
+    for index, lyric in enumerate(stanza):
+        score = _coverage(fold_lyric(lyric), haystack)
+        if index in used:
+            score *= 0.7
+        if score > best_score:
+            best_score = score
+            best_index = index
+    return best_index, best_score
+
+
+def pair_stanza_with_sargam(
+    stanza: list[str],
+    rows: list[dict[str, Any]],
+) -> list[tuple[str, dict[str, Any]]]:
+    """Match booklet lyrics to sargam. Split a 16-matra row when two phrases share it."""
+    if not rows:
+        return []
+    if len(stanza) == len(rows):
+        return [(lyric, row) for lyric, row in zip(stanza, rows)]
+
+    used: set[int] = set()
+    paired: list[tuple[str, dict[str, Any]]] = []
+    for row in rows:
+        syllables = str(row.get("syllables") or "")
+        haystack = fold_lyric(syllables) or fold_lyric(row.get("sargam") or "")
+        play = list(row["play"])
+        matras = _play_total(play)
+        parts = syllables.split()
+        mid = max(1, len(parts) // 2)
+        left_text = " ".join(parts[:mid]) if parts else ""
+        right_text = " ".join(parts[mid:]) if parts else ""
+        left_i, left_score = _best_stanza(left_text or haystack, stanza, used)
+        right_i, right_score = _best_stanza(right_text or haystack, stanza, used)
+        split = (
+            matras == 16
+            and left_i is not None
+            and right_i is not None
+            and left_i != right_i
+            and left_score >= 0.4
+            and right_score >= 0.4
+        )
+        if split:
+            left_play, right_play = _split_play(play, 8)
+            for index, piece in ((left_i, left_play), (right_i, right_play)):
+                used.add(index)
+                paired.append(
+                    (
+                        stanza[index],
+                        {
+                            "play": piece,
+                            "sargam": booklet_sargam_line(piece),
+                            "syllables": "",
+                        },
+                    )
+                )
+            continue
+        best_index, _score = _best_stanza(haystack, stanza, used)
+        if best_index is None:
+            continue
+        used.add(best_index)
+        paired.append((stanza[best_index], row))
+    return paired
+
+
+def match_original_lyric(roman_line: str, song: dict[str, Any]) -> str:
+    originals = lyric_lines({"lyrics_original": song.get("lyrics_original")})
+    trans = lyric_lines({"transliteration": song.get("transliteration")})
+    folded = fold_lyric(roman_line)
+    best = ""
+    best_score = 0.0
+    for index, line in enumerate(trans or originals):
+        score = _coverage(folded, fold_lyric(line))
+        if score > best_score:
+            best_score = score
+            best = originals[index] if index < len(originals) else ""
+    return best if best_score >= 0.35 else ""
+
+
+def parse_rs_song_page(ocr_text: str, song: dict[str, Any]) -> dict[str, Any] | None:
+    """Build learner notation from a Roman RS page: stanza lyrics + held sargam."""
+    stanza, rows = stanza_and_sargam_rows(ocr_text)
+    paired = pair_stanza_with_sargam(stanza, rows)
+    if not paired:
+        return None
+    lines = []
+    for index, (lyric, row) in enumerate(paired):
+        play = row["play"]
+        beats = _sheet_beats_from_booklet(play)
+        measures = [{"beats": beats[start : start + 8]} for start in range(0, len(beats), 8)]
+        lines.append(
+            {
+                "line_number": index + 1,
+                "lyrics": lyric,
+                "lyrics_original": match_original_lyric(lyric, song),
+                "sargam_text": row["sargam"],
+                "measures": measures,
+            }
+        )
+    tala_name, tala_beats, tala_groups = detect_tala(ocr_text)
+    return {
+        "version": 1,
+        "source_scale": "C",
+        "tempo_bpm": None,
+        "tala": {"name": tala_name, "beats": tala_beats, "groups": tala_groups},
+        "lines": lines,
+    }
 
 
 def score_notation_line(line: str) -> float:
@@ -252,28 +544,68 @@ def select_sargam_rows(
     return [notes for _score, notes in unique]
 
 
+def _sheet_beats_from_notes(notes: list[str]) -> list[dict[str, Any]]:
+    return [
+        {
+            "beat": beat + 1,
+            "notes": [
+                {
+                    "sargam": note,
+                    "duration": 1.0,
+                    "octave": "middle",
+                }
+            ],
+        }
+        for beat, note in enumerate(notes)
+    ]
+
+
+def _sheet_beats_from_booklet(play: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "beat": beat + 1,
+            "notes": [
+                {
+                    "sargam": item["sargam"],
+                    "duration": float(item["beats"]),
+                    "octave": "middle",
+                }
+            ],
+        }
+        for beat, item in enumerate(play)
+    ]
+
+
 def build_notation(song: dict[str, Any], ocr_text: str) -> tuple[dict[str, Any] | None, float]:
     scored_lines = notation_lines(ocr_text)
     lyrics = lyric_lines(song)
-    scored_parsed = [(score, parse_swaras(line)) for score, line in scored_lines]
+    scored_parsed: list[tuple[float, list[str]]] = []
+    play_for_notes: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+    for score, line in scored_lines:
+        play = parse_roman_booklet_beats(line)
+        notes = [item["sargam"] for item in play] if play else parse_swaras(line)
+        if not notes:
+            notes = parse_swaras(line)
+            play = [{"sargam": note, "beats": 1} for note in notes]
+        if not notes:
+            continue
+        scored_parsed.append((score, notes))
+        play_for_notes[tuple(notes)] = play if play else [{"sargam": note, "beats": 1} for note in notes]
     parsed = select_sargam_rows(scored_parsed, len(lyrics))
+    parsed_beats = [
+        play_for_notes.get(tuple(notes), [{"sargam": note, "beats": 1} for note in notes])
+        for notes in parsed
+    ]
     if not parsed:
         return None, 0.0
     lines = []
     for index, notes in enumerate(parsed):
-        beats = [
-            {
-                "beat": beat + 1,
-                "notes": [
-                    {
-                        "sargam": note,
-                        "duration": 1.0,
-                        "octave": "middle",
-                    }
-                ],
-            }
-            for beat, note in enumerate(notes)
-        ]
+        play = parsed_beats[index] if index < len(parsed_beats) else [{"sargam": n, "beats": 1} for n in notes]
+        beats = (
+            _sheet_beats_from_booklet(play)
+            if any(item["beats"] > 1 for item in play)
+            else _sheet_beats_from_notes(notes)
+        )
         measures = [{"beats": beats[start : start + 8]} for start in range(0, len(beats), 8)]
         lyric = lyrics[index] if index < len(lyrics) else f"Line {index + 1}"
         lines.append(

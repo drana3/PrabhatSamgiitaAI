@@ -203,6 +203,16 @@ export function notationCoverage(
   }
 }
 
+/** Learner notation from Roman RS booklets only — Bengali PDF OCR is not shown. */
+export function isRomanPracticeNotation(row: {
+  metadata_json?: Record<string, unknown> | null
+} | null | undefined): boolean {
+  const meta = row?.metadata_json ?? {}
+  const kind = String(meta.source_kind ?? "")
+  const method = String(meta.extraction_method ?? "").toLowerCase()
+  return kind === "sarkarverse_roman_ocr" || method.includes("roman")
+}
+
 /** True only when a learner can practise sargam — a PDF link is not enough. */
 export function hasPlayableNotation<T extends { notation?: { lines?: NotationLine[] } }>(
   notation: T | null | undefined,
@@ -210,6 +220,17 @@ export function hasPlayableNotation<T extends { notation?: { lines?: NotationLin
   const lines = notation?.notation?.lines
   if (!lines?.length) return false
   return lines.some((line) => lineNotes(line).length > 0)
+}
+
+/** True when this song can be played on the reed keyboard (complete coverage, or listed Full Sargam). */
+export function hasFullSargamForKeyboard(
+  notation: { notation?: { lines?: NotationLine[] } } | null | undefined,
+  songLyricLineCount: number,
+  listedComplete = false,
+): boolean {
+  if (!hasPlayableNotation(notation)) return false
+  if (listedComplete) return true
+  return !notationCoverage(notation.notation?.lines?.length ?? 0, songLyricLineCount).incomplete
 }
 
 export function resolveLineLyrics(

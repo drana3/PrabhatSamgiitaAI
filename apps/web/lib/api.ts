@@ -66,6 +66,14 @@ const songDetailSchema = songSummarySchema.extend({
   notation_source_url: z.string().nullable().optional(),
   notation_verification_status: z.string().nullable().optional(),
   notation_transposition_available: z.boolean().default(false),
+  notation_enabled: z.boolean().optional().default(true),
+  sargam_attribution: z
+    .object({
+      display_name: z.string(),
+      submitted_at: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
   metadata_json: z.record(z.any()).default({}),
 })
 
@@ -115,6 +123,13 @@ const transposedNotationSchema = z.object({
   target_scale: z.string(),
   verification_status: z.string(),
   notation: notationSchema,
+  sargam_attribution: z
+    .object({
+      display_name: z.string(),
+      submitted_at: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 })
 
 const songLocalizationSchema = z.object({

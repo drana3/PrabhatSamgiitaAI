@@ -43,6 +43,7 @@ from app.models.member import (
     UserPlaylistSong,
 )
 from app.models.notation import Notation
+from app.models.sargam_capture import NotationCapture
 from app.models.song import Song
 
 __all__ = [
@@ -58,6 +59,8 @@ __all__ = [
     "InventoryItem",
     "Media",
     "Notation",
+    "NotationCapture",
+    "NotationCapture",
     "Occasion",
     "PasswordResetToken",
     "PhoneVerificationCode",

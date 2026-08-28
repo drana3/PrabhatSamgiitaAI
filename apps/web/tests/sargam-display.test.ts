@@ -9,7 +9,9 @@ import {
   isBengaliText,
   lineNotes,
   notationCoverage,
+  hasFullSargamForKeyboard,
   hasPlayableNotation,
+  isRomanPracticeNotation,
   notationPdfHref,
   practiceLyricSource,
   resolveLineLyrics,
@@ -103,10 +105,38 @@ describe("sargam-display", () => {
     expect(notationCoverage(1, 3).incomplete).toBe(true)
   })
 
+  it("accepts Roman RS drafts and rejects Bengali PDF OCR", () => {
+    expect(
+      isRomanPracticeNotation({
+        metadata_json: { source_kind: "sarkarverse_roman_ocr" },
+      }),
+    ).toBe(true)
+    expect(
+      isRomanPracticeNotation({
+        metadata_json: {
+          source_kind: "sarkarverse_divyadyuti",
+          extraction_method: "sarkarverse_divyadyuti_pdftotext",
+        },
+      }),
+    ).toBe(false)
+    expect(
+      isRomanPracticeNotation({
+        metadata_json: { extraction_method: "tesseract_bengali_source_pdf" },
+      }),
+    ).toBe(false)
+  })
+
   it("does not treat a PDF-only song as playable notation", () => {
     expect(hasPlayableNotation(null)).toBe(false)
     expect(hasPlayableNotation({ notation: { lines: [] } })).toBe(false)
     expect(hasPlayableNotation({ notation: { lines: [sampleLine] } })).toBe(true)
+  })
+
+  it("treats complete lyric coverage as full sargam for the keyboard", () => {
+    expect(hasFullSargamForKeyboard({ notation: { lines: [sampleLine] } }, 1)).toBe(true)
+    expect(hasFullSargamForKeyboard({ notation: { lines: [sampleLine] } }, 3)).toBe(false)
+    expect(hasFullSargamForKeyboard({ notation: { lines: [sampleLine] } }, 3, true)).toBe(true)
+    expect(hasFullSargamForKeyboard(null, 4)).toBe(false)
   })
 
   it("keeps a PDF link only when the app already has sargam", () => {

@@ -6,10 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.schemas.notation import NotationSourceResponse, TransposedNotationResponse
+from app.schemas.notation import (
+    NotationSourceResponse,
+    SargamAttribution,
+    TransposedNotationResponse,
+)
 from app.services.catalog import CatalogService
 from app.services.harmonium import load_song_notation, normalize_tonic, transpose_notation
 from app.services.notation_links import learner_notation_url
+from app.services.sargam_capture import sargam_attribution_payload
 
 router = APIRouter(prefix="/songs", tags=["notation"])
 
@@ -69,6 +74,10 @@ async def get_notation(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     transposed = transpose_notation(notation, target_scale)
     source = await CatalogService(session).get_notation(number)
+    attribution = sargam_attribution_payload(
+        source.metadata_json if source else None,
+        source.verification_status if source else None,
+    )
     if system.lower() == "western":
         # Keep the canonical schema but expose western notes in-place.
         pass
@@ -78,4 +87,5 @@ async def get_notation(
         target_scale=target_scale,
         verification_status=source.verification_status if source else "practice_draft",
         notation=transposed,
+        sargam_attribution=SargamAttribution.model_validate(attribution) if attribution else None,
     )

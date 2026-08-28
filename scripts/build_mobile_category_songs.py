@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SONGS_PATH = ROOT / "data" / "generated" / "songs.json"
 COLLECTIONS_PATH = ROOT / "data" / "generated" / "theme_collections.json"
-PRACTICE_PATH = ROOT / "data" / "generated" / "notation_practice.json"
+PLAN_PATH = ROOT / "data" / "generated" / "sarkarverse_sargam_plan.json"
 OUT_PATH = ROOT / "data" / "generated" / "mobile_category_songs.json"
 COMPLETE_SARGAM_PATH = ROOT / "data" / "generated" / "complete_sargam_songs.json"
 COLLECTION_TITLES_PATH = ROOT / "data" / "generated" / "collection_song_titles.json"
@@ -227,48 +227,21 @@ def haystack(song: dict) -> str:
     return " ".join(str(part) for part in parts).lower()
 
 
-def lyric_line_count(song: dict) -> int:
-    value = song.get("lyrics_original") or song.get("transliteration") or song.get("first_line")
-    return len([line.strip() for line in str(value or "").splitlines() if line.strip()])
+def roman_sargam_numbers() -> list[int]:
+    """Songs with Roman RS_* sargam. Bengali PDF sources are excluded."""
+    if not PLAN_PATH.exists():
+        return []
+    plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
+    numbers = [
+        int(number)
+        for number, row in (plan.get("songs") or {}).items()
+        if int(number) > 0 and str((row or {}).get("script") or "") == "roman"
+    ]
+    return sorted(set(numbers))
 
 
-def is_complete_practice(draft: dict, song: dict) -> bool:
-    """Same rule as the practice UI: every lyric line has extracted sargam."""
-    meta = draft.get("metadata_json") or {}
-    if meta.get("coverage_incomplete") is True:
-        return False
-    raw = draft.get("notation_text")
-    if not raw:
-        return False
-    try:
-        notation = json.loads(raw) if isinstance(raw, str) else raw
-    except json.JSONDecodeError:
-        return False
-    lines = notation.get("lines") or []
-    notes = 0
-    for line in lines:
-        for measure in line.get("measures") or []:
-            for beat in measure.get("beats") or []:
-                notes += len(beat.get("notes") or [])
-    if len(lines) < 2 or notes < 8:
-        return False
-    lyrics = lyric_line_count(song)
-    if lyrics and len(lines) < lyrics:
-        return False
-    return True
-
-
-def complete_notation_entry(songs: list[dict]) -> dict:
-    practice_rows = json.loads(PRACTICE_PATH.read_text(encoding="utf-8")) if PRACTICE_PATH.exists() else []
-    by_number = {int(song["number"]): song for song in songs}
-    numbers: list[int] = []
-    for draft in practice_rows:
-        number = int(draft.get("song_number") or 0)
-        if number < 1:
-            continue
-        if is_complete_practice(draft, by_number.get(number, {})):
-            numbers.append(number)
-    numbers = sorted(set(numbers))
+def complete_notation_entry(_songs: list[dict]) -> dict:
+    numbers = roman_sargam_numbers()
     return {
         "label": "Full Sargam",
         "ui": False,
@@ -301,7 +274,7 @@ def complete_sargam_web_payload(songs: list[dict]) -> dict:
         "query": "full sargam",
         "count": len(summaries),
         "songs": summaries,
-        "note": "Complete in-app Sargam only. Website Explore, not mobile chips.",
+        "note": "Roman RS_* sargam only. Bengali PDF sources are not listed.",
     }
 
 

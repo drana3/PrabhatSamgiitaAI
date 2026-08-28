@@ -145,6 +145,10 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     audioUrl: pickPreferredAudioUrl(detail.media),
     audioRecordings: listPlayableAudio(detail.media).slice(0, 5),
     notationSourceUrl: detail.notation_source_url?.trim() || null,
+    notationVerificationStatus: detail.notation_verification_status?.trim() || null,
+    notationEnabled: detail.notation_enabled !== false,
+    sargamSubmittedBy: detail.sargam_attribution?.display_name?.trim() || null,
+    sargamSubmittedAt: detail.sargam_attribution?.submitted_at ?? null,
     mediaHydrated: true,
   }
 }

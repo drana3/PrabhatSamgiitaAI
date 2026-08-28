@@ -24,14 +24,24 @@ export function writeHarmoniumPracticeEnabled(enabled: boolean) {
   }
 }
 
+/** Local song pages skip sign-in so you can try the keyboard. Production stays gated. */
+export function isLocalHarmoniumPreview(): boolean {
+  if (process.env.NODE_ENV === "production") return false
+  if (typeof window === "undefined") return process.env.NODE_ENV === "development"
+  const host = window.location.hostname
+  return host === "localhost" || host === "127.0.0.1"
+}
+
 export function useHarmoniumPracticeEnabled(): boolean {
   const { session } = useMember()
   const [enabled, setEnabled] = useState(() =>
     typeof window === "undefined" ? false : readHarmoniumPracticeEnabled(),
   )
+  const [localPreview, setLocalPreview] = useState(() => isLocalHarmoniumPreview())
 
   useEffect(() => {
     setEnabled(readHarmoniumPracticeEnabled())
+    setLocalPreview(isLocalHarmoniumPreview())
     function onChange() {
       setEnabled(readHarmoniumPracticeEnabled())
     }
@@ -44,7 +54,7 @@ export function useHarmoniumPracticeEnabled(): boolean {
   }, [])
 
   return useMemo(
-    () => harmoniumPracticeActive(session.authenticated, enabled),
-    [session.authenticated, enabled],
+    () => localPreview || harmoniumPracticeActive(session.authenticated, enabled),
+    [localPreview, session.authenticated, enabled],
   )
 }

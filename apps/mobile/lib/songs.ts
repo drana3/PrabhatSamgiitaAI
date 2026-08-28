@@ -1,3 +1,4 @@
+import { hasPublishedLearnerSargam } from "@prabhat/core"
 import type { MockSong } from "@/data/mock"
 import { fetchSongDetailCached, peekSongDetail, prefetchNotation, rememberSongDetail } from "@/lib/songCache"
 import { parseSongNumber, songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
@@ -21,7 +22,7 @@ export async function resolveSongBundle(songId: string | undefined): Promise<Res
   const detail = await fetchSongDetailCached(number)
   if (!detail) return null
   rememberSongDetail(detail)
-  prefetchNotation(number, "C")
+  if (hasPublishedLearnerSargam(number, detail.notation_verification_status, detail.notation_enabled)) prefetchNotation(number, "C")
 
   return {
     song: songDetailToMockSong(detail),

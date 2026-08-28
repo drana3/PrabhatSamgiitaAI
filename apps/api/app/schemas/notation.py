@@ -53,12 +53,18 @@ class HarmoniumNotation(BaseModel):
     lines: list[NotationLine] = Field(default_factory=list)
 
 
+class SargamAttribution(BaseModel):
+    display_name: str
+    submitted_at: str | None = None
+
+
 class TransposedNotationResponse(BaseModel):
     song_number: int
     source_scale: str
     target_scale: str
     verification_status: str
     notation: HarmoniumNotation
+    sargam_attribution: SargamAttribution | None = None
 
 
 class NotationSourceResponse(BaseModel):

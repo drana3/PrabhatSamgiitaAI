@@ -25,7 +25,7 @@ same core contracts.
 | Which occasions can I browse? | `GET /api/v1/occasions` | Reviewed choices including Dharma Cakra. |
 | Which festivals have canonical mappings? | `GET /api/v1/festivals` | Festival names, song counts, verification status, and source URLs. |
 | Is official notation available for song 1? | `GET /api/v1/songs/1/notation/source` | Verified PDF/source link; machine transposition is only marked available when parsed notation exists. |
-| Transpose song 1 to D. | `GET /api/v1/songs/1/notation?scale=D&system=sargam` | OCR-derived learner draft is transposed, remains labelled `practice_draft`, and never claims canonical verification. |
+| Transpose expert-verified song 4961 to D. | `GET /api/v1/songs/4961/notation?scale=D&system=sargam` | Expert-curated sheet is transposed and labelled `expert_verified`. |
 | Play the verified YouTube performance for song 1. | `GET /api/v1/songs/1/media?media_type=video&platform=youtube` | Privacy-enhanced embed from the allow-listed AMPS channel, with community-source status. |
 | Play song 1112, which is absent from the official audio archive. | `GET /api/v1/songs/1112/media?media_type=audio` | Number-matched community audio link with `community`, `link_only`, and `unverified` labels. |
 | Are there multiple video renditions of song 2635? | `GET /api/v1/songs/2635/media?media_type=video` | Both distinct videos remain associated with canonical song number 2635. |

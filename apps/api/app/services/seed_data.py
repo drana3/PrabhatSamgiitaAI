@@ -11,6 +11,17 @@ from app.services.notation_links import ANDROMEDA_ARCHIVE, learner_notation_url
 DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 
 
+def is_roman_practice_draft(row: dict[str, Any] | None) -> bool:
+    """True for Roman RS booklet OCR. Bengali PDF drafts are not shown as notation."""
+    if not row:
+        return False
+    meta_raw = row.get("metadata_json")
+    meta: dict[str, Any] = meta_raw if isinstance(meta_raw, dict) else {}
+    kind = str(meta.get("source_kind") or "")
+    method = str(meta.get("extraction_method") or "").lower()
+    return kind == "sarkarverse_roman_ocr" or "roman" in method
+
+
 @lru_cache(maxsize=8)
 def load_rows(filename: str) -> list[dict[str, Any]]:
     generated = _read_rows(DATA_DIR / "generated" / filename)
@@ -174,7 +185,7 @@ def _merge_notation_practice(
         row = dict(source)
         draft = drafts.get(row.get("song_number"))
         source_meta = dict(row.get("metadata_json") or {})
-        if draft:
+        if draft and is_roman_practice_draft(draft):
             source_verification_status = row.get("verification_status", "unverified")
             draft_meta = dict(draft.get("metadata_json") or {})
             row["notation_text"] = draft.get("notation_text")
@@ -215,6 +226,8 @@ def _merge_notation_practice(
     covered = {row.get("song_number") for row in merged}
     for number, draft in drafts.items():
         if number in covered or not draft.get("notation_text"):
+            continue
+        if not is_roman_practice_draft(draft):
             continue
         draft_meta = dict(draft.get("metadata_json") or {})
         merged.append(
