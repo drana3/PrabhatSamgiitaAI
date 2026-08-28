@@ -36,6 +36,7 @@ export const featureParity = [
   { web: "Sign in (AAD Easy Auth)", mobile: "Microsoft / Google / Facebook / email — no preview member", status: "ui" },
   { web: "Admin feedback", mobile: "/admin live triage", status: "ui", api: "/members/admin/feedback" },
   { web: "Admin members", mobile: "/admin · Members live", status: "ui", api: "/members/admin/users" },
+  { web: "Admin sargam capture", mobile: "/admin · Sargam tab + line studio", status: "ui", api: "/members/admin/songs/*/sargam-capture" },
   { web: "Notation / practice coach", mobile: "Song · Harmonium practice", status: "ui", api: "GET /songs/{n}/notation" },
   { web: "Header ticker", mobile: "Community voices (home)", status: "ui" },
   { web: "PWA manifest", mobile: "Native app", status: "skip" },

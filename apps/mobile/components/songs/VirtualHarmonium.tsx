@@ -37,9 +37,19 @@ type Props = {
   tonic: string
   onTonicChange?: (tonic: string) => void
   song?: HarmoniumSampleSong
+  keyboardOnly?: boolean
+  onPressKey?: (key: HarmoniumKeyboardKey) => void
+  onReleaseKey?: (key: HarmoniumKeyboardKey) => void
 }
 
-export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_CALO_SONG }: Props) {
+export function VirtualHarmonium({
+  tonic,
+  onTonicChange,
+  song = BANDHU_HE_NIYE_CALO_SONG,
+  keyboardOnly = false,
+  onPressKey,
+  onReleaseKey,
+}: Props) {
   const [typed, setTyped] = useState("")
   const [activeIndexes, setActiveIndexes] = useState<Set<number>>(new Set())
   const [playing, setPlaying] = useState(false)
@@ -72,6 +82,7 @@ export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_C
     if (!key || stopsRef.current.has(index)) return
     stopsRef.current.set(index, () => undefined)
     setActiveIndexes((current) => new Set(current).add(index))
+    onPressKey?.(key)
     const stop = await startWesternNote(key.western)
     if (!stopsRef.current.has(index)) {
       stop()
@@ -90,6 +101,8 @@ export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_C
       next.delete(index)
       return next
     })
+    const key = keys[index]
+    if (key) onReleaseKey?.(key)
   }
 
   async function playTyped() {
@@ -131,9 +144,19 @@ export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_C
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.eyebrow}>Classic harmonium</Text>
-      <Text style={styles.title}>Two-octave keyboard</Text>
-      <Text style={styles.lead}>Hold keys to sustain, like bellows feeding the reeds. Play more than one key at a time.</Text>
+      {keyboardOnly ? (
+        <>
+          <Text style={styles.eyebrow}>Line capture</Text>
+          <Text style={styles.title}>Virtual harmonium</Text>
+          <Text style={styles.lead}>Hold keys to record · Sa below</Text>
+        </>
+      ) : (
+        <>
+          <Text style={styles.eyebrow}>Classic harmonium</Text>
+          <Text style={styles.title}>Two-octave keyboard</Text>
+          <Text style={styles.lead}>Hold keys to sustain, like bellows feeding the reeds. Play more than one key at a time.</Text>
+        </>
+      )}
 
       {onTonicChange ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonicRow}>
@@ -153,6 +176,8 @@ export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_C
         <Text style={styles.tonicLabel}>Sa = {tonic}</Text>
       )}
 
+      {!keyboardOnly ? (
+        <>
       <Text style={styles.inputLabel}>Voice</Text>
       <View style={styles.tempoRow}>
         {HARMONIUM_VOICE_REGISTERS.map((register) => (
@@ -170,6 +195,8 @@ export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_C
           </Pressable>
         ))}
       </View>
+        </>
+      ) : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.keyboard}>
@@ -212,6 +239,8 @@ export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_C
         </View>
       </ScrollView>
 
+      {!keyboardOnly ? (
+        <>
       <Text style={styles.inputLabel}>{song.id === BANDHU_HE_NIYE_CALO_SONG.id ? "Sample song" : "Full sargam"}</Text>
       <Text style={styles.songTitle}>{song.title}</Text>
       <Text style={styles.songHi}>{song.titleHi}</Text>
@@ -283,6 +312,8 @@ export function VirtualHarmonium({ tonic, onTonicChange, song = BANDHU_HE_NIYE_C
         </Text>
       ) : typed.trim() ? (
         <Text style={styles.previewWarn}>Could not read swaras — try Sa Re Ga Ma or सा रे ग म</Text>
+      ) : null}
+        </>
       ) : null}
     </View>
   )

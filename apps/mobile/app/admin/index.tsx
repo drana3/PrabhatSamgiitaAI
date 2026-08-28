@@ -11,7 +11,7 @@ import {
 } from "react-native"
 import type { AdminFeedbackItem, AdminMember } from "@prabhat/core"
 import { useRouter } from "expo-router"
-import { MessageSquare, Shield, Users } from "lucide-react-native"
+import { MessageSquare, Music2, Shield, Users } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
@@ -30,12 +30,13 @@ const MIN_LIVE_QUOTE_LENGTH = 8
 
 export default function AdminScreen() {
   const router = useRouter()
-  const [tab, setTab] = useState<"feedback" | "members">("feedback")
+  const [tab, setTab] = useState<"feedback" | "members" | "sargam">("feedback")
   const [filter, setFilter] = useState<FeedbackFilter>("new")
   const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([])
   const [members, setMembers] = useState<AdminMember[]>([])
   const [loading, setLoading] = useState(false)
   const [grantEmail, setGrantEmail] = useState("")
+  const [sargamNumber, setSargamNumber] = useState("")
   const [busyId, setBusyId] = useState<string | null>(null)
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const mode = useAuthStore((s) => s.mode)
@@ -177,6 +178,12 @@ export default function AdminScreen() {
         >
           <Text style={styles.tabText}>Members</Text>
         </Pressable>
+        <Pressable
+          style={[styles.tab, tab === "sargam" && styles.tabActive]}
+          onPress={() => setTab("sargam")}
+        >
+          <Text style={styles.tabText}>Sargam</Text>
+        </Pressable>
       </View>
 
       {!memberAuthAvailable() ? (
@@ -245,7 +252,7 @@ export default function AdminScreen() {
               </View>
             ))}
           </>
-        ) : (
+        ) : tab === "members" ? (
           <>
             <Text style={styles.heroSub}>View members and grant or revoke admin access.</Text>
             <View style={styles.grantRow}>
@@ -295,6 +302,45 @@ export default function AdminScreen() {
                 ) : null}
               </View>
             ))}
+          </>
+        ) : (
+          <>
+            <Text style={styles.heroSub}>
+              Record or paste sargam line by line on iPhone or Android — same studio as the website.
+            </Text>
+            <View style={styles.card}>
+              <View style={styles.cardTop}>
+                <Music2 size={16} color={colors.primary} />
+                <Text style={styles.meta}>Line-by-line capture</Text>
+              </View>
+              <Text style={styles.snippet}>
+                Enter a song number to load lyrics, record on the harmonium keyboard, confirm each line, and submit.
+              </Text>
+              <View style={styles.grantRow}>
+                <TextInput
+                  value={sargamNumber}
+                  onChangeText={setSargamNumber}
+                  placeholder="Song number"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="number-pad"
+                  style={styles.input}
+                  accessibilityLabel="Song number"
+                />
+                <Pressable
+                  style={styles.actionBtn}
+                  onPress={() => {
+                    const number = Number(sargamNumber.trim())
+                    if (!Number.isInteger(number) || number < 1) {
+                      Alert.alert("Sargam capture", "Enter a valid song number.")
+                      return
+                    }
+                    router.push(href(`/admin/sargam/${number}`))
+                  }}
+                >
+                  <Text style={styles.actionText}>Open studio</Text>
+                </Pressable>
+              </View>
+            </View>
           </>
         )}
 

@@ -153,6 +153,39 @@ export type AdminFeedbackItem = z.infer<typeof adminFeedbackItemSchema>
 export type AdminFeedbackList = z.infer<typeof adminFeedbackListSchema>
 export type AdminMember = z.infer<typeof adminMemberSchema>
 
+export const sargamCaptureEventSchema = z.object({
+  sargam: z.string(),
+  western: z.string(),
+  startSec: z.number(),
+  durationSec: z.number(),
+})
+
+export const sargamCaptureLineSchema = z.object({
+  line_number: z.number(),
+  lyric: z.string(),
+  lyric_original: z.string().nullable().optional(),
+  status: z.enum(["empty", "recorded", "confirmed"]),
+  events: z.array(sargamCaptureEventSchema).default([]),
+  sargam: z.string().nullable().optional(),
+})
+
+export const sargamCaptureSchema = z.object({
+  song_number: z.number(),
+  title: z.string(),
+  booklet_locked: z.boolean().optional().default(false),
+  source_scale: z.string().optional().default("C"),
+  tempo_bpm: z.number().optional().default(100),
+  can_submit: z.boolean().optional().default(false),
+  submitted: z.boolean().optional().default(false),
+  notation_enabled: z.boolean().optional().default(true),
+  listen_url: z.string().nullable().optional(),
+  lines: z.array(sargamCaptureLineSchema).default([]),
+})
+
+export type SargamCaptureEvent = z.infer<typeof sargamCaptureEventSchema>
+export type SargamCaptureLine = z.infer<typeof sargamCaptureLineSchema>
+export type SargamCapturePayload = z.infer<typeof sargamCaptureSchema>
+
 export const inspirationStorySchema = z.object({
   slug: z.string(),
   title: z.string(),
@@ -410,6 +443,29 @@ async function readEventStream(response: Response, onChunk: (chunk: string) => v
   emitSseFrames(buffer, onChunk, true)
 }
 
+async function readApiErrorDetail(response: Response, fallback = "Request failed"): Promise<string> {
+  try {
+    const payload = (await response.json()) as { detail?: unknown }
+    if (typeof payload?.detail === "string") return payload.detail
+    if (Array.isArray(payload?.detail)) {
+      const joined = payload.detail
+        .map((entry) =>
+          typeof entry === "string"
+            ? entry
+            : typeof entry === "object" && entry && "msg" in entry
+              ? String((entry as { msg: unknown }).msg)
+              : null,
+        )
+        .filter(Boolean)
+        .join("; ")
+      if (joined) return joined
+    }
+  } catch {
+    /* ignore */
+  }
+  return `${fallback} (${response.status})`
+}
+
 export function createApiClient(options: ApiClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/$/, "")
   const timeoutMs = options.timeoutMs ?? 15000
@@ -580,6 +636,99 @@ export function createApiClient(options: ApiClientOptions) {
         return response.ok || response.status === 204
       } catch {
         return false
+      }
+    },
+
+    async fetchAdminSargamCapture(number: number): Promise<SargamCapturePayload | null> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture`,
+        )
+        if (!response.ok) return null
+        return sargamCaptureSchema.parse(await response.json())
+      } catch {
+        return null
+      }
+    },
+
+    async saveAdminSargamTake(
+      number: number,
+      lineNumber: number,
+      body: { events: SargamCaptureEvent[]; source_scale?: string; tempo_bpm?: number },
+    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/lines/${encodeURIComponent(String(lineNumber))}/takes`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        )
+        if (response.ok) {
+          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+        }
+        return { ok: false, detail: await readApiErrorDetail(response) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async postAdminSargamLineAction(
+      number: number,
+      lineNumber: number,
+      action: "confirm" | "retake",
+    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/lines/${encodeURIComponent(String(lineNumber))}/${action}`,
+          { method: "POST" },
+        )
+        if (response.ok) {
+          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+        }
+        return { ok: false, detail: await readApiErrorDetail(response) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async submitAdminSargamCapture(
+      number: number,
+    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/submit`,
+          { method: "POST" },
+        )
+        if (response.ok) {
+          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+        }
+        return { ok: false, detail: await readApiErrorDetail(response) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async setAdminSargamVisibility(
+      number: number,
+      enabled: boolean,
+    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/visibility`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+          },
+        )
+        if (response.ok) {
+          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+        }
+        return { ok: false, detail: await readApiErrorDetail(response) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
       }
     },
 

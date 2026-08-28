@@ -300,20 +300,22 @@ async def get_or_create_capture(
 
 
 def capture_payload(
-    song: Song, row: NotationCapture, notation: Notation | None = None
+    song: Song,
+    row: NotationCapture,
+    notation: Notation | None = None,
+    listen_url: str | None = None,
 ) -> dict[str, Any]:
     lines = list(row.lines_json or [])
     return {
         "song_number": song.number,
         "title": song.title,
-        "meaning": song.english_meaning,
-        "hindi_meaning": song.hindi_meaning,
         "booklet_locked": song.number in PROTECTED_BOOKLET_SONGS,
         "source_scale": row.source_scale,
         "tempo_bpm": row.tempo_bpm,
         "can_submit": can_submit_lines(lines) and song.number not in PROTECTED_BOOKLET_SONGS,
         "submitted": row.status == "admin_submitted",
         "notation_enabled": is_notation_enabled(notation.metadata_json if notation else None),
+        "listen_url": listen_url,
         "lines": lines,
     }
 

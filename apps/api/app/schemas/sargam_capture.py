@@ -26,14 +26,13 @@ class CaptureLine(BaseModel):
 class SargamCaptureResponse(BaseModel):
     song_number: int
     title: str
-    meaning: str | None = None
-    hindi_meaning: str | None = None
     booklet_locked: bool = False
     source_scale: str = "C"
     tempo_bpm: int = 100
     can_submit: bool = False
     submitted: bool = False
     notation_enabled: bool = True
+    listen_url: str | None = None
     lines: list[CaptureLine] = Field(default_factory=list)
 
 

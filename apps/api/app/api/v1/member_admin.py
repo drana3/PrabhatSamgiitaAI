@@ -694,7 +694,11 @@ async def _capture_response(
     except LookupError as exc:
         raise _capture_http_error(exc) from exc
     notation = await CatalogService(session).get_notation(number)
-    return SargamCaptureResponse.model_validate(capture_payload(song, row, notation))
+    media = await CatalogService(session).get_media(number)
+    listen_url = next((item.url for item in media if item.kind == "audio"), None)
+    return SargamCaptureResponse.model_validate(
+        capture_payload(song, row, notation, listen_url)
+    )
 
 
 @router.get("/songs/{number}/sargam-capture", response_model=SargamCaptureResponse)
