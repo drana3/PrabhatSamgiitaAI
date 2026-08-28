@@ -88,7 +88,9 @@ def is_learner_playable_notation(
         return False
     if song_number in PROTECTED_BOOKLET_SONGS:
         return True
-    return verification_status == "admin_submitted"
+    if verification_status in {"admin_submitted", "expert_verified"}:
+        return True
+    return False
 
 
 def duration_beats(duration_sec: float, tempo_bpm: int) -> float:
