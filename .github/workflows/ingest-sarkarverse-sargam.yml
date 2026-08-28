@@ -1,8 +1,7 @@
 name: Ingest Sarkarverse Sargam
 
-# Trigger from Actions → Ingest Sarkarverse Sargam → Run workflow.
-# Loops OCR batches until every booklet is in the stamp. If the job hits the
-# time box with work left, it re-dispatches itself on main.
+# Manual only. Booklet sargam for songs 1, 2, and 27 lives in @prabhat/core;
+# other songs use admin line capture. Do not auto-run bulk OCR on every push.
 
 on:
   workflow_dispatch:
@@ -15,13 +14,6 @@ on:
         description: "Scan PDFs per batch (keep small so progress can be committed)"
         type: number
         default: 4
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/ingest-sarkarverse-sargam.yml"
-      - "scripts/ingest_sarkarverse_sargam.py"
-      - "data/generated/sarkarverse_sargam_index.json"
 
 permissions:
   contents: write
