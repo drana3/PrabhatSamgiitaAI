@@ -10962,6 +10962,27 @@
     }
   },
   {
+    "song_number": 3102,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Keno Aman Kariya Deke Chalo - Prabhat Sangeet song #3102 - Singer - Arpita Nandi",
+    "url": "https://www.youtube.com/watch?v=pEBZTmM09rA",
+    "embed_url": "https://www.youtube-nocookie.com/embed/pEBZTmM09rA",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "pEBZTmM09rA",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.953,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3104,
     "kind": "video",
     "provider": "youtube",
@@ -11025,6 +11046,27 @@
     }
   },
   {
+    "song_number": 3109,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Dekechi Yuge Yuge - Prabhat Sangeet song #3109 - Singer - Garigi Das Bakshi",
+    "url": "https://www.youtube.com/watch?v=62LnvEHMs0Y",
+    "embed_url": "https://www.youtube-nocookie.com/embed/62LnvEHMs0Y",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "62LnvEHMs0Y",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3110,
     "kind": "video",
     "provider": "youtube",
@@ -11084,6 +11126,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.944,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3113,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ganer Sure Anek Dure - Prabhat Sangeet song #3113 - Singer - Arpita Nandi",
+    "url": "https://www.youtube.com/watch?v=TdYKSLgI1-c",
+    "embed_url": "https://www.youtube-nocookie.com/embed/TdYKSLgI1-c",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "TdYKSLgI1-c",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
     }
   },
