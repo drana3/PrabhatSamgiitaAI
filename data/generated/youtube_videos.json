@@ -11235,6 +11235,48 @@
     }
   },
   {
+    "song_number": 3120,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Krishna Song - Ke Go Gan Shonale Amay - Prabhat Sangeet song #3120 - Singer - Chancharika Biswas",
+    "url": "https://www.youtube.com/watch?v=G_Q2zVSaBxE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/G_Q2zVSaBxE",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "G_Q2zVSaBxE",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3121,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Nandita Tumi Sab Mane Prane Prabhu - Prabhat Sangeet song #3121 - Singer - Gargi Das Bakshi",
+    "url": "https://www.youtube.com/watch?v=mhHSCvqdbQU",
+    "embed_url": "https://www.youtube-nocookie.com/embed/mhHSCvqdbQU",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "mhHSCvqdbQU",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3122,
     "kind": "video",
     "provider": "youtube",
