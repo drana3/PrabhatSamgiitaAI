@@ -64,7 +64,7 @@ export function songPlaceholder(number: number, extras?: Partial<MockSong>): Moc
     videos: extras?.videos ?? [],
     audioUrl: extras?.audioUrl ?? null,
     audioRecordings: extras?.audioRecordings,
-    mediaHydrated: false,
+    mediaHydrated: extras?.mediaHydrated ?? false,
   }
 }
 
@@ -141,6 +141,54 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     performer: "Prabhat Samgiita Collection",
     videos: [],
     audioUrl: null,
+  }
+}
+
+type AudioRecording = NonNullable<MockSong["audioRecordings"]>[number]
+
+/** Union alternate takes by URL — never drop a catalog recording during merge. */
+export function mergeRecordingLists(
+  ...lists: Array<Array<AudioRecording> | undefined | null>
+): AudioRecording[] {
+  const seen = new Set<string>()
+  const merged: AudioRecording[] = []
+  for (const list of lists) {
+    for (const item of list ?? []) {
+      const url = item.url?.trim()
+      if (!url || seen.has(url)) continue
+      seen.add(url)
+      merged.push(item)
+    }
+  }
+  return merged
+}
+
+/** True once GET /songs/{n} has been mapped — not merely a preview URL. */
+export function hasCompleteAudioCatalog(
+  song: Pick<MockSong, "mediaHydrated" | "audioUrl" | "audioRecordings">,
+): boolean {
+  if (!song.mediaHydrated) return false
+  if ((song.audioRecordings?.length ?? 0) > 0) return true
+  return !song.audioUrl?.trim()
+}
+
+export function mergeSongMedia(page: MockSong, enriched: MockSong | null | undefined): MockSong {
+  if (!enriched || enriched.number !== page.number) return page
+  const audioRecordings = mergeRecordingLists(page.audioRecordings, enriched.audioRecordings)
+  const audioUrl = page.audioUrl || enriched.audioUrl || null
+  const mediaHydrated = hasCompleteAudioCatalog(page) || hasCompleteAudioCatalog(enriched)
+  if (
+    audioRecordings === page.audioRecordings &&
+    audioUrl === page.audioUrl &&
+    mediaHydrated === page.mediaHydrated
+  ) {
+    return page
+  }
+  return {
+    ...page,
+    audioRecordings: audioRecordings.length ? audioRecordings : page.audioRecordings,
+    audioUrl,
+    mediaHydrated,
   }
 }
 

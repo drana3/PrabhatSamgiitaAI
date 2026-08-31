@@ -5,7 +5,7 @@ import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { isSameAudioTrack, isSameSong } from "@/lib/playback"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
-import { songDetailToMockSong } from "@/lib/songMap"
+import { hasCompleteAudioCatalog, mergeRecordingLists, songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
 type PlayerState = {
@@ -18,6 +18,8 @@ type PlayerState = {
   hasAudio: boolean
   audioError: string | null
   isBuffering: boolean
+  /** Bumps when warmed/hydrated media metadata is cached for the song page. */
+  mediaCacheRevision: number
   loadSong: (song: MockSong, queue?: number[]) => void
   /** Sync metadata/queue for the already-active track. Never restarts audio. */
   syncCurrentSong: (song: MockSong, queue?: number[]) => void
@@ -305,20 +307,27 @@ function atEnd(status: AVPlaybackStatus) {
   return duration > 0 && position >= duration - 400
 }
 
+function rememberMediaCache(song: MockSong) {
+  bag.__psMediaCache.set(song.number, song)
+  usePlayerStore.setState((state) => ({ mediaCacheRevision: state.mediaCacheRevision + 1 }))
+}
+
 async function hydrate(song: MockSong): Promise<MockSong> {
-  if (song.mediaHydrated && song.audioUrl) {
-    bag.__psMediaCache.set(song.number, song)
+  if (hasCompleteAudioCatalog(song)) {
+    rememberMediaCache(song)
     return song
   }
   const cached = bag.__psMediaCache.get(song.number)
-  if (cached?.audioUrl) {
-    return {
+  if (cached && hasCompleteAudioCatalog(cached)) {
+    const ready = {
       ...song,
       ...cached,
       imageUrl: song.imageUrl || cached.imageUrl,
       thumbnailUrl: song.thumbnailUrl || cached.thumbnailUrl,
-      mediaHydrated: true,
+      mediaHydrated: true as const,
     }
+    rememberMediaCache(ready)
+    return ready
   }
   try {
     const detail = await api.fetchSong(song.number)
@@ -329,9 +338,9 @@ async function hydrate(song: MockSong): Promise<MockSong> {
       ...mapped,
       imageUrl: song.imageUrl || mapped.imageUrl,
       thumbnailUrl: song.thumbnailUrl || mapped.thumbnailUrl,
-      mediaHydrated: true,
+      mediaHydrated: true as const,
     }
-    bag.__psMediaCache.set(song.number, ready)
+    rememberMediaCache(ready)
     return ready
   } catch {
     return { ...song, mediaHydrated: true }
@@ -482,7 +491,7 @@ async function openAndPlay(song: MockSong, queue: number[] | undefined, id: numb
   // Play a downloaded file immediately — no network needed.
   const offline = await resolvePlaybackUri(song.number, song.audioUrl)
   if (offline?.local) {
-    bag.__psMediaCache.set(song.number, song)
+    if (hasCompleteAudioCatalog(song)) rememberMediaCache(song)
     await attachSound(song, {
       shouldPlay: true,
       positionMillis: 0,
@@ -494,13 +503,22 @@ async function openAndPlay(song: MockSong, queue: number[] | undefined, id: numb
 
   // If we already have a stream URL, start audio immediately (don't block on metadata merge).
   if (song.mediaHydrated && song.audioUrl?.trim()) {
-    bag.__psMediaCache.set(song.number, song)
+    if (hasCompleteAudioCatalog(song)) rememberMediaCache(song)
     await attachSound(song, {
       shouldPlay: true,
       positionMillis: 0,
       id,
       token: bag.__psPlayToken,
     })
+    if (!hasCompleteAudioCatalog(song)) {
+      void hydrate(song).then((ready) => {
+        if (id !== bag.__psLoadId) return
+        const current = usePlayerStore.getState().currentSong
+        if (current && isSameSong(current, ready)) {
+          usePlayerStore.setState({ currentSong: mergeSong(current, ready) })
+        }
+      })
+    }
     return
   }
 
@@ -527,9 +545,14 @@ function mergeSong(current: MockSong | null, song: MockSong): MockSong {
     ...current,
     ...song,
     audioUrl: song.audioUrl || current.audioUrl || null,
-    audioRecordings: song.audioRecordings?.length ? song.audioRecordings : current.audioRecordings,
-    mediaHydrated: Boolean(song.audioUrl || current.audioUrl || song.mediaHydrated || current.mediaHydrated),
+    audioRecordings: mergeRecordingLists(current.audioRecordings, song.audioRecordings),
+    mediaHydrated: hasCompleteAudioCatalog(song) || hasCompleteAudioCatalog(current),
   }
+}
+
+/** Hydrated song metadata cached while warming playback — page UI can merge recordings from here. */
+export function peekMediaCachedSong(number: number): MockSong | null {
+  return bag.__psMediaCache.get(number) ?? null
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -542,6 +565,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   hasAudio: false,
   audioError: null,
   isBuffering: false,
+  mediaCacheRevision: 0,
 
   setQueue: (numbers) => set({ queue: numbers }),
 
@@ -553,7 +577,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       hasAudio: Boolean(merged.audioUrl) || get().hasAudio,
       audioError: null,
     })
-    if (merged.audioUrl) bag.__psMediaCache.set(merged.number, merged)
+    if (hasCompleteAudioCatalog(merged)) rememberMediaCache(merged)
     const existing = getSound()
     if (existing) bindStatus(existing)
   },
@@ -564,8 +588,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     void (async () => {
       try {
         const ready =
-          song.mediaHydrated && song.audioUrl?.trim() ? song : await hydrate(song)
-        if (ready.audioUrl?.trim()) bag.__psMediaCache.set(ready.number, ready)
+          hasCompleteAudioCatalog(song) && song.audioUrl?.trim() ? song : await hydrate(song)
+        if (ready.audioUrl?.trim() || (ready.audioRecordings?.length ?? 0) > 0) {
+          if (hasCompleteAudioCatalog(ready)) rememberMediaCache(ready)
+          const current = get().currentSong
+          if (current && isSameSong(current, ready)) {
+            set({ currentSong: mergeSong(current, ready) })
+          }
+        }
         // Metadata only. Do not fetch/save the MP3 until the user taps Play or Save.
       } catch {
         /* ignore */

@@ -9,7 +9,14 @@ import {
   resolvePreferredAudioUrl,
   toInAppVideoEmbedUrl,
 } from "@/lib/mediaEmbed"
-import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
+import {
+  hasCompleteAudioCatalog,
+  mergeRecordingLists,
+  mergeSongMedia,
+  songDetailToMockSong,
+  songPlaceholder,
+  songSummaryToMockSong,
+} from "@/lib/songMap"
 import type { SongDetail } from "@prabhat/core"
 
 describe("in-app media embeds", () => {
@@ -185,5 +192,32 @@ describe("in-app media embeds", () => {
         1,
       ),
     ).toEqual([])
+  })
+
+  it("unions alternate recordings when merging preview and hydrated song media", () => {
+    const preview = songPlaceholder(1, {
+      audioUrl: "https://prabhatasamgiita.net/1.mp3",
+      mediaHydrated: true,
+    })
+    expect(hasCompleteAudioCatalog(preview)).toBe(false)
+
+    const hydrated = songPlaceholder(1, {
+      audioUrl: "https://prabhatasamgiita.net/1.mp3",
+      mediaHydrated: true,
+      audioRecordings: [
+        { title: "Best", url: "https://prabhatasamgiita.net/1.mp3", provider: "official", isLatest: true },
+        { title: "Old", url: "https://prabhatasamgiita.net/1-old.mp3", provider: "official", isOlder: true },
+        { title: "Alt", url: "https://example.test/1-alt.mp3", provider: "community" },
+      ],
+    })
+    expect(hasCompleteAudioCatalog(hydrated)).toBe(true)
+
+    const merged = mergeSongMedia(preview, hydrated)
+    expect(merged.audioRecordings?.map((item) => item.url)).toEqual([
+      "https://prabhatasamgiita.net/1.mp3",
+      "https://prabhatasamgiita.net/1-old.mp3",
+      "https://example.test/1-alt.mp3",
+    ])
+    expect(mergeRecordingLists(preview.audioRecordings, hydrated.audioRecordings)).toHaveLength(3)
   })
 })

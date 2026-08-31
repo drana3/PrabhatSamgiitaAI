@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useRef, useState, useMemo } from "react"
 import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import * as Clipboard from "expo-clipboard"
@@ -16,9 +16,10 @@ import {
   useOfflineAudioStore,
 } from "@/lib/offlineAudio"
 import { audioFreshnessBadge, audioRecordingLabel } from "@/lib/mediaEmbed"
+import { mergeRecordingLists } from "@/lib/songMap"
 import { songPlayback } from "@/lib/playback"
 import { useAuthStore } from "@/stores/authStore"
-import { usePlayerStore } from "@/stores/playerStore"
+import { usePlayerStore, peekMediaCachedSong } from "@/stores/playerStore"
 import { formatDuration } from "@/utils/formatDuration"
 import { href } from "@/utils/href"
 
@@ -80,6 +81,18 @@ export function SongListenControls({
   const seekBy = usePlayerStore((s) => s.seekBy)
   const adjustVolume = usePlayerStore((s) => s.adjustVolume)
   const pause = usePlayerStore((s) => s.pause)
+  const mediaCacheRevision = usePlayerStore((s) => s.mediaCacheRevision)
+  const playerRecordings = usePlayerStore((s) =>
+    s.currentSong?.number === songNumber ? s.currentSong.audioRecordings : undefined,
+  )
+  const cachedRecordings = useMemo(() => {
+    void mediaCacheRevision
+    return peekMediaCachedSong(songNumber)?.audioRecordings
+  }, [songNumber, mediaCacheRevision])
+  const effectiveRecordings = useMemo(
+    () => mergeRecordingLists(recordings, playerRecordings, cachedRecordings),
+    [recordings, playerRecordings, cachedRecordings],
+  )
   const repeat = usePlayerStore((s) => s.repeat)
   const toggleRepeat = usePlayerStore((s) => s.toggleRepeat)
 
@@ -146,14 +159,14 @@ export function SongListenControls({
   }
 
   const bufferingLabel = saveUi.bufferingLabel
-  const extraRecordings = recordings.slice(1)
+  const extraRecordings = effectiveRecordings.slice(1)
   const selectedIndex = Math.max(
     0,
-    recordings.findIndex((item) => item.url === audioUrl),
+    effectiveRecordings.findIndex((item) => item.url === audioUrl),
   )
-  const selectedRecording = recordings[selectedIndex]
+  const selectedRecording = effectiveRecordings[selectedIndex]
   const selectedBadge =
-    recordings.length > 1 && selectedRecording
+    effectiveRecordings.length > 1 && selectedRecording
       ? audioFreshnessBadge({
           isLatest: selectedRecording.isLatest === true,
           isOlder: selectedRecording.isOlder === true,
@@ -305,10 +318,10 @@ export function SongListenControls({
             </View>
           </Pressable>
           {showMore
-            ? recordings.map((item, index) => {
+            ? effectiveRecordings.map((item, index) => {
                 const selected = item.url === audioUrl
                 const badge =
-                  recordings.length > 1
+                  effectiveRecordings.length > 1
                     ? audioFreshnessBadge({
                         isLatest: item.isLatest === true,
                         isOlder: item.isOlder === true,

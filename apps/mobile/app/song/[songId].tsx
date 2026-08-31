@@ -32,14 +32,14 @@ import { hasDownloadedAudio } from "@/lib/offlineAudio"
 import { instantSongBundle, resolveSongBundle, songRouteId } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
-import { parseSongNumber, storedMeaningForLanguage } from "@/lib/songMap"
+import { parseSongNumber, mergeSongMedia, storedMeaningForLanguage } from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
 import { hasPublishedLearnerSargam } from "@prabhat/core"
 import { practiceLyricSource } from "@/lib/sargamDisplay"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
 import { forgetSongLocalization, peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
-import { usePlayerStore } from "@/stores/playerStore"
+import { usePlayerStore, peekMediaCachedSong } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
@@ -69,6 +69,10 @@ export default function SongDetailScreen() {
   const isCurrent = usePlayerStore((s) =>
     song ? songPlayback(s, song).isCurrent : false,
   )
+  const playerSong = usePlayerStore((s) =>
+    song && s.currentSong?.number === song.number ? s.currentSong : null,
+  )
+  const mediaCacheRevision = usePlayerStore((s) => s.mediaCacheRevision)
   const authMode = useAuthStore((s) => s.mode)
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
@@ -163,7 +167,8 @@ export default function SongDetailScreen() {
     if (number) prefetchScenicForSong(number)
     void resolveSongBundle(routeId).then((bundle) => {
       if (!active || !bundle) return
-      setSong(bundle.song)
+      const cached = peekMediaCachedSong(bundle.song.number)
+      setSong(mergeSongMedia(bundle.song, cached ?? undefined))
       setRelated(bundle.related)
       usePlayerStore.getState().warmAudio(bundle.song)
     })
@@ -171,6 +176,13 @@ export default function SongDetailScreen() {
       active = false
     }
   }, [routeId])
+
+  useEffect(() => {
+    if (!song) return
+    const cached = peekMediaCachedSong(song.number)
+    const merged = mergeSongMedia(song, playerSong ?? cached ?? undefined)
+    if (merged !== song) setSong(merged)
+  }, [song, playerSong, mediaCacheRevision])
 
   const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
   const hasFullSargam = Boolean(
