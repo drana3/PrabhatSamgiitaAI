@@ -74,7 +74,9 @@ export function compareAudioQuality(left: AudioSourceLike, right: AudioSourceLik
 export function markLatestAudio<T extends { url: string; isOlder: boolean; isLowQuality: boolean }>(
   ranked: T[],
 ): Array<T & { isLatest: boolean }> {
-  const fromApi = ranked.find((item) => "is_latest" in item && (item as AudioSourceLike).is_latest)
+  const fromApi = ranked.find(
+    (item) => "is_latest" in item && Boolean((item as unknown as AudioSourceLike).is_latest),
+  )
   const latestUrl =
     fromApi?.url ??
     ranked.find((item) => !item.isOlder && !item.isLowQuality)?.url ??

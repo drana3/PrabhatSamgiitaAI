@@ -203,7 +203,9 @@ def test_catalog_default_audio_is_the_best_available_take() -> None:
     assert len(by_song) >= 4948
     for items in by_song.values():
         chosen = next(item for item in items if item.url == preferred_audio_url(items))
-        has_current = any(not media_is_older(item) and not media_is_low_quality(item) for item in items)
+        has_current = any(
+            not media_is_older(item) and not media_is_low_quality(item) for item in items
+        )
         if has_current:
             assert not media_is_older(chosen)
             assert not media_is_low_quality(chosen)

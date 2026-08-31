@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import re
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db import get_session
 from app.models import Media
 from app.models.song import Song
 from app.schemas.song import (
@@ -26,9 +29,10 @@ from app.services.sargam_capture import (
     is_notation_enabled,
     sargam_attribution_payload,
 )
-from app.services.seed_data import CATALOG_SONG_COUNT
 
 router = APIRouter(prefix="/songs", tags=["songs"])
+
+CATALOG_SONG_COUNT = 5018
 
 
 def _summary(song: Song) -> SongSummary:
@@ -55,9 +59,10 @@ def _media(item: Media, *, latest_url: str | None = None) -> MediaItemResponse:
 @router.get("/{number}/localized", response_model=SongLocalizationResponse)
 async def get_localized_song(
     number: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
     language: str = Query(min_length=2),
 ) -> SongLocalizationResponse:
-    service = CatalogService()
+    service = CatalogService(session)
     song = await service.get_song(number)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
@@ -81,18 +86,20 @@ async def get_localized_song(
 
 @router.get("", response_model=list[SongSummary])
 async def list_songs(
+    session: Annotated[AsyncSession, Depends(get_session)],
     limit: int = Query(default=CATALOG_SONG_COUNT, ge=1, le=CATALOG_SONG_COUNT),
     offset: int = Query(default=0, ge=0),
 ) -> list[SongSummary]:
-    songs = await CatalogService().list_songs(limit=limit, offset=offset)
+    songs = await CatalogService(session).list_songs(limit=limit, offset=offset)
     return [_summary(song) for song in songs]
 
 
 @router.get("/{number}/related", response_model=list[SongSummary])
 async def get_related_songs(
     number: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SongSummary]:
-    service = CatalogService()
+    service = CatalogService(session)
     song = await service.get_song(number)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
@@ -102,13 +109,14 @@ async def get_related_songs(
 @router.get("/{number}/media", response_model=list[MediaItemResponse])
 async def get_song_media(
     number: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
     media_type: str | None = Query(default=None),
     platform: str | None = Query(default=None),
     source_status: str | None = Query(default=None),
     language: str | None = Query(default=None),
     availability_status: str | None = Query(default=None),
 ) -> list[MediaItemResponse]:
-    service = CatalogService()
+    service = CatalogService(session)
     if not await service.get_song(number):
         raise HTTPException(status_code=404, detail="Song not found")
     media_items = sorted(await service.get_media(number), key=media_quality_key)
@@ -130,8 +138,9 @@ async def get_song_media(
 @router.get("/{number}", response_model=SongDetail)
 async def get_song(
     number: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SongDetail:
-    service = CatalogService()
+    service = CatalogService(session)
     song = await service.get_song(number)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
@@ -182,13 +191,13 @@ async def get_song(
                 number, notation.verification_status, notation.notation_text, notation.metadata_json
             )
         ),
-        notation_enabled=is_notation_enabled(notation.metadata_json if notation else None, number),
+        notation_enabled=is_notation_enabled(notation.metadata_json if notation else None),
         sargam_attribution=(
             SargamAttribution.model_validate(
                 sargam_attribution_payload(notation.metadata_json, notation.verification_status)
             )
             if notation
-            and is_notation_enabled(notation.metadata_json, number)
+            and is_notation_enabled(notation.metadata_json)
             and sargam_attribution_payload(notation.metadata_json, notation.verification_status)
             else None
         ),
