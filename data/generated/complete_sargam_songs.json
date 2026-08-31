@@ -2,6 +2,12 @@
   "label": "Full Sargam",
   "query": "full sargam",
   "count": 175,
+  "published_numbers": [
+    1,
+    2,
+    27
+  ],
+  "published_count": 3,
   "songs": [
     {
       "number": 1,

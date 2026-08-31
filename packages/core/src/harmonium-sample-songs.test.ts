@@ -4,6 +4,8 @@ import {
   BANDHU_HE_NIYE_CALO_SONG,
   bookletHarmoniumSong,
   hasPublishedLearnerSargam,
+  publishedExploreSargamNumbers,
+  PUBLISHED_HARMONIUM_SONG_NUMBERS,
   splitBookletLyric,
   sampleSongLineEvents,
   sampleSongPlayEvents,
@@ -165,6 +167,11 @@ describe("harmonium sample songs", () => {
   it("keeps song 4 booklet data internal but unpublished", () => {
     expect(bookletHarmoniumSong(4)).toBeNull()
     expect(hasPublishedLearnerSargam(4)).toBe(false)
+  })
+
+  it("merges booklet demos with admin-published explore numbers", () => {
+    expect(publishedExploreSargamNumbers()).toEqual([...PUBLISHED_HARMONIUM_SONG_NUMBERS])
+    expect(publishedExploreSargamNumbers([5, 27, 4961])).toEqual([1, 2, 5, 27, 4961])
   })
 
   it("plays a hand copy of song 27 from RS_0026-0050", () => {

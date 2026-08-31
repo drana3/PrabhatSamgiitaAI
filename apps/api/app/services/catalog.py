@@ -380,6 +380,32 @@ class CatalogService:
             await self.session.rollback()
             return []
 
+    async def list_published_sargam_songs(self) -> list[Song]:
+        from app.services.sargam_capture import (
+            is_learner_playable_notation,
+            published_sargam_song_numbers,
+        )
+
+        numbers = published_sargam_song_numbers(catalog_notation_snapshot())
+        try:
+            result = await self.session.execute(
+                select(Notation).where(
+                    Notation.verification_status.in_(["admin_submitted", "expert_verified"])
+                )
+            )
+            for row in result.scalars().all():
+                if is_learner_playable_notation(
+                    row.song_number,
+                    row.verification_status,
+                    row.notation_text,
+                    row.metadata_json,
+                ):
+                    numbers.add(row.song_number)
+        except SQLAlchemyError:
+            await self.session.rollback()
+        by_number = songs_by_number()
+        return [by_number[number] for number in sorted(numbers) if number in by_number]
+
     async def get_media(self, song_number: int) -> list[Media]:
         snapshot = list(media_by_song_number().get(song_number, ()))
         if snapshot:

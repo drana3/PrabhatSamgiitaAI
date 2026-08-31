@@ -10,6 +10,7 @@ import { COMPLETE_SARGAM_LABEL } from "@/lib/complete-sargam"
 const searchSongs = vi.fn()
 const searchSongsByVoice = vi.fn()
 const fetchSongs = vi.fn()
+const fetchPublishedSargamSongs = vi.fn()
 const searchCatalogLyrics = vi.fn(() => [])
 const shouldSearchCatalogLyrics = vi.fn(() => false)
 
@@ -17,6 +18,7 @@ vi.mock("@/lib/api", () => ({
   searchSongs: (...args: unknown[]) => searchSongs(...args),
   searchSongsByVoice: (...args: unknown[]) => searchSongsByVoice(...args),
   fetchSongs: (...args: unknown[]) => fetchSongs(...args),
+  fetchPublishedSargamSongs: (...args: unknown[]) => fetchPublishedSargamSongs(...args),
 }))
 
 vi.mock("@/lib/lyric-search", () => ({
@@ -87,9 +89,11 @@ describe("ExploreClient prefetch hydration", () => {
     searchSongs.mockReset()
     searchSongsByVoice.mockReset()
     fetchSongs.mockReset()
+    fetchPublishedSargamSongs.mockReset()
     searchCatalogLyrics.mockReset()
     shouldSearchCatalogLyrics.mockReset()
     fetchSongs.mockResolvedValue([])
+    fetchPublishedSargamSongs.mockResolvedValue([])
     searchSongs.mockResolvedValue([])
     searchCatalogLyrics.mockReturnValue([])
     shouldSearchCatalogLyrics.mockReturnValue(false)
@@ -179,7 +183,7 @@ describe("ExploreClient prefetch hydration", () => {
     expect(searchSongs).not.toHaveBeenCalledWith("songs about peace", { mode: "semantic" })
   })
 
-  it("lists complete Sargam from the local catalog without calling search", async () => {
+  it("lists complete Sargam from the API with local fallback", async () => {
     const user = userEvent.setup()
 
     renderExplore(
@@ -193,6 +197,7 @@ describe("ExploreClient prefetch hydration", () => {
     await user.click(screen.getByRole("button", { name: /Full Sargam/i }))
 
     await waitFor(() => {
+      expect(fetchPublishedSargamSongs).toHaveBeenCalled()
       expect(searchSongs).not.toHaveBeenCalled()
     })
     expect(await screen.findByText(/Showing songs for:/i)).toBeInTheDocument()

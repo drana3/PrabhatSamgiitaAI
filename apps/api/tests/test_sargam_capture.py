@@ -7,6 +7,7 @@ from app.services.sargam_capture import (
     confirm_line,
     is_learner_playable_notation,
     is_notation_enabled,
+    published_sargam_song_numbers,
     retake_line,
     sargam_attribution_payload,
     split_lyric_lines,
@@ -68,6 +69,31 @@ def test_learner_playable_notation_gates() -> None:
     hidden = {"learner_visible": False}
     assert is_learner_playable_notation(5, "admin_submitted", json_text, hidden) is False
     assert is_learner_playable_notation(1, "verified", json_text, hidden) is False
+
+
+def test_published_sargam_song_numbers_includes_booklet_and_admin() -> None:
+    from app.models import Notation
+
+    json_text = '{"version":1,"source_scale":"C","lines":[]}'
+    notations = [
+        Notation(
+            song_number=5,
+            source_url=None,
+            notation_text=json_text,
+            scale="C",
+            verification_status="admin_submitted",
+            metadata_json={"learner_visible": True},
+        ),
+        Notation(
+            song_number=9,
+            source_url=None,
+            notation_text=json_text,
+            scale="C",
+            verification_status="admin_submitted",
+            metadata_json={"learner_visible": False},
+        ),
+    ]
+    assert published_sargam_song_numbers(notations) == {1, 2, 5, 27}
 
 
 def test_attribution_only_after_submit() -> None:

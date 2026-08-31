@@ -23,6 +23,11 @@ PLAN_PATH = ROOT / "data" / "generated" / "sarkarverse_sargam_plan.json"
 OUT_PATH = ROOT / "data" / "generated" / "mobile_category_songs.json"
 COMPLETE_SARGAM_PATH = ROOT / "data" / "generated" / "complete_sargam_songs.json"
 COLLECTION_TITLES_PATH = ROOT / "data" / "generated" / "collection_song_titles.json"
+BOOKLET_SONGS_PATH = ROOT / "data" / "generated" / "roman_booklet_songs.json"
+NOTATIONS_PATHS = (
+    ROOT / "data" / "seed" / "notations.json",
+    ROOT / "data" / "generated" / "notations.json",
+)
 
 # Visible only on mobile Songs-tab CategoryGrid.
 UI_CATEGORY_IDS = [
@@ -252,8 +257,35 @@ def complete_notation_entry(_songs: list[dict]) -> dict:
     }
 
 
+def _notation_is_playable(row: dict) -> bool:
+    metadata = row.get("metadata_json") or {}
+    if metadata.get("learner_visible") is False:
+        return False
+    text = row.get("notation_text")
+    if not text or not str(text).strip().startswith("{"):
+        return False
+    status = str(row.get("verification_status") or "")
+    return status in {"admin_submitted", "expert_verified"}
+
+
+def published_sargam_numbers() -> list[int]:
+    """Booklet demos plus admin-enabled learner sargam (Explore chip)."""
+    numbers: set[int] = {1, 2, 27}
+    if BOOKLET_SONGS_PATH.exists():
+        booklet = json.loads(BOOKLET_SONGS_PATH.read_text(encoding="utf-8"))
+        numbers.update(int(n) for n in booklet.get("published_booklet_songs") or [])
+    for path in NOTATIONS_PATHS:
+        if not path.exists():
+            continue
+        for row in json.loads(path.read_text(encoding="utf-8")):
+            if _notation_is_playable(row):
+                numbers.add(int(row["song_number"]))
+    return sorted(numbers)
+
+
 def complete_sargam_web_payload(songs: list[dict]) -> dict:
     entry = complete_notation_entry(songs)
+    published = published_sargam_numbers()
     by_number = {int(song["number"]): song for song in songs}
     summaries = []
     for number in entry["song_numbers"]:
@@ -273,6 +305,8 @@ def complete_sargam_web_payload(songs: list[dict]) -> dict:
         "label": "Full Sargam",
         "query": "full sargam",
         "count": len(summaries),
+        "published_numbers": published,
+        "published_count": len(published),
         "songs": summaries,
         "note": "Roman RS_* sargam only. Bengali PDF sources are not listed.",
     }

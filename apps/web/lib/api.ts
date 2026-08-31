@@ -268,6 +268,18 @@ export async function fetchSongs(): Promise<SongSummary[]> {
   }
 }
 
+export async function fetchPublishedSargamSongs(): Promise<SongSummary[]> {
+  try {
+    const response = await fetchJson("/api/v1/songs/published-sargam")
+    if (!response.ok) {
+      return []
+    }
+    return z.array(songSummarySchema).parse(await response.json())
+  } catch {
+    return []
+  }
+}
+
 export async function fetchSong(number: number): Promise<SongDetail | null> {
   try {
     const response = await fetchJson(`/api/v1/songs/${number}`)

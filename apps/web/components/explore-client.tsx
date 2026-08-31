@@ -16,7 +16,7 @@ import { LoadingIndicator } from "@/components/loading-indicator"
 import { SearchForm } from "@/components/search-form"
 import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
-import { searchSongs, searchSongsByVoice } from "@/lib/api"
+import { searchSongs, searchSongsByVoice, fetchPublishedSargamSongs } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
 import { useSearchAuth } from "@/lib/feeling-search"
 import {
@@ -197,13 +197,13 @@ export function ExploreClient({
         : []
     const networkMode = useSemantic ? ("semantic" as const) : ("catalog" as const)
     const needsNetwork =
-      !sargam &&
-      localHits.length === 0 &&
-      (useSemantic || plan.layer === "collection" || plan.layer === "catalog")
+      sargam ||
+      (localHits.length === 0 &&
+        (useSemantic || plan.layer === "collection" || plan.layer === "catalog"))
     beginSearchState(() => {
       // Feeling search must show loading until the semantic API finishes — never flash
       // "no songs matched" mid-request.
-      setSearching(needsNetwork || useSemantic)
+      setSearching(sargam || needsNetwork || useSemantic)
       setActiveQuery(trimmed)
       setActiveKind(useSemantic ? "semantic" : resolvedKind)
       setCompletedQuery("")
@@ -214,13 +214,17 @@ export function ExploreClient({
     window.history.replaceState(null, "", exploreUrl(trimmed, useSemantic ? "semantic" : resolvedKind))
 
     try {
-      const results = sargam
-        ? completeSargamSongs()
-        : localHits.length
-          ? lyricHitsToSongs(localHits)
-          : needsNetwork
-            ? await searchSongs(trimmed, { mode: networkMode })
-            : []
+      let results: SongSummary[]
+      if (sargam) {
+        const remote = await fetchPublishedSargamSongs()
+        results = remote.length ? remote : completeSargamSongs()
+      } else if (localHits.length) {
+        results = lyricHitsToSongs(localHits)
+      } else if (needsNetwork) {
+        results = await searchSongs(trimmed, { mode: networkMode })
+      } else {
+        results = []
+      }
       searchCache.current.set(cacheKey(trimmed, useSemantic ? "semantic" : resolvedKind), results)
       setSongs(results)
       finishSearch(trimmed)

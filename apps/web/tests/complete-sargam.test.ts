@@ -21,8 +21,8 @@ describe("complete Sargam website list", () => {
 
   it("lists curated Explore booklet songs only", () => {
     const songs = completeSargamSongs()
-    expect(songs).toHaveLength(3)
-    expect(completeSargamCount()).toBe(3)
+    expect(songs.length).toBeGreaterThanOrEqual(3)
+    expect(completeSargamCount()).toBe(songs.length)
     expect(songs.map((song) => song.number)).toEqual([1, 2, 27])
     expect(isCompleteSargamSong(1)).toBe(true)
     expect(isCompleteSargamSong(175)).toBe(true)

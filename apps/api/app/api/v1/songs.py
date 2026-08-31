@@ -56,6 +56,14 @@ def _media(item: Media, *, latest_url: str | None = None) -> MediaItemResponse:
     return to_media_item_response(item, latest_url=latest_url)
 
 
+@router.get("/published-sargam", response_model=list[SongSummary])
+async def list_published_sargam(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SongSummary]:
+    songs = await CatalogService(session).list_published_sargam_songs()
+    return [_summary(song) for song in songs]
+
+
 @router.get("/{number}/localized", response_model=SongLocalizationResponse)
 async def get_localized_song(
     number: int,

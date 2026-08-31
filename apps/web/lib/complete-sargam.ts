@@ -1,11 +1,10 @@
+import { publishedExploreSargamNumbers, PUBLISHED_HARMONIUM_SONG_NUMBERS } from "@prabhat/core"
+
 import type { SongSummary } from "@/lib/api"
 import payload from "../../../data/generated/complete_sargam_songs.json"
 
 export const COMPLETE_SARGAM_QUERY = "full sargam"
 export const COMPLETE_SARGAM_LABEL = "Full Sargam"
-
-/** Booklet keyboard demos surfaced under Explore → Full Sargam. */
-export const EXPLORE_FULL_SARGAM_NUMBERS = [1, 2, 27] as const
 
 const QUERY_ALIASES = new Set([
   "full sargam",
@@ -13,8 +12,21 @@ const QUERY_ALIASES = new Set([
   "complete notation",
 ])
 
+type CompleteSargamPayload = {
+  songs?: SongSummary[]
+  published_numbers?: number[]
+}
+
 function allCompleteSargamSongs(): SongSummary[] {
-  return (payload.songs ?? []) as SongSummary[]
+  return ((payload as CompleteSargamPayload).songs ?? []) as SongSummary[]
+}
+
+function publishedNumbers(): number[] {
+  const fromJson = (payload as CompleteSargamPayload).published_numbers
+  if (fromJson?.length) {
+    return publishedExploreSargamNumbers(fromJson)
+  }
+  return publishedExploreSargamNumbers([...PUBLISHED_HARMONIUM_SONG_NUMBERS])
 }
 
 export function isCompleteSargamQuery(query: string): boolean {
@@ -22,9 +34,9 @@ export function isCompleteSargamQuery(query: string): boolean {
   return QUERY_ALIASES.has(key)
 }
 
-/** Explore chip — curated booklet songs only (not the full RS catalog). */
+/** Explore chip — published learner sargam (not the full RS catalog). */
 export function completeSargamSongs(): SongSummary[] {
-  const allowed = new Set<number>(EXPLORE_FULL_SARGAM_NUMBERS)
+  const allowed = new Set(publishedNumbers())
   return allCompleteSargamSongs().filter((song) => allowed.has(song.number))
 }
 

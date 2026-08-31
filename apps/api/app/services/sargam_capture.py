@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -91,6 +92,20 @@ def is_learner_playable_notation(
     if verification_status in {"admin_submitted", "expert_verified"}:
         return True
     return False
+
+
+def published_sargam_song_numbers(notations: Iterable[Any]) -> set[int]:
+    """Learner-playable sargam for Explore — booklet demos plus admin captures."""
+    numbers: set[int] = set(PROTECTED_BOOKLET_SONGS)
+    for notation in notations:
+        if is_learner_playable_notation(
+            notation.song_number,
+            notation.verification_status,
+            notation.notation_text,
+            notation.metadata_json,
+        ):
+            numbers.add(int(notation.song_number))
+    return numbers
 
 
 def duration_beats(duration_sec: float, tempo_bpm: int) -> float:

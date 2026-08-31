@@ -177,6 +177,12 @@ export function isPublishedHarmoniumSong(songNumber: number): boolean {
   return (PUBLISHED_HARMONIUM_SONG_NUMBERS as readonly number[]).includes(songNumber)
 }
 
+/** Explore Full Sargam chip: booklet demos plus admin-published captures. */
+export function publishedExploreSargamNumbers(extra: readonly number[] = []): number[] {
+  const merged = new Set<number>([...PUBLISHED_HARMONIUM_SONG_NUMBERS, ...extra])
+  return [...merged].sort((a, b) => a - b)
+}
+
 export function bookletHarmoniumSong(songNumber: number): HarmoniumSampleSong | null {
   if (!isPublishedHarmoniumSong(songNumber)) return null
   return HARMONIUM_BOOKLET_SONGS[songNumber] ?? null
