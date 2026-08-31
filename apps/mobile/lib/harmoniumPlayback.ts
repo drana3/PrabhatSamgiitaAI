@@ -11,6 +11,7 @@ import {
 
 import { HARMONIUM_PLAYER_SAMPLE_MODULES } from "@/lib/harmoniumPlayerSamples"
 import { HARMONIUM_SAMPLE_MODULES } from "@/lib/harmoniumSamples"
+import { registerExtraAudioCleanup, yieldSongPlayback } from "@/lib/audioFocus"
 
 const POOL_SIZE = 6
 
@@ -107,9 +108,14 @@ async function ensureAudioMode() {
   audioModeReady = true
 }
 
-async function ensureAudioModeOnce() {
-  if (audioModeReady) return
+async function ensureAudioModeOnce(force = false) {
+  if (audioModeReady && !force) return
   await ensureAudioMode()
+}
+
+/** Drop cached expo-av mode so catalog playback can reclaim the session after harmonium. */
+export function resetHarmoniumAudioMode(): void {
+  audioModeReady = false
 }
 
 async function loadSound(western: string, loop = false): Promise<Audio.Sound> {
@@ -259,6 +265,9 @@ async function startHeldNote(western: string, volumeMultiplier = 1): Promise<() 
 }
 
 export async function startWesternNote(western: string): Promise<() => void> {
+  await yieldSongPlayback()
+  resetHarmoniumAudioMode()
+  await ensureAudioModeOnce(true)
   const stopMain = await startHeldNote(western, 1)
   let stopCoupler: (() => void) | undefined
   if (couplerEnabled) {
@@ -295,7 +304,9 @@ export async function playSheetEvents(
   stopHarmoniumSheetPlayback()
   activeSheetHandlers = handlers ?? null
   const gen = sheetGeneration
-  await ensureAudioModeOnce()
+  await yieldSongPlayback()
+  resetHarmoniumAudioMode()
+  await ensureAudioModeOnce(true)
   const sounds: Audio.Sound[] = []
   const timers: ReturnType<typeof setTimeout>[] = []
   activeSheetSounds = sounds
@@ -320,14 +331,17 @@ export async function playSheetEvents(
               return
             }
             fireKeyHighlight(event.western)
-            void sound.playAsync().then(() => {
-              const stopTimer = setTimeout(() => {
-                fireKeyHighlight(null)
-                void sound.stopAsync().catch(() => undefined)
-              }, playMs)
-              timers.push(stopTimer)
-              resolve()
-            })
+            void sound.playAsync().then(
+              () => {
+                const stopTimer = setTimeout(() => {
+                  fireKeyHighlight(null)
+                  void sound.stopAsync().catch(() => undefined)
+                }, playMs)
+                timers.push(stopTimer)
+                resolve()
+              },
+              () => resolve(),
+            )
           }, delay)
           timers.push(timer)
         })
@@ -365,5 +379,17 @@ export async function playSheetEvents(
     )
     activeSheetSounds = []
     activeSound = null
+    resetHarmoniumAudioMode()
   }
 }
+
+async function silenceHarmoniumVoices(): Promise<void> {
+  stopHarmoniumSheetPlayback()
+  await stopActiveHarmoniumNote()
+  await stopHarmoniumDrone()
+  await clearSoundPools()
+}
+
+registerExtraAudioCleanup(() => {
+  void silenceHarmoniumVoices()
+})

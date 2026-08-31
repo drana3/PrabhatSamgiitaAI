@@ -2,9 +2,16 @@ import { Audio, type AVPlaybackStatus } from "expo-av"
 import { create } from "zustand"
 
 import type { MockSong } from "@/data/mock"
+import {
+  releaseExtraAudio,
+  setPlaybackIntent,
+  setSongPlaybackYield,
+  setSongPlayingGuard,
+} from "@/lib/audioFocus"
 import { api } from "@/lib/client"
-import { isSameAudioTrack, isSameSong } from "@/lib/playback"
+import { hydrateAudioRepeat, readAudioRepeat, writeAudioRepeat } from "@/lib/audioRepeat"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
+import { isSameAudioTrack, isSameSong } from "@/lib/playback"
 import { hasCompleteAudioCatalog, mergeRecordingLists, songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -20,6 +27,8 @@ type PlayerState = {
   isBuffering: boolean
   /** Bumps when warmed/hydrated media metadata is cached for the song page. */
   mediaCacheRevision: number
+  /** Loop the current song until the listener turns this off. */
+  repeat: boolean
   loadSong: (song: MockSong, queue?: number[]) => void
   /** Sync metadata/queue for the already-active track. Never restarts audio. */
   syncCurrentSong: (song: MockSong, queue?: number[]) => void
@@ -38,6 +47,7 @@ type PlayerState = {
   adjustVolume: (delta: number) => void
   next: () => void
   previous: () => void
+  toggleRepeat: () => void
   clear: () => void
 }
 
@@ -72,6 +82,11 @@ function getSound() {
 
 function setSound(next: Audio.Sound | null) {
   bag.__psSound = next
+}
+
+function applySoundLooping(sound: Audio.Sound | null, enabled: boolean) {
+  if (!sound) return
+  void sound.setStatusAsync({ isLooping: enabled }).catch(() => undefined)
 }
 
 /** Serialize native audio work so create/destroy/pause never overlap. */
@@ -265,7 +280,27 @@ function bindStatus(owner: Audio.Sound) {
     }
 
     if (status.didJustFinish) {
+      if (usePlayerStore.getState().repeat) {
+        bag.__psWantPlaying = true
+        bag.__psLastResumeNudgeMs = 0
+        const song = usePlayerStore.getState().currentSong
+        if (song) setPlaybackIntent(song.number)
+        usePlayerStore.setState({
+          isPlaying: true,
+          isBuffering: false,
+          position: 0,
+          audioError: null,
+        })
+        void owner
+          .setPositionAsync(0)
+          .then(() => owner.playAsync())
+          .catch(() => undefined)
+        return
+      }
       bag.__psWantPlaying = false
+      bag.__psLastResumeNudgeMs = 0
+      setPlaybackIntent(null)
+      releaseExtraAudio()
       usePlayerStore.setState({
         isPlaying: false,
         isBuffering: false,
@@ -302,6 +337,8 @@ function bindStatus(owner: Audio.Sound) {
 function atEnd(status: AVPlaybackStatus) {
   if (!status.isLoaded || status.isPlaying) return false
   if (status.didJustFinish) return true
+  // Looping tracks sit at the last frame between wraps — don't treat that as stopped.
+  if (usePlayerStore.getState().repeat) return false
   const duration = status.durationMillis || 0
   const position = status.positionMillis || 0
   return duration > 0 && position >= duration - 400
@@ -386,6 +423,7 @@ async function attachSound(
     }
     setSound(preload.sound)
     bindStatus(preload.sound)
+    applySoundLooping(preload.sound, usePlayerStore.getState().repeat)
     try {
       if (options.shouldPlay) await preload.sound.playAsync()
       const status = await preload.sound.getStatusAsync()
@@ -427,6 +465,7 @@ async function attachSound(
       shouldPlay: options.shouldPlay,
       positionMillis: Math.max(0, options.positionMillis ?? 0),
       volume: usePlayerStore.getState().volume,
+      isLooping: usePlayerStore.getState().repeat,
       progressUpdateIntervalMillis: 500,
     },
     null,
@@ -476,6 +515,8 @@ async function attachSound(
 
 async function openAndPlay(song: MockSong, queue: number[] | undefined, id: number) {
   bag.__psWantPlaying = true
+  releaseExtraAudio()
+  setPlaybackIntent(song.number)
   usePreferencesStore.getState().recordRecentPlay(song)
   usePlayerStore.setState({
     currentSong: song,
@@ -566,8 +607,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   audioError: null,
   isBuffering: false,
   mediaCacheRevision: 0,
+  repeat: readAudioRepeat(),
 
   setQueue: (numbers) => set({ queue: numbers }),
+
+  toggleRepeat: () => {
+    const next = !get().repeat
+    writeAudioRepeat(next)
+    set({ repeat: next })
+    applySoundLooping(getSound(), next)
+  },
 
   syncCurrentSong: (song, queue) => {
     const merged = mergeSong(get().currentSong, song)
@@ -604,7 +653,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   loadSong: (song, queue) => {
-    if (isSameAudioTrack(get().currentSong, song)) {
+    if (isSameAudioTrack(get().currentSong, song) && getSound()) {
       get().syncCurrentSong(song, queue)
       return
     }
@@ -617,6 +666,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playOrToggle: (song, queue) => {
     if (isSameAudioTrack(get().currentSong, song)) {
       if (queue?.length) set({ queue })
+      if (!getSound()) {
+        get().loadSong(song, queue)
+        return
+      }
       get().togglePlay()
       return
     }
@@ -820,6 +873,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     bag.__psPlayToken += 1
     bag.__psLoadId += 1
     bag.__psWantPlaying = false
+    setPlaybackIntent(null)
+    releaseExtraAudio()
     void enqueueAudio(async () => {
       await discardPreload()
       await destroySound()
@@ -836,3 +891,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     })
   },
 }))
+
+setSongPlayingGuard(() => {
+  if (!getSound()) return false
+  const state = usePlayerStore.getState()
+  return state.isPlaying || state.isBuffering
+})
+setSongPlaybackYield(async () => {
+  usePlayerStore.getState().pause()
+})
+void hydrateAudioRepeat().then((repeat) => {
+  if (repeat) usePlayerStore.setState({ repeat })
+})

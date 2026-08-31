@@ -248,9 +248,18 @@ export default function SongDetailScreen() {
     autoPlayedFor.current = song.id
     setJourney("listen")
     const current = usePlayerStore.getState().currentSong
+    const { isPlaying, hasAudio } = usePlayerStore.getState()
+    if (current && !isSameSong(current, song)) {
+      setQueue(queue)
+      return
+    }
     if (isSameSong(current, song)) {
       // Already playing this track from Home/mini-player — do not touch the Sound.
-      syncCurrentSong(song, queue)
+      if (isPlaying || hasAudio) {
+        syncCurrentSong(song, queue)
+        return
+      }
+      loadSong(song, queue)
       return
     }
     loadSong(song, queue)

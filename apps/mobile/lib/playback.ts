@@ -28,7 +28,13 @@ export function isSameAudioTrack(
   song: Pick<MockSong, "id" | "number" | "audioUrl">,
 ): boolean {
   if (!isSameSong(current, song)) return false
-  return (current?.audioUrl || "") === (song.audioUrl || "")
+  const currentUrl = (current?.audioUrl || "").trim()
+  const songUrl = (song.audioUrl || "").trim()
+  // Two URL-less stubs (common for song 1 after home warm) are not a loaded track yet.
+  if (!currentUrl && !songUrl) return false
+  // Hydrated player vs list/search row missing URL — same song, same stream.
+  if (!currentUrl || !songUrl) return true
+  return currentUrl === songUrl
 }
 
 /** Single playback status used by mini player, song page, home, lists, etc. */
