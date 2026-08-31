@@ -15,7 +15,7 @@ import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { friendlyPersonName } from "@/lib/displayName"
+import { greetFirstName } from "@/lib/displayName"
 import { useAuthStore } from "@/stores/authStore"
 
 export function AIWelcomeCard({
@@ -27,7 +27,8 @@ export function AIWelcomeCard({
 }) {
   const rawDisplayName = useAuthStore((s) => s.displayName)
   const email = useAuthStore((s) => s.email)
-  const displayName = friendlyPersonName(rawDisplayName, email)
+  const mode = useAuthStore((s) => s.mode)
+  const firstName = greetFirstName(rawDisplayName, email)
   const scale = useSharedValue(1)
 
   useEffect(() => {
@@ -47,7 +48,9 @@ export function AIWelcomeCard({
       <Animated.View style={[styles.logoGlow, animatedStyle]}>
         <Image source={brandAssets.emblemClear} style={styles.logo} contentFit="contain" />
       </Animated.View>
-      <Text style={styles.hello}>Hello {displayName},</Text>
+      <Text style={styles.hello}>
+        {mode === "guest" ? "Namaskar," : `Namaskar ${firstName},`}
+      </Text>
       <Text style={styles.subtitle}>
         {songNumber
           ? `Ask anything about PS ${songNumber}${songTitle ? ` — ${songTitle}` : ""}. Answers stay grounded on this song.`
