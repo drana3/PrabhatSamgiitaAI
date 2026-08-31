@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { bookletHarmoniumSong, compareAudioQuality } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
-import { completeSargamSongs, isCompleteSargamSong } from "@/lib/complete-sargam"
+import { completeSargamCatalogSongs, isCompleteSargamSong } from "@/lib/complete-sargam"
 import { isRomanPracticeNotation } from "@/lib/sargam-display"
 import mediaRows from "../../../data/seed/media.json"
 import notationRows from "../../../data/seed/notations.json"
@@ -187,7 +187,7 @@ function summary(song: SeedSong): SongSummary {
 
 function relatedSongs(song: SeedSong, limit = 6): SongSummary[] {
   if (isCompleteSargamSong(song.number)) {
-    const catalog = completeSargamSongs()
+    const catalog = completeSargamCatalogSongs()
     const index = catalog.findIndex((item) => item.number === song.number)
     const nearby: SongSummary[] = []
     for (let offset = 1; nearby.length < limit && (index - offset >= 0 || index + offset < catalog.length); offset += 1) {

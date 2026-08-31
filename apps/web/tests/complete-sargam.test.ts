@@ -19,11 +19,11 @@ describe("complete Sargam website list", () => {
     expect(isCompleteSargamQuery("harmonium")).toBe(false)
   })
 
-  it("lists every Roman RS booklet song and excludes Bengali-PDF-only numbers", () => {
+  it("lists curated Explore booklet songs only", () => {
     const songs = completeSargamSongs()
-    expect(songs.length).toBeGreaterThan(100)
-    expect(completeSargamCount()).toBe(songs.length)
-    expect(songs[0]).toMatchObject({ number: 1, title: expect.any(String) })
+    expect(songs).toHaveLength(3)
+    expect(completeSargamCount()).toBe(3)
+    expect(songs.map((song) => song.number)).toEqual([1, 2, 27])
     expect(isCompleteSargamSong(1)).toBe(true)
     expect(isCompleteSargamSong(175)).toBe(true)
     expect(isCompleteSargamSong(176)).toBe(false)
