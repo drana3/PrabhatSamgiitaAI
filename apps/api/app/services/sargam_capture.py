@@ -13,7 +13,7 @@ from app.models.sargam_capture import NotationCapture
 from app.services.catalog import CatalogService, refresh_catalog_song
 from app.services.notation_links import ANDROMEDA_ARCHIVE
 
-PROTECTED_BOOKLET_SONGS = frozenset({1, 2, 4, 27})
+PROTECTED_BOOKLET_SONGS = frozenset({1, 2, 27})
 BOOKLET_LATIN = {
     "S": "Sa",
     "r": "re",
@@ -405,7 +405,7 @@ async def submit_capture(
     song_number: int,
 ) -> NotationCapture:
     if song_number in PROTECTED_BOOKLET_SONGS:
-        raise PermissionError("Songs 1, 2, 4, and 27 already have booklet sargam")
+        raise PermissionError("Songs 1, 2, and 27 already have booklet sargam")
     row = await get_or_create_capture(session, member, song_number)
     lines = list(row.lines_json or [])
     if not can_submit_lines(lines):

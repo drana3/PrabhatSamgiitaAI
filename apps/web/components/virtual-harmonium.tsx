@@ -570,7 +570,7 @@ export const VirtualHarmonium = memo(function VirtualHarmonium({
         aria-label="Virtual harmonium keyboard"
       >
         <p className="mb-2 text-[10px] font-semibold text-gold-200/90">
-          Auto-play lights the matching key in amber. PS 1–2 use middle octave; PS 4 uses taar (Sa′); black keys
+          Auto-play lights the matching key in amber. PS 1–2 use middle octave; black keys
           light for komal swaras (e.g. type <span className="font-serif">Sa re ga ma</span>).
         </p>
         <div className="relative h-40 min-w-[36rem] overflow-hidden rounded-xl">

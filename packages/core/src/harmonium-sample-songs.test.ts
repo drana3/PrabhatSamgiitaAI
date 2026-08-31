@@ -162,24 +162,9 @@ describe("harmonium sample songs", () => {
     expect(hasPublishedLearnerSargam(5, "admin_submitted", false)).toBe(false)
   })
 
-  it("plays booklet copy for song 4 from RS_0001-0025", () => {
-    const song = bookletHarmoniumSong(4)!
-    expect(song.id).toBe("sakal-maner-viina-ek-sure-baje-aj")
-    expect(song.lines[0]?.sargam).toContain("Sa'")
-    expect(song.lines[1]?.lyric).toBe("Sakal hrdaye saorabh")
-    expect(song.lines[2]?.lyric).toBe("Nandana madhu saje")
-    expect(song.lines[3]?.lyric).toBe("Ele tumi dhara majhe")
-    expect(song.lines[4]?.lyric).toBe("Dile sabe ek anubhab")
-    expect(song.lines[2]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(4)
-    expect(song.lines[3]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(4)
-    expect(song.lines[4]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(8)
-    expect(song.lines[1]?.bookletMarker).toBe("I")
-    expect(song.lines[9]?.sargam).toBe("Ga' Pa' ma' Ga' | Re' Sa' Re' Re' | Re' Ga' á á á á á á")
-    expect(song.lines[8]?.lyric).toBe(song.lines[9]?.lyric)
-    expect(song.lines[8]?.sargam).not.toBe(song.lines[9]?.sargam)
-    expect(song.lines[0]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(16)
-    expect(sampleSongPlayEvents("C", song).length).toBeGreaterThan(20)
-    expect(hasPublishedLearnerSargam(4)).toBe(true)
+  it("keeps song 4 booklet data internal but unpublished", () => {
+    expect(bookletHarmoniumSong(4)).toBeNull()
+    expect(hasPublishedLearnerSargam(4)).toBe(false)
   })
 
   it("plays a hand copy of song 27 from RS_0026-0050", () => {

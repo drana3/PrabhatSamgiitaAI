@@ -53,7 +53,7 @@ def test_cannot_overwrite_confirmed_line() -> None:
 
 
 def test_booklet_songs_are_locked() -> None:
-    assert PROTECTED_BOOKLET_SONGS == frozenset({1, 2, 4, 27})
+    assert PROTECTED_BOOKLET_SONGS == frozenset({1, 2, 27})
 
 
 def test_learner_playable_notation_gates() -> None:

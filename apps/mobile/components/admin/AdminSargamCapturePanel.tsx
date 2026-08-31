@@ -472,7 +472,7 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
           </View>
           {capture.booklet_locked ? (
             <Text style={styles.warn}>
-              Songs 1, 2, 4, and 27 already have booklet sargam. Recording is locked.
+              Songs 1, 2, and 27 already have booklet sargam. Recording is locked.
             </Text>
           ) : null}
           {capture.submitted ? (

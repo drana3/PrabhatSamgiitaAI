@@ -262,7 +262,7 @@ export function VirtualHarmonium({
       ) : null}
 
       <Text style={styles.keyHint}>
-        Auto-play lights keys in amber. PS 1–2 use middle octave; PS 4 uses taar (Sa′); black keys light for komal swaras.
+        Auto-play lights keys in amber. PS 1–2 use middle octave; black keys light for komal swaras.
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.keyboard}>

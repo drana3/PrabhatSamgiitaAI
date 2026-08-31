@@ -631,7 +631,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
             </div>
             {capture.booklet_locked ? (
               <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                Songs 1, 2, 4, and 27 already have booklet sargam. Recording is locked so those copies are not overwritten.
+                Songs 1, 2, and 27 already have booklet sargam. Recording is locked so those copies are not overwritten.
               </p>
             ) : null}
             {capture.submitted ? (

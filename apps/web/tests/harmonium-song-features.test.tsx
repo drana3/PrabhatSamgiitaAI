@@ -36,9 +36,9 @@ describe("HarmoniumPracticeSection", () => {
     expect(document.getElementById("notation")).toBeInTheDocument()
   })
 
-  it("shows the notation section for song 4", () => {
-    render(<HarmoniumPracticeSection songNumber={4} />)
-    expect(document.getElementById("notation")).toBeInTheDocument()
+  it("hides notation for unpublished booklet copy song 4", () => {
+    const { container } = render(<HarmoniumPracticeSection songNumber={4} />)
+    expect(container).toBeEmptyDOMElement()
   })
 
   it("shows the notation section for song 27", () => {

@@ -171,7 +171,7 @@ export const BANDHU_HE_NIYE_CALO_SONG: HarmoniumSampleSong = {
 }
 
 /** Only these songs have tested booklet sargam in the app. */
-export const PUBLISHED_HARMONIUM_SONG_NUMBERS = [1, 2, 4, 27] as const
+export const PUBLISHED_HARMONIUM_SONG_NUMBERS = [1, 2, 27] as const
 
 export function isPublishedHarmoniumSong(songNumber: number): boolean {
   return (PUBLISHED_HARMONIUM_SONG_NUMBERS as readonly number[]).includes(songNumber)
