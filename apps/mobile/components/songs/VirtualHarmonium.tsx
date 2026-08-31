@@ -6,6 +6,8 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
+  type GestureResponderEvent,
 } from "react-native"
 
 import {
@@ -29,10 +31,28 @@ import {
   type HarmoniumVoiceRegister,
 } from "@prabhat/core"
 
+import { HarmoniumTuningBar } from "@/components/songs/HarmoniumTuningBar"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { playSheetEvents, setHarmoniumSheetHighlightListener, setHarmoniumVoiceRegister, startWesternNote, stopActiveHarmoniumNote, stopHarmoniumSheetPlayback, type SheetPlaybackHandlers } from "@/lib/harmoniumPlayback"
+import { hitTestHarmoniumKey } from "@/lib/harmoniumHitTest"
+import { harmoniumMetronomeBpm, startHarmoniumMetronome, stopHarmoniumMetronome } from "@/lib/harmoniumMetronome"
+import { createMultiTouchKeyTracker } from "@/lib/multiTouchKeyTracker"
+import {
+  playSheetEvents,
+  setHarmoniumBellows,
+  setHarmoniumCoupler,
+  setHarmoniumFineTune,
+  setHarmoniumSheetHighlightListener,
+  setHarmoniumVoiceRegister,
+  startHarmoniumDrone,
+  startWesternNote,
+  stopActiveHarmoniumNote,
+  stopHarmoniumDrone,
+  stopHarmoniumSheetPlayback,
+  warmHarmoniumCaptureAudio,
+  type SheetPlaybackHandlers,
+} from "@/lib/harmoniumPlayback"
 
 type Props = {
   tonic: string
@@ -40,6 +60,7 @@ type Props = {
   song?: HarmoniumSampleSong
   keyboardOnly?: boolean
   captureMode?: boolean
+  layout?: "default" | "fullscreen"
   onTempoBpmChange?: (bpm: number) => void
   onPressKey?: (key: HarmoniumKeyboardKey) => void
   onReleaseKey?: (key: HarmoniumKeyboardKey) => void
@@ -51,10 +72,20 @@ export function VirtualHarmonium({
   song = BANDHU_HE_NIYE_CALO_SONG,
   keyboardOnly = false,
   captureMode = false,
+  layout = "default",
   onTempoBpmChange,
   onPressKey,
   onReleaseKey,
 }: Props) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions()
+  const fullscreen = layout === "fullscreen"
+  const [keyboardArea, setKeyboardArea] = useState({ width: 0, height: 0 })
+  const [bellows, setBellows] = useState(0.7)
+  const [fineTune, setFineTune] = useState(0)
+  const [droneOn, setDroneOn] = useState(false)
+  const [couplerOn, setCouplerOn] = useState(false)
+  const [metronomeOn, setMetronomeOn] = useState(false)
+  const [keyboardZoom, setKeyboardZoom] = useState(1)
   const [typed, setTyped] = useState("")
   const [activeIndexes, setActiveIndexes] = useState<Set<number>>(new Set())
   const [playbackIndex, setPlaybackIndex] = useState<number | null>(null)
@@ -63,6 +94,13 @@ export function VirtualHarmonium({
   const [tempo, setTempo] = useState<HarmoniumPlayTempo>("medium")
   const [voiceRegister, setVoiceRegister] = useState<HarmoniumVoiceRegister>("male")
   const stopsRef = useRef(new Map<number, () => void>())
+  const touchTracker = useRef(createMultiTouchKeyTracker())
+  const keyboardLayoutRef = useRef({
+    width: 0,
+    height: 0,
+    blackKeyWidth: 28,
+    blackKeyHeight: 96,
+  })
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const playbackGen = useRef(0)
   const keys = useMemo(() => harmoniumKeyboardLayout(tonic), [tonic])
@@ -72,6 +110,18 @@ export function VirtualHarmonium({
   const tempoPreset = sampleSongTiming(tempo)
   const showSampleSong = !keyboardOnly && !captureMode
   const showPlayerTools = !keyboardOnly || captureMode
+  const whiteKeyCount = whiteKeys.length
+  const zoomFactor = fullscreen || captureMode ? keyboardZoom : 1
+  const measuredWidth = keyboardArea.width > 0 ? keyboardArea.width : Math.max(320, windowWidth - spacing.sm * 2)
+  const measuredHeight = keyboardArea.height > 0 ? keyboardArea.height : Math.max(220, windowHeight * 0.55)
+  const keyboardWidth = (fullscreen ? measuredWidth : KEYBOARD_WIDTH) * zoomFactor
+  const keyboardHeight = (fullscreen ? measuredHeight : 168) * zoomFactor
+  const whiteKeyWidth = whiteKeyCount > 0 ? keyboardWidth / whiteKeyCount : 48
+  const blackKeyWidth = Math.max(28, Math.min(52, whiteKeyWidth * 0.58))
+  const blackKeyHeight = Math.max(96, Math.round(keyboardHeight * 0.64))
+  const keyDevanagariSize = fullscreen ? Math.max(16, Math.min(24, whiteKeyWidth * 0.34)) : 14
+  const keyLatinSize = fullscreen ? Math.max(11, Math.min(15, whiteKeyWidth * 0.22)) : undefined
+  const layoutStyles = fullscreen ? fullscreenStyles : styles
 
   useEffect(() => {
     onTempoBpmChange?.(tempoPreset.bpm)
@@ -92,6 +142,52 @@ export function VirtualHarmonium({
   )
 
   useEffect(() => {
+    if (!captureMode) return
+    void warmHarmoniumCaptureAudio(tonic)
+  }, [captureMode, tonic])
+
+  useEffect(() => {
+    setHarmoniumBellows(bellows)
+  }, [bellows])
+
+  useEffect(() => {
+    setHarmoniumFineTune(fineTune)
+  }, [fineTune])
+
+  useEffect(() => {
+    setHarmoniumCoupler(couplerOn)
+  }, [couplerOn])
+
+  useEffect(() => {
+    if (!droneOn) {
+      void stopHarmoniumDrone()
+      return
+    }
+    void startHarmoniumDrone(tonic)
+    return () => {
+      void stopHarmoniumDrone()
+    }
+  }, [droneOn, tonic, voiceRegister])
+
+  useEffect(() => {
+    if (!metronomeOn) {
+      stopHarmoniumMetronome()
+      return
+    }
+    startHarmoniumMetronome(tempoPreset.bpm)
+    return () => stopHarmoniumMetronome()
+  }, [metronomeOn, tempoPreset.bpm])
+
+  useEffect(() => {
+    keyboardLayoutRef.current = {
+      width: keyboardWidth,
+      height: keyboardHeight,
+      blackKeyWidth,
+      blackKeyHeight,
+    }
+  }, [keyboardWidth, keyboardHeight, blackKeyWidth, blackKeyHeight])
+
+  useEffect(() => {
     const register = HARMONIUM_VOICE_REGISTERS.find((item) => item.id === voiceRegister)
     setHarmoniumVoiceRegister(register?.semitones ?? 0)
   }, [voiceRegister])
@@ -105,22 +201,26 @@ export function VirtualHarmonium({
     return () => {
       stopsRef.current.forEach((stop) => stop())
       stopsRef.current.clear()
+      touchTracker.current.reset()
+      stopHarmoniumMetronome()
+      void stopHarmoniumDrone()
       void stopActiveHarmoniumNote()
       timers.current.forEach(clearTimeout)
     }
   }, [])
 
-  async function pressKey(key: HarmoniumKeyboardKey | undefined, index: number) {
+  function pressKey(key: HarmoniumKeyboardKey | undefined, index: number) {
     if (!key || stopsRef.current.has(index)) return
     stopsRef.current.set(index, () => undefined)
     setActiveIndexes((current) => new Set(current).add(index))
     onPressKey?.(key)
-    const stop = await startWesternNote(key.western)
-    if (!stopsRef.current.has(index)) {
-      stop()
-      return
-    }
-    stopsRef.current.set(index, stop)
+    void startWesternNote(key.western).then((stop) => {
+      if (!stopsRef.current.has(index)) {
+        stop()
+        return
+      }
+      stopsRef.current.set(index, stop)
+    })
   }
 
   function releaseKey(index: number) {
@@ -137,12 +237,48 @@ export function VirtualHarmonium({
     if (key) onReleaseKey?.(key)
   }
 
+  function processKeyboardTouches(event: GestureResponderEvent, phase: "start" | "move" | "end") {
+    const touches = event.nativeEvent.changedTouches
+    for (let index = 0; index < touches.length; index += 1) {
+      const touch = touches[index]
+      if (!touch) continue
+      const touchId = touch.identifier
+      if (phase === "end") {
+        const result = touchTracker.current.touchUp(touchId)
+        if (result?.lastOnKey) releaseKey(result.keyIndex)
+        continue
+      }
+      const keyIndex = hitTestHarmoniumKey(
+        touch.locationX,
+        touch.locationY,
+        keyboardLayoutRef.current,
+        keys,
+        whiteKeys,
+        blackKeys,
+      )
+      if (keyIndex < 0) continue
+      const key = keys[keyIndex]
+      if (!key) continue
+      if (phase === "start") {
+        if (touchTracker.current.touchDown(touchId, keyIndex)) pressKey(key, keyIndex)
+        continue
+      }
+      const moved = touchTracker.current.touchMove(touchId, keyIndex)
+      if (!moved) continue
+      if (moved.releasedLast) releaseKey(moved.releasedKey)
+      if (moved.pressedFirst) pressKey(keys[moved.pressedKey], moved.pressedKey)
+    }
+  }
+
   function stopPlayback() {
     playbackGen.current += 1
     timers.current.forEach(clearTimeout)
     timers.current = []
     stopHarmoniumSheetPlayback()
     setPlaying(false)
+    stopsRef.current.forEach((stop) => stop())
+    stopsRef.current.clear()
+    touchTracker.current.reset()
     setActiveIndexes(new Set())
     setPlaybackIndex(null)
     setSongLineIndex(null)
@@ -202,87 +338,194 @@ export function VirtualHarmonium({
   }
 
   return (
-    <View style={styles.wrap}>
-      {keyboardOnly && !captureMode ? (
+    <View style={[layoutStyles.wrap, fullscreen && layoutStyles.wrapFullscreen]}>
+      {!fullscreen && keyboardOnly && !captureMode ? (
         <>
           <Text style={styles.eyebrow}>Line capture</Text>
           <Text style={styles.title}>Virtual harmonium</Text>
           <Text style={styles.lead}>Hold keys to record · Sa below</Text>
         </>
-      ) : (
+      ) : !fullscreen ? (
         <>
           <Text style={styles.eyebrow}>{captureMode ? "Capture studio" : "Classic harmonium"}</Text>
           <Text style={styles.title}>{captureMode ? "Real reed samples" : "Two-octave keyboard"}</Text>
           <Text style={styles.lead}>
             {captureMode
-              ? "Same reed engine as learner practice · tune Sa, voice, and tempo before you record"
+              ? "Drone, bellows, coupler, and glissando — same reed engine as learner practice"
               : "Hold keys to sustain, like bellows feeding the reeds. Play more than one key at a time."}
           </Text>
         </>
-      )}
+      ) : null}
 
       {onTonicChange ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tonicRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.tonicRow, fullscreen && styles.tonicRowFullscreen]}
+        >
           {HARMONIUM_TONICS.map((value) => (
             <Pressable
               key={value}
               onPress={() => onTonicChange(value)}
-              style={[styles.tonicChip, tonic === value && styles.tonicActive]}
+              style={[styles.tonicChip, fullscreen && styles.tonicChipFullscreen, tonic === value && styles.tonicActive]}
               accessibilityRole="button"
               accessibilityState={{ selected: tonic === value }}
             >
-              <Text style={[styles.tonicText, tonic === value && styles.tonicTextActive]}>Sa {value}</Text>
+              <Text style={[styles.tonicText, fullscreen && styles.tonicTextFullscreen, tonic === value && styles.tonicTextActive]}>
+                Sa {value}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
       ) : (
-        <Text style={styles.tonicLabel}>Sa = {tonic}</Text>
+        <Text style={[styles.tonicLabel, fullscreen && styles.tonicLabelFullscreen]}>Sa = {tonic}</Text>
       )}
 
       {showPlayerTools ? (
         <>
-          <Text style={styles.inputLabel}>Voice</Text>
-          <View style={styles.tempoRow}>
+          {!fullscreen ? <Text style={styles.inputLabel}>Voice</Text> : null}
+          <HarmoniumTuningBar
+            compact={fullscreen || captureMode}
+            bellows={bellows}
+            onBellowsChange={setBellows}
+            fineTune={fineTune}
+            onFineTuneChange={setFineTune}
+            droneOn={droneOn}
+            onDroneToggle={() => setDroneOn((current) => !current)}
+            couplerOn={couplerOn}
+            onCouplerToggle={() => setCouplerOn((current) => !current)}
+            metronomeOn={metronomeOn}
+            onMetronomeToggle={() => setMetronomeOn((current) => !current)}
+            metronomeBpm={metronomeOn ? harmoniumMetronomeBpm() || tempoPreset.bpm : tempoPreset.bpm}
+            keyboardZoom={keyboardZoom}
+            onKeyboardZoomChange={setKeyboardZoom}
+            showZoom={fullscreen || captureMode}
+          />
+          <View style={[styles.tempoRow, fullscreen && styles.compactRow]}>
             {HARMONIUM_VOICE_REGISTERS.map((register) => (
               <Pressable
                 key={register.id}
                 onPress={() => setVoiceRegister(register.id)}
-                style={[styles.tonicChip, voiceRegister === register.id && styles.tonicActive]}
+                style={[
+                  styles.tonicChip,
+                  fullscreen && styles.tonicChipFullscreen,
+                  voiceRegister === register.id && styles.tonicActive,
+                ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: voiceRegister === register.id }}
                 accessibilityLabel={register.label}
               >
-                <Text style={[styles.tonicText, voiceRegister === register.id && styles.tonicTextActive]}>
+                <Text
+                  style={[
+                    styles.tonicText,
+                    fullscreen && styles.tonicTextFullscreen,
+                    voiceRegister === register.id && styles.tonicTextActive,
+                  ]}
+                >
                   {register.label}
                 </Text>
               </Pressable>
             ))}
           </View>
+          {fullscreen && captureMode ? (
+            <View style={[styles.tempoRow, styles.compactRow]}>
+              {HARMONIUM_PLAY_TEMPO_ORDER.map((id) => (
+                <Pressable
+                  key={id}
+                  onPress={() => setTempo(id)}
+                  style={[
+                    styles.tonicChip,
+                    fullscreen && styles.tonicChipFullscreen,
+                    tempo === id && styles.tonicActive,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: tempo === id }}
+                  accessibilityLabel={HARMONIUM_PLAY_TEMPOS[id].label}
+                >
+                  <Text
+                    style={[
+                      styles.tonicText,
+                      fullscreen && styles.tonicTextFullscreen,
+                      tempo === id && styles.tonicTextActive,
+                    ]}
+                  >
+                    {HARMONIUM_PLAY_TEMPOS[id].label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
         </>
       ) : null}
 
-      <Text style={styles.keyHint}>
-        Auto-play lights keys in amber. PS 1–2 use middle octave; black keys light for komal swaras.
-      </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.keyboard}>
-          <View style={styles.whiteRow}>
+      {!fullscreen ? (
+        <Text style={styles.keyHint}>
+          Auto-play lights keys in amber. PS 1–2 use middle octave; black keys light for komal swaras.
+        </Text>
+      ) : null}
+      <View
+        style={fullscreen ? layoutStyles.keyboardHost : undefined}
+        onLayout={
+          fullscreen
+            ? (event) => {
+                const { width, height } = event.nativeEvent.layout
+                if (width < 1 || height < 1) return
+                setKeyboardArea((current) =>
+                  Math.abs(current.width - width) < 1 && Math.abs(current.height - height) < 1
+                    ? current
+                    : { width, height },
+                )
+              }
+            : undefined
+        }
+      >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={!fullscreen && !captureMode}
+        style={fullscreen ? layoutStyles.keyboardScroll : undefined}
+        contentContainerStyle={fullscreen ? layoutStyles.keyboardScrollContent : undefined}
+        keyboardShouldPersistTaps="always"
+      >
+        <View
+          style={[layoutStyles.keyboard, { width: keyboardWidth, height: keyboardHeight }]}
+          onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => true}
+          onResponderTerminationRequest={() => false}
+          onTouchStart={(event) => processKeyboardTouches(event, "start")}
+          onTouchMove={(event) => processKeyboardTouches(event, "move")}
+          onTouchEnd={(event) => processKeyboardTouches(event, "end")}
+          onTouchCancel={(event) => processKeyboardTouches(event, "end")}
+        >
+          <View style={styles.whiteRow} pointerEvents="none">
             {whiteKeys.map((key) => {
               const index = keys.indexOf(key)
               const active = activeIndexes.has(index) || playbackIndex === index
               return (
-                <Pressable
+                <View
                   key={key.western}
-                  onPressIn={() => void pressKey(key, index)}
-                  onPressOut={() => releaseKey(index)}
-                  style={[styles.whiteKey, active && styles.keyActive, key.isSa && styles.saKey]}
+                  style={[
+                    styles.whiteKey,
+                    fullscreen && styles.whiteKeyFullscreen,
+                    active && styles.keyActive,
+                    key.isSa && styles.saKey,
+                  ]}
+                  accessible
                   accessibilityRole="button"
                   accessibilityLabel={`${key.latin} ${key.keyLabel}`}
+                  accessibilityState={{ selected: active }}
                 >
-                  {key.isSa ? <View style={styles.saDot} /> : null}
-                  <Text style={styles.keyDevanagari}>{key.devanagari}</Text>
-                  <Text style={styles.keyLatin}>{key.latin}</Text>
-                </Pressable>
+                  {key.isSa ? <View style={[styles.saDot, fullscreen && styles.saDotFullscreen]} /> : null}
+                  <Text style={[styles.keyDevanagari, { fontSize: keyDevanagariSize }]} pointerEvents="none">
+                    {key.devanagari}
+                  </Text>
+                  <Text
+                    style={[styles.keyLatin, keyLatinSize ? { fontSize: keyLatinSize } : null]}
+                    pointerEvents="none"
+                  >
+                    {key.latin}
+                  </Text>
+                </View>
               )
             })}
           </View>
@@ -290,20 +533,37 @@ export function VirtualHarmonium({
             const index = keys.indexOf(key)
             const active = activeIndexes.has(index) || playbackIndex === index
             return (
-              <Pressable
+              <View
                 key={key.western}
-                onPressIn={() => void pressKey(key, index)}
-                onPressOut={() => releaseKey(index)}
-                style={[styles.blackKey, { left: `${key.blackLeftPercent}%` }, active && styles.blackKeyActive]}
+                pointerEvents="none"
+                style={[
+                  styles.blackKey,
+                  fullscreen && styles.blackKeyFullscreen,
+                  {
+                    left: `${key.blackLeftPercent}%`,
+                    width: blackKeyWidth,
+                    height: blackKeyHeight,
+                    marginLeft: -blackKeyWidth / 2,
+                  },
+                  active && styles.blackKeyActive,
+                ]}
+                accessible
                 accessibilityRole="button"
                 accessibilityLabel={`${key.latin} ${key.keyLabel}`}
+                accessibilityState={{ selected: active }}
               >
-                <Text style={styles.blackLabel}>{key.devanagari}</Text>
-              </Pressable>
+                <Text
+                  style={[styles.blackLabel, fullscreen && { fontSize: Math.max(10, keyLatinSize ?? 10) }]}
+                  pointerEvents="none"
+                >
+                  {key.devanagari}
+                </Text>
+              </View>
             )
           })}
         </View>
       </ScrollView>
+      </View>
 
       {showSampleSong ? (
         <>
@@ -363,7 +623,7 @@ export function VirtualHarmonium({
         </>
       ) : null}
 
-      {showPlayerTools ? (
+      {showPlayerTools && !fullscreen ? (
         <>
           <Text style={styles.inputLabel}>Reed & tempo tuner</Text>
           <View style={styles.tempoRow}>
@@ -475,6 +735,7 @@ const styles = StyleSheet.create({
   },
   lead: { ...typography.bodySmall, color: colors.playerMuted },
   tonicRow: { gap: spacing.sm, paddingVertical: spacing.xs },
+  tonicRowFullscreen: { gap: spacing.xs, paddingVertical: 0 },
   tempoRow: { flexDirection: "row", gap: spacing.sm, paddingVertical: spacing.xs },
   tonicChip: {
     borderRadius: radius.pill,
@@ -484,10 +745,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
   },
+  tonicChipFullscreen: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    minHeight: 28,
+    justifyContent: "center",
+  },
   tonicActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
   tonicText: { ...typography.caption, color: colors.textPrimary },
+  tonicTextFullscreen: { fontSize: 11, lineHeight: 14 },
   tonicTextActive: { color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
   tonicLabel: { ...typography.caption, color: colors.playerMuted },
+  tonicLabelFullscreen: { fontSize: 11, lineHeight: 14, marginBottom: 2 },
   keyHint: {
     ...typography.caption,
     color: colors.spiritualGold,
@@ -505,6 +774,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingBottom: spacing.sm,
   },
+  whiteKeyFullscreen: { paddingBottom: spacing.md, minWidth: 48 },
   saKey: { backgroundColor: "#fff8e8" },
   keyActive: {
     backgroundColor: "#fcd34d",
@@ -519,6 +789,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.spiritualGold,
   },
+  saDotFullscreen: { top: 10, width: 10, height: 10, borderRadius: 5 },
   keyDevanagari: { fontSize: 14, color: colors.textPrimary, fontFamily: "SourceSerif4_600SemiBold" },
   keyLatin: { ...typography.caption, color: colors.textSecondary },
   blackKey: {
@@ -534,6 +805,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     zIndex: 2,
   },
+  blackKeyFullscreen: {},
   blackKeyActive: {
     backgroundColor: colors.primary,
     borderWidth: 2,
@@ -609,4 +881,23 @@ const styles = StyleSheet.create({
   exampleText: { ...typography.caption, color: colors.playerMuted },
   preview: { ...typography.caption, color: colors.playerMuted },
   previewWarn: { ...typography.caption, color: colors.warning },
+  compactRow: { paddingVertical: 0 },
+  keyboardScroll: { flexGrow: 0 },
+})
+
+const fullscreenStyles = StyleSheet.create({
+  wrap: {
+    flex: 1,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.playerBackground,
+    padding: spacing.xs,
+    gap: 4,
+  },
+  wrapFullscreen: {},
+  keyboardHost: { flex: 1, minHeight: 180 },
+  keyboardScroll: { flex: 1 },
+  keyboardScrollContent: { flexGrow: 1, justifyContent: "flex-end" },
+  keyboard: { position: "relative", alignSelf: "stretch" },
 })

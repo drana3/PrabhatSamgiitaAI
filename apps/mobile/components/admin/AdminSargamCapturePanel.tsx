@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,6 @@ import {
   TextInput,
   View,
 } from "react-native"
-import { Audio } from "expo-av"
 import {
   HARMONIUM_PLAY_TEMPOS,
   sampleSongTiming,
@@ -20,10 +19,12 @@ import {
   type SargamCaptureLine,
   type SargamCapturePayload,
 } from "@prabhat/core"
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react-native"
+import { Maximize2 } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
-import { SecondaryButton } from "@/components/common/SecondaryButton"
+import { AdminSargamFullscreenStudio } from "@/components/admin/AdminSargamFullscreenStudio"
+import { CaptureListenPlayer } from "@/components/admin/CaptureListenPlayer"
+import { CaptureStudioToolbar } from "@/components/admin/CaptureStudioToolbar"
 import { VirtualHarmonium } from "@/components/songs/VirtualHarmonium"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
@@ -39,74 +40,13 @@ import {
   normalizeCapturePayload,
   sargamTextToEvents,
 } from "@/lib/adminSargamCapture"
+import {
+  buildCaptureStudioSessionActions,
+  buildCaptureStudioToolbarActions,
+  shouldConfirmDiscardRecording,
+} from "@/lib/adminSargamStudio"
 import { api } from "@/lib/client"
-import { playSheetEvents } from "@/lib/harmoniumPlayback"
-
-function CaptureListenPlayer({ url }: { url: string }) {
-  const soundRef = useRef<Audio.Sound | null>(null)
-  const [playing, setPlaying] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    return () => {
-      void soundRef.current?.unloadAsync().catch(() => undefined)
-      soundRef.current = null
-    }
-  }, [url])
-
-  async function togglePlayback() {
-    if (loading) return
-    if (playing && soundRef.current) {
-      await soundRef.current.pauseAsync()
-      setPlaying(false)
-      return
-    }
-    setLoading(true)
-    try {
-      if (!soundRef.current) {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: true })
-        const created = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true })
-        soundRef.current = created.sound
-        created.sound.setOnPlaybackStatusUpdate((status) => {
-          if (!status.isLoaded) return
-          setPlaying(status.isPlaying)
-          if (status.didJustFinish) {
-            void created.sound.setPositionAsync(0)
-            setPlaying(false)
-          }
-        })
-      } else {
-        await soundRef.current.playAsync()
-      }
-      setPlaying(true)
-    } catch {
-      Alert.alert("Listen", "Could not play this recording.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <View style={styles.listenCard}>
-      <Text style={styles.sectionEyebrow}>Listen while you capture</Text>
-      <Pressable
-        style={styles.listenBtn}
-        onPress={() => void togglePlayback()}
-        accessibilityRole="button"
-        accessibilityLabel={playing ? "Pause song" : "Play song"}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.primary} size="small" />
-        ) : playing ? (
-          <Pause size={18} color={colors.primaryDark} />
-        ) : (
-          <Play size={18} color={colors.primaryDark} />
-        )}
-        <Text style={styles.listenBtnText}>{playing ? "Pause song" : "Play song"}</Text>
-      </Pressable>
-    </View>
-  )
-}
+import { playSheetEvents, warmHarmoniumCaptureAudio } from "@/lib/harmoniumPlayback"
 
 const LyricLines = memo(function LyricLines({
   lines,
@@ -161,6 +101,7 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
   const [pendingConfirm, setPendingConfirm] = useState(false)
   const [pendingRetake, setPendingRetake] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState(false)
+  const [fullscreenStudio, setFullscreenStudio] = useState(false)
 
   const originMs = useRef(0)
   const pendingKeys = useRef(new Map<string, { startMs: number; key: HarmoniumKeyboardKey }>())
@@ -168,6 +109,12 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
   const recordingRef = useRef(false)
   const captureRef = useRef<SargamCapturePayload | null>(null)
   const playingRef = useRef(false)
+  const notePaintFrame = useRef(0)
+
+  useEffect(() => {
+    if (!studioOpen) return
+    void warmHarmoniumCaptureAudio(tonic)
+  }, [studioOpen, tonic])
 
   useEffect(() => {
     recordingRef.current = recording
@@ -210,20 +157,33 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
 
   const onPressKey = useCallback((key: HarmoniumKeyboardKey) => {
     if (!recordingRef.current) return
-    pendingKeys.current.set(key.western, { startMs: Date.now(), key })
+    const pressId = `${key.western}:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`
+    pendingKeys.current.set(pressId, { startMs: Date.now(), key, pressId })
   }, [])
 
   const onReleaseKey = useCallback((key: HarmoniumKeyboardKey) => {
     if (!recordingRef.current) return
-    const held = pendingKeys.current.get(key.western)
-    pendingKeys.current.delete(key.western)
-    if (!held) return
+    let held: { startMs: number; key: HarmoniumKeyboardKey; pressId: string } | undefined
+    let heldId: string | undefined
+    for (const [id, entry] of pendingKeys.current.entries()) {
+      if (entry.key.western === key.western) {
+        held = entry
+        heldId = id
+        break
+      }
+    }
+    if (!held || !heldId) return
+    pendingKeys.current.delete(heldId)
     const startSec = Math.max(0, (held.startMs - originMs.current) / 1000)
     const durationSec = Math.max(0.12, (Date.now() - held.startMs) / 1000)
     const octave = Number(key.western.slice(-1))
     const sargam = octave <= 3 ? `.${key.token}` : octave >= 5 ? `${key.token}'` : key.token
     liveEventsRef.current.push({ sargam, western: key.western, startSec, durationSec })
-    setNotesCaptured(liveEventsRef.current.length)
+    if (notePaintFrame.current) return
+    notePaintFrame.current = requestAnimationFrame(() => {
+      notePaintFrame.current = 0
+      setNotesCaptured(liveEventsRef.current.length)
+    })
   }, [])
 
   function cancelRecording() {
@@ -259,6 +219,8 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
     originMs.current = Date.now()
     recordingRef.current = true
     setRecording(true)
+    setFullscreenStudio(true)
+    void warmHarmoniumCaptureAudio(tonic)
   }
 
   async function persistTake(events: SargamCaptureEvent[]) {
@@ -417,6 +379,73 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
   const lineCount = capture?.lines.length ?? 0
   const learnerVisible = capture ? learnerNotationVisible(capture.notation_enabled) : true
 
+  function requestCloseFullscreen() {
+    if (shouldConfirmDiscardRecording(recording, notesCaptured)) {
+      Alert.alert(
+        "Discard recording?",
+        "You have notes that are not saved yet. Discard this take or keep recording.",
+        [
+          { text: "Keep recording", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              cancelRecording()
+              setFullscreenStudio(false)
+            },
+          },
+        ],
+      )
+      return
+    }
+    if (recording) cancelRecording()
+    setFullscreenStudio(false)
+  }
+
+  const studioToolbarActions = useMemo(
+    () =>
+      buildCaptureStudioToolbarActions(
+        {
+          recording,
+          playing,
+          pendingSave,
+          pendingConfirm,
+          pendingRetake,
+          notesCaptured,
+          bookletLocked: capture?.booklet_locked ?? false,
+          lineStatus: currentLine?.status,
+          previewEvents,
+          lineEvents,
+          canPrev: activeLineIndex > 0,
+          canNext: activeLineIndex >= 0 && activeLineIndex < lineCount - 1,
+        },
+        {
+          onPrevLine: () => stepLine(-1),
+          onNextLine: () => stepLine(1),
+          onRecord: startRecord,
+          onSave: () => void stopAndSave(),
+          onPlayLine: () => void playEvents(previewEvents),
+          onReplay: () => void playEvents(lineEvents),
+          onReset: () => void postLine("retake"),
+          onConfirm: () => void postLine("confirm"),
+        },
+      ),
+    [
+      activeLineIndex,
+      capture?.booklet_locked,
+      currentLine?.status,
+      lineCount,
+      lineEvents,
+      notesCaptured,
+      pendingConfirm,
+      pendingRetake,
+      pendingSave,
+      playing,
+      previewEvents,
+      recording,
+    ],
+  )
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -433,6 +462,22 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
       </View>
     )
   }
+
+  const canPlayFullSong =
+    !playing && (capture.can_submit || capture.lines.every((line) => line.status === "confirmed"))
+
+  const studioSessionActions = buildCaptureStudioSessionActions(
+    {
+      listenUrl: capture.listen_url,
+      canPlayFullSong,
+      canSubmit: capture.can_submit,
+      pendingSubmit,
+    },
+    {
+      onPlayFullSong: () => void playFinal(),
+      onSubmit: () => void submitSong(),
+    },
+  )
 
   return (
     <KeyboardAvoidingView
@@ -487,89 +532,20 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
         {studioOpen ? (
           <>
             <View style={styles.toolbar}>
-              <View style={styles.stepper}>
-                <Pressable
-                  style={[styles.stepBtn, activeLineIndex <= 0 && styles.stepBtnDisabled]}
-                  onPress={() => stepLine(-1)}
-                  disabled={activeLineIndex <= 0}
-                  accessibilityRole="button"
-                  accessibilityLabel="Previous line"
-                >
-                  <ChevronLeft size={18} color={colors.textPrimary} />
-                  <Text style={styles.stepBtnText}>Prev</Text>
-                </Pressable>
-                <Text style={styles.stepCount}>
-                  {activeLineIndex >= 0 ? activeLineIndex + 1 : "–"} / {lineCount || "–"}
-                </Text>
-                <Pressable
-                  style={[styles.stepBtn, activeLineIndex < 0 || activeLineIndex >= lineCount - 1 ? styles.stepBtnDisabled : null]}
-                  onPress={() => stepLine(1)}
-                  disabled={activeLineIndex < 0 || activeLineIndex >= lineCount - 1}
-                  accessibilityRole="button"
-                  accessibilityLabel="Next line"
-                >
-                  <Text style={styles.stepBtnText}>Next</Text>
-                  <ChevronRight size={18} color={colors.textPrimary} />
-                </Pressable>
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionRow}>
-                <SecondaryButton
-                  fullWidth={false}
-                  label={playing ? "Playing…" : "Play line"}
-                  onPress={() => void playEvents(previewEvents)}
-                  disabled={previewEvents.length === 0 || playing}
-                />
-                {recording ? (
-                  <PrimaryButton
-                    fullWidth={false}
-                    label={pendingSave ? "Saving…" : "Stop & save"}
-                    onPress={() => void stopAndSave()}
-                    disabled={notesCaptured === 0 || pendingSave}
-                  />
-                ) : (
-                  <PrimaryButton
-                    fullWidth={false}
-                    label="Record"
-                    onPress={startRecord}
-                    disabled={capture.booklet_locked || currentLine?.status === "confirmed"}
-                  />
-                )}
-                <SecondaryButton
-                  fullWidth={false}
-                  label="Replay saved"
-                  onPress={() => void playEvents(lineEvents)}
-                  disabled={lineEvents.length === 0 || playing}
-                />
-                <SecondaryButton
-                  fullWidth={false}
-                  label={pendingConfirm ? "Confirming…" : "Confirm"}
-                  onPress={() => void postLine("confirm")}
-                  disabled={pendingConfirm || currentLine?.status !== "recorded"}
-                />
-                <SecondaryButton
-                  fullWidth={false}
-                  label={pendingRetake ? "Resetting…" : "Retake"}
-                  onPress={() => void postLine("retake")}
-                  disabled={pendingRetake || currentLine?.status === "empty"}
-                />
-                <SecondaryButton
-                  fullWidth={false}
-                  label="Play full song"
-                  onPress={() => void playFinal()}
-                  disabled={
-                    playing ||
-                    (!capture.can_submit && !capture.lines.every((line) => line.status === "confirmed"))
-                  }
-                />
-                <PrimaryButton
-                  fullWidth={false}
-                  label={pendingSubmit ? "Submitting…" : "Submit song"}
-                  onPress={() => void submitSong()}
-                  disabled={pendingSubmit || !capture.can_submit}
-                />
-              </ScrollView>
-
+              <Text style={styles.stepCount}>
+                Line {activeLineIndex >= 0 ? activeLineIndex + 1 : "–"} / {lineCount || "–"}
+              </Text>
+              <Pressable
+                style={styles.fullscreenBtn}
+                onPress={() => setFullscreenStudio(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Open fullscreen capture studio"
+              >
+                <Maximize2 size={16} color={colors.primaryDark} />
+                <Text style={styles.fullscreenBtnText}>Fullscreen</Text>
+              </Pressable>
+              <CaptureStudioToolbar actions={studioToolbarActions} />
+              <CaptureStudioToolbar actions={studioSessionActions} />
               {recording ? (
                 <Text style={styles.recordingBadge}>
                   Recording… {notesCaptured} note{notesCaptured === 1 ? "" : "s"}
@@ -600,6 +576,7 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
               />
             </View>
 
+            {!fullscreenStudio ? (
             <VirtualHarmonium
               tonic={tonic}
               onTonicChange={setTonic}
@@ -608,11 +585,46 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
               onPressKey={onPressKey}
               onReleaseKey={onReleaseKey}
             />
+            ) : (
+              <Text style={styles.fullscreenHint}>
+                Fullscreen studio is open — use the landscape player to record this line.
+              </Text>
+            )}
           </>
         ) : null}
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
+
+      {studioOpen && currentLine ? (
+        <AdminSargamFullscreenStudio
+          visible={fullscreenStudio}
+          onRequestClose={requestCloseFullscreen}
+          songNumber={capture.song_number}
+          songTitle={capture.title}
+          lineNumber={currentLine.line_number}
+          lineCount={lineCount}
+          lineLyric={currentLine.lyric}
+          lineStatus={currentLine.status}
+          recording={recording}
+          notesCaptured={notesCaptured}
+          toolbarActions={studioToolbarActions}
+          sessionActions={studioSessionActions}
+          listenSlot={
+            capture.listen_url ? <CaptureListenPlayer url={capture.listen_url} compact /> : null
+          }
+        >
+          <VirtualHarmonium
+            tonic={tonic}
+            onTonicChange={setTonic}
+            captureMode
+            layout="fullscreen"
+            onTempoBpmChange={setTempoBpm}
+            onPressKey={onPressKey}
+            onReleaseKey={onReleaseKey}
+          />
+        </AdminSargamFullscreenStudio>
+      ) : null}
     </KeyboardAvoidingView>
   )
 }
@@ -734,6 +746,28 @@ const styles = StyleSheet.create({
   stepBtnText: { ...typography.caption, color: colors.textPrimary, fontFamily: "Inter_600SemiBold" },
   stepCount: { ...typography.caption, color: colors.textPrimary, minWidth: 48, textAlign: "center" },
   actionRow: { gap: spacing.sm, paddingVertical: spacing.xs },
+  fullscreenBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  fullscreenBtnText: { ...typography.label, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
+  fullscreenHint: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    textAlign: "center",
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
   recordingBadge: { ...typography.caption, color: colors.error, fontFamily: "Inter_600SemiBold" },
   currentLine: { ...typography.h3, color: colors.textPrimary },
   pasteCard: {

@@ -514,6 +514,13 @@ function midiToWestern(midi: number): string {
   return `${HARMONIUM_TONICS[note]}${outOctave}`
 }
 
+/** Map a MIDI note (48–84) to harmonium western label, e.g. 60 → C4. */
+export function midiNoteToWestern(midi: number): string | null {
+  if (!Number.isFinite(midi)) return null
+  const clipped = Math.max(48, Math.min(84, Math.round(midi)))
+  return midiToWestern(clipped)
+}
+
 function decorateSwaraName(
   chroma: (typeof SWARA_CHROMA)[number],
   octave: SwaraOctave,

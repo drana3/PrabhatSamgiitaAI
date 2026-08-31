@@ -132,7 +132,6 @@ export default function SongDetailScreen() {
   useEffect(() => {
     let active = true
     setLoadError(null)
-    setHasNotation(false)
     setWatchPlaying(false)
     autoPlayedFor.current = null
     meaningCache.current = {}

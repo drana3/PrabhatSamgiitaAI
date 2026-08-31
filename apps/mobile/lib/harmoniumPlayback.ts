@@ -1,7 +1,9 @@
 import { Audio } from "expo-av"
 import {
+  harmoniumKeyboardLayout,
   reedWavDataUri,
   shiftWesternPitch,
+  swaraToWestern,
   type SheetPlayEvent,
   westernToHz,
   westernToSampleStem,
@@ -10,9 +12,19 @@ import {
 import { HARMONIUM_PLAYER_SAMPLE_MODULES } from "@/lib/harmoniumPlayerSamples"
 import { HARMONIUM_SAMPLE_MODULES } from "@/lib/harmoniumSamples"
 
+const POOL_SIZE = 6
+
 let voiceSemitones = 0
+let bellowsGain = 0.72
+let fineTuneCents = 0
+let couplerEnabled = false
 let activeSound: Audio.Sound | null = null
 const heldSounds = new Map<string, Audio.Sound>()
+const droneSounds = new Map<string, Audio.Sound>()
+const soundPools = new Map<string, Audio.Sound[]>()
+let poolVoiceSemitones: number | null = null
+let audioModeReady = false
+let warmPromise: Promise<void> | null = null
 let sheetGeneration = 0
 let sheetFinish: (() => void) | null = null
 let activeSheetTimers: ReturnType<typeof setTimeout>[] = []
@@ -41,8 +53,47 @@ function soundingNote(western: string): string {
   return shiftWesternPitch(western, voiceSemitones)
 }
 
+function noteVolume(multiplier = 1): number {
+  return Math.min(1, Math.max(0.04, bellowsGain * multiplier))
+}
+
+function fineTuneRate(): number {
+  return Math.pow(2, fineTuneCents / 1200)
+}
+
+async function applyLiveSound(sound: Audio.Sound, volumeMultiplier = 1): Promise<void> {
+  await sound.setVolumeAsync(noteVolume(volumeMultiplier))
+  await sound.setRateAsync(fineTuneRate(), false)
+}
+
+export function setHarmoniumBellows(amount: number): void {
+  bellowsGain = Math.min(1, Math.max(0.08, amount))
+  void Promise.all([...droneSounds.values()].map((sound) => sound.setVolumeAsync(noteVolume(0.38))))
+}
+
+export function setHarmoniumFineTune(cents: number): void {
+  fineTuneCents = Math.min(50, Math.max(-50, cents))
+}
+
+export function setHarmoniumCoupler(enabled: boolean): void {
+  couplerEnabled = enabled
+}
+
+async function clearSoundPools(): Promise<void> {
+  const unloading: Promise<void>[] = []
+  soundPools.forEach((pool) => {
+    pool.forEach((sound) => unloading.push(unloadSound(sound)))
+  })
+  soundPools.clear()
+  poolVoiceSemitones = null
+  warmPromise = null
+  await Promise.all(unloading)
+}
+
 export function setHarmoniumVoiceRegister(semitones: number): void {
+  if (voiceSemitones === semitones) return
   voiceSemitones = semitones
+  void clearSoundPools()
 }
 
 async function ensureAudioMode() {
@@ -53,6 +104,12 @@ async function ensureAudioMode() {
     shouldDuckAndroid: true,
     playThroughEarpieceAndroid: false,
   })
+  audioModeReady = true
+}
+
+async function ensureAudioModeOnce() {
+  if (audioModeReady) return
+  await ensureAudioMode()
 }
 
 async function loadSound(western: string, loop = false): Promise<Audio.Sound> {
@@ -81,6 +138,56 @@ async function unloadSound(sound: Audio.Sound | null): Promise<void> {
   }
 }
 
+/** Preload reed samples for capture studio — low-latency key response. */
+export function warmHarmoniumCaptureAudio(tonic = "C"): Promise<void> {
+  if (warmPromise && poolVoiceSemitones === voiceSemitones) return warmPromise
+  warmPromise = (async () => {
+    await ensureAudioModeOnce()
+    if (poolVoiceSemitones !== voiceSemitones) {
+      await clearSoundPools()
+      poolVoiceSemitones = voiceSemitones
+    }
+    const keys = harmoniumKeyboardLayout(tonic)
+    const notes = [...new Set(keys.map((key) => soundingNote(key.western)))]
+    await Promise.all(
+      notes.map(async (note) => {
+        const pool = soundPools.get(note) ?? []
+        while (pool.length < POOL_SIZE) {
+          pool.push(await loadSound(note, true))
+        }
+        soundPools.set(note, pool)
+      }),
+    )
+  })().catch(() => {
+    warmPromise = null
+  })
+  return warmPromise
+}
+
+async function borrowPooledSound(note: string): Promise<Audio.Sound> {
+  const pool = soundPools.get(note)
+  if (pool?.length) {
+    return pool.pop()!
+  }
+  return loadSound(note, true)
+}
+
+async function returnPooledSound(note: string, sound: Audio.Sound): Promise<void> {
+  try {
+    await sound.stopAsync()
+    await sound.setPositionAsync(0)
+  } catch {
+    /* ignore */
+  }
+  const pool = soundPools.get(note) ?? []
+  if (pool.length < POOL_SIZE) {
+    pool.push(sound)
+    soundPools.set(note, pool)
+    return
+  }
+  await unloadSound(sound)
+}
+
 export async function stopActiveHarmoniumNote(): Promise<void> {
   await unloadSound(activeSound)
   activeSound = null
@@ -88,26 +195,82 @@ export async function stopActiveHarmoniumNote(): Promise<void> {
   heldSounds.clear()
 }
 
+export async function stopHarmoniumDrone(): Promise<void> {
+  await Promise.all([...droneSounds.values()].map((sound) => unloadSound(sound)))
+  droneSounds.clear()
+}
+
+export async function startHarmoniumDrone(tonic: string): Promise<void> {
+  await stopHarmoniumDrone()
+  await warmHarmoniumCaptureAudio(tonic)
+  await ensureAudioModeOnce()
+  const sa = swaraToWestern(tonic, "S", "middle")
+  const pa = swaraToWestern(tonic, "P", "middle")
+  const roots = [sa, pa].filter((note): note is string => Boolean(note))
+  await Promise.all(
+    roots.map(async (western) => {
+      const note = soundingNote(western)
+      const sound = await borrowPooledSound(note)
+      droneSounds.set(note, sound)
+      try {
+        await sound.setIsLoopingAsync(true)
+        await applyLiveSound(sound, 0.38)
+        await sound.setPositionAsync(0)
+        await sound.playAsync()
+      } catch {
+        droneSounds.delete(note)
+        await returnPooledSound(note, sound)
+      }
+    }),
+  )
+}
+
 export async function playWesternNote(western: string, durationSec = 0.45): Promise<void> {
-  await ensureAudioMode()
+  await ensureAudioModeOnce()
   const sound = await loadSound(soundingNote(western), false)
+  await applyLiveSound(sound)
   await sound.playAsync()
   setTimeout(() => {
     void unloadSound(sound)
   }, Math.max(120, Math.round(durationSec * 1000)))
 }
 
-export async function startWesternNote(western: string): Promise<() => void> {
-  await ensureAudioMode()
-  const previous = heldSounds.get(western)
-  heldSounds.delete(western)
-  await unloadSound(previous)
-  const sound = await loadSound(soundingNote(western), true)
-  heldSounds.set(western, sound)
-  await sound.playAsync()
+async function startHeldNote(western: string, volumeMultiplier = 1): Promise<() => void> {
+  await ensureAudioModeOnce()
+  const note = soundingNote(western)
+  const sound = await borrowPooledSound(note)
+  const holdId = `${note}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
+  heldSounds.set(holdId, sound)
+  try {
+    await sound.setPositionAsync(0)
+    await applyLiveSound(sound, volumeMultiplier)
+    await sound.playAsync()
+  } catch {
+    heldSounds.delete(holdId)
+    await returnPooledSound(note, sound)
+    throw new Error("Unable to play harmonium note")
+  }
+
   return () => {
-    heldSounds.delete(western)
-    void unloadSound(sound)
+    if (!heldSounds.has(holdId)) return
+    heldSounds.delete(holdId)
+    void returnPooledSound(note, sound)
+  }
+}
+
+export async function startWesternNote(western: string): Promise<() => void> {
+  const stopMain = await startHeldNote(western, 1)
+  let stopCoupler: (() => void) | undefined
+  if (couplerEnabled) {
+    try {
+      stopCoupler = await startHeldNote(shiftWesternPitch(western, 12), 0.42)
+    } catch {
+      stopCoupler = undefined
+    }
+  }
+  return () => {
+    stopMain()
+    stopCoupler?.()
   }
 }
 
@@ -132,7 +295,7 @@ export async function playSheetEvents(
   stopHarmoniumSheetPlayback()
   activeSheetHandlers = handlers ?? null
   const gen = sheetGeneration
-  await ensureAudioMode()
+  await ensureAudioModeOnce()
   const sounds: Audio.Sound[] = []
   const timers: ReturnType<typeof setTimeout>[] = []
   activeSheetSounds = sounds
