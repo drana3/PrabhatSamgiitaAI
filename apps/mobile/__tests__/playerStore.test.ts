@@ -83,7 +83,7 @@ vi.mock("@/lib/offlineAudio", () => ({
 }))
 
 vi.mock("@/lib/audioFocus", () => ({
-  releaseExtraAudio: vi.fn(),
+  releaseExtraAudio: vi.fn(async () => undefined),
   setPlaybackIntent: vi.fn(),
   setSongPlaybackYield: vi.fn(),
   setSongPlayingGuard: vi.fn(),
@@ -380,5 +380,24 @@ describe("playerStore song-page handoff", () => {
     expect(usePlayerStore.getState().isPlaying).toBe(false)
     expect(usePlayerStore.getState().currentSong?.number).toBe(27)
     expect(createAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it("opens songs that arrive without videos or themes arrays", async () => {
+    const sound = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      isBuffering: false,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync.mockResolvedValue({ sound })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(
+      { ...song, videos: undefined, themes: undefined } as never,
+    )
+    await vi.waitFor(() => expect(createAsync).toHaveBeenCalled())
+    expect(usePlayerStore.getState().currentSong?.themes).toEqual(["Prabhat Samgiita"])
+    expect(usePlayerStore.getState().currentSong?.videos).toEqual([])
   })
 })

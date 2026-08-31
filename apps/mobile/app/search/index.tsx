@@ -127,6 +127,23 @@ export default function SearchScreen() {
     warmLyricSearchIndex()
   }, [])
 
+  const openSongFromSearch = useCallback(
+    (songId: string) => {
+      const target = href(`/song/${songId}`)
+      try {
+        if (typeof router.canDismiss === "function" && router.canDismiss()) {
+          router.dismiss()
+          requestAnimationFrame(() => router.push(target))
+          return
+        }
+      } catch {
+        /* ignore — fall through to direct navigation */
+      }
+      router.push(target)
+    },
+    [router],
+  )
+
   const browseTheme = useCallback(
     async (searchId: string, spokenQuery: string, token: number) => {
       const result = await loadCategorySongs(searchId)
@@ -578,12 +595,7 @@ export default function SearchScreen() {
             <CompactSongRow
               song={item}
               lyricLine={item.lyrics || item.originalTitle}
-              onPress={() => {
-                // Search is presented as a modal; a card song screen can open
-                // underneath it. Dismiss first so the main player is visible.
-                if (router.canDismiss()) router.dismiss()
-                router.push(href(`/song/${item.id}`))
-              }}
+              onPress={() => openSongFromSearch(item.id)}
             />
           )}
         />

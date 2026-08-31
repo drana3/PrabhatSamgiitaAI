@@ -16,14 +16,14 @@ export function registerExtraAudioCleanup(cleanup: Cleanup): () => void {
   }
 }
 
-export function releaseExtraAudio(): void {
-  for (const cleanup of [...cleanups]) {
-    try {
-      void cleanup()
-    } catch {
-      /* ignore */
-    }
-  }
+export async function releaseExtraAudio(): Promise<void> {
+  await Promise.all(
+    [...cleanups].map((cleanup) =>
+      Promise.resolve()
+        .then(() => cleanup())
+        .catch(() => undefined),
+    ),
+  )
 }
 
 /** Player store registers this so capture/practice never reconfigure AVAudioSession mid-song. */
@@ -88,6 +88,6 @@ export async function yieldSongPlayback(): Promise<void> {
 
 /** Stop catalog listen + the main player so capture Play only sounds captured sargam. */
 export async function stopCompetingPlaybackForCapture(): Promise<void> {
-  releaseExtraAudio()
+  await releaseExtraAudio()
   await yieldSongPlayback()
 }

@@ -32,7 +32,7 @@ import { hasDownloadedAudio } from "@/lib/offlineAudio"
 import { instantSongBundle, resolveSongBundle, songRouteId } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
-import { parseSongNumber, mergeSongMedia, storedMeaningForLanguage } from "@/lib/songMap"
+import { parseSongNumber, mergeSongMedia, normalizeMockSong, storedMeaningForLanguage } from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
 import { hasPublishedLearnerSargam } from "@prabhat/core"
 import { practiceLyricSource } from "@/lib/sargamDisplay"
@@ -160,7 +160,7 @@ export default function SongDetailScreen() {
       }
     }
 
-    setSong(instant.song)
+    setSong(normalizeMockSong(instant.song))
     setRelated(instant.related)
     setLoadError(null)
     usePlayerStore.getState().warmAudio(instant.song)
@@ -168,7 +168,7 @@ export default function SongDetailScreen() {
     void resolveSongBundle(routeId).then((bundle) => {
       if (!active || !bundle) return
       const cached = peekMediaCachedSong(bundle.song.number)
-      setSong(mergeSongMedia(bundle.song, cached ?? undefined))
+      setSong(mergeSongMedia(normalizeMockSong(bundle.song), cached ?? undefined))
       setRelated(bundle.related)
       usePlayerStore.getState().warmAudio(bundle.song)
     })
@@ -184,7 +184,7 @@ export default function SongDetailScreen() {
     if (merged !== song) setSong(merged)
   }, [song, playerSong, mediaCacheRevision])
 
-  const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
+  const hasVideo = Boolean((song?.videos ?? []).some((video) => video.embedUrl))
   const hasFullSargam = Boolean(
     song &&
       hasPublishedLearnerSargam(song.number, song.notationVerificationStatus, song.notationEnabled),
@@ -369,7 +369,7 @@ export default function SongDetailScreen() {
       handlePlayToggle()
       return
     }
-    const next = { ...song, audioUrl: url, mediaHydrated: true as const }
+    const next = normalizeMockSong({ ...song, audioUrl: url, mediaHydrated: true as const })
     setSong(next)
     playOrToggle(next, playQueue)
   }
@@ -396,7 +396,7 @@ export default function SongDetailScreen() {
     : { status: "unavailable" as const }
   const displayTitle =
     language !== "en" && localizedTitle?.trim() ? localizedTitle : song?.title ?? ""
-  const watchVideos = song.videos.filter((video) => video.embedUrl)
+  const watchVideos = (song.videos ?? []).filter((video) => video.embedUrl)
   const practiceLyrics = practiceLyricSource({
     lyricsOriginal: song.lyrics,
     transliteration: song.transliteration,
@@ -476,7 +476,7 @@ export default function SongDetailScreen() {
           </Pressable>
           <View style={styles.heroMeta}>
             <Text style={styles.heroTitle}>{song.originalTitle ?? song.title}</Text>
-            <Text style={styles.heroThemes}>{song.themes.join(" · ")}</Text>
+            <Text style={styles.heroThemes}>{(song.themes ?? []).join(" · ")}</Text>
           </View>
         </Animated.View>
 

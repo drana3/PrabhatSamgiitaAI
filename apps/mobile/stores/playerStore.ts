@@ -12,7 +12,7 @@ import { api } from "@/lib/client"
 import { hydrateAudioRepeat, readAudioRepeat, writeAudioRepeat } from "@/lib/audioRepeat"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
 import { isSameAudioTrack, isSameSong } from "@/lib/playback"
-import { hasCompleteAudioCatalog, mergeRecordingLists, songDetailToMockSong } from "@/lib/songMap"
+import { hasCompleteAudioCatalog, mergeRecordingLists, normalizeMockSong, songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
 type PlayerState = {
@@ -123,6 +123,16 @@ function isIosPlatform() {
 
 /** Stop every native stream, including orphans that lost their JS handle. */
 async function silenceAllAudio() {
+  // Android: toggling setIsEnabledAsync(false/true) has caused native crashes on some devices.
+  if (!isIosPlatform()) {
+    bag.__psModeReady = false
+    try {
+      await setPlaybackMode()
+    } catch {
+      /* ignore */
+    }
+    return
+  }
   try {
     await Audio.setIsEnabledAsync(false)
     await Audio.setIsEnabledAsync(true)
@@ -300,7 +310,7 @@ function bindStatus(owner: Audio.Sound) {
       bag.__psWantPlaying = false
       bag.__psLastResumeNudgeMs = 0
       setPlaybackIntent(null)
-      releaseExtraAudio()
+      void releaseExtraAudio()
       usePlayerStore.setState({
         isPlaying: false,
         isBuffering: false,
@@ -514,8 +524,9 @@ async function attachSound(
 }
 
 async function openAndPlay(song: MockSong, queue: number[] | undefined, id: number) {
+  song = normalizeMockSong(song)
   bag.__psWantPlaying = true
-  releaseExtraAudio()
+  await releaseExtraAudio()
   setPlaybackIntent(song.number)
   usePreferencesStore.getState().recordRecentPlay(song)
   usePlayerStore.setState({
@@ -581,14 +592,14 @@ async function openAndPlay(song: MockSong, queue: number[] | undefined, id: numb
 }
 
 function mergeSong(current: MockSong | null, song: MockSong): MockSong {
-  if (!current || !isSameSong(current, song)) return song
-  return {
+  if (!current || !isSameSong(current, song)) return normalizeMockSong(song)
+  return normalizeMockSong({
     ...current,
     ...song,
     audioUrl: song.audioUrl || current.audioUrl || null,
     audioRecordings: mergeRecordingLists(current.audioRecordings, song.audioRecordings),
     mediaHydrated: hasCompleteAudioCatalog(song) || hasCompleteAudioCatalog(current),
-  }
+  })
 }
 
 /** Hydrated song metadata cached while warming playback — page UI can merge recordings from here. */
@@ -874,7 +885,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     bag.__psLoadId += 1
     bag.__psWantPlaying = false
     setPlaybackIntent(null)
-    releaseExtraAudio()
+    void releaseExtraAudio()
     void enqueueAudio(async () => {
       await discardPreload()
       await destroySound()

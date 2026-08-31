@@ -4,6 +4,16 @@ import type { MockSong, SongVideo } from "@/data/mock"
 import { listPlayableAudio, mediaVideosToEmbeds, pickPreferredAudioUrl } from "@/lib/mediaEmbed"
 import { scenicHeroFor, scenicThumbFor } from "@/lib/scenicArt"
 
+/** Guard song-page UI from partial catalog rows missing media arrays. */
+export function normalizeMockSong(song: MockSong): MockSong {
+  const themes = song.themes?.filter(Boolean) ?? []
+  return {
+    ...song,
+    videos: song.videos ?? [],
+    themes: themes.length ? themes : ["Prabhat Samgiita"],
+  }
+}
+
 export function isBareSongTitle(title: string | null | undefined, number: number): boolean {
   const value = title?.trim() ?? ""
   if (!value) return true
@@ -47,7 +57,7 @@ export function songRouteId(songId: string | string[] | undefined): string | und
 
 /** Instant song-page chrome while the API detail is in flight. */
 export function songPlaceholder(number: number, extras?: Partial<MockSong>): MockSong {
-  return {
+  return normalizeMockSong({
     id: `ps-${number}`,
     number,
     title: extras?.title?.trim() || `PS ${number}`,
@@ -65,7 +75,7 @@ export function songPlaceholder(number: number, extras?: Partial<MockSong>): Moc
     audioUrl: extras?.audioUrl ?? null,
     audioRecordings: extras?.audioRecordings,
     mediaHydrated: extras?.mediaHydrated ?? false,
-  }
+  })
 }
 
 function readLocalizedMeanings(metadata: Record<string, unknown> | undefined): Record<string, string> {
@@ -125,7 +135,7 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     ? summary.first_line?.trim() || summary.title
     : summary.title
 
-  return {
+  return normalizeMockSong({
     id: `ps-${summary.number}`,
     number: summary.number,
     title,
@@ -141,7 +151,7 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     performer: "Prabhat Samgiita Collection",
     videos: [],
     audioUrl: null,
-  }
+  })
 }
 
 type AudioRecording = NonNullable<MockSong["audioRecordings"]>[number]
@@ -207,7 +217,7 @@ export function songDetailToMockSong(detail: SongDetail, preferredAudioUrl?: str
   const themes = [detail.theme, detail.mood, detail.occasion].filter(Boolean) as string[]
   const recordings = listPlayableAudio(detail.media).slice(0, 8)
 
-  return {
+  return normalizeMockSong({
     id: `ps-${detail.number}`,
     number: detail.number,
     title: isBareSongTitle(detail.title, detail.number)
@@ -235,5 +245,5 @@ export function songDetailToMockSong(detail: SongDetail, preferredAudioUrl?: str
     sargamSubmittedBy: detail.sargam_attribution?.display_name?.trim() || null,
     sargamSubmittedAt: detail.sargam_attribution?.submitted_at ?? null,
     mediaHydrated: true,
-  }
+  })
 }
