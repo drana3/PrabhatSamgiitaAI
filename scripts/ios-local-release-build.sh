@@ -55,4 +55,4 @@ echo "    Member proxy key is set (${#EXPO_PUBLIC_MEMBER_PROXY_KEY} chars)."
 echo "==> Starting local iOS production build..."
 cd "$MOBILE"
 export EAS_BUILD_NO_EXPO_GO_WARNING=true
-npx eas-cli@latest build --platform ios --profile production --local --wait "$@"
+npx eas-cli@22.0.0 build --platform ios --profile production --local --wait "$@"
