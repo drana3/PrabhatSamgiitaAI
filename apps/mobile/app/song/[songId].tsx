@@ -36,7 +36,6 @@ import { parseSongNumber, storedMeaningForLanguage } from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
 import { hasPublishedLearnerSargam } from "@prabhat/core"
 import { practiceLyricSource } from "@/lib/sargamDisplay"
-import { useHarmoniumPracticeEnabled } from "@/lib/harmoniumPracticeAccess"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
 import { peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
@@ -165,7 +164,6 @@ export default function SongDetailScreen() {
     }
   }, [songId])
 
-  const harmoniumEnabled = useHarmoniumPracticeEnabled()
   const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
   const hasFullSargam = Boolean(
     song &&
@@ -183,10 +181,9 @@ export default function SongDetailScreen() {
     () =>
       visibleSongJourneyTabs({
         hasVideo,
-        harmoniumEnabled: (harmoniumEnabled || notationDeepLink) && hasFullSargam,
-        hasFullSargam,
+        hasFullSargam: hasFullSargam || notationDeepLink,
       }),
-    [hasVideo, harmoniumEnabled, notationDeepLink, hasFullSargam],
+    [hasVideo, notationDeepLink, hasFullSargam],
   )
   const watchLayout = songWatchLayout(journey, { hasVideo, watchPlaying })
 

@@ -13,7 +13,7 @@ from app.models.sargam_capture import NotationCapture
 from app.services.catalog import CatalogService, refresh_catalog_song
 from app.services.notation_links import ANDROMEDA_ARCHIVE
 
-PROTECTED_BOOKLET_SONGS = frozenset({1, 2, 27})
+PROTECTED_BOOKLET_SONGS = frozenset({1, 2, 4, 27})
 BOOKLET_LATIN = {
     "S": "Sa",
     "r": "re",
@@ -320,6 +320,34 @@ def capture_payload(
     }
 
 
+def capture_mutation_payload(
+    song: Song,
+    row: NotationCapture,
+    *,
+    line_number: int | None = None,
+    notation_enabled: bool | None = None,
+) -> dict[str, Any]:
+    lines = list(row.lines_json or [])
+    payload: dict[str, Any] = {
+        "song_number": song.number,
+        "source_scale": row.source_scale,
+        "tempo_bpm": row.tempo_bpm,
+        "can_submit": can_submit_lines(lines) and song.number not in PROTECTED_BOOKLET_SONGS,
+        "submitted": row.status == "admin_submitted",
+    }
+    if line_number is not None:
+        line = next(
+            (item for item in lines if int(item["line_number"]) == line_number),
+            None,
+        )
+        if line is None:
+            raise ValueError("Line not found")
+        payload["line"] = line
+    if notation_enabled is not None:
+        payload["notation_enabled"] = notation_enabled
+    return payload
+
+
 async def save_take(
     session: AsyncSession,
     member: UserAccount,
@@ -377,7 +405,7 @@ async def submit_capture(
     song_number: int,
 ) -> NotationCapture:
     if song_number in PROTECTED_BOOKLET_SONGS:
-        raise PermissionError("Songs 1, 2, and 27 already have booklet sargam")
+        raise PermissionError("Songs 1, 2, 4, and 27 already have booklet sargam")
     row = await get_or_create_capture(session, member, song_number)
     lines = list(row.lines_json or [])
     if not can_submit_lines(lines):

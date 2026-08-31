@@ -3,6 +3,7 @@ from app.services.sargam_capture import (
     apply_take,
     booklet_sargam_from_events,
     can_submit_lines,
+    capture_mutation_payload,
     confirm_line,
     is_learner_playable_notation,
     is_notation_enabled,
@@ -52,7 +53,7 @@ def test_cannot_overwrite_confirmed_line() -> None:
 
 
 def test_booklet_songs_are_locked() -> None:
-    assert PROTECTED_BOOKLET_SONGS == frozenset({1, 2, 27})
+    assert PROTECTED_BOOKLET_SONGS == frozenset({1, 2, 4, 27})
 
 
 def test_learner_playable_notation_gates() -> None:
@@ -74,6 +75,33 @@ def test_attribution_only_after_submit() -> None:
     assert sargam_attribution_payload(meta, "admin_draft") is None
     payload = sargam_attribution_payload(meta, "admin_submitted")
     assert payload == {"display_name": "Ada", "submitted_at": "2026-08-28T00:00:00+00:00"}
+
+
+def test_capture_mutation_payload_returns_one_line() -> None:
+    class Song:
+        number = 5
+        title = "Test"
+
+    class Row:
+        source_scale = "C"
+        tempo_bpm = 100
+        status = "draft"
+        lines_json = [
+            {
+                "line_number": 1,
+                "lyric": "Line one",
+                "status": "recorded",
+                "events": [{"sargam": "S", "western": "C4", "startSec": 0, "durationSec": 0.6}],
+                "sargam": "Sa",
+            },
+            {"line_number": 2, "lyric": "Line two", "status": "empty", "events": []},
+        ]
+
+    payload = capture_mutation_payload(Song(), Row(), line_number=1)
+    assert payload["song_number"] == 5
+    assert payload["line"]["line_number"] == 1
+    assert "title" not in payload
+    assert "lines" not in payload
 
 
 def test_booklet_sargam_uses_tempo_beats() -> None:

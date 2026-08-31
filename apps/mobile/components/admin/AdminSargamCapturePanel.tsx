@@ -13,7 +13,6 @@ import {
 } from "react-native"
 import { Audio } from "expo-av"
 import {
-  HARMONIUM_PLAY_TEMPO_ORDER,
   HARMONIUM_PLAY_TEMPOS,
   sampleSongTiming,
   type HarmoniumKeyboardKey,
@@ -35,7 +34,9 @@ import {
   applySavedTake,
   concatenateLines,
   eventsToSheet,
-  mergeCapture,
+  learnerNotationVisible,
+  mergeMutation,
+  normalizeCapturePayload,
   sargamTextToEvents,
 } from "@/lib/adminSargamCapture"
 import { api } from "@/lib/client"
@@ -191,8 +192,8 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
       setLoading(false)
       return
     }
-    setCapture(payload)
-    captureRef.current = payload
+    setCapture(normalizeCapturePayload(payload))
+    captureRef.current = normalizeCapturePayload(payload)
     setTonic(payload.source_scale || "C")
     setTempoBpm(payload.tempo_bpm || HARMONIUM_PLAY_TEMPOS.medium.bpm)
     const firstOpen = payload.lines.find((line) => line.status !== "confirmed")
@@ -282,13 +283,13 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
       tempo_bpm: tempoBpm,
     })
     setPendingSave(false)
-    if (!result.ok || !result.capture) {
+    if (!result.ok || !result.patch) {
       setCapture(previous)
       captureRef.current = previous
       setError(result.detail ?? "Could not save this take")
       return
     }
-    const merged = mergeCapture(optimistic, result.capture)
+    const merged = mergeMutation(optimistic, result.patch)
     setCapture(merged)
     captureRef.current = merged
   }
@@ -332,13 +333,13 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
     setError("")
     const result = await api.postAdminSargamLineAction(snapshot.song_number, line.line_number, action)
     setPending(false)
-    if (!result.ok || !result.capture) {
+    if (!result.ok || !result.patch) {
       setCapture(previous)
       captureRef.current = previous
       setError(result.detail ?? `Could not ${action} this line`)
       return
     }
-    const merged = mergeCapture(optimistic, result.capture)
+    const merged = mergeMutation(optimistic, result.patch)
     setCapture(merged)
     captureRef.current = merged
   }
@@ -376,18 +377,19 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
     setError("")
     const result = await api.submitAdminSargamCapture(snapshot.song_number)
     setPendingSubmit(false)
-    if (!result.ok || !result.capture) {
+    if (!result.ok || !result.patch) {
       setError(result.detail ?? "Could not submit this song")
       return
     }
-    setCapture(result.capture)
-    captureRef.current = result.capture
+    setCapture((current) => (current ? mergeMutation(current, result.patch!) : current))
+    captureRef.current =
+      captureRef.current && result.patch ? mergeMutation(captureRef.current, result.patch) : captureRef.current
     Alert.alert("Submitted", "This song’s sargam is now available to learners.")
   }
 
   function setNotationEnabled(enabled: boolean) {
     const snapshot = captureRef.current
-    if (!snapshot || snapshot.notation_enabled === enabled) return
+    if (!snapshot || learnerNotationVisible(snapshot.notation_enabled) === enabled) return
     const previous = snapshot
     const optimistic = { ...snapshot, notation_enabled: enabled }
     setCapture(optimistic)
@@ -400,8 +402,11 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
         setError(result.detail ?? "Could not update notation visibility")
         return
       }
-      if (result.capture) {
-        setCapture((current) => (current ? { ...current, notation_enabled: enabled } : current))
+      if (result.patch) {
+        setCapture((current) => (current ? mergeMutation(current, result.patch!) : current))
+        if (captureRef.current) {
+          captureRef.current = mergeMutation(captureRef.current, result.patch)
+        }
       }
     })
   }
@@ -410,6 +415,7 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
   const previewEvents = recording && notesCaptured > 0 ? liveEventsRef.current : lineEvents
   const activeLineIndex = capture?.lines.findIndex((line) => line.line_number === activeLine) ?? -1
   const lineCount = capture?.lines.length ?? 0
+  const learnerVisible = capture ? learnerNotationVisible(capture.notation_enabled) : true
 
   if (loading) {
     return (
@@ -438,27 +444,35 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
         <View style={styles.heroCard}>
           <Text style={styles.sectionEyebrow}>Song {capture.song_number}</Text>
           <Text style={styles.heroTitle}>{capture.title}</Text>
-          <View style={styles.visibilityRow}>
-            <Pressable
-              style={[styles.chip, capture.notation_enabled && styles.chipActive]}
-              onPress={() => setNotationEnabled(true)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: capture.notation_enabled }}
-            >
-              <Text style={[styles.chipText, capture.notation_enabled && styles.chipTextActive]}>Show learners</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.chip, !capture.notation_enabled && styles.chipActive]}
-              onPress={() => setNotationEnabled(false)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: !capture.notation_enabled }}
-            >
-              <Text style={[styles.chipText, !capture.notation_enabled && styles.chipTextActive]}>Hide learners</Text>
-            </Pressable>
+          <View style={styles.visibilityCard}>
+            <Text style={styles.sectionEyebrow}>Learner notation</Text>
+            <Text style={styles.visibilityCopy}>
+              {learnerVisible
+                ? "Harmonium and sargam are visible on the song page."
+                : "Hidden from learners until you show it again."}
+            </Text>
+            <View style={styles.visibilityRow}>
+              <Pressable
+                style={[styles.chip, learnerVisible && styles.chipActive]}
+                onPress={() => setNotationEnabled(true)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: learnerVisible }}
+              >
+                <Text style={[styles.chipText, learnerVisible && styles.chipTextActive]}>Show learners</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.chip, !learnerVisible && styles.chipActive]}
+                onPress={() => setNotationEnabled(false)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: !learnerVisible }}
+              >
+                <Text style={[styles.chipText, !learnerVisible && styles.chipTextActive]}>Hide learners</Text>
+              </Pressable>
+            </View>
           </View>
           {capture.booklet_locked ? (
             <Text style={styles.warn}>
-              Songs 1, 2, and 27 already have booklet sargam. Recording is locked.
+              Songs 1, 2, 4, and 27 already have booklet sargam. Recording is locked.
             </Text>
           ) : null}
           {capture.submitted ? (
@@ -589,31 +603,11 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
             <VirtualHarmonium
               tonic={tonic}
               onTonicChange={setTonic}
-              keyboardOnly
+              captureMode
+              onTempoBpmChange={setTempoBpm}
               onPressKey={onPressKey}
               onReleaseKey={onReleaseKey}
             />
-
-            <View style={styles.tempoRow}>
-              {HARMONIUM_PLAY_TEMPO_ORDER.map((id) => (
-                <Pressable
-                  key={id}
-                  onPress={() => setTempoBpm(HARMONIUM_PLAY_TEMPOS[id].bpm)}
-                  style={[styles.chip, tempoBpm === HARMONIUM_PLAY_TEMPOS[id].bpm && styles.chipActive]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: tempoBpm === HARMONIUM_PLAY_TEMPOS[id].bpm }}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      tempoBpm === HARMONIUM_PLAY_TEMPOS[id].bpm && styles.chipTextActive,
-                    ]}
-                  >
-                    {HARMONIUM_PLAY_TEMPOS[id].label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
           </>
         ) : null}
 
@@ -644,7 +638,17 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   heroTitle: { ...typography.h2, color: colors.textPrimary, marginTop: spacing.xs },
-  visibilityRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
+  visibilityCard: {
+    marginTop: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  visibilityCopy: { ...typography.bodySmall, color: colors.textSecondary },
+  visibilityRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     borderRadius: radius.pill,
     borderWidth: 1,

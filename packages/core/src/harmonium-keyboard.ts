@@ -92,6 +92,26 @@ const SWARA_SEMITONES: Record<string, number> = {
   N: 11,
 }
 
+const BOOKLET_SYLLABLE_TO_TOKEN: Record<string, string> = {
+  sa: "S",
+  re: "R",
+  ra: "r",
+  ga: "g",
+  ma: "m",
+  pa: "P",
+  dha: "d",
+  ni: "n",
+  Sa: "S",
+  Re: "R",
+  Ra: "R",
+  Ga: "G",
+  Ma: "m",
+  Pa: "P",
+  Dha: "D",
+  Ni: "N",
+}
+
+/** @deprecated Use BOOKLET_SYLLABLE_TO_TOKEN — kept for simple Latin chips. */
 const LATIN_ALIASES: Record<string, string> = {
   sa: "S",
   re: "R",
@@ -184,21 +204,75 @@ export function westernKeyLabel(western: string): string {
   return western.replace(/\d+$/, "")
 }
 
+function stripLatinDiacritics(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "")
+}
+
 export function normalizeSwaraToken(raw: string): string | null {
   const trimmed = raw.trim()
   if (!trimmed || trimmed === "-" || trimmed === "–") return null
-  const lowered = trimmed.toLowerCase().replace(/['′`]/g, "")
-  if (lowered in LATIN_ALIASES) return LATIN_ALIASES[lowered]
-  if (trimmed in SWARA_SEMITONES) return trimmed
-  const first = trimmed[0]
+
+  const withoutOctave = stripLatinDiacritics(trimmed.replace(/['′`]/g, ""))
+  if (!withoutOctave) return null
+
+  if (withoutOctave in BOOKLET_SYLLABLE_TO_TOKEN) {
+    return BOOKLET_SYLLABLE_TO_TOKEN[withoutOctave]
+  }
+
+  const lowered = withoutOctave.toLowerCase()
+  if (lowered in BOOKLET_SYLLABLE_TO_TOKEN) {
+    return BOOKLET_SYLLABLE_TO_TOKEN[lowered]
+  }
+
+  if (withoutOctave in SWARA_SEMITONES) return withoutOctave
+  const first = withoutOctave[0]
   if (first && first in SWARA_SEMITONES) return first
+  if (lowered in LATIN_ALIASES) return LATIN_ALIASES[lowered]
   return null
 }
 
-function octaveFromToken(raw: string): SwaraOctave {
-  if (/['′`]|ं$|san$/i.test(raw.trim())) return "upper"
-  if (/^\.|_/.test(raw.trim())) return "lower"
-  return "middle"
+function skipBarMarker(input: string, index: number): number {
+  const slice = input.slice(index)
+  const prev = input[index - 1]
+  const afterI = input[index + 1]
+  const afterII = input[index + 2]
+
+  if (/^II/i.test(slice) && (index === 0 || !prev || /[\s|]/.test(prev)) && (!afterII || /[\s|]/.test(afterII))) {
+    return index + 2
+  }
+
+  if (slice[0] === "I" && slice[1] !== "I" && (index === 0 || !prev || /[\s|]/.test(prev)) && (!afterI || /[\s|]/.test(afterI))) {
+    return index + 1
+  }
+
+  return index
+}
+
+function parseBookletHoldAt(input: string, index: number): { beats: number; length: number } | null {
+  const accentLen = sargamSustainLength(input, index)
+  if (accentLen > 0) return { beats: accentLen, length: accentLen }
+
+  const slice = input.slice(index)
+  // Booklet vowel hold: a / a' / a′ between swaras (not ga', sa', ra', …).
+  if (/^a['′`]?(?![a-z])/i.test(slice)) {
+    const length = slice.match(/^a['′`]?/i)?.[0].length ?? 1
+    return { beats: 1, length }
+  }
+
+  return null
+}
+
+function resolveSwaraOctave(chunk: string, defaultOctave: SwaraOctave): SwaraOctave {
+  const trimmed = chunk.trim()
+  if (/^\.|^_/.test(trimmed)) return "lower"
+  if (/['′`]|ं$|san$/i.test(trimmed)) return "upper"
+  return defaultOctave
+}
+
+/** PS Roman lines with several taar swaras (Sa', ga', …) default missing ' to upper. */
+function bookletDefaultOctave(input: string): SwaraOctave {
+  const taarSwaras = input.match(/[\p{L}\p{M}]+['′`]/gu)
+  return (taarSwaras?.length ?? 0) >= 2 ? "upper" : "middle"
 }
 
 function parseDevanagariToken(text: string): { token: string; octave: SwaraOctave; length: number } | null {
@@ -210,12 +284,131 @@ function parseDevanagariToken(text: string): { token: string; octave: SwaraOctav
   return null
 }
 
+function parseNextSargamSwara(
+  input: string,
+  index: number,
+  tonic: string,
+  defaultOctave: SwaraOctave = "middle",
+): { swara: ParsedSwara; nextIndex: number } | null {
+  const ch = input[index]
+  if (!ch || /\s|[,·|/]/.test(ch)) return null
+
+  if (ch === "." || ch === "_") {
+    const next = input.slice(index + 1)
+    const marked = parseDevanagariToken(next)
+    if (marked) {
+      const octave: SwaraOctave = ch === "." ? "lower" : marked.octave
+      const token = ch === "_" && marked.token === marked.token.toUpperCase()
+        ? komalToken(marked.token)
+        : marked.token
+      const western = swaraToWestern(tonic, token, octave)
+      const frequencyHz = western ? westernToHz(western) : null
+      if (western && frequencyHz) {
+        return {
+          swara: { token, octave, western, frequencyHz },
+          nextIndex: index + 1 + marked.length,
+        }
+      }
+    }
+  }
+
+  const devanagari = parseDevanagariToken(input.slice(index))
+  if (devanagari) {
+    const western = swaraToWestern(tonic, devanagari.token, devanagari.octave)
+    const frequencyHz = western ? westernToHz(western) : null
+    if (western && frequencyHz) {
+      return {
+        swara: {
+          token: devanagari.token,
+          octave: devanagari.octave,
+          western,
+          frequencyHz,
+        },
+        nextIndex: index + devanagari.length,
+      }
+    }
+  }
+
+  const chunk = input.slice(index).match(/^[\p{L}\p{M}'′`._-]+/u)?.[0] ?? input[index]
+  const stripped = chunk.replace(/^\./, "")
+  const resolvedOctave = resolveSwaraOctave(chunk, defaultOctave)
+  const token = normalizeSwaraToken(stripped)
+  if (token) {
+    const western = swaraToWestern(tonic, token, resolvedOctave)
+    const frequencyHz = western ? westernToHz(western) : null
+    if (western && frequencyHz) {
+      return {
+        swara: { token, octave: resolvedOctave, western, frequencyHz },
+        nextIndex: index + chunk.length,
+      }
+    }
+  }
+
+  return null
+}
+
 /** Parse learner sargam text (Latin, Devanagari, or OCR tokens). */
 export function parseSargamInput(text: string, tonic: string): ParsedSwara[] {
   const input = text.trim()
   if (!input) return []
 
+  const defaultOctave = bookletDefaultOctave(input)
   const out: ParsedSwara[] = []
+  let index = 0
+  while (index < input.length) {
+    index = skipBarMarker(input, index)
+    const parsed = parseNextSargamSwara(input, index, tonic, defaultOctave)
+    if (!parsed) {
+      index += 1
+      continue
+    }
+    out.push(parsed.swara)
+    index = parsed.nextIndex
+  }
+
+  return out
+}
+
+/** Each dash in --- adds one second of key-held sustain (wall clock, not a matra). */
+export const SARGAM_DASH_HOLD_SEC = 1
+
+export type SargamPlayBeat = {
+  sargam: string
+  beats: number
+  western?: string
+  /** Extra seconds from --- while the previous key stays pressed. */
+  holdSec?: number
+}
+
+const SARGAM_SUSTAIN_CHARS = /[á\u0101]/iu
+const SARGAM_HOLD_CHARS = /[\-–—]/
+
+function charRunLength(input: string, index: number, matches: (ch: string) => boolean): number {
+  let length = 0
+  while (index + length < input.length) {
+    const current = input[index + length]
+    if (!current || /[\s,·|/]/.test(current)) break
+    if (!matches(current)) break
+    length += 1
+  }
+  return length
+}
+
+function sargamSustainLength(input: string, index: number): number {
+  return charRunLength(input, index, (ch) => SARGAM_SUSTAIN_CHARS.test(ch))
+}
+
+function sargamHoldLength(input: string, index: number): number {
+  return charRunLength(input, index, (ch) => SARGAM_HOLD_CHARS.test(ch))
+}
+
+/** Beat groups: each swara is a strike; á adds matras; --- adds seconds with key held. */
+export function parseSargamPlayBeats(text: string, tonic: string): SargamPlayBeat[] {
+  const input = text.trim()
+  if (!input) return []
+
+  const defaultOctave = bookletDefaultOctave(input)
+  const beats: SargamPlayBeat[] = []
   let index = 0
   while (index < input.length) {
     const ch = input[index]
@@ -223,57 +416,80 @@ export function parseSargamInput(text: string, tonic: string): ParsedSwara[] {
       index += 1
       continue
     }
-
-    if (ch === "." || ch === "_") {
-      const next = input.slice(index + 1)
-      const marked = parseDevanagariToken(next)
-      if (marked) {
-        const octave: SwaraOctave = ch === "." ? "lower" : marked.octave
-        const token = ch === "_" && marked.token === marked.token.toUpperCase()
-          ? komalToken(marked.token)
-          : marked.token
-        const western = swaraToWestern(tonic, token, octave)
-        const frequencyHz = western ? westernToHz(western) : null
-        if (western && frequencyHz) {
-          out.push({ token, octave, western, frequencyHz })
-        }
-        index += 1 + marked.length
-        continue
-      }
-    }
-
-    const devanagari = parseDevanagariToken(input.slice(index))
-    if (devanagari) {
-      const western = swaraToWestern(tonic, devanagari.token, devanagari.octave)
-      const frequencyHz = western ? westernToHz(western) : null
-      if (western && frequencyHz) {
-        out.push({
-          token: devanagari.token,
-          octave: devanagari.octave,
-          western,
-          frequencyHz,
-        })
-      }
-      index += devanagari.length
+    index = skipBarMarker(input, index)
+    if (index >= input.length) break
+    const hold = parseBookletHoldAt(input, index)
+    if (hold) {
+      const last = beats[beats.length - 1]
+      if (last) last.beats += hold.beats
+      index += hold.length
       continue
     }
 
-    const chunk = input.slice(index).match(/^[\p{L}\p{M}'′`._-]+/u)?.[0] ?? input[index]
-    const stripped = chunk.replace(/^\./, "")
-    const octave = octaveFromToken(chunk)
-    const token = normalizeSwaraToken(stripped)
-    if (token) {
-      const resolvedOctave = /['′`]/i.test(chunk) ? "upper" : octave
-      const western = swaraToWestern(tonic, token, resolvedOctave)
-      const frequencyHz = western ? westernToHz(western) : null
-      if (western && frequencyHz) {
-        out.push({ token, octave: resolvedOctave, western, frequencyHz })
-      }
+    const dashLength = sargamHoldLength(input, index)
+    if (dashLength > 0) {
+      const last = beats[beats.length - 1]
+      if (last) last.holdSec = (last.holdSec ?? 0) + dashLength * SARGAM_DASH_HOLD_SEC
+      index += dashLength
+      continue
     }
-    index += chunk.length
+
+    const parsed = parseNextSargamSwara(input, index, tonic, defaultOctave)
+    if (parsed) {
+      beats.push({
+        sargam: parsed.swara.token,
+        beats: 1,
+        western: parsed.swara.western,
+      })
+      index = parsed.nextIndex
+      continue
+    }
+
+    index += 1
   }
 
-  return out
+  return beats
+}
+
+export function playBeatSpanSec(beat: SargamPlayBeat, beatSec: number): number {
+  return beat.beats * beatSec + (beat.holdSec ?? 0)
+}
+
+export function playBeatsToEvents(
+  tonic: string,
+  playBeats: SargamPlayBeat[],
+  beatSec: number,
+  gapSec: number,
+): SheetPlayEvent[] {
+  const events: SheetPlayEvent[] = []
+  let cursor = 0
+  const lastNoteIndex = playBeats.length - 1
+  const breath = gapSec * 0.35
+
+  for (const [index, beat] of playBeats.entries()) {
+    const { sargam, western } = beat
+    const fromWestern = western?.trim()
+    const parsed = fromWestern
+      ? {
+          western: fromWestern,
+          frequencyHz: westernToHz(fromWestern) ?? 0,
+        }
+      : parseSargamInput(sargam, tonic)[0]
+    if (!parsed?.western || !parsed.frequencyHz) continue
+    const span = playBeatSpanSec(beat, beatSec)
+    const isLast = index === lastNoteIndex
+    const held = beat.beats > 1 || (beat.holdSec ?? 0) > 0
+    const noteGap = held ? breath * 0.35 : breath
+    const sustain = span - noteGap
+    events.push({
+      western: parsed.western,
+      frequencyHz: parsed.frequencyHz,
+      startSec: cursor,
+      durationSec: Math.max(0.22, isLast ? span + beatSec * 0.45 : sustain),
+    })
+    cursor += span
+  }
+  return events
 }
 
 export function swaraToWestern(tonic: string, token: string, octave: SwaraOctave = "middle"): string | null {
@@ -386,32 +602,14 @@ export function shuddhaHarmoniumLayout(tonic: string): HarmoniumKeyboardKey[] {
   })
 }
 
+/** Timed playback for typed sargam — same beat sustain model as Play on keys. */
 export function sargamPlayEvents(
   tonic: string,
   text: string,
-  noteSec = 0.42,
-  gapSec = 0.04,
+  beatSec: number,
+  gapSec: number,
 ): SheetPlayEvent[] {
-  const swaras = parseSargamInput(text, tonic)
-  const events: SheetPlayEvent[] = []
-  let cursor = 0
-  for (const swara of swaras) {
-    const last = events[events.length - 1]
-    if (last && last.western === swara.western) {
-      last.durationSec += noteSec + gapSec
-      cursor += noteSec + gapSec
-      continue
-    }
-    if (events.length) cursor += gapSec
-    events.push({
-      western: swara.western,
-      frequencyHz: swara.frequencyHz,
-      startSec: cursor,
-      durationSec: noteSec,
-    })
-    cursor += noteSec
-  }
-  return events
+  return playBeatsToEvents(tonic, parseSargamPlayBeats(text, tonic), beatSec, gapSec)
 }
 
 export function shortcutForKeyIndex(index: number): string | null {

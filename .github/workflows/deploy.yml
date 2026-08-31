@@ -217,7 +217,7 @@ jobs:
       RG: prabhatai-rg
       LOCATION: centralindia
       PREFIX: prabhatai
-      ACR_NAME: prabhataiacr30800
+      DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKERHUB_USERNAME }}/prabhat-samgiita
       ACA_ENV: prabhatai-env
       PG_DB: prabhatai
       WEB_APP: prabhatai-web
@@ -272,12 +272,12 @@ jobs:
           if echo "$CHANGED" | grep -qE '^(apps/web/|package\.json$|package-lock\.json$)'; then
             WEB=true
           fi
-          # Workflow / deploy-script-only edits should not force ACR image rebuilds.
+          # Workflow / deploy-script-only edits should not force Docker image rebuilds.
           if [ "$API" = false ] && [ "$WEB" = false ]; then
             if echo "$CHANGED" | grep -qE '^(\.github/workflows/deploy\.yml|infra/azure/deploy-app\.sh)$'; then
               echo "api=false" >> "$GITHUB_OUTPUT"
               echo "web=false" >> "$GITHUB_OUTPUT"
-              echo "Deploy tooling-only change → skip ACR rebuilds"
+              echo "Deploy tooling-only change → skip Docker rebuilds"
               exit 0
             fi
             API=true
@@ -302,6 +302,8 @@ jobs:
       - name: Deploy app stack
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           # Must stay aligned with MOBILE_MEMBER_PROXY_KEY / EXPO_PUBLIC_MEMBER_PROXY_KEY in
           # shipped iOS/Android builds. Do not derive from DATABASE_URL alone — scheme changes
           # rotate the key and break Retry sync on existing installs.

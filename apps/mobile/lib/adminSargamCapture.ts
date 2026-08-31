@@ -5,6 +5,7 @@ import {
   type SheetPlayEvent,
   type SargamCaptureEvent,
   type SargamCaptureLine,
+  type SargamCaptureMutation,
   type SargamCapturePayload,
 } from "@prabhat/core"
 
@@ -33,6 +34,17 @@ export function concatenateLines(lines: SargamCaptureLine[], restSec: number): S
 
 export function canSubmitLines(lines: SargamCaptureLine[]): boolean {
   return lines.length > 0 && lines.every((line) => line.status === "confirmed")
+}
+
+export function learnerNotationVisible(enabled: boolean | null | undefined): boolean {
+  return enabled !== false
+}
+
+export function normalizeCapturePayload(capture: SargamCapturePayload): SargamCapturePayload {
+  return {
+    ...capture,
+    notation_enabled: learnerNotationVisible(capture.notation_enabled),
+  }
 }
 
 function sargamToken(octave: string, token: string): string {
@@ -99,4 +111,25 @@ export function applyLineAction(
 
 export function mergeCapture(current: SargamCapturePayload, next: SargamCapturePayload): SargamCapturePayload {
   return { ...current, ...next, lines: next.lines }
+}
+
+export function mergeMutation(
+  current: SargamCapturePayload,
+  patch: SargamCaptureMutation,
+): SargamCapturePayload {
+  const lines = patch.line
+    ? current.lines.map((line) => (line.line_number === patch.line!.line_number ? patch.line! : line))
+    : current.lines
+  return {
+    ...current,
+    source_scale: patch.source_scale,
+    tempo_bpm: patch.tempo_bpm,
+    can_submit: patch.can_submit,
+    submitted: patch.submitted,
+    notation_enabled:
+      patch.notation_enabled === null || patch.notation_enabled === undefined
+        ? learnerNotationVisible(current.notation_enabled)
+        : learnerNotationVisible(patch.notation_enabled),
+    lines,
+  }
 }

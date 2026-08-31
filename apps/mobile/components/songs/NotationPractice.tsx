@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { bookletHarmoniumSong, hasPublishedLearnerSargam, notationToHarmoniumSong, type TransposedNotation } from "@prabhat/core"
 
-import { HarmoniumPracticeGate } from "@/components/songs/HarmoniumPracticeGate"
 import { NotationMatraSheet, ExpertSheetImage } from "@/components/songs/NotationMatraSheet"
 import { VirtualHarmonium } from "@/components/songs/VirtualHarmonium"
 import { colors } from "@/constants/colors"
@@ -22,7 +21,6 @@ import {
   splitLyricLines,
   type NotationLine,
 } from "@/lib/sargamDisplay"
-import { useHarmoniumPracticeEnabled } from "@/lib/harmoniumPracticeAccess"
 import { fetchNotationCached } from "@/lib/songCache"
 
 const TONICS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -148,7 +146,6 @@ export function NotationPractice({
   submittedAt?: string | null
   notationEnabled?: boolean | null
 }) {
-  const harmoniumEnabled = useHarmoniumPracticeEnabled()
   const [notation, setNotation] = useState<TransposedNotation | null>(null)
   const [tonic, setTonic] = useState("C")
   const [loading, setLoading] = useState(true)
@@ -194,14 +191,6 @@ export function NotationPractice({
   }, [songNumber, tonic, published])
 
   if (!published) return null
-
-  if (!harmoniumEnabled) {
-    return (
-      <View style={embedded ? styles.embedded : styles.card}>
-        <HarmoniumPracticeGate />
-      </View>
-    )
-  }
 
   return (
     <View style={embedded ? styles.embedded : styles.card}>

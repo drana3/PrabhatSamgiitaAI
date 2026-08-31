@@ -6,7 +6,6 @@ import Link from "next/link"
 import { SavedSongsList } from "@/components/saved-songs-list"
 import { QuizCertificate } from "@/components/quiz-certificate"
 import { FeelingSearchToggle } from "@/components/feeling-search-toggle"
-import { HarmoniumPracticeToggle } from "@/components/harmonium-practice-toggle"
 import { useMember } from "@/components/member-provider"
 import { SiteHeader } from "@/components/site-header"
 import { memberFirstName, updateMemberPreferences } from "@/lib/member"
@@ -148,14 +147,6 @@ export default function AccountPage() {
               Off by default. Turn it on here to search songs by mood or meaning from Explore.
             </p>
             <FeelingSearchToggle />
-          </article>
-
-          <article id="harmonium-practice" className="scroll-mt-28 rounded-3xl border border-navy-900/10 bg-white p-6">
-            <h2 className="font-serif text-2xl text-navy-950">Harmonium practice</h2>
-            <p className="mt-2 text-sm text-stone-600">
-              Off by default. Turn it on here to use the live keyboard and song notation on any song page.
-            </p>
-            <HarmoniumPracticeToggle />
           </article>
 
           <article className="rounded-3xl border border-navy-900/10 bg-white p-6">

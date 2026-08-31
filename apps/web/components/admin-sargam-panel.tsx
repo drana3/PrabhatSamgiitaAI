@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { AdminShell } from "@/components/admin-shell"
 import { VirtualHarmonium } from "@/components/virtual-harmonium"
 import {
-  HARMONIUM_PLAY_TEMPO_ORDER,
+  BANDHU_HE_NIYE_CALO_SONG,
   HARMONIUM_PLAY_TEMPOS,
   parseSargamInput,
   sampleSongTiming,
@@ -33,14 +33,19 @@ type CaptureLine = {
   sargam?: string | null
 }
 
-type CapturePayload = {
+type CaptureMutation = {
   song_number: number
-  title: string
-  booklet_locked: boolean
   source_scale: string
   tempo_bpm: number
   can_submit: boolean
   submitted: boolean
+  notation_enabled?: boolean | null
+  line?: CaptureLine | null
+}
+
+type CapturePayload = CaptureMutation & {
+  title: string
+  booklet_locked: boolean
   notation_enabled: boolean
   listen_url?: string | null
   lines: CaptureLine[]
@@ -76,6 +81,17 @@ function concatenateLines(lines: CaptureLine[], restSec: number): SheetPlayEvent
 
 function canSubmitLines(lines: CaptureLine[]): boolean {
   return lines.length > 0 && lines.every((line) => line.status === "confirmed")
+}
+
+export function learnerNotationVisible(enabled: boolean | null | undefined): boolean {
+  return enabled !== false
+}
+
+function normalizeCapturePayload(capture: CapturePayload): CapturePayload {
+  return {
+    ...capture,
+    notation_enabled: learnerNotationVisible(capture.notation_enabled),
+  }
 }
 
 function sargamToken(octave: string, token: string): string {
@@ -140,18 +156,36 @@ function applyLineAction(
   }
 }
 
-function mergeCapture(current: CapturePayload, next: CapturePayload): CapturePayload {
-  return { ...current, ...next, lines: next.lines }
+function mergeMutation(current: CapturePayload, patch: CaptureMutation): CapturePayload {
+  const lines = patch.line
+    ? current.lines.map((line) => (line.line_number === patch.line!.line_number ? patch.line! : line))
+    : current.lines
+  return {
+    ...current,
+    source_scale: patch.source_scale,
+    tempo_bpm: patch.tempo_bpm,
+    can_submit: patch.can_submit,
+    submitted: patch.submitted,
+    notation_enabled:
+      patch.notation_enabled === null || patch.notation_enabled === undefined
+        ? learnerNotationVisible(current.notation_enabled)
+        : learnerNotationVisible(patch.notation_enabled),
+    lines,
+  }
 }
 
-const CaptureKeyboard = memo(function CaptureKeyboard({
+const CaptureHarmonium = memo(function CaptureHarmonium({
   tonic,
   onTonicChange,
+  tempoBpm,
+  onTempoBpmChange,
   onPressKey,
   onReleaseKey,
 }: {
   tonic: string
   onTonicChange: (tonic: string) => void
+  tempoBpm: number
+  onTempoBpmChange: (bpm: number) => void
   onPressKey: (key: HarmoniumKeyboardKey) => void
   onReleaseKey: (key: HarmoniumKeyboardKey) => void
 }) {
@@ -159,7 +193,10 @@ const CaptureKeyboard = memo(function CaptureKeyboard({
     <VirtualHarmonium
       tonic={tonic}
       onTonicChange={onTonicChange}
-      keyboardOnly
+      tempoBpm={tempoBpm}
+      onTempoBpmChange={onTempoBpmChange}
+      captureMode
+      song={BANDHU_HE_NIYE_CALO_SONG}
       onPressKey={onPressKey}
       onReleaseKey={onReleaseKey}
     />
@@ -251,7 +288,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
         setError(readErrorDetail(body, "Could not load this song"))
         return
       }
-      const payload = body as CapturePayload
+      const payload = normalizeCapturePayload(body as CapturePayload)
       setCapture(payload)
       captureRef.current = payload
       setTonic(payload.source_scale || "C")
@@ -371,7 +408,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
         setError(readErrorDetail(body, "Could not save this take"))
         return
       }
-      const merged = mergeCapture(optimistic, body as CapturePayload)
+      const merged = mergeMutation(optimistic, body as CaptureMutation)
       setCapture(merged)
       captureRef.current = merged
     } finally {
@@ -428,7 +465,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
         setError(readErrorDetail(body, `Could not ${action} this line`))
         return
       }
-      const merged = mergeCapture(optimistic, body as CapturePayload)
+      const merged = mergeMutation(optimistic, body as CaptureMutation)
       setCapture(merged)
       captureRef.current = merged
     } finally {
@@ -476,8 +513,10 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
         setError(readErrorDetail(body, "Could not submit this song"))
         return
       }
-      setCapture(body as CapturePayload)
-      captureRef.current = body as CapturePayload
+      const patch = body as CaptureMutation
+      setCapture((current) => (current ? mergeMutation(current, patch) : current))
+      captureRef.current =
+        captureRef.current && patch ? mergeMutation(captureRef.current, patch) : captureRef.current
     } finally {
       setPendingSubmit(false)
     }
@@ -485,7 +524,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
 
   function setNotationEnabled(enabled: boolean) {
     const snapshot = captureRef.current
-    if (!snapshot || snapshot.notation_enabled === enabled) return
+    if (!snapshot || learnerNotationVisible(snapshot.notation_enabled) === enabled) return
     const previous = snapshot
     const optimistic = { ...snapshot, notation_enabled: enabled }
     setCapture(optimistic)
@@ -504,7 +543,10 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
           setError(readErrorDetail(body, "Could not update notation visibility"))
           return
         }
-        setCapture((current) => (current ? { ...current, notation_enabled: enabled } : current))
+        setCapture((current) => (current ? mergeMutation(current, body as CaptureMutation) : current))
+        if (captureRef.current) {
+          captureRef.current = mergeMutation(captureRef.current, body as CaptureMutation)
+        }
       })
       .catch(() => {
         setCapture(previous)
@@ -517,6 +559,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
   const previewEvents = recording && notesCaptured > 0 ? liveEventsRef.current : lineEvents
   const activeLineIndex = capture?.lines.findIndex((line) => line.line_number === activeLine) ?? -1
   const lineCount = capture?.lines.length ?? 0
+  const learnerVisible = capture ? learnerNotationVisible(capture.notation_enabled) : true
 
   return (
     <AdminShell
@@ -553,28 +596,42 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
                 </p>
                 <h2 className="mt-2 font-serif text-3xl text-navy-950">{capture.title}</h2>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={`${actionButtonClass} ${capture.notation_enabled ? "bg-navy-950 text-white" : ""}`}
-                  aria-pressed={capture.notation_enabled}
-                  onClick={() => setNotationEnabled(true)}
+              <div className="min-w-[14rem] rounded-2xl border border-navy-900/10 bg-ivory-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">
+                  Learner notation
+                </p>
+                <p className="mt-1 text-sm text-stone-600">
+                  {learnerVisible
+                    ? "Harmonium and sargam are visible on the song page."
+                    : "Hidden from learners until you show it again."}
+                </p>
+                <div
+                  className="mt-3 flex flex-wrap gap-2"
+                  role="group"
+                  aria-label="Learner notation visibility"
                 >
-                  Show learners
-                </button>
-                <button
-                  type="button"
-                  className={`${actionButtonClass} ${!capture.notation_enabled ? "bg-navy-950 text-white" : ""}`}
-                  aria-pressed={!capture.notation_enabled}
-                  onClick={() => setNotationEnabled(false)}
-                >
-                  Hide learners
-                </button>
+                  <button
+                    type="button"
+                    className={`${actionButtonClass} ${learnerVisible ? "bg-navy-950 text-white" : ""}`}
+                    aria-pressed={learnerVisible}
+                    onClick={() => setNotationEnabled(true)}
+                  >
+                    Show learners
+                  </button>
+                  <button
+                    type="button"
+                    className={`${actionButtonClass} ${!learnerVisible ? "bg-navy-950 text-white" : ""}`}
+                    aria-pressed={!learnerVisible}
+                    onClick={() => setNotationEnabled(false)}
+                  >
+                    Hide learners
+                  </button>
+                </div>
               </div>
             </div>
             {capture.booklet_locked ? (
               <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                Songs 1, 2, and 27 already have booklet sargam. Recording is locked so those copies are not overwritten.
+                Songs 1, 2, 4, and 27 already have booklet sargam. Recording is locked so those copies are not overwritten.
               </p>
             ) : null}
             {capture.submitted ? (
@@ -723,29 +780,14 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
                 </button>
               </div>
 
-              <CaptureKeyboard
+              <CaptureHarmonium
                 tonic={tonic}
                 onTonicChange={setTonic}
+                tempoBpm={tempoBpm}
+                onTempoBpmChange={setTempoBpm}
                 onPressKey={onPressKey}
                 onReleaseKey={onReleaseKey}
               />
-
-              <div className="flex flex-wrap gap-2">
-                {HARMONIUM_PLAY_TEMPO_ORDER.map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setTempoBpm(HARMONIUM_PLAY_TEMPOS[id].bpm)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-75 active:scale-[0.98] touch-manipulation ${
-                      tempoBpm === HARMONIUM_PLAY_TEMPOS[id].bpm
-                        ? "bg-navy-950 text-white"
-                        : "bg-white text-navy-950 hover:bg-gold-50"
-                    }`}
-                  >
-                    {HARMONIUM_PLAY_TEMPOS[id].label}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : null}
         </section>

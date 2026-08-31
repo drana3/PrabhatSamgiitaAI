@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import { localSongDetail, localTransposedNotation } from "@/lib/local-song-catalog"
+import { coalesceSongDetail, localSongDetail, localTransposedNotation } from "@/lib/local-song-catalog"
+import type { SongDetail } from "@/lib/api"
 
 describe("localSongDetail", () => {
   it("loads lyrics and media from the packaged catalog without the API", () => {
@@ -27,5 +28,19 @@ describe("localSongDetail", () => {
   it("returns null for a number outside the catalog", () => {
     expect(localSongDetail(0)).toBeNull()
     expect(localSongDetail(99999)).toBeNull()
+  })
+
+  it("keeps booklet songs enabled unless the API explicitly hides notation", () => {
+    const local = localSongDetail(1)
+    expect(local?.notation_enabled).toBe(true)
+
+    const remote = {
+      ...(local as SongDetail),
+      notation_enabled: false,
+      notation_verification_status: "admin_submitted",
+    }
+    const merged = coalesceSongDetail(remote, local)
+    expect(merged?.notation_enabled).toBe(false)
+    expect(merged?.notation_transposition_available).toBe(false)
   })
 })

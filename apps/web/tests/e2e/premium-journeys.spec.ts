@@ -20,12 +20,6 @@ async function stubSignedInMember(page: Page) {
   )
 }
 
-async function enableHarmoniumPractice(page: Page) {
-  await page.addInitScript(() => {
-    window.localStorage.setItem("prabhat-harmonium-practice", "1")
-  })
-}
-
 async function stubSong1Notation(page: Page) {
   await page.route("**/api/v1/songs/1/notation**", async (route) =>
     route.fulfill({
@@ -317,7 +311,6 @@ test("results sit just above search and English returns only its three canonical
 
 test("song actions, parallel reading, translation, and harmonium remain responsive", async ({ page }, testInfo) => {
   await stubSignedInMember(page)
-  await enableHarmoniumPractice(page)
   await page.goto("/songs/1")
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   const songHeroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
@@ -573,14 +566,14 @@ test("Explore search stays aligned and infers spoken language", async ({ page },
   }
 })
 
-test("harmonium search lands on notation gate for guests", async ({ page }) => {
+test("harmonium search lands on notation for guests", async ({ page }) => {
+  await stubSong1Notation(page)
   await page.goto("/explore")
   await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")
   await clickSearchButton(page)
   await expect(page).toHaveURL(/\/songs\/1#notation$/)
   await expect(page.locator("#notation")).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Harmonium practice" })).toBeVisible()
-  await expect(page.locator("#notation").getByRole("link", { name: "Sign in" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Practise on harmonium" })).toBeVisible()
 })
 
 test("home and Explore resolve natural-language song number intent before RAG", async ({ page }, testInfo) => {
@@ -596,7 +589,6 @@ test("home and Explore resolve natural-language song number intent before RAG", 
   }
 
   await stubSignedInMember(page)
-  await enableHarmoniumPractice(page)
   await page.goto("/explore")
   await page.getByLabel(/Search by number/i).fill("harmonium notation for song 1")
   await clickSearchButton(page)
@@ -724,7 +716,6 @@ test("catalog titles and source-only content never render fabricated blank secti
 
 test("practice coach always reports microphone and audio-analysis outcomes", async ({ page }) => {
   await stubSignedInMember(page)
-  await enableHarmoniumPractice(page)
   await stubSong1Notation(page)
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "mediaDevices", {

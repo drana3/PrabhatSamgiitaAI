@@ -4,6 +4,9 @@ import {
   applyLineAction,
   applySavedTake,
   canSubmitLines,
+  learnerNotationVisible,
+  mergeMutation,
+  normalizeCapturePayload,
   sargamTextToEvents,
 } from "@/lib/adminSargamCapture"
 import type { SargamCapturePayload } from "@prabhat/core"
@@ -48,5 +51,25 @@ describe("adminSargamCapture helpers", () => {
     const saved2 = applySavedTake(confirmed, 2, sargamTextToEvents("Re", "C", 100))
     const allConfirmed = applyLineAction(saved2, 2, "confirm")
     expect(canSubmitLines(allConfirmed.lines)).toBe(true)
+  })
+
+  it("treats missing notation_enabled as visible for learners", () => {
+    expect(learnerNotationVisible(undefined)).toBe(true)
+    expect(learnerNotationVisible(null)).toBe(true)
+    expect(learnerNotationVisible(false)).toBe(false)
+    expect(normalizeCapturePayload({ ...baseCapture, notation_enabled: undefined }).notation_enabled).toBe(true)
+  })
+
+  it("merges visibility mutations without dropping the learner toggle", () => {
+    const hidden = mergeMutation(baseCapture, {
+      song_number: 5,
+      source_scale: "C",
+      tempo_bpm: 100,
+      can_submit: false,
+      submitted: false,
+      notation_enabled: false,
+    })
+    expect(hidden.notation_enabled).toBe(false)
+    expect(learnerNotationVisible(hidden.notation_enabled)).toBe(false)
   })
 })

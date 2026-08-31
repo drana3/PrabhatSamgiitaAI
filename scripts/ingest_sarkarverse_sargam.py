@@ -551,7 +551,7 @@ def merge_practice(
 
 
 def write_roman_booklet_songs(_rows: list[dict[str, Any]] | None = None) -> None:
-    """OCR booklet JSON is not published. Playable copies live in packages/core (songs 1, 2, 27)."""
+    """OCR booklet JSON is not published. Playable copies live in packages/core (songs 1, 2, 4, 27)."""
     payload = {
         "source": "https://sarkarverse.org/SARGAM/?dir=0001-1000",
         "files": [
@@ -565,11 +565,11 @@ def write_roman_booklet_songs(_rows: list[dict[str, Any]] | None = None) -> None
         ],
         "count": 0,
         "songs": {},
-        "published_booklet_songs": [1, 2, 27],
+        "published_booklet_songs": [1, 2, 4, 27],
         "note": "Playable Roman booklet sargam is hardcoded in packages/core/src/harmonium-sample-songs.ts",
     }
     BOOKLET_SONGS_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {BOOKLET_SONGS_PATH} (0 OCR songs; published copies are 1, 2, 27)")
+    print(f"wrote {BOOKLET_SONGS_PATH} (0 OCR songs; published copies are 1, 2, 4, 27)")
 
 
 def extract_divyadyuti(index: dict[str, Any], *, song: int | None, limit: int | None) -> int:

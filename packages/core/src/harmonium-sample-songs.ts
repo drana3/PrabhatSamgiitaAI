@@ -1,6 +1,5 @@
-import { parseSargamInput, sargamPlayEvents } from "./harmonium-keyboard"
+import { parseSargamPlayBeats, playBeatSpanSec, playBeatsToEvents, sargamPlayEvents } from "./harmonium-keyboard"
 import {
-  westernToHz,
   type SheetLineInput,
   type SheetPlayEvent,
   type SheetTala,
@@ -10,6 +9,8 @@ export type HarmoniumSampleSongLine = {
   lyric: string
   lyricHi: string
   sargam: string
+  /** Roman booklet row marker (I / II), when known. */
+  bookletMarker?: "I" | "II" | "III"
   /** Beat lengths for playback (kaharva). Display still uses `sargam`. */
   playBeats?: Array<{ sargam: string; beats: number; western?: string }>
 }
@@ -41,7 +42,7 @@ export const HARMONIUM_PLAY_TEMPOS: Record<
   HarmoniumPlayTempo,
   { id: HarmoniumPlayTempo; label: string; bpm: number }
 > = {
-  slow: { id: "slow", label: "Slow", bpm: 90 },
+  slow: { id: "slow", label: "Slow", bpm: 84 },
   medium: { id: "medium", label: "Medium", bpm: 100 },
   fast: { id: "fast", label: "Fast", bpm: 176 },
 }
@@ -59,15 +60,15 @@ export function sampleSongTiming(tempo: number | HarmoniumPlayTempo = HARMONIUM_
   const nearest = HARMONIUM_PLAY_TEMPO_ORDER.find((id) => HARMONIUM_PLAY_TEMPOS[id].bpm === bpm) ?? null
   return {
     bpm,
-    noteSec: beatSec * 0.85,
-    gapSec: Math.min(0.03, beatSec * 0.04),
-    lineRestSec: beatSec * 1.5,
+    noteSec: beatSec * 0.92,
+    gapSec: beatSec * 0.08,
+    lineRestSec: beatSec * 0.25,
     nearestPreset: nearest,
   }
 }
 
 /** Booklet refrain (Prabhát Samgiita Roman sargam, Kaharba). á = hold. */
-const BANDHU_REFRAIN = "Pa á á ma | Ga á á á | Sa Re á Ni | Sa á á á"
+const BANDHU_REFRAIN = "Pa á á ma | Ga á á á | Sa Re á .Ni | Sa á á á"
 /** Booklet verse line for Álor / Ándhárer / Ghumer. */
 const BANDHU_VERSE = "Sa Re Re á | Re Ga á Ga | ma Pa á ma | Ga á á á"
 /** 16-matra kaharva cycle from the same booklet bars. */
@@ -91,38 +92,26 @@ const BANDHU_VERSE_BEATS = [
   { sargam: "G", beats: 4 },
 ]
 
+function lineBeatSpan(line: HarmoniumSampleSongLine, tonic: string, beatSec: number): number {
+  if (line.playBeats?.length) {
+    return line.playBeats.reduce((sum, beat) => sum + beat.beats, 0) * beatSec
+  }
+  return parseSargamPlayBeats(line.sargam, tonic).reduce(
+    (sum, beat) => sum + playBeatSpanSec(beat, beatSec),
+    0,
+  )
+}
+
 function linePlayEvents(
   tonic: string,
   line: HarmoniumSampleSongLine,
   beatSec: number,
   gapSec: number,
-  fallbackNoteSec: number,
 ): SheetPlayEvent[] {
   if (!line.playBeats?.length) {
-    return sargamPlayEvents(tonic, line.sargam, fallbackNoteSec, gapSec)
+    return sargamPlayEvents(tonic, line.sargam, beatSec, gapSec)
   }
-  const events: SheetPlayEvent[] = []
-  let cursor = 0
-  for (const { sargam, beats, western } of line.playBeats) {
-    const fromWestern = western?.trim()
-    const parsed = fromWestern
-      ? {
-          western: fromWestern,
-          frequencyHz: westernToHz(fromWestern) ?? 0,
-        }
-      : parseSargamInput(sargam, tonic)[0]
-    if (!parsed?.western || !parsed.frequencyHz) continue
-    const span = beats * beatSec
-    const isLast = events.length + 1 === (line.playBeats?.length ?? 0)
-    events.push({
-      western: parsed.western,
-      frequencyHz: parsed.frequencyHz,
-      startSec: cursor,
-      durationSec: Math.max(0.16, isLast ? span + beatSec * 0.5 : span - gapSec),
-    })
-    cursor += span
-  }
-  return events
+  return playBeatsToEvents(tonic, line.playBeats, beatSec, gapSec)
 }
 
 /**
@@ -182,7 +171,7 @@ export const BANDHU_HE_NIYE_CALO_SONG: HarmoniumSampleSong = {
 }
 
 /** Only these songs have tested booklet sargam in the app. */
-export const PUBLISHED_HARMONIUM_SONG_NUMBERS = [1, 2, 27] as const
+export const PUBLISHED_HARMONIUM_SONG_NUMBERS = [1, 2, 4, 27] as const
 
 export function isPublishedHarmoniumSong(songNumber: number): boolean {
   return (PUBLISHED_HARMONIUM_SONG_NUMBERS as readonly number[]).includes(songNumber)
@@ -206,6 +195,15 @@ export function hasPublishedLearnerSargam(
 
 export const HARMONIUM_SAMPLE_SONGS = [BANDHU_HE_NIYE_CALO_SONG] as const
 
+/** Split booklet lyric text on ` / ` into separate printed lines. */
+export function splitBookletLyric(text: string): string[] {
+  const parts = text
+    .split(" / ")
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return parts.length ? parts : [text.trim()]
+}
+
 export function sampleSongSargam(song: HarmoniumSampleSong): string {
   return song.lines.map((line) => line.sargam).join("  ")
 }
@@ -227,15 +225,16 @@ export function sampleSongLineEvents(
   const beatSec = 60 / timing.bpm
   let cursor = 0
   return song.lines.map((line, index) => {
-    const events = linePlayEvents(tonic, line, beatSec, timing.gapSec, timing.noteSec).map((event) => ({
+    const events = linePlayEvents(tonic, line, beatSec, timing.gapSec).map((event) => ({
       ...event,
       startSec: event.startSec + cursor,
     }))
     const startSec = cursor
     const last = events[events.length - 1]
-    const endSec = last ? last.startSec + last.durationSec : cursor
+    const endSec = last ? last.startSec + last.durationSec : startSec
+    const gridEndSec = startSec + lineBeatSpan(line, tonic, beatSec)
     const isLastLine = index === song.lines.length - 1
-    cursor = endSec + (isLastLine ? 0 : timing.lineRestSec)
+    cursor = gridEndSec + (isLastLine ? 0 : timing.lineRestSec)
     return { line, events, startSec, endSec }
   })
 }
@@ -503,6 +502,216 @@ export const E_GAN_AMAR_ALOR_SONG: HarmoniumSampleSong = {
       lyricHi: "আলোর ঝর্ণাধারা",
       sargam: E_GAN_R10,
       playBeats: E_GAN_R10_BEATS,
+    },
+  ],
+}
+
+/** PS 4 — Sakal Maner Viina Ek Sure Baje Aj (K Madhur Giiti), taar-register kaharva from RS_0001-0025.pdf. */
+const SAKAL_L1_SARGAM = "Sa' Ga' á Sa' | Ga' ma' Ga' Re' | Ga' ma' Ga' Re' | Sa' Ni' Dha' á"
+const SAKAL_L1_BEATS = [
+  { sargam: "S'", beats: 1 },
+  { sargam: "G'", beats: 2 },
+  { sargam: "S'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "S'", beats: 1 },
+  { sargam: "N'", beats: 1 },
+  { sargam: "D'", beats: 2 },
+]
+const SAKAL_L2_SARGAM = "Dha' Dha' Re' Re' | Ga' ma' Pa' Re' | Re' Ga' á á á á á á"
+const SAKAL_L2_BEATS = [
+  { sargam: "D'", beats: 1 },
+  { sargam: "D'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "G'", beats: 7 },
+]
+const SAKAL_L3A_SARGAM = "Pa' á Pa' Pa'"
+const SAKAL_L3A_BEATS = [
+  { sargam: "P'", beats: 2 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+]
+const SAKAL_L3B_SARGAM = "Pa' Pa' Pa' Pa'"
+const SAKAL_L3B_BEATS = [
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+]
+const SAKAL_L3C_SARGAM = "Pa' Dha' Pa' ma' | Ga' Ga' Sa' Re'"
+const SAKAL_L3C_BEATS = [
+  { sargam: "P'", beats: 1 },
+  { sargam: "D'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "S'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+]
+const SAKAL_L4_SARGAM = "Ga' Pa' ma' Ga' | Re' Sa' Re' Re' | Ga' á á á á á á á"
+const SAKAL_L4_BEATS = [
+  { sargam: "G'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "S'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "G'", beats: 8 },
+]
+const SAKAL_L5_SARGAM = "Pa' Pa' Pa' á | Pa' Pa' Pa' á | Pa' Dha' Pa' ma' | Ga' Ga' Ga' á"
+const SAKAL_L5_BEATS = [
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 2 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 2 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "D'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "G'", beats: 2 },
+]
+const SAKAL_L6_SARGAM = "Ga' Pa' ma' Ga' | Re' Sa' Re' Re' | Re' Ga' á á á á á á"
+const SAKAL_L6_BEATS = [
+  { sargam: "G'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "S'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "G'", beats: 7 },
+]
+const SAKAL_L7_SARGAM = "Pa' Pa' Pa' Pa' | Pa' Pa' Pa' Pa' | Pa' Dha' Pa' ma' | Ga' Ga' Sa' Re'"
+const SAKAL_L7_BEATS = [
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "D'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "S'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+]
+const SAKAL_L8_SARGAM = "Ga' Pa' ma' Ga' | Re' Sa' Re' Re' | Re' Ga' á á á á á á"
+const SAKAL_L8_BEATS = [
+  { sargam: "G'", beats: 1 },
+  { sargam: "P'", beats: 1 },
+  { sargam: "m'", beats: 1 },
+  { sargam: "G'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "S'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "R'", beats: 1 },
+  { sargam: "G'", beats: 7 },
+]
+
+export const SAKAL_MANER_VIINA_SONG: HarmoniumSampleSong = {
+  id: "sakal-maner-viina-ek-sure-baje-aj",
+  title: "Sakal Maner Viina Ek Sure Baje Aj",
+  titleHi: "সকল মনের বীণা এক সুরে বাজে আজ",
+  sourceUrl: "https://sarkarverse.org/SARGAM/0001-1000/RS_0001-0025.pdf",
+  sourceLabel: "Roman sargam · Prabhát Samgiita Part I",
+  lines: [
+    {
+      lyric: "Sakal maner viina / Ek sure baje aj",
+      lyricHi: "সকল মনের বীণা / এক সুরে বাজে আজ",
+      bookletMarker: "II",
+      sargam: SAKAL_L1_SARGAM,
+      playBeats: SAKAL_L1_BEATS,
+    },
+    {
+      lyric: "Sakal hrdaye saorabh",
+      lyricHi: "সকল হৃদয়ে সৌরভ",
+      bookletMarker: "I",
+      sargam: SAKAL_L2_SARGAM,
+      playBeats: SAKAL_L2_BEATS,
+    },
+    {
+      lyric: "Nandana madhu saje",
+      lyricHi: "নন্দন মধু সাজে",
+      bookletMarker: "II",
+      sargam: SAKAL_L3A_SARGAM,
+      playBeats: SAKAL_L3A_BEATS,
+    },
+    {
+      lyric: "Ele tumi dhara majhe",
+      lyricHi: "এলে তুমি ধরা মাঝে",
+      bookletMarker: "II",
+      sargam: SAKAL_L3B_SARGAM,
+      playBeats: SAKAL_L3B_BEATS,
+    },
+    {
+      lyric: "Dile sabe ek anubhab",
+      lyricHi: "দিলে সবে এক অনুভব",
+      bookletMarker: "II",
+      sargam: SAKAL_L3C_SARGAM,
+      playBeats: SAKAL_L3C_BEATS,
+    },
+    {
+      lyric: "Chinro na chinro na / E kusuma malakhani",
+      lyricHi: "ছিঁড়ো না ছিঁড়ো না / এ কুসুম মালাখানি",
+      bookletMarker: "II",
+      sargam: SAKAL_L4_SARGAM,
+      playBeats: SAKAL_L4_BEATS,
+    },
+    {
+      lyric: "Mamatar sara baebhab",
+      lyricHi: "মমতার সারা বাইভব",
+      bookletMarker: "I",
+      sargam: SAKAL_L5_SARGAM,
+      playBeats: SAKAL_L5_BEATS,
+    },
+    {
+      lyric: "Eso tumi aro kache / Aro kache aro kache",
+      lyricHi: "এসো তুমি আরো কাছে / আরো কাছে আরো কাছে",
+      bookletMarker: "I",
+      sargam: SAKAL_L6_SARGAM,
+      playBeats: SAKAL_L6_BEATS,
+    },
+    {
+      lyric: "Niye yao yaha kichu sab",
+      lyricHi: "নিয়ে যাও যাহা কিছু সব",
+      bookletMarker: "II",
+      sargam: SAKAL_L7_SARGAM,
+      playBeats: SAKAL_L7_BEATS,
+    },
+    {
+      // Same lyric as line 7, different sargam (booklet I vs II).
+      lyric: "Niye yao yaha kichu sab",
+      lyricHi: "নিয়ে যাও যাহা কিছু সব",
+      bookletMarker: "I",
+      sargam: SAKAL_L8_SARGAM,
+      playBeats: SAKAL_L8_BEATS,
     },
   ],
 }
@@ -786,6 +995,7 @@ export const DAO_SARA_OGO_PRABHU_SONG: HarmoniumSampleSong = {
 export const HARMONIUM_BOOKLET_SONGS: Record<number, HarmoniumSampleSong> = {
   1: BANDHU_HE_NIYE_CALO_SONG,
   2: E_GAN_AMAR_ALOR_SONG,
+  4: SAKAL_MANER_VIINA_SONG,
   27: DAO_SARA_OGO_PRABHU_SONG,
 }
 

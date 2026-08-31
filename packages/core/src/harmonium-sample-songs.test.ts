@@ -4,11 +4,13 @@ import {
   BANDHU_HE_NIYE_CALO_SONG,
   bookletHarmoniumSong,
   hasPublishedLearnerSargam,
+  splitBookletLyric,
   sampleSongLineEvents,
   sampleSongPlayEvents,
   sampleSongTiming,
   notationToHarmoniumSong,
 } from "./harmonium-sample-songs"
+import { playBeatsToEvents, sargamPlayEvents } from "./harmonium-keyboard"
 
 describe("harmonium sample songs", () => {
   it("maps Bandhu He Niye Calo onto chromatic keys from Sa", () => {
@@ -22,11 +24,26 @@ describe("harmonium sample songs", () => {
     expect(firstLine.map((event) => event.western).join(" ")).toContain("G4")
   })
 
-  it("leaves a singer-length rest between lines", () => {
+  it("plays the same pitches when the refrain is typed as when Play on keys runs", () => {
+    const line = BANDHU_HE_NIYE_CALO_SONG.lines[0]!
+    const timing = sampleSongTiming(100)
+    const beatSec = 60 / timing.bpm
+    const fromPlay = playBeatsToEvents("C", line.playBeats!, beatSec, timing.gapSec)
+    const fromTyped = sargamPlayEvents("C", line.sargam, beatSec, timing.gapSec)
+    expect(fromTyped.map((event) => event.western)).toEqual(fromPlay.map((event) => event.western))
+    expect(fromTyped.map((event) => event.startSec)).toEqual(fromPlay.map((event) => event.startSec))
+  })
+
+  it("flows naturally between lines with a brief breath on the beat grid", () => {
+    const timing = sampleSongTiming("medium")
+    const beatSec = 60 / timing.bpm
     const lines = sampleSongLineEvents("C", BANDHU_HE_NIYE_CALO_SONG, "medium")
-    const rest = lines[1]!.startSec - lines[0]!.endSec
-    expect(rest).toBeGreaterThanOrEqual(0.85)
-    expect(rest).toBeLessThan(2.2)
+    const refrainBeats = BANDHU_HE_NIYE_CALO_SONG.lines[0]!.playBeats!.reduce((sum, beat) => sum + beat.beats, 0)
+    const gridEnd = lines[0]!.startSec + refrainBeats * beatSec
+    const rest = lines[1]!.startSec - gridEnd
+    expect(rest).toBeCloseTo(timing.lineRestSec, 5)
+    expect(rest).toBeGreaterThan(0)
+    expect(rest).toBeLessThan(beatSec * 0.4)
   })
 
   it("lets each kaharva line last a full sung cycle", () => {
@@ -44,7 +61,7 @@ describe("harmonium sample songs", () => {
     expect(lastSlow.startSec).toBeGreaterThan(lastFast.startSec)
     expect(sampleSongTiming("slow").bpm).toBeLessThan(sampleSongTiming("medium").bpm)
     expect(sampleSongTiming("fast").bpm).toBeGreaterThan(sampleSongTiming("medium").bpm)
-    expect(sampleSongTiming("slow").bpm).toBe(90)
+    expect(sampleSongTiming("slow").bpm).toBe(84)
     expect(sampleSongTiming("fast").bpm).toBe(176)
   })
 
@@ -143,6 +160,26 @@ describe("harmonium sample songs", () => {
     expect(hasPublishedLearnerSargam(1, "practice_draft")).toBe(true)
     expect(hasPublishedLearnerSargam(1, "practice_draft", false)).toBe(false)
     expect(hasPublishedLearnerSargam(5, "admin_submitted", false)).toBe(false)
+  })
+
+  it("plays booklet copy for song 4 from RS_0001-0025", () => {
+    const song = bookletHarmoniumSong(4)!
+    expect(song.id).toBe("sakal-maner-viina-ek-sure-baje-aj")
+    expect(song.lines[0]?.sargam).toContain("Sa'")
+    expect(song.lines[1]?.lyric).toBe("Sakal hrdaye saorabh")
+    expect(song.lines[2]?.lyric).toBe("Nandana madhu saje")
+    expect(song.lines[3]?.lyric).toBe("Ele tumi dhara majhe")
+    expect(song.lines[4]?.lyric).toBe("Dile sabe ek anubhab")
+    expect(song.lines[2]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(4)
+    expect(song.lines[3]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(4)
+    expect(song.lines[4]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(8)
+    expect(song.lines[1]?.bookletMarker).toBe("I")
+    expect(song.lines[9]?.sargam).toBe("Ga' Pa' ma' Ga' | Re' Sa' Re' Re' | Re' Ga' á á á á á á")
+    expect(song.lines[8]?.lyric).toBe(song.lines[9]?.lyric)
+    expect(song.lines[8]?.sargam).not.toBe(song.lines[9]?.sargam)
+    expect(song.lines[0]?.playBeats?.reduce((sum, beat) => sum + beat.beats, 0)).toBe(16)
+    expect(sampleSongPlayEvents("C", song).length).toBeGreaterThan(20)
+    expect(hasPublishedLearnerSargam(4)).toBe(true)
   })
 
   it("plays a hand copy of song 27 from RS_0026-0050", () => {

@@ -36,6 +36,18 @@ class SargamCaptureResponse(BaseModel):
     lines: list[CaptureLine] = Field(default_factory=list)
 
 
+class SargamCaptureMutationResponse(BaseModel):
+    """Slim write response — avoids reloading catalog notation/media on every take."""
+
+    song_number: int
+    source_scale: str = "C"
+    tempo_bpm: int = 100
+    can_submit: bool = False
+    submitted: bool = False
+    notation_enabled: bool | None = None
+    line: CaptureLine | None = None
+
+
 class CaptureTakeWrite(BaseModel):
     events: list[CaptureEvent]
     source_scale: str | None = None

@@ -18,7 +18,9 @@ urlencode() {
   python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().rstrip("\n"), safe=""))'
 }
 
-ACR_NAME="${ACR_NAME:-${PREFIX}acr$RANDOM}"
+DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:-}"
+DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN:-}"
+DOCKER_IMAGE_PREFIX="${DOCKER_IMAGE_PREFIX:-${DOCKERHUB_USERNAME}/prabhat-samgiita}"
 ACA_ENV="${ACA_ENV:-${PREFIX}-env}"
 PG_SERVER="${PG_SERVER:-${PREFIX}-pg}"
 PG_DB="${PG_DB:-prabhatai}"
@@ -27,25 +29,24 @@ API_APP="${API_APP:-${PREFIX}-api}"
 LAW="${LAW:-${PREFIX}-law}"
 
 command -v az >/dev/null || { echo "Azure CLI is required."; exit 1; }
+command -v docker >/dev/null || { echo "Docker is required."; exit 1; }
+
+if [[ -z "${DOCKERHUB_USERNAME}" || -z "${DOCKERHUB_TOKEN}" ]]; then
+  echo "Set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN before bootstrap."
+  exit 1
+fi
 
 az group create --name "$RG" --location "$LOCATION" >/dev/null
 
-az acr create \
-  --name "$ACR_NAME" \
-  --resource-group "$RG" \
-  --location "$LOCATION" \
-  --sku Basic \
-  --admin-enabled true >/dev/null
+echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin >/dev/null
 
-ACR_LOGIN_SERVER="$(az acr show --name "$ACR_NAME" --resource-group "$RG" --query loginServer -o tsv)"
-ACR_USERNAME="$(az acr credential show --name "$ACR_NAME" --resource-group "$RG" --query username -o tsv)"
-ACR_PASSWORD="$(az acr credential show --name "$ACR_NAME" --resource-group "$RG" --query "passwords[0].value" -o tsv)"
+API_IMAGE="${DOCKER_IMAGE_PREFIX}-api:${TAG}"
+WEB_IMAGE="${DOCKER_IMAGE_PREFIX}-web:${TAG}"
 
-az acr build \
-  --registry "$ACR_NAME" \
-  --image "prabhat-samgiita-api:${TAG}" \
-  --file "${ROOT_DIR}/apps/api/Dockerfile" \
-  "$ROOT_DIR" >/dev/null
+docker build -f "${ROOT_DIR}/apps/api/Dockerfile" -t "$API_IMAGE" "$ROOT_DIR"
+docker push "$API_IMAGE"
+
+DOCKERHUB_PASSWORD="$DOCKERHUB_TOKEN"
 
 az monitor log-analytics workspace create \
   --resource-group "$RG" \
@@ -96,10 +97,10 @@ az containerapp create \
   --name "$API_APP" \
   --resource-group "$RG" \
   --environment "$ACA_ENV" \
-  --image "${ACR_LOGIN_SERVER}/prabhat-samgiita-api:${TAG}" \
-  --registry-server "$ACR_LOGIN_SERVER" \
-  --registry-username "$ACR_USERNAME" \
-  --registry-password "$ACR_PASSWORD" \
+  --image "$API_IMAGE" \
+  --registry-server docker.io \
+  --registry-username "$DOCKERHUB_USERNAME" \
+  --registry-password "$DOCKERHUB_PASSWORD" \
   --ingress external \
   --target-port 8000 \
   --min-replicas 0 \
@@ -114,21 +115,21 @@ az containerapp create \
 
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 
-az acr build \
-  --registry "$ACR_NAME" \
-  --image "prabhat-samgiita-web:${TAG}" \
-  --file "${ROOT_DIR}/apps/web/Dockerfile" \
+docker build \
+  -f "${ROOT_DIR}/apps/web/Dockerfile" \
   --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
+  -t "$WEB_IMAGE" \
   "$ROOT_DIR" >/dev/null
+docker push "$WEB_IMAGE" >/dev/null
 
 az containerapp create \
   --name "$WEB_APP" \
   --resource-group "$RG" \
   --environment "$ACA_ENV" \
-  --image "${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}" \
-  --registry-server "$ACR_LOGIN_SERVER" \
-  --registry-username "$ACR_USERNAME" \
-  --registry-password "$ACR_PASSWORD" \
+  --image "$WEB_IMAGE" \
+  --registry-server docker.io \
+  --registry-username "$DOCKERHUB_USERNAME" \
+  --registry-password "$DOCKERHUB_PASSWORD" \
   --ingress external \
   --target-port 3000 \
   --min-replicas 0 \
@@ -142,5 +143,5 @@ cat <<EOF
 Deployment complete.
 Web: https://${WEB_FQDN}
 API: https://${API_FQDN}
-Registry: ${ACR_LOGIN_SERVER}
+Registry: docker.io/${DOCKER_IMAGE_PREFIX}
 EOF

@@ -182,7 +182,18 @@ export const sargamCaptureSchema = z.object({
   lines: z.array(sargamCaptureLineSchema).default([]),
 })
 
+export const sargamCaptureMutationSchema = z.object({
+  song_number: z.number(),
+  source_scale: z.string().optional().default("C"),
+  tempo_bpm: z.number().optional().default(100),
+  can_submit: z.boolean().optional().default(false),
+  submitted: z.boolean().optional().default(false),
+  notation_enabled: z.boolean().nullable().optional(),
+  line: sargamCaptureLineSchema.nullable().optional(),
+})
+
 export type SargamCaptureEvent = z.infer<typeof sargamCaptureEventSchema>
+export type SargamCaptureMutation = z.infer<typeof sargamCaptureMutationSchema>
 export type SargamCaptureLine = z.infer<typeof sargamCaptureLineSchema>
 export type SargamCapturePayload = z.infer<typeof sargamCaptureSchema>
 
@@ -655,7 +666,7 @@ export function createApiClient(options: ApiClientOptions) {
       number: number,
       lineNumber: number,
       body: { events: SargamCaptureEvent[]; source_scale?: string; tempo_bpm?: number },
-    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+    ): Promise<{ ok: boolean; patch?: SargamCaptureMutation; detail?: string }> {
       try {
         const response = await fetchJson(
           `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/lines/${encodeURIComponent(String(lineNumber))}/takes`,
@@ -666,7 +677,7 @@ export function createApiClient(options: ApiClientOptions) {
           },
         )
         if (response.ok) {
-          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+          return { ok: true, patch: sargamCaptureMutationSchema.parse(await response.json()) }
         }
         return { ok: false, detail: await readApiErrorDetail(response) }
       } catch {
@@ -678,14 +689,14 @@ export function createApiClient(options: ApiClientOptions) {
       number: number,
       lineNumber: number,
       action: "confirm" | "retake",
-    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+    ): Promise<{ ok: boolean; patch?: SargamCaptureMutation; detail?: string }> {
       try {
         const response = await fetchJson(
           `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/lines/${encodeURIComponent(String(lineNumber))}/${action}`,
           { method: "POST" },
         )
         if (response.ok) {
-          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+          return { ok: true, patch: sargamCaptureMutationSchema.parse(await response.json()) }
         }
         return { ok: false, detail: await readApiErrorDetail(response) }
       } catch {
@@ -695,14 +706,14 @@ export function createApiClient(options: ApiClientOptions) {
 
     async submitAdminSargamCapture(
       number: number,
-    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+    ): Promise<{ ok: boolean; patch?: SargamCaptureMutation; detail?: string }> {
       try {
         const response = await fetchJson(
           `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/submit`,
           { method: "POST" },
         )
         if (response.ok) {
-          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+          return { ok: true, patch: sargamCaptureMutationSchema.parse(await response.json()) }
         }
         return { ok: false, detail: await readApiErrorDetail(response) }
       } catch {
@@ -713,7 +724,7 @@ export function createApiClient(options: ApiClientOptions) {
     async setAdminSargamVisibility(
       number: number,
       enabled: boolean,
-    ): Promise<{ ok: boolean; capture?: SargamCapturePayload; detail?: string }> {
+    ): Promise<{ ok: boolean; patch?: SargamCaptureMutation; detail?: string }> {
       try {
         const response = await fetchJson(
           `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/sargam-capture/visibility`,
@@ -724,7 +735,7 @@ export function createApiClient(options: ApiClientOptions) {
           },
         )
         if (response.ok) {
-          return { ok: true, capture: sargamCaptureSchema.parse(await response.json()) }
+          return { ok: true, patch: sargamCaptureMutationSchema.parse(await response.json()) }
         }
         return { ok: false, detail: await readApiErrorDetail(response) }
       } catch {

@@ -21,6 +21,7 @@ vi.mock("@/lib/harmonium-playback", () => ({
   stopHarmoniumSheet: vi.fn(),
   getHarmoniumSheetSeconds: vi.fn(() => 0),
   retargetHarmoniumSheet: vi.fn(),
+  setHarmoniumSheetHighlightListener: vi.fn(),
 }))
 
 describe("VirtualHarmonium", () => {
@@ -39,15 +40,19 @@ describe("VirtualHarmonium", () => {
     expect(screen.getByRole("button", { name: "High" })).toBeInTheDocument()
     expect(screen.getAllByText(/Pa á á ma/).length).toBeGreaterThan(0)
     expect(screen.getByRole("heading", { name: "Bandhu He Niye Calo" })).toBeInTheDocument()
-    expect(screen.getByLabelText("Tempo tuner")).toBeInTheDocument()
+    expect(screen.getByLabelText("Tempo")).toBeInTheDocument()
     expect(screen.getByLabelText("Type sargam")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "▶ Play" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Stop song" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Reset song" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Stop typed sargam" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Reset typed sargam" })).toBeEnabled()
   })
 
   it("fills example sargam when a chip is tapped", () => {
     render(<VirtualHarmonium tonic="C" />)
-    fireEvent.click(screen.getByRole("button", { name: "Sa Re Ga Ma Pa Dha Ni Sa′" }))
-    expect(screen.getByLabelText("Type sargam")).toHaveValue("Sa Re Ga Ma Pa Dha Ni Sa′")
+    fireEvent.click(screen.getByRole("button", { name: /From song · Pa á á ma/ }))
+    expect(screen.getByLabelText("Type sargam")).toHaveValue("Pa á á ma | Ga á á á | Sa Re á .Ni | Sa á á á")
   })
 
   it("lets Play on keys resume after pause", async () => {
@@ -83,7 +88,7 @@ describe("VirtualHarmonium", () => {
       expect(screen.getByRole("button", { name: "Play on keys" })).toHaveTextContent("Playing…")
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Fast" }))
+    fireEvent.click(screen.getAllByRole("button", { name: "Fast" })[0]!)
     await waitFor(() => {
       expect(playback.retargetHarmoniumSheet).toHaveBeenCalled()
     })
@@ -91,5 +96,27 @@ describe("VirtualHarmonium", () => {
     expect(typeof seconds).toBe("number")
     expect(seconds).toBeGreaterThan(0)
     expect(shouldPlay).toBe(true)
+  })
+
+  it("stops song playback and clears typed sargam on reset", async () => {
+    vi.mocked(playback.playSheetEvents).mockImplementationOnce(() => new Promise(() => undefined))
+    render(<VirtualHarmonium tonic="C" />)
+
+    fireEvent.click(screen.getByRole("button", { name: /From song · Pa á á ma/ }))
+    expect(screen.getByLabelText("Type sargam")).toHaveValue("Pa á á ma | Ga á á á | Sa Re á .Ni | Sa á á á")
+
+    fireEvent.click(screen.getByRole("button", { name: "Play on keys" }))
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Stop song" })).toBeEnabled()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop song" }))
+    expect(playback.stopHarmoniumSheet).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play on keys" })).toBeEnabled()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset typed sargam" }))
+    expect(screen.getByLabelText("Type sargam")).toHaveValue("")
   })
 })

@@ -23,6 +23,6 @@ export const HARMONIUM_GATE_BODY_SIGNED_IN =
 export const HARMONIUM_GATE_ACTION_GUEST = "Sign in"
 export const HARMONIUM_GATE_ACTION_PROFILE = "Open profile settings"
 
-export function harmoniumPracticeActive(signedIn: boolean, enabled: boolean): boolean {
-  return signedIn && enabled
+export function harmoniumPracticeActive(_signedIn = true, _enabled = true): boolean {
+  return true
 }

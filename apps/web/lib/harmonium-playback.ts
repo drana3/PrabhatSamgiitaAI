@@ -32,6 +32,27 @@ let voiceSemitones = 0
 let playbackGeneration = 0
 let sheetFinished: (() => void) | null = null
 let cachedPlayer: Player | null = null
+let sheetHighlightListener: ((western: string | null) => void) | null = null
+let activeSheetHandlers: SheetPlaybackHandlers | null = null
+let sheetClockStartedAt: number | null = null
+let sheetClockOffsetSec = 0
+
+export type SheetPlaybackHandlers = {
+  onKeyHighlight?: (western: string | null) => void
+}
+
+export function setHarmoniumSheetHighlightListener(
+  listener: ((western: string | null) => void) | null,
+): void {
+  sheetHighlightListener = listener
+}
+
+function fireKeyHighlight(western: string | null): void {
+  activeSheetHandlers?.onKeyHighlight?.(western)
+  if (!activeSheetHandlers?.onKeyHighlight) {
+    sheetHighlightListener?.(western)
+  }
+}
 
 function fileToNote(file: string): string {
   const match = file.match(/^([A-G])(s)?(\d)\.mp3$/)
@@ -52,7 +73,7 @@ async function createPlayer(): Promise<Player | null> {
     urls: sampleUrls(),
     baseUrl: SAMPLE_BASE,
     attack: 0.04,
-    release: 0.32,
+    release: 0.55,
   }).connect(volume)
   await Tone.loaded()
   const created = { Tone, sampler, volume }
@@ -122,19 +143,27 @@ export async function playWesternNote(western: string, durationSec = 0.45): Prom
   player.sampler.triggerAttackRelease(soundingNote(western), durationSec, player.Tone.now())
 }
 
-export async function playSheetEvents(events: SheetPlayEvent[]): Promise<void> {
-  return playSheetOnTransport(events)
+export async function playSheetEvents(
+  events: SheetPlayEvent[],
+  handlers?: SheetPlaybackHandlers,
+): Promise<void> {
+  return playSheetOnTransport(events, handlers)
 }
 
 export function pauseHarmoniumSheet(): void {
   const player = cachedPlayer
   if (!player) return
+  const seconds = getHarmoniumSheetSeconds()
   player.Tone.Transport.pause()
   player.sampler.releaseAll()
+  syncSheetClock(seconds)
 }
 
 export function resumeHarmoniumSheet(): void {
-  cachedPlayer?.Tone.Transport.start()
+  const player = cachedPlayer
+  if (!player) return
+  syncSheetClock(player.Tone.Transport.seconds)
+  player.Tone.Transport.start()
 }
 
 export function stopHarmoniumSheet(): void {
@@ -145,12 +174,32 @@ export function stopHarmoniumSheet(): void {
     player.Tone.Transport.cancel()
     player.sampler.releaseAll()
   }
+  fireKeyHighlight(null)
+  activeSheetHandlers = null
+  markSheetClockStopped()
   sheetFinished?.()
   sheetFinished = null
 }
 
+function syncSheetClock(transportSeconds: number): void {
+  sheetClockOffsetSec = transportSeconds
+  sheetClockStartedAt = performance.now()
+}
+
+function markSheetClockStopped(): void {
+  sheetClockStartedAt = null
+  sheetClockOffsetSec = 0
+}
+
 export function getHarmoniumSheetSeconds(): number {
-  return cachedPlayer?.Tone.Transport.seconds ?? 0
+  const player = cachedPlayer
+  if (!player) return 0
+  const transportSeconds = player.Tone.Transport.seconds
+  if (transportSeconds > 0.001) {
+    return transportSeconds
+  }
+  if (sheetClockStartedAt == null) return 0
+  return sheetClockOffsetSec + (performance.now() - sheetClockStartedAt) / 1000
 }
 
 function sheetEndSec(events: SheetPlayEvent[]): number {
@@ -164,10 +213,20 @@ function scheduleSheetEvents(player: Player, events: SheetPlayEvent[], gen: numb
       if (gen !== playbackGeneration) return
       player.sampler.triggerAttackRelease(soundingNote(event.western), event.durationSec, time)
     }, event.startSec)
+    player.Tone.Transport.schedule(() => {
+      if (gen !== playbackGeneration) return
+      fireKeyHighlight(event.western)
+    }, event.startSec)
+    player.Tone.Transport.schedule(() => {
+      if (gen !== playbackGeneration) return
+      fireKeyHighlight(null)
+    }, event.startSec + event.durationSec)
   }
   const endSec = sheetEndSec(events)
   player.Tone.Transport.scheduleOnce(() => {
     if (gen !== playbackGeneration) return
+    fireKeyHighlight(null)
+    activeSheetHandlers = null
     const done = sheetFinished
     sheetFinished = null
     done?.()
@@ -176,9 +235,15 @@ function scheduleSheetEvents(player: Player, events: SheetPlayEvent[], gen: numb
 }
 
 /** Rebuild the playing sheet at a new tempo, keeping the same place in the song. */
-export function retargetHarmoniumSheet(events: SheetPlayEvent[], seconds: number, shouldPlay: boolean): void {
+export function retargetHarmoniumSheet(
+  events: SheetPlayEvent[],
+  seconds: number,
+  shouldPlay: boolean,
+  handlers?: SheetPlaybackHandlers,
+): void {
   const player = cachedPlayer
   if (!player || !events.length) return
+  if (handlers) activeSheetHandlers = handlers
   const gen = playbackGeneration
   player.Tone.Transport.pause()
   player.Tone.Transport.cancel()
@@ -186,6 +251,14 @@ export function retargetHarmoniumSheet(events: SheetPlayEvent[], seconds: number
   const endSec = scheduleSheetEvents(player, events, gen)
   const clipped = Math.max(0, Math.min(seconds, endSec))
   player.Tone.Transport.seconds = clipped
+  syncSheetClock(clipped)
+  let activeWestern: string | null = null
+  for (const event of events) {
+    if (clipped >= event.startSec && clipped < event.startSec + event.durationSec) {
+      activeWestern = event.western
+    }
+  }
+  fireKeyHighlight(activeWestern)
   if (shouldPlay) {
     for (const event of events) {
       if (clipped < event.startSec || clipped >= event.startSec + event.durationSec) continue
@@ -199,19 +272,25 @@ export function retargetHarmoniumSheet(events: SheetPlayEvent[], seconds: number
   }
 }
 
-export async function playSheetOnTransport(events: SheetPlayEvent[]): Promise<void> {
+export async function playSheetOnTransport(
+  events: SheetPlayEvent[],
+  handlers?: SheetPlaybackHandlers,
+): Promise<void> {
   const player = await getPlayer()
   if (!player || !events.length) return
   const gen = playbackGeneration + 1
   playbackGeneration = gen
+  activeSheetHandlers = handlers ?? null
   player.Tone.Transport.stop()
   player.Tone.Transport.cancel()
   player.Tone.Transport.seconds = 0
+  syncSheetClock(0)
   scheduleSheetEvents(player, events, gen)
   await new Promise<void>((resolve) => {
     sheetFinished = resolve
     player.Tone.Transport.start()
   })
+  markSheetClockStopped()
 }
 
 export async function startHarmoniumDrone(tonic: string): Promise<void> {

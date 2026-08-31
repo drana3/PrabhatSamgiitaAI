@@ -7,7 +7,9 @@ LOCATION="${LOCATION:-centralindia}"
 PREFIX="${PREFIX:-prabhatai}"
 TAG="${TAG:-$(date +%Y%m%d%H%M%S)}"
 DATABASE_URL="${DATABASE_URL:-}"
-ACR_NAME="${ACR_NAME:-${PREFIX}acr}"
+DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:-}"
+DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN:-}"
+DOCKER_IMAGE_PREFIX="${DOCKER_IMAGE_PREFIX:-${DOCKERHUB_USERNAME}/prabhat-samgiita}"
 ACA_ENV="${ACA_ENV:-${PREFIX}-env}"
 WEB_APP="${WEB_APP:-${PREFIX}-web}"
 API_APP="${API_APP:-${PREFIX}-api}"
@@ -105,14 +107,47 @@ curl_retry() {
 }
 
 command -v az >/dev/null || { echo "Azure CLI is required."; exit 1; }
+command -v docker >/dev/null || { echo "Docker is required."; exit 1; }
+
+if [[ "$DEPLOY_API" == "1" || "$DEPLOY_WEB" == "1" ]]; then
+  if [[ -z "${DOCKERHUB_USERNAME}" || -z "${DOCKERHUB_TOKEN}" ]]; then
+    echo "Set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN before building images."
+    exit 1
+  fi
+fi
+
+ensure_dockerhub_registry() {
+  local app_name="$1"
+  az containerapp secret set \
+    --name "$app_name" \
+    --resource-group "$RG" \
+    --secrets dockerhub-password="$DOCKERHUB_TOKEN" >/dev/null
+  az containerapp registry set \
+    --name "$app_name" \
+    --resource-group "$RG" \
+    --server docker.io \
+    --username "$DOCKERHUB_USERNAME" \
+    --password-secret dockerhub-password >/dev/null
+}
+
+build_and_push_image() {
+  local dockerfile="$1"
+  local image_suffix="$2"
+  shift 2
+  local -a extra_args=("$@")
+  local image="${DOCKER_IMAGE_PREFIX}-${image_suffix}:${TAG}"
+  echo "Building ${image}..." >&2
+  docker build -f "$dockerfile" "${extra_args[@]}" -t "$image" "$ROOT_DIR"
+  echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin >/dev/null
+  docker push "$image" >&2
+  printf '%s' "$image"
+}
 
 az group show --name "$RG" >/dev/null
-az acr show --name "$ACR_NAME" --resource-group "$RG" >/dev/null
 az containerapp env show --name "$ACA_ENV" --resource-group "$RG" >/dev/null
 az containerapp show --name "$API_APP" --resource-group "$RG" >/dev/null
 az containerapp show --name "$WEB_APP" --resource-group "$RG" >/dev/null
 
-ACR_LOGIN_SERVER="$(az acr show --name "$ACR_NAME" --resource-group "$RG" --query loginServer -o tsv)"
 WEB_FQDN="$(az containerapp show --name "$WEB_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 API_FQDN="$(az containerapp show --name "$API_APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 AUTH_ENABLED="$(az containerapp auth show --name "$WEB_APP" --resource-group "$RG" --query platform.enabled -o tsv 2>/dev/null || true)"
@@ -160,14 +195,10 @@ if [[ "$DEPLOY_API" == "1" ]]; then
       --secrets acs-email-connection-string="$ACS_EMAIL_CONNECTION_STRING" >/dev/null
   fi
 
-  echo "Building API image in ACR (prabhat-samgiita-api:${TAG})..."
-  az acr build \
-    --registry "$ACR_NAME" \
-    --image "prabhat-samgiita-api:${TAG}" \
-    --file "${ROOT_DIR}/apps/api/Dockerfile" \
-    "$ROOT_DIR"
+  ensure_dockerhub_registry "$API_APP"
 
-  API_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-api:${TAG}"
+  echo "Building API image (prabhat-samgiita-api:${TAG})..."
+  API_IMAGE="$(build_and_push_image "${ROOT_DIR}/apps/api/Dockerfile" "api")"
 else
   API_IMAGE="$(current_image "$API_APP")"
   echo "Skipping API image rebuild; reusing ${API_IMAGE}"
@@ -247,23 +278,22 @@ WEB_BUILD_LOG="$(mktemp)"
 WEB_BUILD_PID=""
 if [[ "$DEPLOY_WEB" == "1" ]]; then
   (
-    web_build_attempts="${WEB_ACR_BUILD_ATTEMPTS:-3}"
+    web_build_attempts="${WEB_DOCKER_BUILD_ATTEMPTS:-3}"
     for attempt in $(seq 1 "$web_build_attempts"); do
-      echo "Web image ACR build attempt ${attempt}/${web_build_attempts}..."
-      if az acr build \
-        --registry "$ACR_NAME" \
-        --image "prabhat-samgiita-web:${TAG}" \
-        --file "${ROOT_DIR}/apps/web/Dockerfile" \
+      echo "Web image Docker build attempt ${attempt}/${web_build_attempts}..."
+      if WEB_IMAGE_BUILT="$(build_and_push_image \
+        "${ROOT_DIR}/apps/web/Dockerfile" \
+        "web" \
         --build-arg "NEXT_PUBLIC_API_BASE_URL=https://${API_FQDN}" \
         --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
         --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}" \
-        --build-arg "NEXT_PUBLIC_FACEBOOK_APP_ID=${NEXT_PUBLIC_FACEBOOK_APP_ID}" \
-        "$ROOT_DIR"; then
+        --build-arg "NEXT_PUBLIC_FACEBOOK_APP_ID=${NEXT_PUBLIC_FACEBOOK_APP_ID}")"; then
+        printf '%s' "$WEB_IMAGE_BUILT" >"${WEB_BUILD_LOG}.image"
         exit 0
       fi
-      echo "Web image ACR build attempt ${attempt} failed."
+      echo "Web image Docker build attempt ${attempt} failed."
       if [[ "$attempt" -lt "$web_build_attempts" ]]; then
-        sleep "${WEB_ACR_BUILD_RETRY_SLEEP_SECONDS:-45}"
+        sleep "${WEB_DOCKER_BUILD_RETRY_SLEEP_SECONDS:-45}"
       fi
     done
     exit 1
@@ -336,12 +366,15 @@ fi
 rm -f "$WEB_BUILD_LOG"
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then
-  WEB_IMAGE="${ACR_LOGIN_SERVER}/prabhat-samgiita-web:${TAG}"
+  WEB_IMAGE="$(cat "${WEB_BUILD_LOG}.image")"
+  rm -f "${WEB_BUILD_LOG}.image"
 else
   WEB_IMAGE="$(current_image "$WEB_APP")"
 fi
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then
+  ensure_dockerhub_registry "$WEB_APP"
+
   az containerapp secret set \
     --name "$WEB_APP" \
     --resource-group "$RG" \
@@ -479,5 +512,5 @@ cat <<EOF
 Deployment complete.
 Web: https://${WEB_FQDN}
 API: https://${API_FQDN}
-Registry: ${ACR_LOGIN_SERVER}
+Registry: docker.io/${DOCKER_IMAGE_PREFIX}
 EOF
