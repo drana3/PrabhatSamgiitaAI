@@ -11319,6 +11319,48 @@
     }
   },
   {
+    "song_number": 3127,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Akashe Diipake Karttike - Prabhat Sangeet song #3127 - Singer - Manas Bhattacharjee",
+    "url": "https://www.youtube.com/watch?v=kPiU0HD40RE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/kPiU0HD40RE",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "kPiU0HD40RE",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.946,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3129,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ami Tai Bhevechi - Prabhat Sangeet song #3129 - Singer - Asmita Debnath",
+    "url": "https://www.youtube.com/watch?v=KTsULj1jHWo",
+    "embed_url": "https://www.youtube-nocookie.com/embed/KTsULj1jHWo",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "KTsULj1jHWo",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.947,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3144,
     "kind": "video",
     "provider": "youtube",
