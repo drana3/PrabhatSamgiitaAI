@@ -27,6 +27,7 @@ type PreferencesState = {
   feelingSearchEnabled: boolean
   harmoniumPracticeEnabled: boolean
   songNotes: Record<string, string>
+  preferredAudioBySong: Record<string, string>
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
   setSavedFromNumbers: (numbers: number[]) => void
@@ -41,6 +42,7 @@ type PreferencesState = {
   setFeelingSearchEnabled: (enabled: boolean) => void
   setHarmoniumPracticeEnabled: (enabled: boolean) => void
   setSongNote: (songId: string, note: string) => void
+  setPreferredAudioUrl: (songId: string, url: string | null) => void
 }
 
 function toSongId(number: number) {
@@ -70,6 +72,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       feelingSearchEnabled: false,
       harmoniumPracticeEnabled: false,
       songNotes: {},
+      preferredAudioBySong: {},
       syncingFavorites: false,
 
       activateFavoritesScope: (scope) => {
@@ -203,11 +206,18 @@ export const usePreferencesStore = create<PreferencesState>()(
         else next[songId] = note.slice(0, 2000)
         set({ songNotes: next })
       },
+      setPreferredAudioUrl: (songId, url) => {
+        const next = { ...(get().preferredAudioBySong ?? {}) }
+        const trimmed = url?.trim() || ""
+        if (!trimmed) delete next[songId]
+        else next[songId] = trimmed
+        set({ preferredAudioBySong: next })
+      },
     }),
     {
       name: "prabhat-preferences",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const state = persisted as {
           savedSongIds?: string[]
@@ -216,6 +226,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           recentPlays?: RecentPlay[]
           searchRecents?: string[]
           songNotes?: Record<string, string>
+          preferredAudioBySong?: Record<string, string>
           feelingSearchEnabled?: boolean
           harmoniumPracticeEnabled?: boolean
         }
@@ -237,6 +248,12 @@ export const usePreferencesStore = create<PreferencesState>()(
             harmoniumPracticeEnabled: state.harmoniumPracticeEnabled ?? false,
           }
         }
+        if (version < 4) {
+          return {
+            ...state,
+            preferredAudioBySong: state.preferredAudioBySong ?? {},
+          }
+        }
         return state
       },
       partialize: (state) => ({
@@ -248,6 +265,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         feelingSearchEnabled: state.feelingSearchEnabled,
         harmoniumPracticeEnabled: state.harmoniumPracticeEnabled,
         songNotes: state.songNotes,
+        preferredAudioBySong: state.preferredAudioBySong,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return

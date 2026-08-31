@@ -37,6 +37,7 @@ from app.services.catalog import (
 from app.services.embedding_index import build_embedding_indexes
 from app.services.feedback_live import publish_feedback_to_live, unpublish_feedback_from_live
 from app.services.feedback_triage import feedback_is_priority
+from app.services.media_quality import to_media_item_response
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 AdminIdentity = Annotated[str, Depends(require_admin)]
@@ -63,24 +64,7 @@ def _song_summary(song: Song) -> SongSummary:
 
 
 def _media_response(media: Media) -> MediaItemResponse:
-    metadata = media.metadata_json or {}
-    return MediaItemResponse(
-        kind=media.kind,
-        provider=media.provider,
-        title=media.title,
-        url=media.url,
-        embed_url=media.embed_url,
-        verification_status=media.verification_status,
-        source_url=media.source_url,
-        notes=media.notes,
-        external_id=metadata.get("external_id"),
-        channel_name=metadata.get("channel_name"),
-        source_status=metadata.get("source_status"),
-        rights_status=metadata.get("rights_status"),
-        availability_status=metadata.get("availability_status"),
-        language=metadata.get("language"),
-        match_score=metadata.get("match_score"),
-    )
+    return to_media_item_response(media)
 
 
 def _audit(

@@ -1,5 +1,7 @@
 export * from "./api"
+export * from "./audio-recordings"
 export * from "./harmonium-keyboard"
+export * from "./harmonium-key-voices"
 export * from "./harmonium-practice-pref"
 export * from "./harmonium-sample-songs"
 export * from "./lyric-search"

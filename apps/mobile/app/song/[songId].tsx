@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -29,7 +28,8 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { isSameSong, songPlayback } from "@/lib/playback"
-import { resolveSongBundle, peekResolvedSong } from "@/lib/songs"
+import { hasDownloadedAudio } from "@/lib/offlineAudio"
+import { instantSongBundle, resolveSongBundle, songRouteId } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
 import { parseSongNumber, storedMeaningForLanguage } from "@/lib/songMap"
@@ -45,13 +45,19 @@ import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
 export default function SongDetailScreen() {
-  const { songId, tab: tabParam } = useLocalSearchParams<{ songId: string; tab?: string }>()
+  const { songId, tab: tabParam } = useLocalSearchParams<{ songId: string | string[]; tab?: string }>()
   const router = useRouter()
   const { width: windowWidth } = useWindowDimensions()
-  const [song, setSong] = useState<MockSong | null>(null)
-  const [related, setRelated] = useState<MockSong[]>([])
-  const [loadingSong, setLoadingSong] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const routeId = songRouteId(songId)
+  const [song, setSong] = useState<MockSong | null>(
+    () => instantSongBundle(songRouteId(songId))?.song ?? null,
+  )
+  const [related, setRelated] = useState<MockSong[]>(
+    () => instantSongBundle(songRouteId(songId))?.related ?? [],
+  )
+  const [loadError, setLoadError] = useState<string | null>(() =>
+    instantSongBundle(songRouteId(songId)) ? null : "Song not found.",
+  )
   const loadSong = usePlayerStore((s) => s.loadSong)
   const syncCurrentSong = usePlayerStore((s) => s.syncCurrentSong)
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
@@ -131,7 +137,6 @@ export default function SongDetailScreen() {
 
   useEffect(() => {
     let active = true
-    setLoadError(null)
     setWatchPlaying(false)
     autoPlayedFor.current = null
     meaningCache.current = {}
@@ -140,38 +145,32 @@ export default function SongDetailScreen() {
     setLocalizedTitle(null)
     setLocalizing(false)
 
-    const peeked = peekResolvedSong(typeof songId === "string" ? songId : undefined)
-    if (peeked) {
-      setSong(peeked.song)
-      setRelated(peeked.related)
-      setLoadingSong(false)
-      usePlayerStore.getState().warmAudio(peeked.song)
-    } else {
-      setLoadingSong(true)
+    const instant = instantSongBundle(routeId)
+    const number = parseSongNumber(routeId)
+    if (!instant) {
+      setSong(null)
+      setRelated([])
+      setLoadError("Song not found.")
+      return () => {
+        active = false
+      }
     }
 
-    const number = parseSongNumber(typeof songId === "string" ? songId : undefined)
+    setSong(instant.song)
+    setRelated(instant.related)
+    setLoadError(null)
+    usePlayerStore.getState().warmAudio(instant.song)
     if (number) prefetchScenicForSong(number)
-    void resolveSongBundle(songId).then((bundle) => {
-      if (!active) return
-      if (!bundle) {
-        if (!peeked) {
-          setSong(null)
-          setRelated([])
-          setLoadError("Song not found.")
-        }
-        setLoadingSong(false)
-        return
-      }
+    void resolveSongBundle(routeId).then((bundle) => {
+      if (!active || !bundle) return
       setSong(bundle.song)
       setRelated(bundle.related)
-      setLoadingSong(false)
       usePlayerStore.getState().warmAudio(bundle.song)
     })
     return () => {
       active = false
     }
-  }, [songId])
+  }, [routeId])
 
   const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
   const hasFullSargam = Boolean(
@@ -230,6 +229,8 @@ export default function SongDetailScreen() {
       else setQueue(queue)
       return
     }
+    // Wait for catalog audio unless this song is already saved locally.
+    if (!song.mediaHydrated && !song.audioUrl && !hasDownloadedAudio(song.number)) return
     // Once per song visit — avoid restarting on related[] updates.
     if (autoPlayedFor.current === song.id) return
     autoPlayedFor.current = song.id
@@ -309,15 +310,6 @@ export default function SongDetailScreen() {
     }
   }, [language, song, meaningRetryTick])
 
-  if (loadingSong && !song) {
-    return (
-      <View style={[styles.root, styles.centered]}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={styles.loadingText}>Loading song…</Text>
-      </View>
-    )
-  }
-
   if (!song) {
     return (
       <View style={[styles.root, styles.centered]}>
@@ -346,6 +338,12 @@ export default function SongDetailScreen() {
   }
 
   const selectRecording = (url: string) => {
+    if (!song) return
+    const latestUrl = song.audioRecordings?.find((item) => item.isLatest)?.url
+    usePreferencesStore.getState().setPreferredAudioUrl(
+      song.id,
+      url === latestUrl ? null : url,
+    )
     if (song.audioUrl === url) {
       handlePlayToggle()
       return
@@ -441,19 +439,12 @@ export default function SongDetailScreen() {
         keyboardShouldPersistTaps="always"
         nestedScrollEnabled
       >
-        {loadingSong ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={styles.loadingText}>Loading song…</Text>
-          </View>
-        ) : null}
         <Animated.View entering={FadeInDown.duration(240)} style={styles.hero}>
           <ScenicBackgroundImage uri={song.imageUrl} style={StyleSheet.absoluteFill} priority="high" />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={showPause ? `Pause ${song.title}` : `Listen to ${song.title}`}
             onPress={handlePlayToggle}
-            onPressIn={handlePlayToggle}
             style={({ pressed }) => [styles.heroPlay, pressed && { transform: [{ scale: 0.96 }] }]}
           >
             {showPause ? (
@@ -521,13 +512,13 @@ export default function SongDetailScreen() {
           </Pressable>
         ) : null}
 
-        <View
-          style={[styles.sectionPanel, journey !== "listen" && styles.hiddenPanel]}
-          pointerEvents={journey === "listen" ? "auto" : "none"}
-          importantForAccessibility={journey === "listen" ? "auto" : "no-hide-descendants"}
-        >
-          <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
-          <Text style={styles.sectionLead}>Listen to this song.</Text>
+        <View style={styles.sectionPanel}>
+          {journey === "listen" ? (
+            <>
+              <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
+              <Text style={styles.sectionLead}>Listen to this song.</Text>
+            </>
+          ) : null}
           <SongListenControls
             songId={song.id}
             songNumber={song.number}
@@ -576,7 +567,7 @@ export default function SongDetailScreen() {
           <View style={styles.sectionPanel}>
             <Text style={styles.sectionEyebrow}>Experience · Harmonium</Text>
             <Text style={styles.sectionLead}>
-              Tap Sa Re Ga Ma or type sargam · Song notation when available below.
+              Play the booklet lines, tap keys, or type Sa Re Ga — same layout on every song with sargam.
             </Text>
             <NotationPractice
               songNumber={song.number}
@@ -598,18 +589,6 @@ export default function SongDetailScreen() {
           importantForAccessibility={journey === "understand" ? "auto" : "no-hide-descendants"}
         >
           <Text style={styles.sectionEyebrow}>Lyrics & Meaning</Text>
-          {isCurrent ? (
-            <SongListenControls
-              songId={song.id}
-              songNumber={song.number}
-              imageUrl={song.thumbnailUrl}
-              title={song.title}
-              performer={song.performer}
-              audioUrl={song.audioUrl}
-              onTogglePlay={handlePlayToggle}
-              compact
-            />
-          ) : null}
           <LyricsMeaningView
             lyrics={song.lyrics}
             language={language}
@@ -630,13 +609,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   centered: { alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   safe: { backgroundColor: colors.background },
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
   loadingText: {
     ...typography.caption,
     color: colors.textMuted,

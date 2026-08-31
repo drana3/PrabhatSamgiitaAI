@@ -35,7 +35,14 @@ export type MockSong = {
   /** Direct audio stream when available from the catalog. */
   audioUrl?: string | null
   /** Alternate catalog recordings for the Listen tab. */
-  audioRecordings?: Array<{ title: string; url: string; provider: string }>
+  audioRecordings?: Array<{
+    title: string
+    url: string
+    provider: string
+    isLatest?: boolean
+    isOlder?: boolean
+    isLowQuality?: boolean
+  }>
   /** Canonical Andromeda notation PDF when available. */
   notationSourceUrl?: string | null
   notationVerificationStatus?: string | null

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { bookletHarmoniumSong } from "@prabhat/core"
+import { bookletHarmoniumSong, compareAudioQuality } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
 import { completeSargamSongs, isCompleteSargamSong } from "@/lib/complete-sargam"
 import { isRomanPracticeNotation } from "@/lib/sargam-display"
@@ -221,7 +221,7 @@ function mediaFor(number: number): SongDetail["media"] {
     source_url: item.source_url,
     notes: item.notes,
   }))
-  if (seed.length) return seed
+  if (seed.length) return seed.slice().sort(compareAudioQuality)
   const generated = generatedAudioIndex().get(number)
   if (!generated) return []
   return [
@@ -271,7 +271,7 @@ export function localSongDetail(number: number): SongDetail | null {
     notation_source_url: notation?.source_url,
     notation_verification_status: notation?.verification_status,
     notation_transposition_available: playable,
-    notation_enabled: true,
+    notation_enabled: Boolean(bookletHarmoniumSong(number)),
     metadata_json: song.metadata_json ?? {},
   }
 }
@@ -317,7 +317,7 @@ export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail 
             local.notation_verification_status === "admin_submitted"
           ? remote.notation_transposition_available || local.notation_transposition_available
           : false,
-    notation_enabled: remote.notation_enabled ?? local.notation_enabled ?? true,
+    notation_enabled: remote.notation_enabled ?? local.notation_enabled ?? Boolean(bookletHarmoniumSong(remote.number)),
     sargam_attribution: remote.notation_enabled === false ? null : remote.sargam_attribution ?? local.sargam_attribution,
   }
 }

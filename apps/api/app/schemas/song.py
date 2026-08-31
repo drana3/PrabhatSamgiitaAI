@@ -31,6 +31,9 @@ class MediaItemResponse(BaseModel):
     availability_status: str | None = None
     language: str | None = None
     match_score: float | None = None
+    is_latest: bool = False
+    is_older: bool = False
+    is_low_quality: bool = False
 
 
 class SargamAttribution(BaseModel):

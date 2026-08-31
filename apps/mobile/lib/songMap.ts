@@ -24,12 +24,48 @@ export function songCardTitle(song: {
   return song.title?.trim() || `PS ${song.number}`
 }
 
-export function parseSongNumber(songId: string | undefined): number | null {
-  if (!songId) return null
-  const match = /^ps-(\d+)$/i.exec(songId)
+export function parseSongNumber(songId: string | string[] | undefined): number | null {
+  const raw = Array.isArray(songId) ? songId[0] : songId
+  if (!raw) return null
+  let value = raw.trim()
+  try {
+    value = decodeURIComponent(value).trim()
+  } catch {
+    /* keep raw */
+  }
+  const match = /^ps-(\d+)$/i.exec(value)
   if (match) return Number(match[1])
-  const asNumber = Number(songId)
+  const asNumber = Number(value)
   return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null
+}
+
+/** Normalize Expo route params (`ps-12`, `12`, or a one-item array). */
+export function songRouteId(songId: string | string[] | undefined): string | undefined {
+  const number = parseSongNumber(songId)
+  return number ? `ps-${number}` : undefined
+}
+
+/** Instant song-page chrome while the API detail is in flight. */
+export function songPlaceholder(number: number, extras?: Partial<MockSong>): MockSong {
+  return {
+    id: `ps-${number}`,
+    number,
+    title: extras?.title?.trim() || `PS ${number}`,
+    originalTitle: extras?.originalTitle,
+    shortDescription: extras?.shortDescription || extras?.title || "Prabhat Samgiita",
+    imageUrl: extras?.imageUrl || scenicHeroFor(number),
+    thumbnailUrl: extras?.thumbnailUrl || scenicThumbFor(number),
+    themes: extras?.themes?.length ? extras.themes : ["Prabhat Samgiita"],
+    meaning: extras?.meaning || "",
+    lyrics: extras?.lyrics || "",
+    translation: extras?.translation || "",
+    durationSeconds: extras?.durationSeconds || 300,
+    performer: extras?.performer || "Prabhat Samgiita Collection",
+    videos: extras?.videos ?? [],
+    audioUrl: extras?.audioUrl ?? null,
+    audioRecordings: extras?.audioRecordings,
+    mediaHydrated: false,
+  }
 }
 
 function readLocalizedMeanings(metadata: Record<string, unknown> | undefined): Record<string, string> {
@@ -108,7 +144,7 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
   }
 }
 
-export function songDetailToMockSong(detail: SongDetail): MockSong {
+export function songDetailToMockSong(detail: SongDetail, preferredAudioUrl?: string | null): MockSong {
   const hero = scenicHeroFor(detail.number)
   const thumb = scenicThumbFor(detail.number)
   const embeds = mediaVideosToEmbeds(detail.media, thumb, detail.number)
@@ -121,6 +157,7 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
   }))
 
   const themes = [detail.theme, detail.mood, detail.occasion].filter(Boolean) as string[]
+  const recordings = listPlayableAudio(detail.media).slice(0, 8)
 
   return {
     id: `ps-${detail.number}`,
@@ -142,11 +179,11 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     durationSeconds: 300,
     performer: "Prabhat Samgiita Collection",
     videos,
-    audioUrl: pickPreferredAudioUrl(detail.media),
-    audioRecordings: listPlayableAudio(detail.media).slice(0, 5),
+    audioRecordings: recordings,
+    audioUrl: pickPreferredAudioUrl(detail.media, preferredAudioUrl),
     notationSourceUrl: detail.notation_source_url?.trim() || null,
     notationVerificationStatus: detail.notation_verification_status?.trim() || null,
-    notationEnabled: detail.notation_enabled !== false,
+    notationEnabled: detail.notation_enabled === true,
     sargamSubmittedBy: detail.sargam_attribution?.display_name?.trim() || null,
     sargamSubmittedAt: detail.sargam_attribution?.submitted_at ?? null,
     mediaHydrated: true,

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Any
 
 import pytest
@@ -12,7 +13,13 @@ from app.services.catalog import (
     catalog_notation_snapshot,
     catalog_song_snapshot,
 )
-from app.services.media_quality import media_quality_key
+from app.services.media_quality import (
+    media_is_low_quality,
+    media_is_older,
+    media_quality_key,
+    preferred_audio_url,
+    to_media_item_response,
+)
 from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
@@ -168,6 +175,46 @@ def test_primary_audio_prefers_current_and_non_low_quality_recordings() -> None:
         old,
         low_quality,
     ]
+    assert preferred_audio_url([low_quality, old, current]) == current.url
+    latest = to_media_item_response(current, latest_url=current.url)
+    older = to_media_item_response(old, latest_url=current.url)
+    assert latest.is_latest is True
+    assert older.is_latest is False
+    assert older.is_older is True
+
+    old_primary = Media(
+        song_number=1,
+        kind="audio",
+        provider="official",
+        title="Old recording",
+        url="https://example.test/old.mp3",
+        verification_status="verified",
+        metadata_json={"source_status": "official", "version": "old", "is_primary": True},
+    )
+    assert preferred_audio_url([old_primary, current]) == current.url
+
+
+def test_catalog_default_audio_is_the_best_available_take() -> None:
+    by_song: dict[int, list[Media]] = defaultdict(list)
+    for item in catalog_media_snapshot():
+        if item.kind == "audio" and item.song_number is not None:
+            by_song[item.song_number].append(item)
+
+    assert len(by_song) >= 4948
+    for items in by_song.values():
+        chosen = next(item for item in items if item.url == preferred_audio_url(items))
+        has_current = any(not media_is_older(item) and not media_is_low_quality(item) for item in items)
+        if has_current:
+            assert not media_is_older(chosen)
+            assert not media_is_low_quality(chosen)
+        has_official_current = any(
+            item.provider == "official"
+            and not media_is_older(item)
+            and not media_is_low_quality(item)
+            for item in items
+        )
+        if has_official_current:
+            assert chosen.provider == "official"
 
 
 def test_canonical_inventory_titles_are_not_truncated() -> None:
@@ -197,6 +244,21 @@ async def test_catalog_falls_back_to_full_snapshot() -> None:
 
     assert (await service.get_song(5018)).number == 5018  # type: ignore[union-attr]
     assert [song.number for song in await service.list_songs(limit=2, offset=110)] == [111, 112]
+
+
+class BoomSession:
+    async def execute(self, statement: Any) -> None:
+        raise AssertionError("learner notation must not query postgres")
+
+    async def rollback(self) -> None:
+        return None
+
+
+@pytest.mark.asyncio
+async def test_get_notation_reads_memory_without_sql() -> None:
+    service = CatalogService(BoomSession())  # type: ignore[arg-type]
+    notation = await service.get_notation(1)
+    assert notation is None or notation.song_number == 1
 
 
 @pytest.mark.asyncio
@@ -260,6 +322,77 @@ async def test_neon_song_edits_patch_the_in_memory_catalog() -> None:
     assert songs_by_number()[1].lyrics_original == "UPDATED LYRICS FROM NEON"
     reset_catalog_memory()
     assert songs_by_number()[1].lyrics_original == original
+
+
+@pytest.mark.asyncio
+async def test_neon_notation_json_patches_the_in_memory_catalog() -> None:
+    from app.models import Notation, Song
+    from app.services.catalog import (
+        notations_by_song_number,
+        refresh_catalog_song,
+        reset_catalog_memory,
+        songs_by_number,
+    )
+
+    reset_catalog_memory()
+    seed_songs = songs_by_number()
+    song_number = next(number for number in seed_songs if number not in {1, 2, 27})
+    original_notation = notations_by_song_number().get(song_number)
+    original_text = original_notation.notation_text if original_notation else None
+    notation_json = (
+        '{"version":1,"source_scale":"C","lines":[{"line_number":1,'
+        '"lyrics":"synced from db","measures":[]}]}'
+    )
+    updated_song = Song(
+        number=song_number,
+        title=seed_songs[song_number].title,
+        lyrics_original=seed_songs[song_number].lyrics_original,
+        canonical_source_status="verified",
+        is_verified=True,
+        metadata_json={},
+    )
+    updated_notation = Notation(
+        song_number=song_number,
+        source_url="https://example.test/notation-sync",
+        notation_text=notation_json,
+        scale="C",
+        verification_status="verified",
+        metadata_json={"source_kind": "admin_sargam"},
+    )
+    calls = {"n": 0}
+
+    class Session:
+        async def execute(self, statement: Any) -> Any:
+            del statement
+            calls["n"] += 1
+            if calls["n"] == 1:
+                class SongResult:
+                    def scalar_one_or_none(self) -> Song:
+                        return updated_song
+                return SongResult()
+            if calls["n"] == 2:
+                class MediaResult:
+                    def scalars(self):
+                        return self
+                    def all(self) -> list[Any]:
+                        return []
+                return MediaResult()
+            class NotationResult:
+                def scalar_one_or_none(self) -> Notation:
+                    return updated_notation
+            return NotationResult()
+
+        async def rollback(self) -> None:
+            return None
+
+    assert await refresh_catalog_song(Session(), song_number)  # type: ignore[arg-type]
+    synced = notations_by_song_number()[song_number]
+    assert synced.notation_text == notation_json
+    assert synced.metadata_json["source_kind"] == "admin_sargam"
+    reset_catalog_memory()
+    restored = notations_by_song_number().get(song_number)
+    restored_text = restored.notation_text if restored else None
+    assert restored_text == original_text
 
 
 @pytest.mark.asyncio

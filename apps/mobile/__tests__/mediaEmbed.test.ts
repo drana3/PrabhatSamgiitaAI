@@ -6,6 +6,7 @@ import {
   listPlayableAudio,
   mediaVideosToEmbeds,
   pickPreferredAudioUrl,
+  resolvePreferredAudioUrl,
   toInAppVideoEmbedUrl,
 } from "@/lib/mediaEmbed"
 import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
@@ -84,6 +85,45 @@ describe("in-app media embeds", () => {
       "https://example.test/alt.mp3",
     ])
     expect(audioRecordingLabel(recordings[1]!, 1)).toBe("Practice take")
+  })
+
+  it("prefers the current recording over an old version and marks it best", () => {
+    const media = [
+      {
+        kind: "audio",
+        provider: "official",
+        title: "Song 8 (old version)",
+        url: "https://prabhatasamgiita.net/8-old.mp3",
+        verification_status: "verified",
+      },
+      {
+        kind: "audio",
+        provider: "official",
+        title: "Song 8",
+        url: "https://prabhatasamgiita.net/8.mp3",
+        verification_status: "verified",
+      },
+      {
+        kind: "audio",
+        provider: "official",
+        title: "Song 8 (low quality)",
+        url: "https://prabhatasamgiita.net/8-low.mp3",
+        verification_status: "verified",
+      },
+    ]
+    const recordings = listPlayableAudio(media)
+    expect(recordings.map((item) => item.url)).toEqual([
+      "https://prabhatasamgiita.net/8.mp3",
+      "https://prabhatasamgiita.net/8-old.mp3",
+      "https://prabhatasamgiita.net/8-low.mp3",
+    ])
+    expect(recordings[0]?.isLatest).toBe(true)
+    expect(recordings[1]?.isOlder).toBe(true)
+    expect(recordings[2]?.isLowQuality).toBe(true)
+    expect(pickPreferredAudioUrl(media)).toBe("https://prabhatasamgiita.net/8.mp3")
+    expect(resolvePreferredAudioUrl(recordings, "https://prabhatasamgiita.net/8-old.mp3")).toBe(
+      "https://prabhatasamgiita.net/8-old.mp3",
+    )
   })
 
   it("maps only embeddable videos from song detail", () => {
