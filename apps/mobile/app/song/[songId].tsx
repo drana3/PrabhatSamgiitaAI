@@ -512,13 +512,13 @@ export default function SongDetailScreen() {
           </Pressable>
         ) : null}
 
-        <View style={styles.sectionPanel}>
-          {journey === "listen" ? (
-            <>
-              <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
-              <Text style={styles.sectionLead}>Listen to this song.</Text>
-            </>
-          ) : null}
+        <View
+          style={[styles.sectionPanel, journey !== "listen" && styles.hiddenPanel]}
+          pointerEvents={journey === "listen" ? "auto" : "none"}
+          importantForAccessibility={journey === "listen" ? "auto" : "no-hide-descendants"}
+        >
+          <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
+          <Text style={styles.sectionLead}>Listen to this song.</Text>
           <SongListenControls
             songId={song.id}
             songNumber={song.number}
@@ -589,6 +589,20 @@ export default function SongDetailScreen() {
           importantForAccessibility={journey === "understand" ? "auto" : "no-hide-descendants"}
         >
           <Text style={styles.sectionEyebrow}>Lyrics & Meaning</Text>
+          {isCurrent ? (
+            <SongListenControls
+              songId={song.id}
+              songNumber={song.number}
+              imageUrl={song.thumbnailUrl}
+              title={song.title}
+              performer={song.performer}
+              audioUrl={song.audioUrl}
+              recordings={song.audioRecordings}
+              onSelectRecording={selectRecording}
+              onTogglePlay={handlePlayToggle}
+              compact
+            />
+          ) : null}
           <LyricsMeaningView
             lyrics={song.lyrics}
             language={language}
