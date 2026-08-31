@@ -118,16 +118,12 @@ fi
 
 ensure_dockerhub_registry() {
   local app_name="$1"
-  az containerapp secret set \
-    --name "$app_name" \
-    --resource-group "$RG" \
-    --secrets dockerhub-password="$DOCKERHUB_TOKEN" >/dev/null
   az containerapp registry set \
     --name "$app_name" \
     --resource-group "$RG" \
-    --server docker.io \
+    --server registry.hub.docker.com \
     --username "$DOCKERHUB_USERNAME" \
-    --password-secret dockerhub-password >/dev/null
+    --password "$DOCKERHUB_TOKEN" >/dev/null
 }
 
 build_and_push_image() {
