@@ -55,5 +55,5 @@ export function meaningUnavailableMessage(languageOrLabel: string) {
   if (code === "hi") {
     return "Hindi meaning is not available for this song yet."
   }
-  return `${label} translation isn’t available for this song yet. English meaning is shown below — try again later, or pick another language.`
+  return `${label} translation isn't available for this song yet. Try another language, or tap Retry translation.`
 }

@@ -45,6 +45,10 @@ export function peekSongLocalization(number: number, language: string): SongLoca
   return localizationCache.get(localizationKey(number, language)) ?? null
 }
 
+export function forgetSongLocalization(number: number, language: string) {
+  localizationCache.delete(localizationKey(number, language))
+}
+
 export async function fetchSongLocalizationCached(
   number: number,
   language: string,

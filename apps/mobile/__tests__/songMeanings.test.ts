@@ -75,6 +75,6 @@ describe("meaningUnavailableMessage", () => {
   it("names the selected language in the unavailable copy", () => {
     expect(meaningUnavailableMessage("nl")).toContain("Dutch")
     expect(meaningUnavailableMessage("Hindi")).toContain("Hindi")
-    expect(meaningUnavailableMessage("Hindi")).not.toContain("Try English or Hindi")
+    expect(meaningUnavailableMessage("Hindi")).not.toContain("English meaning is shown below")
   })
 })

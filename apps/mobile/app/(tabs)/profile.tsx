@@ -244,6 +244,9 @@ export default function ProfileScreen() {
               </Pressable>
             )}
             <Text style={styles.role}>{mode === "guest" ? "Guest explorer" : email}</Text>
+            {mode === "signed_in" && !editingName ? (
+              <Text style={styles.editHint}>Tap your name to edit your display name</Text>
+            ) : null}
             {mode === "signed_in" ? (
               <Text style={styles.stat}>
                 {savedCount} saved · {isAdmin ? "Admin" : "Member"}
@@ -467,6 +470,7 @@ const styles = StyleSheet.create({
   },
   nameSaveText: { ...typography.label, color: colors.white },
   role: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
+  editHint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   stat: { ...typography.caption, color: colors.primary, marginTop: spacing.xs },
   syncWarning: {
     backgroundColor: colors.primaryLight,

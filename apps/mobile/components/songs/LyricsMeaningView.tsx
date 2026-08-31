@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -19,6 +18,7 @@ import {
 } from "@/constants/languages"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { copyTextToClipboard } from "@/lib/clipboard"
 import type { UnderstandMode } from "@/lib/lyricsMeaningPager"
 import type { SongMeaningResolution } from "@/lib/songMeanings"
 import { meaningUnavailableMessage } from "@/lib/songMeanings"
@@ -38,16 +38,22 @@ type Props = {
   localizing: boolean
   meaning: SongMeaningResolution
   onSelectLanguage: (code: string) => void
+  onRetryMeaning?: () => void
+  retryingMeaning?: boolean
 }
 
 function MeaningBody({
   language,
   meaning,
+  onRetry,
+  retrying,
 }: {
   language: string
   meaning: SongMeaningResolution
+  onRetry?: () => void
+  retrying?: boolean
 }) {
-  if (meaning.status === "loading") {
+  if (meaning.status === "loading" || retrying) {
     return (
       <View style={styles.meaningLoadingRow}>
         <ActivityIndicator size="small" color={colors.primary} />
@@ -59,7 +65,19 @@ function MeaningBody({
     return <Text style={styles.body}>{meaning.text}</Text>
   }
   return (
-    <Text style={styles.meaningUnavailable}>{meaningUnavailableMessage(language)}</Text>
+    <View style={styles.unavailableBlock}>
+      <Text style={styles.meaningUnavailable}>{meaningUnavailableMessage(language)}</Text>
+      {onRetry ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Retry translation"
+          onPress={onRetry}
+          style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.retryBtnText}>Retry translation</Text>
+        </Pressable>
+      ) : null}
+    </View>
   )
 }
 
@@ -135,9 +153,12 @@ export function LyricsMeaningView({
   localizing,
   meaning,
   onSelectLanguage,
+  onRetryMeaning,
+  retryingMeaning = false,
 }: Props) {
   const [mode, setMode] = useState<UnderstandMode>("lyrics")
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const copyVisibleText = async () => {
     const text =
@@ -150,10 +171,10 @@ export function LyricsMeaningView({
       Alert.alert("Copy", "Nothing to copy yet.")
       return
     }
-    try {
-      await Share.share({ message: text })
-    } catch {
-      Alert.alert("Copy", "Could not open the share sheet.")
+    const ok = await copyTextToClipboard(text, mode === "lyrics" ? "Lyrics copied" : "Meaning copied")
+    if (ok) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
     }
   }
 
@@ -185,7 +206,7 @@ export function LyricsMeaningView({
           onPress={() => void copyVisibleText()}
           style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.85 }]}
         >
-          <Text style={styles.copyBtnText}>{mode === "lyrics" ? "Copy" : "Copy"}</Text>
+          <Text style={styles.copyBtnText}>{copied ? "Copied" : "Copy"}</Text>
         </Pressable>
       </View>
 
@@ -206,7 +227,12 @@ export function LyricsMeaningView({
             {meaning.text}
           </Text>
         ) : (
-          <MeaningBody language={language} meaning={meaning} />
+          <MeaningBody
+            language={language}
+            meaning={meaning}
+            onRetry={onRetryMeaning}
+            retrying={retryingMeaning}
+          />
         )}
       </View>
 
@@ -320,6 +346,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
+  unavailableBlock: { gap: spacing.sm },
+  retryBtn: {
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.primaryLight,
+  },
+  retryBtnText: { ...typography.caption, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
   meaningUnavailable: { ...typography.bodySmall, color: colors.textMuted },
   lyrics: { ...typography.body, color: colors.textPrimary },
 })

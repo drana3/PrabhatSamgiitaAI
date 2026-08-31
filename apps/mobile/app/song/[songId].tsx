@@ -37,7 +37,7 @@ import { localeLabel } from "@/constants/languages"
 import { hasPublishedLearnerSargam } from "@prabhat/core"
 import { practiceLyricSource } from "@/lib/sargamDisplay"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
-import { peekSongLocalization } from "@/lib/songCache"
+import { forgetSongLocalization, peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
@@ -70,6 +70,8 @@ export default function SongDetailScreen() {
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
   const [localizing, setLocalizing] = useState(false)
+  const [meaningRetryTick, setMeaningRetryTick] = useState(0)
+  const [retryingMeaning, setRetryingMeaning] = useState(false)
   const [journey, setJourney] = useState<SongJourneyTab>("listen")
   const [watchPlaying, setWatchPlaying] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
@@ -118,6 +120,14 @@ export default function SongDetailScreen() {
     },
     [song],
   )
+
+  const retryMeaningTranslation = useCallback(() => {
+    if (!song || language === "en") return
+    delete meaningCache.current[language]
+    forgetSongLocalization(song.number, localeLabel(language))
+    setRetryingMeaning(true)
+    setMeaningRetryTick((tick) => tick + 1)
+  }, [language, song])
 
   useEffect(() => {
     let active = true
@@ -269,9 +279,11 @@ export default function SongDetailScreen() {
     }
     let active = true
     setLocalizing(true)
+    setRetryingMeaning(false)
     void fetchSongMeaningLocalization(song.number, language).then((result) => {
       if (!active) return
       setLocalizing(false)
+      setRetryingMeaning(false)
       if (!result) {
         setLocalizedMeaning(null)
         setLocalizedTitle(null)
@@ -289,13 +301,14 @@ export default function SongDetailScreen() {
     }).catch(() => {
       if (!active) return
       setLocalizing(false)
+      setRetryingMeaning(false)
       setLocalizedMeaning(null)
       setLocalizedTitle(null)
     })
     return () => {
       active = false
     }
-  }, [language, song])
+  }, [language, song, meaningRetryTick])
 
   if (loadingSong && !song) {
     return (
@@ -604,6 +617,8 @@ export default function SongDetailScreen() {
             localizing={localizing}
             meaning={meaningResolution}
             onSelectLanguage={selectLanguage}
+            onRetryMeaning={retryMeaningTranslation}
+            retryingMeaning={retryingMeaning}
           />
         </View>
 
