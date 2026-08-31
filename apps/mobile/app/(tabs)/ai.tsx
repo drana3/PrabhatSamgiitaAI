@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AIComposer } from "@/components/ai/AIComposer"
 import { AssistantMarkdown } from "@/components/ai/AssistantMarkdown"
+import { CopyChatAnswerButton } from "@/components/ai/CopyChatAnswerButton"
 import { AIWelcomeCard, SuggestionRow } from "@/components/ai/AIWelcomeCard"
 import { IconButton } from "@/components/common/IconButton"
 import { colors } from "@/constants/colors"
@@ -333,7 +334,10 @@ export default function AIScreen() {
                     style={[styles.bubble, msg.role === "user" ? styles.user : styles.assistant]}
                   >
                     {msg.role === "assistant" ? (
-                      <AssistantMarkdown text={msg.text} />
+                      <>
+                        <AssistantMarkdown text={msg.text} />
+                        <CopyChatAnswerButton text={msg.text} />
+                      </>
                     ) : (
                       <Text style={styles.userText}>{msg.text}</Text>
                     )}

@@ -22,6 +22,7 @@ import {
 import type { ChatMessage } from "@/lib/chat"
 import { conversationLanguage } from "@/lib/chat-language"
 import { AssistantMarkdown } from "@/components/assistant-markdown"
+import { CopyTextButton } from "@/components/copy-text-button"
 import { streamExplanation } from "@/lib/explain"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { useMember } from "@/components/member-provider"
@@ -273,7 +274,12 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
                 {loading && index === messages.length - 1 && !message.text ? (
                   <LoadingIndicator label="Reading the song and preparing your answer" />
                 ) : message.role === "assistant" ? (
-                  <AssistantMarkdown text={displayText} />
+                  <>
+                    <AssistantMarkdown text={displayText} />
+                    {displayText.trim() ? (
+                      <CopyTextButton compact text={displayText} label="Copy answer" />
+                    ) : null}
+                  </>
                 ) : (
                   <p dir="auto" className="whitespace-pre-wrap">{displayText}</p>
                 )}
