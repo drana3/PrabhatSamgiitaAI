@@ -9303,6 +9303,27 @@
     }
   },
   {
+    "song_number": 2758,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Nrityera Tale Tale - Prabhat Sangeet song #2758 - Singer - Swarup Paul",
+    "url": "https://www.youtube.com/watch?v=SS5VuCJ_LiE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/SS5VuCJ_LiE",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "SS5VuCJ_LiE",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.949,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2764,
     "kind": "video",
     "provider": "youtube",
@@ -9362,6 +9383,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.951,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2773,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Dak Diye Diye - Prabhat Sangeet song #2773 - Singer - Manas Bhattacharjee",
+    "url": "https://www.youtube.com/watch?v=5wIoWh9VUc8",
+    "embed_url": "https://www.youtube-nocookie.com/embed/5wIoWh9VUc8",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "5wIoWh9VUc8",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.947,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -11357,6 +11399,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.947,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3130,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tumi Andhar Nishay Dhruvatara - Prabhat Sangeet song #3130 - Singer - Asmita Debnath",
+    "url": "https://www.youtube.com/watch?v=Le3B6HtX9Tk",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Le3B6HtX9Tk",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "Le3B6HtX9Tk",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
     }
   },
