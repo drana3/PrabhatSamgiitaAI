@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
 import { buildClientPrincipal } from "@/lib/azure-principal"
-import { memberSessionIsAdmin } from "@/lib/member-admin-proxy"
+import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
+import { forwardMemberAdmin, memberSessionIsAdmin } from "@/lib/member-admin-proxy"
 
 describe("member admin session", () => {
   const originalProxyKey = process.env.MEMBER_PROXY_KEY
@@ -120,6 +121,29 @@ describe("member admin session", () => {
       total: 0,
       items: [],
       error: "Member services are not configured",
+    })
+  })
+
+  it("forwards admin requests using the local auth cookie", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.API_BASE_URL = "https://api.example.test"
+    const principal = buildClientPrincipal("google-user-1", "owner@example.com", "google")
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ total: 0, items: [] }),
+      headers: { get: () => "application/json" },
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const request = new NextRequest("https://example.test/api/admin/feedback?status=new")
+    request.cookies.set(LOCAL_AUTH_COOKIE, principal)
+
+    const response = await forwardMemberAdmin(request, "feedback")
+    expect(response.status).toBe(200)
+    const [targetUrl, init] = fetchMock.mock.calls[0] ?? []
+    expect(String(targetUrl)).toContain("/api/v1/members/admin/feedback")
+    expect((init as RequestInit).headers).toMatchObject({
+      "X-MS-CLIENT-PRINCIPAL": principal,
     })
   })
 })

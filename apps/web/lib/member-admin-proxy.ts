@@ -1,7 +1,11 @@
 import type { NextRequest } from "next/server"
 
-import { azureAuthForwardHeaders, resolveClientPrincipal } from "@/lib/azure-principal"
-import { fetchBackendMemberSession, memberPrincipalFor } from "@/lib/member-request"
+import { azureAuthForwardHeaders } from "@/lib/azure-principal"
+import {
+  fetchBackendMemberSession,
+  memberPrincipalFor,
+  memberPrincipalFromHeaders,
+} from "@/lib/member-request"
 import { runtimeEnv } from "@/lib/runtime-env"
 
 export function memberForwardHeaders(request: NextRequest) {
@@ -57,9 +61,10 @@ function readAdminDetail(body: unknown, fallback: string) {
 export async function fetchAdminFeedback(
   source: Headers,
   status = "new",
+  localAuthCookie?: string | null,
 ): Promise<AdminFeedbackResponse> {
   const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
-  const principal = resolveClientPrincipal(source)
+  const principal = memberPrincipalFromHeaders(source, localAuthCookie)
   const authError = adminProxyAuthError(proxyKey, principal)
   if (authError) {
     return { total: 0, items: [], error: authError }
@@ -100,7 +105,7 @@ export async function forwardMemberAdmin(
   init?: RequestInit,
 ) {
   const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
-  const principal = resolveClientPrincipal(request.headers)
+  const principal = memberPrincipalFor(request)
   const authError = adminProxyAuthError(proxyKey, principal)
   if (authError || !proxyKey || !principal) {
     return new Response(JSON.stringify({ detail: authError ?? "Sign in is required" }), {
