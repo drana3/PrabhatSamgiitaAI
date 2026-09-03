@@ -205,7 +205,7 @@ if [[ "$DEPLOY_API" == "1" ]]; then
     DATABASE_URL=secretref:database-url
     FAISS_INDEX_DIR=/app/data/generated/faiss
     APP_ENV=production
-    API_CORS_ORIGINS="https://${WEB_FQDN}"
+    API_CORS_ORIGINS="https://${WEB_FQDN},https://www.prabhatasamgiita.org,https://prabhatasamgiita.org"
     TRUSTED_HOSTS="${API_FQDN},localhost,127.0.0.1"
     CONTENT_SOURCE_URL=https://prabhatasamgiita.net
     CONTENT_CACHE_DIR=/tmp/content-cache
