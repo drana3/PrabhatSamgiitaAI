@@ -449,6 +449,26 @@ function lookupTokenRows(index: LyricTokenIndex, token: string, foldedToken: str
     addRowSet(rows, index.exact.get(swapped))
     addRowSet(rows, index.folded.get(foldLyricPhonetic(swapped)))
   }
+  // Missing/extra letter typos (hamdrdi → hamdardi) for the full catalog index.
+  if (!rows.size && token.length >= 4 && token.length <= 10) {
+    for (let i = 0; i < token.length; i += 1) {
+      const dropped = `${token.slice(0, i)}${token.slice(i + 1)}`
+      if (dropped.length >= 3) {
+        addRowSet(rows, index.exact.get(dropped))
+        addRowSet(rows, index.folded.get(foldLyricPhonetic(dropped)))
+      }
+    }
+    if (!rows.size) {
+      for (let i = 0; i <= token.length; i += 1) {
+        for (let code = 97; code <= 122; code += 1) {
+          const letter = String.fromCharCode(code)
+          const inserted = `${token.slice(0, i)}${letter}${token.slice(i)}`
+          addRowSet(rows, index.exact.get(inserted))
+          addRowSet(rows, index.folded.get(foldLyricPhonetic(inserted)))
+        }
+      }
+    }
+  }
   return rows
 }
 

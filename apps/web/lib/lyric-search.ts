@@ -70,7 +70,8 @@ export function searchCatalogLyrics(
     return options?.interpret ? interpretLyricHits(hits) : hits.filter((hit) => hit.score >= 30)
   }
   const primary = pickLyrics(query)
-  const meaningPrimary = pickMeanings(query)
+  const meaningPrimary =
+    primary.length && !isMeaningCatalogQuery(query) ? [] : pickMeanings(query)
   if (primary.length || meaningPrimary.length) {
     return mergeLyricAndMeaningHits(primary, meaningPrimary, limit)
   }
