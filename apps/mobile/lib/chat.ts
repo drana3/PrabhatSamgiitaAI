@@ -74,6 +74,9 @@ export function formatAssistantMessage(text: string): string {
     .replace(/\nSources:\n[\s\S]*$/i, "")
     .replace(/\nSources:\s[^\n]+/gi, "")
     .replace(/\s*\[\d+\]/g, "")
+    .replace(/^[•●◦]\s+/gm, "- ")
+    .replace(/^(\d+)[.)]\s+/gm, "$1. ")
+    .replace(/^(#{1,3}[^\n]+)$/gm, "\n$1\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
 }

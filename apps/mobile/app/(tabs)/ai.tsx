@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,12 +12,12 @@ import {
   View,
 } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { History, Home, Plus, X, ChevronLeft } from "lucide-react-native"
+import { Check, Copy, History, Home, Plus, X, ChevronLeft } from "lucide-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import * as Clipboard from "expo-clipboard"
+import Markdown from "react-native-markdown-display"
 
 import { AIComposer } from "@/components/ai/AIComposer"
-import { AssistantMarkdown } from "@/components/ai/AssistantMarkdown"
-import { CopyChatAnswerButton } from "@/components/ai/CopyChatAnswerButton"
 import { AIWelcomeCard, SuggestionRow } from "@/components/ai/AIWelcomeCard"
 import { IconButton } from "@/components/common/IconButton"
 import { colors } from "@/constants/colors"
@@ -64,6 +65,7 @@ export default function AIScreen() {
   >([])
   const [archivedSummary, setArchivedSummary] = useState("")
   const [sending, setSending] = useState(false)
+  const [syncingHistory, setSyncingHistory] = useState(false)
   const [focusSong, setFocusSong] = useState<MockSong | null>(null)
   const mode = useAuthStore((s) => s.mode)
   const email = useAuthStore((s) => s.email)
@@ -91,6 +93,18 @@ export default function AIScreen() {
     [account],
   )
   const messages = activeThread?.messages ?? []
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const copyMessage = async (id: string, text: string) => {
+    const value = text?.trim()
+    if (!value) return
+    try {
+      await Clipboard.setStringAsync(value)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500)
+    } catch {
+      /* ignore clipboard errors */
+    }
+  }
   const scopeSongNumber = groundedNumber ?? null
   const pastThreads = account.threads.filter(
     (t) =>
@@ -162,31 +176,37 @@ export default function AIScreen() {
   useEffect(() => {
     if (mode !== "signed_in" || !memberAuthAvailable()) return
     let active = true
-    void api.fetchMemberChat(groundedNumber ?? undefined).then((memory) => {
-      if (!active || !memory.ok) return
-      if (!groundedNumber) {
-        setServerHistoryDays(memory.history_days ?? [])
-        setArchivedSummary(memory.archived_summary ?? "")
-        if (!memory.recent_turns.length && !(memory.history_days?.length)) return
-        syncServerHistory(accountId, memory, null)
+    setSyncingHistory(true)
+    void api
+      .fetchMemberChat(groundedNumber ?? undefined)
+      .then((memory) => {
+        if (!active || !memory.ok) return
+        if (!groundedNumber) {
+          setServerHistoryDays(memory.history_days ?? [])
+          setArchivedSummary(memory.archived_summary ?? "")
+          if (!memory.recent_turns.length && !(memory.history_days?.length)) return
+          syncServerHistory(accountId, memory, null)
+          hydrateFromServerTurns(
+            accountId,
+            memory.recent_turns,
+            memory.summary || undefined,
+            null,
+          )
+          return
+        }
+        setServerHistoryDays([])
+        setArchivedSummary("")
+        if (!memory.recent_turns.length) return
         hydrateFromServerTurns(
           accountId,
           memory.recent_turns,
           memory.summary || undefined,
-          null,
+          groundedNumber,
         )
-        return
-      }
-      setServerHistoryDays([])
-      setArchivedSummary("")
-      if (!memory.recent_turns.length) return
-      hydrateFromServerTurns(
-        accountId,
-        memory.recent_turns,
-        memory.summary || undefined,
-        groundedNumber,
-      )
-    })
+      })
+      .finally(() => {
+        if (active) setSyncingHistory(false)
+      })
     return () => {
       active = false
     }
@@ -220,8 +240,7 @@ export default function AIScreen() {
       await api.streamExplanation(
         songNumber,
         (chunk) => {
-          // Paragraph frames are split server-side; rejoin with blank lines for Markdown.
-          buffer = buffer ? `${buffer}\n\n${chunk}` : chunk
+          buffer += chunk
           updateAssistantMessage(accountId, assistantId, formatAssistantMessage(buffer) || "…")
         },
         trimmed,
@@ -260,7 +279,7 @@ export default function AIScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={8}
       >
         <View style={styles.header}>
@@ -304,6 +323,18 @@ export default function AIScreen() {
           </View>
         </View>
 
+        {syncingHistory ? (
+          <View style={styles.syncBanner} accessibilityLabel="Syncing chat history">
+            <ActivityIndicator size="small" color={colors.primary} />
+            <View style={styles.syncCopy}>
+              <View style={styles.syncTrack}>
+                <View style={styles.syncFill} />
+              </View>
+              <Text style={styles.syncLabel}>Syncing chat history…</Text>
+            </View>
+          </View>
+        ) : null}
+
         <ScrollView
           style={styles.flex}
           showsVerticalScrollIndicator={false}
@@ -333,14 +364,29 @@ export default function AIScreen() {
                     key={msg.id}
                     style={[styles.bubble, msg.role === "user" ? styles.user : styles.assistant]}
                   >
-                    {msg.role === "assistant" ? (
-                      <>
-                        <AssistantMarkdown text={msg.text} />
-                        <CopyChatAnswerButton text={msg.text} />
-                      </>
-                    ) : (
+                    {msg.role === "user" ? (
                       <Text style={styles.userText}>{msg.text}</Text>
+                    ) : (
+                      <Markdown style={markdownStyles}>{msg.text}</Markdown>
                     )}
+                    {msg.role === "assistant" && msg.text.trim() ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Copy answer"
+                        hitSlop={8}
+                        onPress={() => copyMessage(msg.id, msg.text)}
+                        style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.7 }]}
+                      >
+                        {copiedId === msg.id ? (
+                          <Check size={13} color={colors.primaryDark} />
+                        ) : (
+                          <Copy size={13} color={colors.textMuted} />
+                        )}
+                        <Text style={[styles.copyText, copiedId === msg.id && { color: colors.primaryDark }]}>
+                          {copiedId === msg.id ? "Copied" : "Copy"}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 )
               })}
@@ -537,6 +583,27 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
+  syncBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  syncCopy: { flex: 1, gap: 6 },
+  syncTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    overflow: "hidden",
+  },
+  syncFill: {
+    width: "55%",
+    height: "100%",
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+  syncLabel: { ...typography.caption, color: colors.textSecondary },
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
@@ -578,6 +645,20 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textPrimary,
   },
+  copyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    marginTop: spacing.sm,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+  },
+  copyText: { ...typography.caption, color: colors.textMuted },
   composer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
@@ -687,4 +768,55 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 4,
   },
+})
+
+// ChatGPT-style rich formatting for assistant answers.
+const markdownStyles = StyleSheet.create({
+  body: { ...typography.body, color: colors.textPrimary, lineHeight: 26 },
+  paragraph: { marginTop: 0, marginBottom: spacing.md },
+  heading1: { ...typography.h2, color: colors.textPrimary, marginTop: spacing.md, marginBottom: spacing.sm },
+  heading2: { ...typography.h3, color: colors.primaryDark, marginTop: spacing.md, marginBottom: spacing.sm },
+  heading3: { ...typography.label, color: colors.primaryDark, fontSize: 16, marginTop: spacing.sm, marginBottom: spacing.xs },
+  strong: { fontWeight: "700", color: colors.textPrimary },
+  em: { fontStyle: "italic", color: colors.textSecondary },
+  bullet_list: { marginBottom: spacing.md, paddingLeft: 2 },
+  ordered_list: { marginBottom: spacing.md, paddingLeft: 2 },
+  list_item: { flexDirection: "row", marginBottom: spacing.sm },
+  bullet_list_icon: { color: colors.primary, marginRight: spacing.sm, marginTop: 6, fontSize: 16 },
+  ordered_list_icon: { color: colors.primaryDark, marginRight: spacing.sm, marginTop: 2, fontWeight: "700" },
+  code_inline: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 4,
+  },
+  fence: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+  },
+  code_block: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+  },
+  blockquote: {
+    backgroundColor: colors.surfaceSoft,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  link: { color: colors.primaryDark, textDecorationLine: "underline" },
+  hr: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth, marginVertical: spacing.sm },
 })

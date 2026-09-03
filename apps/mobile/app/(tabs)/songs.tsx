@@ -23,6 +23,7 @@ import { collectionCount } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
 import { CATALOG_PAGE_SIZE, loadCatalog, pageSongs, readCatalogCache } from "@/lib/catalog"
 import { prefetchCategorySongs } from "@/lib/categorySongs"
+import { listPerfProps } from "@/lib/listPerf"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
@@ -92,6 +93,7 @@ export default function SongsScreen() {
         data={songs}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
+        {...listPerfProps}
         contentContainerStyle={[styles.list, { paddingBottom: hasSong ? 160 : 110 }]}
         onEndReached={() => {
           if (hasMore) setPage((current) => current + 1)

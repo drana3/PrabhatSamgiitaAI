@@ -12,12 +12,6 @@ import { allCollections, collectionSearchPrompt, type CollectionItem } from "@/d
 import { readCatalogCache } from "@/lib/catalog"
 import { isNaturalLanguageSearch } from "@/lib/searchMode"
 import { songSummaryToMockSong } from "@/lib/songMap"
-import {
-  COMPLETE_SARGAM_BROWSE_ID,
-  completeSargamNumbers,
-  completeSargamSongs,
-  isCompleteSargamQuery,
-} from "@/lib/completeSargam"
 import collectionSongTitles from "../../../data/generated/collection_song_titles.json"
 import precomputedCategories from "../../../data/generated/mobile_category_songs.json"
 
@@ -95,7 +89,6 @@ export function isFastSearchId(value: string): boolean {
 }
 
 export function collectionForCategory(searchId: FastSearchId): CollectionItem | undefined {
-  if (searchId === COMPLETE_SARGAM_BROWSE_ID || isCompleteSargamQuery(searchId)) return undefined
   const chip = songCollectionChips.find((row) => row.id === searchId)
   if (chip) return allCollections.find((row) => row.label === chip.collectionLabel)
   const lowered = searchId.trim().toLowerCase()
@@ -130,10 +123,6 @@ export function categoryCollectionPrompt(searchId: FastSearchId): string | null 
 }
 
 const THEME_QUERY_ALIASES: Record<string, FastSearchId> = {
-  fullsargam: "fullsargam",
-  "full sargam": "fullsargam",
-  "complete sargam": "fullsargam",
-  "complete notation": "fullsargam",
   devotion: "devotional",
   devotional: "devotional",
   devotee: "devotional",
@@ -396,9 +385,6 @@ function bundledNumbers(searchId: FastSearchId): number[] {
 }
 
 export function songNumbersForCategory(searchId: FastSearchId): number[] {
-  if (searchId === COMPLETE_SARGAM_BROWSE_ID || isCompleteSargamQuery(searchId)) {
-    return completeSargamNumbers()
-  }
   const fromCollection = collectionForCategory(searchId)?.songNumbers
   if (fromCollection?.length) return fromCollection
   return bundledNumbers(searchId)
@@ -430,9 +416,6 @@ export function songsForCategoryFromCatalog(
   catalog: SongSummary[],
 ): SongSummary[] {
   const byNumber = new Map(catalog.map((row) => [row.number, row]))
-  if (searchId === COMPLETE_SARGAM_BROWSE_ID || isCompleteSargamQuery(searchId)) {
-    return overlayCatalogTitles(completeSargamSongs(), catalog)
-  }
   if (isMoodCategoryId(searchId)) {
     const bundled = SEARCH_INDEX[searchId]?.songs
     if (Array.isArray(bundled) && bundled.length) {

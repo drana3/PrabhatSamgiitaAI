@@ -1,18 +1,27 @@
+import * as AuthSession from "expo-auth-session"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin"
 import { Platform } from "react-native"
 
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
+import { identityFromIdToken } from "@/lib/msalToken"
 import {
   googleAuthConfigured,
   googleIosClientId,
   googleSetupHint,
   googleWebClientId,
 } from "@/lib/googleOAuthConfig"
+import { oauthRedirectHint } from "@/lib/oauthRedirectUri"
 
 export { googleAuthConfigured, googleSetupHint } from "@/lib/googleOAuthConfig"
 
 WebBrowser.maybeCompleteAuthSession()
+
+const GOOGLE_DISCOVERY = {
+  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+  tokenEndpoint: "https://oauth2.googleapis.com/token",
+  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
+}
 
 let configured = false
 
@@ -43,7 +52,7 @@ function googleSignInErrorMessage(error: unknown) {
   return "Google sign-in didn’t finish. Try again."
 }
 
-function isDeveloperConfigError(error: unknown) {
+function shouldUseBrowserFallback(error: unknown) {
   const code = (error as { code?: string })?.code
   const message = error instanceof Error ? error.message : String(error ?? "")
   return (
@@ -53,27 +62,55 @@ function isDeveloperConfigError(error: unknown) {
   )
 }
 
-const ANDROID_SHA_HINT =
-  "Play Store Google Sign-In failed (DEVELOPER_ERROR). Quantum-ready Play App Signing " +
-  "uses multiple app-signing keys — add ANY missing SHA-1 as its own Android OAuth client " +
-  "in GCP project 495992354696 for package net.prabhatasamgiita.ai: " +
-  "upload 29:36:BD:D1:9B:F2:C7:96:13:4C:13:CD:12:8D:E5:B8:21:B2:F7:9D, " +
-  "Play classical 0A:CD:27:EE:73:CC:3D:6B:BB:41:9A:F2:7D:45:64:07:67:0B:A6:75, " +
-  "Play post-quantum 27:C2:FB:E5:B3:9A:26:33:4D:35:98:3B:0E:4B:4D:B8:71:17:AE:06, " +
-  "Play previous 64:1F:F2:68:70:D1:73:F0:6C:8A:F3:43:D9:2B:08:0D:EE:AE:62:40. " +
-  "No app rebuild needed. Wait ~10 minutes, uninstall Play build, reinstall, retry."
+async function signInWithGoogleBrowser(): Promise<OAuthIdentity> {
+  const clientId = googleWebClientId()
+  if (!clientId) {
+    throw new Error("Google browser sign-in is not configured for this platform.")
+  }
 
-function developerErrorDetail(error: unknown) {
-  const code = (error as { code?: string })?.code
-  const message = error instanceof Error ? error.message : String(error ?? "")
-  const parts = [code ? `code ${code}` : null, message || null].filter(Boolean)
-  return parts.join(": ") || "DEVELOPER_ERROR"
+  const redirectUri = oauthRedirectHint("auth/google")
+  const request = new AuthSession.AuthRequest({
+    clientId,
+    redirectUri,
+    scopes: ["openid", "profile", "email"],
+    responseType: AuthSession.ResponseType.Code,
+    usePKCE: true,
+    extraParams: { prompt: "select_account" },
+  })
+
+  await request.makeAuthUrlAsync(GOOGLE_DISCOVERY)
+  const result = await request.promptAsync(GOOGLE_DISCOVERY, { showInRecents: true })
+  if (result.type !== "success" || !result.params.code) {
+    if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
+    throw new Error("Google sign-in didn’t finish. Try again.")
+  }
+
+  const tokenResult = await AuthSession.exchangeCodeAsync(
+    {
+      clientId,
+      code: result.params.code,
+      redirectUri,
+      extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
+    },
+    GOOGLE_DISCOVERY,
+  )
+
+  if (!tokenResult.idToken) {
+    throw new Error("Google did not return an identity token.")
+  }
+  const identity = identityFromIdToken(tokenResult.idToken)
+  if (!identity?.id) {
+    throw new Error("Could not read your Google account profile.")
+  }
+
+  return {
+    id: identity.id,
+    email: identity.email,
+    displayName: identity.displayName,
+    provider: "google",
+  }
 }
 
-/**
- * Native Google Sign-In only. Browser OAuth with a Web client + custom scheme
- * is rejected by Google (“does not comply with Google OAuth 2.0 policy”).
- */
 export async function signInWithGoogle(): Promise<OAuthIdentity> {
   if (!googleAuthConfigured()) {
     throw new Error(googleSetupHint())
@@ -100,14 +137,15 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
       provider: "google",
     }
   } catch (error) {
-    if (isDeveloperConfigError(error)) {
-      const sdkDetail = developerErrorDetail(error)
-      const webClientId = googleWebClientId()
-      const webSuffix = webClientId ? webClientId.slice(-24) : "missing"
+    if (shouldUseBrowserFallback(error)) {
       if (Platform.OS === "android") {
-        throw new Error(
-          `${ANDROID_SHA_HINT}\n\nGoogle SDK: ${sdkDetail}\nWeb client suffix: …${webSuffix}`,
-        )
+        try {
+          return await signInWithGoogleBrowser()
+        } catch {
+          throw new Error(
+            "Google sign-in failed on this build. If you installed from Play Store, add the Play App signing SHA-1 fingerprint to your Google Cloud Android OAuth client (Setup → App signing in Play Console).",
+          )
+        }
       }
       throw new Error(
         "Google sign-in failed. Confirm the iOS OAuth client in Google Cloud uses bundle ID net.prabhatasamgiita.ai and matches EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in this build.",

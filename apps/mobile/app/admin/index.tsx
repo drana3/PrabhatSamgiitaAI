@@ -11,7 +11,7 @@ import {
 } from "react-native"
 import type { AdminFeedbackItem, AdminMember } from "@prabhat/core"
 import { useRouter } from "expo-router"
-import { MessageSquare, Music2, Shield, Users } from "lucide-react-native"
+import { MessageSquare, Shield, Users } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
@@ -28,43 +28,60 @@ type FeedbackFilter = "new" | "reviewed" | "actioned" | "all"
 
 const MIN_LIVE_QUOTE_LENGTH = 8
 
+function AdminProgressBar({ visible, label }: { visible: boolean; label: string }) {
+  if (!visible) return null
+  return (
+    <View style={styles.progressBanner} accessibilityLabel={label}>
+      <ActivityIndicator size="small" color={colors.primary} />
+      <View style={styles.progressCopy}>
+        <View style={styles.progressTrack}>
+          <View style={styles.progressFill} />
+        </View>
+        <Text style={styles.progressLabel}>{label}</Text>
+      </View>
+    </View>
+  )
+}
+
 export default function AdminScreen() {
   const router = useRouter()
-  const [tab, setTab] = useState<"feedback" | "members" | "sargam">("feedback")
+  const [tab, setTab] = useState<"feedback" | "members">("feedback")
   const [filter, setFilter] = useState<FeedbackFilter>("new")
   const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([])
   const [members, setMembers] = useState<AdminMember[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [grantEmail, setGrantEmail] = useState("")
-  const [sargamNumber, setSargamNumber] = useState("")
   const [busyId, setBusyId] = useState<string | null>(null)
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const mode = useAuthStore((s) => s.mode)
-  const hasFeedbackRef = useRef(false)
-  const hasMembersRef = useRef(false)
+  const feedbackRequest = useRef(0)
+  const membersRequest = useRef(0)
 
   const loadFeedback = useCallback(async () => {
     if (!memberAuthAvailable()) {
       setFeedback([])
-      hasFeedbackRef.current = false
+      setLoading(false)
       return
     }
-    if (!hasFeedbackRef.current) setLoading(true)
+    const id = ++feedbackRequest.current
+    setLoading(true)
     const result = await api.fetchAdminFeedback(filter)
+    if (id !== feedbackRequest.current) return
     setFeedback(result.items)
-    hasFeedbackRef.current = true
     setLoading(false)
   }, [filter])
 
   const loadMembers = useCallback(async () => {
     if (!memberAuthAvailable()) {
       setMembers([])
-      hasMembersRef.current = false
+      setLoading(false)
       return
     }
-    if (!hasMembersRef.current) setLoading(true)
-    setMembers(await api.fetchAdminMembers())
-    hasMembersRef.current = true
+    const id = ++membersRequest.current
+    setLoading(true)
+    const rows = await api.fetchAdminMembers()
+    if (id !== membersRequest.current) return
+    setMembers(rows)
     setLoading(false)
   }, [])
 
@@ -107,8 +124,6 @@ export default function AdminScreen() {
       return
     }
     setBusyId(item.feedback_id)
-    // Match website admin: publish only — do not force status to "actioned"
-    // (that removes the item from the default "new" filter and looks broken).
     const result = await api.updateAdminFeedback(item.feedback_id, {
       publish_to_live: true,
     })
@@ -163,26 +178,35 @@ export default function AdminScreen() {
     else await loadMembers()
   }
 
+  const progressLabel =
+    tab === "feedback"
+      ? filter === "all"
+        ? "Loading feedback…"
+        : `Loading ${filter} feedback…`
+      : "Loading members…"
+
   return (
     <ScreenContainer edges={["top"]} padded={false} title="Admin">
       <View style={styles.tabs}>
         <Pressable
           style={[styles.tab, tab === "feedback" && styles.tabActive]}
-          onPress={() => setTab("feedback")}
+          onPress={() => {
+            if (tab === "feedback") return
+            setLoading(true)
+            setTab("feedback")
+          }}
         >
           <Text style={styles.tabText}>Feedback</Text>
         </Pressable>
         <Pressable
           style={[styles.tab, tab === "members" && styles.tabActive]}
-          onPress={() => setTab("members")}
+          onPress={() => {
+            if (tab === "members") return
+            setLoading(true)
+            setTab("members")
+          }}
         >
           <Text style={styles.tabText}>Members</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, tab === "sargam" && styles.tabActive]}
-          onPress={() => setTab("sargam")}
-        >
-          <Text style={styles.tabText}>Sargam</Text>
         </Pressable>
       </View>
 
@@ -193,6 +217,8 @@ export default function AdminScreen() {
         </Text>
       ) : null}
 
+      <AdminProgressBar visible={loading} label={progressLabel} />
+
       <ScrollView contentContainerStyle={styles.content}>
         {tab === "feedback" ? (
           <>
@@ -201,58 +227,69 @@ export default function AdminScreen() {
               {(["new", "reviewed", "actioned", "all"] as FeedbackFilter[]).map((value) => (
                 <Pressable
                   key={value}
-                  onPress={() => setFilter(value)}
+                  onPress={() => {
+                    if (value === filter) return
+                    setLoading(true)
+                    setFeedback([])
+                    setFilter(value)
+                  }}
                   style={[styles.filterChip, filter === value && styles.filterActive]}
                 >
                   <Text style={styles.filterText}>{value}</Text>
                 </Pressable>
               ))}
             </View>
-            {loading ? <ActivityIndicator color={colors.primary} /> : null}
-            {!loading && feedback.length === 0 ? (
+            {loading ? (
+              <Text style={styles.empty}>Fetching the latest {filter} items…</Text>
+            ) : feedback.length === 0 ? (
               <Text style={styles.empty}>No feedback in this filter.</Text>
-            ) : null}
-            {feedback.map((item) => (
-              <View key={item.feedback_id} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <MessageSquare size={16} color={colors.primary} />
-                  <Text style={styles.meta}>
-                    {item.category} · {item.rating}/5 · {item.status}
-                    {item.on_live_ticker ? " · ticker" : ""}
-                  </Text>
-                </View>
-                <Text style={styles.snippet}>{item.comment}</Text>
-                {item.contact ? <Text style={styles.meta}>{item.contact}</Text> : null}
-                <View style={styles.actions}>
-                  <Pressable
-                    style={styles.actionBtn}
-                    disabled={busyId === item.feedback_id}
-                    onPress={() => void markReviewed(item)}
-                  >
-                    <Text style={styles.actionText}>Mark reviewed</Text>
-                  </Pressable>
-                  {item.on_live_ticker ? (
+            ) : (
+              feedback.map((item) => (
+                <View key={item.feedback_id} style={styles.card}>
+                  <View style={styles.cardTop}>
+                    <MessageSquare size={16} color={colors.primary} />
+                    <Text style={styles.meta}>
+                      {item.category} · {item.rating}/5 · {item.status}
+                      {item.on_live_ticker ? " · ticker" : ""}
+                    </Text>
+                  </View>
+                  <Text style={styles.snippet}>{item.comment}</Text>
+                  {item.contact ? <Text style={styles.meta}>{item.contact}</Text> : null}
+                  <View style={styles.actions}>
                     <Pressable
                       style={styles.actionBtn}
-                      disabled={busyId === item.feedback_id}
-                      onPress={() => void removeFromTicker(item)}
+                      disabled={busyId === item.feedback_id || loading}
+                      onPress={() => void markReviewed(item)}
                     >
-                      <Text style={styles.actionText}>Remove from ticker</Text>
+                      {busyId === item.feedback_id ? (
+                        <ActivityIndicator size="small" color={colors.primaryDark} />
+                      ) : (
+                        <Text style={styles.actionText}>Mark reviewed</Text>
+                      )}
                     </Pressable>
-                  ) : (
-                    <Pressable
-                      style={styles.actionBtn}
-                      disabled={busyId === item.feedback_id}
-                      onPress={() => void showOnTicker(item)}
-                    >
-                      <Text style={styles.actionText}>Show on ticker</Text>
-                    </Pressable>
-                  )}
+                    {item.on_live_ticker ? (
+                      <Pressable
+                        style={styles.actionBtn}
+                        disabled={busyId === item.feedback_id || loading}
+                        onPress={() => void removeFromTicker(item)}
+                      >
+                        <Text style={styles.actionText}>Remove from ticker</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        style={styles.actionBtn}
+                        disabled={busyId === item.feedback_id || loading}
+                        onPress={() => void showOnTicker(item)}
+                      >
+                        <Text style={styles.actionText}>Show on ticker</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
           </>
-        ) : tab === "members" ? (
+        ) : (
           <>
             <Text style={styles.heroSub}>View members and grant or revoke admin access.</Text>
             <View style={styles.grantRow}>
@@ -267,83 +304,53 @@ export default function AdminScreen() {
               />
               <Pressable
                 style={styles.actionBtn}
-                disabled={busyId === "grant"}
+                disabled={busyId === "grant" || loading}
                 onPress={() => void grantAdmin()}
               >
-                <Text style={styles.actionText}>Grant</Text>
+                {busyId === "grant" ? (
+                  <ActivityIndicator size="small" color={colors.primaryDark} />
+                ) : (
+                  <Text style={styles.actionText}>Grant</Text>
+                )}
               </Pressable>
             </View>
-            {loading ? <ActivityIndicator color={colors.primary} /> : null}
-            {!loading && members.length === 0 ? (
+            {loading ? (
+              <Text style={styles.empty}>Fetching members…</Text>
+            ) : members.length === 0 ? (
               <Text style={styles.empty}>No members returned.</Text>
-            ) : null}
-            {members.map((member) => (
-              <View key={member.id} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <Users size={16} color={colors.primary} />
-                  <Text style={styles.meta}>
-                    {member.is_admin ? "Admin" : "Member"}
-                    {member.is_protected ? " · protected" : ""}
-                  </Text>
-                </View>
-                <Text style={styles.snippet}>{member.display_name}</Text>
-                <Text style={styles.meta}>{member.email ?? "No email"}</Text>
-                <Text style={styles.meta}>{member.phone_e164 ?? "No mobile"}</Text>
-                {member.is_admin && !member.is_protected ? (
-                  <View style={styles.actions}>
-                    <Pressable
-                      style={styles.actionBtn}
-                      disabled={busyId === member.id}
-                      onPress={() => void revokeAdmin(member)}
-                    >
-                      <Text style={styles.actionText}>Revoke admin</Text>
-                    </Pressable>
+            ) : (
+              members.map((member) => (
+                <View key={member.id} style={styles.card}>
+                  <View style={styles.cardTop}>
+                    <Users size={16} color={colors.primary} />
+                    <Text style={styles.meta}>
+                      {member.is_admin ? "Admin" : "Member"}
+                      {member.is_protected ? " · protected" : ""}
+                    </Text>
                   </View>
-                ) : null}
-              </View>
-            ))}
-          </>
-        ) : (
-          <>
-            <Text style={styles.heroSub}>
-              Record or paste sargam line by line on iPhone or Android — same studio as the website.
-            </Text>
-            <View style={styles.card}>
-              <View style={styles.cardTop}>
-                <Music2 size={16} color={colors.primary} />
-                <Text style={styles.meta}>Line-by-line capture</Text>
-              </View>
-              <Text style={styles.snippet}>
-                Enter a song number to load lyrics, record on the harmonium keyboard, confirm each line, and submit.
-              </Text>
-              <View style={styles.grantRow}>
-                <TextInput
-                  value={sargamNumber}
-                  onChangeText={setSargamNumber}
-                  placeholder="Song number"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  style={styles.input}
-                  accessibilityLabel="Song number"
-                />
-                <Pressable
-                  style={styles.actionBtn}
-                  onPress={() => {
-                    const number = Number(sargamNumber.trim())
-                    if (!Number.isInteger(number) || number < 1) {
-                      Alert.alert("Sargam capture", "Enter a valid song number.")
-                      return
-                    }
-                    router.push(href(`/admin/sargam/${number}`))
-                  }}
-                >
-                  <Text style={styles.actionText}>Open studio</Text>
-                </Pressable>
-              </View>
-            </View>
+                  <Text style={styles.snippet}>{member.display_name}</Text>
+                  <Text style={styles.meta}>{member.email ?? "No email"}</Text>
+                  <Text style={styles.meta}>{member.phone_e164 ?? "No mobile"}</Text>
+                  {member.is_admin && !member.is_protected ? (
+                    <View style={styles.actions}>
+                      <Pressable
+                        style={styles.actionBtn}
+                        disabled={busyId === member.id || loading}
+                        onPress={() => void revokeAdmin(member)}
+                      >
+                        {busyId === member.id ? (
+                          <ActivityIndicator size="small" color={colors.primaryDark} />
+                        ) : (
+                          <Text style={styles.actionText}>Revoke admin</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              ))
+            )}
           </>
         )}
-
       </ScrollView>
     </ScreenContainer>
   )
@@ -367,6 +374,27 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
   tabText: { ...typography.label, color: colors.textPrimary },
+  progressBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  progressCopy: { flex: 1, gap: 6 },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    overflow: "hidden",
+  },
+  progressFill: {
+    width: "55%",
+    height: "100%",
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+  progressLabel: { ...typography.caption, color: colors.textSecondary },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section, gap: spacing.md },
   locked: {
     flex: 1,
@@ -425,11 +453,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     color: colors.textPrimary,
     backgroundColor: colors.surface,
-  },
-  disable: {
-    ...typography.caption,
-    color: colors.error,
-    textAlign: "center",
-    marginTop: spacing.md,
   },
 })

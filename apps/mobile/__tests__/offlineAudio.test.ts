@@ -81,9 +81,18 @@ function applyAuth(next: typeof memberA | typeof memberB | { mode: "guest" }) {
   authState.email = next.email
 }
 
-function fileUriFor(auth: typeof memberA, songNumber: number) {
+function urlHash(url: string): string {
+  let hash = 0
+  for (let i = 0; i < url.length; i += 1) {
+    hash = (hash << 5) - hash + url.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash).toString(36)
+}
+
+function fileUriFor(auth: typeof memberA, songNumber: number, url: string) {
   const scope = encodeURIComponent(offlineAudioScopeKey(auth))
-  return `file:///docs/offline-audio/${scope}/${songNumber}.mp3`
+  return `file:///docs/offline-audio/${scope}/${songNumber}-${urlHash(url)}.mp3`
 }
 
 function mockSuccessfulDownload() {
@@ -119,11 +128,11 @@ describe("offline save UI", () => {
 
   it("shows save, progress, and remove only for signed-in members", () => {
     expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).visible).toBe(true)
-    expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).label).toBe("Download for offline")
+    expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).label).toBe("Save in this app")
     expect(offlineSaveControls({ mode: "signed_in", downloaded: false, progress: 0.4 }).label).toBe(
       "Downloading 40%",
     )
-    expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).label).toBe("Remove offline download")
+    expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).label).toBe("Remove from this app")
     expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).badge).toBe(true)
   })
 })
@@ -147,20 +156,26 @@ describe("offline audio", () => {
   it("refuses download for guests", async () => {
     applyAuth({ mode: "guest" })
     await expect(
-      useOfflineAudioStore.getState().download(1, "https://cdn.test/1.mp3", { userInitiated: true }),
+      useOfflineAudioStore.getState().download("https://cdn.test/1.mp3", 1, { userInitiated: true }),
     ).rejects.toThrow(/Sign in/)
   })
 
   it("does not save audio unless the user starts the download", async () => {
-    await useOfflineAudioStore.getState().download(12, "https://cdn.test/12.mp3")
+    await useOfflineAudioStore.getState().download("https://cdn.test/12.mp3", 12)
     expect(fs.createDownloadResumable).not.toHaveBeenCalled()
-    expect(useOfflineAudioStore.getState().files[12]).toBeUndefined()
+    expect(useOfflineAudioStore.getState().files["https://cdn.test/12.mp3"]).toBeUndefined()
   })
 
   it("does not use a saved file while signed out", async () => {
     fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
     useOfflineAudioStore.setState({
-      files: { 12: { remoteUrl: "https://cdn.test/12.mp3", fileUri: fileUriFor(memberA, 12) } },
+      files: {
+        "https://cdn.test/12.mp3": {
+          remoteUrl: "https://cdn.test/12.mp3",
+          fileUri: fileUriFor(memberA, 12, "https://cdn.test/12.mp3"),
+          songNumber: 12,
+        },
+      },
     })
     applyAuth({ mode: "guest" })
     const source = await resolvePlaybackUri(12, "https://cdn.test/12.mp3")
@@ -169,20 +184,38 @@ describe("offline audio", () => {
 
   it("stores a local file and prefers it for playback", async () => {
     mockSuccessfulDownload()
-    await useOfflineAudioStore.getState().download(12, "https://cdn.test/12.mp3", { userInitiated: true })
-    expect(useOfflineAudioStore.getState().files[12]?.fileUri).toBe(fileUriFor(memberA, 12))
+    const url = "https://cdn.test/12.mp3"
+    await useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(fileUriFor(memberA, 12, url))
 
-    const source = await resolvePlaybackUri(12, "https://cdn.test/12.mp3")
-    expect(source).toEqual({ uri: fileUriFor(memberA, 12), local: true })
+    const source = await resolvePlaybackUri(12, url)
+    expect(source).toEqual({ uri: fileUriFor(memberA, 12, url), local: true })
   })
 
   it("streams an alternate recording instead of a saved different file", async () => {
     fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
     useOfflineAudioStore.setState({
-      files: { 12: { remoteUrl: "https://cdn.test/12.mp3", fileUri: fileUriFor(memberA, 12) } },
+      files: {
+        "https://cdn.test/12.mp3": {
+          remoteUrl: "https://cdn.test/12.mp3",
+          fileUri: fileUriFor(memberA, 12, "https://cdn.test/12.mp3"),
+          songNumber: 12,
+        },
+      },
     })
     const source = await resolvePlaybackUri(12, "https://cdn.test/12-alt.mp3")
     expect(source).toEqual({ uri: "https://cdn.test/12-alt.mp3", local: false })
+  })
+
+  it("saves each recording of a song independently", async () => {
+    mockSuccessfulDownload()
+    const primary = "https://cdn.test/12.mp3"
+    const alt = "https://cdn.test/12-alt.mp3"
+    await useOfflineAudioStore.getState().download(primary, 12, { userInitiated: true })
+    await useOfflineAudioStore.getState().download(alt, 12, { userInitiated: true })
+    expect(useOfflineAudioStore.getState().files[primary]?.fileUri).toBe(fileUriFor(memberA, 12, primary))
+    expect(useOfflineAudioStore.getState().files[alt]?.fileUri).toBe(fileUriFor(memberA, 12, alt))
+    expect(fileUriFor(memberA, 12, primary)).not.toBe(fileUriFor(memberA, 12, alt))
   })
 
   it("falls back to the remote stream when nothing is downloaded", async () => {
@@ -200,18 +233,19 @@ describe("offline audio", () => {
       cancelAsync: vi.fn(async () => undefined),
     }))
 
-    const pending = useOfflineAudioStore.getState().download(12, "https://cdn.test/12.mp3", {
+    const url = "https://cdn.test/12.mp3"
+    const pending = useOfflineAudioStore.getState().download(url, 12, {
       userInitiated: true,
     })
-    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[12]).toBe(0))
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBe(0))
 
     const other = await resolvePlaybackUri(3, "https://cdn.test/3.mp3")
     expect(other).toEqual({ uri: "https://cdn.test/3.mp3", local: false })
-    expect(useOfflineAudioStore.getState().files[12]).toBeUndefined()
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
 
-    finish?.({ status: 200, uri: fileUriFor(memberA, 12) })
+    finish?.({ status: 200, uri: fileUriFor(memberA, 12, url) })
     await pending
-    expect(useOfflineAudioStore.getState().files[12]?.fileUri).toBe(fileUriFor(memberA, 12))
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(fileUriFor(memberA, 12, url))
   })
 
   it("does not restore a file after remove during an in-flight download", async () => {
@@ -225,38 +259,40 @@ describe("offline audio", () => {
       cancelAsync,
     }))
 
-    const pending = useOfflineAudioStore.getState().download(12, "https://cdn.test/12.mp3", {
+    const url = "https://cdn.test/12.mp3"
+    const pending = useOfflineAudioStore.getState().download(url, 12, {
       userInitiated: true,
     })
-    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[12]).toBe(0))
-    await useOfflineAudioStore.getState().remove(12)
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBe(0))
+    await useOfflineAudioStore.getState().remove(url)
     expect(cancelAsync).toHaveBeenCalled()
 
-    finish?.({ status: 200, uri: fileUriFor(memberA, 12) })
+    finish?.({ status: 200, uri: fileUriFor(memberA, 12, url) })
     await pending
-    expect(useOfflineAudioStore.getState().files[12]).toBeUndefined()
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
     expect(fs.deleteAsync).toHaveBeenCalled()
   })
 
   it("keeps saved audio isolated per member", async () => {
     mockSuccessfulDownload()
-    await useOfflineAudioStore.getState().download(12, "https://cdn.test/12.mp3", { userInitiated: true })
-    expect(useOfflineAudioStore.getState().files[12]?.fileUri).toBe(fileUriFor(memberA, 12))
+    const url = "https://cdn.test/12.mp3"
+    await useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(fileUriFor(memberA, 12, url))
 
     applyAuth(memberB)
     await useOfflineAudioStore.getState().hydrate()
-    expect(useOfflineAudioStore.getState().files[12]).toBeUndefined()
-    expect(await resolvePlaybackUri(12, "https://cdn.test/12.mp3")).toEqual({
-      uri: "https://cdn.test/12.mp3",
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+    expect(await resolvePlaybackUri(12, url)).toEqual({
+      uri: url,
       local: false,
     })
 
     applyAuth(memberA)
     fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
     await useOfflineAudioStore.getState().hydrate()
-    expect(useOfflineAudioStore.getState().files[12]?.fileUri).toBe(fileUriFor(memberA, 12))
-    expect(await resolvePlaybackUri(12, "https://cdn.test/12.mp3")).toEqual({
-      uri: fileUriFor(memberA, 12),
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(fileUriFor(memberA, 12, url))
+    expect(await resolvePlaybackUri(12, url)).toEqual({
+      uri: fileUriFor(memberA, 12, url),
       local: true,
     })
   })
@@ -265,27 +301,29 @@ describe("offline audio", () => {
     let finish12: (() => void) | undefined
     let finish7: (() => void) | undefined
     fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
-    fs.createDownloadResumable.mockImplementation((_url: string, dest: string) => ({
+    fs.createDownloadResumable.mockImplementation((url: string, dest: string) => ({
       downloadAsync: () =>
         new Promise<void>((resolve) => {
-          if (dest.endsWith("/12.mp3")) finish12 = resolve
+          if (url.endsWith("/12.mp3")) finish12 = resolve
           else finish7 = resolve
         }).then(() => ({ status: 200, uri: dest })),
       cancelAsync: vi.fn(async () => undefined),
     }))
 
-    const first = useOfflineAudioStore.getState().download(12, "https://cdn.test/12.mp3", {
+    const url12 = "https://cdn.test/12.mp3"
+    const url7 = "https://cdn.test/7.mp3"
+    const first = useOfflineAudioStore.getState().download(url12, 12, {
       userInitiated: true,
     })
-    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[12]).toBe(0))
-    const second = useOfflineAudioStore.getState().download(7, "https://cdn.test/7.mp3", {
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url12]).toBe(0))
+    const second = useOfflineAudioStore.getState().download(url7, 7, {
       userInitiated: true,
     })
-    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[7]).toBe(0))
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url7]).toBe(0))
     finish12?.()
     finish7?.()
     await Promise.all([first, second])
-    expect(useOfflineAudioStore.getState().files[12]?.fileUri).toBe(fileUriFor(memberA, 12))
-    expect(useOfflineAudioStore.getState().files[7]?.fileUri).toBe(fileUriFor(memberA, 7))
+    expect(useOfflineAudioStore.getState().files[url12]?.fileUri).toBe(fileUriFor(memberA, 12, url12))
+    expect(useOfflineAudioStore.getState().files[url7]?.fileUri).toBe(fileUriFor(memberA, 7, url7))
   })
 })

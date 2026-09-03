@@ -47,7 +47,6 @@ import { collectionSearchPrompt } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
 import { loadCatalog } from "@/lib/catalog"
 import { homeSearchSuggestions } from "@/lib/homeSearchSuggestions"
-import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { readTodayCache, refreshTodayRecommendations } from "@/lib/todayCache"
@@ -96,6 +95,7 @@ export default function HomeScreen() {
   const [suggestedSongs, setSuggestedSongs] = useState<MockSong[]>([])
   const [homeError, setHomeError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchSuggestions, setSearchSuggestions] = useState<MockSong[]>([])
   const [showRest, setShowRest] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
@@ -109,7 +109,6 @@ export default function HomeScreen() {
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
       setShowRest(true)
-      warmLyricSearchIndex()
     })
     return () => task.cancel()
   }, [])
@@ -165,11 +164,19 @@ export default function HomeScreen() {
   )
   const continueSongs = recentSongs.length ? recentSongs : suggestedSongs
   const continueTitle = recentSongs.length ? "Continue listening" : "Suggested for you"
-  const searchSuggestions = useMemo(
-    () => homeSearchSuggestions(searchQuery, 5, searchAuth),
-    [searchQuery, searchAuth.signedIn, searchAuth.feelingSearchEnabled],
-  )
   const searching = searchQuery.trim().length > 0
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed || searchAuth.feelingSearchEnabled) {
+      setSearchSuggestions([])
+      return
+    }
+    const handle = setTimeout(() => {
+      setSearchSuggestions(homeSearchSuggestions(trimmed, 5, searchAuth))
+    }, 40)
+    return () => clearTimeout(handle)
+  }, [searchQuery, searchAuth.signedIn, searchAuth.feelingSearchEnabled])
 
   // Keep the search field + suggestions visible above the iOS keyboard.
   useEffect(() => {
@@ -202,6 +209,7 @@ export default function HomeScreen() {
   }, [today, suggestedSongs, recentSongs])
 
   useEffect(() => {
+    if (Platform.OS === "android") return
     if (!continueSongs.length && !featuredSong) return
     const warm = InteractionManager.runAfterInteractions(() => {
       if (featuredSong) usePlayerStore.getState().warmAudio(featuredSong)
@@ -213,28 +221,30 @@ export default function HomeScreen() {
   }, [featuredSong, continueSongs])
 
   const openSongNumber = (number: number) => {
-    usePlayerStore.getState().warmAudio({
-      id: `ps-${number}`,
-      number,
-      title: "",
-      shortDescription: "",
-      imageUrl: "",
-      thumbnailUrl: "",
-      themes: [],
-      meaning: "",
-      lyrics: "",
-      translation: "",
-      durationSeconds: 300,
-      performer: "",
-      videos: [],
-      audioUrl: null,
-      mediaHydrated: false,
-    })
+    if (Platform.OS !== "android") {
+      usePlayerStore.getState().warmAudio({
+        id: `ps-${number}`,
+        number,
+        title: "",
+        shortDescription: "",
+        imageUrl: "",
+        thumbnailUrl: "",
+        themes: [],
+        meaning: "",
+        lyrics: "",
+        translation: "",
+        durationSeconds: 300,
+        performer: "",
+        videos: [],
+        audioUrl: null,
+        mediaHydrated: false,
+      })
+    }
     router.push(href(`/song/ps-${number}`))
   }
 
   const openSong = (song: MockSong) => {
-    usePlayerStore.getState().warmAudio(song)
+    if (Platform.OS !== "android") usePlayerStore.getState().warmAudio(song)
     router.push(href(`/song/${song.id}`))
   }
 
@@ -261,7 +271,10 @@ export default function HomeScreen() {
       if (!feelingSearchEnabled) {
         Alert.alert(FEELING_ENABLE_IN_PROFILE_TITLE, FEELING_ENABLE_IN_PROFILE_BODY, [
           { text: "Not now", style: "cancel" },
-          { text: "Open Profile", onPress: () => router.push(href("/(tabs)/profile")) },
+          {
+            text: "Open Profile",
+            onPress: () => router.push(href("/(tabs)/profile")),
+          },
         ])
         return
       }
@@ -459,6 +472,7 @@ const styles = StyleSheet.create({
   searchSlot: {
     marginTop: -spacing.lg,
     marginBottom: spacing.md,
+    zIndex: 2,
   },
   suggestionCard: {
     marginTop: spacing.sm,

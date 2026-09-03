@@ -11,6 +11,7 @@ import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
+import { HOME_FEED_KEYS, writeHomeFeedCache } from "@/lib/homeFeedCache"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import {
   QUIZ_LEVEL_COPY,
@@ -112,7 +113,10 @@ export default function QuizScreen() {
       setResult(submitted)
       setAttempt(null)
       const refreshed = (await api.fetchQuizStatus()) as QuizStatus | null
-      if (refreshed) setStatus(refreshed)
+      if (refreshed) {
+        setStatus(refreshed)
+        await writeHomeFeedCache(HOME_FEED_KEYS.quizStatus, refreshed)
+      }
     } finally {
       setBusy(false)
     }

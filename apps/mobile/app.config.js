@@ -2,13 +2,6 @@ const productionApi =
   "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
 
 const APP_PACKAGE = "net.prabhatasamgiita.ai"
-const fs = require("fs")
-const path = require("path")
-
-function envOrDefault(name, fallback) {
-  const value = process.env[name]?.trim()
-  return value || fallback
-}
 
 function googleReversedScheme(clientId) {
   const trimmed = (clientId || "").trim()
@@ -36,12 +29,8 @@ module.exports = ({ config }) => {
   const configuredProjectId =
     process.env.EAS_PROJECT_ID?.trim() || config.extra?.eas?.projectId
 
-  const iosGoogleScheme = googleReversedScheme(envOrDefault("EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID", ""))
-  const androidGoogleScheme = googleReversedScheme(
-    envOrDefault("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID", ""),
-  )
-  const googleServicesFile = "./google-services.json"
-  const googleServicesPath = path.join(__dirname, googleServicesFile)
+  const iosGoogleScheme = googleReversedScheme(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID)
+  const androidGoogleScheme = googleReversedScheme(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID)
 
   return {
     ...config,
@@ -55,8 +44,6 @@ module.exports = ({ config }) => {
         NSPhotoLibraryAddUsageDescription:
           "Prabhat Samgiita AI does not save images to your photo library. This notice is required by an included sign-in component.",
         ...(config.ios?.infoPlist ?? {}),
-        // Keep explicit so merges never drop background Listen audio.
-        UIBackgroundModes: ["audio"],
         CFBundleURLTypes: mergeUrlSchemes(config.ios?.infoPlist?.CFBundleURLTypes, [
           "prabhatai",
           APP_PACKAGE,
@@ -67,7 +54,6 @@ module.exports = ({ config }) => {
     android: {
       ...config.android,
       versionCode: config.android?.versionCode ?? 1,
-      ...(fs.existsSync(googleServicesPath) ? { googleServicesFile } : {}),
       intentFilters: [
         ...(config.android?.intentFilters ?? []),
         {
@@ -104,21 +90,18 @@ module.exports = ({ config }) => {
         process.env.EXPO_PUBLIC_AZURE_TENANT_ID ??
         config.extra?.azureTenantId ??
         "22cd8762-00e6-4945-850c-7b6ab1798844",
-      googleClientId: envOrDefault(
-        "EXPO_PUBLIC_GOOGLE_CLIENT_ID",
+      googleClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ??
         config.extra?.googleClientId ??
-          "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
-      ),
-      googleIosClientId: envOrDefault(
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID",
+        "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
+      googleIosClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ??
         config.extra?.googleIosClientId ??
-          "495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs.apps.googleusercontent.com",
-      ),
-      googleAndroidClientId: envOrDefault(
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID",
+        "495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs.apps.googleusercontent.com",
+      googleAndroidClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ??
         config.extra?.googleAndroidClientId ??
-          "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com",
-      ),
+        "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com",
       ...(configuredProjectId ? { eas: { projectId: configuredProjectId } } : {}),
     },
   }

@@ -28,6 +28,10 @@ describe("mobile AI chat helpers", () => {
     ).toBe("A calm dawn song.")
   })
 
+  it("turns bullets and numbered lines into markdown lists", () => {
+    expect(formatAssistantMessage("• Peace\n2) Courage")).toBe("- Peace\n2. Courage")
+  })
+
   it("builds song-specific companion suggestions", () => {
     const prompts = songCompanionSuggestions({ number: 1, title: "BANDHU HE NIYE CALO" })
     expect(prompts.some((item) => item.includes("PS 1"))).toBe(true)

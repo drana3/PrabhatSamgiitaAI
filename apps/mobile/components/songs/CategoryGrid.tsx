@@ -7,7 +7,6 @@ import {
   Leaf,
   Library,
   Moon,
-  Music,
   PartyPopper,
   Sparkles,
   Sunrise,
@@ -30,7 +29,6 @@ const iconMap = {
   "party-popper": PartyPopper,
   flame: Flame,
   peace: Flower2,
-  music: Music,
 } as const
 
 export type CategoryChip = {

@@ -14,6 +14,7 @@ import {
   fetchSongDetailCached,
   fetchSongLocalizationCached,
   peekSongDetail,
+  prefetchNotation,
 } from "@/lib/songCache"
 
 describe("songCache", () => {
@@ -60,5 +61,11 @@ describe("songCache", () => {
     await fetchNotationCached(1, "C")
     await fetchNotationCached(1, "C")
     expect(api.fetchNotation).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not prefetch notation while Sargam is paused", () => {
+    prefetchNotation(1, "C")
+    prefetchNotation(27, "C")
+    expect(api.fetchNotation).not.toHaveBeenCalled()
   })
 })

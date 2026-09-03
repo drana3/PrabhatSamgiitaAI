@@ -4,6 +4,7 @@ import {
   catalogLyricCount,
   catalogSongByNumber,
   catalogSongsByNumbers,
+  searchCatalogLyrics,
   searchLyrics,
   type LyricSearchRow,
 } from "@/lib/lyricSearch"
@@ -55,8 +56,17 @@ describe("lyric search", () => {
   })
 
   it("resolves catalog numbers from the bundled index (Explore must use this, not lyric text)", () => {
+    expect(catalogSongByNumber("1")?.number).toBe(1)
+    expect(catalogSongByNumber("9")?.number).toBe(9)
     expect(catalogSongByNumber("2000")?.number).toBe(2000)
     expect(catalogSongByNumber("ps 2000")?.number).toBe(2000)
     expect(catalogSongByNumber("9999")).toBeNull()
+  })
+
+  it("finds opening words without waiting on a full token index", () => {
+    const started = Date.now()
+    const hits = searchCatalogLyrics("bandhu", 5, { interpret: true })
+    expect(Date.now() - started).toBeLessThan(120)
+    expect(hits[0]?.number).toBe(1)
   })
 })

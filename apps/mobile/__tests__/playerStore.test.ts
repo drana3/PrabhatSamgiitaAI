@@ -30,7 +30,7 @@ function createMockSound(initial: Status) {
       status = { ...status, isPlaying: false }
     }),
     unloadAsync: vi.fn(async () => undefined),
-    setStatusAsync: vi.fn(async (patch: { shouldPlay?: boolean; isLooping?: boolean }) => {
+    setStatusAsync: vi.fn(async (patch: { shouldPlay?: boolean }) => {
       if (typeof patch.shouldPlay === "boolean") {
         status = { ...status, isPlaying: patch.shouldPlay }
       }
@@ -80,19 +80,6 @@ vi.mock("@/lib/offlineAudio", () => ({
   useOfflineAudioStore: {
     getState: () => ({ files: {} }),
   },
-}))
-
-vi.mock("@/lib/audioFocus", () => ({
-  releaseExtraAudio: vi.fn(async () => undefined),
-  setPlaybackIntent: vi.fn(),
-  setSongPlaybackYield: vi.fn(),
-  setSongPlayingGuard: vi.fn(),
-}))
-
-vi.mock("@/lib/audioRepeat", () => ({
-  readAudioRepeat: vi.fn(() => false),
-  writeAudioRepeat: vi.fn(),
-  hydrateAudioRepeat: vi.fn(async () => false),
 }))
 
 const song = {
@@ -312,92 +299,5 @@ describe("playerStore song-page handoff", () => {
     usePlayerStore.getState().loadSong(song as never)
     await vi.waitFor(() => expect(createAsync).toHaveBeenCalled())
     expect(createAsync.mock.calls[0]?.[0]).toEqual({ uri: "file:///docs/offline-audio/1.mp3" })
-  })
-
-  it("replays the same song when repeat is on", async () => {
-    const first = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      positionMillis: 119_000,
-      durationMillis: 120_000,
-    })
-    createAsync.mockResolvedValueOnce({ sound: first })
-
-    const { usePlayerStore } = await import("@/stores/playerStore")
-    usePlayerStore.getState().loadSong(song as never, [1, 2])
-    await vi.waitFor(() => expect(first.setOnPlaybackStatusUpdate).toHaveBeenCalled())
-
-    usePlayerStore.getState().toggleRepeat()
-    expect(usePlayerStore.getState().repeat).toBe(true)
-    await vi.waitFor(() => expect(first.setStatusAsync).toHaveBeenCalledWith({ isLooping: true }))
-
-    const onStatus = first.setOnPlaybackStatusUpdate.mock.calls.at(-1)?.[0] as (status: object) => void
-    onStatus({
-      isLoaded: true,
-      isPlaying: false,
-      isBuffering: false,
-      positionMillis: 120_000,
-      durationMillis: 120_000,
-      didJustFinish: true,
-    })
-
-    await vi.waitFor(() => expect(first.setPositionAsync).toHaveBeenCalledWith(0))
-    expect(first.playAsync).toHaveBeenCalled()
-    expect(createAsync).toHaveBeenCalledTimes(1)
-    expect(usePlayerStore.getState().currentSong?.number).toBe(1)
-    expect(usePlayerStore.getState().isPlaying).toBe(true)
-  })
-
-  it("stops at track end without starting another song", async () => {
-    const song27 = {
-      ...song,
-      id: "ps-27",
-      number: 27,
-      audioUrl: "https://example.com/27.mp3",
-    }
-    const sound = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      positionMillis: 119_000,
-      durationMillis: 120_000,
-    })
-    createAsync.mockResolvedValueOnce({ sound })
-
-    const { usePlayerStore } = await import("@/stores/playerStore")
-    usePlayerStore.getState().loadSong(song27 as never, [27, 28])
-    await vi.waitFor(() => expect(sound.setOnPlaybackStatusUpdate).toHaveBeenCalled())
-
-    const onStatus = sound.setOnPlaybackStatusUpdate.mock.calls.at(-1)?.[0] as (status: object) => void
-    onStatus({
-      isLoaded: true,
-      isPlaying: false,
-      isBuffering: false,
-      positionMillis: 120_000,
-      durationMillis: 120_000,
-      didJustFinish: true,
-    })
-
-    expect(usePlayerStore.getState().isPlaying).toBe(false)
-    expect(usePlayerStore.getState().currentSong?.number).toBe(27)
-    expect(createAsync).toHaveBeenCalledTimes(1)
-  })
-
-  it("opens songs that arrive without videos or themes arrays", async () => {
-    const sound = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      isBuffering: false,
-      positionMillis: 0,
-      durationMillis: 120_000,
-    })
-    createAsync.mockResolvedValue({ sound })
-
-    const { usePlayerStore } = await import("@/stores/playerStore")
-    usePlayerStore.getState().loadSong(
-      { ...song, videos: undefined, themes: undefined } as never,
-    )
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalled())
-    expect(usePlayerStore.getState().currentSong?.themes).toEqual(["Prabhat Samgiita"])
-    expect(usePlayerStore.getState().currentSong?.videos).toEqual([])
   })
 })

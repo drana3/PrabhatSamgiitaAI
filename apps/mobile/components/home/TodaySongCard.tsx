@@ -76,7 +76,7 @@ export function TodaySongCard({ song, onPress, onWatch, onAskAi, playQueue }: Pr
             accessibilityRole="button"
             accessibilityLabel={`Ask AI about PS ${song.number}`}
             hitSlop={8}
-            onPressIn={onAskAi}
+            onPress={onAskAi}
             style={({ pressed }) => [styles.aiBtn, pressed && { transform: [{ scale: 0.96 }] }]}
           >
             <Sparkles size={16} color={colors.white} />

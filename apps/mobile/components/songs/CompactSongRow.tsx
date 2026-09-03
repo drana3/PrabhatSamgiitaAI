@@ -1,3 +1,4 @@
+import { memo } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 
 import { ScenicPlayButton } from "@/components/player/ScenicPlayButton"
@@ -19,7 +20,7 @@ type Props = {
   lyricLine?: string
 }
 
-export function CompactSongRow({ song, onPress, lyricLine }: Props) {
+export const CompactSongRow = memo(function CompactSongRow({ song, onPress, lyricLine }: Props) {
   const showPause = usePlayerStore((s) => songPlayback(s, song).showPause)
   const isBuffering = usePlayerStore((s) => songPlayback(s, song).isBuffering)
   const pause = usePlayerStore((s) => s.pause)
@@ -46,6 +47,7 @@ export function CompactSongRow({ song, onPress, lyricLine }: Props) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open PS ${song.number} ${song.title}`}
+        delayPressIn={0}
         onPress={onPress}
         style={({ pressed }) => [styles.meta, pressed && styles.pressed]}
       >
@@ -59,14 +61,14 @@ export function CompactSongRow({ song, onPress, lyricLine }: Props) {
           </Text>
         ) : lyricSearchRow ? null : (
           <Text style={styles.themes} numberOfLines={1}>
-            {song.themes.join(" · ")}
+            {(song.themes ?? []).join(" · ")}
             {isBuffering ? " · Loading…" : ""}
           </Text>
         )}
       </Pressable>
     </View>
   )
-}
+})
 
 const styles = StyleSheet.create({
   row: {

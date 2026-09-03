@@ -35,20 +35,9 @@ export type MockSong = {
   /** Direct audio stream when available from the catalog. */
   audioUrl?: string | null
   /** Alternate catalog recordings for the Listen tab. */
-  audioRecordings?: Array<{
-    title: string
-    url: string
-    provider: string
-    isLatest?: boolean
-    isOlder?: boolean
-    isLowQuality?: boolean
-  }>
+  audioRecordings?: Array<{ title: string; url: string; provider: string }>
   /** Canonical Andromeda notation PDF when available. */
   notationSourceUrl?: string | null
-  notationVerificationStatus?: string | null
-  notationEnabled?: boolean
-  sargamSubmittedBy?: string | null
-  sargamSubmittedAt?: string | null
   /** True after GET /songs/{n} media has been applied. */
   mediaHydrated?: boolean
 }

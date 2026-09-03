@@ -10,16 +10,22 @@ import { useAuthStore } from "@/stores/authStore"
 export type OfflineAudioEntry = {
   remoteUrl: string
   fileUri: string
+  songNumber: number
 }
 
 type OfflineAudioState = {
   ready: boolean
-  files: Record<number, OfflineAudioEntry>
-  progress: Record<number, number>
-  errors: Record<number, string>
+  /** Keyed by the recording's remote URL so every version can be saved independently. */
+  files: Record<string, OfflineAudioEntry>
+  progress: Record<string, number>
+  errors: Record<string, string>
   hydrate: () => Promise<void>
-  download: (songNumber: number, remoteUrl?: string | null, options?: { userInitiated?: boolean }) => Promise<void>
-  remove: (songNumber: number) => Promise<void>
+  download: (
+    remoteUrl: string | null | undefined,
+    songNumber: number,
+    options?: { userInitiated?: boolean },
+  ) => Promise<void>
+  remove: (remoteUrl: string) => Promise<void>
 }
 
 type AuthSnapshot = {
@@ -56,8 +62,8 @@ export function offlineSaveControls(input: {
     label: downloading
       ? `Downloading ${Math.round((input.progress ?? 0) * 100)}%`
       : input.downloaded
-        ? "Remove offline download"
-        : "Download for offline",
+        ? "Remove from this app"
+        : "Save in this app",
     bufferingLabel: input.downloaded ? "Opening downloaded audio…" : "Starting stream…",
   }
 }
@@ -68,18 +74,36 @@ function currentAuth(): AuthSnapshot {
 }
 
 function indexKey(scope: string) {
-  return `ps.offline.audio.v1.${scope}`
+  return `ps.offline.audio.v2.${scope}`
 }
 
-function parseIndex(raw: string | null): Record<number, OfflineAudioEntry> {
+function normalizeUrl(url: string | null | undefined): string {
+  return url?.trim() || ""
+}
+
+/** Stable short hash of a URL so different recordings of one song get distinct files. */
+function urlHash(url: string): string {
+  let hash = 0
+  for (let i = 0; i < url.length; i += 1) {
+    hash = (hash << 5) - hash + url.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash).toString(36)
+}
+
+function parseIndex(raw: string | null): Record<string, OfflineAudioEntry> {
   if (!raw) return {}
   try {
-    const parsed = JSON.parse(raw) as Record<string, OfflineAudioEntry>
-    const files: Record<number, OfflineAudioEntry> = {}
+    const parsed = JSON.parse(raw) as Record<string, Partial<OfflineAudioEntry>>
+    const files: Record<string, OfflineAudioEntry> = {}
     for (const [key, value] of Object.entries(parsed)) {
-      const number = Number(key)
-      if (!Number.isFinite(number) || !value?.fileUri || !value.remoteUrl) continue
-      files[number] = value
+      const remoteUrl = normalizeUrl(value?.remoteUrl) || normalizeUrl(key)
+      if (!remoteUrl || !value?.fileUri) continue
+      files[remoteUrl] = {
+        remoteUrl,
+        fileUri: value.fileUri,
+        songNumber: Number(value.songNumber) || 0,
+      }
     }
     return files
   } catch {
@@ -93,8 +117,8 @@ function offlineDir(scope: string) {
   return `${base}offline-audio/${encodeURIComponent(scope)}/`
 }
 
-function destinationUri(scope: string, songNumber: number) {
-  return `${offlineDir(scope)}${songNumber}.mp3`
+function destinationUri(scope: string, songNumber: number, remoteUrl: string) {
+  return `${offlineDir(scope)}${songNumber}-${urlHash(remoteUrl)}.mp3`
 }
 
 let persistChain = Promise.resolve()
@@ -116,28 +140,28 @@ async function fileExists(uri: string) {
   }
 }
 
-const lastProgressAt: Record<number, number> = {}
-const downloadEpoch: Record<number, number> = {}
-const inflight = new Map<number, { cancelAsync: () => Promise<void> }>()
+const lastProgressAt: Record<string, number> = {}
+const downloadEpoch: Record<string, number> = {}
+const inflight = new Map<string, { cancelAsync: () => Promise<void> }>()
 
-function bumpEpoch(songNumber: number) {
-  downloadEpoch[songNumber] = (downloadEpoch[songNumber] ?? 0) + 1
-  return downloadEpoch[songNumber]
+function bumpEpoch(url: string) {
+  downloadEpoch[url] = (downloadEpoch[url] ?? 0) + 1
+  return downloadEpoch[url]
 }
 
-function setDownloadProgress(songNumber: number, ratio: number) {
+function setDownloadProgress(url: string, ratio: number) {
   const now = Date.now()
-  if (ratio < 1 && now - (lastProgressAt[songNumber] ?? 0) < 250) return
-  lastProgressAt[songNumber] = now
+  if (ratio < 1 && now - (lastProgressAt[url] ?? 0) < 250) return
+  lastProgressAt[url] = now
   useOfflineAudioStore.setState((state) => ({
-    progress: { ...state.progress, [songNumber]: Math.min(1, Math.max(0, ratio)) },
+    progress: { ...state.progress, [url]: Math.min(1, Math.max(0, ratio)) },
   }))
 }
 
-function clearSongProgress(songNumber: number) {
+function clearProgress(url: string) {
   const progress = { ...useOfflineAudioStore.getState().progress }
-  delete progress[songNumber]
-  delete lastProgressAt[songNumber]
+  delete progress[url]
+  delete lastProgressAt[url]
   useOfflineAudioStore.setState({ progress })
 }
 
@@ -150,11 +174,11 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
   hydrate: async () => {
     const scope = offlineAudioScopeKey(currentAuth())
     const stored = parseIndex(await AsyncStorage.getItem(indexKey(scope)))
-    const files: Record<number, OfflineAudioEntry> = {}
+    const files: Record<string, OfflineAudioEntry> = {}
     await Promise.all(
       Object.entries(stored).map(async ([key, entry]) => {
         if (await fileExists(entry.fileUri)) {
-          files[Number(key)] = entry
+          files[key] = entry
         }
       }),
     )
@@ -162,44 +186,44 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
     await persistCurrent(scope)
   },
 
-  download: async (songNumber, remoteUrl, options) => {
+  download: async (remoteUrl, songNumber, options) => {
     if (!options?.userInitiated) return
     const auth = currentAuth()
     if (auth.mode !== "signed_in") {
       throw new Error("Sign in to download songs for offline listening.")
     }
-    if (get().progress[songNumber] != null) return
 
     const scope = offlineAudioScopeKey(auth)
-    const epoch = bumpEpoch(songNumber)
+
+    let url = normalizeUrl(remoteUrl)
+    if (!url) {
+      const detail = await api.fetchSong(songNumber)
+      url = detail ? normalizeUrl(songDetailToMockSong(detail).audioUrl) : ""
+    }
+    if (!url) {
+      throw new Error("No in-app audio is available to download for this song yet.")
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      throw new Error("This recording cannot be saved in the app.")
+    }
+    if (get().progress[url] != null) return
+
+    const epoch = bumpEpoch(url)
     set((state) => ({
-      progress: { ...state.progress, [songNumber]: 0 },
-      errors: { ...state.errors, [songNumber]: "" },
+      progress: { ...state.progress, [url]: 0 },
+      errors: { ...state.errors, [url]: "" },
     }))
 
     try {
-      let url = remoteUrl?.trim() || ""
-      if (!url) {
-        const detail = await api.fetchSong(songNumber)
-        url = detail ? songDetailToMockSong(detail).audioUrl?.trim() || "" : ""
-      }
-      if (downloadEpoch[songNumber] !== epoch) return
-      if (!url) {
-        throw new Error("No in-app audio is available to download for this song yet.")
-      }
-      if (!/^https?:\/\//i.test(url)) {
-        throw new Error("This recording cannot be saved in the app.")
-      }
-
-      const existing = get().files[songNumber]
-      if (existing?.remoteUrl === url && (await fileExists(existing.fileUri))) {
-        if (downloadEpoch[songNumber] !== epoch) return
-        clearSongProgress(songNumber)
+      const existing = get().files[url]
+      if (existing && (await fileExists(existing.fileUri))) {
+        if (downloadEpoch[url] !== epoch) return
+        clearProgress(url)
         return
       }
 
       await FileSystem.makeDirectoryAsync(offlineDir(scope), { intermediates: true })
-      const fileUri = destinationUri(scope, songNumber)
+      const fileUri = destinationUri(scope, songNumber, url)
       const sessionType = FileSystem.FileSystemSessionType?.BACKGROUND
       const task = FileSystem.createDownloadResumable(
         url,
@@ -208,13 +232,13 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
           const ratio =
             totalBytesExpectedToWrite > 0 ? totalBytesWritten / totalBytesExpectedToWrite : 0
-          setDownloadProgress(songNumber, ratio)
+          setDownloadProgress(url, ratio)
         },
       )
-      inflight.set(songNumber, task)
+      inflight.set(url, task)
       const result = await task.downloadAsync()
-      inflight.delete(songNumber)
-      if (downloadEpoch[songNumber] !== epoch) {
+      inflight.delete(url)
+      if (downloadEpoch[url] !== epoch) {
         try {
           await FileSystem.deleteAsync(fileUri, { idempotent: true })
         } catch {
@@ -228,27 +252,29 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
       set((state) => ({
         files: {
           ...state.files,
-          [songNumber]: { remoteUrl: url, fileUri: result.uri || fileUri },
+          [url]: { remoteUrl: url, fileUri: result.uri || fileUri, songNumber },
         },
       }))
-      clearSongProgress(songNumber)
+      clearProgress(url)
       await persistCurrent(scope)
     } catch (error) {
-      inflight.delete(songNumber)
-      if (downloadEpoch[songNumber] !== epoch) return
-      clearSongProgress(songNumber)
+      inflight.delete(url)
+      if (downloadEpoch[url] !== epoch) return
+      clearProgress(url)
       const message = error instanceof Error ? error.message : "Download failed."
       set((state) => ({
-        errors: { ...state.errors, [songNumber]: message },
+        errors: { ...state.errors, [url]: message },
       }))
       throw error
     }
   },
 
-  remove: async (songNumber) => {
-    bumpEpoch(songNumber)
-    const task = inflight.get(songNumber)
-    inflight.delete(songNumber)
+  remove: async (remoteUrl) => {
+    const url = normalizeUrl(remoteUrl)
+    if (!url) return
+    bumpEpoch(url)
+    const task = inflight.get(url)
+    inflight.delete(url)
     if (task) {
       try {
         await task.cancelAsync()
@@ -256,7 +282,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         /* ignore */
       }
     }
-    const entry = get().files[songNumber]
+    const entry = get().files[url]
     if (entry) {
       try {
         await FileSystem.deleteAsync(entry.fileUri, { idempotent: true })
@@ -267,14 +293,14 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
     const scope = offlineAudioScopeKey(currentAuth())
     set((state) => {
       const files = { ...state.files }
-      delete files[songNumber]
+      delete files[url]
       const progress = { ...state.progress }
-      delete progress[songNumber]
+      delete progress[url]
       const errors = { ...state.errors }
-      delete errors[songNumber]
+      delete errors[url]
       return { files, progress, errors }
     })
-    delete lastProgressAt[songNumber]
+    delete lastProgressAt[url]
     await persistCurrent(scope)
   },
 }))
@@ -300,14 +326,13 @@ export async function resolvePlaybackUri(
   remoteUrl?: string | null,
 ): Promise<{ uri: string; local: boolean } | null> {
   const signedIn = useAuthStore.getState().mode === "signed_in"
-  if (signedIn) {
-    const entry = useOfflineAudioStore.getState().files[songNumber]
-    const remote = remoteUrl?.trim() || ""
-    if (entry && (!remote || entry.remoteUrl === remote) && (await fileExists(entry.fileUri))) {
+  const remote = normalizeUrl(remoteUrl)
+  if (signedIn && remote) {
+    const entry = useOfflineAudioStore.getState().files[remote]
+    if (entry && (await fileExists(entry.fileUri))) {
       return { uri: entry.fileUri, local: true }
     }
   }
-  const remote = remoteUrl?.trim()
   if (remote) return { uri: remote, local: false }
   return null
 }

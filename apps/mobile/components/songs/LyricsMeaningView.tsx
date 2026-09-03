@@ -1,12 +1,13 @@
 import { useState } from "react"
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native"
+import * as Clipboard from "expo-clipboard"
+import { Check, Copy } from "lucide-react-native"
 
 import { LanguagePickerModal } from "@/components/common/LanguagePickerModal"
 import { colors } from "@/constants/colors"
@@ -18,7 +19,6 @@ import {
 } from "@/constants/languages"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { copyTextToClipboard } from "@/lib/clipboard"
 import type { UnderstandMode } from "@/lib/lyricsMeaningPager"
 import type { SongMeaningResolution } from "@/lib/songMeanings"
 import { meaningUnavailableMessage } from "@/lib/songMeanings"
@@ -32,28 +32,54 @@ const MODES: { id: UnderstandMode; label: string }[] = [
   { id: "meaning", label: "Meaning" },
 ]
 
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  const value = text?.trim()
+  if (!value) return null
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={8}
+      onPress={async () => {
+        try {
+          await Clipboard.setStringAsync(value)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        } catch {
+          /* ignore clipboard errors */
+        }
+      }}
+      style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.7 }]}
+    >
+      {copied ? (
+        <Check size={14} color={colors.primaryDark} />
+      ) : (
+        <Copy size={14} color={colors.textSecondary} />
+      )}
+      <Text style={[styles.copyText, copied && { color: colors.primaryDark }]}>
+        {copied ? "Copied" : "Copy"}
+      </Text>
+    </Pressable>
+  )
+}
+
 type Props = {
   lyrics: string
   language: string
   localizing: boolean
   meaning: SongMeaningResolution
   onSelectLanguage: (code: string) => void
-  onRetryMeaning?: () => void
-  retryingMeaning?: boolean
 }
 
 function MeaningBody({
   language,
   meaning,
-  onRetry,
-  retrying,
 }: {
   language: string
   meaning: SongMeaningResolution
-  onRetry?: () => void
-  retrying?: boolean
 }) {
-  if (meaning.status === "loading" || retrying) {
+  if (meaning.status === "loading") {
     return (
       <View style={styles.meaningLoadingRow}>
         <ActivityIndicator size="small" color={colors.primary} />
@@ -65,19 +91,7 @@ function MeaningBody({
     return <Text style={styles.body}>{meaning.text}</Text>
   }
   return (
-    <View style={styles.unavailableBlock}>
-      <Text style={styles.meaningUnavailable}>{meaningUnavailableMessage(language)}</Text>
-      {onRetry ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Retry translation"
-          onPress={onRetry}
-          style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={styles.retryBtnText}>Retry translation</Text>
-        </Pressable>
-      ) : null}
-    </View>
+    <Text style={styles.meaningUnavailable}>{meaningUnavailableMessage(language)}</Text>
   )
 }
 
@@ -153,30 +167,9 @@ export function LyricsMeaningView({
   localizing,
   meaning,
   onSelectLanguage,
-  onRetryMeaning,
-  retryingMeaning = false,
 }: Props) {
   const [mode, setMode] = useState<UnderstandMode>("lyrics")
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const copyVisibleText = async () => {
-    const text =
-      mode === "lyrics"
-        ? lyrics.trim()
-        : meaning.status === "ready"
-          ? meaning.text.trim()
-          : ""
-    if (!text) {
-      Alert.alert("Copy", "Nothing to copy yet.")
-      return
-    }
-    const ok = await copyTextToClipboard(text, mode === "lyrics" ? "Lyrics copied" : "Meaning copied")
-    if (ok) {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1800)
-    }
-  }
 
   return (
     <View>
@@ -196,24 +189,15 @@ export function LyricsMeaningView({
           )
         })}
       </View>
-      <View style={styles.leadRow}>
-        <Text style={styles.lead}>
-          {mode === "lyrics" ? "Original words for singing." : "Meaning in the language you choose."}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={mode === "lyrics" ? "Copy lyrics" : "Copy meaning"}
-          onPress={() => void copyVisibleText()}
-          style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={styles.copyBtnText}>{copied ? "Copied" : "Copy"}</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.lead}>
+        {mode === "lyrics" ? "Original words for singing." : "Meaning in the language you choose."}
+      </Text>
 
       <View style={[styles.pane, mode !== "lyrics" && styles.hiddenPane]} pointerEvents={mode === "lyrics" ? "auto" : "none"}>
-        <Text style={styles.lyrics} selectable>
-          {lyrics}
-        </Text>
+        <View style={styles.paneHeader}>
+          <CopyButton text={lyrics} label="Copy lyrics" />
+        </View>
+        <Text style={styles.lyrics}>{lyrics}</Text>
       </View>
       <View style={[styles.pane, mode !== "meaning" && styles.hiddenPane]} pointerEvents={mode === "meaning" ? "auto" : "none"}>
         <LanguageRow
@@ -223,17 +207,11 @@ export function LyricsMeaningView({
           onOpenMore={() => setLanguagePickerOpen(true)}
         />
         {meaning.status === "ready" ? (
-          <Text style={styles.body} selectable>
-            {meaning.text}
-          </Text>
-        ) : (
-          <MeaningBody
-            language={language}
-            meaning={meaning}
-            onRetry={onRetryMeaning}
-            retrying={retryingMeaning}
-          />
-        )}
+          <View style={styles.paneHeader}>
+            <CopyButton text={meaning.text} label="Copy meaning" />
+          </View>
+        ) : null}
+        <MeaningBody language={language} meaning={meaning} />
       </View>
 
       <LanguagePickerModal
@@ -270,28 +248,11 @@ const styles = StyleSheet.create({
   },
   modeTabText: { ...typography.label, color: colors.textSecondary },
   modeTabTextActive: { color: colors.white },
-  leadRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
   lead: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    flex: 1,
+    marginBottom: spacing.md,
   },
-  copyBtn: {
-    minHeight: 36,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  copyBtnText: { ...typography.caption, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
   pane: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -301,7 +262,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   hiddenPane: {
-    display: "none",
+    height: 0,
+    overflow: "hidden",
+    opacity: 0,
+    marginBottom: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    borderWidth: 0,
   },
   langRow: {
     flexDirection: "row",
@@ -340,23 +307,30 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   langHint: { ...typography.caption, color: colors.textMuted },
+  paneHeader: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginBottom: spacing.xs,
+  },
+  copyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    minHeight: 32,
+  },
+  copyText: { ...typography.caption, color: colors.textSecondary },
   body: { ...typography.bodySmall, color: colors.textSecondary },
   meaningLoadingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
   },
-  unavailableBlock: { gap: spacing.sm },
-  retryBtn: {
-    alignSelf: "flex-start",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primaryLight,
-  },
-  retryBtnText: { ...typography.caption, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
   meaningUnavailable: { ...typography.bodySmall, color: colors.textMuted },
   lyrics: { ...typography.body, color: colors.textPrimary },
 })

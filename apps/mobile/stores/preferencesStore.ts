@@ -25,9 +25,7 @@ type PreferencesState = {
   recentPlays: RecentPlay[]
   searchRecents: string[]
   feelingSearchEnabled: boolean
-  harmoniumPracticeEnabled: boolean
   songNotes: Record<string, string>
-  preferredAudioBySong: Record<string, string>
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
   setSavedFromNumbers: (numbers: number[]) => void
@@ -40,9 +38,7 @@ type PreferencesState = {
   addSearchRecent: (query: string) => void
   clearSearchRecents: () => void
   setFeelingSearchEnabled: (enabled: boolean) => void
-  setHarmoniumPracticeEnabled: (enabled: boolean) => void
   setSongNote: (songId: string, note: string) => void
-  setPreferredAudioUrl: (songId: string, url: string | null) => void
 }
 
 function toSongId(number: number) {
@@ -70,9 +66,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       recentPlays: [],
       searchRecents: [],
       feelingSearchEnabled: false,
-      harmoniumPracticeEnabled: false,
       songNotes: {},
-      preferredAudioBySong: {},
       syncingFavorites: false,
 
       activateFavoritesScope: (scope) => {
@@ -169,7 +163,6 @@ export const usePreferencesStore = create<PreferencesState>()(
         const favoritesByScope = { ...get().favoritesByScope, guest: [] as string[] }
         set({
           feelingSearchEnabled: false,
-          harmoniumPracticeEnabled: false,
           favoritesScope: "guest",
           savedSongIds: [],
           favoritesByScope,
@@ -190,14 +183,13 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       addSearchRecent: (query) => {
         const trimmed = query.trim()
-        if (trimmed.length < 2) return
+        if (trimmed.length < 2 && !/^\s*(?:ps[\s-]*)?\d{1,4}\s*$/i.test(trimmed)) return
         const rest = get().searchRecents.filter((item) => item.toLowerCase() !== trimmed.toLowerCase())
         set({ searchRecents: [trimmed, ...rest].slice(0, 8) })
       },
 
       clearSearchRecents: () => set({ searchRecents: [] }),
       setFeelingSearchEnabled: (enabled) => set({ feelingSearchEnabled: enabled }),
-      setHarmoniumPracticeEnabled: (enabled) => set({ harmoniumPracticeEnabled: enabled }),
 
       setSongNote: (songId, note) => {
         const trimmed = note.trim()
@@ -206,18 +198,11 @@ export const usePreferencesStore = create<PreferencesState>()(
         else next[songId] = note.slice(0, 2000)
         set({ songNotes: next })
       },
-      setPreferredAudioUrl: (songId, url) => {
-        const next = { ...(get().preferredAudioBySong ?? {}) }
-        const trimmed = url?.trim() || ""
-        if (!trimmed) delete next[songId]
-        else next[songId] = trimmed
-        set({ preferredAudioBySong: next })
-      },
     }),
     {
       name: "prabhat-preferences",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 4,
+      version: 2,
       migrate: (persisted, version) => {
         const state = persisted as {
           savedSongIds?: string[]
@@ -226,9 +211,6 @@ export const usePreferencesStore = create<PreferencesState>()(
           recentPlays?: RecentPlay[]
           searchRecents?: string[]
           songNotes?: Record<string, string>
-          preferredAudioBySong?: Record<string, string>
-          feelingSearchEnabled?: boolean
-          harmoniumPracticeEnabled?: boolean
         }
         if (version < 2) {
           const legacySaved = state.savedSongIds ?? []
@@ -242,18 +224,6 @@ export const usePreferencesStore = create<PreferencesState>()(
             savedSongIds: legacySaved,
           }
         }
-        if (version < 3) {
-          return {
-            ...state,
-            harmoniumPracticeEnabled: state.harmoniumPracticeEnabled ?? false,
-          }
-        }
-        if (version < 4) {
-          return {
-            ...state,
-            preferredAudioBySong: state.preferredAudioBySong ?? {},
-          }
-        }
         return state
       },
       partialize: (state) => ({
@@ -263,9 +233,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,
         feelingSearchEnabled: state.feelingSearchEnabled,
-        harmoniumPracticeEnabled: state.harmoniumPracticeEnabled,
         songNotes: state.songNotes,
-        preferredAudioBySong: state.preferredAudioBySong,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return

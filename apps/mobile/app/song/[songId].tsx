@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
+  ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -28,36 +30,31 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { isSameSong, songPlayback } from "@/lib/playback"
-import { hasDownloadedAudio } from "@/lib/offlineAudio"
-import { instantSongBundle, resolveSongBundle, songRouteId } from "@/lib/songs"
+import { resolveSongBundle, peekResolvedSong } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
-import { parseSongNumber, mergeSongMedia, normalizeMockSong, storedMeaningForLanguage } from "@/lib/songMap"
+import { parseSongNumber, storedMeaningForLanguage, routeString } from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
-import { hasPublishedLearnerSargam } from "@prabhat/core"
-import { practiceLyricSource } from "@/lib/sargamDisplay"
+import { practiceLyricSource, isSargamEnabledForSong } from "@/lib/sargamDisplay"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
-import { forgetSongLocalization, peekSongLocalization } from "@/lib/songCache"
+import { fetchNotationCached, peekSongLocalization } from "@/lib/songCache"
 import { songShareMessage } from "@/lib/webLinks"
-import { usePlayerStore, peekMediaCachedSong } from "@/stores/playerStore"
+import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
 export default function SongDetailScreen() {
-  const { songId, tab: tabParam } = useLocalSearchParams<{ songId: string | string[]; tab?: string }>()
+  const params = useLocalSearchParams<{ songId: string | string[]; tab?: string | string[] }>()
+  const songId = routeString(params.songId)
+  const tabParam = routeString(params.tab)
   const router = useRouter()
   const { width: windowWidth } = useWindowDimensions()
-  const routeId = songRouteId(songId)
-  const [song, setSong] = useState<MockSong | null>(
-    () => instantSongBundle(songRouteId(songId))?.song ?? null,
-  )
-  const [related, setRelated] = useState<MockSong[]>(
-    () => instantSongBundle(songRouteId(songId))?.related ?? [],
-  )
-  const [loadError, setLoadError] = useState<string | null>(() =>
-    instantSongBundle(songRouteId(songId)) ? null : "Song not found.",
-  )
+  const [song, setSong] = useState<MockSong | null>(null)
+  const [related, setRelated] = useState<MockSong[]>([])
+  const [loadingSong, setLoadingSong] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [hasNotation, setHasNotation] = useState(false)
   const loadSong = usePlayerStore((s) => s.loadSong)
   const syncCurrentSong = usePlayerStore((s) => s.syncCurrentSong)
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
@@ -69,10 +66,6 @@ export default function SongDetailScreen() {
   const isCurrent = usePlayerStore((s) =>
     song ? songPlayback(s, song).isCurrent : false,
   )
-  const playerSong = usePlayerStore((s) =>
-    song && s.currentSong?.number === song.number ? s.currentSong : null,
-  )
-  const mediaCacheRevision = usePlayerStore((s) => s.mediaCacheRevision)
   const authMode = useAuthStore((s) => s.mode)
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
@@ -80,8 +73,6 @@ export default function SongDetailScreen() {
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
   const [localizing, setLocalizing] = useState(false)
-  const [meaningRetryTick, setMeaningRetryTick] = useState(0)
-  const [retryingMeaning, setRetryingMeaning] = useState(false)
   const [journey, setJourney] = useState<SongJourneyTab>("listen")
   const [watchPlaying, setWatchPlaying] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
@@ -131,16 +122,10 @@ export default function SongDetailScreen() {
     [song],
   )
 
-  const retryMeaningTranslation = useCallback(() => {
-    if (!song || language === "en") return
-    delete meaningCache.current[language]
-    forgetSongLocalization(song.number, localeLabel(language))
-    setRetryingMeaning(true)
-    setMeaningRetryTick((tick) => tick + 1)
-  }, [language, song])
-
   useEffect(() => {
     let active = true
+    setLoadError(null)
+    setHasNotation(false)
     setWatchPlaying(false)
     autoPlayedFor.current = null
     meaningCache.current = {}
@@ -149,46 +134,50 @@ export default function SongDetailScreen() {
     setLocalizedTitle(null)
     setLocalizing(false)
 
-    const instant = instantSongBundle(routeId)
-    const number = parseSongNumber(routeId)
-    if (!instant) {
-      setSong(null)
-      setRelated([])
-      setLoadError("Song not found.")
-      return () => {
-        active = false
-      }
+    const peeked = peekResolvedSong(typeof songId === "string" ? songId : undefined)
+    if (peeked) {
+      setSong(peeked.song)
+      setRelated(peeked.related)
+      setLoadingSong(false)
+      if (Platform.OS !== "android") usePlayerStore.getState().warmAudio(peeked.song)
+    } else {
+      setLoadingSong(true)
     }
 
-    setSong(normalizeMockSong(instant.song))
-    setRelated(instant.related)
-    setLoadError(null)
-    usePlayerStore.getState().warmAudio(instant.song)
+    const number = parseSongNumber(typeof songId === "string" ? songId : undefined)
     if (number) prefetchScenicForSong(number)
-    void resolveSongBundle(routeId).then((bundle) => {
-      if (!active || !bundle) return
-      const cached = peekMediaCachedSong(bundle.song.number)
-      setSong(mergeSongMedia(normalizeMockSong(bundle.song), cached ?? undefined))
+    void resolveSongBundle(songId).then((bundle) => {
+      if (!active) return
+      if (!bundle) {
+        if (!peeked) {
+          setSong(null)
+          setRelated([])
+          setLoadError("Song not found.")
+        }
+        setLoadingSong(false)
+        return
+      }
+      setSong(bundle.song)
       setRelated(bundle.related)
-      usePlayerStore.getState().warmAudio(bundle.song)
+      setLoadingSong(false)
+      setHasNotation(isSargamEnabledForSong(bundle.song.number))
+      if (Platform.OS !== "android") usePlayerStore.getState().warmAudio(bundle.song)
+      if (isSargamEnabledForSong(bundle.song.number)) {
+        void fetchNotationCached(bundle.song.number, "C")
+      }
     })
     return () => {
       active = false
     }
-  }, [routeId])
+  }, [songId])
 
-  useEffect(() => {
-    if (!song) return
-    const cached = peekMediaCachedSong(song.number)
-    const merged = mergeSongMedia(song, playerSong ?? cached ?? undefined)
-    if (merged !== song) setSong(merged)
-  }, [song, playerSong, mediaCacheRevision])
-
-  const hasVideo = Boolean((song?.videos ?? []).some((video) => video.embedUrl))
-  const hasFullSargam = Boolean(
-    song &&
-      hasPublishedLearnerSargam(song.number, song.notationVerificationStatus, song.notationEnabled),
+  const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
+  const journeyTabs = useMemo(
+    () => visibleSongJourneyTabs({ hasVideo, hasNotation }),
+    [hasVideo, hasNotation],
   )
+  const watchLayout = songWatchLayout(journey, { hasVideo, watchPlaying })
+
   const requestedTab =
     tabParam === "watch" ||
     tabParam === "understand" ||
@@ -196,16 +185,6 @@ export default function SongDetailScreen() {
     tabParam === "notation"
       ? tabParam
       : null
-  const notationDeepLink = requestedTab === "notation"
-  const journeyTabs = useMemo(
-    () =>
-      visibleSongJourneyTabs({
-        hasVideo,
-        hasFullSargam: hasFullSargam || notationDeepLink,
-      }),
-    [hasVideo, notationDeepLink, hasFullSargam],
-  )
-  const watchLayout = songWatchLayout(journey, { hasVideo, watchPlaying })
 
   useEffect(() => {
     if (requestedTab) setJourney(requestedTab)
@@ -241,25 +220,19 @@ export default function SongDetailScreen() {
       else setQueue(queue)
       return
     }
-    // Wait for catalog audio unless this song is already saved locally.
-    if (!song.mediaHydrated && !song.audioUrl && !hasDownloadedAudio(song.number)) return
     // Once per song visit — avoid restarting on related[] updates.
     if (autoPlayedFor.current === song.id) return
     autoPlayedFor.current = song.id
     setJourney("listen")
     const current = usePlayerStore.getState().currentSong
-    const { isPlaying, hasAudio } = usePlayerStore.getState()
-    if (current && !isSameSong(current, song)) {
-      setQueue(queue)
-      return
-    }
     if (isSameSong(current, song)) {
       // Already playing this track from Home/mini-player — do not touch the Sound.
-      if (isPlaying || hasAudio) {
-        syncCurrentSong(song, queue)
-        return
-      }
-      loadSong(song, queue)
+      syncCurrentSong(song, queue)
+      return
+    }
+    // Android: do not create AVPlayer while the song screen is mounting (native crash).
+    if (Platform.OS === "android") {
+      setQueue(queue)
       return
     }
     loadSong(song, queue)
@@ -300,11 +273,9 @@ export default function SongDetailScreen() {
     }
     let active = true
     setLocalizing(true)
-    setRetryingMeaning(false)
     void fetchSongMeaningLocalization(song.number, language).then((result) => {
       if (!active) return
       setLocalizing(false)
-      setRetryingMeaning(false)
       if (!result) {
         setLocalizedMeaning(null)
         setLocalizedTitle(null)
@@ -322,14 +293,22 @@ export default function SongDetailScreen() {
     }).catch(() => {
       if (!active) return
       setLocalizing(false)
-      setRetryingMeaning(false)
       setLocalizedMeaning(null)
       setLocalizedTitle(null)
     })
     return () => {
       active = false
     }
-  }, [language, song, meaningRetryTick])
+  }, [language, song])
+
+  if (loadingSong && !song) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={styles.loadingText}>Loading song…</Text>
+      </View>
+    )
+  }
 
   if (!song) {
     return (
@@ -359,17 +338,11 @@ export default function SongDetailScreen() {
   }
 
   const selectRecording = (url: string) => {
-    if (!song) return
-    const latestUrl = song.audioRecordings?.find((item) => item.isLatest)?.url
-    usePreferencesStore.getState().setPreferredAudioUrl(
-      song.id,
-      url === latestUrl ? null : url,
-    )
     if (song.audioUrl === url) {
       handlePlayToggle()
       return
     }
-    const next = normalizeMockSong({ ...song, audioUrl: url, mediaHydrated: true as const })
+    const next = { ...song, audioUrl: url, mediaHydrated: true as const }
     setSong(next)
     playOrToggle(next, playQueue)
   }
@@ -396,7 +369,7 @@ export default function SongDetailScreen() {
     : { status: "unavailable" as const }
   const displayTitle =
     language !== "en" && localizedTitle?.trim() ? localizedTitle : song?.title ?? ""
-  const watchVideos = (song.videos ?? []).filter((video) => video.embedUrl)
+  const watchVideos = song.videos.filter((video) => video.embedUrl)
   const practiceLyrics = practiceLyricSource({
     lyricsOriginal: song.lyrics,
     transliteration: song.transliteration,
@@ -417,27 +390,13 @@ export default function SongDetailScreen() {
           <View style={styles.navActions}>
             <IconButton
               soft
-              accessibilityLabel={isSaved ? "Remove from Saved" : "Save to Saved"}
+              accessibilityLabel={isSaved ? "Remove favorite" : "Save favorite"}
               onPress={() => {
                 if (authMode !== "signed_in") {
                   router.push(href("/signin"))
                   return
                 }
-                const wasSaved = isSaved
-                void toggleSaved(song.id).then(() => {
-                  if (wasSaved) return
-                  Alert.alert(
-                    "Saved",
-                    "Find this song anytime under Saved (bottom tab) or Profile → Saved songs.",
-                    [
-                      { text: "OK", style: "cancel" },
-                      {
-                        text: "Open Saved",
-                        onPress: () => router.push(href("/(tabs)/saved")),
-                      },
-                    ],
-                  )
-                })
+                void toggleSaved(song.id)
               }}
             >
               <Heart
@@ -460,6 +419,14 @@ export default function SongDetailScreen() {
         keyboardShouldPersistTaps="always"
         nestedScrollEnabled
       >
+        {loadingSong ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.loadingText}>Loading song…</Text>
+          </View>
+        ) : null}
+        <View style={styles.heroShell}>
+        {Platform.OS === "ios" ? (
         <Animated.View entering={FadeInDown.duration(240)} style={styles.hero}>
           <ScenicBackgroundImage uri={song.imageUrl} style={StyleSheet.absoluteFill} priority="high" />
           <Pressable
@@ -479,6 +446,28 @@ export default function SongDetailScreen() {
             <Text style={styles.heroThemes}>{(song.themes ?? []).join(" · ")}</Text>
           </View>
         </Animated.View>
+        ) : (
+        <View style={styles.hero}>
+          <ScenicBackgroundImage uri={song.imageUrl} style={StyleSheet.absoluteFill} priority="high" />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={showPause ? `Pause ${song.title}` : `Listen to ${song.title}`}
+            onPress={handlePlayToggle}
+            style={({ pressed }) => [styles.heroPlay, pressed && { opacity: 0.92 }]}
+          >
+            {showPause ? (
+              <Pause size={28} color={colors.white} fill={colors.white} />
+            ) : (
+              <Play size={28} color={colors.white} fill={colors.white} />
+            )}
+          </Pressable>
+          <View style={styles.heroMeta}>
+            <Text style={styles.heroTitle}>{song.originalTitle ?? song.title}</Text>
+            <Text style={styles.heroThemes}>{(song.themes ?? []).join(" · ")}</Text>
+          </View>
+        </View>
+        )}
+        </View>
 
         <View style={styles.titleRow} pointerEvents="box-none">
           <View style={styles.titleTextWrap} pointerEvents="none">
@@ -490,7 +479,7 @@ export default function SongDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel="Open AI Companion for this song"
             hitSlop={10}
-            onPressIn={openAiCompanion}
+            onPress={openAiCompanion}
             style={({ pressed }) => [styles.aiCompanionChip, pressed && { opacity: 0.9 }]}
           >
             <Sparkles size={14} color={colors.white} />
@@ -584,11 +573,11 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
 
-        {journey === "notation" && hasFullSargam ? (
+        {journey === "notation" && hasNotation ? (
           <View style={styles.sectionPanel}>
-            <Text style={styles.sectionEyebrow}>Experience · Harmonium</Text>
+            <Text style={styles.sectionEyebrow}>Experience · Sargam</Text>
             <Text style={styles.sectionLead}>
-              Play the booklet lines, tap keys, or type Sa Re Ga — same layout on every song with sargam.
+              Hindi sargam and keys for this song, same source as the website. No player — read and learn the notes.
             </Text>
             <NotationPractice
               songNumber={song.number}
@@ -596,10 +585,6 @@ export default function SongDetailScreen() {
               lyricText={practiceLyrics.practiceText}
               originalLyricText={practiceLyrics.originalText}
               sourceUrl={song.notationSourceUrl}
-              verificationStatus={song.notationVerificationStatus}
-              submittedBy={song.sargamSubmittedBy}
-              submittedAt={song.sargamSubmittedAt}
-              notationEnabled={song.notationEnabled}
             />
           </View>
         ) : null}
@@ -618,8 +603,6 @@ export default function SongDetailScreen() {
               title={song.title}
               performer={song.performer}
               audioUrl={song.audioUrl}
-              recordings={song.audioRecordings}
-              onSelectRecording={selectRecording}
               onTogglePlay={handlePlayToggle}
               compact
             />
@@ -630,8 +613,6 @@ export default function SongDetailScreen() {
             localizing={localizing}
             meaning={meaningResolution}
             onSelectLanguage={selectLanguage}
-            onRetryMeaning={retryMeaningTranslation}
-            retryingMeaning={retryingMeaning}
           />
         </View>
 
@@ -644,6 +625,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   centered: { alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   safe: { backgroundColor: colors.background },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
   loadingText: {
     ...typography.caption,
     color: colors.textMuted,
@@ -658,12 +646,15 @@ const styles = StyleSheet.create({
   navTitle: { ...typography.h3, color: colors.textPrimary, flex: 1 },
   navActions: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section },
+  heroShell: {
+    marginBottom: spacing.lg,
+    borderRadius: radius.xl,
+    ...softShadow(2),
+  },
   hero: {
     height: 240,
     borderRadius: radius.xl,
     overflow: "hidden",
-    marginBottom: spacing.lg,
-    ...softShadow(2),
   },
   heroPlay: {
     position: "absolute",
@@ -752,7 +743,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   hiddenPanel: {
-    display: "none",
+    height: 0,
+    overflow: "hidden",
+    opacity: 0,
+    marginBottom: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    borderWidth: 0,
   },
   watchParked: {
     position: "absolute",

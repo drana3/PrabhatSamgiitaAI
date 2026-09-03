@@ -1,7 +1,7 @@
 import type { SongSummary } from "@prabhat/core"
 import { describe, expect, it } from "vitest"
 
-import { parseSongNumber, normalizeMockSong, songSummaryToMockSong, englishMeaningFromDetail } from "@/lib/songMap"
+import { parseSongNumber, routeString, songSummaryToMockSong, englishMeaningFromDetail } from "@/lib/songMap"
 import { todayHeadline, todayModeLabel, todaySummary } from "@/lib/today"
 
 describe("song mappers", () => {
@@ -9,6 +9,9 @@ describe("song mappers", () => {
     expect(parseSongNumber("ps-2155")).toBe(2155)
     expect(parseSongNumber("3")).toBe(3)
     expect(parseSongNumber("nope")).toBeNull()
+    expect(routeString("ps-1")).toBe("ps-1")
+    expect(routeString(["ps-27"])).toBe("ps-27")
+    expect(routeString(undefined)).toBeUndefined()
   })
 
   it("maps API song summaries into player-ready song cards", () => {
@@ -33,21 +36,6 @@ describe("song mappers", () => {
       is_verified: true,
     })
     expect(song.title).toBe("DUNIÁVÁNLO, TÁKATE RAHO")
-  })
-
-  it("fills missing videos and themes on partial song rows", () => {
-    const base = songSummaryToMockSong({
-      number: 5,
-      title: "Test song",
-      is_verified: true,
-    })
-    const safe = normalizeMockSong({
-      ...base,
-      videos: undefined as never,
-      themes: undefined as never,
-    })
-    expect(safe.videos).toEqual([])
-    expect(safe.themes).toEqual(["Prabhat Samgiita"])
   })
 
   it("uses English lyrics as the meaning source when the catalog has no English meaning column", () => {

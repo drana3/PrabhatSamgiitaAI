@@ -1,6 +1,7 @@
 import type { SongDetail, SongLocalization, TransposedNotation } from "@prabhat/core"
 
 import { api } from "@/lib/client"
+import { isSargamEnabledForSong } from "@/lib/sargamDisplay"
 
 const DETAIL_CACHE_MAX = 48
 const LOCALIZATION_CACHE_MAX = 64
@@ -45,10 +46,6 @@ export function peekSongLocalization(number: number, language: string): SongLoca
   return localizationCache.get(localizationKey(number, language)) ?? null
 }
 
-export function forgetSongLocalization(number: number, language: string) {
-  localizationCache.delete(localizationKey(number, language))
-}
-
 export async function fetchSongLocalizationCached(
   number: number,
   language: string,
@@ -83,7 +80,8 @@ export async function fetchNotationCached(
   return live
 }
 
-/** Warm notation for a song without blocking UI. */
+/** Warm notation for a song without blocking UI. No-op while Sargam is paused. */
 export function prefetchNotation(number: number, tonic = "C") {
+  if (!isSargamEnabledForSong(number)) return
   void fetchNotationCached(number, tonic)
 }

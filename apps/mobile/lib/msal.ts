@@ -40,12 +40,25 @@ export function markMicrosoftLoginRequired() {
 }
 
 /**
- * Local-only Microsoft logout. Do not open the Entra browser logout page —
- * on Android that Custom Tab steals focus, delays welcome, and forces a manual
- * return to the app. Next sign-in uses prompt=login instead.
+ * Best-effort Entra logout so the next sign-in is not completed by SSO cookie alone.
+ * Cancel / dismiss is ignored — local app session is cleared separately.
  */
 export async function signOutWithMicrosoft(): Promise<void> {
-  markMicrosoftLoginRequired()
+  preferLoginPrompt = true
+  const { clientId, tenantId } = azureConfig()
+  if (!clientId) return
+
+  const redirectUri = getMicrosoftRedirectUri()
+  const logoutUrl =
+    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout` +
+    `?client_id=${encodeURIComponent(clientId)}` +
+    `&post_logout_redirect_uri=${encodeURIComponent(redirectUri)}`
+
+  try {
+    await WebBrowser.openAuthSessionAsync(logoutUrl, redirectUri)
+  } catch {
+    // Keep going; local sign-out still applies.
+  }
 }
 
 /**
@@ -75,12 +88,7 @@ export async function signInWithMicrosoft(): Promise<MicrosoftIdentity> {
   })
 
   await request.makeAuthUrlAsync(discovery)
-  // createTask:false keeps Chrome Custom Tabs in this app task so the
-  // prabhatai://auth redirect returns focus automatically (no manual switch).
-  const result = await request.promptAsync(discovery, {
-    showInRecents: false,
-    createTask: false,
-  })
+  const result = await request.promptAsync(discovery, { showInRecents: true })
   if (result.type !== "success" || !result.params.code) {
     if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
     const oauthError = result.params?.error_description || result.params?.error

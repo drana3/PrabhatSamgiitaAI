@@ -119,6 +119,9 @@ export function SearchBar({
           style={styles.input}
           accessibilityLabel={placeholder}
           returnKeyType="search"
+          blurOnSubmit={false}
+          underlineColorAndroid="transparent"
+          textAlignVertical="center"
           onSubmitEditing={onSubmitEditing}
         />
         {value ? (
@@ -176,6 +179,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
     padding: 0,
+    includeFontPadding: false,
   },
   micBtn: {
     width: 32,

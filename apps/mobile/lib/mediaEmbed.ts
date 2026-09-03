@@ -2,18 +2,6 @@
  * Keep media playback inside the app — never send users to YouTube/search pages.
  */
 
-import {
-  compareAudioQuality,
-  isLowQualityAudio,
-  isOlderAudio,
-  markLatestAudio,
-  resolvePreferredAudioUrl,
-  type RankedAudio,
-} from "@prabhat/core"
-
-export { audioFreshnessBadge, resolvePreferredAudioUrl } from "@prabhat/core"
-export type PlayableAudio = RankedAudio
-
 const YOUTUBE_ID =
   /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i
 
@@ -59,13 +47,12 @@ type MediaLike = {
   url: string
   embed_url?: string | null
   verification_status: string
-  source_status?: string | null
-  match_score?: number | null
-  is_primary?: boolean
-  is_older?: boolean
-  is_low_quality?: boolean
-  is_latest?: boolean
-  version?: string | null
+}
+
+export type PlayableAudio = {
+  title: string
+  url: string
+  provider: string
 }
 
 function audioStreamUrl(item: MediaLike): string | null {
@@ -75,14 +62,21 @@ function audioStreamUrl(item: MediaLike): string | null {
   return url
 }
 
-/** Direct audio streams, latest current recording first. YouTube stays on Watch. */
+function audioRank(item: MediaLike) {
+  let rank = 0
+  if (item.verification_status.includes("verified")) rank += 2
+  if (item.provider === "official") rank += 1
+  return rank
+}
+
+/** Direct audio streams, preferred recording first. YouTube stays on Watch. */
 export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
   const ranked = media
     .filter((item) => item.kind === "audio" || item.provider === "direct_audio")
     .slice()
-    .sort(compareAudioQuality)
+    .sort((left, right) => audioRank(right) - audioRank(left))
   const seen = new Set<string>()
-  const items: Array<Omit<PlayableAudio, "isLatest">> = []
+  const items: PlayableAudio[] = []
   for (const item of ranked) {
     const url = audioStreamUrl(item)
     if (!url || seen.has(url)) continue
@@ -91,14 +85,12 @@ export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
       title: item.title?.trim() || "Recording",
       url,
       provider: item.provider,
-      isOlder: isOlderAudio(item),
-      isLowQuality: isLowQualityAudio(item),
     })
   }
-  return markLatestAudio(items)
+  return items
 }
 
-export function audioRecordingLabel(item: { title: string; provider: string }, index: number) {
+export function audioRecordingLabel(item: PlayableAudio, index: number) {
   const title = item.title.trim()
   if (title && !/^(?:audio|recording)$/i.test(title)) return title
   if (index === 0) return "Original rendition"
@@ -107,8 +99,8 @@ export function audioRecordingLabel(item: { title: string; provider: string }, i
   return `Recording ${index + 1}`
 }
 
-export function pickPreferredAudioUrl(media: MediaLike[], savedUrl?: string | null): string | null {
-  return resolvePreferredAudioUrl(listPlayableAudio(media), savedUrl)
+export function pickPreferredAudioUrl(media: MediaLike[]): string | null {
+  return listPlayableAudio(media)[0]?.url ?? null
 }
 
 export function mediaVideosToEmbeds(

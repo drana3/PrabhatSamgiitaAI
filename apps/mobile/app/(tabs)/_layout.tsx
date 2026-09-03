@@ -31,7 +31,6 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           lazy: true,
-          // freezeOnBlur left screens unresponsive after quick tab / button presses on Android.
           freezeOnBlur: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,

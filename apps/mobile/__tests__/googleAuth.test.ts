@@ -98,16 +98,6 @@ describe("signInWithGoogle", () => {
     await expect(signInOnIos()).rejects.toThrow(/iOS OAuth client/)
   })
 
-  it("does not open browser OAuth on Android developer errors (Google OAuth policy)", async () => {
-    vi.resetModules()
-    platformState.os = "android"
-    const developerError = Object.assign(new Error("DEVELOPER_ERROR"), { code: "10" })
-    signIn.mockRejectedValue(developerError)
-
-    const { signInWithGoogle: signInOnAndroid } = await import("@/lib/googleAuth")
-    await expect(signInOnAndroid()).rejects.toThrow(/SHA-1|OAuth 2\.0 policy/)
-  })
-
   it("configures the iOS client id on iPhone builds", async () => {
     vi.resetModules()
     platformState.os = "ios"

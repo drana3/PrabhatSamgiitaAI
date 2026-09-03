@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
+import { Repeat } from "lucide-react-native"
 
 import { ScenicPlayButton } from "@/components/player/ScenicPlayButton"
 import { colors } from "@/constants/colors"
@@ -22,6 +23,8 @@ export function MiniPlayer() {
   const audioError = usePlayerStore((s) => s.audioError)
   const togglePlay = usePlayerStore((s) => s.togglePlay)
   const pause = usePlayerStore((s) => s.pause)
+  const repeat = usePlayerStore((s) => s.repeat)
+  const toggleRepeat = usePlayerStore((s) => s.toggleRepeat)
 
   if (!currentSong) return null
 
@@ -58,8 +61,20 @@ export function MiniPlayer() {
             ? audioError
             : isBuffering
               ? "Loading audio…"
-              : currentSong.themes.slice(0, 2).join(" · ")}
+              : repeat
+                ? "Repeat on · loops when locked"
+                : currentSong.themes.slice(0, 2).join(" · ")}
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: repeat }}
+        accessibilityLabel={repeat ? "Turn off repeat" : "Repeat this song (keeps playing when locked)"}
+        hitSlop={10}
+        onPress={() => toggleRepeat()}
+        style={({ pressed }) => [styles.repeatBtn, repeat && styles.repeatBtnOn, pressed && { opacity: 0.85 }]}
+      >
+        <Repeat size={18} color={repeat ? colors.white : colors.textSecondary} />
       </Pressable>
     </View>
   )
@@ -101,5 +116,16 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  repeatBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceWarm,
+  },
+  repeatBtnOn: {
+    backgroundColor: colors.primary,
   },
 })

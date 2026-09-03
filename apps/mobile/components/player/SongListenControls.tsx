@@ -1,27 +1,19 @@
-import { useRef, useState, useMemo } from "react"
-import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, Text, View } from "react-native"
-import { useRouter } from "expo-router"
-import * as Clipboard from "expo-clipboard"
-import { Download, FolderOpen, Repeat, RotateCcw, RotateCw, Trash2, Volume1, Volume2, VolumeX, ChevronDown } from "lucide-react-native"
+import { useRef, useState } from "react"
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native"
+import * as Sharing from "expo-sharing"
+import { Download, Repeat, RotateCcw, Share2, Trash2, Volume1, Volume2, VolumeX, ChevronDown } from "lucide-react-native"
 
 import { ScenicPlayButton } from "@/components/player/ScenicPlayButton"
 import { SeekBar } from "@/components/player/SeekBar"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import {
-  offlineAudioPathLabel,
-  offlineAudioStorageLabel,
-  offlineSaveControls,
-  useOfflineAudioStore,
-} from "@/lib/offlineAudio"
-import { audioFreshnessBadge, audioRecordingLabel } from "@/lib/mediaEmbed"
-import { mergeRecordingLists } from "@/lib/songMap"
+import { offlineSaveControls, useOfflineAudioStore } from "@/lib/offlineAudio"
+import { audioRecordingLabel } from "@/lib/mediaEmbed"
 import { songPlayback } from "@/lib/playback"
 import { useAuthStore } from "@/stores/authStore"
-import { usePlayerStore, peekMediaCachedSong } from "@/stores/playerStore"
+import { usePlayerStore } from "@/stores/playerStore"
 import { formatDuration } from "@/utils/formatDuration"
-import { href } from "@/utils/href"
 
 type Props = {
   songId: string
@@ -30,14 +22,7 @@ type Props = {
   title: string
   performer: string
   audioUrl?: string | null
-  recordings?: Array<{
-    title: string
-    url: string
-    provider: string
-    isLatest?: boolean
-    isOlder?: boolean
-    isLowQuality?: boolean
-  }>
+  recordings?: Array<{ title: string; url: string; provider: string }>
   onSelectRecording?: (url: string) => void
   onTogglePlay: () => void
   /** Slim transport while reading lyrics/meaning. */
@@ -56,17 +41,19 @@ export function SongListenControls({
   onTogglePlay,
   compact = false,
 }: Props) {
-  const router = useRouter()
   const [showMore, setShowMore] = useState(false)
   const signedIn = useAuthStore((s) => s.mode === "signed_in")
-  const offlineEntry = useOfflineAudioStore((s) => s.files[songNumber])
-  const downloaded = Boolean(offlineEntry?.fileUri)
-  const differentRecording = Boolean(offlineEntry && audioUrl && offlineEntry.remoteUrl !== audioUrl)
-  const downloadProgress = useOfflineAudioStore((s) => s.progress[songNumber])
-  const waitingForPlayback = useOfflineAudioStore((s) => Boolean(s.waiting[songNumber]))
-  const downloadError = useOfflineAudioStore((s) => s.errors[songNumber])
+  const files = useOfflineAudioStore((s) => s.files)
+  const progressMap = useOfflineAudioStore((s) => s.progress)
+  const errorsMap = useOfflineAudioStore((s) => s.errors)
   const download = useOfflineAudioStore((s) => s.download)
   const removeDownload = useOfflineAudioStore((s) => s.remove)
+  const urlKey = (u?: string | null) => u?.trim() || ""
+  const currentKey = urlKey(audioUrl)
+  const downloaded = Boolean(files[currentKey])
+  const savedPath = files[currentKey]?.fileUri
+  const downloadProgress = progressMap[currentKey]
+  const downloadError = errorsMap[currentKey]
   const showPause = usePlayerStore((s) => songPlayback(s, { id: songId, number: songNumber }).showPause)
   const isCurrent = usePlayerStore((s) => songPlayback(s, { id: songId, number: songNumber }).isCurrent)
   const isBuffering = usePlayerStore((s) =>
@@ -81,18 +68,6 @@ export function SongListenControls({
   const seekBy = usePlayerStore((s) => s.seekBy)
   const adjustVolume = usePlayerStore((s) => s.adjustVolume)
   const pause = usePlayerStore((s) => s.pause)
-  const mediaCacheRevision = usePlayerStore((s) => s.mediaCacheRevision)
-  const playerRecordings = usePlayerStore((s) =>
-    s.currentSong?.number === songNumber ? s.currentSong.audioRecordings : undefined,
-  )
-  const cachedRecordings = useMemo(() => {
-    void mediaCacheRevision
-    return peekMediaCachedSong(songNumber)?.audioRecordings
-  }, [songNumber, mediaCacheRevision])
-  const effectiveRecordings = useMemo(
-    () => mergeRecordingLists(recordings, playerRecordings, cachedRecordings),
-    [recordings, playerRecordings, cachedRecordings],
-  )
   const repeat = usePlayerStore((s) => s.repeat)
   const toggleRepeat = usePlayerStore((s) => s.toggleRepeat)
 
@@ -103,48 +78,8 @@ export function SongListenControls({
     downloaded,
     progress: downloadProgress,
     error: downloadError,
-    differentRecording,
-    waitingForPlayback,
   })
   const downloading = downloadProgress != null
-
-  async function startDownload() {
-    if (downloading) return
-    if (!audioUrl?.trim()) {
-      Alert.alert("Download", "No playable recording is selected yet. Wait for audio to load, then try again.")
-      return
-    }
-    try {
-      await download(songNumber, audioUrl, { userInitiated: true })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Download failed."
-      Alert.alert("Download", message)
-    }
-  }
-
-  async function revealDownloadPath() {
-    const path = offlineAudioPathLabel(offlineEntry, songNumber)
-    const uri = offlineEntry?.fileUri
-    try {
-      await Clipboard.setStringAsync(path)
-    } catch {
-      /* ignore */
-    }
-    Alert.alert("Saved file", `${path}\n\nFiles stay inside the app (iOS/Android private storage). Path copied.`, [
-      { text: "OK", style: "cancel" },
-      ...(uri
-        ? [
-            {
-              text: "Share file",
-              onPress: () => {
-                void Share.share({ url: uri, message: `PS ${songNumber}` }).catch(() => undefined)
-              },
-            },
-          ]
-        : []),
-    ])
-  }
-
   const lastCtrl = useRef(0)
   const once = (fn: () => void) => {
     const now = Date.now()
@@ -159,23 +94,13 @@ export function SongListenControls({
   }
 
   const bufferingLabel = saveUi.bufferingLabel
-  const extraRecordings = effectiveRecordings.slice(1)
+  const extraRecordings = recordings.slice(1)
   const selectedIndex = Math.max(
     0,
-    effectiveRecordings.findIndex((item) => item.url === audioUrl),
+    recordings.findIndex((item) => item.url === audioUrl),
   )
-  const selectedRecording = effectiveRecordings[selectedIndex]
-  const selectedBadge =
-    effectiveRecordings.length > 1 && selectedRecording
-      ? audioFreshnessBadge({
-          isLatest: selectedRecording.isLatest === true,
-          isOlder: selectedRecording.isOlder === true,
-          isLowQuality: selectedRecording.isLowQuality === true,
-        })
-      : null
-  const listenTitle = selectedRecording
-    ? [selectedBadge, audioRecordingLabel(selectedRecording, selectedIndex)].filter(Boolean).join(" · ")
-    : "Original rendition"
+  const listenTitle =
+    recordings[selectedIndex] ? audioRecordingLabel(recordings[selectedIndex], selectedIndex) : "Original rendition"
 
   if (compact) {
     return (
@@ -233,75 +158,71 @@ export function SongListenControls({
           {isCurrent && !audioError && !isBuffering && !hasAudio && !saveUi.badge ? (
             <Text style={styles.status}>No in-app audio stream for this song yet.</Text>
           ) : null}
+          {saveUi.badge && !isBuffering ? (
+            <Text style={styles.offline}>Available offline</Text>
+          ) : null}
         </View>
       </View>
 
-      {!signedIn ? (
+      {saveUi.visible ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Sign in to download songs for offline listening"
-          onPress={() => router.push(href("/signin"))}
+          accessibilityLabel={
+            downloaded ? `Remove in-app copy of ${title}` : `Save ${title} in this app for offline play`
+          }
+          disabled={downloading}
+          onPress={() => {
+            if (downloaded) {
+              void removeDownload(currentKey)
+              return
+            }
+            // Fire-and-forget: play, seek, and navigation stay active during save.
+            void download(audioUrl, songNumber, { userInitiated: true }).catch(() => undefined)
+          }}
           style={({ pressed }) => [styles.downloadBtn, pressed && styles.ctrlPressed]}
         >
-          <Download size={16} color={colors.textPrimary} />
-          <Text style={styles.downloadLabel}>Sign in to download</Text>
-        </Pressable>
-      ) : saveUi.showDownload || saveUi.showDownloading ? (
-        <View style={styles.downloadBlock}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Download ${title} for offline listening`}
-            disabled={downloading}
-            onPress={() => {
-              void startDownload()
-            }}
-            style={({ pressed }) => [styles.downloadBtn, pressed && !downloading && styles.ctrlPressed]}
-          >
-            {downloading ? (
-              <ActivityIndicator color={colors.textPrimary} size="small" />
-            ) : (
-              <Download size={16} color={colors.textPrimary} />
-            )}
-            <Text style={styles.downloadLabel}>{saveUi.label}</Text>
-          </Pressable>
           {downloading ? (
-            <View style={styles.downloadTrack} accessibilityLabel={`Download progress ${saveUi.label}`}>
-              <View
-                style={[
-                  styles.downloadFill,
-                  { width: `${Math.round((downloadProgress ?? 0) * 100)}%` },
-                ]}
-              />
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-      {saveUi.showSavedLocation ? (
-        <View style={styles.savedRow}>
-          <Text style={styles.savedLocation}>{offlineAudioStorageLabel(songNumber, offlineEntry)}</Text>
-          <View style={styles.savedActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Show download path"
-              onPress={() => void revealDownloadPath()}
-              style={({ pressed }) => [styles.removeSavedBtn, pressed && styles.ctrlPressed]}
-            >
-              <FolderOpen size={14} color={colors.primaryDark} />
-              <Text style={styles.pathBtnText}>Path</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Remove offline download of ${title}`}
-              onPress={() => void removeDownload(songNumber)}
-              style={({ pressed }) => [styles.removeSavedBtn, pressed && styles.ctrlPressed]}
-            >
-              <Trash2 size={14} color={colors.textSecondary} />
-              <Text style={styles.removeSavedText}>Remove</Text>
-            </Pressable>
-          </View>
-        </View>
+            <ActivityIndicator color={colors.textPrimary} size="small" />
+          ) : downloaded ? (
+            <Trash2 size={16} color={colors.textPrimary} />
+          ) : (
+            <Download size={16} color={colors.textPrimary} />
+          )}
+          <Text style={styles.downloadLabel}>{saveUi.label}</Text>
+        </Pressable>
       ) : null}
       {saveUi.showError && downloadError ? <Text style={styles.status}>{downloadError}</Text> : null}
+      {downloaded && savedPath ? (
+        <View style={styles.savedActions}>
+          <Text style={styles.savedPath} numberOfLines={2}>
+            Saved to: {decodeURIComponent(savedPath.replace(/^file:\/\//, ""))}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share downloaded recording"
+            onPress={() => {
+              void (async () => {
+                try {
+                  if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(savedPath, {
+                      mimeType: "audio/mpeg",
+                      dialogTitle: "Share recording",
+                    })
+                    return
+                  }
+                  Alert.alert("Share", "Sharing is not available on this device.")
+                } catch {
+                  Alert.alert("Share", "Could not open the share sheet.")
+                }
+              })()
+            }}
+            style={({ pressed }) => [styles.shareBtn, pressed && styles.ctrlPressed]}
+          >
+            <Share2 size={16} color={colors.textPrimary} />
+            <Text style={styles.shareLabel}>Share file</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {extraRecordings.length > 0 && onSelectRecording ? (
         <View style={styles.moreWrap}>
@@ -318,47 +239,62 @@ export function SongListenControls({
             </View>
           </Pressable>
           {showMore
-            ? effectiveRecordings.map((item, index) => {
+            ? recordings.map((item, index) => {
                 const selected = item.url === audioUrl
-                const badge =
-                  effectiveRecordings.length > 1
-                    ? audioFreshnessBadge({
-                        isLatest: item.isLatest === true,
-                        isOlder: item.isOlder === true,
-                        isLowQuality: item.isLowQuality === true,
-                      })
-                    : null
-                const label = audioRecordingLabel(item, index)
+                const recKey = urlKey(item.url)
+                const recDownloaded = Boolean(files[recKey])
+                const recProgress = progressMap[recKey]
+                const recDownloading = recProgress != null
                 return (
-                  <Pressable
+                  <View
                     key={item.url}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`Play ${[badge, label].filter(Boolean).join(" · ")}`}
-                    onPress={() => onSelectRecording(item.url)}
-                    style={({ pressed }) => [
-                      styles.recordingRow,
-                      selected && styles.recordingRowSelected,
-                      pressed && styles.ctrlPressed,
-                    ]}
+                    style={[styles.recordingRow, selected && styles.recordingRowSelected]}
                   >
-                    <View style={styles.recordingCopy}>
-                      {badge ? (
-                        <Text
-                          style={[
-                            styles.recordingBadge,
-                            item.isLatest && styles.recordingBadgeLatest,
-                          ]}
-                        >
-                          {badge}
-                        </Text>
-                      ) : null}
-                      <Text style={[styles.recordingTitle, selected && styles.recordingTitleSelected]}>
-                        {label}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Play ${audioRecordingLabel(item, index)}`}
+                      onPress={() => onSelectRecording(item.url)}
+                      style={({ pressed }) => [styles.recordingSelect, pressed && styles.ctrlPressed]}
+                    >
+                      <Text
+                        style={[styles.recordingTitle, selected && styles.recordingTitleSelected]}
+                      >
+                        {audioRecordingLabel(item, index)}
                       </Text>
-                    </View>
-                    <Text style={styles.recordingAction}>{selected ? "Playing" : "Play"}</Text>
-                  </Pressable>
+                      <Text style={styles.recordingAction}>{selected ? "Playing" : "Play"}</Text>
+                    </Pressable>
+                    {signedIn ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          recDownloaded
+                            ? `Remove downloaded ${audioRecordingLabel(item, index)}`
+                            : `Download ${audioRecordingLabel(item, index)}`
+                        }
+                        disabled={recDownloading}
+                        hitSlop={6}
+                        onPress={() => {
+                          if (recDownloaded) {
+                            void removeDownload(recKey)
+                            return
+                          }
+                          void download(item.url, songNumber, { userInitiated: true }).catch(
+                            () => undefined,
+                          )
+                        }}
+                        style={({ pressed }) => [styles.recordingDl, pressed && styles.ctrlPressed]}
+                      >
+                        {recDownloading ? (
+                          <ActivityIndicator size="small" color={colors.primaryDark} />
+                        ) : recDownloaded ? (
+                          <Trash2 size={16} color={colors.primaryDark} />
+                        ) : (
+                          <Download size={16} color={colors.primaryDark} />
+                        )}
+                      </Pressable>
+                    ) : null}
+                  </View>
                 )
               })
             : null}
@@ -380,16 +316,6 @@ export function SongListenControls({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Jump forward 10 seconds"
-              onPressIn={() => once(() => seekBy(10))}
-              hitSlop={8}
-              style={({ pressed }) => [styles.ctrlBtn, pressed && styles.ctrlPressed]}
-            >
-              <RotateCw size={18} color={colors.textPrimary} />
-              <Text style={styles.ctrlLabel}>+10s</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
               accessibilityLabel="Volume down"
               onPressIn={() => once(() => adjustVolume(-0.15))}
               hitSlop={8}
@@ -403,17 +329,26 @@ export function SongListenControls({
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={repeat ? "Disable repeat" : "Enable repeat"}
+              accessibilityLabel="Volume up"
+              onPressIn={() => once(() => adjustVolume(0.15))}
+              hitSlop={8}
+              style={({ pressed }) => [styles.ctrlBtn, pressed && styles.ctrlPressed]}
+            >
+              <Volume2 size={18} color={colors.textPrimary} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
               accessibilityState={{ selected: repeat }}
-              onPressIn={() => once(() => toggleRepeat())}
+              accessibilityLabel={repeat ? "Turn off repeat" : "Repeat this song (keeps playing when locked)"}
+              onPress={() => once(() => toggleRepeat())}
               hitSlop={8}
               style={({ pressed }) => [
                 styles.ctrlBtn,
-                repeat && styles.ctrlBtnActive,
+                repeat && styles.ctrlBtnOn,
                 pressed && styles.ctrlPressed,
               ]}
             >
-              <Repeat size={18} color={repeat ? colors.primaryDark : colors.textPrimary} />
+              <Repeat size={18} color={repeat ? colors.white : colors.textPrimary} />
             </Pressable>
           </View>
 
@@ -476,11 +411,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: spacing.xs,
-    gap: spacing.xs,
-    flexWrap: "wrap",
+    gap: spacing.sm,
   },
   ctrlBtn: {
-    minWidth: 48,
+    minWidth: 52,
     minHeight: 44,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -492,38 +426,32 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: spacing.sm,
   },
+  ctrlBtnOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   ctrlPressed: {
     opacity: 0.75,
-  },
-  ctrlBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
   },
   ctrlLabel: { ...typography.caption, color: colors.textPrimary },
   volumeMeter: { flexDirection: "row", alignItems: "center", gap: 4, minWidth: 52 },
   volumeText: { ...typography.caption, color: colors.textMuted },
   offline: { ...typography.caption, color: colors.primary, marginTop: spacing.xs },
-  savedRow: {
-    gap: spacing.xs,
+  savedPath: { ...typography.caption, color: colors.textMuted, fontSize: 11, flex: 1 },
+  savedActions: { gap: spacing.xs },
+  shareBtn: {
+    minHeight: 40,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  savedLocation: { ...typography.caption, color: colors.textSecondary },
-  savedActions: { flexDirection: "row", alignItems: "center", gap: spacing.md, flexWrap: "wrap" },
-  pathBtnText: { ...typography.caption, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
-  removeSavedBtn: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    alignSelf: "flex-start",
-    minHeight: 32,
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  removeSavedText: { ...typography.caption, color: colors.textSecondary },
-  downloadBlock: { gap: spacing.xs },
+  shareLabel: { ...typography.label, color: colors.textPrimary },
   downloadBtn: {
     minHeight: 44,
     borderRadius: radius.md,
@@ -537,17 +465,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   downloadLabel: { ...typography.label, color: colors.textPrimary },
-  downloadTrack: {
-    height: 4,
-    borderRadius: radius.pill,
-    backgroundColor: colors.divider,
-    overflow: "hidden",
-  },
-  downloadFill: {
-    height: "100%",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
   moreWrap: { gap: spacing.xs },
   moreToggle: {
     minHeight: 44,
@@ -568,26 +485,30 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: "center",
+    flexDirection: "row",
+    paddingRight: spacing.xs,
+  },
+  recordingSelect: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
     justifyContent: "space-between",
     flexDirection: "row",
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
   },
+  recordingDl: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   recordingRowSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
   },
-  recordingCopy: { flex: 1, gap: 2 },
-  recordingBadge: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    fontSize: 10,
-  },
-  recordingBadgeLatest: { color: colors.success },
-  recordingTitle: { ...typography.caption, color: colors.textPrimary },
+  recordingTitle: { ...typography.caption, color: colors.textPrimary, flex: 1 },
   recordingTitleSelected: { color: colors.textPrimary, fontWeight: "600" },
   recordingAction: { ...typography.caption, color: colors.primaryDark },
 })

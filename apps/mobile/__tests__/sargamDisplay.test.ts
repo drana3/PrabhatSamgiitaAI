@@ -9,7 +9,7 @@ import {
   isBengaliText,
   notationCoverage,
   hasPlayableNotation,
-  isRomanPracticeNotation,
+  isSargamEnabledForSong,
   notationPdfHref,
   practiceLyricSource,
   resolveLineLyrics,
@@ -105,19 +105,6 @@ describe("sargamDisplay (mobile)", () => {
     expect(notationCoverage(8, 6).incomplete).toBe(false)
   })
 
-  it("accepts Roman RS drafts and rejects Bengali PDF OCR", () => {
-    expect(
-      isRomanPracticeNotation({
-        metadata_json: { source_kind: "sarkarverse_roman_ocr" },
-      }),
-    ).toBe(true)
-    expect(
-      isRomanPracticeNotation({
-        metadata_json: { extraction_method: "tesseract_bengali_source_pdf" },
-      }),
-    ).toBe(false)
-  })
-
   it("does not treat a PDF-only song as playable notation", () => {
     expect(hasPlayableNotation(null)).toBe(false)
     expect(hasPlayableNotation({ notation: { lines: [] } })).toBe(false)
@@ -142,5 +129,12 @@ describe("sargamDisplay (mobile)", () => {
     ).toBe("https://prabhatasamgiita.net/notations/1.pdf")
     expect(notationPdfHref(null, { playable: true, incomplete: true })).toContain("andromeda.php")
     expect(notationPdfHref(null, { playable: true, incomplete: false })).toBeNull()
+  })
+
+  it("keeps Sargam off so song pages do not fetch notation", () => {
+    expect(isSargamEnabledForSong(1)).toBe(false)
+    expect(isSargamEnabledForSong(2)).toBe(false)
+    expect(isSargamEnabledForSong(27)).toBe(false)
+    expect(isSargamEnabledForSong(3)).toBe(false)
   })
 })

@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native"
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
 
 import { colors } from "@/constants/colors"
 import { journeyMarqueeCycleWidth, type SongJourneyTab } from "@/constants/songJourney"
@@ -68,6 +60,7 @@ export function SongJourneyTicker({ tabs, selected, onSelect }: Props) {
   cycleWidthRef.current = cycleWidth
 
   useEffect(() => {
+    if (Platform.OS === "android") return
     if (!shouldMarquee || cycleWidth < 24) {
       offsetRef.current = 0
       scrollRef.current?.scrollTo({ x: 0, animated: false })

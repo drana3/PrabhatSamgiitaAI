@@ -4,16 +4,6 @@ import type { MockSong, SongVideo } from "@/data/mock"
 import { listPlayableAudio, mediaVideosToEmbeds, pickPreferredAudioUrl } from "@/lib/mediaEmbed"
 import { scenicHeroFor, scenicThumbFor } from "@/lib/scenicArt"
 
-/** Guard song-page UI from partial catalog rows missing media arrays. */
-export function normalizeMockSong(song: MockSong): MockSong {
-  const themes = song.themes?.filter(Boolean) ?? []
-  return {
-    ...song,
-    videos: song.videos ?? [],
-    themes: themes.length ? themes : ["Prabhat Samgiita"],
-  }
-}
-
 export function isBareSongTitle(title: string | null | undefined, number: number): boolean {
   const value = title?.trim() ?? ""
   if (!value) return true
@@ -34,48 +24,19 @@ export function songCardTitle(song: {
   return song.title?.trim() || `PS ${song.number}`
 }
 
-export function parseSongNumber(songId: string | string[] | undefined): number | null {
-  const raw = Array.isArray(songId) ? songId[0] : songId
-  if (!raw) return null
-  let value = raw.trim()
-  try {
-    value = decodeURIComponent(value).trim()
-  } catch {
-    /* keep raw */
-  }
-  const match = /^ps-(\d+)$/i.exec(value)
+export function parseSongNumber(songId: string | undefined): number | null {
+  if (!songId) return null
+  const match = /^ps-(\d+)$/i.exec(songId)
   if (match) return Number(match[1])
-  const asNumber = Number(value)
+  const asNumber = Number(songId)
   return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null
 }
 
-/** Normalize Expo route params (`ps-12`, `12`, or a one-item array). */
-export function songRouteId(songId: string | string[] | undefined): string | undefined {
-  const number = parseSongNumber(songId)
-  return number ? `ps-${number}` : undefined
-}
-
-/** Instant song-page chrome while the API detail is in flight. */
-export function songPlaceholder(number: number, extras?: Partial<MockSong>): MockSong {
-  return normalizeMockSong({
-    id: `ps-${number}`,
-    number,
-    title: extras?.title?.trim() || `PS ${number}`,
-    originalTitle: extras?.originalTitle,
-    shortDescription: extras?.shortDescription || extras?.title || "Prabhat Samgiita",
-    imageUrl: extras?.imageUrl || scenicHeroFor(number),
-    thumbnailUrl: extras?.thumbnailUrl || scenicThumbFor(number),
-    themes: extras?.themes?.length ? extras.themes : ["Prabhat Samgiita"],
-    meaning: extras?.meaning || "",
-    lyrics: extras?.lyrics || "",
-    translation: extras?.translation || "",
-    durationSeconds: extras?.durationSeconds || 300,
-    performer: extras?.performer || "Prabhat Samgiita Collection",
-    videos: extras?.videos ?? [],
-    audioUrl: extras?.audioUrl ?? null,
-    audioRecordings: extras?.audioRecordings,
-    mediaHydrated: extras?.mediaHydrated ?? false,
-  })
+/** Expo Router may pass `string | string[]` on Android. */
+export function routeString(value: string | string[] | undefined): string | undefined {
+  if (typeof value === "string" && value.trim()) return value
+  if (Array.isArray(value) && typeof value[0] === "string" && value[0].trim()) return value[0]
+  return undefined
 }
 
 function readLocalizedMeanings(metadata: Record<string, unknown> | undefined): Record<string, string> {
@@ -135,7 +96,7 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     ? summary.first_line?.trim() || summary.title
     : summary.title
 
-  return normalizeMockSong({
+  return {
     id: `ps-${summary.number}`,
     number: summary.number,
     title,
@@ -151,58 +112,10 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     performer: "Prabhat Samgiita Collection",
     videos: [],
     audioUrl: null,
-  })
-}
-
-type AudioRecording = NonNullable<MockSong["audioRecordings"]>[number]
-
-/** Union alternate takes by URL — never drop a catalog recording during merge. */
-export function mergeRecordingLists(
-  ...lists: Array<Array<AudioRecording> | undefined | null>
-): AudioRecording[] {
-  const seen = new Set<string>()
-  const merged: AudioRecording[] = []
-  for (const list of lists) {
-    for (const item of list ?? []) {
-      const url = item.url?.trim()
-      if (!url || seen.has(url)) continue
-      seen.add(url)
-      merged.push(item)
-    }
-  }
-  return merged
-}
-
-/** True once GET /songs/{n} has been mapped — not merely a preview URL. */
-export function hasCompleteAudioCatalog(
-  song: Pick<MockSong, "mediaHydrated" | "audioUrl" | "audioRecordings">,
-): boolean {
-  if (!song.mediaHydrated) return false
-  if ((song.audioRecordings?.length ?? 0) > 0) return true
-  return !song.audioUrl?.trim()
-}
-
-export function mergeSongMedia(page: MockSong, enriched: MockSong | null | undefined): MockSong {
-  if (!enriched || enriched.number !== page.number) return page
-  const audioRecordings = mergeRecordingLists(page.audioRecordings, enriched.audioRecordings)
-  const audioUrl = page.audioUrl || enriched.audioUrl || null
-  const mediaHydrated = hasCompleteAudioCatalog(page) || hasCompleteAudioCatalog(enriched)
-  if (
-    audioRecordings === page.audioRecordings &&
-    audioUrl === page.audioUrl &&
-    mediaHydrated === page.mediaHydrated
-  ) {
-    return page
-  }
-  return {
-    ...page,
-    audioRecordings: audioRecordings.length ? audioRecordings : page.audioRecordings,
-    audioUrl,
-    mediaHydrated,
   }
 }
 
-export function songDetailToMockSong(detail: SongDetail, preferredAudioUrl?: string | null): MockSong {
+export function songDetailToMockSong(detail: SongDetail): MockSong {
   const hero = scenicHeroFor(detail.number)
   const thumb = scenicThumbFor(detail.number)
   const embeds = mediaVideosToEmbeds(detail.media, thumb, detail.number)
@@ -215,9 +128,8 @@ export function songDetailToMockSong(detail: SongDetail, preferredAudioUrl?: str
   }))
 
   const themes = [detail.theme, detail.mood, detail.occasion].filter(Boolean) as string[]
-  const recordings = listPlayableAudio(detail.media).slice(0, 8)
 
-  return normalizeMockSong({
+  return {
     id: `ps-${detail.number}`,
     number: detail.number,
     title: isBareSongTitle(detail.title, detail.number)
@@ -237,13 +149,9 @@ export function songDetailToMockSong(detail: SongDetail, preferredAudioUrl?: str
     durationSeconds: 300,
     performer: "Prabhat Samgiita Collection",
     videos,
-    audioRecordings: recordings,
-    audioUrl: pickPreferredAudioUrl(detail.media, preferredAudioUrl),
+    audioUrl: pickPreferredAudioUrl(detail.media),
+    audioRecordings: listPlayableAudio(detail.media).slice(0, 5),
     notationSourceUrl: detail.notation_source_url?.trim() || null,
-    notationVerificationStatus: detail.notation_verification_status?.trim() || null,
-    notationEnabled: detail.notation_enabled === true,
-    sargamSubmittedBy: detail.sargam_attribution?.display_name?.trim() || null,
-    sargamSubmittedAt: detail.sargam_attribution?.submitted_at ?? null,
     mediaHydrated: true,
-  })
+  }
 }

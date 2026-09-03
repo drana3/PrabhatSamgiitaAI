@@ -1,0 +1,23 @@
+diff --git a/node_modules/expo-av/ios/EXAV/EXAVPlayerData.m b/node_modules/expo-av/ios/EXAV/EXAVPlayerData.m
+index 6f6998d..fac6fe6 100644
+--- a/node_modules/expo-av/ios/EXAV/EXAVPlayerData.m
++++ b/node_modules/expo-av/ios/EXAV/EXAVPlayerData.m
+@@ -675,6 +675,18 @@ - (void)_addObserversForPlayerItem:(AVPlayerItem *)playerItem
+           if (strongEXAVInner) {
+             [strongEXAVInner demoteAudioSessionIfPossible];
+           }
++        } else {
++          // PS patch: a single-item AVPlayer cannot "advance" to loop, so the
++          // seek-to-zero + play must happen here, natively. This observer fires
++          // on the native run loop while audio is still active, so looping keeps
++          // going even when the screen is locked and JS is suspended.
++          [self.player seekToTime:kCMTimeZero
++                  toleranceBefore:kCMTimeZero
++                   toleranceAfter:kCMTimeZero
++                completionHandler:^(BOOL finished) {
++                  EX_ENSURE_STRONGIFY(self);
++                  [self.player play];
++                }];
+         }
+       });
+     }

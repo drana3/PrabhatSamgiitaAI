@@ -48,8 +48,12 @@ export function foldLyricPhonetic(value: string): string {
     .join(" ")
 }
 
+const TOKEN_FOLD_CACHE = new Map<string, string>()
+
 function foldLyricToken(token: string): string {
   if (!token) return token
+  const cached = TOKEN_FOLD_CACHE.get(token)
+  if (cached !== undefined) return cached
   let folded = token
   folded = folded.replace(/aa+/g, "a")
   folded = folded.replace(/ee+/g, "i")
@@ -69,6 +73,7 @@ function foldLyricToken(token: string): string {
   folded = folded.replace(/[ou]/g, "a")
   folded = folded.replace(/i{2,}/g, "i")
   folded = folded.replace(/a{2,}/g, "a")
+  TOKEN_FOLD_CACHE.set(token, folded)
   return folded
 }
 
@@ -387,6 +392,99 @@ function foldedLyric(row: LyricSearchRow): FoldedLyric {
   return next
 }
 
+type LyricTokenIndex = {
+  exact: Map<string, number[]>
+  folded: Map<string, number[]>
+}
+
+const tokenIndexCache = new WeakMap<LyricSearchRow[], LyricTokenIndex>()
+
+function pushIndexedRow(map: Map<string, number[]>, key: string, rowIndex: number) {
+  if (!key || key.length < 2) return
+  const list = map.get(key)
+  if (!list) {
+    map.set(key, [rowIndex])
+    return
+  }
+  if (list[list.length - 1] !== rowIndex) list.push(rowIndex)
+}
+
+function addRowSet(target: Set<number>, list: number[] | undefined) {
+  if (!list) return
+  for (const index of list) target.add(index)
+}
+
+/** Precompute token → row maps. Does not fold full lyric bodies (that stays lazy per hit). */
+export function prepareLyricSearch(rows: LyricSearchRow[]) {
+  if (!rows.length || tokenIndexCache.has(rows)) return
+  const exact = new Map<string, number[]>()
+  const folded = new Map<string, number[]>()
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]
+    const rawTitle = normalizeLyricText(row.t)
+    const rawOpening = normalizeLyricText(row.o)
+    for (const token of `${rawTitle} ${rawOpening} ${row.b}`.split(" ")) {
+      if (token.length < 2) continue
+      pushIndexedRow(exact, token, index)
+      pushIndexedRow(folded, foldLyricPhonetic(token), index)
+    }
+  }
+  tokenIndexCache.set(rows, { exact, folded })
+}
+
+function lookupTokenRows(index: LyricTokenIndex, token: string, foldedToken: string) {
+  const rows = new Set<number>()
+  addRowSet(rows, index.exact.get(token))
+  addRowSet(rows, index.folded.get(foldedToken))
+  if (rows.size > 0 || token.length < 4) return rows
+  for (let code = 97; code <= 122; code += 1) {
+    const letter = String.fromCharCode(code)
+    if (letter === token[0]) continue
+    const variant = `${letter}${token.slice(1)}`
+    addRowSet(rows, index.exact.get(variant))
+    addRowSet(rows, index.folded.get(foldLyricPhonetic(variant)))
+  }
+  for (let i = 0; i < token.length - 1; i += 1) {
+    const swapped = `${token.slice(0, i)}${token[i + 1]}${token[i]}${token.slice(i + 2)}`
+    addRowSet(rows, index.exact.get(swapped))
+    addRowSet(rows, index.folded.get(foldLyricPhonetic(swapped)))
+  }
+  return rows
+}
+
+function candidateRows(queryTokens: string[], foldedTokenByExact: Map<string, string>, rows: LyricSearchRow[]) {
+  if (rows.length <= 80) return rows
+  prepareLyricSearch(rows)
+  const index = tokenIndexCache.get(rows)
+  if (!index) return rows
+  const distinctive = queryTokens.filter((token) => token.length >= 2 && !STOP.has(token))
+  const keys = distinctive.length ? distinctive : queryTokens.filter((token) => token.length >= 2)
+  if (!keys.length) return []
+
+  let combined: Set<number> | null = null
+  for (const token of keys) {
+    const foldedToken = foldedTokenByExact.get(token) ?? foldLyricPhonetic(token)
+    const bucket = lookupTokenRows(index, token, foldedToken)
+    if (combined === null) {
+      combined = bucket
+      continue
+    }
+    const next = new Set<number>()
+    for (const rowIndex of combined) {
+      if (bucket.has(rowIndex)) next.add(rowIndex)
+    }
+    combined = next.size ? next : bucket.size < combined.size ? bucket : combined
+  }
+  if (!combined?.size) return []
+  const picked: LyricSearchRow[] = []
+  for (const rowIndex of combined) {
+    if (picked.length >= 400) break
+    const row = rows[rowIndex]
+    if (row) picked.push(row)
+  }
+  return picked
+}
+
 function scoreRow(
   query: string,
   tokens: string[],
@@ -564,19 +662,91 @@ export function interpretLyricHits(hits: LyricSearchHit[]): LyricSearchHit[] {
   return hits.filter((hit) => hit.score >= 24)
 }
 
+type OpeningNorm = {
+  title: string
+  opening: string
+  foldedTitle: string
+  foldedOpening: string
+}
+
+const openingCache = new WeakMap<LyricSearchRow, OpeningNorm>()
+
+function openingFields(row: LyricSearchRow): OpeningNorm {
+  const cached = openingCache.get(row)
+  if (cached) return cached
+  const title = normalizeLyricText(row.t)
+  const opening = normalizeLyricText(row.o)
+  const next = {
+    title,
+    opening,
+    foldedTitle: foldLyricPhonetic(title),
+    foldedOpening: foldLyricPhonetic(opening),
+  }
+  openingCache.set(row, next)
+  return next
+}
+
+function scoreOpeningRow(
+  query: string,
+  foldedQuery: string,
+  row: LyricSearchRow,
+): LyricSearchHit | null {
+  const { title, opening, foldedTitle, foldedOpening } = openingFields(row)
+  let score = 0
+  if (query === opening || query === title) score = 100
+  else if (opening.startsWith(query) || title.startsWith(query)) score = 88
+  else if (opening.includes(query) || title.includes(query)) score = 72
+  else if (foldedQuery.length >= 4 && (foldedOpening.includes(foldedQuery) || foldedTitle.includes(foldedQuery))) {
+    score = 64
+  } else if (
+    foldedQuery.length >= 3 &&
+    (` ${foldedOpening} ${foldedTitle} `.includes(` ${foldedQuery} `))
+  ) {
+    score = 64
+  } else {
+    return null
+  }
+  return {
+    number: row.n,
+    title: row.t,
+    firstLine: row.o,
+    snippet: row.o || row.t,
+    score,
+    matchedBy: "opening_line",
+  }
+}
+
 export function searchLyrics(query: string, rows: LyricSearchRow[], limit = 5): LyricSearchHit[] {
   const normalized = normalizeLyricText(query)
   if (normalized.length < 2) return []
   const tokens = normalized.split(" ").filter(Boolean)
   const foldedQuery = foldLyricPhonetic(normalized)
   const foldedTokenByExact = new Map(tokens.map((token) => [token, foldLyricPhonetic(token)]))
-  const hits: LyricSearchHit[] = []
+  const cap = Math.max(1, limit)
+
+  // Fast path: titles + openings only. No body fold and no token index.
+  const openingHits: LyricSearchHit[] = []
   for (const row of rows) {
+    const hit = scoreOpeningRow(normalized, foldedQuery, row)
+    if (hit) openingHits.push(hit)
+  }
+  openingHits.sort((left, right) => right.score - left.score || left.number - right.number)
+  const strongOpening = openingHits.filter((hit) => hit.score >= 72)
+  if (strongOpening.length >= cap) return strongOpening.slice(0, cap)
+
+  const scan = candidateRows(tokens, foldedTokenByExact, rows)
+  const hits = [...openingHits]
+  const seen = new Set(hits.map((hit) => hit.number))
+  for (const row of scan) {
+    if (seen.has(row.n)) continue
     const hit = scoreRow(normalized, tokens, row, foldedQuery, foldedTokenByExact)
-    if (hit) hits.push(hit)
+    if (hit) {
+      hits.push(hit)
+      seen.add(row.n)
+    }
   }
   hits.sort((left, right) => right.score - left.score || left.number - right.number)
-  return hits.slice(0, Math.max(1, limit))
+  return hits.slice(0, cap)
 }
 
 const MEANING_PHRASE_SCORE = 36

@@ -90,12 +90,8 @@ export function toLatinSwara(token: string): string {
 
 export function harmoniumKeyLabel(western: string | null | undefined, fallbackSargam?: string): string {
   if (western) {
-    const match = western.match(/^([A-G])([#b]?)/i)
-    if (match?.[1]) {
-      const letter = match[1].toUpperCase()
-      const accidental = (match[2] || "").toLowerCase()
-      return `${letter}${accidental}`
-    }
+    const match = western.match(/^([A-G](?:#|b)?)/i)
+    if (match?.[1]) return match[1].toUpperCase().replace("B", "b")
   }
   return fallbackSargam ? toLatinSwara(fallbackSargam) : "–"
 }
@@ -188,30 +184,25 @@ export function notationCoverage(
   }
 }
 
-/** Learner notation from Roman RS booklets only — Bengali PDF OCR is not shown. */
-export function isRomanPracticeNotation(row: {
-  metadata_json?: Record<string, unknown> | null
-} | null | undefined): boolean {
-  const meta = row?.metadata_json ?? {}
-  const kind = String(meta.source_kind ?? "")
-  const method = String(meta.extraction_method ?? "").toLowerCase()
-  return kind === "sarkarverse_roman_ocr" || method.includes("roman")
+/**
+ * Flip on to restore Sargam. Off for now: notation fetch on every song open
+ * was extra network work and made song screens feel slow.
+ */
+export const SARGAM_FEATURE_ENABLED = false
+
+/** Songs that will show Sargam again when SARGAM_FEATURE_ENABLED is true. */
+export const SARGAM_ENABLED_SONG_NUMBERS: ReadonlySet<number> = new Set([1, 2, 27])
+
+export function isSargamEnabledForSong(songNumber: number | null | undefined): boolean {
+  if (!SARGAM_FEATURE_ENABLED) return false
+  return songNumber != null && SARGAM_ENABLED_SONG_NUMBERS.has(songNumber)
 }
 
+/** True only when a learner can practise sargam — a PDF link is not enough. */
 export function hasPlayableNotation(notation: { notation?: { lines?: NotationLine[] } } | null | undefined) {
   const lines = notation?.notation?.lines
   if (!lines?.length) return false
   return lines.some((line) => lineNotes(line).length > 0)
-}
-
-export function hasFullSargamForKeyboard(
-  notation: { notation?: { lines?: NotationLine[] } } | null | undefined,
-  songLyricLineCount: number,
-  listedComplete = false,
-): boolean {
-  if (!hasPlayableNotation(notation)) return false
-  if (listedComplete) return true
-  return !notationCoverage(notation.notation?.lines?.length ?? 0, songLyricLineCount).incomplete
 }
 
 export function resolveLineLyrics(

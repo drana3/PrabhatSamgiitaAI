@@ -123,21 +123,6 @@ describe("categorySongs", () => {
     }
   })
 
-  it("lists Full Sargam songs from the complete-notation catalog", async () => {
-    expect(isSongCategoryId("fullsargam")).toBe(true)
-    expect(categoryLabel("fullsargam")).toBe("Full Sargam")
-    expect(resolveCategoryQuery("full sargam")).toBe("fullsargam")
-    expect(resolveCategoryQuery("Full Sargam")).toBe("fullsargam")
-    expect(songNumbersForCategory("fullsargam").length).toBeGreaterThan(100)
-    expect(songNumbersForCategory("fullsargam")[0]).toBe(1)
-    const result = await loadCategorySongs("fullsargam")
-    expect(api.fetchSongs).not.toHaveBeenCalled()
-    expect(result.songs.length).toBe(songNumbersForCategory("fullsargam").length)
-    expect(result.label).toBe("Full Sargam")
-    expect(result.songs[0]?.number).toBe(1)
-    expect(result.songs[0]?.title).toBeTruthy()
-  })
-
   it("resolves Evening from bundled summaries without a catalog", () => {
     const eveningNumbers = songNumbersForCategory("evening")
     const rows = songsForCategoryFromCatalog("evening", [])

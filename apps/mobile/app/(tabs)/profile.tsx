@@ -1,20 +1,29 @@
 import { useCallback, useState } from "react"
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
 import {
   Award,
   ChevronRight,
-  Heart,
   LogOut,
   MessageSquareHeart,
   Moon,
   Pencil,
   Shield,
+  Sparkles,
 } from "lucide-react-native"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
-import { FeelingSearchSwitch } from "@/components/search/FeelingSearchSwitch"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -23,8 +32,6 @@ import { api } from "@/lib/client"
 import { friendlyPersonName } from "@/lib/displayName"
 import {
   HOME_FEED_KEYS,
-  HOME_FEED_TTL_MS,
-  readHomeFeedCache,
   readHomeFeedCacheStale,
   writeHomeFeedCache,
 } from "@/lib/homeFeedCache"
@@ -66,6 +73,40 @@ function Row({
   )
 }
 
+function ToggleRow({
+  icon,
+  label,
+  hint,
+  value,
+  onValueChange,
+  disabled,
+}: {
+  icon: React.ReactNode
+  label: string
+  hint?: string
+  value: boolean
+  onValueChange: (next: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowIcon}>{icon}</View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[styles.rowLabel, { flex: 0 }]}>{label}</Text>
+        {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
+      </View>
+      <Switch
+        accessibilityLabel={label}
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.white}
+      />
+    </View>
+  )
+}
+
 export default function ProfileScreen() {
   const router = useRouter()
   const mode = useAuthStore((s) => s.mode)
@@ -76,7 +117,21 @@ export default function ProfileScreen() {
   const memberBackend = useAuthStore((s) => s.memberBackend)
   const identityProvider = useAuthStore((s) => s.identityProvider)
   const resetWelcome = useAuthStore((s) => s.resetWelcome)
+  const setDisplayName = useAuthStore((s) => s.setDisplayName)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState("")
+  const openNameEditor = () => {
+    setNameDraft(displayName === "Guest" ? "" : displayName)
+    setEditingName(true)
+  }
+  const saveName = () => {
+    const trimmed = nameDraft.trim()
+    if (trimmed) setDisplayName(trimmed)
+    setEditingName(false)
+  }
   const savedCount = usePreferencesStore((s) => s.savedSongIds.length)
+  const feelingSearchEnabled = usePreferencesStore((s) => s.feelingSearchEnabled)
+  const setFeelingSearchEnabled = usePreferencesStore((s) => s.setFeelingSearchEnabled)
   const hydrateFavoritesFromServer = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const [certCount, setCertCount] = useState<number | null>(null)
@@ -84,38 +139,6 @@ export default function ProfileScreen() {
   const getAccountId = useChatStore((s) => s.getAccountId)
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
   const accountId = getAccountId(mode, email)
-  const applyMemberSession = useAuthStore((s) => s.applyMemberSession)
-  const [editingName, setEditingName] = useState(false)
-  const [nameDraft, setNameDraft] = useState("")
-  const [savingName, setSavingName] = useState(false)
-
-  const saveDisplayName = useCallback(async () => {
-    const next = nameDraft.trim()
-    if (!next || next === (rawDisplayName || "").trim()) {
-      setEditingName(false)
-      return
-    }
-    if (!memberAuthAvailable()) {
-      Alert.alert("Profile", "Profile sync is not available in this build yet.")
-      return
-    }
-    setSavingName(true)
-    const profile = await api.updateMemberPreferences({ display_name: next })
-    setSavingName(false)
-    if (!profile) {
-      Alert.alert("Profile", "Could not update your display name. Please try again.")
-      return
-    }
-    applyMemberSession({
-      displayName: profile.display_name,
-      email: profile.email ?? email,
-      memberId: profile.id,
-      isAdmin: profile.is_admin,
-      memberBackend: true,
-      identityProvider: profile.identity_provider ?? identityProvider,
-    })
-    setEditingName(false)
-  }, [applyMemberSession, email, identityProvider, nameDraft, rawDisplayName])
 
   const loadQuizCerts = useCallback(async (forceNetwork = false) => {
     if (!memberAuthAvailable()) {
@@ -123,14 +146,6 @@ export default function ProfileScreen() {
       return
     }
     if (!forceNetwork) {
-      const fresh = await readHomeFeedCache<QuizStatus>(
-        HOME_FEED_KEYS.quizStatus,
-        HOME_FEED_TTL_MS.quizStatus,
-      )
-      if (fresh) {
-        setCertCount(fresh.certifications?.length ?? 0)
-        return
-      }
       const stale = await readHomeFeedCacheStale<QuizStatus>(HOME_FEED_KEYS.quizStatus)
       if (stale) setCertCount(stale.certifications?.length ?? 0)
     }
@@ -171,7 +186,7 @@ export default function ProfileScreen() {
         return
       }
       void (async () => {
-        await loadQuizCerts(false)
+        await loadQuizCerts(true)
         const now = Date.now()
         if (now - lastProfileSessionRefreshAt < SESSION_REFRESH_TTL_MS) return
         lastProfileSessionRefreshAt = now
@@ -206,47 +221,21 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
           </View>
           <View style={styles.cardMeta}>
-            {mode === "signed_in" && editingName ? (
-              <View style={styles.nameEditRow}>
-                <TextInput
-                  value={nameDraft}
-                  onChangeText={setNameDraft}
-                  maxLength={120}
-                  autoFocus
-                  placeholder="Display name"
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.nameInput}
-                />
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{displayName}</Text>
+              {mode === "signed_in" ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Save display name"
-                  disabled={savingName}
-                  onPress={() => void saveDisplayName()}
-                  style={({ pressed }) => [styles.nameSaveBtn, pressed && { opacity: 0.85 }]}
+                  accessibilityLabel="Edit name"
+                  hitSlop={10}
+                  onPress={openNameEditor}
+                  style={({ pressed }) => [styles.editNameBtn, pressed && { opacity: 0.7 }]}
                 >
-                  <Text style={styles.nameSaveText}>{savingName ? "…" : "Save"}</Text>
+                  <Pencil size={15} color={colors.primary} />
                 </Pressable>
-              </View>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={mode === "signed_in" ? "Edit display name" : undefined}
-                disabled={mode !== "signed_in"}
-                onPress={() => {
-                  if (mode !== "signed_in") return
-                  setNameDraft(rawDisplayName || displayName)
-                  setEditingName(true)
-                }}
-                style={styles.nameRow}
-              >
-                <Text style={styles.name}>{displayName}</Text>
-                {mode === "signed_in" ? <Pencil size={14} color={colors.textMuted} /> : null}
-              </Pressable>
-            )}
+              ) : null}
+            </View>
             <Text style={styles.role}>{mode === "guest" ? "Guest explorer" : email}</Text>
-            {mode === "signed_in" && !editingName ? (
-              <Text style={styles.editHint}>Tap your name to edit your display name</Text>
-            ) : null}
             {mode === "signed_in" ? (
               <Text style={styles.stat}>
                 {savedCount} saved · {isAdmin ? "Admin" : "Member"}
@@ -282,12 +271,6 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>Member</Text>
         <View style={styles.section}>
-          <Row
-            icon={<Heart size={18} color={colors.primary} />}
-            label="Saved songs"
-            value={savedCount ? `${savedCount} · open Saved tab` : "None yet · tap ♥ on a song"}
-            onPress={() => router.push(href("/(tabs)/saved"))}
-          />
           <Row
             icon={<Award size={18} color={colors.primary} />}
             label="Quiz & certificates"
@@ -370,9 +353,24 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>Preferences</Text>
         <View style={styles.section}>
-          <View style={styles.feelingBlock}>
-            <FeelingSearchSwitch mode="manage" />
-          </View>
+          <ToggleRow
+            icon={<Sparkles size={18} color={colors.primary} />}
+            label="Feeling search"
+            hint={
+              mode === "signed_in"
+                ? "Off by default. Turn on to search by mood or meaning."
+                : "Sign in, then turn this on in Profile"
+            }
+            value={mode === "signed_in" && feelingSearchEnabled}
+            disabled={false}
+            onValueChange={(next) => {
+              if (mode !== "signed_in") {
+                router.push(href("/signin"))
+                return
+              }
+              setFeelingSearchEnabled(next)
+            }}
+          />
           <Row
             icon={<Moon size={18} color={colors.primary} />}
             label="Appearance"
@@ -409,6 +407,52 @@ export default function ProfileScreen() {
 
         <Text style={styles.version}>Prabhat Samgiita AI · mobile</Text>
       </ScrollView>
+
+      <Modal
+        visible={editingName}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingName(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setEditingName(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>Edit your name</Text>
+            <TextInput
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              placeholder="Your name"
+              placeholderTextColor={colors.textMuted}
+              maxLength={60}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={saveName}
+              style={styles.modalInput}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setEditingName(false)}
+                style={({ pressed }) => [styles.modalBtn, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.modalBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={saveName}
+                disabled={!nameDraft.trim()}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  styles.modalBtnPrimary,
+                  !nameDraft.trim() && { opacity: 0.5 },
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <Text style={[styles.modalBtnText, styles.modalBtnTextPrimary]}>Save</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScreenContainer>
   )
 }
@@ -446,31 +490,55 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontFamily: "Lora_700Bold", fontSize: 28, color: colors.primaryDark },
   cardMeta: { flex: 1 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  name: { ...typography.h3, color: colors.textPrimary },
-  nameEditRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  nameInput: {
+  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  editNameBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalBackdrop: {
     flex: 1,
-    minHeight: 40,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: { ...typography.h3, color: colors.textPrimary },
+  modalInput: {
+    ...typography.body,
+    color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    ...typography.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.surfaceSoft,
-  },
-  nameSaveBtn: {
-    minHeight: 40,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
   },
-  nameSaveText: { ...typography.label, color: colors.white },
+  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm },
+  modalBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  modalBtnPrimary: { backgroundColor: colors.primary },
+  modalBtnText: { ...typography.label, color: colors.textSecondary },
+  modalBtnTextPrimary: { color: colors.white },
+  name: { ...typography.h3, color: colors.textPrimary },
   role: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
-  editHint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   stat: { ...typography.caption, color: colors.primary, marginTop: spacing.xs },
   syncWarning: {
     backgroundColor: colors.primaryLight,
@@ -515,12 +583,7 @@ const styles = StyleSheet.create({
   },
   rowIcon: { width: 32, alignItems: "center" },
   rowLabel: { ...typography.bodySmall, color: colors.textPrimary, flex: 1 },
+  rowHint: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   rowValue: { ...typography.caption, color: colors.textMuted },
-  feelingBlock: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
   version: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
 })

@@ -3,7 +3,7 @@
     "name": "Prabhat Samgiita AI",
     "owner": "dewasheesh3s-team",
     "slug": "prabhatsamgiitaai",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "prabhatai",
@@ -17,22 +17,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "34",
+      "buildNumber": "55",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
-        ],
-        "UISupportedInterfaceOrientations": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationLandscapeLeft",
-          "UIInterfaceOrientationLandscapeRight"
-        ],
-        "UISupportedInterfaceOrientations~ipad": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationPortraitUpsideDown",
-          "UIInterfaceOrientationLandscapeLeft",
-          "UIInterfaceOrientationLandscapeRight"
         ]
       }
     },
@@ -42,7 +31,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 34,
+      "versionCode": 59,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

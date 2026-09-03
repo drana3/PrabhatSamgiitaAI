@@ -9,6 +9,8 @@ type AuthMode = "guest" | "signed_in"
 type AuthState = {
   mode: AuthMode
   displayName: string
+  /** True once the user has manually edited their name, so session sync won't overwrite it. */
+  displayNameOverridden: boolean
   email: string | null
   memberId: string | null
   isAdmin: boolean
@@ -27,6 +29,7 @@ type AuthState = {
     identityProvider?: string | null
   }) => void
   signOut: () => void
+  setDisplayName: (name: string) => void
   completeWelcome: () => void
   resetWelcome: () => void
   toggleAdminPreview: () => void
@@ -37,6 +40,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       mode: "guest",
       displayName: "Guest",
+      displayNameOverridden: false,
       email: null,
       memberId: null,
       isAdmin: false,
@@ -50,6 +54,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           mode: "guest",
           displayName: "Guest",
+          displayNameOverridden: false,
           email: null,
           memberId: null,
           isAdmin: false,
@@ -60,20 +65,24 @@ export const useAuthStore = create<AuthState>()(
       },
 
       applyMemberSession: (input) =>
-        set({
+        set((state) => ({
           mode: "signed_in",
-          displayName: friendlyPersonName(input.displayName, input.email),
+          // Preserve a user-edited name across session refreshes.
+          displayName: state.displayNameOverridden
+            ? state.displayName
+            : friendlyPersonName(input.displayName, input.email),
           email: input.email,
           memberId: input.memberId ?? null,
           isAdmin: Boolean(input.isAdmin),
           memberBackend: Boolean(input.memberBackend),
           identityProvider: input.identityProvider ?? "aad",
-        }),
+        })),
 
       signOut: () =>
         set({
           mode: "guest",
           displayName: "Guest",
+          displayNameOverridden: false,
           email: null,
           memberId: null,
           isAdmin: false,
@@ -81,6 +90,12 @@ export const useAuthStore = create<AuthState>()(
           identityProvider: null,
           sessionEpoch: get().sessionEpoch + 1,
         }),
+
+      setDisplayName: (name) => {
+        const trimmed = name.trim().slice(0, 60)
+        if (!trimmed) return
+        set({ displayName: trimmed, displayNameOverridden: true })
+      },
 
       completeWelcome: () => set({ hasCompletedWelcome: true }),
       resetWelcome: () => set({ hasCompletedWelcome: false }),
@@ -96,6 +111,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         mode: state.mode,
         displayName: state.displayName,
+        displayNameOverridden: state.displayNameOverridden,
         email: state.email,
         memberId: state.memberId,
         isAdmin: state.isAdmin,

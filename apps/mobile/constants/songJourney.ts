@@ -14,7 +14,7 @@
 
 export const songJourneyLearnTabs = [
   { id: "understand", label: "Lyrics & Meaning", hint: "Words" },
-  { id: "notation", label: "Notation", hint: "Harmonium" },
+  { id: "notation", label: "Sargam", hint: "Notation" },
 ] as const
 
 export const songJourneyMediaTabs = [
@@ -44,14 +44,11 @@ export function partitionSongJourneyTabs<T extends { id: SongJourneyTab }>(tabs:
   }
 }
 
-/** Watch chip only appears when the song has video; notation only with full sargam. */
-export function visibleSongJourneyTabs(options: {
-  hasVideo: boolean
-  hasFullSargam?: boolean
-}) {
+/** Watch / Notation chips only appear when the song actually has that media. */
+export function visibleSongJourneyTabs(options: { hasVideo: boolean; hasNotation: boolean }) {
   return songJourneyTabs.filter((tab) => {
     if (tab.id === "watch") return options.hasVideo
-    if (tab.id === "notation") return Boolean(options.hasFullSargam)
+    if (tab.id === "notation") return options.hasNotation
     return true
   })
 }

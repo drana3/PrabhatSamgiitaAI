@@ -70,7 +70,7 @@ export default function RootLayout() {
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: colors.background },
-            animation: Platform.OS === "ios" ? "slide_from_right" : "fade_from_bottom",
+            animation: "slide_from_right",
             animationDuration: 220,
           }}
         >
@@ -80,12 +80,28 @@ export default function RootLayout() {
           <Stack.Screen name="auth/google" options={{ animation: "none" }} />
           <Stack.Screen name="complete-profile" />
           <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
-          <Stack.Screen name="song/[songId]" options={{ presentation: "card" }} />
+          <Stack.Screen
+            name="song/[songId]"
+            options={{
+              presentation: "card",
+              // Slide + Reanimated + expo-av in the same frame crashes Android.
+              animation: Platform.OS === "ios" ? "slide_from_right" : "none",
+            }}
+          />
           <Stack.Screen
             name="player/index"
             options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
           />
-          <Stack.Screen name="search/index" options={{ presentation: "modal", animation: "fade" }} />
+          <Stack.Screen
+            name="search/index"
+            options={{
+              // Same fade as iOS. Android stays a card so dismiss+push cannot
+              // crash native navigation; iOS can keep the modal presentation.
+              presentation: Platform.OS === "ios" ? "modal" : "card",
+              animation: "fade",
+              animationDuration: 220,
+            }}
+          />
           <Stack.Screen name="collections/index" options={{ presentation: "card" }} />
           <Stack.Screen name="festivals/index" options={{ presentation: "card" }} />
           <Stack.Screen name="festival/[festivalId]" options={{ presentation: "card" }} />
@@ -94,7 +110,6 @@ export default function RootLayout() {
           <Stack.Screen name="quiz/event/[slug]" options={{ presentation: "card" }} />
           <Stack.Screen name="feedback/index" options={{ presentation: "modal" }} />
           <Stack.Screen name="admin/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="admin/sargam/[number]" options={{ presentation: "card" }} />
           <Stack.Screen name="stories/index" options={{ presentation: "card" }} />
           <Stack.Screen name="stories/[slug]" options={{ presentation: "card" }} />
           <Stack.Screen name="signin/index" options={{ presentation: "modal" }} />

@@ -1,4 +1,3 @@
-import { useRef } from "react"
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { Mic, Search } from "lucide-react-native"
 
@@ -24,13 +23,10 @@ export function HomeHeroSearch({
   onMicPress,
   placeholder = SEARCH_PLACEHOLDER,
 }: Props) {
-  const inputRef = useRef<TextInput>(null)
-
   return (
     <View style={styles.container}>
       <Search size={18} color={colors.textMuted} strokeWidth={2} />
       <TextInput
-        ref={inputRef}
         editable
         value={value}
         onChangeText={onChangeText}
@@ -38,8 +34,10 @@ export function HomeHeroSearch({
         placeholderTextColor={colors.textMuted}
         style={styles.input}
         returnKeyType="search"
+        blurOnSubmit={false}
+        underlineColorAndroid="transparent"
+        textAlignVertical="center"
         onSubmitEditing={onSubmit}
-        onPressIn={() => inputRef.current?.focus()}
         accessibilityLabel="Search Prabhat Samgiita"
         autoCorrect
         autoCapitalize="sentences"
@@ -86,6 +84,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
     paddingVertical: spacing.sm,
     minHeight: 52,
+    zIndex: 2,
     ...softShadow(1),
   },
   input: {
@@ -96,6 +95,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     minHeight: 36,
     fontSize: 16,
+    includeFontPadding: false,
+    padding: 0,
   },
   micBtn: {
     width: 36,

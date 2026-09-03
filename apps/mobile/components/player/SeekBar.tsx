@@ -1,8 +1,7 @@
-import { useMemo, useRef, useState } from "react"
-import { LayoutChangeEvent, PanResponder, StyleSheet, View } from "react-native"
+import { useState } from "react"
+import { LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native"
 
 import { colors } from "@/constants/colors"
-import { seekSecondsFromTouch } from "@/lib/seekBar"
 
 type Props = {
   position: number
@@ -26,73 +25,34 @@ export function SeekBar({
   accessibilityLabel = "Seek",
 }: Props) {
   const [width, setWidth] = useState(0)
-  const [scrub, setScrub] = useState<number | null>(null)
-  const widthRef = useRef(0)
-  const durationRef = useRef(duration)
-  const onSeekRef = useRef(onSeek)
-  const lastSeekAt = useRef(0)
-  widthRef.current = width
-  durationRef.current = duration
-  onSeekRef.current = onSeek
-
-  const applySeek = (x: number, force: boolean) => {
-    const next = seekSecondsFromTouch(x, widthRef.current, durationRef.current)
-    setScrub(next)
-    const now = Date.now()
-    if (force || now - lastSeekAt.current > 50) {
-      lastSeekAt.current = now
-      onSeekRef.current(next)
-    }
-  }
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderTerminationRequest: () => false,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderGrant: (event) => applySeek(event.nativeEvent.locationX, true),
-        onPanResponderMove: (event) => applySeek(event.nativeEvent.locationX, false),
-        onPanResponderRelease: (event) => {
-          applySeek(event.nativeEvent.locationX, true)
-          setScrub(null)
-        },
-        onPanResponderTerminate: () => setScrub(null),
-      }),
-    [],
-  )
+  const max = Math.max(1, duration)
+  const ratio = Math.min(1, Math.max(0, position / max))
 
   const onLayout = (event: LayoutChangeEvent) => {
-    const nextWidth = event.nativeEvent.layout.width
-    widthRef.current = nextWidth
-    setWidth(nextWidth)
+    setWidth(event.nativeEvent.layout.width)
   }
 
-  const max = Math.max(1, duration)
-  const shown = scrub ?? position
-  const ratio = Math.min(1, Math.max(0, shown / max))
+  const seekFromX = (x: number) => {
+    if (width <= 0) return
+    const next = (Math.min(width, Math.max(0, x)) / width) * max
+    onSeek(next)
+  }
 
   return (
-    <View
-      {...pan.panHandlers}
-      onLayout={onLayout}
-      accessible
-      accessibilityRole="adjustable"
+    <Pressable
+      accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint="Drag to change playback position"
-      accessibilityValue={{
-        min: 0,
-        max,
-        now: Math.round(shown),
-      }}
+      onLayout={onLayout}
+      // Press-in: ScrollView must not cancel the seek gesture.
+      onPressIn={(event) => seekFromX(event.nativeEvent.locationX)}
       style={styles.hit}
     >
-      <View style={styles.track} pointerEvents="none">
+      <View style={styles.track}>
         <View style={[styles.fill, { width: `${ratio * 100}%` }]} />
         <View style={[styles.thumb, { left: `${ratio * 100}%` }]} />
       </View>
-    </View>
+    </Pressable>
   )
 }
 

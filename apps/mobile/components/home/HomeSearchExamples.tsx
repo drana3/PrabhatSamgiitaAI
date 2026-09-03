@@ -1,4 +1,4 @@
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
+import { Pressable, StyleSheet, Text, View } from "react-native"
 import { HOME_SEARCH_EXAMPLES } from "@prabhat/core"
 
 import { colors } from "@/constants/colors"
@@ -33,10 +33,6 @@ export function HomeSearchExamples({ signedIn, feelingOn, onSelect }: Props) {
             onPress={() => onSelect(example)}
             style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
           >
-            {/*
-              Separate Text nodes (not nested weighted Inter faces). Android often
-              drops glyphs like "number" / "feeling" when fontWeight fights the face.
-            */}
             <Text style={styles.label}>{example.label}</Text>
             {showQuery ? <Text style={styles.query}> · {example.query}</Text> : null}
             {feelingGuest ? <Text style={styles.badge}>Sign in</Text> : null}
@@ -54,11 +50,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   chip: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     alignItems: "center",
     maxWidth: "100%",
     paddingHorizontal: spacing.md,
@@ -71,16 +67,12 @@ const styles = StyleSheet.create({
   chipPressed: { opacity: 0.85 },
   label: {
     ...typography.caption,
-    fontFamily: Platform.OS === "android" ? "sans-serif-medium" : "Inter_700Bold",
+    fontWeight: "700",
     color: colors.textPrimary,
-    ...(Platform.OS === "android" ? { includeFontPadding: false } : null),
   },
   query: {
-    fontFamily: Platform.OS === "android" ? "sans-serif" : "Inter_500Medium",
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
     color: colors.textSecondary,
-    ...(Platform.OS === "android" ? { includeFontPadding: false } : null),
   },
   badge: {
     ...typography.caption,
@@ -89,11 +81,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.pill,
     overflow: "hidden",
-    fontFamily: Platform.OS === "android" ? "sans-serif-medium" : "Inter_700Bold",
+    fontWeight: "700",
     fontSize: 10,
     textTransform: "uppercase",
     color: colors.primaryDark,
     backgroundColor: colors.primaryLight,
-    ...(Platform.OS === "android" ? { includeFontPadding: false } : null),
   },
 })

@@ -2,8 +2,10 @@ import {
   confidentLyricHits,
   interpretLyricHits,
   isCatalogNumberQuery,
+  isMeaningCatalogQuery,
   mergeLyricAndMeaningHits,
   normalizeLyricText,
+  prepareLyricSearch,
   searchLyrics,
   searchMeanings,
   stripCatalogSearchFraming,
@@ -37,7 +39,7 @@ function loadCatalogRows(): LyricSearchRow[] {
 }
 
 export function warmLyricSearchIndex() {
-  loadCatalogRows()
+  prepareLyricSearch(loadCatalogRows())
 }
 
 export function catalogLyricCount() {
@@ -95,7 +97,8 @@ export function searchCatalogLyrics(
     return options?.interpret ? interpretLyricHits(hits) : hits.filter((hit) => hit.score >= 30)
   }
   const primary = pickLyrics(query)
-  const meaningPrimary = pickMeanings(query)
+  const meaningPrimary =
+    primary.length && !isMeaningCatalogQuery(query) ? [] : pickMeanings(query)
   if (primary.length || meaningPrimary.length) {
     return mergeLyricAndMeaningHits(primary, meaningPrimary, limit)
   }

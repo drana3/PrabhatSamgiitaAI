@@ -14,7 +14,6 @@ export const songCategories = [
 
 /** Verified catalog collections (subset of the 68). Full list is /collections. */
 export const songCollectionChips = [
-  { id: "fullsargam", label: "Full Sargam", icon: "music", collectionLabel: "Full Sargam" },
   { id: "hindi", label: "Hindi", icon: "sparkles", collectionLabel: "Hindi Songs" },
   { id: "urdu", label: "Urdu", icon: "flower2", collectionLabel: "Urdu Songs" },
   { id: "english", label: "English", icon: "leaf", collectionLabel: "English Songs" },

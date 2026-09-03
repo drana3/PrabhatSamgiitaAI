@@ -53,7 +53,7 @@ export function todaySummary(today: TodayRecommendations | null) {
   if (today?.context?.recommendation_mode === "strict_festival") {
     return "Festival selections use reviewed Ananda Marga observance collections."
   }
-  return "Songs chosen from today’s observance, important world days, and reviewed humanitarian context."
+  return "Songs chosen from today’s Ananda Marga observance and reviewed humanitarian context."
 }
 
 export function todayModeLabel(today: TodayRecommendations | null) {

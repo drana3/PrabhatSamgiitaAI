@@ -5,6 +5,7 @@ import {
   resolveSearchMode,
   searchDebounceMs,
   searchResultsTitle,
+  exploreShowsResultList,
 } from "@/lib/searchMode"
 
 describe("resolveSearchMode", () => {
@@ -51,14 +52,26 @@ describe("resolveSearchMode", () => {
     expect(feelingBrowseId("I am feeling very stressful today")).toBe("peace")
     expect(feelingBrowseId("help me find guru songs")).toBe("guru")
     expect(feelingBrowseId("diwali")).toBeNull()
-    expect(searchDebounceMs("I am feeling very stressful today")).toBe(50)
+    expect(searchDebounceMs("I am feeling very stressful today")).toBe(40)
     expect(
       searchDebounceMs("I am feeling very stressful today", {
         signedIn: true,
         feelingSearchEnabled: true,
       }),
     ).toBe(400)
-    expect(searchDebounceMs("bandhu he")).toBe(50)
+    expect(searchDebounceMs("bandhu he")).toBe(40)
+    expect(searchDebounceMs("1")).toBe(0)
+    expect(searchDebounceMs("27")).toBe(0)
+  })
+})
+
+describe("exploreShowsResultList", () => {
+  it("shows song 1–9, not only queries of 2+ characters", () => {
+    expect(exploreShowsResultList("1")).toBe(true)
+    expect(exploreShowsResultList("9")).toBe(true)
+    expect(exploreShowsResultList("ps 2")).toBe(true)
+    expect(exploreShowsResultList("a")).toBe(false)
+    expect(exploreShowsResultList("ba")).toBe(true)
   })
 })
 

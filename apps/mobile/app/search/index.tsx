@@ -12,6 +12,8 @@ import {
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { Clock, X } from "lucide-react-native"
 import {
+  FEELING_ENABLE_IN_PROFILE_BODY,
+  FEELING_ENABLE_IN_PROFILE_TITLE,
   FEELING_SEARCH_EMPTY_BODY_GUEST,
   FEELING_SEARCH_EMPTY_BODY_SIGNED_IN,
   FEELING_SEARCH_EMPTY_NO_MATCH,
@@ -23,7 +25,6 @@ import {
 } from "@prabhat/core"
 
 import { SearchBar } from "@/components/common/SearchBar"
-import { FeelingSearchSwitch } from "@/components/search/FeelingSearchSwitch"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { colors } from "@/constants/colors"
@@ -49,7 +50,9 @@ import {
   queryMatchesBrowseCategory,
   semanticQueryForCategory,
 } from "@/lib/categorySongs"
-import { searchDebounceMs } from "@/lib/searchMode"
+import { listPerfProps } from "@/lib/listPerf"
+import { openSongScreen } from "@/lib/openSong"
+import { searchDebounceMs, exploreShowsResultList } from "@/lib/searchMode"
 import {
   catalogSongByNumber,
   catalogSongsByNumbers,
@@ -80,6 +83,7 @@ function lyricHitsToSongs(queryHits: ReturnType<typeof searchCatalogLyrics>): Mo
 
 function shouldRunSearch(value: string) {
   const trimmed = value.trim()
+  if (isCatalogNumberQuery(trimmed)) return queryIsUseful(trimmed, 200)
   return trimmed.length >= 2 && queryIsUseful(trimmed, 200)
 }
 
@@ -124,25 +128,11 @@ export default function SearchScreen() {
   const runSearchRef = useRef<(nextQuery: string) => Promise<void>>(async () => {})
 
   useEffect(() => {
-    warmLyricSearchIndex()
+    const idle = setTimeout(() => {
+      warmLyricSearchIndex()
+    }, 800)
+    return () => clearTimeout(idle)
   }, [])
-
-  const openSongFromSearch = useCallback(
-    (songId: string) => {
-      const target = href(`/song/${songId}`)
-      try {
-        if (typeof router.canDismiss === "function" && router.canDismiss()) {
-          router.dismiss()
-          requestAnimationFrame(() => router.push(target))
-          return
-        }
-      } catch {
-        /* ignore — fall through to direct navigation */
-      }
-      router.push(target)
-    },
-    [router],
-  )
 
   const browseTheme = useCallback(
     async (searchId: string, spokenQuery: string, token: number) => {
@@ -352,7 +342,7 @@ export default function SearchScreen() {
 
   const runSearch = useCallback(async (nextQuery: string) => {
     const trimmed = nextQuery.trim()
-    if (trimmed.length < 2) {
+    if (trimmed.length < 2 && !isCatalogNumberQuery(trimmed)) {
       setResults([])
       setError(null)
       setLoading(false)
@@ -483,9 +473,9 @@ export default function SearchScreen() {
       void runSearch(query)
     }, searchDebounceMs(query, searchAuth))
     return () => clearTimeout(handle)
-  }, [query, runSearch, activeCategory])
+  }, [query, runSearch, activeCategory, searchAuth])
 
-  const showResults = Boolean(activeCategory) || query.trim().length >= 2
+  const showResults = exploreShowsResultList(query, Boolean(activeCategory))
   const resultsTitle = browseResultsHeading(query, results.length, activeCategory)
 
   return (
@@ -516,13 +506,16 @@ export default function SearchScreen() {
           onSubmitEditing={() => void runSearch(query)}
         />
         {voiceError ? <Text style={styles.errorInline}>{voiceError}</Text> : null}
-        <FeelingSearchSwitch />
       </View>
 
       {showResults ? (
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
+          {...listPerfProps}
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View style={{ marginBottom: spacing.md }}>
@@ -556,8 +549,8 @@ export default function SearchScreen() {
                             return
                           }
                           Alert.alert(
-                            "Enable Feeling search in Profile",
-                            "Feeling search stays off by default. Open Profile to turn it on, then search again.",
+                            FEELING_ENABLE_IN_PROFILE_TITLE,
+                            FEELING_ENABLE_IN_PROFILE_BODY,
                             [
                               { text: "Not now", style: "cancel" },
                               {
@@ -595,7 +588,7 @@ export default function SearchScreen() {
             <CompactSongRow
               song={item}
               lyricLine={item.lyrics || item.originalTitle}
-              onPress={() => openSongFromSearch(item.id)}
+              onPress={() => openSongScreen(router, item.id)}
             />
           )}
         />

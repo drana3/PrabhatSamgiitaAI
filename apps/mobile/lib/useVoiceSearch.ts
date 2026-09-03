@@ -23,12 +23,14 @@ export function useVoiceSearch(options: Options = {}) {
   const [error, setError] = useState<string | null>(null)
   const stopRef = useRef<null | (() => void)>(null)
 
+  // Do not load expo-speech-recognition on mount — that native module can
+  // retarget the iOS audio session and pause a playing song. Probe only on mic tap.
   useEffect(() => {
-    setNativeAvailable(isNativeSpeechRecognitionAvailable())
     return () => {
-      stopRef.current?.()
-      stopRef.current = null
-      stopNativeSpeechRecognition()
+      if (stopRef.current) {
+        stopRef.current()
+        stopRef.current = null
+      }
     }
   }, [])
 

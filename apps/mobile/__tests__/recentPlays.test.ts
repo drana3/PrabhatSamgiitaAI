@@ -46,7 +46,6 @@ describe("recent play history", () => {
       recentPlays: [],
       searchRecents: [],
       songNotes: {},
-      preferredAudioBySong: {},
       syncingFavorites: false,
     })
   })
@@ -93,15 +92,5 @@ describe("recent play history", () => {
     expect(usePreferencesStore.getState().songNotes["ps-1"]).toContain("dawn practice")
     setSongNote("ps-1", "   ")
     expect(usePreferencesStore.getState().songNotes["ps-1"]).toBeUndefined()
-  })
-
-  it("remembers a non-latest recording pick per song", () => {
-    const { setPreferredAudioUrl } = usePreferencesStore.getState()
-    setPreferredAudioUrl("ps-8", "https://example.test/old.mp3")
-    expect(usePreferencesStore.getState().preferredAudioBySong["ps-8"]).toBe(
-      "https://example.test/old.mp3",
-    )
-    setPreferredAudioUrl("ps-8", null)
-    expect(usePreferencesStore.getState().preferredAudioBySong["ps-8"]).toBeUndefined()
   })
 })

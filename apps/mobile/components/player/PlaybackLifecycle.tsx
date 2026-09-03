@@ -9,10 +9,10 @@ import { usePlayerStore } from "@/stores/playerStore"
  */
 export function PlaybackLifecycle() {
   useEffect(() => {
-    void hydrateAudioRepeat().then((repeat) => {
-      if (repeat) usePlayerStore.setState({ repeat })
-    })
     usePlayerStore.getState().warmAudio()
+    void hydrateAudioRepeat().then((enabled) => {
+      if (enabled) usePlayerStore.setState({ repeat: true })
+    })
   }, [])
 
   return null

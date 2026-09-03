@@ -45,7 +45,7 @@ export function ScenicPlayButton({
   const lastFire = useRef(0)
   const fire = () => {
     const now = Date.now()
-    if (now - lastFire.current < 350) return
+    if (now - lastFire.current < 180) return
     lastFire.current = now
     onPress()
   }
@@ -55,8 +55,8 @@ export function ScenicPlayButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint="Starts audio playback"
+      delayPressIn={0}
       onPress={fire}
-      onPressIn={fire}
       style={({ pressed }) => [
         {
           width: dim,

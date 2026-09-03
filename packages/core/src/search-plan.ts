@@ -8,7 +8,7 @@ export const SEARCH_PLACEHOLDER = "Song number, lyrics, or a feeling..."
 
 /** Toggle / account copy — Feeling search stays off until the member turns it on. */
 export const FEELING_SEARCH_HINT_SIGNED_IN =
-  "Off by default. Enable it in Profile to search by mood or meaning. Lyric suggestions stay off while it is on."
+  "Off by default. Turn it on to search by mood or meaning. Lyric suggestions stay off while it is on."
 
 export const FEELING_SEARCH_HINT_GUEST =
   "Off by default. Sign in, then enable Feeling search in Profile when a normal search finds nothing."
@@ -16,7 +16,7 @@ export const FEELING_SEARCH_HINT_GUEST =
 export const FEELING_SEARCH_EMPTY_TITLE = "No songs matched — try Feeling search"
 
 export const FEELING_SEARCH_EMPTY_BODY_SIGNED_IN =
-  "Normal search looks up numbers and lyrics. Feeling search finds songs by mood or meaning across all 5,018 songs. Enable it in Profile, then search again."
+  "Normal search looks up numbers and lyrics. Feeling search finds songs by mood or meaning across all 5,018 songs. Turn it on, then search again."
 
 export const FEELING_SEARCH_EMPTY_BODY_GUEST =
   "Normal search looks up numbers and lyrics. Sign in, then enable Feeling search in Profile to find songs by mood or meaning across all 5,018 songs."
