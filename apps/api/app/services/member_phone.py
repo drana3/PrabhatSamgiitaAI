@@ -10,9 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import UserAccount
 from app.services.phone_numbers import mask_phone_e164, normalize_phone
 
+# OAuth sign-in (Google, Microsoft, etc.) does not require a mobile number.
+OAUTH_IDENTITY_PROVIDERS = frozenset({"google", "aad", "facebook", "entra"})
+
 
 def phone_required(member: UserAccount) -> bool:
-    return not member.phone_e164
+    if member.phone_e164:
+        return False
+    return member.identity_provider not in OAUTH_IDENTITY_PROVIDERS
 
 
 def phone_verification_required(_member: UserAccount) -> bool:
