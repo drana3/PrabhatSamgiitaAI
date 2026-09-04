@@ -2,6 +2,14 @@ from __future__ import annotations
 
 import re
 
+from app.services.chat_language import (
+    established_language_from_history,
+    explicit_response_language,
+    explicit_target_language_label,
+    is_language_rephrase,
+    language_switch_acknowledgment,
+)
+
 
 def try_conversation_answer(
     query: str,
@@ -63,3 +71,18 @@ def try_conversation_answer(
         return f"Here are your recent questions:\n{questions}"
 
     return None
+
+
+def try_language_switch_acknowledgment(
+    query: str,
+    history: list[tuple[str, str]],
+) -> str | None:
+    cleaned = query.strip()
+    if not is_language_rephrase(cleaned):
+        return None
+    target = explicit_response_language(cleaned)
+    if not target:
+        return None
+    prior = established_language_from_history(history)
+    label = explicit_target_language_label(cleaned) if target == "other" else None
+    return language_switch_acknowledgment(prior, target, target_label=label)

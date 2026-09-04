@@ -133,6 +133,62 @@ def _detect_text_language(text: str) -> str:
     return "en"
 
 
+def normalize_preferred_language(value: str | None) -> str | None:
+    if not value:
+        return None
+    cleaned = value.strip().casefold()
+    if cleaned in {"en", "english"}:
+        return "en"
+    if cleaned in {"hi", "hindi", "hin", "devanagari"}:
+        return "hi"
+    if cleaned in REGIONAL_LANGUAGE_NAMES:
+        return "other"
+    return None
+
+
+def language_companion_hint(language: str) -> str:
+    if language == "hi":
+        return 'Replying in Hindi · say "in English" to switch'
+    if language == "other":
+        return 'Replying in your chosen language · say "in English" to switch'
+    return 'Replying in English · say "in Hindi" to switch'
+
+
+def language_switch_acknowledgment(
+    prior: str | None,
+    target: str,
+    *,
+    target_label: str | None = None,
+) -> str:
+    if prior == target:
+        if target == "hi":
+            return (
+                "हम पहले से हिंदी में बात कर रहे हैं। "
+                "इस गीत के बारे में आप क्या जानना चाहेंगे?"
+            )
+        if target == "en":
+            return (
+                "We're already chatting in English. "
+                "What would you like to explore about this song?"
+            )
+        return (
+            "I'll keep replying in your chosen language. "
+            "What would you like to ask about this song?"
+        )
+    if target == "hi":
+        return (
+            "ठीक है — अब मैं हिंदी में उत्तर दूँगा। "
+            "इस गीत के बारे में आप क्या जानना चाहेंगे?"
+        )
+    if target == "en":
+        return (
+            "Sure — I'll continue in English. "
+            "What would you like to explore about this song?"
+        )
+    label = target_label or "your chosen language"
+    return f"Sure — I'll continue in {label}. What would you like to explore about this song?"
+
+
 def _established_language_from_history(history: list[tuple[str, str]] | None) -> str | None:
     """Conversation language locked by prior user turns (explicit request or first clear choice)."""
     established: str | None = None
@@ -153,7 +209,18 @@ def _established_language_from_history(history: list[tuple[str, str]] | None) ->
     return established
 
 
-def detect_response_language(query: str, history: list[tuple[str, str]] | None = None) -> str:
+def established_language_from_history(
+    history: list[tuple[str, str]] | None,
+) -> str | None:
+    return _established_language_from_history(history)
+
+
+def detect_response_language(
+    query: str,
+    history: list[tuple[str, str]] | None = None,
+    *,
+    preferred_language: str | None = None,
+) -> str:
     cleaned = query.strip()
     explicit = explicit_response_language(cleaned)
     if explicit:
@@ -167,13 +234,22 @@ def detect_response_language(query: str, history: list[tuple[str, str]] | None =
     if established:
         return established
 
+    preferred = normalize_preferred_language(preferred_language)
     if re.fullmatch(r"\d{1,4}", cleaned):
-        return "en"
+        return preferred or "en"
     return current
 
 
-def conversation_language_from_user_messages(messages: list[str]) -> str:
+def conversation_language_from_user_messages(
+    messages: list[str],
+    *,
+    preferred_language: str | None = None,
+) -> str:
     if not messages:
-        return "en"
+        return normalize_preferred_language(preferred_language) or "en"
     history = [("user", message) for message in messages[:-1]]
-    return detect_response_language(messages[-1], history)
+    return detect_response_language(
+        messages[-1],
+        history,
+        preferred_language=preferred_language,
+    )

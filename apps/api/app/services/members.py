@@ -236,6 +236,27 @@ def try_member_identity(request: Request) -> MemberIdentity | None:
         return None
 
 
+async def lookup_preferred_language(
+    session: AsyncSession,
+    identity: MemberIdentity | None,
+) -> str | None:
+    if identity is None:
+        return None
+    from app.services.chat_language import normalize_preferred_language
+
+    row = await session.scalar(
+        select(UserAccount.preferred_language).where(
+            UserAccount.external_subject == identity.subject,
+            UserAccount.deleted_at.is_(None),
+        )
+    )
+    if row is None and identity.email:
+        canonical = await _find_canonical_by_email(session, identity.email)
+        if canonical is not None:
+            row = canonical.preferred_language
+    return normalize_preferred_language(str(row) if row else None)
+
+
 def _subject_rank(subject: str) -> int:
     """Higher = more canonical (Easy Auth OID beats email/preview forks)."""
     value = (subject or "").casefold()

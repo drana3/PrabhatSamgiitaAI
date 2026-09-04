@@ -128,3 +128,25 @@ def test_conversation_language_stays_consistent() -> None:
     assert conversation_language_from_user_messages(messages) == "hi"
     messages = ["explain this song in hindi", "ok"]
     assert conversation_language_from_user_messages(messages) == "hi"
+
+
+def test_conversation_language_uses_member_preferred_language_before_first_turn() -> None:
+    assert conversation_language_from_user_messages([], preferred_language="hindi") == "hi"
+    assert conversation_language_from_user_messages([], preferred_language="english") == "en"
+
+
+def test_language_switch_acknowledgment_for_hindi_only_request() -> None:
+    from app.services.conversation import try_language_switch_acknowledgment
+
+    ack = try_language_switch_acknowledgment("in hindi", [])
+    assert ack
+    assert "हिंदी" in ack
+
+
+def test_language_switch_acknowledgment_when_already_in_hindi() -> None:
+    from app.services.conversation import try_language_switch_acknowledgment
+
+    history = [("user", "explain this song in hindi")]
+    ack = try_language_switch_acknowledgment("in hindi", history)
+    assert ack
+    assert "पहले से" in ack

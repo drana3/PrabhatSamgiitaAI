@@ -23,9 +23,9 @@ from app.services.ai_quota import (
 from app.services.catalog import CatalogService
 from app.services.chat_history import cap_chat_history
 from app.services.chat_language import detect_response_language
-from app.services.conversation import try_conversation_answer
+from app.services.members import lookup_preferred_language, try_member_identity
+from app.services.conversation import try_conversation_answer, try_language_switch_acknowledgment
 from app.services.direct_answers import try_direct_answer
-from app.services.members import try_member_identity
 from app.services.output_guard import sanitize_model_output
 from app.services.answer_guard import apply_output_guardrails
 from app.services.query_guard import assess_query
@@ -90,7 +90,12 @@ async def explain(
         history.append((turn.role, content))
     history = cap_chat_history(history)
 
-    response_language = detect_response_language(prompt, history)
+    preferred_language = await lookup_preferred_language(session, member)
+    response_language = detect_response_language(
+        prompt,
+        history,
+        preferred_language=preferred_language,
+    )
     cache_key = json.dumps(
         {
             "song_number": song.number,
@@ -104,6 +109,12 @@ async def explain(
     cached = await explanation_cache.get(cache_key)
     if isinstance(cached, list):
         return StreamingResponse(stream_text(cached), media_type="text/event-stream")
+
+    language_ack = try_language_switch_acknowledgment(prompt, history)
+    if language_ack:
+        streamed = [sanitize_model_output(language_ack)]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
 
     conversation_answer = try_conversation_answer(prompt, history)
     if conversation_answer:
