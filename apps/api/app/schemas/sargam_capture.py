@@ -31,7 +31,7 @@ class SargamCaptureResponse(BaseModel):
     tempo_bpm: int = 100
     can_submit: bool = False
     submitted: bool = False
-    notation_enabled: bool = True
+    notation_enabled: bool = False
     listen_url: str | None = None
     lines: list[CaptureLine] = Field(default_factory=list)
 

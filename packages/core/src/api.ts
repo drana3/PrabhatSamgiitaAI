@@ -177,7 +177,7 @@ export const sargamCaptureSchema = z.object({
   tempo_bpm: z.number().optional().default(100),
   can_submit: z.boolean().optional().default(false),
   submitted: z.boolean().optional().default(false),
-  notation_enabled: z.boolean().optional().default(true),
+  notation_enabled: z.boolean().optional().default(false),
   listen_url: z.string().nullable().optional(),
   lines: z.array(sargamCaptureLineSchema).default([]),
 })

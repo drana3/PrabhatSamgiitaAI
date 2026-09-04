@@ -73,7 +73,7 @@ def split_lyric_lines(text: str | None) -> list[str]:
 
 def is_notation_enabled(metadata: dict[str, Any] | None) -> bool:
     if not metadata or "learner_visible" not in metadata:
-        return True
+        return False
     return bool(metadata.get("learner_visible"))
 
 
@@ -83,12 +83,12 @@ def is_learner_playable_notation(
     notation_text: str | None,
     metadata: dict[str, Any] | None = None,
 ) -> bool:
-    if not is_notation_enabled(metadata):
-        return False
     if not notation_text or not str(notation_text).strip().startswith("{"):
         return False
     if song_number in PROTECTED_BOOKLET_SONGS:
-        return True
+        return metadata is None or metadata.get("learner_visible") is not False
+    if not is_notation_enabled(metadata):
+        return False
     if verification_status in {"admin_submitted", "expert_verified"}:
         return True
     return False
@@ -439,7 +439,7 @@ async def submit_capture(
         "requires_human_review": False,
         "learner_notice": f"Sargam submitted by {display}",
         "archive_url": ANDROMEDA_ARCHIVE,
-        "learner_visible": True if existing_visible is None else bool(existing_visible),
+        "learner_visible": False if existing_visible is None else bool(existing_visible),
     }
     if notation is None:
         notation = Notation(

@@ -37,7 +37,7 @@ export function canSubmitLines(lines: SargamCaptureLine[]): boolean {
 }
 
 export function learnerNotationVisible(enabled: boolean | null | undefined): boolean {
-  return enabled !== false
+  return enabled === true
 }
 
 export function normalizeCapturePayload(capture: SargamCapturePayload): SargamCapturePayload {

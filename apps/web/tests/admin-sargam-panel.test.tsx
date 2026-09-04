@@ -24,7 +24,7 @@ const capture = {
   tempo_bpm: 100,
   can_submit: false,
   submitted: false,
-  notation_enabled: true,
+  notation_enabled: false,
   listen_url: "https://example.com/song.mp3",
   lines: [
     { line_number: 1, lyric: "First lyric line", status: "empty", events: [] },
@@ -53,7 +53,7 @@ describe("AdminSargamPanel", () => {
   it("lets an admin hide notation from learners", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => capture })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...capture, notation_enabled: true }) })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -86,7 +86,7 @@ describe("AdminSargamPanel", () => {
     })
   })
 
-  it("defaults missing notation_enabled to visible for the learner toggle", async () => {
+  it("defaults missing notation_enabled to hidden for the learner toggle", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => {
@@ -97,7 +97,7 @@ describe("AdminSargamPanel", () => {
 
     render(<AdminSargamPanel initialNumber={5} />)
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Show learners" })).toHaveAttribute("aria-pressed", "true")
+      expect(screen.getByRole("button", { name: "Hide learners" })).toHaveAttribute("aria-pressed", "true")
     })
   })
 

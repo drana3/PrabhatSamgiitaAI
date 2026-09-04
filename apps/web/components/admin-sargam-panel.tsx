@@ -84,7 +84,7 @@ function canSubmitLines(lines: CaptureLine[]): boolean {
 }
 
 export function learnerNotationVisible(enabled: boolean | null | undefined): boolean {
-  return enabled !== false
+  return enabled === true
 }
 
 function normalizeCapturePayload(capture: CapturePayload): CapturePayload {
@@ -559,7 +559,7 @@ export function AdminSargamPanel({ initialNumber }: { initialNumber?: number }) 
   const previewEvents = recording && notesCaptured > 0 ? liveEventsRef.current : lineEvents
   const activeLineIndex = capture?.lines.findIndex((line) => line.line_number === activeLine) ?? -1
   const lineCount = capture?.lines.length ?? 0
-  const learnerVisible = capture ? learnerNotationVisible(capture.notation_enabled) : true
+  const learnerVisible = capture ? learnerNotationVisible(capture.notation_enabled) : false
 
   return (
     <AdminShell

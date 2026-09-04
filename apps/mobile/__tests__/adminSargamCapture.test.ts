@@ -53,11 +53,12 @@ describe("adminSargamCapture helpers", () => {
     expect(canSubmitLines(allConfirmed.lines)).toBe(true)
   })
 
-  it("treats missing notation_enabled as visible for learners", () => {
-    expect(learnerNotationVisible(undefined)).toBe(true)
-    expect(learnerNotationVisible(null)).toBe(true)
+  it("treats missing notation_enabled as hidden for learners", () => {
+    expect(learnerNotationVisible(undefined)).toBe(false)
+    expect(learnerNotationVisible(null)).toBe(false)
+    expect(learnerNotationVisible(true)).toBe(true)
     expect(learnerNotationVisible(false)).toBe(false)
-    expect(normalizeCapturePayload({ ...baseCapture, notation_enabled: undefined }).notation_enabled).toBe(true)
+    expect(normalizeCapturePayload({ ...baseCapture, notation_enabled: undefined }).notation_enabled).toBe(false)
   })
 
   it("merges visibility mutations without dropping the learner toggle", () => {

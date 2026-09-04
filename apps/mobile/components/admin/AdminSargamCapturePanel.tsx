@@ -377,7 +377,7 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
   const previewEvents = recording && notesCaptured > 0 ? liveEventsRef.current : lineEvents
   const activeLineIndex = capture?.lines.findIndex((line) => line.line_number === activeLine) ?? -1
   const lineCount = capture?.lines.length ?? 0
-  const learnerVisible = capture ? learnerNotationVisible(capture.notation_enabled) : true
+  const learnerVisible = capture ? learnerNotationVisible(capture.notation_enabled) : false
 
   function requestCloseFullscreen() {
     if (shouldConfirmDiscardRecording(recording, notesCaptured)) {
