@@ -57,7 +57,9 @@ describe("Prabhat Samgiita AI companion", () => {
     await user.type(screen.getByLabelText("Ask about this song"), "kcwcbiubckebckcvjebfkjcckve")
     await user.click(screen.getByRole("button", { name: "Send question" }))
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("specific about Prabhat Samgiita")
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "something specific about the song you are exploring",
+    )
     expect(mockedStream).not.toHaveBeenCalled()
   })
 

@@ -20,14 +20,14 @@ from app.services.ai_quota import (
     client_ip,
     record_daily_ai_question_persisted,
 )
+from app.services.answer_guard import apply_output_guardrails
 from app.services.catalog import CatalogService
 from app.services.chat_history import cap_chat_history
 from app.services.chat_language import detect_response_language
-from app.services.members import lookup_preferred_language, try_member_identity
 from app.services.conversation import try_conversation_answer, try_language_switch_acknowledgment
 from app.services.direct_answers import try_direct_answer
+from app.services.members import lookup_preferred_language, try_member_identity
 from app.services.output_guard import sanitize_model_output
-from app.services.answer_guard import apply_output_guardrails
 from app.services.query_guard import assess_query
 from app.services.rag import RAGService
 from app.services.streaming import stream_text

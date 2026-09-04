@@ -96,7 +96,7 @@ def test_grounded_prompt_uses_recent_turns_only_for_follow_up_context() -> None:
     assert "User: Explain it in Magahi" in prompt
     assert "Current user question: What did I ask last?" in prompt
     assert "Answer factual claims only from the retrieved canonical context" in prompt
-    assert "CRITICAL — reply language for THIS turn only: clear, natural English." in prompt
+    assert "Conversation language: clear, natural English." in prompt
 
 
 def test_line_by_line_prompt_prefers_flowing_prose() -> None:

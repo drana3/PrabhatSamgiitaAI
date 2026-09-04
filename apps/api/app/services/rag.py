@@ -12,19 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Song, SongChunk
 from app.services.ai import GroundedProvider
+from app.services.answer_guard import apply_output_guardrails, audit_output_guardrails
 from app.services.catalog import CatalogService
 from app.services.chat_history import cap_chat_history
 from app.services.chat_language import (
-    explicit_response_language,
     explicit_target_language_label,
-    is_language_rephrase,
     is_one_shot_language_request,
     prefers_devanagari_hindi,
 )
 from app.services.faiss_store import get_faiss_store
 from app.services.output_guard import sanitize_model_output
 from app.services.structured_answers import try_structured_answer
-from app.services.answer_guard import audit_output_guardrails, apply_output_guardrails
 
 
 @dataclass(slots=True)

@@ -3,7 +3,11 @@ from __future__ import annotations
 import re
 
 from app.models import Song
-from app.services.chat_language import detect_response_language, is_language_rephrase, is_one_shot_language_request
+from app.services.chat_language import (
+    detect_response_language,
+    is_language_rephrase,
+    is_one_shot_language_request,
+)
 from app.services.stories import STORIES_INDEX_PATH, InspirationStory
 
 

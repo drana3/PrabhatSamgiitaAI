@@ -39,8 +39,14 @@ def test_one_shot_explain_resumes_preferred_language_afterward() -> None:
     history = [("user", "explain this song in hindi"), ("assistant", "हिंदी में उत्तर")]
 
     assert detect_response_language("222", history, preferred_language="english") == "en"
-    assert detect_response_language("what does 222 mean?", history, preferred_language="english") == "en"
-    assert detect_response_language("what does 222 mean?", history, preferred_language="hindi") == "hi"
+    assert (
+        detect_response_language("what does 222 mean?", history, preferred_language="english")
+        == "en"
+    )
+    assert (
+        detect_response_language("what does 222 mean?", history, preferred_language="hindi")
+        == "hi"
+    )
 
 
 def test_one_shot_punjabi_request_uses_regional_language() -> None:
@@ -135,7 +141,13 @@ def test_conversation_language_stays_consistent() -> None:
     assert conversation_language_from_user_messages(messages, preferred_language="english") == "en"
     messages = ["explain this song in hindi", "ok"]
     assert conversation_language_from_user_messages(messages, preferred_language="hindi") == "hi"
-    assert conversation_language_from_user_messages(["explain in punjabi"], preferred_language="english") == "en"
+    assert (
+        conversation_language_from_user_messages(
+            ["explain in punjabi"],
+            preferred_language="english",
+        )
+        == "en"
+    )
 
 
 def test_default_preferred_language_is_english() -> None:
