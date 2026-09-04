@@ -189,17 +189,37 @@ def language_switch_acknowledgment(
     return f"Sure — I'll continue in {label}. What would you like to explore about this song?"
 
 
+def is_one_shot_language_request(query: str) -> bool:
+    """Substantive ask with an embedded language (e.g. explain in Punjabi) — one answer only."""
+    cleaned = query.strip()
+    if not cleaned or is_language_rephrase(cleaned):
+        return False
+    return explicit_response_language(cleaned) is not None
+
+
+def session_language(
+    history: list[tuple[str, str]] | None,
+    *,
+    preferred_language: str | None = None,
+) -> str:
+    established = _established_language_from_history(history)
+    if established:
+        return established
+    return normalize_preferred_language(preferred_language) or "en"
+
+
 def _established_language_from_history(history: list[tuple[str, str]] | None) -> str | None:
-    """Conversation language locked by prior user turns (explicit request or first clear choice)."""
+    """Session language from language-only switches or writing habit — not one-shot requests."""
     established: str | None = None
     for role, content in history or []:
         if role != "user":
             continue
-        explicit = explicit_response_language(content)
-        if explicit:
-            established = explicit
+        if is_one_shot_language_request(content):
             continue
         if is_language_rephrase(content):
+            explicit = explicit_response_language(content)
+            if explicit:
+                established = explicit
             continue
         language = _detect_text_language(content)
         if language != "en":
@@ -223,21 +243,17 @@ def detect_response_language(
 ) -> str:
     cleaned = query.strip()
     explicit = explicit_response_language(cleaned)
-    if explicit:
+    if explicit and is_one_shot_language_request(cleaned):
         return explicit
 
-    established = _established_language_from_history(history)
+    if is_language_rephrase(cleaned) and explicit:
+        return explicit
+
     current = _detect_text_language(cleaned)
     if current != "en":
         return current
 
-    if established:
-        return established
-
-    preferred = normalize_preferred_language(preferred_language)
-    if re.fullmatch(r"\d{1,4}", cleaned):
-        return preferred or "en"
-    return current
+    return session_language(history, preferred_language=preferred_language)
 
 
 def conversation_language_from_user_messages(
@@ -247,6 +263,10 @@ def conversation_language_from_user_messages(
 ) -> str:
     if not messages:
         return normalize_preferred_language(preferred_language) or "en"
+    latest = messages[-1].strip()
+    if is_one_shot_language_request(latest):
+        history = [("user", message) for message in messages[:-1]]
+        return session_language(history, preferred_language=preferred_language)
     history = [("user", message) for message in messages[:-1]]
     return detect_response_language(
         messages[-1],

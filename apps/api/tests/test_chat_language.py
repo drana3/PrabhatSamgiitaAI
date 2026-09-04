@@ -35,11 +35,18 @@ def test_english_companion_phrases_stay_english() -> None:
     assert detect_response_language("what does this mean") == "en"
 
 
-def test_numeric_input_inherits_hindi_conversation() -> None:
+def test_one_shot_explain_resumes_preferred_language_afterward() -> None:
     history = [("user", "explain this song in hindi"), ("assistant", "हिंदी में उत्तर")]
 
-    assert detect_response_language("222", history) == "hi"
-    assert detect_response_language("what does 222 mean?", history) == "hi"
+    assert detect_response_language("222", history, preferred_language="english") == "en"
+    assert detect_response_language("what does 222 mean?", history, preferred_language="english") == "en"
+    assert detect_response_language("what does 222 mean?", history, preferred_language="hindi") == "hi"
+
+
+def test_one_shot_punjabi_request_uses_regional_language() -> None:
+    assert detect_response_language("explain its meaning in punjabi") == "other"
+    history = [("user", "explain its meaning in punjabi")]
+    assert detect_response_language("tell me more", history, preferred_language="english") == "en"
 
 
 def test_ambiguous_follow_up_can_inherit_hindi() -> None:
@@ -125,9 +132,10 @@ def test_is_language_rephrase() -> None:
 
 def test_conversation_language_stays_consistent() -> None:
     messages = ["explain this song in hindi", "222"]
-    assert conversation_language_from_user_messages(messages) == "hi"
+    assert conversation_language_from_user_messages(messages, preferred_language="english") == "en"
     messages = ["explain this song in hindi", "ok"]
-    assert conversation_language_from_user_messages(messages) == "hi"
+    assert conversation_language_from_user_messages(messages, preferred_language="hindi") == "hi"
+    assert conversation_language_from_user_messages(["explain in punjabi"], preferred_language="english") == "en"
 
 
 def test_conversation_language_uses_member_preferred_language_before_first_turn() -> None:
@@ -146,7 +154,7 @@ def test_language_switch_acknowledgment_for_hindi_only_request() -> None:
 def test_language_switch_acknowledgment_when_already_in_hindi() -> None:
     from app.services.conversation import try_language_switch_acknowledgment
 
-    history = [("user", "explain this song in hindi")]
+    history = [("user", "in hindi")]
     ack = try_language_switch_acknowledgment("in hindi", history)
     assert ack
     assert "पहले से" in ack

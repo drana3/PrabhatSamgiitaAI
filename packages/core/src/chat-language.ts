@@ -71,6 +71,12 @@ export function isLanguageRephrase(query: string): boolean {
   return LANGUAGE_ONLY.test(query.trim())
 }
 
+export function isOneShotLanguageRequest(query: string): boolean {
+  const cleaned = query.trim()
+  if (!cleaned || isLanguageRephrase(cleaned)) return false
+  return explicitResponseLanguage(cleaned) !== null
+}
+
 function detectTextLanguage(text: string): ChatLanguage {
   const trimmed = text.trim()
   if (!trimmed) return "en"
@@ -84,12 +90,12 @@ function establishedLanguageFromHistory(history: Array<[string, string]>): ChatL
   let established: ChatLanguage | null = null
   for (const [role, content] of history) {
     if (role !== "user") continue
-    const explicit = explicitResponseLanguage(content)
-    if (explicit) {
-      established = explicit
+    if (isOneShotLanguageRequest(content)) continue
+    if (isLanguageRephrase(content)) {
+      const explicit = explicitResponseLanguage(content)
+      if (explicit) established = explicit
       continue
     }
-    if (isLanguageRephrase(content)) continue
     const language = detectTextLanguage(content)
     if (language !== "en") {
       established = language
@@ -100,6 +106,15 @@ function establishedLanguageFromHistory(history: Array<[string, string]>): ChatL
   return established
 }
 
+export function sessionLanguage(
+  history: Array<[string, string]> = [],
+  preferredLanguage?: string | null,
+): ChatLanguage {
+  const established = establishedLanguageFromHistory(history)
+  if (established) return established
+  return normalizePreferredLanguage(preferredLanguage) ?? "en"
+}
+
 export function detectResponseLanguage(
   query: string,
   history: Array<[string, string]> = [],
@@ -107,14 +122,13 @@ export function detectResponseLanguage(
 ): ChatLanguage {
   const cleaned = query.trim()
   const explicit = explicitResponseLanguage(cleaned)
-  if (explicit) return explicit
+  if (explicit && isOneShotLanguageRequest(cleaned)) return explicit
+  if (isLanguageRephrase(cleaned) && explicit) return explicit
 
-  const established = establishedLanguageFromHistory(history)
   const current = detectTextLanguage(cleaned)
   if (current !== "en") return current
-  if (established) return established
-  if (/^\d{1,4}$/.test(cleaned)) return normalizePreferredLanguage(preferredLanguage) ?? "en"
-  return current
+
+  return sessionLanguage(history, preferredLanguage)
 }
 
 export function conversationLanguage(
@@ -122,8 +136,12 @@ export function conversationLanguage(
   preferredLanguage?: string | null,
 ): ChatLanguage {
   if (!userMessages.length) return normalizePreferredLanguage(preferredLanguage) ?? "en"
+  const latest = userMessages[userMessages.length - 1]?.trim() ?? ""
   const history = userMessages.slice(0, -1).map((message) => ["user", message] as [string, string])
-  return detectResponseLanguage(userMessages[userMessages.length - 1] ?? "", history, preferredLanguage)
+  if (isOneShotLanguageRequest(latest)) {
+    return sessionLanguage(history, preferredLanguage)
+  }
+  return detectResponseLanguage(latest, history, preferredLanguage)
 }
 
 /** @deprecated Use detectResponseLanguage for parity with the API. */

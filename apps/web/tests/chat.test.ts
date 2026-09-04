@@ -35,8 +35,9 @@ describe("AI companion conversation contract", () => {
     expect(restoreConversation(JSON.stringify(messages), now)).toHaveLength(2)
   })
 
-  it("inherits Hindi for numeric follow-ups in the same conversation", () => {
-    expect(conversationLanguage(["explain this song in hindi", "222"])).toBe("hi")
+  it("resumes preferred language after a one-shot explain-in-language request", () => {
+    expect(conversationLanguage(["explain this song in hindi", "222"], "english")).toBe("en")
+    expect(conversationLanguage(["explain this song in hindi", "ok"], "hindi")).toBe("hi")
   })
 
   it("detects Hindi from Romanized user input", () => {

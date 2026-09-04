@@ -14,7 +14,13 @@ from app.models import Song, SongChunk
 from app.services.ai import GroundedProvider
 from app.services.catalog import CatalogService
 from app.services.chat_history import cap_chat_history
-from app.services.chat_language import explicit_target_language_label, prefers_devanagari_hindi
+from app.services.chat_language import (
+    explicit_response_language,
+    explicit_target_language_label,
+    is_language_rephrase,
+    is_one_shot_language_request,
+    prefers_devanagari_hindi,
+)
 from app.services.faiss_store import get_faiss_store
 from app.services.output_guard import sanitize_model_output
 from app.services.structured_answers import try_structured_answer
@@ -296,34 +302,56 @@ def build_grounded_prompt(
                 "The user wrote Romanized Hindi — reply in natural Romanized Hindi (not "
                 "Devanagari), the way a devotee chats."
             )
-        language_instruction = (
-            "Conversation language: Hindi. Keep replying in Hindi for this entire chat "
-            "until the user explicitly asks to switch (for example, 'in English'). "
-            f"{script_note} "
-            "Sound like a warm Hindi-speaking spiritual guide, not a machine translation. "
-            "Use fluent, idiomatic Hindi with natural sentence rhythm. Explain feeling, "
-            "imagery, and devotion in flowing prose — do not paste stiff catalog labels or "
-            "word-for-word English calques. Keep English song titles as-is when needed, but "
-            "surround them with Hindi. Do not mix full English sentences into the reply or "
-            "switch languages mid-answer."
-        )
+        if is_one_shot_language_request(query):
+            language_instruction = (
+                f"Reply entirely in Hindi for this answer because the user asked for it now. "
+                f"{script_note} "
+                "Sound like a warm Hindi-speaking spiritual guide. Use fluent, idiomatic Hindi. "
+                "Do not switch languages within this reply."
+            )
+        else:
+            language_instruction = (
+                "Conversation language: Hindi. Keep replying in Hindi for this entire chat "
+                "until the user explicitly asks to switch (for example, 'in English'). "
+                f"{script_note} "
+                "Sound like a warm Hindi-speaking spiritual guide, not a machine translation. "
+                "Use fluent, idiomatic Hindi with natural sentence rhythm. Explain feeling, "
+                "imagery, and devotion in flowing prose — do not paste stiff catalog labels or "
+                "word-for-word English calques. Keep English song titles as-is when needed, but "
+                "surround them with Hindi. Do not mix full English sentences into the reply or "
+                "switch languages mid-answer."
+            )
     elif response_language == "other":
         target = explicit_target_language_label(query) or "the language the user requested"
-        language_instruction = (
-            f"Conversation language: {target}. Keep replying in {target} for this entire chat "
-            f"until the user explicitly asks to switch. Translate the canonical song meaning "
-            f"faithfully from the retrieved source in that language. Use correct grammar and "
-            f"preserve the source imagery and line order when the meaning is line-by-line. "
-            f"Do not invent devotional commentary beyond the canonical text. "
-            f"Do not switch languages mid-answer."
-        )
+        if is_one_shot_language_request(query):
+            language_instruction = (
+                f"Reply entirely in {target} for this answer because the user asked for it now. "
+                f"Translate the canonical song meaning faithfully in {target}. Use correct grammar "
+                f"and preserve the source imagery. Do not invent devotional commentary beyond the "
+                f"canonical text. Do not switch languages within this reply."
+            )
+        else:
+            language_instruction = (
+                f"Conversation language: {target}. Keep replying in {target} for this entire chat "
+                f"until the user explicitly asks to switch. Translate the canonical song meaning "
+                f"faithfully from the retrieved source in that language. Use correct grammar and "
+                f"preserve the source imagery and line order when the meaning is line-by-line. "
+                f"Do not invent devotional commentary beyond the canonical text. "
+                f"Do not switch languages mid-answer."
+            )
     else:
-        language_instruction = (
-            "Conversation language: clear, natural English. Keep replying in English for this "
-            "entire chat until the user explicitly asks for another language (for example, "
-            "'in Hindi'). Do not switch to Hindi, Romanized Hindi, or any other language "
-            "mid-answer unless the user clearly requested it."
-        )
+        if is_one_shot_language_request(query):
+            language_instruction = (
+                "Reply entirely in clear, natural English for this answer because the user asked "
+                "for it now. Do not switch languages within this reply."
+            )
+        else:
+            language_instruction = (
+                "Conversation language: clear, natural English. Keep replying in English for this "
+                "entire chat until the user explicitly asks for another language (for example, "
+                "'in Hindi'). Do not switch to Hindi, Romanized Hindi, or any other language "
+                "mid-answer unless the user clearly requested it."
+            )
     line_by_line_instruction = (
         "The user asked for a detailed reading of this song. Explain the grounded meaning in "
         "clear, flowing paragraphs — imagery, feeling, and spiritual context. Walk through "

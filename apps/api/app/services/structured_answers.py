@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from app.models import Song
-from app.services.chat_language import detect_response_language, is_language_rephrase
+from app.services.chat_language import detect_response_language, is_language_rephrase, is_one_shot_language_request
 from app.services.stories import STORIES_INDEX_PATH, InspirationStory
 
 
@@ -271,6 +271,8 @@ def try_structured_answer(
     history: list[tuple[str, str]] | None = None,
     related: list[Song] | None = None,
 ) -> str | None:
+    if is_one_shot_language_request(query):
+        return None
     language = detect_response_language(query, history)
     cleaned = query.casefold()
     # Hindi explanations feel stiff when we paste canonical meaning + English metadata.

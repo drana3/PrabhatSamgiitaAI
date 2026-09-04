@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest"
 import {
   conversationLanguage,
   detectResponseLanguage,
-  languageCompanionHint,
+  explicitResponseLanguage,
+  isOneShotLanguageRequest,
   languageSwitchAcknowledgment,
   normalizePreferredLanguage,
+  sessionLanguage,
 } from "./chat-language"
 
 describe("chat-language", () => {
@@ -16,32 +18,36 @@ describe("chat-language", () => {
     expect(normalizePreferredLanguage("")).toBeNull()
   })
 
+  it("detects one-shot explain-in-language requests", () => {
+    expect(isOneShotLanguageRequest("explain this song in hindi")).toBe(true)
+    expect(isOneShotLanguageRequest("explain its meaning in punjabi")).toBe(true)
+    expect(isOneShotLanguageRequest("in hindi")).toBe(false)
+    expect(explicitResponseLanguage("explain in punjabi")).toBe("other")
+  })
+
+  it("answers one-shot requests in the requested language", () => {
+    expect(detectResponseLanguage("explain in punjabi", [])).toBe("other")
+    expect(detectResponseLanguage("explain this song in hindi", [])).toBe("hi")
+  })
+
+  it("resumes preferred language after a one-shot regional request", () => {
+    const history: Array<[string, string]> = [["user", "explain its meaning in punjabi"]]
+    expect(detectResponseLanguage("tell me more about the imagery", history, "english")).toBe("en")
+    expect(sessionLanguage(history, "english")).toBe("en")
+  })
+
+  it("keeps session language after an explicit in-hindi switch", () => {
+    const history: Array<[string, string]> = [["user", "in hindi"]]
+    expect(detectResponseLanguage("tell me more", history)).toBe("hi")
+  })
+
   it("uses preferred language for starter prompts before the first turn", () => {
     expect(conversationLanguage([], "hi")).toBe("hi")
     expect(conversationLanguage([], "en")).toBe("en")
   })
 
-  it("keeps Hindi after an English follow-up once the conversation moved there", () => {
-    const history: Array<[string, string]> = [
-      ["user", "What is this song about?"],
-      ["user", "is gaane ka arth batao"],
-    ]
-    expect(detectResponseLanguage("Tell me more about the imagery", history)).toBe("hi")
-  })
-
-  it("inherits Hindi for numeric follow-ups in the same conversation", () => {
-    const history: Array<[string, string]> = [["user", "explain this song in hindi"]]
-    expect(detectResponseLanguage("222", history)).toBe("hi")
-  })
-
-  it("switches only on explicit language requests", () => {
-    const history: Array<[string, string]> = [["user", "explain this song in hindi"]]
-    expect(detectResponseLanguage("in english", history)).toBe("en")
-  })
-
-  it("describes the active language for the UI hint", () => {
-    expect(languageCompanionHint("hi")).toMatch(/Hindi/)
-    expect(languageCompanionHint("en")).toMatch(/English/)
+  it("shows session language in the UI while a one-shot request is pending", () => {
+    expect(conversationLanguage(["explain in punjabi"], "english")).toBe("en")
   })
 
   it("acknowledges language switches without calling the model", () => {
