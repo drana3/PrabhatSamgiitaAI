@@ -35,6 +35,8 @@ const REGIONAL_LANGUAGE_NAMES = [
 const LANGUAGE_ONLY =
   /^(?:(?:in|into|to)\s+(?:hindi|english|bengali|urdu|magahi|maithili|tamil|telugu|marathi|punjabi|gujarati|nepali|odia|assamese|sanskrit|kannada|malayalam)|(?:hindi|english|bengali|urdu|magahi|maithili)\s+me(?:in|ṃ|in)?|(?:hindi|english)\s+me(?:in|ṃ|in)?\s+batao|translate(?:d)?\s+(?:to|in)\s+(?:hindi|english|magahi|maithili|bengali|urdu))\s*[?.!]*$/i
 
+export const DEFAULT_PREFERRED_LANGUAGE = "english"
+
 export function normalizePreferredLanguage(value?: string | null): ChatLanguage | null {
   const cleaned = (value ?? "").trim().toLowerCase()
   if (!cleaned) return null
@@ -77,6 +79,10 @@ export function isOneShotLanguageRequest(query: string): boolean {
   return explicitResponseLanguage(cleaned) !== null
 }
 
+export function resolvePreferredLanguage(value?: string | null): ChatLanguage {
+  return normalizePreferredLanguage(value) ?? "en"
+}
+
 function detectTextLanguage(text: string): ChatLanguage {
   const trimmed = text.trim()
   if (!trimmed) return "en"
@@ -112,7 +118,7 @@ export function sessionLanguage(
 ): ChatLanguage {
   const established = establishedLanguageFromHistory(history)
   if (established) return established
-  return normalizePreferredLanguage(preferredLanguage) ?? "en"
+  return resolvePreferredLanguage(preferredLanguage)
 }
 
 export function detectResponseLanguage(
@@ -135,7 +141,7 @@ export function conversationLanguage(
   userMessages: string[],
   preferredLanguage?: string | null,
 ): ChatLanguage {
-  if (!userMessages.length) return normalizePreferredLanguage(preferredLanguage) ?? "en"
+  if (!userMessages.length) return resolvePreferredLanguage(preferredLanguage)
   const latest = userMessages[userMessages.length - 1]?.trim() ?? ""
   const history = userMessages.slice(0, -1).map((message) => ["user", message] as [string, string])
   if (isOneShotLanguageRequest(latest)) {

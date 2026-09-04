@@ -203,7 +203,8 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
   const nextQuestions = followUpsFromMessages(messages)
   const userTurns = hasUserMessages(messages)
   const userTexts = messages.filter((message) => message.role === "user").map((message) => message.text)
-  const preferredLanguage = session.authenticated ? session.preferred_language : null
+  const preferredLanguage =
+    (session.authenticated ? session.preferred_language : null) ?? "english"
   const activeLanguage = conversationLanguage(userTexts, preferredLanguage)
   const languageHint = languageCompanionHint(activeLanguage)
   const suggestedPrompts = starterPrompts(activeLanguage)

@@ -133,6 +133,9 @@ def _detect_text_language(text: str) -> str:
     return "en"
 
 
+DEFAULT_PREFERRED_LANGUAGE = "english"
+
+
 def normalize_preferred_language(value: str | None) -> str | None:
     if not value:
         return None
@@ -144,6 +147,10 @@ def normalize_preferred_language(value: str | None) -> str | None:
     if cleaned in REGIONAL_LANGUAGE_NAMES:
         return "other"
     return None
+
+
+def resolve_preferred_language(value: str | None) -> str:
+    return normalize_preferred_language(value) or "en"
 
 
 def language_companion_hint(language: str) -> str:
@@ -205,7 +212,7 @@ def session_language(
     established = _established_language_from_history(history)
     if established:
         return established
-    return normalize_preferred_language(preferred_language) or "en"
+    return resolve_preferred_language(preferred_language)
 
 
 def _established_language_from_history(history: list[tuple[str, str]] | None) -> str | None:
@@ -262,7 +269,7 @@ def conversation_language_from_user_messages(
     preferred_language: str | None = None,
 ) -> str:
     if not messages:
-        return normalize_preferred_language(preferred_language) or "en"
+        return resolve_preferred_language(preferred_language)
     latest = messages[-1].strip()
     if is_one_shot_language_request(latest):
         history = [("user", message) for message in messages[:-1]]

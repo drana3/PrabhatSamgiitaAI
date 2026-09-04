@@ -138,6 +138,15 @@ def test_conversation_language_stays_consistent() -> None:
     assert conversation_language_from_user_messages(["explain in punjabi"], preferred_language="english") == "en"
 
 
+def test_default_preferred_language_is_english() -> None:
+    from app.services.chat_language import resolve_preferred_language
+
+    assert resolve_preferred_language(None) == "en"
+    assert resolve_preferred_language("") == "en"
+    assert conversation_language_from_user_messages([]) == "en"
+    assert conversation_language_from_user_messages([], preferred_language=None) == "en"
+
+
 def test_conversation_language_uses_member_preferred_language_before_first_turn() -> None:
     assert conversation_language_from_user_messages([], preferred_language="hindi") == "hi"
     assert conversation_language_from_user_messages([], preferred_language="english") == "en"

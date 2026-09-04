@@ -242,7 +242,7 @@ async def lookup_preferred_language(
 ) -> str | None:
     if identity is None:
         return None
-    from app.services.chat_language import normalize_preferred_language
+    from app.services.chat_language import resolve_preferred_language
 
     row = await session.scalar(
         select(UserAccount.preferred_language).where(
@@ -254,7 +254,7 @@ async def lookup_preferred_language(
         canonical = await _find_canonical_by_email(session, identity.email)
         if canonical is not None:
             row = canonical.preferred_language
-    return normalize_preferred_language(str(row) if row else None)
+    return resolve_preferred_language(str(row) if row else None)
 
 
 def _subject_rank(subject: str) -> int:
@@ -439,6 +439,7 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
             email=identity.email,
             display_name=identity.display_name,
             avatar_url=identity.avatar_url,
+            preferred_language="english",
             last_seen_at=now,
         )
         session.add(member)
@@ -477,7 +478,7 @@ async def member_profile(session: AsyncSession, member: UserAccount) -> MemberPr
         email=member.email,
         avatar_url=member.avatar_url,
         identity_provider=member.identity_provider,
-        preferred_language=member.preferred_language,
+        preferred_language=member.preferred_language or "english",
         country=member.country,
         personalization_enabled=member.personalization_enabled,
         is_admin=member.is_admin,
