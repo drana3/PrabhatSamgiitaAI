@@ -199,13 +199,19 @@ async def get_song(
                 number, notation.verification_status, notation.notation_text, notation.metadata_json
             )
         ),
-        notation_enabled=is_notation_enabled(notation.metadata_json if notation else None),
+        notation_enabled=is_notation_enabled(
+            notation.metadata_json if notation else None,
+            verification_status=notation.verification_status if notation else None,
+        ),
         sargam_attribution=(
             SargamAttribution.model_validate(
                 sargam_attribution_payload(notation.metadata_json, notation.verification_status)
             )
             if notation
-            and is_notation_enabled(notation.metadata_json)
+            and is_notation_enabled(
+                notation.metadata_json,
+                verification_status=notation.verification_status,
+            )
             and sargam_attribution_payload(notation.metadata_json, notation.verification_status)
             else None
         ),

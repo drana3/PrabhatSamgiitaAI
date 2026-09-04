@@ -71,7 +71,15 @@ def split_lyric_lines(text: str | None) -> list[str]:
     return by_newline
 
 
-def is_notation_enabled(metadata: dict[str, Any] | None) -> bool:
+def is_notation_enabled(
+    metadata: dict[str, Any] | None,
+    *,
+    verification_status: str | None = None,
+) -> bool:
+    if metadata and metadata.get("learner_visible") is False:
+        return False
+    if verification_status == "expert_verified":
+        return True
     if not metadata or "learner_visible" not in metadata:
         return False
     return bool(metadata.get("learner_visible"))
@@ -87,7 +95,9 @@ def is_learner_playable_notation(
         return False
     if song_number in PROTECTED_BOOKLET_SONGS:
         return metadata is None or metadata.get("learner_visible") is not False
-    if not is_notation_enabled(metadata):
+    if verification_status == "expert_verified":
+        return metadata is None or metadata.get("learner_visible") is not False
+    if not is_notation_enabled(metadata, verification_status=verification_status):
         return False
     if verification_status in {"admin_submitted", "expert_verified"}:
         return True
@@ -329,7 +339,10 @@ def capture_payload(
         "tempo_bpm": row.tempo_bpm,
         "can_submit": can_submit_lines(lines) and song.number not in PROTECTED_BOOKLET_SONGS,
         "submitted": row.status == "admin_submitted",
-        "notation_enabled": is_notation_enabled(notation.metadata_json if notation else None),
+        "notation_enabled": is_notation_enabled(
+            notation.metadata_json if notation else None,
+            verification_status=notation.verification_status if notation else None,
+        ),
         "listen_url": listen_url,
         "lines": lines,
     }

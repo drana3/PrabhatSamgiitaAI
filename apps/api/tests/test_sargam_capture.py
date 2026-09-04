@@ -70,14 +70,28 @@ def test_learner_playable_notation_gates() -> None:
     )
     assert (
         is_learner_playable_notation(
-            4961, "expert_verified", json_text, {"learner_visible": True}
+            4961, "expert_verified", json_text, {"source_kind": "expert_handwritten_sheet"}
         )
         is True
+    )
+    assert (
+        is_learner_playable_notation(
+            4961, "expert_verified", json_text, {"learner_visible": False}
+        )
+        is False
     )
     assert is_learner_playable_notation(5, "admin_submitted", "") is False
     assert is_notation_enabled(None) is False
     assert is_notation_enabled({"learner_visible": True}) is True
     assert is_notation_enabled({"learner_visible": False}) is False
+    assert (
+        is_notation_enabled({"source_kind": "expert"}, verification_status="expert_verified")
+        is True
+    )
+    assert (
+        is_notation_enabled({"learner_visible": False}, verification_status="expert_verified")
+        is False
+    )
     hidden = {"learner_visible": False}
     assert is_learner_playable_notation(5, "admin_submitted", json_text, hidden) is False
     assert is_learner_playable_notation(1, "verified", json_text, hidden) is False

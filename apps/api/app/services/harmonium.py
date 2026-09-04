@@ -222,7 +222,10 @@ async def load_song_notation(session: AsyncSession, song: Song) -> HarmoniumNota
         song.number, row.verification_status, row.notation_text, row.metadata_json
     ):
         return notation_from_json(str(row.notation_text))
-    if row and not is_notation_enabled(row.metadata_json):
+    if row and not is_notation_enabled(
+        row.metadata_json,
+        verification_status=row.verification_status,
+    ):
         return None
 
     if song.harmonium_notation:
