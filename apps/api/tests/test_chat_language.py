@@ -35,11 +35,11 @@ def test_english_companion_phrases_stay_english() -> None:
     assert detect_response_language("what does this mean") == "en"
 
 
-def test_numeric_input_does_not_stick_to_hindi_history() -> None:
+def test_numeric_input_inherits_hindi_conversation() -> None:
     history = [("user", "explain this song in hindi"), ("assistant", "हिंदी में उत्तर")]
 
-    assert detect_response_language("222", history) == "en"
-    assert detect_response_language("what does 222 mean?", history) == "en"
+    assert detect_response_language("222", history) == "hi"
+    assert detect_response_language("what does 222 mean?", history) == "hi"
 
 
 def test_ambiguous_follow_up_can_inherit_hindi() -> None:
@@ -49,8 +49,8 @@ def test_ambiguous_follow_up_can_inherit_hindi() -> None:
     assert detect_response_language("in hindi", history) == "hi"
 
 
-def test_english_follow_up_after_hindi_switches_back() -> None:
-    """FB-03: after Hindi turns, a clear English question must request English again."""
+def test_english_follow_up_keeps_hindi_until_explicit_switch() -> None:
+    """Stay in Hindi once the conversation moved there; only explicit requests switch back."""
     history = [
         ("user", "What is this song about?"),
         ("assistant", "This song is about devotion at dawn."),
@@ -58,9 +58,9 @@ def test_english_follow_up_after_hindi_switches_back() -> None:
         ("assistant", "Yeh gaana prem aur bhakti ke bare mein hai."),
     ]
 
-    assert detect_response_language("What emotion drives this PS?", history) == "en"
+    assert detect_response_language("What emotion drives this PS?", history) == "hi"
     assert detect_response_language("in english", history) == "en"
-    assert detect_response_language("Tell me more about the imagery", history) == "en"
+    assert detect_response_language("Tell me more about the imagery", history) == "hi"
 
 
 def test_language_rephrase_requires_history_for_structured_explain() -> None:
@@ -123,8 +123,8 @@ def test_is_language_rephrase() -> None:
     assert is_language_rephrase("explain this song") is False
 
 
-def test_conversation_language_follows_latest_clear_message() -> None:
+def test_conversation_language_stays_consistent() -> None:
     messages = ["explain this song in hindi", "222"]
-    assert conversation_language_from_user_messages(messages) == "en"
+    assert conversation_language_from_user_messages(messages) == "hi"
     messages = ["explain this song in hindi", "ok"]
     assert conversation_language_from_user_messages(messages) == "hi"

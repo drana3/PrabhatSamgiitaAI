@@ -297,29 +297,32 @@ def build_grounded_prompt(
                 "Devanagari), the way a devotee chats."
             )
         language_instruction = (
-            "CRITICAL — reply language for THIS turn only: Hindi. "
+            "Conversation language: Hindi. Keep replying in Hindi for this entire chat "
+            "until the user explicitly asks to switch (for example, 'in English'). "
             f"{script_note} "
             "Sound like a warm Hindi-speaking spiritual guide, not a machine translation. "
             "Use fluent, idiomatic Hindi with natural sentence rhythm. Explain feeling, "
             "imagery, and devotion in flowing prose — do not paste stiff catalog labels or "
             "word-for-word English calques. Keep English song titles as-is when needed, but "
-            "surround them with Hindi. Avoid mixing full English sentences into the reply. "
-            "Do not stay in English just because earlier turns used it."
+            "surround them with Hindi. Do not mix full English sentences into the reply or "
+            "switch languages mid-answer."
         )
     elif response_language == "other":
         target = explicit_target_language_label(query) or "the language the user requested"
         language_instruction = (
-            f"CRITICAL — reply language for THIS turn only: {target}. Translate the canonical "
-            f"song meaning faithfully from the retrieved source in that language. Use correct "
-            f"grammar and preserve the source imagery and line order when the meaning is "
-            f"line-by-line. Do not invent devotional commentary beyond the canonical text. "
-            f"Do not stay in a previous language from earlier turns."
+            f"Conversation language: {target}. Keep replying in {target} for this entire chat "
+            f"until the user explicitly asks to switch. Translate the canonical song meaning "
+            f"faithfully from the retrieved source in that language. Use correct grammar and "
+            f"preserve the source imagery and line order when the meaning is line-by-line. "
+            f"Do not invent devotional commentary beyond the canonical text. "
+            f"Do not switch languages mid-answer."
         )
     else:
         language_instruction = (
-            "CRITICAL — reply language for THIS turn only: clear, natural English. "
-            "Do not continue in Hindi, Romanized Hindi, or any other language from earlier "
-            "turns — the user's current message is English (or they asked for English)."
+            "Conversation language: clear, natural English. Keep replying in English for this "
+            "entire chat until the user explicitly asks for another language (for example, "
+            "'in Hindi'). Do not switch to Hindi, Romanized Hindi, or any other language "
+            "mid-answer unless the user clearly requested it."
         )
     line_by_line_instruction = (
         "The user asked for a detailed reading of this song. Explain the grounded meaning in "

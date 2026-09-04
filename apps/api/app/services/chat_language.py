@@ -63,10 +63,6 @@ LANGUAGE_ONLY = re.compile(
     r")\s*[?.!]*$",
     re.IGNORECASE,
 )
-AMBIGUOUS_FOLLOW_UP = re.compile(
-    r"^(?:yes|no|ok|okay|more|continue|why|thanks|thank you|sure|please)\s*[?.!]*$",
-    re.IGNORECASE,
-)
 
 
 def prefers_devanagari_hindi(query: str) -> bool:
@@ -137,56 +133,47 @@ def _detect_text_language(text: str) -> str:
     return "en"
 
 
-def _inherits_language_from_history(query: str) -> bool:
-    cleaned = query.strip()
-    if not cleaned:
-        return False
-    if is_language_rephrase(cleaned):
-        return True
-    if _detect_text_language(cleaned) != "en":
-        return False
-    if re.fullmatch(r"\d{1,4}", cleaned):
-        return False
-    return AMBIGUOUS_FOLLOW_UP.fullmatch(cleaned) is not None
-
-
-def detect_response_language(query: str, history: list[tuple[str, str]] | None = None) -> str:
-    explicit = explicit_response_language(query)
-    if explicit:
-        return explicit
-
-    current = _detect_text_language(query)
-    if current != "en":
-        return current
-
-    if not _inherits_language_from_history(query):
-        return "en"
-
-    for role, content in reversed(history or []):
+def _established_language_from_history(history: list[tuple[str, str]] | None) -> str | None:
+    """Conversation language locked by prior user turns (explicit request or first clear choice)."""
+    established: str | None = None
+    for role, content in history or []:
         if role != "user":
+            continue
+        explicit = explicit_response_language(content)
+        if explicit:
+            established = explicit
+            continue
+        if is_language_rephrase(content):
             continue
         language = _detect_text_language(content)
         if language != "en":
-            return language
-        return "en"
+            established = language
+        elif established is None and not re.fullmatch(r"\d{1,4}", content.strip()):
+            established = "en"
+    return established
 
-    return "en"
+
+def detect_response_language(query: str, history: list[tuple[str, str]] | None = None) -> str:
+    cleaned = query.strip()
+    explicit = explicit_response_language(cleaned)
+    if explicit:
+        return explicit
+
+    established = _established_language_from_history(history)
+    current = _detect_text_language(cleaned)
+    if current != "en":
+        return current
+
+    if established:
+        return established
+
+    if re.fullmatch(r"\d{1,4}", cleaned):
+        return "en"
+    return current
 
 
 def conversation_language_from_user_messages(messages: list[str]) -> str:
     if not messages:
         return "en"
-    latest = messages[-1].strip()
-    if not latest:
-        return "en"
-    explicit = explicit_response_language(latest)
-    if explicit:
-        return explicit
-    current = _detect_text_language(latest)
-    if current != "en" or not _inherits_language_from_history(latest):
-        return current
-    for prior in reversed(messages[:-1]):
-        language = _detect_text_language(prior)
-        if language != "en":
-            return language
-    return "en"
+    history = [("user", message) for message in messages[:-1]]
+    return detect_response_language(messages[-1], history)
