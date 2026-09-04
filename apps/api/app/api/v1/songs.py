@@ -202,6 +202,7 @@ async def get_song(
         notation_enabled=is_notation_enabled(
             notation.metadata_json if notation else None,
             verification_status=notation.verification_status if notation else None,
+            song_number=number,
         ),
         sargam_attribution=(
             SargamAttribution.model_validate(
@@ -211,6 +212,7 @@ async def get_song(
             and is_notation_enabled(
                 notation.metadata_json,
                 verification_status=notation.verification_status,
+                song_number=number,
             )
             and sargam_attribution_payload(notation.metadata_json, notation.verification_status)
             else None

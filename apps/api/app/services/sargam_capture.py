@@ -75,9 +75,12 @@ def is_notation_enabled(
     metadata: dict[str, Any] | None,
     *,
     verification_status: str | None = None,
+    song_number: int | None = None,
 ) -> bool:
     if metadata and metadata.get("learner_visible") is False:
         return False
+    if song_number in PROTECTED_BOOKLET_SONGS:
+        return True
     if verification_status == "expert_verified":
         return True
     if not metadata or "learner_visible" not in metadata:
@@ -97,7 +100,9 @@ def is_learner_playable_notation(
         return metadata is None or metadata.get("learner_visible") is not False
     if verification_status == "expert_verified":
         return metadata is None or metadata.get("learner_visible") is not False
-    if not is_notation_enabled(metadata, verification_status=verification_status):
+    if not is_notation_enabled(
+        metadata, verification_status=verification_status, song_number=song_number
+    ):
         return False
     if verification_status in {"admin_submitted", "expert_verified"}:
         return True
@@ -342,6 +347,7 @@ def capture_payload(
         "notation_enabled": is_notation_enabled(
             notation.metadata_json if notation else None,
             verification_status=notation.verification_status if notation else None,
+            song_number=song.number,
         ),
         "listen_url": listen_url,
         "lines": lines,

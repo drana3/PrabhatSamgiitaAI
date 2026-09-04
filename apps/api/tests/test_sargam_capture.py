@@ -88,6 +88,8 @@ def test_learner_playable_notation_gates() -> None:
         is_notation_enabled({"source_kind": "expert"}, verification_status="expert_verified")
         is True
     )
+    assert is_notation_enabled({"source": "booklet"}, song_number=1) is True
+    assert is_notation_enabled({"learner_visible": False}, song_number=1) is False
     assert (
         is_notation_enabled({"learner_visible": False}, verification_status="expert_verified")
         is False
