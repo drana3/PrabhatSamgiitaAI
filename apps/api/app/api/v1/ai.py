@@ -27,10 +27,11 @@ from app.services.conversation import try_conversation_answer
 from app.services.direct_answers import try_direct_answer
 from app.services.members import try_member_identity
 from app.services.output_guard import sanitize_model_output
+from app.services.answer_guard import apply_output_guardrails
 from app.services.query_guard import assess_query
 from app.services.rag import RAGService
 from app.services.streaming import stream_text
-from app.services.structured_answers import try_structured_answer
+from app.services.structured_answers import is_deeper_question, try_structured_answer
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=86_400, maxsize=512)
@@ -39,6 +40,13 @@ logger = logging.getLogger(__name__)
 
 def _stream_answer(parts: list[str]) -> list[str]:
     return [part for section in parts for part in re.split(r"\n{2,}", section) if part.strip()]
+
+
+def _sanitize_profile_context(value: str | None) -> str | None:
+    if not value:
+        return None
+    assessment = assess_query(value, max_length=600)
+    return assessment.normalized if assessment.allowed else None
 
 
 @router.post("/explain")
@@ -57,17 +65,27 @@ async def explain(
         return StreamingResponse(stream_text(["Song not found."]), media_type="text/event-stream")
 
     prompt = payload.prompt or f"Explain song {song.number}: {song.title}"
-    assessment = assess_query(prompt, max_length=800)
+    assessment = assess_query(
+        prompt,
+        max_length=800,
+        companion=True,
+        allow_follow_up=bool(payload.history),
+    )
     if not assessment.allowed:
         return StreamingResponse(
             stream_text([assessment.guidance]),
             media_type="text/event-stream",
         )
     prompt = assessment.normalized
+    profile_context = _sanitize_profile_context(payload.profile_context)
     history: list[tuple[str, str]] = []
     for turn in payload.history:
         content = " ".join(turn.content.split())
-        if turn.role == "user" and not assess_query(content, max_length=2000).allowed:
+        if turn.role == "user" and not assess_query(
+            content,
+            max_length=2000,
+            companion=True,
+        ).allowed:
             continue
         history.append((turn.role, content))
     history = cap_chat_history(history)
@@ -78,7 +96,7 @@ async def explain(
             "song_number": song.number,
             "prompt": prompt,
             "history": history,
-            "profile_context": payload.profile_context,
+            "profile_context": profile_context,
             "response_language": response_language,
         },
         sort_keys=True,
@@ -100,11 +118,13 @@ async def explain(
         return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
 
     related = await catalog.related_songs(song)
-    structured = try_structured_answer(prompt, song, history, related)
-    if structured:
-        streamed = _stream_answer([sanitize_model_output(structured)])
-        await explanation_cache.set(cache_key, streamed)
-        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+    deeper = is_deeper_question(prompt, history)
+    if not deeper:
+        structured = try_structured_answer(prompt, song, history, related)
+        if structured:
+            streamed = _stream_answer([sanitize_model_output(structured)])
+            await explanation_cache.set(cache_key, streamed)
+            return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
 
     quota = await check_daily_ai_quota_persisted(
         is_member=member is not None,
@@ -127,7 +147,7 @@ async def explain(
             song,
             prompt,
             history=history,
-            profile_context=payload.profile_context,
+            profile_context=profile_context,
             response_language=response_language,
         )
     except Exception:  # pragma: no cover - runtime fallback for provider/db issues
@@ -138,6 +158,7 @@ async def explain(
             f"{song.english_meaning or song.hindi_meaning or song.first_line or ''}".strip()
         )
 
-    streamed = _stream_answer([sanitize_model_output(answer)])
+    answer = sanitize_model_output(apply_output_guardrails(answer, song))
+    streamed = _stream_answer([answer])
     await explanation_cache.set(cache_key, streamed)
     return StreamingResponse(stream_text(streamed), media_type="text/event-stream")

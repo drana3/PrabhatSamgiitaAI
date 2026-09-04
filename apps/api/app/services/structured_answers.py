@@ -249,6 +249,22 @@ def build_stories_answer(
     return "\n".join(lines)
 
 
+def is_deeper_question(query: str, history: list[tuple[str, str]] | None = None) -> bool:
+    """Catalog lists are shallow; meaning, language, and interpretation need the LLM."""
+    if requests_stories_inspiration(query):
+        return False
+    if requests_related_songs(query):
+        return False
+    if requests_song_explanation(query, history):
+        return True
+    if requests_line_by_line(query):
+        return True
+    cleaned = query.casefold()
+    if re.search(r"\b(?:meditation|meditate|dhyan|reflect)\b", cleaned):
+        return True
+    return True
+
+
 def try_structured_answer(
     query: str,
     song: Song,

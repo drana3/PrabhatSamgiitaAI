@@ -257,4 +257,24 @@ describe("API client resilience (shared with website)", () => {
     await client().streamExplanation(1, (chunk) => chunks.push(chunk), "What is this song about?")
     expect(chunks).toEqual(["A calm dawn song.", "Source: Song 1"])
   })
+
+  it("passes member auth headers to streamExplanation", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: null,
+      text: async () => "data: Signed-in answer\n\n",
+    })
+    const clientWithAuth = createApiClient({
+      baseUrl: "https://api.example.test",
+      getAuthHeaders: async () => ({
+        "X-MS-CLIENT-PRINCIPAL": "signed-in-principal",
+        "X-Member-Proxy-Key": "proxy-key",
+      }),
+    })
+    await clientWithAuth.streamExplanation(1, () => undefined, "Explain this song")
+    const headers = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.headers
+    expect(headers?.["X-MS-CLIENT-PRINCIPAL"]).toBe("signed-in-principal")
+    expect(headers?.["X-Member-Proxy-Key"]).toBe("proxy-key")
+  })
 })

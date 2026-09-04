@@ -11,7 +11,7 @@ SAFE_REDIRECT = (
 _LEAK_PATTERNS = (
     r"\bsystem\s+prompt\b",
     r"\bignore\s+(?:all\s+)?previous\s+instructions\b",
-    r"\byou\s+are\s+the\s+prabhat\s+samgiita\s+ai\s+companion\b",
+    r"\byou\s+are\s+(?:the\s+|a\s+)?(?:professional\s+)?prabhat\s+samgiita\s+(?:ai\s+)?(?:companion|expert)\b",
     r"\bretrieved\s+canonical\s+context\b",
     r"\bmember\s+interest\s+summary\s+\(may\s+be\s+empty\)\b",
     r"\b(?:api[_-]?key|secret[_-]?key|access[_-]?token)\s*[:=]\s*\S+",

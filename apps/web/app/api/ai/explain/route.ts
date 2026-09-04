@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { resolveClientPrincipal } from "@/lib/azure-principal"
+import { memberPrincipalFor } from "@/lib/member-request"
 import { runtimeEnv } from "@/lib/runtime-env"
 
 function backendBase() {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     "Content-Type": request.headers.get("content-type") ?? "application/json",
   }
 
-  const principal = resolveClientPrincipal(request.headers)
+  const principal = memberPrincipalFor(request)
   const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   if (principal && proxyKey) {
     headers["X-MS-CLIENT-PRINCIPAL"] = principal

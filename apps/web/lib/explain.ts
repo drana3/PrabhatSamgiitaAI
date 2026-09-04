@@ -12,8 +12,8 @@ export async function streamExplanation(
   history: ConversationTurn[] = [],
   profileContext?: string,
 ): Promise<void> {
-  if (prompt && !queryIsUseful(prompt, 800)) {
-    onChunk(queryGuidanceFor(prompt))
+  if (prompt && !queryIsUseful(prompt, 800, { companion: true, allowFollowUp: history.length > 0 })) {
+    onChunk(queryGuidanceFor(prompt, { companion: true, allowFollowUp: history.length > 0 }))
     return
   }
   const controller = new AbortController()

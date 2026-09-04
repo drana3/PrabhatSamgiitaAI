@@ -1139,17 +1139,22 @@ export function createApiClient(options: ApiClientOptions) {
       prompt?: string,
       history: ConversationTurn[] = [],
     ): Promise<void> {
-      if (prompt && !queryIsUseful(prompt, 800)) {
-        onChunk(queryGuidanceFor(prompt))
+      if (prompt && !queryIsUseful(prompt, 800, { companion: true, allowFollowUp: history.length > 0 })) {
+        onChunk(queryGuidanceFor(prompt, { companion: true, allowFollowUp: history.length > 0 }))
         return
       }
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 60_000)
       let response: Response
       try {
+        const extraAuth = await authHeaders()
         response = await fetchImpl(`${baseUrl}/api/v1/ai/explain`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+            ...extraAuth,
+          },
           body: JSON.stringify({
             song_number: songNumber,
             prompt,

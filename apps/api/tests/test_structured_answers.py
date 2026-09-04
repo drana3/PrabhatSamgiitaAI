@@ -3,6 +3,7 @@ from app.services.structured_answers import (
     build_line_by_line_answer,
     build_meditation_answer,
     build_related_songs_answer,
+    is_deeper_question,
     try_structured_answer,
 )
 
@@ -132,3 +133,15 @@ def test_meditation_answer_uses_song_context() -> None:
     assert answer is not None
     assert "stillness" in answer
     assert "evening meditation" in answer.casefold()
+
+
+def test_is_deeper_question_routes_explain_and_language_to_llm() -> None:
+    assert is_deeper_question("What is this song about?") is True
+    assert is_deeper_question("explain this song in hindi") is True
+    assert is_deeper_question("Explain the meaning line by line") is True
+    assert is_deeper_question("help me meditate on this song") is True
+
+
+def test_is_deeper_question_keeps_catalog_lists_shallow() -> None:
+    assert is_deeper_question("Any devotee stories about this song?") is False
+    assert is_deeper_question("Show related songs") is False

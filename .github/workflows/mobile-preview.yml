@@ -10,8 +10,9 @@ on:
     branches:
       - main
     paths:
+      # Core is shared with web/API; do not burn EAS minutes on core-only fixes.
+      # Run preview builds manually or when apps/mobile changes.
       - "apps/mobile/**"
-      - "packages/core/**"
       - ".github/workflows/mobile-preview.yml"
 
 permissions:
