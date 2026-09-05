@@ -6,9 +6,24 @@ import sys
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
 RETRY_STATUSES = {0, 502, 503, 504}
+
+
+def resolve_fetch_url(url: str, base_url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.scheme in {"", "http", "https"} and parsed.hostname in {
+        None,
+        "localhost",
+        "127.0.0.1",
+    }:
+        path = parsed.path or "/"
+        if parsed.query:
+            path = f"{path}?{parsed.query}"
+        return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
+    return url
 
 
 def request(
@@ -321,7 +336,8 @@ def main() -> None:
     record("BOT, dawn-practice reflection for song 1?", "Real grounded streamed answer", elapsed)
 
     audio_started = time.monotonic()
-    audio_request = Request(audio["url"], headers={"Range": "bytes=0-1023"})
+    audio_fetch_url = resolve_fetch_url(audio["url"], base_url)
+    audio_request = Request(audio_fetch_url, headers={"Range": "bytes=0-1023"})
     with urlopen(audio_request, timeout=30) as response:
         sample = response.read(1024)
         require(response.status in {200, 206} and bool(sample), "Audio source returned no data")
