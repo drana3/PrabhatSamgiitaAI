@@ -1,5 +1,7 @@
+from app.config import get_settings
 from app.models.media import Media
 from app.schemas.song import MediaItemResponse
+from app.services.media_proxy import proxied_media_url
 
 
 def media_is_low_quality(item: Media) -> bool:
@@ -44,12 +46,17 @@ def to_media_item_response(item: Media, *, latest_url: str | None = None) -> Med
     is_audio = item.kind == "audio"
     is_older = is_audio and media_is_older(item)
     is_low_quality = is_audio and media_is_low_quality(item)
+    api_base = get_settings().next_public_api_base_url
+    client_url = proxied_media_url(item.url, api_base_url=api_base) or item.url
+    client_embed = (
+        proxied_media_url(item.embed_url, api_base_url=api_base) if item.embed_url else None
+    )
     return MediaItemResponse(
         kind=item.kind,
         provider=item.provider,
         title=item.title,
-        url=item.url,
-        embed_url=item.embed_url,
+        url=client_url,
+        embed_url=client_embed,
         verification_status=item.verification_status,
         source_url=item.source_url,
         notes=item.notes,

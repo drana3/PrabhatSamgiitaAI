@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
 from app.core.security import require_public_quota
@@ -60,6 +61,7 @@ from app.services.domain_catalog import (
     time_of_day,
 )
 from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
+from app.services.media_proxy import proxied_media_url
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 from app.services.reflections import select_reflection
 from app.services.stories import (
@@ -393,7 +395,10 @@ async def recommendations_today(
                 score=item.score,
                 reasons=reasons[:4] or ["A verified song for reflection"],
                 is_verified=item.song.is_verified,
-                audio_url=audio.url if audio else None,
+                audio_url=proxied_media_url(
+                    audio.url if audio else None,
+                    api_base_url=get_settings().next_public_api_base_url,
+                ),
                 video_embed_url=video.embed_url if video else None,
                 notation_available=notation is not None,
             )
