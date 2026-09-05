@@ -9408,6 +9408,27 @@
     }
   },
   {
+    "song_number": 2774,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Dure Jeona - Prabhat Sangeet song #2774 - Singer - Asitima Debnath",
+    "url": "https://www.youtube.com/watch?v=jRqnDWTFWik",
+    "embed_url": "https://www.youtube-nocookie.com/embed/jRqnDWTFWik",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "jRqnDWTFWik",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.948,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2777,
     "kind": "video",
     "provider": "youtube",
@@ -9530,6 +9551,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.937,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2782,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Megher Pare - Prabhat Sangeet song #2782 - Singer - Puspak Chatterjee",
+    "url": "https://www.youtube.com/watch?v=C_219O29PP4",
+    "embed_url": "https://www.youtube-nocookie.com/embed/C_219O29PP4",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "C_219O29PP4",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.944,
       "match_method": "explicit_song_number_marker"
     }
   },
