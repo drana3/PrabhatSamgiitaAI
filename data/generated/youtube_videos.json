@@ -9576,6 +9576,27 @@
     }
   },
   {
+    "song_number": 2783,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ei Alo Jhara Nishiithe - Prabhat Sangeet song #2783 - Singer - Poushali Ghosh",
+    "url": "https://www.youtube.com/watch?v=LwM29GR3DG8",
+    "embed_url": "https://www.youtube-nocookie.com/embed/LwM29GR3DG8",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "LwM29GR3DG8",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2788,
     "kind": "video",
     "provider": "youtube",
