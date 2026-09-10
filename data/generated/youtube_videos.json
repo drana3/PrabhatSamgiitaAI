@@ -9597,6 +9597,27 @@
     }
   },
   {
+    "song_number": 2784,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ami Marme Ceyechi Tomare - Prabhat Sangeet song #2784 - Singer - Unmesha Ghosh",
+    "url": "https://www.youtube.com/watch?v=Hks12_cZCDk",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Hks12_cZCDk",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "Hks12_cZCDk",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2788,
     "kind": "video",
     "provider": "youtube",
