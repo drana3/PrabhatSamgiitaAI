@@ -25,7 +25,7 @@ describe("SongStoriesPanel", () => {
   })
 
   it("renders nothing when no stories are linked", () => {
-    const { container } = render(<SongStoriesPanel songNumber={1} />)
+    const { container } = render(<SongStoriesPanel songNumber={2} />)
     expect(container).toBeEmptyDOMElement()
   })
 })
