@@ -39,7 +39,9 @@ def test_stories_for_song_419() -> None:
 def test_stories_matching_query_finds_heart_story() -> None:
     matched = stories_matching_query(load_stories_from_seed(), "ink of the heart")
     assert matched
-    assert matched[0].slug == "kalyan-deva"
+    slugs = {story.slug for story in matched}
+    assert "kalyan-deva" in slugs
+    assert "44th-ps-divas-2026-ink-of-heart" in slugs
 
 
 def test_requests_stories_inspiration() -> None:
