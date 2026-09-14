@@ -185,14 +185,16 @@ def validate_notation_source(response: httpx.Response) -> None:
     require(payload["transposition_available"] is False, response.text)
 
 
-def validate_transposed_expert_notation(response: httpx.Response) -> None:
-    payload = response.json()
+def validate_hidden_expert_notation(response: httpx.Response) -> None:
+    require(response.status_code == 404, response.text)
+    require("Notation not available" in response.text, response.text)
+
+
+def validate_published_sargam_defaults(response: httpx.Response) -> None:
+    rows = response.json()
     require(response.status_code == 200, response.text)
-    require(payload["song_number"] == 4961, response.text)
-    require(payload["source_scale"] == "C", response.text)
-    require(payload["target_scale"] == "D", response.text)
-    require(payload["verification_status"] == "expert_verified", response.text)
-    require(bool(payload["notation"]["lines"]), response.text)
+    numbers = sorted(int(row["number"]) for row in rows)
+    require(numbers == [1, 2, 27], response.text)
 
 
 def validate_youtube_video(response: httpx.Response) -> None:
@@ -446,11 +448,18 @@ CASES = [
         validate_notation_source,
     ),
     AcceptanceCase(
-        "Transpose expert-verified song 4961 to D on harmonium.",
-        "The expert-curated sheet is transposed to D and remains labelled expert_verified.",
+        "Keep expert-verified song 4961 hidden until admin enables learner sargam.",
+        "Unpublished expert sheets return 404 on the transposed notation endpoint.",
         "GET",
         "/api/v1/songs/4961/notation?scale=D&system=sargam",
-        validate_transposed_expert_notation,
+        validate_hidden_expert_notation,
+    ),
+    AcceptanceCase(
+        "Which songs are published for the Full Sargam Explore chip?",
+        "Only booklet demos 1, 2, and 27 are listed until admin enables more captures.",
+        "GET",
+        "/api/v1/songs/published-sargam",
+        validate_published_sargam_defaults,
     ),
     AcceptanceCase(
         "Play the verified YouTube performance for song 1.",
