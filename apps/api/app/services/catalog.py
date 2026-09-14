@@ -145,6 +145,19 @@ def _detach_notation(item: Notation) -> Notation:
     )
 
 
+def _merge_notation_with_db(seeded: Notation, db_row: Notation | None) -> Notation:
+    if db_row is None:
+        return seeded
+    merged = _detach_notation(seeded)
+    merged.metadata_json = {**(merged.metadata_json or {}), **(db_row.metadata_json or {})}
+    if db_row.verification_status == "admin_submitted" and db_row.notation_text:
+        merged.notation_text = db_row.notation_text
+        merged.verification_status = db_row.verification_status
+        merged.scale = db_row.scale or merged.scale
+        merged.source_url = db_row.source_url or merged.source_url
+    return merged
+
+
 def _invalidate_derived_indexes() -> None:
     from app.services.lyric_search import lyric_index
 
@@ -380,29 +393,49 @@ class CatalogService:
             await self.session.rollback()
             return []
 
-    async def list_published_sargam_songs(self) -> list[Song]:
-        from app.services.sargam_capture import (
-            is_learner_playable_notation,
-            published_sargam_song_numbers,
-        )
-
-        numbers = published_sargam_song_numbers(catalog_notation_snapshot())
+    async def _db_notation(self, song_number: int) -> Notation | None:
         try:
             result = await self.session.execute(
-                select(Notation).where(
-                    Notation.verification_status.in_(["admin_submitted", "expert_verified"])
-                )
+                select(Notation).where(Notation.song_number == song_number)
             )
-            for row in result.scalars().all():
-                if is_learner_playable_notation(
-                    row.song_number,
-                    row.verification_status,
-                    row.notation_text,
-                    row.metadata_json,
-                ):
-                    numbers.add(row.song_number)
+            return result.scalar_one_or_none()
         except SQLAlchemyError:
             await self.session.rollback()
+            return None
+
+    async def _db_notations_by_song(self) -> dict[int, Notation]:
+        try:
+            result = await self.session.execute(select(Notation))
+            return {row.song_number: row for row in result.scalars().all()}
+        except SQLAlchemyError:
+            await self.session.rollback()
+            return {}
+
+    async def list_published_sargam_songs(self) -> list[Song]:
+        from app.services.sargam_capture import is_learner_playable_notation
+
+        db_by_song = await self._db_notations_by_song()
+        numbers: set[int] = set()
+        for seeded in catalog_notation_snapshot():
+            db_row = db_by_song.get(seeded.song_number)
+            merged = _merge_notation_with_db(seeded, db_row)
+            if is_learner_playable_notation(
+                merged.song_number,
+                merged.verification_status,
+                merged.notation_text,
+                merged.metadata_json,
+            ):
+                numbers.add(merged.song_number)
+        for db_row in db_by_song.values():
+            if db_row.song_number in numbers:
+                continue
+            if is_learner_playable_notation(
+                db_row.song_number,
+                db_row.verification_status,
+                db_row.notation_text,
+                db_row.metadata_json,
+            ):
+                numbers.add(db_row.song_number)
         by_number = songs_by_number()
         return [by_number[number] for number in sorted(numbers) if number in by_number]
 
@@ -421,25 +454,10 @@ class CatalogService:
 
     async def get_notation(self, song_number: int) -> Notation | None:
         seeded = notations_by_song_number().get(song_number)
+        db_row = await self._db_notation(song_number)
         if seeded is not None:
-            return seeded
-        try:
-            result = await self.session.execute(
-                select(Notation).where(Notation.song_number == song_number)
-            )
-            row = result.scalar_one_or_none()
-            if row and row.verification_status == "admin_submitted":
-                return row
-        except SQLAlchemyError:
-            await self.session.rollback()
-        try:
-            result = await self.session.execute(
-                select(Notation).where(Notation.song_number == song_number)
-            )
-            return result.scalar_one_or_none()
-        except SQLAlchemyError:
-            await self.session.rollback()
-            return None
+            return _merge_notation_with_db(seeded, db_row)
+        return db_row
 
     async def inventory(self, limit: int = 100, offset: int = 0) -> list[InventoryItem]:
         snapshot = self._seed_inventory()

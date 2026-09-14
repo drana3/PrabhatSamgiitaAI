@@ -41,6 +41,16 @@ def test_festival_recommendations_use_only_exact_reviewed_collections() -> None:
         2649,
     }
     assert reviewed_festival_collection_labels(1, 25, 2026) == ()
+    assert reviewed_festival_collection_labels(9, 14, 2026) == ()
+    assert set(reviewed_festival_song_numbers(9, 14, 2026)) == {
+        1,
+        68,
+        135,
+        647,
+        1418,
+        4281,
+        5018,
+    }
 
 
 def test_humanitarian_context_uses_only_reviewed_source_collections() -> None:

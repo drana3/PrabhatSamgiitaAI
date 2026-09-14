@@ -99,6 +99,37 @@ def test_learner_playable_notation_gates() -> None:
     assert is_learner_playable_notation(1, "verified", json_text, hidden) is False
 
 
+def test_published_sargam_excludes_hidden_expert_notation() -> None:
+    from app.models import Notation
+    from app.services.catalog import _merge_notation_with_db
+    from app.services.sargam_capture import is_learner_playable_notation
+
+    json_text = '{"version":1,"source_scale":"C","lines":[]}'
+    seeded = Notation(
+        song_number=4961,
+        source_url="https://prabhatasamgiita.net/notations/andromeda.php",
+        notation_text=json_text,
+        scale="C",
+        verification_status="expert_verified",
+        metadata_json={"source_kind": "expert_handwritten_sheet"},
+    )
+    hidden = Notation(
+        song_number=4961,
+        source_url=seeded.source_url,
+        notation_text=json_text,
+        scale="C",
+        verification_status="expert_verified",
+        metadata_json={"learner_visible": False},
+    )
+    merged = _merge_notation_with_db(seeded, hidden)
+    assert is_learner_playable_notation(
+        merged.song_number,
+        merged.verification_status,
+        merged.notation_text,
+        merged.metadata_json,
+    ) is False
+
+
 def test_published_sargam_song_numbers_includes_booklet_and_admin() -> None:
     from app.models import Notation
 

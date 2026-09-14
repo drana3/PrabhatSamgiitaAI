@@ -157,6 +157,12 @@ REVIEWED_FESTIVAL_COLLECTIONS_2026: dict[tuple[int, int], dict[str, str]] = {
         "festival": "Shravanii Purnima Day",
         "meditation_context": "Shrávanii Purnimá",
     },
+    (9, 14): {
+        "festival": "Prabháta Saḿgiita Divasa",
+        "meditation_context": "Prabháta Saḿgiita Day",
+        "occasion": "meditation",
+        "mood": "devotional",
+    },
     (10, 1): {"season": "autumn", "theme": "Children"},
     (10, 5): {"festival": "Victory Day", "meditation_context": "Vijayotsava"},
     (11, 8): {
@@ -178,6 +184,19 @@ REVIEWED_FESTIVAL_COLLECTION_LABELS_2026: dict[tuple[int, int], tuple[str, ...]]
 
 FIXED_FESTIVAL_COLLECTION_LABELS: dict[tuple[int, int], tuple[str, ...]] = {
     (5, 21): ("Bábá Birthday Songs",),
+}
+
+# Curated cross-collection mixes for observances without one canonical label.
+REVIEWED_FESTIVAL_SONG_NUMBERS_2026: dict[tuple[int, int], tuple[int, ...]] = {
+    (9, 14): (
+        1,
+        68,
+        135,
+        647,
+        1418,
+        4281,
+        5018,
+    ),
 }
 
 
@@ -215,6 +234,10 @@ def reviewed_festival_collection_labels(
 
 
 def reviewed_festival_song_numbers(month: int, day: int, year: int) -> tuple[int, ...]:
+    if year == 2026:
+        explicit = REVIEWED_FESTIVAL_SONG_NUMBERS_2026.get((month, day))
+        if explicit:
+            return explicit
     labels = set(reviewed_festival_collection_labels(month, day, year))
     return song_numbers_for_collection_labels(labels)
 

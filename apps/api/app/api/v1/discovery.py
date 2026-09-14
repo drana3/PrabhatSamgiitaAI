@@ -308,7 +308,7 @@ async def recommendations_today(
         news_signals[0].category if news_signals else None
     )
     canonical_collection_labels = (
-        festival_collection_labels or humanitarian_collection_labels
+        festival_collection_labels if festival else humanitarian_collection_labels
     )
     festival_signal = (
         ContextSignal(
@@ -329,7 +329,9 @@ async def recommendations_today(
     )
     context_keywords = " ".join(keyword for signal in signals for keyword in signal.keywords)
     context["humanitarian_context"] = news_signals[0].category if news_signals else None
-    context["canonical_collections"] = list(canonical_collection_labels)
+    context["canonical_collections"] = list(
+        canonical_collection_labels or (("Curated festival mix",) if festival_song_numbers else ())
+    )
     catalog = CatalogService(session)
     songs = await catalog.list_songs(limit=10000)
     recommendation_context = RecommendationContext(
@@ -357,8 +359,15 @@ async def recommendations_today(
         maximum_results=3,
     )
     engine = RecommendationEngine()
-    if canonical_collection_labels:
-        eligible_song_numbers = festival_song_numbers or set(
+    if festival_song_numbers:
+        eligible_songs = [song for song in songs if song.number in festival_song_numbers]
+        ranked = await engine.rank_source_constrained(
+            session,
+            eligible_songs,
+            recommendation_context.maximum_results,
+        )
+    elif canonical_collection_labels:
+        eligible_song_numbers = set(
             song_numbers_for_collection_labels(canonical_collection_labels)
         )
         eligible_songs = [song for song in songs if song.number in eligible_song_numbers]
@@ -375,7 +384,9 @@ async def recommendations_today(
         notation = await catalog.get_notation(item.song.number)
         audio = next((row for row in media if row.kind == "audio"), None)
         video = next((row for row in media if row.kind == "video" and row.embed_url), None)
-        if canonical_collection_labels:
+        if festival and festival_song_numbers:
+            reasons = [f"Curated for {festival}"]
+        elif canonical_collection_labels:
             reasons = [
                 f"From the reviewed {label.removesuffix(' Songs').removesuffix(' Song')} collection"
                 for label in canonical_collection_labels

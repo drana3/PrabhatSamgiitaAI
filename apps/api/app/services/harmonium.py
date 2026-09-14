@@ -4,11 +4,9 @@ import json
 import re
 from dataclasses import dataclass
 
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Notation, Song
+from app.models import Song
 from app.schemas.notation import (
     HarmoniumNotation,
     NotationBeat,
@@ -210,13 +208,7 @@ def notation_from_json(text: str) -> HarmoniumNotation:
 
 
 async def load_song_notation(session: AsyncSession, song: Song) -> HarmoniumNotation | None:
-    row = None
-    try:
-        result = await session.execute(select(Notation).where(Notation.song_number == song.number))
-        row = result.scalar_one_or_none()
-    except SQLAlchemyError:
-        await session.rollback()
-        row = await CatalogService(session).get_notation(song.number)
+    row = await CatalogService(session).get_notation(song.number)
 
     if row and is_learner_playable_notation(
         song.number, row.verification_status, row.notation_text, row.metadata_json

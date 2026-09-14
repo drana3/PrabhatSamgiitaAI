@@ -248,17 +248,9 @@ async def test_catalog_falls_back_to_full_snapshot() -> None:
     assert [song.number for song in await service.list_songs(limit=2, offset=110)] == [111, 112]
 
 
-class BoomSession:
-    async def execute(self, statement: Any) -> None:
-        raise AssertionError("learner notation must not query postgres")
-
-    async def rollback(self) -> None:
-        return None
-
-
 @pytest.mark.asyncio
-async def test_get_notation_reads_memory_without_sql() -> None:
-    service = CatalogService(BoomSession())  # type: ignore[arg-type]
+async def test_get_notation_reads_memory_when_database_unavailable() -> None:
+    service = CatalogService(UnavailableSession())  # type: ignore[arg-type]
     notation = await service.get_notation(1)
     assert notation is None or notation.song_number == 1
 
