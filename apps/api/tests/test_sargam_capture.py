@@ -72,6 +72,12 @@ def test_learner_playable_notation_gates() -> None:
         is_learner_playable_notation(
             4961, "expert_verified", json_text, {"source_kind": "expert_handwritten_sheet"}
         )
+        is False
+    )
+    assert (
+        is_learner_playable_notation(
+            4961, "expert_verified", json_text, {"learner_visible": True}
+        )
         is True
     )
     assert (
@@ -86,6 +92,13 @@ def test_learner_playable_notation_gates() -> None:
     assert is_notation_enabled({"learner_visible": False}) is False
     assert (
         is_notation_enabled({"source_kind": "expert"}, verification_status="expert_verified")
+        is False
+    )
+    assert (
+        is_notation_enabled(
+            {"source_kind": "expert", "learner_visible": True},
+            verification_status="expert_verified",
+        )
         is True
     )
     assert is_notation_enabled({"source": "booklet"}, song_number=1) is True
@@ -128,6 +141,23 @@ def test_published_sargam_excludes_hidden_expert_notation() -> None:
         merged.notation_text,
         merged.metadata_json,
     ) is False
+
+
+def test_published_sargam_excludes_unenabled_expert_notation() -> None:
+    from app.models import Notation
+
+    json_text = '{"version":1,"source_scale":"C","lines":[]}'
+    notations = [
+        Notation(
+            song_number=4961,
+            source_url=None,
+            notation_text=json_text,
+            scale="C",
+            verification_status="expert_verified",
+            metadata_json={"source_kind": "expert_handwritten_sheet"},
+        ),
+    ]
+    assert published_sargam_song_numbers(notations) == {1, 2, 27}
 
 
 def test_published_sargam_song_numbers_includes_booklet_and_admin() -> None:

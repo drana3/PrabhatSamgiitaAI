@@ -259,7 +259,7 @@ def complete_notation_entry(_songs: list[dict]) -> dict:
 
 def _notation_is_playable(row: dict) -> bool:
     metadata = row.get("metadata_json") or {}
-    if metadata.get("learner_visible") is False:
+    if metadata.get("learner_visible") is not True:
         return False
     text = row.get("notation_text")
     if not text or not str(text).strip().startswith("{"):

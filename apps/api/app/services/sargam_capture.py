@@ -81,11 +81,7 @@ def is_notation_enabled(
         return False
     if song_number in PROTECTED_BOOKLET_SONGS:
         return True
-    if verification_status == "expert_verified":
-        return True
-    if not metadata or "learner_visible" not in metadata:
-        return False
-    return bool(metadata.get("learner_visible"))
+    return bool(metadata and metadata.get("learner_visible") is True)
 
 
 def is_learner_playable_notation(
@@ -94,19 +90,15 @@ def is_learner_playable_notation(
     notation_text: str | None,
     metadata: dict[str, Any] | None = None,
 ) -> bool:
-    if not notation_text or not str(notation_text).strip().startswith("{"):
-        return False
     if song_number in PROTECTED_BOOKLET_SONGS:
         return metadata is None or metadata.get("learner_visible") is not False
-    if verification_status == "expert_verified":
-        return metadata is None or metadata.get("learner_visible") is not False
+    if not notation_text or not str(notation_text).strip().startswith("{"):
+        return False
     if not is_notation_enabled(
         metadata, verification_status=verification_status, song_number=song_number
     ):
         return False
-    if verification_status in {"admin_submitted", "expert_verified"}:
-        return True
-    return False
+    return verification_status in {"admin_submitted", "expert_verified"}
 
 
 def published_sargam_song_numbers(notations: Iterable[Any]) -> set[int]:
