@@ -145,6 +145,10 @@ def _detach_notation(item: Notation) -> Notation:
     )
 
 
+def _notation_text_is_json(text: str | None) -> bool:
+    return bool(text and str(text).strip().startswith("{"))
+
+
 def _merge_notation_with_db(seeded: Notation, db_row: Notation | None) -> Notation:
     if db_row is None:
         return seeded
@@ -153,6 +157,13 @@ def _merge_notation_with_db(seeded: Notation, db_row: Notation | None) -> Notati
     if db_row.verification_status == "admin_submitted" and db_row.notation_text:
         merged.notation_text = db_row.notation_text
         merged.verification_status = db_row.verification_status
+        merged.scale = db_row.scale or merged.scale
+        merged.source_url = db_row.source_url or merged.source_url
+    elif _notation_text_is_json(db_row.notation_text) and not _notation_text_is_json(
+        merged.notation_text
+    ):
+        merged.notation_text = db_row.notation_text
+        merged.verification_status = db_row.verification_status or merged.verification_status
         merged.scale = db_row.scale or merged.scale
         merged.source_url = db_row.source_url or merged.source_url
     return merged
