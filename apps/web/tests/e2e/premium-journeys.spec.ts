@@ -377,10 +377,10 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
     await expect(companionNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
     await expect(companionNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
   } else if (testInfo.project.name === "mobile-chromium") {
-    await expect(page.locator("#listen").getByLabel(/Listen to/i)).toBeVisible()
+    await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Song sections" }).getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "#listen")
   } else {
-    await expect(page.locator("#listen").getByLabel(/Listen to/i)).toBeVisible()
+    await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
   }
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
     listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
@@ -389,7 +389,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   expect(listenBounds).not.toBeNull()
   expect(watchBounds).not.toBeNull()
   expect(watchBounds!.y).toBeGreaterThan(listenBounds!.y + listenBounds!.height - 8)
-  const alternateRecordings = page.locator("#listen").getByText(/More recordings \(/)
+  const alternateRecordings = page.getByText(/More recordings \(/)
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 
