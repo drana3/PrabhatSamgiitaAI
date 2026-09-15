@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { trackEvent } from "@/lib/analytics"
 import { useMember } from "@/components/member-provider"
 import { bindExclusiveAudio } from "@/lib/exclusive-audio"
+import { warmArchiveAudioStream } from "@/lib/warm-audio-stream"
 
 const skipSeconds = 10
 
@@ -97,10 +98,12 @@ function VolumeIcon({ muted }: { muted: boolean }) {
 function CompactPlayer({
   url,
   title,
+  onPlaybackError,
 }: {
   url: string
   title: string
   provider?: string
+  onPlaybackError?: () => void
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
@@ -108,12 +111,15 @@ function CompactPlayer({
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
   const [muted, setMuted] = useState(false)
+  const [buffering, setBuffering] = useState(false)
 
   useEffect(() => {
     setPlaying(false)
     setCurrentTime(0)
     setDuration(0)
     setMuted(false)
+    setBuffering(false)
+    void warmArchiveAudioStream(url)
   }, [url])
 
   useEffect(() => {
@@ -136,17 +142,23 @@ function CompactPlayer({
     const syncPlaying = () => setPlaying(!audio.paused && !audio.ended)
     const resumeAfterStall = () => {
       if (audio.paused || audio.ended) return
+      setBuffering(true)
       void audio.play().catch(() => undefined)
     }
+    const markReady = () => setBuffering(false)
     audio.addEventListener("play", syncPlaying)
     audio.addEventListener("pause", syncPlaying)
     audio.addEventListener("waiting", resumeAfterStall)
     audio.addEventListener("stalled", resumeAfterStall)
+    audio.addEventListener("canplay", markReady)
+    audio.addEventListener("playing", markReady)
     return () => {
       audio.removeEventListener("play", syncPlaying)
       audio.removeEventListener("pause", syncPlaying)
       audio.removeEventListener("waiting", resumeAfterStall)
       audio.removeEventListener("stalled", resumeAfterStall)
+      audio.removeEventListener("canplay", markReady)
+      audio.removeEventListener("playing", markReady)
     }
   }, [url])
 
@@ -173,7 +185,8 @@ function CompactPlayer({
       audio.pause()
       return
     }
-    void audio.play()
+    setBuffering(true)
+    void audio.play().catch(() => setBuffering(false))
   }
 
   function toggleMute() {
@@ -254,6 +267,12 @@ function CompactPlayer({
         </div>
       </div>
 
+      {buffering ? (
+        <p role="status" className="mt-1 text-[10px] text-stone-500">
+          Loading audio…
+        </p>
+      ) : null}
+
       <audio
         ref={audioRef}
         aria-label={`Listen to ${title}`}
@@ -267,6 +286,10 @@ function CompactPlayer({
         }}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
+        onError={() => {
+          setBuffering(false)
+          onPlaybackError?.()
+        }}
         className="sr-only"
       />
     </div>
@@ -279,14 +302,22 @@ function NativeAudio({
   allowDownload,
   className,
   warmStream = false,
+  onPlaybackError,
 }: {
   url: string
   title: string
   allowDownload: boolean
   className?: string
   warmStream?: boolean
+  onPlaybackError?: () => void
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const [buffering, setBuffering] = useState(false)
+
+  useEffect(() => {
+    setBuffering(false)
+    if (warmStream) void warmArchiveAudioStream(url)
+  }, [url, warmStream])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -299,30 +330,50 @@ function NativeAudio({
     if (!audio) return
     const resumeAfterStall = () => {
       if (audio.paused || audio.ended) return
+      setBuffering(true)
       void audio.play().catch(() => undefined)
     }
+    const markReady = () => setBuffering(false)
     audio.addEventListener("waiting", resumeAfterStall)
     audio.addEventListener("stalled", resumeAfterStall)
+    audio.addEventListener("canplay", markReady)
+    audio.addEventListener("playing", markReady)
     return () => {
       audio.removeEventListener("waiting", resumeAfterStall)
       audio.removeEventListener("stalled", resumeAfterStall)
+      audio.removeEventListener("canplay", markReady)
+      audio.removeEventListener("playing", markReady)
     }
   }, [url])
 
   return (
-    <audio
-      ref={audioRef}
-      aria-label={`Listen to ${title}`}
-      controls
-      controlsList={controlsList(allowDownload)}
-      preload={warmStream ? "auto" : "none"}
-      src={url}
-      onPlay={() => trackEvent("feature_use", "audio_play")}
-      onContextMenu={(event) => {
-        if (!allowDownload) event.preventDefault()
-      }}
-      className={className}
-    />
+    <>
+      <audio
+        ref={audioRef}
+        aria-label={`Listen to ${title}`}
+        controls
+        controlsList={controlsList(allowDownload)}
+        preload={warmStream ? "auto" : "none"}
+        src={url}
+        onPlay={() => {
+          setBuffering(false)
+          trackEvent("feature_use", "audio_play")
+        }}
+        onError={() => {
+          setBuffering(false)
+          onPlaybackError?.()
+        }}
+        onContextMenu={(event) => {
+          if (!allowDownload) event.preventDefault()
+        }}
+        className={className}
+      />
+      {buffering ? (
+        <p role="status" className="mt-2 text-xs text-stone-500">
+          Loading audio…
+        </p>
+      ) : null}
+    </>
   )
 }
 
@@ -333,6 +384,7 @@ export function AudioRendition({
   featured = false,
   compact = false,
   warmStream = false,
+  onPlaybackError,
 }: {
   url: string
   title: string
@@ -340,12 +392,13 @@ export function AudioRendition({
   featured?: boolean
   compact?: boolean
   warmStream?: boolean
+  onPlaybackError?: () => void
 }) {
   const { loading, session } = useMember()
   const allowDownload = !loading && session.authenticated
 
   if (compact) {
-    return <CompactPlayer url={url} title={title} provider={provider} />
+    return <CompactPlayer url={url} title={title} provider={provider} onPlaybackError={onPlaybackError} />
   }
 
   return (
@@ -361,7 +414,14 @@ export function AudioRendition({
         </div>
         <span className="text-gold-700">♪</span>
       </div>
-      <NativeAudio url={url} title={title} allowDownload={allowDownload} warmStream={warmStream} className="mt-3 w-full" />
+      <NativeAudio
+        url={url}
+        title={title}
+        allowDownload={allowDownload}
+        warmStream={warmStream}
+        onPlaybackError={onPlaybackError}
+        className="mt-3 w-full"
+      />
       {!allowDownload ? (
         <p className="mt-3 text-[10px] text-stone-500">Sign in to enable download from the player menu.</p>
       ) : null}
