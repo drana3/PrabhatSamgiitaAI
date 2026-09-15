@@ -1,15 +1,22 @@
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from app.services.media_proxy import (
+    ARCHIVE_STREAM_HOSTS,
     BROKEN_TLS_MEDIA_HOSTS,
     proxied_media_url,
     upstream_tls_verify,
 )
 
 
-def test_proxied_media_url_leaves_prabhata_net_direct() -> None:
+def test_proxied_media_url_rewrites_prabhata_net_archive() -> None:
     raw = "https://prabhatasamgiita.net/1-999/3%20SONG.mp3"
-    assert proxied_media_url(raw, api_base_url="https://www.prabhatasamgiita.org") == raw
+    proxied = proxied_media_url(raw, api_base_url="https://www.prabhatasamgiita.org")
+    assert proxied is not None
+    assert proxied.startswith("https://www.prabhatasamgiita.org/api/v1/media/stream?url=")
+    assert quote(raw, safe="") in proxied
+    assert "prabhatasamgiita.net" in ARCHIVE_STREAM_HOSTS
 
 
 def test_proxied_media_url_leaves_sarkarverse_alone() -> None:
@@ -107,8 +114,8 @@ def test_to_media_item_response_keeps_direct_prabhata_urls() -> None:
         verification_status="verified",
     )
     response = to_media_item_response(item, latest_url=item.url)
-    assert response.url == "https://prabhatasamgiita.net/1-999/1.mp3"
-    assert "media/stream" not in response.url
+    assert "/api/v1/media/stream?" in response.url
+    assert "prabhatasamgiita.net" in response.url
     assert response.is_latest is True
 
 
@@ -130,11 +137,11 @@ def test_song_one_client_media_is_direct_official_archive_only() -> None:
     responses = [to_media_item_response(item, latest_url=latest_url) for item in media_items]
     audio = [row for row in responses if row.kind == "audio"]
     assert len(audio) >= 2
-    assert all("prabhatasamgiita.net" in row.url for row in audio)
+    assert all("/api/v1/media/stream?" in row.url for row in audio)
     assert all("sarkarverse.org" not in row.url.lower() for row in audio)
-    assert all("/api/v1/media/stream?" not in row.url for row in audio)
+    assert all("prabhatasamgiita.net" in row.url for row in audio)
     latest = next(row for row in audio if row.is_latest)
-    assert latest.url.startswith("https://prabhatasamgiita.net/")
+    assert "/api/v1/media/stream?" in latest.url
     assert not latest.is_older
 
 

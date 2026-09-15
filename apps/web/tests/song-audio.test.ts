@@ -25,33 +25,28 @@ describe("listSongAudio", () => {
     expect(recordings[1]?.isOlder).toBe(true)
   })
 
-  it("keeps every official recording and prefers direct streams over legacy proxy for Best", () => {
+  it("keeps every official recording when API serves proxied archive streams", () => {
     const recordings = listSongAudio([
       {
         kind: "audio",
         provider: "official",
-        title: "Archive",
-        url: "https://prabhatai-api.example.test/api/v1/media/stream?url=https%3A%2F%2Fprabhatasamgiita.net%2F2084.mp3",
-        verification_status: "verified",
-      },
-      {
-        kind: "audio",
-        provider: "official",
         title: "Archive (current)",
-        url: "https://prabhatasamgiita.net/2000-2999/2084.mp3",
+        url: "https://prabhatai-api.example.test/api/v1/media/stream?url=https%3A%2F%2Fprabhatasamgiita.net%2F2000-2999%2F2084.mp3",
         verification_status: "verified",
+        is_latest: true,
       },
       {
         kind: "audio",
         provider: "official",
         title: "Archive (old version)",
-        url: "https://prabhatasamgiita.net/2000-2999/2084%20old.mp3",
+        url: "https://prabhatai-api.example.test/api/v1/media/stream?url=https%3A%2F%2Fprabhatasamgiita.net%2F2000-2999%2F2084%2520old.mp3",
         verification_status: "verified",
         is_older: true,
       },
     ])
-    expect(recordings).toHaveLength(3)
-    expect(recordings[0]?.url).toContain("prabhatasamgiita.net/2000-2999/2084.mp3")
+    expect(recordings).toHaveLength(2)
+    expect(recordings[0]?.url).toContain("/api/v1/media/stream?")
     expect(recordings[0]?.isLatest).toBe(true)
+    expect(recordings[1]?.isOlder).toBe(true)
   })
 })
