@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
  * Evidence-driven regression: opening the song page over an already-playing
@@ -107,6 +107,7 @@ describe("playerStore song-page handoff", () => {
     createAsync.mockReset()
     setAudioModeAsync.mockReset()
     setIsEnabledAsync.mockReset()
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })))
     const bag = globalThis as typeof globalThis & {
       __psSound?: unknown
       __psLoadId?: number
@@ -125,6 +126,11 @@ describe("playerStore song-page handoff", () => {
     bag.__psPreload = null
     bag.__psWantPlaying = false
     bag.__psLastResumeNudgeMs = 0
+    bag.__psAttachSession = null
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it("syncCurrentSong does not create a second Sound while one is playing", async () => {
@@ -301,8 +307,82 @@ describe("playerStore song-page handoff", () => {
     expect(createAsync.mock.calls[0]?.[0]).toEqual({ uri: "file:///docs/offline-audio/1.mp3" })
   })
 
+  it("falls back to the next recording when the first stream fails to load", async () => {
+    const { resolvePlaybackUri } = await import("@/lib/offlineAudio")
+    vi.mocked(resolvePlaybackUri).mockImplementation(async (_number, remoteUrl) =>
+      remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
+    )
+
+    const failing = createMockSound({
+      isLoaded: true,
+      isPlaying: false,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    const working = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync
+      .mockResolvedValueOnce({ sound: failing })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ sound: working })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(
+      {
+        ...song,
+        audioUrl: "https://example.com/a.mp3",
+        audioRecordings: [{ title: "Alt", url: "https://example.com/b.mp3", provider: "official" }],
+        mediaHydrated: true,
+      } as never,
+    )
+    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
+
+    const onStatus = failing.setOnPlaybackStatusUpdate.mock.calls.at(-1)?.[0] as (status: object) => void
+    onStatus({ isLoaded: false, error: "The AVPlayerItem instance has failed." })
+
+    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(3))
+    expect(createAsync.mock.calls[2]?.[0]).toEqual({ uri: "https://example.com/b.mp3" })
+    expect(usePlayerStore.getState().audioError).toBeNull()
+    expect(usePlayerStore.getState().isPlaying).toBe(true)
+  })
+
+  it("shows an error only after every recording fails", async () => {
+    const { resolvePlaybackUri } = await import("@/lib/offlineAudio")
+    vi.mocked(resolvePlaybackUri).mockImplementation(async (_number, remoteUrl) =>
+      remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
+    )
+
+    createAsync.mockResolvedValue(null)
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(
+      {
+        ...song,
+        audioUrl: "https://example.com/a.mp3",
+        audioRecordings: [{ title: "Alt", url: "https://example.com/b.mp3", provider: "official" }],
+        mediaHydrated: true,
+      } as never,
+    )
+
+    await vi.waitFor(() =>
+      expect(usePlayerStore.getState().audioError).toBe("Could not start audio on this device."),
+    )
+    expect(createAsync).toHaveBeenCalledTimes(4)
+    expect(createAsync.mock.calls.map((call) => call[0])).toEqual([
+      { uri: "https://example.com/a.mp3" },
+      { uri: "https://example.com/a.mp3" },
+      { uri: "https://example.com/b.mp3" },
+      { uri: "https://example.com/b.mp3" },
+    ])
+  })
+
   it("starts playback from home today URLs without waiting for mediaHydrated", async () => {
     const { resolvePlaybackUri } = await import("@/lib/offlineAudio")
+    vi.mocked(resolvePlaybackUri).mockReset()
     vi.mocked(resolvePlaybackUri).mockResolvedValue({
       uri: "https://prabhatasamgiita.net/1-999/1.mp3",
       local: false,
