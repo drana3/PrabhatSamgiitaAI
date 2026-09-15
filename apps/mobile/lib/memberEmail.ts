@@ -1,7 +1,20 @@
-import { readStoredAppleEmail } from "@/lib/appleAuth"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+
 import { useAuthStore } from "@/stores/authStore"
 
+const APPLE_EMAIL_PREFIX = "ps.apple.email."
+
 let cachedMemberEmail: string | null = null
+
+async function readStoredAppleEmail(userId: string): Promise<string | null> {
+  try {
+    const value = await AsyncStorage.getItem(`${APPLE_EMAIL_PREFIX}${userId}`)
+    const trimmed = value?.trim() || ""
+    return trimmed.includes("@") ? trimmed : null
+  } catch {
+    return null
+  }
+}
 
 export function getCachedMemberEmail() {
   return cachedMemberEmail

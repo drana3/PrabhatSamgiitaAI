@@ -13,6 +13,7 @@ import {
 } from "@/lib/msal"
 import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
+import { hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
 import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -53,9 +54,14 @@ async function hydrateFromSession() {
   }
   const profile = session as MemberProfile
   const existingSubject = useAuthStore.getState().memberId
+  const resolvedEmail = await resolveMemberEmail({
+    email: profile.email ?? useAuthStore.getState().email,
+    memberId: existingSubject,
+    identityProvider: profile.identity_provider || useAuthStore.getState().identityProvider,
+  })
   useAuthStore.getState().applyMemberSession({
     displayName: profile.display_name,
-    email: profile.email ?? useAuthStore.getState().email,
+    email: resolvedEmail,
     memberId: existingSubject,
     isAdmin: profile.is_admin,
     memberBackend: true,
@@ -75,6 +81,7 @@ async function hydrateFromSession() {
 }
 
 async function syncMemberData() {
+  await hydrateLocalMemberEmail()
   const hydrated = await hydrateFromSession()
   if (!hydrated.ok) return hydrated
   if (useAuthStore.getState().mode !== "signed_in") {

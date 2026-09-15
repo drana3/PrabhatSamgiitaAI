@@ -30,6 +30,7 @@ type AuthState = {
   }) => void
   signOut: () => void
   setDisplayName: (name: string) => void
+  setMemberEmail: (email: string | null) => void
   completeWelcome: () => void
   resetWelcome: () => void
   toggleAdminPreview: () => void
@@ -95,6 +96,12 @@ export const useAuthStore = create<AuthState>()(
         const trimmed = name.trim().slice(0, 60)
         if (!trimmed) return
         set({ displayName: trimmed, displayNameOverridden: true })
+      },
+
+      setMemberEmail: (email) => {
+        const trimmed = (email || "").trim()
+        if (!trimmed.includes("@")) return
+        set((state) => (state.email === trimmed ? state : { email: trimmed }))
       },
 
       completeWelcome: () => set({ hasCompletedWelcome: true }),
