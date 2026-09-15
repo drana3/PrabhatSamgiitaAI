@@ -389,7 +389,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   expect(listenBounds).not.toBeNull()
   expect(watchBounds).not.toBeNull()
   expect(watchBounds!.y).toBeGreaterThan(listenBounds!.y + listenBounds!.height - 8)
-  const alternateRecordings = page.getByText(/More recordings \(/)
+  const alternateRecordings = page.locator("#listen").getByText(/More recordings \(/)
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 
