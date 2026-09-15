@@ -28,8 +28,10 @@ def reset_catalog_memory() -> None:
     _inventory = None
     _catalog_complete = None
     from app.services.lyric_search import lyric_index
+    from app.services.seed_data import load_rows
 
     lyric_index.cache_clear()
+    load_rows.cache_clear()
 
 
 def _ensure_catalog_loaded() -> None:

@@ -19,7 +19,7 @@ from app.schemas.song import (
 from app.services.catalog import CatalogService
 from app.services.localization import LocalizationService
 from app.services.media_quality import (
-    filter_audio_media_for_clients,
+    client_media_items,
     media_quality_key,
     preferred_audio_url,
     to_media_item_response,
@@ -129,7 +129,7 @@ async def get_song_media(
     if not await service.get_song(number):
         raise HTTPException(status_code=404, detail="Song not found")
     media_items = sorted(
-        filter_audio_media_for_clients(await service.get_media(number)),
+        client_media_items(await service.get_media(number)),
         key=media_quality_key,
     )
     latest_url = preferred_audio_url(media_items)
@@ -172,7 +172,7 @@ async def get_song(
     metadata_json = song.metadata_json or {}
     related_summaries = [_summary(item) for item in await service.related_songs(song)]
     media_items = sorted(
-        filter_audio_media_for_clients(await service.get_media(number)),
+        client_media_items(await service.get_media(number)),
         key=media_quality_key,
     )
     latest_url = preferred_audio_url(media_items)

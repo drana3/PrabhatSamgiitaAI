@@ -46,14 +46,20 @@ export function isLowQualityAudio(item: AudioSourceLike): boolean {
   return searchable(item).includes("low quality")
 }
 
+/** Azure media proxy streams often return HTML instead of MP3 for archive hosts. */
+export function isBrokenArchiveProxy(url: string): boolean {
+  return /\/api\/v1\/media\/stream\?/i.test(url)
+}
+
 export function audioQualityKey(
   item: AudioSourceLike,
-): [number, number, number, number, number, string] {
+): [number, number, number, number, number, number, string] {
   const source = String(item.source_status || item.verification_status || "").toLowerCase()
   const providerFallback = item.provider === "official" ? 0 : 3
   return [
     isLowQualityAudio(item) ? 1 : 0,
     isOlderAudio(item) ? 1 : 0,
+    isBrokenArchiveProxy(item.url) ? 1 : 0,
     SOURCE_ORDER[source] ?? providerFallback,
     item.is_primary ? 0 : 1,
     -(item.match_score ?? 0),

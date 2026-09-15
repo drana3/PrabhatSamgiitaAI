@@ -61,7 +61,6 @@ let songsByNumber: Map<number, SeedSong> | null = null
 let mediaByNumber: Map<number, SeedMedia[]> | null = null
 let notationsByNumber: Map<number, SeedNotation> | null = null
 let generatedSongsByNumber: Map<number, SeedSong> | null = null
-let generatedAudioByNumber: Map<number, SeedMedia> | null = null
 let practiceByNumber: Map<number, SeedNotation> | null = null
 
 function generatedDir(): string | null {
@@ -116,19 +115,6 @@ function generatedSongIndex() {
     }
   }
   return generatedSongsByNumber
-}
-
-function generatedAudioIndex() {
-  if (!generatedAudioByNumber) {
-    generatedAudioByNumber = new Map()
-    const rows = readGeneratedJson<SeedMedia[]>("external_audio.json") ?? []
-    for (const item of rows) {
-      const number = item.song_number
-      if (!number || !isCompleteSargamSong(number) || generatedAudioByNumber.has(number)) continue
-      generatedAudioByNumber.set(number, item)
-    }
-  }
-  return generatedAudioByNumber
 }
 
 function practiceIndex() {
@@ -220,22 +206,11 @@ function mediaFor(number: number): SongDetail["media"] {
     verification_status: item.verification_status,
     source_url: item.source_url,
     notes: item.notes,
+    is_latest: false,
+    is_older: false,
+    is_low_quality: false,
   }))
-  if (seed.length) return seed.slice().sort(compareAudioQuality)
-  const generated = generatedAudioIndex().get(number)
-  if (!generated) return []
-  return [
-    {
-      kind: generated.kind,
-      provider: generated.provider,
-      title: generated.title,
-      url: generated.url,
-      embed_url: generated.embed_url,
-      verification_status: generated.verification_status,
-      source_url: generated.source_url,
-      notes: generated.notes,
-    },
-  ]
+  return seed.slice().sort(compareAudioQuality)
 }
 
 function notationFor(number: number): SeedNotation | undefined {

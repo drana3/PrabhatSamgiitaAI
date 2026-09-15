@@ -25,7 +25,7 @@ describe("listSongAudio", () => {
     expect(recordings[1]?.isOlder).toBe(true)
   })
 
-  it("prefers direct mirrors over broken archive proxy streams for Best", () => {
+  it("keeps every official recording and prefers direct streams over legacy proxy for Best", () => {
     const recordings = listSongAudio([
       {
         kind: "audio",
@@ -36,13 +36,22 @@ describe("listSongAudio", () => {
       },
       {
         kind: "audio",
-        provider: "external_site",
-        title: "Sarkarverse mirror",
-        url: "https://sarkarverse.org/PS/2000-2999-f/2084.mp3",
-        verification_status: "unverified",
+        provider: "official",
+        title: "Archive (current)",
+        url: "https://prabhatasamgiita.net/2000-2999/2084.mp3",
+        verification_status: "verified",
+      },
+      {
+        kind: "audio",
+        provider: "official",
+        title: "Archive (old version)",
+        url: "https://prabhatasamgiita.net/2000-2999/2084%20old.mp3",
+        verification_status: "verified",
+        is_older: true,
       },
     ])
-    expect(recordings[0]?.url).toContain("sarkarverse.org")
+    expect(recordings).toHaveLength(3)
+    expect(recordings[0]?.url).toContain("prabhatasamgiita.net/2000-2999/2084.mp3")
     expect(recordings[0]?.isLatest).toBe(true)
   })
 })

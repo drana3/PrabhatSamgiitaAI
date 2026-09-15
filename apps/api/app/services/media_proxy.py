@@ -7,9 +7,10 @@ from fastapi import HTTPException
 
 from app.core.urls import validate_external_media_url
 
-# prabhatasamgiita.net currently serves a *.web-hosting.com certificate (hostname mismatch).
-# Mobile AVPlayer and strict TLS clients fail; proxy through our API until hosting is fixed.
-BROKEN_TLS_MEDIA_HOSTS = frozenset({"prabhatasamgiita.net", "www.prabhatasamgiita.net"})
+# prabhatasamgiita.net TLS was fixed (Sep 2026). Do not proxy archive MP3s through Azure:
+# LiteSpeed bot protection serves a JS "One moment, please..." HTML page to datacenter IPs,
+# while phones and browsers fetch audio/mpeg directly from prabhatasamgiita.net.
+BROKEN_TLS_MEDIA_HOSTS: frozenset[str] = frozenset()
 
 MEDIA_FETCH_USER_AGENT = (
     "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://www.prabhatasamgiita.org)"

@@ -201,10 +201,14 @@ def validate_song1_playable_audio(response: httpx.Response) -> None:
     payload = response.json()
     require(response.status_code == 200, response.text)
     audio = [row for row in payload.get("media", []) if row.get("kind") == "audio"]
-    require(audio, "song 1 should expose playable audio")
+    require(len(audio) >= 2, "song 1 should expose multiple recordings")
+    for row in audio:
+        require("media/stream" not in row["url"], response.text)
+        require("sarkarverse.org" not in row["url"].lower(), response.text)
+        require(row["url"].startswith("https://"), response.text)
     latest = next((row for row in audio if row.get("is_latest")), audio[0])
     require("media/stream" not in latest["url"], response.text)
-    require(latest["url"].startswith("https://"), response.text)
+    require(latest["url"].startswith("https://prabhatasamgiita.net/"), response.text)
 
 
 def validate_youtube_video(response: httpx.Response) -> None:
@@ -225,17 +229,6 @@ def validate_multiple_videos(response: httpx.Response) -> None:
     require(len(rows) == 2, response.text)
     require(len({row["external_id"] for row in rows}) == 2, response.text)
     require(all(row["kind"] == "video" for row in rows), response.text)
-
-
-def validate_number_matched_community_audio(response: httpx.Response) -> None:
-    rows = response.json()
-    require(response.status_code == 200, response.text)
-    require(bool(rows), "Song 1112 community audio is missing")
-    require(all(row["kind"] == "audio" for row in rows), response.text)
-    require(any(row["provider"] == "external_site" for row in rows), response.text)
-    require(any(row["source_status"] == "community" for row in rows), response.text)
-    require(any(row["rights_status"] == "link_only" for row in rows), response.text)
-    require(any(row["verification_status"] == "unverified" for row in rows), response.text)
 
 
 def validate_localization(response: httpx.Response) -> None:
@@ -459,7 +452,7 @@ CASES = [
     ),
     AcceptanceCase(
         "Play song 1 audio on App Store clients without a broken proxy stream.",
-        "The default audio URL is a direct HTTPS MP3 mirror, not the prabhatasamgiita.net proxy.",
+        "Song 1 exposes multiple direct archive recordings and the Best URL is prabhatasamgiita.net.",
         "GET",
         "/api/v1/songs/1",
         validate_song1_playable_audio,
@@ -484,13 +477,6 @@ CASES = [
         "GET",
         "/api/v1/songs/1/media?media_type=video&platform=youtube",
         validate_youtube_video,
-    ),
-    AcceptanceCase(
-        "Play song 1112, which is absent from the official audio archive.",
-        "A number-matched community link is returned with explicit trust and rights labels.",
-        "GET",
-        "/api/v1/songs/1112/media?media_type=audio",
-        validate_number_matched_community_audio,
     ),
     AcceptanceCase(
         "Are there multiple video renditions of song 2635?",

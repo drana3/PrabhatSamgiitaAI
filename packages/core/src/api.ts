@@ -36,6 +36,9 @@ export const songDetailSchema = songSummarySchema.extend({
         url: z.string(),
         embed_url: z.string().nullable().optional(),
         verification_status: z.string(),
+        is_latest: z.boolean().optional().default(false),
+        is_older: z.boolean().optional().default(false),
+        is_low_quality: z.boolean().optional().default(false),
       }),
     )
     .default([]),

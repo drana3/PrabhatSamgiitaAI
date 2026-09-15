@@ -6,9 +6,29 @@ from app.schemas.song import MediaItemResponse
 from app.services.media_proxy import BROKEN_TLS_MEDIA_HOSTS, proxied_media_url
 
 
-def requires_broken_tls_proxy(url: str | None) -> bool:
+def is_sarkarverse_audio_url(url: str | None) -> bool:
     if not url:
         return False
+    hostname = (urlparse(url).hostname or "").lower().rstrip(".")
+    return hostname in {"sarkarverse.org", "www.sarkarverse.org"} and "/ps/" in url.lower()
+
+
+def client_media_items(items: list[Media]) -> list[Media]:
+    """Return only client-playable media: official archive audio, never Sarkarverse mirrors."""
+    without_sarkarverse = [
+        item
+        for item in items
+        if not (item.kind == "audio" and is_sarkarverse_audio_url(item.url))
+    ]
+    return filter_audio_media_for_clients(without_sarkarverse)
+
+
+def requires_broken_tls_proxy(url: str | None) -> bool:
+    """True for legacy API proxy URLs that still return HTML from Azure."""
+    if not url:
+        return False
+    if "/api/v1/media/stream?" in url:
+        return True
     hostname = (urlparse(url).hostname or "").lower().rstrip(".")
     return hostname in BROKEN_TLS_MEDIA_HOSTS
 
@@ -63,11 +83,7 @@ def preferred_audio_url(items: list[Media]) -> str | None:
 
 
 def filter_audio_media_for_clients(items: list[Media]) -> list[Media]:
-    """Hide prabhatasamgiita.net archive streams when a direct mirror is available.
-
-    Production App Store builds still rank official archive URLs first and cannot
-    play the HTML challenge pages our Azure media proxy sometimes returns.
-    """
+    """Drop legacy `/media/stream` proxy URLs when a direct archive take is available."""
     audio = [item for item in items if item.kind == "audio"]
     if not audio:
         return items

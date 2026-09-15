@@ -61,6 +61,25 @@ describe("audio recording freshness", () => {
     expect(ranked[0]?.url).toBe(current.url)
   })
 
+  it("ranks direct archive streams ahead of legacy proxy URLs", () => {
+    const proxy = {
+      title: "Archive proxy",
+      url: "https://api.example.test/api/v1/media/stream?url=https%3A%2F%2Fprabhatasamgiita.net%2F1.mp3",
+      provider: "official",
+      verification_status: "verified",
+      source_status: "official",
+    }
+    const direct = {
+      title: "Official archive",
+      url: "https://prabhatasamgiita.net/1-999/1.mp3",
+      provider: "official",
+      verification_status: "verified",
+      source_status: "official",
+    }
+    const ranked = [proxy, direct].sort(compareAudioQuality)
+    expect(ranked[0]?.url).toBe(direct.url)
+  })
+
   it("keeps a saved recording when it is still available", () => {
     const recordings = markLatestAudio([
       { url: current.url, isOlder: false, isLowQuality: false },

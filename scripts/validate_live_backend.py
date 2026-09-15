@@ -194,24 +194,15 @@ def main() -> None:
         raise AssertionError("Song 111 audio is missing")
     record("Show song 111.", "Lyrics, meaning, and audio", elapsed)
 
-    status, _, gap_audio, elapsed = request_json(
-        base_url,
-        "GET",
-        "/api/v1/songs/1112/media?media_type=audio",
-    )
+    status, _, song_one_media, elapsed = request_json(base_url, "GET", "/api/v1/songs/1/media?media_type=audio")
+    require(status == 200 and song_one_media, str(song_one_media))
     require(
-        status == 200
-        and any(
-            item["provider"] == "external_site"
-            and item["source_status"] == "community"
-            and item["verification_status"] == "unverified"
-            for item in gap_audio
-        ),
-        str(gap_audio),
+        all("sarkarverse.org" not in str(item.get("url") or "").lower() for item in song_one_media),
+        str(song_one_media),
     )
     record(
-        "Can a song missing from the official audio archive still be heard?",
-        "Number-matched community audio is clearly labelled and linked without re-hosting",
+        "Play song 1 from the official archive only.",
+        "Audio links point to prabhatasamgiita.net, not Sarkarverse mirrors.",
         elapsed,
     )
 
