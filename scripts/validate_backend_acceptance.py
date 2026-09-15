@@ -197,6 +197,16 @@ def validate_published_sargam_defaults(response: httpx.Response) -> None:
     require(numbers == [1, 2, 27], response.text)
 
 
+def validate_song1_playable_audio(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 200, response.text)
+    audio = [row for row in payload.get("media", []) if row.get("kind") == "audio"]
+    require(audio, "song 1 should expose playable audio")
+    latest = next((row for row in audio if row.get("is_latest")), audio[0])
+    require("media/stream" not in latest["url"], response.text)
+    require(latest["url"].startswith("https://"), response.text)
+
+
 def validate_youtube_video(response: httpx.Response) -> None:
     rows = response.json()
     require(response.status_code == 200, response.text)
@@ -446,6 +456,13 @@ CASES = [
         "GET",
         "/api/v1/songs/1/notation/source",
         validate_notation_source,
+    ),
+    AcceptanceCase(
+        "Play song 1 audio on App Store clients without a broken proxy stream.",
+        "The default audio URL is a direct HTTPS MP3 mirror, not the prabhatasamgiita.net proxy.",
+        "GET",
+        "/api/v1/songs/1",
+        validate_song1_playable_audio,
     ),
     AcceptanceCase(
         "Keep expert-verified song 4961 hidden until admin enables learner sargam.",

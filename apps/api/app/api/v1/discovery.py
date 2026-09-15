@@ -62,6 +62,7 @@ from app.services.domain_catalog import (
 )
 from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
 from app.services.media_proxy import proxied_media_url
+from app.services.media_quality import filter_audio_media_for_clients, preferred_audio_url
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 from app.services.reflections import select_reflection
 from app.services.stories import (
@@ -380,9 +381,13 @@ async def recommendations_today(
         ranked = await engine.rank(session, songs, recommendation_context)
     items = []
     for item in ranked[:3]:
-        media = await catalog.get_media(item.song.number)
+        media = filter_audio_media_for_clients(await catalog.get_media(item.song.number))
         notation = await catalog.get_notation(item.song.number)
-        audio = next((row for row in media if row.kind == "audio"), None)
+        latest_audio_url = preferred_audio_url(media)
+        audio = next(
+            (row for row in media if row.kind == "audio" and row.url == latest_audio_url),
+            next((row for row in media if row.kind == "audio"), None),
+        )
         video = next((row for row in media if row.kind == "video" and row.embed_url), None)
         if festival and festival_song_numbers:
             reasons = [f"Curated for {festival}"]
