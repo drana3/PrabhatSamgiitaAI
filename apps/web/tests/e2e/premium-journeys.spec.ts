@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test"
 
+function listenSectionSelector(projectName: string) {
+  return projectName === "desktop-chromium" ? "#listen-sidebar" : "#listen"
+}
+
 async function stubSignedInMember(page: Page) {
   await page.route("**/api/member/session", async (route) =>
     route.fulfill({
@@ -348,7 +352,8 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   const songActions = page.getByRole("navigation", { name: "Song actions" })
   for (const [action, targetId] of [["Harmonium", "notation"], ["Listen", "listen"], ["Ask AI", "ask"], ["Watch", "watch"]] as const) {
     await expect(songActions.getByRole("link", { name: new RegExp(action), exact: false })).toHaveAttribute("href", `#${targetId}`)
-    await expect(page.locator(`#${targetId}`)).toHaveCount(1)
+    const sectionSelector = targetId === "listen" ? listenSectionSelector(testInfo.project.name) : `#${targetId}`
+    await expect(page.locator(sectionSelector)).toHaveCount(1)
   }
   const { lyrics, meaning } = await page.evaluate(() => ({
     lyrics: document.querySelector("#lyrics")?.getBoundingClientRect().toJSON() ?? null,
@@ -382,7 +387,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   } else {
     await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
   }
-  const listenSelector = testInfo.project.name === "desktop-chromium" ? "#listen-sidebar" : "#listen"
+  const listenSelector = listenSectionSelector(testInfo.project.name)
   const { listenBounds, watchBounds } = await page.evaluate((selector) => ({
     listenBounds: document.querySelector(selector)?.getBoundingClientRect().toJSON() ?? null,
     watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,

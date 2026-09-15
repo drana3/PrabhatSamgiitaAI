@@ -1,25 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 
 export type SongPageLayout = "mobile" | "sidebar"
 
-/** xl sidebar layout — null until the client knows the viewport width. */
-export function useSongPageLayout(): SongPageLayout | null {
-  const [layout, setLayout] = useState<SongPageLayout | null>(null)
+const XL_QUERY = "(min-width: 1280px)"
 
-  useEffect(() => {
-    const media = window.matchMedia("(min-width: 1280px)")
-    const update = () => setLayout(media.matches ? "sidebar" : "mobile")
-    update()
-    media.addEventListener("change", update)
-    return () => media.removeEventListener("change", update)
-  }, [])
+function readLayout(): SongPageLayout {
+  return window.matchMedia(XL_QUERY).matches ? "sidebar" : "mobile"
+}
 
-  return layout
+function subscribe(onStoreChange: () => void) {
+  const media = window.matchMedia(XL_QUERY)
+  media.addEventListener("change", onStoreChange)
+  return () => media.removeEventListener("change", onStoreChange)
+}
+
+/** xl sidebar layout — mobile-first during SSR, then matches the viewport. */
+export function useSongPageLayout(): SongPageLayout {
+  return useSyncExternalStore(subscribe, readLayout, () => "mobile")
 }
 
 export function isSidebarSongLayout() {
-  return typeof window.matchMedia === "function"
-    && window.matchMedia("(min-width: 1280px)").matches
+  return typeof window.matchMedia === "function" && window.matchMedia(XL_QUERY).matches
 }

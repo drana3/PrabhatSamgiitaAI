@@ -13,8 +13,7 @@ export function SongListenMobile({
   songNumber: number
   recordings: RankedAudio[]
 }) {
-  const layout = useSongPageLayout()
-  if (layout !== "mobile") return null
+  if (useSongPageLayout() !== "mobile") return null
 
   return (
     <div id="listen" className="mb-6 scroll-mt-28">
@@ -30,8 +29,7 @@ export function SongListenSidebar({
   recordings: RankedAudio[]
   hasMeaning: boolean
 }) {
-  const layout = useSongPageLayout()
-  if (layout !== "sidebar") return null
+  if (useSongPageLayout() !== "sidebar") return null
 
   const best = recordings.find((item) => item.isLatest) ?? recordings[0]
   if (!best) return null
