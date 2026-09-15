@@ -6,7 +6,7 @@ import { FavoriteSongButton } from "@/components/favorite-song-button"
 import { CopyTextButton } from "@/components/copy-text-button"
 import { HarmoniumNavLink, HarmoniumPracticeSection } from "@/components/harmonium-song-features"
 import { HashLanding } from "@/components/hash-landing"
-import { SongListenMobile, SongListenSidebar } from "@/components/song-page-listen"
+import { SongListenPanel } from "@/components/song-listen-panel"
 import { listSongAudio } from "@/lib/song-audio"
 import { ShareMenu } from "@/components/share-menu"
 import { SiteHeader } from "@/components/site-header"
@@ -77,7 +77,9 @@ export default async function SongPage({ params, searchParams }: { params: Promi
 
         <section className="mt-7 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-lg sm:p-7 lg:p-9">
           {audio.length ? (
-            <SongListenMobile songNumber={song.number} recordings={audio} />
+            <div id="listen" className="mb-6 scroll-mt-28">
+              <SongListenPanel songNumber={song.number} recordings={audio} compact />
+            </div>
           ) : null}
           <div className={`grid gap-7 ${hasLyrics && hasMeaning ? "xl:grid-cols-2" : "max-w-4xl"}`}>
             {hasLyrics ? (
@@ -138,7 +140,6 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           </div>
 
           <aside className="flex min-w-0 flex-col gap-7">
-            {audio.length ? <SongListenSidebar recordings={audio} hasMeaning={hasMeaning} /> : null}
             {videos.length ? <section id="watch" className="surface-card scroll-mt-28 overflow-hidden"><div className="p-5 sm:p-6"><p className="eyebrow">Watch</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Watch this song</h2></div><iframe className="aspect-video w-full" src={videos[0].embed_url || undefined} title={videos[0].title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />{videos.length > 1 ? <details className="border-t border-navy-900/10 p-5"><summary className="cursor-pointer text-sm font-semibold text-gold-700">More performances ({videos.length - 1})</summary><div className="mt-4 space-y-5">{videos.slice(1).map((item) => <iframe key={item.url} className="aspect-video w-full rounded-xl" src={item.embed_url || undefined} title={item.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />)}</div></details> : null}</section> : null}
             {details.length ? <section className="rounded-2xl bg-navy-950 p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-300">Song details</p><div className="mt-4 grid grid-cols-2 gap-3">{details.map(([label, value]) => <Detail key={label} label={label} value={value} />)}</div></section> : null}
             <SongStoriesPanel songNumber={song.number} />

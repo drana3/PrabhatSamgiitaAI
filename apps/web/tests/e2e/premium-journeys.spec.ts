@@ -1,9 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
 
-function listenSectionSelector(projectName: string) {
-  return projectName === "desktop-chromium" ? "#listen-sidebar" : "#listen"
-}
-
 async function stubSignedInMember(page: Page) {
   await page.route("**/api/member/session", async (route) =>
     route.fulfill({
@@ -352,8 +348,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   const songActions = page.getByRole("navigation", { name: "Song actions" })
   for (const [action, targetId] of [["Harmonium", "notation"], ["Listen", "listen"], ["Ask AI", "ask"], ["Watch", "watch"]] as const) {
     await expect(songActions.getByRole("link", { name: new RegExp(action), exact: false })).toHaveAttribute("href", `#${targetId}`)
-    const sectionSelector = targetId === "listen" ? listenSectionSelector(testInfo.project.name) : `#${targetId}`
-    await expect(page.locator(sectionSelector)).toHaveCount(1)
+    await expect(page.locator(`#${targetId}`)).toHaveCount(1)
   }
   const { lyrics, meaning } = await page.evaluate(() => ({
     lyrics: document.querySelector("#lyrics")?.getBoundingClientRect().toJSON() ?? null,
@@ -375,27 +370,20 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByRole("button", { name: /Play on keys/i }).first()).toBeVisible()
   await expect(page.locator("#notation").getByText(/Bandhu he niye calo/i).first()).toBeVisible()
   await expect(songActions.getByRole("link", { name: /Listen/i })).toHaveAttribute("href", "#listen")
-  if (testInfo.project.name === "desktop-chromium") {
-    const companionListening = page.getByRole("heading", { name: "Listen to this song" }).locator("..")
-    await expect(companionListening).toBeVisible()
-    const companionNavigation = page.getByRole("navigation", { name: "Return to song text" })
-    await expect(companionNavigation.getByRole("link", { name: "Lyrics", exact: true })).toHaveAttribute("href", "#lyrics")
-    await expect(companionNavigation.getByRole("link", { name: "Meaning", exact: true })).toHaveAttribute("href", "#meaning")
-  } else if (testInfo.project.name === "mobile-chromium") {
+  if (testInfo.project.name === "mobile-chromium") {
     await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Song sections" }).getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "#listen")
   } else {
     await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
   }
-  const listenSelector = listenSectionSelector(testInfo.project.name)
-  const { listenBounds, watchBounds } = await page.evaluate((selector) => ({
-    listenBounds: document.querySelector(selector)?.getBoundingClientRect().toJSON() ?? null,
+  const { listenBounds, watchBounds } = await page.evaluate(() => ({
+    listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
     watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,
-  }), listenSelector)
+  }))
   expect(listenBounds).not.toBeNull()
   expect(watchBounds).not.toBeNull()
   expect(watchBounds!.y).toBeGreaterThan(listenBounds!.y + listenBounds!.height - 8)
-  const alternateRecordings = page.locator(listenSelector).getByText(/More recordings \(/)
+  const alternateRecordings = page.locator("#listen").getByText(/More recordings \(/)
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 
