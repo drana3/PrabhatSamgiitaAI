@@ -23,7 +23,7 @@ def media_is_older(item: Media) -> bool:
     return metadata.get("version") == "old" or "old version" in searchable
 
 
-def media_quality_key(item: Media) -> tuple[int, int, int, int, float, str]:
+def media_quality_key(item: Media) -> tuple[int, int, int, int, int, float, str]:
     metadata = item.metadata_json or {}
     source_status = str(metadata.get("source_status") or item.verification_status)
     source_order = {"official": 0, "verified": 0, "verified_community": 1, "community": 2}
