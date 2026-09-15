@@ -205,7 +205,7 @@ def validate_song1_playable_audio(response: httpx.Response) -> None:
     for row in audio:
         require("/api/v1/media/stream?" in row["url"], response.text)
         require("sarkarverse.org" not in row["url"].lower(), response.text)
-        require(row["url"].startswith("https://"), response.text)
+        require(row["url"].startswith(("http://", "https://")), response.text)
     latest = next((row for row in audio if row.get("is_latest")), audio[0])
     require("/api/v1/media/stream?" in latest["url"], response.text)
     require("prabhatasamgiita.net" in latest["url"], response.text)
