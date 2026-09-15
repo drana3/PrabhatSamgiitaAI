@@ -1,4 +1,5 @@
 import type { TodayRecommendationItem, TodayRecommendations } from "@prabhat/core"
+import { unwrapArchiveAudioUrl } from "@prabhat/core"
 
 import type { MockSong } from "@/data/mock"
 import { toInAppVideoEmbedUrl } from "@/lib/mediaEmbed"
@@ -9,7 +10,8 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
   const hero = scenicHeroFor(number)
   const thumb = scenicThumbFor(number)
   const embedUrl = toInAppVideoEmbedUrl(item.video_embed_url)
-  const audioUrl = item.audio_url?.trim() || null
+  const rawAudio = item.audio_url?.trim() || ""
+  const audioUrl = rawAudio ? unwrapArchiveAudioUrl(rawAudio) : null
 
   return {
     id: `ps-${item.number}`,

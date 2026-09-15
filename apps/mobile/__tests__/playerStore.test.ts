@@ -300,4 +300,33 @@ describe("playerStore song-page handoff", () => {
     await vi.waitFor(() => expect(createAsync).toHaveBeenCalled())
     expect(createAsync.mock.calls[0]?.[0]).toEqual({ uri: "file:///docs/offline-audio/1.mp3" })
   })
+
+  it("starts playback from home today URLs without waiting for mediaHydrated", async () => {
+    const { resolvePlaybackUri } = await import("@/lib/offlineAudio")
+    vi.mocked(resolvePlaybackUri).mockResolvedValue({
+      uri: "https://prabhatasamgiita.net/1-999/1.mp3",
+      local: false,
+    })
+    const sound = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      isBuffering: false,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync.mockResolvedValue({ sound })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(
+      {
+        ...song,
+        mediaHydrated: undefined,
+        audioUrl: "https://prabhatasamgiita.net/1-999/1.mp3",
+      } as never,
+    )
+    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
+    expect(createAsync.mock.calls[0]?.[0]).toEqual({
+      uri: "https://prabhatasamgiita.net/1-999/1.mp3",
+    })
+  })
 })

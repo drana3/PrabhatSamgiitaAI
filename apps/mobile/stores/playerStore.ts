@@ -55,7 +55,24 @@ type AudioBag = {
   /** User intends continuous playback — used to auto-resume after buffer stalls. */
   __psWantPlaying: boolean
   __psLastResumeNudgeMs: number
+  /** Active multi-URL attach — kept until AVPlayer reports loaded or all sources fail. */
+  __psAttachSession: AttachSession | null
 }
+
+type PlaybackSource = { uri: string; local: boolean }
+
+type AttachSession = {
+  song: MockSong
+  sources: PlaybackSource[]
+  sourceIndex: number
+  retryAttempt: number
+  loadId: number
+  token: number
+  shouldPlay: boolean
+  positionMillis: number
+}
+
+const MAX_RETRIES_PER_SOURCE = 1
 
 const bag = globalThis as typeof globalThis & AudioBag
 if (typeof bag.__psLoadId !== "number") bag.__psLoadId = 0
@@ -67,6 +84,7 @@ if (!bag.__psMediaCache) bag.__psMediaCache = new Map()
 if (bag.__psPreload === undefined) bag.__psPreload = null
 if (typeof bag.__psWantPlaying !== "boolean") bag.__psWantPlaying = false
 if (typeof bag.__psLastResumeNudgeMs !== "number") bag.__psLastResumeNudgeMs = 0
+if (bag.__psAttachSession === undefined) bag.__psAttachSession = null
 
 function getSound() {
   return bag.__psSound
@@ -157,10 +175,30 @@ async function destroySound() {
   }
 }
 
+function attachSessionActive(session: AttachSession) {
+  return session.loadId === bag.__psLoadId && session.token === bag.__psPlayToken
+}
+
+function clearAttachSession() {
+  bag.__psAttachSession = null
+}
+
+function finalizeAttachFailure(session: AttachSession, message: string) {
+  if (!attachSessionActive(session)) return
+  clearAttachSession()
+  bag.__psWantPlaying = false
+  usePlayerStore.setState({
+    hasAudio: false,
+    isPlaying: false,
+    isBuffering: false,
+    audioError: message,
+  })
+}
+
 /** Touch the CDN so TLS + first bytes are ready before AVPlayer opens the stream. */
 async function warmNetwork(uri: string) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 1200)
+  const timer = setTimeout(() => controller.abort(), 2500)
   try {
     await fetch(uri, {
       method: "GET",
@@ -262,14 +300,23 @@ function bindStatus(owner: Audio.Sound) {
 
     if (!status.isLoaded) {
       if (status.error) {
-        bag.__psWantPlaying = false
-        usePlayerStore.setState({
-          isPlaying: false,
-          isBuffering: false,
-          audioError: "Audio could not be played.",
-        })
+        const session = bag.__psAttachSession
+        if (session && attachSessionActive(session)) {
+          void enqueueAudio(async () => handlePlaybackLoadError(owner, session))
+        } else {
+          bag.__psWantPlaying = false
+          usePlayerStore.setState({
+            isPlaying: false,
+            isBuffering: false,
+            audioError: "Audio could not be played.",
+          })
+        }
       }
       return
+    }
+
+    if (bag.__psAttachSession && attachSessionActive(bag.__psAttachSession)) {
+      clearAttachSession()
     }
 
     if (status.didJustFinish) {
@@ -352,6 +399,8 @@ async function hydrate(song: MockSong): Promise<MockSong> {
     return {
       ...song,
       ...cached,
+      audioUrl: cached.audioUrl || song.audioUrl || null,
+      audioRecordings: cached.audioRecordings?.length ? cached.audioRecordings : song.audioRecordings,
       imageUrl: song.imageUrl || cached.imageUrl,
       thumbnailUrl: song.thumbnailUrl || cached.thumbnailUrl,
       mediaHydrated: true,
@@ -364,6 +413,8 @@ async function hydrate(song: MockSong): Promise<MockSong> {
     const ready = {
       ...song,
       ...mapped,
+      audioUrl: mapped.audioUrl || song.audioUrl || null,
+      audioRecordings: mapped.audioRecordings?.length ? mapped.audioRecordings : song.audioRecordings,
       imageUrl: song.imageUrl || mapped.imageUrl,
       thumbnailUrl: song.thumbnailUrl || mapped.thumbnailUrl,
       mediaHydrated: true,
@@ -552,8 +603,8 @@ async function openAndPlay(song: MockSong, queue: number[] | undefined, id: numb
     return
   }
 
-  // If we already have a stream URL, start audio immediately (don't block on metadata merge).
-  if (song.mediaHydrated && song.audioUrl?.trim()) {
+  // Start immediately when Home/today already gave us a stream URL — don't block on fetchSong.
+  if (song.audioUrl?.trim()) {
     bag.__psMediaCache.set(song.number, song)
     await attachSound(song, {
       shouldPlay: true,
