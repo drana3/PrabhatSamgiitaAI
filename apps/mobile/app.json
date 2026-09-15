@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "55",
+      "buildNumber": "67",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -31,7 +31,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 59,
+      "versionCode": 60,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
@@ -45,6 +45,7 @@
       "expo-font",
       "expo-file-system",
       "expo-web-browser",
+      "expo-apple-authentication",
       "expo-av",
       [
         "@react-native-google-signin/google-signin",
@@ -69,6 +70,12 @@
     },
     "extra": {
       "apiBaseUrl": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
+      "webBaseUrl": "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
+      "azureClientId": "14af4263-42b8-41fb-aac8-e730051a6864",
+      "azureTenantId": "22cd8762-00e6-4945-850c-7b6ab1798844",
+      "googleClientId": "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
+      "googleIosClientId": "495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs.apps.googleusercontent.com",
+      "googleAndroidClientId": "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com",
       "eas": {
         "projectId": "7cbd8dae-da81-4236-a7c2-c9c707540afe"
       }
