@@ -62,6 +62,26 @@ def preferred_audio_url(items: list[Media]) -> str | None:
     return _pick_best_audio(audio)
 
 
+def filter_audio_media_for_clients(items: list[Media]) -> list[Media]:
+    """Hide prabhatasamgiita.net archive streams when a direct mirror is available.
+
+    Production App Store builds still rank official archive URLs first and cannot
+    play the HTML challenge pages our Azure media proxy sometimes returns.
+    """
+    audio = [item for item in items if item.kind == "audio"]
+    if not audio:
+        return items
+    latest = preferred_audio_url(audio)
+    if not latest or requires_broken_tls_proxy(latest):
+        return items
+    playable = [
+        item for item in audio if not requires_broken_tls_proxy(item.url) or item.url == latest
+    ]
+    if len(playable) == len(audio):
+        return items
+    return [item for item in items if item.kind != "audio"] + playable
+
+
 def to_media_item_response(item: Media, *, latest_url: str | None = None) -> MediaItemResponse:
     metadata = item.metadata_json or {}
     is_audio = item.kind == "audio"

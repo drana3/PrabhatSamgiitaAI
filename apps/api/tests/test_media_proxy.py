@@ -28,6 +28,40 @@ def test_upstream_tls_verify() -> None:
     assert "prabhatasamgiita.net" in BROKEN_TLS_MEDIA_HOSTS
 
 
+def test_filter_audio_media_hides_proxy_when_direct_mirror_exists() -> None:
+    from app.models.media import Media
+    from app.services.media_quality import filter_audio_media_for_clients
+
+    proxied = Media(
+        song_number=1,
+        kind="audio",
+        provider="official",
+        title="Archive",
+        url="https://prabhatasamgiita.net/1-999/1.mp3",
+        verification_status="verified",
+    )
+    direct = Media(
+        song_number=1,
+        kind="audio",
+        provider="external_site",
+        title="Mirror",
+        url="https://sarkarverse.org/PS/1-999-f/_1.mp3",
+        verification_status="unverified",
+    )
+    video = Media(
+        song_number=1,
+        kind="video",
+        provider="youtube",
+        title="Watch",
+        url="https://www.youtube.com/watch?v=abc",
+        verification_status="verified",
+    )
+    filtered = filter_audio_media_for_clients([proxied, direct, video])
+    assert video in filtered
+    assert direct in filtered
+    assert proxied not in filtered
+
+
 def test_preferred_audio_prefers_direct_stream_over_prabhata_proxy() -> None:
     from app.models.media import Media
     from app.services.media_quality import preferred_audio_url

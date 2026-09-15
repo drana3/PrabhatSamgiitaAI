@@ -47,6 +47,7 @@ type MediaLike = {
   url: string
   embed_url?: string | null
   verification_status: string
+  is_latest?: boolean
 }
 
 export type PlayableAudio = {
@@ -103,7 +104,9 @@ export function audioRecordingLabel(item: PlayableAudio, index: number) {
 }
 
 export function pickPreferredAudioUrl(media: MediaLike[]): string | null {
-  return listPlayableAudio(media)[0]?.url ?? null
+  const playable = listPlayableAudio(media)
+  const latest = playable.find((item) => media.find((row) => row.url === item.url)?.is_latest)
+  return latest?.url ?? playable[0]?.url ?? null
 }
 
 export function mediaVideosToEmbeds(
