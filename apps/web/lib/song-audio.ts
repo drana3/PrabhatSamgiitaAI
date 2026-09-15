@@ -25,8 +25,19 @@ function isDirectAudio(item: SongMedia) {
   return !/youtube\.com\/results|youtube\.com\/watch|youtu\.be\//i.test(url)
 }
 
+/** Azure-proxied prabhatasamgiita.net streams often return HTML instead of MP3. */
+function isBrokenArchiveProxy(url: string) {
+  return /\/api\/v1\/media\/stream\?/i.test(url)
+}
+
 export function listSongAudio(media: SongMedia[]): RankedAudio[] {
-  const ranked = media.filter(isDirectAudio).slice().sort(compareAudioQuality)
+  const direct = media.filter(isDirectAudio)
+  const hasPlayableMirror = direct.some(
+    (item) =>
+      !isBrokenArchiveProxy(item.url) && !isOlderAudio(item) && !isLowQualityAudio(item),
+  )
+  const pool = hasPlayableMirror ? direct.filter((item) => !isBrokenArchiveProxy(item.url)) : direct
+  const ranked = pool.slice().sort(compareAudioQuality)
   return markLatestAudio(
     ranked.map((item) => ({
       title: item.title.trim() || "Recording",

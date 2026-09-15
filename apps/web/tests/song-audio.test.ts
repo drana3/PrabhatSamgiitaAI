@@ -24,4 +24,25 @@ describe("listSongAudio", () => {
     expect(recordings[0]?.isLatest).toBe(true)
     expect(recordings[1]?.isOlder).toBe(true)
   })
+
+  it("prefers direct mirrors over broken archive proxy streams for Best", () => {
+    const recordings = listSongAudio([
+      {
+        kind: "audio",
+        provider: "official",
+        title: "Archive",
+        url: "https://prabhatai-api.example.test/api/v1/media/stream?url=https%3A%2F%2Fprabhatasamgiita.net%2F2084.mp3",
+        verification_status: "verified",
+      },
+      {
+        kind: "audio",
+        provider: "external_site",
+        title: "Sarkarverse mirror",
+        url: "https://sarkarverse.org/PS/2000-2999-f/2084.mp3",
+        verification_status: "unverified",
+      },
+    ])
+    expect(recordings[0]?.url).toContain("sarkarverse.org")
+    expect(recordings[0]?.isLatest).toBe(true)
+  })
 })
