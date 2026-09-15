@@ -59,7 +59,9 @@ vi.mock("@/stores/authStore", () => ({
 
 import {
   offlineAudioScopeKey,
+  offlineRecordingState,
   offlineSaveControls,
+  reconcileOfflineProgress,
   resolvePlaybackUri,
   useOfflineAudioStore,
 } from "@/lib/offlineAudio"
@@ -121,19 +123,62 @@ describe("offline save UI", () => {
       visible: false,
       badge: false,
       showError: false,
+      downloading: false,
       label: "",
       bufferingLabel: "Starting stream…",
     })
   })
 
-  it("shows save, progress, and remove only for signed-in members", () => {
+  it("shows save, progress, finalizing, and remove only for signed-in members", () => {
     expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).visible).toBe(true)
     expect(offlineSaveControls({ mode: "signed_in", downloaded: false }).label).toBe("Save in this app")
     expect(offlineSaveControls({ mode: "signed_in", downloaded: false, progress: 0.4 }).label).toBe(
-      "Downloading 40%",
+      "Saving… 40%",
+    )
+    expect(offlineSaveControls({ mode: "signed_in", downloaded: false, progress: 0.995 }).label).toBe(
+      "Saving offline…",
     )
     expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).label).toBe("Remove from this app")
     expect(offlineSaveControls({ mode: "signed_in", downloaded: true }).badge).toBe(true)
+    expect(
+      offlineSaveControls({ mode: "signed_in", downloaded: true, progress: 0.995 }).downloading,
+    ).toBe(false)
+    expect(
+      offlineSaveControls({
+        mode: "signed_in",
+        downloaded: true,
+        progress: 0.995,
+        downloading: false,
+      }).downloading,
+    ).toBe(false)
+  })
+
+  it("tracks each recording independently for multi-recording songs", () => {
+    const primary = "https://cdn.test/12.mp3"
+    const alt = "https://cdn.test/12-alt.mp3"
+    const third = "https://cdn.test/12-third.mp3"
+    useOfflineAudioStore.setState({
+      files: {
+        [alt]: {
+          remoteUrl: alt,
+          fileUri: fileUriFor(memberA, 12, alt),
+          songNumber: 12,
+        },
+      },
+      progress: {
+        [primary]: 0.5,
+        [third]: 1,
+      },
+    })
+    const snapshot = useOfflineAudioStore.getState()
+    expect(offlineRecordingState(primary, snapshot).downloading).toBe(false)
+    expect(offlineRecordingState(alt, snapshot).downloaded).toBe(true)
+    expect(offlineRecordingState(alt, snapshot).downloading).toBe(false)
+    expect(offlineRecordingState(third, snapshot).downloading).toBe(false)
+    reconcileOfflineProgress()
+    const cleaned = useOfflineAudioStore.getState()
+    expect(cleaned.progress[alt]).toBeUndefined()
+    expect(cleaned.progress[third]).toBeUndefined()
   })
 })
 
@@ -325,5 +370,43 @@ describe("offline audio", () => {
     await Promise.all([first, second])
     expect(useOfflineAudioStore.getState().files[url12]?.fileUri).toBe(fileUriFor(memberA, 12, url12))
     expect(useOfflineAudioStore.getState().files[url7]?.fileUri).toBe(fileUriFor(memberA, 7, url7))
+  })
+
+  it("completes when the file appears on disk even if downloadAsync is slow", async () => {
+    const url = "https://cdn.test/12.mp3"
+    const dest = fileUriFor(memberA, 12, url)
+    let resolveDownload: ((value: { status: number; uri: string }) => void) | undefined
+    fs.createDownloadResumable.mockImplementation(
+      (
+        _remote: string,
+        fileDest: string,
+        _opts: unknown,
+        callback?: (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void,
+      ) => ({
+        downloadAsync: () =>
+          new Promise((resolve) => {
+            resolveDownload = resolve
+            callback?.({ totalBytesWritten: 100, totalBytesExpectedToWrite: 100 })
+          }),
+        cancelAsync: vi.fn(async () => undefined),
+      }),
+    )
+    fs.getInfoAsync.mockImplementation(async (uri: string) => ({
+      exists: uri === dest,
+      isDirectory: false,
+      size: uri === dest ? 4096 : 0,
+    }))
+
+    const pending = useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
+    await vi.waitFor(() =>
+      expect(offlineSaveControls({ mode: "signed_in", downloaded: false, progress: 1 }).label).toBe(
+        "Saving offline…",
+      ),
+    )
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest))
+    expect(useOfflineAudioStore.getState().progress[url]).toBeUndefined()
+
+    resolveDownload?.({ status: 200, uri: dest })
+    await pending
   })
 })
