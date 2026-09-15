@@ -9,6 +9,10 @@ function useXlViewport() {
   const [isXl, setIsXl] = useState<boolean | null>(null)
 
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      setIsXl(false)
+      return
+    }
     const query = window.matchMedia("(min-width: 1280px)")
     const update = () => setIsXl(query.matches)
     update()
