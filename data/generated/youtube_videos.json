@@ -9660,6 +9660,27 @@
     }
   },
   {
+    "song_number": 2789,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Je Tarii Bhasiye Dilum - Prabhat Sangeet song #2789 - Singer - Sayan Bhattacharjee",
+    "url": "https://www.youtube.com/watch?v=7nMSwN2Eyik",
+    "embed_url": "https://www.youtube-nocookie.com/embed/7nMSwN2Eyik",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "7nMSwN2Eyik",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.948,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2790,
     "kind": "video",
     "provider": "youtube",
