@@ -1,5 +1,21 @@
 import type { ConversationTurn } from "./explain"
 import { type ChatLanguage, conversationLanguage, detectChatLanguage } from "./chat-language"
+import type { MemberSession } from "./member"
+
+export const AI_COMPANION_GUEST_DAILY_LIMIT = 15
+export const AI_COMPANION_MEMBER_DAILY_LIMIT = 50
+
+/** Matches API guest vs member daily deeper-question limits (see ai_quota.py). */
+export function webCompanionReceivesMemberQuota(session: MemberSession) {
+  return session.authenticated === true && session.member_backend !== false
+}
+
+export function webCompanionQuotaLabel(session: MemberSession) {
+  if (webCompanionReceivesMemberQuota(session)) {
+    return `Signed in · ${AI_COMPANION_MEMBER_DAILY_LIMIT} Deeper QA`
+  }
+  return `Guest · ${AI_COMPANION_GUEST_DAILY_LIMIT} Deeper QA`
+}
 
 export type ChatMessage = {
   role: "assistant" | "user"

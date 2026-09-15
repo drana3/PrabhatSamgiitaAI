@@ -17,6 +17,34 @@ describe("AI explain proxy route", () => {
     vi.unstubAllGlobals()
   })
 
+  it("forwards Azure Easy Auth principal-id headers to the API for member quota", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.API_BASE_URL = "https://api.example.test"
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("data: Grounded answer\n\n", {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const request = new NextRequest("https://example.test/api/ai/explain", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-ms-client-principal-id": "azure-user-1",
+        "x-ms-client-principal-name": "Member",
+      },
+      body: JSON.stringify({ song_number: 1, prompt: "Explain this song" }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(fetchMock.mock.calls[0]?.[1]?.headers?.["X-Member-Proxy-Key"]).toBe("proxy-key")
+    expect(fetchMock.mock.calls[0]?.[1]?.headers?.["X-MS-CLIENT-PRINCIPAL"]).toBeTruthy()
+  })
+
   it("forwards Google cookie auth to the API for member quota", async () => {
     process.env.MEMBER_PROXY_KEY = "proxy-key"
     process.env.API_BASE_URL = "https://api.example.test"

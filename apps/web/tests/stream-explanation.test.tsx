@@ -47,7 +47,28 @@ describe("Prabhat Samgiita AI companion", () => {
     expect(screen.getByRole("status", { name: /ready to help/i })).toBeVisible()
     expect(screen.getByRole("img", { name: "Prabhat Samgiita AI" })).toBeVisible()
     expect(screen.getByPlaceholderText("Ask Prabhat Samgiita AI about this song...")).toBeVisible()
-    expect(screen.getByText(/Guest.*grounded answers first/i)).toBeVisible()
+    expect(screen.getByText(/Guest · 15 Deeper QA/i)).toBeVisible()
+  })
+
+  it("shows guest quota when member backend is unavailable despite authenticated session", () => {
+    memberState.value = {
+      loading: false,
+      session: {
+        authenticated: true,
+        id: "aad:user-1",
+        display_name: "Member",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        favorite_song_numbers: [],
+        is_admin: false,
+        member_backend: false,
+      },
+    }
+
+    render(<StreamExplanation songNumber={135} />)
+
+    expect(screen.getByText(/Guest · 15 Deeper QA/i)).toBeVisible()
+    expect(screen.queryByText(/Signed in · 50 Deeper QA/i)).not.toBeInTheDocument()
   })
 
   it("rejects gibberish before an AI request is made", async () => {

@@ -16,6 +16,8 @@ import {
   songChatStorageKey,
   starterPrompts,
   storedMemberConversationMs,
+  webCompanionQuotaLabel,
+  webCompanionReceivesMemberQuota,
 } from "@/lib/chat"
 import { conversationLanguage, detectChatLanguage } from "@/lib/chat-language"
 
@@ -175,5 +177,33 @@ describe("AI companion conversation contract", () => {
     const now = new Date("2026-08-08T10:00:00.000Z")
     expect(formatHistoryDayLabel("2026-08-08", now)).toBe("Today")
     expect(formatHistoryDayLabel("2026-08-07", now)).toBe("Yesterday")
+  })
+
+  it("labels guest vs signed-in daily deeper-question limits", () => {
+    expect(webCompanionQuotaLabel({ authenticated: false })).toBe("Guest · 15 Deeper QA")
+    expect(
+      webCompanionQuotaLabel({
+        authenticated: true,
+        id: "aad:user-1",
+        display_name: "Member",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        favorite_song_numbers: [],
+        is_admin: false,
+        member_backend: true,
+      }),
+    ).toBe("Signed in · 50 Deeper QA")
+    expect(
+      webCompanionReceivesMemberQuota({
+        authenticated: true,
+        id: "aad:user-1",
+        display_name: "Member",
+        identity_provider: "aad",
+        personalization_enabled: true,
+        favorite_song_numbers: [],
+        is_admin: false,
+        member_backend: false,
+      }),
+    ).toBe(false)
   })
 })

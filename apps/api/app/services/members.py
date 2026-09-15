@@ -261,7 +261,7 @@ def _subject_rank(subject: str) -> int:
     """Higher = more canonical (Easy Auth OID beats email/preview forks)."""
     value = (subject or "").casefold()
     if (
-        value.startswith(("aad:", "google:", "facebook:", "local:"))
+        value.startswith(("aad:", "google:", "facebook:", "apple:", "local:"))
         and "@" not in value
         and "preview" not in value
     ):

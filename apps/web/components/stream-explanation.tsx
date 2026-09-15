@@ -8,6 +8,7 @@ import { VoiceQuestionButton } from "@/components/voice-question-button"
 import {
   chatMemoryTurnsForSave,
   clearGuestChatStorage,
+  webCompanionQuotaLabel,
   followUpsFromMessages,
   formatAssistantMessage,
   hasUserMessages,
@@ -240,7 +241,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
             <h2 className="mt-2 font-serif text-3xl leading-tight text-navy-950 sm:text-[2rem]">Know more about this song</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Ask about meaning, imagery, spiritual context, pronunciation, or related songs in the language that feels natural to you.</p>
             <p className="mt-2 text-xs leading-5 text-stone-500">{languageHint}</p>
-            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{session.authenticated ? "Signed in · grounded answers first · 50 deeper AI requests/day" : "Guest · grounded answers first · 15 deeper AI questions/day"}</p>
+            <p className="mt-3 inline-flex rounded-full border border-navy-900/5 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">{webCompanionQuotaLabel(session)}</p>
             {hasUserMessages(messages) && !syncingHistory ? (
               <button
                 type="button"
