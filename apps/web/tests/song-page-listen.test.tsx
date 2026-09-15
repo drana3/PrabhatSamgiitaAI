@@ -1,5 +1,5 @@
 import React from "react"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 
 import {
   SongListenSidebar,
@@ -66,9 +66,9 @@ describe("SongPageListenShell", () => {
       </SongPageListenShell>,
     )
 
-    expect(screen.queryByRole("button", { name: /Play Best/i })).not.toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: /Play Best/i })).toHaveLength(1)
     expect(screen.getByText(/Listen to this song/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Listen to Best/i)).toBeInTheDocument()
+    expect(within(screen.getByTestId("listen-sidebar")).getByLabelText(/Listen to Best/i)).toBeInTheDocument()
   })
 
   it("keeps alternate recordings in sync between top and sidebar", () => {
@@ -81,6 +81,6 @@ describe("SongPageListenShell", () => {
     )
 
     fireEvent.click(screen.getByRole("button", { name: /Alternate take/i }))
-    expect(screen.getByLabelText(/Listen to Alternate take/i)).toBeInTheDocument()
+    expect(within(screen.getByTestId("listen-sidebar")).getByLabelText(/Listen to Alternate take/i)).toBeInTheDocument()
   })
 })

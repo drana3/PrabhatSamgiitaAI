@@ -104,15 +104,13 @@ export function SongListenTop() {
   return (
     <div id="listen" className="mb-6 scroll-mt-28">
       <div className="space-y-4">
-        {layout === "mobile" ? (
-          <AudioRendition
-            url={selected.url}
-            title={title}
-            provider={selected.provider}
-            compact
-            onPlaybackError={() => tryNextRecording(selected.url)}
-          />
-        ) : null}
+        <AudioRendition
+          url={selected.url}
+          title={title}
+          provider={selected.provider}
+          compact
+          onPlaybackError={() => tryNextRecording(selected.url)}
+        />
         {showList ? (
           <details className="rounded-2xl border border-navy-900/10 bg-white p-4">
             <summary className="cursor-pointer text-sm font-semibold text-gold-700">
@@ -157,7 +155,9 @@ export function SongListenTop() {
             </ul>
           </details>
         ) : layout === "sidebar" ? (
-          <p className="text-sm text-stone-600">Use the player on the right while you explore this song.</p>
+          <p className="text-sm text-stone-600">
+            Or use the full player on the right while you explore with the AI Companion.
+          </p>
         ) : null}
       </div>
     </div>
@@ -174,7 +174,7 @@ export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
   const title = [selectedBadge, selected.title].filter(Boolean).join(" · ")
 
   return (
-    <section id="listen-sidebar" className="surface-card scroll-mt-28 p-5 sm:p-6">
+    <section id="listen-sidebar" data-testid="listen-sidebar" className="surface-card scroll-mt-28 p-5 sm:p-6">
       <p className="eyebrow">{selected.isLatest ? "Best recording" : "Listen"}</p>
       <h2 className="mt-2 font-serif text-3xl text-navy-950">Listen to this song</h2>
       <p className="mt-2 text-sm leading-6 text-stone-600">
