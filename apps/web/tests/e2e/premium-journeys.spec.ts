@@ -374,7 +374,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
     await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Song sections" }).getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "#listen")
   } else {
-    await expect(page.locator("#listen-sidebar").getByLabelText(/Listen to/i)).toBeVisible()
+    await expect(page.locator("#listen-sidebar").getByLabel(/Listen to/i)).toBeVisible()
     await expect(page.locator("#listen-sidebar").getByText(/Listen to this song/i)).toBeVisible()
   }
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
