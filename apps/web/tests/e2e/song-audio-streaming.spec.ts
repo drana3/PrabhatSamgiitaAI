@@ -81,22 +81,17 @@ test.describe("song audio streaming", () => {
     expect(currentTime).toBeGreaterThan(0)
   })
 
-  test("defers sidebar loading until play and keeps only one stream active", async ({ page }, testInfo) => {
+  test("mounts one player in the sidebar on desktop", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile-chromium", "Sidebar player is desktop-only")
 
-    const sidebar = page.getByRole("heading", { name: "Listen to this song" }).locator("..").locator("audio")
-    await expect(sidebar).toBeVisible()
-    await expect(sidebar).toHaveAttribute("preload", "none")
+    await expect.poll(async () => page.locator("audio").count()).toBe(1)
+    await expect(page.locator("aside #listen audio")).toHaveCount(1)
+    await expect(page.getByRole("heading", { name: "Listen to this song" })).toBeVisible()
+    await expect(page.locator("aside #listen audio")).toHaveAttribute("preload", "metadata")
 
-    await waitForAudioMetadata(page, "#listen audio")
-    await startPlayback(page, "#listen audio")
-
-    await sidebar.evaluate((audio: HTMLAudioElement) => audio.play())
-    await page.waitForFunction(() => {
-      const players = Array.from(document.querySelectorAll<HTMLAudioElement>("#listen audio, aside audio"))
-      const playing = players.filter((audio) => !audio.paused)
-      return playing.length === 1 && playing[0]?.closest("aside") !== null
-    })
+    await waitForAudioMetadata(page, "aside #listen audio")
+    const currentTime = await startPlayback(page, "aside #listen audio")
+    expect(currentTime).toBeGreaterThan(0)
   })
 
   test("remounts the primary player when switching recordings", async ({ page }) => {
