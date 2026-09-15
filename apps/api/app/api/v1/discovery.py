@@ -61,8 +61,7 @@ from app.services.domain_catalog import (
     time_of_day,
 )
 from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
-from app.services.media_proxy import proxied_media_url
-from app.services.media_quality import client_media_items, preferred_audio_url
+from app.services.media_quality import client_media_items, client_playable_audio_url
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 from app.services.reflections import select_reflection
 from app.services.stories import (
@@ -300,7 +299,7 @@ async def recommendations_today(
         "recommendation_mode": "strict_festival" if festival else "daily_reflection",
         "canonical_collections": list(festival_collection_labels),
     }
-    cache_key = json.dumps(context, sort_keys=True)
+    cache_key = json.dumps({**context, "media_url_version": 2}, sort_keys=True)
     cached = await today_cache.get(cache_key)
     if cached:
         return TodayResponse.model_validate(cached)
@@ -379,16 +378,18 @@ async def recommendations_today(
         )
     else:
         ranked = await engine.rank(session, songs, recommendation_context)
-    items = []
-    for item in ranked[:3]:
+    api_base = get_settings().next_public_api_base_url
+    prepared = []
+    for rank_index, item in enumerate(ranked[:12]):
         media = client_media_items(await catalog.get_media(item.song.number))
         notation = await catalog.get_notation(item.song.number)
-        latest_audio_url = preferred_audio_url(media)
-        audio = next(
-            (row for row in media if row.kind == "audio" and row.url == latest_audio_url),
-            next((row for row in media if row.kind == "audio"), None),
-        )
+        audio_url = client_playable_audio_url(media, api_base_url=api_base)
         video = next((row for row in media if row.kind == "video" and row.embed_url), None)
+        prepared.append((rank_index, item, notation, audio_url, video))
+    prepared.sort(key=lambda row: (0 if row[3] else 1, row[0]))
+
+    items = []
+    for _, item, notation, audio_url, video in prepared[:3]:
         if festival and festival_song_numbers:
             reasons = [f"Curated for {festival}"]
         elif canonical_collection_labels:
@@ -411,10 +412,7 @@ async def recommendations_today(
                 score=item.score,
                 reasons=reasons[:4] or ["A verified song for reflection"],
                 is_verified=item.song.is_verified,
-                audio_url=proxied_media_url(
-                    audio.url if audio else None,
-                    api_base_url=get_settings().next_public_api_base_url,
-                ),
+                audio_url=audio_url,
                 video_embed_url=video.embed_url if video else None,
                 notation_available=notation is not None,
             )

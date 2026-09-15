@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import httpx
 from fastapi import HTTPException
@@ -19,6 +19,34 @@ MEDIA_FETCH_USER_AGENT = (
 def upstream_tls_verify(url: str) -> bool:
     hostname = (urlparse(url).hostname or "").lower().rstrip(".")
     return hostname not in BROKEN_TLS_MEDIA_HOSTS
+
+
+def is_legacy_media_proxy_url(url: str | None) -> bool:
+    return bool(url and "/api/v1/media/stream?" in url)
+
+
+def unwrap_legacy_proxy_url(url: str | None) -> str | None:
+    """Extract the upstream archive URL from a stale `/api/v1/media/stream` link."""
+    if not is_legacy_media_proxy_url(url):
+        return url
+    upstream = parse_qs(urlparse(url or "").query).get("url", [None])[0]
+    if not upstream:
+        return url
+    decoded = unquote(upstream)
+    if not decoded.startswith(("http://", "https://")):
+        return url
+    try:
+        return validate_external_media_url(decoded)
+    except ValueError:
+        return url
+
+
+def client_media_url(url: str | None, *, api_base_url: str) -> str | None:
+    """Return a direct client-playable URL — never a legacy API proxy."""
+    direct = unwrap_legacy_proxy_url(url)
+    if not direct:
+        return direct
+    return proxied_media_url(direct, api_base_url=api_base_url)
 
 
 def proxied_media_url(url: str | None, *, api_base_url: str) -> str | None:

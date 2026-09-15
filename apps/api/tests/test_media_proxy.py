@@ -2,9 +2,32 @@ from __future__ import annotations
 
 from app.services.media_proxy import (
     BROKEN_TLS_MEDIA_HOSTS,
+    client_media_url,
     proxied_media_url,
+    unwrap_legacy_proxy_url,
     upstream_tls_verify,
 )
+
+
+def test_unwrap_legacy_proxy_url_extracts_archive_mp3() -> None:
+    proxy = (
+        "https://www.prabhatasamgiita.org/api/v1/media/stream?"
+        "url=https%3A%2F%2Fprabhatasamgiita.net%2F1-999%2F1.mp3"
+    )
+    assert (
+        unwrap_legacy_proxy_url(proxy) == "https://prabhatasamgiita.net/1-999/1.mp3"
+    )
+
+
+def test_client_media_url_never_returns_proxy() -> None:
+    proxy = (
+        "https://www.prabhatasamgiita.org/api/v1/media/stream?"
+        "url=https%3A%2F%2Fprabhatasamgiita.net%2F1-999%2F1.mp3"
+    )
+    assert client_media_url(
+        proxy,
+        api_base_url="https://www.prabhatasamgiita.org",
+    ) == "https://prabhatasamgiita.net/1-999/1.mp3"
 
 
 def test_proxied_media_url_leaves_prabhata_net_direct() -> None:
@@ -110,6 +133,27 @@ def test_to_media_item_response_keeps_direct_prabhata_urls() -> None:
     assert response.url == "https://prabhatasamgiita.net/1-999/1.mp3"
     assert "media/stream" not in response.url
     assert response.is_latest is True
+
+
+def test_to_media_item_response_unwraps_legacy_proxy_urls() -> None:
+    from app.models.media import Media
+    from app.services.media_quality import to_media_item_response
+
+    proxy = (
+        "https://www.prabhatasamgiita.org/api/v1/media/stream?"
+        "url=https%3A%2F%2Fprabhatasamgiita.net%2F1-999%2F1.mp3"
+    )
+    item = Media(
+        song_number=1,
+        kind="audio",
+        provider="official",
+        title="Official archive",
+        url=proxy,
+        verification_status="verified",
+    )
+    response = to_media_item_response(item, latest_url=item.url)
+    assert response.url == "https://prabhatasamgiita.net/1-999/1.mp3"
+    assert "media/stream" not in response.url
 
 
 def test_song_one_client_media_is_direct_official_archive_only() -> None:

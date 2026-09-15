@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from app.config import get_settings
 from app.models.media import Media
 from app.schemas.song import MediaItemResponse
-from app.services.media_proxy import BROKEN_TLS_MEDIA_HOSTS, proxied_media_url
+from app.services.media_proxy import BROKEN_TLS_MEDIA_HOSTS, client_media_url
 
 
 def is_sarkarverse_audio_url(url: str | None) -> bool:
@@ -82,6 +82,14 @@ def preferred_audio_url(items: list[Media]) -> str | None:
     return _pick_best_audio(audio)
 
 
+def client_playable_audio_url(items: list[Media], *, api_base_url: str) -> str | None:
+    """Best direct archive audio URL for mobile/web clients."""
+    picked = preferred_audio_url(items)
+    if not picked:
+        return None
+    return client_media_url(picked, api_base_url=api_base_url)
+
+
 def filter_audio_media_for_clients(items: list[Media]) -> list[Media]:
     """Drop legacy `/media/stream` proxy URLs when a direct archive take is available."""
     audio = [item for item in items if item.kind == "audio"]
@@ -104,9 +112,9 @@ def to_media_item_response(item: Media, *, latest_url: str | None = None) -> Med
     is_older = is_audio and media_is_older(item)
     is_low_quality = is_audio and media_is_low_quality(item)
     api_base = get_settings().next_public_api_base_url
-    client_url = proxied_media_url(item.url, api_base_url=api_base) or item.url
+    client_url = client_media_url(item.url, api_base_url=api_base) or item.url
     client_embed = (
-        proxied_media_url(item.embed_url, api_base_url=api_base) if item.embed_url else None
+        client_media_url(item.embed_url, api_base_url=api_base) if item.embed_url else None
     )
     return MediaItemResponse(
         kind=item.kind,
