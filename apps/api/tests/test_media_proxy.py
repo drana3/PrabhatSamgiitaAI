@@ -26,3 +26,26 @@ def test_upstream_tls_verify() -> None:
     assert upstream_tls_verify("https://prabhatasamgiita.net/x.mp3") is False
     assert upstream_tls_verify("https://sarkarverse.org/x.mp3") is True
     assert "prabhatasamgiita.net" in BROKEN_TLS_MEDIA_HOSTS
+
+
+def test_preferred_audio_prefers_direct_stream_over_prabhata_proxy() -> None:
+    from app.models.media import Media
+    from app.services.media_quality import preferred_audio_url
+
+    proxied = Media(
+        song_number=1,
+        kind="audio",
+        provider="official",
+        title="Official archive",
+        url="https://prabhatasamgiita.net/1-999/1.mp3",
+        verification_status="verified",
+    )
+    direct = Media(
+        song_number=1,
+        kind="audio",
+        provider="external_site",
+        title="Sarkarverse mirror",
+        url="https://sarkarverse.org/PS/1-999-f/_1.mp3",
+        verification_status="unverified",
+    )
+    assert preferred_audio_url([proxied, direct]) == direct.url

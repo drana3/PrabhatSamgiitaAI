@@ -35,7 +35,7 @@ describe("in-app media embeds", () => {
     )
   })
 
-  it("prefers verified official audio", () => {
+  it("prefers verified official audio when no direct mirror exists", () => {
     const url = pickPreferredAudioUrl([
       {
         kind: "audio",
@@ -53,6 +53,26 @@ describe("in-app media embeds", () => {
       },
     ])
     expect(url).toContain("prabhatasamgiita.net")
+  })
+
+  it("prefers direct sarkarverse streams over proxied archive URLs", () => {
+    const url = pickPreferredAudioUrl([
+      {
+        kind: "audio",
+        provider: "official",
+        title: "Archive",
+        url: "https://prabhatai-api.example.test/api/v1/media/stream?url=https%3A%2F%2Fprabhatasamgiita.net%2F1.mp3",
+        verification_status: "verified",
+      },
+      {
+        kind: "audio",
+        provider: "external_site",
+        title: "Mirror",
+        url: "https://sarkarverse.org/PS/1-999-f/_1.mp3",
+        verification_status: "unverified",
+      },
+    ])
+    expect(url).toContain("sarkarverse.org")
   })
 
   it("lists extra recordings after the preferred stream", () => {

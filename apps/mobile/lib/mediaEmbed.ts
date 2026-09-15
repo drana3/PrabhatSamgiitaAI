@@ -66,6 +66,9 @@ function audioRank(item: MediaLike) {
   let rank = 0
   if (item.verification_status.includes("verified")) rank += 2
   if (item.provider === "official") rank += 1
+  const url = item.url?.trim() || ""
+  if (/\/api\/v1\/media\/stream\?/i.test(url)) rank -= 4
+  if (/sarkarverse\.org|psplayer\.org/i.test(url)) rank += 3
   return rank
 }
 

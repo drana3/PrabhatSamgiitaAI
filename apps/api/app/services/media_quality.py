@@ -1,7 +1,16 @@
+from urllib.parse import urlparse
+
 from app.config import get_settings
 from app.models.media import Media
 from app.schemas.song import MediaItemResponse
-from app.services.media_proxy import proxied_media_url
+from app.services.media_proxy import BROKEN_TLS_MEDIA_HOSTS, proxied_media_url
+
+
+def requires_broken_tls_proxy(url: str | None) -> bool:
+    if not url:
+        return False
+    hostname = (urlparse(url).hostname or "").lower().rstrip(".")
+    return hostname in BROKEN_TLS_MEDIA_HOSTS
 
 
 def media_is_low_quality(item: Media) -> bool:
@@ -26,6 +35,7 @@ def media_quality_key(item: Media) -> tuple[int, int, int, int, float, str]:
     return (
         1 if media_is_low_quality(item) else 0,
         1 if media_is_older(item) else 0,
+        1 if requires_broken_tls_proxy(item.url) else 0,
         source_rank,
         is_primary,
         -match_score,
@@ -33,12 +43,23 @@ def media_quality_key(item: Media) -> tuple[int, int, int, int, float, str]:
     )
 
 
-def preferred_audio_url(items: list[Media]) -> str | None:
-    audio = sorted((item for item in items if item.kind == "audio"), key=media_quality_key)
-    for item in audio:
+def _pick_best_audio(pool: list[Media]) -> str | None:
+    ranked = sorted(pool, key=media_quality_key)
+    for item in ranked:
         if not media_is_older(item) and not media_is_low_quality(item):
             return item.url
-    return audio[0].url if audio else None
+    return ranked[0].url if ranked else None
+
+
+def preferred_audio_url(items: list[Media]) -> str | None:
+    audio = [item for item in items if item.kind == "audio"]
+    if not audio:
+        return None
+    direct = [item for item in audio if not requires_broken_tls_proxy(item.url)]
+    picked = _pick_best_audio(direct)
+    if picked:
+        return picked
+    return _pick_best_audio(audio)
 
 
 def to_media_item_response(item: Media, *, latest_url: str | None = None) -> MediaItemResponse:

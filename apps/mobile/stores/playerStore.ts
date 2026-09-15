@@ -326,6 +326,22 @@ function atEnd(status: AVPlaybackStatus) {
   return duration > 0 && position >= duration - 400
 }
 
+async function resolvePlaybackCandidates(song: MockSong): Promise<Array<{ uri: string; local: boolean }>> {
+  const seen = new Set<string>()
+  const candidates: Array<{ uri: string; local: boolean }> = []
+  const add = async (remoteUrl: string | null | undefined) => {
+    const resolved = await resolvePlaybackUri(song.number, remoteUrl)
+    if (!resolved || seen.has(resolved.uri)) return
+    seen.add(resolved.uri)
+    candidates.push(resolved)
+  }
+  await add(song.audioUrl)
+  for (const recording of song.audioRecordings ?? []) {
+    await add(recording.url)
+  }
+  return candidates
+}
+
 async function hydrate(song: MockSong): Promise<MockSong> {
   if (song.mediaHydrated && song.audioUrl) {
     bag.__psMediaCache.set(song.number, song)
@@ -363,8 +379,8 @@ async function attachSound(
   song: MockSong,
   options: { shouldPlay: boolean; positionMillis?: number; id: number; token: number },
 ) {
-  const source = await resolvePlaybackUri(song.number, song.audioUrl)
-  if (!source) {
+  const sources = await resolvePlaybackCandidates(song)
+  if (!sources.length) {
     usePlayerStore.setState({
       hasAudio: false,
       isPlaying: false,
@@ -373,16 +389,17 @@ async function attachSound(
     })
     return
   }
-  const { uri } = source
 
   await setPlaybackMode()
   if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) return
 
+  const primaryUri = sources[0]?.uri
   // Fast path: promote a preloaded Sound (already buffered) — play starts immediately.
   const preload = bag.__psPreload
   if (
+    primaryUri &&
     preload &&
-    preload.uri === uri &&
+    preload.uri === primaryUri &&
     preload.number === song.number &&
     (options.positionMillis ?? 0) === 0
   ) {
@@ -426,75 +443,86 @@ async function attachSound(
     }
   }
 
-  // Warm CDN in parallel for remote streams only. Local files skip the network.
-  if (!source.local && !uri.startsWith("file:")) {
-    void warmNetwork(uri)
-  }
   await destroySound()
   if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) return
 
-  const created = await Audio.Sound.createAsync(
-    { uri },
-    {
-      shouldPlay: options.shouldPlay,
-      positionMillis: Math.max(0, options.positionMillis ?? 0),
-      volume: usePlayerStore.getState().volume,
-      isLooping: usePlayerStore.getState().repeat,
-      progressUpdateIntervalMillis: 500,
-    },
-    null,
-    false,
-  ).catch(() => null)
+  let activeSong = song
+  for (let index = 0; index < sources.length; index += 1) {
+    const { uri, local } = sources[index]!
+    if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) return
 
-  if (!created) {
+    if (!local && !uri.startsWith("file:")) {
+      void warmNetwork(uri)
+    }
+
+    const created = await Audio.Sound.createAsync(
+      { uri },
+      {
+        shouldPlay: options.shouldPlay,
+        positionMillis: Math.max(0, options.positionMillis ?? 0),
+        volume: usePlayerStore.getState().volume,
+        isLooping: usePlayerStore.getState().repeat,
+        progressUpdateIntervalMillis: 500,
+      },
+      null,
+      false,
+    ).catch(() => null)
+
+    if (!created) continue
+
+    if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) {
+      try {
+        await created.sound.unloadAsync()
+      } catch {
+        /* ignore */
+      }
+      return
+    }
+
+    if (index > 0) {
+      activeSong = { ...activeSong, audioUrl: uri, mediaHydrated: true }
+      bag.__psMediaCache.set(activeSong.number, activeSong)
+    }
+
+    setSound(created.sound)
+    bindStatus(created.sound)
+
+    if (options.token !== bag.__psPlayToken) {
+      try {
+        await created.sound.pauseAsync()
+      } catch {
+        /* ignore */
+      }
+      usePlayerStore.setState({ isPlaying: false, isBuffering: false, hasAudio: true })
+      return
+    }
+
+    const status = await created.sound.getStatusAsync()
     usePlayerStore.setState({
-      hasAudio: false,
-      isPlaying: false,
-      isBuffering: false,
-      audioError: "Could not start audio on this device.",
+      currentSong: activeSong,
+      hasAudio: true,
+      isPlaying: status.isLoaded ? status.isPlaying : options.shouldPlay,
+      isBuffering: status.isLoaded ? Boolean(status.isBuffering) && !status.isPlaying : options.shouldPlay,
+      audioError: null,
+      position: status.isLoaded
+        ? Math.floor((status.positionMillis || 0) / 1000)
+        : Math.floor((options.positionMillis ?? 0) / 1000),
+      duration: status.isLoaded
+        ? Math.max(1, Math.floor((status.durationMillis || 0) / 1000))
+        : activeSong.durationSeconds,
     })
-    return
-  }
-
-  if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) {
-    try {
-      await created.sound.unloadAsync()
-    } catch {
-      /* ignore */
+    if (options.shouldPlay) {
+      prefetchNextInQueue(activeSong.number, usePlayerStore.getState().queue)
     }
     return
   }
 
-  setSound(created.sound)
-  bindStatus(created.sound)
-
-  if (options.token !== bag.__psPlayToken) {
-    try {
-      await created.sound.pauseAsync()
-    } catch {
-      /* ignore */
-    }
-    usePlayerStore.setState({ isPlaying: false, isBuffering: false, hasAudio: true })
-    return
-  }
-
-  const status = await created.sound.getStatusAsync()
   usePlayerStore.setState({
-    currentSong: song,
-    hasAudio: true,
-    isPlaying: status.isLoaded ? status.isPlaying : options.shouldPlay,
-    isBuffering: status.isLoaded ? Boolean(status.isBuffering) && !status.isPlaying : options.shouldPlay,
-    audioError: null,
-    position: status.isLoaded
-      ? Math.floor((status.positionMillis || 0) / 1000)
-      : Math.floor((options.positionMillis ?? 0) / 1000),
-    duration: status.isLoaded
-      ? Math.max(1, Math.floor((status.durationMillis || 0) / 1000))
-      : song.durationSeconds,
+    hasAudio: false,
+    isPlaying: false,
+    isBuffering: false,
+    audioError: "Could not start audio on this device.",
   })
-  if (options.shouldPlay) {
-    prefetchNextInQueue(song.number, usePlayerStore.getState().queue)
-  }
 }
 
 async function openAndPlay(song: MockSong, queue: number[] | undefined, id: number) {

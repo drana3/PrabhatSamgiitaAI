@@ -11,6 +11,10 @@ from app.core.urls import validate_external_media_url
 # Mobile AVPlayer and strict TLS clients fail; proxy through our API until hosting is fixed.
 BROKEN_TLS_MEDIA_HOSTS = frozenset({"prabhatasamgiita.net", "www.prabhatasamgiita.net"})
 
+MEDIA_FETCH_USER_AGENT = (
+    "Mozilla/5.0 (compatible; PrabhatSamgiitaAI/1.0; +https://www.prabhatasamgiita.org)"
+)
+
 
 def upstream_tls_verify(url: str) -> bool:
     hostname = (urlparse(url).hostname or "").lower().rstrip(".")
@@ -41,7 +45,7 @@ async def stream_allowed_media(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Media URL is not allowed") from exc
 
-    headers: dict[str, str] = {}
+    headers: dict[str, str] = {"User-Agent": MEDIA_FETCH_USER_AGENT}
     if range_header:
         headers["Range"] = range_header
 
@@ -58,6 +62,14 @@ async def stream_allowed_media(
         await client.aclose()
         detail = body.decode("utf-8", "replace")[:200]
         raise HTTPException(status_code=response.status_code, detail=detail)
+
+    content_type = (response.headers.get("content-type") or "").lower()
+    if "text/html" in content_type:
+        body = await response.aread()
+        await response.aclose()
+        await client.aclose()
+        detail = body.decode("utf-8", "replace")[:200]
+        raise HTTPException(status_code=502, detail=f"Upstream returned HTML: {detail}")
 
     out_headers: dict[str, str] = {}
     for key in ("content-type", "content-length", "content-range", "accept-ranges"):

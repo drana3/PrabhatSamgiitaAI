@@ -209,14 +209,25 @@ def test_catalog_default_audio_is_the_best_available_take() -> None:
         if has_current:
             assert not media_is_older(chosen)
             assert not media_is_low_quality(chosen)
-        has_official_current = any(
-            item.provider == "official"
+        from app.services.media_quality import requires_broken_tls_proxy
+
+        has_direct_current = any(
+            not requires_broken_tls_proxy(item.url)
             and not media_is_older(item)
             and not media_is_low_quality(item)
             for item in items
         )
-        if has_official_current:
-            assert chosen.provider == "official"
+        if has_direct_current:
+            assert not requires_broken_tls_proxy(chosen.url)
+        else:
+            has_official_current = any(
+                item.provider == "official"
+                and not media_is_older(item)
+                and not media_is_low_quality(item)
+                for item in items
+            )
+            if has_official_current:
+                assert chosen.provider == "official"
 
 
 def test_canonical_inventory_titles_are_not_truncated() -> None:
