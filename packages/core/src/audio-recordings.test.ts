@@ -5,6 +5,7 @@ import {
   compareAudioQuality,
   markLatestAudio,
   resolvePreferredAudioUrl,
+  unwrapArchiveAudioUrl,
 } from "./audio-recordings"
 
 describe("audio recording freshness", () => {
@@ -59,6 +60,15 @@ describe("audio recording freshness", () => {
     const oldPrimary = { ...old, is_primary: true }
     const ranked = [oldPrimary, current].sort(compareAudioQuality)
     expect(ranked[0]?.url).toBe(current.url)
+  })
+
+  it("unwraps API media proxy URLs to direct archive MP3s", () => {
+    const proxy =
+      "https://prabhatai-api.example.test/api/v1/media/stream?url=https%3A%2F%2Fprabhatasamgiita.net%2F1-999%2F1.mp3"
+    expect(unwrapArchiveAudioUrl(proxy)).toBe("https://prabhatasamgiita.net/1-999/1.mp3")
+    expect(unwrapArchiveAudioUrl("https://prabhatasamgiita.net/1-999/1.mp3")).toBe(
+      "https://prabhatasamgiita.net/1-999/1.mp3",
+    )
   })
 
   it("ranks direct archive streams ahead of legacy proxy URLs", () => {

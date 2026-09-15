@@ -51,6 +51,21 @@ export function isBrokenArchiveProxy(url: string): boolean {
   return /\/api\/v1\/media\/stream\?/i.test(url)
 }
 
+/** Play archive MP3s directly on device; API proxy URLs fail from Azure datacenter IPs. */
+export function unwrapArchiveAudioUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed || !isBrokenArchiveProxy(trimmed)) return trimmed
+  try {
+    const parsed = new URL(trimmed)
+    const upstream = parsed.searchParams.get("url")
+    if (!upstream) return trimmed
+    const decoded = upstream.includes("%") ? decodeURIComponent(upstream) : upstream
+    return /^https?:\/\//i.test(decoded) ? decoded : trimmed
+  } catch {
+    return trimmed
+  }
+}
+
 export function audioQualityKey(
   item: AudioSourceLike,
 ): [number, number, number, number, number, number, string] {

@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as FileSystem from "expo-file-system/legacy"
 import { create } from "zustand"
 
+import { unwrapArchiveAudioUrl } from "@prabhat/core"
+
 import { api } from "@/lib/client"
 import { favoritesScopeKey } from "@/lib/favoritesScope"
 import { songDetailToMockSong } from "@/lib/songMap"
@@ -39,9 +41,12 @@ export function offlineAudioScopeKey(auth: AuthSnapshot) {
   return favoritesScopeKey(auth)
 }
 
+const FINALIZING_RATIO = 0.99
+
 export function offlineSaveControls(input: {
   mode: "guest" | "signed_in"
   downloaded: boolean
+  downloading?: boolean
   progress?: number
   error?: string | null
 }) {
@@ -50,21 +55,31 @@ export function offlineSaveControls(input: {
       visible: false,
       badge: false,
       showError: false,
+      downloading: false,
       label: "",
       bufferingLabel: "Starting stream…",
     }
   }
-  const downloading = input.progress != null
+  const downloading = input.downloading ?? (input.progress != null && !input.downloaded)
+  const ratio = input.progress ?? 0
+  let label = "Save in this app"
+  if (downloading) {
+    label =
+      ratio >= FINALIZING_RATIO
+        ? "Saving offline…"
+        : ratio > 0
+          ? `Saving… ${Math.round(ratio * 100)}%`
+          : "Saving…"
+  } else if (input.downloaded) {
+    label = "Remove from this app"
+  }
   return {
     visible: true,
     badge: input.downloaded && !downloading,
     showError: Boolean(input.error),
-    label: downloading
-      ? `Downloading ${Math.round((input.progress ?? 0) * 100)}%`
-      : input.downloaded
-        ? "Remove from this app"
-        : "Save in this app",
-    bufferingLabel: input.downloaded ? "Opening downloaded audio…" : "Starting stream…",
+    downloading,
+    label,
+    bufferingLabel: input.downloaded ? "Opening saved audio…" : "Starting stream…",
   }
 }
 
@@ -79,6 +94,76 @@ function indexKey(scope: string) {
 
 function normalizeUrl(url: string | null | undefined): string {
   return url?.trim() || ""
+}
+
+function canonicalAudioUrl(url: string | null | undefined): string {
+  const trimmed = normalizeUrl(url)
+  return trimmed ? unwrapArchiveAudioUrl(trimmed) : ""
+}
+
+const lastProgressAt: Record<string, number> = {}
+const downloadEpoch: Record<string, number> = {}
+const inflight = new Map<string, { cancelAsync: () => Promise<void> }>()
+const pendingMeta = new Map<
+  string,
+  { fileUri: string; songNumber: number; scope: string; epoch: number }
+>()
+const STUCK_PROGRESS_MS = 20_000
+const FINALIZE_POLL_MS = 400
+
+/** Canonical offline key — use for every files/progress lookup in UI and store. */
+export function normalizeOfflineUrl(url: string | null | undefined) {
+  return normalizeUrl(url)
+}
+
+export function isOfflineTransferActive(url: string | null | undefined) {
+  const key = normalizeOfflineUrl(url)
+  if (!key) return false
+  return inflight.has(key) || pendingMeta.has(key)
+}
+
+export function offlineRecordingState(
+  url: string | null | undefined,
+  snapshot: {
+    files: Record<string, OfflineAudioEntry>
+    progress: Record<string, number>
+    errors: Record<string, string>
+  },
+) {
+  const key = normalizeOfflineUrl(url)
+  const downloaded = Boolean(key && snapshot.files[key])
+  const progress = key ? snapshot.progress[key] : undefined
+  const error = key ? snapshot.errors[key] : undefined
+  const active = key ? isOfflineTransferActive(key) : false
+  const downloading = Boolean(key && !downloaded && active)
+  return { key, downloaded, downloading, progress, error, fileUri: key ? snapshot.files[key]?.fileUri : undefined }
+}
+
+function sweepStaleProgress() {
+  const state = useOfflineAudioStore.getState()
+  const next = { ...state.progress }
+  let changed = false
+  const now = Date.now()
+  for (const [url, ratio] of Object.entries(next)) {
+    if (state.files[url]) {
+      delete next[url]
+      delete lastProgressAt[url]
+      changed = true
+      continue
+    }
+    if (isOfflineTransferActive(url)) continue
+    const age = now - (lastProgressAt[url] ?? 0)
+    if (age > STUCK_PROGRESS_MS || (ratio === 0 && age > 4_000)) {
+      delete next[url]
+      delete lastProgressAt[url]
+      changed = true
+    }
+  }
+  if (changed) useOfflineAudioStore.setState({ progress: next })
+}
+
+export function reconcileOfflineProgress() {
+  sweepStaleProgress()
 }
 
 /** Stable short hash of a URL so different recordings of one song get distinct files. */
@@ -140,9 +225,32 @@ async function fileExists(uri: string) {
   }
 }
 
-const lastProgressAt: Record<string, number> = {}
-const downloadEpoch: Record<string, number> = {}
-const inflight = new Map<string, { cancelAsync: () => Promise<void> }>()
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fileReady(uri: string, allowEmpty = false) {
+  try {
+    const info = await FileSystem.getInfoAsync(uri)
+    if (!info.exists || info.isDirectory) return false
+    if (!("size" in info)) return allowEmpty
+    return allowEmpty ? info.size >= 0 : info.size > 0
+  } catch {
+    return false
+  }
+}
+
+async function waitForFileReady(fileUri: string, url: string, epoch: number, timeoutMs = 90_000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (downloadEpoch[url] !== epoch) return null
+    if (await fileReady(fileUri)) {
+      return { status: 200, uri: fileUri }
+    }
+    await sleep(FINALIZE_POLL_MS)
+  }
+  return null
+}
 
 function bumpEpoch(url: string) {
   downloadEpoch[url] = (downloadEpoch[url] ?? 0) + 1
@@ -150,12 +258,33 @@ function bumpEpoch(url: string) {
 }
 
 function setDownloadProgress(url: string, ratio: number) {
+  const clamped = Math.min(1, Math.max(0, ratio))
   const now = Date.now()
-  if (ratio < 1 && now - (lastProgressAt[url] ?? 0) < 250) return
+  if (clamped < FINALIZING_RATIO && now - (lastProgressAt[url] ?? 0) < 250) return
   lastProgressAt[url] = now
   useOfflineAudioStore.setState((state) => ({
-    progress: { ...state.progress, [url]: Math.min(1, Math.max(0, ratio)) },
+    progress: { ...state.progress, [url]: clamped },
   }))
+  if (clamped >= FINALIZING_RATIO) {
+    void attemptEarlyComplete(url)
+  }
+}
+
+async function attemptEarlyComplete(url: string) {
+  const meta = pendingMeta.get(url)
+  if (!meta || downloadEpoch[url] !== meta.epoch) return
+  if (!(await fileReady(meta.fileUri, true))) return
+  if (downloadEpoch[url] !== meta.epoch) return
+  useOfflineAudioStore.setState((state) => ({
+    files: {
+      ...state.files,
+      [url]: { remoteUrl: url, fileUri: meta.fileUri, songNumber: meta.songNumber },
+    },
+  }))
+  clearProgress(url)
+  pendingMeta.delete(url)
+  inflight.delete(url)
+  await persistCurrent(meta.scope)
 }
 
 function clearProgress(url: string) {
@@ -184,6 +313,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
     )
     set({ ready: true, files, errors: {}, progress: {} })
     await persistCurrent(scope)
+    sweepStaleProgress()
   },
 
   download: async (remoteUrl, songNumber, options) => {
@@ -195,10 +325,10 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
 
     const scope = offlineAudioScopeKey(auth)
 
-    let url = normalizeUrl(remoteUrl)
+    let url = canonicalAudioUrl(remoteUrl)
     if (!url) {
       const detail = await api.fetchSong(songNumber)
-      url = detail ? normalizeUrl(songDetailToMockSong(detail).audioUrl) : ""
+      url = detail ? canonicalAudioUrl(songDetailToMockSong(detail).audioUrl) : ""
     }
     if (!url) {
       throw new Error("No in-app audio is available to download for this song yet.")
@@ -206,13 +336,14 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
     if (!/^https?:\/\//i.test(url)) {
       throw new Error("This recording cannot be saved in the app.")
     }
-    if (get().progress[url] != null) return
+    const inFlightProgress = get().progress[url]
+    if (inFlightProgress != null) {
+      const stuckFor = Date.now() - (lastProgressAt[url] ?? 0)
+      if (stuckFor < STUCK_PROGRESS_MS) return
+      clearProgress(url)
+    }
 
     const epoch = bumpEpoch(url)
-    set((state) => ({
-      progress: { ...state.progress, [url]: 0 },
-      errors: { ...state.errors, [url]: "" },
-    }))
 
     try {
       const existing = get().files[url]
@@ -224,6 +355,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
 
       await FileSystem.makeDirectoryAsync(offlineDir(scope), { intermediates: true })
       const fileUri = destinationUri(scope, songNumber, url)
+      pendingMeta.set(url, { fileUri, songNumber, scope, epoch })
       const sessionType = FileSystem.FileSystemSessionType?.BACKGROUND
       const task = FileSystem.createDownloadResumable(
         url,
@@ -236,7 +368,18 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         },
       )
       inflight.set(url, task)
-      const result = await task.downloadAsync()
+      lastProgressAt[url] = Date.now()
+      set((state) => ({
+        progress: { ...state.progress, [url]: state.progress[url] ?? 0 },
+        errors: { ...state.errors, [url]: "" },
+      }))
+      let result = await Promise.race([
+        task.downloadAsync().catch(() => null),
+        waitForFileReady(fileUri, url, epoch),
+      ])
+      if (!result) {
+        result = await waitForFileReady(fileUri, url, epoch, 15_000)
+      }
       inflight.delete(url)
       if (downloadEpoch[url] !== epoch) {
         try {
@@ -247,7 +390,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         return
       }
       if (!result || result.status >= 400) {
-        throw new Error("Download failed. Try again on a stronger connection.")
+        throw new Error("Save failed. Try again on a stronger connection.")
       }
       set((state) => ({
         files: {
@@ -256,16 +399,21 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         },
       }))
       clearProgress(url)
+      pendingMeta.delete(url)
       await persistCurrent(scope)
     } catch (error) {
       inflight.delete(url)
+      pendingMeta.delete(url)
       if (downloadEpoch[url] !== epoch) return
       clearProgress(url)
-      const message = error instanceof Error ? error.message : "Download failed."
+      const message = error instanceof Error ? error.message : "Save failed."
       set((state) => ({
         errors: { ...state.errors, [url]: message },
       }))
       throw error
+    } finally {
+      pendingMeta.delete(url)
+      sweepStaleProgress()
     }
   },
 
@@ -273,6 +421,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
     const url = normalizeUrl(remoteUrl)
     if (!url) return
     bumpEpoch(url)
+    pendingMeta.delete(url)
     const task = inflight.get(url)
     inflight.delete(url)
     if (task) {
@@ -326,9 +475,11 @@ export async function resolvePlaybackUri(
   remoteUrl?: string | null,
 ): Promise<{ uri: string; local: boolean } | null> {
   const signedIn = useAuthStore.getState().mode === "signed_in"
-  const remote = normalizeUrl(remoteUrl)
-  if (signedIn && remote) {
-    const entry = useOfflineAudioStore.getState().files[remote]
+  const remote = canonicalAudioUrl(remoteUrl)
+  const legacyKey = normalizeUrl(remoteUrl)
+  if (signedIn && (remote || legacyKey)) {
+    const files = useOfflineAudioStore.getState().files
+    const entry = (remote && files[remote]) || (legacyKey && files[legacyKey])
     if (entry && (await fileExists(entry.fileUri))) {
       return { uri: entry.fileUri, local: true }
     }

@@ -2,6 +2,8 @@
  * Keep media playback inside the app — never send users to YouTube/search pages.
  */
 
+import { compareAudioQuality, unwrapArchiveAudioUrl } from "@prabhat/core"
+
 const YOUTUBE_ID =
   /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i
 
@@ -57,20 +59,11 @@ export type PlayableAudio = {
 }
 
 function audioStreamUrl(item: MediaLike): string | null {
-  const url = item.url?.trim() || item.embed_url?.trim() || ""
-  if (!url) return null
+  const raw = item.url?.trim() || item.embed_url?.trim() || ""
+  if (!raw) return null
+  const url = unwrapArchiveAudioUrl(raw)
   if (/youtube\.com\/results|youtube\.com\/watch|youtu\.be\//i.test(url)) return null
   return url
-}
-
-function audioRank(item: MediaLike) {
-  let rank = 0
-  if (item.verification_status.includes("verified")) rank += 2
-  if (item.provider === "official") rank += 1
-  const url = item.url?.trim() || ""
-  if (/\/api\/v1\/media\/stream\?/i.test(url)) rank -= 4
-  if (/sarkarverse\.org|psplayer\.org/i.test(url)) rank += 3
-  return rank
 }
 
 /** Direct audio streams, preferred recording first. YouTube stays on Watch. */
@@ -78,7 +71,7 @@ export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
   const ranked = media
     .filter((item) => item.kind === "audio" || item.provider === "direct_audio")
     .slice()
-    .sort((left, right) => audioRank(right) - audioRank(left))
+    .sort(compareAudioQuality)
   const seen = new Set<string>()
   const items: PlayableAudio[] = []
   for (const item of ranked) {
