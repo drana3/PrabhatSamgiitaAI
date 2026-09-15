@@ -45,7 +45,6 @@
       "expo-font",
       "expo-file-system",
       "expo-web-browser",
-      "expo-apple-authentication",
       "expo-av",
       [
         "@react-native-google-signin/google-signin",
