@@ -7,9 +7,8 @@ from fastapi import HTTPException
 
 from app.core.urls import validate_external_media_url
 
-# Official archive MP3s are slow from browsers; stream through our API for faster range reads.
-# stream_allowed_media() rejects HTML if upstream bot protection misbehaves.
-ARCHIVE_STREAM_HOSTS = frozenset({"prabhatasamgiita.net", "www.prabhatasamgiita.net"})
+# Do not proxy prabhatasamgiita.net archive MP3s through Azure: LiteSpeed bot protection
+# serves a JS challenge HTML page to datacenter IPs. Browsers fetch audio/mpeg directly.
 BROKEN_TLS_MEDIA_HOSTS: frozenset[str] = frozenset()
 
 MEDIA_FETCH_USER_AGENT = (
@@ -30,7 +29,7 @@ def proxied_media_url(url: str | None, *, api_base_url: str) -> str | None:
     except ValueError:
         return url
     hostname = (urlparse(validated).hostname or "").lower().rstrip(".")
-    if hostname in ARCHIVE_STREAM_HOSTS or hostname in BROKEN_TLS_MEDIA_HOSTS:
+    if hostname in BROKEN_TLS_MEDIA_HOSTS:
         base = api_base_url.rstrip("/")
         return f"{base}/api/v1/media/stream?url={quote(validated, safe='')}"
     return validated
