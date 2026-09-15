@@ -37,7 +37,7 @@ export function SongListenPanel({
 
   return (
     <div className="space-y-4">
-      <AudioRendition key={selected.url} url={selected.url} title={title} provider={selected.provider} />
+      <AudioRendition key={selected.url} warmStream url={selected.url} title={title} provider={selected.provider} />
       {showList ? (
         <details className="rounded-2xl border border-navy-900/10 bg-white p-4">
           <summary className="cursor-pointer text-sm font-semibold text-gold-700">

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { trackEvent } from "@/lib/analytics"
+import { bindExclusiveAudioPlayback } from "@/lib/exclusive-audio-playback"
 import { useMember } from "@/components/member-provider"
 
 function controlsList(signedIn: boolean) {
@@ -14,15 +15,25 @@ export function AudioRendition({
   title,
   provider,
   featured = false,
+  warmStream = false,
 }: {
   url: string
   title: string
   provider?: string
   featured?: boolean
+  /** Preload duration only on the primary player so playback starts faster without downloading the full file. */
+  warmStream?: boolean
 }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
   const { loading, session } = useMember()
   const allowDownload = !loading && session.authenticated
   const [loadError, setLoadError] = useState(false)
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    return bindExclusiveAudioPlayback(audio)
+  }, [url])
 
   return (
     <article
@@ -38,11 +49,12 @@ export function AudioRendition({
         <span className="text-gold-700">♪</span>
       </div>
       <audio
+        ref={audioRef}
         key={url}
         aria-label={`Listen to ${title}`}
         controls
         controlsList={controlsList(allowDownload)}
-        preload="none"
+        preload={warmStream ? "metadata" : "none"}
         src={url}
         onPlay={() => trackEvent("feature_use", "audio_play")}
         onError={() => setLoadError(true)}

@@ -26,13 +26,18 @@ describe("authenticated audio controls", () => {
     expect(screen.getByText("Verified recording")).toBeInTheDocument()
   })
 
-  it("uses native browser controls with preload none for streaming", () => {
-    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" />)
+  it("uses native browser controls with metadata preload on the primary player", () => {
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" warmStream />)
 
     const player = screen.getByLabelText("Listen to Song 8")
     expect(player).toHaveAttribute("controls")
-    expect(player).toHaveAttribute("preload", "none")
+    expect(player).toHaveAttribute("preload", "metadata")
     expect(screen.getByText("Verified recording")).toBeInTheDocument()
+  })
+
+  it("defers network fetch on secondary players until play", () => {
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" />)
+    expect(screen.getByLabelText("Listen to Song 8")).toHaveAttribute("preload", "none")
   })
 
   it("shows a helpful message when the recording fails to load", () => {

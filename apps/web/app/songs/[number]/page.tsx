@@ -58,7 +58,6 @@ export default async function SongPage({ params, searchParams }: { params: Promi
 
   return (
     <main className="min-h-screen bg-ivory-100 pb-24 md:pb-0">
-      <link rel="preconnect" href="https://prabhatasamgiita.net" crossOrigin="" />
       <HashLanding />
       <SiteHeader active="Explore" />
       <div className="mx-auto max-w-[90rem] px-4 py-4 sm:px-6 sm:py-6 lg:px-10">
