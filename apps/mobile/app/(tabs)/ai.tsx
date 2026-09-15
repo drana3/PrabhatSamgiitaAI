@@ -28,6 +28,7 @@ import type { MockSong } from "@/data/mock"
 import {
   formatAssistantMessage,
   generalCompanionSuggestions,
+  companionQuotaBadgeLabel,
   remainingCompanionSuggestions,
   companionLeaveAction,
   resolveExplainSongNumber,
@@ -35,6 +36,7 @@ import {
   validatePrompt,
 } from "@/lib/chat"
 import { api } from "@/lib/client"
+import { getCachedMemberEmail, hydrateLocalMemberEmail } from "@/lib/memberEmail"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
@@ -69,7 +71,9 @@ export default function AIScreen() {
   const [focusSong, setFocusSong] = useState<MockSong | null>(null)
   const mode = useAuthStore((s) => s.mode)
   const email = useAuthStore((s) => s.email)
+  const memberId = useAuthStore((s) => s.memberId)
   const memberBackend = useAuthStore((s) => s.memberBackend)
+  const identityProvider = useAuthStore((s) => s.identityProvider)
   const currentSong = usePlayerStore((s) => s.currentSong)
   const companionSong = focusSong ?? (focusedSongNumber ? null : currentSong)
   const groundedNumber = companionSong?.number ?? focusedSongNumber
@@ -131,6 +135,22 @@ export default function AIScreen() {
     () => remainingCompanionSuggestions(suggestions, askedTexts),
     [suggestions, askedTexts],
   )
+  const quotaBadge = useMemo(
+    () =>
+      companionQuotaBadgeLabel({
+        signedIn: mode === "signed_in",
+        memberAuthReady: memberAuthAvailable(),
+        memberId,
+        email,
+        cachedEmail: getCachedMemberEmail(),
+      }),
+    [mode, memberId, email],
+  )
+
+  useEffect(() => {
+    if (mode !== "signed_in") return
+    void hydrateLocalMemberEmail()
+  }, [mode, memberId, identityProvider])
 
   const leaveCompanion = () => {
     const action = companionLeaveAction(focusedSongNumber, router.canGoBack())
@@ -225,6 +245,10 @@ export default function AIScreen() {
     if (!assistantId) return
     setDraft("")
     setSending(true)
+
+    if (mode === "signed_in") {
+      await hydrateLocalMemberEmail()
+    }
 
     const history = messages
       .slice(-12)
@@ -346,6 +370,7 @@ export default function AIScreen() {
               <AIWelcomeCard
                 songNumber={groundedNumber}
                 songTitle={companionSong?.title ?? null}
+                quotaBadge={quotaBadge}
               />
               <Text style={styles.section}>
                 {groundedNumber ? `Ask about PS ${groundedNumber}` : "Suggested for you"}
@@ -356,6 +381,7 @@ export default function AIScreen() {
             </>
           ) : (
             <View style={styles.thread}>
+              <Text style={styles.quotaBadge}>{quotaBadge}</Text>
               {messages.map((msg) => {
                 // Skip empty assistant placeholder — status is shown once in the composer hint.
                 if (msg.role === "assistant" && !msg.text.trim()) return null
@@ -617,6 +643,18 @@ const styles = StyleSheet.create({
   thread: {
     gap: spacing.md,
     paddingTop: spacing.md,
+  },
+  quotaBadge: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    textAlign: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+    alignSelf: "center",
   },
   followUps: {
     marginTop: spacing.sm,

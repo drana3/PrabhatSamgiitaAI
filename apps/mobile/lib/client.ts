@@ -2,8 +2,7 @@ import Constants from "expo-constants"
 import { Platform } from "react-native"
 import { createApiClient } from "@prabhat/core"
 
-import { buildMemberAuthHeaders } from "@/lib/memberAuth"
-import { useAuthStore } from "@/stores/authStore"
+import { authHeadersFromStore } from "@/lib/memberAuth"
 
 const productionApi =
   "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
@@ -25,17 +24,7 @@ export const apiBaseUrl =
 
 export const api = createApiClient({
   baseUrl: apiBaseUrl,
-  getAuthHeaders: (): Record<string, string> => {
-    const { mode, email, displayName, memberId, identityProvider } = useAuthStore.getState()
-    // Member sync must work with OID alone — Microsoft sometimes omits email claims.
-    if (mode !== "signed_in" || (!email && !memberId)) return {}
-    return buildMemberAuthHeaders(
-      email ?? "",
-      displayName || email || "Member",
-      memberId,
-      identityProvider || "aad",
-    )
-  },
+  getAuthHeaders: (): Record<string, string> => authHeadersFromStore(),
 })
 
 export { colors, spacing, radii, typography } from "@prabhat/core"

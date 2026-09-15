@@ -21,9 +21,11 @@ import { useAuthStore } from "@/stores/authStore"
 export function AIWelcomeCard({
   songNumber,
   songTitle,
+  quotaBadge,
 }: {
   songNumber?: number | null
   songTitle?: string | null
+  quotaBadge?: string | null
 }) {
   const rawDisplayName = useAuthStore((s) => s.displayName)
   const email = useAuthStore((s) => s.email)
@@ -47,12 +49,13 @@ export function AIWelcomeCard({
       <Animated.View style={[styles.logoGlow, animatedStyle]}>
         <Image source={brandAssets.emblemClear} style={styles.logo} contentFit="contain" />
       </Animated.View>
-      <Text style={styles.hello}>Namaskar {displayName},</Text>
+      <Text style={styles.hello}>{displayName ? `Namaskar ${displayName},` : "Namaskar,"}</Text>
       <Text style={styles.subtitle}>
         {songNumber
           ? `Ask anything about PS ${songNumber}${songTitle ? ` — ${songTitle}` : ""}. Answers stay grounded on this song.`
           : "Ask about a song number, meaning, or theme — or open a song first for grounded answers."}
       </Text>
+      {quotaBadge ? <Text style={styles.quotaBadge}>{quotaBadge}</Text> : null}
     </View>
   )
 }
@@ -108,6 +111,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: spacing.sm,
     maxWidth: 300,
+  },
+  quotaBadge: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    textAlign: "center",
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+    overflow: "hidden",
   },
   suggestion: {
     flexDirection: "row",

@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
+import {
+  authHeadersForIdentity,
+  resolveMemberAuthIdentity,
+} from "@/lib/memberAuthIdentity"
 import { buildClientPrincipal, buildMemberAuthHeaders } from "@/lib/principal"
+
+vi.mock("@/lib/memberEmail", () => ({
+  getCachedMemberEmail: () => "cached@privaterelay.appleid.com",
+}))
 
 describe("member preview auth", () => {
   it("builds an Azure-compatible base64 principal", () => {
@@ -58,5 +66,29 @@ describe("member preview auth", () => {
     ) as { claims: Array<{ typ: string; val: string }> }
     const oid = payload.claims.find((claim) => claim.typ.includes("objectidentifier"))
     expect(oid?.val).toBe("11111111-2222-3333-4444-555555555555")
+  })
+
+  it("resolves signed-in Apple identity from OID plus cached relay email", () => {
+    const identity = resolveMemberAuthIdentity({
+      mode: "signed_in",
+      email: null,
+      displayName: "Member",
+      memberId: "apple-user-1",
+      identityProvider: "apple",
+    })
+    const headers = authHeadersForIdentity(
+      {
+        mode: "signed_in",
+        email: null,
+        displayName: "Member",
+        memberId: "apple-user-1",
+        identityProvider: "apple",
+      },
+      "proxy-key",
+    )
+    expect(identity?.memberId).toBe("apple-user-1")
+    expect(identity?.email).toBe("cached@privaterelay.appleid.com")
+    expect(headers["X-Member-Proxy-Key"]).toBe("proxy-key")
+    expect(headers["X-MS-CLIENT-PRINCIPAL"]).toBeTruthy()
   })
 })

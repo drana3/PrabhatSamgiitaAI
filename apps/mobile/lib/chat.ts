@@ -39,6 +39,38 @@ export function generalCompanionSuggestions(): string[] {
   ]
 }
 
+export const AI_COMPANION_GUEST_DAILY_LIMIT = 15
+export const AI_COMPANION_MEMBER_DAILY_LIMIT = 50
+
+/** Matches API guest vs member daily deeper-question limits (see ai_quota.py). */
+export function companionReceivesMemberQuota(input: {
+  signedIn: boolean
+  memberAuthReady: boolean
+  memberId?: string | null
+  email?: string | null
+  cachedEmail?: string | null
+}) {
+  const effectiveEmail = (input.email || input.cachedEmail || "").trim()
+  return (
+    input.signedIn &&
+    input.memberAuthReady &&
+    Boolean((input.memberId || "").trim() || effectiveEmail)
+  )
+}
+
+export function companionQuotaBadgeLabel(input: {
+  signedIn: boolean
+  memberAuthReady: boolean
+  memberId?: string | null
+  email?: string | null
+  cachedEmail?: string | null
+}) {
+  if (companionReceivesMemberQuota(input)) {
+    return `Signed in · ${AI_COMPANION_MEMBER_DAILY_LIMIT} Deeper QA`
+  }
+  return `Guest · ${AI_COMPANION_GUEST_DAILY_LIMIT} Deeper QA`
+}
+
 /** Unused starters stay visible after one tap; follow-ups appear once a chat has started. */
 export function remainingCompanionSuggestions(starters: string[], askedTexts: string[]): string[] {
   const asked = new Set(

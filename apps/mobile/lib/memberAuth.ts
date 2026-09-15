@@ -1,9 +1,18 @@
 import Constants from "expo-constants"
 import { Platform } from "react-native"
 
+import {
+  authHeadersForIdentity,
+  memberQuotaApplies as memberQuotaAppliesFor,
+  resolveMemberAuthIdentity,
+  type MemberAuthSnapshot,
+} from "@/lib/memberAuthIdentity"
 import { buildMemberAuthHeaders as buildHeaders } from "@/lib/principal"
+import { useAuthStore } from "@/stores/authStore"
 
 export { buildClientPrincipal } from "@/lib/principal"
+export type { MemberAuthSnapshot } from "@/lib/memberAuthIdentity"
+export { resolveMemberAuthIdentity } from "@/lib/memberAuthIdentity"
 
 function extraValue(key: string): string | undefined {
   const extra = Constants.expoConfig?.extra
@@ -20,6 +29,17 @@ export function memberProxyKey(): string | undefined {
 
 export function memberAuthAvailable() {
   return Boolean(memberProxyKey())
+}
+
+/** Headers for /members/* and /ai/explain — empty when guest or member sync is unavailable. */
+export function authHeadersFromStore(state?: MemberAuthSnapshot): Record<string, string> {
+  const snapshot = state ?? useAuthStore.getState()
+  return authHeadersForIdentity(snapshot, memberProxyKey())
+}
+
+export function memberQuotaApplies(state?: MemberAuthSnapshot) {
+  const snapshot = state ?? useAuthStore.getState()
+  return memberQuotaAppliesFor(snapshot, memberProxyKey())
 }
 
 export function memberSyncUnavailableCopy() {

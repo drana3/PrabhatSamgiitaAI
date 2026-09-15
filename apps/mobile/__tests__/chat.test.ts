@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   formatAssistantMessage,
   generalCompanionSuggestions,
+  companionQuotaBadgeLabel,
+  companionReceivesMemberQuota,
   remainingCompanionSuggestions,
   companionLeaveAction,
   resolveExplainSongNumber,
@@ -56,5 +58,39 @@ describe("mobile AI chat helpers", () => {
     expect(companionLeaveAction(2256, true)).toEqual({ type: "back" })
     expect(companionLeaveAction(2256, false)).toEqual({ type: "song", number: 2256 })
     expect(companionLeaveAction(null, true)).toEqual({ type: "home" })
+  })
+
+  it("labels guest vs signed-in daily deeper-question limits", () => {
+    expect(
+      companionQuotaBadgeLabel({
+        signedIn: false,
+        memberAuthReady: true,
+      }),
+    ).toBe("Guest · 15 Deeper QA")
+    expect(
+      companionQuotaBadgeLabel({
+        signedIn: true,
+        memberAuthReady: true,
+        memberId: "oid-1",
+        email: "member@example.com",
+      }),
+    ).toBe("Signed in · 50 Deeper QA")
+    expect(
+      companionReceivesMemberQuota({
+        signedIn: true,
+        memberAuthReady: true,
+        memberId: "apple-1",
+        email: null,
+      }),
+    ).toBe(true)
+    expect(
+      companionReceivesMemberQuota({
+        signedIn: true,
+        memberAuthReady: true,
+        memberId: null,
+        email: null,
+        cachedEmail: "member@privaterelay.appleid.com",
+      }),
+    ).toBe(true)
   })
 })
