@@ -251,18 +251,20 @@ function NativeAudio({
   title,
   allowDownload,
   className,
+  warmStream = false,
 }: {
   url: string
   title: string
   allowDownload: boolean
   className?: string
+  warmStream?: boolean
 }) {
   return (
     <audio
       aria-label={`Listen to ${title}`}
       controls
       controlsList={controlsList(allowDownload)}
-      preload="none"
+      preload={warmStream ? "metadata" : "none"}
       src={url}
       onPlay={() => trackEvent("feature_use", "audio_play")}
       onContextMenu={(event) => {
@@ -279,12 +281,14 @@ export function AudioRendition({
   provider,
   featured = false,
   compact = false,
+  warmStream = false,
 }: {
   url: string
   title: string
   provider?: string
   featured?: boolean
   compact?: boolean
+  warmStream?: boolean
 }) {
   const { loading, session } = useMember()
   const allowDownload = !loading && session.authenticated
@@ -306,7 +310,7 @@ export function AudioRendition({
         </div>
         <span className="text-gold-700">♪</span>
       </div>
-      <NativeAudio url={url} title={title} allowDownload={allowDownload} className="mt-3 w-full" />
+      <NativeAudio url={url} title={title} allowDownload={allowDownload} warmStream={warmStream} className="mt-3 w-full" />
       {!allowDownload ? (
         <p className="mt-3 text-[10px] text-stone-500">Sign in to enable download from the player menu.</p>
       ) : null}

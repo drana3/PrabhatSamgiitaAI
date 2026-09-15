@@ -42,6 +42,12 @@ describe("authenticated audio controls", () => {
     expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
   })
 
+  it("can preload metadata on the native sidebar player", () => {
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" warmStream />)
+    expect(screen.getByLabelText("Listen to Song 8")).toHaveAttribute("preload", "metadata")
+    expect(screen.getByText("Verified recording")).toBeInTheDocument()
+  })
+
   it("does not offer download to anonymous visitors", () => {
     render(<AudioRendition url="https://example.test/song.mp3" title="Song 1" />)
     expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
