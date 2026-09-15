@@ -26,20 +26,19 @@ describe("authenticated audio controls", () => {
     expect(screen.getByText("Verified recording")).toBeInTheDocument()
   })
 
-  it("shows compact transport controls for the lyrics header player", () => {
-    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" compact />)
+  it("uses native browser controls with preload none for streaming", () => {
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" />)
 
-    expect(screen.getByRole("button", { name: /Play Song 8/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Rewind 10 seconds/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Forward 10 seconds/i })).toBeInTheDocument()
-    expect(screen.getByRole("slider", { name: /Seek through Song 8/i })).toBeInTheDocument()
-    expect(screen.getByRole("slider", { name: /Volume for Song 8/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Mute/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Mute/i })).toHaveAttribute("aria-pressed", "false")
-    fireEvent.click(screen.getByRole("button", { name: /Mute/i }))
-    expect(screen.getByRole("button", { name: /Unmute/i })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.queryByText(/Verified recording/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole("link", { name: "Download audio" })).not.toBeInTheDocument()
+    const player = screen.getByLabelText("Listen to Song 8")
+    expect(player).toHaveAttribute("controls")
+    expect(player).toHaveAttribute("preload", "none")
+    expect(screen.getByText("Verified recording")).toBeInTheDocument()
+  })
+
+  it("shows a helpful message when the recording fails to load", () => {
+    render(<AudioRendition url="https://example.test/song.mp3" title="Song 8" provider="official" />)
+    fireEvent.error(screen.getByLabelText("Listen to Song 8"))
+    expect(screen.getByRole("alert")).toHaveTextContent(/Couldn't load this recording/i)
   })
 
   it("does not offer download to anonymous visitors", () => {

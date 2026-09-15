@@ -9,11 +9,9 @@ import { defaultSongAudioUrl, writePreferredAudio } from "@/lib/preferred-audio"
 export function SongListenPanel({
   songNumber,
   recordings,
-  compact = false,
 }: {
   songNumber: number
   recordings: RankedAudio[]
-  compact?: boolean
 }) {
   const latestUrl = recordings.find((item) => item.isLatest)?.url ?? recordings[0]?.url ?? null
   const [url, setUrl] = useState(latestUrl)
@@ -39,7 +37,7 @@ export function SongListenPanel({
 
   return (
     <div className="space-y-4">
-      <AudioRendition url={selected.url} title={title} provider={selected.provider} compact={compact} />
+      <AudioRendition key={selected.url} url={selected.url} title={title} provider={selected.provider} />
       {showList ? (
         <details className="rounded-2xl border border-navy-900/10 bg-white p-4">
           <summary className="cursor-pointer text-sm font-semibold text-gold-700">
