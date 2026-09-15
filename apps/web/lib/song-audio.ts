@@ -3,6 +3,7 @@ import {
   isLowQualityAudio,
   isOlderAudio,
   markLatestAudio,
+  unwrapArchiveAudioUrl,
   type RankedAudio,
 } from "@prabhat/core"
 
@@ -30,7 +31,7 @@ export function listSongAudio(media: SongMedia[]): RankedAudio[] {
   return markLatestAudio(
     ranked.map((item) => ({
       title: item.title.trim() || "Recording",
-      url: item.url,
+      url: unwrapArchiveAudioUrl(item.url),
       provider: item.provider,
       isOlder: isOlderAudio(item),
       isLowQuality: isLowQualityAudio(item),

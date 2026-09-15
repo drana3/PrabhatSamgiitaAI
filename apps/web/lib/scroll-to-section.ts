@@ -4,11 +4,21 @@ export function stickyHeaderOffset() {
   return sticky?.getBoundingClientRect().height ?? 0
 }
 
+function resolveSectionElement(sectionId: string) {
+  if (sectionId === "listen") {
+    const sidebar = document.getElementById("listen-sidebar")
+    if (sidebar && typeof window.matchMedia === "function" && window.matchMedia("(min-width: 1280px)").matches) {
+      return sidebar
+    }
+  }
+  return document.getElementById(sectionId)
+}
+
 export function scrollToSectionId(
   sectionId: string,
   options?: { extraGap?: number; behavior?: ScrollBehavior },
 ) {
-  const element = document.getElementById(sectionId)
+  const element = resolveSectionElement(sectionId)
   if (!element) return
   const extraGap = options?.extraGap ?? 8
   const top = element.getBoundingClientRect().top + window.scrollY - stickyHeaderOffset() - extraGap

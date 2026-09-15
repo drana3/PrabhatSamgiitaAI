@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { trackEvent } from "@/lib/analytics"
 import { useMember } from "@/components/member-provider"
+import { bindExclusiveAudio } from "@/lib/exclusive-audio"
 
 const skipSeconds = 10
 
@@ -123,6 +124,32 @@ function CompactPlayer({
     audio.volume = muted ? 0 : volume
   }, [muted, volume, url])
 
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    return bindExclusiveAudio(audio)
+  }, [url])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const syncPlaying = () => setPlaying(!audio.paused && !audio.ended)
+    const resumeAfterStall = () => {
+      if (audio.paused || audio.ended) return
+      void audio.play().catch(() => undefined)
+    }
+    audio.addEventListener("play", syncPlaying)
+    audio.addEventListener("pause", syncPlaying)
+    audio.addEventListener("waiting", resumeAfterStall)
+    audio.addEventListener("stalled", resumeAfterStall)
+    return () => {
+      audio.removeEventListener("play", syncPlaying)
+      audio.removeEventListener("pause", syncPlaying)
+      audio.removeEventListener("waiting", resumeAfterStall)
+      audio.removeEventListener("stalled", resumeAfterStall)
+    }
+  }, [url])
+
   function seekBy(deltaSeconds: number) {
     const audio = audioRef.current
     if (!audio || !Number.isFinite(audio.duration)) return
@@ -230,7 +257,7 @@ function CompactPlayer({
       <audio
         ref={audioRef}
         aria-label={`Listen to ${title}`}
-        preload="metadata"
+        preload="auto"
         src={url}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
@@ -259,12 +286,36 @@ function NativeAudio({
   className?: string
   warmStream?: boolean
 }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    return bindExclusiveAudio(audio)
+  }, [url])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const resumeAfterStall = () => {
+      if (audio.paused || audio.ended) return
+      void audio.play().catch(() => undefined)
+    }
+    audio.addEventListener("waiting", resumeAfterStall)
+    audio.addEventListener("stalled", resumeAfterStall)
+    return () => {
+      audio.removeEventListener("waiting", resumeAfterStall)
+      audio.removeEventListener("stalled", resumeAfterStall)
+    }
+  }, [url])
+
   return (
     <audio
+      ref={audioRef}
       aria-label={`Listen to ${title}`}
       controls
       controlsList={controlsList(allowDownload)}
-      preload={warmStream ? "metadata" : "none"}
+      preload={warmStream ? "auto" : "none"}
       src={url}
       onPlay={() => trackEvent("feature_use", "audio_play")}
       onContextMenu={(event) => {

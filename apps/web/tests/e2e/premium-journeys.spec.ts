@@ -382,14 +382,15 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   } else {
     await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
   }
-  const { listenBounds, watchBounds } = await page.evaluate(() => ({
-    listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
+  const listenSelector = testInfo.project.name === "desktop-chromium" ? "#listen-sidebar" : "#listen"
+  const { listenBounds, watchBounds } = await page.evaluate((selector) => ({
+    listenBounds: document.querySelector(selector)?.getBoundingClientRect().toJSON() ?? null,
     watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,
-  }))
+  }), listenSelector)
   expect(listenBounds).not.toBeNull()
   expect(watchBounds).not.toBeNull()
   expect(watchBounds!.y).toBeGreaterThan(listenBounds!.y + listenBounds!.height - 8)
-  const alternateRecordings = page.locator("#listen").getByText(/More recordings \(/)
+  const alternateRecordings = page.locator(listenSelector).getByText(/More recordings \(/)
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 

@@ -45,6 +45,32 @@ describe("scrollToSectionId", () => {
     expect(top).toBeGreaterThan(300)
     expect(stickyHeaderOffset()).toBe(80)
   })
+
+  it("scrolls to the sidebar listen section on desktop", () => {
+    document.body.innerHTML = `
+      <div id="listen">Mobile player</div>
+      <section id="listen-sidebar">Sidebar player</section>
+    `
+    window.scrollTo = vi.fn()
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      matches: query.includes("min-width: 1280px"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    const sidebar = document.getElementById("listen-sidebar")!
+    vi.spyOn(sidebar, "getBoundingClientRect").mockReturnValue({
+      top: 200, left: 0, right: 0, bottom: 300, width: 320, height: 100, x: 0, y: 200, toJSON: () => ({}),
+    })
+
+    scrollToSectionId("listen")
+
+    expect(window.scrollTo).toHaveBeenCalled()
+  })
 })
 
 describe("scrollElementAboveKeyboard", () => {
