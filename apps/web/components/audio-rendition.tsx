@@ -107,21 +107,12 @@ function CompactPlayer({
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
   const [muted, setMuted] = useState(false)
-  const [buffering, setBuffering] = useState(false)
 
   useEffect(() => {
     setPlaying(false)
     setCurrentTime(0)
     setDuration(0)
     setMuted(false)
-    setBuffering(false)
-    const audio = audioRef.current
-    if (!audio) return
-    try {
-      audio.load()
-    } catch {
-      /* jsdom does not implement HTMLMediaElement.load */
-    }
   }, [url])
 
   useEffect(() => {
@@ -155,8 +146,7 @@ function CompactPlayer({
       audio.pause()
       return
     }
-    setBuffering(true)
-    void audio.play().finally(() => setBuffering(false))
+    void audio.play()
   }
 
   function toggleMute() {
@@ -166,12 +156,7 @@ function CompactPlayer({
   const fieldId = title.replace(/\s+/g, "-").toLowerCase()
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-navy-900/10 bg-white px-2 py-2 pr-2.5 shadow-sm">
-      {buffering ? (
-        <p className="mb-1 text-[10px] font-medium text-stone-500" role="status" aria-live="polite">
-          Loading audio…
-        </p>
-      ) : null}
+    <div className="w-full overflow-hidden rounded-xl border border-navy-900/10 bg-white px-2 py-2 pr-2.5 shadow-sm sm:max-w-[20rem]">
       <div className="flex min-w-0 items-center gap-1">
         <div className="flex shrink-0 items-center">
           <IconButton label={`Rewind ${skipSeconds} seconds`} onClick={() => seekBy(-skipSeconds)}>
@@ -245,15 +230,12 @@ function CompactPlayer({
       <audio
         ref={audioRef}
         aria-label={`Listen to ${title}`}
-        preload="auto"
+        preload="metadata"
         src={url}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-        onWaiting={() => setBuffering(true)}
-        onCanPlay={() => setBuffering(false)}
         onPlay={() => {
           setPlaying(true)
-          setBuffering(false)
           trackEvent("feature_use", "audio_play")
         }}
         onPause={() => setPlaying(false)}
@@ -280,7 +262,7 @@ function NativeAudio({
       aria-label={`Listen to ${title}`}
       controls
       controlsList={controlsList(allowDownload)}
-      preload="metadata"
+      preload="none"
       src={url}
       onPlay={() => trackEvent("feature_use", "audio_play")}
       onContextMenu={(event) => {
