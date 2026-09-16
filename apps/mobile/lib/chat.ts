@@ -66,9 +66,9 @@ export function companionQuotaBadgeLabel(input: {
   cachedEmail?: string | null
 }) {
   if (companionReceivesMemberQuota(input)) {
-    return `Signed in · ${AI_COMPANION_MEMBER_DAILY_LIMIT} Deeper QA`
+    return `Profile · ${AI_COMPANION_MEMBER_DAILY_LIMIT} Deeper AI`
   }
-  return `Guest · ${AI_COMPANION_GUEST_DAILY_LIMIT} Deeper QA`
+  return `Guest · ${AI_COMPANION_GUEST_DAILY_LIMIT} Deeper AI`
 }
 
 /** Unused starters stay visible after one tap; follow-ups appear once a chat has started. */

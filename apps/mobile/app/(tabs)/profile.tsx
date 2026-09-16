@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   Alert,
   Modal,
@@ -29,7 +29,13 @@ import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
-import { friendlyPersonName } from "@/lib/displayName"
+import {
+  looksLikeEmail,
+  memberProfileName,
+  profileAvatarInitial,
+} from "@/lib/displayName"
+import { companionQuotaBadgeLabel } from "@/lib/chat"
+import { getCachedMemberEmail, hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
 import {
   HOME_FEED_KEYS,
   readHomeFeedCacheStale,
@@ -111,8 +117,24 @@ export default function ProfileScreen() {
   const router = useRouter()
   const mode = useAuthStore((s) => s.mode)
   const rawDisplayName = useAuthStore((s) => s.displayName)
+  const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
   const email = useAuthStore((s) => s.email)
-  const displayName = friendlyPersonName(rawDisplayName, email)
+  const memberId = useAuthStore((s) => s.memberId)
+  const setMemberEmail = useAuthStore((s) => s.setMemberEmail)
+  const [resolvedEmail, setResolvedEmail] = useState<string | null>(null)
+  const [serverProfile, setServerProfile] = useState<MemberProfile | null>(null)
+  const promptedForName = useRef(false)
+  const effectiveEmail = serverProfile?.email || email || resolvedEmail
+  const profileName = memberProfileName({
+    mode,
+    email: effectiveEmail,
+    displayName: rawDisplayName,
+    displayNameOverridden,
+    serverEmail: serverProfile?.email,
+    serverDisplayName: serverProfile?.display_name,
+  })
+  const displayLabel = profileName || (mode === "signed_in" ? "Tap to add your name" : "Guest")
+  const nameNeedsPrompt = mode === "signed_in" && !profileName
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const memberBackend = useAuthStore((s) => s.memberBackend)
   const identityProvider = useAuthStore((s) => s.identityProvider)
@@ -121,13 +143,17 @@ export default function ProfileScreen() {
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState("")
   const openNameEditor = () => {
-    setNameDraft(displayName === "Guest" ? "" : displayName)
+    setNameDraft(profileName && !looksLikeEmail(profileName) ? profileName : "")
     setEditingName(true)
   }
   const saveName = () => {
     const trimmed = nameDraft.trim()
-    if (trimmed) setDisplayName(trimmed)
+    if (!trimmed) return
+    setDisplayName(trimmed)
     setEditingName(false)
+    if (memberAuthAvailable()) {
+      void api.updateMemberPreferences({ display_name: trimmed }).catch(() => undefined)
+    }
   }
   const savedCount = usePreferencesStore((s) => s.savedSongIds.length)
   const feelingSearchEnabled = usePreferencesStore((s) => s.feelingSearchEnabled)
@@ -139,6 +165,13 @@ export default function ProfileScreen() {
   const getAccountId = useChatStore((s) => s.getAccountId)
   const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
   const accountId = getAccountId(mode, email)
+  const aiQuotaLabel = companionQuotaBadgeLabel({
+    signedIn: mode === "signed_in",
+    memberAuthReady: memberAuthAvailable(),
+    memberId,
+    email: effectiveEmail,
+    cachedEmail: getCachedMemberEmail(),
+  })
 
   const loadQuizCerts = useCallback(async (forceNetwork = false) => {
     if (!memberAuthAvailable()) {
@@ -186,15 +219,34 @@ export default function ProfileScreen() {
         return
       }
       void (async () => {
+        await hydrateLocalMemberEmail()
+        const mail = await resolveMemberEmail({ email, memberId, identityProvider })
+        if (mail) {
+          setResolvedEmail(mail)
+          setMemberEmail(mail)
+        }
+        if (memberAuthAvailable()) {
+          const session = await api.fetchMemberSession()
+          if (session.authenticated) {
+            setServerProfile(session)
+            if (session.email) setMemberEmail(session.email)
+          }
+          await refreshMemberSession()
+          const refreshed = await api.fetchMemberSession()
+          if (refreshed.authenticated) setServerProfile(refreshed)
+        }
         await loadQuizCerts(true)
-        const now = Date.now()
-        if (now - lastProfileSessionRefreshAt < SESSION_REFRESH_TTL_MS) return
-        lastProfileSessionRefreshAt = now
-        await refreshMemberSession()
         await hydrateFavoritesFromServer()
-        await loadQuizCerts(true)
       })()
-    }, [mode, loadQuizCerts, hydrateFavoritesFromServer]),
+    }, [mode, email, memberId, identityProvider, loadQuizCerts, hydrateFavoritesFromServer, setMemberEmail]),
+  )
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!nameNeedsPrompt || promptedForName.current) return
+      promptedForName.current = true
+      openNameEditor()
+    }, [nameNeedsPrompt]),
   )
 
   const quizValue =
@@ -218,11 +270,21 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+            <Text style={styles.avatarText}>
+              {profileAvatarInitial(profileName || rawDisplayName, effectiveEmail, mode)}
+            </Text>
           </View>
           <View style={styles.cardMeta}>
             <View style={styles.nameRow}>
-              <Text style={styles.name}>{displayName}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit name"
+                onPress={openNameEditor}
+                disabled={mode !== "signed_in"}
+                style={({ pressed }) => [styles.namePress, pressed && mode === "signed_in" && { opacity: 0.7 }]}
+              >
+                <Text style={[styles.name, nameNeedsPrompt && styles.namePlaceholder]}>{displayLabel}</Text>
+              </Pressable>
               {mode === "signed_in" ? (
                 <Pressable
                   accessibilityRole="button"
@@ -235,10 +297,15 @@ export default function ProfileScreen() {
                 </Pressable>
               ) : null}
             </View>
-            <Text style={styles.role}>{mode === "guest" ? "Guest explorer" : email}</Text>
+            <Text style={styles.role}>
+              {mode === "guest"
+                ? "Guest explorer"
+                : effectiveEmail || (identityProvider === "apple" ? "Apple account" : "Signed-in account")}
+            </Text>
+            <Text style={styles.stat}>{aiQuotaLabel}</Text>
             {mode === "signed_in" ? (
               <Text style={styles.stat}>
-                {savedCount} saved · {isAdmin ? "Admin" : "Member"}
+                {savedCount} saved · {isAdmin ? "Admin" : "Signed in"}
                 {memberBackend ? " · synced" : ""}
                 {identityProvider ? ` · ${identityProvider}` : ""}
               </Text>
@@ -491,6 +558,7 @@ const styles = StyleSheet.create({
   avatarText: { fontFamily: "Lora_700Bold", fontSize: 28, color: colors.primaryDark },
   cardMeta: { flex: 1 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  namePress: { flexShrink: 1 },
   editNameBtn: {
     width: 30,
     height: 30,
@@ -538,6 +606,7 @@ const styles = StyleSheet.create({
   modalBtnText: { ...typography.label, color: colors.textSecondary },
   modalBtnTextPrimary: { color: colors.white },
   name: { ...typography.h3, color: colors.textPrimary },
+  namePlaceholder: { color: colors.textMuted, fontStyle: "italic" },
   role: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
   stat: { ...typography.caption, color: colors.primary, marginTop: spacing.xs },
   syncWarning: {

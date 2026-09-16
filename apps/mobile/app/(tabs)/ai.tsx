@@ -324,6 +324,7 @@ export default function AIScreen() {
                     : "History saved on this device"
                   : "Guest history on this device"}
               </Text>
+              <Text style={styles.headerQuota}>{quotaBadge}</Text>
             </View>
           </View>
           <View style={styles.headerActions}>
@@ -608,6 +609,12 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  headerQuota: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    fontWeight: "600",
+    marginTop: spacing.xs,
   },
   syncBanner: {
     flexDirection: "row",
