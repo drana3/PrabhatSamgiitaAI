@@ -9807,6 +9807,27 @@
     }
   },
   {
+    "song_number": 2799,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tomare Jakhan Dekhechi - Prabhat Sangeet song #2799 - Singer - Dhrubajyoti Sinha",
+    "url": "https://www.youtube.com/watch?v=yreitn7NN00",
+    "embed_url": "https://www.youtube-nocookie.com/embed/yreitn7NN00",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "yreitn7NN00",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.953,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2801,
     "kind": "video",
     "provider": "youtube",
@@ -11819,6 +11840,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.946,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3205,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Asa Ar Jaoa - Prabhat Sangeet song #3205 - Singer - Unmesha Ghosh",
+    "url": "https://www.youtube.com/watch?v=JJ69PB3EHeo",
+    "embed_url": "https://www.youtube-nocookie.com/embed/JJ69PB3EHeo",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "JJ69PB3EHeo",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.941,
       "match_method": "explicit_song_number_marker"
     }
   },
