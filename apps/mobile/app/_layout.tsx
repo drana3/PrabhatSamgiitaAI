@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ActivityIndicator, Platform, StyleSheet, View } from "react-native"
+import { ActivityIndicator, InteractionManager, Platform, StyleSheet, View } from "react-native"
 import { Stack } from "expo-router"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
@@ -20,10 +20,12 @@ import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
+import { useAuthStore } from "@/stores/authStore"
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined)
 
 export default function RootLayout() {
+  const [authHydrated, setAuthHydrated] = useState(() => useAuthStore.persist.hasHydrated())
   const [interLoaded] = useInter({
     Inter_400Regular,
     Inter_500Medium,
@@ -33,26 +35,37 @@ export default function RootLayout() {
   const [loraLoaded] = useLora({ Lora_700Bold })
   const [fontWaitExpired, setFontWaitExpired] = useState(false)
   const fontsReady = (interLoaded && loraLoaded) || fontWaitExpired
+  const shellReady = fontsReady && authHydrated
+
+  useEffect(() => {
+    if (useAuthStore.persist.hasHydrated()) setAuthHydrated(true)
+    return useAuthStore.persist.onFinishHydration(() => setAuthHydrated(true))
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => setFontWaitExpired(true), 800)
-    // Thumbs warm immediately; heroes continue after interactions inside prefetch.
-    prefetchScenicArt()
-    // Precompute category browse lists from catalog cache (no live search).
-    void warmCategorySongsCache()
-    void hydrateOfflineAudio()
+    const warmCaches = () => {
+      prefetchScenicArt()
+      void warmCategorySongsCache()
+      void hydrateOfflineAudio()
+    }
+    if (Platform.OS === "android") {
+      InteractionManager.runAfterInteractions(warmCaches)
+    } else {
+      warmCaches()
+    }
     return () => {
       clearTimeout(timer)
     }
   }, [])
 
   useEffect(() => {
-    if (fontsReady) {
+    if (shellReady) {
       SplashScreen.hideAsync().catch(() => undefined)
     }
-  }, [fontsReady])
+  }, [shellReady])
 
-  if (!fontsReady) {
+  if (!shellReady) {
     return (
       <View style={styles.boot}>
         <ActivityIndicator color={colors.primary} size="large" />
