@@ -11949,6 +11949,27 @@
     }
   },
   {
+    "song_number": 3210,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ashar Akashe - Prabhat Sangeet song #3210 - Singer - Sandhya Chakraborty",
+    "url": "https://www.youtube.com/watch?v=rPiNjDbKdJE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/rPiNjDbKdJE",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "rPiNjDbKdJE",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.942,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3213,
     "kind": "video",
     "provider": "youtube",
