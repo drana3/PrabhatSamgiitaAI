@@ -1,6 +1,16 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react"
 import type { RankedAudio } from "@prabhat/core"
 import { audioFreshnessBadge } from "@prabhat/core"
 
@@ -16,6 +26,9 @@ type SongListenContextValue = {
   selectRecording: (url: string) => void
   tryNextRecording: (failedUrl: string) => void
   showList: boolean
+  sharedAudioRef: RefObject<HTMLAudioElement | null>
+  sharedAudioReady: boolean
+  registerSharedAudio: (element: HTMLAudioElement | null) => void
 }
 
 const SongListenContext = createContext<SongListenContextValue | null>(null)
@@ -54,6 +67,13 @@ function SongListenProvider({
 }) {
   const latestUrl = recordings.find((item) => item.isLatest)?.url ?? recordings[0]?.url ?? null
   const [url, setUrl] = useState(latestUrl)
+  const sharedAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [sharedAudioReady, setSharedAudioReady] = useState(false)
+
+  const registerSharedAudio = useCallback((element: HTMLAudioElement | null) => {
+    sharedAudioRef.current = element
+    setSharedAudioReady(element !== null)
+  }, [])
 
   useEffect(() => {
     setUrl(defaultSongAudioUrl(recordings, songNumber) ?? latestUrl)
@@ -67,6 +87,10 @@ function SongListenProvider({
   useEffect(() => {
     if (!selected?.url) return
     void warmArchiveAudioStream(selected.url)
+  }, [selected?.url])
+
+  useEffect(() => {
+    setSharedAudioReady(false)
   }, [selected?.url])
 
   if (!selected) return null
@@ -89,6 +113,9 @@ function SongListenProvider({
     selectRecording,
     tryNextRecording,
     showList: recordings.length > 1,
+    sharedAudioRef,
+    sharedAudioReady,
+    registerSharedAudio,
   }
 
   return <SongListenContext.Provider value={value}>{children}</SongListenContext.Provider>
@@ -96,23 +123,35 @@ function SongListenProvider({
 
 export function SongListenTop() {
   const layout = useSongPageLayout()
-  const { selected, recordings, selectRecording, tryNextRecording, showList } = useSongListen()
+  const {
+    selected,
+    recordings,
+    selectRecording,
+    tryNextRecording,
+    showList,
+    sharedAudioRef,
+    sharedAudioReady,
+    registerSharedAudio,
+  } = useSongListen()
 
   const selectedBadge = showList ? audioFreshnessBadge(selected) : null
   const title = [selectedBadge, selected.title].filter(Boolean).join(" · ")
+  const useSharedAudio = layout === "sidebar"
 
   return (
     <div id="listen" className="mb-6 scroll-mt-28">
       <div className="space-y-4">
-        {layout !== "sidebar" ? (
-          <AudioRendition
-            url={selected.url}
-            title={title}
-            provider={selected.provider}
-            compact
-            onPlaybackError={() => tryNextRecording(selected.url)}
-          />
-        ) : null}
+        <AudioRendition
+          url={selected.url}
+          title={title}
+          provider={selected.provider}
+          compact
+          sharedAudioRef={useSharedAudio ? sharedAudioRef : undefined}
+          sharedAudioReady={useSharedAudio ? sharedAudioReady : true}
+          registerSharedAudio={useSharedAudio ? registerSharedAudio : undefined}
+          mountAudio={!useSharedAudio}
+          onPlaybackError={() => tryNextRecording(selected.url)}
+        />
         {showList ? (
           <details className="rounded-2xl border border-navy-900/10 bg-white p-4">
             <summary className="cursor-pointer text-sm font-semibold text-gold-700">
@@ -168,7 +207,7 @@ export function SongListenTop() {
 
 export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
   const layout = useSongPageLayout()
-  const { selected, tryNextRecording } = useSongListen()
+  const { selected, tryNextRecording, sharedAudioRef, registerSharedAudio } = useSongListen()
 
   if (layout !== "sidebar") return null
 
@@ -188,6 +227,10 @@ export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
           title={title}
           provider={selected.provider}
           warmStream
+          sharedAudioRef={sharedAudioRef}
+          sharedAudioReady
+          registerSharedAudio={registerSharedAudio}
+          mountAudio
           onPlaybackError={() => tryNextRecording(selected.url)}
         />
       </div>

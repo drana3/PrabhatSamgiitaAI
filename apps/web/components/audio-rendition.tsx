@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react"
 
 import { trackEvent } from "@/lib/analytics"
 import { useMember } from "@/components/member-provider"
@@ -99,13 +99,20 @@ function CompactPlayer({
   url,
   title,
   onPlaybackError,
+  sharedAudioRef,
+  sharedAudioReady = true,
+  mountAudio = true,
 }: {
   url: string
   title: string
   provider?: string
   onPlaybackError?: () => void
+  sharedAudioRef?: RefObject<HTMLAudioElement | null>
+  sharedAudioReady?: boolean
+  mountAudio?: boolean
 }) {
-  const audioRef = useRef<HTMLAudioElement>(null)
+  const localAudioRef = useRef<HTMLAudioElement>(null)
+  const audioRef = sharedAudioRef ?? localAudioRef
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -119,35 +126,46 @@ function CompactPlayer({
     setDuration(0)
     setMuted(false)
     setBuffering(false)
-    void warmArchiveAudioStream(url)
-  }, [url])
+    if (mountAudio) void warmArchiveAudioStream(url)
+  }, [url, mountAudio])
 
   useEffect(() => {
+    if (!sharedAudioReady) return
     const audio = audioRef.current
     if (!audio) return
     // iOS Safari ignores audio.volume; muted still works.
     audio.muted = muted
     audio.volume = muted ? 0 : volume
-  }, [muted, volume, url])
+  }, [muted, volume, url, sharedAudioReady, audioRef])
 
   useEffect(() => {
+    if (!sharedAudioReady) return
     const audio = audioRef.current
     if (!audio) return
-    return bindExclusiveAudio(audio)
-  }, [url])
+    if (mountAudio) return bindExclusiveAudio(audio)
+  }, [url, mountAudio, sharedAudioReady, audioRef])
 
   useEffect(() => {
+    if (!sharedAudioReady) return
     const audio = audioRef.current
     if (!audio) return
     const syncPlaying = () => setPlaying(!audio.paused && !audio.ended)
+    const syncTime = () => {
+      setCurrentTime(audio.currentTime)
+      if (Number.isFinite(audio.duration)) setDuration(audio.duration)
+    }
     const resumeAfterStall = () => {
       if (audio.paused || audio.ended) return
       setBuffering(true)
       void audio.play().catch(() => undefined)
     }
     const markReady = () => setBuffering(false)
+    syncPlaying()
+    syncTime()
     audio.addEventListener("play", syncPlaying)
     audio.addEventListener("pause", syncPlaying)
+    audio.addEventListener("timeupdate", syncTime)
+    audio.addEventListener("loadedmetadata", syncTime)
     audio.addEventListener("waiting", resumeAfterStall)
     audio.addEventListener("stalled", resumeAfterStall)
     audio.addEventListener("canplay", markReady)
@@ -155,12 +173,14 @@ function CompactPlayer({
     return () => {
       audio.removeEventListener("play", syncPlaying)
       audio.removeEventListener("pause", syncPlaying)
+      audio.removeEventListener("timeupdate", syncTime)
+      audio.removeEventListener("loadedmetadata", syncTime)
       audio.removeEventListener("waiting", resumeAfterStall)
       audio.removeEventListener("stalled", resumeAfterStall)
       audio.removeEventListener("canplay", markReady)
       audio.removeEventListener("playing", markReady)
     }
-  }, [url])
+  }, [url, sharedAudioReady, audioRef])
 
   function seekBy(deltaSeconds: number) {
     const audio = audioRef.current
@@ -273,25 +293,27 @@ function CompactPlayer({
         </p>
       ) : null}
 
-      <audio
-        ref={audioRef}
-        aria-label={`Listen to ${title}`}
-        preload="auto"
-        src={url}
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-        onPlay={() => {
-          setPlaying(true)
-          trackEvent("feature_use", "audio_play")
-        }}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
-        onError={() => {
-          setBuffering(false)
-          onPlaybackError?.()
-        }}
-        className="sr-only"
-      />
+      {mountAudio ? (
+        <audio
+          ref={localAudioRef}
+          aria-label={`Listen to ${title}`}
+          preload="auto"
+          src={url}
+          onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+          onPlay={() => {
+            setPlaying(true)
+            trackEvent("feature_use", "audio_play")
+          }}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
+          onError={() => {
+            setBuffering(false)
+            onPlaybackError?.()
+          }}
+          className="sr-only"
+        />
+      ) : null}
     </div>
   )
 }
@@ -303,6 +325,9 @@ function NativeAudio({
   className,
   warmStream = false,
   onPlaybackError,
+  sharedAudioRef,
+  registerSharedAudio,
+  mountAudio = true,
 }: {
   url: string
   title: string
@@ -310,24 +335,35 @@ function NativeAudio({
   className?: string
   warmStream?: boolean
   onPlaybackError?: () => void
+  sharedAudioRef?: RefObject<HTMLAudioElement | null>
+  registerSharedAudio?: (element: HTMLAudioElement | null) => void
+  mountAudio?: boolean
 }) {
-  const audioRef = useRef<HTMLAudioElement>(null)
+  const localAudioRef = useRef<HTMLAudioElement>(null)
   const [buffering, setBuffering] = useState(false)
+
+  function assignAudioRef(element: HTMLAudioElement | null) {
+    if (sharedAudioRef) sharedAudioRef.current = element
+    else localAudioRef.current = element
+    registerSharedAudio?.(element)
+  }
 
   useEffect(() => {
     setBuffering(false)
     if (warmStream) void warmArchiveAudioStream(url)
   }, [url, warmStream])
 
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    return bindExclusiveAudio(audio)
-  }, [url])
+  useEffect(() => () => registerSharedAudio?.(null), [registerSharedAudio])
 
   useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
+    const audio = sharedAudioRef?.current ?? localAudioRef.current
+    if (!audio || !mountAudio) return
+    return bindExclusiveAudio(audio)
+  }, [url, mountAudio, sharedAudioRef])
+
+  useEffect(() => {
+    const audio = sharedAudioRef?.current ?? localAudioRef.current
+    if (!audio || !mountAudio) return
     const resumeAfterStall = () => {
       if (audio.paused || audio.ended) return
       setBuffering(true)
@@ -344,12 +380,14 @@ function NativeAudio({
       audio.removeEventListener("canplay", markReady)
       audio.removeEventListener("playing", markReady)
     }
-  }, [url])
+  }, [url, mountAudio, sharedAudioRef])
+
+  if (!mountAudio) return null
 
   return (
     <>
       <audio
-        ref={audioRef}
+        ref={assignAudioRef}
         aria-label={`Listen to ${title}`}
         controls
         controlsList={controlsList(allowDownload)}
@@ -385,6 +423,10 @@ export function AudioRendition({
   compact = false,
   warmStream = false,
   onPlaybackError,
+  sharedAudioRef,
+  sharedAudioReady = true,
+  registerSharedAudio,
+  mountAudio = true,
 }: {
   url: string
   title: string
@@ -393,12 +435,26 @@ export function AudioRendition({
   compact?: boolean
   warmStream?: boolean
   onPlaybackError?: () => void
+  sharedAudioRef?: RefObject<HTMLAudioElement | null>
+  sharedAudioReady?: boolean
+  registerSharedAudio?: (element: HTMLAudioElement | null) => void
+  mountAudio?: boolean
 }) {
   const { loading, session } = useMember()
   const allowDownload = !loading && session.authenticated
 
   if (compact) {
-    return <CompactPlayer url={url} title={title} provider={provider} onPlaybackError={onPlaybackError} />
+    return (
+      <CompactPlayer
+        url={url}
+        title={title}
+        provider={provider}
+        onPlaybackError={onPlaybackError}
+        sharedAudioRef={sharedAudioRef}
+        sharedAudioReady={sharedAudioReady}
+        mountAudio={mountAudio}
+      />
+    )
   }
 
   return (
@@ -420,6 +476,9 @@ export function AudioRendition({
         allowDownload={allowDownload}
         warmStream={warmStream}
         onPlaybackError={onPlaybackError}
+        sharedAudioRef={sharedAudioRef}
+        registerSharedAudio={registerSharedAudio}
+        mountAudio={mountAudio}
         className="mt-3 w-full"
       />
       {!allowDownload ? (
