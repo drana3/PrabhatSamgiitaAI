@@ -9,6 +9,7 @@ const navigation = [
   { href: "/stories", label: "Stories" },
   { href: "/quiz", label: "Quiz" },
   { href: "/#today", label: "Today" },
+  { href: "/#mobile-app", label: "Mobile app" },
   { href: "/#about", label: "About" },
 ]
 

@@ -12,6 +12,7 @@ import { fetchActiveAnnouncementsOnServer } from "@/lib/server-api"
 import { DailyReflection } from "@/components/daily-reflection"
 import { CommunityVoices } from "@/components/community-voices"
 import { MemberQuizBadge } from "@/components/member-quiz-badge"
+import { MobileAppHeroStrip } from "@/components/mobile-app-invite"
 import { QuizWinnersSection } from "@/components/quiz-winners-section"
 import { StoriesInspiration } from "@/components/stories-inspiration"
 import seedInventory from "../../../data/seed/inventory.json"
@@ -22,7 +23,6 @@ export const revalidate = 60
 export default async function HomePage() {
   const initialReflection = todayReflectionFallback()
   const announcements = await fetchActiveAnnouncementsOnServer()
-
   return (
     <main className="min-h-screen bg-ivory-50">
       <SiteHeader />
@@ -64,6 +64,7 @@ export default async function HomePage() {
             <div className="mt-5 max-w-xl">
               <MemberQuizBadge />
             </div>
+            <MobileAppHeroStrip />
           </div>
         </div>
       </section>

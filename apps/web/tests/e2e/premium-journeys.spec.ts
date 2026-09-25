@@ -127,6 +127,9 @@ test.beforeEach(async ({ page }) => {
 test("home delivers a complete, nonblank spiritual journey", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("heading", { name: /Music for the inner dawn/i })).toBeVisible()
+  await expect(page.getByText(/Best on phone or tablet/i)).toBeVisible()
+  await expect(page.getByRole("link", { name: /Download on the App Store/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Get it on Google Play/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Songs composed for a new human dawn/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Music for this moment" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Upcoming observances", exact: true })).toBeVisible()
