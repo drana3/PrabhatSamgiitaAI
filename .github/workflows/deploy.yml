@@ -125,8 +125,26 @@ jobs:
       - name: Install Node deps
         run: npm ci
 
+      - name: Cache Next.js font/build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-web-cache-${{ runner.os }}-${{ hashFiles('apps/web/app/layout.tsx', 'package-lock.json') }}
+          restore-keys: |
+            next-web-cache-${{ runner.os }}-
+
       - name: Build web
-        run: npm run build:e2e
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if npm run build:e2e; then
+              exit 0
+            fi
+            echo "Build attempt ${attempt} failed; retrying in 10s..." >&2
+            sleep 10
+          done
+          echo "Build failed after 3 attempts." >&2
+          exit 1
 
       - name: Upload web build for journey tests
         uses: actions/upload-artifact@v4
