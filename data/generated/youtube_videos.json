@@ -11571,6 +11571,48 @@
     }
   },
   {
+    "song_number": 3131,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ganeri Majhare Peyechi Tomare - Prabhat Sangeet song #3131 - Singer - Asitima Debnath",
+    "url": "https://www.youtube.com/watch?v=FUN_anGzBoc",
+    "embed_url": "https://www.youtube-nocookie.com/embed/FUN_anGzBoc",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "FUN_anGzBoc",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3138,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Krishna Song - Na Janiya Bhalobesechi - Prabhat Sangeet song #3138 - Singer - Trina Chattopadhyay",
+    "url": "https://www.youtube.com/watch?v=i5jKgdJzwNg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/i5jKgdJzwNg",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "i5jKgdJzwNg",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3144,
     "kind": "video",
     "provider": "youtube",
@@ -11966,6 +12008,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.942,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3211,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Jhainjhavate Shravana Rate - Prabhat Sangeet song #3211 - Singer - Dhrubajyoti Sinha",
+    "url": "https://www.youtube.com/watch?v=1AzajQFW4xY",
+    "embed_url": "https://www.youtube-nocookie.com/embed/1AzajQFW4xY",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "1AzajQFW4xY",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.949,
       "match_method": "explicit_song_number_marker"
     }
   },
