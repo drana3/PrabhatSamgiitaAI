@@ -31,6 +31,10 @@ FAISS_INDEX_URL="${FAISS_INDEX_URL:-}"
 # Selective deploy: set DEPLOY_API=0 or DEPLOY_WEB=0 to skip that image rebuild/update.
 DEPLOY_API="${DEPLOY_API:-1}"
 DEPLOY_WEB="${DEPLOY_WEB:-1}"
+WEB_MIN_REPLICAS="${WEB_MIN_REPLICAS:-0}"
+WEB_MAX_REPLICAS="${WEB_MAX_REPLICAS:-1}"
+WEB_CPU="${WEB_CPU:-0.25}"
+WEB_MEMORY="${WEB_MEMORY:-0.5Gi}"
 # When FAISS ships via URL/baked snapshot, do not wait up to an hour for re-embed.
 INDEX_WAIT_ATTEMPTS="${INDEX_WAIT_ATTEMPTS:-}"
 if [[ -z "$INDEX_WAIT_ATTEMPTS" ]]; then
@@ -139,6 +143,18 @@ build_and_push_image() {
   printf '%s' "$image"
 }
 
+ensure_web_scale_profile() {
+  echo "Ensuring web scale profile (cpu=${WEB_CPU}, memory=${WEB_MEMORY}, max=${WEB_MAX_REPLICAS})..." >&2
+  az containerapp update \
+    --name "$WEB_APP" \
+    --resource-group "$RG" \
+    --cpu "$WEB_CPU" \
+    --memory "$WEB_MEMORY" \
+    --min-replicas "$WEB_MIN_REPLICAS" \
+    --max-replicas "$WEB_MAX_REPLICAS" \
+    >/dev/null
+}
+
 az group show --name "$RG" >/dev/null
 az containerapp env show --name "$ACA_ENV" --resource-group "$RG" >/dev/null
 az containerapp show --name "$API_APP" --resource-group "$RG" >/dev/null
@@ -152,6 +168,7 @@ if [[ "$AUTH_ENABLED" != "true" ]]; then
 fi
 
 echo "Deploy targets: API=${DEPLOY_API} WEB=${DEPLOY_WEB} TAG=${TAG}"
+ensure_web_scale_profile
 
 if [[ "$DEPLOY_API" != "1" && "$DEPLOY_WEB" != "1" ]]; then
   cat <<EOF

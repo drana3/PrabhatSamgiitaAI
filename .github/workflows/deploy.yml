@@ -253,7 +253,6 @@ jobs:
           WEB=false
           if echo "$CHANGED" | grep -qE '^(packages/|data/|\.dockerignore$)'; then
             API=true
-            WEB=true
           fi
           # infra/azure/deploy-app.sh runs in CI; only Dockerfiles force image rebuilds.
           if echo "$CHANGED" | grep -qE '^apps/api/Dockerfile$|^infra/azure/.*api'; then
@@ -281,11 +280,6 @@ jobs:
               exit 0
             fi
             API=true
-            WEB=true
-          fi
-          # Preserve prior web deploy behavior: any real app image deploy always
-          # rebuilds web (API-only commits used to update both containers).
-          if [ "$API" = true ] || [ "$WEB" = true ]; then
             WEB=true
           fi
           echo "api=$API" >> "$GITHUB_OUTPUT"

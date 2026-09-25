@@ -132,8 +132,10 @@ az containerapp create \
   --registry-password "$DOCKERHUB_PASSWORD" \
   --ingress external \
   --target-port 3000 \
+  --cpu 0.25 \
+  --memory 0.5Gi \
   --min-replicas 0 \
-  --max-replicas 3 \
+  --max-replicas 1 \
   --env-vars \
     NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}" >/dev/null
 
