@@ -104,13 +104,15 @@ export function SongListenTop() {
   return (
     <div id="listen" className="mb-6 scroll-mt-28">
       <div className="space-y-4">
-        <AudioRendition
-          url={selected.url}
-          title={title}
-          provider={selected.provider}
-          compact
-          onPlaybackError={() => tryNextRecording(selected.url)}
-        />
+        {layout !== "sidebar" ? (
+          <AudioRendition
+            url={selected.url}
+            title={title}
+            provider={selected.provider}
+            compact
+            onPlaybackError={() => tryNextRecording(selected.url)}
+          />
+        ) : null}
         {showList ? (
           <details className="rounded-2xl border border-navy-900/10 bg-white p-4">
             <summary className="cursor-pointer text-sm font-semibold text-gold-700">

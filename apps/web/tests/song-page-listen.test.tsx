@@ -66,7 +66,7 @@ describe("SongPageListenShell", () => {
       </SongPageListenShell>,
     )
 
-    expect(screen.getAllByRole("button", { name: /Play Best/i })).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: /Play Best/i })).not.toBeInTheDocument()
     expect(screen.getByText(/Listen to this song/i)).toBeInTheDocument()
     expect(within(screen.getByTestId("listen-sidebar")).getByLabelText(/Listen to Best/i)).toBeInTheDocument()
   })
