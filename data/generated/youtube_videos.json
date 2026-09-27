@@ -12348,6 +12348,27 @@
     }
   },
   {
+    "song_number": 3248,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Akashe Vatase - Prabhat Sangeet song #3248 - Singer - Tulika Chakraborty",
+    "url": "https://www.youtube.com/watch?v=sULkmPUAQgA",
+    "embed_url": "https://www.youtube-nocookie.com/embed/sULkmPUAQgA",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "sULkmPUAQgA",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.945,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3250,
     "kind": "video",
     "provider": "youtube",
@@ -12359,6 +12380,48 @@
     "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
     "metadata_json": {
       "external_id": "AnB-3uegxHA",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3251,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Nisha Holo Bhor - Prabhat Sangeet song #3251 - Singer - Manas Bhattacharjee",
+    "url": "https://www.youtube.com/watch?v=kQp6c6OC6K0",
+    "embed_url": "https://www.youtube-nocookie.com/embed/kQp6c6OC6K0",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "kQp6c6OC6K0",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.95,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3252,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tandra Jakhan Bhara Chilo Cokhe - Prabhat Sangeet song #3252 - Singer - Sayan Bhattacharjee",
+    "url": "https://www.youtube.com/watch?v=NE0sgLIlCQU",
+    "embed_url": "https://www.youtube-nocookie.com/embed/NE0sgLIlCQU",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "NE0sgLIlCQU",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
       "source_status": "verified_community",
