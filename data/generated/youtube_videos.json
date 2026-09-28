@@ -12138,6 +12138,27 @@
     }
   },
   {
+    "song_number": 3217,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Patha Ceye Achi - Prabhat Sangeet song #3217 - Singer - Susmita Goswami",
+    "url": "https://www.youtube.com/watch?v=aEdzvF_V-lg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/aEdzvF_V-lg",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "aEdzvF_V-lg",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.936,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3218,
     "kind": "video",
     "provider": "youtube",
@@ -12422,6 +12443,69 @@
     "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
     "metadata_json": {
       "external_id": "NE0sgLIlCQU",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3255,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tumi Yadi Nahi Ele - Prabhat Sangeet song #3255 - Singer - Tulika Chakraborty",
+    "url": "https://www.youtube.com/watch?v=Oeze5u6zfew",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Oeze5u6zfew",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "Oeze5u6zfew",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3256,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Nutan Ushay Se Ese Chilo - Prabhat Sangeet song #3256 - Singer - Sourabh Das",
+    "url": "https://www.youtube.com/watch?v=VbEZ2uWAJJw",
+    "embed_url": "https://www.youtube-nocookie.com/embed/VbEZ2uWAJJw",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "VbEZ2uWAJJw",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.925,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3257,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tomari Tare Kata Na Kendechi - Prabhat Sangeet song #3257 - Singer - Swapan Chakraborty",
+    "url": "https://www.youtube.com/watch?v=mu3B3aXuwlw",
+    "embed_url": "https://www.youtube-nocookie.com/embed/mu3B3aXuwlw",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "mu3B3aXuwlw",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
       "source_status": "verified_community",
