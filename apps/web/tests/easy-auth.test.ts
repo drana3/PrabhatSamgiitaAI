@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest"
 
 import { buildClientPrincipal } from "@/lib/azure-principal"
-import { principalFromEasyAuthMe } from "@/lib/easy-auth"
+import { isAuthenticatedEasyAuthPrincipal, principalFromEasyAuthMe } from "@/lib/easy-auth"
 
 describe("principalFromEasyAuthMe", () => {
+  it("rejects SWA principals that are not in the authenticated role", () => {
+    expect(
+      principalFromEasyAuthMe({
+        identityProvider: "aad",
+        userId: "oid-1",
+        userDetails: "member@example.com",
+        userRoles: ["anonymous"],
+      }),
+    ).toBeNull()
+  })
+
   it("builds a member principal blob from SWA /.auth/me payload", () => {
     const principal = principalFromEasyAuthMe({
       identityProvider: "aad",

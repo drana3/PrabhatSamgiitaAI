@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, authenticated: false }, { status: 401 })
   }
 
+  // Only real SWA sign-in reaches here; guests stay on the 15/day AI quota path.
   const response = NextResponse.json({ ok: true, authenticated: true })
   response.cookies.set(LOCAL_AUTH_COOKIE, principal, authCookieOptions())
   return response

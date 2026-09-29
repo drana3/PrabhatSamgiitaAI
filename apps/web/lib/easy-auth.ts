@@ -8,6 +8,7 @@ export type EasyAuthClientPrincipal = {
   identityProvider?: string
   userId?: string
   userDetails?: string
+  userRoles?: string[]
   claims?: Array<{ typ?: string; val?: string; type?: string; value?: string }>
 }
 
@@ -36,13 +37,22 @@ export function normalizeEasyAuthProvider(identityProvider?: string) {
   return lower
 }
 
+export function isAuthenticatedEasyAuthPrincipal(
+  clientPrincipal: EasyAuthClientPrincipal | null | undefined,
+): boolean {
+  if (!clientPrincipal?.userId?.trim()) return false
+  const roles = clientPrincipal.userRoles
+  if (!Array.isArray(roles) || roles.length === 0) return true
+  return roles.some((role) => role.toLowerCase() === "authenticated")
+}
+
 export function principalFromEasyAuthMe(
   clientPrincipal: EasyAuthClientPrincipal | null | undefined,
 ): string | null {
-  const userId = clientPrincipal?.userId?.trim()
-  if (!userId) return null
-  const provider = normalizeEasyAuthProvider(clientPrincipal?.identityProvider)
-  const details = clientPrincipal?.userDetails?.trim() || null
+  if (!isAuthenticatedEasyAuthPrincipal(clientPrincipal)) return null
+  const userId = clientPrincipal!.userId!.trim()
+  const provider = normalizeEasyAuthProvider(clientPrincipal!.identityProvider)
+  const details = clientPrincipal!.userDetails?.trim() || null
   const email = details?.includes("@") ? details : null
   const displayName = details || email || "Prabhat Samgiita member"
   return buildClientPrincipal(userId, displayName, provider, email)
