@@ -24,6 +24,27 @@ cp -R "${WEB}/public" "${NESTED}/public"
 cp -a "${NESTED}/." "${STANDALONE}/"
 rm -rf "${STANDALONE}/apps"
 
+while IFS= read -r link; do
+  rm -rf "${link}"
+  mkdir -p "$(dirname "${link}")"
+  cp -R "${ROOT}/packages/core" "${link}"
+done < <(find "${STANDALONE}" -type l -path '*/node_modules/@prabhat/core' 2>/dev/null || true)
+
+while IFS= read -r link; do
+  target="$(readlink "${link}")"
+  case "${target}" in
+    ../*|../../*|../../../*)
+      resolved="$(cd "$(dirname "${link}")" && cd "${target}" 2>/dev/null && pwd)" || continue
+      rm -f "${link}"
+      if [[ -d "${resolved}" ]]; then
+        cp -R "${resolved}" "${link}"
+      elif [[ -f "${resolved}" ]]; then
+        cp "${resolved}" "${link}"
+      fi
+      ;;
+  esac
+done < <(find "${STANDALONE}/node_modules" -type l 2>/dev/null | head -200 || true)
+
 cp "${WEB}/staticwebapp.config.json" "${STANDALONE}/"
 cp "${WEB}/staticwebapp.config.json" "${WEB}/.next/"
 
