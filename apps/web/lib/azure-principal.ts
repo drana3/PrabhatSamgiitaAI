@@ -82,10 +82,7 @@ export function buildClientPrincipal(
 /** Present after SWA / Container Apps Easy Auth sign-in (not on anonymous edge traffic). */
 export function hasEasyAuthSessionCookie(source: Headers) {
   const cookie = source.get("cookie") ?? ""
-  return (
-    cookie.includes("StaticWebAppsAuthCookie") ||
-    cookie.includes("AppServiceAuthSession")
-  )
+  return /StaticWebAppsAuthCookie|AppServiceAuthSession/.test(cookie)
 }
 
 export function resolveClientPrincipal(source: Headers) {

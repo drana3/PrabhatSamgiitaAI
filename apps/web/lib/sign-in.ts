@@ -16,21 +16,18 @@ export function signInReturnPath(next: string | undefined) {
 }
 
 export function microsoftSignInHref(next: string | undefined) {
-  const destination = safeSignInNextPath(next)
-  const returnTo = `/signin?next=${encodeURIComponent(destination)}`
-  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(returnTo)}`
+  const destination = signInReturnPath(safeSignInNextPath(next))
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(destination)}`
 }
 
 export function googleSignInHref(next: string | undefined) {
-  const destination = safeSignInNextPath(next)
-  const returnTo = `/signin?next=${encodeURIComponent(destination)}`
-  return `/.auth/login/google?post_login_redirect_uri=${encodeURIComponent(returnTo)}`
+  const destination = signInReturnPath(safeSignInNextPath(next))
+  return `/.auth/login/google?post_login_redirect_uri=${encodeURIComponent(destination)}`
 }
 
 export function facebookSignInHref(next: string | undefined) {
-  const destination = safeSignInNextPath(next)
-  const returnTo = `/signin?next=${encodeURIComponent(destination)}`
-  return `/.auth/login/facebook?post_login_redirect_uri=${encodeURIComponent(returnTo)}`
+  const destination = signInReturnPath(safeSignInNextPath(next))
+  return `/.auth/login/facebook?post_login_redirect_uri=${encodeURIComponent(destination)}`
 }
 
 export function signInHref(next?: string) {

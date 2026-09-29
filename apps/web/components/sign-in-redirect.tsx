@@ -11,12 +11,14 @@ function signedOutOnSignInPage() {
   return new URLSearchParams(window.location.search).get("signedOut") === "1"
 }
 
-async function easyAuthPrincipalPresent() {
+async function syncEasyAuthSession() {
   try {
-    const response = await fetch("/.auth/me", { credentials: "same-origin", cache: "no-store" })
-    if (!response.ok) return false
-    const body = (await response.json().catch(() => null)) as { clientPrincipal?: unknown } | null
-    return Boolean(body?.clientPrincipal)
+    const response = await fetch("/api/auth/easy-auth-sync", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+    return response.ok
   } catch {
     return false
   }
@@ -43,24 +45,31 @@ export function SignInRedirect({ next }: { next: string }) {
     if (leaving.current || loading || isAuthenticated) return
     if (adminDestination) return
     if (signedOutOnSignInPage()) return
+
     let active = true
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        await refresh({ silent: true })
-        if (!active || leaving.current || signedOutOnSignInPage()) return
-        if (await easyAuthPrincipalPresent()) {
-          await refresh({ silent: true })
-          if (!active || leaving.current) return
-          leaving.current = true
-          window.location.replace(destination)
-        }
-      })()
-    }, 600)
+    let attempt = 0
+
+    const tick = async () => {
+      if (!active || leaving.current || signedOutOnSignInPage()) return
+      await syncEasyAuthSession()
+      await refresh({ silent: true })
+    }
+
+    void tick()
+    const timer = window.setInterval(() => {
+      attempt += 1
+      if (attempt >= 20) {
+        window.clearInterval(timer)
+        return
+      }
+      void tick()
+    }, 500)
+
     return () => {
       active = false
-      window.clearTimeout(timer)
+      window.clearInterval(timer)
     }
-  }, [adminDestination, destination, isAuthenticated, loading, refresh])
+  }, [adminDestination, isAuthenticated, loading, refresh])
 
   return null
 }

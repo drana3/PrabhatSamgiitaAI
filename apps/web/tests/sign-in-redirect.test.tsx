@@ -21,7 +21,7 @@ describe("SignInRedirect", () => {
     const replace = vi.fn()
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { ...window.location, replace },
+      value: { ...window.location, replace, search: "" },
     })
     useMemberMock.mockReturnValue({
       loading: false,
@@ -48,7 +48,7 @@ describe("SignInRedirect", () => {
     const replace = vi.fn()
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { ...window.location, replace },
+      value: { ...window.location, replace, search: "" },
     })
     useMemberMock.mockReturnValue({
       loading: false,
@@ -72,47 +72,15 @@ describe("SignInRedirect", () => {
     expect(replace).not.toHaveBeenCalled()
   })
 
-  it("stays on /signin when Easy Auth has a principal but member session is still guest", async () => {
+  it("polls Easy Auth sync while the member session is still guest", async () => {
     const replace = vi.fn()
     Object.defineProperty(window, "location", {
       configurable: true,
       value: { ...window.location, replace, search: "" },
     })
     refresh.mockResolvedValue(undefined)
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ clientPrincipal: null }),
-      }),
-    )
-    useMemberMock.mockReturnValue({
-      loading: false,
-      session: { authenticated: false },
-      refresh,
-    })
-
-    render(<SignInRedirect next="/quiz" />)
-
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    expect(replace).not.toHaveBeenCalled()
-    expect(refresh).toHaveBeenCalled()
-  })
-
-  it("leaves /signin when SWA Easy Auth finished but member session is still loading", async () => {
-    const replace = vi.fn()
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...window.location, replace, search: "" },
-    })
-    refresh.mockResolvedValue(undefined)
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ clientPrincipal: { userId: "aad-user" } }),
-      }),
-    )
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false })
+    vi.stubGlobal("fetch", fetchMock)
     useMemberMock.mockReturnValue({
       loading: false,
       session: { authenticated: false },
@@ -122,7 +90,11 @@ describe("SignInRedirect", () => {
     render(<SignInRedirect next="/quiz" />)
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/quiz")
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/auth/easy-auth-sync",
+        expect.objectContaining({ method: "POST" }),
+      )
     })
+    expect(replace).not.toHaveBeenCalled()
   })
 })

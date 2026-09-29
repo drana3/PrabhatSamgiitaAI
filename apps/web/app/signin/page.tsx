@@ -8,8 +8,12 @@ import { FacebookSignInButton, GoogleSignInButton } from "@/components/social-si
 import { SiteHeader } from "@/components/site-header"
 import { LOCAL_AUTH_COOKIE, facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
 import {
+  mergeRequestCookies,
+  requestOriginFromHeaders,
+  resolveAuthenticatedPrincipal,
+} from "@/lib/easy-auth"
+import {
   isAdminDestination,
-  memberPrincipalFromHeaders,
   resolveMemberSession,
 } from "@/lib/member-request"
 import {
@@ -28,10 +32,16 @@ export default async function SignInPage({
   const params = await searchParams
   const next = safeSignInNextPath(params.next)
   const justSignedOut = params.signedOut === "1"
-  const headerList = await headers()
   const cookieStore = await cookies()
-  const principal =
-    memberPrincipalFromHeaders(headerList, cookieStore.get(LOCAL_AUTH_COOKIE)?.value)
+  const headerList = mergeRequestCookies(await headers(), cookieStore)
+  const origin = requestOriginFromHeaders(headerList)
+  const principal = justSignedOut
+    ? null
+    : await resolveAuthenticatedPrincipal(
+        headerList,
+        cookieStore.get(LOCAL_AUTH_COOKIE)?.value,
+        origin,
+      )
   if (principal && !justSignedOut) {
     const session = await resolveMemberSession(principal)
     if (session?.authenticated === true) {
