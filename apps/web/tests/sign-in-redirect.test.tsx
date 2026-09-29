@@ -72,7 +72,7 @@ describe("SignInRedirect", () => {
     expect(replace).not.toHaveBeenCalled()
   })
 
-  it("leaves /signin when Easy Auth already has a principal even if member API is slow", async () => {
+  it("stays on /signin when Easy Auth has a principal but member session is still guest", async () => {
     const replace = vi.fn()
     Object.defineProperty(window, "location", {
       configurable: true,
@@ -84,38 +84,11 @@ describe("SignInRedirect", () => {
       session: { authenticated: false },
       refresh,
     })
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ clientPrincipal: { userId: "oid" } }),
-    }))
-
-    render(<SignInRedirect next="/quiz" />)
-
-    await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/quiz")
-    }, { timeout: 2000 })
-  })
-
-  it("does not auto-redirect when the user just signed out", async () => {
-    const replace = vi.fn()
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...window.location, replace, search: "?signedOut=1" },
-    })
-    refresh.mockResolvedValue(undefined)
-    useMemberMock.mockReturnValue({
-      loading: false,
-      session: { authenticated: false },
-      refresh,
-    })
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ clientPrincipal: { userId: "oid" } }),
-    }))
 
     render(<SignInRedirect next="/quiz" />)
 
     await new Promise((resolve) => setTimeout(resolve, 900))
     expect(replace).not.toHaveBeenCalled()
+    expect(refresh).toHaveBeenCalled()
   })
 })

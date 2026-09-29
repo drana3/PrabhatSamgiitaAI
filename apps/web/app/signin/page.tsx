@@ -33,13 +33,15 @@ export default async function SignInPage({
   const principal =
     memberPrincipalFromHeaders(headerList, cookieStore.get(LOCAL_AUTH_COOKIE)?.value)
   if (principal && !justSignedOut) {
-    if (isAdminDestination(next)) {
-      const session = await fetchBackendMemberSession(principal)
-      if (session?.authenticated === true && session?.is_admin === true) {
+    const session = await fetchBackendMemberSession(principal)
+    if (session?.authenticated === true) {
+      if (isAdminDestination(next)) {
+        if (session.is_admin === true) {
+          redirect(signInReturnPath(next))
+        }
+      } else {
         redirect(signInReturnPath(next))
       }
-    } else {
-      redirect(signInReturnPath(next))
     }
   }
 
