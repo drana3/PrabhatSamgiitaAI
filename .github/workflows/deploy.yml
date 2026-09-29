@@ -268,7 +268,7 @@ jobs:
           if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^apps/web/staticwebapp\.config\.json$|^infra/azure/(setup-static-web-app|sync-swa|decommission-web)'; then
             WEB=true
           fi
-          if echo "$CHANGED" | grep -qE '^scripts/materialize-workspace-deps-for-swa\.sh$'; then
+          if echo "$CHANGED" | grep -qE '^scripts/(prepare-swa-standalone|materialize-workspace-deps-for-swa)\.sh$'; then
             WEB=true
           fi
           if echo "$CHANGED" | grep -qE '^scripts/(sync_youtube|validate_|export_embeddings|list_feedback)' ; then
@@ -351,7 +351,6 @@ jobs:
       name: production
       url: https://www.prabhatasamgiita.org
     env:
-      SWA_DEPLOY: "true"
       NEXT_PUBLIC_AUTH_ENABLED: "true"
       NEXT_PUBLIC_API_BASE_URL: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -367,28 +366,6 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Build web (monorepo)
-        run: |
-          npm ci
-          npm run build --workspace apps/web
-          bash ./scripts/materialize-workspace-deps-for-swa.sh
-
-      - name: Deploy prebuilt Next.js to Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: upload
-          skip_app_build: true
-          app_location: /apps/web
-          output_location: ""
-
       - name: Azure login
         uses: azure/login@v2
         with:
@@ -402,3 +379,28 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: bash ./infra/azure/sync-swa-app-settings.sh
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build standalone artifact for SWA
+        env:
+          NEXT_PUBLIC_AUTH_ENABLED: "true"
+          NEXT_PUBLIC_API_BASE_URL: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+        run: bash ./scripts/prepare-swa-standalone.sh
+
+      - name: Deploy standalone Next.js to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          skip_app_build: true
+          app_location: apps/web/.next/standalone
+          output_location: ""
+          build_timeout_in_minutes: 30

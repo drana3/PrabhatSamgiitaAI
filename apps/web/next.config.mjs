@@ -1,7 +1,12 @@
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Azure Static Web Apps runs Next.js directly; standalone is for Container Apps Docker only.
-  ...(process.env.SWA_DEPLOY === "true" ? {} : { output: "standalone" }),
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../.."),
   images: {
     remotePatterns: [
       {
