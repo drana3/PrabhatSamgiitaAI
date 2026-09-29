@@ -8,11 +8,8 @@ import "./globals.css"
 const publicSiteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.prabhatasamgiita.org"
 
-const googleFontsStylesheet =
-  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400..700&family=Manrope:wght@400..800&display=swap"
-
-const cormorantVariableWoff2 =
-  "https://fonts.gstatic.com/s/cormorantgaramond/v21/co3bmX5slCNuHLi8bLeY9MK7whWMhyjoq3FNsS8.woff2"
+const manropeStylesheet =
+  "https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap"
 
 export const metadata: Metadata = {
   metadataBase: new URL(publicSiteUrl),
@@ -65,10 +62,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="preload" href="/fonts/cormorant-garamond-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
+        <link rel="preload" href="/fonts/cormorant-garamond-latin-ext.woff2" as="font" type="font/woff2" crossOrigin="" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link rel="preload" href={cormorantVariableWoff2} as="font" type="font/woff2" crossOrigin="" />
-        <link rel="stylesheet" href={googleFontsStylesheet} />
+        <link rel="stylesheet" href={manropeStylesheet} />
       </head>
       <body className="font-sans">
         <Providers><AnalyticsTracker />{children}<FeedbackWidget /></Providers>
