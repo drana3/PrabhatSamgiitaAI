@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
+import { memberPrincipalFor } from "@/lib/member-request"
 
 export const dynamic = "force-dynamic"
 
@@ -12,12 +13,7 @@ function siteOrigin(request: NextRequest) {
   return `${proto}://${host}`
 }
 
-export async function GET(request: NextRequest) {
-  const returnTo = `${siteOrigin(request)}/signin?signedOut=1`
-  const logout = new URL("/.auth/logout", siteOrigin(request))
-  logout.searchParams.set("post_logout_redirect_uri", returnTo)
-
-  const response = NextResponse.redirect(logout.toString(), 302)
+function clearLocalAuthCookie(response: NextResponse) {
   response.cookies.set(LOCAL_AUTH_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -25,5 +21,23 @@ export async function GET(request: NextRequest) {
     path: "/",
     maxAge: 0,
   })
+}
+
+export async function GET(request: NextRequest) {
+  const returnTo = `${siteOrigin(request)}/signin?signedOut=1`
+  const hasEasyAuthSession = Boolean(request.headers.get("x-ms-client-principal"))
+  const hasLocalOrLegacyPrincipal = Boolean(memberPrincipalFor(request))
+
+  if (!hasEasyAuthSession && !hasLocalOrLegacyPrincipal) {
+    const response = NextResponse.redirect(returnTo, 302)
+    clearLocalAuthCookie(response)
+    return response
+  }
+
+  const logout = new URL("/.auth/logout", siteOrigin(request))
+  logout.searchParams.set("post_logout_redirect_uri", returnTo)
+
+  const response = NextResponse.redirect(logout.toString(), 302)
+  clearLocalAuthCookie(response)
   return response
 }
