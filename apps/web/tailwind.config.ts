@@ -67,6 +67,10 @@ const config: Config = {
         aurora:
           "radial-gradient(circle at top left, rgba(255, 183, 103, 0.22), transparent 30%), radial-gradient(circle at top right, rgba(82, 97, 166, 0.2), transparent 28%), linear-gradient(180deg, #f7f8fb 0%, #eef1f8 100%)",
       },
+      fontFamily: {
+        serif: ["var(--font-serif)"],
+        sans: ["var(--font-sans)"],
+      },
     },
   },
   plugins: [],

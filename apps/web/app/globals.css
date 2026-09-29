@@ -7,6 +7,8 @@
   --navy: #092d56;
   --gold: #ca8a27;
   --ivory: #fffaf0;
+  --font-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: "Manrope", system-ui, -apple-system, sans-serif;
 }
 
 html {

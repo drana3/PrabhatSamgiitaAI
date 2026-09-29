@@ -1,25 +1,15 @@
 import type { Metadata } from "next"
-import { Cormorant_Garamond, Manrope } from "next/font/google"
 
 import { Providers } from "@/components/providers"
 import { FeedbackWidget } from "@/components/feedback-widget"
 import { AnalyticsTracker } from "@/components/analytics-tracker"
 import "./globals.css"
 
-const serif = Cormorant_Garamond({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  weight: ["500", "600", "700"],
-})
-
-const sans = Manrope({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  weight: ["400", "500", "600", "700", "800"],
-})
-
 const publicSiteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.prabhatasamgiita.org"
+
+const googleFontsStylesheet =
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
 
 export const metadata: Metadata = {
   metadataBase: new URL(publicSiteUrl),
@@ -71,7 +61,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${serif.variable} ${sans.variable} font-sans`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link rel="stylesheet" href={googleFontsStylesheet} />
+      </head>
+      <body className="font-sans">
         <Providers><AnalyticsTracker />{children}<FeedbackWidget /></Providers>
       </body>
     </html>
