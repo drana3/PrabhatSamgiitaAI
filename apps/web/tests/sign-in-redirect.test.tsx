@@ -76,9 +76,16 @@ describe("SignInRedirect", () => {
     const replace = vi.fn()
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { ...window.location, replace },
+      value: { ...window.location, replace, search: "" },
     })
     refresh.mockResolvedValue(undefined)
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ clientPrincipal: null }),
+      }),
+    )
     useMemberMock.mockReturnValue({
       loading: false,
       session: { authenticated: false },
@@ -90,5 +97,32 @@ describe("SignInRedirect", () => {
     await new Promise((resolve) => setTimeout(resolve, 900))
     expect(replace).not.toHaveBeenCalled()
     expect(refresh).toHaveBeenCalled()
+  })
+
+  it("leaves /signin when SWA Easy Auth finished but member session is still loading", async () => {
+    const replace = vi.fn()
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, replace, search: "" },
+    })
+    refresh.mockResolvedValue(undefined)
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ clientPrincipal: { userId: "aad-user" } }),
+      }),
+    )
+    useMemberMock.mockReturnValue({
+      loading: false,
+      session: { authenticated: false },
+      refresh,
+    })
+
+    render(<SignInRedirect next="/quiz" />)
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/quiz")
+    })
   })
 })

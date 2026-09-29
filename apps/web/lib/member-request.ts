@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server"
 
 import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
-import { resolveClientPrincipal } from "@/lib/azure-principal"
+import { parseClientPrincipalProfile, resolveClientPrincipal } from "@/lib/azure-principal"
 import { backendBaseUrl } from "@/lib/member-admin-proxy"
+import type { MemberSession } from "@/lib/member"
 import { runtimeEnv } from "@/lib/runtime-env"
 
 export function memberPrincipalFromHeaders(
@@ -43,5 +44,24 @@ export async function fetchBackendMemberSession(principal: string) {
     return await response.json() as Record<string, unknown>
   } catch {
     return null
+  }
+}
+
+/** Same fallback as /api/member/session so sign-in can finish after OAuth. */
+export async function resolveMemberSession(principal: string): Promise<MemberSession | null> {
+  const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
+  const backend = await fetchBackendMemberSession(principal)
+  if (backend?.authenticated === true) {
+    return {
+      ...(backend as MemberSession),
+      member_backend: true,
+    }
+  }
+
+  const fallback = parseClientPrincipalProfile(principal)
+  if (!fallback) return null
+  return {
+    ...fallback,
+    member_backend: Boolean(proxyKey),
   }
 }

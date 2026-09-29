@@ -6,6 +6,7 @@ import {
   fetchBackendMemberSession,
   isAdminDestination,
   memberPrincipalFor,
+  resolveMemberSession,
 } from "@/lib/member-request"
 import { memberSessionIsAdmin } from "@/lib/member-admin-proxy"
 
@@ -58,5 +59,24 @@ describe("member request helpers", () => {
     delete process.env.MEMBER_PROXY_KEY
     const principal = buildClientPrincipal("user-oid-42", "owner@example.com")
     await expect(fetchBackendMemberSession(principal)).resolves.toBeNull()
+  })
+
+  it("falls back to the Azure principal when the member API is unavailable", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.API_BASE_URL = "https://api.example.test"
+    const principal = buildClientPrincipal("user-oid-42", "owner@example.com")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({}),
+      }),
+    )
+
+    await expect(resolveMemberSession(principal)).resolves.toMatchObject({
+      authenticated: true,
+      id: "aad:user-oid-42",
+      member_backend: true,
+    })
   })
 })

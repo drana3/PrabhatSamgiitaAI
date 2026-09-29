@@ -6,6 +6,22 @@ import { useMember } from "@/components/member-provider"
 import { isAdminDestination } from "@/lib/member-request"
 import { signInReturnPath } from "@/lib/sign-in"
 
+function signedOutOnSignInPage() {
+  if (typeof window === "undefined") return false
+  return new URLSearchParams(window.location.search).get("signedOut") === "1"
+}
+
+async function easyAuthPrincipalPresent() {
+  try {
+    const response = await fetch("/.auth/me", { credentials: "same-origin", cache: "no-store" })
+    if (!response.ok) return false
+    const body = (await response.json().catch(() => null)) as { clientPrincipal?: unknown } | null
+    return Boolean(body?.clientPrincipal)
+  } catch {
+    return false
+  }
+}
+
 export function SignInRedirect({ next }: { next: string }) {
   const { loading, session, refresh } = useMember()
   const destination = signInReturnPath(next)
@@ -26,17 +42,25 @@ export function SignInRedirect({ next }: { next: string }) {
   useEffect(() => {
     if (leaving.current || loading || isAuthenticated) return
     if (adminDestination) return
+    if (signedOutOnSignInPage()) return
     let active = true
     const timer = window.setTimeout(() => {
-      void refresh({ silent: true }).then(() => {
-        if (!active || leaving.current) return
-      })
+      void (async () => {
+        await refresh({ silent: true })
+        if (!active || leaving.current || signedOutOnSignInPage()) return
+        if (await easyAuthPrincipalPresent()) {
+          await refresh({ silent: true })
+          if (!active || leaving.current) return
+          leaving.current = true
+          window.location.replace(destination)
+        }
+      })()
     }, 600)
     return () => {
       active = false
       window.clearTimeout(timer)
     }
-  }, [adminDestination, isAuthenticated, loading, refresh])
+  }, [adminDestination, destination, isAuthenticated, loading, refresh])
 
   return null
 }

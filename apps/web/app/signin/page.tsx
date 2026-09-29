@@ -8,9 +8,9 @@ import { FacebookSignInButton, GoogleSignInButton } from "@/components/social-si
 import { SiteHeader } from "@/components/site-header"
 import { LOCAL_AUTH_COOKIE, facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
 import {
-  fetchBackendMemberSession,
   isAdminDestination,
   memberPrincipalFromHeaders,
+  resolveMemberSession,
 } from "@/lib/member-request"
 import {
   microsoftSignInHref,
@@ -33,7 +33,7 @@ export default async function SignInPage({
   const principal =
     memberPrincipalFromHeaders(headerList, cookieStore.get(LOCAL_AUTH_COOKIE)?.value)
   if (principal && !justSignedOut) {
-    const session = await fetchBackendMemberSession(principal)
+    const session = await resolveMemberSession(principal)
     if (session?.authenticated === true) {
       if (isAdminDestination(next)) {
         if (session.is_admin === true) {
