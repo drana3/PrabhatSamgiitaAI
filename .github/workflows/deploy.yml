@@ -268,6 +268,9 @@ jobs:
           if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^apps/web/staticwebapp\.config\.json$|^infra/azure/(setup-static-web-app|sync-swa|decommission-web)'; then
             WEB=true
           fi
+          if echo "$CHANGED" | grep -qE '^scripts/materialize-workspace-deps-for-swa\.sh$'; then
+            WEB=true
+          fi
           if echo "$CHANGED" | grep -qE '^scripts/(sync_youtube|validate_|export_embeddings|list_feedback)' ; then
             API=true
           fi
@@ -278,7 +281,8 @@ jobs:
             WEB=true
           fi
           if [ "$API" = false ] && [ "$WEB" = false ]; then
-            if echo "$CHANGED" | grep -qE '^(\.github/workflows/deploy\.yml|infra/azure/deploy-app\.sh)$'; then
+            NON_TOOLING="$(echo "$CHANGED" | grep -vE '^(\.github/workflows/deploy\.yml|infra/azure/deploy-app\.sh)$' || true)"
+            if [ -z "$NON_TOOLING" ]; then
               echo "api=false" >> "$GITHUB_OUTPUT"
               echo "web=false" >> "$GITHUB_OUTPUT"
               echo "Deploy tooling-only change → skip deploy jobs"
