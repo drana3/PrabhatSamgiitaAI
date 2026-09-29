@@ -12,13 +12,24 @@ describe("resolveClientPrincipal", () => {
     expect(resolveClientPrincipal(headers)).toBe("abc123")
   })
 
-  it("does not synthesize principals from id headers when SWA mode is enabled", () => {
-    vi.stubEnv("EASY_AUTH_SYNTHETIC_PRINCIPAL", "0")
+  it("does not synthesize principals from id headers without an auth cookie in production", () => {
+    vi.stubEnv("NODE_ENV", "production")
     const headers = new Headers({
       "x-ms-client-principal-id": "user-oid-42",
       "x-ms-client-principal-name": "member@example.com",
     })
     expect(resolveClientPrincipal(headers)).toBeNull()
+    vi.unstubAllEnvs()
+  })
+
+  it("synthesizes principals from id headers when the SWA auth cookie is present", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    const headers = new Headers({
+      "x-ms-client-principal-id": "user-oid-42",
+      "x-ms-client-principal-name": "member@example.com",
+      cookie: "StaticWebAppsAuthCookie=fake-session",
+    })
+    expect(resolveClientPrincipal(headers)).toBeTruthy()
     vi.unstubAllEnvs()
   })
 

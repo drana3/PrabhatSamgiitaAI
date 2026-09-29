@@ -25,10 +25,9 @@ function clearLocalAuthCookie(response: NextResponse) {
 
 export async function GET(request: NextRequest) {
   const returnTo = `${siteOrigin(request)}/signin?signedOut=1`
-  const hasEasyAuthSession = Boolean(request.headers.get("x-ms-client-principal"))
-  const hasLocalOrLegacyPrincipal = Boolean(memberPrincipalFor(request))
+  const principal = memberPrincipalFor(request)
 
-  if (!hasEasyAuthSession && !hasLocalOrLegacyPrincipal) {
+  if (!principal) {
     const response = NextResponse.redirect(returnTo, 302)
     clearLocalAuthCookie(response)
     return response

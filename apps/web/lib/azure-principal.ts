@@ -1,5 +1,4 @@
 import type { MemberProfile } from "@/lib/member"
-import { runtimeEnv } from "@/lib/runtime-env"
 
 type Claim = { typ: string; val: string }
 
@@ -80,18 +79,26 @@ export function buildClientPrincipal(
   return Buffer.from(JSON.stringify(payload)).toString("base64")
 }
 
+/** Present after SWA / Container Apps Easy Auth sign-in (not on anonymous edge traffic). */
+export function hasEasyAuthSessionCookie(source: Headers) {
+  const cookie = source.get("cookie") ?? ""
+  return (
+    cookie.includes("StaticWebAppsAuthCookie") ||
+    cookie.includes("AppServiceAuthSession")
+  )
+}
+
 export function resolveClientPrincipal(source: Headers) {
   const existing = source.get("x-ms-client-principal")
   if (existing) return existing
 
-  // SWA forwards x-ms-client-principal-id on anonymous traffic; synthesizing a
-  // principal from id/name made every visitor look signed in while /.auth/me stayed null.
-  if (runtimeEnv("EASY_AUTH_SYNTHETIC_PRINCIPAL") === "0") {
-    return null
-  }
-
   const id = source.get("x-ms-client-principal-id")
   if (!id) return null
+
+  // SWA forwards id/name headers even for guests; only trust them with a platform auth cookie.
+  if (process.env.NODE_ENV === "production" && !hasEasyAuthSessionCookie(source)) {
+    return null
+  }
 
   const name = source.get("x-ms-client-principal-name")
   return buildClientPrincipal(decodeHeaderValue(id), name ? decodeHeaderValue(name) : null)
