@@ -24,6 +24,26 @@ cp -R "${WEB}/public" "${NESTED}/public"
 cp -a "${NESTED}/." "${STANDALONE}/"
 rm -rf "${STANDALONE}/apps"
 
+if [[ ! -d "${STANDALONE}/packages/core" ]]; then
+  echo "Missing ${STANDALONE}/packages/core in standalone trace output" >&2
+  exit 1
+fi
+
+python3 - <<PY
+import json
+from pathlib import Path
+pkg_path = Path("${STANDALONE}") / "package.json"
+data = json.loads(pkg_path.read_text())
+deps = data.setdefault("dependencies", {})
+if "@prabhat/core" in deps:
+    deps["@prabhat/core"] = "file:./packages/core"
+pkg_path.write_text(json.dumps(data, indent=2) + "\n")
+PY
+
+mkdir -p "${STANDALONE}/node_modules/@prabhat"
+rm -rf "${STANDALONE}/node_modules/@prabhat/core"
+cp -R "${STANDALONE}/packages/core" "${STANDALONE}/node_modules/@prabhat/core"
+
 while IFS= read -r link; do
   rm -rf "${link}"
   mkdir -p "$(dirname "${link}")"
