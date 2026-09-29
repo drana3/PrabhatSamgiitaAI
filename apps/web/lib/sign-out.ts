@@ -29,7 +29,7 @@ export async function signOutMember(identityProvider?: string) {
 
   if (usesEasyAuth) {
     void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {})
-    window.location.assign(easyAuthLogoutHref("/signin?signedOut=1"))
+    window.location.assign("/api/auth/sign-out")
     return
   }
 

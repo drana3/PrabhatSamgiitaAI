@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { memberFirstName } from "@/lib/member"
-import { clearSignOutLocalState, easyAuthLogoutHref, isEasyAuthProvider, signOutMember } from "@/lib/sign-out"
+import { clearSignOutLocalState, isEasyAuthProvider, signOutMember } from "@/lib/sign-out"
 import { signInHref } from "@/lib/sign-in"
 
 export function MemberMenu() {
@@ -42,8 +42,7 @@ export function MemberMenu() {
   }
 
   const firstName = memberFirstName(session.display_name)
-  const easyAuthSignOut =
-    isEasyAuthProvider(session.identity_provider) ? easyAuthLogoutHref("/signin?signedOut=1") : null
+  const easyAuthSignOut = isEasyAuthProvider(session.identity_provider)
 
   return (
     <div className="relative" ref={menuRef}>
@@ -88,7 +87,7 @@ export function MemberMenu() {
           ) : null}
           {easyAuthSignOut ? (
             <a
-              href={easyAuthSignOut}
+              href="/api/auth/sign-out"
               role="menuitem"
               onClick={() => {
                 setOpen(false)

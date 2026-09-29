@@ -33,16 +33,12 @@ describe("signOutMember", () => {
   it("uses Easy Auth logout for Microsoft accounts when auth is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
     await signOutMember("aad")
-    expect(window.location.assign).toHaveBeenCalledWith(
-      "/.auth/logout?post_logout_redirect_uri=https%3A%2F%2Fyellow-desert-06a0d4a00.2.azurestaticapps.net%2Fsignin%3FsignedOut%3D1",
-    )
+    expect(window.location.assign).toHaveBeenCalledWith("/api/auth/sign-out")
   })
 
   it("uses Easy Auth logout for Google accounts on SWA when auth is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
     await signOutMember("google")
-    expect(window.location.assign).toHaveBeenCalledWith(
-      "/.auth/logout?post_logout_redirect_uri=https%3A%2F%2Fyellow-desert-06a0d4a00.2.azurestaticapps.net%2Fsignin%3FsignedOut%3D1",
-    )
+    expect(window.location.assign).toHaveBeenCalledWith("/api/auth/sign-out")
   })
 })

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import {
   buildClientPrincipal,
@@ -10,6 +10,16 @@ describe("resolveClientPrincipal", () => {
   it("returns the full principal header when present", () => {
     const headers = new Headers({ "x-ms-client-principal": "abc123" })
     expect(resolveClientPrincipal(headers)).toBe("abc123")
+  })
+
+  it("does not synthesize principals from id headers when SWA mode is enabled", () => {
+    vi.stubEnv("EASY_AUTH_SYNTHETIC_PRINCIPAL", "0")
+    const headers = new Headers({
+      "x-ms-client-principal-id": "user-oid-42",
+      "x-ms-client-principal-name": "member@example.com",
+    })
+    expect(resolveClientPrincipal(headers)).toBeNull()
+    vi.unstubAllEnvs()
   })
 
   it("builds a principal from Azure id and name headers", () => {

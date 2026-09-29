@@ -1,4 +1,5 @@
 import type { MemberProfile } from "@/lib/member"
+import { runtimeEnv } from "@/lib/runtime-env"
 
 type Claim = { typ: string; val: string }
 
@@ -82,6 +83,12 @@ export function buildClientPrincipal(
 export function resolveClientPrincipal(source: Headers) {
   const existing = source.get("x-ms-client-principal")
   if (existing) return existing
+
+  // SWA forwards x-ms-client-principal-id on anonymous traffic; synthesizing a
+  // principal from id/name made every visitor look signed in while /.auth/me stayed null.
+  if (runtimeEnv("EASY_AUTH_SYNTHETIC_PRINCIPAL") === "0") {
+    return null
+  }
 
   const id = source.get("x-ms-client-principal-id")
   if (!id) return null
