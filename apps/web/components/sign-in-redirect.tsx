@@ -6,6 +6,11 @@ import { useMember } from "@/components/member-provider"
 import { isAdminDestination } from "@/lib/member-request"
 import { signInReturnPath } from "@/lib/sign-in"
 
+function signedOutOnSignInPage() {
+  if (typeof window === "undefined") return false
+  return new URLSearchParams(window.location.search).get("signedOut") === "1"
+}
+
 async function azurePrincipalPresent() {
   try {
     const response = await fetch("/.auth/me", { credentials: "same-origin", cache: "no-store" })
@@ -37,6 +42,7 @@ export function SignInRedirect({ next }: { next: string }) {
   useEffect(() => {
     if (leaving.current || loading || isAuthenticated) return
     if (adminDestination) return
+    if (signedOutOnSignInPage()) return
     let active = true
     const timer = window.setTimeout(() => {
       void (async () => {

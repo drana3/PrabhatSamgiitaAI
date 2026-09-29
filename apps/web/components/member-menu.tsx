@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { useMember } from "@/components/member-provider"
 import { memberFirstName } from "@/lib/member"
-import { signOutMember } from "@/lib/sign-out"
+import { clearSignOutLocalState, easyAuthLogoutHref, isEasyAuthProvider, signOutMember } from "@/lib/sign-out"
 import { signInHref } from "@/lib/sign-in"
 
 export function MemberMenu() {
@@ -33,7 +33,7 @@ export function MemberMenu() {
         aria-busy="true"
         className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs text-navy-950/70 sm:px-4 sm:text-sm"
       >
-        Signing in…
+        Loading account…
       </span>
     )
   }
@@ -42,6 +42,8 @@ export function MemberMenu() {
   }
 
   const firstName = memberFirstName(session.display_name)
+  const easyAuthSignOut =
+    isEasyAuthProvider(session.identity_provider) ? easyAuthLogoutHref("/signin?signedOut=1") : null
 
   return (
     <div className="relative" ref={menuRef}>
@@ -84,17 +86,31 @@ export function MemberMenu() {
               Admin
             </Link>
           ) : null}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              void signOutMember(session.identity_provider)
-            }}
-            className="block w-full px-4 py-3 text-left text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
-          >
-            Sign out
-          </button>
+          {easyAuthSignOut ? (
+            <a
+              href={easyAuthSignOut}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                clearSignOutLocalState()
+              }}
+              className="block w-full px-4 py-3 text-left text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
+            >
+              Sign out
+            </a>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                void signOutMember(session.identity_provider)
+              }}
+              className="block w-full px-4 py-3 text-left text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
+            >
+              Sign out
+            </button>
+          )}
         </div>
       ) : null}
     </div>

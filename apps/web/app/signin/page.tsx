@@ -23,15 +23,16 @@ export const dynamic = "force-dynamic"
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>
+  searchParams: Promise<{ next?: string; signedOut?: string }>
 }) {
   const params = await searchParams
   const next = safeSignInNextPath(params.next)
+  const justSignedOut = params.signedOut === "1"
   const headerList = await headers()
   const cookieStore = await cookies()
   const principal =
     memberPrincipalFromHeaders(headerList, cookieStore.get(LOCAL_AUTH_COOKIE)?.value)
-  if (principal) {
+  if (principal && !justSignedOut) {
     if (isAdminDestination(next)) {
       const session = await fetchBackendMemberSession(principal)
       if (session?.authenticated === true && session?.is_admin === true) {
@@ -55,6 +56,11 @@ export default async function SignInPage({
             Sign in to save songs, create playlists, download available recordings, keep practice history, and receive guidance shaped by your interests.
           </p>
           <SignInRedirect next={next} />
+          {justSignedOut ? (
+            <p className="mt-6 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm leading-6 text-stone-700">
+              You are signed out of this site. Choose a sign-in option below to continue with your account.
+            </p>
+          ) : null}
           {authEnabled ? (
             <div className="mt-8 grid gap-3">
               <a href={microsoftSignInHref(next)} className="outline-button justify-center py-3.5">

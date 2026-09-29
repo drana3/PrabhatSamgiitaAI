@@ -95,4 +95,27 @@ describe("SignInRedirect", () => {
       expect(replace).toHaveBeenCalledWith("/quiz")
     }, { timeout: 2000 })
   })
+
+  it("does not auto-redirect when the user just signed out", async () => {
+    const replace = vi.fn()
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, replace, search: "?signedOut=1" },
+    })
+    refresh.mockResolvedValue(undefined)
+    useMemberMock.mockReturnValue({
+      loading: false,
+      session: { authenticated: false },
+      refresh,
+    })
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ clientPrincipal: { userId: "oid" } }),
+    }))
+
+    render(<SignInRedirect next="/quiz" />)
+
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    expect(replace).not.toHaveBeenCalled()
+  })
 })
