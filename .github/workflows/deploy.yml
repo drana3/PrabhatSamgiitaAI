@@ -223,23 +223,13 @@ jobs:
       - name: Validate premium journeys
         run: npm --workspace apps/web run test:e2e -- --project=${{ matrix.project }}
 
-  deploy:
-    name: Deploy to Azure
+  detect-targets:
+    name: Detect deploy targets
     runs-on: ubuntu-latest
-    needs: [lint, test, build, e2e]
     if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
-    env:
-      RG: prabhatai-rg
-      LOCATION: centralindia
-      PREFIX: prabhatai
-      DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKERHUB_USERNAME }}/prabhat-samgiita
-      ACA_ENV: prabhatai-env
-      PG_DB: prabhatai
-      WEB_APP: prabhatai-web
-      API_APP: prabhatai-api
+    outputs:
+      api: ${{ steps.targets.outputs.api }}
+      web: ${{ steps.targets.outputs.web }}
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -253,7 +243,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "api=true" >> "$GITHUB_OUTPUT"
             echo "web=true" >> "$GITHUB_OUTPUT"
-            echo "Manual dispatch → deploy API + web"
+            echo "Manual dispatch → deploy API + web (Static Web Apps)"
             exit 0
           fi
           BEFORE="${{ github.event.before }}"
@@ -272,14 +262,12 @@ jobs:
           if echo "$CHANGED" | grep -qE '^(packages/|data/|\.dockerignore$)'; then
             API=true
           fi
-          # infra/azure/deploy-app.sh runs in CI; only Dockerfiles force image rebuilds.
           if echo "$CHANGED" | grep -qE '^apps/api/Dockerfile$|^infra/azure/.*api'; then
             API=true
           fi
-          if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^infra/azure/.*web'; then
+          if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^apps/web/staticwebapp\.config\.json$|^infra/azure/(setup-static-web-app|sync-swa|decommission-web)'; then
             WEB=true
           fi
-          # Only scripts that affect the live API/web containers (not mobile helpers).
           if echo "$CHANGED" | grep -qE '^scripts/(sync_youtube|validate_|export_embeddings|list_feedback)' ; then
             API=true
           fi
@@ -289,12 +277,11 @@ jobs:
           if echo "$CHANGED" | grep -qE '^(apps/web/|package\.json$|package-lock\.json$)'; then
             WEB=true
           fi
-          # Workflow / deploy-script-only edits should not force Docker image rebuilds.
           if [ "$API" = false ] && [ "$WEB" = false ]; then
             if echo "$CHANGED" | grep -qE '^(\.github/workflows/deploy\.yml|infra/azure/deploy-app\.sh)$'; then
               echo "api=false" >> "$GITHUB_OUTPUT"
               echo "web=false" >> "$GITHUB_OUTPUT"
-              echo "Deploy tooling-only change → skip Docker rebuilds"
+              echo "Deploy tooling-only change → skip deploy jobs"
               exit 0
             fi
             API=true
@@ -302,7 +289,28 @@ jobs:
           fi
           echo "api=$API" >> "$GITHUB_OUTPUT"
           echo "web=$WEB" >> "$GITHUB_OUTPUT"
-          echo "Deploy targets → API=$API WEB=$WEB"
+          echo "Deploy targets → API=$API WEB(SWA)=$WEB"
+
+  deploy-api:
+    name: Deploy API (Container Apps)
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, e2e, detect-targets]
+    if: github.ref == 'refs/heads/main' && needs.detect-targets.outputs.api == 'true'
+    environment:
+      name: production
+      url: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
+    env:
+      RG: prabhatai-rg
+      LOCATION: centralindia
+      PREFIX: prabhatai
+      DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKERHUB_USERNAME }}/prabhat-samgiita
+      ACA_ENV: prabhatai-env
+      PG_DB: prabhatai
+      WEB_APP: prabhatai-web
+      API_APP: prabhatai-api
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
 
       - name: Azure login
         uses: azure/login@v2
@@ -311,14 +319,11 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy app stack
+      - name: Deploy API stack
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          # Must stay aligned with MOBILE_MEMBER_PROXY_KEY / EXPO_PUBLIC_MEMBER_PROXY_KEY in
-          # shipped iOS/Android builds. Do not derive from DATABASE_URL alone — scheme changes
-          # rotate the key and break Retry sync on existing installs.
           MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
           FAISS_INDEX_URL: ${{ secrets.FAISS_INDEX_URL }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
@@ -329,6 +334,55 @@ jobs:
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
-          DEPLOY_API: ${{ steps.targets.outputs.api == 'true' && '1' || '0' }}
-          DEPLOY_WEB: ${{ steps.targets.outputs.web == 'true' && '1' || '0' }}
+          DEPLOY_API: "1"
+          DEPLOY_WEB: "0"
         run: bash ./infra/azure/deploy-app.sh
+
+  deploy-web-swa:
+    name: Deploy web (Static Web Apps)
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, e2e, detect-targets]
+    if: github.ref == 'refs/heads/main' && needs.detect-targets.outputs.web == 'true'
+    environment:
+      name: production
+      url: https://www.prabhatasamgiita.org
+    env:
+      SWA_DEPLOY: "true"
+      NEXT_PUBLIC_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_API_BASE_URL: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Require Static Web Apps deployment token
+        run: |
+          if [ -z "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" ]; then
+            echo "Missing secret AZURE_STATIC_WEB_APPS_API_TOKEN. Run: ./infra/azure/setup-static-web-app.sh" >&2
+            exit 1
+          fi
+
+      - name: Build and deploy Next.js to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /apps/web
+          output_location: ""
+          app_build_command: cd ../.. && npm ci && npm run build --workspace apps/web
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sync SWA runtime settings
+        env:
+          MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: bash ./infra/azure/sync-swa-app-settings.sh

@@ -34,6 +34,38 @@ For every subsequent code push, the GitHub Actions workflow uses:
 ./infra/azure/deploy-app.sh
 ```
 
+That script rebuilds and updates the **API** Container App (`prabhatai-api`) by default. The public website is deployed to **Azure Static Web Apps** (`prabhatai-www`, East Asia) instead of `prabhatai-web` Container Apps.
+
+### Website (Static Web Apps)
+
+One-time setup:
+
+```bash
+./infra/azure/setup-static-web-app.sh
+# Add the printed token to GitHub → Settings → Secrets → AZURE_STATIC_WEB_APPS_API_TOKEN
+./infra/azure/sync-swa-app-settings.sh
+```
+
+After `www.prabhatasamgiita.org` DNS points at Static Web Apps and smoke tests pass:
+
+```bash
+CONFIRM=1 ./infra/azure/decommission-web-container-app.sh
+```
+
+Custom domain (after validating the default `*.azurestaticapps.net` URL):
+
+```bash
+az staticwebapp hostname set --hostname www.prabhatasamgiita.org -n prabhatai-www -g prabhatai-rg
+```
+
+Add the Entra redirect URI `https://<your-host>/.auth/login/aad/callback` for Microsoft sign-in.
+
+To deploy the legacy web Container App image again (not recommended):
+
+```bash
+DEPLOY_WEB=1 ./infra/azure/deploy-app.sh
+```
+
 That script assumes the Azure foundation already exists and only rebuilds images with Docker, pushes to Docker Hub, and updates the Container Apps to the new image tag.
 
 Set these GitHub Actions secrets for production deploys:

@@ -30,7 +30,7 @@ GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
 FAISS_INDEX_URL="${FAISS_INDEX_URL:-}"
 # Selective deploy: set DEPLOY_API=0 or DEPLOY_WEB=0 to skip that image rebuild/update.
 DEPLOY_API="${DEPLOY_API:-1}"
-DEPLOY_WEB="${DEPLOY_WEB:-1}"
+DEPLOY_WEB="${DEPLOY_WEB:-0}"
 WEB_MIN_REPLICAS="${WEB_MIN_REPLICAS:-0}"
 WEB_MAX_REPLICAS="${WEB_MAX_REPLICAS:-1}"
 WEB_CPU="${WEB_CPU:-0.5}"
@@ -168,7 +168,9 @@ if [[ "$AUTH_ENABLED" != "true" ]]; then
 fi
 
 echo "Deploy targets: API=${DEPLOY_API} WEB=${DEPLOY_WEB} TAG=${TAG}"
-ensure_web_scale_profile
+if [[ "$DEPLOY_WEB" == "1" ]]; then
+  ensure_web_scale_profile
+fi
 
 if [[ "$DEPLOY_API" != "1" && "$DEPLOY_WEB" != "1" ]]; then
   cat <<EOF
