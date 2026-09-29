@@ -44,11 +44,13 @@ One-time setup:
 ./infra/azure/setup-static-web-app.sh
 # Add the printed token to GitHub → Settings → Secrets → AZURE_STATIC_WEB_APPS_API_TOKEN
 ./infra/azure/sync-swa-app-settings.sh
+# Also patches API_CORS_ORIGINS on prabhatai-api (SWA default hostname + www).
 ```
 
 After `www.prabhatasamgiita.org` DNS points at Static Web Apps and smoke tests pass:
 
 ```bash
+PUBLIC_SITE_URL=https://www.prabhatasamgiita.org ./infra/azure/sync-swa-app-settings.sh
 CONFIRM=1 ./infra/azure/decommission-web-container-app.sh
 ```
 

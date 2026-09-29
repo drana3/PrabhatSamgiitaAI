@@ -220,11 +220,23 @@ else
 fi
 
 if [[ "$DEPLOY_API" == "1" ]]; then
+  SWA_NAME="${SWA_NAME:-${PREFIX}-www}"
+  SWA_HOST="$(
+    az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" --query defaultHostname -o tsv 2>/dev/null || true
+  )"
+  API_CORS_ORIGINS="https://www.prabhatasamgiita.org,https://prabhatasamgiita.org"
+  if [[ -n "$SWA_HOST" ]]; then
+    API_CORS_ORIGINS="${API_CORS_ORIGINS},https://${SWA_HOST}"
+  fi
+  if [[ -n "${WEB_FQDN:-}" ]]; then
+    API_CORS_ORIGINS="${API_CORS_ORIGINS},https://${WEB_FQDN}"
+  fi
+
   API_ENV_VARS=(
     DATABASE_URL=secretref:database-url
     FAISS_INDEX_DIR=/app/data/generated/faiss
     APP_ENV=production
-    API_CORS_ORIGINS="https://${WEB_FQDN},https://www.prabhatasamgiita.org,https://prabhatasamgiita.org"
+    API_CORS_ORIGINS="${API_CORS_ORIGINS}"
     TRUSTED_HOSTS="${API_FQDN},localhost,127.0.0.1"
     CONTENT_SOURCE_URL=https://prabhatasamgiita.net
     CONTENT_CACHE_DIR=/tmp/content-cache
@@ -238,7 +250,7 @@ if [[ "$DEPLOY_API" == "1" ]]; then
     MEMBER_PROXY_KEY=secretref:member-proxy-key
     DEFAULT_ADMIN_EMAILS="$DEFAULT_ADMIN_EMAILS"
     PROTECTED_ADMIN_EMAILS="$PROTECTED_ADMIN_EMAILS"
-    PUBLIC_SITE_URL="https://${WEB_FQDN}"
+    PUBLIC_SITE_URL="${PUBLIC_SITE_URL:-https://www.prabhatasamgiita.org}"
     NEXT_PUBLIC_API_BASE_URL="https://${API_FQDN}"
     ACS_EMAIL_ENABLED="$ACS_EMAIL_ENABLED"
     ACS_EMAIL_FROM="$ACS_EMAIL_FROM"

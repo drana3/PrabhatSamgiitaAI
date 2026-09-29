@@ -265,7 +265,7 @@ jobs:
           if echo "$CHANGED" | grep -qE '^apps/api/Dockerfile$|^infra/azure/.*api'; then
             API=true
           fi
-          if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^apps/web/staticwebapp\.config\.json$|^infra/azure/(setup-static-web-app|sync-swa|decommission-web)'; then
+          if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^apps/web/staticwebapp\.config\.json$|^infra/azure/(setup-static-web-app|sync-swa|sync-api-cors|decommission-web)'; then
             WEB=true
           fi
           if echo "$CHANGED" | grep -qE '^scripts/(prepare-swa-standalone|materialize-workspace-deps-for-swa)\.sh$'; then
@@ -380,6 +380,12 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: bash ./infra/azure/sync-swa-app-settings.sh
 
+      - name: Resolve public site URL for Next build
+        id: site
+        run: |
+          HOST="$(az staticwebapp show --name prabhatai-www --resource-group prabhatai-rg --query defaultHostname -o tsv)"
+          echo "url=https://${HOST}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -390,6 +396,7 @@ jobs:
         env:
           NEXT_PUBLIC_AUTH_ENABLED: "true"
           NEXT_PUBLIC_API_BASE_URL: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
+          NEXT_PUBLIC_SITE_URL: ${{ steps.site.outputs.url }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
         run: bash ./scripts/prepare-swa-standalone.sh

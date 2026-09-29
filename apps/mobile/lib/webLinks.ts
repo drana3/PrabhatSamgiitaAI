@@ -1,7 +1,6 @@
 import Constants from "expo-constants"
 
-const productionWeb =
-  "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
+const productionWeb = "https://www.prabhatasamgiita.org"
 
 /** Public website origin used for share links and deep references. */
 export function webBaseUrl(): string {

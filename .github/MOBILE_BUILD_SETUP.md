@@ -142,8 +142,8 @@ Only **iOS Simulator** builds have run so far (`preview-ios-simulator`). No prod
 | Marketing version | `1.0.0` (`apps/mobile/app.json` → `expo.version`) |
 | iOS build number | `2` (`apps/mobile/app.json` → `expo.ios.buildNumber`) — **increment for every App Store / TestFlight upload** |
 | EAS owner / slug | `dewasheesh3s-team` / `prabhatsamgiitaai` |
-| Privacy policy | `https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io/privacy` |
-| Delete account | `https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io/delete-account` |
+| Privacy policy | `https://www.prabhatasamgiita.org/privacy` |
+| Delete account | `https://www.prabhatasamgiita.org/delete-account` |
 | Support email | `anandamarga01@gmail.com` |
 | App icon | `apps/mobile/assets/icon.png` (1024×1024 — App Store ready) |
 
@@ -162,7 +162,7 @@ Use the **same Apple ID** on EAS when prompted for credentials.
 2. **App IDs** → **App** → Continue.
 3. Description: `Prabhat Samgiita AI`
 4. Bundle ID: **Explicit** → `net.prabhatasamgiita.ai`
-5. Capabilities: defaults are fine (no Sign in with Apple required — app uses Google + Microsoft).
+5. Capabilities: enable **Sign In with Apple** (required when offering Google or Microsoft login on iOS).
 6. Register.
 
 ### Step 3 — Create the app in App Store Connect

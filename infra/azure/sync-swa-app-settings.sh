@@ -38,10 +38,14 @@ fi
 
 echo "Syncing ${SWA_NAME} application settings (API → ${API_BASE})..."
 
+HOSTNAME="$(az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" --query defaultHostname -o tsv)"
+PUBLIC_SITE="${PUBLIC_SITE_URL:-https://${HOSTNAME}}"
+
 SETTINGS=(
   "NEXT_PUBLIC_API_BASE_URL=${API_BASE}"
   "API_BASE_URL=${API_BASE}"
   "NEXT_PUBLIC_AUTH_ENABLED=true"
+  "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE}"
   "AZURE_CLIENT_ID=${AZURE_CLIENT_ID}"
   "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
   "DEFAULT_ADMIN_EMAILS=${DEFAULT_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
@@ -56,7 +60,9 @@ az staticwebapp appsettings set \
   --setting-names "${SETTINGS[@]}" \
   >/dev/null
 
-HOSTNAME="$(az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" --query defaultHostname -o tsv)"
+echo "Syncing API CORS for SWA hostname..."
+bash "$(dirname "$0")/sync-api-cors-for-swa.sh"
+
 echo "Done. Test at https://${HOSTNAME}"
 echo "Microsoft sign-in uses staticwebapp.config.json + AZURE_CLIENT_ID / AZURE_CLIENT_SECRET."
 echo "Add Entra redirect URI: https://${HOSTNAME}/.auth/login/aad/callback"

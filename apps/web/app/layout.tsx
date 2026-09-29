@@ -18,8 +18,11 @@ const sans = Manrope({
   weight: ["400", "500", "600", "700", "800"],
 })
 
+const publicSiteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.prabhatasamgiita.org"
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"),
+  metadataBase: new URL(publicSiteUrl),
   title: "Prabhat Samgiita AI",
   description: "Search lyrics, read meanings, listen from verified sources, and browse curated Prabhat Samgiita resources.",
   manifest: "/manifest.webmanifest",
