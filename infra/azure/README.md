@@ -60,7 +60,9 @@ Custom domain (after validating the default `*.azurestaticapps.net` URL):
 az staticwebapp hostname set --hostname www.prabhatasamgiita.org -n prabhatai-www -g prabhatai-rg
 ```
 
-Add the Entra redirect URI `https://<your-host>/.auth/login/aad/callback` for Microsoft sign-in.
+For Microsoft sign-in on SWA, in the Entra app registration add:
+- Redirect URI (Web): `https://<your-host>/.auth/login/aad/callback`
+- Front-channel logout URL: `https://<your-host>/.auth/logout/complete` (required for Sign out to clear the session)
 
 To deploy the legacy web Container App image again (not recommended):
 

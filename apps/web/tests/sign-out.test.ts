@@ -7,7 +7,7 @@ describe("signOutMember", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }))
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { href: "" },
+      value: { href: "", origin: "https://yellow-desert-06a0d4a00.2.azurestaticapps.net", replace: vi.fn() },
     })
   })
 
@@ -22,18 +22,20 @@ describe("signOutMember", () => {
       method: "POST",
       credentials: "same-origin",
     })
-    expect(window.location.href).toBe("/")
+    expect(window.location.replace).toHaveBeenCalledWith("/")
   })
 
   it("uses Easy Auth logout for Microsoft accounts when auth is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
     await signOutMember("aad")
-    expect(window.location.href).toBe("/.auth/logout?post_logout_redirect_uri=%2F")
+    expect(window.location.replace).toHaveBeenCalledWith(
+      "/.auth/logout?post_logout_redirect_uri=https%3A%2F%2Fyellow-desert-06a0d4a00.2.azurestaticapps.net%2F",
+    )
   })
 
   it("returns home for Google accounts without Easy Auth logout", async () => {
     vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
     await signOutMember("google")
-    expect(window.location.href).toBe("/")
+    expect(window.location.replace).toHaveBeenCalledWith("/")
   })
 })
