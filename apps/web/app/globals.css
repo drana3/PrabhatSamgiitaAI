@@ -7,8 +7,8 @@
   --navy: #092d56;
   --gold: #ca8a27;
   --ivory: #fffaf0;
-  --font-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  --font-sans: "Manrope", system-ui, -apple-system, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Manrope", system-ui, sans-serif;
 }
 
 html {
@@ -22,8 +22,14 @@ input,
 textarea,
 select {
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  text-rendering: auto;
+  font-synthesis: none;
   text-shadow: none;
+}
+
+.font-serif,
+[class*="font-serif"] {
+  font-synthesis: none;
 }
 
 body {
