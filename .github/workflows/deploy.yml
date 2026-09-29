@@ -392,14 +392,36 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Cache Next.js font/build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-web-cache-${{ runner.os }}-${{ hashFiles('apps/web/app/layout.tsx', 'package-lock.json') }}
+          restore-keys: |
+            next-web-cache-${{ runner.os }}-
+
       - name: Build standalone artifact for SWA
         env:
+          NEXT_FONT_GOOGLE_MOCKED_RESPONSES: "1"
           NEXT_PUBLIC_AUTH_ENABLED: "true"
           NEXT_PUBLIC_API_BASE_URL: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
           NEXT_PUBLIC_SITE_URL: ${{ steps.site.outputs.url }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
-        run: bash ./scripts/prepare-swa-standalone.sh
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if bash ./scripts/prepare-swa-standalone.sh; then
+              exit 0
+            fi
+            echo "SWA standalone build attempt ${attempt} failed; retrying in 10s..." >&2
+            sleep 10
+          done
+          echo "SWA standalone build failed after 3 attempts." >&2
+          exit 1
 
       - name: Deploy standalone Next.js to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
