@@ -14,14 +14,6 @@ describe("easy-auth-sync route", () => {
 
   it("does not mint a member cookie for anonymous guests (keeps 15/day AI quota)", async () => {
     process.env.NODE_ENV = "production"
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ clientPrincipal: null }),
-      }),
-    )
-
     const request = new NextRequest("https://example.test/api/auth/easy-auth-sync", {
       method: "POST",
       headers: {
@@ -35,32 +27,48 @@ describe("easy-auth-sync route", () => {
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeUndefined()
   })
 
-  it("mints a member cookie only when SWA reports an authenticated principal", async () => {
+  it("accepts browser-provided /.auth/me payload with SWA auth cookie and matching id header", async () => {
     process.env.NODE_ENV = "production"
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          clientPrincipal: {
-            identityProvider: "aad",
-            userId: "oid-99",
-            userDetails: "member@example.com",
-            userRoles: ["anonymous", "authenticated"],
-          },
-        }),
-      }),
-    )
-
     const request = new NextRequest("https://example.test/api/auth/easy-auth-sync", {
       method: "POST",
       headers: {
         cookie: "StaticWebAppsAuthCookie=fake-session",
+        "x-ms-client-principal-id": "oid-99",
       },
+      body: JSON.stringify({
+        clientPrincipal: {
+          identityProvider: "aad",
+          userId: "oid-99",
+          userDetails: "member@example.com",
+          userRoles: ["anonymous", "authenticated"],
+        },
+      }),
     })
 
     const response = await POST(request)
     expect(response.status).toBe(200)
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeTruthy()
+  })
+
+  it("rejects /.auth/me payload when the SWA id header does not match", async () => {
+    process.env.NODE_ENV = "production"
+    const request = new NextRequest("https://example.test/api/auth/easy-auth-sync", {
+      method: "POST",
+      headers: {
+        cookie: "StaticWebAppsAuthCookie=fake-session",
+        "x-ms-client-principal-id": "other-user",
+      },
+      body: JSON.stringify({
+        clientPrincipal: {
+          identityProvider: "aad",
+          userId: "oid-99",
+          userDetails: "member@example.com",
+          userRoles: ["anonymous", "authenticated"],
+        },
+      }),
+    })
+
+    const response = await POST(request)
+    expect(response.status).toBe(401)
   })
 })

@@ -6,15 +6,20 @@ import { SignInRedirect } from "@/components/sign-in-redirect"
 
 const refresh = vi.fn()
 const useMemberMock = vi.fn()
+const syncEasyAuthSessionFromBrowser = vi.fn()
 
 vi.mock("@/components/member-provider", () => ({
   useMember: () => useMemberMock(),
 }))
 
+vi.mock("@/lib/easy-auth-client", () => ({
+  syncEasyAuthSessionFromBrowser: () => syncEasyAuthSessionFromBrowser(),
+}))
+
 describe("SignInRedirect", () => {
   afterEach(() => {
-    vi.unstubAllGlobals()
     refresh.mockReset()
+    syncEasyAuthSessionFromBrowser.mockReset()
   })
 
   it("leaves /signin once the member session is authenticated", async () => {
@@ -72,15 +77,14 @@ describe("SignInRedirect", () => {
     expect(replace).not.toHaveBeenCalled()
   })
 
-  it("polls Easy Auth sync while the member session is still guest", async () => {
+  it("syncs Easy Auth from the browser while the member session is still guest", async () => {
     const replace = vi.fn()
     Object.defineProperty(window, "location", {
       configurable: true,
       value: { ...window.location, replace, search: "" },
     })
     refresh.mockResolvedValue(undefined)
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false })
-    vi.stubGlobal("fetch", fetchMock)
+    syncEasyAuthSessionFromBrowser.mockResolvedValue(false)
     useMemberMock.mockReturnValue({
       loading: false,
       session: { authenticated: false },
@@ -90,10 +94,7 @@ describe("SignInRedirect", () => {
     render(<SignInRedirect next="/quiz" />)
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/auth/easy-auth-sync",
-        expect.objectContaining({ method: "POST" }),
-      )
+      expect(syncEasyAuthSessionFromBrowser).toHaveBeenCalled()
     })
     expect(replace).not.toHaveBeenCalled()
   })

@@ -3,25 +3,13 @@
 import { useEffect, useRef } from "react"
 
 import { useMember } from "@/components/member-provider"
+import { syncEasyAuthSessionFromBrowser } from "@/lib/easy-auth-client"
 import { isAdminDestination } from "@/lib/member-request"
 import { signInReturnPath } from "@/lib/sign-in"
 
 function signedOutOnSignInPage() {
   if (typeof window === "undefined") return false
   return new URLSearchParams(window.location.search).get("signedOut") === "1"
-}
-
-async function syncEasyAuthSession() {
-  try {
-    const response = await fetch("/api/auth/easy-auth-sync", {
-      method: "POST",
-      credentials: "same-origin",
-      cache: "no-store",
-    })
-    return response.ok
-  } catch {
-    return false
-  }
 }
 
 export function SignInRedirect({ next }: { next: string }) {
@@ -51,7 +39,7 @@ export function SignInRedirect({ next }: { next: string }) {
 
     const tick = async () => {
       if (!active || leaving.current || signedOutOnSignInPage()) return
-      await syncEasyAuthSession()
+      await syncEasyAuthSessionFromBrowser()
       await refresh({ silent: true })
     }
 

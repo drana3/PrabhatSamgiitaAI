@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 import {
-  fetchEasyAuthClientPrincipal,
-  principalFromEasyAuthMe,
-  requestOriginFromHeaders,
+  type EasyAuthClientPrincipal,
+  resolveEasyAuthPrincipalFromRequest,
 } from "@/lib/easy-auth"
 import { memberPrincipalFor } from "@/lib/member-request"
 
@@ -20,22 +19,32 @@ function authCookieOptions() {
   }
 }
 
+function parseClientPrincipalBody(raw: string): EasyAuthClientPrincipal | null {
+  if (!raw.trim()) return null
+  try {
+    const body = JSON.parse(raw) as { clientPrincipal?: EasyAuthClientPrincipal | null }
+    return body?.clientPrincipal ?? null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
-  let principal = memberPrincipalFor(request)
-  if (!principal) {
-    const origin = requestOriginFromHeaders(request.headers) ?? request.nextUrl.origin
-    const clientPrincipal = await fetchEasyAuthClientPrincipal(
-      origin,
-      request.headers.get("cookie") ?? "",
-    )
-    principal = principalFromEasyAuthMe(clientPrincipal)
+  const raw = await request.text()
+  const clientPrincipalFromBody = parseClientPrincipalBody(raw)
+
+  let principal = clientPrincipalFromBody
+    ? await resolveEasyAuthPrincipalFromRequest(request, clientPrincipalFromBody)
+    : memberPrincipalFor(request)
+
+  if (!principal && !clientPrincipalFromBody) {
+    principal = await resolveEasyAuthPrincipalFromRequest(request, null)
   }
 
   if (!principal) {
     return NextResponse.json({ ok: false, authenticated: false }, { status: 401 })
   }
 
-  // Only real SWA sign-in reaches here; guests stay on the 15/day AI quota path.
   const response = NextResponse.json({ ok: true, authenticated: true })
   response.cookies.set(LOCAL_AUTH_COOKIE, principal, authCookieOptions())
   return response

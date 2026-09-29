@@ -1,7 +1,6 @@
 import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies"
 
 import { buildClientPrincipal, hasEasyAuthSessionCookie } from "@/lib/azure-principal"
-import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 import { memberPrincipalFromHeaders } from "@/lib/member-request"
 
 export type EasyAuthClientPrincipal = {
@@ -56,6 +55,49 @@ export function principalFromEasyAuthMe(
   const email = details?.includes("@") ? details : null
   const displayName = details || email || "Prabhat Samgiita member"
   return buildClientPrincipal(userId, displayName, provider, email)
+}
+
+function decodeHeaderValue(value: string) {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+/** When SWA forwards id headers, the /.auth/me userId must match (blocks cookie + spoofed body). */
+export function easyAuthPrincipalMatchesHeaders(
+  clientPrincipal: EasyAuthClientPrincipal,
+  source: Headers,
+): boolean {
+  const userId = clientPrincipal.userId?.trim()
+  if (!userId) return false
+  const headerId = source.get("x-ms-client-principal-id")
+  if (!headerId) return true
+  return decodeHeaderValue(headerId) === userId
+}
+
+export async function resolveEasyAuthPrincipalFromRequest(
+  request: Request,
+  clientPrincipalFromBody?: EasyAuthClientPrincipal | null,
+): Promise<string | null> {
+  const cookieHeader = request.headers.get("cookie") ?? ""
+  if (!hasEasyAuthSessionCookie(new Headers({ cookie: cookieHeader }))) {
+    return null
+  }
+
+  let clientPrincipal = clientPrincipalFromBody ?? null
+  if (!clientPrincipal) {
+    const origin = requestOriginFromHeaders(request.headers)
+    if (origin) {
+      clientPrincipal = await fetchEasyAuthClientPrincipal(origin, cookieHeader)
+    }
+  }
+
+  if (!clientPrincipal || !easyAuthPrincipalMatchesHeaders(clientPrincipal, request.headers)) {
+    return null
+  }
+  return principalFromEasyAuthMe(clientPrincipal)
 }
 
 export async function fetchEasyAuthClientPrincipal(

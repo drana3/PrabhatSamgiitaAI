@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 
 import { useMember } from "@/components/member-provider"
+import { syncEasyAuthSessionFromBrowser } from "@/lib/easy-auth-client"
 
 export function EasyAuthSessionBootstrap() {
   const { refresh } = useMember()
@@ -13,12 +14,8 @@ export function EasyAuthSessionBootstrap() {
     if (started.current) return
     started.current = true
 
-    void fetch("/api/auth/easy-auth-sync", {
-      method: "POST",
-      credentials: "same-origin",
-      cache: "no-store",
-    })
-      .then((response) => (response.ok ? refresh({ silent: true }) : undefined))
+    void syncEasyAuthSessionFromBrowser()
+      .then((ok) => (ok ? refresh({ silent: true }) : undefined))
       .catch(() => undefined)
   }, [refresh])
 

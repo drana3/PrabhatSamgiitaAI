@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import { buildClientPrincipal } from "@/lib/azure-principal"
-import { isAuthenticatedEasyAuthPrincipal, principalFromEasyAuthMe } from "@/lib/easy-auth"
+import {
+  easyAuthPrincipalMatchesHeaders,
+  isAuthenticatedEasyAuthPrincipal,
+  principalFromEasyAuthMe,
+} from "@/lib/easy-auth"
 
 describe("principalFromEasyAuthMe", () => {
   it("rejects SWA principals that are not in the authenticated role", () => {
@@ -37,5 +41,26 @@ describe("principalFromEasyAuthMe", () => {
       userDetails: "Member",
     })
     expect(principal).toBe(buildClientPrincipal("oid-456", "Member", "aad", null))
+  })
+
+  it("requires SWA id headers to match the /.auth/me user id", () => {
+    const clientPrincipal = {
+      identityProvider: "aad",
+      userId: "oid-99",
+      userDetails: "member@example.com",
+      userRoles: ["authenticated"],
+    }
+    expect(
+      easyAuthPrincipalMatchesHeaders(
+        clientPrincipal,
+        new Headers({ "x-ms-client-principal-id": "oid-99" }),
+      ),
+    ).toBe(true)
+    expect(
+      easyAuthPrincipalMatchesHeaders(
+        clientPrincipal,
+        new Headers({ "x-ms-client-principal-id": "someone-else" }),
+      ),
+    ).toBe(false)
   })
 })
