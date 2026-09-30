@@ -3,21 +3,31 @@
 import { useEffect, useRef } from "react"
 
 import { useMember } from "@/components/member-provider"
-import { syncEasyAuthSessionFromBrowser } from "@/lib/easy-auth-client"
+import {
+  easyAuthSyncBlockedOnPage,
+  startEasyAuthSessionSyncLoop,
+  syncEasyAuthSessionFromBrowser,
+} from "@/lib/easy-auth-client"
 
 export function EasyAuthSessionBootstrap() {
-  const { refresh } = useMember()
-  const started = useRef(false)
+  const { loading, session, refresh } = useMember()
+  const authenticatedRef = useRef(session.authenticated)
+
+  authenticatedRef.current = session.authenticated
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true") return
-    if (started.current) return
-    started.current = true
+    if (easyAuthSyncBlockedOnPage()) return
 
-    void syncEasyAuthSessionFromBrowser()
-      .then((ok) => (ok ? refresh({ silent: true }) : undefined))
-      .catch(() => undefined)
-  }, [refresh])
+    return startEasyAuthSessionSyncLoop({
+      shouldContinue: () => !authenticatedRef.current,
+      onAttempt: async () => {
+        if (loading || authenticatedRef.current) return
+        const ok = await syncEasyAuthSessionFromBrowser()
+        if (ok) await refresh({ silent: true })
+      },
+    })
+  }, [loading, refresh])
 
   return null
 }

@@ -4,8 +4,36 @@ import { buildClientPrincipal } from "@/lib/azure-principal"
 import {
   easyAuthPrincipalMatchesHeaders,
   isAuthenticatedEasyAuthPrincipal,
+  parseEasyAuthMePayload,
   principalFromEasyAuthMe,
 } from "@/lib/easy-auth"
+
+describe("parseEasyAuthMePayload", () => {
+  it("reads SWA array responses from /.auth/me", () => {
+    const principal = parseEasyAuthMePayload([
+      {
+        clientPrincipal: {
+          identityProvider: "aad",
+          userId: "oid-array",
+          userDetails: "member@example.com",
+          userRoles: ["anonymous", "authenticated"],
+        },
+      },
+    ])
+    expect(principal?.userId).toBe("oid-array")
+  })
+
+  it("reads object-shaped /.auth/me payloads", () => {
+    const principal = parseEasyAuthMePayload({
+      clientPrincipal: {
+        identityProvider: "aad",
+        userId: "oid-object",
+        userDetails: "member@example.com",
+      },
+    })
+    expect(principal?.userId).toBe("oid-object")
+  })
+})
 
 describe("principalFromEasyAuthMe", () => {
   it("rejects SWA principals that are not in the authenticated role", () => {

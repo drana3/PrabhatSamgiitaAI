@@ -8,14 +8,16 @@ describe("easy-auth-client", () => {
       .fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          clientPrincipal: {
-            identityProvider: "aad",
-            userId: "oid-1",
-            userDetails: "member@example.com",
-            userRoles: ["authenticated"],
+        json: async () => [
+          {
+            clientPrincipal: {
+              identityProvider: "aad",
+              userId: "oid-1",
+              userDetails: "member@example.com",
+              userRoles: ["authenticated"],
+            },
           },
-        }),
+        ],
       })
       .mockResolvedValueOnce({ ok: true })
 

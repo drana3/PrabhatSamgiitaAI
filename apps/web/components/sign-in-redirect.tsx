@@ -3,19 +3,20 @@
 import { useEffect, useRef } from "react"
 
 import { useMember } from "@/components/member-provider"
-import { syncEasyAuthSessionFromBrowser } from "@/lib/easy-auth-client"
+import { syncEasyAuthSessionFromBrowser, easyAuthSyncBlockedOnPage, startEasyAuthSessionSyncLoop } from "@/lib/easy-auth-client"
 import { isAdminDestination } from "@/lib/member-request"
 import { signInReturnPath } from "@/lib/sign-in"
 
 function signedOutOnSignInPage() {
-  if (typeof window === "undefined") return false
-  return new URLSearchParams(window.location.search).get("signedOut") === "1"
+  return easyAuthSyncBlockedOnPage()
 }
 
 export function SignInRedirect({ next }: { next: string }) {
   const { loading, session, refresh } = useMember()
   const destination = signInReturnPath(next)
   const leaving = useRef(false)
+  const authenticatedRef = useRef(session.authenticated)
+  authenticatedRef.current = session.authenticated
   const adminDestination = isAdminDestination(destination)
 
   const isAuthenticated = session.authenticated
@@ -34,30 +35,18 @@ export function SignInRedirect({ next }: { next: string }) {
     if (adminDestination) return
     if (signedOutOnSignInPage()) return
 
-    let active = true
-    let attempt = 0
-
-    const tick = async () => {
-      if (!active || leaving.current || signedOutOnSignInPage()) return
-      await syncEasyAuthSessionFromBrowser()
-      await refresh({ silent: true })
-    }
-
-    void tick()
-    const timer = window.setInterval(() => {
-      attempt += 1
-      if (attempt >= 20) {
-        window.clearInterval(timer)
-        return
-      }
-      void tick()
-    }, 500)
-
-    return () => {
-      active = false
-      window.clearInterval(timer)
-    }
-  }, [adminDestination, isAuthenticated, loading, refresh])
+    return startEasyAuthSessionSyncLoop({
+      shouldContinue: () => !leaving.current && !signedOutOnSignInPage() && !authenticatedRef.current,
+      onAttempt: async () => {
+        if (leaving.current || loading || authenticatedRef.current) return
+        await syncEasyAuthSessionFromBrowser()
+        await refresh({ silent: true })
+        if (session.authenticated) {
+          leaving.current = true
+        }
+      },
+    })
+  }, [adminDestination, isAuthenticated, loading, refresh, session.authenticated])
 
   return null
 }

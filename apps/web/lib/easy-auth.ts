@@ -11,6 +11,23 @@ export type EasyAuthClientPrincipal = {
   claims?: Array<{ typ?: string; val?: string; type?: string; value?: string }>
 }
 
+export function parseEasyAuthMePayload(body: unknown): EasyAuthClientPrincipal | null {
+  if (body == null) return null
+  if (Array.isArray(body)) {
+    for (const entry of body) {
+      if (!entry || typeof entry !== "object") continue
+      const clientPrincipal = (entry as { clientPrincipal?: EasyAuthClientPrincipal }).clientPrincipal
+      if (clientPrincipal?.userId?.trim()) return clientPrincipal
+    }
+    return null
+  }
+  if (typeof body === "object") {
+    const clientPrincipal = (body as { clientPrincipal?: EasyAuthClientPrincipal | null }).clientPrincipal
+    return clientPrincipal?.userId?.trim() ? clientPrincipal : null
+  }
+  return null
+}
+
 export function requestOriginFromHeaders(source: Headers) {
   const host = source.get("x-forwarded-host")?.split(",")[0]?.trim() || source.get("host")
   const proto = source.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https"
@@ -115,10 +132,8 @@ export async function fetchEasyAuthClientPrincipal(
       cache: "no-store",
     })
     if (!response.ok) return null
-    const body = (await response.json().catch(() => null)) as {
-      clientPrincipal?: EasyAuthClientPrincipal | null
-    } | null
-    return body?.clientPrincipal ?? null
+    const body = await response.json().catch(() => null)
+    return parseEasyAuthMePayload(body)
   } catch {
     return null
   }

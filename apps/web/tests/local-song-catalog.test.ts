@@ -15,7 +15,7 @@ describe("localSongDetail", () => {
   it("fills lyrics and meaning for other Roman sargam songs", () => {
     const song = localSongDetail(2)
     expect(song?.number).toBe(2)
-    expect(song?.lyrics_original).toMatch(/GÁN|GAN/i)
+    expect(song?.lyrics_original).toMatch(/GÁN|GAN/i)
     expect(song?.english_meaning).toBeTruthy()
     expect(localSongDetail(175)?.lyrics_original).toBeTruthy()
     expect(localSongDetail(176)).toBeNull()

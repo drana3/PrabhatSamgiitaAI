@@ -116,6 +116,11 @@ describe("web lyric search", () => {
     expect(songs[0]?.number).toBe(1)
     expect(songs[0]?.title).toBeTruthy()
     expect(songs[1]?.number).toBe(5018)
-    expect(songs[2]).toEqual({ number: 99999, title: "Prabhat Samgiita 99999", is_verified: false })
+    expect(songs[2]).toEqual({
+      number: 99999,
+      title: "Prabhat Samgiita 99999",
+      first_line: null,
+      is_verified: false,
+    })
   })
 })

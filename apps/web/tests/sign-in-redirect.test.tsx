@@ -14,6 +14,11 @@ vi.mock("@/components/member-provider", () => ({
 
 vi.mock("@/lib/easy-auth-client", () => ({
   syncEasyAuthSessionFromBrowser: () => syncEasyAuthSessionFromBrowser(),
+  easyAuthSyncBlockedOnPage: () => false,
+  startEasyAuthSessionSyncLoop: (options: { onAttempt?: () => void | Promise<void> }) => {
+    void options.onAttempt?.()
+    return () => undefined
+  },
 }))
 
 describe("SignInRedirect", () => {

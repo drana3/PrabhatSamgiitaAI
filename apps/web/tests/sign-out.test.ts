@@ -38,6 +38,7 @@ describe("signOutMember", () => {
 
   it("returns home for Google PKCE accounts without SWA logout", async () => {
     vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "google-client-id")
     await signOutMember("google")
     expect(window.location.assign).toHaveBeenCalledWith("/")
   })

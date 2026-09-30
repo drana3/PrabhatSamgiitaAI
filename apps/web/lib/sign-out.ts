@@ -4,6 +4,17 @@ import { writeFeelingSearchEnabled } from "@/lib/feeling-search"
 /** Providers that signed in through SWA `/.auth/*` and need platform logout. */
 const EASY_AUTH_LOGOUT_PROVIDERS = new Set(["aad", "entra", "azureactivedirectory"])
 
+function providerUsesDirectOAuth(identityProvider: string) {
+  const lower = identityProvider.toLowerCase()
+  if (lower === "google") {
+    return Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim())
+  }
+  if (lower === "facebook") {
+    return Boolean(process.env.NEXT_PUBLIC_FACEBOOK_APP_ID?.trim())
+  }
+  return false
+}
+
 export function isEasyAuthProvider(identityProvider?: string) {
   if (!identityProvider) return false
   return EASY_AUTH_LOGOUT_PROVIDERS.has(identityProvider.toLowerCase())
@@ -13,7 +24,12 @@ export function isEasyAuthProvider(identityProvider?: string) {
 
 export function usesEasyAuthLogout(identityProvider?: string) {
   if (!identityProvider) return false
-  return EASY_AUTH_LOGOUT_PROVIDERS.has(identityProvider.toLowerCase())
+  const lower = identityProvider.toLowerCase()
+  if (EASY_AUTH_LOGOUT_PROVIDERS.has(lower)) return true
+  if (lower === "google" || lower === "facebook") {
+    return !providerUsesDirectOAuth(lower)
+  }
+  return false
 }
 
 export function clearSignOutLocalState() {
