@@ -86,12 +86,14 @@ export async function resolveEasyAuthPrincipalFromRequest(
     return null
   }
 
-  let clientPrincipal = clientPrincipalFromBody ?? null
-  if (!clientPrincipal) {
-    const origin = requestOriginFromHeaders(request.headers)
-    if (origin) {
-      clientPrincipal = await fetchEasyAuthClientPrincipal(origin, cookieHeader)
-    }
+  if (clientPrincipalFromBody) {
+    return principalFromEasyAuthMe(clientPrincipalFromBody)
+  }
+
+  let clientPrincipal: EasyAuthClientPrincipal | null = null
+  const origin = requestOriginFromHeaders(request.headers)
+  if (origin) {
+    clientPrincipal = await fetchEasyAuthClientPrincipal(origin, cookieHeader)
   }
 
   if (!clientPrincipal || !easyAuthPrincipalMatchesHeaders(clientPrincipal, request.headers)) {

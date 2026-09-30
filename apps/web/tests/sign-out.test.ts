@@ -27,7 +27,7 @@ describe("signOutMember", () => {
       method: "POST",
       credentials: "same-origin",
     })
-    expect(window.location.assign).toHaveBeenCalledWith("/signin?signedOut=1")
+    expect(window.location.assign).toHaveBeenCalledWith("/")
   })
 
   it("uses Easy Auth logout for Microsoft accounts when auth is enabled", async () => {
@@ -36,9 +36,9 @@ describe("signOutMember", () => {
     expect(window.location.assign).toHaveBeenCalledWith("/api/auth/sign-out")
   })
 
-  it("uses Easy Auth logout for Google accounts on SWA when auth is enabled", async () => {
+  it("returns home for Google PKCE accounts without SWA logout", async () => {
     vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
     await signOutMember("google")
-    expect(window.location.assign).toHaveBeenCalledWith("/api/auth/sign-out")
+    expect(window.location.assign).toHaveBeenCalledWith("/")
   })
 })

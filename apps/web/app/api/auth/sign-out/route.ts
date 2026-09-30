@@ -24,7 +24,7 @@ function clearLocalAuthCookie(response: NextResponse) {
 }
 
 export async function GET(request: NextRequest) {
-  const returnTo = `${siteOrigin(request)}/signin?signedOut=1`
+  const returnTo = `${siteOrigin(request)}/`
   const principal = memberPrincipalFor(request)
 
   if (!principal) {

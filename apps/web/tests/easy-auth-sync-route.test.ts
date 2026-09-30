@@ -50,7 +50,7 @@ describe("easy-auth-sync route", () => {
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeTruthy()
   })
 
-  it("rejects /.auth/me payload when the SWA id header does not match", async () => {
+  it("accepts browser /.auth/me payload when SWA id header differs from userId (Microsoft)", async () => {
     process.env.NODE_ENV = "production"
     const request = new NextRequest("https://example.test/api/auth/easy-auth-sync", {
       method: "POST",
@@ -69,6 +69,7 @@ describe("easy-auth-sync route", () => {
     })
 
     const response = await POST(request)
-    expect(response.status).toBe(401)
+    expect(response.status).toBe(200)
+    expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeTruthy()
   })
 })

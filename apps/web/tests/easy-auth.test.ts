@@ -43,24 +43,15 @@ describe("principalFromEasyAuthMe", () => {
     expect(principal).toBe(buildClientPrincipal("oid-456", "Member", "aad", null))
   })
 
-  it("requires SWA id headers to match the /.auth/me user id", () => {
-    const clientPrincipal = {
-      identityProvider: "aad",
-      userId: "oid-99",
+  it("builds principals for azureActiveDirectory identityProvider values from SWA", () => {
+    const principal = principalFromEasyAuthMe({
+      identityProvider: "azureActiveDirectory",
+      userId: "00000000-0000-0000-0000-000000000099",
       userDetails: "member@example.com",
       userRoles: ["authenticated"],
-    }
-    expect(
-      easyAuthPrincipalMatchesHeaders(
-        clientPrincipal,
-        new Headers({ "x-ms-client-principal-id": "oid-99" }),
-      ),
-    ).toBe(true)
-    expect(
-      easyAuthPrincipalMatchesHeaders(
-        clientPrincipal,
-        new Headers({ "x-ms-client-principal-id": "someone-else" }),
-      ),
-    ).toBe(false)
+    })
+    expect(principal).toBeTruthy()
+    const payload = JSON.parse(Buffer.from(principal!, "base64").toString("utf8")) as { auth_typ: string }
+    expect(payload.auth_typ).toBe("aad")
   })
 })

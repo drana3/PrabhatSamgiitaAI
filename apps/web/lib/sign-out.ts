@@ -1,12 +1,19 @@
 import { clearGuestChatStorage } from "@/lib/chat"
 import { writeFeelingSearchEnabled } from "@/lib/feeling-search"
 
-/** Providers handled by Azure Static Web Apps / Container Apps `/.auth/*` routes. */
-const EASY_AUTH_PROVIDERS = new Set(["aad", "entra", "azureactivedirectory", "google", "facebook"])
+/** Providers that signed in through SWA `/.auth/*` and need platform logout. */
+const EASY_AUTH_LOGOUT_PROVIDERS = new Set(["aad", "entra", "azureactivedirectory"])
 
 export function isEasyAuthProvider(identityProvider?: string) {
   if (!identityProvider) return false
-  return EASY_AUTH_PROVIDERS.has(identityProvider.toLowerCase())
+  return EASY_AUTH_LOGOUT_PROVIDERS.has(identityProvider.toLowerCase())
+    || identityProvider.toLowerCase() === "google"
+    || identityProvider.toLowerCase() === "facebook"
+}
+
+export function usesEasyAuthLogout(identityProvider?: string) {
+  if (!identityProvider) return false
+  return EASY_AUTH_LOGOUT_PROVIDERS.has(identityProvider.toLowerCase())
 }
 
 export function clearSignOutLocalState() {
@@ -15,7 +22,7 @@ export function clearSignOutLocalState() {
 }
 
 /** SWA expects a same-origin absolute URL for post-sign-out redirect (relative "/" is unreliable). */
-export function easyAuthLogoutHref(returnPath = "/signin?signedOut=1") {
+export function easyAuthLogoutHref(returnPath = "/") {
   const path = returnPath.startsWith("/") ? returnPath : `/${returnPath}`
   const redirect = `${window.location.origin}${path}`
   return `/.auth/logout?post_logout_redirect_uri=${encodeURIComponent(redirect)}`
@@ -24,10 +31,10 @@ export function easyAuthLogoutHref(returnPath = "/signin?signedOut=1") {
 export async function signOutMember(identityProvider?: string) {
   clearSignOutLocalState()
 
-  const usesEasyAuth =
-    process.env.NEXT_PUBLIC_AUTH_ENABLED === "true" && isEasyAuthProvider(identityProvider)
+  const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
+  const easyAuthLogout = authEnabled && usesEasyAuthLogout(identityProvider)
 
-  if (usesEasyAuth) {
+  if (easyAuthLogout) {
     void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {})
     window.location.assign("/api/auth/sign-out")
     return
@@ -39,5 +46,5 @@ export async function signOutMember(identityProvider?: string) {
     // Continue with navigation even if the cookie clear request fails.
   }
 
-  window.location.assign("/signin?signedOut=1")
+  window.location.assign("/")
 }
