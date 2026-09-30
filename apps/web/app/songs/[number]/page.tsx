@@ -20,6 +20,7 @@ import { englishMeaningText } from "@/lib/song-meanings"
 import { localeLabel } from "@/lib/languages"
 import { splitLyricLines, practiceLyricSource, buildDisplayNotes, formatPracticeSequence } from "@/lib/sargam-display"
 import { songPagePath } from "@/lib/song-path"
+import { titleCaseTransliteration } from "@/lib/transliteration-text"
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
   const { number } = await params
@@ -70,7 +71,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           />
           <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/85 to-navy-950/30" />
           <div className="relative flex min-h-[13rem] flex-col justify-between gap-5 p-5 sm:min-h-[18rem] sm:gap-6 sm:p-8 lg:p-10">
-            <div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-200 sm:text-xs">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-2 font-serif text-3xl leading-tight sm:mt-3 sm:text-5xl lg:text-6xl">{titleCase(song.title)}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-white/85 sm:mt-3">{titleCase(song.first_line || song.title)}</p><div className="mt-4 flex flex-wrap gap-2 sm:mt-5"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>
+            <div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-200 sm:text-xs">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-2 font-serif text-3xl leading-tight sm:mt-3 sm:text-5xl lg:text-6xl">{titleCaseTransliteration(song.title)}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-white/85 sm:mt-3">{titleCaseTransliteration(song.first_line || song.title)}</p><div className="mt-4 flex flex-wrap gap-2 sm:mt-5"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>
             <nav aria-label="Song actions" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0 xl:flex-nowrap"><a href="#ask" className="shrink-0 whitespace-nowrap rounded-full bg-gold-300 px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">✦ Ask AI</a>{audio.length ? <a href="#listen" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">♪ Listen</a> : null}{hasLyrics ? <a href="#lyrics" className="shrink-0 whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-3.5 py-2 text-xs font-semibold text-white sm:px-4 sm:text-sm">Lyrics</a> : null}{videos.length ? <a href="#watch" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">▶ Watch</a> : null}<HarmoniumNavLink songNumber={song.number} sourceStatus={song.notation_verification_status} notationEnabled={song.notation_enabled} /><FavoriteSongButton songNumber={song.number} /><ShareMenu title={`Song ${song.number}: ${song.title}`} /></nav>
           </div>
         </section>
@@ -119,7 +120,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
 
           <HarmoniumPracticeSection
             songNumber={song.number}
-            songTitle={titleCase(song.title)}
+            songTitle={titleCaseTransliteration(song.title)}
             initialNotation={initialNotation}
             sourceUrl={song.notation_source_url}
             sourceStatus={song.notation_verification_status}
@@ -133,7 +134,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
         <div className="mt-7 grid gap-7 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-7">
             <section className="surface-card p-4 sm:p-6"><StreamExplanation songNumber={song.number} language={language !== "en" ? localeLabel(language) : null} /></section>
-            {song.related_songs.length ? <section className="surface-card p-5 sm:p-7"><p className="eyebrow">Continue exploring</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Related songs</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{song.related_songs.map((related) => <Link key={related.number} href={songPagePath(related.number)} className="rounded-2xl border border-navy-900/10 bg-ivory-50 p-4 hover:border-gold-500"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Song {related.number}</p><h3 className="mt-2 font-serif text-lg font-semibold text-navy-950">{titleCase(related.title)}</h3></Link>)}</div></section> : null}
+            {song.related_songs.length ? <section className="surface-card p-5 sm:p-7"><p className="eyebrow">Continue exploring</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Related songs</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{song.related_songs.map((related) => <Link key={related.number} href={songPagePath(related.number)} className="rounded-2xl border border-navy-900/10 bg-ivory-50 p-4 hover:border-gold-500"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Song {related.number}</p><h3 className="mt-2 font-serif text-lg font-semibold text-navy-950">{titleCaseTransliteration(related.title)}</h3></Link>)}</div></section> : null}
           </div>
 
           <aside className="flex min-w-0 flex-col gap-7">
@@ -152,8 +153,4 @@ export default async function SongPage({ params, searchParams }: { params: Promi
 
 function Detail({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-white/8 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-navy-200">{label}</p><p className="mt-1 text-xs font-semibold text-white">{value}</p></div>
-}
-
-function titleCase(value: string) {
-  return value.toLocaleLowerCase().replace(/(^|[\s'’-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
 }

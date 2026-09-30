@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
+import { normalizeTransliterationText } from "@/lib/transliteration-text"
 import {
   HOME_CACHE_KEYS,
   HOME_CACHE_TTL,
@@ -23,7 +24,12 @@ function searchErrorMessage(error: unknown) {
   return "Search is temporarily unavailable."
 }
 
-const songSummarySchema = z.object({
+function normalizeOptionalTransliteration(value: string | null | undefined) {
+  if (value == null || !value.trim()) return value ?? null
+  return normalizeTransliterationText(value)
+}
+
+const songSummaryBaseSchema = z.object({
   number: z.number(),
   title: z.string(),
   first_line: z.string().nullable().optional(),
@@ -35,7 +41,17 @@ const songSummarySchema = z.object({
   is_verified: z.boolean().optional().default(false),
 })
 
-const songDetailSchema = songSummarySchema.extend({
+function normalizeSongSummary<T extends z.infer<typeof songSummaryBaseSchema>>(song: T) {
+  return {
+    ...song,
+    title: normalizeTransliterationText(song.title),
+    first_line: normalizeOptionalTransliteration(song.first_line),
+  }
+}
+
+const songSummarySchema = songSummaryBaseSchema.transform(normalizeSongSummary)
+
+const songDetailBaseSchema = songSummaryBaseSchema.extend({
   lyrics_original: z.string().nullable().optional(),
   transliteration: z.string().nullable().optional(),
   hindi_meaning: z.string().nullable().optional(),
@@ -48,7 +64,7 @@ const songDetailSchema = songSummarySchema.extend({
   harmonium_notation: z.string().nullable().optional(),
   canonical_source_url: z.string().nullable().optional(),
   canonical_source_status: z.string(),
-  related_songs: z.array(songSummarySchema).default([]),
+  related_songs: z.array(songSummaryBaseSchema).default([]),
   media: z.array(z.object({
     kind: z.string(),
     provider: z.string(),
@@ -79,6 +95,13 @@ const songDetailSchema = songSummarySchema.extend({
     .optional(),
   metadata_json: z.record(z.any()).default({}),
 })
+
+const songDetailSchema = songDetailBaseSchema.transform((song) => ({
+  ...normalizeSongSummary(song),
+  lyrics_original: normalizeOptionalTransliteration(song.lyrics_original),
+  transliteration: normalizeOptionalTransliteration(song.transliteration),
+  related_songs: song.related_songs.map(normalizeSongSummary),
+}))
 
 const notationNoteSchema = z.object({
   sargam: z.string(),
@@ -144,8 +167,8 @@ const songLocalizationSchema = z.object({
   localized_explanation: z.string().nullable().optional(),
 })
 
-export type SongSummary = z.infer<typeof songSummarySchema>
-export type SongDetail = z.infer<typeof songDetailSchema>
+export type SongSummary = z.output<typeof songSummarySchema>
+export type SongDetail = z.output<typeof songDetailSchema>
 export type TransposedNotation = z.infer<typeof transposedNotationSchema>
 export type NotationLine = z.infer<typeof notationLineSchema>
 export type NotationNote = z.infer<typeof notationNoteSchema>
@@ -170,7 +193,11 @@ const todayRecommendationSchema = z.object({
     audio_url: z.string().nullable().optional(),
     video_embed_url: z.string().nullable().optional(),
     notation_available: z.boolean().default(false),
-  })),
+  }).transform((song) => ({
+    ...song,
+    title: normalizeTransliterationText(song.title),
+    first_line: normalizeOptionalTransliteration(song.first_line),
+  }))),
   disclaimer: z.string(),
 })
 

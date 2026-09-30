@@ -8,6 +8,7 @@ import { feelingSearchAllowed } from "@prabhat/core"
 import { instantExploreSongs } from "@/lib/lyric-search"
 import { useSearchAuth } from "@/lib/feeling-search"
 import { songPagePath } from "@/lib/song-path"
+import { normalizeTransliterationText, titleCaseTransliteration } from "@/lib/transliteration-text"
 
 const SUGGEST_DEBOUNCE_MS = 180
 
@@ -55,10 +56,10 @@ export function InstantSearchSuggestions({
             </span>
             <span className="min-w-0">
               <span className="block font-serif text-base leading-snug text-navy-950">
-                {titleCase(song.title)}
+                {titleCaseTransliteration(song.title)}
               </span>
               {song.first_line && song.first_line.trim().toLocaleLowerCase() !== song.title.trim().toLocaleLowerCase() ? (
-                <span className="mt-0.5 block truncate text-xs text-stone-600">{song.first_line}</span>
+                <span className="mt-0.5 block truncate text-xs text-stone-600">{normalizeTransliterationText(song.first_line)}</span>
               ) : null}
             </span>
           </Link>
@@ -66,8 +67,4 @@ export function InstantSearchSuggestions({
       ))}
     </ul>
   )
-}
-
-function titleCase(value: string) {
-  return value.toLocaleLowerCase().replace(/(^|[\s'’-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
 }

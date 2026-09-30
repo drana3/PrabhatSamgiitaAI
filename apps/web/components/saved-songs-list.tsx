@@ -7,6 +7,7 @@ import type { SongSummary } from "@/lib/api"
 import { songsByNumbers } from "@/lib/lyric-search"
 import { removeFavoriteSong } from "@/lib/member"
 import { songPagePath } from "@/lib/song-path"
+import { titleCaseTransliteration } from "@/lib/transliteration-text"
 
 export function SavedSongsList({
   songNumbers,
@@ -41,9 +42,9 @@ export function SavedSongsList({
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span>
           <div className="min-w-0 flex-1">
             <Link href={songPagePath(song.number)} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">
-              {titleCase(song.title)}
+              {titleCaseTransliteration(song.title)}
             </Link>
-            {song.first_line ? <p className="truncate text-xs text-stone-500">{titleCase(song.first_line)}</p> : null}
+            {song.first_line ? <p className="truncate text-xs text-stone-500">{titleCaseTransliteration(song.first_line)}</p> : null}
           </div>
           <button
             type="button"
@@ -58,8 +59,4 @@ export function SavedSongsList({
       ))}
     </ul>
   )
-}
-
-function titleCase(value: string) {
-  return value.toLocaleLowerCase().replace(/(^|[\s'’-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
 }

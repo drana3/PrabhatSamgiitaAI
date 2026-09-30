@@ -18,6 +18,7 @@ import {
 } from "@prabhat/core"
 
 import type { SongSummary } from "@/lib/api"
+import { normalizeTransliterationText } from "@/lib/transliteration-text"
 import { isCompleteSargamQuery } from "@/lib/complete-sargam"
 import type { ExploreSearchKind } from "@/lib/special-collections"
 import { collectionSongNumbersForKeyword, isCollectionSearchQuery } from "@/lib/special-collections"
@@ -49,8 +50,8 @@ export function catalogLyricCount() {
 function rowToSong(row: LyricSearchRow): SongSummary {
   return {
     number: row.n,
-    title: row.t,
-    first_line: row.o,
+    title: normalizeTransliterationText(row.t),
+    first_line: row.o ? normalizeTransliterationText(row.o) : null,
     is_verified: true,
   }
 }
@@ -103,7 +104,7 @@ export function songsByNumbers(numbers: number[]): SongSummary[] {
     const row = rowsByNumber.get(number)
     return row
       ? rowToSong(row)
-      : { number, title: `Prabhat Samgiita ${number}`, is_verified: false }
+      : { number, title: `Prabhat Samgiita ${number}`, first_line: null, is_verified: false }
   })
 }
 

@@ -3,6 +3,7 @@ import { join } from "node:path"
 
 import { bookletHarmoniumSong, compareAudioQuality } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
+import { normalizeTransliterationText } from "@/lib/transliteration-text"
 import { completeSargamSongs, isCompleteSargamSong } from "@/lib/complete-sargam"
 import { isRomanPracticeNotation } from "@/lib/sargam-display"
 import mediaRows from "../../../data/seed/media.json"
@@ -137,6 +138,11 @@ function firstFilled(...values: Array<string | null | undefined>): string | null
   return null
 }
 
+function normalizeCatalogText(value: string | null | undefined) {
+  if (value == null || !value.trim()) return value ?? null
+  return normalizeTransliterationText(value)
+}
+
 function resolvedSong(number: number): SeedSong | null {
   const seed = songIndex().get(number)
   const generated = generatedSongIndex().get(number)
@@ -160,8 +166,8 @@ function resolvedSong(number: number): SeedSong | null {
 function summary(song: SeedSong): SongSummary {
   return {
     number: song.number,
-    title: song.title,
-    first_line: song.first_line,
+    title: normalizeTransliterationText(song.title),
+    first_line: normalizeCatalogText(song.first_line),
     theme: song.theme,
     occasion: song.occasion,
     mood: song.mood,
@@ -228,8 +234,8 @@ export function localSongDetail(number: number): SongDetail | null {
   )
   return {
     ...summary(song),
-    lyrics_original: song.lyrics_original,
-    transliteration: song.transliteration,
+    lyrics_original: normalizeCatalogText(song.lyrics_original),
+    transliteration: normalizeCatalogText(song.transliteration),
     hindi_meaning: song.hindi_meaning,
     english_meaning: song.english_meaning,
     festival: song.festival,
