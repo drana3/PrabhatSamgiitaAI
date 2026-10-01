@@ -25,7 +25,6 @@ const BOOK_SOURCE_MARKERS = [
 const FIXED_CONTEXTS: Record<string, [string, string]> = {
   "1-1": ["new-year", "New Year"],
   "5-1": ["labour-day", "Labour Day"],
-  "8-15": ["independence-day-india", "India Independence Day"],
   "9-21": ["international-day-of-peace", "International Day of Peace"],
   "12-10": ["human-rights-day", "Human Rights Day"],
 }
@@ -50,15 +49,6 @@ const REVIEWED_FESTIVAL_DATES_2026: Record<string, string> = {
   "10-25": "Navánna",
   "11-8": "Diipavalii",
   "11-11": "Bhrátrdvitiiyá",
-}
-
-const INDIA_OBSERVANCES: Record<string, string> = {
-  "1-12": "National Youth Day",
-  "1-26": "Republic Day of India",
-  "8-15": "Independence Day of India",
-  "10-2": "Gandhi Jayanti",
-  "10-31": "National Unity Day",
-  "11-26": "Constitution Day of India",
 }
 
 export const reflectionSeedQuotes = seedQuotes as SeedReflectionQuote[]
@@ -173,9 +163,6 @@ export function reflectionContext(
 
   const fixed = FIXED_CONTEXTS[monthDayKey(day.getMonth() + 1, day.getDate())]
   if (fixed) return fixed
-
-  const observance = INDIA_OBSERVANCES[monthDayKey(day.getMonth() + 1, day.getDate())]
-  if (observance) return [slug(observance), observance]
 
   return ["daily-practice", "Daily spiritual reflection"]
 }

@@ -76,7 +76,6 @@ from app.services.stories import (
 )
 from app.services.world_context import (
     ContextSignal,
-    observance_for_day,
 )
 
 router = APIRouter(tags=["discovery"])
@@ -290,14 +289,13 @@ async def recommendations_today(
             local_date.year,
         )
     )
-    observance = observance_for_day(local_date)
     context = {
         "date": local_date.isoformat(),
         "timezone": timezone,
         "time_of_day": period,
         "season": season,
         "festival": festival,
-        "observance": observance.title if observance else None,
+        "observance": None,
         "recommendation_mode": "strict_festival" if festival else "song_of_the_day",
         "canonical_collections": list(festival_collection_labels),
         "song_of_the_day": None if festival else sequential_song_of_the_day(local_date),
@@ -325,10 +323,7 @@ async def recommendations_today(
         ContextSignal(
             title="Song of the Day",
             category="song_of_the_day",
-            summary=(
-                f"PS {song_of_the_day} for {local_date:%d %B %Y}. "
-                "Everyone hears the same song on this date."
-            ),
+            summary=f"PS {song_of_the_day} · {local_date:%d %B %Y}",
             source_name="Prabhat Samgiita",
             source_url=f"https://www.prabhatasamgiita.org/songs/{song_of_the_day}",
             keywords=("song of the day",),
@@ -433,10 +428,7 @@ async def recommendations_today(
         disclaimer=(
             "Festival selections are restricted to exact reviewed source collections."
             if festival
-            else (
-                "Song of the Day is the same for everyone on this date and "
-                "advances from PS 1 through PS 5018."
-            )
+            else "Song of the Day follows the shared daily sequence."
         ),
     )
     await today_cache.set(cache_key, response.model_dump(mode="json"))

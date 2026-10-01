@@ -3,7 +3,14 @@
 import { useEffect, useRef } from "react"
 
 import { useMember } from "@/components/member-provider"
-import { syncEasyAuthSessionFromBrowser, easyAuthSyncBlockedOnPage, startEasyAuthSessionSyncLoop } from "@/lib/easy-auth-client"
+import {
+  fetchBrowserEasyAuthPrincipal,
+  persistEasyAuthMemberSession,
+  syncEasyAuthSessionFromBrowser,
+  easyAuthSyncBlockedOnPage,
+  startEasyAuthSessionSyncLoop,
+} from "@/lib/easy-auth-client"
+import { normalizeEasyAuthProvider, principalFromEasyAuthMe } from "@/lib/easy-auth"
 import { isAdminDestination } from "@/lib/member-request"
 import { signInReturnPath } from "@/lib/sign-in"
 
@@ -39,6 +46,14 @@ export function SignInRedirect({ next }: { next: string }) {
       shouldContinue: () => !leaving.current && !signedOutOnSignInPage() && !authenticatedRef.current,
       onAttempt: async () => {
         if (leaving.current || loading || authenticatedRef.current) return
+        const clientPrincipal = await fetchBrowserEasyAuthPrincipal()
+        if (clientPrincipal?.userId) {
+          const provider = normalizeEasyAuthProvider(clientPrincipal.identityProvider)
+          const blob = principalFromEasyAuthMe(clientPrincipal)
+          if (blob && (provider === "aad" || provider === "google" || provider === "facebook")) {
+            await persistEasyAuthMemberSession(clientPrincipal, blob)
+          }
+        }
         await syncEasyAuthSessionFromBrowser()
         await refresh({ silent: true })
         if (authenticatedRef.current) {

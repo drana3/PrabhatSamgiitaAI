@@ -62,7 +62,9 @@ export function todaySummary(today: TodayRecommendations | null) {
   }
   const signal = visibleSignal(today)
   if (signal?.category === "song_of_the_day" && signal.summary) return signal.summary
-  return "The same song for everyone on this date, in order from PS 1 through PS 5018."
+  const song = today?.recommendations?.[0]
+  if (song?.first_line) return song.first_line
+  return ""
 }
 
 export function todayModeLabel(today: TodayRecommendations | null) {

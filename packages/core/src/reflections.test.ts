@@ -16,13 +16,9 @@ describe("reflection selection", () => {
     expect(first?.quote_text).not.toBe(second?.quote_text)
   })
 
-  it("prefers observance-tagged quotes on independence day", () => {
-    const selected = selectReflectionForDay(reflectionSeedQuotes, new Date(2026, 7, 15))
-    const observanceTagged = reflectionSeedQuotes.filter((quote) =>
-      quote.observances.values.includes("independence-day-india"),
-    )
-    expect(observanceTagged.some((quote) => quote.quote_text === selected?.quote_text)).toBe(true)
-    expect(selected?.context_label).toBe("India Independence Day")
+  it("uses the reviewed festival label on Ananda Marga festival days", () => {
+    const selected = selectReflectionForDay(reflectionSeedQuotes, new Date(2026, 8, 6))
+    expect(selected?.context_label).toBe("Kaoshiki Divas")
   })
 
   it("uses a date-based fallback for today in Kolkata", () => {

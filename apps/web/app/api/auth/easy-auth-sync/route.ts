@@ -6,18 +6,10 @@ import {
   resolveEasyAuthPrincipalFromRequest,
 } from "@/lib/easy-auth"
 import { memberPrincipalFor } from "@/lib/member-request"
+import { memberAuthCookieOptions } from "@/lib/oauth-return-cookie"
+import { requestIsSecure } from "@/lib/site-origin"
 
 export const dynamic = "force-dynamic"
-
-function authCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  }
-}
 
 function parseClientPrincipalBody(raw: string): EasyAuthClientPrincipal | null {
   if (!raw.trim()) return null
@@ -46,6 +38,6 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ ok: true, authenticated: true })
-  response.cookies.set(LOCAL_AUTH_COOKIE, principal, authCookieOptions())
+  response.cookies.set(LOCAL_AUTH_COOKIE, principal, memberAuthCookieOptions(requestIsSecure(request)))
   return response
 }

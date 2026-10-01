@@ -62,11 +62,9 @@ export function RecommendationSection() {
     : today
       ? "Song of the Day"
       : fallbackPreset.title
-  const contextSummary = contextSignal?.summary || (
-    today?.context.recommendation_mode === "song_of_the_day"
-      ? "The same song for everyone on this date, in order from PS 1 through PS 5018."
-      : fallbackPreset.subtitle
-  )
+  const contextSummary =
+    contextSignal?.summary
+    || (today?.context.festival ? fallbackPreset.subtitle : "")
   const contextLink = contextSignal?.category === "festival" ? publicContextLink(contextSignal.source_url) : null
   const strictFestivalWithoutSongs = today?.context.recommendation_mode === "strict_festival" && !today.recommendations.length
 
@@ -77,7 +75,9 @@ export function RecommendationSection() {
           <div>
             <p className="eyebrow">{today?.context.festival ? "Festival day" : "Song of the Day"}</p>
             <h3 className="mt-2 font-serif text-3xl text-navy-950">{contextTitle}</h3>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">{contextSummary}</p>
+            {contextSummary ? (
+              <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">{contextSummary}</p>
+            ) : null}
             {contextLink && contextSignal ? <a href={contextLink} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Context from {contextSignal.source_name} ↗</a> : null}
           </div>
           {loading ? <LoadingIndicator label="Finding songs" compact /> : <span className="text-xs font-semibold text-emerald-700">Updated for today</span>}

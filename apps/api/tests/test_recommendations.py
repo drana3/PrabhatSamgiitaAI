@@ -47,6 +47,15 @@ def test_chromium_india_timezone_alias_is_canonicalized() -> None:
     assert canonical_timezone("Europe/Berlin") == "Europe/Berlin"
 
 
+def test_festival_day_omits_sequential_song_of_the_day() -> None:
+    sharad = date(2026, 10, 16)
+    assert fixed_reviewed_festival(sharad.month, sharad.day, sharad.year) == "Sharadotsava"
+    festival = fixed_reviewed_festival(sharad.month, sharad.day, sharad.year)
+    effective = None if festival else sequential_song_of_the_day(sharad)
+    assert effective is None
+    assert sequential_song_of_the_day(sharad) != sequential_song_of_the_day(date(2026, 10, 15))
+
+
 def test_song_of_the_day_is_sequential_and_wraps() -> None:
     assert sequential_song_of_the_day(date(1970, 1, 1)) == 1
     assert sequential_song_of_the_day(date(1970, 1, 2)) == 2

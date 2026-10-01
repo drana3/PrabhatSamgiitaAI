@@ -4,9 +4,11 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { useMember } from "@/components/member-provider"
 import { finishMicrosoftEasyAuthFromBrowser } from "@/lib/microsoft-auth"
 
 export default function MicrosoftAuthCallbackPage() {
+  const { refresh } = useMember()
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState("Confirming with Microsoft…")
   const started = useRef(false)
@@ -20,8 +22,9 @@ export default function MicrosoftAuthCallbackPage() {
     }, 900)
 
     void finishMicrosoftEasyAuthFromBrowser()
-      .then((destination) => {
+      .then(async (destination) => {
         setPhase("Signed in — taking you back…")
+        await refresh({ silent: true })
         window.location.replace(destination)
       })
       .catch((submitError) => {
@@ -31,7 +34,7 @@ export default function MicrosoftAuthCallbackPage() {
       .finally(() => {
         window.clearTimeout(phaseTimer)
       })
-  }, [])
+  }, [refresh])
 
   return (
     <main className="grid min-h-screen place-items-center bg-ivory-50 px-6 text-center">

@@ -9,7 +9,12 @@ export function safeSignInNextPath(next: string | undefined) {
   return path
 }
 
-/** Relative path SWA accepts after AAD login (browser completes the member session). */
+/** SWA post-login: server route sets the member cookie when platform headers are present. */
+export function microsoftEasyAuthCompletePath() {
+  return "/api/auth/microsoft/complete"
+}
+
+/** Browser fallback when the server completion route has no SWA principal yet. */
 export function microsoftEasyAuthReturnPath() {
   return "/auth/callback/microsoft"
 }
@@ -29,7 +34,7 @@ export function microsoftCallbackPath() {
 }
 
 export function microsoftSignInHref() {
-  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(microsoftEasyAuthReturnPath())}`
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(microsoftEasyAuthCompletePath())}`
 }
 
 export function googleSignInHref(next: string | undefined) {

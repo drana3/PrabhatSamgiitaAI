@@ -69,6 +69,6 @@ export const HOME_CACHE_KEYS = {
   today: () => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"
     const date = new Date().toLocaleDateString("en-CA", { timeZone: timezone })
-    return `prabhat-home-today-v2:${timezone}:${date}`
+    return `prabhat-home-today-v3:${timezone}:${date}`
   },
 } as const

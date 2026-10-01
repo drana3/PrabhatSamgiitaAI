@@ -7,12 +7,10 @@ from datetime import date
 
 from app.models import ReflectionQuote
 from app.services.domain_catalog import fixed_reviewed_festival
-from app.services.world_context import observance_for_day
 
 FIXED_CONTEXTS = {
     (1, 1): ("new-year", "New Year"),
     (5, 1): ("labour-day", "Labour Day"),
-    (8, 15): ("independence-day-india", "India Independence Day"),
     (9, 21): ("international-day-of-peace", "International Day of Peace"),
     (12, 10): ("human-rights-day", "Human Rights Day"),
 }
@@ -52,9 +50,6 @@ def reflection_context(day: date, requested_theme: str | None = None) -> tuple[s
     fixed = FIXED_CONTEXTS.get((day.month, day.day))
     if fixed:
         return fixed
-    observance = observance_for_day(day)
-    if observance:
-        return _slug(observance.title), observance.title
     return "daily-practice", "Daily spiritual reflection"
 
 

@@ -77,9 +77,6 @@ export default async function HomePage() {
               <h2 id="today-recommendations-title" className="mt-3 font-serif text-4xl leading-tight text-navy-950 sm:text-5xl lg:text-6xl">
                 Music for this moment
               </h2>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-stone-700">
-                Song of the Day follows one shared sequence from PS 1 through PS 5018. On a festival day, songs for that observance take its place.
-              </p>
             </div>
             <Link href="/explore" className="outline-button">Explore your own moment →</Link>
           </div>
