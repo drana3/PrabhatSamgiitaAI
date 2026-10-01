@@ -115,18 +115,18 @@ def quote(
     )
 
 
-def test_independence_day_reflection_prefers_exact_reviewed_context() -> None:
+def test_festival_day_reflection_prefers_exact_reviewed_context() -> None:
     daily = quote("Daily", themes=["meditation"])
-    social = quote(
-        "Social justice",
+    festival_quote = quote(
+        "Dance of divinity",
         "Prout in a Nutshell",
-        observances=["independence-day-india"],
+        observances=["kaoshiki-divas"],
     )
 
-    selected, label = select_reflection([daily, social], date(2026, 8, 15))
+    selected, label = select_reflection([daily, festival_quote], date(2026, 9, 6))
 
-    assert selected is social
-    assert label == "India Independence Day"
+    assert selected is festival_quote
+    assert label == "Kaoshiki Divas"
 
 
 def test_unverified_reflection_never_enters_rotation() -> None:
