@@ -7,9 +7,9 @@ export function safeSignInNextPath(next: string | undefined) {
   return path
 }
 
-/** Relative path SWA accepts after AAD login (must not be absolute). */
+/** Relative path SWA accepts after AAD login (server sets member cookie from SWA headers). */
 export function microsoftEasyAuthReturnPath() {
-  return "/signin?easyAuth=microsoft"
+  return "/api/auth/microsoft/complete"
 }
 
 /** Post-auth destination. Song pages skip auto-opening the AI companion after sign-in. */

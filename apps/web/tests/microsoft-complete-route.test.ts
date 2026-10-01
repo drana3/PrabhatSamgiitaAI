@@ -1,0 +1,34 @@
+import { describe, expect, it, vi } from "vitest"
+import { NextRequest } from "next/server"
+
+import { GET } from "@/app/api/auth/microsoft/complete/route"
+import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
+import { buildClientPrincipal } from "@/lib/azure-principal"
+import { MICROSOFT_NEXT_COOKIE } from "@/lib/member-auth-cookie"
+
+describe("GET /api/auth/microsoft/complete", () => {
+  it("sets the member cookie from x-ms-client-principal and redirects home", async () => {
+    const principal = buildClientPrincipal("oid-1", "member@example.com", "aad", "member@example.com")
+    const request = new NextRequest("https://example.test/api/auth/microsoft/complete", {
+      headers: {
+        "x-ms-client-principal": principal,
+        "x-forwarded-proto": "https",
+      },
+    })
+    request.cookies.set(MICROSOFT_NEXT_COOKIE, encodeURIComponent("/account"))
+
+    const response = await GET(request)
+    expect(response.status).toBe(307)
+    expect(response.headers.get("location")).toBe("https://example.test/account")
+    expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeTruthy()
+  })
+
+  it("redirects to sign-in fallback when SWA headers are missing", async () => {
+    const request = new NextRequest("https://example.test/api/auth/microsoft/complete")
+    const response = await GET(request)
+    expect(response.status).toBe(307)
+    expect(response.headers.get("location")).toContain("/signin")
+    expect(response.headers.get("location")).toContain("easyAuth=microsoft")
+    expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeUndefined()
+  })
+})

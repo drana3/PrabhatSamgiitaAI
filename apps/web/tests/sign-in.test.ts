@@ -24,7 +24,7 @@ describe("safeSignInNextPath", () => {
 describe("microsoftSignInHref", () => {
   it("builds the Azure login URL that returns to sign-in for session completion", () => {
     expect(microsoftSignInHref()).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3FeasyAuth%3Dmicrosoft",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fapi%2Fauth%2Fmicrosoft%2Fcomplete",
     )
   })
 
@@ -38,7 +38,7 @@ describe("microsoftSignInHref", () => {
     expect(safeSignInNextPath("/songs/135#ask")).toBe("/songs/135")
     expect(signInHref("/songs/135#ask")).toBe("/signin?next=%2Fsongs%2F135")
     expect(microsoftSignInHref()).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3FeasyAuth%3Dmicrosoft",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fapi%2Fauth%2Fmicrosoft%2Fcomplete",
     )
   })
 

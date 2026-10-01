@@ -6,38 +6,47 @@ import {
   persistEasyAuthMemberSession,
 } from "@/lib/easy-auth-client"
 import { normalizeEasyAuthProvider, principalFromEasyAuthMe } from "@/lib/easy-auth"
+import { MICROSOFT_NEXT_COOKIE } from "@/lib/member-auth-cookie"
 import { microsoftSignInHref, safeSignInNextPath, signInReturnPath } from "@/lib/sign-in"
 
-const MICROSOFT_NEXT_KEY = "ps_oauth_microsoft_next"
+const MICROSOFT_NEXT_STORAGE_KEY = "ps_oauth_microsoft_next"
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
-function storeMicrosoftNext(next: string) {
-  sessionStorage.setItem(MICROSOFT_NEXT_KEY, next)
+function writeMicrosoftNextCookie(next: string) {
+  const path = safeSignInNextPath(next)
+  sessionStorage.setItem(MICROSOFT_NEXT_STORAGE_KEY, path)
   try {
-    localStorage.setItem(MICROSOFT_NEXT_KEY, next)
+    localStorage.setItem(MICROSOFT_NEXT_STORAGE_KEY, path)
   } catch {
-    // ignore private mode
+    // ignore
   }
+  const value = encodeURIComponent(path)
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:" ? "; secure" : ""
+  document.cookie = `${MICROSOFT_NEXT_COOKIE}=${value}; path=/; max-age=900; samesite=lax${secure}`
 }
 
 function readMicrosoftNext() {
   return (
-    sessionStorage.getItem(MICROSOFT_NEXT_KEY) ||
-    localStorage.getItem(MICROSOFT_NEXT_KEY) ||
+    sessionStorage.getItem(MICROSOFT_NEXT_STORAGE_KEY) ||
+    localStorage.getItem(MICROSOFT_NEXT_STORAGE_KEY) ||
     "/"
   )
 }
 
-function clearMicrosoftNext() {
-  sessionStorage.removeItem(MICROSOFT_NEXT_KEY)
+function clearMicrosoftNextStorage() {
+  sessionStorage.removeItem(MICROSOFT_NEXT_STORAGE_KEY)
   try {
-    localStorage.removeItem(MICROSOFT_NEXT_KEY)
+    localStorage.removeItem(MICROSOFT_NEXT_STORAGE_KEY)
   } catch {
     // ignore
   }
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:" ? "; secure" : ""
+  document.cookie = `${MICROSOFT_NEXT_COOKIE}=; path=/; max-age=0; samesite=lax${secure}`
 }
 
 function memberBlobFromEasyAuthPrincipal(
@@ -56,7 +65,7 @@ function memberBlobFromEasyAuthPrincipal(
 }
 
 export function startMicrosoftEasyAuth(next: string | undefined) {
-  storeMicrosoftNext(safeSignInNextPath(next))
+  writeMicrosoftNextCookie(next ?? "/")
   window.location.assign(microsoftSignInHref())
 }
 
@@ -69,7 +78,7 @@ async function waitForEasyAuthPrincipal() {
   return clientPrincipal
 }
 
-/** Called on /signin?easyAuth=microsoft after SWA AAD login. */
+/** Browser fallback when SWA lands on /signin?easyAuth=microsoft instead of the API route. */
 export async function finishMicrosoftEasyAuthFromBrowser(): Promise<string> {
   const next = readMicrosoftNext()
 
@@ -88,11 +97,10 @@ export async function finishMicrosoftEasyAuthFromBrowser(): Promise<string> {
     throw new Error("Microsoft signed you in, but this site could not create your member session. Please try again.")
   }
 
-  clearMicrosoftNext()
+  clearMicrosoftNextStorage()
   return signInReturnPath(next)
 }
 
-/** Legacy callback route — same finish path. */
 export async function completeMicrosoftEasyAuth() {
   return finishMicrosoftEasyAuthFromBrowser()
 }

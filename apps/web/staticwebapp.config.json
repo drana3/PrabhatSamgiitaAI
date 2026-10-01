@@ -19,6 +19,10 @@
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
+      "route": "/api/auth/microsoft/complete",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
       "route": "/logout",
       "redirect": "/.auth/logout"
     }

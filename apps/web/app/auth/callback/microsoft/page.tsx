@@ -2,10 +2,10 @@
 
 import { useEffect } from "react"
 
-/** Old SWA redirect target — forward to the supported finish flow. */
+/** Legacy redirect target — use the server completion route. */
 export default function MicrosoftAuthCallbackPage() {
   useEffect(() => {
-    window.location.replace("/signin?easyAuth=microsoft")
+    window.location.replace("/api/auth/microsoft/complete")
   }, [])
 
   return null
