@@ -61,7 +61,11 @@ from app.services.domain_catalog import (
 )
 from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
 from app.services.media_quality import client_media_items, client_playable_audio_url
-from app.services.recommendations import RecommendationContext, RecommendationEngine
+from app.services.recommendations import (
+    RankedRecommendation,
+    RecommendationContext,
+    RecommendationEngine,
+)
 from app.services.reflections import select_reflection
 from app.services.stories import (
     InspirationStory,
@@ -383,13 +387,11 @@ async def recommendations_today(
             else None
         )
 
-        class _SongOfTheDay:
-            def __init__(self, song: object) -> None:
-                self.song = song
-                self.score = 1.0
-                self.breakdown: dict[str, float] = {}
-
-        ranked = [_SongOfTheDay(picked)] if picked is not None else []
+        ranked = (
+            [RankedRecommendation(song=picked, score=1.0)]
+            if picked is not None
+            else []
+        )
     api_base = get_settings().next_public_api_base_url
     prepared = []
     for rank_index, item in enumerate(ranked[:12]):
