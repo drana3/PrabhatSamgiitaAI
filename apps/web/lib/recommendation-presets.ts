@@ -1,3 +1,5 @@
+import { festivalExploreQuery } from "@/lib/festival-collection-links"
+
 export type RecommendationPreset = {
   title: string
   subtitle: string
@@ -25,6 +27,8 @@ type FestivalObservation = {
   difficulty?: string
   meditation_context?: string
   theme?: string
+  /** Canonical theme_collections.json label for explore catalog search */
+  collectionLabel?: string
   windowDays?: number
 }
 
@@ -296,7 +300,7 @@ export function getUpcomingObservances(now = new Date(), limit = 3): UpcomingObs
         new Date(item.year ?? now.getFullYear() + (item.delta > 300 ? 1 : 0), item.month - 1, item.day),
       ),
       daysUntil: item.delta,
-      query: `Search Prabhat Samgiita for ${item.title}${item.festival && item.festival !== item.title ? ` ${item.festival}` : ""}${item.theme ? ` ${item.theme}` : ""}`,
+      query: festivalExploreQuery(item),
     }))
 }
 

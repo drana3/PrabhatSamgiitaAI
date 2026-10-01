@@ -74,7 +74,10 @@ async function persistPrincipalBlob(blob: string, provider: string) {
 export function startMicrosoftEasyAuth(next: string | undefined) {
   clearExplicitSignOut()
   storeMicrosoftNext(next ?? "/")
-  window.location.assign(microsoftSignInHref())
+  const returnPath = safeSignInNextPath(next)
+  window.location.assign(
+    `/api/auth/microsoft/start?next=${encodeURIComponent(returnPath)}`,
+  )
 }
 
 async function waitForEasyAuthPrincipal() {

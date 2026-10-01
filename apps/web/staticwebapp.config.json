@@ -23,6 +23,14 @@
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
+      "route": "/api/auth/microsoft/start",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/api/auth/google/finish",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
       "route": "/api/auth/google/complete",
       "allowedRoles": ["anonymous", "authenticated"]
     },

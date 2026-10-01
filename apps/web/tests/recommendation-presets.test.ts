@@ -33,6 +33,17 @@ describe("reviewed discovery collections", () => {
     expect(languages.find((item) => item.label === "Urdu")).toMatchObject({ count: 16, query: "Urdu Songs" })
   })
 
+  it("maps upcoming festival cards to canonical collection explore prompts", () => {
+    const events = getUpcomingObservances(new Date(2026, 9, 2, 12, 0), 3)
+    expect(events[0]?.title).toBe("Kiirtana Divas")
+    expect(events[0]?.query).toBe("Search Prabhat Samgiita for Classicalised kiirtan-style song")
+    expect(collectionSongNumbersForKeyword(events[0]?.query ?? "")).toBeTruthy()
+    expect(events[1]?.query).toBe("Search Prabhat Samgiita for Children Songs")
+    expect(events[2]?.query).toBe(
+      "Search Prabhat Samgiita for National Day Song (or Song of Love for one's Country)",
+    )
+  })
+
   it("includes an observance occurring today", () => {
     const events = getUpcomingObservances(new Date(2026, 7, 28, 18, 0), 1)
 

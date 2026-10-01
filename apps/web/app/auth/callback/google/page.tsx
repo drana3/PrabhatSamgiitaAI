@@ -4,11 +4,8 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
-import { useMember } from "@/components/member-provider"
-import { completeGoogleOAuth } from "@/lib/web-oauth"
 
 export default function GoogleAuthCallbackPage() {
-  const { refresh } = useMember()
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState("Confirming with Google…")
   const started = useRef(false)
@@ -33,19 +30,26 @@ export default function GoogleAuthCallbackPage() {
       setPhase("Creating your member session…")
     }, 900)
 
-    void completeGoogleOAuth(code, params.get("state"))
-      .then(async (destination) => {
-        setPhase("Signed in — taking you back…")
-        await refresh({ silent: true })
-        window.location.replace(destination)
-      })
-      .catch((submitError) => {
-        setError(submitError instanceof Error ? submitError.message : "Google sign-in failed.")
-      })
-      .finally(() => {
-        window.clearTimeout(phaseTimer)
-      })
-  }, [refresh])
+    const form = document.createElement("form")
+    form.method = "POST"
+    form.action = "/api/auth/google/finish?redirect=1"
+    const codeField = document.createElement("input")
+    codeField.type = "hidden"
+    codeField.name = "code"
+    codeField.value = code
+    form.appendChild(codeField)
+    const state = params.get("state")
+    if (state) {
+      const stateField = document.createElement("input")
+      stateField.type = "hidden"
+      stateField.name = "state"
+      stateField.value = state
+      form.appendChild(stateField)
+    }
+    document.body.appendChild(form)
+    form.submit()
+    window.clearTimeout(phaseTimer)
+  }, [])
 
   return (
     <main className="grid min-h-screen place-items-center bg-ivory-50 px-6 text-center">

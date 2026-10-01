@@ -17,9 +17,7 @@ describe("microsoft easy auth", () => {
 
     startMicrosoftEasyAuth("/account")
     expect(sessionStorage.getItem("ps_oauth_microsoft_next")).toBe("/account")
-    expect(assign).toHaveBeenCalledWith(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fapi%2Fauth%2Fmicrosoft%2Fcomplete",
-    )
+    expect(assign).toHaveBeenCalledWith("/api/auth/microsoft/start?next=%2Faccount")
   })
 
   it("mints a member cookie from /.auth/me then returns home", async () => {
