@@ -11,11 +11,6 @@ function signedOutOnSignInPage() {
   return easyAuthSyncBlockedOnPage()
 }
 
-function microsoftEasyAuthReturnPending() {
-  if (typeof window === "undefined") return false
-  return new URLSearchParams(window.location.search).get("easyAuth") === "microsoft"
-}
-
 export function SignInRedirect({ next }: { next: string }) {
   const { loading, session, refresh } = useMember()
   const destination = signInReturnPath(next)
@@ -39,7 +34,6 @@ export function SignInRedirect({ next }: { next: string }) {
     if (leaving.current || loading || isAuthenticated) return
     if (adminDestination) return
     if (signedOutOnSignInPage()) return
-    if (microsoftEasyAuthReturnPending()) return
 
     return startEasyAuthSessionSyncLoop({
       shouldContinue: () => !leaving.current && !signedOutOnSignInPage() && !authenticatedRef.current,

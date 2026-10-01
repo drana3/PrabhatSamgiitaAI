@@ -1,10 +1,8 @@
 import { buildClientPrincipal } from "@/lib/azure-principal"
 import { clearExplicitSignOut } from "@/lib/explicit-sign-out"
 import { safeSignInNextPath, signInReturnPath } from "@/lib/sign-in"
-import { writeOAuthReturnCookie, writeClientOAuthValue, readClientOAuthValue, clearClientOAuthValue } from "@/lib/oauth-return-cookie"
+import { writeOAuthReturnCookie } from "@/lib/oauth-return-cookie"
 
-const GOOGLE_VERIFIER_KEY = "ps_oauth_google_verifier"
-const GOOGLE_NEXT_KEY = "ps_oauth_google_next"
 const FACEBOOK_NEXT_KEY = "ps_oauth_facebook_next"
 
 export function googleClientId() {
@@ -21,20 +19,6 @@ export function webGoogleOAuthConfigured() {
 
 export function webFacebookOAuthConfigured() {
   return Boolean(facebookAppId())
-}
-
-function randomString(length = 48) {
-  const bytes = new Uint8Array(length)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
-}
-
-async function pkceChallenge(verifier: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "")
 }
 
 export function googleRedirectUri() {
@@ -57,54 +41,45 @@ export function startGoogleEasyAuth(next: string | undefined) {
   window.location.assign(googleEasyAuthCompleteHref())
 }
 
-function persistBrowserValue(key: string, value: string) {
-  sessionStorage.setItem(key, value)
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // ignore quota / private mode
-  }
-  writeClientOAuthValue(key, value)
-}
-
-function readBrowserValue(key: string) {
-  return (
-    sessionStorage.getItem(key) ||
-    (typeof localStorage === "undefined" ? null : localStorage.getItem(key)) ||
-    readClientOAuthValue(key)
-  )
-}
-
-function clearBrowserValue(key: string) {
-  sessionStorage.removeItem(key)
-  try {
-    localStorage.removeItem(key)
-  } catch {
-    // ignore
-  }
-  clearClientOAuthValue(key)
-}
-
 export async function startGoogleOAuth(next: string | undefined) {
   const clientId = googleClientId()
   if (!clientId) throw new Error("Google sign-in is not configured.")
   clearExplicitSignOut()
 
-  const verifier = randomString(32)
-  const challenge = await pkceChallenge(verifier)
-  persistBrowserValue(GOOGLE_VERIFIER_KEY, verifier)
-  persistBrowserValue(GOOGLE_NEXT_KEY, safeSignInNextPath(next))
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: googleRedirectUri(),
-    response_type: "code",
-    scope: "openid profile email",
-    code_challenge: challenge,
-    code_challenge_method: "S256",
-    prompt: "select_account",
+  const startResponse = await fetch("/api/auth/google/start", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      next: safeSignInNextPath(next),
+      redirect_uri: googleRedirectUri(),
+    }),
   })
-  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
+  const startBody = (await startResponse.json().catch(() => null)) as {
+    url?: string
+    detail?: string
+  } | null
+  if (!startResponse.ok || !startBody?.url) {
+    throw new Error(startBody?.detail || "Google sign-in is not configured.")
+  }
+  window.location.assign(startBody.url)
+}
+
+export async function completeGoogleOAuth(code: string, state?: string | null) {
+  const response = await fetch("/api/auth/google/finish", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, state }),
+  })
+  const body = (await response.json().catch(() => null)) as {
+    destination?: string
+    detail?: string
+  } | null
+  if (!response.ok || !body?.destination) {
+    throw new Error(body?.detail || "Google sign-in did not complete.")
+  }
+  return signInReturnPath(body.destination)
 }
 
 export function startFacebookOAuth(next: string | undefined) {
@@ -121,56 +96,6 @@ export function startFacebookOAuth(next: string | undefined) {
     scope: "public_profile,email",
   })
   window.location.href = `https://www.facebook.com/v19.0/dialog/oauth?${params}`
-}
-
-export async function completeGoogleOAuth(code: string) {
-  const clientId = googleClientId()
-  const verifier = readBrowserValue(GOOGLE_VERIFIER_KEY) ?? ""
-  const next = readBrowserValue(GOOGLE_NEXT_KEY) ?? "/"
-
-  if (!clientId || !verifier) {
-    throw new Error("Google sign-in expired. Please try again.")
-  }
-
-  const tokenResponse = await fetch("/api/auth/google/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: clientId,
-      code,
-      redirect_uri: googleRedirectUri(),
-      code_verifier: verifier,
-    }),
-  })
-  const tokenBody = (await tokenResponse.json().catch(() => null)) as {
-    access_token?: string
-    error?: string
-    error_description?: string
-  } | null
-  if (!tokenResponse.ok || !tokenBody?.access_token) {
-    const detail =
-      tokenBody?.error_description ||
-      tokenBody?.error ||
-      (tokenResponse.status === 503 ? "Google sign-in is not configured on the server." : null)
-    throw new Error(detail || "Google sign-in did not complete.")
-  }
-
-  const profile = (await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { Authorization: `Bearer ${tokenBody.access_token}` },
-  }).then((response) => response.json())) as { sub?: string; email?: string; name?: string }
-
-  if (!profile.sub) throw new Error("Could not read your Google profile.")
-
-  await establishWebSession({
-    provider: "google",
-    subject: profile.sub,
-    email: profile.email ?? null,
-    displayName: profile.name || profile.email || "Google member",
-  })
-
-  clearBrowserValue(GOOGLE_VERIFIER_KEY)
-  clearBrowserValue(GOOGLE_NEXT_KEY)
-  return signInReturnPath(next)
 }
 
 export async function completeFacebookOAuth(code: string) {

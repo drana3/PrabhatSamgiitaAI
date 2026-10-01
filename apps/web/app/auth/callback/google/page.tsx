@@ -31,7 +31,7 @@ export default function GoogleAuthCallbackPage() {
       setPhase("Creating your member session…")
     }, 900)
 
-    void completeGoogleOAuth(code)
+    void completeGoogleOAuth(code, params.get("state"))
       .then((destination) => {
         setPhase("Signed in — taking you back…")
         window.location.replace(destination)

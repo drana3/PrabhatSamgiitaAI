@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { googleOAuthClientId, runtimeEnv } from "@/lib/runtime-env"
+import { exchangeGoogleAuthorizationCode, resolvedGoogleClientId } from "@/lib/google-oauth-server"
 import { isAllowedWebOAuthRedirect } from "@/lib/site-origin"
-
-function resolvedGoogleClientId(requested?: string) {
-  const known = [googleOAuthClientId(), runtimeEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID")].filter(
-    (value): value is string => Boolean(value),
-  )
-  if (requested && known.includes(requested)) return requested
-  return known[0]
-}
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
@@ -30,30 +22,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: "Google redirect URI is not allowed" }, { status: 400 })
   }
 
-  const params = new URLSearchParams({
-    client_id: clientId,
+  const { ok, status, tokenBody } = await exchangeGoogleAuthorizationCode({
+    clientId,
     code: body.code,
-    redirect_uri: body.redirect_uri,
-    grant_type: "authorization_code",
-    code_verifier: body.code_verifier,
+    redirectUri: body.redirect_uri,
+    verifier: body.code_verifier,
   })
-  const clientSecret = runtimeEnv("GOOGLE_CLIENT_SECRET")
-  if (clientSecret) {
-    params.set("client_secret", clientSecret)
-  }
-
-  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params,
-    cache: "no-store",
-  })
-  const text = await tokenResponse.text()
-  return new NextResponse(text, {
-    status: tokenResponse.status,
-    headers: {
-      "Content-Type": tokenResponse.headers.get("content-type") ?? "application/json",
-      "Cache-Control": "no-store, private",
-    },
+  return NextResponse.json(tokenBody ?? { error: "token_exchange_failed" }, {
+    status: ok ? 200 : status,
+    headers: { "Cache-Control": "no-store, private" },
   })
 }

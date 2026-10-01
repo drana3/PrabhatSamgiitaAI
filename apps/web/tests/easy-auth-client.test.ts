@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { fetchBrowserEasyAuthPrincipal, easyAuthSyncBlockedOnPage, syncEasyAuthSessionFromBrowser } from "@/lib/easy-auth-client"
-import { EXPLICIT_SIGN_OUT_KEY } from "@/lib/explicit-sign-out"
 
 describe("easy-auth-client", () => {
   it("reads /.auth/me in the browser and posts the principal to easy-auth-sync", async () => {
@@ -104,9 +103,11 @@ describe("easy-auth-client", () => {
     vi.unstubAllGlobals()
   })
 
-  it("blocks Easy Auth auto-sync after an explicit sign-out", () => {
-    localStorage.setItem(EXPLICIT_SIGN_OUT_KEY, "1")
+  it("blocks Easy Auth auto-sync on the signed-out query", () => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { pathname: "/", search: "?signedOut=1", href: "https://example.test/?signedOut=1" },
+    })
     expect(easyAuthSyncBlockedOnPage()).toBe(true)
-    localStorage.removeItem(EXPLICIT_SIGN_OUT_KEY)
   })
 })

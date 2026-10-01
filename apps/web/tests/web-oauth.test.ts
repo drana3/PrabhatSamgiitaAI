@@ -6,65 +6,53 @@ describe("Google PKCE", () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
-    sessionStorage.clear()
-    localStorage.clear()
-    document.cookie.split("; ").forEach((part) => {
-      const name = part.split("=")[0]
-      if (name) document.cookie = `${name}=; path=/; max-age=0`
-    })
   })
 
-  it("stores the PKCE verifier in a cookie so the Google bounce can finish", async () => {
+  it("starts Google by asking the server for the authorize URL", async () => {
     vi.stubEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "google-client")
+    const assign = vi.fn()
     Object.defineProperty(window, "location", {
       configurable: true,
       value: {
         href: "",
         origin: "https://example.test",
         protocol: "https:",
+        assign,
       },
     })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client" }),
+      }),
+    )
 
     await startGoogleOAuth("/account")
-    expect(sessionStorage.getItem("ps_oauth_google_verifier")).toBeTruthy()
-    expect(localStorage.getItem("ps_oauth_google_verifier")).toBeTruthy()
-    expect(window.location.href).toContain("accounts.google.com")
-    expect(window.location.href).toContain(encodeURIComponent("https://example.test/auth/callback/google"))
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/auth/google/start",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("https://example.test/auth/callback/google"),
+      }),
+    )
+    expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client")
   })
 
-  it("reads the verifier from a cookie when sessionStorage is empty", async () => {
-    vi.stubEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "google-client")
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: {
-        origin: "https://example.test",
-        protocol: "https:",
-      },
-    })
-    document.cookie = "ps_oauth_google_verifier=cookie-verifier; path=/"
-    document.cookie = "ps_oauth_google_next=%2Faccount; path=/"
-    sessionStorage.clear()
-    localStorage.clear()
-
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
+  it("finishes Google through the server route", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ access_token: "ya29.token" }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ sub: "gid-1", email: "member@example.com", name: "Member" }),
-      })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal("fetch", fetchMock)
+        json: async () => ({ ok: true, destination: "/account" }),
+      }),
+    )
 
-    await expect(completeGoogleOAuth("auth-code")).resolves.toBe("/account")
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "/api/auth/google/token",
+    await expect(completeGoogleOAuth("auth-code", "csrf-state")).resolves.toBe("/account")
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/auth/google/finish",
       expect.objectContaining({
-        body: expect.stringContaining("cookie-verifier"),
+        body: expect.stringContaining("auth-code"),
       }),
     )
   })
