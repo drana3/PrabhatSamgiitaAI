@@ -29,8 +29,9 @@ export async function fetchBrowserEasyAuthPrincipal(): Promise<EasyAuthClientPri
 /** Mint ps_member cookie from a browser-read SWA principal (sync, then principal fallback). */
 export async function persistEasyAuthMemberSession(
   clientPrincipal: EasyAuthClientPrincipal,
+  principalBlob?: string | null,
 ): Promise<boolean> {
-  const blob = principalFromEasyAuthMe(clientPrincipal)
+  const blob = principalBlob ?? principalFromEasyAuthMe(clientPrincipal)
   if (!blob) return false
   const provider = normalizeEasyAuthProvider(clientPrincipal.identityProvider)
 

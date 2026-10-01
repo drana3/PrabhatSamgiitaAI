@@ -10,6 +10,11 @@ describe("safeSignInNextPath", () => {
     expect(safeSignInNextPath("https://evil.test")).toBe("/")
   })
 
+  it("avoids redirect loops through /signin", () => {
+    expect(safeSignInNextPath("/signin")).toBe("/")
+    expect(safeSignInNextPath("/signin?next=/account")).toBe("/")
+  })
+
   it("keeps safe in-app paths", () => {
     expect(safeSignInNextPath("/account")).toBe("/account")
     expect(safeSignInNextPath("/admin/feedback")).toBe("/admin/feedback")
@@ -17,12 +22,9 @@ describe("safeSignInNextPath", () => {
 })
 
 describe("microsoftSignInHref", () => {
-  it("builds the Azure login URL that returns to the Microsoft session callback", () => {
+  it("builds the Azure login URL that returns to sign-in for session completion", () => {
     expect(microsoftSignInHref()).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fauth%2Fcallback%2Fmicrosoft",
-    )
-    expect(microsoftSignInHref("https://example.test")).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=https%3A%2F%2Fexample.test%2Fauth%2Fcallback%2Fmicrosoft",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3FeasyAuth%3Dmicrosoft",
     )
   })
 
@@ -36,7 +38,7 @@ describe("microsoftSignInHref", () => {
     expect(safeSignInNextPath("/songs/135#ask")).toBe("/songs/135")
     expect(signInHref("/songs/135#ask")).toBe("/signin?next=%2Fsongs%2F135")
     expect(microsoftSignInHref()).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fauth%2Fcallback%2Fmicrosoft",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fsignin%3FeasyAuth%3Dmicrosoft",
     )
   })
 

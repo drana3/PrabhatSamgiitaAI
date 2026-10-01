@@ -1,14 +1,21 @@
 export function safeSignInNextPath(next: string | undefined) {
   if (!next || !next.startsWith("/") || next.startsWith("//")) return "/"
   // Fragment identifiers are client-only and break server redirects / Easy Auth return.
-  const path = next.split("#")[0] || "/"
+  const path = next.split("#")[0]?.split("?")[0] || "/"
   if (!path.startsWith("/") || path.startsWith("//")) return "/"
+  if (path === "/signin" || path.startsWith("/signin/")) return "/"
   return path
+}
+
+/** Relative path SWA accepts after AAD login (must not be absolute). */
+export function microsoftEasyAuthReturnPath() {
+  return "/signin?easyAuth=microsoft"
 }
 
 /** Post-auth destination. Song pages skip auto-opening the AI companion after sign-in. */
 export function signInReturnPath(next: string | undefined) {
   const path = safeSignInNextPath(next)
+  if (path === "/signin") return "/"
   if (/^\/songs\/\d+$/.test(path)) {
     return `${path}?from=signin`
   }
@@ -16,13 +23,11 @@ export function signInReturnPath(next: string | undefined) {
 }
 
 export function microsoftCallbackPath() {
-  return "/auth/callback/microsoft"
+  return microsoftEasyAuthReturnPath()
 }
 
-export function microsoftSignInHref(origin?: string) {
-  const callbackPath = microsoftCallbackPath()
-  const callback = origin ? `${origin.replace(/\/$/, "")}${callbackPath}` : callbackPath
-  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(callback)}`
+export function microsoftSignInHref() {
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(microsoftEasyAuthReturnPath())}`
 }
 
 export function googleSignInHref(next: string | undefined) {

@@ -2,7 +2,10 @@ import Link from "next/link"
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 
+import { Suspense } from "react"
+
 import { SignInRedirect } from "@/components/sign-in-redirect"
+import { MicrosoftEasyAuthLanding } from "@/components/microsoft-easy-auth-landing"
 import { EmailAuthPanel } from "@/components/email-auth-panel"
 import { FacebookSignInButton, GoogleSignInButton, MicrosoftSignInButton } from "@/components/social-sign-in-buttons"
 import { SiteHeader } from "@/components/site-header"
@@ -67,6 +70,9 @@ export default async function SignInPage({
             Sign in to save songs, create playlists, download available recordings, keep practice history, and receive guidance shaped by your interests.
           </p>
           <SignInRedirect next={next} />
+          <Suspense fallback={null}>
+            <MicrosoftEasyAuthLanding />
+          </Suspense>
           {justSignedOut ? (
             <p className="mt-6 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm leading-6 text-stone-700">
               You are signed out of this site. Choose a sign-in option below to continue with your account.
