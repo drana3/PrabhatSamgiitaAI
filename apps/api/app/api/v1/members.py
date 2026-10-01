@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.models import UserAccount, UserFavorite
+from app.models import UserAccount, UserFavorite, UserPlaylist, UserPlaylistSong
 from app.schemas.member import (
     AnonymousMember,
     ChatMemoryResponse,
@@ -17,6 +18,9 @@ from app.schemas.member import (
     MemberPhoneWrite,
     MemberPreferencesWrite,
     MemberProfile,
+    PlaylistResponse,
+    PlaylistSongWrite,
+    PlaylistWrite,
     QuizEventSubmitWrite,
     QuizStartResponse,
     QuizStartWrite,
@@ -32,6 +36,13 @@ from app.services.members import (
     require_member_identity,
     store_chat_memory,
     sync_member,
+)
+from app.services.playlists import (
+    clean_playlist_name,
+    list_playlists,
+    owned_playlist,
+    playlist_response,
+    songs_for,
 )
 from app.services.quiz import quiz_status, start_quiz, submit_quiz
 from app.services.quiz_events import (
@@ -142,6 +153,92 @@ async def remove_favorite(
     )
     await session.commit()
     return await favorites(request, session)
+
+
+@router.get("/playlists", response_model=list[PlaylistResponse])
+async def read_playlists(request: Request, session: DatabaseSession) -> list[PlaylistResponse]:
+    member = await current_member(request, session)
+    return await list_playlists(session, member)
+
+
+@router.post("/playlists", response_model=PlaylistResponse, status_code=201)
+async def create_playlist(
+    payload: PlaylistWrite, request: Request, session: DatabaseSession
+) -> PlaylistResponse:
+    member = await current_member(request, session)
+    playlist = UserPlaylist(user_id=member.id, name=clean_playlist_name(payload.name))
+    session.add(playlist)
+    await session.commit()
+    await session.refresh(playlist)
+    return playlist_response(playlist, [])
+
+
+@router.patch("/playlists/{playlist_id}", response_model=PlaylistResponse)
+async def rename_playlist(
+    playlist_id: UUID,
+    payload: PlaylistWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> PlaylistResponse:
+    member = await current_member(request, session)
+    playlist = await owned_playlist(session, member, playlist_id)
+    playlist.name = clean_playlist_name(payload.name)
+    await session.commit()
+    return playlist_response(playlist, await songs_for(session, playlist.id))
+
+
+@router.delete("/playlists/{playlist_id}", status_code=204)
+async def delete_playlist(
+    playlist_id: UUID, request: Request, session: DatabaseSession
+) -> Response:
+    member = await current_member(request, session)
+    playlist = await owned_playlist(session, member, playlist_id)
+    await session.delete(playlist)
+    await session.commit()
+    return Response(status_code=204)
+
+
+@router.post("/playlists/{playlist_id}/songs", response_model=PlaylistResponse)
+async def add_playlist_song(
+    playlist_id: UUID,
+    payload: PlaylistSongWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> PlaylistResponse:
+    member = await current_member(request, session)
+    playlist = await owned_playlist(session, member, playlist_id)
+    existing = await songs_for(session, playlist.id)
+    if any(row.song_number == payload.song_number for row in existing):
+        return playlist_response(playlist, existing)
+    position = max((row.position for row in existing), default=-1) + 1
+    session.add(
+        UserPlaylistSong(
+            playlist_id=playlist.id,
+            song_number=payload.song_number,
+            position=position,
+        )
+    )
+    await session.commit()
+    return playlist_response(playlist, await songs_for(session, playlist.id))
+
+
+@router.delete("/playlists/{playlist_id}/songs/{song_number}", response_model=PlaylistResponse)
+async def remove_playlist_song(
+    playlist_id: UUID,
+    song_number: int,
+    request: Request,
+    session: DatabaseSession,
+) -> PlaylistResponse:
+    member = await current_member(request, session)
+    playlist = await owned_playlist(session, member, playlist_id)
+    await session.execute(
+        delete(UserPlaylistSong).where(
+            UserPlaylistSong.playlist_id == playlist.id,
+            UserPlaylistSong.song_number == song_number,
+        )
+    )
+    await session.commit()
+    return playlist_response(playlist, await songs_for(session, playlist.id))
 
 
 @router.post("/chat-memory", response_model=ChatMemoryResponse)

@@ -54,10 +54,20 @@ export function RecommendationSection() {
     return () => { active = false }
   }, [fallbackPreset])
 
-  const contextTitle = today?.signals[0]?.title || fallbackPreset.title
-  const contextSummary = today?.signals[0]?.summary || fallbackPreset.subtitle
-  const contextSignal = today?.signals[0]
-  const contextLink = contextSignal ? publicContextLink(contextSignal.source_url) : null
+  const contextSignal = today?.signals.find(
+    (signal) => signal.category === "festival" || signal.category === "song_of_the_day",
+  )
+  const contextTitle = today?.context.festival
+    ? String(today.context.festival)
+    : today
+      ? "Song of the Day"
+      : fallbackPreset.title
+  const contextSummary = contextSignal?.summary || (
+    today?.context.recommendation_mode === "song_of_the_day"
+      ? "The same song for everyone on this date, in order from PS 1 through PS 5018."
+      : fallbackPreset.subtitle
+  )
+  const contextLink = contextSignal?.category === "festival" ? publicContextLink(contextSignal.source_url) : null
   const strictFestivalWithoutSongs = today?.context.recommendation_mode === "strict_festival" && !today.recommendations.length
 
   return (
@@ -65,7 +75,7 @@ export function RecommendationSection() {
       <div className="border-b border-navy-900/10 bg-gradient-to-r from-gold-50 to-white p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="eyebrow">Selected for this moment</p>
+            <p className="eyebrow">{today?.context.festival ? "Festival day" : "Song of the Day"}</p>
             <h3 className="mt-2 font-serif text-3xl text-navy-950">{contextTitle}</h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">{contextSummary}</p>
             {contextLink && contextSignal ? <a href={contextLink} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Context from {contextSignal.source_name} ↗</a> : null}

@@ -14,6 +14,19 @@ export function songShareUrl(songNumber: number): string {
   return `${webBaseUrl()}/songs/${songNumber}`
 }
 
-export function songShareMessage(songNumber: number, title: string): string {
-  return `Prabhat Samgiita PS ${songNumber} — ${title}\n${songShareUrl(songNumber)}`
+export function songShareMessage(
+  songNumber: number,
+  title: string,
+  extras?: { performer?: string | null; detail?: string | null },
+): string {
+  const lines = ["Prabhat Samgiita", `PS ${songNumber} — ${title}`]
+  const performer = extras?.performer?.trim()
+  if (performer && performer !== "Prabhat Samgiita Collection") {
+    lines.push(`Singer: ${performer}`)
+  }
+  const detail = extras?.detail?.trim()
+  if (detail && detail !== title) lines.push(detail)
+  // Own line so WhatsApp, Messages, Mail, and Telegram can linkify it.
+  lines.push(songShareUrl(songNumber))
+  return lines.join("\n")
 }

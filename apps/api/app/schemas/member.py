@@ -79,6 +79,25 @@ class FavoriteWrite(BaseModel):
     song_number: int = Field(ge=1, le=5018)
 
 
+class PlaylistSongItem(BaseModel):
+    song_number: int
+    position: int
+
+
+class PlaylistResponse(BaseModel):
+    id: UUID
+    name: str
+    songs: list[PlaylistSongItem] = Field(default_factory=list)
+
+
+class PlaylistWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class PlaylistSongWrite(BaseModel):
+    song_number: int = Field(ge=1, le=5018)
+
+
 class MemberPreferencesWrite(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
     preferred_language: str | None = Field(default=None, max_length=32)

@@ -78,7 +78,7 @@ export default async function HomePage() {
                 Music for this moment
               </h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-stone-700">
-                Songs selected for today&apos;s Ananda Marga observance, important world days, and carefully reviewed humanitarian context. Listen now, understand the meaning, or learn the song.
+                Song of the Day follows one shared sequence from PS 1 through PS 5018. On a festival day, songs for that observance take its place.
               </p>
             </div>
             <Link href="/explore" className="outline-button">Explore your own moment →</Link>

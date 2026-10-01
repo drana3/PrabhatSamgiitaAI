@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react"
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native"
+import { useEffect, useMemo, useState } from "react"
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { useRouter } from "expo-router"
 import { Heart } from "lucide-react-native"
 
@@ -8,12 +8,13 @@ import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { colors } from "@/constants/colors"
-import { spacing } from "@/constants/spacing"
+import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { parseSongNumber, songSummaryToMockSong } from "@/lib/songMap"
+import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -25,6 +26,11 @@ export default function SavedScreen() {
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const syncingFavorites = usePreferencesStore((s) => s.syncingFavorites)
   const hydrateFavoritesFromServer = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
+  const playlists = usePlaylistStore((s) => s.playlists)
+  const refreshPlaylists = usePlaylistStore((s) => s.refresh)
+  const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
+  const [playlistName, setPlaylistName] = useState("")
+  const [namingPlaylist, setNamingPlaylist] = useState(false)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const songs = useMemo<MockSong[]>(() => {
     const numbers = savedSongIds.flatMap((id) => {
@@ -55,8 +61,20 @@ export default function SavedScreen() {
   useEffect(() => {
     if (mode === "signed_in") {
       void hydrateFavoritesFromServer()
+      void refreshPlaylists()
     }
-  }, [mode, hydrateFavoritesFromServer])
+  }, [mode, hydrateFavoritesFromServer, refreshPlaylists])
+
+  const startPlaylist = () => {
+    if (mode !== "signed_in") {
+      Alert.alert("Sign in", "Playlist creation requires you to sign in.", [
+        { text: "Not now", style: "cancel" },
+        { text: "Sign in", onPress: () => router.push(href("/signin")) },
+      ])
+      return
+    }
+    setNamingPlaylist(true)
+  }
 
   return (
     <ScreenContainer padded={false} showGuru={false}>
@@ -73,7 +91,50 @@ export default function SavedScreen() {
             </Text>
           </View>
           {syncingFavorites ? <ActivityIndicator color={colors.primary} /> : null}
-        </View>
+      </View>
+        <Pressable accessibilityRole="button" onPress={startPlaylist} style={styles.playlistButton}>
+          <Text style={styles.playlistButtonText}>New playlist</Text>
+        </Pressable>
+        {namingPlaylist ? (
+          <View style={styles.playlistForm}>
+            <TextInput
+              value={playlistName}
+              onChangeText={setPlaylistName}
+              placeholder="Playlist name"
+              placeholderTextColor={colors.textMuted}
+              style={styles.playlistInput}
+            />
+            <PrimaryButton
+              label="Create playlist"
+              disabled={!playlistName.trim()}
+              onPress={() => {
+                void createPlaylist(playlistName.trim()).then((result) => {
+                  if (!isPlaylist(result)) {
+                    Alert.alert(
+                      "Playlist",
+                      "error" in result ? result.error : "Playlist creation requires you to sign in.",
+                    )
+                    return
+                  }
+                  setPlaylistName("")
+                  setNamingPlaylist(false)
+                  router.push(href(`/playlist/${result.id}`))
+                })
+              }}
+            />
+          </View>
+        ) : null}
+        {playlists.map((playlist) => (
+          <Pressable
+            key={playlist.id}
+            accessibilityRole="button"
+            onPress={() => router.push(href(`/playlist/${playlist.id}`))}
+            style={styles.playlistRow}
+          >
+            <Text style={styles.playlistName}>{playlist.name}</Text>
+            <Text style={styles.playlistMeta}>{playlist.songs.length} songs</Text>
+          </Pressable>
+        ))}
       </View>
 
       {songs.length === 0 ? (
@@ -131,6 +192,24 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.h1, color: colors.textPrimary },
   subtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  playlistButton: { marginTop: spacing.md, alignSelf: "flex-start" },
+  playlistButtonText: { ...typography.label, color: colors.primaryDark },
+  playlistForm: { marginTop: spacing.sm, gap: spacing.sm },
+  playlistInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
+  },
+  playlistRow: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  playlistName: { ...typography.label, color: colors.textPrimary },
+  playlistMeta: { ...typography.caption, color: colors.textMuted },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   guestCta: { gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.lg },
   guestText: { ...typography.bodySmall, color: colors.textSecondary },

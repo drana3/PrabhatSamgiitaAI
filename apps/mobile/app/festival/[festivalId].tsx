@@ -135,6 +135,7 @@ export default function FestivalDetailScreen() {
           <CompactSongRow
             key={song.id}
             song={song}
+            showShare
             onPress={() => router.push(href(`/song/${song.id}`))}
           />
         ))}

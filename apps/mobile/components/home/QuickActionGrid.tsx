@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native"
-import { Compass, Library } from "lucide-react-native"
+import { Car, Compass, Library } from "lucide-react-native"
 
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
@@ -9,6 +9,7 @@ import { typography } from "@/constants/typography"
 const actions = [
   { key: "explore", label: "Explore", Icon: Compass },
   { key: "collections", label: "Collections", Icon: Library },
+  { key: "drive", label: "Drive Mode", Icon: Car },
 ] as const
 
 type Props = {

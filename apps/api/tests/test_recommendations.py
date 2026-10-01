@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any
 
 import pytest
@@ -7,7 +8,9 @@ from app.models.song import Song
 from app.services.domain_catalog import (
     canonical_timezone,
     fixed_reviewed_festival,
+    reviewed_festival_collection_labels,
     reviewed_festival_context,
+    sequential_song_of_the_day,
 )
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 
@@ -44,6 +47,18 @@ def test_chromium_india_timezone_alias_is_canonicalized() -> None:
     assert canonical_timezone("Europe/Berlin") == "Europe/Berlin"
 
 
+def test_song_of_the_day_is_sequential_and_wraps() -> None:
+    assert sequential_song_of_the_day(date(1970, 1, 1)) == 1
+    assert sequential_song_of_the_day(date(1970, 1, 2)) == 2
+    same_day = date(1983, 9, 23)
+    assert sequential_song_of_the_day(same_day) == sequential_song_of_the_day(same_day)
+    day_5018 = date.fromordinal(date(1970, 1, 1).toordinal() + 5017)
+    day_5019 = date.fromordinal(date(1970, 1, 1).toordinal() + 5018)
+    assert sequential_song_of_the_day(day_5018) == 5018
+    assert sequential_song_of_the_day(day_5019) == 1
+    assert "Children Songs" in reviewed_festival_collection_labels(10, 16, 2026)
+
+
 def test_lunar_festival_dates_are_not_guessed_for_other_years() -> None:
     assert fixed_reviewed_festival(8, 28, 2027) is None
     assert fixed_reviewed_festival(5, 21, 2027) == "Bábá Birthday"
@@ -54,7 +69,13 @@ def test_reviewed_observances_map_to_canonical_song_collections() -> None:
     assert reviewed_festival_context(4, 14, 2026)["festival"] == "New Year"
     assert reviewed_festival_context(6, 5, 2026)["theme"] == "PROUT"
     assert reviewed_festival_context(8, 28, 2026)["festival"] == "Shravanii Purnima Day"
-    assert reviewed_festival_context(10, 5, 2026)["festival"] == "Victory Day"
+    assert reviewed_festival_context(10, 20, 2026)["festival"] == "Victory Day"
+    assert fixed_reviewed_festival(10, 1, 2026) is None
+    assert fixed_reviewed_festival(10, 16, 2026) == "Sharadotsava"
+    assert fixed_reviewed_festival(10, 17, 2026) == "Public Day"
+    assert fixed_reviewed_festival(10, 18, 2026) == "Fine Arts Day"
+    assert fixed_reviewed_festival(10, 19, 2026) == "Music Day"
+    assert fixed_reviewed_festival(10, 20, 2026) == "Vijayotsava"
     assert reviewed_festival_context(11, 8, 2026)["festival"] == "Dipavali (Colour Festival) Day"
 
 

@@ -9,7 +9,7 @@
  */
 export const featureParity = [
   { web: "Home hero + brand", mobile: "Welcome + Home", status: "ui" },
-  { web: "Today recommendations", mobile: "Home · News & context + song picks (festival / humanitarian)", status: "ui", api: "GET /recommendations/today" },
+  { web: "Song of the Day", mobile: "Home · Song of the Day (festival songs override the sequence)", status: "ui", api: "GET /recommendations/today" },
   { web: "Upcoming observances", mobile: "Home · Festivals + /festivals (reviewed 2026 calendar)", status: "ui" },
   { web: "Daily reflection", mobile: "Home · Daily reflection + book source", status: "ui", api: "GET /reflections/today" },
   { web: "About / composer", mobile: "Home · About + /about", status: "ui" },

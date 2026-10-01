@@ -385,6 +385,20 @@ export const chatMemoryResponseSchema = z.object({
   monthly_summaries: z.record(z.string()).optional().default({}),
 })
 
+export const memberPlaylistSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  songs: z
+    .array(
+      z.object({
+        song_number: z.number(),
+        position: z.number(),
+      }),
+    )
+    .default([]),
+})
+
+export type MemberPlaylist = z.infer<typeof memberPlaylistSchema>
 export type MemberProfile = z.infer<typeof memberProfileSchema>
 export type MemberSession = z.infer<typeof memberSessionSchema>
 export type ChatMemoryResponse = z.infer<typeof chatMemoryResponseSchema>
@@ -1029,6 +1043,80 @@ export function createApiClient(options: ApiClientOptions) {
         throw new Error(typeof body?.detail === "string" ? body.detail : "Could not save favorite.")
       }
       return z.array(z.number()).parse(body)
+    },
+
+    async fetchMemberPlaylists(): Promise<MemberPlaylist[] | null> {
+      try {
+        const response = await fetchJson("/api/v1/members/playlists")
+        if (response.status === 401 || response.status === 403) return null
+        if (!response.ok) return null
+        return z.array(memberPlaylistSchema).parse(await response.json())
+      } catch {
+        return null
+      }
+    },
+
+    async createMemberPlaylist(name: string): Promise<MemberPlaylist> {
+      const response = await fetchJson("/api/v1/members/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      const body = await response.json().catch(() => null)
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Playlist creation requires you to sign in.")
+      }
+      if (!response.ok) {
+        throw new Error(typeof body?.detail === "string" ? body.detail : "Could not create playlist.")
+      }
+      return memberPlaylistSchema.parse(body)
+    },
+
+    async renameMemberPlaylist(playlistId: string, name: string): Promise<MemberPlaylist> {
+      const response = await fetchJson(`/api/v1/members/playlists/${playlistId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(typeof body?.detail === "string" ? body.detail : "Could not rename playlist.")
+      }
+      return memberPlaylistSchema.parse(body)
+    },
+
+    async deleteMemberPlaylist(playlistId: string): Promise<void> {
+      const response = await fetchJson(`/api/v1/members/playlists/${playlistId}`, {
+        method: "DELETE",
+      })
+      if (!response.ok && response.status !== 204) {
+        throw new Error("Could not delete playlist.")
+      }
+    },
+
+    async addMemberPlaylistSong(playlistId: string, songNumber: number): Promise<MemberPlaylist> {
+      const response = await fetchJson(`/api/v1/members/playlists/${playlistId}/songs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ song_number: songNumber }),
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(typeof body?.detail === "string" ? body.detail : "Could not add song.")
+      }
+      return memberPlaylistSchema.parse(body)
+    },
+
+    async removeMemberPlaylistSong(playlistId: string, songNumber: number): Promise<MemberPlaylist> {
+      const response = await fetchJson(
+        `/api/v1/members/playlists/${playlistId}/songs/${songNumber}`,
+        { method: "DELETE" },
+      )
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(typeof body?.detail === "string" ? body.detail : "Could not remove song.")
+      }
+      return memberPlaylistSchema.parse(body)
     },
 
     async removeMemberFavorite(songNumber: number): Promise<number[]> {

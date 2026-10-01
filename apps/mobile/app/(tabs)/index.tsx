@@ -384,6 +384,7 @@ export default function HomeScreen() {
           <QuickActionGrid
             onAction={(key) => {
               if (key === "explore") router.push(href("/(tabs)/songs"))
+              else if (key === "drive") router.push(href("/drive"))
               else router.push(href("/collections"))
             }}
           />

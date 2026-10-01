@@ -588,6 +588,7 @@ export default function SearchScreen() {
             <CompactSongRow
               song={item}
               lyricLine={item.lyrics || item.originalTitle}
+              showShare
               onPress={() => openSongScreen(router, item.id)}
             />
           )}

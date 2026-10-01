@@ -1,5 +1,6 @@
 import { memo } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native"
+import { Share2 } from "lucide-react-native"
 
 import { ScenicPlayButton } from "@/components/player/ScenicPlayButton"
 import { colors } from "@/constants/colors"
@@ -7,6 +8,7 @@ import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { songPlayback } from "@/lib/playback"
+import { shareSong } from "@/lib/shareSong"
 import { songCardTitle } from "@/lib/songMap"
 import { usePlayerStore } from "@/stores/playerStore"
 
@@ -18,9 +20,16 @@ type Props = {
   playQueue?: number[]
   /** Matching lyric line for search results. */
   lyricLine?: string
+  /** Native share sheet. Used on search, playlists, and festival songs. */
+  showShare?: boolean
 }
 
-export const CompactSongRow = memo(function CompactSongRow({ song, onPress, lyricLine }: Props) {
+export const CompactSongRow = memo(function CompactSongRow({
+  song,
+  onPress,
+  lyricLine,
+  showShare = false,
+}: Props) {
   const showPause = usePlayerStore((s) => songPlayback(s, song).showPause)
   const isBuffering = usePlayerStore((s) => songPlayback(s, song).isBuffering)
   const pause = usePlayerStore((s) => s.pause)
@@ -66,6 +75,24 @@ export const CompactSongRow = memo(function CompactSongRow({ song, onPress, lyri
           </Text>
         )}
       </Pressable>
+      {showShare ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Share PS ${song.number}`}
+          hitSlop={8}
+          onPress={() => {
+            void shareSong({
+              number: song.number,
+              title: song.title,
+              performer: song.performer,
+              detail: song.originalTitle || song.shortDescription,
+            }).catch(() => Alert.alert("Share", "Could not open the share sheet."))
+          }}
+          style={styles.share}
+        >
+          <Share2 size={18} color={colors.textSecondary} />
+        </Pressable>
+      ) : null}
     </View>
   )
 })
@@ -76,6 +103,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  share: {
+    padding: spacing.sm,
   },
   pressed: {
     opacity: 0.85,

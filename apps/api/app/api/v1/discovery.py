@@ -55,9 +55,8 @@ from app.services.domain_catalog import (
     reviewed_festival_collection_labels,
     reviewed_festival_context,
     reviewed_festival_song_numbers,
-    reviewed_humanitarian_collection_labels,
     season_for_month,
-    song_numbers_for_collection_labels,
+    sequential_song_of_the_day,
     time_of_day,
 )
 from app.services.feedback_triage import feedback_acknowledgement, feedback_is_priority
@@ -73,7 +72,6 @@ from app.services.stories import (
 )
 from app.services.world_context import (
     ContextSignal,
-    current_india_humanitarian_signals,
     observance_for_day,
 )
 
@@ -296,20 +294,17 @@ async def recommendations_today(
         "season": season,
         "festival": festival,
         "observance": observance.title if observance else None,
-        "recommendation_mode": "strict_festival" if festival else "daily_reflection",
+        "recommendation_mode": "strict_festival" if festival else "song_of_the_day",
         "canonical_collections": list(festival_collection_labels),
+        "song_of_the_day": None if festival else sequential_song_of_the_day(local_date),
+        "humanitarian_context": None,
     }
     cache_key = json.dumps({**context, "media_url_version": 2}, sort_keys=True)
     cached = await today_cache.get(cache_key)
     if cached:
         return TodayResponse.model_validate(cached)
-    news_signals = await current_india_humanitarian_signals()
-    humanitarian_collection_labels = reviewed_humanitarian_collection_labels(
-        news_signals[0].category if news_signals else None
-    )
-    canonical_collection_labels = (
-        festival_collection_labels if festival else humanitarian_collection_labels
-    )
+    canonical_collection_labels = festival_collection_labels if festival else ()
+    song_of_the_day = context["song_of_the_day"]
     festival_signal = (
         ContextSignal(
             title=festival,
@@ -322,18 +317,29 @@ async def recommendations_today(
         if festival
         else None
     )
-    signals = (
-        ([festival_signal] if festival_signal else [])
-        + ([observance] if observance else [])
-        + news_signals[:1]
+    song_signal = (
+        ContextSignal(
+            title="Song of the Day",
+            category="song_of_the_day",
+            summary=(
+                f"PS {song_of_the_day} for {local_date:%d %B %Y}. "
+                "Everyone hears the same song on this date."
+            ),
+            source_name="Prabhat Samgiita",
+            source_url=f"https://www.prabhatasamgiita.org/songs/{song_of_the_day}",
+            keywords=("song of the day",),
+        )
+        if isinstance(song_of_the_day, int)
+        else None
+    )
+    signals = ([festival_signal] if festival_signal else []) + (
+        [song_signal] if song_signal else []
     )
     context_keywords = " ".join(keyword for signal in signals for keyword in signal.keywords)
-    context["humanitarian_context"] = news_signals[0].category if news_signals else None
     context["canonical_collections"] = list(
         canonical_collection_labels or (("Curated festival mix",) if festival_song_numbers else ())
     )
     catalog = CatalogService(session)
-    songs = await catalog.list_songs(limit=10000)
     recommendation_context = RecommendationContext(
         date=local_date.isoformat(),
         timezone=timezone,
@@ -359,25 +365,31 @@ async def recommendations_today(
         maximum_results=3,
     )
     engine = RecommendationEngine()
-    if festival_song_numbers:
+    if festival and festival_song_numbers:
+        songs = await catalog.list_songs(limit=10000)
         eligible_songs = [song for song in songs if song.number in festival_song_numbers]
         ranked = await engine.rank_source_constrained(
             session,
             eligible_songs,
             recommendation_context.maximum_results,
         )
-    elif canonical_collection_labels:
-        eligible_song_numbers = set(
-            song_numbers_for_collection_labels(canonical_collection_labels)
-        )
-        eligible_songs = [song for song in songs if song.number in eligible_song_numbers]
-        ranked = await engine.rank_source_constrained(
-            session,
-            eligible_songs,
-            recommendation_context.maximum_results,
-        )
+    elif festival:
+        # A configured festival day must not fall through to the 1–5018 sequence.
+        ranked = []
     else:
-        ranked = await engine.rank(session, songs, recommendation_context)
+        picked = (
+            await catalog.get_song(song_of_the_day)
+            if isinstance(song_of_the_day, int)
+            else None
+        )
+
+        class _SongOfTheDay:
+            def __init__(self, song: object) -> None:
+                self.song = song
+                self.score = 1.0
+                self.breakdown: dict[str, float] = {}
+
+        ranked = [_SongOfTheDay(picked)] if picked is not None else []
     api_base = get_settings().next_public_api_base_url
     prepared = []
     for rank_index, item in enumerate(ranked[:12]):
@@ -398,12 +410,7 @@ async def recommendations_today(
                 for label in canonical_collection_labels
             ]
         else:
-            reasons = [signal.title for signal in signals[:1]]
-            reasons.extend(
-                label.replace("_", " ")
-                for label, value in item.breakdown.items()
-                if value > 0
-            )
+            reasons = [f"Song of the Day · PS {item.song.number}"]
         items.append(
             TodayRecommendationItem(
                 number=item.song.number,
@@ -425,8 +432,8 @@ async def recommendations_today(
             "Festival selections are restricted to exact reviewed source collections."
             if festival
             else (
-                "Daily selections use reviewed metadata and are not presented as "
-                "spiritually authoritative."
+                "Song of the Day is the same for everyone on this date and "
+                "advances from PS 1 through PS 5018."
             )
         ),
     )

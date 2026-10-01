@@ -5,6 +5,8 @@ import type { MockSong } from "@/data/mock"
 import { toInAppVideoEmbedUrl } from "@/lib/mediaEmbed"
 import { scenicHeroFor, scenicThumbFor } from "@/lib/scenicArt"
 
+const NEWS_CATEGORIES = new Set(["news", "disaster", "humanitarian"])
+
 export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): MockSong {
   const number = item.number || index + 1
   const hero = scenicHeroFor(number)
@@ -17,11 +19,11 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
     id: `ps-${item.number}`,
     number: item.number,
     title: item.title,
-    shortDescription: item.first_line || item.reasons[0] || "Recommended for today",
+    shortDescription: item.first_line || item.reasons[0] || "Song of the Day",
     imageUrl: hero,
     thumbnailUrl: thumb,
     themes: item.reasons.slice(0, 2),
-    meaning: item.reasons.join(" · ") || "A song selected for today’s context.",
+    meaning: item.reasons.join(" · ") || "Song of the Day",
     lyrics: item.first_line || item.title,
     translation: item.first_line || item.title,
     durationSeconds: 300,
@@ -41,30 +43,30 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
   }
 }
 
+function visibleSignal(today: TodayRecommendations | null) {
+  return today?.signals?.find((signal) => !NEWS_CATEGORIES.has((signal.category || "").toLowerCase()))
+}
+
 export function todayHeadline(today: TodayRecommendations | null) {
-  const signal = today?.signals?.[0]
-  if (signal?.title) return signal.title
+  const song = today?.recommendations?.[0]
   if (today?.context?.festival) return today.context.festival
-  if (today?.context?.observance) return today.context.observance
-  return "Selected for this moment"
+  if (song) return `PS ${song.number} — ${song.title}`
+  const signal = visibleSignal(today)
+  if (signal?.title) return signal.title
+  return "Song of the Day"
 }
 
 export function todaySummary(today: TodayRecommendations | null) {
-  const signal = today?.signals?.[0]
-  if (signal?.summary) return signal.summary
-  if (today?.context?.recommendation_mode === "strict_festival") {
-    return "Festival selections use reviewed Ananda Marga observance collections."
+  if (today?.context?.recommendation_mode === "strict_festival" || today?.context?.festival) {
+    return "Festival songs replace the daily sequence for this observance."
   }
-  return "Songs chosen from today’s Ananda Marga observance and reviewed humanitarian context."
+  const signal = visibleSignal(today)
+  if (signal?.category === "song_of_the_day" && signal.summary) return signal.summary
+  return "The same song for everyone on this date, in order from PS 1 through PS 5018."
 }
 
 export function todayModeLabel(today: TodayRecommendations | null) {
   const mode = today?.context?.recommendation_mode
   if (mode === "strict_festival" || today?.context?.festival) return "Festival day"
-  if (today?.context?.humanitarian_context) return "Humanitarian context"
-  const category = today?.signals?.[0]?.category?.toLowerCase()
-  if (category === "festival") return "Festival day"
-  if (category === "disaster" || category === "humanitarian") return "Humanitarian context"
-  if (category) return category.replace(/_/g, " ")
-  return "Daily selection"
+  return "Song of the Day"
 }

@@ -1,10 +1,11 @@
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native"
-import { ExternalLink } from "lucide-react-native"
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native"
+import { ExternalLink, Share2 } from "lucide-react-native"
 
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { shareSong } from "@/lib/shareSong"
 import { todayHeadline, todayModeLabel, todaySummary } from "@/lib/today"
 import type { TodayRecommendations } from "@prabhat/core"
 
@@ -23,7 +24,7 @@ export function TodayContextCard({ today, loading, onOpenSong }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <Text style={styles.eyebrow}>{isFestival ? "Festival day" : "News of the day"}</Text>
+        <Text style={styles.eyebrow}>{isFestival ? "Festival day" : "Song of the Day"}</Text>
         {loading ? (
           <ActivityIndicator color={colors.primary} />
         ) : (
@@ -37,13 +38,15 @@ export function TodayContextCard({ today, loading, onOpenSong }: Props) {
         {loading ? "Finding today’s context…" : todayHeadline(today)}
       </Text>
       <Text style={styles.summary} numberOfLines={2}>
-        {loading ? "Checking festivals and humanitarian news." : todaySummary(today)}
+        {loading ? "Finding today’s song." : todaySummary(today)}
       </Text>
 
-      {signal?.source_url ? (
+      {signal?.source_url && signal.category === "festival" ? (
         <Pressable
           accessibilityRole="link"
-          onPress={() => Linking.openURL(signal.source_url)}
+          onPress={() => {
+            if (signal.source_url) void Linking.openURL(signal.source_url)
+          }}
           style={styles.sourceRow}
         >
           <Text style={styles.source} numberOfLines={1}>
@@ -67,6 +70,20 @@ export function TodayContextCard({ today, loading, onOpenSong }: Props) {
               <Text style={styles.songTitle} numberOfLines={1}>
                 {song.title}
               </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Share PS ${song.number}`}
+                hitSlop={8}
+                onPress={() => {
+                  void shareSong({
+                    number: song.number,
+                    title: song.title,
+                    detail: song.first_line,
+                  }).catch(() => Alert.alert("Share", "Could not open the share sheet."))
+                }}
+              >
+                <Share2 size={16} color={colors.textSecondary} />
+              </Pressable>
             </Pressable>
           ))}
         </View>

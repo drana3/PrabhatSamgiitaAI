@@ -3,7 +3,7 @@ import type { TodayRecommendations } from "@prabhat/core"
 
 import { api } from "@/lib/client"
 
-const CACHE_PREFIX = "prabhat-today-v1"
+const CACHE_PREFIX = "prabhat-today-v2"
 
 function cacheKey() {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"

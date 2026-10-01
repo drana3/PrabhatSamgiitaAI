@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from functools import lru_cache
 
 from app.services.seed_data import load_rows
@@ -116,6 +117,16 @@ def season_for_month(month: int) -> str:
     return "autumn"
 
 
+SONG_CATALOG_SIZE = 5018
+SONG_OF_THE_DAY_EPOCH = date(1970, 1, 1)
+
+
+def sequential_song_of_the_day(local_date: date) -> int:
+    """Civil-date song number. 1970-01-01 is PS 1; the sequence wraps after PS 5018."""
+    days = (local_date - SONG_OF_THE_DAY_EPOCH).days
+    return (days % SONG_CATALOG_SIZE) + 1
+
+
 def time_of_day(hour: int) -> str:
     if 4 <= hour < 12:
         return "morning"
@@ -137,11 +148,11 @@ REVIEWED_FESTIVAL_DATES_2026 = {
     (8, 28): "Shrávanii Purnimá",
     (9, 6): "Kaoshiki Divas",
     (9, 14): "Prabháta Saḿgiita Divasa",
-    (10, 1): "Sharadotsava",
-    (10, 2): "Public Day",
-    (10, 3): "Fine Arts Day",
-    (10, 4): "Music Day",
-    (10, 5): "Vijayotsava",
+    (10, 16): "Sharadotsava",
+    (10, 17): "Public Day",
+    (10, 18): "Fine Arts Day",
+    (10, 19): "Music Day",
+    (10, 20): "Vijayotsava",
     (10, 8): "Kiirtana Divas",
     (10, 25): "Navánna",
     (11, 8): "Diipavalii",
@@ -163,8 +174,8 @@ REVIEWED_FESTIVAL_COLLECTIONS_2026: dict[tuple[int, int], dict[str, str]] = {
         "occasion": "meditation",
         "mood": "devotional",
     },
-    (10, 1): {"season": "autumn", "theme": "Children"},
-    (10, 5): {"festival": "Victory Day", "meditation_context": "Vijayotsava"},
+    (10, 16): {"season": "autumn", "theme": "Children"},
+    (10, 20): {"festival": "Victory Day", "meditation_context": "Vijayotsava"},
     (11, 8): {
         "festival": "Dipavali (Colour Festival) Day",
         "meditation_context": "Diipavalii",
@@ -178,7 +189,8 @@ REVIEWED_FESTIVAL_COLLECTION_LABELS_2026: dict[tuple[int, int], tuple[str, ...]]
     (5, 1): ("Bábá Birthday Songs",),
     (6, 5): ("PROUT Song",),
     (8, 28): ("Shravanii Purnima Day Song",),
-    (10, 5): ("Victory Day Song",),
+    (10, 16): ("Children Songs",),
+    (10, 20): ("Victory Day Song",),
     (11, 8): ("Dipavali (Colour Festival) Day Songs",),
 }
 

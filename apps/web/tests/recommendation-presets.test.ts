@@ -61,6 +61,14 @@ describe("reviewed discovery collections", () => {
     expect(service?.preset.difficulty).toBeUndefined()
   })
 
+  it("uses the reviewed 2026 Sharadotsava dates from 16 to 20 October", () => {
+    expect(getAutoRecommendationPreset(new Date(2026, 9, 1, 8, 0)).title).toBe("Today’s devotional mood")
+    expect(getAutoRecommendationPreset(new Date(2026, 9, 16, 8, 0)).title).toBe(
+      "Sharadotsava and Children's Day",
+    )
+    expect(getAutoRecommendationPreset(new Date(2026, 9, 20, 8, 0)).title).toBe("Vijayotsava")
+  })
+
   it("does not present an upcoming festival as today's selection", () => {
     const preset = getAutoRecommendationPreset(new Date(2026, 7, 20, 8, 0))
 

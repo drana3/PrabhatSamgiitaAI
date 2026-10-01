@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -13,7 +12,7 @@ import {
 } from "react-native"
 import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { ChevronLeft, Heart, Pause, Play, Share2, Sparkles } from "lucide-react-native"
+import { ChevronLeft, Heart, ListPlus, Pause, Play, Share2, Sparkles } from "lucide-react-native"
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -38,7 +37,7 @@ import { localeLabel } from "@/constants/languages"
 import { practiceLyricSource, isSargamEnabledForSong } from "@/lib/sargamDisplay"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
 import { fetchNotationCached, peekSongLocalization } from "@/lib/songCache"
-import { songShareMessage } from "@/lib/webLinks"
+import { shareSong as shareSongSheet } from "@/lib/shareSong"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -356,8 +355,12 @@ export default function SongDetailScreen() {
 
   const shareSong = async () => {
     try {
-      await Share.share({
-        message: songShareMessage(song.number, song.title),
+      const recording = song.audioRecordings?.find((item) => item.title?.trim())
+      await shareSongSheet({
+        number: song.number,
+        title: song.title,
+        performer: recording?.title,
+        detail: song.originalTitle || song.themes?.[0],
       })
     } catch {
       Alert.alert("Share", "Could not open the share sheet.")
@@ -404,6 +407,22 @@ export default function SongDetailScreen() {
                 color={isSaved ? colors.primary : colors.textPrimary}
                 fill={isSaved ? colors.primary : "transparent"}
               />
+            </IconButton>
+            <IconButton
+              soft
+              accessibilityLabel="Add to playlist"
+              onPress={() => {
+                if (authMode !== "signed_in") {
+                  Alert.alert("Sign in", "Playlist creation requires you to sign in.", [
+                    { text: "Not now", style: "cancel" },
+                    { text: "Sign in", onPress: () => router.push(href("/signin")) },
+                  ])
+                  return
+                }
+                router.push(href(`/playlist/add?song=${song.number}`))
+              }}
+            >
+              <ListPlus size={20} color={colors.textPrimary} />
             </IconButton>
             <IconButton soft accessibilityLabel="Share song" onPress={shareSong}>
               <Share2 size={20} color={colors.textPrimary} />

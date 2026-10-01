@@ -6,6 +6,7 @@ import { api } from "@/lib/client"
 import { readAudioRepeat, writeAudioRepeat } from "@/lib/audioRepeat"
 import { isSameAudioTrack, isSameSong } from "@/lib/playback"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
+import { playlistStep, randomSongNumber, type PlaybackMode } from "@/lib/playbackQueue"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -21,8 +22,13 @@ type PlayerState = {
   isBuffering: boolean
   /** When true, the current song loops forever (natively — keeps playing when locked). */
   repeat: boolean
+  /**
+   * default: stop when a song ends (existing player).
+   * playlist / random: advance using the existing player, then stop at the playlist end.
+   */
+  playbackMode: PlaybackMode
   toggleRepeat: () => void
-  loadSong: (song: MockSong, queue?: number[]) => void
+  loadSong: (song: MockSong, queue?: number[], playbackMode?: PlaybackMode) => void
   /** Sync metadata/queue for the already-active track. Never restarts audio. */
   syncCurrentSong: (song: MockSong, queue?: number[]) => void
   /** Warm audio session + cache media URL so the next Play starts faster. */
@@ -329,6 +335,11 @@ function bindStatus(owner: Audio.Sound) {
           .setPositionAsync(0)
           .then(() => owner.playAsync())
           .catch(() => undefined)
+        return
+      }
+      const mode = usePlayerStore.getState().playbackMode
+      if (mode === "playlist" || mode === "random") {
+        usePlayerStore.getState().next()
         return
       }
       bag.__psWantPlaying = false
@@ -746,6 +757,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   audioError: null,
   isBuffering: false,
   repeat: readAudioRepeat(),
+  playbackMode: "default",
 
   toggleRepeat: () => {
     const next = !get().repeat
@@ -784,7 +796,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     })()
   },
 
-  loadSong: (song, queue) => {
+  loadSong: (song, queue, playbackMode = "default") => {
+    set({ playbackMode })
     if (isSameAudioTrack(get().currentSong, song)) {
       get().syncCurrentSong(song, queue)
       return
@@ -977,10 +990,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   next: () => {
     const current = get().currentSong
     if (!current) return
+    const mode = get().playbackMode
     const queue = get().queue
-    const idx = queue.indexOf(current.number)
-    const nextNumber =
-      idx >= 0 && idx < queue.length - 1 ? queue[idx + 1] : current.number + 1
+    let nextNumber: number | null
+    if (mode === "random") {
+      nextNumber = randomSongNumber(current.number)
+    } else if (mode === "playlist") {
+      nextNumber = playlistStep(current.number, queue, 1)
+      if (nextNumber == null) {
+        bag.__psWantPlaying = false
+        set({ isPlaying: false, isBuffering: false })
+        return
+      }
+    } else {
+      const idx = queue.indexOf(current.number)
+      nextNumber = idx >= 0 && idx < queue.length - 1 ? queue[idx + 1] : current.number + 1
+    }
+    if (nextNumber == null) return
     bag.__psLoadId += 1
     const id = bag.__psLoadId
     bag.__psPlayToken += 1
@@ -994,9 +1020,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   previous: () => {
     const current = get().currentSong
     if (!current) return
+    const mode = get().playbackMode
     const queue = get().queue
-    const idx = queue.indexOf(current.number)
-    const prevNumber = idx > 0 ? queue[idx - 1] : Math.max(1, current.number - 1)
+    if (mode === "random") {
+      get().seekTo(0)
+      if (!get().isPlaying) get().play()
+      return
+    }
+    let prevNumber: number
+    if (mode === "playlist") {
+      const stepped = playlistStep(current.number, queue, -1)
+      if (stepped == null) {
+        get().seekTo(0)
+        if (!get().isPlaying) get().play()
+        return
+      }
+      prevNumber = stepped
+    } else {
+      const idx = queue.indexOf(current.number)
+      prevNumber = idx > 0 ? queue[idx - 1] : Math.max(1, current.number - 1)
+    }
     bag.__psLoadId += 1
     const id = bag.__psLoadId
     bag.__psPlayToken += 1

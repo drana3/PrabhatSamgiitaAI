@@ -59,7 +59,7 @@ describe("song mappers", () => {
 })
 
 describe("today context labels", () => {
-  it("labels festival and humanitarian modes like the website", () => {
+  it("labels festival days and song of the day", () => {
     expect(
       todayModeLabel({
         context: { recommendation_mode: "strict_festival", festival: "Ánanda Purnimá" },
@@ -71,25 +71,17 @@ describe("today context labels", () => {
 
     expect(
       todayModeLabel({
-        context: { recommendation_mode: "daily_reflection", humanitarian_context: "disaster" },
-        signals: [
-          {
-            title: "Flood alert",
-            category: "disaster",
-            summary: "Communities need care.",
-            source_name: "NDMA",
-            source_url: "https://example.test",
-          },
-        ],
+        context: { recommendation_mode: "song_of_the_day" },
+        signals: [],
         recommendations: [],
         disclaimer: "",
       }),
-    ).toBe("Humanitarian context")
+    ).toBe("Song of the Day")
   })
 
-  it("surfaces news headlines from the first signal", () => {
+  it("shows the song title instead of a news headline", () => {
     const today = {
-      context: { humanitarian_context: "disaster" },
+      context: { recommendation_mode: "song_of_the_day" },
       signals: [
         {
           title: "River flood situation",
@@ -99,10 +91,10 @@ describe("today context labels", () => {
           source_url: "https://example.test",
         },
       ],
-      recommendations: [],
+      recommendations: [{ number: 12, title: "Bandhu", first_line: "Line", reasons: [], score: 1, is_verified: true }],
       disclaimer: "",
     }
-    expect(todayHeadline(today)).toBe("River flood situation")
-    expect(todaySummary(today)).toBe("Compassion and service.")
+    expect(todayHeadline(today)).toBe("PS 12 — Bandhu")
+    expect(todaySummary(today)).toContain("PS 1")
   })
 })

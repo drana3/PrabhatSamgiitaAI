@@ -13,6 +13,9 @@ describe("festival calendar", () => {
     expect(REVIEWED_FESTIVAL_YEAR).toBe(2026)
     expect(festivalCalendar2026.length).toBeGreaterThanOrEqual(15)
     expect(getFestivalById("ananda-purnima-2026")?.relatedCollectionLabel).toBe("Bábá Birthday Songs")
+    expect(getFestivalById("sharadotsava-2026")).toMatchObject({ month: 10, day: 16 })
+    expect(getFestivalById("vijayotsava-2026")).toMatchObject({ month: 10, day: 20 })
+    expect(festivalCalendar2026.some((item) => item.month === 10 && item.day === 1)).toBe(false)
   })
 
   it("returns upcoming festivals after a mid-year date", () => {
