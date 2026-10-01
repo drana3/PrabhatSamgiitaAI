@@ -18,7 +18,7 @@ describe("microsoft easy auth", () => {
     startMicrosoftEasyAuth("/account")
     expect(sessionStorage.getItem("ps_oauth_microsoft_next")).toBe("/account")
     expect(assign).toHaveBeenCalledWith(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fauth%2Fcallback%2Fmicrosoft",
+      "/.auth/login/aad?post_login_redirect_uri=https%3A%2F%2Fexample.test%2Fauth%2Fcallback%2Fmicrosoft",
     )
   })
 
@@ -37,13 +37,14 @@ describe("microsoft easy auth", () => {
           },
         }),
       })
+      .mockResolvedValueOnce({ ok: false, status: 401 })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal("fetch", fetchMock)
 
     await expect(completeMicrosoftEasyAuth()).resolves.toBe("/")
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/.auth/me", expect.objectContaining({ credentials: "same-origin" }))
     expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+      3,
       "/api/auth/principal",
       expect.objectContaining({
         method: "POST",

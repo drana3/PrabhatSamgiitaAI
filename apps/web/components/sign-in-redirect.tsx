@@ -41,7 +41,7 @@ export function SignInRedirect({ next }: { next: string }) {
         if (leaving.current || loading || authenticatedRef.current) return
         await syncEasyAuthSessionFromBrowser()
         await refresh({ silent: true })
-        if (session.authenticated) {
+        if (authenticatedRef.current) {
           leaving.current = true
         }
       },

@@ -1,7 +1,11 @@
 "use client"
 
 import type { EasyAuthClientPrincipal } from "@/lib/easy-auth"
-import { parseEasyAuthMePayload } from "@/lib/easy-auth"
+import {
+  normalizeEasyAuthProvider,
+  parseEasyAuthMePayload,
+  principalFromEasyAuthMe,
+} from "@/lib/easy-auth"
 
 export function easyAuthSyncBlockedOnPage() {
   if (typeof window === "undefined") return true
@@ -22,21 +26,49 @@ export async function fetchBrowserEasyAuthPrincipal(): Promise<EasyAuthClientPri
   }
 }
 
-/** SWA serves /.auth/me on the edge; the Next server cannot reliably fetch it. */
-export async function syncEasyAuthSessionFromBrowser(): Promise<boolean> {
-  const clientPrincipal = await fetchBrowserEasyAuthPrincipal()
+/** Mint ps_member cookie from a browser-read SWA principal (sync, then principal fallback). */
+export async function persistEasyAuthMemberSession(
+  clientPrincipal: EasyAuthClientPrincipal,
+): Promise<boolean> {
+  const blob = principalFromEasyAuthMe(clientPrincipal)
+  if (!blob) return false
+  const provider = normalizeEasyAuthProvider(clientPrincipal.identityProvider)
+
   try {
-    const response = await fetch("/api/auth/easy-auth-sync", {
+    const syncResponse = await fetch("/api/auth/easy-auth-sync", {
       method: "POST",
       credentials: "same-origin",
       cache: "no-store",
-      headers: clientPrincipal ? { "Content-Type": "application/json" } : undefined,
-      body: clientPrincipal ? JSON.stringify({ clientPrincipal }) : undefined,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientPrincipal }),
+    })
+    if (syncResponse.ok) return true
+  } catch {
+    // Fall through — Next on SWA often never sees StaticWebAppsAuthCookie.
+  }
+
+  try {
+    const response = await fetch("/api/auth/principal", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_principal: blob,
+        identity_provider: provider,
+      }),
     })
     return response.ok
   } catch {
     return false
   }
+}
+
+/** SWA serves /.auth/me on the edge; the Next server cannot reliably fetch it. */
+export async function syncEasyAuthSessionFromBrowser(): Promise<boolean> {
+  const clientPrincipal = await fetchBrowserEasyAuthPrincipal()
+  if (!clientPrincipal) return false
+  return persistEasyAuthMemberSession(clientPrincipal)
 }
 
 export function startEasyAuthSessionSyncLoop(options: {

@@ -19,8 +19,10 @@ export function microsoftCallbackPath() {
   return "/auth/callback/microsoft"
 }
 
-export function microsoftSignInHref(_next?: string) {
-  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(microsoftCallbackPath())}`
+export function microsoftSignInHref(origin?: string) {
+  const callbackPath = microsoftCallbackPath()
+  const callback = origin ? `${origin.replace(/\/$/, "")}${callbackPath}` : callbackPath
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(callback)}`
 }
 
 export function googleSignInHref(next: string | undefined) {

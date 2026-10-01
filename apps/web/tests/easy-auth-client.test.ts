@@ -41,6 +41,31 @@ describe("easy-auth-client", () => {
     vi.unstubAllGlobals()
   })
 
+  it("falls back to /api/auth/principal when easy-auth-sync rejects the SWA cookie", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          clientPrincipal: {
+            identityProvider: "aad",
+            userId: "oid-2",
+            userDetails: "member@example.com",
+            userRoles: ["authenticated"],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/auth/principal", expect.objectContaining({ method: "POST" }))
+
+    vi.unstubAllGlobals()
+  })
+
   it("returns null when /.auth/me has no principal", async () => {
     vi.stubGlobal(
       "fetch",
