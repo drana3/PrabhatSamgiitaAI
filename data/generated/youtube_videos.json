@@ -12516,6 +12516,27 @@
     }
   },
   {
+    "song_number": 3258,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Oi Nava Ghana Niila Gagane - Prabhat Sangeet song #3258 - Singer - Susmita Ghoshwami",
+    "url": "https://www.youtube.com/watch?v=j8ibSlRcCW0",
+    "embed_url": "https://www.youtube-nocookie.com/embed/j8ibSlRcCW0",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "j8ibSlRcCW0",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.949,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3261,
     "kind": "video",
     "provider": "youtube",
@@ -12575,6 +12596,48 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.943,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3266,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ami Tomay Bhalobasi - Prabhat Sangeet song #3266 - Singer - Sourabh Das",
+    "url": "https://www.youtube.com/watch?v=Do4MRxR9Ufw",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Do4MRxR9Ufw",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "Do4MRxR9Ufw",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.953,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3271,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Deke Chilum Ashru Niire - Prabhat Sangeet song #3271 - Singer - Swapan Chakraborty",
+    "url": "https://www.youtube.com/watch?v=vH1FRJT0VvI",
+    "embed_url": "https://www.youtube-nocookie.com/embed/vH1FRJT0VvI",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "vH1FRJT0VvI",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
     }
   },
