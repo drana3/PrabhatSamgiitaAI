@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
   const principal = await resolveSwaAuthPrincipalFromRequest(request)
 
   if (!principal) {
-    return NextResponse.redirect(publicRedirectUrl(request, "/auth/callback/microsoft"))
+    const fallback = new URL(publicRedirectUrl(request, "/auth/callback/microsoft"))
+    fallback.searchParams.set("browser", "1")
+    return NextResponse.redirect(fallback.toString())
   }
 
   return completeRedirect(request, principal)

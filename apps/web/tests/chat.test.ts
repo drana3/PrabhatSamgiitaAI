@@ -180,7 +180,7 @@ describe("AI companion conversation contract", () => {
   })
 
   it("labels guest vs signed-in daily deeper-question limits", () => {
-    expect(webCompanionQuotaLabel({ authenticated: false })).toBe("Guest · 15 Deeper QA")
+    expect(webCompanionQuotaLabel({ authenticated: false })).toBe("Guest · 15 Deep AI")
     expect(
       webCompanionQuotaLabel({
         authenticated: true,
@@ -192,7 +192,7 @@ describe("AI companion conversation contract", () => {
         is_admin: false,
         member_backend: true,
       }),
-    ).toBe("Signed in · 50 Deeper QA")
+    ).toBe("Signed in · 50 Deep AI")
     expect(
       webCompanionReceivesMemberQuota({
         authenticated: true,
@@ -204,6 +204,6 @@ describe("AI companion conversation contract", () => {
         is_admin: false,
         member_backend: false,
       }),
-    ).toBe(false)
+    ).toBe(true)
   })
 })

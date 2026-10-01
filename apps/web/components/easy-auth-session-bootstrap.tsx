@@ -8,6 +8,7 @@ import {
   startEasyAuthSessionSyncLoop,
   syncEasyAuthSessionFromBrowser,
 } from "@/lib/easy-auth-client"
+import { webEasyAuthBackgroundSyncEnabled } from "@/lib/web-auth-policy"
 
 export function EasyAuthSessionBootstrap() {
   const { loading, session, refresh } = useMember()
@@ -17,6 +18,7 @@ export function EasyAuthSessionBootstrap() {
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true") return
+    if (!webEasyAuthBackgroundSyncEnabled()) return
     if (easyAuthSyncBlockedOnPage()) return
 
     return startEasyAuthSessionSyncLoop({

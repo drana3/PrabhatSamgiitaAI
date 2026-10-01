@@ -1,3 +1,4 @@
+export * from "./ai-companion-quota"
 export * from "./api"
 export * from "./audio-recordings"
 export * from "./chat-language"

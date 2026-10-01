@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   if (!principal) {
     return NextResponse.redirect(
-      publicRedirectUrl(request, "/signin?googleError=no_session"),
+      publicRedirectUrl(request, "/signin?googleError=swa_session"),
     )
   }
 

@@ -22,6 +22,15 @@ on:
       - "scripts/ios-*.sh"
       - "scripts/verify-mobile-build-secrets.sh"
   workflow_dispatch:
+    inputs:
+      deploy_api:
+        description: Deploy API (Container Apps)
+        type: boolean
+        default: false
+      deploy_web:
+        description: Deploy web (Static Web Apps)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -241,9 +250,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "api=true" >> "$GITHUB_OUTPUT"
-            echo "web=true" >> "$GITHUB_OUTPUT"
-            echo "Manual dispatch → deploy API + web (Static Web Apps)"
+            echo "api=${{ inputs.deploy_api }}" >> "$GITHUB_OUTPUT"
+            echo "web=${{ inputs.deploy_web }}" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch → API=${{ inputs.deploy_api }} WEB=${{ inputs.deploy_web }}"
             exit 0
           fi
           BEFORE="${{ github.event.before }}"
@@ -259,7 +268,14 @@ jobs:
           echo "$CHANGED"
           API=false
           WEB=false
-          if echo "$CHANGED" | grep -qE '^(packages/|data/|\.dockerignore$)'; then
+          if echo "$CHANGED" | grep -qE '^(data/|\.dockerignore$)'; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^packages/core/'; then
+            WEB=true
+          fi
+          NON_CORE_PKG="$(echo "$CHANGED" | grep -E '^packages/' | grep -vE '^packages/core/' || true)"
+          if [ -n "$NON_CORE_PKG" ]; then
             API=true
           fi
           if echo "$CHANGED" | grep -qE '^apps/api/Dockerfile$|^infra/azure/.*api'; then

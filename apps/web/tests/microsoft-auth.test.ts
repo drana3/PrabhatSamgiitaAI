@@ -37,14 +37,13 @@ describe("microsoft easy auth", () => {
           },
         }),
       })
-      .mockResolvedValueOnce({ ok: false, status: 401 })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal("fetch", fetchMock)
 
     await expect(completeMicrosoftEasyAuth()).resolves.toBe("/")
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/.auth/me", expect.objectContaining({ credentials: "same-origin" }))
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      2,
       "/api/auth/principal",
       expect.objectContaining({
         method: "POST",

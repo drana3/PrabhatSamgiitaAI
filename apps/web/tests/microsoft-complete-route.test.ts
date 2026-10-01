@@ -27,7 +27,7 @@ describe("GET /api/auth/microsoft/complete", () => {
     const request = new NextRequest("https://example.test/api/auth/microsoft/complete")
     const response = await GET(request)
     expect(response.status).toBe(307)
-    expect(response.headers.get("location")).toContain("/auth/callback/microsoft")
+    expect(response.headers.get("location")).toContain("/auth/callback/microsoft?browser=1")
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeUndefined()
   })
 

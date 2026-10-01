@@ -3,6 +3,7 @@
 import { useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
+import { webGoogleEasyAuthFallbackEnabled } from "@/lib/web-auth-policy"
 import {
   startFacebookOAuth,
   startGoogleEasyAuth,
@@ -48,6 +49,13 @@ export function GoogleSignInButton({ next }: { next: string }) {
   }
 
   if (!directOAuth) {
+    if (!webGoogleEasyAuthFallbackEnabled()) {
+      return (
+        <p className="rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm text-stone-600">
+          Google sign-in is not configured for this environment.
+        </p>
+      )
+    }
     return (
       <button
         type="button"

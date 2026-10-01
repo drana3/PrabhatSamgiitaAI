@@ -47,10 +47,10 @@ describe("Prabhat Samgiita AI companion", () => {
     expect(screen.getByRole("status", { name: /ready to help/i })).toBeVisible()
     expect(screen.getByRole("img", { name: "Prabhat Samgiita AI" })).toBeVisible()
     expect(screen.getByPlaceholderText("Ask Prabhat Samgiita AI about this song...")).toBeVisible()
-    expect(screen.getByText(/Guest · 15 Deeper QA/i)).toBeVisible()
+    expect(screen.getByText(/Guest · 15 Deep AI/i)).toBeVisible()
   })
 
-  it("shows guest quota when member backend is unavailable despite authenticated session", () => {
+  it("shows signed-in deep AI quota for any authenticated session", () => {
     memberState.value = {
       loading: false,
       session: {
@@ -67,8 +67,8 @@ describe("Prabhat Samgiita AI companion", () => {
 
     render(<StreamExplanation songNumber={135} />)
 
-    expect(screen.getByText(/Guest · 15 Deeper QA/i)).toBeVisible()
-    expect(screen.queryByText(/Signed in · 50 Deeper QA/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/Signed in · 50 Deep AI/i)).toBeVisible()
+    expect(screen.queryByText(/Guest · 15 Deep AI/i)).not.toBeInTheDocument()
   })
 
   it("rejects gibberish before an AI request is made", async () => {

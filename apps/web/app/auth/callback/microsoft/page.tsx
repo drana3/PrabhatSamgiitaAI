@@ -2,10 +2,10 @@
 
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
-
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { useMember } from "@/components/member-provider"
 import { finishMicrosoftEasyAuthFromBrowser } from "@/lib/microsoft-auth"
+import { microsoftEasyAuthCompletePath } from "@/lib/sign-in"
 
 export default function MicrosoftAuthCallbackPage() {
   const { refresh } = useMember()
@@ -16,6 +16,12 @@ export default function MicrosoftAuthCallbackPage() {
   useEffect(() => {
     if (started.current) return
     started.current = true
+
+    const browserFallback = new URLSearchParams(window.location.search).get("browser") === "1"
+    if (!browserFallback) {
+      window.location.replace(microsoftEasyAuthCompletePath())
+      return
+    }
 
     const phaseTimer = window.setTimeout(() => {
       setPhase("Creating your member session…")

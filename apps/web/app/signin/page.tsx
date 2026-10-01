@@ -2,10 +2,7 @@ import Link from "next/link"
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 
-import { Suspense } from "react"
-
 import { SignInRedirect } from "@/components/sign-in-redirect"
-import { MicrosoftEasyAuthLanding } from "@/components/microsoft-easy-auth-landing"
 import { EmailAuthPanel } from "@/components/email-auth-panel"
 import { FacebookSignInButton, GoogleSignInButton, MicrosoftSignInButton } from "@/components/social-sign-in-buttons"
 import { SiteHeader } from "@/components/site-header"
@@ -29,9 +26,10 @@ export const dynamic = "force-dynamic"
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; signedOut?: string }>
+  searchParams: Promise<{ next?: string; signedOut?: string; googleError?: string }>
 }) {
   const params = await searchParams
+  const googleError = params.googleError?.trim()
   const next = safeSignInNextPath(params.next)
   const justSignedOut = params.signedOut === "1"
   const cookieStore = await cookies()
@@ -70,9 +68,11 @@ export default async function SignInPage({
             Sign in to save songs, create playlists, download available recordings, keep practice history, and receive guidance shaped by your interests.
           </p>
           <SignInRedirect next={next} />
-          <Suspense fallback={null}>
-            <MicrosoftEasyAuthLanding />
-          </Suspense>
+          {googleError === "swa_session" ? (
+            <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+              Google sign-in through the hosting platform did not finish. Use Continue with Google on this page (direct sign-in).
+            </p>
+          ) : null}
           {justSignedOut ? (
             <p className="mt-6 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm leading-6 text-stone-700">
               You are signed out of this site. Choose a sign-in option below to continue with your account.

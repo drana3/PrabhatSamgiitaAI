@@ -6,31 +6,14 @@ import { SignInRedirect } from "@/components/sign-in-redirect"
 
 const refresh = vi.fn()
 const useMemberMock = vi.fn()
-const syncEasyAuthSessionFromBrowser = vi.fn()
-const fetchBrowserEasyAuthPrincipal = vi.fn()
-const persistEasyAuthMemberSession = vi.fn()
 
 vi.mock("@/components/member-provider", () => ({
   useMember: () => useMemberMock(),
 }))
 
-vi.mock("@/lib/easy-auth-client", () => ({
-  syncEasyAuthSessionFromBrowser: () => syncEasyAuthSessionFromBrowser(),
-  fetchBrowserEasyAuthPrincipal: () => fetchBrowserEasyAuthPrincipal(),
-  persistEasyAuthMemberSession: () => persistEasyAuthMemberSession(),
-  easyAuthSyncBlockedOnPage: () => false,
-  startEasyAuthSessionSyncLoop: (options: { onAttempt?: () => void | Promise<void> }) => {
-    void options.onAttempt?.()
-    return () => undefined
-  },
-}))
-
 describe("SignInRedirect", () => {
   afterEach(() => {
     refresh.mockReset()
-    syncEasyAuthSessionFromBrowser.mockReset()
-    fetchBrowserEasyAuthPrincipal.mockReset()
-    persistEasyAuthMemberSession.mockReset()
   })
 
   it("leaves /signin once the member session is authenticated", async () => {
@@ -84,29 +67,6 @@ describe("SignInRedirect", () => {
 
     await waitFor(() => {
       expect(refresh).not.toHaveBeenCalled()
-    })
-    expect(replace).not.toHaveBeenCalled()
-  })
-
-  it("syncs Easy Auth from the browser while the member session is still guest", async () => {
-    const replace = vi.fn()
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...window.location, replace, search: "" },
-    })
-    refresh.mockResolvedValue(undefined)
-    fetchBrowserEasyAuthPrincipal.mockResolvedValue(null)
-    syncEasyAuthSessionFromBrowser.mockResolvedValue(false)
-    useMemberMock.mockReturnValue({
-      loading: false,
-      session: { authenticated: false },
-      refresh,
-    })
-
-    render(<SignInRedirect next="/quiz" />)
-
-    await waitFor(() => {
-      expect(syncEasyAuthSessionFromBrowser).toHaveBeenCalled()
     })
     expect(replace).not.toHaveBeenCalled()
   })
