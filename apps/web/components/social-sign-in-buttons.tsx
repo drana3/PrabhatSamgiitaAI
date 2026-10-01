@@ -10,6 +10,26 @@ import {
   webGoogleOAuthConfigured,
 } from "@/lib/web-oauth"
 import { facebookSignInHref, googleSignInHref } from "@/lib/sign-in"
+import { startMicrosoftEasyAuth } from "@/lib/microsoft-auth"
+
+export function MicrosoftSignInButton({ next }: { next: string }) {
+  const [busy, setBusy] = useState(false)
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => {
+        if (busy) return
+        setBusy(true)
+        startMicrosoftEasyAuth(next)
+      }}
+      className="outline-button justify-center py-3.5"
+    >
+      {busy ? <LoadingIndicator label="Opening Microsoft…" compact /> : "Continue with Microsoft"}
+    </button>
+  )
+}
 
 export function GoogleSignInButton({ next }: { next: string }) {
   const [busy, setBusy] = useState(false)

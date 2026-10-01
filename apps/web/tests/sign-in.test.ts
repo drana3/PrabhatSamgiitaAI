@@ -17,12 +17,12 @@ describe("safeSignInNextPath", () => {
 })
 
 describe("microsoftSignInHref", () => {
-  it("builds the Azure login URL with a post-login return to the destination", () => {
+  it("builds the Azure login URL that returns to the Microsoft session callback", () => {
     expect(microsoftSignInHref("/account")).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=%2Faccount",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fauth%2Fcallback%2Fmicrosoft",
     )
     expect(microsoftSignInHref(undefined)).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=%2F",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fauth%2Fcallback%2Fmicrosoft",
     )
   })
 
@@ -36,7 +36,7 @@ describe("microsoftSignInHref", () => {
     expect(safeSignInNextPath("/songs/135#ask")).toBe("/songs/135")
     expect(signInHref("/songs/135#ask")).toBe("/signin?next=%2Fsongs%2F135")
     expect(microsoftSignInHref("/songs/135#ask")).toBe(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fsongs%2F135%3Ffrom%3Dsignin",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fauth%2Fcallback%2Fmicrosoft",
     )
   })
 

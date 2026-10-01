@@ -72,4 +72,23 @@ describe("easy-auth-sync route", () => {
     expect(response.status).toBe(200)
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeTruthy()
   })
+
+  it("accepts browser /.auth/me payload without the SWA cookie", async () => {
+    process.env.NODE_ENV = "production"
+    const request = new NextRequest("https://example.test/api/auth/easy-auth-sync", {
+      method: "POST",
+      body: JSON.stringify({
+        clientPrincipal: {
+          identityProvider: "aad",
+          userId: "oid-99",
+          userDetails: "member@example.com",
+          userRoles: ["anonymous", "authenticated"],
+        },
+      }),
+    })
+
+    const response = await POST(request)
+    expect(response.status).toBe(200)
+    expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeTruthy()
+  })
 })

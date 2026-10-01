@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 
 import { SignInRedirect } from "@/components/sign-in-redirect"
 import { EmailAuthPanel } from "@/components/email-auth-panel"
-import { FacebookSignInButton, GoogleSignInButton } from "@/components/social-sign-in-buttons"
+import { FacebookSignInButton, GoogleSignInButton, MicrosoftSignInButton } from "@/components/social-sign-in-buttons"
 import { SiteHeader } from "@/components/site-header"
 import { LOCAL_AUTH_COOKIE, facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
 import {
@@ -17,7 +17,6 @@ import {
   resolveMemberSession,
 } from "@/lib/member-request"
 import {
-  microsoftSignInHref,
   safeSignInNextPath,
   signInReturnPath,
 } from "@/lib/sign-in"
@@ -75,9 +74,7 @@ export default async function SignInPage({
           ) : null}
           {authEnabled ? (
             <div className="mt-8 grid gap-3">
-              <a href={microsoftSignInHref(next)} className="outline-button justify-center py-3.5">
-                Continue with Microsoft
-              </a>
+              <MicrosoftSignInButton next={next} />
               {googleAuthEnabled() ? <GoogleSignInButton next={next} /> : null}
               {facebookAuthEnabled() ? <FacebookSignInButton next={next} /> : null}
               {localAuthEnabled() ? (

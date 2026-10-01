@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest"
 
 import { buildClientPrincipal } from "@/lib/azure-principal"
 import {
-  easyAuthPrincipalMatchesHeaders,
-  isAuthenticatedEasyAuthPrincipal,
   parseEasyAuthMePayload,
   principalFromEasyAuthMe,
 } from "@/lib/easy-auth"
@@ -33,10 +31,37 @@ describe("parseEasyAuthMePayload", () => {
     })
     expect(principal?.userId).toBe("oid-object")
   })
+
+  it("reads unwrapped SWA array principals", () => {
+    const principal = parseEasyAuthMePayload([
+      {
+        identityProvider: "aad",
+        userId: "oid-unwrapped",
+        userDetails: "member@example.com",
+        userRoles: ["anonymous", "authenticated"],
+      },
+    ])
+    expect(principal?.userId).toBe("oid-unwrapped")
+  })
+
+  it("reads userId from Microsoft object-id claims", () => {
+    const principal = parseEasyAuthMePayload({
+      clientPrincipal: {
+        identityProvider: "aad",
+        userRoles: ["authenticated"],
+        claims: [
+          { typ: "http://schemas.microsoft.com/identity/claims/objectidentifier", val: "oid-claim" },
+          { typ: "email", val: "member@example.com" },
+        ],
+      },
+    })
+    expect(principal?.userId).toBe("oid-claim")
+    expect(principal?.userDetails).toBe("member@example.com")
+  })
 })
 
 describe("principalFromEasyAuthMe", () => {
-  it("rejects SWA principals that are not in the authenticated role", () => {
+  it("accepts Microsoft principals that only report the anonymous role after login", () => {
     expect(
       principalFromEasyAuthMe({
         identityProvider: "aad",
@@ -44,7 +69,7 @@ describe("principalFromEasyAuthMe", () => {
         userDetails: "member@example.com",
         userRoles: ["anonymous"],
       }),
-    ).toBeNull()
+    ).toBeTruthy()
   })
 
   it("builds a member principal blob from SWA /.auth/me payload", () => {

@@ -168,7 +168,7 @@ export async function completeFacebookOAuth(code: string) {
   return signInReturnPath(next)
 }
 
-async function establishWebSession(input: {
+export async function establishWebSession(input: {
   provider: string
   subject: string
   email: string | null

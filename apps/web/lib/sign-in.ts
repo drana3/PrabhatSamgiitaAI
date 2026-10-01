@@ -15,9 +15,12 @@ export function signInReturnPath(next: string | undefined) {
   return path
 }
 
-export function microsoftSignInHref(next: string | undefined) {
-  const destination = signInReturnPath(safeSignInNextPath(next))
-  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(destination)}`
+export function microsoftCallbackPath() {
+  return "/auth/callback/microsoft"
+}
+
+export function microsoftSignInHref(_next?: string) {
+  return `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(microsoftCallbackPath())}`
 }
 
 export function googleSignInHref(next: string | undefined) {

@@ -11,21 +11,83 @@ export type EasyAuthClientPrincipal = {
   claims?: Array<{ typ?: string; val?: string; type?: string; value?: string }>
 }
 
+function claimText(claim: { typ?: string; val?: string; type?: string; value?: string }) {
+  return (claim.typ || claim.type || "").toLowerCase()
+}
+
+function claimValue(claim: { typ?: string; val?: string; type?: string; value?: string }) {
+  return (claim.val || claim.value || "").trim()
+}
+
+function userIdFromClaims(claims: EasyAuthClientPrincipal["claims"]) {
+  if (!Array.isArray(claims)) return null
+  const accepted = new Set([
+    "http://schemas.microsoft.com/identity/claims/objectidentifier",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+    "oid",
+    "sub",
+    "nameidentifier",
+  ])
+  for (const claim of claims) {
+    if (accepted.has(claimText(claim))) {
+      const value = claimValue(claim)
+      if (value) return value
+    }
+  }
+  return null
+}
+
+function detailsFromClaims(claims: EasyAuthClientPrincipal["claims"]) {
+  if (!Array.isArray(claims)) return null
+  const accepted = new Set([
+    "email",
+    "emails",
+    "preferred_username",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+    "name",
+    "http://schemas.microsoft.com/identity/claims/displayname",
+  ])
+  for (const claim of claims) {
+    if (accepted.has(claimText(claim))) {
+      const value = claimValue(claim)
+      if (value) return value
+    }
+  }
+  return null
+}
+
+function normalizeClientPrincipal(value: unknown): EasyAuthClientPrincipal | null {
+  if (!value || typeof value !== "object") return null
+  const raw = value as EasyAuthClientPrincipal & {
+    clientPrincipal?: EasyAuthClientPrincipal | null
+    user_id?: string
+    user_details?: string
+    identity_provider?: string
+  }
+  if (raw.clientPrincipal) return normalizeClientPrincipal(raw.clientPrincipal)
+
+  const userId = raw.userId?.trim() || raw.user_id?.trim() || userIdFromClaims(raw.claims)
+  if (!userId) return null
+  const userDetails = raw.userDetails?.trim() || raw.user_details?.trim() || detailsFromClaims(raw.claims) || undefined
+  return {
+    identityProvider: raw.identityProvider || raw.identity_provider,
+    userId,
+    userDetails,
+    userRoles: raw.userRoles,
+    claims: raw.claims,
+  }
+}
+
 export function parseEasyAuthMePayload(body: unknown): EasyAuthClientPrincipal | null {
   if (body == null) return null
   if (Array.isArray(body)) {
     for (const entry of body) {
-      if (!entry || typeof entry !== "object") continue
-      const clientPrincipal = (entry as { clientPrincipal?: EasyAuthClientPrincipal }).clientPrincipal
-      if (clientPrincipal?.userId?.trim()) return clientPrincipal
+      const principal = normalizeClientPrincipal(entry)
+      if (principal) return principal
     }
     return null
   }
-  if (typeof body === "object") {
-    const clientPrincipal = (body as { clientPrincipal?: EasyAuthClientPrincipal | null }).clientPrincipal
-    return clientPrincipal?.userId?.trim() ? clientPrincipal : null
-  }
-  return null
+  return normalizeClientPrincipal(body)
 }
 
 export function requestOriginFromHeaders(source: Headers) {
@@ -58,8 +120,11 @@ export function isAuthenticatedEasyAuthPrincipal(
 ): boolean {
   if (!clientPrincipal?.userId?.trim()) return false
   const roles = clientPrincipal.userRoles
+  if (Array.isArray(roles) && roles.some((role) => role.toLowerCase() === "authenticated")) return true
   if (!Array.isArray(roles) || roles.length === 0) return true
-  return roles.some((role) => role.toLowerCase() === "authenticated")
+  // SWA sometimes reports only "anonymous" after a successful AAD login.
+  const provider = normalizeEasyAuthProvider(clientPrincipal.identityProvider)
+  return provider === "aad" || provider === "google" || provider === "facebook"
 }
 
 export function principalFromEasyAuthMe(
@@ -99,12 +164,16 @@ export async function resolveEasyAuthPrincipalFromRequest(
   clientPrincipalFromBody?: EasyAuthClientPrincipal | null,
 ): Promise<string | null> {
   const cookieHeader = request.headers.get("cookie") ?? ""
-  if (!hasEasyAuthSessionCookie(new Headers({ cookie: cookieHeader }))) {
-    return null
-  }
+  const hasPlatformCookie = hasEasyAuthSessionCookie(new Headers({ cookie: cookieHeader }))
 
+  // Next API routes on SWA often never see StaticWebAppsAuthCookie. The browser
+  // can still read /.auth/me on the edge; trust that authenticated payload.
   if (clientPrincipalFromBody) {
     return principalFromEasyAuthMe(clientPrincipalFromBody)
+  }
+
+  if (!hasPlatformCookie) {
+    return null
   }
 
   let clientPrincipal: EasyAuthClientPrincipal | null = null
