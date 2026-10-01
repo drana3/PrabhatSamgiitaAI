@@ -1,5 +1,6 @@
 import { buildClientPrincipal } from "@/lib/azure-principal"
 import { safeSignInNextPath, signInReturnPath } from "@/lib/sign-in"
+import { writeOAuthReturnCookie } from "@/lib/oauth-return-cookie"
 
 const GOOGLE_VERIFIER_KEY = "ps_oauth_google_verifier"
 const GOOGLE_NEXT_KEY = "ps_oauth_google_next"
@@ -43,6 +44,15 @@ export function googleRedirectUri() {
 export function facebookRedirectUri() {
   if (typeof window === "undefined") return ""
   return `${window.location.origin}/auth/callback/facebook`
+}
+
+export function googleEasyAuthCompleteHref() {
+  return `/.auth/login/google?post_login_redirect_uri=${encodeURIComponent("/api/auth/google/complete")}`
+}
+
+export function startGoogleEasyAuth(next: string | undefined) {
+  writeOAuthReturnCookie(next ?? "/")
+  window.location.assign(googleEasyAuthCompleteHref())
 }
 
 export async function startGoogleOAuth(next: string | undefined) {

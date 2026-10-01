@@ -4,7 +4,7 @@ import { NextRequest } from "next/server"
 import { GET } from "@/app/api/auth/microsoft/complete/route"
 import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 import { buildClientPrincipal } from "@/lib/azure-principal"
-import { MICROSOFT_NEXT_COOKIE } from "@/lib/member-auth-cookie"
+import { OAUTH_RETURN_COOKIE } from "@/lib/oauth-return-cookie"
 
 describe("GET /api/auth/microsoft/complete", () => {
   it("sets the member cookie from x-ms-client-principal and redirects home", async () => {
@@ -15,7 +15,7 @@ describe("GET /api/auth/microsoft/complete", () => {
         "x-forwarded-proto": "https",
       },
     })
-    request.cookies.set(MICROSOFT_NEXT_COOKIE, encodeURIComponent("/account"))
+    request.cookies.set(OAUTH_RETURN_COOKIE, encodeURIComponent("/account"))
 
     const response = await GET(request)
     expect(response.status).toBe(307)

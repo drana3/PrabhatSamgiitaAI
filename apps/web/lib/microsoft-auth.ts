@@ -5,8 +5,8 @@ import {
   fetchBrowserEasyAuthPrincipal,
   persistEasyAuthMemberSession,
 } from "@/lib/easy-auth-client"
+import { clearOAuthReturnCookieScript, writeOAuthReturnCookie } from "@/lib/oauth-return-cookie"
 import { normalizeEasyAuthProvider, principalFromEasyAuthMe } from "@/lib/easy-auth"
-import { MICROSOFT_NEXT_COOKIE } from "@/lib/member-auth-cookie"
 import { microsoftSignInHref, safeSignInNextPath, signInReturnPath } from "@/lib/sign-in"
 
 const MICROSOFT_NEXT_STORAGE_KEY = "ps_oauth_microsoft_next"
@@ -15,7 +15,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
-function writeMicrosoftNextCookie(next: string) {
+function storeMicrosoftNext(next: string) {
   const path = safeSignInNextPath(next)
   sessionStorage.setItem(MICROSOFT_NEXT_STORAGE_KEY, path)
   try {
@@ -23,10 +23,7 @@ function writeMicrosoftNextCookie(next: string) {
   } catch {
     // ignore
   }
-  const value = encodeURIComponent(path)
-  const secure =
-    typeof window !== "undefined" && window.location.protocol === "https:" ? "; secure" : ""
-  document.cookie = `${MICROSOFT_NEXT_COOKIE}=${value}; path=/; max-age=900; samesite=lax${secure}`
+  writeOAuthReturnCookie(path)
 }
 
 function readMicrosoftNext() {
@@ -44,9 +41,7 @@ function clearMicrosoftNextStorage() {
   } catch {
     // ignore
   }
-  const secure =
-    typeof window !== "undefined" && window.location.protocol === "https:" ? "; secure" : ""
-  document.cookie = `${MICROSOFT_NEXT_COOKIE}=; path=/; max-age=0; samesite=lax${secure}`
+  clearOAuthReturnCookieScript()
 }
 
 function memberBlobFromEasyAuthPrincipal(
@@ -65,7 +60,7 @@ function memberBlobFromEasyAuthPrincipal(
 }
 
 export function startMicrosoftEasyAuth(next: string | undefined) {
-  writeMicrosoftNextCookie(next ?? "/")
+  storeMicrosoftNext(next ?? "/")
   window.location.assign(microsoftSignInHref())
 }
 
@@ -78,7 +73,6 @@ async function waitForEasyAuthPrincipal() {
   return clientPrincipal
 }
 
-/** Browser fallback when SWA lands on /signin?easyAuth=microsoft instead of the API route. */
 export async function finishMicrosoftEasyAuthFromBrowser(): Promise<string> {
   const next = readMicrosoftNext()
 

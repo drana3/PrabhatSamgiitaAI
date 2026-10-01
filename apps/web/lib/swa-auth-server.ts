@@ -13,8 +13,8 @@ function decodeHeaderValue(value: string) {
   }
 }
 
-/** Resolve a member principal blob on SWA after Microsoft Easy Auth (server request). */
-export async function resolveMicrosoftPrincipalFromRequest(request: Request): Promise<string | null> {
+/** Resolve a member principal blob on SWA after platform Easy Auth (server request). */
+export async function resolveSwaAuthPrincipalFromRequest(request: Request): Promise<string | null> {
   const headers = request.headers
 
   const headerPrincipal = resolveClientPrincipal(headers)
@@ -26,7 +26,10 @@ export async function resolveMicrosoftPrincipalFromRequest(request: Request): Pr
       const name = headers.get("x-ms-client-principal-name")
       const decodedName = name ? decodeHeaderValue(name) : null
       const email = decodedName?.includes("@") ? decodedName : null
-      return buildClientPrincipal(decodeHeaderValue(id), decodedName, "aad", email)
+      const providerHeader = headers.get("x-ms-client-principal-idp")?.toLowerCase()
+      const provider =
+        providerHeader === "google" ? "google" : providerHeader === "facebook" ? "facebook" : "aad"
+      return buildClientPrincipal(decodeHeaderValue(id), decodedName, provider, email)
     }
   }
 

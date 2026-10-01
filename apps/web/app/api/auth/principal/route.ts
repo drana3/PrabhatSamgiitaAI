@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
+import { memberAuthCookieOptions, requestIsSecure } from "@/lib/oauth-return-cookie"
 
 const ALLOWED_PROVIDERS = new Set(["google", "facebook", "aad", "local"])
-
-function authCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  }
-}
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
@@ -26,7 +17,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: "Invalid sign-in payload" }, { status: 400 })
   }
 
+  const secure = requestIsSecure(request)
   const response = NextResponse.json({ ok: true, identity_provider: provider })
-  response.cookies.set(LOCAL_AUTH_COOKIE, principal, authCookieOptions())
+  response.cookies.set(LOCAL_AUTH_COOKIE, principal, memberAuthCookieOptions(secure))
   return response
 }

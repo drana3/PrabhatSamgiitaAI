@@ -8,6 +8,10 @@ describe("easy-auth-client", () => {
       .fn()
       .mockResolvedValueOnce({
         ok: true,
+        json: async () => ({ authenticated: false }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
         json: async () => [
           {
             clientPrincipal: {
@@ -25,12 +29,12 @@ describe("easy-auth-client", () => {
 
     await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
     expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
+      2,
       "/.auth/me",
       expect.objectContaining({ credentials: "same-origin" }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+      3,
       "/api/auth/easy-auth-sync",
       expect.objectContaining({
         method: "POST",
@@ -41,9 +45,29 @@ describe("easy-auth-client", () => {
     vi.unstubAllGlobals()
   })
 
+  it("does not overwrite an existing member session with SWA /.auth/me", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ authenticated: true }),
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith("/api/member/session", expect.any(Object))
+
+    vi.unstubAllGlobals()
+  })
+
   it("falls back to /api/auth/principal when easy-auth-sync rejects the SWA cookie", async () => {
     const fetchMock = vi
       .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ authenticated: false }),
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -61,7 +85,7 @@ describe("easy-auth-client", () => {
     vi.stubGlobal("fetch", fetchMock)
 
     await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
-    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/auth/principal", expect.objectContaining({ method: "POST" }))
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/auth/principal", expect.objectContaining({ method: "POST" }))
 
     vi.unstubAllGlobals()
   })

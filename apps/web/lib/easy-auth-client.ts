@@ -6,10 +6,35 @@ import {
   parseEasyAuthMePayload,
   principalFromEasyAuthMe,
 } from "@/lib/easy-auth"
+import { webFacebookOAuthConfigured, webGoogleOAuthConfigured } from "@/lib/web-oauth"
 
 export function easyAuthSyncBlockedOnPage() {
   if (typeof window === "undefined") return true
+  const path = window.location.pathname
+  if (path.startsWith("/auth/") || path.startsWith("/api/auth/")) return true
   return new URLSearchParams(window.location.search).get("signedOut") === "1"
+}
+
+async function hasLocalMemberSession() {
+  try {
+    const response = await fetch("/api/member/session", {
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+    if (!response.ok) return false
+    const body = (await response.json()) as { authenticated?: boolean }
+    return body.authenticated === true
+  } catch {
+    return false
+  }
+}
+
+function shouldAutoSyncSwaPrincipal(clientPrincipal: EasyAuthClientPrincipal) {
+  const provider = normalizeEasyAuthProvider(clientPrincipal.identityProvider)
+  if (provider === "aad") return true
+  if (provider === "google" && !webGoogleOAuthConfigured()) return true
+  if (provider === "facebook" && !webFacebookOAuthConfigured()) return true
+  return false
 }
 
 export async function fetchBrowserEasyAuthPrincipal(): Promise<EasyAuthClientPrincipal | null> {
@@ -67,8 +92,10 @@ export async function persistEasyAuthMemberSession(
 
 /** SWA serves /.auth/me on the edge; the Next server cannot reliably fetch it. */
 export async function syncEasyAuthSessionFromBrowser(): Promise<boolean> {
+  if (await hasLocalMemberSession()) return true
+
   const clientPrincipal = await fetchBrowserEasyAuthPrincipal()
-  if (!clientPrincipal) return false
+  if (!clientPrincipal || !shouldAutoSyncSwaPrincipal(clientPrincipal)) return false
   return persistEasyAuthMemberSession(clientPrincipal)
 }
 

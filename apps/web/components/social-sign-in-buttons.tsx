@@ -5,11 +5,12 @@ import { useState } from "react"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import {
   startFacebookOAuth,
+  startGoogleEasyAuth,
   startGoogleOAuth,
   webFacebookOAuthConfigured,
   webGoogleOAuthConfigured,
 } from "@/lib/web-oauth"
-import { facebookSignInHref, googleSignInHref } from "@/lib/sign-in"
+import { facebookSignInHref } from "@/lib/sign-in"
 import { startMicrosoftEasyAuth } from "@/lib/microsoft-auth"
 
 export function MicrosoftSignInButton({ next }: { next: string }) {
@@ -48,9 +49,13 @@ export function GoogleSignInButton({ next }: { next: string }) {
 
   if (!directOAuth) {
     return (
-      <a href={googleSignInHref(next)} className="outline-button justify-center py-3.5">
+      <button
+        type="button"
+        onClick={() => startGoogleEasyAuth(next)}
+        className="outline-button justify-center py-3.5"
+      >
         Continue with Google
-      </a>
+      </button>
     )
   }
 
