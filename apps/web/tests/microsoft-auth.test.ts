@@ -18,7 +18,7 @@ describe("microsoft easy auth", () => {
     startMicrosoftEasyAuth("/account")
     expect(sessionStorage.getItem("ps_oauth_microsoft_next")).toBe("/account")
     expect(assign).toHaveBeenCalledWith(
-      "/.auth/login/aad?post_login_redirect_uri=%2Fapi%2Fauth%2Fmicrosoft%2Fcomplete",
+      "/.auth/login/aad?post_login_redirect_uri=%2Fauth%2Fcallback%2Fmicrosoft",
     )
   })
 

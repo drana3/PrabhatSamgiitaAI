@@ -1,7 +1,7 @@
 import { buildClientPrincipal } from "@/lib/azure-principal"
 import { clearExplicitSignOut } from "@/lib/explicit-sign-out"
 import { safeSignInNextPath, signInReturnPath } from "@/lib/sign-in"
-import { writeOAuthReturnCookie } from "@/lib/oauth-return-cookie"
+import { writeOAuthReturnCookie, writeClientOAuthValue, readClientOAuthValue, clearClientOAuthValue } from "@/lib/oauth-return-cookie"
 
 const GOOGLE_VERIFIER_KEY = "ps_oauth_google_verifier"
 const GOOGLE_NEXT_KEY = "ps_oauth_google_next"
@@ -57,6 +57,34 @@ export function startGoogleEasyAuth(next: string | undefined) {
   window.location.assign(googleEasyAuthCompleteHref())
 }
 
+function persistBrowserValue(key: string, value: string) {
+  sessionStorage.setItem(key, value)
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // ignore quota / private mode
+  }
+  writeClientOAuthValue(key, value)
+}
+
+function readBrowserValue(key: string) {
+  return (
+    sessionStorage.getItem(key) ||
+    (typeof localStorage === "undefined" ? null : localStorage.getItem(key)) ||
+    readClientOAuthValue(key)
+  )
+}
+
+function clearBrowserValue(key: string) {
+  sessionStorage.removeItem(key)
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // ignore
+  }
+  clearClientOAuthValue(key)
+}
+
 export async function startGoogleOAuth(next: string | undefined) {
   const clientId = googleClientId()
   if (!clientId) throw new Error("Google sign-in is not configured.")
@@ -64,8 +92,8 @@ export async function startGoogleOAuth(next: string | undefined) {
 
   const verifier = randomString(32)
   const challenge = await pkceChallenge(verifier)
-  sessionStorage.setItem(GOOGLE_VERIFIER_KEY, verifier)
-  sessionStorage.setItem(GOOGLE_NEXT_KEY, safeSignInNextPath(next))
+  persistBrowserValue(GOOGLE_VERIFIER_KEY, verifier)
+  persistBrowserValue(GOOGLE_NEXT_KEY, safeSignInNextPath(next))
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -97,10 +125,8 @@ export function startFacebookOAuth(next: string | undefined) {
 
 export async function completeGoogleOAuth(code: string) {
   const clientId = googleClientId()
-  const verifier = sessionStorage.getItem(GOOGLE_VERIFIER_KEY) ?? ""
-  const next = sessionStorage.getItem(GOOGLE_NEXT_KEY) ?? "/"
-  sessionStorage.removeItem(GOOGLE_VERIFIER_KEY)
-  sessionStorage.removeItem(GOOGLE_NEXT_KEY)
+  const verifier = readBrowserValue(GOOGLE_VERIFIER_KEY) ?? ""
+  const next = readBrowserValue(GOOGLE_NEXT_KEY) ?? "/"
 
   if (!clientId || !verifier) {
     throw new Error("Google sign-in expired. Please try again.")
@@ -142,6 +168,8 @@ export async function completeGoogleOAuth(code: string) {
     displayName: profile.name || profile.email || "Google member",
   })
 
+  clearBrowserValue(GOOGLE_VERIFIER_KEY)
+  clearBrowserValue(GOOGLE_NEXT_KEY)
   return signInReturnPath(next)
 }
 

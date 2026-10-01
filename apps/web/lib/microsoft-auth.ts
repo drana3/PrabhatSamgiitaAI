@@ -68,7 +68,7 @@ export function startMicrosoftEasyAuth(next: string | undefined) {
 
 async function waitForEasyAuthPrincipal() {
   let clientPrincipal = await fetchBrowserEasyAuthPrincipal()
-  for (let attempt = 0; attempt < 20 && !clientPrincipal; attempt += 1) {
+  for (let attempt = 0; attempt < 40 && !clientPrincipal; attempt += 1) {
     await sleep(400)
     clientPrincipal = await fetchBrowserEasyAuthPrincipal()
   }

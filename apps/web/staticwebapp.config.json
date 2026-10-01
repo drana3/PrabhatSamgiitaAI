@@ -27,6 +27,14 @@
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
+      "route": "/auth/callback/microsoft",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/auth/callback/google",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
       "route": "/logout",
       "redirect": "/.auth/logout"
     }

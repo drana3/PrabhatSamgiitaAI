@@ -33,9 +33,7 @@ export async function GET(request: NextRequest) {
   const principal = await resolveSwaAuthPrincipalFromRequest(request)
 
   if (!principal) {
-    return NextResponse.redirect(
-      publicRedirectUrl(request, "/signin?easyAuth=microsoft&microsoftError=no_session"),
-    )
+    return NextResponse.redirect(publicRedirectUrl(request, "/auth/callback/microsoft"))
   }
 
   return completeRedirect(request, principal)

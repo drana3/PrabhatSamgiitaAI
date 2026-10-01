@@ -23,12 +23,11 @@ describe("GET /api/auth/microsoft/complete", () => {
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeTruthy()
   })
 
-  it("redirects to sign-in fallback when SWA headers are missing", async () => {
+  it("redirects to the Microsoft callback page when SWA headers are missing", async () => {
     const request = new NextRequest("https://example.test/api/auth/microsoft/complete")
     const response = await GET(request)
     expect(response.status).toBe(307)
-    expect(response.headers.get("location")).toContain("/signin")
-    expect(response.headers.get("location")).toContain("easyAuth=microsoft")
+    expect(response.headers.get("location")).toContain("/auth/callback/microsoft")
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeUndefined()
   })
 

@@ -19,6 +19,14 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ["@tanstack/react-query"],
   },
+  async headers() {
+    return [
+      {
+        source: "/auth/callback/:path*",
+        headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0" }],
+      },
+    ]
+  },
 }
 
 export default nextConfig

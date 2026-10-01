@@ -13,17 +13,39 @@ export function readOAuthReturnPath(raw: string | undefined | null) {
   }
 }
 
-export function writeOAuthReturnCookie(next: string) {
+export function writeClientOAuthValue(name: string, value: string, maxAgeSeconds = 900) {
   if (typeof document === "undefined") return
-  const value = encodeURIComponent(safeSignInNextPath(next))
   const secure = window.location.protocol === "https:" ? "; secure" : ""
-  document.cookie = `${OAUTH_RETURN_COOKIE}=${value}; path=/; max-age=900; samesite=lax${secure}`
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=lax${secure}`
+}
+
+export function readClientOAuthValue(name: string) {
+  if (typeof document === "undefined") return null
+  const prefix = `${name}=`
+  for (const part of document.cookie.split("; ")) {
+    if (!part.startsWith(prefix)) continue
+    const raw = part.slice(prefix.length)
+    try {
+      return decodeURIComponent(raw)
+    } catch {
+      return raw
+    }
+  }
+  return null
+}
+
+export function clearClientOAuthValue(name: string) {
+  if (typeof document === "undefined") return
+  const secure = window.location.protocol === "https:" ? "; secure" : ""
+  document.cookie = `${name}=; path=/; max-age=0; samesite=lax${secure}`
+}
+
+export function writeOAuthReturnCookie(next: string) {
+  writeClientOAuthValue(OAUTH_RETURN_COOKIE, safeSignInNextPath(next))
 }
 
 export function clearOAuthReturnCookieScript() {
-  if (typeof document === "undefined") return
-  const secure = window.location.protocol === "https:" ? "; secure" : ""
-  document.cookie = `${OAUTH_RETURN_COOKIE}=; path=/; max-age=0; samesite=lax${secure}`
+  clearClientOAuthValue(OAUTH_RETURN_COOKIE)
 }
 
 export function memberAuthCookieOptions(secure: boolean) {
