@@ -31,4 +31,21 @@ describe("GET /api/auth/microsoft/complete", () => {
     expect(response.headers.get("location")).toContain("easyAuth=microsoft")
     expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBeUndefined()
   })
+
+  it("does not send the browser to SWA localhost:8080", async () => {
+    const principal = buildClientPrincipal("oid-1", "member@example.com", "aad", "member@example.com")
+    const request = new NextRequest("http://localhost:8080/api/auth/microsoft/complete", {
+      headers: {
+        host: "localhost:8080",
+        "x-forwarded-host": "www.prabhatasamgiita.org",
+        "x-forwarded-proto": "https",
+        "x-ms-client-principal": principal,
+      },
+    })
+    request.cookies.set(OAUTH_RETURN_COOKIE, encodeURIComponent("/account"))
+
+    const response = await GET(request)
+    expect(response.headers.get("location")).toBe("https://www.prabhatasamgiita.org/account")
+    expect(response.headers.get("location")).not.toContain("localhost:8080")
+  })
 })

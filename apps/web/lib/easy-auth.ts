@@ -2,6 +2,7 @@ import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension
 
 import { buildClientPrincipal, hasEasyAuthSessionCookie } from "@/lib/azure-principal"
 import { memberPrincipalFromHeaders } from "@/lib/member-request"
+import { resolvePublicSiteOrigin, resolvePublicSiteOriginFromHeaders } from "@/lib/site-origin"
 
 export type EasyAuthClientPrincipal = {
   identityProvider?: string
@@ -91,10 +92,7 @@ export function parseEasyAuthMePayload(body: unknown): EasyAuthClientPrincipal |
 }
 
 export function requestOriginFromHeaders(source: Headers) {
-  const host = source.get("x-forwarded-host")?.split(",")[0]?.trim() || source.get("host")
-  const proto = source.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https"
-  if (!host) return null
-  return `${proto}://${host}`
+  return resolvePublicSiteOriginFromHeaders(source)
 }
 
 export function mergeRequestCookies(source: Headers, cookieStore: ReadonlyRequestCookies) {
@@ -177,7 +175,7 @@ export async function resolveEasyAuthPrincipalFromRequest(
   }
 
   let clientPrincipal: EasyAuthClientPrincipal | null = null
-  const origin = requestOriginFromHeaders(request.headers)
+  const origin = resolvePublicSiteOrigin(request)
   if (origin) {
     clientPrincipal = await fetchEasyAuthClientPrincipal(origin, cookieHeader)
   }

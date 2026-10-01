@@ -5,10 +5,10 @@ import {
   memberAuthCookieOptions,
   OAUTH_RETURN_COOKIE,
   readOAuthReturnPath,
-  requestIsSecure,
 } from "@/lib/oauth-return-cookie"
 import { resolveSwaAuthPrincipalFromRequest } from "@/lib/swa-auth-server"
 import { signInReturnPath } from "@/lib/sign-in"
+import { publicRedirectUrl, requestIsSecure } from "@/lib/site-origin"
 
 export const dynamic = "force-dynamic"
 
@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
   const principal = await resolveSwaAuthPrincipalFromRequest(request)
 
   if (!principal) {
-    const fallback = new URL("/signin", request.url)
-    fallback.searchParams.set("googleError", "no_session")
-    return NextResponse.redirect(fallback)
+    return NextResponse.redirect(
+      publicRedirectUrl(request, "/signin?googleError=no_session"),
+    )
   }
 
   const rawNext = request.cookies.get(OAUTH_RETURN_COOKIE)?.value
   const destination = signInReturnPath(readOAuthReturnPath(rawNext))
-  const response = NextResponse.redirect(new URL(destination, request.url))
+  const response = NextResponse.redirect(publicRedirectUrl(request, destination))
   response.cookies.set(LOCAL_AUTH_COOKIE, principal, memberAuthCookieOptions(secure))
   response.cookies.set(OAUTH_RETURN_COOKIE, "", { ...memberAuthCookieOptions(secure), maxAge: 0 })
   return response

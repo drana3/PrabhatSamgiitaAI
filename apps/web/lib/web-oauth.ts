@@ -1,4 +1,5 @@
 import { buildClientPrincipal } from "@/lib/azure-principal"
+import { clearExplicitSignOut } from "@/lib/explicit-sign-out"
 import { safeSignInNextPath, signInReturnPath } from "@/lib/sign-in"
 import { writeOAuthReturnCookie } from "@/lib/oauth-return-cookie"
 
@@ -51,6 +52,7 @@ export function googleEasyAuthCompleteHref() {
 }
 
 export function startGoogleEasyAuth(next: string | undefined) {
+  clearExplicitSignOut()
   writeOAuthReturnCookie(next ?? "/")
   window.location.assign(googleEasyAuthCompleteHref())
 }
@@ -58,6 +60,7 @@ export function startGoogleEasyAuth(next: string | undefined) {
 export async function startGoogleOAuth(next: string | undefined) {
   const clientId = googleClientId()
   if (!clientId) throw new Error("Google sign-in is not configured.")
+  clearExplicitSignOut()
 
   const verifier = randomString(32)
   const challenge = await pkceChallenge(verifier)
@@ -79,6 +82,7 @@ export async function startGoogleOAuth(next: string | undefined) {
 export function startFacebookOAuth(next: string | undefined) {
   const clientId = facebookAppId()
   if (!clientId) throw new Error("Facebook sign-in is not configured.")
+  clearExplicitSignOut()
 
   sessionStorage.setItem(FACEBOOK_NEXT_KEY, safeSignInNextPath(next))
 
@@ -106,6 +110,7 @@ export async function completeGoogleOAuth(code: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      client_id: clientId,
       code,
       redirect_uri: googleRedirectUri(),
       code_verifier: verifier,

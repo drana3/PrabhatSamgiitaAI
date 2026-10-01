@@ -2,8 +2,8 @@ import { buildClientPrincipal, hasEasyAuthSessionCookie, resolveClientPrincipal 
 import {
   fetchEasyAuthClientPrincipal,
   principalFromEasyAuthMe,
-  requestOriginFromHeaders,
 } from "@/lib/easy-auth"
+import { resolvePublicSiteOrigin } from "@/lib/site-origin"
 
 function decodeHeaderValue(value: string) {
   try {
@@ -33,7 +33,7 @@ export async function resolveSwaAuthPrincipalFromRequest(request: Request): Prom
     }
   }
 
-  const origin = requestOriginFromHeaders(headers)
+  const origin = resolvePublicSiteOrigin(request)
   const cookieHeader = headers.get("cookie") ?? ""
   if (!origin || !cookieHeader) return null
 

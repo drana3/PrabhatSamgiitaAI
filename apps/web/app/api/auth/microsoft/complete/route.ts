@@ -5,10 +5,11 @@ import {
   memberAuthCookieOptions,
   OAUTH_RETURN_COOKIE,
   readOAuthReturnPath,
-  requestIsSecure,
 } from "@/lib/oauth-return-cookie"
+import { requestIsSecure } from "@/lib/site-origin"
 import { resolveSwaAuthPrincipalFromRequest } from "@/lib/swa-auth-server"
 import { signInReturnPath } from "@/lib/sign-in"
+import { publicRedirectUrl } from "@/lib/site-origin"
 
 export const dynamic = "force-dynamic"
 
@@ -21,7 +22,7 @@ function readReturnPath(request: NextRequest) {
 function completeRedirect(request: NextRequest, principal: string) {
   const secure = requestIsSecure(request)
   const destination = signInReturnPath(readReturnPath(request))
-  const response = NextResponse.redirect(new URL(destination, request.url))
+  const response = NextResponse.redirect(publicRedirectUrl(request, destination))
   response.cookies.set(LOCAL_AUTH_COOKIE, principal, memberAuthCookieOptions(secure))
   response.cookies.set(OAUTH_RETURN_COOKIE, "", { ...memberAuthCookieOptions(secure), maxAge: 0 })
   response.cookies.set("ps_microsoft_next", "", { ...memberAuthCookieOptions(secure), maxAge: 0 })
@@ -32,10 +33,9 @@ export async function GET(request: NextRequest) {
   const principal = await resolveSwaAuthPrincipalFromRequest(request)
 
   if (!principal) {
-    const fallback = new URL("/signin", request.url)
-    fallback.searchParams.set("easyAuth", "microsoft")
-    fallback.searchParams.set("microsoftError", "no_session")
-    return NextResponse.redirect(fallback)
+    return NextResponse.redirect(
+      publicRedirectUrl(request, "/signin?easyAuth=microsoft&microsoftError=no_session"),
+    )
   }
 
   return completeRedirect(request, principal)

@@ -6,10 +6,12 @@ import {
   parseEasyAuthMePayload,
   principalFromEasyAuthMe,
 } from "@/lib/easy-auth"
+import { hasExplicitSignOut } from "@/lib/explicit-sign-out"
 import { webFacebookOAuthConfigured, webGoogleOAuthConfigured } from "@/lib/web-oauth"
 
 export function easyAuthSyncBlockedOnPage() {
   if (typeof window === "undefined") return true
+  if (hasExplicitSignOut()) return true
   const path = window.location.pathname
   if (path.startsWith("/auth/") || path.startsWith("/api/auth/")) return true
   return new URLSearchParams(window.location.search).get("signedOut") === "1"

@@ -5,6 +5,7 @@ import {
   fetchBrowserEasyAuthPrincipal,
   persistEasyAuthMemberSession,
 } from "@/lib/easy-auth-client"
+import { clearExplicitSignOut } from "@/lib/explicit-sign-out"
 import { clearOAuthReturnCookieScript, writeOAuthReturnCookie } from "@/lib/oauth-return-cookie"
 import { normalizeEasyAuthProvider, principalFromEasyAuthMe } from "@/lib/easy-auth"
 import { microsoftSignInHref, safeSignInNextPath, signInReturnPath } from "@/lib/sign-in"
@@ -60,6 +61,7 @@ function memberBlobFromEasyAuthPrincipal(
 }
 
 export function startMicrosoftEasyAuth(next: string | undefined) {
+  clearExplicitSignOut()
   storeMicrosoftNext(next ?? "/")
   window.location.assign(microsoftSignInHref())
 }

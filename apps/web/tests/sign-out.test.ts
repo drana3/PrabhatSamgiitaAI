@@ -27,7 +27,7 @@ describe("signOutMember", () => {
       method: "POST",
       credentials: "same-origin",
     })
-    expect(window.location.assign).toHaveBeenCalledWith("/")
+    expect(window.location.assign).toHaveBeenCalledWith("/?signedOut=1")
   })
 
   it("uses Easy Auth logout for Microsoft accounts when auth is enabled", async () => {
@@ -40,6 +40,6 @@ describe("signOutMember", () => {
     vi.stubEnv("NEXT_PUBLIC_AUTH_ENABLED", "true")
     vi.stubEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "google-client-id")
     await signOutMember("google")
-    expect(window.location.assign).toHaveBeenCalledWith("/")
+    expect(window.location.assign).toHaveBeenCalledWith("/?signedOut=1")
   })
 })

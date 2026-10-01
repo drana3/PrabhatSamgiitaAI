@@ -1,4 +1,5 @@
 import { clearGuestChatStorage } from "@/lib/chat"
+import { markExplicitSignOut } from "@/lib/explicit-sign-out"
 import { writeFeelingSearchEnabled } from "@/lib/feeling-search"
 
 /** Providers that signed in through SWA `/.auth/*` and need platform logout. */
@@ -46,6 +47,7 @@ export function easyAuthLogoutHref(returnPath = "/") {
 
 export async function signOutMember(identityProvider?: string) {
   clearSignOutLocalState()
+  markExplicitSignOut()
 
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
   const easyAuthLogout = authEnabled && usesEasyAuthLogout(identityProvider)
@@ -62,5 +64,5 @@ export async function signOutMember(identityProvider?: string) {
     // Continue with navigation even if the cookie clear request fails.
   }
 
-  window.location.assign("/")
+  window.location.assign("/?signedOut=1")
 }

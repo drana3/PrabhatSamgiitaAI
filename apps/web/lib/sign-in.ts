@@ -1,9 +1,11 @@
 export function safeSignInNextPath(next: string | undefined) {
   if (!next || !next.startsWith("/") || next.startsWith("//")) return "/"
+  if (/^https?:\/\//i.test(next)) return "/"
   // Fragment identifiers are client-only and break server redirects / Easy Auth return.
   const path = next.split("#")[0]?.split("?")[0] || "/"
   if (!path.startsWith("/") || path.startsWith("//")) return "/"
   if (path === "/signin" || path.startsWith("/signin/")) return "/"
+  if (/^\/\/localhost/i.test(path) || /^\/\/127\.0\.0\.1/i.test(path)) return "/"
   return path
 }
 

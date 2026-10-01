@@ -1,5 +1,6 @@
 import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 import { safeSignInNextPath } from "@/lib/sign-in"
+import { requestIsSecure } from "@/lib/site-origin"
 
 export const OAUTH_RETURN_COOKIE = "ps_oauth_return"
 
@@ -35,14 +36,4 @@ export function memberAuthCookieOptions(secure: boolean) {
   }
 }
 
-export function requestIsSecure(request: Request) {
-  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim()
-  if (proto) return proto === "https"
-  try {
-    return new URL(request.url).protocol === "https:"
-  } catch {
-    return process.env.NODE_ENV === "production"
-  }
-}
-
-export { LOCAL_AUTH_COOKIE }
+export { LOCAL_AUTH_COOKIE, requestIsSecure }
