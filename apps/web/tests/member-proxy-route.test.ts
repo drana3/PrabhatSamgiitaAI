@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
 import { buildClientPrincipal } from "@/lib/azure-principal"
+import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 import { GET, PATCH, POST } from "@/app/api/member/[...path]/route"
 
 describe("member proxy route", () => {
@@ -122,6 +123,32 @@ describe("member proxy route", () => {
     expect(body.authenticated).toBe(true)
     expect(body.member_backend).toBe(true)
     expect(body.favorite_song_numbers).toEqual([3])
+  })
+
+  it("clears a corrupt member cookie and returns guest session instead of 401", async () => {
+    process.env.MEMBER_PROXY_KEY = "proxy-key"
+    process.env.NODE_ENV = "production"
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "Invalid authenticated identity" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    )
+
+    const request = new NextRequest("https://example.test/api/member/session", {
+      headers: {
+        cookie: `${LOCAL_AUTH_COOKIE}=not-valid-base64`,
+      },
+    })
+    const response = await GET(request, { params: Promise.resolve({ path: ["session"] }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ authenticated: false })
+    expect(response.cookies.get(LOCAL_AUTH_COOKIE)?.value).toBe("")
   })
 
   it("forwards phone updates to the member API", async () => {

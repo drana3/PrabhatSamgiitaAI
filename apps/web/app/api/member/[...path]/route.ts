@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { parseClientPrincipalProfile } from "@/lib/azure-principal"
+import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 import { memberPrincipalFor } from "@/lib/member-request"
+import { memberAuthCookieOptions } from "@/lib/oauth-return-cookie"
+import { requestIsSecure } from "@/lib/site-origin"
 import { runtimeEnv } from "@/lib/runtime-env"
 
 const allowedPaths = new Set([
@@ -35,6 +38,17 @@ function sessionResponse(body: unknown, status = 200) {
   })
 }
 
+function guestSessionResponse(request: NextRequest, clearMemberCookie = false) {
+  const response = sessionResponse({ authenticated: false })
+  if (clearMemberCookie) {
+    response.cookies.set(LOCAL_AUTH_COOKIE, "", {
+      ...memberAuthCookieOptions(requestIsSecure(request)),
+      maxAge: 0,
+    })
+  }
+  return response
+}
+
 /** Azure-authenticated identity when the live member session payload is unavailable.
  * Must stay authenticated:true or Sign in ↔ /signin redirects loop forever.
  * member_backend is false only when the web proxy key itself is missing.
@@ -55,15 +69,18 @@ async function forward(request: NextRequest, segments: string[]) {
   if (!allowedPaths.has(root)) return sessionResponse({ detail: "Unknown member endpoint" }, 404)
   const principal = principalFor(request)
   if (!principal) {
-    if (root === "session") return sessionResponse({ authenticated: false })
+    if (root === "session") return guestSessionResponse(request)
     return sessionResponse({ detail: "Sign in is required" }, 401)
+  }
+  if (root === "session" && !parseClientPrincipalProfile(principal)) {
+    return guestSessionResponse(request, true)
   }
   const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   if (!proxyKey) {
     if (root === "session") {
       const fallback = principalSessionFallback(principal, false)
       if (fallback) return sessionResponse(fallback)
-      return sessionResponse({ authenticated: false })
+      return guestSessionResponse(request, true)
     }
     return sessionResponse({ detail: "Member services are not configured" }, 503)
   }
@@ -102,6 +119,7 @@ async function forward(request: NextRequest, segments: string[]) {
     // Proxy key is present, so allow write attempts; favorites/chat show API errors.
     const fallback = principalSessionFallback(principal, true)
     if (fallback) return sessionResponse(fallback)
+    return guestSessionResponse(request, true)
   }
 
   if (response.status === 204) {
