@@ -8,12 +8,11 @@ import type { CommunityTestimonial } from "@/lib/api"
 import { mergeCommunityVoices } from "@/lib/community-voices"
 
 export function CommunityVoices() {
-  const [items, setItems] = useState<CommunityTestimonial[]>(() =>
-    mergeCommunityVoices(readCachedTestimonials()),
-  )
+  const [items, setItems] = useState<CommunityTestimonial[]>([])
   const [active, setActive] = useState(0)
 
   useEffect(() => {
+    setItems(mergeCommunityVoices(readCachedTestimonials()))
     void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
   }, [])
 

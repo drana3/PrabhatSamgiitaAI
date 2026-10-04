@@ -1,6 +1,6 @@
 "use client"
 
-import React, { Suspense, useState } from "react"
+import React, { useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AuthSessionRecovery } from "@/components/auth-session-recovery"
 import { MemberProvider } from "@/components/member-provider"
@@ -14,9 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <MemberProvider>
         <AuthSessionRecovery />
         <EasyAuthSessionBootstrap />
-        <Suspense fallback={null}>
-          <PhoneRequiredGate>{children}</PhoneRequiredGate>
-        </Suspense>
+        <PhoneRequiredGate>{children}</PhoneRequiredGate>
       </MemberProvider>
     </QueryClientProvider>
   )

@@ -13,9 +13,7 @@ export function FeelingSearchToggle({ compact = false }: { compact?: boolean }) 
   const signedIn = session.authenticated
   const router = useRouter()
   const pathname = usePathname()
-  const [enabled, setEnabled] = useState(() =>
-    typeof window === "undefined" ? false : readFeelingSearchEnabled(),
-  )
+  const [enabled, setEnabled] = useState(false)
 
   useEffect(() => {
     setEnabled(readFeelingSearchEnabled())

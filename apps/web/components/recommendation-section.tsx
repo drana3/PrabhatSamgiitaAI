@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
@@ -14,7 +14,12 @@ import {
   readHomeCacheStale,
   writeHomeCache,
 } from "@/lib/home-cache"
-import { getAutoRecommendationPreset, getUpcomingObservances } from "@/lib/recommendation-presets"
+import {
+  getAutoRecommendationPreset,
+  getUpcomingObservances,
+  type RecommendationPreset,
+  type UpcomingObservation,
+} from "@/lib/recommendation-presets"
 import { songPagePath } from "@/lib/song-path"
 
 function readCachedToday(): TodayRecommendations | null {
@@ -24,17 +29,32 @@ function readCachedToday(): TodayRecommendations | null {
   )
 }
 
+const defaultFallbackPreset: RecommendationPreset = {
+  title: "Song of the Day",
+  subtitle: "",
+}
+
 export function RecommendationSection() {
   const [results, setResults] = useState<SongSummary[]>([])
-  const [today, setToday] = useState<TodayRecommendations | null>(() => readCachedToday())
-  const [loading, setLoading] = useState(() => !readCachedToday())
-  const upcoming = useMemo(() => getUpcomingObservances(), [])
-  const fallbackPreset = useMemo(() => getAutoRecommendationPreset(), [])
+  const [today, setToday] = useState<TodayRecommendations | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [upcoming, setUpcoming] = useState<UpcomingObservation[]>([])
+  const [fallbackPreset, setFallbackPreset] = useState<RecommendationPreset>(defaultFallbackPreset)
+
+  useEffect(() => {
+    setUpcoming(getUpcomingObservances())
+    setFallbackPreset(getAutoRecommendationPreset())
+  }, [])
 
   useEffect(() => {
     let active = true
     const cached = readCachedToday()
-    if (!cached) setLoading(true)
+    if (cached) {
+      setToday(cached)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     void fetchTodayRecommendations().then(async (value) => {
       if (!active) return
       if (value) {
