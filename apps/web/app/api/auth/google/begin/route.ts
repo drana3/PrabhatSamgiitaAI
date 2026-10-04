@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   const verifier = randomOAuthString(32)
   const state = randomOAuthString(16)
-  const next = safeSignInNextPath(request.nextUrl.searchParams.get("next"))
+  const next = safeSignInNextPath(request.nextUrl.searchParams.get("next") ?? undefined)
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
