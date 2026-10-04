@@ -27,26 +27,6 @@
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/api/auth/microsoft/complete",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
-      "route": "/api/auth/microsoft/start",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
-      "route": "/api/auth/google/begin",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
-      "route": "/api/auth/google/finish",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
-      "route": "/api/auth/google/complete",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
       "route": "/auth/callback/microsoft",
       "allowedRoles": ["anonymous", "authenticated"]
     },
