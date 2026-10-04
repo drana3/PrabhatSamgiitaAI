@@ -42,10 +42,12 @@ export function GoogleSignInButton({ next }: { next: string }) {
     if (!directOAuth || busy) return
     setBusy(true)
     setError(null)
-    void startGoogleOAuth(next).catch((submitError) => {
+    try {
+      startGoogleOAuth(next)
+    } catch (submitError) {
       setBusy(false)
       setError(submitError instanceof Error ? submitError.message : "Google sign-in failed.")
-    })
+    }
   }
 
   if (!directOAuth) {

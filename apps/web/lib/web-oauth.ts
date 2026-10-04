@@ -41,28 +41,12 @@ export function startGoogleEasyAuth(next: string | undefined) {
   window.location.assign(googleEasyAuthCompleteHref())
 }
 
-export async function startGoogleOAuth(next: string | undefined) {
+export function startGoogleOAuth(next: string | undefined) {
   const clientId = googleClientId()
   if (!clientId) throw new Error("Google sign-in is not configured.")
   clearExplicitSignOut()
-
-  const startResponse = await fetch("/api/auth/google/start", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      next: safeSignInNextPath(next),
-      redirect_uri: googleRedirectUri(),
-    }),
-  })
-  const startBody = (await startResponse.json().catch(() => null)) as {
-    url?: string
-    detail?: string
-  } | null
-  if (!startResponse.ok || !startBody?.url) {
-    throw new Error(startBody?.detail || "Google sign-in is not configured.")
-  }
-  window.location.assign(startBody.url)
+  const returnPath = safeSignInNextPath(next)
+  window.location.assign(`/api/auth/google/begin?next=${encodeURIComponent(returnPath)}`)
 }
 
 export async function completeGoogleOAuth(code: string, state?: string | null) {

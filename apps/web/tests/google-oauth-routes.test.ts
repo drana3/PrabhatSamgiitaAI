@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
+import { GET as beginGoogle } from "@/app/api/auth/google/begin/route"
 import { POST as startGoogle } from "@/app/api/auth/google/start/route"
 import { POST as finishGoogle } from "@/app/api/auth/google/finish/route"
 import { GOOGLE_PKCE_COOKIE } from "@/lib/google-oauth-server"
@@ -10,6 +11,22 @@ describe("Google OAuth server routes", () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
+  })
+
+  it("begin GET redirects to Google and stores PKCE", async () => {
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "google-client")
+    const request = new NextRequest("https://example.test/api/auth/google/begin?next=%2Faccount", {
+      method: "GET",
+      headers: {
+        "x-forwarded-host": "example.test",
+        "x-forwarded-proto": "https",
+      },
+    })
+
+    const response = await beginGoogle(request)
+    expect(response.status).toBe(307)
+    expect(response.headers.get("location")).toContain("accounts.google.com")
+    expect(response.cookies.get(GOOGLE_PKCE_COOKIE)?.value).toContain("verifier")
   })
 
   it("stores a PKCE cookie and returns a Google authorize URL", async () => {

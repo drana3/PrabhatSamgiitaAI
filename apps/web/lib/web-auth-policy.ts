@@ -15,7 +15,7 @@ export function webMicrosoftUsesSwaEasyAuth() {
   return process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
 }
 
-/** Background /.auth/me sync loops are disabled in production (server completion only). */
+/** Dev-only polling; production uses AuthSessionRecovery one-shot instead. */
 export function webEasyAuthBackgroundSyncEnabled() {
   return process.env.NODE_ENV !== "production"
 }

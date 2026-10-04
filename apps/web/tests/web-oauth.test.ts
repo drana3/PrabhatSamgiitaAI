@@ -8,7 +8,7 @@ describe("Google PKCE", () => {
     vi.unstubAllGlobals()
   })
 
-  it("starts Google by asking the server for the authorize URL", async () => {
+  it("starts Google via navigation so the PKCE cookie is set on redirect", () => {
     vi.stubEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "google-client")
     const assign = vi.fn()
     Object.defineProperty(window, "location", {
@@ -20,23 +20,9 @@ describe("Google PKCE", () => {
         assign,
       },
     })
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client" }),
-      }),
-    )
 
-    await startGoogleOAuth("/account")
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/auth/google/start",
-      expect.objectContaining({
-        method: "POST",
-        body: expect.stringContaining("https://example.test/auth/callback/google"),
-      }),
-    )
-    expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?client_id=google-client")
+    startGoogleOAuth("/account")
+    expect(assign).toHaveBeenCalledWith("/api/auth/google/begin?next=%2Faccount")
   })
 
   it("finishes Google through the server route", async () => {
