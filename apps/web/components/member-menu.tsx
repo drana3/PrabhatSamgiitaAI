@@ -25,20 +25,16 @@ export function MemberMenu() {
   }, [])
 
   if (!authEnabled) return null
-  if (loading) {
+  if (loading || !session.authenticated) {
     return (
-      <span
-        role="status"
-        aria-live="polite"
-        aria-busy="true"
-        className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs text-navy-950/70 sm:px-4 sm:text-sm"
+      <Link
+        href={signInHref(pathname)}
+        className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm"
+        aria-busy={loading || undefined}
       >
-        Loading account…
-      </span>
+        Sign in
+      </Link>
     )
-  }
-  if (!session.authenticated) {
-    return <Link href={signInHref(pathname)} className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">Sign in</Link>
   }
 
   const firstName = memberFirstName(session.display_name)

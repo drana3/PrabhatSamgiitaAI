@@ -19,6 +19,14 @@
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
+      "route": "/api/member/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/api/auth/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
       "route": "/api/auth/microsoft/complete",
       "allowedRoles": ["anonymous", "authenticated"]
     },

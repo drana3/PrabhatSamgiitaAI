@@ -68,9 +68,15 @@ export default async function SignInPage({
             Sign in to save songs, create playlists, download available recordings, keep practice history, and receive guidance shaped by your interests.
           </p>
           <SignInRedirect next={next} />
-          {googleError === "swa_session" ? (
+          {googleError ? (
             <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-              Google sign-in through the hosting platform did not finish. Use Continue with Google on this page (direct sign-in).
+              {googleError === "swa_session"
+                ? "Google sign-in through the hosting platform did not finish. Use Continue with Google on this page (direct sign-in)."
+                : googleError === "expired"
+                  ? "Your Google sign-in timed out before it could finish. Please try Continue with Google again."
+                  : googleError === "state" || googleError === "token" || googleError === "profile"
+                    ? "Google sign-in could not be verified. Please try again."
+                    : "Google sign-in did not complete. Please try again or use Microsoft sign-in."}
             </p>
           ) : null}
           {justSignedOut ? (

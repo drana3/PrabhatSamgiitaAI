@@ -14,7 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <MemberProvider>
         <AuthSessionRecovery />
         <EasyAuthSessionBootstrap />
-        <Suspense fallback={children}>
+        <Suspense fallback={null}>
           <PhoneRequiredGate>{children}</PhoneRequiredGate>
         </Suspense>
       </MemberProvider>

@@ -22,12 +22,11 @@ function TickerItem({ item }: { item: CommunityTestimonial }) {
 }
 
 export function CommunityFeedbackTicker() {
-  const [items, setItems] = useState<CommunityTestimonial[]>(() =>
-    mergeCommunityVoices(readCachedTestimonials()),
-  )
+  const [items, setItems] = useState<CommunityTestimonial[]>([])
 
   useEffect(() => {
-    // Cache-first paint; one background DB sync — not on every focus/tab switch.
+    // Hydration-safe: local cache is read only after mount (server and first client paint match).
+    setItems(mergeCommunityVoices(readCachedTestimonials()))
     void fetchTestimonials(20).then((fromApi) => setItems(mergeCommunityVoices(fromApi)))
   }, [])
 
