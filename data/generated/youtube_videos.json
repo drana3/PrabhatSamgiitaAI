@@ -12348,6 +12348,27 @@
     }
   },
   {
+    "song_number": 3234,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Kar Tare Tumi - Prabhat Sangeet song #3234 - Singer - Dhrubajyoti Sinha",
+    "url": "https://www.youtube.com/watch?v=H3G_mRHzGIE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/H3G_mRHzGIE",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "H3G_mRHzGIE",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.949,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3238,
     "kind": "video",
     "provider": "youtube",
