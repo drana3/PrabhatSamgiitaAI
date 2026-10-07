@@ -89,10 +89,6 @@ function SongListenProvider({
     void warmArchiveAudioStream(selected.url)
   }, [selected?.url])
 
-  useEffect(() => {
-    setSharedAudioReady(false)
-  }, [selected?.url])
-
   if (!selected) return null
 
   function selectRecording(nextUrl: string) {
@@ -149,7 +145,7 @@ export function SongListenTop() {
           sharedAudioRef={useSharedAudio ? sharedAudioRef : undefined}
           sharedAudioReady={useSharedAudio ? sharedAudioReady : true}
           registerSharedAudio={useSharedAudio ? registerSharedAudio : undefined}
-          mountAudio={!useSharedAudio}
+          mountAudio
           onPlaybackError={() => tryNextRecording(selected.url)}
         />
         {showList ? (
@@ -228,9 +224,9 @@ export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
           provider={selected.provider}
           warmStream
           sharedAudioRef={sharedAudioRef}
-          sharedAudioReady
+          sharedAudioReady={sharedAudioReady}
           registerSharedAudio={registerSharedAudio}
-          mountAudio
+          mountAudio={false}
           onPlaybackError={() => tryNextRecording(selected.url)}
         />
       </div>

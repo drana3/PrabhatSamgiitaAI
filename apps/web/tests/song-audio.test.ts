@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { listSongAudio } from "@/lib/song-audio"
 
 describe("listSongAudio", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it("puts the current recording first and labels it best", () => {
     const recordings = listSongAudio([
       {
@@ -25,7 +29,8 @@ describe("listSongAudio", () => {
     expect(recordings[1]?.isOlder).toBe(true)
   })
 
-  it("keeps every official recording and prefers direct streams over legacy proxy for Best", () => {
+  it("proxies archive hosts for web playback and still picks the best take", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.example.test")
     const recordings = listSongAudio([
       {
         kind: "audio",
@@ -51,7 +56,8 @@ describe("listSongAudio", () => {
       },
     ])
     expect(recordings).toHaveLength(3)
-    expect(recordings[0]?.url).toContain("prabhatasamgiita.net/2000-2999/2084.mp3")
+    expect(recordings[0]?.url).toContain("/api/v1/media/stream?url=")
+    expect(recordings[0]?.url).toContain("2084.mp3")
     expect(recordings[0]?.isLatest).toBe(true)
   })
 })

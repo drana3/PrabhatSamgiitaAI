@@ -3,9 +3,10 @@ import {
   isLowQualityAudio,
   isOlderAudio,
   markLatestAudio,
-  unwrapArchiveAudioUrl,
   type RankedAudio,
 } from "@prabhat/core"
+
+import { webPlaybackAudioUrl } from "@/lib/web-playback-audio-url"
 
 type SongMedia = {
   kind: string
@@ -31,7 +32,7 @@ export function listSongAudio(media: SongMedia[]): RankedAudio[] {
   return markLatestAudio(
     ranked.map((item) => ({
       title: item.title.trim() || "Recording",
-      url: unwrapArchiveAudioUrl(item.url),
+      url: webPlaybackAudioUrl(item.url),
       provider: item.provider,
       isOlder: isOlderAudio(item),
       isLowQuality: isLowQualityAudio(item),
