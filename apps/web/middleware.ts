@@ -4,13 +4,18 @@ import { NextResponse } from "next/server"
 import { adminGateCookieOptions, buildAdminGateToken, ADMIN_GATE_COOKIE } from "@/lib/admin-gate"
 import { memberSessionIsAdmin } from "@/lib/member-admin-proxy"
 import { memberPrincipalFor } from "@/lib/member-request"
-import { publicRedirectUrl } from "@/lib/site-origin"
+import { apexToWwwRedirectUrl, publicRedirectUrl } from "@/lib/site-origin"
 
 function unauthorizedApi() {
   return NextResponse.json({ detail: "Admin access is required" }, { status: 403 })
 }
 
 export async function middleware(request: NextRequest) {
+  const apexRedirect = apexToWwwRedirectUrl(request)
+  if (apexRedirect) {
+    return NextResponse.redirect(apexRedirect, 301)
+  }
+
   const { pathname } = request.nextUrl
 
   if (!pathname.startsWith("/admin") && !pathname.startsWith("/api/admin")) {
@@ -52,5 +57,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 }

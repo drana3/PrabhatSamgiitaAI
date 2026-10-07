@@ -1,5 +1,18 @@
 const DEFAULT_PUBLIC_ORIGIN = "https://www.prabhatasamgiita.org"
 
+export const CANONICAL_PUBLIC_HOST = "www.prabhatasamgiita.org"
+export const APEX_PUBLIC_HOST = "prabhatasamgiita.org"
+
+/** Permanent redirect bare apex host to canonical www (SWA serves both hostnames). */
+export function apexToWwwRedirectUrl(request: Request): string | null {
+  const host =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim().toLowerCase() ||
+    request.headers.get("host")?.split(",")[0]?.trim().toLowerCase()
+  if (host !== APEX_PUBLIC_HOST) return null
+  const url = new URL(request.url)
+  return `https://${CANONICAL_PUBLIC_HOST}${url.pathname}${url.search}`
+}
+
 function isInternalSwaHost(host: string) {
   return /^(localhost|127\.0\.0\.1):8080$/i.test(host)
 }

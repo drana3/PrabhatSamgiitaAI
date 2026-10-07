@@ -57,7 +57,11 @@ CONFIRM=1 ./infra/azure/decommission-web-container-app.sh
 Custom domain (after validating the default `*.azurestaticapps.net` URL):
 
 ```bash
-az staticwebapp hostname set --hostname www.prabhatasamgiita.org -n prabhatai-www -g prabhatai-rg
+# 1) DNS: www CNAME → yellow-desert-06a0d4a00.2.azurestaticapps.net (remove old Container App CNAME).
+# 2) After propagation:
+chmod +x ./infra/azure/attach-swa-custom-domains.sh
+CONFIRM=1 ./infra/azure/attach-swa-custom-domains.sh
+PUBLIC_SITE_URL=https://www.prabhatasamgiita.org ./infra/azure/sync-swa-app-settings.sh
 ```
 
 For Microsoft sign-in on SWA, in the Entra app registration add:

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { NextRequest } from "next/server"
 
 import {
+  apexToWwwRedirectUrl,
   isAllowedWebOAuthRedirect,
   publicRedirectUrl,
   requestIsSecure,
@@ -40,6 +41,16 @@ describe("resolvePublicSiteOrigin", () => {
       headers: { host: "localhost:3000" },
     })
     expect(resolvePublicSiteOrigin(request)).toBe("http://localhost:3000")
+  })
+
+  it("redirects bare apex host to www", () => {
+    const request = new NextRequest("https://prabhatasamgiita.org/songs/1?lang=en", {
+      headers: {
+        "x-forwarded-host": "prabhatasamgiita.org",
+        "x-forwarded-proto": "https",
+      },
+    })
+    expect(apexToWwwRedirectUrl(request)).toBe("https://www.prabhatasamgiita.org/songs/1?lang=en")
   })
 
   it("allows Google PKCE redirects on the public host", () => {

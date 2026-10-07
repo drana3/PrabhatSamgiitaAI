@@ -39,7 +39,7 @@ fi
 echo "Syncing ${SWA_NAME} application settings (API → ${API_BASE})..."
 
 HOSTNAME="$(az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" --query defaultHostname -o tsv)"
-PUBLIC_SITE="${PUBLIC_SITE_URL:-https://${HOSTNAME}}"
+PUBLIC_SITE="${PUBLIC_SITE_URL:-https://www.prabhatasamgiita.org}"
 
 SETTINGS=(
   "NEXT_PUBLIC_API_BASE_URL=${API_BASE}"
@@ -63,13 +63,12 @@ az staticwebapp appsettings set \
 echo "Syncing API CORS for SWA hostname..."
 bash "$(dirname "$0")/sync-api-cors-for-swa.sh"
 
-echo "Done. Test at https://${HOSTNAME}"
+echo "Done. Canonical site: ${PUBLIC_SITE} (SWA default: https://${HOSTNAME})"
 echo "Microsoft sign-in uses staticwebapp.config.json + AZURE_CLIENT_ID / AZURE_CLIENT_SECRET."
 echo "Entra app registration → Authentication:"
-echo "  Redirect URI (Web): https://${HOSTNAME}/.auth/login/aad/callback"
-echo "  Front-channel logout URL: https://${HOSTNAME}/.auth/logout/complete"
-echo "After custom domain, also add www variants of both URLs."
+echo "  Redirect URI (Web): ${PUBLIC_SITE}/.auth/login/aad/callback"
+echo "  Front-channel logout URL: ${PUBLIC_SITE}/.auth/logout/complete"
 echo "Google Cloud OAuth client (Web) for GOOGLE_CLIENT_ID:"
-echo "  Authorized JavaScript origins: https://${HOSTNAME}"
-echo "  Authorized redirect URI: https://${HOSTNAME}/auth/callback/google"
-echo "After www cutover, add https://www.prabhatasamgiita.org and …/auth/callback/google"
+echo "  Authorized JavaScript origins: ${PUBLIC_SITE}"
+echo "  Authorized redirect URI: ${PUBLIC_SITE}/auth/callback/google"
+echo "Also keep https://${HOSTNAME} OAuth entries until you retire the default hostname."

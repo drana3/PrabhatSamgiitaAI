@@ -395,6 +395,7 @@ jobs:
 
       - name: Sync SWA runtime settings
         env:
+          PUBLIC_SITE_URL: https://www.prabhatasamgiita.org
           MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -402,9 +403,7 @@ jobs:
 
       - name: Resolve public site URL for Next build
         id: site
-        run: |
-          HOST="$(az staticwebapp show --name prabhatai-www --resource-group prabhatai-rg --query defaultHostname -o tsv)"
-          echo "url=https://${HOST}" >> "$GITHUB_OUTPUT"
+        run: echo "url=https://www.prabhatasamgiita.org" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node
         uses: actions/setup-node@v4
