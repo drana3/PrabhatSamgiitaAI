@@ -121,6 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
