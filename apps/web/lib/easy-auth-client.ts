@@ -7,6 +7,7 @@ import {
   principalFromEasyAuthMe,
 } from "@/lib/easy-auth"
 import { hasExplicitSignOut } from "@/lib/explicit-sign-out"
+import { webMicrosoftSignInEnabled } from "@/lib/web-auth-policy"
 import { webFacebookOAuthConfigured, webGoogleOAuthConfigured } from "@/lib/web-oauth"
 
 export function easyAuthSyncBlockedOnPage() {
@@ -33,7 +34,7 @@ async function hasLocalMemberSession() {
 
 function shouldAutoSyncSwaPrincipal(clientPrincipal: EasyAuthClientPrincipal) {
   const provider = normalizeEasyAuthProvider(clientPrincipal.identityProvider)
-  if (provider === "aad") return true
+  if (provider === "aad") return webMicrosoftSignInEnabled()
   if (provider === "google" && !webGoogleOAuthConfigured()) return true
   if (provider === "facebook" && !webFacebookOAuthConfigured()) return true
   return false

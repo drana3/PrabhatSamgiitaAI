@@ -408,7 +408,7 @@ test("members can discover the configured sign-in flow", async ({ page }) => {
   await signIn.click()
   await expect(page).toHaveURL(/\/signin$/)
   await expect(page.getByRole("heading", { name: "Namaskar. Continue your journey." })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Continue with Microsoft" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible()
 })
 
 test("garbage and hostile hero queries never reach search or AI", async ({ page }) => {

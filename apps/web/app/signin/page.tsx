@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { SignInRedirect } from "@/components/sign-in-redirect"
 import { EmailAuthPanel } from "@/components/email-auth-panel"
 import { FacebookSignInButton, GoogleSignInButton, MicrosoftSignInButton } from "@/components/social-sign-in-buttons"
+import { webMicrosoftSignInEnabled } from "@/lib/web-auth-policy"
 import { SiteHeader } from "@/components/site-header"
 import { LOCAL_AUTH_COOKIE, facebookAuthEnabled, googleAuthEnabled, localAuthEnabled } from "@/lib/auth-providers"
 import {
@@ -56,6 +57,8 @@ export default async function SignInPage({
   }
 
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
+  const microsoftSignIn = webMicrosoftSignInEnabled()
+  const googleSignIn = googleAuthEnabled()
 
   return (
     <main className="min-h-screen bg-ivory-50">
@@ -76,7 +79,7 @@ export default async function SignInPage({
                   ? "Your Google sign-in timed out before it could finish. Please try Continue with Google again."
                   : googleError === "state" || googleError === "token" || googleError === "profile"
                     ? "Google sign-in could not be verified. Please try again."
-                    : "Google sign-in did not complete. Please try again or use Microsoft sign-in."}
+                    : "Google sign-in did not complete. Please try again."}
             </p>
           ) : null}
           {justSignedOut ? (
@@ -86,9 +89,14 @@ export default async function SignInPage({
           ) : null}
           {authEnabled ? (
             <div className="mt-8 grid gap-3">
-              <MicrosoftSignInButton next={next} />
-              {googleAuthEnabled() ? <GoogleSignInButton next={next} /> : null}
+              {googleSignIn ? <GoogleSignInButton next={next} /> : null}
+              {microsoftSignIn ? <MicrosoftSignInButton next={next} /> : null}
               {facebookAuthEnabled() ? <FacebookSignInButton next={next} /> : null}
+              {!googleSignIn && !microsoftSignIn && !facebookAuthEnabled() && !localAuthEnabled() ? (
+                <p className="rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm text-stone-600">
+                  Social sign-in is not configured for this site yet.
+                </p>
+              ) : null}
               {localAuthEnabled() ? (
                 <>
                   <div className="flex items-center gap-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">

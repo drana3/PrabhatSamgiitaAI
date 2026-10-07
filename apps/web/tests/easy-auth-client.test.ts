@@ -1,9 +1,15 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { fetchBrowserEasyAuthPrincipal, easyAuthSyncBlockedOnPage, syncEasyAuthSessionFromBrowser } from "@/lib/easy-auth-client"
 
 describe("easy-auth-client", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
   it("reads /.auth/me in the browser and posts the principal to easy-auth-sync", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED", "true")
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -42,7 +48,6 @@ describe("easy-auth-client", () => {
       }),
     )
 
-    vi.unstubAllGlobals()
   })
 
   it("does not overwrite an existing member session with SWA /.auth/me", async () => {
@@ -58,10 +63,37 @@ describe("easy-auth-client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledWith("/api/member/session", expect.any(Object))
 
-    vi.unstubAllGlobals()
+  })
+
+  it("skips Microsoft SWA sync when Microsoft web sign-in is disabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED", "false")
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ authenticated: false }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          {
+            clientPrincipal: {
+              identityProvider: "aad",
+              userId: "oid-1",
+              userDetails: "member@example.com",
+              userRoles: ["authenticated"],
+            },
+          },
+        ],
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it("falls back to /api/auth/principal when easy-auth-sync rejects the SWA cookie", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED", "true")
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -87,7 +119,6 @@ describe("easy-auth-client", () => {
     await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
     expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/auth/principal", expect.objectContaining({ method: "POST" }))
 
-    vi.unstubAllGlobals()
   })
 
   it("returns null when /.auth/me has no principal", async () => {
@@ -100,7 +131,6 @@ describe("easy-auth-client", () => {
     )
 
     await expect(fetchBrowserEasyAuthPrincipal()).resolves.toBeNull()
-    vi.unstubAllGlobals()
   })
 
   it("blocks Easy Auth auto-sync on the signed-out query", () => {

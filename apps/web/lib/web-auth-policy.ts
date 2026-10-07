@@ -10,9 +10,14 @@ export function webGoogleEasyAuthFallbackEnabled() {
   return !webGoogleOAuthConfigured() && process.env.NODE_ENV !== "production"
 }
 
-/** Microsoft on web uses SWA AAD, completed on the server with a browser fallback page. */
+/** Microsoft web sign-in is opt-in (SWA AAD is fragile on standalone Next). */
+export function webMicrosoftSignInEnabled() {
+  return process.env.NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED === "true"
+}
+
+/** @deprecated Use webMicrosoftSignInEnabled() */
 export function webMicrosoftUsesSwaEasyAuth() {
-  return process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
+  return webMicrosoftSignInEnabled()
 }
 
 /** Dev-only polling; production uses AuthSessionRecovery one-shot instead. */

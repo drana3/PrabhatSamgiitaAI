@@ -4,6 +4,7 @@ import {
   webEasyAuthBackgroundSyncEnabled,
   webGoogleEasyAuthFallbackEnabled,
   webGoogleUsesDirectOAuth,
+  webMicrosoftSignInEnabled,
 } from "@/lib/web-auth-policy"
 
 describe("web auth policy", () => {
@@ -17,6 +18,12 @@ describe("web auth policy", () => {
     expect(webGoogleUsesDirectOAuth()).toBe(true)
     expect(webGoogleEasyAuthFallbackEnabled()).toBe(false)
     expect(webEasyAuthBackgroundSyncEnabled()).toBe(false)
+    expect(webMicrosoftSignInEnabled()).toBe(false)
+  })
+
+  it("enables Microsoft sign-in only when explicitly opted in", () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED", "true")
+    expect(webMicrosoftSignInEnabled()).toBe(true)
   })
 
   it("allows SWA Google fallback only in development without a client id", () => {

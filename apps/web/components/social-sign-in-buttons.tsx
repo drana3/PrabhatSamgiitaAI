@@ -3,7 +3,7 @@
 import { useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
-import { webGoogleEasyAuthFallbackEnabled } from "@/lib/web-auth-policy"
+import { webGoogleEasyAuthFallbackEnabled, webMicrosoftSignInEnabled } from "@/lib/web-auth-policy"
 import {
   startFacebookOAuth,
   startGoogleEasyAuth,
@@ -16,6 +16,8 @@ import { startMicrosoftEasyAuth } from "@/lib/microsoft-auth"
 
 export function MicrosoftSignInButton({ next }: { next: string }) {
   const [busy, setBusy] = useState(false)
+
+  if (!webMicrosoftSignInEnabled()) return null
 
   return (
     <button
