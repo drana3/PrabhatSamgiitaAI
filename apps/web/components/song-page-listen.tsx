@@ -145,7 +145,7 @@ export function SongListenTop() {
           sharedAudioRef={useSharedAudio ? sharedAudioRef : undefined}
           sharedAudioReady={useSharedAudio ? sharedAudioReady : true}
           registerSharedAudio={useSharedAudio ? registerSharedAudio : undefined}
-          mountAudio
+          mountAudio={!useSharedAudio}
           onPlaybackError={() => tryNextRecording(selected.url)}
         />
         {showList ? (
@@ -203,7 +203,8 @@ export function SongListenTop() {
 
 export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
   const layout = useSongPageLayout()
-  const { selected, tryNextRecording, sharedAudioRef, registerSharedAudio } = useSongListen()
+  const { selected, tryNextRecording, sharedAudioRef, sharedAudioReady, registerSharedAudio } =
+    useSongListen()
 
   if (layout !== "sidebar") return null
 
@@ -226,7 +227,6 @@ export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
           sharedAudioRef={sharedAudioRef}
           sharedAudioReady={sharedAudioReady}
           registerSharedAudio={registerSharedAudio}
-          mountAudio={false}
           onPlaybackError={() => tryNextRecording(selected.url)}
         />
       </div>

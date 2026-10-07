@@ -10,7 +10,6 @@ function apiBaseUrl() {
 export function webPlaybackAudioUrl(url: string): string {
   const trimmed = url.trim()
   if (!trimmed) return trimmed
-  if (/\/api\/v1\/media\/stream\?/i.test(trimmed)) return trimmed
 
   const direct = unwrapArchiveAudioUrl(trimmed)
   let host = ""

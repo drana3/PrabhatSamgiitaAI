@@ -101,6 +101,7 @@ function CompactPlayer({
   onPlaybackError,
   sharedAudioRef,
   sharedAudioReady = true,
+  registerSharedAudio,
   mountAudio = true,
 }: {
   url: string
@@ -109,10 +110,17 @@ function CompactPlayer({
   onPlaybackError?: () => void
   sharedAudioRef?: RefObject<HTMLAudioElement | null>
   sharedAudioReady?: boolean
+  registerSharedAudio?: (element: HTMLAudioElement | null) => void
   mountAudio?: boolean
 }) {
   const localAudioRef = useRef<HTMLAudioElement>(null)
   const audioRef = sharedAudioRef ?? localAudioRef
+
+  function assignAudioRef(element: HTMLAudioElement | null) {
+    localAudioRef.current = element
+    if (sharedAudioRef) sharedAudioRef.current = element
+    registerSharedAudio?.(element)
+  }
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -295,7 +303,7 @@ function CompactPlayer({
 
       {mountAudio ? (
         <audio
-          ref={localAudioRef}
+          ref={assignAudioRef}
           aria-label={`Listen to ${title}`}
           preload="auto"
           src={url}
@@ -452,6 +460,7 @@ export function AudioRendition({
         onPlaybackError={onPlaybackError}
         sharedAudioRef={sharedAudioRef}
         sharedAudioReady={sharedAudioReady}
+        registerSharedAudio={registerSharedAudio}
         mountAudio={mountAudio}
       />
     )
