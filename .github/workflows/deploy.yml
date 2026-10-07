@@ -297,6 +297,9 @@ jobs:
           if echo "$CHANGED" | grep -qE '^(apps/web/|package\.json$|package-lock\.json$)'; then
             WEB=true
           fi
+          if echo "$CHANGED" | grep -qE '^\.github/workflows/deploy\.yml$'; then
+            WEB=true
+          fi
           if [ "$API" = false ] && [ "$WEB" = false ]; then
             NON_TOOLING="$(echo "$CHANGED" | grep -vE '^(\.github/workflows/deploy\.yml|infra/azure/deploy-app\.sh)$' || true)"
             if [ -z "$NON_TOOLING" ]; then
