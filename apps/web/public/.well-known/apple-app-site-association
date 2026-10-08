@@ -4,7 +4,12 @@
     "details": [
       {
         "appID": "2665NAM545.net.prabhatasamgiita.ai",
-        "paths": ["/songs/*", "/songs"]
+        "appIDs": ["2665NAM545.net.prabhatasamgiita.ai"],
+        "paths": ["/songs/*", "/songs"],
+        "components": [
+          { "/": "/songs/*" },
+          { "/": "/songs" }
+        ]
       }
     ]
   }

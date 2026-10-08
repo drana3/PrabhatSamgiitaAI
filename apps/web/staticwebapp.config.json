@@ -15,6 +15,12 @@
   },
   "routes": [
     {
+      "route": "/.well-known/apple-app-site-association",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    {
       "route": "/.auth/*",
       "allowedRoles": ["anonymous", "authenticated"]
     },

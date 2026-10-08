@@ -6,7 +6,9 @@ const association = {
     details: [
       {
         appID: "2665NAM545.net.prabhatasamgiita.ai",
+        appIDs: ["2665NAM545.net.prabhatasamgiita.ai"],
         paths: ["/songs/*", "/songs"],
+        components: [{ "/": "/songs/*" }, { "/": "/songs" }],
       },
     ],
   },
