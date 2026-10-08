@@ -25,6 +25,10 @@ const nextConfig = {
         source: "/auth/callback/:path*",
         headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0" }],
       },
+      {
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
     ]
   },
 }

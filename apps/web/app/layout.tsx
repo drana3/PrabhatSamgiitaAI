@@ -56,6 +56,9 @@ export const metadata: Metadata = {
     title: "Prabhat Samgiita AI",
     statusBarStyle: "default",
   },
+  other: {
+    "apple-itunes-app": "app-id=6802943117, app-argument=https://www.prabhatasamgiita.org",
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

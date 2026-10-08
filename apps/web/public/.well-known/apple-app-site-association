@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "2665NAM545.net.prabhatasamgiita.ai",
+        "paths": ["/songs/*", "/songs"]
+      }
+    ]
+  }
+}
