@@ -4,13 +4,20 @@ import { useEffect } from "react"
 
 function isMobileBrowser() {
   if (typeof navigator === "undefined") return false
+  if (navigator.webdriver) return false
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 }
 
-/** If the app is installed, hand a shared song URL over to it. */
+function shouldOpenApp() {
+  if (typeof window === "undefined") return false
+  return new URLSearchParams(window.location.search).get("open") === "app"
+}
+
+/** Shared song links (?open=app) hand off to the installed app. */
 export function OpenInApp({ songNumber }: { songNumber: number }) {
   useEffect(() => {
-    if (!isMobileBrowser() || !Number.isFinite(songNumber) || songNumber < 1) return
+    if (!shouldOpenApp() || !isMobileBrowser()) return
+    if (!Number.isFinite(songNumber) || songNumber < 1) return
     const key = `ps-open-app-${songNumber}`
     try {
       if (sessionStorage.getItem(key)) return
