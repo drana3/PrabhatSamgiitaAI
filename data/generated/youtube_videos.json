@@ -12411,6 +12411,27 @@
     }
   },
   {
+    "song_number": 3240,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Amar E Ganer Tarii - Prabhat Sangeet song #3240 - Singer - Asitima Debnath",
+    "url": "https://www.youtube.com/watch?v=S8Zreq5DZfc",
+    "embed_url": "https://www.youtube-nocookie.com/embed/S8Zreq5DZfc",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "S8Zreq5DZfc",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3246,
     "kind": "video",
     "provider": "youtube",
