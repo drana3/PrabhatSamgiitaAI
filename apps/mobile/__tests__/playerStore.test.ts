@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { apiSongDetail } from "./helpers/apiSongDetail"
+import { catalogPlayer, waitForCatalogAdd } from "./helpers/nativePlayer"
+
 /**
  * Evidence-driven regression: opening the song page over an already-playing
  * track must not break pause. The song page calls syncCurrentSong (metadata
@@ -73,6 +76,13 @@ vi.mock("@/stores/preferencesStore", () => ({
   },
 }))
 
+vi.mock("@/lib/audioFocus", () => ({
+  releaseExtraAudio: vi.fn(async () => undefined),
+  setPlaybackIntent: vi.fn(),
+  setSongPlaybackYield: vi.fn(),
+  setSongPlayingGuard: vi.fn(),
+}))
+
 vi.mock("@/lib/offlineAudio", () => ({
   resolvePlaybackUri: vi.fn(async (_number: number, remoteUrl?: string | null) =>
     remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
@@ -144,14 +154,15 @@ describe("playerStore song-page handoff", () => {
 
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(song as never, [1])
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
+    await waitForCatalogAdd(1)
 
     usePlayerStore.getState().syncCurrentSong(
       { ...song, title: "Updated title", audioUrl: song.audioUrl } as never,
       [1, 2],
     )
 
-    expect(createAsync).toHaveBeenCalledTimes(1)
+    const TrackPlayer = await catalogPlayer()
+    expect(TrackPlayer.add).toHaveBeenCalledTimes(1)
     expect(usePlayerStore.getState().currentSong?.title).toBe("Updated title")
     expect(usePlayerStore.getState().queue).toEqual([1, 2])
   })
@@ -167,10 +178,9 @@ describe("playerStore song-page handoff", () => {
 
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(song as never)
-    await vi.waitFor(() => expect(setAudioModeAsync).toHaveBeenCalled())
-    expect(setAudioModeAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ staysActiveInBackground: true, playsInSilentModeIOS: true }),
-    )
+    const TrackPlayer = await waitForCatalogAdd(1)
+    expect(TrackPlayer.setupPlayer).toHaveBeenCalled()
+    expect(TrackPlayer.updateOptions).toHaveBeenCalled()
   })
 
   it("pause after syncCurrentSong stops the same Sound instance", async () => {
@@ -184,15 +194,15 @@ describe("playerStore song-page handoff", () => {
 
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(song as never)
-    await vi.waitFor(() => expect(usePlayerStore.getState().isPlaying).toBe(true))
+    const TrackPlayerPlay = await waitForCatalogAdd(1)
+    await vi.waitFor(() => expect(TrackPlayerPlay.play).toHaveBeenCalled())
 
     usePlayerStore.getState().syncCurrentSong(song as never)
     usePlayerStore.getState().pause()
 
-    await vi.waitFor(() => expect(sound.pauseAsync).toHaveBeenCalled())
+    const TrackPlayer = await catalogPlayer()
+    await vi.waitFor(() => expect(TrackPlayer.pause).toHaveBeenCalled())
     expect(usePlayerStore.getState().isPlaying).toBe(false)
-    // Must not spawn another player during song-page open + pause.
-    expect(createAsync).toHaveBeenCalledTimes(1)
   })
 
   it("loadSong for the same track does not recreate audio", async () => {
@@ -206,84 +216,43 @@ describe("playerStore song-page handoff", () => {
 
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(song as never)
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
+    const TrackPlayer = await waitForCatalogAdd(1)
 
+    const adds = TrackPlayer.add.mock.calls.length
     usePlayerStore.getState().loadSong(song as never, [1, 3])
     await Promise.resolve()
-    expect(createAsync).toHaveBeenCalledTimes(1)
+    expect(TrackPlayer.add.mock.calls.length).toBe(adds)
   })
 
   it("reloads audio when another recording of the same song is chosen", async () => {
-    const first = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      positionMillis: 5_000,
-      durationMillis: 120_000,
-    })
-    const second = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      positionMillis: 0,
-      durationMillis: 90_000,
-    })
-    createAsync.mockResolvedValueOnce({ sound: first }).mockResolvedValueOnce({ sound: second })
-
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(song as never)
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
+    const TrackPlayer = await waitForCatalogAdd(1)
+    TrackPlayer.add.mockClear()
+    TrackPlayer.reset.mockClear()
 
     usePlayerStore.getState().playOrToggle({ ...song, audioUrl: "https://example.com/b.mp3" } as never)
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(2))
-    expect(createAsync.mock.calls[1]?.[0]).toEqual({ uri: "https://example.com/b.mp3" })
+    await waitForCatalogAdd(1)
+    expect(TrackPlayer.reset).toHaveBeenCalled()
+    expect(TrackPlayer.add.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({ url: "https://example.com/b.mp3" }),
+    )
   })
 
-  it("reuses a preloaded Sound so play does not create a second stream", async () => {
-    const preloaded = createMockSound({
-      isLoaded: true,
-      isPlaying: false,
-      positionMillis: 0,
-      durationMillis: 120_000,
-    })
-    const bag = globalThis as typeof globalThis & {
-      __psPreload?: { uri: string; number: number; sound: unknown }
-    }
-    bag.__psPreload = {
-      uri: song.audioUrl,
-      number: song.number,
-      sound: preloaded,
-    }
-
+  it("rapid manual next() keeps a native queue instead of overlapping streams", async () => {
     const { usePlayerStore } = await import("@/stores/playerStore")
-    usePlayerStore.getState().loadSong(song as never)
-    await vi.waitFor(() => expect(preloaded.playAsync).toHaveBeenCalled())
-    expect(createAsync).not.toHaveBeenCalled()
-    expect(usePlayerStore.getState().isPlaying).toBe(true)
-  })
-
-  it("does not stay on Starting stream when the player is loaded but idle", async () => {
-    const sound = createMockSound({
-      isLoaded: true,
-      isPlaying: false,
-      isBuffering: false,
-      positionMillis: 0,
-      durationMillis: 120_000,
+    const { api } = await import("@/lib/client")
+    vi.mocked(api.fetchSong).mockImplementation(async (n: number) => apiSongDetail(n))
+    usePlayerStore.setState({
+      driveScreenFocused: true,
+      driveAutoAdvance: true,
+      playbackMode: "random",
     })
-    createAsync.mockResolvedValue({ sound })
-
-    const { usePlayerStore } = await import("@/stores/playerStore")
-    usePlayerStore.getState().loadSong(song as never)
-    await vi.waitFor(() => expect(sound.setOnPlaybackStatusUpdate).toHaveBeenCalled())
-
-    const onStatus = sound.setOnPlaybackStatusUpdate.mock.calls.at(-1)?.[0] as (status: object) => void
-    onStatus({
-      isLoaded: true,
-      isPlaying: false,
-      isBuffering: false,
-      positionMillis: 0,
-      durationMillis: 120_000,
-      didJustFinish: false,
-    })
-    expect(usePlayerStore.getState().isBuffering).toBe(false)
+    usePlayerStore.getState().loadSong({ ...song, number: 10, id: "ps-10" } as never, [10], "random")
+    const TrackPlayer = await waitForCatalogAdd(1)
+    usePlayerStore.getState().next()
+    usePlayerStore.getState().next()
+    await vi.waitFor(() => expect(TrackPlayer.skipToNext).toHaveBeenCalled())
   })
 
   it("opens the local file instead of the remote stream", async () => {
@@ -292,92 +261,14 @@ describe("playerStore song-page handoff", () => {
       uri: "file:///docs/offline-audio/1.mp3",
       local: true,
     })
-    const sound = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      isBuffering: false,
-      positionMillis: 0,
-      durationMillis: 120_000,
-    })
-    createAsync.mockResolvedValue({ sound })
-
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(song as never)
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalled())
-    expect(createAsync.mock.calls[0]?.[0]).toEqual({ uri: "file:///docs/offline-audio/1.mp3" })
-  })
-
-  it("falls back to the next recording when the first stream fails to load", async () => {
-    const { resolvePlaybackUri } = await import("@/lib/offlineAudio")
-    vi.mocked(resolvePlaybackUri).mockImplementation(async (_number, remoteUrl) =>
-      remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
-    )
-
-    const failing = createMockSound({
-      isLoaded: true,
-      isPlaying: false,
-      positionMillis: 0,
-      durationMillis: 120_000,
+    const TrackPlayer = await catalogPlayer()
+    await vi.waitFor(() => {
+      expect(TrackPlayer.add.mock.calls.map((call) => call[0]?.url)).toContain(
+        "file:///docs/offline-audio/1.mp3",
+      )
     })
-    const working = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      positionMillis: 0,
-      durationMillis: 120_000,
-    })
-    createAsync
-      .mockResolvedValueOnce({ sound: failing })
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ sound: working })
-
-    const { usePlayerStore } = await import("@/stores/playerStore")
-    usePlayerStore.getState().loadSong(
-      {
-        ...song,
-        audioUrl: "https://example.com/a.mp3",
-        audioRecordings: [{ title: "Alt", url: "https://example.com/b.mp3", provider: "official" }],
-        mediaHydrated: true,
-      } as never,
-    )
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
-
-    const onStatus = failing.setOnPlaybackStatusUpdate.mock.calls.at(-1)?.[0] as (status: object) => void
-    onStatus({ isLoaded: false, error: "The AVPlayerItem instance has failed." })
-
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(3))
-    expect(createAsync.mock.calls[2]?.[0]).toEqual({ uri: "https://example.com/b.mp3" })
-    expect(usePlayerStore.getState().audioError).toBeNull()
-    expect(usePlayerStore.getState().isPlaying).toBe(true)
-  })
-
-  it("shows an error only after every recording fails", async () => {
-    const { resolvePlaybackUri } = await import("@/lib/offlineAudio")
-    vi.mocked(resolvePlaybackUri).mockImplementation(async (_number, remoteUrl) =>
-      remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
-    )
-
-    createAsync.mockResolvedValue(null)
-
-    const { usePlayerStore } = await import("@/stores/playerStore")
-    usePlayerStore.getState().loadSong(
-      {
-        ...song,
-        audioUrl: "https://example.com/a.mp3",
-        audioRecordings: [{ title: "Alt", url: "https://example.com/b.mp3", provider: "official" }],
-        mediaHydrated: true,
-      } as never,
-    )
-
-    await vi.waitFor(() =>
-      expect(usePlayerStore.getState().audioError).toBe("Could not start audio on this device."),
-    )
-    expect(createAsync).toHaveBeenCalledTimes(4)
-    expect(createAsync.mock.calls.map((call) => call[0])).toEqual([
-      { uri: "https://example.com/a.mp3" },
-      { uri: "https://example.com/a.mp3" },
-      { uri: "https://example.com/b.mp3" },
-      { uri: "https://example.com/b.mp3" },
-    ])
   })
 
   it("starts playback from home today URLs without waiting for mediaHydrated", async () => {
@@ -387,15 +278,6 @@ describe("playerStore song-page handoff", () => {
       uri: "https://prabhatasamgiita.net/1-999/1.mp3",
       local: false,
     })
-    const sound = createMockSound({
-      isLoaded: true,
-      isPlaying: true,
-      isBuffering: false,
-      positionMillis: 0,
-      durationMillis: 120_000,
-    })
-    createAsync.mockResolvedValue({ sound })
-
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(
       {
@@ -404,9 +286,168 @@ describe("playerStore song-page handoff", () => {
         audioUrl: "https://prabhatasamgiita.net/1-999/1.mp3",
       } as never,
     )
-    await vi.waitFor(() => expect(createAsync).toHaveBeenCalledTimes(1))
-    expect(createAsync.mock.calls[0]?.[0]).toEqual({
-      uri: "https://prabhatasamgiita.net/1-999/1.mp3",
+    const TrackPlayer = await catalogPlayer()
+    await vi.waitFor(() => {
+      expect(TrackPlayer.add.mock.calls.map((call) => call[0]?.url)).toContain(
+        "https://prabhatasamgiita.net/1-999/1.mp3",
+      )
     })
+  })
+
+  it("ends drive auto-advance when leaving drive mode", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.setState({
+      driveAutoAdvance: true,
+      playbackMode: "random",
+      playlistBounds: [1, 2, 3],
+    })
+    usePlayerStore.setState({ currentSong: { id: "ps-1", number: 1 } as never })
+    usePlayerStore.getState().exitDriveMode()
+    expect(usePlayerStore.getState().playbackMode).toBe("default")
+    expect(usePlayerStore.getState().playlistBounds).toBeNull()
+    expect(usePlayerStore.getState().driveAutoAdvance).toBe(false)
+    expect(usePlayerStore.getState().queue).toEqual([])
+    expect(usePlayerStore.getState().currentSong).toBeNull()
+  })
+
+  it("keeps saved playlist playback when drive mode was not started from drive", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.setState({
+      driveAutoAdvance: false,
+      playbackMode: "playlist",
+      playlistBounds: [1000, 1001],
+    })
+    usePlayerStore.getState().exitDriveMode()
+    expect(usePlayerStore.getState().playbackMode).toBe("playlist")
+    expect(usePlayerStore.getState().playlistBounds).toEqual([1000, 1001])
+  })
+})
+
+describe("playback behavior matrix (drive exit)", () => {
+  beforeEach(() => {
+    vi.resetModules()
+    createAsync.mockReset()
+    const bag = globalThis as typeof globalThis & {
+      __psSound?: unknown
+      __psLoadId?: number
+      __psPlayToken?: number
+      __psAudioChain?: Promise<void>
+      __psMediaCache?: Map<number, unknown>
+    }
+    bag.__psSound = null
+    bag.__psLoadId = 0
+    bag.__psPlayToken = 0
+    bag.__psAudioChain = Promise.resolve()
+    bag.__psMediaCache = new Map()
+  })
+
+  it("after leaving drive random, track end does not pick another song", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const { shouldAdvanceAfterTrackEnd } = await import("@/lib/playbackQueue")
+    const bag = globalThis as typeof globalThis & { __psLoadGeneration?: number }
+    const loadBefore = bag.__psLoadGeneration ?? 0
+    usePlayerStore.setState({
+      driveAutoAdvance: true,
+      playbackMode: "random",
+      queue: [100, 200],
+      currentSong: { ...song, number: 100, id: "ps-100" },
+    })
+    usePlayerStore.getState().exitDriveMode()
+    const state = usePlayerStore.getState()
+    expect(state.playbackMode).toBe("default")
+    expect(state.queue).toEqual([])
+    expect(state.currentSong).toBeNull()
+    expect(state.isPlaying).toBe(false)
+    expect(shouldAdvanceAfterTrackEnd(state.playbackMode, 100, state.queue)).toBe(false)
+    expect(bag.__psLoadGeneration).toBeGreaterThan(loadBefore)
+  })
+
+  it("exitDriveMode bumps load id, stops playback, and clears stop-after-current", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const bag = globalThis as typeof globalThis & { __psLoadGeneration?: number }
+    const before = bag.__psLoadGeneration ?? 0
+    usePlayerStore.setState({
+      driveAutoAdvance: true,
+      playbackMode: "random",
+      currentSong: { ...song, number: 42, id: "ps-42" },
+      isPlaying: true,
+    })
+    usePlayerStore.getState().exitDriveMode()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(bag.__psLoadGeneration).toBeGreaterThan(before)
+    expect(usePlayerStore.getState().playbackMode).toBe("default")
+    expect(usePlayerStore.getState().queue).toEqual([])
+    expect(usePlayerStore.getState().currentSong).toBeNull()
+    expect(usePlayerStore.getState().stopQueueAfterCurrentTrack).toBe(false)
+    expect(usePlayerStore.getState().isPlaying).toBe(false)
+  })
+
+  it("does not auto-advance when stopQueueAfterCurrentTrack is set", async () => {
+    const { shouldAdvanceAfterTrackEnd } = await import("@/lib/playbackQueue")
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.setState({
+      stopQueueAfterCurrentTrack: true,
+      playbackMode: "random",
+      driveAutoAdvance: true,
+      driveScreenFocused: true,
+      queue: [42],
+      currentSong: { ...song, number: 42, id: "ps-42" },
+    })
+    expect(shouldAdvanceAfterTrackEnd("random", 42, [42])).toBe(true)
+    const state = usePlayerStore.getState()
+    expect(state.stopQueueAfterCurrentTrack).toBe(true)
+    usePlayerStore.getState().next()
+    expect(usePlayerStore.getState().currentSong?.number).toBe(42)
+  })
+
+  it("reordering the drive queue updates playlist playback order", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const { nextQueueNumber } = await import("@/lib/playbackQueue")
+    usePlayerStore.setState({
+      playbackMode: "playlist",
+      playlistBounds: [1000, 1001, 1002],
+      queue: [1000, 1001, 1002],
+      currentSong: { ...song, number: 1000, id: "ps-1000" },
+    })
+    usePlayerStore.getState().setQueue([1001, 1000, 1002])
+    expect(usePlayerStore.getState().playlistBounds).toEqual([1001, 1000, 1002])
+    expect(nextQueueNumber("playlist", 1000, usePlayerStore.getState().playlistBounds!)).toBe(1002)
+  })
+
+  it("repeat loops the current song instead of advancing a listen queue", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const { api } = await import("@/lib/client")
+    usePlayerStore.getState().loadSong({ ...song, number: 42, id: "ps-42" } as never, [42, 1, 2], "default")
+    const TrackPlayer = await waitForCatalogAdd(1)
+    usePlayerStore.setState({
+      repeat: true,
+      playbackMode: "playlist",
+      queue: [42, 1, 2],
+      isPlaying: true,
+    })
+    usePlayerStore.getState().toggleRepeat()
+    if (!usePlayerStore.getState().repeat) usePlayerStore.getState().toggleRepeat()
+    await vi.waitFor(() => expect(TrackPlayer.setRepeatMode).toHaveBeenCalled())
+    vi.mocked(api.fetchSong).mockClear()
+    expect(usePlayerStore.getState().currentSong?.number).toBe(42)
+  })
+
+  it("after leaving drive playlist, bounded advance and queue continuation stop", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const { shouldAdvanceAfterTrackEnd } = await import("@/lib/playbackQueue")
+    const bounds = [1000, 1001, 1002]
+    usePlayerStore.setState({
+      driveAutoAdvance: true,
+      playbackMode: "playlist",
+      playlistBounds: bounds,
+      queue: bounds,
+      currentSong: { ...song, number: 1001, id: "ps-1001" },
+    })
+    usePlayerStore.getState().exitDriveMode()
+    const state = usePlayerStore.getState()
+    expect(state.playlistBounds).toBeNull()
+    expect(state.queue).toEqual([])
+    expect(state.currentSong).toBeNull()
+    expect(shouldAdvanceAfterTrackEnd("default", 1001, [1001])).toBe(false)
   })
 })

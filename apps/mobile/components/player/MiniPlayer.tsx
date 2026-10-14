@@ -7,6 +7,7 @@ import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
 import { songPlayback } from "@/lib/playback"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
@@ -25,6 +26,15 @@ export function MiniPlayer() {
   const pause = usePlayerStore((s) => s.pause)
   const repeat = usePlayerStore((s) => s.repeat)
   const toggleRepeat = usePlayerStore((s) => s.toggleRepeat)
+  const playbackMode = usePlayerStore((s) => s.playbackMode)
+  const playlistBounds = usePlayerStore((s) => s.playlistBounds)
+  const activePlaylist = usePlayerStore((s) => s.activePlaylist)
+  const playlistLine = playlistPlaybackSubtitle(
+    playbackMode,
+    playlistBounds,
+    currentSong.number,
+    activePlaylist,
+  )
 
   if (!currentSong) return null
 
@@ -50,7 +60,7 @@ export function MiniPlayer() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open ${currentSong.title}`}
-        onPress={() => router.push(href(`/song/${currentSong.id}`))}
+        onPress={() => router.push(href(`/song/${currentSong.id}?from=player`))}
         style={({ pressed }) => [styles.meta, pressed && { opacity: 0.9 }]}
       >
         <Text style={styles.title} numberOfLines={1}>
@@ -61,9 +71,11 @@ export function MiniPlayer() {
             ? audioError
             : isBuffering
               ? "Loading audio…"
-              : repeat
-                ? "Repeat on · loops when locked"
-                : currentSong.themes.slice(0, 2).join(" · ")}
+              : playlistLine
+                ? playlistLine
+                : repeat
+                  ? "Repeat on · loops when locked"
+                  : currentSong.themes.slice(0, 2).join(" · ")}
         </Text>
       </Pressable>
       <Pressable

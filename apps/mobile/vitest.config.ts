@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["__tests__/**/*.(test|spec).(ts|tsx)"],
+    setupFiles: ["__tests__/setup/trackPlayerMock.ts"],
   },
   resolve: {
     alias: {

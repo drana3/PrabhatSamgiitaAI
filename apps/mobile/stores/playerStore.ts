@@ -1,4 +1,5 @@
-import { Audio, type AVPlaybackStatus } from "expo-av"
+import { Audio } from "expo-av"
+import TrackPlayer, { Event, State } from "react-native-track-player"
 import { create } from "zustand"
 
 import type { MockSong } from "@/data/mock"
@@ -6,7 +7,44 @@ import { api } from "@/lib/client"
 import { readAudioRepeat, writeAudioRepeat } from "@/lib/audioRepeat"
 import { isSameAudioTrack, isSameSong } from "@/lib/playback"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
-import { playlistStep, randomSongNumber, type PlaybackMode } from "@/lib/playbackQueue"
+import {
+  nextQueueNumber,
+  playbackAdvanceQueue,
+  playlistStep,
+  previousQueueNumber,
+  resolvePlaybackMode,
+  type PlaybackMode,
+} from "@/lib/playbackQueue"
+import {
+  isStaleRandomWithoutDrive,
+  listeningSessionFromStore,
+  sessionShouldAdvanceAfterTrackEnd,
+} from "@/lib/playback/listeningSession"
+import {
+  setPlaybackIntent,
+  setSongPlaybackYield,
+  setSongPlayingGuard,
+} from "@/lib/audioFocus"
+import { nextPlayableInQueue } from "@/lib/playableAudio"
+import type { ActivePlaylistMeta } from "@/lib/playlistPlayback"
+import {
+  nativePause,
+  nativePlay,
+  nativeQueueLengthPastIndex,
+  nativeRemoveUpcomingTracks,
+  nativeSeek,
+  nativeSetRepeatTrack,
+  nativeSetVolume,
+  nativeSkipToNext,
+  nativeStop,
+  playTrackNow,
+  setupNativeCatalogPlayer,
+  songToTrack,
+  trackIdToSongNumber,
+} from "@/lib/playback/nativeCatalogPlayer"
+import { cacheCatalogSong, getCachedCatalogSong } from "@/lib/playback/catalogSongCache"
+import { ensureUpcomingRadioTrack, hydratePlayableSong } from "@/lib/playback/radioAdvance"
+import { setRadioSession } from "@/lib/playback/radioSession"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -20,25 +58,33 @@ type PlayerState = {
   hasAudio: boolean
   audioError: string | null
   isBuffering: boolean
-  /** When true, the current song loops forever (natively — keeps playing when locked). */
   repeat: boolean
-  /**
-   * default: stop when a song ends (existing player).
-   * playlist / random: advance using the existing player, then stop at the playlist end.
-   */
   playbackMode: PlaybackMode
+  playlistBounds: number[] | null
+  activePlaylist: ActivePlaylistMeta | null
+  driveAutoAdvance: boolean
+  driveScreenFocused: boolean
+  driveRepeat: boolean
+  stopQueueAfterCurrentTrack: boolean
+  setDriveScreenFocused: (focused: boolean) => void
+  scheduleDriveBlurExit: () => void
+  cancelDriveBlurExit: () => void
+  noteAppBackgroundPlayback: () => void
+  enterDrivePlayback: () => void
+  exitDriveMode: () => void
+  prepareCatalogAudioForDriveEntry: () => Promise<void>
+  toggleDriveRepeat: () => void
   toggleRepeat: () => void
   loadSong: (song: MockSong, queue?: number[], playbackMode?: PlaybackMode) => void
-  /** Sync metadata/queue for the already-active track. Never restarts audio. */
   syncCurrentSong: (song: MockSong, queue?: number[]) => void
-  /** Warm audio session + cache media URL so the next Play starts faster. */
   warmAudio: (song?: MockSong | null) => void
   playOrToggle: (song: MockSong, queue?: number[]) => void
   setQueue: (numbers: number[]) => void
   togglePlay: () => void
   play: () => void
+  reassertBackgroundPlayback: () => void
+  reconcileForegroundCatalogPlayback: () => void
   pause: () => void
-  /** Pause playback and reopen the mic for speech recognition. */
   prepareForSpeechCapture: () => Promise<void>
   seekTo: (position: number) => void
   seekBy: (deltaSeconds: number) => void
@@ -49,689 +95,57 @@ type PlayerState = {
   clear: () => void
 }
 
-/** Survive Fast Refresh so we never lose the native player handle. */
-type AudioBag = {
-  __psSound: Audio.Sound | null
-  __psLoadId: number
-  __psPlayToken: number
-  __psAudioChain: Promise<void>
-  __psModeReady: boolean
+type PlayerBagExtras = {
   __psMediaCache: Map<number, MockSong>
-  __psPreload: { uri: string; number: number; sound: Audio.Sound } | null
-  /** User intends continuous playback — used to auto-resume after buffer stalls. */
+  __psLoadGeneration: number
   __psWantPlaying: boolean
-  __psLastResumeNudgeMs: number
-  /** Active multi-URL attach — kept until AVPlayer reports loaded or all sources fail. */
-  __psAttachSession: AttachSession | null
+  __psRntpUnsubs: Array<{ remove: () => void }>
+  __psRadioUnsub?: () => void
 }
 
-type PlaybackSource = { uri: string; local: boolean }
+const playerExtras = globalThis as typeof globalThis & PlayerBagExtras
+if (!playerExtras.__psMediaCache) playerExtras.__psMediaCache = new Map()
+if (typeof playerExtras.__psLoadGeneration !== "number") playerExtras.__psLoadGeneration = 0
+if (typeof playerExtras.__psWantPlaying !== "boolean") playerExtras.__psWantPlaying = false
+if (!playerExtras.__psRntpUnsubs) playerExtras.__psRntpUnsubs = []
 
-type AttachSession = {
-  song: MockSong
-  sources: PlaybackSource[]
-  sourceIndex: number
-  retryAttempt: number
-  loadId: number
-  token: number
-  shouldPlay: boolean
-  positionMillis: number
+let driveBlurExitTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelDriveBlurExitTimer() {
+  if (driveBlurExitTimer != null) {
+    clearTimeout(driveBlurExitTimer)
+    driveBlurExitTimer = null
+  }
 }
 
-const MAX_RETRIES_PER_SOURCE = 1
-
-const bag = globalThis as typeof globalThis & AudioBag
-if (typeof bag.__psLoadId !== "number") bag.__psLoadId = 0
-if (typeof bag.__psPlayToken !== "number") bag.__psPlayToken = 0
-if (bag.__psSound === undefined) bag.__psSound = null
-if (!bag.__psAudioChain) bag.__psAudioChain = Promise.resolve()
-if (typeof bag.__psModeReady !== "boolean") bag.__psModeReady = false
-if (!bag.__psMediaCache) bag.__psMediaCache = new Map()
-if (bag.__psPreload === undefined) bag.__psPreload = null
-if (typeof bag.__psWantPlaying !== "boolean") bag.__psWantPlaying = false
-if (typeof bag.__psLastResumeNudgeMs !== "number") bag.__psLastResumeNudgeMs = 0
-if (bag.__psAttachSession === undefined) bag.__psAttachSession = null
-
-function getSound() {
-  return bag.__psSound
-}
-
-function setSound(next: Audio.Sound | null) {
-  bag.__psSound = next
-}
-
-/** Serialize native audio work so create/destroy/pause never overlap. */
-function enqueueAudio(op: () => Promise<void>) {
-  const run = bag.__psAudioChain.then(op, op)
-  bag.__psAudioChain = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
-}
-
-async function setPlaybackMode() {
-  if (bag.__psModeReady) return
-  await Audio.setAudioModeAsync({
-    playsInSilentModeIOS: true,
-    allowsRecordingIOS: false,
-    staysActiveInBackground: true,
-    shouldDuckAndroid: true,
-    playThroughEarpieceAndroid: false,
-  })
-  bag.__psModeReady = true
-}
-
-function isIosPlatform() {
+function appIsActive(): boolean {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Platform } = require("react-native") as { Platform: { OS: string } }
-    return Platform.OS === "ios"
+    const { AppState } = require("react-native") as { AppState: { currentState: string } }
+    return AppState.currentState === "active"
   } catch {
-    return false
-  }
-}
-
-/** Stop every native stream, including orphans that lost their JS handle. */
-async function silenceAllAudio() {
-  try {
-    await Audio.setIsEnabledAsync(false)
-    await Audio.setIsEnabledAsync(true)
-  } catch {
-    /* ignore */
-  }
-  bag.__psModeReady = false
-  try {
-    await setPlaybackMode()
-  } catch {
-    /* ignore */
-  }
-}
-
-async function discardPreload() {
-  const preload = bag.__psPreload
-  bag.__psPreload = null
-  if (!preload) return
-  try {
-    preload.sound.setOnPlaybackStatusUpdate(null)
-  } catch {
-    /* ignore */
-  }
-  try {
-    await preload.sound.unloadAsync()
-  } catch {
-    /* ignore */
-  }
-}
-
-async function destroySound() {
-  const current = getSound()
-  setSound(null)
-  if (!current) return
-  try {
-    current.setOnPlaybackStatusUpdate(null)
-  } catch {
-    /* ignore */
-  }
-  // unloadAsync stops playback — skip stopAsync to save a native round-trip
-  try {
-    await current.unloadAsync()
-  } catch {
-    /* ignore */
-  }
-}
-
-function attachSessionActive(session: AttachSession) {
-  return session.loadId === bag.__psLoadId && session.token === bag.__psPlayToken
-}
-
-function clearAttachSession() {
-  bag.__psAttachSession = null
-}
-
-function finalizeAttachFailure(session: AttachSession, message: string) {
-  if (!attachSessionActive(session)) return
-  clearAttachSession()
-  bag.__psWantPlaying = false
-  usePlayerStore.setState({
-    hasAudio: false,
-    isPlaying: false,
-    isBuffering: false,
-    audioError: message,
-  })
-}
-
-/** Touch the CDN so TLS + first bytes are ready before AVPlayer opens the stream. */
-async function warmNetwork(uri: string) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 2500)
-  try {
-    await fetch(uri, {
-      method: "GET",
-      headers: { Range: "bytes=0-2047" },
-      signal: controller.signal,
-    })
-  } catch {
-    /* ignore — best-effort only; never block playback */
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-/**
- * Preload a paused Sound only when nothing is currently loaded.
- * Creating a second AVPlayer/Sound while one is playing interrupts iOS streams mid-song.
- */
-async function preloadSound(songNumber: number, uri: string) {
-  const trimmed = uri.trim()
-  if (!trimmed) return
-  if (getSound()) return
-  if (bag.__psPreload?.uri === trimmed && bag.__psPreload.number === songNumber) return
-
-  await setPlaybackMode()
-  if (getSound()) return
-  await discardPreload()
-  try {
-    const created = await Audio.Sound.createAsync(
-      { uri: trimmed },
-      {
-        shouldPlay: false,
-        volume: usePlayerStore.getState().volume,
-        isLooping: usePlayerStore.getState().repeat,
-        progressUpdateIntervalMillis: 500,
-      },
-      null,
-      false,
-    )
-    // A play may have started while we were loading — never keep a competing Sound.
-    if (getSound()) {
-      try {
-        await created.sound.unloadAsync()
-      } catch {
-        /* ignore */
-      }
-      return
-    }
-    await discardPreload()
-    bag.__psPreload = { uri: trimmed, number: songNumber, sound: created.sound }
-  } catch {
-    /* ignore preload failures — play path will create normally */
-  }
-}
-
-/** Cache next track URL + CDN warm only — do not create a second Sound while playing. */
-function prefetchNextInQueue(currentNumber: number, queue: number[]) {
-  const idx = queue.indexOf(currentNumber)
-  const nextNumber =
-    idx >= 0 && idx < queue.length - 1 ? queue[idx + 1] : currentNumber > 0 ? currentNumber + 1 : null
-  if (!nextNumber) return
-  void (async () => {
-    try {
-      const stub: MockSong = {
-        id: `ps-${nextNumber}`,
-        number: nextNumber,
-        title: "",
-        shortDescription: "",
-        imageUrl: "",
-        thumbnailUrl: "",
-        themes: [],
-        meaning: "",
-        lyrics: "",
-        translation: "",
-        durationSeconds: 300,
-        performer: "",
-        videos: [],
-        audioUrl: null,
-        mediaHydrated: false,
-      }
-      const ready = await hydrate(stub)
-      const uri = ready.audioUrl?.trim()
-      if (!uri) return
-      bag.__psMediaCache.set(nextNumber, ready)
-      // Do not fetch the next MP3 until the user plays or saves it.
-    } catch {
-      /* ignore */
-    }
-  })()
-}
-
-function applySoundLooping(sound: Audio.Sound | null, enabled: boolean) {
-  if (!sound) return
-  void sound.setStatusAsync({ isLooping: enabled }).catch(() => undefined)
-}
-
-function bindStatus(owner: Audio.Sound) {
-  owner.setOnPlaybackStatusUpdate((status) => {
-    if (getSound() !== owner) return
-
-    if (!status.isLoaded) {
-      if (status.error) {
-        const session = bag.__psAttachSession
-        if (session && attachSessionActive(session)) {
-          void enqueueAudio(async () => handlePlaybackLoadError(owner, session))
-        } else {
-          bag.__psWantPlaying = false
-          usePlayerStore.setState({
-            isPlaying: false,
-            isBuffering: false,
-            audioError: "Audio could not be played.",
-          })
-        }
-      }
-      return
-    }
-
-    if (bag.__psAttachSession && attachSessionActive(bag.__psAttachSession)) {
-      clearAttachSession()
-    }
-
-    if (status.didJustFinish) {
-      if (usePlayerStore.getState().repeat) {
-        // Loop the same track. Native isLooping keeps this going while locked;
-        // this JS seek+play is the foreground fallback.
-        bag.__psWantPlaying = true
-        usePlayerStore.setState({ isPlaying: true, isBuffering: false, position: 0, audioError: null })
-        void owner
-          .setPositionAsync(0)
-          .then(() => owner.playAsync())
-          .catch(() => undefined)
-        return
-      }
-      const mode = usePlayerStore.getState().playbackMode
-      if (mode === "playlist" || mode === "random") {
-        usePlayerStore.getState().next()
-        return
-      }
-      bag.__psWantPlaying = false
-      usePlayerStore.setState({
-        isPlaying: false,
-        isBuffering: false,
-        position: Math.max(1, Math.floor((status.durationMillis || 0) / 1000)),
-        duration: Math.max(1, Math.floor((status.durationMillis || 0) / 1000)),
-        audioError: null,
-      })
-      return
-    }
-
-    const finished = atEnd(status)
-    const wantPlaying = bag.__psWantPlaying && !finished
-
-    // Buffer underrun / brief stall: keep wanting play and nudge AVPlayer to continue.
-    if (wantPlaying && !status.isPlaying && !status.isBuffering) {
-      const now = Date.now()
-      if (now - bag.__psLastResumeNudgeMs > 1200) {
-        bag.__psLastResumeNudgeMs = now
-        void owner.playAsync().catch(() => undefined)
-      }
-    }
-
-    usePlayerStore.setState({
-      isPlaying: status.isPlaying || (wantPlaying && Boolean(status.isBuffering)),
-      isBuffering: Boolean(status.isBuffering) && !status.isPlaying,
-      position: Math.floor((status.positionMillis || 0) / 1000),
-      duration: Math.max(1, Math.floor((status.durationMillis || 0) / 1000)),
-      hasAudio: true,
-      audioError: null,
-    })
-  })
-}
-
-function atEnd(status: AVPlaybackStatus) {
-  if (!status.isLoaded || status.isPlaying) return false
-  if (status.didJustFinish) return true
-  const duration = status.durationMillis || 0
-  const position = status.positionMillis || 0
-  return duration > 0 && position >= duration - 400
-}
-
-async function resolvePlaybackCandidates(song: MockSong): Promise<Array<{ uri: string; local: boolean }>> {
-  const seen = new Set<string>()
-  const candidates: Array<{ uri: string; local: boolean }> = []
-  const add = async (remoteUrl: string | null | undefined) => {
-    const resolved = await resolvePlaybackUri(song.number, remoteUrl)
-    if (!resolved || seen.has(resolved.uri)) return
-    seen.add(resolved.uri)
-    candidates.push(resolved)
-  }
-  await add(song.audioUrl)
-  for (const recording of song.audioRecordings ?? []) {
-    await add(recording.url)
-  }
-  return candidates
-}
-
-async function hydrate(song: MockSong): Promise<MockSong> {
-  if (song.mediaHydrated && song.audioUrl) {
-    bag.__psMediaCache.set(song.number, song)
-    return song
-  }
-  const cached = bag.__psMediaCache.get(song.number)
-  if (cached?.audioUrl) {
-    return {
-      ...song,
-      ...cached,
-      audioUrl: cached.audioUrl || song.audioUrl || null,
-      audioRecordings: cached.audioRecordings?.length ? cached.audioRecordings : song.audioRecordings,
-      imageUrl: song.imageUrl || cached.imageUrl,
-      thumbnailUrl: song.thumbnailUrl || cached.thumbnailUrl,
-      mediaHydrated: true,
-    }
-  }
-  try {
-    const detail = await api.fetchSong(song.number)
-    if (!detail) return { ...song, mediaHydrated: true }
-    const mapped = songDetailToMockSong(detail)
-    const ready = {
-      ...song,
-      ...mapped,
-      audioUrl: mapped.audioUrl || song.audioUrl || null,
-      audioRecordings: mapped.audioRecordings?.length ? mapped.audioRecordings : song.audioRecordings,
-      imageUrl: song.imageUrl || mapped.imageUrl,
-      thumbnailUrl: song.thumbnailUrl || mapped.thumbnailUrl,
-      mediaHydrated: true,
-    }
-    bag.__psMediaCache.set(song.number, ready)
-    return ready
-  } catch {
-    return { ...song, mediaHydrated: true }
-  }
-}
-
-async function applyLoadedSound(
-  session: AttachSession,
-  sound: Audio.Sound,
-  activeSong: MockSong,
-) {
-  setSound(sound)
-  bindStatus(sound)
-
-  if (session.token !== bag.__psPlayToken) {
-    try {
-      await sound.pauseAsync()
-    } catch {
-      /* ignore */
-    }
-    usePlayerStore.setState({ isPlaying: false, isBuffering: false, hasAudio: true })
     return true
   }
-
-  const status = await sound.getStatusAsync()
-  usePlayerStore.setState({
-    currentSong: activeSong,
-    hasAudio: true,
-    isPlaying: status.isLoaded ? status.isPlaying : session.shouldPlay,
-    isBuffering: status.isLoaded ? Boolean(status.isBuffering) && !status.isPlaying : session.shouldPlay,
-    audioError: null,
-    position: status.isLoaded
-      ? Math.floor((status.positionMillis || 0) / 1000)
-      : Math.floor(session.positionMillis / 1000),
-    duration: status.isLoaded
-      ? Math.max(1, Math.floor((status.durationMillis || 0) / 1000))
-      : activeSong.durationSeconds,
-  })
-  if (session.shouldPlay) {
-    prefetchNextInQueue(activeSong.number, usePlayerStore.getState().queue)
-  }
-  return true
 }
 
-async function tryLoadSessionSource(session: AttachSession): Promise<"success" | "failed" | "cancelled"> {
-  const source = session.sources[session.sourceIndex]
-  if (!source || !attachSessionActive(session)) return "cancelled"
-
-  const { uri, local } = source
-  usePlayerStore.setState({
-    isBuffering: true,
-    audioError: null,
-    isPlaying: session.shouldPlay,
-  })
-
-  if (!local && !uri.startsWith("file:")) {
-    await warmNetwork(uri)
-  }
-  if (!attachSessionActive(session)) return "cancelled"
-
-  const created = await Audio.Sound.createAsync(
-    { uri },
-    {
-      shouldPlay: session.shouldPlay,
-      positionMillis: Math.max(0, session.positionMillis),
-      volume: usePlayerStore.getState().volume,
-      isLooping: usePlayerStore.getState().repeat,
-      progressUpdateIntervalMillis: 500,
-    },
-    null,
-    false,
-  ).catch(() => null)
-
-  if (!created) return "failed"
-  if (!attachSessionActive(session)) {
-    try {
-      await created.sound.unloadAsync()
-    } catch {
-      /* ignore */
-    }
-    return "cancelled"
-  }
-
-  let activeSong = session.song
-  if (session.sourceIndex > 0) {
-    activeSong = { ...activeSong, audioUrl: uri, mediaHydrated: true }
-    bag.__psMediaCache.set(activeSong.number, activeSong)
-    session.song = activeSong
-  }
-
-  await applyLoadedSound(session, created.sound, activeSong)
-  return "success"
+function cacheSong(song: MockSong) {
+  cacheCatalogSong(song)
+  if (song.audioUrl) playerExtras.__psMediaCache.set(song.number, song)
 }
 
-async function continueAttachFrom(session: AttachSession) {
-  for (let index = session.sourceIndex; index < session.sources.length; ) {
-    if (!attachSessionActive(session)) {
-      clearAttachSession()
-      return
-    }
-
-    session.sourceIndex = index
-    bag.__psAttachSession = session
-
-    const result = await tryLoadSessionSource(session)
-    if (result === "success") return
-    if (result === "cancelled") {
-      clearAttachSession()
-      return
-    }
-
-    if (session.retryAttempt < MAX_RETRIES_PER_SOURCE) {
-      session.retryAttempt += 1
-      await new Promise((resolve) => setTimeout(resolve, 450))
-      continue
-    }
-
-    session.retryAttempt = 0
-    index += 1
-  }
-
-  finalizeAttachFailure(session, "Could not start audio on this device.")
-}
-
-async function handlePlaybackLoadError(failedSound: Audio.Sound, session: AttachSession) {
-  if (!attachSessionActive(session) || getSound() !== failedSound) return
-
-  setSound(null)
-  try {
-    failedSound.setOnPlaybackStatusUpdate(null)
-  } catch {
-    /* ignore */
-  }
-  try {
-    await failedSound.unloadAsync()
-  } catch {
-    /* ignore */
-  }
-
-  if (!attachSessionActive(session)) {
-    clearAttachSession()
-    return
-  }
-
-  bag.__psWantPlaying = session.shouldPlay
-  usePlayerStore.setState({
-    isBuffering: true,
-    audioError: null,
-    isPlaying: session.shouldPlay,
-  })
-
-  if (session.retryAttempt < MAX_RETRIES_PER_SOURCE) {
-    session.retryAttempt += 1
-    await new Promise((resolve) => setTimeout(resolve, 450))
-    if (!attachSessionActive(session)) {
-      clearAttachSession()
-      return
-    }
-    const retried = await tryLoadSessionSource(session)
-    if (retried === "success") return
-    if (retried === "cancelled") {
-      clearAttachSession()
-      return
-    }
-  }
-
-  session.retryAttempt = 0
-  session.sourceIndex += 1
-  await continueAttachFrom(session)
-}
-
-async function attachSound(
-  song: MockSong,
-  options: { shouldPlay: boolean; positionMillis?: number; id: number; token: number },
-) {
-  const sources = await resolvePlaybackCandidates(song)
-  if (!sources.length) {
-    clearAttachSession()
-    usePlayerStore.setState({
-      hasAudio: false,
-      isPlaying: false,
-      isBuffering: false,
-      audioError: "No in-app audio stream is available for this song yet.",
-    })
-    return
-  }
-
-  await setPlaybackMode()
-  if (options.id !== bag.__psLoadId || options.token !== bag.__psPlayToken) return
-
-  const session: AttachSession = {
-    song,
-    sources,
-    sourceIndex: 0,
-    retryAttempt: 0,
-    loadId: options.id,
-    token: options.token,
-    shouldPlay: options.shouldPlay,
-    positionMillis: options.positionMillis ?? 0,
-  }
-  bag.__psAttachSession = session
-
-  const primaryUri = sources[0]?.uri
-  // Fast path: promote a preloaded Sound (already buffered) — play starts immediately.
-  const preload = bag.__psPreload
-  if (
-    primaryUri &&
-    preload &&
-    preload.uri === primaryUri &&
-    preload.number === song.number &&
-    session.positionMillis === 0
-  ) {
-    bag.__psPreload = null
-    await destroySound()
-    if (!attachSessionActive(session)) {
-      try {
-        await preload.sound.unloadAsync()
-      } catch {
-        /* ignore */
-      }
-      clearAttachSession()
-      return
-    }
-    try {
-      if (options.shouldPlay) await preload.sound.playAsync()
-      await applyLoadedSound(session, preload.sound, song)
-      return
-    } catch {
-      try {
-        await preload.sound.unloadAsync()
-      } catch {
-        /* fall through to create */
-      }
-      setSound(null)
-    }
-  }
-
-  await destroySound()
-  if (!attachSessionActive(session)) {
-    clearAttachSession()
-    return
-  }
-
-  session.sourceIndex = 0
-  session.retryAttempt = 0
-  await continueAttachFrom(session)
-}
-
-async function openAndPlay(song: MockSong, queue: number[] | undefined, id: number) {
-  bag.__psWantPlaying = true
-  usePreferencesStore.getState().recordRecentPlay(song)
-  usePlayerStore.setState({
-    currentSong: song,
-    queue: queue?.length ? queue : usePlayerStore.getState().queue,
-    isPlaying: true,
-    isBuffering: true,
-    position: 0,
-    duration: song.durationSeconds,
-    hasAudio: Boolean(song.audioUrl),
-    audioError: null,
-  })
-
-  // Play a downloaded file immediately — no network needed.
-  const offline = await resolvePlaybackUri(song.number, song.audioUrl)
-  if (offline?.local) {
-    bag.__psMediaCache.set(song.number, song)
-    await attachSound(song, {
-      shouldPlay: true,
-      positionMillis: 0,
-      id,
-      token: bag.__psPlayToken,
-    })
-    return
-  }
-
-  // Start immediately when Home/today already gave us a stream URL — don't block on fetchSong.
-  if (song.audioUrl?.trim()) {
-    bag.__psMediaCache.set(song.number, song)
-    await attachSound(song, {
-      shouldPlay: true,
-      positionMillis: 0,
-      id,
-      token: bag.__psPlayToken,
-    })
-    return
-  }
-
-  const ready = await hydrate(song)
-  if (id !== bag.__psLoadId) return
-
-  usePlayerStore.setState({
-    currentSong: ready,
-    hasAudio: Boolean(ready.audioUrl),
-    duration: ready.durationSeconds,
-  })
-
-  await attachSound(ready, {
-    shouldPlay: true,
-    positionMillis: 0,
-    id,
-    token: bag.__psPlayToken,
+function publishRadioSession() {
+  const state = usePlayerStore.getState()
+  const session = listeningSessionFromStore(state)
+  const playlistBounds =
+    session.kind === "playlist" || session.kind === "drive-playlist"
+      ? session.bounds
+      : state.playlistBounds
+  setRadioSession({
+    kind: session.kind,
+    currentNumber: state.currentSong?.number ?? null,
+    playlistBounds,
+    driveRepeat: state.driveRepeat,
+    repeat: state.repeat,
   })
 }
 
@@ -743,6 +157,183 @@ function mergeSong(current: MockSong | null, song: MockSong): MockSong {
     audioUrl: song.audioUrl || current.audioUrl || null,
     audioRecordings: song.audioRecordings?.length ? song.audioRecordings : current.audioRecordings,
     mediaHydrated: Boolean(song.audioUrl || current.audioUrl || song.mediaHydrated || current.mediaHydrated),
+  }
+}
+
+async function hydrate(song: MockSong): Promise<MockSong> {
+  const cached = playerExtras.__psMediaCache.get(song.number)
+  const base =
+    song.mediaHydrated && song.audioUrl
+      ? song
+      : cached?.audioUrl
+        ? {
+            ...song,
+            ...cached,
+            audioUrl: cached.audioUrl || song.audioUrl || null,
+            audioRecordings: cached.audioRecordings?.length ? cached.audioRecordings : song.audioRecordings,
+            imageUrl: song.imageUrl || cached.imageUrl,
+            thumbnailUrl: song.thumbnailUrl || cached.thumbnailUrl,
+            mediaHydrated: true,
+          }
+        : null
+  const ready = await hydratePlayableSong(song.number, base ?? song)
+  if (!ready) return { ...song, mediaHydrated: true }
+  cacheSong(ready)
+  return ready
+}
+
+function shouldLoopCurrent() {
+  const state = usePlayerStore.getState()
+  const atBoundedPlaylistEnd =
+    Boolean(state.playlistBounds?.length) &&
+    state.currentSong != null &&
+    playlistStep(state.currentSong.number, state.playlistBounds, 1) == null
+  return (
+    (state.driveAutoAdvance && state.driveRepeat) ||
+    (state.repeat && !atBoundedPlaylistEnd)
+  )
+}
+
+async function startNativeSong(song: MockSong, generation: number) {
+  const ready = await hydrate(song)
+  if (generation !== playerExtras.__psLoadGeneration) return
+  if (!ready.audioUrl?.trim()) {
+    playerExtras.__psWantPlaying = false
+    usePlayerStore.setState({
+      currentSong: ready,
+      hasAudio: false,
+      isPlaying: false,
+      isBuffering: false,
+      audioError: "No in-app audio stream is available for this song yet.",
+    })
+    return
+  }
+  cacheSong(ready)
+  setPlaybackIntent(ready.number)
+  playerExtras.__psWantPlaying = true
+  usePreferencesStore.getState().recordRecentPlay(ready)
+  usePlayerStore.setState({
+    currentSong: ready,
+    isPlaying: true,
+    isBuffering: true,
+    position: 0,
+    duration: ready.durationSeconds,
+    hasAudio: true,
+    audioError: null,
+  })
+  publishRadioSession()
+  await nativeSetRepeatTrack(shouldLoopCurrent())
+  await playTrackNow(songToTrack(ready, ready.audioUrl))
+  if (generation !== playerExtras.__psLoadGeneration) return
+  await ensureUpcomingRadioTrack()
+}
+
+function songFromActiveTrack() {
+  return TrackPlayer.getActiveTrack().then((track) => {
+    const number = trackIdToSongNumber(typeof track?.id === "string" ? track.id : null)
+    if (!number) return null
+    return playerExtras.__psMediaCache.get(number) ?? null
+  })
+}
+
+function listen(event: string, cb: (payload: any) => void) {
+  const sub = TrackPlayer.addEventListener(event, cb)
+  playerExtras.__psRntpUnsubs.push(sub)
+}
+
+function installNativeListeners() {
+  for (const sub of playerExtras.__psRntpUnsubs.splice(0)) {
+    sub.remove()
+  }
+  listen(Event.PlaybackState, (event: { state?: string }) => {
+    const state = event.state
+    if (state === State.Playing) {
+      playerExtras.__psWantPlaying = true
+      usePlayerStore.setState({ isPlaying: true, isBuffering: false, audioError: null })
+      return
+    }
+    if (state === State.Buffering || state === State.Loading) {
+      usePlayerStore.setState({ isBuffering: true, isPlaying: playerExtras.__psWantPlaying })
+      return
+    }
+    if (state === State.Paused || state === State.Stopped) {
+      if (!playerExtras.__psWantPlaying) {
+        usePlayerStore.setState({ isPlaying: false, isBuffering: false })
+      }
+    }
+  })
+  listen(Event.PlaybackProgressUpdated, (event) => {
+    usePlayerStore.setState({
+      position: Math.floor(event.position || 0),
+      duration: Math.max(1, Math.floor(event.duration || usePlayerStore.getState().duration || 1)),
+    })
+  })
+  listen(Event.PlaybackActiveTrackChanged, (event) => {
+    const number = trackIdToSongNumber(typeof event.track?.id === "string" ? event.track.id : null)
+    if (!number) return
+    const cached = getCachedCatalogSong(number) ?? playerExtras.__psMediaCache.get(number)
+    if (cached) {
+      usePlayerStore.setState({ currentSong: cached, hasAudio: true, audioError: null, position: 0 })
+    }
+    publishRadioSession()
+    void nativeSetRepeatTrack(shouldLoopCurrent())
+    void ensureUpcomingRadioTrack()
+    const state = usePlayerStore.getState()
+    const session = listeningSessionFromStore(state)
+    const bounds =
+      state.playlistBounds ??
+      (session.kind === "playlist" || session.kind === "drive-playlist" ? session.bounds : null)
+    if (
+      bounds?.length &&
+      state.currentSong &&
+      playlistStep(state.currentSong.number, bounds, 1) == null
+    ) {
+      void nativeRemoveUpcomingTracks()
+    }
+  })
+  listen(Event.PlaybackQueueEnded, () => {
+    const state = usePlayerStore.getState()
+    const session = listeningSessionFromStore(state)
+    const queue = playbackAdvanceQueue(state.playbackMode, state.playlistBounds, state.queue)
+    const shouldAdvance = sessionShouldAdvanceAfterTrackEnd(
+      session,
+      state.driveAutoAdvance && state.driveRepeat,
+      state.currentSong?.number ?? null,
+      queue,
+    )
+    if (shouldAdvance) {
+      void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
+      return
+    }
+    playerExtras.__psWantPlaying = false
+    void nativeSetRepeatTrack(false)
+    if (session.kind === "playlist" || session.kind === "drive-playlist") {
+      void nativeRemoveUpcomingTracks()
+    }
+    usePlayerStore.setState({ isPlaying: false, isBuffering: false })
+  })
+  listen(Event.PlaybackError, () => {
+    const state = usePlayerStore.getState()
+    if (listeningSessionFromStore(state).kind === "casual") {
+      playerExtras.__psWantPlaying = false
+      usePlayerStore.setState({
+        isPlaying: false,
+        isBuffering: false,
+        audioError: "Audio could not be played.",
+      })
+      return
+    }
+    void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
+  })
+}
+
+function isIosPlatform() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform: { OS: string } }
+    return Platform.OS === "ios"
+  } catch {
+    return false
   }
 }
 
@@ -758,196 +349,261 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   isBuffering: false,
   repeat: readAudioRepeat(),
   playbackMode: "default",
+  playlistBounds: null,
+  activePlaylist: null,
+  driveAutoAdvance: false,
+  driveScreenFocused: false,
+  driveRepeat: false,
+  stopQueueAfterCurrentTrack: false,
+
+  setDriveScreenFocused: (focused) => {
+    set({ driveScreenFocused: focused })
+    publishRadioSession()
+  },
+
+  scheduleDriveBlurExit: () => {
+    set({ driveScreenFocused: false })
+    cancelDriveBlurExitTimer()
+    driveBlurExitTimer = setTimeout(() => {
+      driveBlurExitTimer = null
+      if (!appIsActive()) return
+      if (get().driveScreenFocused) return
+      get().exitDriveMode()
+    }, 1200)
+  },
+
+  cancelDriveBlurExit: () => {
+    cancelDriveBlurExitTimer()
+  },
+
+  noteAppBackgroundPlayback: () => {
+    cancelDriveBlurExitTimer()
+    if (get().driveAutoAdvance && !get().driveScreenFocused) {
+      set({ driveScreenFocused: true })
+    }
+  },
+
+  enterDrivePlayback: () => {
+    set({ driveAutoAdvance: true })
+    publishRadioSession()
+  },
+
+  exitDriveMode: () => {
+    const state = get()
+    const wasDriveSession =
+      state.driveAutoAdvance ||
+      state.playbackMode === "random" ||
+      (state.playbackMode === "playlist" && state.driveScreenFocused)
+    if (!wasDriveSession) return
+    playerExtras.__psLoadGeneration += 1
+    playerExtras.__psWantPlaying = false
+    setPlaybackIntent(null)
+    set({
+      driveAutoAdvance: false,
+      driveRepeat: false,
+      playbackMode: "default",
+      playlistBounds: null,
+      activePlaylist: null,
+      queue: [],
+      currentSong: null,
+      hasAudio: false,
+      stopQueueAfterCurrentTrack: false,
+      isPlaying: false,
+      isBuffering: false,
+      position: 0,
+      duration: 0,
+    })
+    publishRadioSession()
+    void nativeStop()
+  },
+
+  prepareCatalogAudioForDriveEntry: async () => {
+    playerExtras.__psLoadGeneration += 1
+    playerExtras.__psWantPlaying = false
+    await nativeStop()
+  },
+
+  toggleDriveRepeat: () => {
+    set({ driveRepeat: !get().driveRepeat })
+    publishRadioSession()
+    void nativeSetRepeatTrack(shouldLoopCurrent())
+  },
 
   toggleRepeat: () => {
     const next = !get().repeat
     writeAudioRepeat(next)
     set({ repeat: next })
-    applySoundLooping(getSound(), next)
+    publishRadioSession()
+    void nativeSetRepeatTrack(shouldLoopCurrent())
   },
 
-  setQueue: (numbers) => set({ queue: numbers }),
+  setQueue: (numbers) => {
+    const bounds = get().playlistBounds
+    const samePlaylistReorder =
+      bounds?.length &&
+      numbers.length === bounds.length &&
+      numbers.every((n) => bounds.includes(n))
+    set({
+      queue: numbers,
+      playlistBounds: samePlaylistReorder ? numbers : bounds,
+    })
+    publishRadioSession()
+  },
 
   syncCurrentSong: (song, queue) => {
-    const merged = mergeSong(get().currentSong, song)
-    if (queue?.length) set({ queue })
+    const current = get().currentSong
+    const merged = mergeSong(current, song)
+    cacheSong(merged)
+    const holdQueue = get().stopQueueAfterCurrentTrack
     set({
       currentSong: merged,
+      queue: holdQueue ? get().queue : queue?.length ? queue : get().queue,
       hasAudio: Boolean(merged.audioUrl) || get().hasAudio,
       audioError: null,
     })
-    if (merged.audioUrl) bag.__psMediaCache.set(merged.number, merged)
-    const existing = getSound()
-    if (existing) bindStatus(existing)
   },
 
   warmAudio: (song) => {
-    void setPlaybackMode().catch(() => undefined)
+    void setupNativeCatalogPlayer().catch(() => undefined)
     if (!song) return
-    void (async () => {
-      try {
-        const ready =
-          song.mediaHydrated && song.audioUrl?.trim() ? song : await hydrate(song)
-        if (ready.audioUrl?.trim()) bag.__psMediaCache.set(ready.number, ready)
-        // Metadata only. Do not fetch/save the MP3 until the user taps Play or Save.
-      } catch {
-        /* ignore */
-      }
-    })()
+    void hydrate(song).catch(() => undefined)
   },
 
-  loadSong: (song, queue, playbackMode = "default") => {
-    set({ playbackMode })
-    if (isSameAudioTrack(get().currentSong, song)) {
+  loadSong: (song, queue, playbackMode) => {
+    const existing = get()
+    const stopAfterCurrent =
+      existing.stopQueueAfterCurrentTrack
+    const sameCatalogSong = isSameSong(existing.currentSong, song)
+    const keepPlaylist =
+      !playbackMode &&
+      existing.playbackMode === "playlist" &&
+      Boolean(
+        existing.playlistBounds?.includes(song.number) ||
+          (queue?.length && existing.playlistBounds?.some((n) => queue.includes(n))),
+      )
+    const mode = resolvePlaybackMode(queue, playbackMode ?? (keepPlaylist ? "playlist" : undefined))
+    if (mode === "random" && !existing.driveScreenFocused && !existing.driveAutoAdvance) return
+    const bounds = existing.playlistBounds
+    const inBounds = Boolean(bounds?.includes(song.number))
+    let playlistBounds = bounds
+    if (playbackMode === "playlist" && queue?.length) {
+      playlistBounds = queue
+    } else if (playbackMode === "random" || playbackMode === "default") {
+      playlistBounds = null
+    } else if (!isSameAudioTrack(existing.currentSong, song) && !inBounds) {
+      playlistBounds = null
+    }
+    let nextQueue =
+      keepPlaylist && playlistBounds?.length
+        ? playlistBounds
+        : queue?.length
+          ? queue
+          : existing.queue
+    let resolvedMode = mode
+    if (stopAfterCurrent && sameCatalogSong && playbackMode !== "playlist") {
+      resolvedMode = "default"
+      const hold = existing.currentSong?.number ?? song.number
+      nextQueue = [hold]
+      playlistBounds = null
+    }
+    const clearPlaylistMeta =
+      playbackMode === "random" ||
+      playbackMode === "default" ||
+      (!isSameAudioTrack(get().currentSong, song) && !inBounds && playbackMode !== "playlist")
+    set({
+      playbackMode: resolvedMode,
+      queue: nextQueue,
+      playlistBounds,
+      activePlaylist: clearPlaylistMeta ? null : get().activePlaylist,
+    })
+    publishRadioSession()
+    if (isSameAudioTrack(get().currentSong, song) && get().hasAudio) {
       get().syncCurrentSong(song, queue)
       return
     }
-    bag.__psLoadId += 1
-    bag.__psPlayToken += 1
-    const id = bag.__psLoadId
-    void enqueueAudio(async () => {
-      try {
-        await openAndPlay(song, queue, id)
-      } catch {
-        usePlayerStore.setState({
-          isPlaying: false,
-          isBuffering: false,
-          audioError: "Could not start audio.",
-        })
-      }
+    if (!(stopAfterCurrent && sameCatalogSong)) {
+      set({ stopQueueAfterCurrentTrack: false })
+    }
+    playerExtras.__psLoadGeneration += 1
+    const generation = playerExtras.__psLoadGeneration
+    publishRadioSession()
+    void startNativeSong(song, generation).catch(() => {
+      if (generation !== playerExtras.__psLoadGeneration) return
+      usePlayerStore.setState({
+        isPlaying: false,
+        isBuffering: false,
+        audioError: "Could not start audio.",
+      })
     })
   },
 
   playOrToggle: (song, queue) => {
-    if (isSameAudioTrack(get().currentSong, song)) {
-      if (queue?.length) set({ queue })
+    const state = get()
+    if (isSameAudioTrack(state.currentSong, song)) {
+      if (queue?.length && !state.stopQueueAfterCurrentTrack) {
+        set({ queue, playbackMode: resolvePlaybackMode(queue, state.playbackMode) })
+      }
       get().togglePlay()
+      return
+    }
+    if (isSameSong(state.currentSong, song)) {
+      get().loadSong(song, state.stopQueueAfterCurrentTrack ? [song.number] : queue)
       return
     }
     get().loadSong(song, queue)
   },
 
   togglePlay: () => {
-    void (async () => {
-      const sound = getSound()
-      if (sound) {
-        try {
-          const status = await sound.getStatusAsync()
-          if (status.isLoaded && status.isPlaying) {
-            get().pause()
-            return
-          }
-        } catch {
-          /* fall through */
-        }
-      } else if (get().isPlaying) {
-        get().pause()
-        return
-      }
-      get().play()
-    })()
+    if (get().isPlaying || playerExtras.__psWantPlaying) {
+      get().pause()
+      return
+    }
+    get().play()
   },
 
   play: () => {
-    void enqueueAudio(async () => {
-      if (get().isPlaying) {
-        const sound = getSound()
-        if (sound) {
-          try {
-            const status = await sound.getStatusAsync()
-            if (status.isLoaded && status.isPlaying) return
-          } catch {
-            /* continue to play */
-          }
-        }
-      }
-      const token = (bag.__psPlayToken += 1)
-      bag.__psWantPlaying = true
-      set({ isPlaying: true, isBuffering: !getSound(), audioError: null })
-      // After speech recognition, playback mode may have been switched to recording.
-      bag.__psModeReady = false
-      const current = getSound()
-      if (current) {
-        try {
-          await setPlaybackMode()
-          const status = await current.getStatusAsync()
-          if (token !== bag.__psPlayToken) return
-          if (status.isLoaded) {
-            if (atEnd(status)) await current.setPositionAsync(0)
-            await current.playAsync()
-            if (token !== bag.__psPlayToken) {
-              await current.pauseAsync().catch(() => undefined)
-              return
-            }
-            set({ isPlaying: true, isBuffering: false })
-            return
-          }
-        } catch {
-          /* reload below */
-        }
-        await destroySound()
-      }
-      if (token !== bag.__psPlayToken) return
-      const song = get().currentSong
-      if (!song) {
-        bag.__psWantPlaying = false
-        set({ isPlaying: false, isBuffering: false })
-        return
-      }
-      bag.__psLoadId += 1
-      await openAndPlay(song, undefined, bag.__psLoadId)
+    const song = get().currentSong
+    if (!song) return
+    playerExtras.__psWantPlaying = true
+    setPlaybackIntent(song.number)
+    if (!get().hasAudio) {
+      playerExtras.__psLoadGeneration += 1
+      void startNativeSong(song, playerExtras.__psLoadGeneration)
+      return
+    }
+    set({ isPlaying: true, audioError: null })
+    void nativePlay().catch(() => {
+      playerExtras.__psLoadGeneration += 1
+      void startNativeSong(song, playerExtras.__psLoadGeneration)
+    })
+  },
+
+  reassertBackgroundPlayback: () => {
+    /* Native queue owns lock-screen audio — do not reset the session. */
+  },
+
+  reconcileForegroundCatalogPlayback: () => {
+    void songFromActiveTrack().then((song) => {
+      if (song) usePlayerStore.setState({ currentSong: song, hasAudio: true })
     })
   },
 
   pause: () => {
-    bag.__psPlayToken += 1
-    bag.__psWantPlaying = false
+    playerExtras.__psWantPlaying = false
+    setPlaybackIntent(null)
     set({ isPlaying: false, isBuffering: false })
-    void enqueueAudio(async () => {
-      const current = getSound()
-      if (current) {
-        try {
-          await current.pauseAsync()
-        } catch {
-          try {
-            await current.setStatusAsync({ shouldPlay: false })
-          } catch {
-            /* ignore */
-          }
-        }
-        return
-      }
-      // No JS handle — kill orphan native streams only in that case.
-      await silenceAllAudio()
-    })
+    void nativePause()
   },
 
   prepareForSpeechCapture: async () => {
-    bag.__psPlayToken += 1
-    bag.__psWantPlaying = false
+    playerExtras.__psWantPlaying = false
     set({ isPlaying: false, isBuffering: false })
-    await enqueueAudio(async () => {
-      const current = getSound()
-      if (current) {
-        try {
-          await current.pauseAsync()
-        } catch {
-          try {
-            await current.setStatusAsync({ shouldPlay: false })
-          } catch {
-            /* ignore */
-          }
-        }
-        return
-      }
-      await silenceAllAudio()
-    })
+    await nativePause()
     if (!isIosPlatform()) {
       await new Promise((resolve) => setTimeout(resolve, 400))
       return
     }
     try {
-      bag.__psModeReady = false
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         allowsRecordingIOS: true,
@@ -962,10 +618,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   seekTo: (position) => {
     set({ position })
-    const current = getSound()
-    if (current) {
-      void current.setPositionAsync(Math.max(0, position) * 1000).catch(() => undefined)
-    }
+    void nativeSeek(position)
   },
 
   seekBy: (deltaSeconds) => {
@@ -977,10 +630,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setVolume: (volume) => {
     const clamped = Math.min(1, Math.max(0, volume))
     set({ volume: clamped })
-    const current = getSound()
-    if (current) {
-      void current.setVolumeAsync(clamped).catch(() => undefined)
-    }
+    void nativeSetVolume(clamped)
   },
 
   adjustVolume: (delta) => {
@@ -990,76 +640,77 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   next: () => {
     const current = get().currentSong
     if (!current) return
+    if (get().stopQueueAfterCurrentTrack) return
     const mode = get().playbackMode
-    const queue = get().queue
-    let nextNumber: number | null
-    if (mode === "random") {
-      nextNumber = randomSongNumber(current.number)
-    } else if (mode === "playlist") {
-      nextNumber = playlistStep(current.number, queue, 1)
-      if (nextNumber == null) {
-        bag.__psWantPlaying = false
-        set({ isPlaying: false, isBuffering: false })
+    if (mode === "default" && !get().driveAutoAdvance) {
+      const q = get().queue
+      if (q.length <= 1 && q[0] === current.number) return
+    }
+    const queue = playbackAdvanceQueue(mode, get().playlistBounds, get().queue)
+    const nextNumber = nextQueueNumber(mode, current.number, queue)
+    if (nextNumber == null) {
+      playerExtras.__psWantPlaying = false
+      set({ isPlaying: false, isBuffering: false })
+      return
+    }
+    playerExtras.__psWantPlaying = true
+    void (async () => {
+      if (mode === "playlist") {
+        const remaining = await nativeQueueLengthPastIndex()
+        if (remaining >= 1) {
+          try {
+            await nativeSkipToNext()
+            return
+          } catch {
+            /* load target below */
+          }
+        }
+        const song = await hydratePlayableSong(nextNumber)
+        if (song) await startNativeSong(song, (playerExtras.__psLoadGeneration += 1))
         return
       }
-    } else {
-      const idx = queue.indexOf(current.number)
-      nextNumber = idx >= 0 && idx < queue.length - 1 ? queue[idx + 1] : current.number + 1
-    }
-    if (nextNumber == null) return
-    bag.__psLoadId += 1
-    const id = bag.__psLoadId
-    bag.__psPlayToken += 1
-    void enqueueAudio(async () => {
-      const detail = await api.fetchSong(nextNumber)
-      if (!detail || id !== bag.__psLoadId) return
-      await openAndPlay(songDetailToMockSong(detail), undefined, id)
-    })
+      await ensureUpcomingRadioTrack()
+      try {
+        await nativeSkipToNext()
+      } catch {
+        const song = await hydratePlayableSong(nextNumber)
+        if (song) await startNativeSong(song, (playerExtras.__psLoadGeneration += 1))
+      }
+    })()
   },
 
   previous: () => {
     const current = get().currentSong
     if (!current) return
     const mode = get().playbackMode
-    const queue = get().queue
+    const queue = playbackAdvanceQueue(mode, get().playlistBounds, get().queue)
     if (mode === "random") {
       get().seekTo(0)
       if (!get().isPlaying) get().play()
       return
     }
-    let prevNumber: number
     if (mode === "playlist") {
-      const stepped = playlistStep(current.number, queue, -1)
+      const stepped = previousQueueNumber(mode, current.number, queue)
       if (stepped == null) {
         get().seekTo(0)
         if (!get().isPlaying) get().play()
         return
       }
-      prevNumber = stepped
-    } else {
-      const idx = queue.indexOf(current.number)
-      prevNumber = idx > 0 ? queue[idx - 1] : Math.max(1, current.number - 1)
+      playerExtras.__psWantPlaying = true
+      void (async () => {
+        const song = await hydratePlayableSong(stepped)
+        if (song) await startNativeSong(song, (playerExtras.__psLoadGeneration += 1))
+      })()
+      return
     }
-    bag.__psLoadId += 1
-    const id = bag.__psLoadId
-    bag.__psPlayToken += 1
-    void enqueueAudio(async () => {
-      const detail = await api.fetchSong(prevNumber)
-      if (!detail || id !== bag.__psLoadId) return
-      await openAndPlay(songDetailToMockSong(detail), undefined, id)
-    })
+    void nativeSkipToPrevious().catch(() => get().seekTo(0))
   },
 
   clear: () => {
-    bag.__psPlayToken += 1
-    bag.__psLoadId += 1
-    bag.__psWantPlaying = false
-    clearAttachSession()
-    void enqueueAudio(async () => {
-      await discardPreload()
-      await destroySound()
-      await silenceAllAudio()
-    })
+    playerExtras.__psLoadGeneration += 1
+    playerExtras.__psWantPlaying = false
+    setPlaybackIntent(null)
+    void nativeStop()
     set({
       currentSong: null,
       isPlaying: false,
@@ -1068,6 +719,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       hasAudio: false,
       audioError: null,
       isBuffering: false,
+      playlistBounds: null,
+      activePlaylist: null,
+      driveAutoAdvance: false,
+      driveRepeat: false,
     })
+    publishRadioSession()
   },
 }))
+
+function installPlayerAudioFocusBridge(): void {
+  setSongPlayingGuard(() => playerExtras.__psWantPlaying || usePlayerStore.getState().isPlaying)
+  setSongPlaybackYield(async () => {
+    playerExtras.__psWantPlaying = false
+    setPlaybackIntent(null)
+    usePlayerStore.setState({ isPlaying: false, isBuffering: false })
+    await nativePause()
+  })
+}
+
+installNativeListeners()
+installPlayerAudioFocusBridge()
+playerExtras.__psRadioUnsub?.()
+playerExtras.__psRadioUnsub = usePlayerStore.subscribe(() => {
+  publishRadioSession()
+})

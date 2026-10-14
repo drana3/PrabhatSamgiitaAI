@@ -28,7 +28,11 @@ export function isSameAudioTrack(
   song: Pick<MockSong, "id" | "number" | "audioUrl">,
 ): boolean {
   if (!isSameSong(current, song)) return false
-  return (current?.audioUrl || "") === (song.audioUrl || "")
+  const currentUrl = (current?.audioUrl ?? "").trim()
+  const nextUrl = (song.audioUrl ?? "").trim()
+  if (!currentUrl && !nextUrl) return false
+  if (!currentUrl || !nextUrl) return true
+  return currentUrl === nextUrl
 }
 
 /** Single playback status used by mini player, song page, home, lists, etc. */

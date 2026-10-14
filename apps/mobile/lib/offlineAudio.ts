@@ -470,6 +470,16 @@ useAuthStore.subscribe((state, previous) => {
   void hydrateOfflineAudio()
 })
 
+async function offlineFileForSong(songNumber: number) {
+  const files = useOfflineAudioStore.getState().files
+  for (const entry of Object.values(files)) {
+    if (entry.songNumber === songNumber && (await fileExists(entry.fileUri))) {
+      return entry.fileUri
+    }
+  }
+  return null
+}
+
 export async function resolvePlaybackUri(
   songNumber: number,
   remoteUrl?: string | null,
@@ -477,13 +487,31 @@ export async function resolvePlaybackUri(
   const signedIn = useAuthStore.getState().mode === "signed_in"
   const remote = canonicalAudioUrl(remoteUrl)
   const legacyKey = normalizeUrl(remoteUrl)
-  if (signedIn && (remote || legacyKey)) {
+  if (signedIn) {
     const files = useOfflineAudioStore.getState().files
     const entry = (remote && files[remote]) || (legacyKey && files[legacyKey])
     if (entry && (await fileExists(entry.fileUri))) {
       return { uri: entry.fileUri, local: true }
     }
+    const offlineEntries = Object.values(files).filter((file) => file.songNumber === songNumber)
+    const askedAnotherRecording =
+      Boolean(remote) &&
+      offlineEntries.length > 0 &&
+      !offlineEntries.some(
+        (file) =>
+          file.remoteUrl === remote ||
+          canonicalAudioUrl(file.remoteUrl) === remote ||
+          file.remoteUrl === legacyKey,
+      )
+    if (!askedAnotherRecording) {
+      const byNumber = await offlineFileForSong(songNumber)
+      if (byNumber) return { uri: byNumber, local: true }
+    }
   }
   if (remote) return { uri: remote, local: false }
+  if (signedIn) {
+    const byNumber = await offlineFileForSong(songNumber)
+    if (byNumber) return { uri: byNumber, local: true }
+  }
   return null
 }

@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import { IconButton } from "@/components/common/IconButton"
 import { SongListenControls } from "@/components/player/SongListenControls"
+import { PlaylistPlaybackBar } from "@/components/playlists/PlaylistPlaybackBar"
 import { WatchVideoCard } from "@/components/player/WatchVideoCard"
 import { LyricsMeaningView } from "@/components/songs/LyricsMeaningView"
 import { NotationPractice } from "@/components/songs/NotationPractice"
@@ -29,6 +30,7 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { isSameSong, songPlayback } from "@/lib/playback"
+import { listenQueueForSong } from "@/lib/playbackQueue"
 import { resolveSongBundle, peekResolvedSong } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
@@ -59,6 +61,11 @@ export default function SongDetailScreen() {
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
   const pause = usePlayerStore((s) => s.pause)
   const setQueue = usePlayerStore((s) => s.setQueue)
+  const playbackMode = usePlayerStore((s) => s.playbackMode)
+  const activeQueue = usePlayerStore((s) => s.queue)
+  const playlistBounds = usePlayerStore((s) => s.playlistBounds)
+  const storeCurrentNumber = usePlayerStore((s) => s.currentSong?.number ?? null)
+  const playlistFollowRef = useRef(false)
   const showPause = usePlayerStore((s) =>
     song ? songPlayback(s, song).showPause : false,
   )
@@ -207,7 +214,14 @@ export default function SongDetailScreen() {
 
   useEffect(() => {
     if (!song) return
-    const queue = [song.number, ...related.map((item) => item.number)]
+    const player = usePlayerStore.getState()
+    const queue = listenQueueForSong(
+      song.number,
+      related.map((item) => item.number),
+      player.playbackMode,
+      player.queue,
+      player.playlistBounds,
+    )
     // Watch / Notation / Lyrics open should show that tab — not force Listen + audio.
     if (requestedTab && requestedTab !== "listen") {
       setJourney(requestedTab)
@@ -236,6 +250,56 @@ export default function SongDetailScreen() {
     }
     loadSong(song, queue)
   }, [song?.id, song, related, loadSong, syncCurrentSong, setQueue, requestedTab])
+
+  useEffect(() => {
+    if (!song) return
+    if (playbackMode === "playlist" && isCurrent) playlistFollowRef.current = true
+    else if (playbackMode !== "playlist" || !playlistBounds?.includes(song.number)) {
+      playlistFollowRef.current = false
+    }
+  }, [song, isCurrent, playbackMode, playlistBounds])
+
+  useEffect(() => {
+    if (!playlistFollowRef.current) return
+    if (playbackMode !== "playlist" || !playlistBounds?.length || storeCurrentNumber == null) return
+    if (!playlistBounds.includes(storeCurrentNumber)) return
+    if (song?.number === storeCurrentNumber) return
+
+    let active = true
+    const targetId = `ps-${storeCurrentNumber}`
+    void resolveSongBundle(targetId).then((bundle) => {
+      if (!active || !bundle) return
+      autoPlayedFor.current = bundle.song.id
+      setSong(bundle.song)
+      setRelated(bundle.related)
+      setHasNotation(isSargamEnabledForSong(bundle.song.number))
+      syncCurrentSong(
+        bundle.song,
+        listenQueueForSong(
+          bundle.song.number,
+          bundle.related.map((item) => item.number),
+          playbackMode,
+          activeQueue,
+          playlistBounds,
+        ),
+      )
+      if (routeString(songId) !== bundle.song.id) {
+        router.replace(href(`/song/${bundle.song.id}`))
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [
+    storeCurrentNumber,
+    playbackMode,
+    playlistBounds,
+    song?.number,
+    songId,
+    syncCurrentSong,
+    activeQueue,
+    router,
+  ])
 
   useEffect(() => {
     if (!song) return
@@ -321,7 +385,13 @@ export default function SongDetailScreen() {
   }
 
   const isSaved = authMode === "signed_in" && savedSongIds.includes(song.id)
-  const playQueue = [song.number, ...related.map((item) => item.number)]
+  const playQueue = listenQueueForSong(
+    song.number,
+    related.map((item) => item.number),
+    playbackMode,
+    activeQueue,
+    playlistBounds,
+  )
 
   const handlePlayToggle = () => {
     const now = Date.now()
@@ -355,11 +425,10 @@ export default function SongDetailScreen() {
 
   const shareSong = async () => {
     try {
-      const recording = song.audioRecordings?.find((item) => item.title?.trim())
       await shareSongSheet({
         number: song.number,
         title: song.title,
-        performer: recording?.title,
+        performer: song.performer,
         detail: song.originalTitle || song.themes?.[0],
       })
     } catch {
@@ -548,6 +617,7 @@ export default function SongDetailScreen() {
         >
           <Text style={styles.sectionEyebrow}>Experience · Listen</Text>
           <Text style={styles.sectionLead}>Listen to this song.</Text>
+          <PlaylistPlaybackBar songNumber={song.number} />
           <SongListenControls
             songId={song.id}
             songNumber={song.number}

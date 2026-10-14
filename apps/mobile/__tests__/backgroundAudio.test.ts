@@ -12,6 +12,15 @@ describe("background audio config", () => {
     expect(modes).toContain("audio")
   })
 
+  it("checked-in iOS Info.plist includes audio background mode", () => {
+    const plist = readFileSync(
+      path.join(__dirname, "../ios/PrabhatSamgiitaAI/Info.plist"),
+      "utf8",
+    )
+    expect(plist).toContain("UIBackgroundModes")
+    expect(plist).toContain("<string>audio</string>")
+  })
+
   it("app.config keeps audio background mode", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const expoConfig = require("../app.config.js") as (ctx: {

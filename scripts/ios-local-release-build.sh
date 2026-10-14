@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # Local iOS App Store build for Prabhat Samgiita AI.
-# Fixes common macOS Tahoe / WWDR certificate issues before running EAS.
+# Fixes common macOS Tahoe / WWDR certificate issues before running EAS --local.
+#
+# Usage:
+#   ./scripts/ios-local-release-build.sh
+#   ./scripts/ios-local-release-build.sh --non-interactive
+#
+# Output: apps/mobile/build-<timestamp>.ipa (same pattern as Android local .aab)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MOBILE="$ROOT/apps/mobile"
+OUT_FILE="$MOBILE/build-$(date +%s)000.ipa"
 
 echo "==> Checking fastlane..."
 command -v fastlane >/dev/null || { echo "Install fastlane: brew install fastlane"; exit 1; }
@@ -28,8 +35,6 @@ else
 fi
 
 echo "==> Patching EAS build-tools for macOS Tahoe keychain validation..."
-# eas-cli-local-build-plugin downloads @expo/build-tools into npx cache on each run.
-# Pre-fetch so we can patch find-identity -v (false negative on macOS 26+).
 npx -y eas-cli-local-build-plugin@22.0.0 --help >/dev/null 2>&1 || true
 while IFS= read -r keychain_js; do
   if grep -q "find-identity', '-v'" "$keychain_js" 2>/dev/null; then
@@ -52,7 +57,28 @@ if [[ -z "${EXPO_PUBLIC_MEMBER_PROXY_KEY:-}" ]]; then
 fi
 echo "    Member proxy key is set (${#EXPO_PUBLIC_MEMBER_PROXY_KEY} chars)."
 
+echo "==> Syncing ios/ MARKETING_VERSION from app.json..."
+bash "$ROOT/scripts/sync-ios-version-from-app-json.sh"
+
+APP_VERSION="$(python3 -c "import json; print(json.load(open('$MOBILE/app.json'))['expo']['version'])")"
+BUILD_NUMBER="$(python3 -c "import json; print(json.load(open('$MOBILE/app.json'))['expo']['ios']['buildNumber'])")"
+
 echo "==> Starting local iOS production build..."
+echo "    version $APP_VERSION · iOS build $BUILD_NUMBER"
+echo "    Output: $OUT_FILE"
 cd "$MOBILE"
 export EAS_BUILD_NO_EXPO_GO_WARNING=true
-npx eas-cli@22.0.0 build --platform ios --profile production --local --wait "$@"
+
+npx eas-cli@22.0.0 build \
+  --platform ios \
+  --profile production \
+  --local \
+  --non-interactive \
+  --output "$OUT_FILE" \
+  --wait \
+  "$@"
+
+echo
+echo "✅ iOS artifact ready: $OUT_FILE"
+echo "   bundle net.prabhatasamgiita.ai · version $APP_VERSION · build $BUILD_NUMBER"
+echo "   Upload via Transporter or: npx eas-cli submit --platform ios --path \"$OUT_FILE\""

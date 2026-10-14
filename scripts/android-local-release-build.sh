@@ -111,6 +111,9 @@ echo "    Member proxy key is set (${#EXPO_PUBLIC_MEMBER_PROXY_KEY} chars)."
 VERSION_CODE="$(python3 -c "import json; print(json.load(open('$MOBILE/app.json'))['expo']['android']['versionCode'])")"
 APP_VERSION="$(python3 -c "import json; print(json.load(open('$MOBILE/app.json'))['expo']['version'])")"
 
+echo "==> Syncing native android/ from app.json..."
+bash "$ROOT/scripts/sync-android-version-from-app-json.sh"
+
 echo "==> Starting local Android build..."
 echo "    Profile: $PROFILE"
 echo "    version $APP_VERSION · versionCode $VERSION_CODE"

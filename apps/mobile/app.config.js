@@ -37,6 +37,10 @@ module.exports = ({ config }) => {
     ios: {
       ...config.ios,
       buildNumber: config.ios?.buildNumber ?? "1",
+      associatedDomains: [
+        ...(config.ios?.associatedDomains ?? []),
+        "applinks:www.prabhatasamgiita.org",
+      ].filter((domain, index, all) => all.indexOf(domain) === index),
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
@@ -44,6 +48,7 @@ module.exports = ({ config }) => {
         NSPhotoLibraryAddUsageDescription:
           "Prabhat Samgiita AI does not save images to your photo library. This notice is required by an included sign-in component.",
         ...(config.ios?.infoPlist ?? {}),
+        UIBackgroundModes: ["audio"],
         CFBundleURLTypes: mergeUrlSchemes(config.ios?.infoPlist?.CFBundleURLTypes, [
           "prabhatai",
           APP_PACKAGE,
@@ -72,6 +77,15 @@ module.exports = ({ config }) => {
               },
             ]
           : []),
+        {
+          action: "VIEW",
+          autoVerify: true,
+          category: ["BROWSABLE", "DEFAULT"],
+          data: [
+            { scheme: "https", host: "www.prabhatasamgiita.org", pathPrefix: "/songs" },
+            { scheme: "https", host: "prabhatasamgiita.org", pathPrefix: "/songs" },
+          ],
+        },
       ],
     },
     extra: {

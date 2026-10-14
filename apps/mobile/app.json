@@ -3,7 +3,7 @@
     "name": "Prabhat Samgiita AI",
     "owner": "dewasheesh3s-team",
     "slug": "prabhatsamgiitaai",
-    "version": "2.0.1",
+    "version": "2.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "prabhatai",
@@ -17,7 +17,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "70",
+      "buildNumber": "113",
+      "associatedDomains": [
+        "applinks:www.prabhatasamgiita.org"
+      ],
       "icon": "./assets/icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -31,7 +34,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 65,
+      "versionCode": 84,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
@@ -69,7 +72,7 @@
     },
     "extra": {
       "apiBaseUrl": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
-      "webBaseUrl": "https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
+      "webBaseUrl": "https://www.prabhatasamgiita.org",
       "azureClientId": "14af4263-42b8-41fb-aac8-e730051a6864",
       "azureTenantId": "22cd8762-00e6-4945-850c-7b6ab1798844",
       "googleClientId": "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
