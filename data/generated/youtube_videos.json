@@ -12432,6 +12432,27 @@
     }
   },
   {
+    "song_number": 3241,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ami Tomay Ceyechi - Prabhat Sangeet song #3241 - Singer - Dipanwita Debnath",
+    "url": "https://www.youtube.com/watch?v=bPNL1GBIM1U",
+    "embed_url": "https://www.youtube-nocookie.com/embed/bPNL1GBIM1U",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "bPNL1GBIM1U",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3246,
     "kind": "video",
     "provider": "youtube",
