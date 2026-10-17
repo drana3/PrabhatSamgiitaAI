@@ -1,5 +1,3 @@
-import TrackPlayer from "react-native-track-player"
-
 import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
@@ -14,7 +12,9 @@ import {
   songToTrack,
   trackIdToSongNumber,
 } from "@/lib/playback/nativeCatalogPlayer"
+import { getActiveCatalogTrackNumber } from "@/lib/playback/nativeCatalogPlayer"
 import { getRadioSession } from "@/lib/playback/radioSession"
+import { getTrackPlayer, isTrackPlayerLinked } from "@/lib/playback/trackPlayerBridge"
 
 let advancing = false
 
@@ -37,6 +37,7 @@ export async function hydratePlayableSong(number: number, seed?: MockSong | null
 
 /** Keep one upcoming native track so overnight radio never hits a silent JS gap. */
 export async function ensureUpcomingRadioTrack(): Promise<void> {
+  if (!isTrackPlayerLinked()) return
   if (advancing) return
   const session = getRadioSession()
   if (session.kind === "casual") return
@@ -45,8 +46,11 @@ export async function ensureUpcomingRadioTrack(): Promise<void> {
   const remaining = await nativeQueueLengthPastIndex()
   if (remaining >= 1) return
 
-  const active = await TrackPlayer.getActiveTrack()
-  const current = session.currentNumber ?? trackIdToSongNumber(typeof active?.id === "string" ? active.id : null)
+  const active = isTrackPlayerLinked() ? await getTrackPlayer().getActiveTrack() : null
+  const current =
+    session.currentNumber ??
+    getActiveCatalogTrackNumber() ??
+    trackIdToSongNumber(typeof active?.id === "string" ? active.id : null)
   if (!current) return
 
   advancing = true

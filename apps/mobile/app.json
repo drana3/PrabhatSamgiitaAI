@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "113",
+      "buildNumber": "116",
       "associatedDomains": [
         "applinks:www.prabhatasamgiita.org"
       ],
@@ -34,7 +34,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 84,
+      "versionCode": 89,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
@@ -44,6 +44,18 @@
       ]
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "newArchEnabled": true
+          },
+          "android": {
+            "newArchEnabled": true,
+            "extraProguardRules": "-keep class com.doublesymmetry.trackplayer.** { *; }\n-keep class com.doublesymmetry.kotlinaudio.** { *; }\n-keep class androidx.media3.** { *; }\n"
+          }
+        }
+      ],
       "expo-router",
       "expo-font",
       "expo-file-system",

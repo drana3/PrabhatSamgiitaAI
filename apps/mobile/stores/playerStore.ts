@@ -1,5 +1,5 @@
 import { Audio } from "expo-av"
-import TrackPlayer, { Event, State } from "react-native-track-player"
+import type { Event as RntpEvent } from "react-native-track-player"
 import { create } from "zustand"
 
 import type { MockSong } from "@/data/mock"
@@ -27,23 +27,31 @@ import {
 } from "@/lib/audioFocus"
 import { nextPlayableInQueue } from "@/lib/playableAudio"
 import type { ActivePlaylistMeta } from "@/lib/playlistPlayback"
+import { setCatalogPlaybackHost } from "@/lib/playback/catalogPlaybackHost"
 import {
+  getActiveCatalogTrackNumber,
   nativePause,
   nativePlay,
-  nativeQueueLengthPastIndex,
   nativeRemoveUpcomingTracks,
   nativeSeek,
   nativeSetRepeatTrack,
   nativeSetVolume,
   nativeSkipToNext,
+  nativeSkipToPrevious,
   nativeStop,
   playTrackNow,
+  registerNativePlayerListeners,
   setupNativeCatalogPlayer,
   songToTrack,
   trackIdToSongNumber,
 } from "@/lib/playback/nativeCatalogPlayer"
 import { cacheCatalogSong, getCachedCatalogSong } from "@/lib/playback/catalogSongCache"
 import { ensureUpcomingRadioTrack, hydratePlayableSong } from "@/lib/playback/radioAdvance"
+import {
+  getTrackPlayer,
+  isTrackPlayerLinked,
+  loadTrackPlayerModule,
+} from "@/lib/playback/trackPlayerBridge"
 import { setRadioSession } from "@/lib/playback/radioSession"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -184,13 +192,21 @@ async function hydrate(song: MockSong): Promise<MockSong> {
 
 function shouldLoopCurrent() {
   const state = usePlayerStore.getState()
-  const atBoundedPlaylistEnd =
-    Boolean(state.playlistBounds?.length) &&
-    state.currentSong != null &&
-    playlistStep(state.currentSong.number, state.playlistBounds, 1) == null
+  return (state.driveAutoAdvance && state.driveRepeat) || state.repeat
+}
+
+function loopCurrentTrackForSession(
+  session: ReturnType<typeof listeningSessionFromStore>,
+  driveRepeat: boolean,
+  repeat: boolean,
+): boolean {
+  if (driveRepeat) return true
+  if (!repeat) return false
   return (
-    (state.driveAutoAdvance && state.driveRepeat) ||
-    (state.repeat && !atBoundedPlaylistEnd)
+    session.kind === "playlist" ||
+    session.kind === "drive-playlist" ||
+    session.kind === "drive-random" ||
+    session.kind === "casual"
   )
 }
 
@@ -229,19 +245,96 @@ async function startNativeSong(song: MockSong, generation: number) {
 }
 
 function songFromActiveTrack() {
-  return TrackPlayer.getActiveTrack().then((track) => {
+  if (!isTrackPlayerLinked()) {
+    const number = getActiveCatalogTrackNumber()
+    if (!number) return Promise.resolve(null)
+    return Promise.resolve(
+      getCachedCatalogSong(number) ?? playerExtras.__psMediaCache.get(number) ?? null,
+    )
+  }
+  return getTrackPlayer().getActiveTrack().then((track) => {
     const number = trackIdToSongNumber(typeof track?.id === "string" ? track.id : null)
     if (!number) return null
     return playerExtras.__psMediaCache.get(number) ?? null
   })
 }
 
-function listen(event: string, cb: (payload: any) => void) {
-  const sub = TrackPlayer.addEventListener(event, cb)
+async function advanceCatalogAfterTrackEnd(): Promise<void> {
+  const state = usePlayerStore.getState()
+  const current = state.currentSong
+  if (!current) return
+  const mode = state.playbackMode
+  const queue = playbackAdvanceQueue(mode, state.playlistBounds, state.queue)
+  const nextNumber = nextQueueNumber(mode, current.number, queue)
+  if (nextNumber == null) return
+  playerExtras.__psWantPlaying = true
+  playerExtras.__psLoadGeneration += 1
+  const generation = playerExtras.__psLoadGeneration
+  const song = await hydratePlayableSong(nextNumber)
+  if (song) await startNativeSong(song, generation)
+}
+
+function handleCatalogQueueEnded(): void {
+  const state = usePlayerStore.getState()
+  const session = listeningSessionFromStore(state)
+  const queue = playbackAdvanceQueue(state.playbackMode, state.playlistBounds, state.queue)
+  const shouldAdvance = sessionShouldAdvanceAfterTrackEnd(
+    session,
+    loopCurrentTrackForSession(
+      session,
+      state.driveAutoAdvance && state.driveRepeat,
+      state.repeat,
+    ),
+    state.currentSong?.number ?? null,
+    queue,
+  )
+  if (shouldAdvance) {
+    if (isTrackPlayerLinked()) {
+      void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
+    } else {
+      void advanceCatalogAfterTrackEnd()
+    }
+    return
+  }
+  playerExtras.__psWantPlaying = false
+  void nativeSetRepeatTrack(false)
+  if (session.kind === "playlist" || session.kind === "drive-playlist") {
+    void nativeRemoveUpcomingTracks()
+  }
+  usePlayerStore.setState({ isPlaying: false, isBuffering: false })
+}
+
+function handleCatalogPlaybackError(): void {
+  const state = usePlayerStore.getState()
+  if (listeningSessionFromStore(state).kind === "casual") {
+    playerExtras.__psWantPlaying = false
+    usePlayerStore.setState({
+      isPlaying: false,
+      isBuffering: false,
+      audioError: "Audio could not be played.",
+    })
+    return
+  }
+  if (isTrackPlayerLinked()) {
+    void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
+  } else {
+    void advanceCatalogAfterTrackEnd()
+  }
+}
+
+function listen(event: RntpEvent, cb: (payload: any) => void) {
+  const sub = getTrackPlayer().addEventListener(event, cb)
   playerExtras.__psRntpUnsubs.push(sub)
 }
 
 function installNativeListeners() {
+  setCatalogPlaybackHost({
+    onQueueEnded: handleCatalogQueueEnded,
+    onPlaybackError: handleCatalogPlaybackError,
+  })
+  if (!isTrackPlayerLinked()) return
+
+  const { Event, State } = loadTrackPlayerModule()
   for (const sub of playerExtras.__psRntpUnsubs.splice(0)) {
     sub.remove()
   }
@@ -292,38 +385,10 @@ function installNativeListeners() {
     }
   })
   listen(Event.PlaybackQueueEnded, () => {
-    const state = usePlayerStore.getState()
-    const session = listeningSessionFromStore(state)
-    const queue = playbackAdvanceQueue(state.playbackMode, state.playlistBounds, state.queue)
-    const shouldAdvance = sessionShouldAdvanceAfterTrackEnd(
-      session,
-      state.driveAutoAdvance && state.driveRepeat,
-      state.currentSong?.number ?? null,
-      queue,
-    )
-    if (shouldAdvance) {
-      void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
-      return
-    }
-    playerExtras.__psWantPlaying = false
-    void nativeSetRepeatTrack(false)
-    if (session.kind === "playlist" || session.kind === "drive-playlist") {
-      void nativeRemoveUpcomingTracks()
-    }
-    usePlayerStore.setState({ isPlaying: false, isBuffering: false })
+    handleCatalogQueueEnded()
   })
   listen(Event.PlaybackError, () => {
-    const state = usePlayerStore.getState()
-    if (listeningSessionFromStore(state).kind === "casual") {
-      playerExtras.__psWantPlaying = false
-      usePlayerStore.setState({
-        isPlaying: false,
-        isBuffering: false,
-        audioError: "Audio could not be played.",
-      })
-      return
-    }
-    void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
+    handleCatalogPlaybackError()
   })
 }
 
@@ -474,12 +539,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const stopAfterCurrent =
       existing.stopQueueAfterCurrentTrack
     const sameCatalogSong = isSameSong(existing.currentSong, song)
+    const wasSavedPlaylist =
+      existing.playbackMode === "playlist" && !existing.driveAutoAdvance
     const keepPlaylist =
       !playbackMode &&
-      existing.playbackMode === "playlist" &&
+      wasSavedPlaylist &&
       Boolean(
-        existing.playlistBounds?.includes(song.number) ||
-          (queue?.length && existing.playlistBounds?.some((n) => queue.includes(n))),
+        existing.playlistBounds?.length &&
+          queue?.length === existing.playlistBounds.length &&
+          queue.every((n, i) => n === existing.playlistBounds![i]),
       )
     const mode = resolvePlaybackMode(queue, playbackMode ?? (keepPlaylist ? "playlist" : undefined))
     if (mode === "random" && !existing.driveScreenFocused && !existing.driveAutoAdvance) return
@@ -510,6 +578,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       playbackMode === "random" ||
       playbackMode === "default" ||
       (!isSameAudioTrack(get().currentSong, song) && !inBounds && playbackMode !== "playlist")
+    const leavingSavedPlaylist = wasSavedPlaylist && resolvedMode !== "playlist"
     set({
       playbackMode: resolvedMode,
       queue: nextQueue,
@@ -517,7 +586,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       activePlaylist: clearPlaylistMeta ? null : get().activePlaylist,
     })
     publishRadioSession()
-    if (isSameAudioTrack(get().currentSong, song) && get().hasAudio) {
+    if (leavingSavedPlaylist) {
+      playerExtras.__psLoadGeneration += 1
+      playerExtras.__psWantPlaying = false
+      setPlaybackIntent(null)
+      void nativeStop()
+      set({
+        currentSong: null,
+        hasAudio: false,
+        isPlaying: false,
+        isBuffering: false,
+        position: 0,
+        duration: 0,
+      })
+      publishRadioSession()
+    }
+    if (
+      isSameAudioTrack(get().currentSong, song) &&
+      get().hasAudio &&
+      !leavingSavedPlaylist
+    ) {
       get().syncCurrentSong(song, queue)
       return
     }
@@ -649,26 +737,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const queue = playbackAdvanceQueue(mode, get().playlistBounds, get().queue)
     const nextNumber = nextQueueNumber(mode, current.number, queue)
     if (nextNumber == null) {
+      if (mode === "playlist") return
       playerExtras.__psWantPlaying = false
       set({ isPlaying: false, isBuffering: false })
       return
     }
     playerExtras.__psWantPlaying = true
-    void (async () => {
-      if (mode === "playlist") {
-        const remaining = await nativeQueueLengthPastIndex()
-        if (remaining >= 1) {
-          try {
-            await nativeSkipToNext()
-            return
-          } catch {
-            /* load target below */
-          }
-        }
+    if (mode === "playlist") {
+      playerExtras.__psLoadGeneration += 1
+      const generation = playerExtras.__psLoadGeneration
+      set({ isBuffering: true })
+      void (async () => {
         const song = await hydratePlayableSong(nextNumber)
-        if (song) await startNativeSong(song, (playerExtras.__psLoadGeneration += 1))
-        return
-      }
+        if (song) await startNativeSong(song, generation)
+      })()
+      return
+    }
+    void (async () => {
       await ensureUpcomingRadioTrack()
       try {
         await nativeSkipToNext()
@@ -697,9 +782,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         return
       }
       playerExtras.__psWantPlaying = true
+      playerExtras.__psLoadGeneration += 1
+      const generation = playerExtras.__psLoadGeneration
+      set({ isBuffering: true })
       void (async () => {
         const song = await hydratePlayableSong(stepped)
-        if (song) await startNativeSong(song, (playerExtras.__psLoadGeneration += 1))
+        if (song) await startNativeSong(song, generation)
       })()
       return
     }
@@ -738,7 +826,7 @@ function installPlayerAudioFocusBridge(): void {
   })
 }
 
-installNativeListeners()
+registerNativePlayerListeners(installNativeListeners)
 installPlayerAudioFocusBridge()
 playerExtras.__psRadioUnsub?.()
 playerExtras.__psRadioUnsub = usePlayerStore.subscribe(() => {
