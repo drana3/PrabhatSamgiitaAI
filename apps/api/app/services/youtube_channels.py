@@ -35,7 +35,7 @@ from scripts.sync_youtube import (  # noqa: E402
 
 ADMIN_SCAN_MAX_PAGES = 4
 BATCH_SCAN_MAX_PAGES = 50
-ADMIN_DESCRIPTION_FETCH_CAP = 16
+ADMIN_DESCRIPTION_FETCH_CAP = 80
 
 
 def normalize_channel_url(url: str) -> str:

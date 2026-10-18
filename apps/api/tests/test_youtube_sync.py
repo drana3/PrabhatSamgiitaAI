@@ -375,8 +375,12 @@ def test_fetch_video_description_reads_player_response(monkeypatch) -> None:  # 
         "</script></body></html>"
     )
 
-    def fake_fetch(url: str, payload: dict | None = None) -> str:
-        if "youtubei/v1/player" in url:
+    def fake_fetch(
+        url: str,
+        payload: dict | None = None,
+        extra_headers: dict | None = None,
+    ) -> str:
+        if "youtubei/" in url:
             return json.dumps({"playabilityStatus": {"status": "LOGIN_REQUIRED"}})
         return html
 
@@ -390,11 +394,18 @@ def test_fetch_video_description_uses_android_innertube(monkeypatch) -> None:  #
     sync_youtube._innertube_cache = None
     clients: list[str] = []
 
-    def fake_fetch(url: str, payload: dict | None = None) -> str:
-        assert "youtubei/v1/player" in url
+    def fake_fetch(
+        url: str,
+        payload: dict | None = None,
+        extra_headers: dict | None = None,
+    ) -> str:
+        assert "youtubei/" in url
         assert payload is not None
         clients.append(str(payload["context"]["client"]["clientName"]))
         if payload["context"]["client"]["clientName"] == "ANDROID":
+            assert (extra_headers or {}).get("User-Agent", "").startswith(
+                "com.google.android.youtube/"
+            )
             return json.dumps(
                 {"videoDetails": {"shortDescription": "TUMI KON ATITE MORE ..2065"}}
             )
@@ -412,7 +423,11 @@ def test_fetch_video_description_skips_stub_without_catalog_number(
 
     sync_youtube._innertube_cache = None
 
-    def fake_fetch(url: str, payload: dict | None = None) -> str:
+    def fake_fetch(
+        url: str,
+        payload: dict | None = None,
+        extra_headers: dict | None = None,
+    ) -> str:
         name = str((payload or {}).get("context", {}).get("client", {}).get("clientName"))
         if name == "ANDROID":
             return json.dumps(

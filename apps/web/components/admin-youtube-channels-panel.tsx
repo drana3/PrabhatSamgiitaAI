@@ -449,9 +449,9 @@ export function AdminYoutubeChannelsPanel({
         `Scan complete: ${body?.new_queued_for_review ?? 0} new for review, ` +
           `${body?.new_auto_linked ?? 0} auto-linked, ` +
           `${body?.already_known ?? 0} already in database, ` +
-          `${body?.already_queued ?? 0} already in review queue ` +
+          `${body?.already_queued ?? 0} already in review queue, ` +
+          `${body?.descriptions_read ?? 0} descriptions read ` +
           `(${body?.discovered ?? 0} found on channel` +
-          `${body?.descriptions_read ? `, ${body.descriptions_read} descriptions read` : ""}` +
           `${body?.deferred ? `, ${body.deferred} left for next scan` : ""}).`,
       )
       await load()
