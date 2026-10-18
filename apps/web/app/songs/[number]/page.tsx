@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 
 import { hasPublishedLearnerSargam } from "@prabhat/core"
 import { FavoriteSongButton } from "@/components/favorite-song-button"
-import { CopyTextButton } from "@/components/copy-text-button"
+import { LyricsScriptToggle } from "@/components/lyrics-script-toggle"
 import { HarmoniumNavLink, HarmoniumPracticeSection } from "@/components/harmonium-song-features"
 import { HashLanding } from "@/components/hash-landing"
 import { OpenInApp } from "@/components/open-in-app"
@@ -88,7 +88,12 @@ export default async function SongPage({ params, searchParams }: { params: Promi
                   <p className="eyebrow">Lyrics</p>
                   <h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2>
                 </div>
-                <p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">{lyrics}</p>
+                <LyricsScriptToggle
+                  songNumber={song.number}
+                  roman={lyrics ?? ""}
+                  devanagari={song.lyrics_devanagari}
+                  status={song.devanagari_status}
+                />
                 {notationOn && song.sargam_attribution && submittedNotation?.notation.lines.length ? (
                   <div className="mt-5 space-y-3 rounded-2xl border border-gold-500/25 bg-white p-4">
                     <p className="text-sm font-semibold text-navy-800">
@@ -106,13 +111,6 @@ export default async function SongPage({ params, searchParams }: { params: Promi
                       </div>
                     ))}
                   </div>
-                ) : null}
-                <CopyTextButton text={lyrics ?? ""} label="Copy lyrics" />
-                {song.lyrics_original?.trim() && song.transliteration?.trim() ? (
-                  <details className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-4">
-                    <summary className="cursor-pointer text-sm font-semibold text-gold-700">Roman transliteration</summary>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{song.transliteration.trim()}</p>
-                  </details>
                 ) : null}
               </section>
             ) : null}

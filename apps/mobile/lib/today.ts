@@ -5,7 +5,18 @@ import type { MockSong } from "@/data/mock"
 import { toInAppVideoEmbedUrl } from "@/lib/mediaEmbed"
 import { scenicHeroFor, scenicThumbFor } from "@/lib/scenicArt"
 
-const NEWS_CATEGORIES = new Set(["news", "disaster", "humanitarian"])
+function todayContextSignal(today: TodayRecommendations | null) {
+  return today?.signals?.find(
+    (signal) => signal.category === "festival" || signal.category === "song_of_the_day",
+  )
+}
+
+function formatContextDate(isoDate: string | undefined) {
+  if (!isoDate) return ""
+  const parsed = new Date(`${isoDate}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return ""
+  return parsed.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })
+}
 
 export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): MockSong {
   const number = item.number || index + 1
@@ -22,7 +33,9 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
     shortDescription: item.first_line || item.reasons[0] || "Song of the Day",
     imageUrl: hero,
     thumbnailUrl: thumb,
-    themes: item.reasons.slice(0, 2),
+    themes: item.first_line?.trim()
+      ? [item.first_line.trim()]
+      : item.reasons.slice(0, 2),
     meaning: item.reasons.join(" · ") || "Song of the Day",
     lyrics: item.first_line || item.title,
     translation: item.first_line || item.title,
@@ -43,16 +56,13 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
   }
 }
 
-function visibleSignal(today: TodayRecommendations | null) {
-  return today?.signals?.find((signal) => !NEWS_CATEGORIES.has((signal.category || "").toLowerCase()))
-}
-
 export function todayHeadline(today: TodayRecommendations | null) {
-  const song = today?.recommendations?.[0]
   if (today?.context?.festival) return today.context.festival
-  if (song) return `PS ${song.number} — ${song.title}`
-  const signal = visibleSignal(today)
-  if (signal?.title) return signal.title
+  if (today?.context?.recommendation_mode === "strict_festival") {
+    return today.context.festival || "Festival day"
+  }
+  const signal = todayContextSignal(today)
+  if (signal?.category === "festival" && signal.title) return signal.title
   return "Song of the Day"
 }
 
@@ -60,15 +70,32 @@ export function todaySummary(today: TodayRecommendations | null) {
   if (today?.context?.recommendation_mode === "strict_festival" || today?.context?.festival) {
     return "Festival songs replace the daily sequence for this observance."
   }
-  const signal = visibleSignal(today)
-  if (signal?.category === "song_of_the_day" && signal.summary) return signal.summary
+  const signal = todayContextSignal(today)
   const song = today?.recommendations?.[0]
-  if (song?.first_line) return song.first_line
+  const firstLine = song?.first_line?.trim()
+  if (signal?.summary && firstLine) return `${signal.summary} — ${firstLine}`
+  if (signal?.summary) return signal.summary
+  const sequence = (today?.context as { song_of_the_day?: number } | undefined)?.song_of_the_day
+  if (typeof sequence === "number") {
+    const dateLabel = formatContextDate(today?.context?.date)
+    return dateLabel ? `PS ${sequence} · ${dateLabel}` : `PS ${sequence} in today’s sequence`
+  }
+  if (firstLine) return firstLine
+  if (song) return `PS ${song.number} — ${song.title}`
   return ""
 }
 
+/** Right-side chip: date for daily sequence, not a duplicate “Song of the Day” label. */
 export function todayModeLabel(today: TodayRecommendations | null) {
-  const mode = today?.context?.recommendation_mode
-  if (mode === "strict_festival" || today?.context?.festival) return "Festival day"
-  return "Song of the Day"
+  if (today?.context?.recommendation_mode === "strict_festival" || today?.context?.festival) {
+    return "Festival day"
+  }
+  const signal = todayContextSignal(today)
+  const summary = signal?.summary?.trim()
+  if (summary?.includes("·")) {
+    const datePart = summary.split("·").slice(1).join("·").trim()
+    if (datePart) return datePart
+  }
+  const dateLabel = formatContextDate(today?.context?.date)
+  return dateLabel || "Today"
 }

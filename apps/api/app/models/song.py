@@ -16,6 +16,12 @@ class Song(Base, TimestampMixin):
     first_line: Mapped[str | None] = mapped_column(String(512))
     lyrics_original: Mapped[str | None] = mapped_column(Text)
     transliteration: Mapped[str | None] = mapped_column(Text)
+    # Rule-based or admin-edited Devanagari, line-aligned with lyrics_original.
+    lyrics_devanagari: Mapped[str | None] = mapped_column(Text)
+    # none | provisional | pending_review | approved
+    devanagari_status: Mapped[str] = mapped_column(
+        String(32), default="none", server_default="none", nullable=False, index=True
+    )
     hindi_meaning: Mapped[str | None] = mapped_column(Text)
     english_meaning: Mapped[str | None] = mapped_column(Text)
     theme: Mapped[str | None] = mapped_column(Text)

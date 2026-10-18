@@ -1,7 +1,7 @@
 import TrackPlayer, { Event } from "react-native-track-player"
 
-import { ensureUpcomingRadioTrack } from "@/lib/playback/radioAdvance"
-import { getRadioSession } from "@/lib/playback/radioSession"
+import { ensureUpcomingRadioTrack } from "./lib/playback/radioAdvance"
+import { getRadioSession } from "./lib/playback/radioSession"
 
 /** Headless service — lock screen / overnight. Must not depend on React UI. */
 export async function playbackService() {

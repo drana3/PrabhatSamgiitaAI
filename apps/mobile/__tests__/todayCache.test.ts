@@ -31,7 +31,7 @@ import { readTodayCache, refreshTodayRecommendations } from "@/lib/todayCache"
 function todayKey() {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"
   const date = new Date().toLocaleDateString("en-CA", { timeZone: timezone })
-  return `prabhat-today-v1:${timezone}:${date}`
+  return `prabhat-today-v3:${timezone}:${date}`
 }
 
 describe("todayCache", () => {

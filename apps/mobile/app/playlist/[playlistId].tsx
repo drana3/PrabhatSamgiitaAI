@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
+import { PlaylistPlaybackBar } from "@/components/playlists/PlaylistPlaybackBar"
+import { PlaylistSyncBar } from "@/components/playlists/PlaylistSyncBar"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
@@ -12,9 +14,12 @@ import { playPlaylist } from "@/lib/playPlaylist"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
+import { useFlushPlaylistsOnBlur } from "@/hooks/useFlushPlaylistsOnBlur"
+import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
 
 export default function PlaylistDetailScreen() {
+  useFlushPlaylistsOnBlur()
   const router = useRouter()
   const { playlistId } = useLocalSearchParams<{ playlistId: string }>()
   const playlist = usePlaylistStore((s) => s.playlists.find((item) => item.id === playlistId))
@@ -24,6 +29,7 @@ export default function PlaylistDetailScreen() {
   const removeSong = usePlaylistStore((s) => s.removeSong)
   const [name, setName] = useState(playlist?.name ?? "")
   const [busy, setBusy] = useState(false)
+  const activePlaylistId = usePlayerStore((s) => s.activePlaylist?.id)
 
   useEffect(() => {
     if (!playlist) void refresh()
@@ -61,6 +67,7 @@ export default function PlaylistDetailScreen() {
 
   return (
     <ScreenContainer edges={["top"]} title={playlist?.name || "Playlist"} subtitle="Signed-in playlist">
+      <PlaylistSyncBar />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <TextInput
           value={name}
@@ -70,6 +77,7 @@ export default function PlaylistDetailScreen() {
           style={styles.input}
           onEndEditing={() => void saveName()}
         />
+        {activePlaylistId === playlistId ? <PlaylistPlaybackBar /> : null}
         <PrimaryButton
           label="Play playlist"
           disabled={!songs.length || busy}

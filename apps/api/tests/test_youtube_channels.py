@@ -165,6 +165,73 @@ async def test_update_channel_changes_name_and_reactivates() -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_channel_stores_number_source() -> None:
+    session = _ChannelSession()
+    creator = UserAccount(id=uuid4(), email="admin@example.com", display_name="Admin")
+    with patch(
+        "app.services.youtube_channels.resolve_channel_id",
+        return_value="UCdescription",
+    ):
+        row = await create_youtube_scan_channel(
+            session,  # type: ignore[arg-type]
+            creator=creator,
+            name="Description channel",
+            channel_url="https://www.youtube.com/@descchannel",
+            number_source="description",
+        )
+    assert row.number_source == "description"
+
+
+@pytest.mark.asyncio
+async def test_create_channel_rejects_invalid_number_source() -> None:
+    session = _ChannelSession()
+    creator = UserAccount(id=uuid4(), email="admin@example.com", display_name="Admin")
+    with patch(
+        "app.services.youtube_channels.resolve_channel_id",
+        return_value="UCbad",
+    ):
+        with pytest.raises(HTTPException) as exc:
+            await create_youtube_scan_channel(
+                session,  # type: ignore[arg-type]
+                creator=creator,
+                name="Bad",
+                channel_url="https://www.youtube.com/@bad",
+                number_source="subtitle",
+            )
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_scan_description_channel_links_number_from_description() -> None:
+    session = _ChannelSession()
+    channel = YoutubeScanChannel(
+        id=uuid4(),
+        name="Description channel",
+        channel_id="UCdescription",
+        channel_url="https://www.youtube.com/channel/UCdescription/videos",
+        number_source="description",
+        is_trusted=True,
+        is_active=True,
+    )
+    session.channels.append(channel)
+
+    videos = [{"video_id": "descvid1", "title": "Prabhat Samgiita morning melody"}]
+
+    with (
+        patch("app.services.youtube_channels.channel_videos", return_value=videos),
+        patch(
+            "scripts.sync_youtube.fetch_video_description",
+            return_value="Prabhat Samgiita No. 1 - devotional",
+        ),
+    ):
+        result = await scan_youtube_channel(session, channel.id)  # type: ignore[arg-type]
+
+    assert result["new_auto_linked"] == 1
+    assert len(session.media) == 1
+    assert session.media[-1].song_number == 1
+
+
+@pytest.mark.asyncio
 async def test_seed_default_channels_inserts_both() -> None:
     session = _ChannelSession()
     creator = UserAccount(id=uuid4(), email="admin@example.com", display_name="Admin")

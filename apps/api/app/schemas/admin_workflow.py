@@ -99,11 +99,15 @@ class YoutubeReviewApproveWrite(BaseModel):
     is_primary: bool = True
 
 
+NumberSource = Literal["title", "description", "title_or_description"]
+
+
 class YoutubeScanChannelItem(BaseModel):
     id: str
     name: str
     channel_id: str
     channel_url: str
+    number_source: NumberSource = "title"
     is_trusted: bool
     is_active: bool
     notes: str | None = None
@@ -122,6 +126,7 @@ class YoutubeScanChannelCreateWrite(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     channel_url: str = Field(min_length=8, max_length=1024)
     channel_id: str | None = Field(default=None, max_length=128)
+    number_source: NumberSource = "title"
     is_trusted: bool = True
     notes: str | None = Field(default=None, max_length=2000)
 
@@ -130,6 +135,7 @@ class YoutubeScanChannelUpdateWrite(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     channel_url: str | None = Field(default=None, min_length=8, max_length=1024)
     channel_id: str | None = Field(default=None, max_length=128)
+    number_source: NumberSource | None = None
     is_trusted: bool | None = None
     notes: str | None = Field(default=None, max_length=2000)
     is_active: bool | None = None

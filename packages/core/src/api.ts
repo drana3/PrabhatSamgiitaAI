@@ -17,6 +17,9 @@ export const songSummarySchema = z.object({
 export const songDetailSchema = songSummarySchema.extend({
   lyrics_original: z.string().nullable().optional(),
   transliteration: z.string().nullable().optional(),
+  lyrics_devanagari: z.string().nullable().optional(),
+  /** none | provisional | pending_review | approved */
+  devanagari_status: z.string().optional().default("none"),
   hindi_meaning: z.string().nullable().optional(),
   english_meaning: z.string().nullable().optional(),
   festival: z.string().nullable().optional(),
@@ -388,6 +391,7 @@ export const chatMemoryResponseSchema = z.object({
 export const memberPlaylistSchema = z.object({
   id: z.string(),
   name: z.string(),
+  created_at: z.string().optional(),
   songs: z
     .array(
       z.object({

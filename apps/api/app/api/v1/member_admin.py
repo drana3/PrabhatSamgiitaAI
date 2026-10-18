@@ -8,10 +8,19 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.models import UserAccount, UserFeedback
+from app.models import Song, UserAccount, UserFeedback
 from app.models.admin_workflow import YoutubeScanChannel
 from app.models.announcements import SiteAnnouncement
-from app.schemas.admin import AdminFeedbackItem, AdminFeedbackListResponse, AdminFeedbackUpdate
+from app.schemas.admin import (
+    AdminDevanagariApprove,
+    AdminDevanagariSong,
+    AdminDevanagariUpdate,
+    AdminFeedbackItem,
+    AdminFeedbackListResponse,
+    AdminFeedbackReplyCreate,
+    AdminFeedbackReplyItem,
+    AdminFeedbackUpdate,
+)
 from app.schemas.admin_workflow import (
     LanguageCheckRequest,
     LanguageCheckResponse,
@@ -76,10 +85,17 @@ from app.services.announcements import (
     deactivate_announcement,
     list_all_announcements,
 )
+from app.services.catalog import refresh_catalog_song
 from app.services.feedback_live import (
     feedback_is_on_live_ticker,
     publish_feedback_to_live,
     unpublish_feedback_from_live,
+)
+from app.services.feedback_replies import (
+    create_feedback_reply,
+    load_replies_by_feedback,
+    notify_devanagari_reporters,
+    reply_to_dict,
 )
 from app.services.feedback_triage import feedback_is_priority
 from app.services.members import require_member_identity, sync_member
@@ -233,7 +249,18 @@ async def admin_revoke(
     return _admin_item(member)
 
 
-async def _feedback_item(session: AsyncSession, item: UserFeedback) -> AdminFeedbackItem:
+def _reply_items(replies: list) -> list[AdminFeedbackReplyItem]:
+    return [AdminFeedbackReplyItem(**reply_to_dict(reply)) for reply in replies]
+
+
+async def _feedback_item(
+    session: AsyncSession,
+    item: UserFeedback,
+    replies: list | None = None,
+) -> AdminFeedbackItem:
+    if replies is None:
+        grouped = await load_replies_by_feedback(session, [item.id])
+        replies = grouped.get(item.id) or []
     return AdminFeedbackItem(
         feedback_id=str(item.id),
         category=item.category,
@@ -245,6 +272,7 @@ async def _feedback_item(session: AsyncSession, item: UserFeedback) -> AdminFeed
         created_at=(item.created_at.isoformat() if item.created_at else ""),
         priority=feedback_is_priority(item.category, item.rating),
         on_live_ticker=await feedback_is_on_live_ticker(session, item.comment),
+        replies=_reply_items(replies),
     )
 
 
@@ -267,7 +295,11 @@ async def admin_feedback_list(
         statement.order_by(UserFeedback.created_at.desc()).offset(offset).limit(limit)
     )
     rows = list(result.scalars().all())
-    items = [await _feedback_item(session, item) for item in rows]
+    grouped = await load_replies_by_feedback(session, [item.id for item in rows])
+    items = [
+        await _feedback_item(session, item, replies=grouped.get(item.id) or [])
+        for item in rows
+    ]
     return AdminFeedbackListResponse(total=int(total or 0), items=items)
 
 
@@ -295,6 +327,34 @@ async def admin_feedback_update(
         await unpublish_feedback_from_live(session, feedback)
     if payload.status is not None:
         feedback.status = payload.status
+        await session.commit()
+        await session.refresh(feedback)
+    return await _feedback_item(session, feedback)
+
+
+@router.post("/feedback/{feedback_id}/replies", response_model=AdminFeedbackItem)
+async def admin_feedback_reply(
+    feedback_id: UUID,
+    payload: AdminFeedbackReplyCreate,
+    request: Request,
+    session: DatabaseSession,
+) -> AdminFeedbackItem:
+    actor = await admin_member(request, session)
+    feedback = await session.get(UserFeedback, feedback_id)
+    if feedback is None:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    try:
+        await create_feedback_reply(
+            session,
+            feedback=feedback,
+            body=payload.body,
+            author_label=actor.email or actor.display_name or "Admin",
+            kind="admin",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if feedback.status == "new":
+        feedback.status = "reviewed"
         await session.commit()
         await session.refresh(feedback)
     return await _feedback_item(session, feedback)
@@ -385,6 +445,7 @@ def _youtube_channel_item(row: YoutubeScanChannel) -> YoutubeScanChannelItem:
         name=row.name,
         channel_id=row.channel_id,
         channel_url=row.channel_url,
+        number_source=row.number_source,
         is_trusted=row.is_trusted,
         is_active=row.is_active,
         notes=row.notes,
@@ -428,6 +489,7 @@ async def admin_create_youtube_channel(
         name=payload.name,
         channel_url=payload.channel_url,
         channel_id=payload.channel_id,
+        number_source=payload.number_source,
         is_trusted=payload.is_trusted,
         notes=payload.notes,
     )
@@ -489,6 +551,7 @@ async def admin_update_youtube_channel(
         name=payload.name,
         channel_url=payload.channel_url,
         channel_id=payload.channel_id,
+        number_source=payload.number_source,
         is_trusted=payload.is_trusted,
         notes=payload.notes,
         is_active=payload.is_active,
@@ -821,3 +884,93 @@ async def admin_set_sargam_visibility(
     except (LookupError, PermissionError, ValueError) as exc:
         raise _capture_http_error(exc) from exc
     return await _capture_mutation(session, member, number, notation_enabled=payload.enabled)
+
+
+def _devanagari_payload(song: Song) -> AdminDevanagariSong:
+    roman = song.lyrics_original or ""
+    dev = song.lyrics_devanagari or ""
+    return AdminDevanagariSong(
+        song_number=song.number,
+        title=song.title,
+        lyrics_original=song.lyrics_original,
+        lyrics_devanagari=song.lyrics_devanagari,
+        devanagari_status=song.devanagari_status or "none",
+        line_count_roman=len(roman.split("\n")) if roman else 0,
+        line_count_devanagari=len(dev.split("\n")) if dev else 0,
+    )
+
+
+@router.get("/songs/{number}/devanagari", response_model=AdminDevanagariSong)
+async def admin_get_devanagari(
+    number: int, request: Request, session: DatabaseSession
+) -> AdminDevanagariSong:
+    await admin_member(request, session)
+    song = await session.scalar(select(Song).where(Song.number == number))
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return _devanagari_payload(song)
+
+
+@router.put("/songs/{number}/devanagari", response_model=AdminDevanagariSong)
+async def admin_update_devanagari(
+    number: int,
+    payload: AdminDevanagariUpdate,
+    request: Request,
+    session: DatabaseSession,
+) -> AdminDevanagariSong:
+    member = await admin_member(request, session)
+    song = await session.scalar(select(Song).where(Song.number == number))
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    song.lyrics_devanagari = payload.lyrics_devanagari
+    song.devanagari_status = (
+        "pending_review" if payload.submit_for_approval else "provisional"
+    )
+    meta = dict(song.metadata_json or {})
+    prior = meta.get("devanagari")
+    prior_dict = prior if isinstance(prior, dict) else {}
+    meta["devanagari"] = {
+        **prior_dict,
+        "origin": "admin_edited",
+        "last_editor": member.email,
+        "review_note": payload.review_note,
+    }
+    song.metadata_json = meta
+    await session.commit()
+    await refresh_catalog_song(session, number)
+    return _devanagari_payload(song)
+
+
+@router.post("/songs/{number}/devanagari/approve", response_model=AdminDevanagariSong)
+async def admin_approve_devanagari(
+    number: int,
+    payload: AdminDevanagariApprove,
+    request: Request,
+    session: DatabaseSession,
+) -> AdminDevanagariSong:
+    member = await admin_member(request, session)
+    song = await session.scalar(select(Song).where(Song.number == number))
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if not (song.lyrics_devanagari or "").strip():
+        raise HTTPException(status_code=400, detail="No Devanagari lyrics to approve")
+    song.devanagari_status = "approved"
+    meta = dict(song.metadata_json or {})
+    prior = meta.get("devanagari")
+    prior_dict = prior if isinstance(prior, dict) else {}
+    meta["devanagari"] = {
+        **prior_dict,
+        "origin": "manually_verified",
+        "approved_by": member.email,
+        "review_note": payload.review_note,
+    }
+    song.metadata_json = meta
+    await session.commit()
+    await refresh_catalog_song(session, number)
+    await notify_devanagari_reporters(
+        session,
+        song_number=number,
+        author_label=member.email or member.display_name or "Admin",
+        review_note=payload.review_note,
+    )
+    return _devanagari_payload(song)

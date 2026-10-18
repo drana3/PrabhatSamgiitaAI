@@ -76,12 +76,12 @@ describe("today context labels", () => {
         recommendations: [],
         disclaimer: "",
       }),
-    ).toBe("Song of the Day")
+    ).toBe("Today")
   })
 
   it("shows the song title instead of a news headline", () => {
     const today = {
-      context: { recommendation_mode: "song_of_the_day" },
+      context: { recommendation_mode: "song_of_the_day", date: "2026-10-07", song_of_the_day: 1 },
       signals: [
         {
           title: "River flood situation",
@@ -90,11 +90,19 @@ describe("today context labels", () => {
           source_name: "NDMA",
           source_url: "https://example.test",
         },
+        {
+          title: "Song of the Day",
+          category: "song_of_the_day",
+          summary: "PS 1 · 07 October 2026",
+          source_name: "Prabhat Samgiita",
+          source_url: "https://example.test/songs/1",
+        },
       ],
       recommendations: [{ number: 12, title: "Bandhu", first_line: "Line", reasons: [], score: 1, is_verified: true }],
       disclaimer: "",
     }
-    expect(todayHeadline(today)).toBe("PS 12 — Bandhu")
+    expect(todayHeadline(today)).toBe("Song of the Day")
     expect(todaySummary(today)).toContain("PS 1")
+    expect(todaySummary(today)).toContain("Line")
   })
 })

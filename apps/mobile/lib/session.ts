@@ -14,6 +14,7 @@ import {
 import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
 import { hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
+import { memberPhoneRequired } from "@/lib/memberPhone"
 import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -123,7 +124,7 @@ async function finishSignIn(input: {
         "Signed in locally. We could not reach your member account — check your connection and try again.",
     }
   }
-  if (hydrated.profile.phone_required) {
+  if (memberPhoneRequired(hydrated.profile, input.identityProvider)) {
     return {
       ok: true as const,
       memberBackend: true,
@@ -199,6 +200,17 @@ export async function signInWithGoogleAccount() {
 
 export async function signInWithFacebookAccount() {
   const identity = await signInWithFacebook()
+  return finishSignIn({
+    displayName: identity.displayName,
+    email: identity.email,
+    memberId: identity.id,
+    identityProvider: identity.provider,
+  })
+}
+
+export async function signInWithAppleAccount() {
+  const { signInWithApple } = await import("@/lib/appleAuth")
+  const identity = await signInWithApple()
   return finishSignIn({
     displayName: identity.displayName,
     email: identity.email,

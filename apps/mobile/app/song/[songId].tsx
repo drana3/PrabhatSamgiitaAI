@@ -697,7 +697,10 @@ export default function SongDetailScreen() {
             />
           ) : null}
           <LyricsMeaningView
+            songNumber={song.number}
             lyrics={song.lyrics}
+            lyricsDevanagari={song.lyricsDevanagari}
+            devanagariStatus={song.devanagariStatus}
             language={language}
             localizing={localizing}
             meaning={meaningResolution}

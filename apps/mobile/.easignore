@@ -1,0 +1,7 @@
+# Shrink EAS upload — exclude local artifacts and store assets not needed to compile.
+build-*.aab
+store-screenshots/
+**/*.aab
+**/*.ipa
+**/.next/
+**/node_modules/.cache/

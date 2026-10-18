@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
-import { useRouter } from "expo-router"
-import { Heart } from "lucide-react-native"
+import { useFocusEffect, useRouter } from "expo-router"
+import { Heart, Play } from "lucide-react-native"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
+import { PlaylistSyncBar } from "@/components/playlists/PlaylistSyncBar"
 import { CompactSongRow } from "@/components/songs/CompactSongRow"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
@@ -14,19 +15,23 @@ import type { MockSong } from "@/data/mock"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { parseSongNumber, songSummaryToMockSong } from "@/lib/songMap"
+import { playPlaylist } from "@/lib/playPlaylist"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { useFlushPlaylistsOnBlur } from "@/hooks/useFlushPlaylistsOnBlur"
 import { href } from "@/utils/href"
 
 export default function SavedScreen() {
+  useFlushPlaylistsOnBlur()
   const router = useRouter()
   const mode = useAuthStore((s) => s.mode)
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const syncingFavorites = usePreferencesStore((s) => s.syncingFavorites)
   const hydrateFavoritesFromServer = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
   const playlists = usePlaylistStore((s) => s.playlists)
+  const hydratePlaylistsFromCache = usePlaylistStore((s) => s.hydrateFromCache)
   const refreshPlaylists = usePlaylistStore((s) => s.refresh)
   const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
   const [playlistName, setPlaylistName] = useState("")
@@ -58,12 +63,14 @@ export default function SavedScreen() {
     })
   }, [savedSongIds])
 
-  useEffect(() => {
-    if (mode === "signed_in") {
+  useFocusEffect(
+    useCallback(() => {
+      if (mode !== "signed_in") return
+      void hydratePlaylistsFromCache()
       void hydrateFavoritesFromServer()
       void refreshPlaylists()
-    }
-  }, [mode, hydrateFavoritesFromServer, refreshPlaylists])
+    }, [mode, hydrateFavoritesFromServer, hydratePlaylistsFromCache, refreshPlaylists]),
+  )
 
   const startPlaylist = () => {
     if (mode !== "signed_in") {
@@ -90,8 +97,12 @@ export default function SavedScreen() {
                   : "Tap ♥ on any song · this build cannot sync the website playlist yet"}
             </Text>
           </View>
-          {syncingFavorites ? <ActivityIndicator color={colors.primary} /> : null}
+          {syncingFavorites && savedSongIds.length === 0 ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : null}
       </View>
+        <PlaylistSyncBar />
+        <Text style={styles.playlistHint}>Tap ▶ to play a playlist · tap the name to edit</Text>
         <Pressable accessibilityRole="button" onPress={startPlaylist} style={styles.playlistButton}>
           <Text style={styles.playlistButtonText}>New playlist</Text>
         </Pressable>
@@ -108,7 +119,11 @@ export default function SavedScreen() {
               label="Create playlist"
               disabled={!playlistName.trim()}
               onPress={() => {
-                void createPlaylist(playlistName.trim()).then((result) => {
+                const trimmed = playlistName.trim()
+                if (!trimmed) return
+                setNamingPlaylist(false)
+                setPlaylistName("")
+                void createPlaylist(trimmed).then((result) => {
                   if (!isPlaylist(result)) {
                     Alert.alert(
                       "Playlist",
@@ -116,24 +131,37 @@ export default function SavedScreen() {
                     )
                     return
                   }
-                  setPlaylistName("")
-                  setNamingPlaylist(false)
-                  router.push(href(`/playlist/${result.id}`))
                 })
               }}
             />
           </View>
         ) : null}
         {playlists.map((playlist) => (
-          <Pressable
-            key={playlist.id}
-            accessibilityRole="button"
-            onPress={() => router.push(href(`/playlist/${playlist.id}`))}
-            style={styles.playlistRow}
-          >
-            <Text style={styles.playlistName}>{playlist.name}</Text>
-            <Text style={styles.playlistMeta}>{playlist.songs.length} songs</Text>
-          </Pressable>
+          <View key={playlist.id} style={styles.playlistRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Play ${playlist.name}`}
+              disabled={!playlist.songs.length}
+              onPress={() => {
+                void playPlaylist(playlist).then((error) => {
+                  if (error) Alert.alert("Playlist", error)
+                })
+              }}
+              style={({ pressed }) => [styles.playlistPlay, pressed && styles.pressed, !playlist.songs.length && styles.playlistPlayDisabled]}
+            >
+              <Play size={18} color={playlist.songs.length ? colors.primaryDark : colors.textMuted} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(href(`/playlist/${playlist.id}`))}
+              style={styles.playlistMetaPress}
+            >
+              <Text style={styles.playlistName}>{playlist.name}</Text>
+              <Text style={styles.playlistMeta}>
+                {playlist.songs.length ? `${playlist.songs.length} songs` : "Empty · tap to add songs"}
+              </Text>
+            </Pressable>
+          </View>
         ))}
       </View>
 
@@ -192,7 +220,13 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.h1, color: colors.textPrimary },
   subtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  playlistButton: { marginTop: spacing.md, alignSelf: "flex-start" },
+  playlistHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+  },
+  playlistButton: { marginTop: spacing.sm, alignSelf: "flex-start" },
+  pressed: { opacity: 0.88 },
   playlistButtonText: { ...typography.label, color: colors.primaryDark },
   playlistForm: { marginTop: spacing.sm, gap: spacing.sm },
   playlistInput: {
@@ -205,9 +239,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   playlistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
   },
+  playlistPlay: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  playlistPlayDisabled: { opacity: 0.5 },
+  playlistMetaPress: { flex: 1, paddingVertical: spacing.xs },
   playlistName: { ...typography.label, color: colors.textPrimary },
   playlistMeta: { ...typography.caption, color: colors.textMuted },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },

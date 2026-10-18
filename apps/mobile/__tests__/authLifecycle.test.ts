@@ -24,20 +24,24 @@ const {
   signInWithGoogle,
   signOutWithGoogle,
   signInWithFacebook,
+  signInWithApple,
   loginWithEmail,
   registerWithEmail,
   fetchMemberSession,
   fetchMemberFavorites,
+  updateMemberPreferences,
 } = vi.hoisted(() => ({
   signInWithMicrosoft: vi.fn(),
   signOutWithMicrosoft: vi.fn(async () => undefined),
   signInWithGoogle: vi.fn(),
   signOutWithGoogle: vi.fn(async () => undefined),
   signInWithFacebook: vi.fn(),
+  signInWithApple: vi.fn(),
   loginWithEmail: vi.fn(),
   registerWithEmail: vi.fn(),
   fetchMemberSession: vi.fn(),
   fetchMemberFavorites: vi.fn(),
+  updateMemberPreferences: vi.fn(async () => null),
 }))
 
 vi.mock("@/lib/msal", () => ({
@@ -58,6 +62,10 @@ vi.mock("@/lib/facebookAuth", () => ({
   signInWithFacebook,
 }))
 
+vi.mock("@/lib/appleAuth", () => ({
+  signInWithApple,
+}))
+
 vi.mock("@/lib/localAuth", () => ({
   loginWithEmail,
   registerWithEmail,
@@ -71,6 +79,7 @@ vi.mock("@/lib/client", () => ({
   api: {
     fetchMemberSession,
     fetchMemberFavorites,
+    updateMemberPreferences,
     addMemberFavorite: vi.fn(),
     removeMemberFavorite: vi.fn(),
   },
@@ -82,6 +91,7 @@ import {
   signInMember,
   signInWithEmailPassword,
   signInWithFacebookAccount,
+  signInWithAppleAccount,
   signInWithGoogleAccount,
   signOutMember,
   signUpWithEmailPassword,
@@ -221,6 +231,51 @@ describe("mobile auth lifecycle (all providers)", () => {
       })
     })
 
+    it("signs in with Apple", async () => {
+      signInWithApple.mockResolvedValue({
+        id: "apple-1",
+        email: "member@privaterelay.appleid.com",
+        displayName: "Apple Member",
+        provider: "apple",
+      })
+      fetchMemberSession.mockResolvedValue(
+        syncedMemberSession({
+          email: "member@privaterelay.appleid.com",
+          identity_provider: "apple",
+        }),
+      )
+
+      await signInWithAppleAccount()
+
+      expect(useAuthStore.getState()).toMatchObject({
+        mode: "signed_in",
+        email: "member@privaterelay.appleid.com",
+        memberId: "apple-1",
+        identityProvider: "apple",
+      })
+    })
+
+    it("does not require phone after OAuth sign-in when API still flags phone_required", async () => {
+      signInWithApple.mockResolvedValue({
+        id: "apple-1",
+        email: "member@privaterelay.appleid.com",
+        displayName: "Apple Member",
+        provider: "apple",
+      })
+      fetchMemberSession.mockResolvedValue(
+        syncedMemberSession({
+          email: "member@privaterelay.appleid.com",
+          identity_provider: "apple",
+          phone_required: true,
+        }),
+      )
+
+      const result = await signInWithAppleAccount()
+
+      expect(result.needsPhone).toBeUndefined()
+      expect(result.ok).toBe(true)
+    })
+
     it("signs in with email and password", async () => {
       const principal = buildClientPrincipal("local-oid", "Email Member", "local", "email@example.com")
       loginWithEmail.mockResolvedValue({
@@ -287,6 +342,7 @@ describe("mobile auth lifecycle (all providers)", () => {
       { provider: "aad", email: "ms@example.com", memberId: "oid-ms" },
       { provider: "google", email: "google@example.com", memberId: "gid-1" },
       { provider: "facebook", email: "fb@example.com", memberId: "fb-1" },
+      { provider: "apple", email: "member@privaterelay.appleid.com", memberId: "apple-1" },
       { provider: "local", email: "email@example.com", memberId: "local-oid" },
     ] as const)("clears $provider sessions to guest immediately", async ({ provider, email, memberId }) => {
       useAuthStore.setState({

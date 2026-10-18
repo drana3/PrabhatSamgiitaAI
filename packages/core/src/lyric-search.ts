@@ -706,10 +706,90 @@ function openingFields(row: LyricSearchRow): OpeningNorm {
   return next
 }
 
+function openingWords(row: LyricSearchRow) {
+  const raw = normalizeLyricText(`${row.t} ${row.o}`)
+    .split(" ")
+    .filter((word) => word.length >= 2)
+  return { raw, folded: raw.map((word) => foldLyricPhonetic(word)) }
+}
+
+function openingWordBeingTyped(token: string, rawWord: string, foldedToken: string, foldedWord: string) {
+  if (token.length < 2) return false
+  if (rawWord.startsWith(token) || foldedWord.startsWith(foldedToken)) return true
+  if (token[0] !== rawWord[0]) return false
+  const max = maxLyricEdits(Math.max(token.length, 4))
+  const openingSlice = rawWord.slice(0, token.length + 1)
+  if (openingSlice.length >= token.length && withinLyricEdits(token, openingSlice, max)) return true
+  if (token.length >= 4 && fuzzyTokenMatch(token, [rawWord])) return true
+  return false
+}
+
+function openingTokenMatchesQuery(
+  token: string,
+  foldedToken: string,
+  rawWord: string,
+  foldedWord: string,
+  options?: { allowPrefix?: boolean; phraseIndex?: number },
+) {
+  if (token === rawWord || lyricTokensMatch(token, rawWord)) return true
+  if (foldedToken === foldedWord) return true
+  if (token.length >= 3 && rawWord.startsWith(token)) return true
+  if (token.length >= 3 && foldedWord.startsWith(foldedToken)) return true
+  if (options?.allowPrefix && openingWordBeingTyped(token, rawWord, foldedToken, foldedWord)) return true
+  const allowFuzzy = options?.phraseIndex === 0 ? token[0] === rawWord[0] : true
+  if (
+    allowFuzzy &&
+    (fuzzyTokenMatch(token, [rawWord]) || fuzzyTokenMatch(foldedToken, [foldedWord]))
+  ) {
+    return true
+  }
+  return false
+}
+
+/** Fuzzy prefix match for short title/opening queries like "jami asman" → "jamin asaman". */
+function scoreOpeningPhraseMatch(
+  tokens: string[],
+  foldedTokenByExact: Map<string, string>,
+  row: LyricSearchRow,
+): LyricSearchHit | null {
+  if (tokens.length < 2 || tokens.length > 4) return null
+  const { raw, folded } = openingWords(row)
+  if (raw.length < tokens.length) return null
+  let partialLast = false
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]
+    const foldedToken = foldedTokenByExact.get(token) ?? foldLyricPhonetic(token)
+    const isLast = index === tokens.length - 1
+    const matched = openingTokenMatchesQuery(token, foldedToken, raw[index], folded[index], {
+      allowPrefix: isLast,
+      phraseIndex: index,
+    })
+    if (!matched) return null
+    if (
+      isLast &&
+      token !== raw[index] &&
+      !lyricTokensMatch(token, raw[index]) &&
+      openingWordBeingTyped(token, raw[index], foldedToken, folded[index])
+    ) {
+      partialLast = true
+    }
+  }
+  return {
+    number: row.n,
+    title: row.t,
+    firstLine: row.o,
+    snippet: row.o || row.t,
+    score: partialLast ? 86 : 88,
+    matchedBy: "opening_line",
+  }
+}
+
 function scoreOpeningRow(
   query: string,
   foldedQuery: string,
   row: LyricSearchRow,
+  tokens: string[],
+  foldedTokenByExact: Map<string, string>,
 ): LyricSearchHit | null {
   const { title, opening, foldedTitle, foldedOpening } = openingFields(row)
   let score = 0
@@ -724,7 +804,7 @@ function scoreOpeningRow(
   ) {
     score = 64
   } else {
-    return null
+    return scoreOpeningPhraseMatch(tokens, foldedTokenByExact, row)
   }
   return {
     number: row.n,
@@ -740,14 +820,28 @@ export function searchLyrics(query: string, rows: LyricSearchRow[], limit = 5): 
   const normalized = normalizeLyricText(query)
   if (normalized.length < 2) return []
   const tokens = normalized.split(" ").filter(Boolean)
+  // While typing the next word ("jami a"), keep ranking on completed tokens ("jami").
+  const openingTokens =
+    tokens.length > 1 && tokens[tokens.length - 1].length < 2 ? tokens.slice(0, -1) : tokens
+  const openingQuery = openingTokens.join(" ")
   const foldedQuery = foldLyricPhonetic(normalized)
+  const foldedOpeningQuery = foldLyricPhonetic(openingQuery)
   const foldedTokenByExact = new Map(tokens.map((token) => [token, foldLyricPhonetic(token)]))
+  const foldedOpeningTokenByExact = new Map(
+    openingTokens.map((token) => [token, foldLyricPhonetic(token)]),
+  )
   const cap = Math.max(1, limit)
 
   // Fast path: titles + openings only. No body fold and no token index.
   const openingHits: LyricSearchHit[] = []
   for (const row of rows) {
-    const hit = scoreOpeningRow(normalized, foldedQuery, row)
+    const hit = scoreOpeningRow(
+      openingQuery,
+      foldedOpeningQuery,
+      row,
+      openingTokens,
+      foldedOpeningTokenByExact,
+    )
     if (hit) openingHits.push(hit)
   }
   openingHits.sort((left, right) => right.score - left.score || left.number - right.number)

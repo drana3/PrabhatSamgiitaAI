@@ -24,6 +24,33 @@ export function songCardTitle(song: {
   return song.title?.trim() || `PS ${song.number}`
 }
 
+/** Lightweight song shell for instant navigation from search rows. */
+export function songPlaceholder(
+  number: number,
+  partial?: { title?: string; shortDescription?: string; first_line?: string },
+): MockSong {
+  const hero = scenicHeroFor(number)
+  const thumb = scenicThumbFor(number)
+  const title = partial?.title?.trim() || partial?.first_line?.trim() || `PS ${number}`
+  return {
+    id: `ps-${number}`,
+    number,
+    title,
+    shortDescription: partial?.shortDescription?.trim() || partial?.first_line?.trim() || title,
+    imageUrl: hero,
+    thumbnailUrl: thumb,
+    themes: ["Prabhat Samgiita"],
+    meaning: "",
+    lyrics: "",
+    translation: "",
+    durationSeconds: 300,
+    performer: "Prabhat Samgiita Collection",
+    videos: [],
+    audioUrl: null,
+    mediaHydrated: false,
+  }
+}
+
 export function parseSongNumber(songId: string | undefined): number | null {
   if (!songId) return null
   const match = /^ps-(\d+)$/i.exec(songId)
@@ -145,6 +172,8 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     localizedMeanings: readLocalizedMeanings(detail.metadata_json),
     lyrics: detail.lyrics_original || detail.transliteration || detail.first_line || detail.title,
     transliteration: detail.transliteration?.trim() || null,
+    lyricsDevanagari: detail.lyrics_devanagari?.trim() || null,
+    devanagariStatus: detail.devanagari_status || "none",
     translation: detail.english_meaning || detail.hindi_meaning || detail.first_line || detail.title,
     durationSeconds: 300,
     performer: "Prabhat Samgiita Collection",

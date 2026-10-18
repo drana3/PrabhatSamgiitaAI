@@ -20,7 +20,16 @@ const categoryLabels: Record<string, string> = {
   audio_video: "Audio or video",
   ai: "AI response",
   accessibility: "Accessibility",
+  devanagari: "Devanagari lyrics",
   other: "Other",
+}
+
+function songNumberFromFeedback(item: AdminFeedbackItem): number | null {
+  const fromPath = item.page_path?.match(/\/songs?\/(\d+)/i)
+  if (fromPath) return Number(fromPath[1])
+  const fromComment = item.comment.match(/song\s*#(\d+)/i)
+  if (fromComment) return Number(fromComment[1])
+  return null
 }
 
 export function AdminFeedbackPanel({
@@ -41,6 +50,8 @@ export function AdminFeedbackPanel({
   const [error, setError] = useState(initialData?.error ?? "")
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [notice, setNotice] = useState("")
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [replyingId, setReplyingId] = useState<string | null>(null)
   const [loadedStatus, setLoadedStatus] = useState<string | null>(
     hasUsableInitial ? initialStatus : null,
   )
@@ -121,11 +132,50 @@ export function AdminFeedbackPanel({
     await patchFeedback(feedbackId, { status: nextStatus })
   }
 
+  async function sendReply(feedbackId: string) {
+    const body = (replyDrafts[feedbackId] || "").trim()
+    if (body.length < 1) {
+      setError("Write a reply before sending.")
+      return
+    }
+    setReplyingId(feedbackId)
+    setError("")
+    setNotice("")
+    try {
+      const response = await fetch(`/api/admin/feedback/${encodeURIComponent(feedbackId)}/replies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ body }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        setError(readErrorDetail(payload, "Could not send reply"))
+        return
+      }
+      const updated = payload as AdminFeedbackItem
+      setItems((prev) => prev.map((item) => (item.feedback_id === feedbackId ? { ...item, ...updated } : item)))
+      setReplyDrafts((prev) => ({ ...prev, [feedbackId]: "" }))
+      const last = updated.replies?.[updated.replies.length - 1]
+      setNotice(
+        last?.email_delivered
+          ? "Reply sent and emailed to the user."
+          : updated.contact
+            ? "Reply saved. Email could not be delivered (check ACS email config)."
+            : "Reply saved. No contact email on this feedback — user was not notified.",
+      )
+    } catch {
+      setError("Could not reach the admin service")
+    } finally {
+      setReplyingId(null)
+    }
+  }
+
   return (
     <AdminShell
       active="feedback"
       title="User feedback"
-      description="Review submissions from the site feedback widget and publish selected quotes to the home ticker."
+      description="Review submissions, reply by email (as many times as needed), and publish selected quotes to the home ticker."
     >
         <div className="flex flex-wrap gap-2">
           {filters.map(([value, label]) => (
@@ -171,7 +221,9 @@ export function AdminFeedbackPanel({
             </div>
           ) : null}
 
-          {items.map((item) => (
+          {items.map((item) => {
+            const songNumber = songNumberFromFeedback(item)
+            return (
             <article key={item.feedback_id} className="rounded-2xl border border-navy-900/10 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -197,7 +249,61 @@ export function AdminFeedbackPanel({
                 </div>
               </div>
 
+              {(item.replies?.length || 0) > 0 ? (
+                <div className="mt-4 space-y-2 rounded-xl border border-navy-900/10 bg-ivory-50 p-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-stone-500">
+                    Replies ({item.replies!.length})
+                  </p>
+                  {item.replies!.map((reply) => (
+                    <div key={reply.reply_id} className="rounded-lg bg-white px-3 py-2 text-sm">
+                      <p className="whitespace-pre-wrap text-navy-950">{reply.body}</p>
+                      <p className="mt-1 text-[11px] text-stone-500">
+                        {reply.author_label}
+                        {reply.kind === "system" ? " · system" : ""}
+                        {reply.created_at ? ` · ${new Date(reply.created_at).toLocaleString()}` : ""}
+                        {reply.email_delivered ? " · emailed" : " · not emailed"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-4 space-y-2 border-t border-navy-900/10 pt-4">
+                <label className="block text-xs font-bold uppercase tracking-[0.12em] text-stone-500">
+                  Reply to user
+                  <textarea
+                    value={replyDrafts[item.feedback_id] || ""}
+                    onChange={(e) =>
+                      setReplyDrafts((prev) => ({ ...prev, [item.feedback_id]: e.target.value }))
+                    }
+                    rows={3}
+                    placeholder={
+                      item.contact
+                        ? `Reply will be emailed to ${item.contact}`
+                        : "No contact email — reply will be saved only"
+                    }
+                    className="mt-2 w-full rounded-xl border border-navy-900/10 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-navy-950 outline-none focus:border-gold-500"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={replyingId === item.feedback_id}
+                  onClick={() => void sendReply(item.feedback_id)}
+                  className="rounded-full bg-navy-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  {replyingId === item.feedback_id ? "Sending…" : "Send reply"}
+                </button>
+              </div>
+
               <div className="mt-4 flex flex-wrap gap-2 border-t border-navy-900/10 pt-4">
+                {item.category === "devanagari" && songNumber ? (
+                  <a
+                    href={`/admin/devanagari?song=${songNumber}`}
+                    className="gold-button px-4 py-2 text-xs"
+                  >
+                    Review &amp; correct #{songNumber}
+                  </a>
+                ) : null}
                 {item.status === "new" ? (
                   <button
                     type="button"
@@ -263,7 +369,8 @@ export function AdminFeedbackPanel({
                 )}
               </div>
             </article>
-          ))}
+            )
+          })}
         </div>
     </AdminShell>
   )

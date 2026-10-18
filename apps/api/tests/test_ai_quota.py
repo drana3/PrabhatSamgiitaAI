@@ -6,6 +6,12 @@ from app.services.ai_quota import (
 )
 
 
+def test_default_settings_use_fifteen_guest_and_fifty_member_deep_ai_questions() -> None:
+    settings = Settings()
+    assert settings.ai_daily_guest_limit == 15
+    assert settings.ai_daily_member_limit == 50
+
+
 def test_guest_daily_quota_allows_fifteen_questions() -> None:
     reset_daily_ai_quota_for_tests()
     settings = Settings(ai_daily_guest_limit=15, ai_daily_member_limit=50)

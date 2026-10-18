@@ -10,6 +10,7 @@ import {
   type SheetTala,
 } from "@prabhat/core"
 import type { NotationLine } from "@/lib/sargamDisplay"
+import { yieldSongPlayback } from "@/lib/audioFocus"
 import { HARMONIUM_SAMPLE_MODULES } from "@/lib/harmoniumSamples"
 
 import { colors } from "@/constants/colors"
@@ -64,6 +65,7 @@ export function NotationMatraSheet({
     }
     setPlaying(true)
     try {
+      await yieldSongPlayback()
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         allowsRecordingIOS: false,

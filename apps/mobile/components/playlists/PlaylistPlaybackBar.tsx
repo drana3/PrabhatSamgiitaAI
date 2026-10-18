@@ -1,10 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { ListMusic, SkipBack, SkipForward } from "lucide-react-native"
 
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { canStepPlaylist } from "@/lib/playbackQueue"
 import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
@@ -22,6 +23,9 @@ export function PlaylistPlaybackBar({ songNumber }: Props) {
   const activePlaylist = usePlayerStore((s) => s.activePlaylist)
   const next = usePlayerStore((s) => s.next)
   const previous = usePlayerStore((s) => s.previous)
+  const isBuffering = usePlayerStore((s) => s.isBuffering)
+  const canGoNext = canStepPlaylist(playbackMode, current?.number ?? null, bounds, 1)
+  const canGoPrevious = canStepPlaylist(playbackMode, current?.number ?? null, bounds, -1)
 
   const subtitle = playlistPlaybackSubtitle(
     playbackMode,
@@ -47,23 +51,30 @@ export function PlaylistPlaybackBar({ songNumber }: Props) {
         <Text style={styles.label} numberOfLines={1}>{subtitle}</Text>
       </Pressable>
       <View style={styles.transport}>
+        {isBuffering ? (
+          <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Previous in playlist"
+          accessibilityState={{ disabled: !canGoPrevious }}
+          disabled={!canGoPrevious}
           onPress={() => previous()}
           hitSlop={8}
-          style={styles.iconBtn}
+          style={[styles.iconBtn, !canGoPrevious && styles.iconBtnDisabled]}
         >
-          <SkipBack size={20} color={colors.textPrimary} />
+          <SkipBack size={20} color={canGoPrevious ? colors.textPrimary : colors.textMuted} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Next in playlist"
+          accessibilityState={{ disabled: !canGoNext }}
+          disabled={!canGoNext}
           onPress={() => next()}
           hitSlop={8}
-          style={styles.iconBtn}
+          style={[styles.iconBtn, !canGoNext && styles.iconBtnDisabled]}
         >
-          <SkipForward size={20} color={colors.textPrimary} />
+          <SkipForward size={20} color={canGoNext ? colors.textPrimary : colors.textMuted} />
         </Pressable>
       </View>
     </View>
@@ -97,6 +108,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transport: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  spinner: { marginRight: spacing.xs },
   iconBtn: {
     width: 36,
     height: 36,
@@ -105,4 +117,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.surface,
   },
+  iconBtnDisabled: { opacity: 0.45 },
 })

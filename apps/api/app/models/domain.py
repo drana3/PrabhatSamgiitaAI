@@ -180,6 +180,21 @@ class UserFeedback(Base, TimestampMixin):
     )
 
 
+class UserFeedbackReply(Base, TimestampMixin):
+    __tablename__ = "user_feedback_replies"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    feedback_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("user_feedback.id", ondelete="CASCADE"), index=True
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    author_label: Mapped[str] = mapped_column(String(320), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), default="admin", server_default="admin")
+    email_delivered: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+
+
 class AnalyticsDaily(Base, TimestampMixin):
     __tablename__ = "analytics_daily"
     __table_args__ = (

@@ -22,6 +22,7 @@ def playlist_response(playlist: UserPlaylist, songs: list[UserPlaylistSong]) -> 
     return PlaylistResponse(
         id=playlist.id,
         name=playlist.name,
+        created_at=playlist.created_at,
         songs=[
             PlaylistSongItem(song_number=row.song_number, position=row.position)
             for row in ordered

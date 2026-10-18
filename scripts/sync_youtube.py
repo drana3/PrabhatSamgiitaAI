@@ -22,6 +22,7 @@ CHANNELS = (
         "id": "UCzJy4vdGKx6gzP782-5buOQ",
         "name": "AMPS Spirituality",
         "trusted": True,
+        "number_source": "title",
         "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
     },
     {
@@ -29,6 +30,7 @@ CHANNELS = (
         "id": "UCc3f8g07me5NpqHfAsF8GIA",
         "name": "ANANDA MARGA",
         "trusted": True,
+        "number_source": "title",
         "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
     },
 )
@@ -37,6 +39,7 @@ GENERAL_YOUTUBE = {
     "id": "youtube-community-search",
     "name": "YouTube community",
     "trusted": False,
+    "number_source": "title",
     "notes": "A number-first community match discovered after trusted channels; not re-hosted.",
 }
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "youtube_videos.json"
@@ -249,7 +252,8 @@ def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
         with psycopg.connect(url, connect_timeout=30) as conn, conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT channel_id, channel_url, name, is_trusted, notes, last_scanned_at
+                SELECT channel_id, channel_url, name, is_trusted, notes, last_scanned_at,
+                       COALESCE(number_source, 'title')
                 FROM youtube_scan_channels
                 WHERE is_active = true
                 ORDER BY name
@@ -267,6 +271,7 @@ def load_scan_channels(database_url: str | None = None) -> list[dict[str, Any]]:
                 "notes": row[4]
                 or f"Scanned from {row[2]}; embedded only, not re-hosted.",
                 "last_scanned_at": row[5],
+                "number_source": row[6],
             }
             for row in rows
         ]
@@ -337,6 +342,41 @@ def initial_data(html: str) -> dict[str, Any]:
             if isinstance(value, dict):
                 return value
     raise ValueError("YouTube initial data was not found")
+
+
+def _initial_player_response(html: str) -> dict[str, Any] | None:
+    for marker in (
+        "var ytInitialPlayerResponse = ",
+        "window[\"ytInitialPlayerResponse\"] = ",
+        "ytInitialPlayerResponse = ",
+    ):
+        start = html.find(marker)
+        if start >= 0:
+            try:
+                value, _ = json.JSONDecoder().raw_decode(html, start + len(marker))
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict):
+                return value
+    return None
+
+
+def fetch_video_description(video_id: str) -> str:
+    """Fetch a single video's full description from its watch page.
+
+    The channel listing grid only exposes titles, so channels that carry the
+    song number in the description need the watch page parsed per video.
+    """
+    html = fetch(f"https://www.youtube.com/watch?v={video_id}")
+    player = _initial_player_response(html)
+    if player is not None:
+        description = nested(player, "videoDetails", "shortDescription")
+        if isinstance(description, str):
+            return description
+    match = re.search(r'<meta name="description" content="([^"]*)"', html)
+    if match:
+        return match.group(1)
+    return ""
 
 
 def walk(value: Any) -> Iterator[dict[str, Any]]:
@@ -618,10 +658,70 @@ def bare_catalog_song_number(title: str) -> int | None:
 
 
 def youtube_video_in_scope(title: str) -> bool:
-    """Only scan videos with a catalog song number or Prabhat Samgiita in the title."""
+    """Only scan videos with a catalog song number or Prabhat Samgiita in the text."""
     if bare_catalog_song_number(title) is not None:
         return True
     return mentions_prabhat_samgiita(title)
+
+
+def channel_number_source(channel: dict[str, Any]) -> str:
+    source = channel.get("number_source")
+    if isinstance(source, str) and source in {"title", "description", "title_or_description"}:
+        return source
+    return "title"
+
+
+def video_match_text(video: dict[str, Any], channel: dict[str, Any]) -> str:
+    """Build the text used for scope/number matching for this channel.
+
+    Title-only channels match on the title. Channels that carry the number in the
+    description match on the combined title + description so Prabhat Samgiita scope
+    detection (often present in the title) still works while the number is read
+    from the description.
+    """
+    title = str(video.get("title") or "")
+    if channel_number_source(channel) == "title":
+        return title
+    description = str(video.get("description") or "")
+    if not description:
+        return title
+    return f"{title}\n{description}".strip()
+
+
+def needs_description(video: dict[str, Any], channel: dict[str, Any]) -> bool:
+    """Cheap title pre-filter deciding whether to fetch a video's description.
+
+    Only description-mode channels fetch descriptions, and only for videos whose
+    title already looks like Prabhat Samgiita content. This keeps per-video watch
+    page requests limited to likely matches rather than the whole channel.
+    """
+    source = channel_number_source(channel)
+    if source == "title":
+        return False
+    if video.get("description"):
+        return False
+    title = str(video.get("title") or "")
+    # If the title already yields a usable number, the description is unnecessary.
+    if source == "title_or_description" and bare_catalog_song_number(title) is not None:
+        return False
+    if explicit_song_number(title) is not None:
+        return False
+    return mentions_prabhat_samgiita(title) or bare_catalog_song_number(title) is not None
+
+
+def enrich_video_for_channel(video: dict[str, Any], channel: dict[str, Any]) -> dict[str, Any]:
+    """Populate ``video['description']`` when the channel needs it, in place."""
+    if needs_description(video, channel):
+        try:
+            video["description"] = fetch_video_description(video["video_id"])
+        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            print(
+                f"Could not fetch description for {video['video_id']} "
+                f"on {channel.get('name')}: {exc}",
+                file=sys.stderr,
+            )
+            video["description"] = ""
+    return video
 
 
 def explicit_song_number(title: str) -> int | None:
@@ -661,14 +761,15 @@ def media_row(
     songs: dict[int, dict[str, Any]],
     channel: dict[str, Any] = CHANNELS[0],
 ) -> dict[str, Any] | None:
-    number = explicit_song_number(video["title"])
+    text = video_match_text(video, channel)
+    number = explicit_song_number(text)
     if number is None or number not in songs:
         return None
-    similarity = title_similarity(video["title"], songs[number])
+    similarity = title_similarity(text, songs[number])
     has_explicit_marker = bool(
         re.search(
             rf"(?:song\s*)?(?:number|no\.?|#)\s*{number}(?!\d)",
-            video["title"],
+            text,
             re.I,
         )
     )
@@ -726,10 +827,11 @@ def review_row(
     songs: dict[int, dict[str, Any]],
     channel: dict[str, Any] = CHANNELS[0],
 ) -> dict[str, Any] | None:
-    if not youtube_video_in_scope(video["title"]):
+    text = video_match_text(video, channel)
+    if not youtube_video_in_scope(text):
         return None
-    number = explicit_song_number(video["title"])
-    similarity = title_similarity(video["title"], songs[number]) if number in songs else 0.0
+    number = explicit_song_number(text)
+    similarity = title_similarity(text, songs[number]) if number in songs else 0.0
     reason = "missing_explicit_song_number"
     if number is not None:
         reason = "canonical_title_match_below_threshold"
@@ -800,7 +902,8 @@ def main() -> None:
             continue
         discovered_by_channel[channel["name"]] = len(discovered)
         for video in discovered:
-            if not youtube_video_in_scope(video["title"]):
+            enrich_video_for_channel(video, channel)
+            if not youtube_video_in_scope(video_match_text(video, channel)):
                 continue
             row = media_row(video, songs, channel)
             if row is None:

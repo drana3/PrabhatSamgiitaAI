@@ -1,13 +1,16 @@
 import { useState } from "react"
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native"
 import * as Clipboard from "expo-clipboard"
 import { Check, Copy } from "lucide-react-native"
+import { useRouter } from "expo-router"
 
 import { LanguagePickerModal } from "@/components/common/LanguagePickerModal"
 import { colors } from "@/constants/colors"
@@ -19,9 +22,12 @@ import {
 } from "@/constants/languages"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { api } from "@/lib/client"
 import type { UnderstandMode } from "@/lib/lyricsMeaningPager"
 import type { SongMeaningResolution } from "@/lib/songMeanings"
 import { meaningUnavailableMessage } from "@/lib/songMeanings"
+import { useAuthStore } from "@/stores/authStore"
+import { href } from "@/utils/href"
 
 const QUICK_LOCALES = localeOptions.filter((option) =>
   (quickLocaleCodes as readonly string[]).includes(option.code),
@@ -64,8 +70,14 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   )
 }
 
+type LyricScript = "roman" | "devanagari"
+
 type Props = {
+  songNumber: number
   lyrics: string
+  lyricsDevanagari?: string | null
+  /** none | provisional | pending_review | approved */
+  devanagariStatus?: string | null
   language: string
   localizing: boolean
   meaning: SongMeaningResolution
@@ -161,15 +173,67 @@ function LanguageRow({
   )
 }
 
+function statusLabel(status: string | null | undefined): string {
+  if (status === "approved") return "Approved"
+  if (status === "pending_review") return "Pending review"
+  if (status === "provisional") return "Provisional"
+  return ""
+}
+
 export function LyricsMeaningView({
+  songNumber,
   lyrics,
+  lyricsDevanagari,
+  devanagariStatus,
   language,
   localizing,
   meaning,
   onSelectLanguage,
 }: Props) {
+  const router = useRouter()
+  const authMode = useAuthStore((s) => s.mode)
+  const email = useAuthStore((s) => s.email)
   const [mode, setMode] = useState<UnderstandMode>("lyrics")
+  const [script, setScript] = useState<LyricScript>("roman")
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportNote, setReportNote] = useState("")
+  const [reportBusy, setReportBusy] = useState(false)
+  const hasDevanagari = Boolean(lyricsDevanagari?.trim())
+  const activeLyrics =
+    script === "devanagari" && hasDevanagari ? lyricsDevanagari!.trim() : lyrics
+  const badge = script === "devanagari" ? statusLabel(devanagariStatus) : ""
+
+  async function sendDevanagariReport() {
+    if (authMode === "guest") {
+      Alert.alert("Sign-in required", "Please sign in to report Devanagari to admin.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign in", onPress: () => router.push(href("/signin")) },
+      ])
+      return
+    }
+    setReportBusy(true)
+    try {
+      const note = reportNote.trim() || "Please review Devanagari lyrics for this song."
+      const result = await api.submitFeedback({
+        category: "devanagari",
+        rating: 2,
+        comment: `Devanagari report for song #${songNumber}\n${note}`,
+        page_path: `/songs/${songNumber}`,
+        contact: email ?? undefined,
+      })
+      Alert.alert("Sent to admin", result.message)
+      setReportNote("")
+      setReportOpen(false)
+    } catch (error) {
+      Alert.alert(
+        "Could not send",
+        error instanceof Error ? error.message : "Report could not be sent. Please try again.",
+      )
+    } finally {
+      setReportBusy(false)
+    }
+  }
 
   return (
     <View>
@@ -194,10 +258,85 @@ export function LyricsMeaningView({
       </Text>
 
       <View style={[styles.pane, mode !== "lyrics" && styles.hiddenPane]} pointerEvents={mode === "lyrics" ? "auto" : "none"}>
+        {hasDevanagari ? (
+          <View style={styles.scriptRow} accessibilityRole="tablist">
+            {(
+              [
+                { id: "roman" as const, label: "Roman" },
+                { id: "devanagari" as const, label: "Devanagari" },
+              ] as const
+            ).map((item) => {
+              const active = script === item.id
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setScript(item.id)}
+                  style={[styles.scriptChip, active && styles.scriptChipActive]}
+                >
+                  <Text style={[styles.scriptChipText, active && styles.scriptChipTextActive]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              )
+            })}
+            {badge ? (
+              <Text
+                style={[
+                  styles.statusBadge,
+                  devanagariStatus === "approved" && styles.statusApproved,
+                ]}
+              >
+                {badge}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        {script === "devanagari" && hasDevanagari ? (
+          <View style={styles.disclaimer}>
+            <Text style={styles.disclaimerText}>
+              Devanagari is a transliterated version and may contain mistakes. Report issues so admin
+              can review, correct, and approve.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setReportOpen((v) => !v)}
+              style={({ pressed }) => [styles.reportBtn, pressed && { opacity: 0.8 }]}
+            >
+              <Text style={styles.reportBtnText}>Report Devanagari</Text>
+            </Pressable>
+            {reportOpen ? (
+              <View style={styles.reportBox}>
+                <TextInput
+                  value={reportNote}
+                  onChangeText={setReportNote}
+                  placeholder="What looks wrong? (optional)"
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  style={styles.reportInput}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={reportBusy}
+                  onPress={() => void sendDevanagariReport()}
+                  style={({ pressed }) => [
+                    styles.reportSubmit,
+                    (pressed || reportBusy) && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={styles.reportSubmitText}>
+                    {reportBusy ? "Sending…" : "Submit to admin"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         <View style={styles.paneHeader}>
-          <CopyButton text={lyrics} label="Copy lyrics" />
+          <CopyButton text={activeLyrics} label="Copy lyrics" />
         </View>
-        <Text style={styles.lyrics}>{lyrics}</Text>
+        <Text style={styles.lyrics}>{activeLyrics}</Text>
       </View>
       <View style={[styles.pane, mode !== "meaning" && styles.hiddenPane]} pointerEvents={mode === "meaning" ? "auto" : "none"}>
         <LanguageRow
@@ -247,6 +386,77 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textPrimary,
   },
   modeTabText: { ...typography.label, color: colors.textSecondary },
+  scriptRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  scriptChip: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  scriptChipActive: {
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
+  },
+  scriptChipText: { ...typography.label, color: colors.textSecondary },
+  scriptChipTextActive: { color: colors.background },
+  statusBadge: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginLeft: spacing.xs,
+  },
+  statusApproved: { color: colors.primaryDark, fontWeight: "600" },
+  disclaimer: {
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+    gap: 4,
+  },
+  disclaimerText: { ...typography.caption, color: colors.textSecondary, lineHeight: 18 },
+  reportBtn: {
+    alignSelf: "flex-start",
+    marginTop: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    minHeight: 32,
+    justifyContent: "center",
+  },
+  reportBtnText: { ...typography.caption, color: colors.white, fontFamily: "Inter_600SemiBold" },
+  reportBox: { marginTop: spacing.sm, gap: spacing.xs },
+  reportInput: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    padding: spacing.sm,
+    minHeight: 72,
+    textAlignVertical: "top",
+  },
+  reportSubmit: {
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    minHeight: 32,
+    justifyContent: "center",
+  },
+  reportSubmitText: { ...typography.caption, color: colors.white, fontFamily: "Inter_600SemiBold" },
   modeTabTextActive: { color: colors.white },
   lead: {
     ...typography.bodySmall,

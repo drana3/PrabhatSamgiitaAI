@@ -46,6 +46,9 @@ class YoutubeScanChannel(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     channel_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     channel_url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    number_source: Mapped[str] = mapped_column(
+        String(32), default="title", server_default="title", nullable=False
+    )
     is_trusted: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     notes: Mapped[str | None] = mapped_column(Text)

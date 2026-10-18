@@ -10,15 +10,28 @@ from scripts.sync_youtube import (
     CHANNELS,
     GENERAL_YOUTUBE,
     _should_stop_scan_page,
+    enrich_video_for_channel,
     extract_videos,
     fetch,
+    fetch_video_description,
     media_row,
     mentions_prabhat_samgiita,
+    needs_description,
     parse_youtube_relative_time,
     persist_youtube_inventory,
     review_row,
+    video_match_text,
     youtube_video_in_scope,
 )
+
+DESCRIPTION_CHANNEL = {
+    "url": "https://www.youtube.com/channel/UCdescription/videos",
+    "id": "UCdescription",
+    "name": "Description channel",
+    "trusted": True,
+    "number_source": "description",
+    "notes": "Number lives in the description.",
+}
 
 SONGS = {1: {"number": 1, "title": "Bandhu He Niye Calo", "first_line": "Bandhu He"}}
 
@@ -226,6 +239,70 @@ def test_fetch_retries_transient_youtube_errors(monkeypatch) -> None:  # type: i
 
     assert fetch("https://example.test") == "ok"
     assert attempts == 3
+
+
+def test_description_channel_matches_number_from_description() -> None:
+    video = {
+        "video_id": "desc-match-01",
+        "title": "Bandhu He Niye Calo - Prabhat Samgiita",
+        "description": "Prabhat Samgiita No. 1\nSung during morning meditation.",
+    }
+
+    # Title alone has no number, so title-mode would not match.
+    assert media_row(video, SONGS, CHANNELS[0]) is None
+
+    row = media_row(video, SONGS, DESCRIPTION_CHANNEL)
+    assert row is not None
+    assert row["song_number"] == 1
+    assert row["metadata_json"]["external_id"] == "desc-match-01"
+    # The stored title stays the real video title, not the description.
+    assert row["title"] == "Bandhu He Niye Calo - Prabhat Samgiita"
+
+
+def test_video_match_text_combines_title_and_description() -> None:
+    video = {"title": "Morning melody", "description": "Prabhat Samgiita No. 1"}
+    assert video_match_text(video, CHANNELS[0]) == "Morning melody"
+    assert "Prabhat Samgiita No. 1" in video_match_text(video, DESCRIPTION_CHANNEL)
+
+
+def test_needs_description_prefilters_on_title_scope() -> None:
+    # Title mode never fetches descriptions.
+    assert needs_description({"title": "Prabhat Samgiita"}, CHANNELS[0]) is False
+    # Description mode fetches only when the title looks like Prabhat Samgiita.
+    assert needs_description({"title": "Prabhat Samgiita melody"}, DESCRIPTION_CHANNEL) is True
+    assert needs_description({"title": "Random cooking video"}, DESCRIPTION_CHANNEL) is False
+    # Already-fetched descriptions are not refetched.
+    assert (
+        needs_description(
+            {"title": "Prabhat Samgiita", "description": "already here"},
+            DESCRIPTION_CHANNEL,
+        )
+        is False
+    )
+
+
+def test_enrich_video_for_channel_populates_description(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(
+        "scripts.sync_youtube.fetch_video_description",
+        lambda _video_id: "Prabhat Samgiita No. 1",
+    )
+    video = {"video_id": "desc-01", "title": "Prabhat Samgiita melody"}
+    enrich_video_for_channel(video, DESCRIPTION_CHANNEL)
+    assert video["description"] == "Prabhat Samgiita No. 1"
+
+    title_video = {"video_id": "title-01", "title": "Prabhat Samgiita No. 5"}
+    enrich_video_for_channel(title_video, CHANNELS[0])
+    assert "description" not in title_video
+
+
+def test_fetch_video_description_reads_player_response(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    html = (
+        "<html><body><script>var ytInitialPlayerResponse = "
+        '{"videoDetails": {"shortDescription": "Prabhat Samgiita No. 42"}};'
+        "</script></body></html>"
+    )
+    monkeypatch.setattr("scripts.sync_youtube.fetch", lambda _url: html)
+    assert fetch_video_description("abc123") == "Prabhat Samgiita No. 42"
 
 
 def test_persist_youtube_inventory_skips_without_database_url(monkeypatch) -> None:

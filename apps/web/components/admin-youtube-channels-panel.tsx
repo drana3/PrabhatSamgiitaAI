@@ -4,11 +4,24 @@ import { useCallback, useEffect, useState } from "react"
 
 import { readErrorDetail } from "@/lib/read-error-detail"
 
+export type NumberSource = "title" | "description" | "title_or_description"
+
+export const NUMBER_SOURCE_OPTIONS: { value: NumberSource; label: string }[] = [
+  { value: "title", label: "Video title" },
+  { value: "description", label: "Video description" },
+  { value: "title_or_description", label: "Title or description" },
+]
+
+export function numberSourceLabel(value: string): string {
+  return NUMBER_SOURCE_OPTIONS.find((option) => option.value === value)?.label ?? "Video title"
+}
+
 export type YoutubeScanChannel = {
   id: string
   name: string
   channel_id: string
   channel_url: string
+  number_source: NumberSource
   is_trusted: boolean
   is_active: boolean
   notes: string | null
@@ -30,6 +43,7 @@ type EditDraft = {
   name: string
   channelUrl: string
   channelId: string
+  numberSource: NumberSource
   isTrusted: boolean
   notes: string
 }
@@ -106,6 +120,28 @@ function ChannelRow({
               className="rounded-xl border border-navy-900/10 px-3 py-3"
             />
           </label>
+          <label className="grid gap-1.5 text-sm">
+            <span className="font-semibold text-navy-950">Song number is in</span>
+            <select
+              value={editDraft.numberSource}
+              onChange={(event) =>
+                onEditDraftChange({
+                  ...editDraft,
+                  numberSource: event.target.value as NumberSource,
+                })
+              }
+              className="rounded-xl border border-navy-900/10 px-3 py-3"
+            >
+              {NUMBER_SOURCE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-stone-500">
+              Description scanning fetches each candidate video page, so it is slower.
+            </span>
+          </label>
           <label className="grid gap-1.5 text-sm lg:col-span-2">
             <span className="font-semibold text-navy-950">Notes (optional)</span>
             <textarea
@@ -159,7 +195,8 @@ function ChannelRow({
             ) : null}
           </h3>
           <p className="mt-1 text-xs text-stone-500">
-            {channel.channel_id} · {channel.is_trusted ? "trusted" : "community"}
+            {channel.channel_id} · {channel.is_trusted ? "trusted" : "community"} · number in{" "}
+            {numberSourceLabel(channel.number_source).toLowerCase()}
           </p>
           <a
             href={channel.channel_url}
@@ -241,12 +278,14 @@ export function AdminYoutubeChannelsPanel({
     name: "",
     channelUrl: "",
     channelId: "",
+    numberSource: "title",
     isTrusted: true,
     notes: "",
   })
   const [name, setName] = useState("")
   const [channelUrl, setChannelUrl] = useState("")
   const [channelId, setChannelId] = useState("")
+  const [numberSource, setNumberSource] = useState<NumberSource>("title")
   const [isTrusted, setIsTrusted] = useState(true)
 
   const load = useCallback(async () => {
@@ -285,6 +324,7 @@ export function AdminYoutubeChannelsPanel({
       name: channel.name,
       channelUrl: channel.channel_url,
       channelId: channel.channel_id,
+      numberSource: channel.number_source ?? "title",
       isTrusted: channel.is_trusted,
       notes: channel.notes ?? "",
     })
@@ -309,6 +349,7 @@ export function AdminYoutubeChannelsPanel({
           name: editDraft.name,
           channel_url: editDraft.channelUrl,
           channel_id: editDraft.channelId || null,
+          number_source: editDraft.numberSource,
           is_trusted: editDraft.isTrusted,
           notes: editDraft.notes || null,
         }),
@@ -340,6 +381,7 @@ export function AdminYoutubeChannelsPanel({
           name,
           channel_url: channelUrl,
           channel_id: channelId || null,
+          number_source: numberSource,
           is_trusted: isTrusted,
         }),
       })
@@ -352,6 +394,7 @@ export function AdminYoutubeChannelsPanel({
       setName("")
       setChannelUrl("")
       setChannelId("")
+      setNumberSource("title")
       await load()
     } finally {
       setBusyId(null)
@@ -643,6 +686,25 @@ export function AdminYoutubeChannelsPanel({
           />
           <p className="text-xs text-stone-500">
             Optional. AMPS: <code className="text-stone-700">UCzJy4vdGKx6gzP782-5buOQ</code>
+          </p>
+        </label>
+        <label className="grid gap-1.5 text-sm lg:col-span-2">
+          <span className="font-semibold text-navy-950">Song number is in</span>
+          <select
+            value={numberSource}
+            onChange={(event) => setNumberSource(event.target.value as NumberSource)}
+            className="rounded-xl border border-navy-900/10 px-3 py-3"
+          >
+            {NUMBER_SOURCE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-stone-500">
+            Choose <strong>Video description</strong> for channels that put the Prabhat Samgiita
+            number in the description instead of the title. Description scans fetch each candidate
+            video page, so they run slower.
           </p>
         </label>
         <label className="flex items-center gap-3 text-sm lg:col-span-2">

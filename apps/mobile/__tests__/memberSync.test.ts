@@ -153,6 +153,9 @@ describe("member sync from database", () => {
     )
 
     const pending = refreshMemberSession()
+    await vi.waitFor(() => {
+      expect(finishFetch).toBeDefined()
+    })
     useAuthStore.getState().signOut()
     finishFetch?.({
       authenticated: true,

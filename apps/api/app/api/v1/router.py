@@ -14,6 +14,7 @@ from app.api.v1.quiz_events import router as quiz_events_router
 from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.search import router as search_router
 from app.api.v1.songs import router as songs_router
+from app.api.v1.transliteration import router as transliteration_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(health_router)
@@ -30,3 +31,4 @@ router.include_router(notation_router)
 router.include_router(ai_router)
 router.include_router(discovery_router)
 router.include_router(admin_router)
+router.include_router(transliteration_router)

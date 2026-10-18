@@ -222,6 +222,44 @@ describe("repeat — player store track end", () => {
     expect(usePlayerStore.getState().currentSong?.number).toBe(42)
   })
 
+  it("saved playlist: repeat on loops the last song in the playlist", async () => {
+    const sound = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync.mockImplementation(async () => ({ sound }))
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(
+      { ...baseSong, number: 2, id: "ps-2" } as never,
+      [1, 2],
+      "playlist",
+    )
+    await waitForCatalogAdd(1)
+    usePlayerStore.setState({
+      repeat: true,
+      driveRepeat: false,
+      driveAutoAdvance: false,
+      playbackMode: "playlist",
+      playlistBounds: [1, 2],
+      queue: [1, 2],
+      currentSong: { ...baseSong, number: 2, id: "ps-2" } as never,
+    })
+    const TrackPlayer = await catalogPlayer()
+    TrackPlayer.setRepeatMode.mockClear()
+    usePlayerStore.getState().toggleRepeat()
+    if (!usePlayerStore.getState().repeat) usePlayerStore.getState().toggleRepeat()
+    await vi.waitFor(() =>
+      expect(TrackPlayer.setRepeatMode).toHaveBeenCalledWith(expect.anything()),
+    )
+    fetchSong.mockClear()
+    const { __emitTrackPlayer, Event } = await catalogPlayerEvents()
+    __emitTrackPlayer(Event.PlaybackQueueEnded, {})
+    await new Promise((r) => setTimeout(r, 40))
+    expect(fetchSong).not.toHaveBeenCalled()
+  })
+
   it("normal mode: repeat off advances to the next listen-queue song", async () => {
     const sound = createMockSound({
       isLoaded: true,

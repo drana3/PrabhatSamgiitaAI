@@ -65,6 +65,7 @@ class Settings(BaseSettings):
         default="2025-04-01-preview",
         alias="AZURE_OPENAI_RESPONSES_API_VERSION",
     )
+    # Keep in sync with packages/core/src/ai-companion-quota.ts (15 guest / 50 signed-in).
     ai_daily_guest_limit: int = Field(default=15, alias="AI_DAILY_GUEST_LIMIT", ge=1)
     ai_daily_member_limit: int = Field(default=50, alias="AI_DAILY_MEMBER_LIMIT", ge=1)
     default_admin_emails: str = Field(default="", alias="DEFAULT_ADMIN_EMAILS")

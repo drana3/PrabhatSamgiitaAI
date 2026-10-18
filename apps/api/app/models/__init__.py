@@ -21,6 +21,7 @@ from app.models.domain import (
     SongThemeLink,
     Theme,
     UserFeedback,
+    UserFeedbackReply,
 )
 from app.models.inventory import InventoryItem
 from app.models.media import Media
@@ -85,6 +86,7 @@ __all__ = [
     "UserCredential",
     "UserFavorite",
     "UserFeedback",
+    "UserFeedbackReply",
     "UserInterestProfile",
     "UserPlaylist",
     "UserPlaylistSong",

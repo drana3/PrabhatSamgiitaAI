@@ -103,7 +103,14 @@ class ContentReportResponse(BaseModel):
 
 class UserFeedbackRequest(BaseModel):
     category: Literal[
-        "experience", "content", "search", "audio_video", "ai", "accessibility", "other"
+        "experience",
+        "content",
+        "search",
+        "audio_video",
+        "ai",
+        "accessibility",
+        "devanagari",
+        "other",
     ]
     rating: int = Field(ge=1, le=5)
     comment: str = Field(min_length=3, max_length=2000)

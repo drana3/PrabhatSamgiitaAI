@@ -432,6 +432,30 @@ describe("playback behavior matrix (drive exit)", () => {
     expect(usePlayerStore.getState().currentSong?.number).toBe(42)
   })
 
+  it("leaving saved playlist for a casual song clears playlist metadata and starts casual playback", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const bounds = [1000, 1001]
+    usePlayerStore.setState({
+      driveAutoAdvance: false,
+      playbackMode: "playlist",
+      playlistBounds: bounds,
+      queue: bounds,
+      activePlaylist: { id: "p1", name: "Morning" },
+      currentSong: { ...song, number: 1000, id: "ps-1000" },
+      hasAudio: true,
+    })
+    usePlayerStore.getState().loadSong(
+      { ...song, number: 2000, id: "ps-2000", audioUrl: "https://example.com/2000.mp3" } as never,
+      [2000, 2001],
+    )
+    await waitForCatalogAdd(1)
+    const state = usePlayerStore.getState()
+    expect(state.playbackMode).toBe("default")
+    expect(state.playlistBounds).toBeNull()
+    expect(state.activePlaylist).toBeNull()
+    expect(state.currentSong?.number).toBe(2000)
+  })
+
   it("after leaving drive playlist, bounded advance and queue continuation stop", async () => {
     const { usePlayerStore } = await import("@/stores/playerStore")
     const { shouldAdvanceAfterTrackEnd } = await import("@/lib/playbackQueue")
