@@ -92,7 +92,10 @@ PRABHAT_SAMGIITA_RE = re.compile(
 )
 # Manas Rawa and similar channels put the catalog number after dots:
 # "TUMI PRANER POROSHE ...4577" or "KAHAKEO PAPI BHEBE ....0695"
-ELLIPSIS_SONG_NUMBER_RE = re.compile(r"(?:\.{2,}|…)\s*(\d{1,4})\s*$", re.M)
+ELLIPSIS_SONG_NUMBER_RE = re.compile(
+    r"(?:\.{2,}|…|‥)\s*0*(\d{1,4})(?!\d)(?:\s|#|$)",
+    re.M,
+)
 CATALOG_SIZE_RE = re.compile(r"(?:treasure\s+of\s+)?5018\s+spiritual\s+songs", re.I)
 PRABHAT_HINT_RE = re.compile(r"prab?h?a?t", re.I)
 SAMGIITA_HINT_RE = re.compile(
@@ -500,8 +503,18 @@ def _remember_innertube(html: str) -> tuple[str, str] | None:
 def _player_description(payload: object) -> str:
     if not isinstance(payload, dict):
         return ""
-    description = nested(payload, "videoDetails", "shortDescription")
-    return description if isinstance(description, str) else ""
+    for path in (
+        ("videoDetails", "shortDescription"),
+        ("microformat", "playerMicroformatRenderer", "description", "simpleText"),
+    ):
+        description = nested(payload, *path)
+        if isinstance(description, str) and description.strip():
+            return description
+    return ""
+
+
+def _description_has_catalog_number(description: str) -> bool:
+    return ellipsis_catalog_song_number(description) is not None
 
 
 def _description_via_innertube(
@@ -509,7 +522,7 @@ def _description_via_innertube(
     api_key: str | None = None,
     client_version: str | None = None,
 ) -> str:
-    """Prefer ANDROID/IOS clients; WEB often returns LOGIN_REQUIRED from datacenters."""
+    """Try ANDROID/IOS/WEB and keep the text that actually has a catalog number."""
     clients: list[tuple[str, dict[str, Any]]] = [
         (api_key or INNERTUBE_API_KEY, ANDROID_INNERTUBE_CLIENT),
         (api_key or INNERTUBE_API_KEY, IOS_INNERTUBE_CLIENT),
@@ -526,6 +539,7 @@ def _description_via_innertube(
         clients.append(
             (cached_key, {"clientName": "WEB", "clientVersion": cached_version})
         )
+    best = ""
     for key, client in clients:
         try:
             payload = json.loads(
@@ -542,9 +556,13 @@ def _description_via_innertube(
         except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
             continue
         description = _player_description(payload)
-        if description.strip():
+        if not description.strip():
+            continue
+        if _description_has_catalog_number(description):
             return description
-    return ""
+        if len(description) > len(best):
+            best = description
+    return best
 
 
 def fetch_video_description(video_id: str) -> str:
@@ -1132,7 +1150,12 @@ def main() -> None:
     parser.add_argument("--general-search-limit", type=int, default=0)
     parser.add_argument("--search-state", type=Path, default=SEARCH_STATE_PATH)
     args = parser.parse_args()
-    songs = {row["number"]: row for row in json.loads(SONGS_PATH.read_text(encoding="utf-8"))}
+    songs = {}
+    for row in json.loads(SONGS_PATH.read_text(encoding="utf-8")):
+        try:
+            songs[int(row["number"])] = row
+        except (KeyError, TypeError, ValueError):
+            continue
     existing_rows = (
         json.loads(args.output.read_text(encoding="utf-8")) if args.output.exists() else []
     )
@@ -1234,6 +1257,23 @@ def main() -> None:
             f"{auto_linked} matched, {len(deferred_ids)} deferred",
             file=sys.stderr,
         )
+        if descriptions_read and auto_linked == 0:
+            sample = next(
+                (
+                    video
+                    for video in candidates
+                    if str(video.get("description") or "").strip()
+                ),
+                None,
+            )
+            if sample is not None:
+                desc = str(sample.get("description") or "")
+                print(
+                    f"{channel['name']}: no matches; sample {sample['video_id']} "
+                    f"len={len(desc)} ellipsis={ellipsis_catalog_song_number(desc)}",
+                    file=sys.stderr,
+                )
+                print(desc[-180:].replace("\n", " | "), file=sys.stderr)
 
     general_discovered = 0
     if args.general_search_limit > 0:
