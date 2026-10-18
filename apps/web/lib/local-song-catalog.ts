@@ -16,6 +16,8 @@ type SeedSong = {
   first_line?: string | null
   lyrics_original?: string | null
   transliteration?: string | null
+  lyrics_devanagari?: string | null
+  devanagari_status?: string | null
   hindi_meaning?: string | null
   english_meaning?: string | null
   theme?: string | null
@@ -156,6 +158,8 @@ function resolvedSong(number: number): SeedSong | null {
     first_line: firstFilled(seed.first_line, generated.first_line),
     lyrics_original: firstFilled(seed.lyrics_original, generated.lyrics_original),
     transliteration: firstFilled(seed.transliteration, generated.transliteration),
+    lyrics_devanagari: firstFilled(seed.lyrics_devanagari, generated.lyrics_devanagari),
+    devanagari_status: firstFilled(seed.devanagari_status, generated.devanagari_status) || "none",
     hindi_meaning: firstFilled(seed.hindi_meaning, generated.hindi_meaning),
     english_meaning: firstFilled(seed.english_meaning, generated.english_meaning),
     canonical_source_url: firstFilled(seed.canonical_source_url, generated.canonical_source_url),
@@ -236,6 +240,8 @@ export function localSongDetail(number: number): SongDetail | null {
     ...summary(song),
     lyrics_original: normalizeCatalogText(song.lyrics_original),
     transliteration: normalizeCatalogText(song.transliteration),
+    lyrics_devanagari: song.lyrics_devanagari?.trim() || null,
+    devanagari_status: song.devanagari_status || "none",
     hindi_meaning: song.hindi_meaning,
     english_meaning: song.english_meaning,
     festival: song.festival,
@@ -284,6 +290,11 @@ export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail 
     ...remote,
     lyrics_original: firstFilled(remote.lyrics_original, local.lyrics_original),
     transliteration: firstFilled(remote.transliteration, local.transliteration),
+    lyrics_devanagari: firstFilled(remote.lyrics_devanagari, local.lyrics_devanagari),
+    devanagari_status:
+      remote.devanagari_status && remote.devanagari_status !== "none"
+        ? remote.devanagari_status
+        : local.devanagari_status || "none",
     hindi_meaning: firstFilled(remote.hindi_meaning, local.hindi_meaning),
     english_meaning: firstFilled(remote.english_meaning, local.english_meaning),
     media: remote.media.length ? remote.media : local.media,

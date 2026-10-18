@@ -23,10 +23,12 @@ from scripts.sync_youtube import (  # noqa: E402
     CHANNELS,
     SCAN_LOOKBACK,
     channel_videos,
+    enrich_video_for_channel,
     fetch,
     initial_data,
     media_row,
     review_row,
+    video_match_text,
     walk,
     youtube_video_in_scope,
 )
@@ -110,6 +112,21 @@ def resolve_channel_id(channel_url: str, explicit_id: str | None = None) -> str:
     )
 
 
+VALID_NUMBER_SOURCES = {"title", "description", "title_or_description"}
+
+
+def _normalize_number_source(value: str | None) -> str:
+    if value is None:
+        return "title"
+    cleaned = value.strip().casefold()
+    if cleaned not in VALID_NUMBER_SOURCES:
+        raise HTTPException(
+            status_code=422,
+            detail="number_source must be one of: title, description, title_or_description.",
+        )
+    return cleaned
+
+
 def channel_dict(row: YoutubeScanChannel) -> dict[str, Any]:
     scan_url = f"https://www.youtube.com/channel/{row.channel_id}/videos"
     return {
@@ -117,6 +134,7 @@ def channel_dict(row: YoutubeScanChannel) -> dict[str, Any]:
         "id": row.channel_id,
         "name": row.name,
         "trusted": row.is_trusted,
+        "number_source": row.number_source,
         "notes": row.notes or f"Scanned from {row.name}; embedded only, not re-hosted.",
     }
 
@@ -153,11 +171,13 @@ async def create_youtube_scan_channel(
     name: str,
     channel_url: str,
     channel_id: str | None = None,
+    number_source: str | None = None,
     is_trusted: bool = True,
     notes: str | None = None,
 ) -> YoutubeScanChannel:
     normalized_url = normalize_channel_url(channel_url)
     resolved_id = resolve_channel_id(normalized_url, channel_id)
+    resolved_number_source = _normalize_number_source(number_source)
     existing = await session.scalar(
         select(YoutubeScanChannel).where(YoutubeScanChannel.channel_id == resolved_id)
     )
@@ -166,6 +186,7 @@ async def create_youtube_scan_channel(
             existing.is_active = True
             existing.name = name.strip()[:255]
             existing.channel_url = normalized_url
+            existing.number_source = resolved_number_source
             existing.is_trusted = is_trusted
             existing.notes = notes
             await session.commit()
@@ -177,6 +198,7 @@ async def create_youtube_scan_channel(
         name=name.strip()[:255],
         channel_id=resolved_id,
         channel_url=normalized_url,
+        number_source=resolved_number_source,
         is_trusted=is_trusted,
         is_active=True,
         notes=notes,
@@ -198,6 +220,9 @@ async def seed_default_youtube_scan_channels(
         channel_id = str(channel["id"])
         raw_notes = channel.get("notes")
         notes = raw_notes if isinstance(raw_notes, str) else None
+        number_source = _normalize_number_source(
+            channel.get("number_source") if isinstance(channel.get("number_source"), str) else None
+        )
         existing = await session.scalar(
             select(YoutubeScanChannel).where(YoutubeScanChannel.channel_id == channel_id)
         )
@@ -206,6 +231,7 @@ async def seed_default_youtube_scan_channels(
                 existing.is_active = True
                 existing.name = str(channel["name"])[:255]
                 existing.channel_url = normalize_channel_url(str(channel["url"]))
+                existing.number_source = number_source
                 existing.is_trusted = bool(channel.get("trusted", True))
                 existing.notes = notes
             rows.append(existing)
@@ -214,6 +240,7 @@ async def seed_default_youtube_scan_channels(
             name=str(channel["name"])[:255],
             channel_id=channel_id,
             channel_url=normalize_channel_url(str(channel["url"])),
+            number_source=number_source,
             is_trusted=bool(channel.get("trusted", True)),
             is_active=True,
             notes=notes,
@@ -246,6 +273,7 @@ async def update_youtube_scan_channel(
     name: str | None = None,
     channel_url: str | None = None,
     channel_id: str | None = None,
+    number_source: str | None = None,
     is_trusted: bool | None = None,
     notes: str | None = None,
     is_active: bool | None = None,
@@ -272,6 +300,8 @@ async def update_youtube_scan_channel(
 
     if name is not None:
         row.name = name.strip()[:255]
+    if number_source is not None:
+        row.number_source = _normalize_number_source(number_source)
     if is_trusted is not None:
         row.is_trusted = is_trusted
     if notes is not None:
@@ -361,7 +391,8 @@ async def scan_youtube_channel(
             known_count += 1
             continue
 
-        if not youtube_video_in_scope(video["title"]):
+        await asyncio.to_thread(enrich_video_for_channel, video, channel)
+        if not youtube_video_in_scope(video_match_text(video, channel)):
             continue
 
         matched = media_row(video, songs, channel)

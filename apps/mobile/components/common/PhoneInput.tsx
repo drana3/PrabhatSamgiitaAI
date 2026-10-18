@@ -28,6 +28,7 @@ type Props = {
   nationalNumber: string
   onCountryCodeChange: (code: string) => void
   onNationalNumberChange: (value: string) => void
+  onFocus?: () => void
   disabled?: boolean
 }
 
@@ -40,6 +41,7 @@ export function PhoneInput({
   nationalNumber,
   onCountryCodeChange,
   onNationalNumberChange,
+  onFocus,
   disabled = false,
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -72,6 +74,7 @@ export function PhoneInput({
           textContentType="telephoneNumber"
           autoComplete="tel"
           editable={!disabled}
+          onFocus={onFocus}
           style={styles.numberInput}
         />
       </View>

@@ -161,6 +161,8 @@ class BootstrapService:
             "first_line",
             "lyrics_original",
             "transliteration",
+            "lyrics_devanagari",
+            "devanagari_status",
             "hindi_meaning",
             "english_meaning",
             "theme",

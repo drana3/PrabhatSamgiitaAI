@@ -11,7 +11,7 @@ from app.models import UserAccount
 from app.services.phone_numbers import mask_phone_e164, normalize_phone
 
 # OAuth sign-in (Google, Microsoft, etc.) does not require a mobile number.
-OAUTH_IDENTITY_PROVIDERS = frozenset({"google", "aad", "facebook", "entra"})
+OAUTH_IDENTITY_PROVIDERS = frozenset({"google", "aad", "facebook", "entra", "apple"})
 
 
 def phone_required(member: UserAccount) -> bool:

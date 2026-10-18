@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def feedback_is_priority(category: str, rating: int) -> bool:
-    return rating <= 2 or category in {"ai", "content", "accessibility"}
+    return rating <= 2 or category in {"ai", "content", "accessibility", "devanagari"}
 
 
 def feedback_acknowledgement(feedback_id: str, *, priority: bool) -> str:

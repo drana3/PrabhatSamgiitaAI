@@ -101,6 +101,8 @@ def _detach_song(song: Song) -> Song:
         first_line=song.first_line,
         lyrics_original=song.lyrics_original,
         transliteration=song.transliteration,
+        lyrics_devanagari=getattr(song, "lyrics_devanagari", None),
+        devanagari_status=getattr(song, "devanagari_status", None) or "none",
         hindi_meaning=song.hindi_meaning,
         english_meaning=song.english_meaning,
         theme=song.theme,

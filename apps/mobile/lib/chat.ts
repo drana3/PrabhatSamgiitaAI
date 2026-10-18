@@ -1,4 +1,11 @@
-import { queryGuidanceFor, queryIsUseful } from "@prabhat/core"
+import {
+  AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
+  AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
+  guestDeepAiQuotaLabel,
+  memberDeepAiQuotaLabel,
+  queryGuidanceFor,
+  queryIsUseful,
+} from "@prabhat/core"
 
 export type ChatMessage = {
   role: "assistant" | "user"
@@ -39,8 +46,8 @@ export function generalCompanionSuggestions(): string[] {
   ]
 }
 
-export const AI_COMPANION_GUEST_DAILY_LIMIT = 15
-export const AI_COMPANION_MEMBER_DAILY_LIMIT = 50
+export const AI_COMPANION_GUEST_DAILY_LIMIT = AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT
+export const AI_COMPANION_MEMBER_DAILY_LIMIT = AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT
 
 /** Matches API guest vs member daily deeper-question limits (see ai_quota.py). */
 export function companionReceivesMemberQuota(input: {
@@ -66,9 +73,9 @@ export function companionQuotaBadgeLabel(input: {
   cachedEmail?: string | null
 }) {
   if (companionReceivesMemberQuota(input)) {
-    return `Profile · ${AI_COMPANION_MEMBER_DAILY_LIMIT} Deeper AI`
+    return memberDeepAiQuotaLabel("profile")
   }
-  return `Guest · ${AI_COMPANION_GUEST_DAILY_LIMIT} Deeper AI`
+  return guestDeepAiQuotaLabel()
 }
 
 /** Unused starters stay visible after one tap; follow-ups appear once a chat has started. */

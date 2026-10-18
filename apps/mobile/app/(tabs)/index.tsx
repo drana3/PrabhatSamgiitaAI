@@ -37,7 +37,6 @@ import {
 } from "@/components/home/HomeExtras"
 import { QuickActionGrid } from "@/components/home/QuickActionGrid"
 import { StoriesPreview } from "@/components/home/StoriesPreview"
-import { TodayContextCard } from "@/components/home/TodayContextCard"
 import { TodaySongCard } from "@/components/home/TodaySongCard"
 import { UpcomingFestivalsRow } from "@/components/home/UpcomingFestivalsRow"
 import { colors } from "@/constants/colors"
@@ -303,20 +302,7 @@ export default function HomeScreen() {
             },
           ]}
         >
-          <GreetingHeader
-            onNotifyPress={() =>
-              mode === "guest"
-                ? router.push(href("/signin"))
-                : Alert.alert(
-                    "Daily reminders",
-                    "Push notification preferences are not available in this build yet. Open Profile for account and language settings.",
-                    [
-                      { text: "Not now", style: "cancel" },
-                      { text: "Open Profile", onPress: () => router.push(href("/(tabs)/profile")) },
-                    ],
-                  )
-            }
-          />
+          <GreetingHeader />
           <View
             style={styles.searchSlot}
             onLayout={(event) => {
@@ -355,14 +341,6 @@ export default function HomeScreen() {
           <SiteAnnouncementsBanner />
 
         {homeError ? <Text style={styles.homeError}>{homeError}</Text> : null}
-
-        <View style={styles.block}>
-          <TodayContextCard
-            today={today}
-            loading={loadingToday}
-            onOpenSong={openSongNumber}
-          />
-        </View>
 
         <View style={styles.block}>
           <SectionHeader title="Experience today" />

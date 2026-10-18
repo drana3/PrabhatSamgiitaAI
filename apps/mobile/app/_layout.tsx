@@ -14,6 +14,7 @@ import {
 import { Lora_700Bold, useFonts as useLora } from "@expo-google-fonts/lora"
 import * as SplashScreen from "expo-splash-screen"
 
+import { startPlaylistBackgroundSync } from "@/lib/playlistBackgroundSync"
 import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
@@ -21,6 +22,7 @@ import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
 import { useAuthStore } from "@/stores/authStore"
+import { usePlaylistStore } from "@/stores/playlistStore"
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined)
 
@@ -40,6 +42,15 @@ export default function RootLayout() {
   useEffect(() => {
     if (useAuthStore.persist.hasHydrated()) setAuthHydrated(true)
     return useAuthStore.persist.onFinishHydration(() => setAuthHydrated(true))
+  }, [])
+
+  useEffect(() => {
+    if (!authHydrated || useAuthStore.getState().mode !== "signed_in") return
+    void usePlaylistStore.getState().hydrateFromCache()
+  }, [authHydrated])
+
+  useEffect(() => {
+    startPlaylistBackgroundSync()
   }, [])
 
   useEffect(() => {

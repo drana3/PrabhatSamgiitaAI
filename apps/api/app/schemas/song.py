@@ -44,6 +44,9 @@ class SargamAttribution(BaseModel):
 class SongDetail(SongSummary):
     lyrics_original: str | None = None
     transliteration: str | None = None
+    lyrics_devanagari: str | None = None
+    # none | provisional | pending_review | approved
+    devanagari_status: str = "none"
     hindi_meaning: str | None = None
     english_meaning: str | None = None
     festival: str | None = None

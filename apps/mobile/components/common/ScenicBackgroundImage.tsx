@@ -13,19 +13,21 @@ type Props = {
 
 const gradient = ["rgba(20,14,10,0.12)", "rgba(20,14,10,0.78)"] as const
 
+const styles = StyleSheet.create({
+  clip: { overflow: "hidden" },
+})
+
 export function ScenicBackgroundImage({ uri, style, priority = "normal" }: Props) {
   const source = uri && /^https?:\/\//i.test(uri) ? { uri } : brandAssets.dawn
   const recyclingKey = typeof source === "object" && "uri" in source ? source.uri : "dawn"
 
   if (Platform.OS === "android") {
     return (
-      <>
-        <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceWarm }, style as StyleProp<ViewStyle>]}
-        />
+      <View style={[StyleSheet.absoluteFill, style as StyleProp<ViewStyle>, styles.clip]}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceWarm }]} />
         <Image
           source={source}
-          style={style}
+          style={StyleSheet.absoluteFill}
           contentFit="cover"
           cachePolicy="memory-disk"
           priority={priority}
@@ -34,7 +36,7 @@ export function ScenicBackgroundImage({ uri, style, priority = "normal" }: Props
           placeholderContentFit="cover"
           transition={0}
         />
-      </>
+      </View>
     )
   }
 

@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "rea
 import { Audio } from "expo-av"
 import { Pause, Play, RotateCcw, RotateCw } from "lucide-react-native"
 
+import { stopCompetingPlaybackForCapture } from "@/lib/audioFocus"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
@@ -74,6 +75,7 @@ export function CaptureListenPlayer({ url, compact, onStatusChange }: Props) {
     }
     setLoading(true)
     try {
+      await stopCompetingPlaybackForCapture()
       const sound = await ensureSound()
       await sound.playAsync()
       setPlaying(true)

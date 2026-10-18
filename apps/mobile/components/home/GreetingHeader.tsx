@@ -1,32 +1,38 @@
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native"
-import { Bell } from "lucide-react-native"
 import { useRouter } from "expo-router"
-
-import { IconButton } from "@/components/common/IconButton"
 import { brandAssets } from "@/constants/brand"
 import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { greetFirstName } from "@/lib/displayName"
+import { greetFirstName, memberProfileName } from "@/lib/displayName"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
-
-type Props = {
-  onNotifyPress?: () => void
-}
 
 const { width: screenWidth } = Dimensions.get("window")
 const emblemSize = Math.min(screenWidth * 0.34, 148)
 
 /** Home header — original dawn background only. */
-export function GreetingHeader({ onNotifyPress }: Props) {
+export function GreetingHeader() {
   const router = useRouter()
   const displayName = useAuthStore((s) => s.displayName)
   const email = useAuthStore((s) => s.email)
   const mode = useAuthStore((s) => s.mode)
-  const firstName = greetFirstName(displayName, email)
+  const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
+  const firstName =
+    mode === "guest"
+      ? ""
+      : greetFirstName(displayName, email) ||
+        memberProfileName({
+          mode: "signed_in",
+          email,
+          displayName,
+          displayNameOverridden,
+        }).split(/\s+/)[0] ||
+        ""
+  const greeting =
+    mode === "guest" || !firstName ? "Namaskar" : `Namaskar ${firstName}`
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
@@ -47,13 +53,6 @@ export function GreetingHeader({ onNotifyPress }: Props) {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={styles.topBar}>
-        <View style={{ flex: 1 }} />
-        <IconButton soft accessibilityLabel="Notifications" onPress={onNotifyPress ?? (() => {})}>
-          <Bell size={20} color={colors.textPrimary} />
-        </IconButton>
-      </View>
-
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="About Prabhat Samgiita AI"
@@ -70,9 +69,7 @@ export function GreetingHeader({ onNotifyPress }: Props) {
       </Pressable>
 
       <View style={styles.greetingBlock} pointerEvents="none">
-        <Text style={styles.greeting}>
-          {mode === "guest" ? "Namaskar" : `Namaskar ${firstName}`}
-        </Text>
+        <Text style={styles.greeting}>{greeting}</Text>
         {mode === "guest" ? <Text style={styles.badge}>Exploring as guest</Text> : null}
       </View>
     </View>
@@ -88,16 +85,10 @@ const styles = StyleSheet.create({
     minHeight: 280,
     overflow: "hidden",
   },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
   brandPress: {
     alignItems: "center",
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   wordmark: {
     fontFamily: "Lora_700Bold",

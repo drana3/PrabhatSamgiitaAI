@@ -159,6 +159,8 @@ async def get_song(
     summary = _summary(song)
     lyrics_original = song.lyrics_original
     transliteration = song.transliteration
+    lyrics_devanagari = getattr(song, "lyrics_devanagari", None)
+    devanagari_status = getattr(song, "devanagari_status", None) or "none"
     hindi_meaning = song.hindi_meaning
     english_meaning = song.english_meaning
     festival = song.festival
@@ -182,6 +184,8 @@ async def get_song(
         **summary.model_dump(),
         lyrics_original=lyrics_original,
         transliteration=transliteration,
+        lyrics_devanagari=lyrics_devanagari,
+        devanagari_status=devanagari_status,
         hindi_meaning=hindi_meaning,
         english_meaning=english_meaning,
         festival=festival,

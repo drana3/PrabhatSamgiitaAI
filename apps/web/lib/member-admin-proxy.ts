@@ -37,6 +37,15 @@ export function backendBaseUrl() {
     ?? "http://localhost:8000"
 }
 
+export type AdminFeedbackReply = {
+  reply_id: string
+  body: string
+  author_label: string
+  kind: string
+  email_delivered: boolean
+  created_at: string
+}
+
 export type AdminFeedbackItem = {
   feedback_id: string
   category: string
@@ -48,6 +57,7 @@ export type AdminFeedbackItem = {
   created_at: string
   priority: boolean
   on_live_ticker?: boolean
+  replies?: AdminFeedbackReply[]
 }
 
 export type AdminFeedbackResponse = {

@@ -9,6 +9,11 @@
     "first_line": { "type": ["string", "null"] },
     "lyrics_original": { "type": ["string", "null"] },
     "transliteration": { "type": ["string", "null"] },
+    "lyrics_devanagari": { "type": ["string", "null"] },
+    "devanagari_status": {
+      "type": "string",
+      "enum": ["none", "provisional", "pending_review", "approved"]
+    },
     "hindi_meaning": { "type": ["string", "null"] },
     "english_meaning": { "type": ["string", "null"] },
     "theme": { "type": ["string", "null"] },

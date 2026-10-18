@@ -28,6 +28,10 @@ export type MockSong = {
   lyrics: string
   /** Roman transliteration when available from the catalog. */
   transliteration?: string | null
+  /** Devanagari lyrics (rule-based or approved), when available. */
+  lyricsDevanagari?: string | null
+  /** none | provisional | pending_review | approved */
+  devanagariStatus?: string | null
   translation: string
   durationSeconds: number
   performer: string

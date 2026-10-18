@@ -7,6 +7,7 @@ import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
+import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
 import { songPlayback } from "@/lib/playback"
 import { shareSong } from "@/lib/shareSong"
 import { songCardTitle } from "@/lib/songMap"
@@ -31,7 +32,15 @@ export const CompactSongRow = memo(function CompactSongRow({
   showShare = false,
 }: Props) {
   const showPause = usePlayerStore((s) => songPlayback(s, song).showPause)
+  const isCurrent = usePlayerStore((s) => songPlayback(s, song).isCurrent)
   const isBuffering = usePlayerStore((s) => songPlayback(s, song).isBuffering)
+  const playbackMode = usePlayerStore((s) => s.playbackMode)
+  const playlistBounds = usePlayerStore((s) => s.playlistBounds)
+  const activePlaylist = usePlayerStore((s) => s.activePlaylist)
+  const playlistLine =
+    isCurrent
+      ? playlistPlaybackSubtitle(playbackMode, playlistBounds, song.number, activePlaylist)
+      : null
   const pause = usePlayerStore((s) => s.pause)
   const title = songCardTitle(song)
   const lyrics = (lyricLine || song.originalTitle || song.lyrics || song.shortDescription || "").trim()
@@ -70,7 +79,7 @@ export const CompactSongRow = memo(function CompactSongRow({
           </Text>
         ) : lyricSearchRow ? null : (
           <Text style={styles.themes} numberOfLines={1}>
-            {(song.themes ?? []).join(" · ")}
+            {playlistLine ?? (song.themes ?? []).join(" · ")}
             {isBuffering ? " · Loading…" : ""}
           </Text>
         )}

@@ -10,7 +10,7 @@ def _member(*, identity_provider: str, phone_e164: str | None = None) -> SimpleN
 
 
 def test_oauth_members_without_phone_are_not_required() -> None:
-    for provider in ("google", "aad", "facebook", "entra"):
+    for provider in ("google", "aad", "facebook", "entra", "apple"):
         assert phone_required(_member(identity_provider=provider)) is False
 
 

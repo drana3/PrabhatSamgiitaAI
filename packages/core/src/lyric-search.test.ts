@@ -143,6 +143,29 @@ describe("lyric search", () => {
     expect(isMeaningCatalogQuery("I am feeling stressful today")).toBe(false)
   })
 
+  it("matches a misspelled title opening phrase", () => {
+    const catalog: LyricSearchRow[] = [
+      {
+        n: 4335,
+        t: "JAMIN ASAMAN TUMHARA",
+        o: "JAMIN ASAMAN TUMHARA",
+        b: "jamin asaman tumhara jamin asaman tumhara",
+      },
+      {
+        n: 4170,
+        t: "HAMDARDII IAH , KISANE DALII",
+        o: "HAMDARDII IAH , KISANE DALII",
+        b: "hamdardii iah kisane dalii tum ho meri hamdardii asman jamiin",
+      },
+    ]
+    expect(searchLyrics("jami asman", catalog)[0]?.number).toBe(4335)
+    expect(searchLyrics("jamin asman", catalog)[0]?.number).toBe(4335)
+    expect(searchLyrics("jami as", catalog)[0]?.number).toBe(4335)
+    expect(searchLyrics("jami asm", catalog)[0]?.number).toBe(4335)
+    expect(searchLyrics("jami asma", catalog)[0]?.number).toBe(4335)
+    expect(searchLyrics("jami a", catalog)[0]?.number).toBe(4335)
+  })
+
   it("returns at most five songs", () => {
     const extra = Array.from({ length: 8 }, (_, index) => ({
       n: index + 10,

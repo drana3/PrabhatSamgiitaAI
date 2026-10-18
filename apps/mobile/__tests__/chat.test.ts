@@ -66,7 +66,7 @@ describe("mobile AI chat helpers", () => {
         signedIn: false,
         memberAuthReady: true,
       }),
-    ).toBe("Guest · 15 Deeper AI")
+    ).toBe("Guest · 15 Deep AI")
     expect(
       companionQuotaBadgeLabel({
         signedIn: true,
@@ -74,7 +74,7 @@ describe("mobile AI chat helpers", () => {
         memberId: "oid-1",
         email: "member@example.com",
       }),
-    ).toBe("Profile · 50 Deeper AI")
+    ).toBe("Profile · 50 Deep AI")
     expect(
       companionReceivesMemberQuota({
         signedIn: true,

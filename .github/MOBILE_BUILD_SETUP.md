@@ -143,7 +143,8 @@ Only **iOS Simulator** builds have run so far (`preview-ios-simulator`). No prod
 | iOS build number | `2` (`apps/mobile/app.json` → `expo.ios.buildNumber`) — **increment for every App Store / TestFlight upload** |
 | EAS owner / slug | `dewasheesh3s-team` / `prabhatsamgiitaai` |
 | Privacy policy | `https://www.prabhatasamgiita.org/privacy` |
-| Delete account | `https://www.prabhatasamgiita.org/delete-account` |
+| Delete account | `https://www.prabhatasamgiita.org/delete-account` (requires `www` CNAME → Static Web Apps — see `docs/play-data-safety.md`) |
+| Delete account (works if `www` DNS is stale) | `https://yellow-desert-06a0d4a00.2.azurestaticapps.net/delete-account` |
 | Support email | `anandamarga01@gmail.com` |
 | App icon | `apps/mobile/assets/icon.png` (1024×1024 — App Store ready) |
 
@@ -162,8 +163,10 @@ Use the **same Apple ID** on EAS when prompted for credentials.
 2. **App IDs** → **App** → Continue.
 3. Description: `Prabhat Samgiita AI`
 4. Bundle ID: **Explicit** → `net.prabhatasamgiita.ai`
-5. Capabilities: enable **Sign In with Apple** (required when offering Google or Microsoft login on iOS).
+5. Capabilities: enable **Sign In with Apple** (required when offering Google or Microsoft login on iOS) and **Associated Domains** (required for `https://www.prabhatasamgiita.org/songs/*` to open the app).
 6. Register.
+
+If the App ID already exists, edit it and turn on **Associated Domains** before the next iOS archive.
 
 ### Step 3 — Create the app in App Store Connect
 
@@ -203,6 +206,19 @@ npx eas-cli device:create
 ```
 
 Requires Apple Developer enrollment. Not needed for TestFlight/App Store builds (`distribution: store`).
+
+**Archive error: provisioning profile doesn’t include Associated Domains**
+
+After enabling **Associated Domains** on the App ID, regenerate the **production** provisioning profile so it includes `com.apple.developer.associated-domains`:
+
+```bash
+cd apps/mobile
+npx eas-cli credentials -p ios
+# production → Provisioning Profile → Remove or Regenerate
+./scripts/ios-local-release-build.sh   # or re-run the EAS iOS build
+```
+
+Until the profile is updated, local/EAS iOS builds will fail while `PrabhatSamgiitaAI.entitlements` lists `applinks:www.prabhatasamgiita.org`. Share text still works via `prabhatai:///song/ps-N` without universal links.
 
 ### Step 5 — Microsoft sign-in (Entra ID)
 

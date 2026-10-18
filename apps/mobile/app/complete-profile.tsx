@@ -1,7 +1,15 @@
-import { useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
+import { useRef, useState } from "react"
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native"
 import { useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { colors } from "@/constants/colors"
@@ -9,15 +17,24 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { apiBaseUrl } from "@/lib/client"
 import { buildMemberAuthHeaders, memberAuthAvailable } from "@/lib/memberAuth"
+import { refreshMemberSession } from "@/lib/session"
 import { DEFAULT_PHONE_COUNTRY, formatPhonePayload } from "@prabhat/core"
 import { useAuthStore } from "@/stores/authStore"
 
 export default function CompleteProfileScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
+  const scrollRef = useRef<ScrollView>(null)
   const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
   const [phoneNumber, setPhoneNumber] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const scrollFieldIntoView = () => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true })
+    })
+  }
 
   const submit = async () => {
     if (!phoneInputValid(countryCode, phoneNumber)) {
@@ -49,6 +66,7 @@ export default function CompleteProfileScreen() {
             : "Could not save your mobile number.",
         )
       }
+      await refreshMemberSession()
       router.replace("/(tabs)")
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not save phone.")
@@ -59,31 +77,46 @@ export default function CompleteProfileScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Add your mobile number</Text>
-        <Text style={styles.body}>
-          Every member account needs a mobile number. Pick your country code and enter the number
-          without spaces.
-        </Text>
-        <PhoneInput
-          countryCode={countryCode}
-          nationalNumber={phoneNumber}
-          onCountryCodeChange={setCountryCode}
-          onNationalNumberChange={setPhoneNumber}
-          disabled={busy}
-        />
-        {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.error}>{error}</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+      >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[styles.scroll, { paddingBottom: spacing.xxl * 4 }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            <Text style={styles.title}>Add your mobile number</Text>
+            <Text style={styles.body}>
+              Every member account needs a mobile number. Pick your country code and enter the number
+              without spaces.
+            </Text>
+            <PhoneInput
+              countryCode={countryCode}
+              nationalNumber={phoneNumber}
+              onCountryCodeChange={setCountryCode}
+              onNationalNumberChange={setPhoneNumber}
+              onFocus={scrollFieldIntoView}
+              disabled={busy}
+            />
+            {error ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.error}>{error}</Text>
+              </View>
+            ) : null}
+            <PrimaryButton
+              label="Continue"
+              onPress={() => void submit()}
+              disabled={busy || !phoneInputValid(countryCode, phoneNumber)}
+              loading={busy}
+            />
           </View>
-        ) : null}
-        <PrimaryButton
-          label="Continue"
-          onPress={() => void submit()}
-          disabled={busy || !phoneInputValid(countryCode, phoneNumber)}
-          loading={busy}
-        />
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
@@ -92,8 +125,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
   },
   card: {
     backgroundColor: colors.surface,

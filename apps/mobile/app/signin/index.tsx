@@ -15,6 +15,7 @@ import { useRouter } from "expo-router"
 import { Image } from "expo-image"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { AppleSignInButton } from "@/components/auth/AppleSignInButton"
 import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { SecondaryButton } from "@/components/common/SecondaryButton"
@@ -23,6 +24,7 @@ import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { appleSignInOffered } from "@/lib/appleAuth"
 import { facebookAuthConfigured } from "@/lib/facebookAuth"
 import { googleAuthConfigured, googleSetupHint } from "@/lib/googleAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
@@ -31,6 +33,7 @@ import { oauthSignInConfigured } from "@/lib/authConfig"
 import {
   microsoftAuthConfigured,
   signInMember,
+  signInWithAppleAccount,
   signInWithEmailPassword,
   signInWithFacebookAccount,
   signInWithGoogleAccount,
@@ -40,7 +43,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
 type EmailMode = "signin" | "signup"
-type BusyAction = "microsoft" | "google" | "facebook" | "email" | null
+type BusyAction = "apple" | "microsoft" | "google" | "facebook" | "email" | null
 
 function ModeTab({
   label,
@@ -89,6 +92,7 @@ export default function SignInScreen() {
   const msalReady = microsoftAuthConfigured()
   const googleReady = googleAuthConfigured()
   const facebookReady = facebookAuthConfigured()
+  const appleReady = appleSignInOffered()
   const expoGoOAuthHint = expoGoOAuthMessage()
   const oauthReady = oauthSignInConfigured()
   const busy = busyAction !== null
@@ -219,6 +223,13 @@ export default function SignInScreen() {
             ) : null}
 
             <View style={styles.socialStack}>
+              {appleReady ? (
+                <AppleSignInButton
+                  onPress={() => void completeSignIn("apple", () => signInWithAppleAccount())}
+                  loading={busyAction === "apple"}
+                  disabled={busy && busyAction !== "apple"}
+                />
+              ) : null}
               {msalReady ? (
                 <PrimaryButton
                   label="Continue with Microsoft"
@@ -297,6 +308,7 @@ export default function SignInScreen() {
                   nationalNumber={phoneNumber}
                   onCountryCodeChange={setPhoneCountryCode}
                   onNationalNumberChange={setPhoneNumber}
+                  onFocus={scrollFieldIntoView}
                   disabled={busy}
                 />
               ) : null}

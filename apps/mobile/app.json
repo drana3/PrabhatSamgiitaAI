@@ -3,7 +3,7 @@
     "name": "Prabhat Samgiita AI",
     "owner": "dewasheesh3s-team",
     "slug": "prabhatsamgiitaai",
-    "version": "2.0.6",
+    "version": "2.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "prabhatai",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "116",
+      "buildNumber": "118",
       "associatedDomains": [
         "applinks:www.prabhatasamgiita.org"
       ],
@@ -34,7 +34,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 89,
+      "versionCode": 90,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

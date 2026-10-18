@@ -1,0 +1,4 @@
+apps/mobile/build-*.aab
+apps/mobile/store-screenshots/
+**/*.aab
+data/cache/

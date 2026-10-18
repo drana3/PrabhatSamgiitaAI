@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prabhatasamgiita.net/schemas/transliteration_catalogue.schema.json",
+  "title": "Prabhata Samgiita Roman-Devanagari Catalogue",
+  "type": "object",
+  "required": ["schema_version", "catalogue", "songs"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "string" },
+    "catalogue": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "ruleset_version": { "type": "string" },
+    "engine_version": { "type": "string" },
+    "songs": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/song" }
+    }
+  },
+  "definitions": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "rules_passed",
+        "reference_matched",
+        "needs_review",
+        "unsupported_input",
+        "manually_verified"
+      ]
+    },
+    "song": {
+      "type": "object",
+      "required": ["song_number", "roman", "devanagari", "line_pairs", "provenance"],
+      "additionalProperties": true,
+      "properties": {
+        "song_number": { "type": "integer", "minimum": 1 },
+        "title": { "type": ["string", "null"] },
+        "roman": {
+          "type": "object",
+          "required": ["text", "lines"],
+          "properties": {
+            "text": { "type": "string" },
+            "lines": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "devanagari": {
+          "type": "object",
+          "required": ["text", "lines"],
+          "properties": {
+            "text": { "type": ["string", "null"] },
+            "lines": { "type": "array", "items": { "type": ["string", "null"] } }
+          }
+        },
+        "line_pairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["line_number", "roman", "devanagari", "status"],
+            "properties": {
+              "line_number": { "type": "integer", "minimum": 1 },
+              "roman": { "type": "string" },
+              "devanagari": { "type": ["string", "null"] },
+              "status": { "$ref": "#/definitions/status" }
+            }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "required": [
+            "roman_source_url",
+            "devanagari_source_url",
+            "devanagari_origin",
+            "ruleset_version",
+            "verification_status"
+          ],
+          "properties": {
+            "roman_source_url": { "type": ["string", "null"] },
+            "devanagari_source_url": { "type": ["string", "null"] },
+            "devanagari_origin": {
+              "type": "string",
+              "enum": ["rule_based", "authoritative", "manually_verified"]
+            },
+            "ruleset_version": { "type": "string" },
+            "engine_version": { "type": ["string", "null"] },
+            "roman_source_hash": { "type": ["string", "null"] },
+            "verification_status": { "$ref": "#/definitions/status" },
+            "verified_by": { "type": ["string", "null"] },
+            "verified_at": { "type": ["string", "null"] }
+          }
+        }
+      }
+    }
+  }
+}

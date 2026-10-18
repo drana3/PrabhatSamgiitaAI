@@ -87,6 +87,7 @@ class PlaylistSongItem(BaseModel):
 class PlaylistResponse(BaseModel):
     id: UUID
     name: str
+    created_at: datetime
     songs: list[PlaylistSongItem] = Field(default_factory=list)
 
 

@@ -22,6 +22,8 @@ import {
   Sparkles,
 } from "lucide-react-native"
 
+import type { MemberProfile } from "@prabhat/core"
+
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { colors } from "@/constants/colors"

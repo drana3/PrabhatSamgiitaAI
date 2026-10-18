@@ -69,4 +69,11 @@ describe("lyric search", () => {
     expect(Date.now() - started).toBeLessThan(120)
     expect(hits[0]?.number).toBe(1)
   })
+
+  it("finds jamin asaman while typing jami asman", () => {
+    expect(searchCatalogLyrics("jami asman", 5, { interpret: true })[0]?.number).toBe(4335)
+    expect(searchCatalogLyrics("jami as", 5, { interpret: true })[0]?.number).toBe(4335)
+    expect(searchCatalogLyrics("jami asm", 5, { interpret: true })[0]?.number).toBe(4335)
+    expect(searchCatalogLyrics("jami a", 5, { interpret: true })[0]?.number).toBe(4335)
+  })
 })

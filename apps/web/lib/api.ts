@@ -54,6 +54,8 @@ const songSummarySchema = songSummaryBaseSchema.transform(normalizeSongSummary)
 const songDetailBaseSchema = songSummaryBaseSchema.extend({
   lyrics_original: z.string().nullable().optional(),
   transliteration: z.string().nullable().optional(),
+  lyrics_devanagari: z.string().nullable().optional(),
+  devanagari_status: z.string().optional().default("none"),
   hindi_meaning: z.string().nullable().optional(),
   english_meaning: z.string().nullable().optional(),
   festival: z.string().nullable().optional(),
@@ -100,6 +102,8 @@ const songDetailSchema = songDetailBaseSchema.transform((song) => ({
   ...normalizeSongSummary(song),
   lyrics_original: normalizeOptionalTransliteration(song.lyrics_original),
   transliteration: normalizeOptionalTransliteration(song.transliteration),
+  lyrics_devanagari: song.lyrics_devanagari?.trim() || null,
+  devanagari_status: song.devanagari_status || "none",
   related_songs: song.related_songs.map(normalizeSongSummary),
 }))
 

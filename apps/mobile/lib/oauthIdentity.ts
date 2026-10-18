@@ -2,7 +2,7 @@ export type OAuthIdentity = {
   id: string
   email: string | null
   displayName: string
-  provider: "google" | "facebook" | "aad" | "local"
+  provider: "google" | "facebook" | "aad" | "apple" | "local"
 }
 
 export type AuthSessionPayload = {
