@@ -291,46 +291,44 @@ export function LyricsMeaningView({
                 {badge}
               </Text>
             ) : null}
-          </View>
-        ) : null}
-        {script === "devanagari" && hasDevanagari ? (
-          <View style={styles.disclaimer}>
-            <Text style={styles.disclaimerText}>
-              Devanagari is a transliterated version and may contain mistakes. Report issues so admin
-              can review, correct, and approve.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setReportOpen((v) => !v)}
-              style={({ pressed }) => [styles.reportBtn, pressed && { opacity: 0.8 }]}
-            >
-              <Text style={styles.reportBtnText}>Report Devanagari</Text>
-            </Pressable>
-            {reportOpen ? (
-              <View style={styles.reportBox}>
-                <TextInput
-                  value={reportNote}
-                  onChangeText={setReportNote}
-                  placeholder="What looks wrong? (optional)"
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  style={styles.reportInput}
-                />
+            {script === "devanagari" ? (
+              <>
+                <Text style={styles.disclaimerInline}>May contain mistakes.</Text>
                 <Pressable
                   accessibilityRole="button"
-                  disabled={reportBusy}
-                  onPress={() => void sendDevanagariReport()}
-                  style={({ pressed }) => [
-                    styles.reportSubmit,
-                    (pressed || reportBusy) && { opacity: 0.7 },
-                  ]}
+                  onPress={() => setReportOpen((v) => !v)}
+                  hitSlop={8}
+                  style={({ pressed }) => [pressed && { opacity: 0.7 }]}
                 >
-                  <Text style={styles.reportSubmitText}>
-                    {reportBusy ? "Sending…" : "Submit to admin"}
-                  </Text>
+                  <Text style={styles.reportLink}>Report</Text>
                 </Pressable>
-              </View>
+              </>
             ) : null}
+          </View>
+        ) : null}
+        {script === "devanagari" && hasDevanagari && reportOpen ? (
+          <View style={styles.reportBox}>
+            <TextInput
+              value={reportNote}
+              onChangeText={setReportNote}
+              placeholder="What looks wrong? (optional)"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              style={styles.reportInput}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={reportBusy}
+              onPress={() => void sendDevanagariReport()}
+              style={({ pressed }) => [
+                styles.reportSubmit,
+                (pressed || reportBusy) && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={styles.reportSubmitText}>
+                {reportBusy ? "Sending…" : "Submit to admin"}
+              </Text>
+            </Pressable>
           </View>
         ) : null}
         <View style={styles.paneHeader}>
@@ -414,28 +412,22 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
   statusApproved: { color: colors.primaryDark, fontWeight: "600" },
-  disclaimer: {
+  disclaimerInline: { ...typography.caption, color: colors.textMuted },
+  reportLink: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    fontFamily: "Inter_600SemiBold",
+    textDecorationLine: "underline",
+  },
+  reportBox: {
+    marginBottom: spacing.sm,
+    gap: spacing.xs,
     borderRadius: radius.md,
-    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.background,
     padding: spacing.sm,
-    marginBottom: spacing.sm,
-    gap: 4,
   },
-  disclaimerText: { ...typography.caption, color: colors.textSecondary, lineHeight: 18 },
-  reportBtn: {
-    alignSelf: "flex-start",
-    marginTop: spacing.xs,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    minHeight: 32,
-    justifyContent: "center",
-  },
-  reportBtnText: { ...typography.caption, color: colors.white, fontFamily: "Inter_600SemiBold" },
-  reportBox: { marginTop: spacing.sm, gap: spacing.xs },
   reportInput: {
     ...typography.bodySmall,
     color: colors.textPrimary,

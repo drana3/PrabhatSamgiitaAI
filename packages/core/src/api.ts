@@ -126,6 +126,15 @@ export const songLocalizationSchema = z.object({
   localized_explanation: z.string().nullable().optional(),
 })
 
+export const adminFeedbackReplySchema = z.object({
+  reply_id: z.string(),
+  body: z.string(),
+  author_label: z.string(),
+  kind: z.string().optional().default("admin"),
+  email_delivered: z.boolean().optional().default(false),
+  created_at: z.string().optional().default(""),
+})
+
 export const adminFeedbackItemSchema = z.object({
   feedback_id: z.string(),
   category: z.string(),
@@ -137,11 +146,22 @@ export const adminFeedbackItemSchema = z.object({
   created_at: z.string(),
   priority: z.boolean().optional().default(false),
   on_live_ticker: z.boolean().optional().default(false),
+  replies: z.array(adminFeedbackReplySchema).optional().default([]),
 })
 
 export const adminFeedbackListSchema = z.object({
   total: z.number(),
   items: z.array(adminFeedbackItemSchema).default([]),
+})
+
+export const adminDevanagariSongSchema = z.object({
+  song_number: z.number(),
+  title: z.string(),
+  lyrics_original: z.string().nullable().optional(),
+  lyrics_devanagari: z.string().nullable().optional(),
+  devanagari_status: z.string().optional().default("none"),
+  line_count_roman: z.number().optional().default(0),
+  line_count_devanagari: z.number().optional().default(0),
 })
 
 export const adminMemberSchema = z.object({
@@ -155,8 +175,10 @@ export const adminMemberSchema = z.object({
 
 export type TransposedNotation = z.infer<typeof transposedNotationSchema>
 export type SongLocalization = z.infer<typeof songLocalizationSchema>
+export type AdminFeedbackReply = z.infer<typeof adminFeedbackReplySchema>
 export type AdminFeedbackItem = z.infer<typeof adminFeedbackItemSchema>
 export type AdminFeedbackList = z.infer<typeof adminFeedbackListSchema>
+export type AdminDevanagariSong = z.infer<typeof adminDevanagariSongSchema>
 export type AdminMember = z.infer<typeof adminMemberSchema>
 
 export const sargamCaptureEventSchema = z.object({
@@ -632,6 +654,120 @@ export function createApiClient(options: ApiClientOptions) {
           detail = undefined
         }
         return { ok: false, detail: detail || `Could not update feedback (${response.status})` }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async replyAdminFeedback(
+      feedbackId: string,
+      body: string,
+    ): Promise<{ ok: true; item: AdminFeedbackItem } | { ok: false; detail: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/feedback/${encodeURIComponent(feedbackId)}/replies`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body }),
+          },
+        )
+        if (!response.ok) {
+          let detail = `Could not send reply (${response.status})`
+          try {
+            const payload = (await response.json()) as { detail?: unknown }
+            if (typeof payload?.detail === "string") detail = payload.detail
+          } catch {
+            /* keep fallback */
+          }
+          return { ok: false, detail }
+        }
+        return { ok: true, item: adminFeedbackItemSchema.parse(await response.json()) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async fetchAdminDevanagari(
+      number: number,
+    ): Promise<{ ok: true; song: AdminDevanagariSong } | { ok: false; detail: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/devanagari`,
+        )
+        if (!response.ok) {
+          let detail = `Could not load song (${response.status})`
+          try {
+            const payload = (await response.json()) as { detail?: unknown }
+            if (typeof payload?.detail === "string") detail = payload.detail
+          } catch {
+            /* keep */
+          }
+          return { ok: false, detail }
+        }
+        return { ok: true, song: adminDevanagariSongSchema.parse(await response.json()) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async updateAdminDevanagari(
+      number: number,
+      body: {
+        lyrics_devanagari: string
+        submit_for_approval?: boolean
+        review_note?: string | null
+      },
+    ): Promise<{ ok: true; song: AdminDevanagariSong } | { ok: false; detail: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/devanagari`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        )
+        if (!response.ok) {
+          let detail = `Could not save (${response.status})`
+          try {
+            const payload = (await response.json()) as { detail?: unknown }
+            if (typeof payload?.detail === "string") detail = payload.detail
+          } catch {
+            /* keep */
+          }
+          return { ok: false, detail }
+        }
+        return { ok: true, song: adminDevanagariSongSchema.parse(await response.json()) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async approveAdminDevanagari(
+      number: number,
+      review_note?: string | null,
+    ): Promise<{ ok: true; song: AdminDevanagariSong } | { ok: false; detail: string }> {
+      try {
+        const response = await fetchJson(
+          `/api/v1/members/admin/songs/${encodeURIComponent(String(number))}/devanagari/approve`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ review_note: review_note ?? null }),
+          },
+        )
+        if (!response.ok) {
+          let detail = `Could not approve (${response.status})`
+          try {
+            const payload = (await response.json()) as { detail?: unknown }
+            if (typeof payload?.detail === "string") detail = payload.detail
+          } catch {
+            /* keep */
+          }
+          return { ok: false, detail }
+        }
+        return { ok: true, song: adminDevanagariSongSchema.parse(await response.json()) }
       } catch {
         return { ok: false, detail: "Could not reach the admin service" }
       }

@@ -13,6 +13,7 @@ import type { AdminFeedbackItem, AdminMember } from "@prabhat/core"
 import { useRouter } from "expo-router"
 import { MessageSquare, Shield, Users } from "lucide-react-native"
 
+import { AdminDevanagariPanel } from "@/components/admin/AdminDevanagariPanel"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { colors } from "@/constants/colors"
@@ -27,6 +28,25 @@ import { href } from "@/utils/href"
 type FeedbackFilter = "new" | "reviewed" | "actioned" | "all"
 
 const MIN_LIVE_QUOTE_LENGTH = 8
+
+const categoryLabels: Record<string, string> = {
+  experience: "Experience",
+  content: "Content",
+  search: "Search",
+  audio_video: "Audio / Video",
+  ai: "AI",
+  accessibility: "Accessibility",
+  devanagari: "Devanagari",
+  other: "Other",
+}
+
+function songNumberFromFeedback(item: AdminFeedbackItem): number | null {
+  const fromPath = item.page_path?.match(/\/songs?\/(\d+)/i)
+  if (fromPath) return Number(fromPath[1])
+  const fromComment = item.comment.match(/song\s*#(\d+)/i)
+  if (fromComment) return Number(fromComment[1])
+  return null
+}
 
 function AdminProgressBar({ visible, label }: { visible: boolean; label: string }) {
   if (!visible) return null
@@ -45,13 +65,16 @@ function AdminProgressBar({ visible, label }: { visible: boolean; label: string 
 
 export default function AdminScreen() {
   const router = useRouter()
-  const [tab, setTab] = useState<"feedback" | "members">("feedback")
+  const [tab, setTab] = useState<"feedback" | "members" | "devanagari">("feedback")
   const [filter, setFilter] = useState<FeedbackFilter>("new")
   const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([])
   const [members, setMembers] = useState<AdminMember[]>([])
   const [loading, setLoading] = useState(true)
   const [grantEmail, setGrantEmail] = useState("")
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [replyingId, setReplyingId] = useState<string | null>(null)
+  const [devanagariSong, setDevanagariSong] = useState<number | undefined>()
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const mode = useAuthStore((s) => s.mode)
   const feedbackRequest = useRef(0)
@@ -88,7 +111,8 @@ export default function AdminScreen() {
   useEffect(() => {
     if (mode !== "signed_in" || !isAdmin) return
     if (tab === "feedback") void loadFeedback()
-    else void loadMembers()
+    else if (tab === "members") void loadMembers()
+    else setLoading(false)
   }, [mode, isAdmin, tab, loadFeedback, loadMembers])
 
   if (mode !== "signed_in" || !isAdmin) {
@@ -178,12 +202,48 @@ export default function AdminScreen() {
     else await loadMembers()
   }
 
+  const sendReply = async (item: AdminFeedbackItem) => {
+    const body = (replyDrafts[item.feedback_id] || "").trim()
+    if (body.length < 1) {
+      Alert.alert("Reply", "Write a reply before sending.")
+      return
+    }
+    setReplyingId(item.feedback_id)
+    const result = await api.replyAdminFeedback(item.feedback_id, body)
+    setReplyingId(null)
+    if (!result.ok) {
+      Alert.alert("Reply", result.detail)
+      return
+    }
+    setFeedback((prev) =>
+      prev.map((row) => (row.feedback_id === item.feedback_id ? result.item : row)),
+    )
+    setReplyDrafts((prev) => ({ ...prev, [item.feedback_id]: "" }))
+    const last = result.item.replies?.[result.item.replies.length - 1]
+    Alert.alert(
+      "Reply sent",
+      last?.email_delivered
+        ? "Emailed to the user."
+        : item.contact
+          ? "Saved. Email may not have been delivered."
+          : "Saved. No contact email on this feedback.",
+    )
+  }
+
   const progressLabel =
     tab === "feedback"
       ? filter === "all"
         ? "Loading feedback…"
         : `Loading ${filter} feedback…`
-      : "Loading members…"
+      : tab === "members"
+        ? "Loading members…"
+        : "Loading Devanagari…"
+
+  const openDevanagari = (songNumber?: number) => {
+    if (songNumber && songNumber >= 1) setDevanagariSong(songNumber)
+    setLoading(false)
+    setTab("devanagari")
+  }
 
   return (
     <ScreenContainer edges={["top"]} padded={false} title="Admin">
@@ -208,6 +268,15 @@ export default function AdminScreen() {
         >
           <Text style={styles.tabText}>Members</Text>
         </Pressable>
+        <Pressable
+          style={[styles.tab, tab === "devanagari" && styles.tabActive]}
+          onPress={() => {
+            if (tab === "devanagari") return
+            openDevanagari()
+          }}
+        >
+          <Text style={styles.tabText}>Devanagari</Text>
+        </Pressable>
       </View>
 
       {!memberAuthAvailable() ? (
@@ -217,12 +286,17 @@ export default function AdminScreen() {
         </Text>
       ) : null}
 
-      <AdminProgressBar visible={loading} label={progressLabel} />
+      <AdminProgressBar visible={loading && tab !== "devanagari"} label={progressLabel} />
 
+      {tab === "devanagari" ? (
+        <AdminDevanagariPanel initialSongNumber={devanagariSong} />
+      ) : (
       <ScrollView contentContainerStyle={styles.content}>
         {tab === "feedback" ? (
           <>
-            <Text style={styles.heroSub}>Review member feedback and choose what appears on the home ticker.</Text>
+            <Text style={styles.heroSub}>
+              Review feedback (including Devanagari reports), reply by email, and publish ticker quotes.
+            </Text>
             <View style={styles.filterRow}>
               {(["new", "reviewed", "actioned", "all"] as FeedbackFilter[]).map((value) => (
                 <Pressable
@@ -244,18 +318,75 @@ export default function AdminScreen() {
             ) : feedback.length === 0 ? (
               <Text style={styles.empty}>No feedback in this filter.</Text>
             ) : (
-              feedback.map((item) => (
+              feedback.map((item) => {
+                const songNumber = songNumberFromFeedback(item)
+                const replies = item.replies ?? []
+                return (
                 <View key={item.feedback_id} style={styles.card}>
                   <View style={styles.cardTop}>
                     <MessageSquare size={16} color={colors.primary} />
                     <Text style={styles.meta}>
-                      {item.category} · {item.rating}/5 · {item.status}
+                      {categoryLabels[item.category] ?? item.category}
+                      {" · "}
+                      {item.rating}/5 · {item.status}
+                      {item.priority ? " · priority" : ""}
                       {item.on_live_ticker ? " · ticker" : ""}
                     </Text>
                   </View>
                   <Text style={styles.snippet}>{item.comment}</Text>
                   {item.contact ? <Text style={styles.meta}>{item.contact}</Text> : null}
+                  {item.page_path ? <Text style={styles.meta}>{item.page_path}</Text> : null}
+
+                  {replies.length > 0 ? (
+                    <View style={styles.replyThread}>
+                      <Text style={styles.replyThreadTitle}>Replies ({replies.length})</Text>
+                      {replies.map((reply) => (
+                        <View key={reply.reply_id} style={styles.replyBubble}>
+                          <Text style={styles.replyBody}>{reply.body}</Text>
+                          <Text style={styles.meta}>
+                            {reply.author_label}
+                            {reply.kind === "system" ? " · system" : ""}
+                            {reply.email_delivered ? " · emailed" : " · not emailed"}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  <TextInput
+                    value={replyDrafts[item.feedback_id] || ""}
+                    onChangeText={(text) =>
+                      setReplyDrafts((prev) => ({ ...prev, [item.feedback_id]: text }))
+                    }
+                    placeholder={
+                      item.contact
+                        ? `Reply → ${item.contact}`
+                        : "Reply (no contact email — saved only)"
+                    }
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    style={styles.replyInput}
+                  />
                   <View style={styles.actions}>
+                    <Pressable
+                      style={styles.actionBtn}
+                      disabled={replyingId === item.feedback_id || loading}
+                      onPress={() => void sendReply(item)}
+                    >
+                      {replyingId === item.feedback_id ? (
+                        <ActivityIndicator size="small" color={colors.primaryDark} />
+                      ) : (
+                        <Text style={styles.actionText}>Send reply</Text>
+                      )}
+                    </Pressable>
+                    {item.category === "devanagari" && songNumber ? (
+                      <Pressable
+                        style={styles.actionBtn}
+                        onPress={() => openDevanagari(songNumber)}
+                      >
+                        <Text style={styles.actionText}>Review & correct #{songNumber}</Text>
+                      </Pressable>
+                    ) : null}
                     <Pressable
                       style={styles.actionBtn}
                       disabled={busyId === item.feedback_id || loading}
@@ -286,7 +417,8 @@ export default function AdminScreen() {
                     )}
                   </View>
                 </View>
-              ))
+                )
+              })
             )}
           </>
         ) : (
@@ -352,6 +484,7 @@ export default function AdminScreen() {
           </>
         )}
       </ScrollView>
+      )}
     </ScreenContainer>
   )
 }
@@ -435,7 +568,7 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   meta: { ...typography.caption, color: colors.textMuted },
   snippet: { ...typography.bodySmall, color: colors.textPrimary, marginTop: spacing.sm },
-  actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
   actionBtn: {
     backgroundColor: colors.primaryLight,
     borderRadius: radius.pill,
@@ -443,6 +576,35 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   actionText: { ...typography.caption, color: colors.primaryDark },
+  replyThread: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    padding: spacing.sm,
+  },
+  replyThreadTitle: { ...typography.caption, color: colors.textMuted, fontFamily: "Inter_600SemiBold" },
+  replyBubble: {
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 4,
+  },
+  replyBody: { ...typography.bodySmall, color: colors.textPrimary },
+  replyInput: {
+    marginTop: spacing.sm,
+    minHeight: 64,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.textPrimary,
+    backgroundColor: colors.background,
+    textAlignVertical: "top",
+  },
   grantRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
   input: {
     flex: 1,
