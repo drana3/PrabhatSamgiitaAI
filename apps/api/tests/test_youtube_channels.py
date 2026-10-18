@@ -40,7 +40,8 @@ class _ChannelSession:
                 from sqlalchemy.exc import IntegrityError
 
                 raise IntegrityError(
-                    'duplicate key value violates unique constraint "youtube_review_queue_external_id_key"',
+                    "duplicate key value violates unique constraint "
+                    '"youtube_review_queue_external_id_key"',
                     params={"external_id": obj.external_id},
                     orig=Exception(obj.external_id),
                 )
