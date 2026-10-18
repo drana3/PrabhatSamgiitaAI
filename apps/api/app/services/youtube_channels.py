@@ -353,20 +353,22 @@ async def _linked_youtube_ids(session: AsyncSession) -> set[str]:
     return known
 
 
-async def _pending_reviews_for_channel(
-    session: AsyncSession, channel_id: str
+async def _review_queue_by_external_id(
+    session: AsyncSession,
 ) -> dict[str, YoutubeReviewQueue]:
-    rows = list(
-        (
-            await session.scalars(
-                select(YoutubeReviewQueue).where(
-                    YoutubeReviewQueue.status == "pending_review",
-                    YoutubeReviewQueue.channel_id == channel_id,
-                )
-            )
-        ).all()
-    )
+    rows = list((await session.scalars(select(YoutubeReviewQueue))).all())
     return {row.external_id: row for row in rows if row.external_id}
+
+
+def _review_belongs_to_channel(
+    review: YoutubeReviewQueue, channel: YoutubeScanChannel
+) -> bool:
+    if review.channel_id and review.channel_id == channel.channel_id:
+        return True
+    if review.channel_name and review.channel_name == channel.name:
+        return True
+    source = review.source_url or ""
+    return bool(channel.channel_id and channel.channel_id in source)
 
 
 def _auto_approve_review(review: YoutubeReviewQueue, song_number: int) -> None:
@@ -389,7 +391,13 @@ async def scan_youtube_channel(
 
     songs = await _load_songs_map(session)
     linked_ids = await _linked_youtube_ids(session)
-    pending_reviews = await _pending_reviews_for_channel(session, channel_row.channel_id)
+    queued_reviews = await _review_queue_by_external_id(session)
+    pending_reviews = {
+        external_id: review
+        for external_id, review in queued_reviews.items()
+        if review.status == "pending_review"
+        and _review_belongs_to_channel(review, channel_row)
+    }
     channel = channel_dict(channel_row)
 
     since = None
@@ -467,7 +475,7 @@ async def scan_youtube_channel(
                         metadata_json=metadata,
                     )
                 )
-                queued = pending_reviews.get(external_id)
+                queued = queued_reviews.get(external_id)
                 if queued is not None:
                     _auto_approve_review(queued, int(matched["song_number"]))
                 new_linked += 1
@@ -475,7 +483,7 @@ async def scan_youtube_channel(
                 linked_ids.add(external_id)
                 continue
 
-        if external_id in pending_reviews:
+        if external_id in queued_reviews:
             continue
         review = review_row(video, songs, channel)
         if review is None:
