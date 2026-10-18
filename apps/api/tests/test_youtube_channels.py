@@ -58,7 +58,15 @@ class _ChannelSession:
         elif "from media" in sql:
             rows = self.media
         elif "from youtube_review_queue" in sql:
-            rows = [review.external_id for review in self.reviews]
+            entity = statement.column_descriptions[0].get("entity")
+            if entity is YoutubeReviewQueue:
+                rows = [
+                    review
+                    for review in self.reviews
+                    if getattr(review, "status", "pending_review") == "pending_review"
+                ]
+            else:
+                rows = [review.external_id for review in self.reviews]
         elif "from youtube_scan_channels" in sql:
             rows = [row for row in self.channels if row.is_active]
         return _ScalarResult(rows)
@@ -291,3 +299,49 @@ async def test_scan_skips_known_and_queues_new_videos() -> None:
     assert result["new_queued_for_review"] == 1
     assert len(session.reviews) == 1
     assert session.reviews[0].external_id == "new999"
+
+
+@pytest.mark.asyncio
+async def test_scan_auto_links_pending_review_with_ellipsis_number() -> None:
+    session = _ChannelSession()
+    channel = YoutubeScanChannel(
+        id=uuid4(),
+        name="Manas Rawa",
+        channel_id="UCPEe8JPgsVkC77PHrioTa5g",
+        channel_url="https://www.youtube.com/@rawaassam/videos",
+        number_source="description",
+        is_trusted=True,
+        is_active=True,
+    )
+    session.channels.append(channel)
+    pending = YoutubeReviewQueue(
+        external_id="pending2065",
+        title="PRABHAT SAMGIITA || TUMI KON ATITE MORE || MANAS",
+        url="https://www.youtube.com/watch?v=pending2065",
+        channel_id=channel.channel_id,
+        channel_name=channel.name,
+        status="pending_review",
+        review_reason="missing_explicit_song_number",
+    )
+    session.reviews.append(pending)
+    session.songs.append(
+        Song(id=2065, number=2065, title="KON ATIITE MORE", first_line="Tumi kon atiite")
+    )
+
+    videos = [
+        {"video_id": "pending2065", "title": "PRABHAT SAMGIITA || TUMI KON ATITE MORE || MANAS"},
+    ]
+
+    with (
+        patch("app.services.youtube_channels.channel_videos", return_value=videos),
+        patch(
+            "scripts.sync_youtube.fetch_video_description",
+            return_value="PRABHAT SAMGIIT\nTUMI KON ATITE MORE ..2065\n",
+        ),
+    ):
+        result = await scan_youtube_channel(session, channel.id)  # type: ignore[arg-type]
+
+    assert result["new_auto_linked"] == 1
+    assert result["new_queued_for_review"] == 0
+    assert session.media[-1].song_number == 2065
+    assert pending.status == "approved"

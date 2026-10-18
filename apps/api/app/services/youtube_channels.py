@@ -336,7 +336,7 @@ async def _load_songs_map(session: AsyncSession) -> dict[int, dict[str, Any]]:
     }
 
 
-async def _known_external_ids(session: AsyncSession) -> set[str]:
+async def _linked_youtube_ids(session: AsyncSession) -> set[str]:
     known: set[str] = set()
     media_rows = await session.execute(
         select(Media.metadata_json, Media.url).where(Media.provider == "youtube")
@@ -350,9 +350,31 @@ async def _known_external_ids(session: AsyncSession) -> set[str]:
             match = re.search(r"[?&]v=([\w-]{6,})", url)
             if match:
                 known.add(match.group(1))
-    review_rows = await session.scalars(select(YoutubeReviewQueue.external_id))
-    known.update(review_rows.all())
     return known
+
+
+async def _pending_reviews_for_channel(
+    session: AsyncSession, channel_id: str
+) -> dict[str, YoutubeReviewQueue]:
+    rows = list(
+        (
+            await session.scalars(
+                select(YoutubeReviewQueue).where(
+                    YoutubeReviewQueue.status == "pending_review",
+                    YoutubeReviewQueue.channel_id == channel_id,
+                )
+            )
+        ).all()
+    )
+    return {row.external_id: row for row in rows if row.external_id}
+
+
+def _auto_approve_review(review: YoutubeReviewQueue, song_number: int) -> None:
+    review.status = "approved"
+    review.candidate_song_number = song_number
+    review.review_reason = "auto_linked_explicit_song_number"
+    review.review_note = "Auto-linked from an explicit catalog song number."
+    review.reviewed_at = datetime.now(UTC)
 
 
 async def scan_youtube_channel(
@@ -366,7 +388,8 @@ async def scan_youtube_channel(
         raise HTTPException(status_code=404, detail="YouTube channel not found.")
 
     songs = await _load_songs_map(session)
-    known_ids = await _known_external_ids(session)
+    linked_ids = await _linked_youtube_ids(session)
+    pending_reviews = await _pending_reviews_for_channel(session, channel_row.channel_id)
     channel = channel_dict(channel_row)
 
     since = None
@@ -381,7 +404,7 @@ async def scan_youtube_channel(
             channel,
             effective_max_pages,
             since=since,
-            known_ids=known_ids,
+            known_ids=linked_ids,
         )
     except Exception as exc:
         raise HTTPException(
@@ -389,23 +412,34 @@ async def scan_youtube_channel(
             detail=f"Could not scan {channel_row.name}: {exc}",
         ) from exc
 
+    videos_by_id = {video["video_id"]: video for video in discovered_videos}
+    for external_id, pending in pending_reviews.items():
+        if external_id in linked_ids or external_id in videos_by_id:
+            continue
+        videos_by_id[external_id] = {
+            "video_id": external_id,
+            "title": pending.title,
+        }
+
     new_queued = 0
     new_linked = 0
     known_count = 0
     linked_numbers: list[int] = []
-    unknown_videos = [
-        video for video in discovered_videos if video["video_id"] not in known_ids
+    candidates = [
+        video for video in videos_by_id.values() if video["video_id"] not in linked_ids
     ]
+    # Re-check queued items first so an ellipsis number can auto-link this pass.
+    candidates.sort(key=lambda video: 0 if video["video_id"] in pending_reviews else 1)
     deferred_ids = await asyncio.to_thread(
         enrich_videos_for_channel,
-        unknown_videos,
+        candidates,
         channel,
         max_fetches=ADMIN_DESCRIPTION_FETCH_CAP,
     )
 
-    for video in discovered_videos:
+    for video in videos_by_id.values():
         external_id = video["video_id"]
-        if external_id in known_ids:
+        if external_id in linked_ids:
             known_count += 1
             continue
         if external_id in deferred_ids:
@@ -433,11 +467,16 @@ async def scan_youtube_channel(
                         metadata_json=metadata,
                     )
                 )
+                pending = pending_reviews.get(external_id)
+                if pending is not None:
+                    _auto_approve_review(pending, int(matched["song_number"]))
                 new_linked += 1
                 linked_numbers.append(int(matched["song_number"]))
-                known_ids.add(external_id)
+                linked_ids.add(external_id)
                 continue
 
+        if external_id in pending_reviews:
+            continue
         review = review_row(video, songs, channel)
         if review is None:
             continue
@@ -456,7 +495,7 @@ async def scan_youtube_channel(
             )
         )
         new_queued += 1
-        known_ids.add(external_id)
+        linked_ids.add(external_id)
 
     channel_row.last_scanned_at = datetime.now(UTC)
     channel_row.last_scan_discovered = len(discovered_videos)

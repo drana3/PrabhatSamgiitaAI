@@ -102,6 +102,7 @@ def persist_youtube_inventory(
             "inserted_media": 0,
             "inserted_reviews": 0,
             "updated_reviews": 0,
+            "approved_reviews": 0,
             "inserted_song_numbers": [],
         }
     import psycopg
@@ -109,6 +110,7 @@ def persist_youtube_inventory(
 
     inserted_media = 0
     inserted_reviews = 0
+    approved_reviews = 0
     inserted_song_numbers: list[int] = []
     with psycopg.connect(_libpq_url(database_url), connect_timeout=30) as conn:
         with conn.cursor() as cur:
@@ -130,31 +132,43 @@ def persist_youtube_inventory(
                     """,
                     (external_id, f"%{external_id}%"),
                 )
-                if cur.fetchone():
-                    continue
+                if not cur.fetchone():
+                    cur.execute(
+                        """
+                        INSERT INTO media (
+                            song_number, kind, provider, title, url, embed_url,
+                            verification_status, source_url, notes, metadata_json
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            int(row["song_number"]),
+                            str(row.get("kind") or "video"),
+                            str(row.get("provider") or "youtube"),
+                            str(row.get("title") or "")[:255],
+                            str(row.get("url") or ""),
+                            row.get("embed_url"),
+                            str(row.get("verification_status") or "unverified"),
+                            row.get("source_url"),
+                            row.get("notes"),
+                            Json(metadata),
+                        ),
+                    )
+                    inserted_media += 1
+                    inserted_song_numbers.append(int(row["song_number"]))
                 cur.execute(
                     """
-                    INSERT INTO media (
-                        song_number, kind, provider, title, url, embed_url,
-                        verification_status, source_url, notes, metadata_json
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    UPDATE youtube_review_queue
+                    SET status = 'approved',
+                        candidate_song_number = %s,
+                        review_reason = 'auto_linked_explicit_song_number',
+                        review_note = 'Auto-linked from an explicit catalog song number.',
+                        reviewed_at = NOW()
+                    WHERE external_id = %s AND status = 'pending_review'
                     """,
-                    (
-                        int(row["song_number"]),
-                        str(row.get("kind") or "video"),
-                        str(row.get("provider") or "youtube"),
-                        str(row.get("title") or "")[:255],
-                        str(row.get("url") or ""),
-                        row.get("embed_url"),
-                        str(row.get("verification_status") or "unverified"),
-                        row.get("source_url"),
-                        row.get("notes"),
-                        Json(metadata),
-                    ),
+                    (int(row["song_number"]), external_id),
                 )
-                inserted_media += 1
-                inserted_song_numbers.append(int(row["song_number"]))
+                approved_reviews += max(cur.rowcount or 0, 0)
             for row in review_rows:
                 external_id = str(row.get("external_id") or "").strip()
                 if not external_id:
@@ -205,6 +219,7 @@ def persist_youtube_inventory(
         "inserted_media": inserted_media,
         "inserted_reviews": inserted_reviews,
         "updated_reviews": 0,
+        "approved_reviews": approved_reviews,
         "inserted_song_numbers": list(dict.fromkeys(inserted_song_numbers)),
     }
 
@@ -309,13 +324,69 @@ def load_known_youtube_external_ids(database_url: str | None = None) -> set[str]
                     match = re.search(r"[?&]v=([\w-]{6,})", media_url)
                     if match:
                         known.add(match.group(1))
-            cur.execute("SELECT external_id FROM youtube_review_queue")
-            for (external_id,) in cur.fetchall():
-                if isinstance(external_id, str) and external_id:
-                    known.add(external_id)
     except Exception as exc:
         print(f"Could not load known YouTube IDs from DB: {exc}", file=sys.stderr)
     return known
+
+
+def load_pending_youtube_reviews(database_url: str | None = None) -> list[dict[str, Any]]:
+    """Pending review rows so the batch job can auto-link after matcher upgrades."""
+    database_url = database_url or os.environ.get("DATABASE_URL")
+    if not database_url:
+        return []
+    try:
+        import psycopg
+
+        url = _libpq_url(database_url)
+        with psycopg.connect(url, connect_timeout=30) as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT external_id, title, url, channel_id, channel_name, source_url
+                FROM youtube_review_queue
+                WHERE status = 'pending_review'
+                """
+            )
+            return [
+                {
+                    "external_id": external_id,
+                    "title": title or "",
+                    "url": review_url or "",
+                    "channel_id": channel_id,
+                    "channel_name": channel_name,
+                    "source_url": source_url,
+                    "status": "pending_review",
+                }
+                for (
+                    external_id,
+                    title,
+                    review_url,
+                    channel_id,
+                    channel_name,
+                    source_url,
+                ) in cur.fetchall()
+                if isinstance(external_id, str) and external_id
+            ]
+    except Exception as exc:
+        print(f"Could not load pending YouTube reviews from DB: {exc}", file=sys.stderr)
+        return []
+
+
+def fold_pending_videos(
+    discovered: list[dict[str, Any]],
+    pending_rows: list[dict[str, Any]],
+    linked_ids: set[str],
+) -> list[dict[str, Any]]:
+    """Include queued videos so a later matcher can auto-link them."""
+    videos_by_id = {str(video["video_id"]): video for video in discovered}
+    for pending in pending_rows:
+        video_id = str(pending.get("external_id") or "")
+        if not video_id or video_id in linked_ids or video_id in videos_by_id:
+            continue
+        videos_by_id[video_id] = {
+            "video_id": video_id,
+            "title": str(pending.get("title") or ""),
+        }
+    return list(videos_by_id.values())
 
 
 def fetch(url: str, payload: dict[str, Any] | None = None) -> str:
@@ -945,7 +1016,14 @@ def main() -> None:
     review_by_id = {row["external_id"]: row for row in existing_review_rows}
     discovered_by_channel: dict[str, int] = {}
     scan_channels = load_scan_channels()
-    known_external_ids = load_known_youtube_external_ids()
+    linked_ids = load_known_youtube_external_ids()
+    pending_reviews = load_pending_youtube_reviews()
+    pending_by_channel: dict[str, list[dict[str, Any]]] = {}
+    for pending in pending_reviews:
+        review_by_id.setdefault(pending["external_id"], pending)
+        channel_id = str(pending.get("channel_id") or "")
+        if channel_id:
+            pending_by_channel.setdefault(channel_id, []).append(pending)
     for channel in scan_channels:
         last_scanned_at = channel.get("last_scanned_at")
         since = None
@@ -956,7 +1034,7 @@ def main() -> None:
                 channel,
                 max_pages=args.max_pages,
                 since=since,
-                known_ids=known_external_ids or None,
+                known_ids=linked_ids or None,
             )
         except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
             discovered_by_channel[channel["name"]] = 0
@@ -966,24 +1044,32 @@ def main() -> None:
             )
             continue
         discovered_by_channel[channel["name"]] = len(discovered)
+        channel_pending = pending_by_channel.get(str(channel["id"]), [])
+        videos = fold_pending_videos(discovered, channel_pending, linked_ids)
+        pending_ids = {str(row["external_id"]) for row in channel_pending}
+        candidates = [video for video in videos if video["video_id"] not in linked_ids]
+        candidates.sort(key=lambda video: 0 if video["video_id"] in pending_ids else 1)
         deferred_ids = enrich_videos_for_channel(
-            discovered,
+            candidates,
             channel,
             max_fetches=BATCH_DESCRIPTION_FETCH_CAP,
         )
-        for video in discovered:
-            if video["video_id"] in deferred_ids:
+        for video in videos:
+            if video["video_id"] in linked_ids or video["video_id"] in deferred_ids:
                 continue
             if not youtube_video_in_scope(video_match_text(video, channel)):
                 continue
             row = media_row(video, songs, channel)
             if row is None:
+                if video["video_id"] in pending_ids:
+                    continue
                 review = review_row(video, songs, channel)
                 if review is not None:
                     review_by_id[review["external_id"]] = review
             else:
                 rows_by_id[row["metadata_json"]["external_id"]] = row
                 review_by_id.pop(row["metadata_json"]["external_id"], None)
+                linked_ids.add(video["video_id"])
 
     general_discovered = 0
     if args.general_search_limit > 0:
@@ -1048,6 +1134,7 @@ def main() -> None:
                 "general_youtube_matches_added": general_discovered,
                 "neon_inserted_media": persisted["inserted_media"],
                 "neon_inserted_reviews": persisted["inserted_reviews"],
+                "neon_approved_reviews": persisted.get("approved_reviews", 0),
                 "output": str(args.output),
                 "review_output": str(args.review_output),
             },

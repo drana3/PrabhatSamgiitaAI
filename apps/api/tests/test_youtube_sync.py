@@ -17,6 +17,7 @@ from scripts.sync_youtube import (
     extract_videos,
     fetch,
     fetch_video_description,
+    fold_pending_videos,
     media_row,
     mentions_prabhat_samgiita,
     needs_description,
@@ -377,7 +378,20 @@ def test_persist_youtube_inventory_skips_without_database_url(monkeypatch) -> No
     result = persist_youtube_inventory([], [], {})
     assert result["inserted_media"] == 0
     assert result["inserted_reviews"] == 0
+    assert result["approved_reviews"] == 0
     assert result["inserted_song_numbers"] == []
+
+
+def test_fold_pending_videos_adds_queued_ids() -> None:
+    discovered = [{"video_id": "on-channel", "title": "Already listed"}]
+    pending = [
+        {"external_id": "queued-2065", "title": "PRABHAT SAMGIITA || TUMI KON ATITE MORE"},
+        {"external_id": "on-channel", "title": "Duplicate"},
+        {"external_id": "already-linked", "title": "Skip"},
+    ]
+    videos = fold_pending_videos(discovered, pending, {"already-linked"})
+    ids = {video["video_id"] for video in videos}
+    assert ids == {"on-channel", "queued-2065"}
 
 
 def test_notify_live_catalog_refresh_skips_without_credentials(monkeypatch, capsys) -> None:
