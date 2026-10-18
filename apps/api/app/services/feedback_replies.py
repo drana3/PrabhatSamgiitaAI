@@ -147,7 +147,8 @@ async def notify_devanagari_reporters(
         return 0
 
     existing = await load_replies_by_feedback(session, [row.id for row in candidates])
-    note_suffix = f"\n\nNote from reviewer: {review_note.strip()}" if review_note and review_note.strip() else ""
+    note = (review_note or "").strip()
+    note_suffix = f"\n\nNote from reviewer: {note}" if note else ""
     body = (
         f"Thank you for reporting Devanagari lyrics for song #{song_number}. "
         f"An admin has reviewed the text and approved the corrected version."
@@ -156,7 +157,11 @@ async def notify_devanagari_reporters(
     notified = 0
     for feedback in candidates:
         prior = existing.get(feedback.id) or []
-        if any(reply.kind == "system" and "approved" in (reply.body or "").lower() for reply in prior):
+        already = any(
+            reply.kind == "system" and "approved" in (reply.body or "").lower()
+            for reply in prior
+        )
+        if already:
             continue
         await create_feedback_reply(
             session,
