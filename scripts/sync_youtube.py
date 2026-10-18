@@ -53,6 +53,24 @@ SEARCH_STATE_PATH = (
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
 SCAN_LOOKBACK = timedelta(hours=12)
 _innertube_cache: tuple[str, str] | None = None
+INNERTUBE_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player"
+# Public WEB inner-tube key; ANDROID/IOS do not need the page-scraped version.
+INNERTUBE_API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+ANDROID_INNERTUBE_CLIENT = {
+    "clientName": "ANDROID",
+    "clientVersion": "20.10.38",
+    "androidSdkVersion": 30,
+    "osName": "Android",
+    "osVersion": "11",
+    "hl": "en",
+    "gl": "US",
+}
+IOS_INNERTUBE_CLIENT = {
+    "clientName": "IOS",
+    "clientVersion": "20.10.4",
+    "hl": "en",
+    "gl": "US",
+}
 RELATIVE_TIME_RE = re.compile(
     r"(?i)(?:streamed|premiered)?\s*(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago"
 )
@@ -447,52 +465,84 @@ def _remember_innertube(html: str) -> tuple[str, str] | None:
     return _innertube_cache
 
 
-def _description_via_innertube(video_id: str, api_key: str, client_version: str) -> str:
-    try:
-        payload = json.loads(
-            fetch(
-                f"https://www.youtube.com/youtubei/v1/player?key={api_key}",
-                {
-                    "context": {
-                        "client": {
-                            "clientName": "WEB",
-                            "clientVersion": client_version,
-                        }
-                    },
-                    "videoId": video_id,
-                },
-            )
-        )
-    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
-        return ""
+def _player_description(payload: object) -> str:
     if not isinstance(payload, dict):
         return ""
     description = nested(payload, "videoDetails", "shortDescription")
     return description if isinstance(description, str) else ""
 
 
+def _description_via_innertube(
+    video_id: str,
+    api_key: str | None = None,
+    client_version: str | None = None,
+) -> str:
+    """Prefer ANDROID/IOS clients; WEB often returns LOGIN_REQUIRED from datacenters."""
+    clients: list[tuple[str, dict[str, Any]]] = [
+        (api_key or INNERTUBE_API_KEY, ANDROID_INNERTUBE_CLIENT),
+        (api_key or INNERTUBE_API_KEY, IOS_INNERTUBE_CLIENT),
+    ]
+    if api_key and client_version:
+        clients.append(
+            (
+                api_key,
+                {"clientName": "WEB", "clientVersion": client_version},
+            )
+        )
+    elif _innertube_cache is not None:
+        cached_key, cached_version = _innertube_cache
+        clients.append(
+            (cached_key, {"clientName": "WEB", "clientVersion": cached_version})
+        )
+    for key, client in clients:
+        try:
+            payload = json.loads(
+                fetch(
+                    f"{INNERTUBE_PLAYER_URL}?key={key}",
+                    {
+                        "context": {"client": client},
+                        "videoId": video_id,
+                        "contentCheckOk": True,
+                        "racyCheckOk": True,
+                    },
+                )
+            )
+        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+            continue
+        description = _player_description(payload)
+        if description.strip():
+            return description
+    return ""
+
+
 def fetch_video_description(video_id: str) -> str:
-    """Fetch a single video's full description from Innertube or its watch page.
+    """Fetch a video description without relying on a watch-page player shell.
 
     Channel listings only expose titles. Azure watch-page fetches often return a
-    consent shell without ytInitialPlayerResponse, so prefer the player API when
-    a channel scan has already cached Innertube credentials.
+    consent page, and WEB Innertube is often LOGIN_REQUIRED. ANDROID/IOS clients
+    still return videoDetails.shortDescription.
     """
-    if _innertube_cache is not None:
-        description = _description_via_innertube(video_id, *_innertube_cache)
-        if description.strip():
-            return description
-    html = fetch(f"https://www.youtube.com/watch?v={video_id}")
+    description = _description_via_innertube(
+        video_id,
+        *(_innertube_cache or (None, None)),
+    )
+    if description.strip():
+        return description
+    try:
+        html = fetch(f"https://www.youtube.com/watch?v={video_id}")
+    except (HTTPError, URLError, TimeoutError):
+        return ""
     _remember_innertube(html)
     player = _initial_player_response(html)
-    if player is not None:
-        description = nested(player, "videoDetails", "shortDescription")
-        if isinstance(description, str) and description.strip():
-            return description
-    if _innertube_cache is not None:
-        description = _description_via_innertube(video_id, *_innertube_cache)
-        if description.strip():
-            return description
+    description = _player_description(player) if player is not None else ""
+    if description.strip():
+        return description
+    description = _description_via_innertube(
+        video_id,
+        *(_innertube_cache or (None, None)),
+    )
+    if description.strip():
+        return description
     match = re.search(r'<meta name="description" content="([^"]*)"', html)
     if match:
         return match.group(1)

@@ -148,6 +148,7 @@ class YoutubeScanChannelScanResult(BaseModel):
     new_auto_linked: int
     already_queued: int = 0
     deferred: int = 0
+    descriptions_read: int = 0
 
 
 class LanguageCheckRequest(BaseModel):

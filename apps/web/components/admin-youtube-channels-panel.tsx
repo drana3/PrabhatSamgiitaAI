@@ -39,6 +39,7 @@ export type YoutubeScanResult = {
   new_auto_linked: number
   already_queued?: number
   deferred?: number
+  descriptions_read?: number
 }
 
 type EditDraft = {
@@ -450,6 +451,7 @@ export function AdminYoutubeChannelsPanel({
           `${body?.already_known ?? 0} already in database, ` +
           `${body?.already_queued ?? 0} already in review queue ` +
           `(${body?.discovered ?? 0} found on channel` +
+          `${body?.descriptions_read ? `, ${body.descriptions_read} descriptions read` : ""}` +
           `${body?.deferred ? `, ${body.deferred} left for next scan` : ""}).`,
       )
       await load()
