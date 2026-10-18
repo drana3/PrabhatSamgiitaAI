@@ -372,22 +372,35 @@ def test_fetch_video_description_reads_player_response(monkeypatch) -> None:  # 
         '{"videoDetails": {"shortDescription": "Prabhat Samgiita No. 42"}};'
         "</script></body></html>"
     )
-    monkeypatch.setattr("scripts.sync_youtube.fetch", lambda _url: html)
+
+    def fake_fetch(url: str, payload: dict | None = None) -> str:
+        if "youtubei/v1/player" in url:
+            return json.dumps({"playabilityStatus": {"status": "LOGIN_REQUIRED"}})
+        return html
+
+    monkeypatch.setattr("scripts.sync_youtube.fetch", fake_fetch)
     assert fetch_video_description("abc123") == "Prabhat Samgiita No. 42"
 
 
-def test_fetch_video_description_uses_cached_innertube(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_fetch_video_description_uses_android_innertube(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     import scripts.sync_youtube as sync_youtube
 
-    sync_youtube._innertube_cache = ("k123", "1.0")
+    sync_youtube._innertube_cache = None
+    clients: list[str] = []
 
     def fake_fetch(url: str, payload: dict | None = None) -> str:
         assert "youtubei/v1/player" in url
         assert payload is not None
-        return json.dumps({"videoDetails": {"shortDescription": "TUMI KON ATITE MORE ..2065"}})
+        clients.append(str(payload["context"]["client"]["clientName"]))
+        if payload["context"]["client"]["clientName"] == "ANDROID":
+            return json.dumps(
+                {"videoDetails": {"shortDescription": "TUMI KON ATITE MORE ..2065"}}
+            )
+        return json.dumps({"playabilityStatus": {"status": "LOGIN_REQUIRED"}})
 
     monkeypatch.setattr("scripts.sync_youtube.fetch", fake_fetch)
     assert fetch_video_description("KqHHEov2QaE") == "TUMI KON ATITE MORE ..2065"
+    assert clients[0] == "ANDROID"
 
 
 def test_persist_youtube_inventory_skips_without_database_url(monkeypatch) -> None:

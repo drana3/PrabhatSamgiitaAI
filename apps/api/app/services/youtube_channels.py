@@ -322,6 +322,18 @@ async def update_youtube_scan_channel(
 
 
 async def _load_songs_map(session: AsyncSession) -> dict[int, dict[str, Any]]:
+    from app.services.catalog import catalog_song_snapshot
+
+    songs = {
+        song.number: {
+            "number": song.number,
+            "title": song.title,
+            "first_line": song.first_line,
+        }
+        for song in catalog_song_snapshot()
+    }
+    if songs:
+        return songs
     stmt = select(Song.number, Song.title, Song.first_line).order_by(Song.number)
     rows = (await session.execute(stmt)).all()
     return {
@@ -459,6 +471,9 @@ async def scan_youtube_channel(
         channel,
         max_fetches=ADMIN_DESCRIPTION_FETCH_CAP,
     )
+    descriptions_read = sum(
+        1 for video in candidates if str(video.get("description") or "").strip()
+    )
 
     for video in videos_by_id.values():
         external_id = video["video_id"]
@@ -542,6 +557,7 @@ async def scan_youtube_channel(
         "new_auto_linked": new_linked,
         "already_queued": already_queued,
         "deferred": len(deferred_ids),
+        "descriptions_read": descriptions_read,
     }
 
 
@@ -557,6 +573,7 @@ async def scan_all_youtube_channels(
         "new_auto_linked": 0,
         "already_queued": 0,
         "deferred": 0,
+        "descriptions_read": 0,
         "channels": [],
     }
     for channel in channels:
@@ -568,5 +585,6 @@ async def scan_all_youtube_channels(
         totals["new_auto_linked"] += result["new_auto_linked"]
         totals["already_queued"] += result["already_queued"]
         totals["deferred"] += result["deferred"]
+        totals["descriptions_read"] += result["descriptions_read"]
         totals["channels"].append({"name": channel.name, **result})
     return totals
