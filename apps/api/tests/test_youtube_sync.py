@@ -11,6 +11,7 @@ from scripts.sync_youtube import (
     GENERAL_YOUTUBE,
     _should_stop_scan_page,
     enrich_video_for_channel,
+    enrich_videos_for_channel,
     extract_videos,
     fetch,
     fetch_video_description,
@@ -279,6 +280,25 @@ def test_needs_description_prefilters_on_title_scope() -> None:
         )
         is False
     )
+
+
+def test_enrich_videos_for_channel_defers_after_cap(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    fetched: list[str] = []
+
+    def fake_fetch(video_id: str) -> str:
+        fetched.append(video_id)
+        return "Prabhat Samgiita No. 1"
+
+    monkeypatch.setattr("scripts.sync_youtube.fetch_video_description", fake_fetch)
+    videos = [
+        {"video_id": "a", "title": "Prabhat Samgiita melody one"},
+        {"video_id": "b", "title": "Prabhat Samgiita melody two"},
+        {"video_id": "c", "title": "Prabhat Samgiita melody three"},
+    ]
+    deferred = enrich_videos_for_channel(videos, DESCRIPTION_CHANNEL, max_fetches=2)
+    assert set(fetched) == {"a", "b"}
+    assert deferred == {"c"}
+    assert videos[0]["description"] == "Prabhat Samgiita No. 1"
 
 
 def test_enrich_video_for_channel_populates_description(monkeypatch) -> None:  # type: ignore[no-untyped-def]

@@ -6,6 +6,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -23,7 +24,7 @@ from scripts.sync_youtube import (  # noqa: E402
     CHANNELS,
     SCAN_LOOKBACK,
     channel_videos,
-    enrich_video_for_channel,
+    enrich_videos_for_channel,
     fetch,
     initial_data,
     media_row,
@@ -36,15 +37,20 @@ from scripts.sync_youtube import (  # noqa: E402
 ADMIN_SCAN_MAX_PAGES = 4
 BATCH_SCAN_MAX_PAGES = 50
 INCREMENTAL_SCAN_MAX_PAGES = 4
+ADMIN_DESCRIPTION_FETCH_CAP = 16
 
 
 def normalize_channel_url(url: str) -> str:
-    cleaned = url.strip().rstrip("/")
+    cleaned = url.strip()
     if not cleaned:
         raise HTTPException(status_code=422, detail="Channel URL is required.")
-    if "/videos" not in cleaned:
-        cleaned = f"{cleaned}/videos"
-    return cleaned
+    parts = urlsplit(cleaned)
+    if not parts.netloc:
+        raise HTTPException(status_code=422, detail="Channel URL is required.")
+    path = parts.path.rstrip("/")
+    if not path.endswith("/videos"):
+        path = f"{path}/videos"
+    return urlunsplit((parts.scheme or "https", parts.netloc, path, "", ""))
 
 
 def _channel_id_from_item(item: dict[str, Any]) -> str | None:
@@ -387,14 +393,24 @@ async def scan_youtube_channel(
     new_linked = 0
     known_count = 0
     linked_numbers: list[int] = []
+    unknown_videos = [
+        video for video in discovered_videos if video["video_id"] not in known_ids
+    ]
+    deferred_ids = await asyncio.to_thread(
+        enrich_videos_for_channel,
+        unknown_videos,
+        channel,
+        max_fetches=ADMIN_DESCRIPTION_FETCH_CAP,
+    )
 
     for video in discovered_videos:
         external_id = video["video_id"]
         if external_id in known_ids:
             known_count += 1
             continue
+        if external_id in deferred_ids:
+            continue
 
-        await asyncio.to_thread(enrich_video_for_channel, video, channel)
         if not youtube_video_in_scope(video_match_text(video, channel)):
             continue
 
