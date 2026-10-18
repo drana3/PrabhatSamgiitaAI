@@ -467,9 +467,9 @@ async def scan_youtube_channel(
                         metadata_json=metadata,
                     )
                 )
-                pending = pending_reviews.get(external_id)
-                if pending is not None:
-                    _auto_approve_review(pending, int(matched["song_number"]))
+                queued = pending_reviews.get(external_id)
+                if queued is not None:
+                    _auto_approve_review(queued, int(matched["song_number"]))
                 new_linked += 1
                 linked_numbers.append(int(matched["song_number"]))
                 linked_ids.add(external_id)
