@@ -22,7 +22,6 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.sync_youtube import (  # noqa: E402
     CHANNELS,
-    SCAN_LOOKBACK,
     channel_videos,
     enrich_videos_for_channel,
     fetch,
@@ -36,7 +35,6 @@ from scripts.sync_youtube import (  # noqa: E402
 
 ADMIN_SCAN_MAX_PAGES = 4
 BATCH_SCAN_MAX_PAGES = 50
-INCREMENTAL_SCAN_MAX_PAGES = 4
 ADMIN_DESCRIPTION_FETCH_CAP = 16
 
 
@@ -365,10 +363,17 @@ def _review_belongs_to_channel(
 ) -> bool:
     if review.channel_id and review.channel_id == channel.channel_id:
         return True
-    if review.channel_name and review.channel_name == channel.name:
+    if review.channel_name and review.channel_name.casefold() == channel.name.casefold():
         return True
-    source = review.source_url or ""
-    return bool(channel.channel_id and channel.channel_id in source)
+    haystack = " ".join(
+        part
+        for part in (review.channel_id, review.channel_name, review.source_url)
+        if part
+    ).casefold()
+    if channel.channel_id and channel.channel_id.casefold() in haystack:
+        return True
+    handle = re.search(r"youtube\.com/@([\w.-]+)", channel.channel_url or "", re.I)
+    return bool(handle and handle.group(1).casefold() in haystack)
 
 
 def _auto_approve_review(review: YoutubeReviewQueue, song_number: int) -> None:
@@ -392,26 +397,20 @@ async def scan_youtube_channel(
     songs = await _load_songs_map(session)
     linked_ids = await _linked_youtube_ids(session)
     queued_reviews = await _review_queue_by_external_id(session)
-    pending_reviews = {
+    reprocess_reviews = {
         external_id: review
         for external_id, review in queued_reviews.items()
-        if review.status == "pending_review"
+        if external_id not in linked_ids
         and _review_belongs_to_channel(review, channel_row)
     }
     channel = channel_dict(channel_row)
-
-    since = None
-    effective_max_pages = max_pages
-    if channel_row.last_scanned_at is not None:
-        since = channel_row.last_scanned_at.astimezone(UTC) - SCAN_LOOKBACK
-        effective_max_pages = min(max_pages, INCREMENTAL_SCAN_MAX_PAGES)
 
     try:
         discovered_videos = await asyncio.to_thread(
             channel_videos,
             channel,
-            effective_max_pages,
-            since=since,
+            max_pages,
+            since=None,
             known_ids=linked_ids,
         )
     except Exception as exc:
@@ -421,23 +420,39 @@ async def scan_youtube_channel(
         ) from exc
 
     videos_by_id = {video["video_id"]: video for video in discovered_videos}
-    for external_id, pending in pending_reviews.items():
-        if external_id in linked_ids or external_id in videos_by_id:
-            continue
-        videos_by_id[external_id] = {
-            "video_id": external_id,
-            "title": pending.title,
-        }
+    for external_id, queued_row in reprocess_reviews.items():
+        existing = videos_by_id.get(external_id)
+        if existing is None:
+            videos_by_id[external_id] = {
+                "video_id": external_id,
+                "title": queued_row.title,
+                "_use_description": True,
+            }
+        else:
+            existing["_use_description"] = True
+    for video in videos_by_id.values():
+        if video["video_id"] in queued_reviews:
+            video["_use_description"] = True
 
     new_queued = 0
     new_linked = 0
     known_count = 0
+    already_queued = 0
     linked_numbers: list[int] = []
     candidates = [
         video for video in videos_by_id.values() if video["video_id"] not in linked_ids
     ]
-    # Re-check queued items first so an ellipsis number can auto-link this pass.
-    candidates.sort(key=lambda video: 0 if video["video_id"] in pending_reviews else 1)
+
+    def _fetch_priority(video: dict[str, Any]) -> int:
+        review = reprocess_reviews.get(video["video_id"])
+        if review is None:
+            return 2
+        if review.review_reason == "missing_explicit_song_number":
+            return 0
+        return 1
+
+    # Queued missing-number items first so an ellipsis can auto-link this pass.
+    candidates.sort(key=_fetch_priority)
     deferred_ids = await asyncio.to_thread(
         enrich_videos_for_channel,
         candidates,
@@ -484,21 +499,22 @@ async def scan_youtube_channel(
                 continue
 
         if external_id in queued_reviews:
+            already_queued += 1
             continue
-        review = review_row(video, songs, channel)
-        if review is None:
+        payload = review_row(video, songs, channel)
+        if payload is None:
             continue
         session.add(
             YoutubeReviewQueue(
-                external_id=review["external_id"],
-                title=review["title"],
-                url=review["url"],
-                channel_id=review.get("channel_id"),
-                channel_name=review.get("channel_name"),
-                source_url=review.get("source_url"),
-                candidate_song_number=review.get("candidate_song_number"),
-                title_similarity=review.get("title_similarity"),
-                review_reason=str(review.get("review_reason") or "pending_review"),
+                external_id=payload["external_id"],
+                title=payload["title"],
+                url=payload["url"],
+                channel_id=payload.get("channel_id"),
+                channel_name=payload.get("channel_name"),
+                source_url=payload.get("source_url"),
+                candidate_song_number=payload.get("candidate_song_number"),
+                title_similarity=payload.get("title_similarity"),
+                review_reason=str(payload.get("review_reason") or "pending_review"),
                 status="pending_review",
             )
         )
@@ -524,6 +540,8 @@ async def scan_youtube_channel(
         "already_known": known_count,
         "new_queued_for_review": new_queued,
         "new_auto_linked": new_linked,
+        "already_queued": already_queued,
+        "deferred": len(deferred_ids),
     }
 
 
@@ -537,6 +555,8 @@ async def scan_all_youtube_channels(
         "already_known": 0,
         "new_queued_for_review": 0,
         "new_auto_linked": 0,
+        "already_queued": 0,
+        "deferred": 0,
         "channels": [],
     }
     for channel in channels:
@@ -546,5 +566,7 @@ async def scan_all_youtube_channels(
         totals["already_known"] += result["already_known"]
         totals["new_queued_for_review"] += result["new_queued_for_review"]
         totals["new_auto_linked"] += result["new_auto_linked"]
+        totals["already_queued"] += result["already_queued"]
+        totals["deferred"] += result["deferred"]
         totals["channels"].append({"name": channel.name, **result})
     return totals

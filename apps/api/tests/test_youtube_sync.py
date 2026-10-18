@@ -364,6 +364,9 @@ def test_enrich_video_for_channel_populates_description(monkeypatch) -> None:  #
 
 
 def test_fetch_video_description_reads_player_response(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import scripts.sync_youtube as sync_youtube
+
+    sync_youtube._innertube_cache = None
     html = (
         "<html><body><script>var ytInitialPlayerResponse = "
         '{"videoDetails": {"shortDescription": "Prabhat Samgiita No. 42"}};'
@@ -371,6 +374,20 @@ def test_fetch_video_description_reads_player_response(monkeypatch) -> None:  # 
     )
     monkeypatch.setattr("scripts.sync_youtube.fetch", lambda _url: html)
     assert fetch_video_description("abc123") == "Prabhat Samgiita No. 42"
+
+
+def test_fetch_video_description_uses_cached_innertube(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import scripts.sync_youtube as sync_youtube
+
+    sync_youtube._innertube_cache = ("k123", "1.0")
+
+    def fake_fetch(url: str, payload: dict | None = None) -> str:
+        assert "youtubei/v1/player" in url
+        assert payload is not None
+        return json.dumps({"videoDetails": {"shortDescription": "TUMI KON ATITE MORE ..2065"}})
+
+    monkeypatch.setattr("scripts.sync_youtube.fetch", fake_fetch)
+    assert fetch_video_description("KqHHEov2QaE") == "TUMI KON ATITE MORE ..2065"
 
 
 def test_persist_youtube_inventory_skips_without_database_url(monkeypatch) -> None:

@@ -383,10 +383,14 @@ async def test_scan_does_not_reinsert_existing_review_ids() -> None:
         {"video_id": "brandNew99", "title": "Prabhat Samgiita untitled new video"},
     ]
 
-    with patch("app.services.youtube_channels.channel_videos", return_value=videos):
+    with (
+        patch("app.services.youtube_channels.channel_videos", return_value=videos),
+        patch("scripts.sync_youtube.fetch_video_description", return_value=""),
+    ):
         result = await scan_youtube_channel(session, channel.id)  # type: ignore[arg-type]
 
     assert result["new_queued_for_review"] == 1
+    assert result["already_queued"] == 1
     assert {row.external_id for row in session.reviews} == {"hvOBmYpP8fA", "brandNew99"}
     assert existing.status == "dismissed"
 
@@ -438,3 +442,46 @@ async def test_scan_auto_links_dismissed_review_with_ellipsis_number() -> None:
     assert len(session.reviews) == 1
     assert session.media[-1].song_number == 2065
     assert dismissed.status == "approved"
+
+
+@pytest.mark.asyncio
+async def test_scan_auto_links_queued_title_channel_from_description() -> None:
+    session = _ChannelSession()
+    channel = YoutubeScanChannel(
+        id=uuid4(),
+        name="MANAS RAWA ASSAM",
+        channel_id="UCPEe8JPgsVkC77PHrioTa5g",
+        channel_url="https://www.youtube.com/@rawaassam/videos",
+        number_source="title",
+        is_trusted=True,
+        is_active=True,
+        last_scanned_at=None,
+    )
+    session.channels.append(channel)
+    pending = YoutubeReviewQueue(
+        external_id="KqHHEov2QaE",
+        title="PRABHAT SAMGIITA || TUMI KON ATITE MORE || MANAS",
+        url="https://www.youtube.com/watch?v=KqHHEov2QaE",
+        channel_id=channel.channel_id,
+        channel_name=channel.name,
+        status="pending_review",
+        review_reason="missing_explicit_song_number",
+    )
+    session.reviews.append(pending)
+    session.songs.append(
+        Song(id=2065, number=2065, title="KON ATIITE MORE", first_line="Tumi kon atiite")
+    )
+
+    with (
+        patch("app.services.youtube_channels.channel_videos", return_value=[]),
+        patch(
+            "scripts.sync_youtube.fetch_video_description",
+            return_value="PRABHAT SAMGIIT\nTUMI KON ATITE MORE ..2065\n",
+        ),
+    ):
+        result = await scan_youtube_channel(session, channel.id)  # type: ignore[arg-type]
+
+    assert result["new_auto_linked"] == 1
+    assert result["already_queued"] == 0
+    assert pending.status == "approved"
+    assert session.media[-1].song_number == 2065
