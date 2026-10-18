@@ -5,7 +5,7 @@ import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -115,7 +115,9 @@ def resolve_channel_id(channel_url: str, explicit_id: str | None = None) -> str:
 VALID_NUMBER_SOURCES = {"title", "description", "title_or_description"}
 
 
-def _normalize_number_source(value: str | None) -> str:
+def _normalize_number_source(
+    value: str | None,
+) -> Literal["title", "description", "title_or_description"]:
     if value is None:
         return "title"
     cleaned = value.strip().casefold()
@@ -124,7 +126,7 @@ def _normalize_number_source(value: str | None) -> str:
             status_code=422,
             detail="number_source must be one of: title, description, title_or_description.",
         )
-    return cleaned
+    return cleaned  # type: ignore[return-value]
 
 
 def channel_dict(row: YoutubeScanChannel) -> dict[str, Any]:
@@ -220,8 +222,9 @@ async def seed_default_youtube_scan_channels(
         channel_id = str(channel["id"])
         raw_notes = channel.get("notes")
         notes = raw_notes if isinstance(raw_notes, str) else None
+        raw_number_source = channel.get("number_source")
         number_source = _normalize_number_source(
-            channel.get("number_source") if isinstance(channel.get("number_source"), str) else None
+            raw_number_source if isinstance(raw_number_source, str) else None
         )
         existing = await session.scalar(
             select(YoutubeScanChannel).where(YoutubeScanChannel.channel_id == channel_id)

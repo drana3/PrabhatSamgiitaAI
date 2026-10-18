@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.models import Song, UserAccount, UserFeedback
+from app.models import Song, UserAccount, UserFeedback, UserFeedbackReply
 from app.models.admin_workflow import YoutubeScanChannel
 from app.models.announcements import SiteAnnouncement
 from app.schemas.admin import (
@@ -249,14 +249,27 @@ async def admin_revoke(
     return _admin_item(member)
 
 
-def _reply_items(replies: list) -> list[AdminFeedbackReplyItem]:
-    return [AdminFeedbackReplyItem(**reply_to_dict(reply)) for reply in replies]
+def _reply_items(replies: list[UserFeedbackReply]) -> list[AdminFeedbackReplyItem]:
+    items: list[AdminFeedbackReplyItem] = []
+    for reply in replies:
+        data = reply_to_dict(reply)
+        items.append(
+            AdminFeedbackReplyItem(
+                reply_id=str(data["reply_id"]),
+                body=str(data["body"]),
+                author_label=str(data["author_label"]),
+                kind=str(data["kind"]),
+                email_delivered=bool(data["email_delivered"]),
+                created_at=str(data["created_at"]),
+            )
+        )
+    return items
 
 
 async def _feedback_item(
     session: AsyncSession,
     item: UserFeedback,
-    replies: list | None = None,
+    replies: list[UserFeedbackReply] | None = None,
 ) -> AdminFeedbackItem:
     if replies is None:
         grouped = await load_replies_by_feedback(session, [item.id])
@@ -445,7 +458,10 @@ def _youtube_channel_item(row: YoutubeScanChannel) -> YoutubeScanChannelItem:
         name=row.name,
         channel_id=row.channel_id,
         channel_url=row.channel_url,
-        number_source=row.number_source,
+        number_source=cast(
+            Literal["title", "description", "title_or_description"],
+            row.number_source or "title",
+        ),
         is_trusted=row.is_trusted,
         is_active=row.is_active,
         notes=row.notes,
