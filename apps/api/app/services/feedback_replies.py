@@ -21,7 +21,7 @@ def contact_is_email(contact: str | None) -> bool:
     return bool(value and _EMAIL_RE.match(value))
 
 
-def reply_to_dict(reply: UserFeedbackReply) -> dict[str, object]:
+def reply_to_dict(reply: UserFeedbackReply) -> dict[str, str | bool]:
     return {
         "reply_id": str(reply.id),
         "body": reply.body,
