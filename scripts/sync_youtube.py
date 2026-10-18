@@ -8,6 +8,7 @@ import sys
 import time
 import unicodedata
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -724,6 +725,39 @@ def enrich_video_for_channel(video: dict[str, Any], channel: dict[str, Any]) -> 
     return video
 
 
+ADMIN_DESCRIPTION_FETCH_CAP = 16
+BATCH_DESCRIPTION_FETCH_CAP = 80
+DESCRIPTION_FETCH_WORKERS = 4
+
+
+def enrich_videos_for_channel(
+    videos: list[dict[str, Any]],
+    channel: dict[str, Any],
+    *,
+    max_fetches: int | None = None,
+    max_workers: int = DESCRIPTION_FETCH_WORKERS,
+) -> set[str]:
+    """Fetch descriptions in parallel, up to ``max_fetches``.
+
+    Returns video IDs that still need a description but were deferred so this
+    HTTP request can finish. The next scan retries those IDs.
+    """
+    to_fetch: list[dict[str, Any]] = []
+    deferred: set[str] = set()
+    for video in videos:
+        if not needs_description(video, channel):
+            continue
+        if max_fetches is not None and len(to_fetch) >= max_fetches:
+            deferred.add(str(video["video_id"]))
+            continue
+        to_fetch.append(video)
+    if to_fetch:
+        workers = max(1, min(max_workers, len(to_fetch)))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(lambda video: enrich_video_for_channel(video, channel), to_fetch))
+    return deferred
+
+
 def explicit_song_number(title: str) -> int | None:
     if not mentions_prabhat_samgiita(title):
         return None
@@ -901,8 +935,14 @@ def main() -> None:
             )
             continue
         discovered_by_channel[channel["name"]] = len(discovered)
+        deferred_ids = enrich_videos_for_channel(
+            discovered,
+            channel,
+            max_fetches=BATCH_DESCRIPTION_FETCH_CAP,
+        )
         for video in discovered:
-            enrich_video_for_channel(video, channel)
+            if video["video_id"] in deferred_ids:
+                continue
             if not youtube_video_in_scope(video_match_text(video, channel)):
                 continue
             row = media_row(video, songs, channel)
