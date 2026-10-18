@@ -6,8 +6,8 @@ Revises: 0022_user_feedback_replies, 0017_youtube_number_source
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0023_merge_youtube_number_source"
 down_revision = ("0022_user_feedback_replies", "0017_youtube_number_source")

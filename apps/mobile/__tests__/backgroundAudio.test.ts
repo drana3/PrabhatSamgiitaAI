@@ -12,13 +12,17 @@ describe("background audio config", () => {
     expect(modes).toContain("audio")
   })
 
-  it("checked-in iOS Info.plist includes audio background mode", () => {
-    const plist = readFileSync(
-      path.join(__dirname, "../ios/PrabhatSamgiitaAI/Info.plist"),
-      "utf8",
-    )
-    expect(plist).toContain("UIBackgroundModes")
-    expect(plist).toContain("<string>audio</string>")
+  it("checked-in iOS Info.plist includes audio background mode when present", () => {
+    // ios/ is gitignored (prebuild output); skip when CI has no native project.
+    const plistPath = path.join(__dirname, "../ios/PrabhatSamgiitaAI/Info.plist")
+    try {
+      const plist = readFileSync(plistPath, "utf8")
+      expect(plist).toContain("UIBackgroundModes")
+      expect(plist).toContain("<string>audio</string>")
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return
+      throw error
+    }
   })
 
   it("app.config keeps audio background mode", () => {
