@@ -245,7 +245,8 @@ def test_fetch_retries_transient_youtube_errors(monkeypatch) -> None:  # type: i
 
 
 MANAS_DESCRIPTION = """
-PRABHAT SAMGIIT IS A TREASURE OF 5018 SPIRITUAL SONGS WRITTEN AND SET TO TUNE BY SHRI PRABHAT RANJAN SARKAR....
+PRABHAT SAMGIIT IS A TREASURE OF 5018 SPIRITUAL SONGS
+WRITTEN AND SET TO TUNE BY SHRI PRABHAT RANJAN SARKAR....
 
 ..............................................................................
 
