@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import { AdminShell } from "@/components/admin-shell"
+import { CopyTextButton } from "@/components/copy-text-button"
 
 type DevanagariSong = {
   song_number: number
@@ -113,11 +114,13 @@ export function AdminDevanagariPanel({
     }
   }
 
+  const roman = song?.lyrics_original?.trim() || ""
+
   return (
     <AdminShell
       active="devanagari"
       title="Devanagari review"
-      description="Edit Devanagari side-by-side with Roman. Approve notifies users who reported that song (by email) and marks their feedback actioned."
+      description="Roman (left) + editable Devanagari (right). Copy → edit externally → paste back → Save / Approve."
     >
       <section className="rounded-2xl border border-navy-900/10 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
@@ -128,6 +131,9 @@ export function AdminDevanagariPanel({
               onChange={(e) => setSongNumber(e.target.value)}
               className="mt-2 block w-40 rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm outline-none focus:border-gold-500"
               inputMode="numeric"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void loadSong()
+              }}
             />
           </label>
           <button
@@ -154,24 +160,35 @@ export function AdminDevanagariPanel({
               <p className="mt-1 text-sm text-stone-600">
                 Status: <span className="font-semibold">{song.devanagari_status}</span>
                 {" · "}
-                Roman lines {song.line_count_roman} · Devanagari lines {song.line_count_devanagari}
+                Roman lines {song.line_count_roman} · Devanagari lines{" "}
+                {draft.trim() ? draft.trim().split("\n").length : 0}
               </p>
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-2xl border border-navy-900/10 bg-ivory-50 p-4">
-              <p className="text-sm font-semibold text-navy-950">Roman (read-only)</p>
-              <pre className="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap font-serif text-base leading-7 text-navy-950">
-                {song.lyrics_original || "—"}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-navy-950">Roman (read-only)</p>
+                <CopyTextButton text={roman} label="Copy Roman" compact />
+              </div>
+              <pre className="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap font-serif text-base leading-7 text-navy-950 select-text">
+                {roman || "—"}
               </pre>
             </div>
             <div className="rounded-2xl border border-navy-900/10 bg-white p-4">
-              <p className="text-sm font-semibold text-navy-950">Devanagari (editable)</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-navy-950">Devanagari (editable)</p>
+                <CopyTextButton text={draft} label="Copy Devanagari" compact />
+              </div>
+              <p className="mt-1 text-xs text-stone-500">
+                Copy → edit in another app → paste back here.
+              </p>
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 rows={18}
+                spellCheck={false}
                 className="mt-3 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 font-serif text-base leading-7 text-navy-950 outline-none focus:border-gold-500"
               />
             </div>
