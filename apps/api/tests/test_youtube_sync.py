@@ -405,6 +405,33 @@ def test_fetch_video_description_uses_android_innertube(monkeypatch) -> None:  #
     assert clients[0] == "ANDROID"
 
 
+def test_fetch_video_description_skips_stub_without_catalog_number(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
+    import scripts.sync_youtube as sync_youtube
+
+    sync_youtube._innertube_cache = None
+
+    def fake_fetch(url: str, payload: dict | None = None) -> str:
+        name = str((payload or {}).get("context", {}).get("client", {}).get("clientName"))
+        if name == "ANDROID":
+            return json.dumps(
+                {
+                    "videoDetails": {
+                        "shortDescription": "TREASURE OF 5018 SPIRITUAL SONGS...."
+                    }
+                }
+            )
+        if name == "IOS":
+            return json.dumps(
+                {"videoDetails": {"shortDescription": "TUMI KON ATITE MORE ..2065"}}
+            )
+        return json.dumps({"playabilityStatus": {"status": "LOGIN_REQUIRED"}})
+
+    monkeypatch.setattr("scripts.sync_youtube.fetch", fake_fetch)
+    assert fetch_video_description("KqHHEov2QaE") == "TUMI KON ATITE MORE ..2065"
+
+
 def test_persist_youtube_inventory_skips_without_database_url(monkeypatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
     result = persist_youtube_inventory([], [], {})
