@@ -10,8 +10,10 @@ from scripts.sync_youtube import (
     CHANNELS,
     GENERAL_YOUTUBE,
     _should_stop_scan_page,
+    ellipsis_catalog_song_number,
     enrich_video_for_channel,
     enrich_videos_for_channel,
+    explicit_song_number,
     extract_videos,
     fetch,
     fetch_video_description,
@@ -240,6 +242,50 @@ def test_fetch_retries_transient_youtube_errors(monkeypatch) -> None:  # type: i
 
     assert fetch("https://example.test") == "ok"
     assert attempts == 3
+
+
+MANAS_DESCRIPTION = """
+PRABHAT SAMGIIT IS A TREASURE OF 5018 SPIRITUAL SONGS WRITTEN AND SET TO TUNE BY SHRI PRABHAT RANJAN SARKAR....
+
+..............................................................................
+
+PRABHAT SAMGIIT
+TUMI PRANER POROSHE ...
+..............................................................................
+
+
+VOICE : SAMEETA  MANDAL ...4577
+
+..............................................................................
+ITS A MANAS RAWA ASSAM PRODUCTION...
+"""
+
+
+def test_ellipsis_catalog_song_number_reads_manas_description() -> None:
+    assert ellipsis_catalog_song_number(MANAS_DESCRIPTION) == 4577
+    assert ellipsis_catalog_song_number("KAHAKEO PAPI BHEBE ....0695") == 695
+    assert ellipsis_catalog_song_number("TUMI KON ATITE MORE ..2065") == 2065
+    assert explicit_song_number(f"Prabhat Samgiita\n{MANAS_DESCRIPTION}") == 4577
+
+
+def test_description_channel_matches_manas_ellipsis_number() -> None:
+    songs = {
+        4577: {
+            "number": 4577,
+            "title": "Tumi Praner Poroshe",
+            "first_line": "Tumi Praner Poroshe",
+        }
+    }
+    video = {
+        "video_id": "manas-4577",
+        "title": "PRABHAT SAMGIITA || TUMI PRANER POROSHE || SAMAETA MANDAL",
+        "description": MANAS_DESCRIPTION,
+    }
+
+    row = media_row(video, songs, DESCRIPTION_CHANNEL)
+    assert row is not None
+    assert row["song_number"] == 4577
+    assert row["verification_status"] == "verified"
 
 
 def test_description_channel_matches_number_from_description() -> None:
