@@ -71,6 +71,23 @@ IOS_INNERTUBE_CLIENT = {
     "hl": "en",
     "gl": "US",
 }
+MWEB_INNERTUBE_CLIENT = {
+    "clientName": "MWEB",
+    "clientVersion": "2.20241016.01.00",
+    "hl": "en",
+    "gl": "US",
+}
+ANDROID_USER_AGENT = (
+    "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip"
+)
+IOS_USER_AGENT = (
+    "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 17_6 like Mac OS X)"
+)
+MWEB_USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+)
+INNERTUBE_NEXT_URL = "https://www.youtube.com/youtubei/v1/next"
 RELATIVE_TIME_RE = re.compile(
     r"(?i)(?:streamed|premiered)?\s*(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago"
 )
@@ -443,9 +460,39 @@ def fold_pending_videos(
     return list(videos_by_id.values())
 
 
-def fetch(url: str, payload: dict[str, Any] | None = None) -> str:
+def _innertube_headers(client: dict[str, Any]) -> dict[str, str]:
+    name = str(client.get("clientName") or "")
+    version = str(client.get("clientVersion") or "")
+    if name == "ANDROID":
+        return {
+            "User-Agent": ANDROID_USER_AGENT,
+            "X-YouTube-Client-Name": "3",
+            "X-YouTube-Client-Version": version,
+        }
+    if name == "IOS":
+        return {
+            "User-Agent": IOS_USER_AGENT,
+            "X-YouTube-Client-Name": "5",
+            "X-YouTube-Client-Version": version,
+        }
+    if name == "MWEB":
+        return {
+            "User-Agent": MWEB_USER_AGENT,
+            "X-YouTube-Client-Name": "2",
+            "X-YouTube-Client-Version": version,
+        }
+    return {}
+
+
+def fetch(
+    url: str,
+    payload: dict[str, Any] | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> str:
     body = json.dumps(payload).encode() if payload is not None else None
     headers = dict(DEFAULT_FETCH_HEADERS)
+    if extra_headers:
+        headers.update(extra_headers)
     if payload is not None:
         headers["Content-Type"] = "application/json"
     for attempt in range(3):
@@ -514,7 +561,54 @@ def _player_description(payload: object) -> str:
 
 
 def _description_has_catalog_number(description: str) -> bool:
-    return ellipsis_catalog_song_number(description) is not None
+    if ellipsis_catalog_song_number(description) is not None:
+        return True
+    return explicit_song_number(description) is not None
+
+
+def _walk_strings(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        if value:
+            yield value
+        return
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from _walk_strings(child)
+        return
+    if isinstance(value, list):
+        for child in value:
+            yield from _walk_strings(child)
+
+
+def _catalog_text_from_payload(payload: object) -> str:
+    description = _player_description(payload)
+    if _description_has_catalog_number(description):
+        return description
+    best = description
+    for text in _walk_strings(payload):
+        if _description_has_catalog_number(text) and len(text) > len(best):
+            best = text
+    return best
+
+
+def _innertube_clients(
+    api_key: str | None,
+    client_version: str | None,
+) -> list[tuple[str, dict[str, Any]]]:
+    key = api_key or INNERTUBE_API_KEY
+    clients: list[tuple[str, dict[str, Any]]] = [
+        (key, ANDROID_INNERTUBE_CLIENT),
+        (key, MWEB_INNERTUBE_CLIENT),
+        (key, IOS_INNERTUBE_CLIENT),
+    ]
+    if api_key and client_version:
+        clients.append((api_key, {"clientName": "WEB", "clientVersion": client_version}))
+    elif _innertube_cache is not None:
+        cached_key, cached_version = _innertube_cache
+        clients.append(
+            (cached_key, {"clientName": "WEB", "clientVersion": cached_version})
+        )
+    return clients
 
 
 def _description_via_innertube(
@@ -522,51 +616,29 @@ def _description_via_innertube(
     api_key: str | None = None,
     client_version: str | None = None,
 ) -> str:
-    """Try ANDROID/IOS/WEB and keep the text that actually has a catalog number."""
-    clients: list[tuple[str, dict[str, Any]]] = [
-        (api_key or INNERTUBE_API_KEY, ANDROID_INNERTUBE_CLIENT),
-        (api_key or INNERTUBE_API_KEY, IOS_INNERTUBE_CLIENT),
-    ]
-    if api_key and client_version:
-        clients.append(
-            (
-                api_key,
-                {"clientName": "WEB", "clientVersion": client_version},
-            )
-        )
-    elif _innertube_cache is not None:
-        cached_key, cached_version = _innertube_cache
-        clients.append(
-            (cached_key, {"clientName": "WEB", "clientVersion": cached_version})
-        )
+    """Try ANDROID/MWEB/IOS/WEB player and next; keep catalog-number text."""
     best = ""
-    for key, client in clients:
-        try:
-            payload = json.loads(
-                fetch(
-                    f"{INNERTUBE_PLAYER_URL}?key={key}",
-                    {
-                        "context": {"client": client},
-                        "videoId": video_id,
-                        "contentCheckOk": True,
-                        "racyCheckOk": True,
-                        "playbackContext": {
-                            "contentPlaybackContext": {
-                                "html5Preference": "HTML5_PREF_WANTS",
-                            }
-                        },
-                    },
-                )
-            )
-        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
-            continue
-        description = _player_description(payload)
-        if not description.strip():
-            continue
-        if _description_has_catalog_number(description):
-            return description
-        if len(description) > len(best):
-            best = description
+    for key, client in _innertube_clients(api_key, client_version):
+        headers = _innertube_headers(client)
+        body = {
+            "context": {"client": client},
+            "videoId": video_id,
+            "contentCheckOk": True,
+            "racyCheckOk": True,
+        }
+        for url in (
+            f"{INNERTUBE_PLAYER_URL}?key={key}",
+            f"{INNERTUBE_NEXT_URL}?key={key}",
+        ):
+            try:
+                payload = json.loads(fetch(url, body, extra_headers=headers or None))
+            except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+                continue
+            description = _catalog_text_from_payload(payload)
+            if _description_has_catalog_number(description):
+                return description
+            if len(description) > len(best):
+                best = description
     return best
 
 
@@ -603,7 +675,12 @@ def fetch_video_description(video_id: str) -> str:
             return candidate
     match = re.search(r'<meta name="description" content="([^"]*)"', html)
     meta = match.group(1) if match else ""
-    return max((watch_description, description, retry, meta), key=len)
+    best = max((watch_description, description, retry, meta), key=len)
+    if _description_has_catalog_number(best):
+        return best
+    # Datacenter stubs are ~126 chars and have no catalog number; do not
+    # treat them as a real description or later scans will skip a retry.
+    return ""
 
 
 def walk(value: Any) -> Iterator[dict[str, Any]]:
