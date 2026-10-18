@@ -47,6 +47,10 @@ from app.services.catalog import (
     refresh_catalog_songs,
     refresh_recent_catalog_changes,
 )
+from app.services.devanagari_admin import (
+    admin_devanagari_payload,
+    ensure_song_devanagari_loaded,
+)
 from app.services.embedding_index import build_embedding_indexes
 from app.services.feedback_live import publish_feedback_to_live, unpublish_feedback_from_live
 from app.services.feedback_replies import (
@@ -457,20 +461,6 @@ async def reply_to_feedback(
     return _admin_feedback_item(feedback, replies=grouped.get(feedback.id) or [])
 
 
-def _devanagari_song_payload(song: Song) -> AdminDevanagariSong:
-    roman = (song.lyrics_original or song.transliteration or "").strip()
-    dev = song.lyrics_devanagari or ""
-    return AdminDevanagariSong(
-        song_number=song.number,
-        title=song.title,
-        lyrics_original=roman or None,
-        lyrics_devanagari=song.lyrics_devanagari,
-        devanagari_status=song.devanagari_status or "none",
-        line_count_roman=len(roman.split("\n")) if roman else 0,
-        line_count_devanagari=len(dev.split("\n")) if dev else 0,
-    )
-
-
 @router.get("/songs/{song_number}/devanagari", response_model=AdminDevanagariSong)
 async def get_song_devanagari(
     song_number: int,
@@ -481,7 +471,8 @@ async def get_song_devanagari(
     song = await session.scalar(select(Song).where(Song.number == song_number))
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
-    return _devanagari_song_payload(song)
+    song = await ensure_song_devanagari_loaded(session, song)
+    return admin_devanagari_payload(song)
 
 
 @router.put("/songs/{song_number}/devanagari", response_model=AdminDevanagariSong)
@@ -520,7 +511,7 @@ async def update_song_devanagari(
     )
     await session.commit()
     await refresh_catalog_song(session, song_number)
-    return _devanagari_song_payload(song)
+    return admin_devanagari_payload(song)
 
 
 @router.post("/songs/{song_number}/devanagari/approve", response_model=AdminDevanagariSong)
@@ -533,6 +524,7 @@ async def approve_song_devanagari(
     song = await session.scalar(select(Song).where(Song.number == song_number))
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
+    song = await ensure_song_devanagari_loaded(session, song)
     if not (song.lyrics_devanagari or "").strip():
         raise HTTPException(status_code=400, detail="No Devanagari lyrics to approve")
     previous = song.devanagari_status or "none"
@@ -564,4 +556,4 @@ async def approve_song_devanagari(
         author_label=str(admin),
         review_note=payload.review_note,
     )
-    return _devanagari_song_payload(song)
+    return admin_devanagari_payload(song)
