@@ -52,6 +52,7 @@ SEARCH_STATE_PATH = (
 )
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
 SCAN_LOOKBACK = timedelta(hours=12)
+_innertube_cache: tuple[str, str] | None = None
 RELATIVE_TIME_RE = re.compile(
     r"(?i)(?:streamed|premiered)?\s*(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago"
 )
@@ -437,17 +438,60 @@ def _initial_player_response(html: str) -> dict[str, Any] | None:
     return None
 
 
-def fetch_video_description(video_id: str) -> str:
-    """Fetch a single video's full description from its watch page.
+def _remember_innertube(html: str) -> tuple[str, str] | None:
+    global _innertube_cache
+    try:
+        _innertube_cache = youtube_config(html)
+    except ValueError:
+        pass
+    return _innertube_cache
 
-    The channel listing grid only exposes titles, so channels that carry the
-    song number in the description need the watch page parsed per video.
+
+def _description_via_innertube(video_id: str, api_key: str, client_version: str) -> str:
+    try:
+        payload = json.loads(
+            fetch(
+                f"https://www.youtube.com/youtubei/v1/player?key={api_key}",
+                {
+                    "context": {
+                        "client": {
+                            "clientName": "WEB",
+                            "clientVersion": client_version,
+                        }
+                    },
+                    "videoId": video_id,
+                },
+            )
+        )
+    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    description = nested(payload, "videoDetails", "shortDescription")
+    return description if isinstance(description, str) else ""
+
+
+def fetch_video_description(video_id: str) -> str:
+    """Fetch a single video's full description from Innertube or its watch page.
+
+    Channel listings only expose titles. Azure watch-page fetches often return a
+    consent shell without ytInitialPlayerResponse, so prefer the player API when
+    a channel scan has already cached Innertube credentials.
     """
+    if _innertube_cache is not None:
+        description = _description_via_innertube(video_id, *_innertube_cache)
+        if description.strip():
+            return description
     html = fetch(f"https://www.youtube.com/watch?v={video_id}")
+    _remember_innertube(html)
     player = _initial_player_response(html)
     if player is not None:
         description = nested(player, "videoDetails", "shortDescription")
-        if isinstance(description, str):
+        if isinstance(description, str) and description.strip():
+            return description
+    if _innertube_cache is not None:
+        description = _description_via_innertube(video_id, *_innertube_cache)
+        if description.strip():
             return description
     match = re.search(r'<meta name="description" content="([^"]*)"', html)
     if match:
@@ -637,6 +681,8 @@ def channel_videos(
     html = fetch(channel["url"])
     payload = initial_data(html)
     api_key, client_version = youtube_config(html)
+    global _innertube_cache
+    _innertube_cache = (api_key, client_version)
     videos: dict[str, dict[str, Any]] = {}
 
     def ingest(page_payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -756,9 +802,10 @@ def video_match_text(video: dict[str, Any], channel: dict[str, Any]) -> str:
     from the description.
     """
     title = str(video.get("title") or "")
-    if channel_number_source(channel) == "title":
-        return title
     description = str(video.get("description") or "")
+    source = channel_number_source(channel)
+    if source == "title" and not video.get("_use_description"):
+        return title
     if not description:
         return title
     return f"{title}\n{description}".strip()
@@ -772,7 +819,7 @@ def needs_description(video: dict[str, Any], channel: dict[str, Any]) -> bool:
     page requests limited to likely matches rather than the whole channel.
     """
     source = channel_number_source(channel)
-    if source == "title":
+    if source == "title" and not video.get("_use_description"):
         return False
     if video.get("description"):
         return False
