@@ -414,6 +414,14 @@ def review_matches_channel(pending: dict[str, Any], channel: dict[str, Any]) -> 
     return bool(handle and handle.group(1).casefold() in haystack)
 
 
+def queued_needs_description(video: dict[str, Any], channel: dict[str, Any]) -> bool:
+    """Fetch a description only when the title cannot yield a catalog number."""
+    if channel_number_source(channel) in {"description", "title_or_description"}:
+        return True
+    title = str(video.get("title") or "")
+    return mentions_prabhat_samgiita(title) and explicit_song_number(title) is None
+
+
 def fold_pending_videos(
     discovered: list[dict[str, Any]],
     pending_rows: list[dict[str, Any]],
@@ -1145,6 +1153,16 @@ def main() -> None:
         f"Loaded {len(pending_reviews)} queued YouTube reviews from Neon",
         file=sys.stderr,
     )
+    scan_channels.sort(
+        key=lambda channel: 0
+        if channel_number_source(channel) != "title"
+        or any(
+            queued_needs_description({"title": pending.get("title")}, channel)
+            for pending in pending_reviews
+            if review_matches_channel(pending, channel)
+        )
+        else 1
+    )
     for channel in scan_channels:
         channel_pending = [
             pending
@@ -1179,7 +1197,9 @@ def main() -> None:
             file=sys.stderr,
         )
         for video in videos:
-            if video["video_id"] in pending_ids:
+            if video["video_id"] in pending_ids and queued_needs_description(
+                video, channel
+            ):
                 video["_use_description"] = True
         candidates = [video for video in videos if video["video_id"] not in linked_ids]
         candidates.sort(key=lambda video: 0 if video["video_id"] in pending_ids else 1)
@@ -1188,6 +1208,10 @@ def main() -> None:
             channel,
             max_fetches=BATCH_DESCRIPTION_FETCH_CAP,
         )
+        descriptions_read = sum(
+            1 for video in candidates if str(video.get("description") or "").strip()
+        )
+        auto_linked = 0
         for video in videos:
             if video["video_id"] in linked_ids or video["video_id"] in deferred_ids:
                 continue
@@ -1204,6 +1228,12 @@ def main() -> None:
                 rows_by_id[row["metadata_json"]["external_id"]] = row
                 review_by_id.pop(row["metadata_json"]["external_id"], None)
                 linked_ids.add(video["video_id"])
+                auto_linked += 1
+        print(
+            f"{channel['name']}: {descriptions_read} descriptions read, "
+            f"{auto_linked} matched, {len(deferred_ids)} deferred",
+            file=sys.stderr,
+        )
 
     general_discovered = 0
     if args.general_search_limit > 0:
