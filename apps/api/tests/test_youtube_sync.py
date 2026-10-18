@@ -437,7 +437,7 @@ def test_fetch_video_description_skips_stub_without_catalog_number(
                     }
                 }
             )
-        if name == "IOS":
+        if name == "MWEB":
             return json.dumps(
                 {"videoDetails": {"shortDescription": "TUMI KON ATITE MORE ..2065"}}
             )
