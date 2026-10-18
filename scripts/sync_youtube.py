@@ -550,6 +550,11 @@ def _description_via_innertube(
                         "videoId": video_id,
                         "contentCheckOk": True,
                         "racyCheckOk": True,
+                        "playbackContext": {
+                            "contentPlaybackContext": {
+                                "html5Preference": "HTML5_PREF_WANTS",
+                            }
+                        },
                     },
                 )
             )
@@ -576,27 +581,29 @@ def fetch_video_description(video_id: str) -> str:
         video_id,
         *(_innertube_cache or (None, None)),
     )
-    if description.strip():
+    if _description_has_catalog_number(description):
         return description
     try:
         html = fetch(f"https://www.youtube.com/watch?v={video_id}")
     except (HTTPError, URLError, TimeoutError):
-        return ""
+        return description
     _remember_innertube(html)
     player = _initial_player_response(html)
-    description = _player_description(player) if player is not None else ""
-    if description.strip():
-        return description
-    description = _description_via_innertube(
+    watch_description = _player_description(player) if player is not None else ""
+    if _description_has_catalog_number(watch_description):
+        return watch_description
+    retry = _description_via_innertube(
         video_id,
         *(_innertube_cache or (None, None)),
     )
-    if description.strip():
-        return description
+    if _description_has_catalog_number(retry):
+        return retry
+    for candidate in (watch_description, description, retry):
+        if _description_has_catalog_number(candidate):
+            return candidate
     match = re.search(r'<meta name="description" content="([^"]*)"', html)
-    if match:
-        return match.group(1)
-    return ""
+    meta = match.group(1) if match else ""
+    return max((watch_description, description, retry, meta), key=len)
 
 
 def walk(value: Any) -> Iterator[dict[str, Any]]:
