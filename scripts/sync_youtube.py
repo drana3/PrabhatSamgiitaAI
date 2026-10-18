@@ -390,6 +390,23 @@ def load_pending_youtube_reviews(database_url: str | None = None) -> list[dict[s
         return []
 
 
+def review_matches_channel(pending: dict[str, Any], channel: dict[str, Any]) -> bool:
+    channel_id = str(channel.get("id") or "")
+    name = str(channel.get("name") or "")
+    if channel_id and str(pending.get("channel_id") or "") == channel_id:
+        return True
+    haystack = " ".join(
+        str(pending.get(key) or "")
+        for key in ("channel_id", "channel_name", "source_url")
+    ).casefold()
+    if channel_id and channel_id.casefold() in haystack:
+        return True
+    if name and name.casefold() == str(pending.get("channel_name") or "").casefold():
+        return True
+    handle = re.search(r"youtube\.com/@([\w.-]+)", str(channel.get("url") or ""), re.I)
+    return bool(handle and handle.group(1).casefold() in haystack)
+
+
 def fold_pending_videos(
     discovered: list[dict[str, Any]],
     pending_rows: list[dict[str, Any]],
@@ -1115,16 +1132,18 @@ def main() -> None:
     scan_channels = load_scan_channels()
     linked_ids = load_known_youtube_external_ids()
     pending_reviews = load_pending_youtube_reviews()
-    pending_by_channel: dict[str, list[dict[str, Any]]] = {}
     for pending in pending_reviews:
         review_by_id.setdefault(pending["external_id"], pending)
-        channel_id = str(pending.get("channel_id") or "")
-        if channel_id:
-            pending_by_channel.setdefault(channel_id, []).append(pending)
     for channel in scan_channels:
+        channel_pending = [
+            pending
+            for pending in pending_reviews
+            if review_matches_channel(pending, channel)
+        ]
         last_scanned_at = channel.get("last_scanned_at")
         since = None
-        if isinstance(last_scanned_at, datetime):
+        # Re-read queued videos in full when pending items still need a number.
+        if not channel_pending and isinstance(last_scanned_at, datetime):
             since = last_scanned_at.astimezone(UTC) - SCAN_LOOKBACK
         try:
             discovered = channel_videos(
@@ -1141,9 +1160,11 @@ def main() -> None:
             )
             continue
         discovered_by_channel[channel["name"]] = len(discovered)
-        channel_pending = pending_by_channel.get(str(channel["id"]), [])
         videos = fold_pending_videos(discovered, channel_pending, linked_ids)
         pending_ids = {str(row["external_id"]) for row in channel_pending}
+        for video in videos:
+            if video["video_id"] in pending_ids:
+                video["_use_description"] = True
         candidates = [video for video in videos if video["video_id"] not in linked_ids]
         candidates.sort(key=lambda video: 0 if video["video_id"] in pending_ids else 1)
         deferred_ids = enrich_videos_for_channel(

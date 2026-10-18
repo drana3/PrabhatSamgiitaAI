@@ -23,6 +23,7 @@ from scripts.sync_youtube import (
     needs_description,
     parse_youtube_relative_time,
     persist_youtube_inventory,
+    review_matches_channel,
     review_row,
     video_match_text,
     youtube_video_in_scope,
@@ -422,6 +423,30 @@ def test_fold_pending_videos_adds_queued_ids() -> None:
     videos = fold_pending_videos(discovered, pending, {"already-linked"})
     ids = {video["video_id"] for video in videos}
     assert ids == {"on-channel", "queued-2065"}
+
+
+def test_review_matches_channel_accepts_name_and_handle() -> None:
+    channel = {
+        "id": "UCPEe8JPgsVkC77PHrioTa5g",
+        "name": "Manas Rawa",
+        "url": "https://www.youtube.com/@rawaassam/videos",
+    }
+    assert review_matches_channel(
+        {
+            "channel_id": "legacy",
+            "channel_name": "MANAS RAWA ASSAM",
+            "source_url": "https://www.youtube.com/@rawaassam/videos",
+        },
+        channel,
+    )
+    assert review_matches_channel(
+        {"channel_id": "UCPEe8JPgsVkC77PHrioTa5g", "channel_name": "", "source_url": ""},
+        channel,
+    )
+    assert not review_matches_channel(
+        {"channel_id": "other", "channel_name": "AMPS", "source_url": ""},
+        channel,
+    )
 
 
 def test_notify_live_catalog_refresh_skips_without_credentials(monkeypatch, capsys) -> None:
