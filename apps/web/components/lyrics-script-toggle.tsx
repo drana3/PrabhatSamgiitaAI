@@ -93,57 +93,54 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
               {badge}
             </span>
           ) : null}
+          {script === "devanagari" ? (
+            <>
+              <span className="text-[11px] text-stone-500">May contain mistakes.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setReportOpen((v) => !v)
+                  setReportErr(null)
+                }}
+                className="text-[11px] font-semibold text-gold-700 underline underline-offset-2"
+              >
+                Report
+              </button>
+            </>
+          ) : null}
         </div>
       ) : null}
 
-      {script === "devanagari" && hasDevanagari ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm leading-6 text-amber-950">
-          <p>
-            Devanagari is a transliterated version and may contain mistakes. Please report issues so
-            our admin team can review, correct, and approve.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setReportOpen((v) => !v)
-              setReportErr(null)
-            }}
-            className="mt-3 rounded-full bg-navy-950 px-4 py-2 text-xs font-semibold text-white"
-          >
-            Report Devanagari
-          </button>
-          {reportOpen ? (
-            <div className="mt-3 space-y-2">
-              <textarea
-                value={reportNote}
-                onChange={(e) => setReportNote(e.target.value)}
-                rows={3}
-                placeholder="What looks wrong? (optional)"
-                className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm text-navy-950 outline-none focus:border-gold-500"
-              />
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={reportBusy}
-                  onClick={() => void sendReport()}
-                  className="rounded-full bg-gold-600 px-4 py-2 text-xs font-semibold text-navy-950 disabled:opacity-50"
-                >
-                  {reportBusy ? "Sending…" : "Submit to admin"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setReportOpen(false)}
-                  className="rounded-full border border-navy-900/15 bg-white px-4 py-2 text-xs font-semibold text-navy-950"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : null}
-          {reportMsg ? <p className="mt-2 text-sm text-emerald-800">{reportMsg}</p> : null}
-          {reportErr ? <p className="mt-2 text-sm text-red-700">{reportErr}</p> : null}
+      {script === "devanagari" && hasDevanagari && reportOpen ? (
+        <div className="mt-2 space-y-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+          <textarea
+            value={reportNote}
+            onChange={(e) => setReportNote(e.target.value)}
+            rows={2}
+            placeholder="What looks wrong? (optional)"
+            className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-navy-950 outline-none focus:border-gold-500"
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={reportBusy}
+              onClick={() => void sendReport()}
+              className="rounded-full bg-navy-950 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+            >
+              {reportBusy ? "Sending…" : "Submit to admin"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setReportOpen(false)}
+              className="rounded-full border border-navy-900/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-navy-950"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       ) : null}
+      {reportMsg ? <p className="mt-2 text-xs text-emerald-800">{reportMsg}</p> : null}
+      {reportErr ? <p className="mt-2 text-xs text-red-700">{reportErr}</p> : null}
 
       <p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">
         {text}
