@@ -5,28 +5,10 @@ Revises: 0001_initial
 Create Date: 2026-07-31 00:00:01
 """
 
-from typing import Any
-
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 from alembic import op
-
-try:
-    from pgvector.sqlalchemy import Vector
-except ImportError:  # pragma: no cover - migration fallback in lightweight envs
-    from sqlalchemy.types import JSON, TypeDecorator
-
-    class Vector(TypeDecorator[Any]):  # type: ignore[no-redef]
-        impl = JSON
-        cache_ok = True
-
-        def __init__(self, dimension: int) -> None:
-            super().__init__()
-            self.dimension = dimension
-
-
-from app.core.vector import VECTOR_DIMENSION
 
 revision = "0002_song_chunks"
 down_revision = "0001_initial"
@@ -44,7 +26,6 @@ def upgrade() -> None:
         sa.Column("title", sa.String(length=255), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("source_url", sa.String(length=512)),
-        sa.Column("embeddings", Vector(VECTOR_DIMENSION)),
         sa.Column("metadata_json", JSONB(), server_default=sa.text("'{}'::jsonb")),
     )
     op.create_index("ix_song_chunks_song_number", "song_chunks", ["song_number"], unique=False)

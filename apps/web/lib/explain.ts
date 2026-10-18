@@ -1,25 +1,83 @@
-import { fetchJson } from "./api"
+import { queryGuidanceFor, queryIsUseful } from "./query-guard"
+
+export type ConversationTurn = {
+  role: "user" | "assistant"
+  content: string
+}
 
 export async function streamExplanation(
   songNumber: number,
   onChunk: (chunk: string) => void,
   prompt?: string,
+  history: ConversationTurn[] = [],
+  profileContext?: string,
 ): Promise<void> {
-  const response = await fetchJson("/api/v1/ai/explain", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      song_number: songNumber,
-      prompt,
-    }),
-  })
+  if (prompt && !queryIsUseful(prompt, 800, { companion: true, allowFollowUp: history.length > 0 })) {
+    onChunk(queryGuidanceFor(prompt, { companion: true, allowFollowUp: history.length > 0 }))
+    return
+  }
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 60_000)
+  let response: Response
+  try {
+    response = await fetch("/api/ai/explain", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        song_number: songNumber,
+        prompt,
+        history: history.slice(-12),
+        profile_context: profileContext || undefined,
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
 
-  if (!response.body) {
-    onChunk("Streaming unavailable.")
+  if (!response.ok) {
+    throw new Error("The song companion is temporarily unavailable.")
+  }
+
+  const body = response.body
+
+  const emitFrames = (raw: string, flushPartial: boolean): string => {
+    const frames = raw.split("\n\n")
+    const remainder = frames.pop() ?? ""
+    for (const frame of frames) {
+      const payload = frame
+        .split("\n")
+        .filter((entry) => entry.startsWith("data: "))
+        .map((entry) => entry.slice(6))
+        .join("\n")
+      if (payload) onChunk(payload)
+    }
+    if (flushPartial && remainder.trim()) {
+      const payload = remainder
+        .split("\n")
+        .filter((entry) => entry.startsWith("data: "))
+        .map((entry) => entry.slice(6))
+        .join("\n")
+      if (payload) onChunk(payload)
+      return ""
+    }
+    return remainder
+  }
+
+  // Some runtimes (notably React Native) buffer SSE without exposing response.body.
+  if (!body || typeof body.getReader !== "function") {
+    const raw = await response.text()
+    if (!raw.trim()) {
+      onChunk("Streaming unavailable.")
+      return
+    }
+    emitFrames(raw, true)
     return
   }
 
-  const reader = response.body.getReader()
+  const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
 
@@ -27,13 +85,8 @@ export async function streamExplanation(
     const { value, done } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    const frames = buffer.split("\n\n")
-    buffer = frames.pop() ?? ""
-    for (const frame of frames) {
-      const line = frame
-        .split("\n")
-        .find((entry) => entry.startsWith("data: "))
-      if (line) onChunk(line.slice(6))
-    }
+    buffer = emitFrames(buffer, false)
   }
+  buffer += decoder.decode()
+  emitFrames(buffer, true)
 }

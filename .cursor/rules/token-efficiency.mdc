@@ -1,0 +1,24 @@
+---
+description: Keep Cursor token use low without sacrificing quality
+alwaysApply: true
+---
+
+# Token efficiency
+
+## Prompting
+- One task per message. Name the path (`apps/web/...`, `apps/api/...`, `apps/mobile/...`).
+- Prefer `@file` / `@folder` over `@Codebase`. Never dump full CI logs — link the run URL; paste 10–30 failing lines max.
+- Start a new chat for unrelated work (don't reuse huge threads).
+
+## Agent behavior
+- Grep/search before reading; read only the function/region needed.
+- Touch only the app tree in scope (web ≠ api ≠ mobile).
+- Minimal diffs: fix root cause; no drive-by refactors or unsolicited docs.
+- Don't re-run full E2E unless UI journeys/Playwright config changed.
+- Don't regenerate lockfiles unless deps actually changed.
+
+## Models & modes
+- Fast/default model for lint, config, small diffs.
+- Stronger model only for RAG/AI logic, cross-app refactors, or ambiguous prod failures.
+- Plan mode for multi-file architecture; Agent for implementation.
+- Prefer `workflow_dispatch` / path-filtered CI for unrelated areas.

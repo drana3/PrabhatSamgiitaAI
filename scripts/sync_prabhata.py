@@ -4,10 +4,11 @@ import html
 import json
 import re
 import subprocess
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -118,7 +119,15 @@ def fetch(url: str) -> str:
 
 
 def clean(text: str) -> str:
-    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+    decoded = html.unescape(text)
+    # The source contains decimal combining marks written as text (for example
+    # "Su769" instead of "Ś"). Decode those artifacts before indexing.
+    decoded = re.sub(
+        r"(?<=[A-Za-z])u(7\d{2})\s*(?=[^\W\d_])",
+        lambda match: chr(int(match.group(1))),
+        decoded,
+    )
+    return re.sub(r"\s+", " ", decoded).strip()
 
 
 def html_to_lines(fragment: str) -> list[str]:
@@ -151,30 +160,52 @@ def parse_song_header(header: str, anchor: str) -> tuple[int, dict[str, str]]:
 
 
 def is_roman_lyric_line(line: str) -> bool:
-    return bool(line) and not re.search(r"[a-z]", line)
+    if not line:
+        return False
+    # Dialogue songs use mixed-case speaker labels such as "Krs'n'a:" before
+    # uppercase Roman-Samskrta lyrics. Treat short labels as part of the lyric
+    # block and classify the remaining lines by uppercase letter ratio.
+    if line.endswith(":") and len(line) <= 48:
+        return True
+    letters = [character for character in line if character.isalpha()]
+    if not letters:
+        return False
+    uppercase = sum(character.isupper() for character in letters)
+    return uppercase / len(letters) >= 0.72
 
 
 def split_song_sections(paragraphs: list[list[str]]) -> tuple[list[str], list[str], list[str]]:
     if not paragraphs:
         return [], [], []
-    first_paragraph = paragraphs[0]
-    lyric_prefix: list[str] = []
-    for line in first_paragraph:
-        if is_roman_lyric_line(line):
-            lyric_prefix.append(line)
-            continue
-        break
-    remaining_paragraphs = [
-        line for paragraph in paragraphs[1:] for line in paragraph
-    ]
-    remainder = first_paragraph[len(lyric_prefix) :] + remaining_paragraphs
+    lines = [line for paragraph in paragraphs for line in paragraph]
     purport_index = next(
-        (idx for idx, line in enumerate(remainder) if line.lower().startswith("purport:")),
+        (idx for idx, line in enumerate(lines) if line.lower().startswith("purport:")),
         None,
     )
-    if purport_index is None:
-        return lyric_prefix, remainder, []
-    return lyric_prefix, remainder[:purport_index], remainder[purport_index + 1 :]
+    content = lines if purport_index is None else lines[:purport_index]
+    purport = [] if purport_index is None else lines[purport_index + 1 :]
+
+    lyric_start = next(
+        (
+            index
+            for index, line in enumerate(content)
+            if is_roman_lyric_line(line)
+            and index + 1 < len(content)
+            and is_roman_lyric_line(content[index + 1])
+        ),
+        None,
+    )
+    if lyric_start is None:
+        return [], content, purport
+
+    lyric_end = lyric_start
+    while lyric_end < len(content) and is_roman_lyric_line(content[lyric_end]):
+        lyric_end += 1
+    lyrics = content[lyric_start:lyric_end]
+    meaning = content[:lyric_start] + content[lyric_end:]
+    if lyrics and lyrics[-1].endswith(":") and meaning:
+        meaning.insert(len(content[:lyric_start]), lyrics.pop())
+    return lyrics, meaning, purport
 
 
 def parse_lyrics_page() -> list[SongRecord]:
@@ -192,7 +223,10 @@ def parse_song_page(page_path: str) -> list[SongRecord]:
         if not paragraphs:
             continue
         lyrics_lines, english_lines, purport_lines = split_song_sections(paragraphs)
-        first_line = lyrics_lines[0] if lyrics_lines else None
+        first_line = next(
+            (line for line in lyrics_lines if not line.endswith(":")),
+            english_lines[0] if english_lines else None,
+        )
         songs.append(
             SongRecord(
                 number=number,
@@ -335,10 +369,110 @@ def deduplicate_media(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(selected.values())
 
 
+BENGALI_DIGITS = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
+
+
+def parse_bengali_int(value: str) -> int | None:
+    """Convert Bengali (or mixed) digit strings like '২৯৬' to int."""
+    digits = re.sub(r"\D", "", value.translate(BENGALI_DIGITS))
+    if not digits:
+        return None
+    try:
+        return int(digits)
+    except ValueError:
+        return None
+
+
+def notation_part_index(title: str, filename: str) -> int | None:
+    """Detect continuation parts (-1, -2) when a song spans multiple PDFs."""
+    stem = Path(filename).stem
+    for value in (title, stem):
+        cleaned = value.strip()
+        if re.fullmatch(r"_*\d+", cleaned):
+            continue
+        match = re.search(r"[-–—]\s*(\d+)\s*$", cleaned)
+        if match and int(match.group(1)) in {1, 2, 3, 4, 5}:
+            return int(match.group(1))
+    return None
+
+
+def parse_notation_label(text: str, filename: str) -> tuple[int | None, str, dict[str, Any]]:
+    """Resolve song number from Andromeda label/filename (prefer Bengali display no.)."""
+    metadata: dict[str, Any] = {"archive": "notations", "script": "bn", "display_script": "hi"}
+    text = unquote(text or "").strip()
+    filename = unquote(filename or "").strip()
+    title = text
+    leading: int | None = None
+    display_raw: str | None = None
+
+    match = re.match(
+        r"_*(?P<number>\d+)\s*-\s*\((?P<display_number>[^)]+)\)\s*(?P<title>.*)",
+        text,
+    )
+    if match:
+        leading = int(match.group("number"))
+        display_raw = match.group("display_number")
+        title = match.group("title").strip()
+    else:
+        # Malformed parentheticals like "(৩৬২নূতন ..." (missing closing ')').
+        open_paren = re.match(
+            r"_*(?P<number>\d+)\s*-\s*\((?P<display_number>[০-৯0-9]{1,4})(?P<title>.*)",
+            text,
+        )
+        if open_paren:
+            leading = int(open_paren.group("number"))
+            display_raw = open_paren.group("display_number")
+            title = open_paren.group("title").lstrip(")").strip()
+        else:
+            alt = re.match(r"_*(?P<number>\d+)\s*-\s*(?P<title>.*)", text)
+            if alt:
+                leading = int(alt.group("number"))
+                title = alt.group("title").strip()
+            else:
+                file_match = re.match(r"_*(?P<number>\d+)\b", filename)
+                if file_match:
+                    leading = int(file_match.group("number"))
+
+    # Filenames sometimes keep a wrong leading number while the Bengali
+    # parenthetical holds the true PS number, e.g. "__290 - (২৯৬) ...".
+    display_number = parse_bengali_int(display_raw or "")
+    if display_number is None:
+        # Last resort: first Bengali digit run in the label/filename.
+        bn_run = re.search(r"[০-৯]{1,4}", text) or re.search(r"[০-৯]{1,4}", filename)
+        if bn_run:
+            display_number = parse_bengali_int(bn_run.group(0))
+            display_raw = bn_run.group(0)
+    if display_raw:
+        metadata["display_number"] = display_raw
+    song_number = display_number or leading
+    if display_number and leading and display_number != leading:
+        metadata["filename_number"] = leading
+        metadata["number_source"] = "bengali_display"
+    elif song_number:
+        metadata["number_source"] = "label" if leading else "filename"
+
+    part = notation_part_index(title, filename)
+    if part is not None:
+        metadata["part"] = part
+        title = re.sub(r"[-–—]\s*\d+\s*$", "", title).strip() or title
+
+    return song_number, title, metadata
+
+
+def _notation_row_quality(row: dict[str, Any]) -> tuple[int, int, int]:
+    """Prefer decoded Bengali display numbers and non-empty titles when URLs collide."""
+    meta = row.get("metadata_json") or {}
+    number_score = 2 if meta.get("number_source") == "bengali_display" else 1 if row.get("song_number") else 0
+    title = str(meta.get("title") or "")
+    title_score = 1 if title and "%" not in title[:12] else 0
+    display_score = 1 if meta.get("display_number") else 0
+    return (number_score, display_score, title_score)
+
+
 def parse_notations() -> list[dict[str, Any]]:
     html_text = fetch(urljoin(BASE_URL, NOTATION_ARCHIVE_PAGE))
     soup = BeautifulSoup(html_text, "html.parser")
-    notations: list[dict[str, Any]] = []
+    by_url: dict[str, dict[str, Any]] = {}
     for anchor in soup.find_all("a", href=True):
         href_value = anchor.get("href")
         href = href_value.strip() if isinstance(href_value, str) else ""
@@ -346,52 +480,72 @@ def parse_notations() -> list[dict[str, Any]]:
         if not absolute.lower().endswith(".pdf"):
             continue
         text = clean(anchor.get_text(" ", strip=True))
-        match = re.match(
-            r"(?P<number>\d+)\s*-\s*\((?P<display_number>[^)]+)\)\s*(?P<title>.*)",
-            text,
+        filename = unquote(Path(urlparse(absolute).path).name)
+        # Prefer the labeled text; fall back to filename when the icon link is empty.
+        label = text or clean(filename.replace(".pdf", "").replace(".PDF", ""))
+        song_number, title, metadata = parse_notation_label(label, filename)
+        row = {
+            "song_number": song_number or 0,
+            "source_url": absolute,
+            "notation_text": None,
+            "scale": None,
+            "verification_status": "verified",
+            "metadata_json": {
+                **metadata,
+                "title": title,
+                "url": absolute,
+                "archive_url": urljoin(BASE_URL, NOTATION_ARCHIVE_PAGE),
+            },
+        }
+        current = by_url.get(absolute)
+        if current is None or _notation_row_quality(row) > _notation_row_quality(current):
+            by_url[absolute] = row
+    return group_notation_parts(list(by_url.values()))
+
+
+def group_notation_parts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One DB row per song; keep every Andromeda PDF URL when a song has -1/-2 parts."""
+    by_song: dict[int, list[dict[str, Any]]] = {}
+    orphans: list[dict[str, Any]] = []
+    for row in rows:
+        number = int(row.get("song_number") or 0)
+        if number <= 0:
+            orphans.append(row)
+            continue
+        by_song.setdefault(number, []).append(row)
+
+    grouped: list[dict[str, Any]] = []
+    for number, parts in sorted(by_song.items()):
+        parts = sorted(
+            parts,
+            key=lambda item: (
+                int((item.get("metadata_json") or {}).get("part") or 0),
+                str(item.get("source_url") or ""),
+            ),
         )
-        song_number: int | None = None
-        title = text
-        metadata: dict[str, Any] = {"archive": "notations"}
-        if match:
-            song_number = int(match.group("number"))
-            metadata["display_number"] = match.group("display_number")
-            title = match.group("title").strip()
-        else:
-            alt = re.match(r"(?P<number>\d+)\s+(?P<title>.*)", text)
-            if alt:
-                song_number = int(alt.group("number"))
-                title = alt.group("title").strip()
-        notations.append(
-            {
-                "song_number": song_number or 0,
-                "source_url": absolute,
-                "notation_text": None,
-                "scale": None,
-                "verification_status": "verified",
-                "metadata_json": {
-                    **metadata,
-                    "title": title,
-                    "url": absolute,
-                    "archive_url": urljoin(BASE_URL, NOTATION_ARCHIVE_PAGE),
-                },
-            }
-        )
-    return deduplicate_notations(notations)
+        primary = dict(parts[0])
+        urls = []
+        seen: set[str] = set()
+        for part in parts:
+            url = str(part.get("source_url") or "")
+            if url and url not in seen:
+                seen.add(url)
+                urls.append(url)
+        metadata = dict(primary.get("metadata_json") or {})
+        metadata["source_urls"] = urls
+        metadata["part_count"] = len(urls)
+        if len(urls) > 1:
+            metadata["continuation_parts"] = True
+        primary["source_url"] = urls[0]
+        primary["metadata_json"] = metadata
+        grouped.append(primary)
+    grouped.extend(orphans)
+    return grouped
 
 
 def deduplicate_notations(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Keep the number-linked record when an archive repeats the same PDF link."""
-    selected: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        source_url = str(row.get("source_url") or "")
-        current = selected.get(source_url)
-        if current is None or (
-            int(current.get("song_number") or 0) <= 0
-            and int(row.get("song_number") or 0) > 0
-        ):
-            selected[source_url] = row
-    return list(selected.values())
+    """Compatibility wrapper — prefer group_notation_parts for Andromeda sync."""
+    return group_notation_parts(rows)
 
 
 def crawl_inventory() -> list[Resource]:
@@ -434,9 +588,7 @@ def write_json(path: Path, data: list[dict[str, Any]]) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def main() -> None:
-    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-
+def sync_songs() -> list[SongRecord]:
     songs = parse_lyrics_page()
     parsed_numbers = {song.number for song in songs}
     missing_numbers = [number for number in range(1, 5019) if number not in parsed_numbers]
@@ -445,11 +597,21 @@ def main() -> None:
         if song:
             songs.append(song)
     songs.sort(key=lambda item: item.number)
+    write_json(GENERATED_DIR / "songs.json", [asdict(item) for item in songs])
+    return songs
+
+
+def main(*, songs_only: bool = False) -> None:
+    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+
+    songs = sync_songs()
+    if songs_only:
+        print(f"Wrote {len(songs)} songs to {GENERATED_DIR / 'songs.json'}")
+        return
     media = parse_audio_media()
     notations = parse_notations()
     inventory = crawl_inventory()
 
-    write_json(GENERATED_DIR / "songs.json", [asdict(item) for item in songs])
     write_json(GENERATED_DIR / "media.json", media)
     write_json(GENERATED_DIR / "notations.json", notations)
     write_json(GENERATED_DIR / "inventory.json", [asdict(item) for item in inventory])
@@ -462,4 +624,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(songs_only="--songs-only" in sys.argv[1:])

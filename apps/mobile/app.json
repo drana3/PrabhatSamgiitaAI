@@ -1,0 +1,98 @@
+{
+  "expo": {
+    "name": "Prabhat Samgiita AI",
+    "owner": "dewasheesh3s-team",
+    "slug": "prabhatsamgiitaai",
+    "version": "2.0.7",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "prabhatai",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF7F2"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "net.prabhatasamgiita.ai",
+      "buildNumber": "118",
+      "associatedDomains": [
+        "applinks:www.prabhatasamgiita.org"
+      ],
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAF7F2"
+      },
+      "package": "net.prabhatasamgiita.ai",
+      "versionCode": 90,
+      "icon": "./assets/icon.png",
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "newArchEnabled": true
+          },
+          "android": {
+            "newArchEnabled": true,
+            "extraProguardRules": "-keep class com.doublesymmetry.trackplayer.** { *; }\n-keep class com.doublesymmetry.kotlinaudio.** { *; }\n-keep class androidx.media3.** { *; }\n"
+          }
+        }
+      ],
+      "expo-router",
+      "expo-font",
+      "expo-file-system",
+      "expo-web-browser",
+      "expo-av",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs"
+        }
+      ],
+      "./plugins/withIosProjectRootFix",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Prabhat Samgiita AI to use the microphone for voice search.",
+          "speechRecognitionPermission": "Allow Prabhat Samgiita AI to turn speech into search text.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io",
+      "webBaseUrl": "https://www.prabhatasamgiita.org",
+      "azureClientId": "14af4263-42b8-41fb-aac8-e730051a6864",
+      "azureTenantId": "22cd8762-00e6-4945-850c-7b6ab1798844",
+      "googleClientId": "495992354696-e0gs1mfnndgh9d38nkmp211f43im1h9q.apps.googleusercontent.com",
+      "googleIosClientId": "495992354696-l5ddf29pefc5ke9f1t8osi9dch0qckrs.apps.googleusercontent.com",
+      "googleAndroidClientId": "495992354696-bg5emq0rv8hv4bqgk8uanvi2vkj34alv.apps.googleusercontent.com",
+      "eas": {
+        "projectId": "7cbd8dae-da81-4236-a7c2-c9c707540afe"
+      }
+    }
+  }
+}

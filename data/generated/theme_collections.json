@@ -1,0 +1,895 @@
+[
+  {
+    "label": "Sanskrit Songs",
+    "category": "language",
+    "value": "Sanskrit",
+    "source_url": "https://prabhatasamgiita.net/sanskrit.html",
+    "song_numbers": [
+      1565,
+      2505,
+      2526,
+      3246,
+      3653,
+      3951,
+      4279,
+      4281,
+      4425
+    ],
+    "count": 9
+  },
+  {
+    "label": "English Songs",
+    "category": "language",
+    "value": "English",
+    "source_url": "https://prabhatasamgiita.net/english.html",
+    "song_numbers": [
+      68,
+      5008,
+      5009
+    ],
+    "count": 3
+  },
+  {
+    "label": "Hindi Songs",
+    "category": "language",
+    "value": "Hindi",
+    "source_url": "https://prabhatasamgiita.net/hindi.html",
+    "song_numbers": [
+      25,
+      4062,
+      4070,
+      4167,
+      4168,
+      4170,
+      4195,
+      4283,
+      4327,
+      4335,
+      4733,
+      4979
+    ],
+    "count": 12
+  },
+  {
+    "label": "Urdu Songs",
+    "category": "language",
+    "value": "Urdu",
+    "source_url": "https://prabhatasamgiita.net/urdu.html",
+    "song_numbers": [
+      25,
+      4062,
+      4072,
+      4078,
+      4166,
+      4167,
+      4168,
+      4170,
+      4171,
+      4172,
+      4195,
+      4283,
+      4327,
+      4335,
+      4733,
+      4979
+    ],
+    "count": 16
+  },
+  {
+    "label": "Aungika Songs",
+    "category": "language",
+    "value": "Aungika",
+    "source_url": "https://prabhatasamgiita.net/aungika.html",
+    "song_numbers": [
+      4063,
+      4079,
+      4098,
+      4129,
+      4134,
+      4141,
+      4206
+    ],
+    "count": 7
+  },
+  {
+    "label": "Maethili Song",
+    "category": "language",
+    "value": "Maithili",
+    "source_url": "https://prabhatasamgiita.net/maethili.html",
+    "song_numbers": [
+      4081
+    ],
+    "count": 1
+  },
+  {
+    "label": "Bengali Dialect Songs",
+    "category": "language",
+    "value": "Bengali dialect",
+    "source_url": "https://prabhatasamgiita.net/bengalidialect.html",
+    "song_numbers": [
+      432,
+      468,
+      474,
+      475,
+      476,
+      477,
+      478,
+      479,
+      485,
+      487,
+      490,
+      498,
+      508,
+      512,
+      513,
+      522,
+      578,
+      990,
+      3562,
+      3623,
+      3760,
+      3914,
+      4252,
+      4957,
+      4990
+    ],
+    "count": 25
+  },
+  {
+    "label": "Shiva Songs",
+    "category": "theme",
+    "value": "Shiva",
+    "source_url": "https://prabhatasamgiita.net/shiva.html",
+    "song_numbers": [
+      586,
+      1418,
+      1565,
+      2412,
+      2414,
+      2421,
+      2496,
+      2505,
+      2526,
+      3246,
+      3282,
+      3653,
+      3744,
+      4279,
+      4961
+    ],
+    "count": 15
+  },
+  {
+    "label": "Krśńa Songs",
+    "category": "theme",
+    "value": "Krśńa",
+    "source_url": "https://prabhatasamgiita.net/krsna.html",
+    "song_numbers": [
+      220,
+      759,
+      1269,
+      1419,
+      1743,
+      3265,
+      3640,
+      3742,
+      3951,
+      4081,
+      4281,
+      4425,
+      4635,
+      4769,
+      4974
+    ],
+    "count": 15
+  },
+  {
+    "label": "Krśńa and Devotees Songs",
+    "category": "theme",
+    "value": "Krśńa and Devotees",
+    "source_url": "https://prabhatasamgiita.net/krsnadevotees.html",
+    "song_numbers": [
+      196,
+      226,
+      228,
+      229,
+      230
+    ],
+    "count": 5
+  },
+  {
+    "label": "Mahabharata Song",
+    "category": "theme",
+    "value": "Mahabharata",
+    "source_url": "https://prabhatasamgiita.net/mahabharata.html",
+    "song_numbers": [
+      1307
+    ],
+    "count": 1
+  },
+  {
+    "label": "Bábá Birthday Songs",
+    "category": "festival",
+    "value": "Bábá Birthday",
+    "source_url": "https://prabhatasamgiita.net/bababirthday.html",
+    "song_numbers": [
+      133,
+      134,
+      135,
+      903,
+      2649
+    ],
+    "count": 5
+  },
+  {
+    "label": "New Year Songs",
+    "category": "festival",
+    "value": "New Year",
+    "source_url": "https://prabhatasamgiita.net/newyear.html",
+    "song_numbers": [
+      127,
+      129,
+      130,
+      131
+    ],
+    "count": 4
+  },
+  {
+    "label": "Year-end Song",
+    "category": "festival",
+    "value": "Year-end",
+    "source_url": "https://prabhatasamgiita.net/yearend.html",
+    "song_numbers": [
+      126
+    ],
+    "count": 1
+  },
+  {
+    "label": "Dipavali (Colour Festival) Day Songs",
+    "category": "festival",
+    "value": "Dipavali (Colour Festival) Day",
+    "source_url": "https://prabhatasamgiita.net/diipavali.html",
+    "song_numbers": [
+      63,
+      64,
+      1637
+    ],
+    "count": 3
+  },
+  {
+    "label": "Shravanii Purnima Day Song",
+    "category": "festival",
+    "value": "Shravanii Purnima Day",
+    "source_url": "https://prabhatasamgiita.net/shravanii.html",
+    "song_numbers": [
+      4954
+    ],
+    "count": 1
+  },
+  {
+    "label": "Victory Day Song",
+    "category": "festival",
+    "value": "Victory Day",
+    "source_url": "https://prabhatasamgiita.net/victory.html",
+    "song_numbers": [
+      5013
+    ],
+    "count": 1
+  },
+  {
+    "label": "National Day Song (or Song of Love for one's Country)",
+    "category": "festival",
+    "value": "National Day Song (or Song of Love for one's Country)",
+    "source_url": "https://prabhatasamgiita.net/nationalday.html",
+    "song_numbers": [
+      3715
+    ],
+    "count": 1
+  },
+  {
+    "label": "Baby Naming Ceremony Song",
+    "category": "occasion",
+    "value": "Baby Naming Ceremony",
+    "source_url": "https://prabhatasamgiita.net/babynaming.html",
+    "song_numbers": [
+      59
+    ],
+    "count": 1
+  },
+  {
+    "label": "Birthday Song",
+    "category": "festival",
+    "value": "Birthday",
+    "source_url": "https://prabhatasamgiita.net/birthday.html",
+    "song_numbers": [
+      132
+    ],
+    "count": 1
+  },
+  {
+    "label": "Marriage Ceremony Song",
+    "category": "occasion",
+    "value": "Marriage Ceremony",
+    "source_url": "https://prabhatasamgiita.net/marriage.html",
+    "song_numbers": [
+      58
+    ],
+    "count": 1
+  },
+  {
+    "label": "Passing Away Ceremony Song",
+    "category": "occasion",
+    "value": "Passing Away Ceremony",
+    "source_url": "https://prabhatasamgiita.net/passingaway.html",
+    "song_numbers": [
+      60
+    ],
+    "count": 1
+  },
+  {
+    "label": "House Warming Ceremony Song",
+    "category": "occasion",
+    "value": "House Warming Ceremony",
+    "source_url": "https://prabhatasamgiita.net/housewarming.html",
+    "song_numbers": [
+      137
+    ],
+    "count": 1
+  },
+  {
+    "label": "Tree Planting Ceremony Song",
+    "category": "occasion",
+    "value": "Tree Planting Ceremony",
+    "source_url": "https://prabhatasamgiita.net/treeplanting.html",
+    "song_numbers": [
+      136
+    ],
+    "count": 1
+  },
+  {
+    "label": "Dharma Song",
+    "category": "theme",
+    "value": "Dharma",
+    "source_url": "https://prabhatasamgiita.net/dharma.html",
+    "song_numbers": [
+      1103
+    ],
+    "count": 1
+  },
+  {
+    "label": "PROUT Song",
+    "category": "theme",
+    "value": "PROUT",
+    "source_url": "https://prabhatasamgiita.net/prout.html",
+    "song_numbers": [
+      4599,
+      4725,
+      4795
+    ],
+    "count": 3
+  },
+  {
+    "label": "Neo-Humanism Songs",
+    "category": "theme",
+    "value": "Neo-Humanism",
+    "source_url": "https://prabhatasamgiita.net/neohumanism.html",
+    "song_numbers": [
+      3,
+      878,
+      1090,
+      1190,
+      1372,
+      2084,
+      2155,
+      2192,
+      2268,
+      2350,
+      2370
+    ],
+    "count": 11
+  },
+  {
+    "label": "AMURT Song",
+    "category": "theme",
+    "value": "AMURT",
+    "source_url": "https://prabhatasamgiita.net/amurt.html",
+    "song_numbers": [
+      3714
+    ],
+    "count": 1
+  },
+  {
+    "label": "Flag Ceremony Song",
+    "category": "occasion",
+    "value": "Flag Ceremony",
+    "source_url": "https://prabhatasamgiita.net/flag.html",
+    "song_numbers": [
+      50
+    ],
+    "count": 1
+  },
+  {
+    "label": "Marching Song",
+    "category": "occasion",
+    "value": "Marching",
+    "source_url": "https://prabhatasamgiita.net/marching.html",
+    "song_numbers": [
+      74
+    ],
+    "count": 1
+  },
+  {
+    "label": "VSS Song",
+    "category": "theme",
+    "value": "VSS",
+    "source_url": "https://prabhatasamgiita.net/vss.html",
+    "song_numbers": [
+      4172
+    ],
+    "count": 1
+  },
+  {
+    "label": "Gurukula Song",
+    "category": "theme",
+    "value": "Gurukula",
+    "source_url": "https://prabhatasamgiita.net/gurukula.html",
+    "song_numbers": [
+      5018
+    ],
+    "count": 1
+  },
+  {
+    "label": "Ánanda Nagar Song",
+    "category": "theme",
+    "value": "Ánanda Nagar",
+    "source_url": "https://prabhatasamgiita.net/anandanagar.html",
+    "song_numbers": [
+      5017
+    ],
+    "count": 1
+  },
+  {
+    "label": "Guru Sakasha Song",
+    "category": "theme",
+    "value": "Guru Sakasha",
+    "source_url": "https://prabhatasamgiita.net/gurusakasha.html",
+    "song_numbers": [
+      4461
+    ],
+    "count": 1
+  },
+  {
+    "label": "Spring Songs",
+    "category": "season",
+    "value": "spring",
+    "source_url": "https://prabhatasamgiita.net/spring.html",
+    "song_numbers": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      1682,
+      3110
+    ],
+    "count": 9
+  },
+  {
+    "label": "Summer Songs",
+    "category": "season",
+    "value": "summer",
+    "source_url": "https://prabhatasamgiita.net/summer.html",
+    "song_numbers": [
+      108,
+      109,
+      110,
+      111
+    ],
+    "count": 4
+  },
+  {
+    "label": "Autumn Songs (Sharat)",
+    "category": "season",
+    "value": "autumn",
+    "source_url": "https://prabhatasamgiita.net/autumnsharat.html",
+    "song_numbers": [
+      120,
+      121,
+      122,
+      123,
+      124,
+      125
+    ],
+    "count": 6
+  },
+  {
+    "label": "Autumn Songs (Hemante)",
+    "category": "season",
+    "value": "autumn",
+    "source_url": "https://prabhatasamgiita.net/autumnhemante.html",
+    "song_numbers": [
+      88,
+      89,
+      90,
+      91,
+      92,
+      93
+    ],
+    "count": 6
+  },
+  {
+    "label": "Winter Songs",
+    "category": "season",
+    "value": "winter",
+    "source_url": "https://prabhatasamgiita.net/winter.html",
+    "song_numbers": [
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100
+    ],
+    "count": 7
+  },
+  {
+    "label": "Rainy Season Songs",
+    "category": "season",
+    "value": "rainy season",
+    "source_url": "https://prabhatasamgiita.net/rainy.html",
+    "song_numbers": [
+      114,
+      115,
+      116,
+      117,
+      118
+    ],
+    "count": 5
+  },
+  {
+    "label": "Dry Season Songs",
+    "category": "season",
+    "value": "dry season",
+    "source_url": "https://prabhatasamgiita.net/dry.html",
+    "song_numbers": [
+      113,
+      119
+    ],
+    "count": 2
+  },
+  {
+    "label": "Songs to Attract Rain / Draught Songs / Farmer's Songs",
+    "category": "theme",
+    "value": "Songs to Attract Rain / Draught Songs / Farmer's",
+    "source_url": "https://prabhatasamgiita.net/farmers.html",
+    "song_numbers": [
+      119,
+      5011
+    ],
+    "count": 2
+  },
+  {
+    "label": "Children Songs",
+    "category": "occasion",
+    "value": "Children",
+    "source_url": "https://prabhatasamgiita.net/children.html",
+    "song_numbers": [
+      361,
+      432,
+      1495,
+      1784
+    ],
+    "count": 4
+  },
+  {
+    "label": "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"",
+    "category": "theme",
+    "value": "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"",
+    "source_url": "https://prabhatasamgiita.net/goldenlotus.html",
+    "song_numbers": [
+      395,
+      396,
+      397,
+      398,
+      399,
+      400
+    ],
+    "count": 6
+  },
+  {
+    "label": "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)",
+    "category": "theme",
+    "value": "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)",
+    "source_url": "https://prabhatasamgiita.net/satbhai.html",
+    "song_numbers": [
+      303,
+      3623
+    ],
+    "count": 2
+  },
+  {
+    "label": "Women Songs",
+    "category": "theme",
+    "value": "Women",
+    "source_url": "https://prabhatasamgiita.net/women.html",
+    "song_numbers": [
+      140,
+      401,
+      468,
+      474,
+      475,
+      476,
+      961,
+      1031,
+      1068,
+      1218,
+      1247,
+      1269,
+      1276,
+      1316,
+      1367,
+      1415,
+      1445,
+      1458,
+      1464,
+      1520,
+      1530,
+      1552,
+      1570,
+      1826,
+      1828,
+      2049,
+      2460,
+      2529
+    ],
+    "count": 28
+  },
+  {
+    "label": "Song for those approaching the end of their life",
+    "category": "occasion",
+    "value": "Song for those approaching the end of their life",
+    "source_url": "https://prabhatasamgiita.net/endoflife.html",
+    "song_numbers": [
+      1863
+    ],
+    "count": 1
+  },
+  {
+    "label": "Songs in memory of one's family members",
+    "category": "occasion",
+    "value": "Songs in memory of one's family members",
+    "source_url": "https://prabhatasamgiita.net/familymembers.html",
+    "song_numbers": [
+      1273,
+      1495,
+      4029,
+      4940
+    ],
+    "count": 4
+  },
+  {
+    "label": "Song with sanyasii spirit",
+    "category": "occasion",
+    "value": "Song with sanyasii spirit",
+    "source_url": "https://prabhatasamgiita.net/sanyasii.html",
+    "song_numbers": [
+      1291
+    ],
+    "count": 1
+  },
+  {
+    "label": "Sinners Song",
+    "category": "theme",
+    "value": "Sinners",
+    "source_url": "https://prabhatasamgiita.net/sinners.html",
+    "song_numbers": [
+      695
+    ],
+    "count": 1
+  },
+  {
+    "label": "Song in memory of Lord Buddha",
+    "category": "occasion",
+    "value": "Song in memory of Lord Buddha",
+    "source_url": "https://prabhatasamgiita.net/buddha.html",
+    "song_numbers": [
+      7
+    ],
+    "count": 1
+  },
+  {
+    "label": "Songs in memory of Rabindranath Tagore",
+    "category": "occasion",
+    "value": "Songs in memory of Rabindranath Tagore",
+    "source_url": "https://prabhatasamgiita.net/tagore.html",
+    "song_numbers": [
+      925,
+      2300
+    ],
+    "count": 2
+  },
+  {
+    "label": "Song in memory of Avtk. Ananda Bharati Ac.",
+    "category": "occasion",
+    "value": "Song in memory of Avtk. Ananda Bharati Ac.",
+    "source_url": "https://prabhatasamgiita.net/anandabharati.html",
+    "song_numbers": [
+      4688
+    ],
+    "count": 1
+  },
+  {
+    "label": "Song in memory of the musician Suradas",
+    "category": "occasion",
+    "value": "Song in memory of the musician Suradas",
+    "source_url": "https://prabhatasamgiita.net/suradas.html",
+    "song_numbers": [
+      1255
+    ],
+    "count": 1
+  },
+  {
+    "label": "Himalaya Songs",
+    "category": "theme",
+    "value": "Himalaya",
+    "source_url": "https://prabhatasamgiita.net/himalaya.html",
+    "song_numbers": [
+      1330,
+      1335,
+      1767,
+      4627
+    ],
+    "count": 4
+  },
+  {
+    "label": "River Songs",
+    "category": "theme",
+    "value": "River",
+    "source_url": "https://prabhatasamgiita.net/river.html",
+    "song_numbers": [
+      911,
+      925,
+      1472,
+      1554,
+      4533,
+      4534
+    ],
+    "count": 6
+  },
+  {
+    "label": "Song for a Dust Particle",
+    "category": "theme",
+    "value": "Song for a Dust Particle",
+    "source_url": "https://prabhatasamgiita.net/dustparticle.html",
+    "song_numbers": [
+      1892
+    ],
+    "count": 1
+  },
+  {
+    "label": "Song for a Dewdrop",
+    "category": "theme",
+    "value": "Song for a Dewdrop",
+    "source_url": "https://prabhatasamgiita.net/dewdrop.html",
+    "song_numbers": [
+      1908
+    ],
+    "count": 1
+  },
+  {
+    "label": "Taj Mahal Song",
+    "category": "theme",
+    "value": "Taj Mahal",
+    "source_url": "https://prabhatasamgiita.net/tajmahal.html",
+    "song_numbers": [
+      1256
+    ],
+    "count": 1
+  },
+  {
+    "label": "End of Communism Song",
+    "category": "theme",
+    "value": "End of Communism",
+    "source_url": "https://prabhatasamgiita.net/endofcommunism.html",
+    "song_numbers": [
+      4705
+    ],
+    "count": 1
+  },
+  {
+    "label": "Chinese-tune Song",
+    "category": "theme",
+    "value": "Chinese-tune",
+    "source_url": "https://prabhatasamgiita.net/chinese.html",
+    "song_numbers": [
+      193
+    ],
+    "count": 1
+  },
+  {
+    "label": "Chinese-European blending-tune Song",
+    "category": "theme",
+    "value": "Chinese-European blending-tune",
+    "source_url": "https://prabhatasamgiita.net/chineseeuropean.html",
+    "song_numbers": [
+      3389
+    ],
+    "count": 1
+  },
+  {
+    "label": "Scandinavian-tune Song",
+    "category": "theme",
+    "value": "Scandinavian-tune",
+    "source_url": "https://prabhatasamgiita.net/scandinavian.html",
+    "song_numbers": [
+      960
+    ],
+    "count": 1
+  },
+  {
+    "label": "Belgium-tune Song",
+    "category": "theme",
+    "value": "Belgium-tune",
+    "source_url": "https://prabhatasamgiita.net/belgium.html",
+    "song_numbers": [
+      4
+    ],
+    "count": 1
+  },
+  {
+    "label": "Turkish-tune Song",
+    "category": "theme",
+    "value": "Turkish-tune",
+    "source_url": "https://prabhatasamgiita.net/turkish.html",
+    "song_numbers": [
+      63
+    ],
+    "count": 1
+  },
+  {
+    "label": "Songs containing 'extinct' melodies",
+    "category": "theme",
+    "value": "Songs containing 'extinct' melodies",
+    "source_url": "https://prabhatasamgiita.net/extinct.html",
+    "song_numbers": [
+      7,
+      3262
+    ],
+    "count": 2
+  },
+  {
+    "label": "Songs composed in Baba's youth",
+    "category": "theme",
+    "value": "Songs composed in Baba's youth",
+    "source_url": "https://prabhatasamgiita.net/babayouth.html",
+    "song_numbers": [
+      68,
+      209,
+      2526
+    ],
+    "count": 3
+  },
+  {
+    "label": "Song with a very rare verse form",
+    "category": "theme",
+    "value": "Song with a very rare verse form",
+    "source_url": "https://prabhatasamgiita.net/rareverse.html",
+    "song_numbers": [
+      122
+    ],
+    "count": 1
+  },
+  {
+    "label": "Classicalised kiirtan-style song",
+    "category": "theme",
+    "value": "Classicalised kiirtan-style song",
+    "source_url": "https://prabhatasamgiita.net/classicalisedkiirtan.html",
+    "song_numbers": [
+      1266
+    ],
+    "count": 1
+  }
+]

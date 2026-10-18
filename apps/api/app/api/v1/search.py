@@ -1,16 +1,33 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
-from app.schemas.search import SearchFilters, SearchResponse
-from app.schemas.song import SearchRequest, SongSummary
-from app.services.search import HybridSearchService
+from app.core.security import require_public_quota
+from app.models import Song
+from app.schemas.search import SearchFilters, SearchResponse, SearchResultItem
+from app.schemas.song import (
+    SearchRequest,
+    SongSummary,
+    VoiceSearchMatch,
+    VoiceSearchRequest,
+    VoiceSearchResponse,
+)
+from app.services.catalog import catalog_song_snapshot
+from app.services.members import require_member_identity
+from app.services.query_guard import assess_query
+from app.services.search import (
+    TOP_SEARCH_PREDICTIONS,
+    HybridSearchService,
+    infer_canonical_collection,
+    needs_semantic_expansion,
+    prepare_voice_query,
+)
 
 router = APIRouter(prefix="/search", tags=["search"])
 simple_search_cache: AsyncTTLCache[list[dict[str, object]]] = AsyncTTLCache(
@@ -23,38 +40,185 @@ rich_search_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
 )
 
 
+def clear_search_result_caches_sync() -> None:
+    """Invalidate cached search payloads after catalog memory updates."""
+    simple_search_cache.clear_sync()
+    rich_search_cache.clear_sync()
+
+
+async def clear_search_result_caches() -> None:
+    await simple_search_cache.clear()
+    await rich_search_cache.clear()
+
+
+def _song_summary(item: SearchResultItem, songs_by_number: dict[int, Song]) -> SongSummary:
+    song_number = item.song_number
+    song = songs_by_number.get(song_number)
+    opening_line = item.opening_line
+    return SongSummary(
+        number=song_number,
+        title=(song.title if song else opening_line) or "Title awaiting source review",
+        first_line=song.first_line if song else opening_line,
+        theme=song.theme if song else None,
+        occasion=song.occasion if song else None,
+        mood=song.mood if song else None,
+        language=song.language if song else None,
+        difficulty=song.difficulty if song else None,
+        is_verified=item.verification_status
+        in {"verified", "officially_verified", "human_reviewed"},
+    )
+
+
+def _voice_confidence(matched_by: list[str], score: float) -> tuple[float, str]:
+    methods = set(matched_by)
+    if "exact_number" in methods:
+        return 0.99, "Exact Prabhat Samgiita number"
+    if score >= 3 or {"opening_line", "full_text"} <= methods:
+        return 0.96, "Opening words matched the verified song text"
+    if "structured_filter" in methods:
+        return 0.9, "Matched a reviewed language, festival, or collection"
+    if {"full_text", "voice_phonetic"} <= methods:
+        return 0.86, "Words and pronunciation matched the song text"
+    if {"trigram", "voice_phonetic"} <= methods:
+        return 0.76, "Close pronunciation and spelling match"
+    if "full_text" in methods:
+        return 0.72, "Words matched the song text or meaning"
+    if "voice_phonetic" in methods:
+        return 0.64, "Pronunciation is close to this song"
+    if "vector" in methods:
+        return 0.46, "Meaning is similar, but the wording was not an exact match"
+    return 0.35, "Possible catalog match"
+
+
+@router.post("/voice", response_model=VoiceSearchResponse)
+async def search_voice(
+    payload: VoiceSearchRequest,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> VoiceSearchResponse:
+    require_public_quota(request, bucket="voice-search", limit=30)
+    assessment = assess_query(payload.transcript, max_length=200)
+    if not assessment.allowed:
+        return VoiceSearchResponse(
+            heard=assessment.normalized,
+            spoken_language=payload.spoken_language,
+            interpreted_as="",
+            confidence="none",
+            guidance=assessment.guidance,
+        )
+
+    interpreted_as = prepare_voice_query(assessment.normalized)
+    if not interpreted_as:
+        return VoiceSearchResponse(
+            heard=assessment.normalized,
+            spoken_language=payload.spoken_language,
+            interpreted_as="",
+            confidence="none",
+            guidance=(
+                "Please say a song number, remembered lyric, feeling, festival, language, "
+                "or occasion."
+            ),
+        )
+
+    # Voice and typed natural-language asks both need meaning search across the
+    # full embedding index. Catalog/lexical mode misses feeling queries such as
+    # "I am feeling very happy today".
+    search_mode = "semantic" if needs_semantic_expansion(interpreted_as) else "catalog"
+    if search_mode == "semantic":
+        require_member_identity(request)
+    response = await HybridSearchService(session).search(
+        interpreted_as,
+        page_size=TOP_SEARCH_PREDICTIONS,
+        input_mode="voice",
+        mode=search_mode,
+    )
+    songs_by_number = {song.number: song for song in catalog_song_snapshot()}
+    matches: list[VoiceSearchMatch] = []
+    for item in response.items[:TOP_SEARCH_PREDICTIONS]:
+        confidence, reason = _voice_confidence(item.matched_by, item.score)
+        matches.append(
+            VoiceSearchMatch(
+                song=_song_summary(item, songs_by_number),
+                confidence=confidence,
+                match_reason=reason,
+            )
+        )
+
+    top_confidence = matches[0].confidence if matches else 0
+    confidence_label: Literal["high", "medium", "low", "none"] = (
+        "high"
+        if top_confidence >= 0.85
+        else "medium"
+        if top_confidence >= 0.62
+        else "low"
+        if matches
+        else "none"
+    )
+    guidance = None
+    if confidence_label == "low":
+        guidance = (
+            "These are possible meaning matches. Try a song number, a longer lyric line, "
+            "or a clearer feeling such as peace, devotion, or joy."
+        )
+    elif confidence_label == "none":
+        guidance = (
+            "No confident song match was found. Try a song number, a longer lyric line, "
+            "or a feeling such as peace, devotion, or hope."
+        )
+    return VoiceSearchResponse(
+        heard=assessment.normalized,
+        spoken_language=payload.spoken_language,
+        interpreted_as=interpreted_as,
+        confidence=confidence_label,
+        matches=matches,
+        guidance=guidance,
+    )
+
+
 @router.post("", response_model=list[SongSummary])
 async def search(
-    request: SearchRequest,
+    payload: SearchRequest,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SongSummary]:
-    cache_key = json.dumps({"query": request.query}, sort_keys=True)
+    require_public_quota(request, bucket="search", limit=40)
+    if payload.mode == "semantic":
+        require_member_identity(request)
+    assessment = assess_query(payload.query, max_length=200)
+    if not assessment.allowed:
+        raise HTTPException(status_code=422, detail=assessment.guidance)
+    query = assessment.normalized
+    mode = payload.mode
+    collection_match = infer_canonical_collection(query)
+    page_size = (
+        min(len(collection_match.song_numbers), 200)
+        if collection_match
+        else TOP_SEARCH_PREDICTIONS
+    )
+    cache_key = json.dumps({"query": query, "mode": mode, "page_size": page_size}, sort_keys=True)
     cached = await simple_search_cache.get(cache_key)
     if isinstance(cached, list):
-        return [SongSummary.model_validate(item) for item in cached]
+        return [
+            SongSummary.model_validate(item)
+            for item in cached[:page_size]
+        ]
 
-    response = await HybridSearchService(session).search(request.query)
-    payload = [
-        SongSummary(
-            number=item.song_number,
-            title=item.opening_line or f"Song {item.song_number}",
-            first_line=item.opening_line,
-            theme=None,
-            occasion=None,
-            mood=None,
-            language=None,
-            difficulty=None,
-            is_verified=item.verification_status
-            in {"verified", "officially_verified", "human_reviewed"},
-        )
-        for item in response.items
-    ]
-    await simple_search_cache.set(cache_key, [item.model_dump() for item in payload])
-    return payload
+    response = await HybridSearchService(session).search(
+        query,
+        page_size=page_size,
+        mode=mode,
+    )
+    songs_by_number = {song.number: song for song in catalog_song_snapshot()}
+    results: list[SongSummary] = []
+    for item in response.items[:page_size]:
+        results.append(_song_summary(item, songs_by_number))
+    await simple_search_cache.set(cache_key, [item.model_dump() for item in results])
+    return results
 
 
 @router.get("", response_model=SearchResponse)
 async def search_rich(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     q: str = Query(min_length=1),
     language: str | None = Query(default=None),
@@ -70,6 +234,11 @@ async def search_rich(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> SearchResponse:
+    require_public_quota(request, bucket="search", limit=40)
+    assessment = assess_query(q, max_length=200)
+    if not assessment.allowed:
+        raise HTTPException(status_code=422, detail=assessment.guidance)
+    q = assessment.normalized
     cache_key = json.dumps(
         {
             "q": q,

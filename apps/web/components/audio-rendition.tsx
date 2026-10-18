@@ -1,0 +1,498 @@
+"use client"
+
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react"
+
+import { trackEvent } from "@/lib/analytics"
+import { useMember } from "@/components/member-provider"
+import { bindExclusiveAudio } from "@/lib/exclusive-audio"
+import { warmArchiveAudioStream } from "@/lib/warm-audio-stream"
+
+const skipSeconds = 10
+
+function formatTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00"
+  const whole = Math.floor(seconds)
+  const minutes = Math.floor(whole / 60)
+  const remainder = whole % 60
+  return `${minutes}:${remainder.toString().padStart(2, "0")}`
+}
+
+function controlsList(signedIn: boolean) {
+  return signedIn ? "noplaybackrate" : "nodownload noplaybackrate"
+}
+
+function IconButton({
+  label,
+  onClick,
+  children,
+  primary = false,
+  "aria-pressed": ariaPressed,
+}: {
+  label: string
+  onClick: () => void
+  children: ReactNode
+  primary?: boolean
+  "aria-pressed"?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={ariaPressed}
+      onClick={onClick}
+      className={
+        primary
+          ? "grid h-8 w-8 shrink-0 place-items-center rounded-full bg-navy-950 text-white transition hover:bg-navy-900"
+          : "grid h-7 w-7 shrink-0 place-items-center rounded-full text-navy-950 transition hover:bg-ivory-100"
+      }
+    >
+      {children}
+    </button>
+  )
+}
+
+function SkipBackIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
+      <path d="M11 5v14l-8-7 8-7zm9 0v14l-8-7 8-7z" />
+    </svg>
+  )
+}
+
+function SkipForwardIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
+      <path d="M4 5v14l8-7-8-7zm9 0v14l8-7-8-7z" />
+    </svg>
+  )
+}
+
+function PlayIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="ml-0.5 h-3.5 w-3.5 fill-current">
+      <path d="M8 5v14l11-7-11-7z" />
+    </svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
+      <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+    </svg>
+  )
+}
+
+function VolumeIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current text-stone-500">
+      {muted ? (
+        <path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.06a2.5 2.5 0 0 1 0 4.02v2.06A4.5 4.5 0 0 0 16.5 12zM19 12a7.5 7.5 0 0 1-.75 3.27l1.46 1.46A9.003 9.003 0 0 0 21 12c0-2.4-.94-4.58-2.48-6.19l-1.46 1.46A7.502 7.502 0 0 1 19 12zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
+      ) : (
+        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.03v8.05a4.47 4.47 0 0 0 2.5-3.08zM14 3.23v2.06a6.98 6.98 0 0 1 0 13.54v2.06a9 9 0 0 0 0-17.66z" />
+      )}
+    </svg>
+  )
+}
+
+function CompactPlayer({
+  url,
+  title,
+  onPlaybackError,
+  sharedAudioRef,
+  sharedAudioReady = true,
+  registerSharedAudio,
+  mountAudio = true,
+}: {
+  url: string
+  title: string
+  provider?: string
+  onPlaybackError?: () => void
+  sharedAudioRef?: RefObject<HTMLAudioElement | null>
+  sharedAudioReady?: boolean
+  registerSharedAudio?: (element: HTMLAudioElement | null) => void
+  mountAudio?: boolean
+}) {
+  const localAudioRef = useRef<HTMLAudioElement>(null)
+  const audioRef = sharedAudioRef ?? localAudioRef
+
+  function assignAudioRef(element: HTMLAudioElement | null) {
+    localAudioRef.current = element
+    if (sharedAudioRef) sharedAudioRef.current = element
+    registerSharedAudio?.(element)
+  }
+  const [playing, setPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(1)
+  const [muted, setMuted] = useState(false)
+  const [buffering, setBuffering] = useState(false)
+
+  useEffect(() => {
+    setPlaying(false)
+    setCurrentTime(0)
+    setDuration(0)
+    setMuted(false)
+    setBuffering(false)
+    if (mountAudio) void warmArchiveAudioStream(url)
+  }, [url, mountAudio])
+
+  useEffect(() => {
+    if (!sharedAudioReady) return
+    const audio = audioRef.current
+    if (!audio) return
+    // iOS Safari ignores audio.volume; muted still works.
+    audio.muted = muted
+    audio.volume = muted ? 0 : volume
+  }, [muted, volume, url, sharedAudioReady, audioRef])
+
+  useEffect(() => {
+    if (!sharedAudioReady) return
+    const audio = audioRef.current
+    if (!audio) return
+    if (mountAudio) return bindExclusiveAudio(audio)
+  }, [url, mountAudio, sharedAudioReady, audioRef])
+
+  useEffect(() => {
+    if (!sharedAudioReady) return
+    const audio = audioRef.current
+    if (!audio) return
+    const syncPlaying = () => setPlaying(!audio.paused && !audio.ended)
+    const syncTime = () => {
+      setCurrentTime(audio.currentTime)
+      if (Number.isFinite(audio.duration)) setDuration(audio.duration)
+    }
+    const resumeAfterStall = () => {
+      if (audio.paused || audio.ended) return
+      setBuffering(true)
+      void audio.play().catch(() => undefined)
+    }
+    const markReady = () => setBuffering(false)
+    syncPlaying()
+    syncTime()
+    audio.addEventListener("play", syncPlaying)
+    audio.addEventListener("pause", syncPlaying)
+    audio.addEventListener("timeupdate", syncTime)
+    audio.addEventListener("loadedmetadata", syncTime)
+    audio.addEventListener("waiting", resumeAfterStall)
+    audio.addEventListener("stalled", resumeAfterStall)
+    audio.addEventListener("canplay", markReady)
+    audio.addEventListener("playing", markReady)
+    return () => {
+      audio.removeEventListener("play", syncPlaying)
+      audio.removeEventListener("pause", syncPlaying)
+      audio.removeEventListener("timeupdate", syncTime)
+      audio.removeEventListener("loadedmetadata", syncTime)
+      audio.removeEventListener("waiting", resumeAfterStall)
+      audio.removeEventListener("stalled", resumeAfterStall)
+      audio.removeEventListener("canplay", markReady)
+      audio.removeEventListener("playing", markReady)
+    }
+  }, [url, sharedAudioReady, audioRef])
+
+  function seekBy(deltaSeconds: number) {
+    const audio = audioRef.current
+    if (!audio || !Number.isFinite(audio.duration)) return
+    const next = Math.min(Math.max(0, audio.currentTime + deltaSeconds), audio.duration)
+    audio.currentTime = next
+    setCurrentTime(next)
+  }
+
+  function seekTo(nextTime: number) {
+    const audio = audioRef.current
+    if (!audio || !Number.isFinite(audio.duration)) return
+    const clamped = Math.min(Math.max(0, nextTime), audio.duration)
+    audio.currentTime = clamped
+    setCurrentTime(clamped)
+  }
+
+  function togglePlay() {
+    const audio = audioRef.current
+    if (!audio) return
+    if (playing) {
+      audio.pause()
+      return
+    }
+    setBuffering(true)
+    void audio.play().catch(() => setBuffering(false))
+  }
+
+  function toggleMute() {
+    setMuted((current) => !current)
+  }
+
+  const fieldId = title.replace(/\s+/g, "-").toLowerCase()
+
+  return (
+    <div className="w-full overflow-hidden rounded-xl border border-navy-900/10 bg-white px-2 py-2 pr-2.5 shadow-sm sm:max-w-[20rem]">
+      <div className="flex min-w-0 items-center gap-1">
+        <div className="flex shrink-0 items-center">
+          <IconButton label={`Rewind ${skipSeconds} seconds`} onClick={() => seekBy(-skipSeconds)}>
+            <SkipBackIcon />
+          </IconButton>
+          <IconButton
+            label={playing ? `Pause ${title}` : `Play ${title}`}
+            onClick={togglePlay}
+            primary
+            aria-pressed={playing}
+          >
+            {playing ? <PauseIcon /> : <PlayIcon />}
+          </IconButton>
+          <IconButton label={`Forward ${skipSeconds} seconds`} onClick={() => seekBy(skipSeconds)}>
+            <SkipForwardIcon />
+          </IconButton>
+        </div>
+
+        <span className="hidden w-8 shrink-0 text-[10px] tabular-nums text-stone-500 sm:inline">
+          {formatTime(currentTime)}
+        </span>
+        <label className="sr-only" htmlFor={`audio-progress-${fieldId}`}>
+          Seek through {title}
+        </label>
+        <input
+          id={`audio-progress-${fieldId}`}
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={Math.min(currentTime, duration || 0)}
+          onChange={(event) => seekTo(Number(event.target.value))}
+          className="h-1 min-w-0 flex-1 cursor-pointer accent-gold-600"
+          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+        />
+        <span className="hidden w-8 shrink-0 text-right text-[10px] tabular-nums text-stone-500 sm:inline">
+          {formatTime(duration)}
+        </span>
+
+        <div className="flex shrink-0 items-center gap-0.5 border-l border-navy-900/10 pl-1.5">
+          <button
+            type="button"
+            aria-label={muted ? "Unmute" : "Mute"}
+            aria-pressed={muted}
+            onClick={toggleMute}
+            className="relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full text-navy-950 transition hover:bg-ivory-100"
+          >
+            <VolumeIcon muted={muted} />
+          </button>
+          <label className="sr-only" htmlFor={`audio-volume-${fieldId}`}>
+            Volume for {title}
+          </label>
+          <input
+            id={`audio-volume-${fieldId}`}
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={muted ? 0 : volume}
+            onChange={(event) => {
+              const next = Number(event.target.value)
+              setVolume(next)
+              setMuted(next === 0)
+            }}
+            className="hidden h-1 w-full min-w-0 max-w-[2.25rem] cursor-pointer accent-gold-600 sm:block"
+            aria-valuetext={`${Math.round((muted ? 0 : volume) * 100)} percent`}
+          />
+        </div>
+      </div>
+
+      {buffering ? (
+        <p role="status" className="mt-1 text-[10px] text-stone-500">
+          Loading audio…
+        </p>
+      ) : null}
+
+      {mountAudio ? (
+        <audio
+          ref={assignAudioRef}
+          aria-label={`Listen to ${title}`}
+          preload="auto"
+          src={url}
+          onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+          onPlay={() => {
+            setPlaying(true)
+            trackEvent("feature_use", "audio_play")
+          }}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
+          onError={() => {
+            setBuffering(false)
+            onPlaybackError?.()
+          }}
+          className="sr-only"
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function NativeAudio({
+  url,
+  title,
+  allowDownload,
+  className,
+  warmStream = false,
+  onPlaybackError,
+  sharedAudioRef,
+  registerSharedAudio,
+  mountAudio = true,
+}: {
+  url: string
+  title: string
+  allowDownload: boolean
+  className?: string
+  warmStream?: boolean
+  onPlaybackError?: () => void
+  sharedAudioRef?: RefObject<HTMLAudioElement | null>
+  registerSharedAudio?: (element: HTMLAudioElement | null) => void
+  mountAudio?: boolean
+}) {
+  const localAudioRef = useRef<HTMLAudioElement>(null)
+  const [buffering, setBuffering] = useState(false)
+
+  function assignAudioRef(element: HTMLAudioElement | null) {
+    if (sharedAudioRef) sharedAudioRef.current = element
+    else localAudioRef.current = element
+    registerSharedAudio?.(element)
+  }
+
+  useEffect(() => {
+    setBuffering(false)
+    if (warmStream) void warmArchiveAudioStream(url)
+  }, [url, warmStream])
+
+  useEffect(() => () => registerSharedAudio?.(null), [registerSharedAudio])
+
+  useEffect(() => {
+    const audio = sharedAudioRef?.current ?? localAudioRef.current
+    if (!audio || !mountAudio) return
+    return bindExclusiveAudio(audio)
+  }, [url, mountAudio, sharedAudioRef])
+
+  useEffect(() => {
+    const audio = sharedAudioRef?.current ?? localAudioRef.current
+    if (!audio || !mountAudio) return
+    const resumeAfterStall = () => {
+      if (audio.paused || audio.ended) return
+      setBuffering(true)
+      void audio.play().catch(() => undefined)
+    }
+    const markReady = () => setBuffering(false)
+    audio.addEventListener("waiting", resumeAfterStall)
+    audio.addEventListener("stalled", resumeAfterStall)
+    audio.addEventListener("canplay", markReady)
+    audio.addEventListener("playing", markReady)
+    return () => {
+      audio.removeEventListener("waiting", resumeAfterStall)
+      audio.removeEventListener("stalled", resumeAfterStall)
+      audio.removeEventListener("canplay", markReady)
+      audio.removeEventListener("playing", markReady)
+    }
+  }, [url, mountAudio, sharedAudioRef])
+
+  if (!mountAudio) return null
+
+  return (
+    <>
+      <audio
+        ref={assignAudioRef}
+        aria-label={`Listen to ${title}`}
+        controls
+        controlsList={controlsList(allowDownload)}
+        preload={warmStream ? "auto" : "none"}
+        src={url}
+        onPlay={() => {
+          setBuffering(false)
+          trackEvent("feature_use", "audio_play")
+        }}
+        onError={() => {
+          setBuffering(false)
+          onPlaybackError?.()
+        }}
+        onContextMenu={(event) => {
+          if (!allowDownload) event.preventDefault()
+        }}
+        className={className}
+      />
+      {buffering ? (
+        <p role="status" className="mt-2 text-xs text-stone-500">
+          Loading audio…
+        </p>
+      ) : null}
+    </>
+  )
+}
+
+export function AudioRendition({
+  url,
+  title,
+  provider,
+  featured = false,
+  compact = false,
+  warmStream = false,
+  onPlaybackError,
+  sharedAudioRef,
+  sharedAudioReady = true,
+  registerSharedAudio,
+  mountAudio = true,
+}: {
+  url: string
+  title: string
+  provider?: string
+  featured?: boolean
+  compact?: boolean
+  warmStream?: boolean
+  onPlaybackError?: () => void
+  sharedAudioRef?: RefObject<HTMLAudioElement | null>
+  sharedAudioReady?: boolean
+  registerSharedAudio?: (element: HTMLAudioElement | null) => void
+  mountAudio?: boolean
+}) {
+  const { loading, session } = useMember()
+  const allowDownload = !loading && session.authenticated
+
+  if (compact) {
+    return (
+      <CompactPlayer
+        url={url}
+        title={title}
+        provider={provider}
+        onPlaybackError={onPlaybackError}
+        sharedAudioRef={sharedAudioRef}
+        sharedAudioReady={sharedAudioReady}
+        registerSharedAudio={registerSharedAudio}
+        mountAudio={mountAudio}
+      />
+    )
+  }
+
+  return (
+    <article
+      className={`rounded-2xl border p-4 ${featured ? "border-gold-500/50 bg-gold-50" : "border-navy-900/10 bg-white"}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-navy-950">{title}</p>
+          {provider ? (
+            <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-stone-500">Verified recording</p>
+          ) : null}
+        </div>
+        <span className="text-gold-700">♪</span>
+      </div>
+      <NativeAudio
+        url={url}
+        title={title}
+        allowDownload={allowDownload}
+        warmStream={warmStream}
+        onPlaybackError={onPlaybackError}
+        sharedAudioRef={sharedAudioRef}
+        registerSharedAudio={registerSharedAudio}
+        mountAudio={mountAudio}
+        className="mt-3 w-full"
+      />
+      {!allowDownload ? (
+        <p className="mt-3 text-[10px] text-stone-500">Sign in to enable download from the player menu.</p>
+      ) : null}
+    </article>
+  )
+}

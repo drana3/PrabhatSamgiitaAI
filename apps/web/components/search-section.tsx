@@ -36,7 +36,7 @@ export function SearchSection({ initialSongs }: { initialSongs: SongSummary[] })
       <SearchForm onResults={setSongs} />
       {songs.length > 0 ? (
         <div className="grid gap-4">
-          {songs.slice(0, 6).map((song) => (
+          {songs.slice(0, 5).map((song) => (
             <SongCard key={song.number} song={song} />
           ))}
         </div>

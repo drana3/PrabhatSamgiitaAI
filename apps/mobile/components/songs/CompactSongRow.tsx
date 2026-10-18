@@ -1,0 +1,147 @@
+import { memo } from "react"
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native"
+import { Share2 } from "lucide-react-native"
+
+import { ScenicPlayButton } from "@/components/player/ScenicPlayButton"
+import { colors } from "@/constants/colors"
+import { spacing } from "@/constants/spacing"
+import { typography } from "@/constants/typography"
+import type { MockSong } from "@/data/mock"
+import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
+import { songPlayback } from "@/lib/playback"
+import { shareSong } from "@/lib/shareSong"
+import { songCardTitle } from "@/lib/songMap"
+import { usePlayerStore } from "@/stores/playerStore"
+
+type Props = {
+  song: MockSong
+  /** Opens the main song player. */
+  onPress: () => void
+  /** Optional queue when this row starts playback. */
+  playQueue?: number[]
+  /** Matching lyric line for search results. */
+  lyricLine?: string
+  /** Native share sheet. Used on search, playlists, and festival songs. */
+  showShare?: boolean
+}
+
+export const CompactSongRow = memo(function CompactSongRow({
+  song,
+  onPress,
+  lyricLine,
+  showShare = false,
+}: Props) {
+  const showPause = usePlayerStore((s) => songPlayback(s, song).showPause)
+  const isCurrent = usePlayerStore((s) => songPlayback(s, song).isCurrent)
+  const isBuffering = usePlayerStore((s) => songPlayback(s, song).isBuffering)
+  const playbackMode = usePlayerStore((s) => s.playbackMode)
+  const playlistBounds = usePlayerStore((s) => s.playlistBounds)
+  const activePlaylist = usePlayerStore((s) => s.activePlaylist)
+  const playlistLine =
+    isCurrent
+      ? playlistPlaybackSubtitle(playbackMode, playlistBounds, song.number, activePlaylist)
+      : null
+  const pause = usePlayerStore((s) => s.pause)
+  const title = songCardTitle(song)
+  const lyrics = (lyricLine || song.originalTitle || song.lyrics || song.shortDescription || "").trim()
+  const showLyrics = Boolean(lyrics) && lyrics.toLowerCase() !== title.toLowerCase()
+  const lyricSearchRow = Boolean(lyricLine?.trim())
+
+  return (
+    <View style={styles.row}>
+      <ScenicPlayButton
+        imageUrl={song.thumbnailUrl}
+        size="sm"
+        isPlaying={showPause}
+        onPress={() => {
+          if (showPause) {
+            pause()
+            return
+          }
+          onPress()
+        }}
+        accessibilityLabel={showPause ? `Pause ${song.title}` : `Open and play ${song.title}`}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open PS ${song.number} ${song.title}`}
+        delayPressIn={0}
+        onPress={onPress}
+        style={({ pressed }) => [styles.meta, pressed && styles.pressed]}
+      >
+        <Text style={styles.number}>PS {song.number}</Text>
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
+        </Text>
+        {showLyrics ? (
+          <Text style={styles.lyrics} numberOfLines={3}>
+            {lyrics}
+          </Text>
+        ) : lyricSearchRow ? null : (
+          <Text style={styles.themes} numberOfLines={1}>
+            {playlistLine ?? (song.themes ?? []).join(" · ")}
+            {isBuffering ? " · Loading…" : ""}
+          </Text>
+        )}
+      </Pressable>
+      {showShare ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Share PS ${song.number}`}
+          hitSlop={8}
+          onPress={() => {
+            void shareSong({
+              number: song.number,
+              title: song.title,
+              performer: song.performer,
+              detail: song.originalTitle || song.shortDescription,
+            }).catch(() => Alert.alert("Share", "Could not open the share sheet."))
+          }}
+          style={styles.share}
+        >
+          <Share2 size={18} color={colors.textSecondary} />
+        </Pressable>
+      ) : null}
+    </View>
+  )
+})
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  share: {
+    padding: spacing.sm,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  meta: {
+    flex: 1,
+    minHeight: 52,
+    justifyContent: "center",
+  },
+  number: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  title: {
+    ...typography.label,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  lyrics: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  themes: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+})

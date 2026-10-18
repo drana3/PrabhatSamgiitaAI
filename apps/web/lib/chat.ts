@@ -1,0 +1,339 @@
+import {
+  AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
+  AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
+  guestDeepAiQuotaLabel,
+  memberDeepAiQuotaLabel,
+} from "@prabhat/core"
+
+import type { ConversationTurn } from "./explain"
+import { type ChatLanguage, conversationLanguage, detectChatLanguage } from "./chat-language"
+import type { MemberSession } from "./member"
+
+export const AI_COMPANION_GUEST_DAILY_LIMIT = AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT
+export const AI_COMPANION_MEMBER_DAILY_LIMIT = AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT
+
+/** Matches API guest vs member daily deep-AI limits (see ai_quota.py). */
+export function webCompanionReceivesMemberQuota(session: MemberSession) {
+  return session.authenticated === true
+}
+
+export function webCompanionQuotaLabel(session: MemberSession) {
+  if (webCompanionReceivesMemberQuota(session)) {
+    return memberDeepAiQuotaLabel("signed_in")
+  }
+  return guestDeepAiQuotaLabel()
+}
+
+export type ChatMessage = {
+  role: "assistant" | "user"
+  text: string
+  createdAt: number
+}
+
+export const conversationContextMs = 10 * 60 * 1000
+export const storedMemberConversationMs = 30 * 24 * 60 * 60 * 1000
+export const maximumConversationTurns = 12
+
+export type ChatHistoryDay = {
+  date: string
+  turns: Array<{ role: "user" | "assistant"; content: string }>
+}
+
+export function flattenHistoryDays(
+  days: ChatHistoryDay[],
+  formatAssistant: (text: string) => string = (text) => text,
+): ChatMessage[] {
+  const messages: ChatMessage[] = []
+  for (const day of days) {
+    const base = Date.parse(`${day.date}T12:00:00.000Z`)
+    day.turns.forEach((turn, index) => {
+      messages.push({
+        role: turn.role,
+        text: turn.role === "assistant" ? formatAssistant(turn.content) : turn.content,
+        createdAt: Number.isFinite(base) ? base + index * 1000 : Date.now() + index,
+      })
+    })
+  }
+  return messages
+}
+
+export function memberProfileContext(summary: string, archivedSummary: string): string {
+  return [archivedSummary.trim(), summary.trim()].filter(Boolean).join("\n\n")
+}
+
+export function formatHistoryDayLabel(date: string, now = new Date()): string {
+  const today = now.toISOString().slice(0, 10)
+  const yesterday = new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10)
+  if (date === today) return "Today"
+  if (date === yesterday) return "Yesterday"
+  const parsed = new Date(`${date}T12:00:00.000Z`)
+  if (Number.isNaN(parsed.getTime())) return date
+  return parsed.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
+}
+
+export function messageDayKey(createdAt: number): string {
+  return new Date(createdAt).toISOString().slice(0, 10)
+}
+
+export function songChatStorageKey(
+  songNumber: number,
+  authenticated: boolean,
+  memberId?: string | null,
+) {
+  if (!authenticated) return `prabhat-song-chat-guest-${songNumber}`
+  const scope = (memberId || "member").trim() || "member"
+  return `prabhat-song-chat-member-${scope}-${songNumber}`
+}
+
+export function legacySongChatStorageKey(songNumber: number) {
+  return `prabhat-song-chat-${songNumber}`
+}
+
+export function clearSongChatStorage() {
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (key.startsWith("prabhat-song-chat-")) {
+        window.sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Storage may be unavailable in private browsing modes.
+  }
+}
+
+export function clearGuestChatStorage() {
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (
+        key.startsWith("prabhat-song-chat-guest-")
+        || /^prabhat-song-chat-\d+$/.test(key)
+      ) {
+        window.sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Storage may be unavailable in private browsing modes.
+  }
+}
+
+export function clearMemberChatStorage() {
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (key.startsWith("prabhat-song-chat-member-")) {
+        window.sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // Storage may be unavailable in private browsing modes.
+  }
+}
+
+export function formatAssistantMessage(text: string): string {
+  return text
+    .replace(/\nSources:\n[\s\S]*$/i, "")
+    .replace(/\nSources:\s[^\n]+/gi, "")
+    .replace(/\s*\[\d+\]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
+export function hasUserMessages(messages: ChatMessage[]): boolean {
+  return messages.some((message) => message.role === "user")
+}
+
+export function starterPrompts(language: ChatLanguage = "en"): string[] {
+  if (language === "hi") {
+    return [
+      "Is gaane ka sar arth kya hai?",
+      "Is gaane ki ruhani bhavna kya hai?",
+      "Is gaane par dhyan kaise karein?",
+    ]
+  }
+  return [
+    "What is this song about?",
+    "Explain the spiritual imagery",
+    "Explain its meaning in Magahi",
+    "Are there devotee stories connected to this song?",
+  ]
+}
+
+export function chatMemoryTurnsForSave(userPrompt: string, assistantText: string) {
+  const userContent = userPrompt.trim().slice(0, 2000)
+  const formatted = formatAssistantMessage(assistantText).slice(0, 8000)
+  const assistantContent = (formatted || assistantText.trim()).slice(0, 8000)
+  return [
+    { role: "user" as const, content: userContent },
+    { role: "assistant" as const, content: assistantContent },
+  ].filter((turn) => turn.content.length > 0)
+}
+
+export function recentConversation(
+  messages: ChatMessage[],
+  now = Date.now(),
+): ConversationTurn[] {
+  return messages
+    .filter((message) => message.text.trim() && now - message.createdAt <= conversationContextMs)
+    .slice(-maximumConversationTurns)
+    .map((message) => ({ role: message.role, content: message.text.slice(0, 2000) }))
+}
+
+export function restoreConversation(
+  raw: string | null,
+  now = Date.now(),
+  maxAgeMs = conversationContextMs,
+): ChatMessage[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((message): message is ChatMessage => Boolean(
+        message
+        && typeof message === "object"
+        && (message as ChatMessage).role in { assistant: true, user: true }
+        && typeof (message as ChatMessage).text === "string"
+        && typeof (message as ChatMessage).createdAt === "number"
+        && now - (message as ChatMessage).createdAt <= maxAgeMs,
+      ))
+      .slice(-maximumConversationTurns)
+  } catch {
+    return []
+  }
+}
+
+type FollowUpOptions = {
+  priorUserPrompts?: string[]
+  priorAssistantText?: string
+  language?: ChatLanguage
+}
+
+function alreadyAsked(prompts: string[], pattern: RegExp): boolean {
+  return prompts.some((prompt) => pattern.test(prompt))
+}
+
+function assistantCovered(text: string, pattern: RegExp): boolean {
+  return pattern.test(text.toLocaleLowerCase())
+}
+
+function pickUnique(candidates: string[], limit = 3): string[] {
+  const seen = new Set<string>()
+  const selected: string[] = []
+  for (const candidate of candidates) {
+    const key = candidate.toLocaleLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    selected.push(candidate)
+    if (selected.length >= limit) break
+  }
+  return selected
+}
+
+export function followUpQuestions(
+  prompt: string,
+  options: FollowUpOptions = {},
+): string[] {
+  const normalized = prompt.toLocaleLowerCase()
+  const prior = (options.priorUserPrompts ?? []).map((entry) => entry.toLocaleLowerCase())
+  const asked = [...prior, normalized]
+  const language = options.language ?? detectChatLanguage(prompt)
+  const assistantText = options.priorAssistantText ?? ""
+
+  const english = {
+    imagery: "Explain the imagery and spiritual feeling",
+    meditation: "How can I reflect on this song in meditation?",
+    related: "Recommend a related Prabhat Samgiita",
+    pronunciation: "Help me pronounce the opening lines",
+    overview: "What is this song about?",
+    conversation: "Summarize what we have discussed so far",
+  }
+
+  const hindi = {
+    imagery: "Is gaane ki imagery aur ruhani bhavna samjhaiye",
+    meditation: "Is gaane par dhyan kaise karein?",
+    related: "Is se juda koi aur Prabhat Samgiita suggest kijiye",
+    pronunciation: "Shuru ki lines ka uchcharan batayiye",
+    overview: "Is gaane ka sar arth kya hai?",
+    conversation: "Ab tak ki baat-chit ka saar batayiye",
+  }
+
+  const copy = language === "hi" ? hindi : english
+  const candidates: string[] = []
+
+  if (/translat|hindi|bengali|magahi|maithili|urdu|language|भाषा|अनुवाद/.test(normalized)) {
+    if (!alreadyAsked(asked, /spiritual meaning|ruhani|imagery|bhav/)) {
+      candidates.push(copy.imagery)
+    }
+    if (!alreadyAsked(asked, /pronoun|uchcharan|pronunciation/)) {
+      candidates.push(copy.pronunciation)
+    }
+    if (!alreadyAsked(asked, /related|recommend|suggest|jud/)) {
+      candidates.push(copy.related)
+    }
+  } else if (/pronoun|sing|practi[cs]e|learn|uchcharan/.test(normalized)) {
+    if (!alreadyAsked(asked, /imagery|spiritual feeling|ruhani|bhavna/)) {
+      candidates.push(copy.imagery)
+    }
+    if (!alreadyAsked(asked, /meditation|dhyan/)) {
+      candidates.push(copy.meditation)
+    }
+    if (!alreadyAsked(asked, /related|recommend|suggest|jud/)) {
+      candidates.push(copy.related)
+    }
+  } else if (/line.?by.?line|har line|imagery|imagery/.test(normalized)) {
+    if (!alreadyAsked(asked, /meditation|dhyan/)) {
+      candidates.push(copy.meditation)
+    }
+    if (!alreadyAsked(asked, /spiritual feeling|ruhani|bhavna/)) {
+      candidates.push(copy.imagery)
+    }
+    if (!alreadyAsked(asked, /related|recommend|suggest|jud/)) {
+      candidates.push(copy.related)
+    }
+  } else if (/meaning|spiritual|explain|understand|arth|matlab|about/.test(normalized)) {
+    if (!alreadyAsked(asked, /imagery|spiritual feeling|ruhani|bhavna/) && !assistantCovered(assistantText, /imagery|feeling|bhav/)) {
+      candidates.push(copy.imagery)
+    }
+    if (!alreadyAsked(asked, /meditation|dhyan/) && !assistantCovered(assistantText, /meditation|reflect|dhyan/)) {
+      candidates.push(copy.meditation)
+    }
+    if (!alreadyAsked(asked, /related|recommend|suggest|jud/) && !assistantCovered(assistantText, /related|song \d+/)) {
+      candidates.push(copy.related)
+    }
+  } else if (/last|previous|conversation|chat|summar|recap|pichhla/.test(normalized)) {
+    if (!alreadyAsked(asked, /summar|recap|saar/)) {
+      candidates.push(copy.conversation)
+    }
+    if (!alreadyAsked(asked, /meaning|about|arth|overview/)) {
+      candidates.push(copy.overview)
+    }
+    if (!alreadyAsked(asked, /related|recommend|suggest|jud/)) {
+      candidates.push(copy.related)
+    }
+  } else {
+    if (!alreadyAsked(asked, /meaning|about|arth|overview/)) {
+      candidates.push(copy.overview)
+    }
+    if (!alreadyAsked(asked, /spiritual feeling|ruhani|imagery|bhavna/)) {
+      candidates.push(copy.imagery)
+    }
+    if (!alreadyAsked(asked, /meditation|dhyan/)) {
+      candidates.push(copy.meditation)
+    }
+  }
+
+  return pickUnique(candidates)
+}
+
+export function followUpsFromMessages(messages: ChatMessage[]): string[] {
+  const userMessages = messages.filter((message) => message.role === "user").map((message) => message.text)
+  if (!userMessages.length) return []
+  const latest = userMessages.at(-1) ?? ""
+  const assistantMessages = messages.filter((message) => message.role === "assistant" && message.text.trim())
+  const latestAssistant = assistantMessages.at(-1)
+  const assistantText = latestAssistant ? formatAssistantMessage(latestAssistant.text) : ""
+  return followUpQuestions(latest, {
+    priorUserPrompts: userMessages.slice(0, -1),
+    priorAssistantText: assistantText,
+    language: conversationLanguage(userMessages),
+  })
+}

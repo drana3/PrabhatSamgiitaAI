@@ -1,0 +1,20 @@
+{
+  "source": "https://sarkarverse.org/SARGAM/?dir=0001-1000",
+  "files": [
+    "RS_0001-0025.pdf",
+    "RS_0026-0050.pdf",
+    "RS_0051-0075.pdf",
+    "RS_0076-0100.pdf",
+    "RS_0101-0125.pdf",
+    "RS_0126-0150.pdf",
+    "RS_0151-0175.pdf"
+  ],
+  "count": 0,
+  "songs": {},
+  "published_booklet_songs": [
+    1,
+    2,
+    27
+  ],
+  "note": "Playable Roman booklet sargam is hardcoded in packages/core/src/harmonium-sample-songs.ts"
+}

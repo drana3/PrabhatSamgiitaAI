@@ -1,336 +1,156 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { hasPublishedLearnerSargam } from "@prabhat/core"
+import { FavoriteSongButton } from "@/components/favorite-song-button"
+import { LyricsScriptToggle } from "@/components/lyrics-script-toggle"
+import { HarmoniumNavLink, HarmoniumPracticeSection } from "@/components/harmonium-song-features"
+import { HashLanding } from "@/components/hash-landing"
+import { OpenInApp } from "@/components/open-in-app"
+import { SongListenSidebar, SongListenTop, SongPageListenShell } from "@/components/song-page-listen"
+import { listSongAudio } from "@/lib/song-audio"
+import { ShareMenu } from "@/components/share-menu"
+import { SiteHeader } from "@/components/site-header"
+import { SongMeaningSection } from "@/components/song-meaning-section"
+import { SongMobileNav } from "@/components/song-mobile-nav"
+import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
-import { SongLanguageSwitcher } from "@/components/song-language-switcher"
-import { fetchNotation, fetchSong, fetchSongLocalization } from "@/lib/api"
+import { fetchSong, fetchNotation } from "@/lib/api"
+import { localSongDetail, localTransposedNotation, coalesceSongDetail } from "@/lib/local-song-catalog"
+import { englishMeaningText } from "@/lib/song-meanings"
 import { localeLabel } from "@/lib/languages"
+import { splitLyricLines, practiceLyricSource, buildDisplayNotes, formatPracticeSequence } from "@/lib/sargam-display"
+import { songPagePath } from "@/lib/song-path"
+import { titleCaseTransliteration } from "@/lib/transliteration-text"
 
-export default async function SongPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ number: string }>
-  searchParams: Promise<{ language?: string }>
-}) {
+export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
   const { number } = await params
   const { language = "en" } = await searchParams
-  const song = await fetchSong(Number(number))
-  if (!song) {
-    notFound()
-  }
-  const notation = await fetchNotation(song.number)
-  const localized =
-    language && language !== "en" ? await fetchSongLocalization(song.number, localeLabel(language)) : null
-  const mediaCount = song.media.length
-  const relatedCount = song.related_songs.length
-  const explanationPrompt =
-    language && language !== "en"
-      ? `Explain song ${song.number} in ${localeLabel(language)} for a listener who prefers that language. Keep the answer warm, devotional, and concise.`
-      : undefined
+  const song = coalesceSongDetail(await fetchSong(Number(number)), localSongDetail(Number(number)))
+  if (!song) notFound()
+  const practiceLyrics = practiceLyricSource({
+    lyricsOriginal: song.lyrics_original,
+    transliteration: song.transliteration,
+    firstLine: song.first_line,
+  })
+  const notationOn = hasPublishedLearnerSargam(
+    song.number,
+    song.notation_verification_status,
+    song.notation_enabled,
+  )
+  const submittedNotation =
+    notationOn && song.notation_verification_status === "admin_submitted"
+      ? await fetchNotation(song.number)
+      : null
+  const initialNotation = notationOn ? localTransposedNotation(song.number) ?? submittedNotation : null
+  const audio = listSongAudio(song.media)
+  const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
+  const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
+  const hasLyrics = Boolean(lyrics)
+  const hasMeaning = Boolean(englishMeaningText(song) || song.hindi_meaning)
+  const details = [
+    ["Theme", song.theme],
+    ["Occasion", song.occasion],
+    ["Festival", song.festival],
+    ["Season", song.season],
+    ["Raga", song.raga],
+    ["Tala", song.tala],
+  ].filter((detail): detail is [string, string] => Boolean(detail[1]))
 
   return (
-    <main className="min-h-screen bg-aurora px-4 py-8 md:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <Link href="/" className="text-sm font-semibold text-ember-700 transition hover:text-ember-900">
-          Back to search
-        </Link>
+    <main className="min-h-screen bg-ivory-100 pb-24 md:pb-0">
+      <HashLanding />
+      <OpenInApp songNumber={song.number} />
+      <SiteHeader active="Explore" />
+      <div className="mx-auto max-w-[90rem] px-4 py-4 sm:px-6 sm:py-6 lg:px-10">
+        <div className="flex items-center gap-2 text-xs text-stone-500"><Link href="/" className="hover:text-gold-700">Home</Link><span>›</span><Link href="/explore" className="hover:text-gold-700">Explore</Link><span>›</span><span>Song {song.number}</span></div>
 
-        <article className="overflow-hidden rounded-[2.5rem] border border-white/70 bg-white/85 shadow-glow backdrop-blur">
-          <div className="bg-gradient-to-r from-ink-950 via-ink-900 to-ember-900 px-6 py-6 text-white md:px-10">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-100">
-                Song {song.number}
-              </span>
-              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-100">
-                {song.canonical_source_status} source
-              </span>
-              {song.is_verified ? (
-                <span className="rounded-full border border-white/15 bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-100">
-                  Verified
-                </span>
-              ) : null}
-              <SongLanguageSwitcher selectedLanguage={language} />
-            </div>
-            <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.95] text-white md:text-7xl">
-              {localized?.localized_title || song.title}
-            </h1>
-            {song.first_line ? (
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-ink-100 md:text-xl">
-                {localized?.localized_first_line || song.first_line}
-              </p>
-            ) : null}
-            <div className="mt-6 flex flex-wrap gap-3 text-sm text-ink-100">
-              <MetaPill label="Meaning" value={song.english_meaning ? "Available" : "Pending"} />
-              {language !== "en" ? (
-                <MetaPill label="Localized" value={`${localeLabel(language)} ready`} />
-              ) : null}
-              <MetaPill label="Notation" value={notation ? "Available" : "Pending"} />
-              <MetaPill label="Media" value={`${mediaCount} sources`} />
-              <MetaPill label="Related" value={`${relatedCount} songs`} />
-            </div>
+        <section className="relative mt-4 min-h-[13rem] overflow-hidden rounded-[1.75rem] bg-navy-950 text-white shadow-xl sm:mt-5 sm:min-h-[18rem] sm:rounded-[2rem]">
+          <div
+            role="img"
+            aria-label="Shrii Shrii Anandamurti ji at dawn"
+            className="absolute inset-0 bg-[url('/brand/dawn-hero.png')] bg-cover bg-[82%_top]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/85 to-navy-950/30" />
+          <div className="relative flex min-h-[13rem] flex-col justify-between gap-5 p-5 sm:min-h-[18rem] sm:gap-6 sm:p-8 lg:p-10">
+            <div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold-200 sm:text-xs">Prabhat Samgiita · Song {song.number}</p><h1 className="mt-2 font-serif text-3xl leading-tight sm:mt-3 sm:text-5xl lg:text-6xl">{titleCaseTransliteration(song.title)}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-white/85 sm:mt-3">{titleCaseTransliteration(song.first_line || song.title)}</p><div className="mt-4 flex flex-wrap gap-2 sm:mt-5"><span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.is_verified ? "✓ Source verified" : "Source indexed"}</span>{song.language ? <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold">{song.language}</span> : null}</div></div>
+            <nav aria-label="Song actions" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0 xl:flex-nowrap"><a href="#ask" className="shrink-0 whitespace-nowrap rounded-full bg-gold-300 px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">✦ Ask AI</a>{audio.length ? <a href="#listen" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">♪ Listen</a> : null}{hasLyrics ? <a href="#lyrics" className="shrink-0 whitespace-nowrap rounded-full border border-white/30 bg-navy-950/35 px-3.5 py-2 text-xs font-semibold text-white sm:px-4 sm:text-sm">Lyrics</a> : null}{videos.length ? <a href="#watch" className="shrink-0 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-navy-950 sm:px-4 sm:text-sm">▶ Watch</a> : null}<HarmoniumNavLink songNumber={song.number} sourceStatus={song.notation_verification_status} notationEnabled={song.notation_enabled} /><FavoriteSongButton songNumber={song.number} /><ShareMenu title={`Song ${song.number}: ${song.title}`} /></nav>
           </div>
+        </section>
 
-          <div className="grid gap-6 p-6 md:p-10 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-5">
-              {localized ? (
-                <section className="rounded-[1.75rem] border border-ember-100 bg-gradient-to-br from-ember-50 to-white p-5 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.4em] text-ember-700">Localized view</p>
-                      <h2 className="mt-2 font-serif text-3xl text-ink-900">
-                        {localeLabel(language)} rendering
-                      </h2>
-                    </div>
-                    <span className="rounded-full border border-ember-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-ember-700">
-                      Powered by Prabhat Samgiita AI BOT
-                    </span>
-                  </div>
-                  <div className="mt-5 grid gap-4">
-                    <InfoBlock label="Localized meaning" value={localized.localized_meaning} />
-                    {localized.localized_explanation ? (
-                      <InfoBlock label="Localized explanation" value={localized.localized_explanation} />
-                    ) : null}
-                  </div>
-                </section>
-              ) : null}
-
-              <section className="rounded-[1.75rem] border border-ink-100 bg-gradient-to-br from-white to-ink-50 p-5">
-                <p className="text-xs uppercase tracking-[0.4em] text-ember-700">Canonical text</p>
-                <div className="mt-5 grid gap-4">
-                  <InfoBlock label="Original lyrics" value={song.lyrics_original} />
-                  <InfoBlock label="Roman transliteration" value={song.transliteration} />
-                  <InfoBlock label="Hindi meaning" value={song.hindi_meaning} />
-                  <InfoBlock label="English meaning" value={song.english_meaning} />
+        <SongPageListenShell songNumber={song.number} recordings={audio}>
+        <section className="mt-7 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-lg sm:p-7 lg:p-9">
+          {audio.length ? <SongListenTop /> : null}
+          <div className={`grid gap-7 ${hasLyrics && hasMeaning ? "xl:grid-cols-2" : "max-w-4xl"}`}>
+            {hasLyrics ? (
+              <section id="lyrics" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5 sm:p-7">
+                <div>
+                  <p className="eyebrow">Lyrics</p>
+                  <h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2>
                 </div>
-              </section>
-
-              <section className="rounded-[1.75rem] border border-ink-100 bg-white p-5">
-                <p className="text-xs uppercase tracking-[0.4em] text-ember-700">Grounded explanation</p>
-                <div className="mt-4">
-                  <StreamExplanation songNumber={song.number} language={language !== "en" ? localeLabel(language) : null} prompt={explanationPrompt} />
-                </div>
-              </section>
-            </div>
-
-            <aside className="space-y-5">
-              <section className="rounded-[1.75rem] border border-ink-100 bg-ink-950 p-5 text-white">
-                <p className="text-xs uppercase tracking-[0.4em] text-ember-300">Song details</p>
-                <div className="mt-5 grid gap-3">
-                  <SideInfo label="Theme" value={song.theme} />
-                  <SideInfo label="Occasion" value={song.occasion} />
-                  <SideInfo label="Festival" value={song.festival} />
-                  <SideInfo label="Season" value={song.season} />
-                  <SideInfo label="Raga" value={song.raga} />
-                  <SideInfo label="Tala" value={song.tala} />
-                </div>
-              </section>
-
-              <section className="rounded-[1.75rem] border border-ink-100 bg-white p-5">
-                <div className="flex items-end justify-between gap-3">
-                  <div>
-                    <h2 className="font-serif text-3xl text-ink-900">Harmonium notation</h2>
-                    <p className="mt-2 text-sm text-ink-600">
-                      Transposed to {notation?.target_scale ?? "C"} when canonical notation exists.
+                <LyricsScriptToggle
+                  songNumber={song.number}
+                  roman={lyrics ?? ""}
+                  devanagari={song.lyrics_devanagari}
+                  status={song.devanagari_status}
+                />
+                {notationOn && song.sargam_attribution && submittedNotation?.notation.lines.length ? (
+                  <div className="mt-5 space-y-3 rounded-2xl border border-gold-500/25 bg-white p-4">
+                    <p className="text-sm font-semibold text-navy-800">
+                      Sargam submitted by {song.sargam_attribution.display_name}
+                      {song.sargam_attribution.submitted_at
+                        ? ` · ${new Date(song.sargam_attribution.submitted_at).toLocaleDateString()}`
+                        : ""}
                     </p>
-                  </div>
-                  {notation ? (
-                    <p className="text-xs uppercase tracking-[0.3em] text-emerald-700">
-                      {notation.verification_status}
-                    </p>
-                  ) : null}
-                </div>
-
-                {notation ? (
-                  <div className="mt-6 space-y-4">
-                    {notation.notation.lines.map((line) => (
-                      <article
-                        key={line.line_number}
-                        className="rounded-3xl border border-ink-100 bg-gradient-to-br from-ink-50 to-white p-4"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <h3 className="font-semibold text-ink-900">Line {line.line_number}</h3>
-                          {line.transliteration ? (
-                            <p className="text-sm text-ink-600">{line.transliteration}</p>
-                          ) : null}
-                        </div>
-                        <p className="mt-2 text-sm leading-7 text-ink-800">{line.lyrics}</p>
-                        <div className="mt-4 grid gap-3">
-                          {line.measures.map((measure, measureIndex) => (
-                            <div
-                              key={`${line.line_number}-${measureIndex}`}
-                              className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm"
-                            >
-                              <p className="text-xs uppercase tracking-[0.3em] text-ember-700">
-                                Measure {measureIndex + 1}
-                              </p>
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {measure.measures.map((beat) => (
-                                  <div
-                                    key={`${line.line_number}-${measureIndex}-${beat.beat}`}
-                                    className="min-w-24 rounded-2xl bg-ink-50 px-3 py-2"
-                                  >
-                                    <p className="text-[11px] uppercase tracking-[0.25em] text-ink-500">
-                                      Beat {beat.beat}
-                                    </p>
-                                    <div className="mt-2 space-y-1">
-                                      {beat.notes.map((note, index) => (
-                                        <p key={`${note.sargam}-${index}`} className="text-sm text-ink-800">
-                                          {note.sargam}
-                                          {note.western ? ` · ${note.western}` : ""}
-                                        </p>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </article>
+                    {submittedNotation.notation.lines.map((line) => (
+                      <div key={line.line_number}>
+                        <p className="font-serif text-navy-950">{line.lyrics}</p>
+                        <p className="mt-1 font-serif text-sm text-gold-900">
+                          {formatPracticeSequence(buildDisplayNotes(line), "latin")}
+                        </p>
+                      </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="mt-4 rounded-3xl border border-dashed border-ink-200 bg-gradient-to-br from-ink-50 to-white p-5">
-                    <p className="text-sm font-semibold text-ink-900">Notation is still being synced</p>
-                    <p className="mt-2 text-sm leading-7 text-ink-600">
-                      This song has lyrics and listening resources ready. When notation is available in the synced
-                      source set, it will appear here in a structured beat-by-beat view.
-                    </p>
-                  </div>
-                )}
+                ) : null}
               </section>
+            ) : null}
 
-              <section className="rounded-[1.75rem] border border-ink-100 bg-ink-50 p-5">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <h2 className="font-serif text-3xl text-ink-900">Verified media</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">
-                      Play audio directly here, or watch the embedded video if a verified clip exists for this song.
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-600">
-                    {mediaCount} sources
-                  </span>
-                </div>
-                <div className="mt-4 grid gap-4">
-                  {song.media.map((item) => (
-                    <article
-                      key={`${item.url}-${item.title}`}
-                      className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition hover:border-ember-300 hover:shadow-md"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.3em] text-ember-700">{item.kind}</p>
-                          <h3 className="mt-2 font-semibold text-ink-900">{item.title}</h3>
-                        </div>
-                        <span className="rounded-full bg-ink-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-white">
-                          {item.kind === "audio" ? "Play" : item.kind === "video" ? "Watch" : "Open"}
-                        </span>
-                      </div>
-                      {item.kind === "audio" ? (
-                        <div className="mt-4 rounded-[1.25rem] border border-ink-100 bg-gradient-to-br from-ink-50 to-white p-3">
-                          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-ink-500">
-                            <span className="h-2 w-2 rounded-full bg-ember-500" />
-                            Direct audio player
-                          </div>
-                          <audio controls preload="none" src={item.url} className="w-full" />
-                        </div>
-                      ) : item.kind === "video" && item.embed_url ? (
-                        <div className="mt-4 space-y-3">
-                          <iframe
-                            className="aspect-video w-full rounded-2xl border border-ink-100"
-                            src={item.embed_url}
-                            title={item.title}
-                            loading="lazy"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                          {item.url ? (
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:border-ember-300 hover:bg-ember-50"
-                            >
-                              Open video source
-                            </a>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <a
-                          href={item.embed_url ?? item.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-4 inline-flex rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:border-ember-300 hover:bg-ember-50"
-                        >
-                          Open source
-                        </a>
-                      )}
-                    </article>
-                  ))}
-                  {song.media.every((item) => item.kind !== "video") ? (
-                    <a
-                      href="https://www.youtube.com/@AMPS0521spirituality"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-700 transition hover:border-ember-300 hover:bg-ember-50"
-                    >
-                      No embedded video is synced for this song yet. Watch the verified channel for more recordings.
-                    </a>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className="rounded-[1.75rem] border border-ink-100 bg-white p-5">
-                <h2 className="font-serif text-3xl text-ink-900">Related songs</h2>
-                <div className="mt-4 grid gap-4">
-                  {song.related_songs.map((related) => (
-                    <Link
-                      key={related.number}
-                      href={`/songs/${related.number}`}
-                      className="rounded-2xl border border-ink-200 bg-gradient-to-br from-ink-50 to-white p-4 transition hover:-translate-y-0.5 hover:border-ember-300 hover:shadow-sm"
-                    >
-                      <p className="text-xs uppercase tracking-[0.3em] text-ember-700">Song {related.number}</p>
-                      <h3 className="mt-2 font-semibold text-ink-900">{related.title}</h3>
-                      <p className="mt-1 text-sm text-ink-600">{related.first_line}</p>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            </aside>
+            {hasMeaning ? <SongMeaningSection songNumber={song.number} song={song} initialLanguage={language} /> : null}
           </div>
-        </article>
+
+          <HarmoniumPracticeSection
+            songNumber={song.number}
+            songTitle={titleCaseTransliteration(song.title)}
+            initialNotation={initialNotation}
+            sourceUrl={song.notation_source_url}
+            sourceStatus={song.notation_verification_status}
+            songLyricLines={splitLyricLines(practiceLyrics.practiceText)}
+            originalLyricLines={splitLyricLines(practiceLyrics.originalText)}
+            attribution={song.sargam_attribution}
+            notationEnabled={song.notation_enabled}
+          />
+        </section>
+
+        <div className="mt-7 grid gap-7 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-7">
+            <section className="surface-card p-4 sm:p-6"><StreamExplanation songNumber={song.number} language={language !== "en" ? localeLabel(language) : null} /></section>
+            {song.related_songs.length ? <section className="surface-card p-5 sm:p-7"><p className="eyebrow">Continue exploring</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Related songs</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{song.related_songs.map((related) => <Link key={related.number} href={songPagePath(related.number)} className="rounded-2xl border border-navy-900/10 bg-ivory-50 p-4 hover:border-gold-500"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Song {related.number}</p><h3 className="mt-2 font-serif text-lg font-semibold text-navy-950">{titleCaseTransliteration(related.title)}</h3></Link>)}</div></section> : null}
+          </div>
+
+          <aside className="flex min-w-0 flex-col gap-7">
+            {audio.length ? <SongListenSidebar hasMeaning={hasMeaning} /> : null}
+            {videos.length ? <section id="watch" className="surface-card scroll-mt-28 overflow-hidden"><div className="p-5 sm:p-6"><p className="eyebrow">Watch</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Watch this song</h2></div><iframe className="aspect-video w-full" src={videos[0].embed_url || undefined} title={videos[0].title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />{videos.length > 1 ? <details className="border-t border-navy-900/10 p-5"><summary className="cursor-pointer text-sm font-semibold text-gold-700">More performances ({videos.length - 1})</summary><div className="mt-4 space-y-5">{videos.slice(1).map((item) => <iframe key={item.url} className="aspect-video w-full rounded-xl" src={item.embed_url || undefined} title={item.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />)}</div></details> : null}</section> : null}
+            {details.length ? <section className="rounded-2xl bg-navy-950 p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-300">Song details</p><div className="mt-4 grid grid-cols-2 gap-3">{details.map(([label, value]) => <Detail key={label} label={label} value={value} />)}</div></section> : null}
+            <SongStoriesPanel songNumber={song.number} />
+          </aside>
+        </div>
+        </SongPageListenShell>
       </div>
+      <SongMobileNav hasAudio={audio.length > 0} hasLyrics={hasLyrics} hasMeaning={hasMeaning} />
     </main>
   )
 }
 
-function MetaPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2">
-      <span className="text-[11px] uppercase tracking-[0.25em] text-amber-100">{label}: </span>
-      <span className="text-sm font-semibold text-white">{value}</span>
-    </div>
-  )
-}
-
-function InfoBlock({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.3em] text-ember-700">{label}</p>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-ink-800">
-        {value || "This field is being synced from the canonical source set."}
-      </p>
-    </section>
-  )
-}
-
-function SideInfo({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <p className="text-[11px] uppercase tracking-[0.25em] text-ink-300">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-white">{value || "Not yet synced"}</p>
-    </div>
-  )
+function Detail({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl bg-white/8 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-navy-200">{label}</p><p className="mt-1 text-xs font-semibold text-white">{value}</p></div>
 }

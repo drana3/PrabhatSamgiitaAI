@@ -4,7 +4,33 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      # Docs, editor config, and mobile-only pushes should not burn a full
+      # verify/E2E/Azure cycle. Mobile unit tests + EAS live in mobile-preview.yml
+      # (separate dependency tree — do not run apps/mobile tests in Deploy).
+      - "docs/**"
+      - "**.md"
+      - ".cursor/**"
+      - ".cursorignore"
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-preview.yml"
+      - ".github/workflows/mobile-release.yml"
+      - ".github/MOBILE_BUILD_SETUP.md"
+      - "scripts/sync-mobile-eas-env.sh"
+      - "scripts/sync-mobile-github-secrets.sh"
+      - "scripts/android-*.sh"
+      - "scripts/ios-*.sh"
+      - "scripts/verify-mobile-build-secrets.sh"
   workflow_dispatch:
+    inputs:
+      deploy_api:
+        description: Deploy API (Container Apps)
+        type: boolean
+        default: false
+      deploy_web:
+        description: Deploy web (Static Web Apps)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -15,9 +41,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_AUTH_ENABLED: "true"
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -34,7 +62,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install uv
-        run: python -m pip install --upgrade pip uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
 
       - name: Install Node deps
         run: npm ci
@@ -46,34 +77,261 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_AUTH_ENABLED: "true"
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Sync API deps
+        working-directory: apps/api
+        run: uv sync --frozen --extra dev
+
       - name: Test
         run: npm run test
 
       - name: Validate backend user questions
         run: apps/api/.venv/bin/python scripts/validate_backend_acceptance.py
 
-      - name: Build web
-        run: npm run build
-
-  deploy:
-    name: Deploy to Azure
+  build:
+    name: Build web
     runs-on: ubuntu-latest
-    needs: verify
+    env:
+      NEXT_PUBLIC_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Cache Next.js font/build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-web-cache-${{ runner.os }}-${{ hashFiles('apps/web/app/layout.tsx', 'package-lock.json') }}
+          restore-keys: |
+            next-web-cache-${{ runner.os }}-
+
+      - name: Build web
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if npm run build:e2e; then
+              exit 0
+            fi
+            echo "Build attempt ${attempt} failed; retrying in 10s..." >&2
+            sleep 10
+          done
+          echo "Build failed after 3 attempts." >&2
+          exit 1
+
+      - name: Upload web build for journey tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-next-build
+          # .next is hidden, so it is dropped unless hidden files are opted in.
+          include-hidden-files: true
+          path: |
+            apps/web/.next
+            !apps/web/.next/cache
+            apps/web/public
+          retention-days: 1
+
+  e2e:
+    name: E2E (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop-chromium, mobile-chromium]
+    env:
+      NEXT_PUBLIC_AUTH_ENABLED: "true"
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Sync API deps
+        working-directory: apps/api
+        run: uv sync --frozen --extra dev
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-next-build
+          path: apps/web
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('apps/web/package.json', 'package-lock.json') }}
+
+      - name: Install browser for premium journey tests
+        # System packages are only needed on a cold cache; browsers themselves
+        # restore from the cache key above.
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
+        working-directory: apps/web
+
+      - name: Validate premium journeys
+        run: npm --workspace apps/web run test:e2e -- --project=${{ matrix.project }}
+
+  detect-targets:
+    name: Detect deploy targets
+    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    outputs:
+      api: ${{ steps.targets.outputs.api }}
+      web: ${{ steps.targets.outputs.web }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect deploy targets
+        id: targets
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "api=${{ inputs.deploy_api }}" >> "$GITHUB_OUTPUT"
+            echo "web=${{ inputs.deploy_web }}" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch → API=${{ inputs.deploy_api }} WEB=${{ inputs.deploy_web }}"
+            exit 0
+          fi
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "Missing before SHA → deploy API + web"
+            exit 0
+          fi
+          CHANGED="$(git diff --name-only "$BEFORE" "$AFTER" || true)"
+          echo "Changed files:"
+          echo "$CHANGED"
+          API=false
+          WEB=false
+          if echo "$CHANGED" | grep -qE '^(data/|\.dockerignore$)'; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^packages/core/'; then
+            WEB=true
+          fi
+          NON_CORE_PKG="$(echo "$CHANGED" | grep -E '^packages/' | grep -vE '^packages/core/' || true)"
+          if [ -n "$NON_CORE_PKG" ]; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^apps/api/Dockerfile$|^infra/azure/.*api'; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^apps/web/Dockerfile$|^apps/web/staticwebapp\.config\.json$|^infra/azure/(setup-static-web-app|sync-swa|sync-api-cors|decommission-web)'; then
+            WEB=true
+          fi
+          if echo "$CHANGED" | grep -qE '^scripts/(prepare-swa-standalone|materialize-workspace-deps-for-swa)\.sh$'; then
+            WEB=true
+          fi
+          if echo "$CHANGED" | grep -qE '^scripts/(sync_youtube|validate_|export_embeddings|list_feedback)' ; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^apps/api/'; then
+            API=true
+          fi
+          if echo "$CHANGED" | grep -qE '^(apps/web/|package\.json$|package-lock\.json$)'; then
+            WEB=true
+          fi
+          if echo "$CHANGED" | grep -qE '^\.github/workflows/deploy\.yml$'; then
+            WEB=true
+          fi
+          if [ "$API" = false ] && [ "$WEB" = false ]; then
+            NON_TOOLING="$(echo "$CHANGED" | grep -vE '^(\.github/workflows/deploy\.yml|infra/azure/deploy-app\.sh)$' || true)"
+            if [ -z "$NON_TOOLING" ]; then
+              echo "api=false" >> "$GITHUB_OUTPUT"
+              echo "web=false" >> "$GITHUB_OUTPUT"
+              echo "Deploy tooling-only change → skip deploy jobs"
+              exit 0
+            fi
+            API=true
+            WEB=true
+          fi
+          echo "api=$API" >> "$GITHUB_OUTPUT"
+          echo "web=$WEB" >> "$GITHUB_OUTPUT"
+          echo "Deploy targets → API=$API WEB(SWA)=$WEB"
+
+  deploy-api:
+    name: Deploy API (Container Apps)
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, e2e, detect-targets]
+    if: github.ref == 'refs/heads/main' && needs.detect-targets.outputs.api == 'true'
     environment:
       name: production
-      url: https://prabhatai-web.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
+      url: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
     env:
       RG: prabhatai-rg
       LOCATION: centralindia
       PREFIX: prabhatai
-      ACR_NAME: prabhataiacr30800
+      DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKERHUB_USERNAME }}/prabhat-samgiita
       ACA_ENV: prabhatai-env
-      PG_SERVER: prabhatai-pg
       PG_DB: prabhatai
       WEB_APP: prabhatai-web
       API_APP: prabhatai-api
-      PG_ADMIN: codexadmin
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -85,12 +343,112 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy app stack
+      - name: Deploy API stack
         env:
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
+          FAISS_INDEX_URL: ${{ secrets.FAISS_INDEX_URL }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_CHAT_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_CHAT_DEPLOYMENT }}
           AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_EMBEDDING_DEPLOYMENT }}
           AZURE_OPENAI_API_VERSION: ${{ secrets.AZURE_OPENAI_API_VERSION }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          DEPLOY_API: "1"
+          DEPLOY_WEB: "0"
         run: bash ./infra/azure/deploy-app.sh
+
+  deploy-web-swa:
+    name: Deploy web (Static Web Apps)
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, e2e, detect-targets]
+    if: github.ref == 'refs/heads/main' && needs.detect-targets.outputs.web == 'true'
+    environment:
+      name: production
+      url: https://www.prabhatasamgiita.org
+    env:
+      NEXT_PUBLIC_AUTH_ENABLED: "true"
+      NEXT_PUBLIC_API_BASE_URL: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Require Static Web Apps deployment token
+        run: |
+          if [ -z "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" ]; then
+            echo "Missing secret AZURE_STATIC_WEB_APPS_API_TOKEN. Run: ./infra/azure/setup-static-web-app.sh" >&2
+            exit 1
+          fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sync SWA runtime settings
+        env:
+          PUBLIC_SITE_URL: https://www.prabhatasamgiita.org
+          MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: bash ./infra/azure/sync-swa-app-settings.sh
+
+      - name: Resolve public site URL for Next build
+        id: site
+        run: echo "url=https://www.prabhatasamgiita.org" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Cache Next.js font/build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-web-cache-${{ runner.os }}-${{ hashFiles('apps/web/app/layout.tsx', 'package-lock.json') }}
+          restore-keys: |
+            next-web-cache-${{ runner.os }}-
+
+      - name: Build standalone artifact for SWA
+        env:
+          NEXT_FONT_GOOGLE_MOCKED_RESPONSES: "1"
+          NEXT_PUBLIC_AUTH_ENABLED: "true"
+          NEXT_PUBLIC_API_BASE_URL: https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io
+          NEXT_PUBLIC_SITE_URL: ${{ steps.site.outputs.url }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if bash ./scripts/prepare-swa-standalone.sh; then
+              exit 0
+            fi
+            echo "SWA standalone build attempt ${attempt} failed; retrying in 10s..." >&2
+            sleep 10
+          done
+          echo "SWA standalone build failed after 3 attempts." >&2
+          exit 1
+
+      - name: Deploy standalone Next.js to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          skip_app_build: true
+          app_location: apps/web/.next/standalone
+          output_location: ""
+          build_timeout_in_minutes: 30

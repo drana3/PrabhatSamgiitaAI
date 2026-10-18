@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from functools import lru_cache
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, or_, select
@@ -8,27 +9,259 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import InventoryItem, Media, Notation, Song, SongChunk
+from app.services.faiss_store import get_faiss_store
 from app.services.seed_data import load_rows
 
+_songs: dict[int, Song] | None = None
+_media: dict[int, list[Media]] | None = None
+_notations: dict[int, Notation] | None = None
+_inventory: tuple[InventoryItem, ...] | None = None
+_catalog_complete: bool | None = None
 
-@lru_cache(maxsize=1)
+
+def reset_catalog_memory() -> None:
+    """Drop in-process replicas so the next read reloads packaged seed files."""
+    global _songs, _media, _notations, _inventory, _catalog_complete
+    _songs = None
+    _media = None
+    _notations = None
+    _inventory = None
+    _catalog_complete = None
+    from app.services.lyric_search import lyric_index
+    from app.services.seed_data import load_rows
+
+    lyric_index.cache_clear()
+    load_rows.cache_clear()
+
+
+def _ensure_catalog_loaded() -> None:
+    global _songs, _media, _notations, _inventory
+    if _songs is not None and _media is not None and _notations is not None:
+        return
+    _songs = {song.number: song for song in (Song(**row) for row in load_rows("songs.json"))}
+    grouped: dict[int, list[Media]] = {}
+    for item in (Media(**row) for row in load_rows("media.json")):
+        if item.song_number is None:
+            continue
+        grouped.setdefault(item.song_number, []).append(item)
+    _media = grouped
+    _notations = {
+        item.song_number: item for item in (Notation(**row) for row in load_rows("notations.json"))
+    }
+    if _inventory is None:
+        _inventory = tuple(InventoryItem(**row) for row in load_rows("inventory.json"))
+
+
 def catalog_song_snapshot() -> tuple[Song, ...]:
-    return tuple(Song(**row) for row in load_rows("songs.json"))
+    _ensure_catalog_loaded()
+    assert _songs is not None
+    return tuple(_songs.values())
 
 
-@lru_cache(maxsize=1)
 def catalog_media_snapshot() -> tuple[Media, ...]:
-    return tuple(Media(**row) for row in load_rows("media.json"))
+    _ensure_catalog_loaded()
+    assert _media is not None
+    return tuple(item for items in _media.values() for item in items)
 
 
-@lru_cache(maxsize=1)
 def catalog_notation_snapshot() -> tuple[Notation, ...]:
-    return tuple(Notation(**row) for row in load_rows("notations.json"))
+    _ensure_catalog_loaded()
+    assert _notations is not None
+    return tuple(_notations.values())
 
 
-@lru_cache(maxsize=1)
 def catalog_inventory_snapshot() -> tuple[InventoryItem, ...]:
-    return tuple(InventoryItem(**row) for row in load_rows("inventory.json"))
+    _ensure_catalog_loaded()
+    assert _inventory is not None
+    return _inventory
+
+
+def songs_by_number() -> dict[int, Song]:
+    _ensure_catalog_loaded()
+    assert _songs is not None
+    return _songs
+
+
+def media_by_song_number() -> dict[int, tuple[Media, ...]]:
+    _ensure_catalog_loaded()
+    assert _media is not None
+    return {number: tuple(items) for number, items in _media.items()}
+
+
+def notations_by_song_number() -> dict[int, Notation]:
+    _ensure_catalog_loaded()
+    assert _notations is not None
+    return _notations
+
+
+def _detach_song(song: Song) -> Song:
+    return Song(
+        number=song.number,
+        title=song.title,
+        first_line=song.first_line,
+        lyrics_original=song.lyrics_original,
+        transliteration=song.transliteration,
+        lyrics_devanagari=getattr(song, "lyrics_devanagari", None),
+        devanagari_status=getattr(song, "devanagari_status", None) or "none",
+        hindi_meaning=song.hindi_meaning,
+        english_meaning=song.english_meaning,
+        theme=song.theme,
+        occasion=song.occasion,
+        festival=song.festival,
+        season=song.season,
+        mood=song.mood,
+        language=song.language,
+        difficulty=song.difficulty,
+        meditation_context=song.meditation_context,
+        raga=song.raga,
+        tala=song.tala,
+        harmonium_notation=song.harmonium_notation,
+        canonical_source_url=song.canonical_source_url,
+        canonical_source_status=song.canonical_source_status,
+        is_verified=bool(song.is_verified),
+        metadata_json=dict(song.metadata_json or {}),
+    )
+
+
+def _detach_media(item: Media) -> Media:
+    return Media(
+        song_number=item.song_number,
+        kind=item.kind,
+        provider=item.provider,
+        title=item.title,
+        url=item.url,
+        embed_url=item.embed_url,
+        verification_status=item.verification_status,
+        source_url=item.source_url,
+        notes=item.notes,
+        metadata_json=dict(item.metadata_json or {}),
+    )
+
+
+def _detach_notation(item: Notation) -> Notation:
+    return Notation(
+        song_number=item.song_number,
+        source_url=item.source_url,
+        notation_text=item.notation_text,
+        scale=item.scale,
+        verification_status=item.verification_status,
+        metadata_json=dict(item.metadata_json or {}),
+    )
+
+
+def _notation_text_is_json(text: str | None) -> bool:
+    return bool(text and str(text).strip().startswith("{"))
+
+
+def _merge_notation_with_db(seeded: Notation, db_row: Notation | None) -> Notation:
+    if db_row is None:
+        return seeded
+    merged = _detach_notation(seeded)
+    merged.metadata_json = {**(merged.metadata_json or {}), **(db_row.metadata_json or {})}
+    if db_row.verification_status == "admin_submitted" and db_row.notation_text:
+        merged.notation_text = db_row.notation_text
+        merged.verification_status = db_row.verification_status
+        merged.scale = db_row.scale or merged.scale
+        merged.source_url = db_row.source_url or merged.source_url
+    elif _notation_text_is_json(db_row.notation_text) and not _notation_text_is_json(
+        merged.notation_text
+    ):
+        merged.notation_text = db_row.notation_text
+        merged.verification_status = db_row.verification_status or merged.verification_status
+        merged.scale = db_row.scale or merged.scale
+        merged.source_url = db_row.source_url or merged.source_url
+    return merged
+
+
+def _invalidate_derived_indexes() -> None:
+    from app.services.lyric_search import lyric_index
+
+    lyric_index.cache_clear()
+    # Drop search response caches so clients never keep stale song metadata/media.
+    try:
+        from app.api.v1.search import clear_search_result_caches_sync
+
+        clear_search_result_caches_sync()
+    except Exception:
+        # Search router may not be imported yet during early bootstrap.
+        pass
+
+
+async def refresh_catalog_song(
+    session: AsyncSession,
+    number: int,
+    *,
+    invalidate: bool = True,
+) -> bool:
+    """Copy one Neon song (plus its media/notation) into the in-process catalog."""
+    _ensure_catalog_loaded()
+    assert _songs is not None and _media is not None and _notations is not None
+    try:
+        song = (
+            await session.execute(select(Song).where(Song.number == number))
+        ).scalar_one_or_none()
+        media_rows = list(
+            (
+                await session.execute(select(Media).where(Media.song_number == number))
+            ).scalars().all()
+        )
+        notation = (
+            await session.execute(select(Notation).where(Notation.song_number == number))
+        ).scalar_one_or_none()
+    except SQLAlchemyError:
+        await session.rollback()
+        return False
+    if song is None:
+        return False
+    _songs[song.number] = _detach_song(song)
+    merged = {item.url: item for item in _media.get(song.number, [])}
+    for item in media_rows:
+        merged[item.url] = _detach_media(item)
+    _media[song.number] = list(merged.values())
+    if notation is not None:
+        _notations[song.number] = _detach_notation(notation)
+    if invalidate:
+        _invalidate_derived_indexes()
+    return True
+
+
+async def refresh_catalog_songs(session: AsyncSession, numbers: Iterable[int]) -> int:
+    refreshed = 0
+    for number in dict.fromkeys(int(value) for value in numbers):
+        if await refresh_catalog_song(session, number, invalidate=False):
+            refreshed += 1
+    if refreshed:
+        _invalidate_derived_indexes()
+    return refreshed
+
+
+async def refresh_catalog_changes_since(session: AsyncSession, since: datetime) -> int:
+    """Reload songs/media/notation rows with updated_at >= since into memory."""
+    numbers: set[int] = set()
+    try:
+        song_numbers = await session.execute(select(Song.number).where(Song.updated_at >= since))
+        numbers.update(int(value) for value in song_numbers.scalars().all())
+        media_numbers = await session.execute(
+            select(Media.song_number).where(
+                Media.updated_at >= since,
+                Media.song_number.is_not(None),
+            )
+        )
+        numbers.update(int(value) for value in media_numbers.scalars().all() if value is not None)
+        notation_numbers = await session.execute(
+            select(Notation.song_number).where(Notation.updated_at >= since)
+        )
+        numbers.update(int(value) for value in notation_numbers.scalars().all())
+    except SQLAlchemyError:
+        await session.rollback()
+        return 0
+    return await refresh_catalog_songs(session, numbers)
+
+
+async def refresh_recent_catalog_changes(session: AsyncSession, *, minutes: int = 15) -> int:
+    """Reload songs that Neon reports as updated in the last `minutes`."""
+    cutoff = datetime.now(UTC) - timedelta(minutes=minutes)
+    return await refresh_catalog_changes_since(session, cutoff)
 
 
 class CatalogService:
@@ -56,11 +289,20 @@ class CatalogService:
             return 0
 
     async def _database_catalog_complete(self) -> bool:
-        return await self._database_song_count() >= len(catalog_song_snapshot())
+        global _catalog_complete
+        if _catalog_complete:
+            return True
+        complete = await self._database_song_count() >= len(catalog_song_snapshot())
+        if complete:
+            _catalog_complete = True
+        return complete
 
     async def list_songs(self, limit: int = 50, offset: int = 0) -> list[Song]:
+        seeded = self._seed_songs()[offset : offset + limit]
+        if seeded:
+            return seeded
         if not await self._database_catalog_complete():
-            return self._seed_songs()[offset : offset + limit]
+            return []
         try:
             result = await self.session.execute(
                 select(Song).order_by(Song.number).limit(limit).offset(offset)
@@ -70,47 +312,29 @@ class CatalogService:
                 return rows
         except SQLAlchemyError:
             await self.session.rollback()
-        return self._seed_songs()[offset : offset + limit]
+        return []
 
     async def get_song(self, number: int) -> Song | None:
+        seeded = songs_by_number().get(number)
+        if seeded is not None:
+            return seeded
         try:
             result = await self.session.execute(select(Song).where(Song.number == number))
-            song = result.scalar_one_or_none()
-            if song:
-                return song
+            return result.scalar_one_or_none()
         except SQLAlchemyError:
             await self.session.rollback()
-        return next((song for song in self._seed_songs() if song.number == number), None)
+            return None
 
     async def search(self, query: str, limit: int = 20) -> list[Song]:
-        if await self._database_catalog_complete():
-            try:
-                terms = [term for term in query.lower().split() if term]
-                stmt = select(Song)
-                for term in terms:
-                    like = f"%{term}%"
-                    stmt = stmt.where(
-                        or_(
-                            Song.title.ilike(like),
-                            Song.first_line.ilike(like),
-                            Song.lyrics_original.ilike(like),
-                            Song.english_meaning.ilike(like),
-                            Song.hindi_meaning.ilike(like),
-                            Song.theme.ilike(like),
-                        )
-                    )
-                result = await self.session.execute(stmt.limit(limit))
-                rows = list(result.scalars().all())
-                if rows:
-                    return rows
-            except SQLAlchemyError:
-                await self.session.rollback()
         query_norm = query.lower().strip()
+        if not query_norm:
+            return []
         seeded = self._seed_songs()
         scored = [
             song
             for song in seeded
-            if query_norm in " ".join(
+            if query_norm
+            in " ".join(
                 part.lower()
                 for part in (
                     str(song.number),
@@ -124,31 +348,34 @@ class CatalogService:
                 )
             )
         ]
-        return scored[:limit]
+        if scored:
+            return scored[:limit]
+        try:
+            terms = [term for term in query_norm.split() if term]
+            stmt = select(Song)
+            for term in terms:
+                like = f"%{term}%"
+                stmt = stmt.where(
+                    or_(
+                        Song.title.ilike(like),
+                        Song.first_line.ilike(like),
+                        Song.lyrics_original.ilike(like),
+                        Song.english_meaning.ilike(like),
+                        Song.hindi_meaning.ilike(like),
+                        Song.theme.ilike(like),
+                    )
+                )
+            result = await self.session.execute(stmt.limit(limit))
+            rows = list(result.scalars().all())
+            if rows:
+                return rows
+        except SQLAlchemyError:
+            await self.session.rollback()
+        return []
 
     async def related_songs(self, song: Song, limit: int = 6) -> list[Song]:
-        if await self._database_catalog_complete():
-            try:
-                filters = []
-                for field in ("theme", "occasion", "festival", "season", "mood", "language"):
-                    value = getattr(song, field)
-                    if value:
-                        filters.append(getattr(Song, field) == value)
-                if filters:
-                    result = await self.session.execute(
-                        select(Song)
-                        .where(Song.number != song.number)
-                        .where(or_(*filters))
-                        .limit(limit)
-                    )
-                    rows = list(result.scalars().all())
-                    if rows:
-                        return rows
-            except SQLAlchemyError:
-                await self.session.rollback()
-        seeded = self._seed_songs()
         related: list[Song] = []
-        for candidate in seeded:
+        for candidate in catalog_song_snapshot():
             if candidate.number == song.number:
                 continue
             if any(
@@ -156,36 +383,96 @@ class CatalogService:
                 for field in ("theme", "occasion", "festival", "season", "mood", "language")
             ):
                 related.append(candidate)
-        return related[:limit]
-
-    async def get_media(self, song_number: int) -> list[Media]:
-        snapshot = [item for item in self._seed_media() if item.song_number == song_number]
+            if len(related) >= limit:
+                break
+        if related:
+            return related
+        if not await self._database_catalog_complete():
+            return []
         try:
+            filters = []
+            for field in ("theme", "occasion", "festival", "season", "mood", "language"):
+                value = getattr(song, field)
+                if value:
+                    filters.append(getattr(Song, field) == value)
+            if not filters:
+                return []
             result = await self.session.execute(
-                select(Media).where(Media.song_number == song_number)
+                select(Song)
+                .where(Song.number != song.number)
+                .where(or_(*filters))
+                .limit(limit)
             )
-            rows = list(result.scalars().all())
-            merged = {item.url: item for item in snapshot}
-            merged.update({item.url: item for item in rows})
-            return list(merged.values())
+            return list(result.scalars().all())
         except SQLAlchemyError:
             await self.session.rollback()
-        return snapshot
+            return []
 
-    async def get_notation(self, song_number: int) -> Notation | None:
+    async def _db_notation(self, song_number: int) -> Notation | None:
         try:
             result = await self.session.execute(
                 select(Notation).where(Notation.song_number == song_number)
             )
-            notation = result.scalar_one_or_none()
-            if notation:
-                return notation
+            return result.scalar_one_or_none()
         except SQLAlchemyError:
             await self.session.rollback()
-        return next(
-            (item for item in self._seed_notations() if item.song_number == song_number),
-            None,
-        )
+            return None
+
+    async def _db_notations_by_song(self) -> dict[int, Notation]:
+        try:
+            result = await self.session.execute(select(Notation))
+            return {row.song_number: row for row in result.scalars().all()}
+        except SQLAlchemyError:
+            await self.session.rollback()
+            return {}
+
+    async def list_published_sargam_songs(self) -> list[Song]:
+        from app.services.sargam_capture import is_learner_playable_notation
+
+        db_by_song = await self._db_notations_by_song()
+        numbers: set[int] = set()
+        for seeded in catalog_notation_snapshot():
+            db_row = db_by_song.get(seeded.song_number)
+            merged = _merge_notation_with_db(seeded, db_row)
+            if is_learner_playable_notation(
+                merged.song_number,
+                merged.verification_status,
+                merged.notation_text,
+                merged.metadata_json,
+            ):
+                numbers.add(merged.song_number)
+        for db_row in db_by_song.values():
+            if db_row.song_number in numbers:
+                continue
+            if is_learner_playable_notation(
+                db_row.song_number,
+                db_row.verification_status,
+                db_row.notation_text,
+                db_row.metadata_json,
+            ):
+                numbers.add(db_row.song_number)
+        by_number = songs_by_number()
+        return [by_number[number] for number in sorted(numbers) if number in by_number]
+
+    async def get_media(self, song_number: int) -> list[Media]:
+        snapshot = list(media_by_song_number().get(song_number, ()))
+        if snapshot:
+            return snapshot
+        try:
+            result = await self.session.execute(
+                select(Media).where(Media.song_number == song_number)
+            )
+            return list(result.scalars().all())
+        except SQLAlchemyError:
+            await self.session.rollback()
+            return []
+
+    async def get_notation(self, song_number: int) -> Notation | None:
+        seeded = notations_by_song_number().get(song_number)
+        db_row = await self._db_notation(song_number)
+        if seeded is not None:
+            return _merge_notation_with_db(seeded, db_row)
+        return db_row
 
     async def inventory(self, limit: int = 100, offset: int = 0) -> list[InventoryItem]:
         snapshot = self._seed_inventory()
@@ -196,10 +483,13 @@ class CatalogService:
             if int(count_result.scalar_one()) < len(snapshot):
                 return snapshot[offset : offset + limit]
             result = await self.session.execute(
-                select(InventoryItem).order_by(
+                select(InventoryItem)
+                .order_by(
                     InventoryItem.source_kind,
                     InventoryItem.title,
-                ).limit(limit).offset(offset)
+                )
+                .limit(limit)
+                .offset(offset)
             )
             rows = list(result.scalars().all())
             if rows:
@@ -238,20 +528,11 @@ class CatalogService:
                 select(func.count(func.distinct(SongChunk.song_number)))
             )
             database["rag_song_chunks"] = int(chunked.scalar_one())
-            chunk_count = await self.session.execute(
-                select(func.count()).select_from(SongChunk)
-            )
+            chunk_count = await self.session.execute(select(func.count()).select_from(SongChunk))
             database["rag_chunks"] = int(chunk_count.scalar_one())
-            embedded_songs = await self.session.execute(
-                select(func.count()).select_from(Song).where(Song.embeddings.is_not(None))
-            )
-            database["embedded_songs"] = int(embedded_songs.scalar_one())
-            embedded_chunks = await self.session.execute(
-                select(func.count()).select_from(SongChunk).where(
-                    SongChunk.embeddings.is_not(None)
-                )
-            )
-            database["embedded_chunks"] = int(embedded_chunks.scalar_one())
+            faiss_stats = get_faiss_store().stats()
+            database["embedded_songs"] = int(faiss_stats["songs"])
+            database["embedded_chunks"] = int(faiss_stats["chunks"])
         except SQLAlchemyError:
             await self.session.rollback()
         return {"snapshot": snapshot, "database": database}

@@ -6,9 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.schemas.notation import NotationSourceResponse, TransposedNotationResponse
+from app.schemas.notation import (
+    NotationSourceResponse,
+    SargamAttribution,
+    TransposedNotationResponse,
+)
 from app.services.catalog import CatalogService
 from app.services.harmonium import load_song_notation, normalize_tonic, transpose_notation
+from app.services.notation_links import learner_notation_url
+from app.services.sargam_capture import sargam_attribution_payload
 
 router = APIRouter(prefix="/songs", tags=["notation"])
 
@@ -30,8 +36,18 @@ async def get_notation_source(
     )
     return NotationSourceResponse(
         song_number=number,
-        source_url=notation.source_url,
-        verification_status=notation.verification_status,
+        source_url=learner_notation_url(
+            notation.source_url,
+            *((notation.metadata_json or {}).get("source_urls") or []),
+        ),
+        verification_status=str(
+            (notation.metadata_json or {}).get(
+                "source_verification_status", notation.verification_status
+            )
+        ),
+        learner_verification_status=(
+            notation.verification_status if machine_readable else None
+        ),
         machine_readable=machine_readable,
         transposition_available=machine_readable,
     )
@@ -57,6 +73,11 @@ async def get_notation(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     transposed = transpose_notation(notation, target_scale)
+    source = await CatalogService(session).get_notation(number)
+    attribution = sargam_attribution_payload(
+        source.metadata_json if source else None,
+        source.verification_status if source else None,
+    )
     if system.lower() == "western":
         # Keep the canonical schema but expose western notes in-place.
         pass
@@ -64,6 +85,7 @@ async def get_notation(
         song_number=number,
         source_scale=notation.source_scale,
         target_scale=target_scale,
-        verification_status=song.canonical_source_status,
+        verification_status=source.verification_status if source else "practice_draft",
         notation=transposed,
+        sargam_attribution=SargamAttribution.model_validate(attribution) if attribution else None,
     )

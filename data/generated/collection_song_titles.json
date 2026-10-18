@@ -1,0 +1,942 @@
+{
+  "3": {
+    "title": "ÁNDHÁRA SHEŚE ÁLORA DESHE",
+    "first_line": "ÁNDHÁRA SHEŚE ÁLORA DESHE"
+  },
+  "4": {
+    "title": "SAKAL MANER VIIŃÁ EK SURE BÁJE ÁJ",
+    "first_line": "SAKAL MANER VIIŃÁ EK SURE BÁJE ÁJ"
+  },
+  "7": {
+    "title": "NIIRAVATÁ MÁJHE KE GO TUMI ELE",
+    "first_line": "NIIRAVATÁ MÁJHE KE GO TUMI ELE"
+  },
+  "25": {
+    "title": "DUNIÁVÁNLO, TÁKATE RAHO",
+    "first_line": "DUNIÁVÁNLO, TÁKATE RAHO"
+  },
+  "50": {
+    "title": "RAKTIM KISHALAY, ÁMI RAKTIM KISHALAY",
+    "first_line": "RAKTIM KISHALAY, ÁMI RAKTIM KISHALAY"
+  },
+  "58": {
+    "title": "DU JANE JAKHAN, MILICHE TAKHAN",
+    "first_line": "DU JANE JAKHAN, MILICHE TAKHAN"
+  },
+  "59": {
+    "title": "NANIR PUTUL, T́UT́ULT́UT́UL",
+    "first_line": "NANIR PUTUL, T́UT́ULT́UT́UL"
+  },
+  "60": {
+    "title": "TOMÁR JINIS TOMÁKE DIYECHI",
+    "first_line": "TOMÁR JINIS TOMÁKE DIYECHI"
+  },
+  "63": {
+    "title": "DIIPÁVALII SÁJÁYECHI PRABHU",
+    "first_line": "DIIPÁVALII SÁJÁYECHI PRABHU"
+  },
+  "64": {
+    "title": "ÁKÁSHE ÁJ RANGER MELÁ",
+    "first_line": "ÁKÁSHE ÁJ RANGER MELÁ"
+  },
+  "68": {
+    "title": "I love this tiny green island",
+    "first_line": "I love this tiny green island"
+  },
+  "74": {
+    "title": "CAL CAL CAL CAL GÁN GEYE CAL",
+    "first_line": "CAL CAL CAL CAL GÁN GEYE CAL"
+  },
+  "88": {
+    "title": "HEMANTE SHIRSHIRE HAOÁTE",
+    "first_line": "HEMANTE SHIRSHIRE HAOÁTE"
+  },
+  "89": {
+    "title": "KICHU PHÚL CÁY HÁT BÁŔHÁTE",
+    "first_line": "KICHU PHÚL CÁY HÁT BÁŔHÁTE"
+  },
+  "90": {
+    "title": "HEMANTE MOR PHULER SÁJI BHARABE GO",
+    "first_line": "HEMANTE MOR PHULER SÁJI BHARABE GO"
+  },
+  "91": {
+    "title": "SHEŚ HEMANTE HIMEL HAOÁY",
+    "first_line": "SHEŚ HEMANTE HIMEL HAOÁY"
+  },
+  "92": {
+    "title": "HEMANTA ÁJI PRÁTE ESE CHE",
+    "first_line": "HEMANTA ÁJI PRÁTE ESE CHE"
+  },
+  "93": {
+    "title": "HEMANTERI DHÁNER GANDHE",
+    "first_line": "HEMANTERI DHÁNER GANDHE"
+  },
+  "94": {
+    "title": "SHIITER KÁMPUNI NIYE ELE, KE GO TUMI",
+    "first_line": "SHIITER KÁMPUNI NIYE ELE, KE GO TUMI"
+  },
+  "95": {
+    "title": "CANDAN VIITHI KUHÁSÁY D́HÁKI",
+    "first_line": "CANDAN VIITHI KUHÁSÁY D́HÁKI"
+  },
+  "96": {
+    "title": "SHISHIR SIKTA KHARJUR VIITHI",
+    "first_line": "SHISHIR SIKTA KHARJUR VIITHI"
+  },
+  "97": {
+    "title": "SHIITE SHIULI KENO PHOT́E NÁ",
+    "first_line": "SHIITE SHIULI KENO PHOT́E NÁ"
+  },
+  "98": {
+    "title": "SHIIT ÁSIÁCHE SÁTHE ÁNIÁCHE",
+    "first_line": "SHIIT ÁSIÁCHE SÁTHE ÁNIÁCHE"
+  },
+  "99": {
+    "title": "BHÁVI NIKO ÁSABE TUMI SHIITER RÁTE",
+    "first_line": "BHÁVI NIKO ÁSABE TUMI SHIITER RÁTE"
+  },
+  "100": {
+    "title": "KAMALÁ NEBUR VARŃE GANDHE",
+    "first_line": "KAMALÁ NEBUR VARŃE GANDHE"
+  },
+  "101": {
+    "title": "SHITER SHEŚETE NAVA PÁTÁ ÁSE",
+    "first_line": "SHITER SHEŚETE NAVA PÁTÁ ÁSE"
+  },
+  "102": {
+    "title": "ASHOKE PALÁSHE NAVA ULLÁSE",
+    "first_line": "ASHOKE PALÁSHE NAVA ULLÁSE"
+  },
+  "103": {
+    "title": "VASANTA ÁJ JÁGLO",
+    "first_line": "VASANTA ÁJ JÁGLO"
+  },
+  "104": {
+    "title": "NRITYER TÁLE TÁLE NRITYER CHANDE",
+    "first_line": "NRITYER TÁLE TÁLE NRITYER CHANDE"
+  },
+  "105": {
+    "title": "ÁJI, VASANTA PAVANE LIILÁYITA CARAŃE",
+    "first_line": "ÁJI, VASANTA PAVANE LIILÁYITA CARAŃE"
+  },
+  "106": {
+    "title": "PHULER SÁJI SÁTHE NIYE",
+    "first_line": "PHULER SÁJI SÁTHE NIYE"
+  },
+  "107": {
+    "title": "VASANTA ÁJ HÁSALO",
+    "first_line": "VASANTA ÁJ HÁSALO"
+  },
+  "108": {
+    "title": "RAODRER KHARATÁPE",
+    "first_line": "RAODRER KHARATÁPE"
+  },
+  "109": {
+    "title": "BANDHU, TOMÁR GOPAN KATHÁ",
+    "first_line": "BANDHU, TOMÁR GOPAN KATHÁ"
+  },
+  "110": {
+    "title": "GRIIŚMÁVAKÁSHE SE YADI ÁSE",
+    "first_line": "GRIIŚMÁVAKÁSHE SE YADI ÁSE"
+  },
+  "111": {
+    "title": "VEŃUKÁR VAN KII KATHÁ KAY",
+    "first_line": "VEŃUKÁR VAN KII KATHÁ KAY"
+  },
+  "113": {
+    "title": "VISHÁKHÁ TANAY VAESHÁKHA TUMI",
+    "first_line": "VISHÁKHÁ TANAY VAESHÁKHA TUMI"
+  },
+  "114": {
+    "title": "KEKÁ KALARAVA MUKHARITA PRÁTE",
+    "first_line": "KEKÁ KALARAVA MUKHARITA PRÁTE"
+  },
+  "115": {
+    "title": "VARŚÁR RÁTE TUMI ESE CHILE",
+    "first_line": "VARŚÁR RÁTE TUMI ESE CHILE"
+  },
+  "116": {
+    "title": "VARAŚÁ ESECHE NIIP NIKUINJE",
+    "first_line": "VARAŚÁ ESECHE NIIP NIKUINJE"
+  },
+  "117": {
+    "title": "VARAŚÁR DINE SABÁKÁR SANE",
+    "first_line": "VARAŚÁR DINE SABÁKÁR SANE"
+  },
+  "118": {
+    "title": "VARAŚÁ ESECHE BHAROSÁ ESECHE",
+    "first_line": "VARAŚÁ ESECHE BHAROSÁ ESECHE"
+  },
+  "119": {
+    "title": "MEGH TUMI KÁCHE ESO",
+    "first_line": "MEGH TUMI KÁCHE ESO"
+  },
+  "120": {
+    "title": "SHÁRAD PRÁTE MOR EKTÁRÁTE",
+    "first_line": "SHÁRAD PRÁTE MOR EKTÁRÁTE"
+  },
+  "121": {
+    "title": "ÁMI SHARAT SAKÁLE SHISHIRETE DHUE",
+    "first_line": "ÁMI SHARAT SAKÁLE SHISHIRETE DHUE"
+  },
+  "122": {
+    "title": "PATHIK TUMI EKÁKI ESE",
+    "first_line": "PATHIK TUMI EKÁKI ESE"
+  },
+  "123": {
+    "title": "SHARAT AE ÁSE AE ÁSE AE ÁSE",
+    "first_line": "SHARAT AE ÁSE AE ÁSE AE ÁSE"
+  },
+  "124": {
+    "title": "SHARAT, TOMÁR SURER MÁYAY",
+    "first_line": "SHARAT, TOMÁR SURER MÁYAY"
+  },
+  "125": {
+    "title": "ÁJ, ÁKÁSHE TÁRÁR MELÁ",
+    "first_line": "ÁJ, ÁKÁSHE TÁRÁR MELÁ"
+  },
+  "126": {
+    "title": "EK, PARIKRAMÁR HOLO ANTA",
+    "first_line": "EK, PARIKRAMÁR HOLO ANTA"
+  },
+  "127": {
+    "title": "EK NÚTANER SUR ÁJI BÁJALO, BÁJALO",
+    "first_line": "EK NÚTANER SUR ÁJI BÁJALO, BÁJALO"
+  },
+  "129": {
+    "title": "SURER DHÁRÁ EGIE CALE",
+    "first_line": "SURER DHÁRÁ EGIE CALE"
+  },
+  "130": {
+    "title": "SONÁLI BHOR JIIVANE MOR",
+    "first_line": "SONÁLI BHOR JIIVANE MOR"
+  },
+  "131": {
+    "title": "NAVA VARŚA ELO ÁJI",
+    "first_line": "NAVA VARŚA ELO ÁJI"
+  },
+  "132": {
+    "title": "JANMA TITHITE NÚTANERA SROTE",
+    "first_line": "JANMA TITHITE NÚTANERA SROTE"
+  },
+  "133": {
+    "title": "TAVA, SHUBHA JANMA DINE",
+    "first_line": "TAVA, SHUBHA JANMA DINE"
+  },
+  "134": {
+    "title": "JANAMA LAGANE",
+    "first_line": "JANAMA LAGANE"
+  },
+  "135": {
+    "title": "JANMA DINE EI SHUBHA KŚAŃE",
+    "first_line": "JANMA DINE EI SHUBHA KŚAŃE"
+  },
+  "136": {
+    "title": "ÁJKERA EI SHISHU TARU",
+    "first_line": "ÁJKERA EI SHISHU TARU"
+  },
+  "137": {
+    "title": "BESHI KICHU NÁHI CÁI",
+    "first_line": "BESHI KICHU NÁHI CÁI"
+  },
+  "140": {
+    "title": "ÁCHO, KABARII VEŃIITE KÁLO D́OR HOY",
+    "first_line": "ÁCHO, KABARII VEŃIITE KÁLO D́OR HOY"
+  },
+  "193": {
+    "title": "ÁNDHÁR SAGARE PATH HÁRIYE",
+    "first_line": "ÁNDHÁR SAGARE PATH HÁRIYE"
+  },
+  "196": {
+    "title": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
+    "first_line": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI"
+  },
+  "209": {
+    "title": "TOMÁR E ASIIM APÁR BHÁLOBÁSÁR",
+    "first_line": "TOMÁR E ASIIM APÁR BHÁLOBÁSÁR"
+  },
+  "220": {
+    "title": "KRŚŃA MURÁRI BÁSHURI TOMÁRI",
+    "first_line": "KRŚŃA MURÁRI BÁSHURI TOMÁRI"
+  },
+  "226": {
+    "title": "SAKALERA ÁNKHI CHALA CHALA",
+    "first_line": "SAKALERA ÁNKHI CHALA CHALA"
+  },
+  "228": {
+    "title": "KANSA DAMANE SHIŚT́A PÁLANE",
+    "first_line": "KANSA DAMANE SHIŚT́A PÁLANE"
+  },
+  "229": {
+    "title": "KRŚŃA DARSHANE",
+    "first_line": "KRŚŃA DARSHANE"
+  },
+  "230": {
+    "title": "NÁRADA SHONO KATHÁ",
+    "first_line": "NÁRADA SHONO KATHÁ"
+  },
+  "303": {
+    "title": "RÁJÁR KUMÁR PAKŚIRÁJE",
+    "first_line": "RÁJÁR KUMÁR PAKŚIRÁJE"
+  },
+  "361": {
+    "title": "RÁTER BELÁY SABÁI GHÚMÁY",
+    "first_line": "RÁTER BELÁY SABÁI GHÚMÁY"
+  },
+  "395": {
+    "title": "NIIL SÁYARE SONÁR KAMAL",
+    "first_line": "NIIL SÁYARE SONÁR KAMAL"
+  },
+  "396": {
+    "title": "RAUNGIIN PARI ÁJ CALECHE KOTHÁY",
+    "first_line": "RAUNGIIN PARI ÁJ CALECHE KOTHÁY"
+  },
+  "397": {
+    "title": "DARPA HÁRI PRABHU DARPA NÁ SAHE KABHU",
+    "first_line": "DARPA HÁRI PRABHU DARPA NÁ SAHE KABHU"
+  },
+  "398": {
+    "title": "NIDRÁ TANDRÁ KRODHA ÁLASYA",
+    "first_line": "NIDRÁ TANDRÁ KRODHA ÁLASYA"
+  },
+  "399": {
+    "title": "SÁDHUTÁ SARALATÁ TEJASVITÁ GUŃE",
+    "first_line": "SÁDHUTÁ SARALATÁ TEJASVITÁ GUŃE"
+  },
+  "400": {
+    "title": "SEI, SVAPNERA DESHE SE NIIL SÁYARE",
+    "first_line": "SEI, SVAPNERA DESHE SE NIIL SÁYARE"
+  },
+  "401": {
+    "title": "NÁCERA TÁLE CHANDE GÁNE",
+    "first_line": "NÁCERA TÁLE CHANDE GÁNE"
+  },
+  "432": {
+    "title": "RÚP KATHÁR EK RÁJÁ CHILO",
+    "first_line": "RÚP KATHÁR EK RÁJÁ CHILO"
+  },
+  "468": {
+    "title": "MORÁ MUKTA BHÚMIR MEYE",
+    "first_line": "MORÁ MUKTA BHÚMIR MEYE"
+  },
+  "474": {
+    "title": "TOKE, GAŔ KARI NANAD TUI MOR KATHÁ RÁKH",
+    "first_line": "TOKE, GAŔ KARI NANAD TUI MOR KATHÁ RÁKH"
+  },
+  "475": {
+    "title": "HALUD GÁNDÁR PHÚL KANAK CÁMPÁR PHÚL",
+    "first_line": "HALUD GÁNDÁR PHÚL KANAK CÁMPÁR PHÚL"
+  },
+  "476": {
+    "title": "VIHÁN KÁLE TÁLE TÁLE",
+    "first_line": "VIHÁN KÁLE TÁLE TÁLE"
+  },
+  "477": {
+    "title": "SHÁL GÁCHETE TÁL D́ÁNGRÁ, TÁL GÁCHETE DHÚNÁLO",
+    "first_line": "SHÁL GÁCHETE TÁL D́ÁNGRÁ, TÁL GÁCHETE DHÚNÁLO"
+  },
+  "478": {
+    "title": "ÁKÁSHE CUMKI GÁNTHÁ",
+    "first_line": "ÁKÁSHE CUMKI GÁNTHÁ"
+  },
+  "479": {
+    "title": "JOŔETE HAŔAKÁ NÁME",
+    "first_line": "JOŔETE HAŔAKÁ NÁME"
+  },
+  "485": {
+    "title": "MORÁ KÁJ NIYE BENCE ÁCHI",
+    "first_line": "MORÁ KÁJ NIYE BENCE ÁCHI"
+  },
+  "487": {
+    "title": "TORÁ BAL GO TORÁ MORE BAL",
+    "first_line": "TORÁ BAL GO TORÁ MORE BAL"
+  },
+  "490": {
+    "title": "BHÁLGO AJÁNÁ PATHIK EK DESH KE ESECHE",
+    "first_line": "BHÁLGO AJÁNÁ PATHIK EK DESH KE ESECHE"
+  },
+  "498": {
+    "title": "JHUM JHUMÁ JHUM JHUM JHUMÁ JHUM",
+    "first_line": "JHUM JHUMÁ JHUM JHUM JHUMÁ JHUM"
+  },
+  "508": {
+    "title": "KII BÁNSHII BÁJÁLI BANDHU",
+    "first_line": "KII BÁNSHII BÁJÁLI BANDHU"
+  },
+  "512": {
+    "title": "ÁMÁR MANER MÁNUŚ TUI KOTHÁ GELI",
+    "first_line": "ÁMÁR MANER MÁNUŚ TUI KOTHÁ GELI"
+  },
+  "513": {
+    "title": "PÁHÁŔE ÁJ RAUNGER MELÁ",
+    "first_line": "PÁHÁŔE ÁJ RAUNGER MELÁ"
+  },
+  "522": {
+    "title": "SÁJÁBO BALE MÁLÁ PARÁBO BALE",
+    "first_line": "SÁJÁBO BALE MÁLÁ PARÁBO BALE"
+  },
+  "578": {
+    "title": "TOKE PARÁBO BALE CÁMPÁ BAUL PHÚLE",
+    "first_line": "TOKE PARÁBO BALE CÁMPÁ BAUL PHÚLE"
+  },
+  "586": {
+    "title": "KÁL BHAERAVA UTTÁL TÁLE",
+    "first_line": "KÁL BHAERAVA UTTÁL TÁLE"
+  },
+  "695": {
+    "title": "KÁHÁKEO PÁPII BHEVE",
+    "first_line": "KÁHÁKEO PÁPII BHEVE"
+  },
+  "759": {
+    "title": "VRAJERA SE DIN HÁRÁIYÁ GECHE",
+    "first_line": "VRAJERA SE DIN HÁRÁIYÁ GECHE"
+  },
+  "878": {
+    "title": "MÁNAVATÁR KETAN SAMMUKHE DHARI",
+    "first_line": "MÁNAVATÁR KETAN SAMMUKHE DHARI"
+  },
+  "903": {
+    "title": "TUMI JAKHAN ESE CHILE",
+    "first_line": "TUMI JAKHAN ESE CHILE"
+  },
+  "911": {
+    "title": "ÁMÁR GRÁME JÁIO RE BANDHU",
+    "first_line": "ÁMÁR GRÁME JÁIO RE BANDHU"
+  },
+  "925": {
+    "title": "EI NÁ, SONÁ JHARÁ PRABHÁTE",
+    "first_line": "EI NÁ, SONÁ JHARÁ PRABHÁTE"
+  },
+  "960": {
+    "title": "TÚMI DHARÁ DILE",
+    "first_line": "TÚMI DHARÁ DILE"
+  },
+  "961": {
+    "title": "YADI, ALAS PRAHARE MORE",
+    "first_line": "YADI, ALAS PRAHARE MORE"
+  },
+  "990": {
+    "title": "KÁR TARE TUMI PATHE GHURIS",
+    "first_line": "KÁR TARE TUMI PATHE GHURIS"
+  },
+  "1031": {
+    "title": "BASIÁ VIJANE TAHÁRI DHYÁNE",
+    "first_line": "BASIÁ VIJANE TAHÁRI DHYÁNE"
+  },
+  "1068": {
+    "title": "TOMÁR TARE NISHI JÁGÁ",
+    "first_line": "TOMÁR TARE NISHI JÁGÁ"
+  },
+  "1090": {
+    "title": "MÁNUŚA SABÁI ÁPAN",
+    "first_line": "MÁNUŚA SABÁI ÁPAN"
+  },
+  "1103": {
+    "title": "DHARMA ÁMÁRI SÁTHI",
+    "first_line": "DHARMA ÁMÁRI SÁTHI"
+  },
+  "1190": {
+    "title": "MÁNUŚ MÁNUŚ HÁRÁYE HOSH",
+    "first_line": "MÁNUŚ MÁNUŚ HÁRÁYE HOSH"
+  },
+  "1218": {
+    "title": "TOMÁR TARE MÁLATI MÁLÁ GÁNTHÁ",
+    "first_line": "TOMÁR TARE MÁLATI MÁLÁ GÁNTHÁ"
+  },
+  "1247": {
+    "title": "NAYANE VARAŚÁ ELO",
+    "first_line": "NAYANE VARAŚÁ ELO"
+  },
+  "1255": {
+    "title": "BHÁVA KE DIYECHO TUMI BHÁŚÁ",
+    "first_line": "BHÁVA KE DIYECHO TUMI BHÁŚÁ"
+  },
+  "1256": {
+    "title": "MAMATÁ JE SMARAŃIIYA KARITE",
+    "first_line": "MAMATÁ JE SMARAŃIIYA KARITE"
+  },
+  "1266": {
+    "title": "JYOTITE UCCHALA PRIITI SAMUJJVALA",
+    "first_line": "JYOTITE UCCHALA PRIITI SAMUJJVALA"
+  },
+  "1269": {
+    "title": "ÁMÁR, KRŚŃA KOTHÁY BOL RE",
+    "first_line": "ÁMÁR, KRŚŃA KOTHÁY BOL RE"
+  },
+  "1273": {
+    "title": "ÁMÁY NIYE E KII KHELÁ",
+    "first_line": "ÁMÁY NIYE E KII KHELÁ"
+  },
+  "1276": {
+    "title": "KII BÁ HÁRÁIÁ GIÁCHE TOMÁR",
+    "first_line": "KII BÁ HÁRÁIÁ GIÁCHE TOMÁR"
+  },
+  "1291": {
+    "title": "KENO ÁNKHI CHALA CHALA JAL BHARE",
+    "first_line": "KENO ÁNKHI CHALA CHALA JAL BHARE"
+  },
+  "1307": {
+    "title": "KÁJ KARE JETE ESECHI DHARÁTE",
+    "first_line": "KÁJ KARE JETE ESECHI DHARÁTE"
+  },
+  "1316": {
+    "title": "KÁR TARE TUMI BASE BASE KÁNDO",
+    "first_line": "KÁR TARE TUMI BASE BASE KÁNDO"
+  },
+  "1330": {
+    "title": "TUMI DEVATÁTMÁ HIMÁLAYA",
+    "first_line": "TUMI DEVATÁTMÁ HIMÁLAYA"
+  },
+  "1335": {
+    "title": "ABHRAḾLEHI HIMÁCAL GIRI",
+    "first_line": "ABHRAḾLEHI HIMÁCAL GIRI"
+  },
+  "1367": {
+    "title": "ÁMRA MUKULE KINSHUK PHÚLE",
+    "first_line": "ÁMRA MUKULE KINSHUK PHÚLE"
+  },
+  "1372": {
+    "title": "JE ÁGUN JVÁLIYE DILE PRABHU",
+    "first_line": "JE ÁGUN JVÁLIYE DILE PRABHU"
+  },
+  "1415": {
+    "title": "TOMÁRI TARE PHÚL SÁJE SÁJÁ",
+    "first_line": "TOMÁRI TARE PHÚL SÁJE SÁJÁ"
+  },
+  "1418": {
+    "title": "ÁDI DEVA PASHUPATI NÁO MAMA PRAŃATI",
+    "first_line": "ÁDI DEVA PASHUPATI NÁO MAMA PRAŃATI"
+  },
+  "1419": {
+    "title": "O SE MADHURATÁ MÁKHÁ SHYÁMA RÁY",
+    "first_line": "O SE MADHURATÁ MÁKHÁ SHYÁMA RÁY"
+  },
+  "1445": {
+    "title": "JALE BHARÁ ÁNKHI",
+    "first_line": "JALE BHARÁ ÁNKHI"
+  },
+  "1458": {
+    "title": "TUMI MOR ÁSHÁRI ÁLOKA",
+    "first_line": "TUMI MOR ÁSHÁRI ÁLOKA"
+  },
+  "1464": {
+    "title": "VASANTE MOR PHÚLAVANE PRIYA",
+    "first_line": "VASANTE MOR PHÚLAVANE PRIYA"
+  },
+  "1472": {
+    "title": "VAN PÁHÁŔERA DESHE",
+    "first_line": "VAN PÁHÁŔERA DESHE"
+  },
+  "1495": {
+    "title": "TOMÁY BHÁLOBÁSI",
+    "first_line": "TOMÁY BHÁLOBÁSI"
+  },
+  "1520": {
+    "title": "ÁNKHI JALE BHARE GECHE KÁR TARE",
+    "first_line": "ÁNKHI JALE BHARE GECHE KÁR TARE"
+  },
+  "1530": {
+    "title": "BOLO NÁ",
+    "first_line": "BOLO NÁ"
+  },
+  "1552": {
+    "title": "BHÁLGO, PÁHÁŔE PHÚT́ECHE KATA NÁ PHÚL",
+    "first_line": "BHÁLGO, PÁHÁŔE PHÚT́ECHE KATA NÁ PHÚL"
+  },
+  "1554": {
+    "title": "ÁMÁR NADI MADHUMATI",
+    "first_line": "ÁMÁR NADI MADHUMATI"
+  },
+  "1565": {
+    "title": "SAḾSKRTA",
+    "first_line": "SAḾSKRTA"
+  },
+  "1570": {
+    "title": "KÁR KATHÁ SADÁ BHÁVO SUNAYANÁ",
+    "first_line": "KÁR KATHÁ SADÁ BHÁVO SUNAYANÁ"
+  },
+  "1637": {
+    "title": "ÁNDHÁR NISHÁY TUMI DIIPÁVALII",
+    "first_line": "ÁNDHÁR NISHÁY TUMI DIIPÁVALII"
+  },
+  "1682": {
+    "title": "VASANTERI ÁGAMANE",
+    "first_line": "VASANTERI ÁGAMANE"
+  },
+  "1743": {
+    "title": "MASI KRŚŃA TAMASÁTE",
+    "first_line": "MASI KRŚŃA TAMASÁTE"
+  },
+  "1767": {
+    "title": "TUMI, HIMAGIRI TUHINE D́HÁKÁ",
+    "first_line": "TUMI, HIMAGIRI TUHINE D́HÁKÁ"
+  },
+  "1784": {
+    "title": "RAUNGIIN PARII BOLE JÁI JE UŔE CALE",
+    "first_line": "RAUNGIIN PARII BOLE JÁI JE UŔE CALE"
+  },
+  "1826": {
+    "title": "SÁJÁYE REKHECHI MÁLIKÁ",
+    "first_line": "SÁJÁYE REKHECHI MÁLIKÁ"
+  },
+  "1828": {
+    "title": "ACIN DESHER MEGH BOLE GELO",
+    "first_line": "ACIN DESHER MEGH BOLE GELO"
+  },
+  "1863": {
+    "title": "JIIVANER EI BÁLUKÁ BELÁY",
+    "first_line": "JIIVANER EI BÁLUKÁ BELÁY"
+  },
+  "1892": {
+    "title": "CHOT́T́A HOLEO TUMI BAŔA",
+    "first_line": "CHOT́T́A HOLEO TUMI BAŔA"
+  },
+  "1908": {
+    "title": "SHISHIR KAŃÁ, SHISHIR KAŃÁ",
+    "first_line": "SHISHIR KAŃÁ, SHISHIR KAŃÁ"
+  },
+  "2049": {
+    "title": "EKALÁ BASE BASE VÁTÁYANA PÁSHE",
+    "first_line": "EKALÁ BASE BASE VÁTÁYANA PÁSHE"
+  },
+  "2084": {
+    "title": "UTTUNGA SHIKHAR PARE",
+    "first_line": "UTTUNGA SHIKHAR PARE"
+  },
+  "2155": {
+    "title": "ALAKÁRA DÚTA ESE HESE BOLE",
+    "first_line": "ALAKÁRA DÚTA ESE HESE BOLE"
+  },
+  "2192": {
+    "title": "MÁNUŚA JENO MÁNUŚER TARE",
+    "first_line": "MÁNUŚA JENO MÁNUŚER TARE"
+  },
+  "2268": {
+    "title": "ÁLOTE BHESE SAHASÁ ESE",
+    "first_line": "ÁLOTE BHESE SAHASÁ ESE"
+  },
+  "2300": {
+    "title": "ÁMI PATH CEYE CEYE KLÁNTA HOINI",
+    "first_line": "ÁMI PATH CEYE CEYE KLÁNTA HOINI"
+  },
+  "2350": {
+    "title": "PRABHU, TOMÁR NÁMER BHAROSÁ NIYE",
+    "first_line": "PRABHU, TOMÁR NÁMER BHAROSÁ NIYE"
+  },
+  "2370": {
+    "title": "TUMI, DIVYA LOKE ESO MANOVIHÁRII",
+    "first_line": "TUMI, DIVYA LOKE ESO MANOVIHÁRII"
+  },
+  "2412": {
+    "title": "HIMÁNII SHIKHAR HOTE NEVE CHILE KON PRÁTE",
+    "first_line": "HIMÁNII SHIKHAR HOTE NEVE CHILE KON PRÁTE"
+  },
+  "2414": {
+    "title": "KII NÁ KARE GIYE CHILO MÁNAVE JÁGIYE CHILE",
+    "first_line": "KII NÁ KARE GIYE CHILO MÁNAVE JÁGIYE CHILE"
+  },
+  "2421": {
+    "title": "IISHÁN KOŃETE BEJE UT́HECHE VIŚÁŃ",
+    "first_line": "IISHÁN KOŃETE BEJE UT́HECHE VIŚÁŃ"
+  },
+  "2460": {
+    "title": "MOR KABARIIR MÁLÁ SHUKIYECHE",
+    "first_line": "MOR KABARIIR MÁLÁ SHUKIYECHE"
+  },
+  "2496": {
+    "title": "IISHÁN TOMÁR, IISHÁN TOMÁR",
+    "first_line": "IISHÁN TOMÁR, IISHÁN TOMÁR"
+  },
+  "2505": {
+    "title": "JAYA, SHIVA SVAYAMBHO PASHUPATE",
+    "first_line": "JAYA, SHIVA SVAYAMBHO PASHUPATE"
+  },
+  "2526": {
+    "title": "JAYA, SHUBHA VAJRA DHARA SHUBHRA KALEVARA",
+    "first_line": "JAYA, SHUBHA VAJRA DHARA SHUBHRA KALEVARA"
+  },
+  "2529": {
+    "title": "BÁNSHII TE KARECHE UTALÁ",
+    "first_line": "BÁNSHII TE KARECHE UTALÁ"
+  },
+  "2649": {
+    "title": "ÁLOKE SNÁTA ÁNANDE SMITA",
+    "first_line": "ÁLOKE SNÁTA ÁNANDE SMITA"
+  },
+  "3110": {
+    "title": "VASANTERI MAINJARI",
+    "first_line": "VASANTERI MAINJARI"
+  },
+  "3246": {
+    "title": "SHAUNKARA HARA HARA MAHÁDEVA",
+    "first_line": "SHAUNKARA HARA HARA MAHÁDEVA"
+  },
+  "3262": {
+    "title": "ÁMÁRI VYATHÁTE GALE",
+    "first_line": "ÁMÁRI VYATHÁTE GALE"
+  },
+  "3265": {
+    "title": "RÁKHÁL RÁJÁ RE",
+    "first_line": "RÁKHÁL RÁJÁ RE"
+  },
+  "3282": {
+    "title": "TÁND́AVA NÁCE METECHO",
+    "first_line": "TÁND́AVA NÁCE METECHO"
+  },
+  "3389": {
+    "title": "TOMÁY ÁMI BHÁLOBÁSI",
+    "first_line": "TOMÁY ÁMI BHÁLOBÁSI"
+  },
+  "3562": {
+    "title": "TUKE BHÁLBO HÁMI NAYAN BHARE",
+    "first_line": "TUKE BHÁLBO HÁMI NAYAN BHARE"
+  },
+  "3623": {
+    "title": "SÁTAT́I CÁMPÁ",
+    "first_line": "SÁTAT́I CÁMPÁ"
+  },
+  "3640": {
+    "title": "KADAMBA VANE ELE VEŃUKÁ BÁJÁVE BALE",
+    "first_line": "KADAMBA VANE ELE VEŃUKÁ BÁJÁVE BALE"
+  },
+  "3653": {
+    "title": "SHIVA SHAUNKARA HE SHUBHAUNKARAH",
+    "first_line": "SHIVA SHAUNKARA HE SHUBHAUNKARAH"
+  },
+  "3714": {
+    "title": "JIIRŃA VISHIIRŃA",
+    "first_line": "JIIRŃA VISHIIRŃA"
+  },
+  "3715": {
+    "title": "BÁUNGLÁ ÁMÁR DESH",
+    "first_line": "BÁUNGLÁ ÁMÁR DESH"
+  },
+  "3742": {
+    "title": "PRÁŃER GOPÁL PRIITIR GULÁL",
+    "first_line": "PRÁŃER GOPÁL PRIITIR GULÁL"
+  },
+  "3744": {
+    "title": "AMBARA MÁJHE D́AMBARU BÁJE",
+    "first_line": "AMBARA MÁJHE D́AMBARU BÁJE"
+  },
+  "3760": {
+    "title": "ESE CHILI KENO GELI",
+    "first_line": "ESE CHILI KENO GELI"
+  },
+  "3914": {
+    "title": "TU RÚPE LAYAN BHULÁI DILI",
+    "first_line": "TU RÚPE LAYAN BHULÁI DILI"
+  },
+  "3951": {
+    "title": "TVAM MAMA PRIYA TVAMASI AMEYA",
+    "first_line": "TVAM MAMA PRIYA TVAMASI AMEYA"
+  },
+  "4029": {
+    "title": "TUMI MORE NÁ DEKHILE",
+    "first_line": "TUMI MORE NÁ DEKHILE"
+  },
+  "4062": {
+    "title": "JÁDU NAGARIYÁ SE",
+    "first_line": "JÁDU NAGARIYÁ SE"
+  },
+  "4063": {
+    "title": "PRABHU HAMMA CHALON TORA ÁSH ME",
+    "first_line": "PRABHU HAMMA CHALON TORA ÁSH ME"
+  },
+  "4070": {
+    "title": "TUM HO MERE KRŚŃA JAGATPATI",
+    "first_line": "TUM HO MERE KRŚŃA JAGATPATI"
+  },
+  "4072": {
+    "title": "MÁLIK HO MERE",
+    "first_line": "MÁLIK HO MERE"
+  },
+  "4078": {
+    "title": "RUHÁNII YEH ROSHNII BUJHÁNII NAHII HAE",
+    "first_line": "RUHÁNII YEH ROSHNII BUJHÁNII NAHII HAE"
+  },
+  "4079": {
+    "title": "ÁNKHIYÁN HAMARA TORE LEILI",
+    "first_line": "ÁNKHIYÁN HAMARA TORE LEILI"
+  },
+  "4081": {
+    "title": "MAETHILI",
+    "first_line": "MAETHILI"
+  },
+  "4098": {
+    "title": "TORE VÁSTE HAMAR PRABHU",
+    "first_line": "TORE VÁSTE HAMAR PRABHU"
+  },
+  "4129": {
+    "title": "TORE HAMMA CÁHAE CHALAON",
+    "first_line": "TORE HAMMA CÁHAE CHALAON"
+  },
+  "4134": {
+    "title": "AUNGABHUMI SUNDARATÁ BHUMI",
+    "first_line": "AUNGABHUMI SUNDARATÁ BHUMI"
+  },
+  "4141": {
+    "title": "HAMAR SINIRA AUNGABHÚMI",
+    "first_line": "HAMAR SINIRA AUNGABHÚMI"
+  },
+  "4166": {
+    "title": "MUSÁFIR ÁGE BAŔHATE JÁNÁ",
+    "first_line": "MUSÁFIR ÁGE BAŔHATE JÁNÁ"
+  },
+  "4167": {
+    "title": "DER HO RAHOO HAE",
+    "first_line": "DER HO RAHOO HAE"
+  },
+  "4168": {
+    "title": "IAH FARIYÁD MÁLIK ÁTE",
+    "first_line": "IAH FARIYÁD MÁLIK ÁTE"
+  },
+  "4170": {
+    "title": "HAMDARDII IAH , KISANE D́ÁLII",
+    "first_line": "HAMDARDII IAH , KISANE D́ÁLII"
+  },
+  "4171": {
+    "title": "KHUSHII KII LAHAREN BAH RAHIIN HAEN",
+    "first_line": "KHUSHII KII LAHAREN BAH RAHIIN HAEN"
+  },
+  "4172": {
+    "title": "FAOJ TUMHÁ RII BIGUL BAJÁO",
+    "first_line": "FAOJ TUMHÁ RII BIGUL BAJÁO"
+  },
+  "4195": {
+    "title": "ÁYE HO TUM, ÁYE HO TUM",
+    "first_line": "ÁYE HO TUM, ÁYE HO TUM"
+  },
+  "4206": {
+    "title": "HAMARA AUNGABHÚMI",
+    "first_line": "HAMARA AUNGABHÚMI"
+  },
+  "4252": {
+    "title": "TU KUTHÁ CHILI KUTHÁKE GELI",
+    "first_line": "TU KUTHÁ CHILI KUTHÁKE GELI"
+  },
+  "4279": {
+    "title": "TVAMASI SARVESHÁḾ PITÁ",
+    "first_line": "TVAMASI SARVESHÁḾ PITÁ"
+  },
+  "4281": {
+    "title": "KRIŚNO ASTI PURUŚOTTAMAH",
+    "first_line": "KRIŚNO ASTI PURUŚOTTAMAH"
+  },
+  "4283": {
+    "title": "PHÚLON MEN TU M SHAHAD HO JI",
+    "first_line": "PHÚLON MEN TU M SHAHAD HO JI"
+  },
+  "4327": {
+    "title": "MÁLIK MAEN TUMHI KO CÁHATÁ",
+    "first_line": "MÁLIK MAEN TUMHI KO CÁHATÁ"
+  },
+  "4335": {
+    "title": "JAMIN ÁSAMÁN TUMHÁRÁ",
+    "first_line": "JAMIN ÁSAMÁN TUMHÁRÁ"
+  },
+  "4425": {
+    "title": "VRINDÁVANAM PARITYÁJYA",
+    "first_line": "VRINDÁVANAM PARITYÁJYA"
+  },
+  "4461": {
+    "title": "ESO PRIYA, ESO PRIYA",
+    "first_line": "ESO PRIYA, ESO PRIYA"
+  },
+  "4533": {
+    "title": "CHOTTA NADII UTTARÁ",
+    "first_line": "CHOTTA NADII UTTARÁ"
+  },
+  "4534": {
+    "title": "ÁMÁR, CENÁ NADII DAKŚIŃÁ",
+    "first_line": "ÁMÁR, CENÁ NADII DAKŚIŃÁ"
+  },
+  "4599": {
+    "title": "ULKÁ ASHANI BAHICHE VAHNI",
+    "first_line": "ULKÁ ASHANI BAHICHE VAHNI"
+  },
+  "4627": {
+    "title": "THÁKIBE NÁ KEU JE BÁ ÁSIÁCHE",
+    "first_line": "THÁKIBE NÁ KEU JE BÁ ÁSIÁCHE"
+  },
+  "4635": {
+    "title": "KÁJAL KÁLO MEGHE DEKHE",
+    "first_line": "KÁJAL KÁLO MEGHE DEKHE"
+  },
+  "4688": {
+    "title": "CHILE TUMI ÁMÁDER KÁCHE",
+    "first_line": "CHILE TUMI ÁMÁDER KÁCHE"
+  },
+  "4705": {
+    "title": "GOLÁP HOE UT́HACHE PHUT́E",
+    "first_line": "GOLÁP HOE UT́HACHE PHUT́E"
+  },
+  "4725": {
+    "title": "JÁDER/ JABE? KEU CHILO NÁ",
+    "first_line": "JÁDER/ JABE? KEU CHILO NÁ"
+  },
+  "4733": {
+    "title": "ÁNKHIYÁ TUMHI KO CÁHATI HAEN",
+    "first_line": "ÁNKHIYÁ TUMHI KO CÁHATI HAEN"
+  },
+  "4769": {
+    "title": "GHANA VARAŚÁY ÁJI KEKÁ GÁY",
+    "first_line": "GHANA VARAŚÁY ÁJI KEKÁ GÁY"
+  },
+  "4795": {
+    "title": "E GÁN THÁMIBE NÁ",
+    "first_line": "E GÁN THÁMIBE NÁ"
+  },
+  "4940": {
+    "title": "TOMÁRE BOLO KII NÁME D́ÁKI",
+    "first_line": "TOMÁRE BOLO KII NÁME D́ÁKI"
+  },
+  "4954": {
+    "title": "SHRÁVAŃII PURŃIMÁR KATHÁ",
+    "first_line": "SHRÁVAŃII PURŃIMÁR KATHÁ"
+  },
+  "4957": {
+    "title": "PHÁGUN EISYECHE RAUNGER ÁGUN LIYE",
+    "first_line": "PHÁGUN EISYECHE RAUNGER ÁGUN LIYE"
+  },
+  "4961": {
+    "title": "IŚT́A MANTRA MOR PRIYA PRÁŃÁDHIK",
+    "first_line": "IŚT́A MANTRA MOR PRIYA PRÁŃÁDHIK"
+  },
+  "4974": {
+    "title": "MATHURÁY KE ELO GO",
+    "first_line": "MATHURÁY KE ELO GO"
+  },
+  "4979": {
+    "title": "JÁTE HO KAHÁN, RAHATE HO KAHÁN",
+    "first_line": "JÁTE HO KAHÁN, RAHATE HO KAHÁN"
+  },
+  "4990": {
+    "title": "TU KE BHÁLOBÁSI TÁI BÁRE BÁRE ÁSI",
+    "first_line": "TU KE BHÁLOBÁSI TÁI BÁRE BÁRE ÁSI"
+  },
+  "5008": {
+    "title": "WE LOVE THAT GREAT ENTITY",
+    "first_line": "WE LOVE THAT GREAT ENTITY"
+  },
+  "5009": {
+    "title": "THIS LIFE IS FOR HIM",
+    "first_line": "THIS LIFE IS FOR HIM"
+  },
+  "5011": {
+    "title": "MEGH, MEGH, MEGH",
+    "first_line": "MEGH, MEGH, MEGH"
+  },
+  "5013": {
+    "title": "EGIE CALO, EGIE CALO",
+    "first_line": "EGIE CALO, EGIE CALO"
+  },
+  "5017": {
+    "title": "MODER, ÁNANDA NAGAR",
+    "first_line": "MODER, ÁNANDA NAGAR"
+  },
+  "5018": {
+    "title": "ÁMRÁ GAŔE NOBO GURUKUL",
+    "first_line": "ÁMRÁ GAŔE NOBO GURUKUL"
+  }
+}

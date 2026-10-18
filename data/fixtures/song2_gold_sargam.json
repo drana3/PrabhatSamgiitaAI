@@ -1,0 +1,57 @@
+{
+  "song_number": 2,
+  "title": "E Gan Amar, Alor Jharana Dhara",
+  "source_pdf": "RS_0001-0025.pdf",
+  "source_url": "https://sarkarverse.org/SARGAM/0001-1000/RS_0001-0025.pdf",
+  "pages": [10, 11],
+  "lines": [
+    {
+      "lyric": "E gan amar alor jharna",
+      "sargam": "Sa Re Ga á | Ga Dha Pa á | Re á Ga á | Sa á Re á"
+    },
+    {
+      "lyric": "dhara",
+      "sargam": "Ni á Sa á | á á á á"
+    },
+    {
+      "lyric": "Upala pathe",
+      "sargam": "Pa Dha Ga ma | Ga á á á"
+    },
+    {
+      "lyric": "dine rate",
+      "sargam": "Pa Dha Ga ma | Ga á á á"
+    },
+    {
+      "lyric": "Bahe jai",
+      "sargam": "Pa á Dha Pa | á á á á"
+    },
+    {
+      "lyric": "Bahe jai bandhanahara",
+      "sargam": "Ga ma Pa Dha | Pa Pa Ga ma | Ga á á á | Re á Ga á"
+    },
+    {
+      "lyric": "Alor jharnadhara",
+      "sargam": "Sa á Re á | Ni á Sa á | á á á á"
+    },
+    {
+      "lyric": "E path amar bandhura kantakabhara",
+      "sargam": "Sa Re Ga á | Ga Dha Pa á | Re á Ga Ga | Sa á Re Re"
+    },
+    {
+      "lyric": "Utsa hate pranera srote",
+      "sargam": "Ni á Sa á | á á á á | Pa á Ga ma | Ga á á á"
+    },
+    {
+      "lyric": "Bheunge jai",
+      "sargam": "Pa Pa Ga ma | Ga á á á | Pa á Dha Pa | á á á á"
+    },
+    {
+      "lyric": "Bheunge jai pasanakara",
+      "sargam": "Ga ma Pa Dha | Ga á á á | Re á Ga á | Sa á Re á"
+    },
+    {
+      "lyric": "Alor jharnadhara",
+      "sargam": "Ni á Sa á | á á á á"
+    }
+  ]
+}

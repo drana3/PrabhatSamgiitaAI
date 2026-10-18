@@ -1,6 +1,14 @@
+from app.models.admin_workflow import (
+    SongIngestionSubmission,
+    YoutubeReviewQueue,
+    YoutubeScanChannel,
+)
+from app.models.ai_usage import AiDailyUsage
+from app.models.announcements import PasswordResetToken, SiteAnnouncement
 from app.models.base import Base
 from app.models.chunk import SongChunk
 from app.models.domain import (
+    AnalyticsDaily,
     ContentAudit,
     ContentReport,
     Festival,
@@ -12,28 +20,76 @@ from app.models.domain import (
     SongSeasonLink,
     SongThemeLink,
     Theme,
+    UserFeedback,
+    UserFeedbackReply,
 )
 from app.models.inventory import InventoryItem
 from app.models.media import Media
+from app.models.member import (
+    CommunityTestimonial,
+    InspirationStoryRecord,
+    PhoneVerificationCode,
+    QuizAttempt,
+    QuizCertification,
+    QuizEvent,
+    QuizEventQuestion,
+    QuizEventSubmission,
+    ReflectionQuote,
+    UserAccount,
+    UserChatMessage,
+    UserCredential,
+    UserFavorite,
+    UserInterestProfile,
+    UserPlaylist,
+    UserPlaylistSong,
+)
 from app.models.notation import Notation
+from app.models.sargam_capture import NotationCapture
 from app.models.song import Song
 
 __all__ = [
+    "AiDailyUsage",
+    "AnalyticsDaily",
     "Base",
     "ContentAudit",
     "ContentReport",
+    "CommunityTestimonial",
     "Festival",
     "FestivalSongLink",
+    "InspirationStoryRecord",
     "InventoryItem",
     "Media",
     "Notation",
+    "NotationCapture",
+    "NotationCapture",
     "Occasion",
+    "PasswordResetToken",
+    "PhoneVerificationCode",
+    "QuizAttempt",
+    "QuizCertification",
+    "QuizEvent",
+    "QuizEventQuestion",
+    "QuizEventSubmission",
     "RecommendationAudit",
+    "ReflectionQuote",
     "Season",
     "Song",
     "SongChunk",
+    "SongIngestionSubmission",
     "SongOccasionLink",
     "SongSeasonLink",
     "SongThemeLink",
+    "SiteAnnouncement",
     "Theme",
+    "UserAccount",
+    "UserChatMessage",
+    "UserCredential",
+    "UserFavorite",
+    "UserFeedback",
+    "UserFeedbackReply",
+    "UserInterestProfile",
+    "UserPlaylist",
+    "UserPlaylistSong",
+    "YoutubeReviewQueue",
+    "YoutubeScanChannel",
 ]

@@ -1,0 +1,31 @@
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+index 13a6c60..36bc8b6 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+@@ -490,7 +490,7 @@ class MusicModule(reactContext: ReactApplicationContext) : NativeTrackPlayerSpec
+ 
+         val indexInt = index.toInt()
+         if (indexInt >= 0 && indexInt < musicService.tracks.size) {
+-            callback.resolve(Arguments.fromBundle(musicService.tracks[indexInt].originalItem))
++            callback.resolve(Arguments.fromBundle(musicService.tracks[indexInt].originalItem ?: Bundle()))
+         } else {
+             callback.resolve(null)
+         }
+@@ -499,7 +499,7 @@ class MusicModule(reactContext: ReactApplicationContext) : NativeTrackPlayerSpec
+     override fun getQueue(callback: Promise) = launchInScope {
+         if (verifyServiceBoundOrReject(callback)) return@launchInScope
+ 
+-        callback.resolve(Arguments.fromList(musicService.tracks.map { it.originalItem }))
++        callback.resolve(Arguments.fromList(musicService.tracks.map { it.originalItem ?: Bundle() }))
+     }
+ 
+     override fun setQueue(data: ReadableArray?, callback: Promise) = launchInScope {
+@@ -525,7 +525,7 @@ class MusicModule(reactContext: ReactApplicationContext) : NativeTrackPlayerSpec
+         if (verifyServiceBoundOrReject(callback)) return@launchInScope
+         callback.resolve(
+             musicService.currentTrack?.let {
+-                Arguments.fromBundle(it.originalItem)
++                Arguments.fromBundle(it.originalItem ?: Bundle())
+             }
+         )
+     }

@@ -5,6 +5,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        navy: {
+          50: "#f2f7fb",
+          100: "#dce9f3",
+          200: "#bad2e6",
+          300: "#89b2d1",
+          400: "#518db7",
+          500: "#326f9d",
+          600: "#255981",
+          700: "#204968",
+          800: "#1d3d57",
+          900: "#173248",
+          950: "#092d56",
+        },
+        gold: {
+          50: "#fff9eb",
+          100: "#faedc9",
+          200: "#f2d994",
+          300: "#e9bf5b",
+          400: "#dda038",
+          500: "#ca8a27",
+          600: "#ad6b1e",
+          700: "#8b4e1c",
+          800: "#743f1e",
+          900: "#63351e",
+        },
+        ivory: {
+          50: "#fffdf8",
+          100: "#fffaf0",
+          200: "#fbf1dc",
+        },
         ink: {
           50: "#f6f7fb",
           100: "#e6e8f3",
@@ -36,6 +66,10 @@ const config: Config = {
       backgroundImage: {
         aurora:
           "radial-gradient(circle at top left, rgba(255, 183, 103, 0.22), transparent 30%), radial-gradient(circle at top right, rgba(82, 97, 166, 0.2), transparent 28%), linear-gradient(180deg, #f7f8fb 0%, #eef1f8 100%)",
+      },
+      fontFamily: {
+        serif: ["var(--font-serif)"],
+        sans: ["var(--font-sans)"],
       },
     },
   },

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     database_url: str = Field(default="", alias="DATABASE_URL")
+    faiss_index_dir: str = Field(default="./data/generated/faiss", alias="FAISS_INDEX_DIR")
+    faiss_index_url: str | None = Field(default=None, alias="FAISS_INDEX_URL")
     api_cors_origins: str = Field(default="http://localhost:3000", alias="API_CORS_ORIGINS")
     trusted_hosts: str = Field(
         default="localhost,127.0.0.1,testserver,acceptance",
@@ -19,9 +21,24 @@ class Settings(BaseSettings):
     )
     max_request_bytes: int = Field(default=1_048_576, alias="MAX_REQUEST_BYTES", ge=1024)
     admin_api_key_hash: str | None = Field(default=None, alias="ADMIN_API_KEY_HASH")
+    member_proxy_key: str | None = Field(default=None, alias="MEMBER_PROXY_KEY")
     scheduler_enabled: bool = Field(default=False, alias="SCHEDULER_ENABLED")
     cache_ttl_seconds: int = Field(default=300, alias="CACHE_TTL_SECONDS", ge=1)
     cache_max_entries: int = Field(default=500, alias="CACHE_MAX_ENTRIES", ge=1)
+    # Keep in-process catalog memory aligned with Postgres (Neon) without user-visible lag.
+    catalog_poll_enabled: bool = Field(default=True, alias="CATALOG_POLL_ENABLED")
+    catalog_poll_interval_seconds: int = Field(
+        default=600, alias="CATALOG_POLL_INTERVAL_SECONDS", ge=5, le=600
+    )
+    catalog_poll_initial_delay_seconds: int = Field(
+        default=5, alias="CATALOG_POLL_INITIAL_DELAY_SECONDS", ge=0, le=120
+    )
+    catalog_poll_lookback_minutes: int = Field(
+        default=30, alias="CATALOG_POLL_LOOKBACK_MINUTES", ge=1, le=1440
+    )
+    catalog_poll_overlap_seconds: int = Field(
+        default=90, alias="CATALOG_POLL_OVERLAP_SECONDS", ge=0, le=600
+    )
     content_source_url: str = Field(
         default="https://prabhatasamgiita.net",
         alias="CONTENT_SOURCE_URL",
@@ -48,6 +65,16 @@ class Settings(BaseSettings):
         default="2025-04-01-preview",
         alias="AZURE_OPENAI_RESPONSES_API_VERSION",
     )
+    # Keep in sync with packages/core/src/ai-companion-quota.ts (15 guest / 50 signed-in).
+    ai_daily_guest_limit: int = Field(default=15, alias="AI_DAILY_GUEST_LIMIT", ge=1)
+    ai_daily_member_limit: int = Field(default=50, alias="AI_DAILY_MEMBER_LIMIT", ge=1)
+    default_admin_emails: str = Field(default="", alias="DEFAULT_ADMIN_EMAILS")
+    protected_admin_emails: str = Field(default="", alias="PROTECTED_ADMIN_EMAILS")
+    acs_email_connection_string: str | None = Field(
+        default=None, alias="ACS_EMAIL_CONNECTION_STRING"
+    )
+    acs_email_from: str | None = Field(default=None, alias="ACS_EMAIL_FROM")
+    acs_email_enabled: bool = Field(default=False, alias="ACS_EMAIL_ENABLED")
 
 
 @lru_cache(maxsize=1)

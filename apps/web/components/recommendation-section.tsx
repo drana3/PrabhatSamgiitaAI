@@ -1,97 +1,144 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
 
-import { RecommendationForm } from "@/components/recommendation-form"
-import { SongCard } from "@/components/song-card"
-import type { SongSummary } from "@/lib/api"
-import { recommendSongs } from "@/lib/api"
-import { getAutoRecommendationPreset, quickRecommendationPresets } from "@/lib/recommendation-presets"
-import seedSongs from "../../../data/seed/songs.json"
+import { LoadingIndicator } from "@/components/loading-indicator"
+import { fetchTodayRecommendations, recommendSongs } from "@/lib/api"
+import type { SongSummary, TodayRecommendations } from "@/lib/api"
+import { publicContextLink } from "@/lib/context-links"
+import {
+  HOME_CACHE_KEYS,
+  HOME_CACHE_TTL,
+  readHomeCache,
+  readHomeCacheStale,
+  writeHomeCache,
+} from "@/lib/home-cache"
+import {
+  getAutoRecommendationPreset,
+  getUpcomingObservances,
+  type RecommendationPreset,
+  type UpcomingObservation,
+} from "@/lib/recommendation-presets"
+import { songPagePath } from "@/lib/song-path"
+
+function readCachedToday(): TodayRecommendations | null {
+  return (
+    readHomeCache<TodayRecommendations>(HOME_CACHE_KEYS.today(), HOME_CACHE_TTL.today) ??
+    readHomeCacheStale<TodayRecommendations>(HOME_CACHE_KEYS.today())
+  )
+}
+
+const defaultFallbackPreset: RecommendationPreset = {
+  title: "Song of the Day",
+  subtitle: "",
+}
 
 export function RecommendationSection() {
-  const [results, setResults] = useState<SongSummary[]>(seedSongs.slice(0, 4) as SongSummary[])
-  const [presetKey, setPresetKey] = useState("auto")
-  const presets = useMemo(() => quickRecommendationPresets(), [])
-  const autoPreset = useMemo(() => getAutoRecommendationPreset(), [])
+  const [results, setResults] = useState<SongSummary[]>([])
+  const [today, setToday] = useState<TodayRecommendations | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [upcoming, setUpcoming] = useState<UpcomingObservation[]>([])
+  const [fallbackPreset, setFallbackPreset] = useState<RecommendationPreset>(defaultFallbackPreset)
 
-  const activePreset = useMemo(() => {
-    if (presetKey === "auto") return autoPreset
-    return presets.find((item) => item.id === presetKey)?.preset ?? autoPreset
-  }, [autoPreset, presetKey, presets])
+  useEffect(() => {
+    setUpcoming(getUpcomingObservances())
+    setFallbackPreset(getAutoRecommendationPreset())
+  }, [])
 
   useEffect(() => {
     let active = true
-    const run = async () => {
-      try {
-        const next = await recommendSongs(activePreset)
-        if (active && next.length > 0) {
-          setResults(next)
-        }
-      } catch {
-        // keep the seed results visible
+    const cached = readCachedToday()
+    if (cached) {
+      setToday(cached)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
+    void fetchTodayRecommendations().then(async (value) => {
+      if (!active) return
+      if (value) {
+        writeHomeCache(HOME_CACHE_KEYS.today(), value)
+        setToday(value)
+        setResults([])
+        return
       }
-    }
-    void run()
-    return () => {
-      active = false
-    }
-  }, [activePreset])
+      const fallback = await recommendSongs(fallbackPreset)
+      if (active) {
+        setToday(null)
+        setResults(fallback)
+      }
+    }).finally(() => {
+      if (active) setLoading(false)
+    })
+    return () => { active = false }
+  }, [fallbackPreset])
+
+  const contextSignal = today?.signals.find(
+    (signal) => signal.category === "festival" || signal.category === "song_of_the_day",
+  )
+  const contextTitle = today?.context.festival
+    ? String(today.context.festival)
+    : today
+      ? "Song of the Day"
+      : fallbackPreset.title
+  const contextSummary =
+    contextSignal?.summary
+    || (today?.context.festival ? fallbackPreset.subtitle : "")
+  const contextLink = contextSignal?.category === "festival" ? publicContextLink(contextSignal.source_url) : null
+  const strictFestivalWithoutSongs = today?.context.recommendation_mode === "strict_festival" && !today.recommendations.length
 
   return (
-    <div className="mt-5 space-y-4">
-      <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/25 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.2)]">
+    <div className="surface-card overflow-hidden shadow-[0_24px_70px_rgba(29,43,66,0.12)]">
+      <div className="border-b border-navy-900/10 bg-gradient-to-r from-gold-50 to-white p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.35em] text-ember-200">Automatic recommendation</p>
-            <h3 className="mt-2 font-serif text-2xl text-white">{activePreset.title}</h3>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-100">{activePreset.subtitle}</p>
+            <p className="eyebrow">{today?.context.festival ? "Festival day" : "Song of the Day"}</p>
+            <h3 className="mt-2 font-serif text-3xl text-navy-950">{contextTitle}</h3>
+            {contextSummary ? (
+              <p className="mt-2 max-w-xl text-sm leading-6 text-stone-600">{contextSummary}</p>
+            ) : null}
+            {contextLink && contextSignal ? <a href={contextLink} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-semibold text-gold-700 underline decoration-gold-400 underline-offset-4">Context from {contextSignal.source_name} ↗</a> : null}
           </div>
-          <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-amber-50">
-            Based on today
-          </span>
+          {loading ? <LoadingIndicator label="Finding songs" compact /> : <span className="text-xs font-semibold text-emerald-700">Updated for today</span>}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {presets.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setPresetKey(item.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                presetKey === item.id
-                  ? "border-ember-300 bg-ember-500 text-white"
-                  : "border-white/15 bg-white/5 text-slate-100 hover:border-ember-300 hover:bg-white/10"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        <details className="group mt-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-          <summary className="cursor-pointer list-none text-sm font-semibold text-white">
-            More ways to refine
-          </summary>
-          <p className="mt-2 text-sm leading-6 text-slate-100">
-            Keep the main experience simple. Open this only if you want a specific date, mood, language, or
-            meditation setting.
-          </p>
-          <div className="mt-4">
-            <RecommendationForm onResults={setResults} />
-          </div>
-        </details>
       </div>
-      {results.length > 0 ? (
-        <div className="grid gap-3">
-          {results.slice(0, 4).map((song) => (
-            <SongCard key={song.number} song={song} />
+
+      <div aria-busy={loading} className="divide-y divide-navy-900/10 px-5 sm:px-6">
+        {today?.recommendations.length ? today.recommendations.slice(0, 3).map((song) => (
+          <article key={song.number} className="py-4">
+            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span>
+              <div className="min-w-0 flex-1"><Link href={songPagePath(song.number)} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">{song.title}</Link><p className="truncate text-xs text-stone-500">{song.reasons[0] || "For today's reflection"}</p></div>
+              <Link href={songPagePath(song.number)} className="soft-chip shrink-0">Open song →</Link>
+            </div>
+          </article>
+        )) : results.length ? results.slice(0, 3).map((song) => (
+          <article key={song.number} className="flex flex-wrap items-center gap-4 py-4 sm:flex-nowrap"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy-950 font-serif text-sm text-white">{song.number}</span><div className="min-w-0 flex-1"><Link href={songPagePath(song.number)} className="block truncate font-serif text-lg font-semibold text-navy-950 hover:text-gold-700">{song.title}</Link><p className="truncate text-xs text-stone-500">{song.theme || song.mood || "A song for reflection"}</p></div><Link href={songPagePath(song.number)} className="soft-chip shrink-0">Open song →</Link></article>
+        )) : <div className="py-6 text-center"><p className="font-serif text-xl text-navy-950">{strictFestivalWithoutSongs ? `No source-verified songs are assigned specifically to ${contextTitle} yet` : "A fresh selection is on its way"}</p><p className="mt-2 text-sm leading-6 text-stone-600">{strictFestivalWithoutSongs ? "We will not mix unrelated songs into this observance. You can still explore the complete Prabhat Samgiita collection." : "Browse the complete collection while today’s recommendations reconnect."}</p><Link href="/explore" className="outline-button mt-4">Explore songs</Link></div>}
+      </div>
+
+      {today?.recommendations.length ? <p className="border-t border-navy-900/10 px-5 py-3 text-xs leading-5 text-stone-500 sm:px-6">{today.disclaimer}</p> : null}
+
+      <section aria-labelledby="upcoming-observances-title" className="border-t border-navy-900/10 bg-navy-950 p-5 text-white sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-gold-300">Ananda Marga calendar</p>
+            <h4 id="upcoming-observances-title" className="mt-2 font-serif text-2xl">Upcoming observances</h4>
+          </div>
+          <span className="text-xs text-navy-200">Songs prepared for what is ahead</span>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {upcoming.map((observance) => (
+            <Link key={observance.title} href={`/explore?q=${encodeURIComponent(observance.query)}&kind=catalog#catalog-search`} className="rounded-xl border border-white/15 bg-white/8 p-3 transition hover:border-gold-300 hover:bg-white/12">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-gold-300">{observance.dateLabel}</span>
+              <span className="mt-1 block text-sm font-semibold text-white">{observance.title}</span>
+              <span className="mt-2 block text-[11px] text-navy-200">{observance.daysUntil === 0 ? "Today" : `In ${observance.daysUntil} days`} · Find songs →</span>
+            </Link>
           ))}
         </div>
-      ) : (
-        <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 p-5 text-sm leading-6 text-slate-100">
-          A fresh recommendation will appear here automatically.
-        </div>
-      )}
+        <a href="https://india.anandamarga.org/ananda-marga-festivals-imp-days/" target="_blank" rel="noreferrer" className="mt-4 inline-flex text-[11px] font-semibold text-gold-200 underline decoration-gold-300/60 underline-offset-4">Reviewed 2026 Ananda Marga calendar ↗</a>
+      </section>
     </div>
   )
 }

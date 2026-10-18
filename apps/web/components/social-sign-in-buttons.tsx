@@ -1,0 +1,132 @@
+"use client"
+
+import { useState } from "react"
+
+import { LoadingIndicator } from "@/components/loading-indicator"
+import { webGoogleEasyAuthFallbackEnabled, webMicrosoftSignInEnabled } from "@/lib/web-auth-policy"
+import {
+  startFacebookOAuth,
+  startGoogleEasyAuth,
+  startGoogleOAuth,
+  webFacebookOAuthConfigured,
+  webGoogleOAuthConfigured,
+} from "@/lib/web-oauth"
+import { facebookSignInHref } from "@/lib/sign-in"
+import { startMicrosoftEasyAuth } from "@/lib/microsoft-auth"
+
+export function MicrosoftSignInButton({ next }: { next: string }) {
+  const [busy, setBusy] = useState(false)
+
+  if (!webMicrosoftSignInEnabled()) return null
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => {
+        if (busy) return
+        setBusy(true)
+        startMicrosoftEasyAuth(next)
+      }}
+      className="outline-button justify-center py-3.5"
+    >
+      {busy ? <LoadingIndicator label="Opening Microsoft…" compact /> : "Continue with Microsoft"}
+    </button>
+  )
+}
+
+export function GoogleSignInButton({ next }: { next: string }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const directOAuth = webGoogleOAuthConfigured()
+
+  const onClick = () => {
+    if (!directOAuth || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      startGoogleOAuth(next)
+    } catch (submitError) {
+      setBusy(false)
+      setError(submitError instanceof Error ? submitError.message : "Google sign-in failed.")
+    }
+  }
+
+  if (!directOAuth) {
+    if (!webGoogleEasyAuthFallbackEnabled()) {
+      return (
+        <p className="rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm text-stone-600">
+          Google sign-in is not configured for this environment.
+        </p>
+      )
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => startGoogleEasyAuth(next)}
+        className="outline-button justify-center py-3.5"
+      >
+        Continue with Google
+      </button>
+    )
+  }
+
+  return (
+    <div className="grid gap-1">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onClick}
+        className="outline-button justify-center py-3.5"
+      >
+        {busy ? <LoadingIndicator label="Opening Google…" compact /> : "Continue with Google"}
+      </button>
+      {busy ? (
+        <p className="text-xs leading-5 text-stone-600">
+          Preparing a secure sign-in. This can take a few seconds on mobile.
+        </p>
+      ) : null}
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+    </div>
+  )
+}
+
+export function FacebookSignInButton({ next }: { next: string }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const directOAuth = webFacebookOAuthConfigured()
+
+  const onClick = () => {
+    if (!directOAuth || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      startFacebookOAuth(next)
+    } catch (submitError) {
+      setBusy(false)
+      setError(submitError instanceof Error ? submitError.message : "Facebook sign-in failed.")
+    }
+  }
+
+  if (!directOAuth) {
+    return (
+      <a href={facebookSignInHref(next)} className="outline-button justify-center py-3.5">
+        Continue with Facebook
+      </a>
+    )
+  }
+
+  return (
+    <div className="grid gap-1">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onClick}
+        className="outline-button justify-center py-3.5"
+      >
+        {busy ? <LoadingIndicator label="Opening Facebook…" compact /> : "Continue with Facebook"}
+      </button>
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+    </div>
+  )
+}

@@ -27,12 +27,56 @@ class TodayRecommendationItem(BaseModel):
     score: float
     reasons: list[str] = Field(default_factory=list)
     is_verified: bool
+    audio_url: str | None = None
+    video_embed_url: str | None = None
+    notation_available: bool = False
+
+
+class ContextSignalResponse(BaseModel):
+    title: str
+    category: str
+    summary: str
+    source_name: str
+    source_url: str
 
 
 class TodayResponse(BaseModel):
     context: dict[str, Any]
     recommendations: list[TodayRecommendationItem]
+    signals: list[ContextSignalResponse] = Field(default_factory=list)
     disclaimer: str
+
+
+class ReflectionQuoteResponse(BaseModel):
+    quote_text: str
+    attribution: str
+    source_title: str
+    source_url: str
+    source_date: str | None = None
+    context_label: str
+    verification_status: str
+
+
+class CommunityTestimonialResponse(BaseModel):
+    quote_text: str
+    display_name: str
+    display_location: str | None = None
+    avatar_url: str | None = None
+
+
+class InspirationStoryResponse(BaseModel):
+    slug: str
+    title: str
+    author: str
+    teaser: str
+    read_path: str
+    source_url: str
+    themes: list[str] = Field(default_factory=list)
+    song_numbers: list[int] = Field(default_factory=list)
+
+
+class InspirationStoryDetailResponse(InspirationStoryResponse):
+    body_paragraphs: list[str] = Field(default_factory=list)
 
 
 class ContentReportRequest(BaseModel):
@@ -55,3 +99,31 @@ class ContentReportResponse(BaseModel):
     report_id: str
     status: str
     message: str
+
+
+class UserFeedbackRequest(BaseModel):
+    category: Literal[
+        "experience",
+        "content",
+        "search",
+        "audio_video",
+        "ai",
+        "accessibility",
+        "devanagari",
+        "other",
+    ]
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(min_length=3, max_length=2000)
+    page_path: str | None = Field(default=None, max_length=512)
+    contact: str | None = Field(default=None, max_length=320)
+
+
+class UserFeedbackResponse(BaseModel):
+    feedback_id: str
+    status: str
+    message: str
+
+
+class AnalyticsEventRequest(BaseModel):
+    metric_type: Literal["page_view", "feature_use"]
+    dimension: str = Field(min_length=1, max_length=256, pattern=r"^[a-zA-Z0-9/_-]+$")

@@ -6,40 +6,38 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urljoin
 
+from app.services.notation_links import ANDROMEDA_ARCHIVE, learner_notation_url
+
 DATA_DIR = Path(__file__).resolve().parents[4] / "data"
+
+
+def is_roman_practice_draft(row: dict[str, Any] | None) -> bool:
+    """True for Roman RS booklet OCR. Bengali PDF drafts are not shown as notation."""
+    if not row:
+        return False
+    meta_raw = row.get("metadata_json")
+    meta: dict[str, Any] = meta_raw if isinstance(meta_raw, dict) else {}
+    kind = str(meta.get("source_kind") or "")
+    method = str(meta.get("extraction_method") or "").lower()
+    return kind == "sarkarverse_roman_ocr" or "roman" in method
 
 
 @lru_cache(maxsize=8)
 def load_rows(filename: str) -> list[dict[str, Any]]:
     generated = _read_rows(DATA_DIR / "generated" / filename)
-    if filename == "media.json":
-        generated = _merge_unique(
+    if filename == "notations.json":
+        generated = _merge_notation_practice(
             generated,
-            _read_rows(DATA_DIR / "generated" / "external_audio.json"),
-            "url",
+            _read_rows(DATA_DIR / "generated" / "notation_practice.json"),
         )
+        generated = _merge_expert_notation(generated, _read_expert_notation_rows())
+    if filename == "media.json":
         generated = _merge_unique(
             generated,
             _read_rows(DATA_DIR / "generated" / "youtube_videos.json"),
             "url",
         )
     if filename == "inventory.json":
-        external_audio_inventory = [
-            {
-                "source_kind": "audio",
-                "title": row["title"],
-                "url": row["url"],
-                "status": "active",
-                "metadata_json": {
-                    **(row.get("metadata_json") or {}),
-                    "song_number": row.get("song_number"),
-                    "discovered_from": row.get("source_url"),
-                },
-                "notes": row.get("notes"),
-            }
-            for row in _read_rows(DATA_DIR / "generated" / "external_audio.json")
-        ]
-        generated = _merge_unique(generated, external_audio_inventory, "url")
         video_inventory = [
             {
                 "source_kind": "video",
@@ -75,6 +73,170 @@ def load_rows(filename: str) -> list[dict[str, Any]]:
     return _merge_unique(generated, seed, key)
 
 
+def _read_expert_notation_rows() -> list[dict[str, Any]]:
+    expert_dir = DATA_DIR / "curated" / "expert_notation"
+    if not expert_dir.is_dir():
+        return []
+    rows: list[dict[str, Any]] = []
+    for path in sorted(expert_dir.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict) or not payload.get("song_number"):
+            continue
+        notation_text = payload.get("notation_text")
+        if isinstance(notation_text, dict):
+            payload = {
+                **payload,
+                "notation_text": json.dumps(notation_text, ensure_ascii=False),
+            }
+        rows.append(payload)
+    return rows
+
+
+def _merge_expert_notation(
+    sources: list[dict[str, Any]],
+    expert_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Expert-curated sheets override OCR practice drafts for the same song."""
+    experts = {row.get("song_number"): row for row in expert_rows if row.get("notation_text")}
+    if not experts:
+        return sources
+    merged: list[dict[str, Any]] = []
+    covered: set[Any] = set()
+    for source in sources:
+        row = dict(source)
+        expert = experts.get(row.get("song_number"))
+        if expert:
+            covered.add(row.get("song_number"))
+            source_meta = dict(row.get("metadata_json") or {})
+            expert_meta = dict(expert.get("metadata_json") or {})
+            prior_status = row.get("verification_status", "unverified")
+            row["notation_text"] = expert.get("notation_text")
+            row["scale"] = expert.get("scale") or row.get("scale") or "C"
+            row["verification_status"] = expert.get("verification_status", "expert_verified")
+            row["source_url"] = learner_notation_url(
+                expert.get("source_url"),
+                row.get("source_url"),
+                *(source_meta.get("source_urls") or []),
+                *(expert_meta.get("source_urls") or []),
+            )
+            row["metadata_json"] = {
+                **source_meta,
+                **expert_meta,
+                "source_verification_status": prior_status,
+                "archive_url": ANDROMEDA_ARCHIVE,
+                "expert_overrides_practice": True,
+            }
+        merged.append(row)
+    for number, expert in experts.items():
+        if number in covered:
+            continue
+        expert_meta = dict(expert.get("metadata_json") or {})
+        merged.append(
+            {
+                "song_number": number,
+                "source_url": learner_notation_url(
+                    expert.get("source_url"),
+                    *(expert_meta.get("source_urls") or []),
+                ),
+                "notation_text": expert.get("notation_text"),
+                "scale": expert.get("scale") or "C",
+                "verification_status": expert.get("verification_status", "expert_verified"),
+                "metadata_json": {
+                    **expert_meta,
+                    "archive_url": ANDROMEDA_ARCHIVE,
+                    "expert_overrides_practice": True,
+                },
+            }
+        )
+    return merged
+
+
+def _merge_notation_practice(
+    sources: list[dict[str, Any]],
+    practice_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    drafts = {row.get("song_number"): row for row in practice_rows}
+    merged: list[dict[str, Any]] = []
+    for source in sources:
+        row = dict(source)
+        draft = drafts.get(row.get("song_number"))
+        source_meta = dict(row.get("metadata_json") or {})
+        if draft and is_roman_practice_draft(draft):
+            source_verification_status = row.get("verification_status", "unverified")
+            draft_meta = dict(draft.get("metadata_json") or {})
+            row["notation_text"] = draft.get("notation_text")
+            row["scale"] = draft.get("scale") or "C"
+            row["verification_status"] = draft.get("verification_status", "practice_draft")
+            row["source_url"] = learner_notation_url(
+                row.get("source_url"),
+                *(source_meta.get("source_urls") or []),
+                draft.get("source_url"),
+                *(draft_meta.get("source_urls") or []),
+            )
+            row["metadata_json"] = {
+                **source_meta,
+                **draft_meta,
+                "source_verification_status": source_verification_status,
+                "archive_url": ANDROMEDA_ARCHIVE,
+                "source_urls": [
+                    url
+                    for url in (
+                        *(source_meta.get("source_urls") or []),
+                        row.get("source_url"),
+                    )
+                    if url and "sarkarverse.org" not in str(url).lower()
+                ]
+                or [row["source_url"]],
+            }
+        else:
+            row["metadata_json"] = {
+                **source_meta,
+                "archive_url": source_meta.get("archive_url")
+                or "https://prabhatasamgiita.net/notations/andromeda.php",
+                "learner_notice": (
+                    "Canonical Andromeda notation PDF is available. "
+                    "Interactive Hindi Sargam appears after OCR practice extraction."
+                ),
+            }
+        merged.append(row)
+    covered = {row.get("song_number") for row in merged}
+    for number, draft in drafts.items():
+        if number in covered or not draft.get("notation_text"):
+            continue
+        if not is_roman_practice_draft(draft):
+            continue
+        draft_meta = dict(draft.get("metadata_json") or {})
+        merged.append(
+            {
+                "song_number": number,
+                "source_url": learner_notation_url(
+                    draft.get("source_url"),
+                    *(draft_meta.get("source_urls") or []),
+                ),
+                "notation_text": draft.get("notation_text"),
+                "scale": draft.get("scale") or "C",
+                "verification_status": draft.get("verification_status", "practice_draft"),
+                "metadata_json": {
+                    **draft_meta,
+                    "source_verification_status": draft.get(
+                        "verification_status", "practice_draft"
+                    ),
+                    "archive_url": ANDROMEDA_ARCHIVE,
+                    "source_urls": [
+                        learner_notation_url(
+                            draft.get("source_url"),
+                            *(draft_meta.get("source_urls") or []),
+                        )
+                    ],
+                },
+            }
+        )
+    return merged
+
+
 def _read_rows(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -83,9 +245,7 @@ def _read_rows(path: Path) -> list[dict[str, Any]]:
         for row in rows:
             source_url = row.get("canonical_source_url")
             if isinstance(source_url, str) and source_url.startswith("/"):
-                row["canonical_source_url"] = urljoin(
-                    "https://prabhatasamgiita.net", source_url
-                )
+                row["canonical_source_url"] = urljoin("https://prabhatasamgiita.net", source_url)
     return rows
 
 
@@ -107,15 +267,9 @@ def _merge_songs(
         assignment = assignments.get(row.get("number"))
         if assignment:
             row["theme"] = ", ".join(assignment.get("themes", [])) or row.get("theme")
-            row["festival"] = ", ".join(assignment.get("festivals", [])) or row.get(
-                "festival"
-            )
-            row["occasion"] = ", ".join(assignment.get("occasions", [])) or row.get(
-                "occasion"
-            )
-            row["season"] = ", ".join(assignment.get("seasons", [])) or row.get(
-                "season"
-            )
+            row["festival"] = ", ".join(assignment.get("festivals", [])) or row.get("festival")
+            row["occasion"] = ", ".join(assignment.get("occasions", [])) or row.get("occasion")
+            row["season"] = ", ".join(assignment.get("seasons", [])) or row.get("season")
             languages = assignment.get("languages", [])
             if languages:
                 row["language"] = ", ".join(languages)

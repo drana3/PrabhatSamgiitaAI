@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -164,6 +164,48 @@ class ContentReport(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(32), default="new", server_default="new", nullable=False
     )
+
+
+class UserFeedback(Base, TimestampMixin):
+    __tablename__ = "user_feedback"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    category: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str] = mapped_column(Text, nullable=False)
+    page_path: Mapped[str | None] = mapped_column(String(512))
+    contact: Mapped[str | None] = mapped_column(String(320))
+    status: Mapped[str] = mapped_column(
+        String(32), default="new", server_default="new", nullable=False
+    )
+
+
+class UserFeedbackReply(Base, TimestampMixin):
+    __tablename__ = "user_feedback_replies"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    feedback_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("user_feedback.id", ondelete="CASCADE"), index=True
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    author_label: Mapped[str] = mapped_column(String(320), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), default="admin", server_default="admin")
+    email_delivered: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+
+
+class AnalyticsDaily(Base, TimestampMixin):
+    __tablename__ = "analytics_daily"
+    __table_args__ = (
+        UniqueConstraint("metric_date", "metric_type", "dimension", name="uq_analytics_daily"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    metric_date: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    metric_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    dimension: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    count: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
 
 
 class ContentAudit(Base, TimestampMixin):

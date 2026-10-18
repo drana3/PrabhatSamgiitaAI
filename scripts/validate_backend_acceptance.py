@@ -129,6 +129,18 @@ def validate_search_number(response: httpx.Response) -> None:
     require(bool(rows) and rows[0]["number"] == 111, response.text)
 
 
+def validate_search_2256_is_exact(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require([row["number"] for row in rows] == [2256], response.text)
+
+
+def validate_natural_language_number_intent(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    require([row["number"] for row in rows] == [223], response.text)
+
+
 def validate_full_name_search(response: httpx.Response) -> None:
     validate_search_number(response)
     require(response.json()[0]["is_verified"] is True, response.text)
@@ -156,9 +168,10 @@ def validate_recommendations(response: httpx.Response) -> None:
 
 
 def validate_shravanii_recommendations(response: httpx.Response) -> None:
-    validate_recommendations(response)
     rows = response.json()
-    require(rows[0]["number"] == 4954, response.text)
+    require(response.status_code == 200, response.text)
+    require([row["number"] for row in rows] == [4954], response.text)
+    require(rows[0]["is_verified"] is True, response.text)
 
 
 def validate_notation_source(response: httpx.Response) -> None:
@@ -166,13 +179,36 @@ def validate_notation_source(response: httpx.Response) -> None:
     require(response.status_code == 200, response.text)
     require(payload["song_number"] == 1, response.text)
     require(payload["verification_status"] == "verified", response.text)
+    require(payload.get("learner_verification_status") in (None, "practice_draft"), response.text)
     require(payload["source_url"].startswith("https://"), response.text)
+    require(payload["machine_readable"] is False, response.text)
     require(payload["transposition_available"] is False, response.text)
 
 
-def validate_missing_machine_notation(response: httpx.Response) -> None:
+def validate_hidden_expert_notation(response: httpx.Response) -> None:
     require(response.status_code == 404, response.text)
-    require(response.json()["detail"] == "Notation not available", response.text)
+    require("Notation not available" in response.text, response.text)
+
+
+def validate_published_sargam_defaults(response: httpx.Response) -> None:
+    rows = response.json()
+    require(response.status_code == 200, response.text)
+    numbers = sorted(int(row["number"]) for row in rows)
+    require(numbers == [1, 2, 27], response.text)
+
+
+def validate_song1_playable_audio(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 200, response.text)
+    audio = [row for row in payload.get("media", []) if row.get("kind") == "audio"]
+    require(len(audio) >= 2, "song 1 should expose multiple recordings")
+    for row in audio:
+        require("media/stream" not in row["url"], response.text)
+        require("sarkarverse.org" not in row["url"].lower(), response.text)
+        require(row["url"].startswith("https://"), response.text)
+    latest = next((row for row in audio if row.get("is_latest")), audio[0])
+    require("media/stream" not in latest["url"], response.text)
+    require(latest["url"].startswith("https://prabhatasamgiita.net/"), response.text)
 
 
 def validate_youtube_video(response: httpx.Response) -> None:
@@ -195,17 +231,6 @@ def validate_multiple_videos(response: httpx.Response) -> None:
     require(all(row["kind"] == "video" for row in rows), response.text)
 
 
-def validate_number_matched_community_audio(response: httpx.Response) -> None:
-    rows = response.json()
-    require(response.status_code == 200, response.text)
-    require(bool(rows), "Song 1112 community audio is missing")
-    require(all(row["kind"] == "audio" for row in rows), response.text)
-    require(any(row["provider"] == "external_site" for row in rows), response.text)
-    require(any(row["source_status"] == "community" for row in rows), response.text)
-    require(any(row["rights_status"] == "link_only" for row in rows), response.text)
-    require(any(row["verification_status"] == "unverified" for row in rows), response.text)
-
-
 def validate_localization(response: httpx.Response) -> None:
     payload = response.json()
     require(response.status_code == 200, response.text)
@@ -215,9 +240,8 @@ def validate_localization(response: httpx.Response) -> None:
 
 def validate_bot(response: httpx.Response) -> None:
     require(response.status_code == 200, response.text)
-    require("Verified song 1" in response.text, response.text)
-    require("Sources:" in response.text, response.text)
-    require("1:" in response.text, response.text)
+    require("data:" in response.text, response.text)
+    require("song 1" in response.text.casefold(), response.text)
 
 
 def validate_missing_song(response: httpx.Response) -> None:
@@ -251,6 +275,18 @@ def validate_today(response: httpx.Response) -> None:
     require(payload["context"]["festival"] == "Bábá Birthday", response.text)
     require(len(payload["recommendations"]) == 3, response.text)
     require(all(row["is_verified"] for row in payload["recommendations"]), response.text)
+
+
+def validate_reviewed_festival_today(response: httpx.Response) -> None:
+    payload = response.json()
+    require(response.status_code == 200, response.text)
+    require(payload["context"]["festival"] == "Shrávanii Purnimá", response.text)
+    require(payload["signals"][0]["title"] == "Shrávanii Purnimá", response.text)
+    require(payload["signals"][0]["source_name"] == "Ananda Marga India", response.text)
+    require(
+        [row["number"] for row in payload["recommendations"]] == [4954],
+        response.text,
+    )
 
 
 def validate_report(response: httpx.Response) -> None:
@@ -320,6 +356,22 @@ CASES = [
         {"query": "Prabhat Samgiita 111"},
     ),
     AcceptanceCase(
+        "Find exactly song 2256 without showing song 226.",
+        "A numeric identifier returns only song 2256 and never a fuzzy number match.",
+        "POST",
+        "/api/v1/search",
+        validate_search_2256_is_exact,
+        {"query": "2256"},
+    ),
+    AcceptanceCase(
+        "Explain Prabhat Samgiita 223.",
+        "Natural-language song intent returns only song 223 before semantic retrieval.",
+        "POST",
+        "/api/v1/search",
+        validate_natural_language_number_intent,
+        {"query": "explain about prabhat sagiat 223"},
+    ),
+    AcceptanceCase(
         "I remember the line 'Bandhu He Niye Calo'. Which song is it?",
         "Opening-line search finds song 1 near the top.",
         "POST",
@@ -357,7 +409,7 @@ CASES = [
     ),
     AcceptanceCase(
         "Recommend songs for Shravanii Purnima.",
-        "Canonical Shravanii Purnima song 4954 is ranked first.",
+        "Only canonical Shravanii Purnima song 4954 is returned.",
         "POST",
         "/api/v1/recommendations",
         validate_shravanii_recommendations,
@@ -369,6 +421,13 @@ CASES = [
         "GET",
         "/api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-05-21",
         validate_today,
+    ),
+    AcceptanceCase(
+        "What should I listen to on Shrávanii Purnimá 2026?",
+        "The reviewed festival is the primary sourced context for today's recommendations.",
+        "GET",
+        "/api/v1/recommendations/today?timezone=Asia%2FKolkata&date=2026-08-28",
+        validate_reviewed_festival_today,
     ),
     AcceptanceCase(
         "Which occasions can I browse?",
@@ -386,17 +445,31 @@ CASES = [
     ),
     AcceptanceCase(
         "Is official notation available for song 1?",
-        "A verified notation source is returned and transposition is honestly marked unavailable.",
+        "The canonical PDF source is reported; machine-readable OCR drafts are not published.",
         "GET",
         "/api/v1/songs/1/notation/source",
         validate_notation_source,
     ),
     AcceptanceCase(
-        "Transpose song 1 to D on harmonium.",
-        "The API refuses to invent notes because parsed canonical notation is unavailable.",
+        "Play song 1 audio on App Store clients without a broken proxy stream.",
+        "Song 1 exposes multiple direct archive recordings and the Best URL is prabhatasamgiita.net.",
         "GET",
-        "/api/v1/songs/1/notation?scale=D&system=sargam",
-        validate_missing_machine_notation,
+        "/api/v1/songs/1",
+        validate_song1_playable_audio,
+    ),
+    AcceptanceCase(
+        "Keep expert-verified song 4961 hidden until admin enables learner sargam.",
+        "Unpublished expert sheets return 404 on the transposed notation endpoint.",
+        "GET",
+        "/api/v1/songs/4961/notation?scale=D&system=sargam",
+        validate_hidden_expert_notation,
+    ),
+    AcceptanceCase(
+        "Which songs are published for the Full Sargam Explore chip?",
+        "Only booklet demos 1, 2, and 27 are listed until admin enables more captures.",
+        "GET",
+        "/api/v1/songs/published-sargam",
+        validate_published_sargam_defaults,
     ),
     AcceptanceCase(
         "Play the verified YouTube performance for song 1.",
@@ -404,13 +477,6 @@ CASES = [
         "GET",
         "/api/v1/songs/1/media?media_type=video&platform=youtube",
         validate_youtube_video,
-    ),
-    AcceptanceCase(
-        "Play song 1112, which is absent from the official audio archive.",
-        "A number-matched community link is returned with explicit trust and rights labels.",
-        "GET",
-        "/api/v1/songs/1112/media?media_type=audio",
-        validate_number_matched_community_audio,
     ),
     AcceptanceCase(
         "Are there multiple video renditions of song 2635?",

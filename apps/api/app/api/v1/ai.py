@@ -5,64 +5,171 @@ import logging
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
+from app.core.security import require_public_quota
 from app.schemas.song import ExplanationRequest
 from app.services.ai import select_provider
+from app.services.ai_quota import (
+    check_daily_ai_quota_persisted,
+    client_ip,
+    record_daily_ai_question_persisted,
+)
+from app.services.answer_guard import apply_output_guardrails
 from app.services.catalog import CatalogService
+from app.services.chat_history import cap_chat_history
+from app.services.chat_language import detect_response_language
+from app.services.conversation import try_conversation_answer, try_language_switch_acknowledgment
+from app.services.direct_answers import try_direct_answer
+from app.services.members import lookup_preferred_language, try_member_identity
+from app.services.output_guard import sanitize_model_output
+from app.services.query_guard import assess_query
 from app.services.rag import RAGService
 from app.services.streaming import stream_text
+from app.services.structured_answers import is_deeper_question, try_structured_answer
 
 router = APIRouter(prefix="/ai", tags=["ai"])
-explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=300, maxsize=256)
+explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=86_400, maxsize=512)
 logger = logging.getLogger(__name__)
+
+
+def _stream_answer(parts: list[str]) -> list[str]:
+    return [part for section in parts for part in re.split(r"\n{2,}", section) if part.strip()]
+
+
+def _sanitize_profile_context(value: str | None) -> str | None:
+    if not value:
+        return None
+    assessment = assess_query(value, max_length=600)
+    return assessment.normalized if assessment.allowed else None
 
 
 @router.post("/explain")
 async def explain(
-    request: ExplanationRequest,
+    payload: ExplanationRequest,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StreamingResponse:
+    require_public_quota(request, bucket="ai", limit=10)
+    settings = get_settings()
+    member = try_member_identity(request)
+    quota_identity = member.subject if member else client_ip(request)
     catalog = CatalogService(session)
-    song = await catalog.get_song(request.song_number)
+    song = await catalog.get_song(payload.song_number)
     if not song:
         return StreamingResponse(stream_text(["Song not found."]), media_type="text/event-stream")
-    prompt = request.prompt or f"Explain song {song.number}: {song.title}"
-    cache_key = json.dumps({"song_number": song.number, "prompt": prompt}, sort_keys=True)
+
+    prompt = payload.prompt or f"Explain song {song.number}: {song.title}"
+    assessment = assess_query(
+        prompt,
+        max_length=800,
+        companion=True,
+        allow_follow_up=bool(payload.history),
+    )
+    if not assessment.allowed:
+        return StreamingResponse(
+            stream_text([assessment.guidance]),
+            media_type="text/event-stream",
+        )
+    prompt = assessment.normalized
+    profile_context = _sanitize_profile_context(payload.profile_context)
+    history: list[tuple[str, str]] = []
+    for turn in payload.history:
+        content = " ".join(turn.content.split())
+        if turn.role == "user" and not assess_query(
+            content,
+            max_length=2000,
+            companion=True,
+        ).allowed:
+            continue
+        history.append((turn.role, content))
+    history = cap_chat_history(history)
+
+    preferred_language = await lookup_preferred_language(session, member)
+    response_language = detect_response_language(
+        prompt,
+        history,
+        preferred_language=preferred_language,
+    )
+    cache_key = json.dumps(
+        {
+            "song_number": song.number,
+            "prompt": prompt,
+            "history": history,
+            "profile_context": profile_context,
+            "response_language": response_language,
+        },
+        sort_keys=True,
+    )
     cached = await explanation_cache.get(cache_key)
     if isinstance(cached, list):
         return StreamingResponse(stream_text(cached), media_type="text/event-stream")
-    provider = select_provider(get_settings())
+
+    language_ack = try_language_switch_acknowledgment(prompt, history)
+    if language_ack:
+        streamed = [sanitize_model_output(language_ack)]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    conversation_answer = try_conversation_answer(prompt, history)
+    if conversation_answer:
+        streamed = [sanitize_model_output(conversation_answer)]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    direct = try_direct_answer(prompt, song)
+    if direct:
+        streamed = [sanitize_model_output(direct.text)]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    related = await catalog.related_songs(song)
+    deeper = is_deeper_question(prompt, history)
+    if not deeper:
+        structured = try_structured_answer(prompt, song, history, related)
+        if structured:
+            streamed = _stream_answer([sanitize_model_output(structured)])
+            await explanation_cache.set(cache_key, streamed)
+            return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    quota = await check_daily_ai_quota_persisted(
+        is_member=member is not None,
+        identity=quota_identity,
+        session=session,
+        settings=settings,
+    )
+    if not quota.allowed:
+        return StreamingResponse(stream_text([quota.guidance]), media_type="text/event-stream")
+    await record_daily_ai_question_persisted(
+        is_member=member is not None,
+        identity=quota_identity,
+        session=session,
+    )
+
+    provider = select_provider(settings)
     rag = RAGService(session, provider)
     try:
-        answer, chunks = await rag.build_grounded_answer(song, prompt)
+        answer, _chunks = await rag.build_grounded_answer(
+            song,
+            prompt,
+            history=history,
+            profile_context=profile_context,
+            response_language=response_language,
+        )
     except Exception:  # pragma: no cover - runtime fallback for provider/db issues
         logger.exception("Grounded explanation fallback for song %s", song.number)
-        answer = (
+        structured = try_structured_answer(prompt, song, history, related)
+        answer = structured or (
             f"Here is a grounded fallback for song {song.number}: {song.title}. "
             f"{song.english_meaning or song.hindi_meaning or song.first_line or ''}".strip()
         )
-        chunks = []
-    citations = "\n".join(
-        f"[{idx}] {chunk.song_number}:{chunk.chunk_index} {chunk.song_title} ({chunk.chunk_type})"
-        for idx, chunk in enumerate(chunks, start=1)
-    )
-    parts = [
-        f"Verified song {song.number}: {song.title}.",
-        answer,
-        "Sources:",
-        citations or "No supporting passages were retrieved.",
-    ]
-    streamed = [
-        part
-        for section in parts
-        for part in re.split(r"\n{2,}", section)
-        if part.strip()
-    ]
+
+    answer = sanitize_model_output(apply_output_guardrails(answer, song))
+    streamed = _stream_answer([answer])
     await explanation_cache.set(cache_key, streamed)
     return StreamingResponse(stream_text(streamed), media_type="text/event-stream")

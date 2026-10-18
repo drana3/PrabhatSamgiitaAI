@@ -4,10 +4,40 @@
 
 :root {
   color-scheme: light;
+  --navy: #092d56;
+  --gold: #ca8a27;
+  --ivory: #fffaf0;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Manrope", system-ui, sans-serif;
+}
+
+/* Self-hosted Cormorant (latin + latin-ext). Variable Google files omit ext glyphs like ń. */
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
 }
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body,
@@ -16,26 +46,141 @@ input,
 textarea,
 select {
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  text-rendering: auto;
+  font-synthesis: none;
+  text-shadow: none;
+}
+
+.font-serif,
+[class*="font-serif"] {
+  font-synthesis: none;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: theme("backgroundImage.aurora");
-  color: theme("colors.ink.900");
+  overflow-x: clip;
+  background: #fffaf0;
+  color: #092d56;
 }
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+a { color: inherit; text-decoration: none; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+::selection { background: #f2d59c; color: #092d56; }
+
+@layer components {
+  .nav-link {
+    @apply relative py-2 text-sm font-semibold text-navy-800 transition hover:text-gold-700;
+  }
+  .nav-link-active::after {
+    content: "";
+    @apply absolute inset-x-0 -bottom-1 mx-auto h-0.5 w-7 rounded-full bg-gold-600;
+  }
+  .gold-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gold-100 font-semibold text-navy-950 shadow-sm transition hover:bg-gold-200;
+  }
+  .primary-button {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-full bg-navy-950 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(9,45,86,0.2)] transition hover:bg-navy-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .outline-button {
+    @apply inline-flex items-center gap-2 rounded-full border border-gold-500/60 bg-ivory-50/75 px-5 py-2.5 text-sm font-semibold text-navy-950 shadow-sm backdrop-blur transition hover:bg-white;
+  }
+  .eyebrow {
+    @apply text-[0.68rem] font-bold uppercase tracking-[0.24em] text-gold-700;
+  }
+  .hero-search {
+    @apply flex items-center gap-3 rounded-full border border-gold-500/40 bg-ivory-50/95 py-1.5 pl-5 pr-1.5 shadow-[0_12px_35px_rgba(52,35,14,0.15)] backdrop-blur;
+  }
+  .glass-card {
+    @apply rounded-2xl border border-white/80 bg-ivory-50/90 p-5 shadow-[0_12px_40px_rgba(45,35,24,0.12)] backdrop-blur-md;
+  }
+  .mini-player {
+    @apply mt-4 flex min-h-[4.25rem] items-center gap-3 rounded-2xl border border-white/80 bg-white/95 px-3 py-2 shadow-[0_16px_45px_rgba(26,35,46,0.17)] backdrop-blur;
+  }
+  .surface-card {
+    @apply rounded-2xl border border-navy-900/10 bg-white shadow-[0_16px_45px_rgba(42,31,15,0.08)];
+  }
+  .soft-chip {
+    @apply inline-flex items-center gap-2 rounded-lg border border-navy-900/10 bg-white px-3 py-2 text-xs font-semibold text-navy-800 transition hover:border-gold-500 hover:bg-gold-50;
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.hero-scene {
+  position: relative;
+  overflow: hidden;
+  background-image: url("/brand/dawn-hero.png");
+  background-position: center;
+  background-size: cover;
 }
 
-::selection {
-  background: theme("colors.ember.200");
-  color: theme("colors.ink.900");
+.hero-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255, 250, 240, 0.08), rgba(255, 250, 240, 0.58) 47%, rgba(255, 250, 240, 0.94) 70%, rgba(255, 250, 240, 0.9));
+}
+
+@media (max-width: 1023px) {
+  .hero-scene { background-position: 32% center; }
+  .hero-wash { background: rgba(255, 250, 240, 0.45); }
+}
+
+@media (max-width: 640px) {
+  .hero-scene { background-position: 23% center; }
+  .hero-wash { background: linear-gradient(180deg, rgba(255,250,240,.7), rgba(255,250,240,.32) 65%, rgba(255,250,240,.7)); }
+}
+
+.community-feedback-ticker {
+  overflow: hidden;
+  max-width: 100%;
+  contain: paint;
+}
+
+.community-feedback-ticker__viewport {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+
+.community-feedback-ticker__track {
+  display: flex;
+  width: max-content;
+  gap: 3rem;
+  padding: 0.55rem 1.5rem;
+  white-space: nowrap;
+  animation: community-feedback-scroll 75s linear infinite;
+}
+
+.community-feedback-ticker:hover .community-feedback-ticker__track {
+  animation-play-state: paused;
+}
+
+.community-feedback-ticker__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+@keyframes community-feedback-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The track must stay a single clipped row. Wrapping every voice instead grew
+     the sticky header past the viewport height and buried the navigation. */
+  .community-feedback-ticker__viewport {
+    overflow-x: clip;
+    scrollbar-width: none;
+  }
+
+  .community-feedback-ticker__viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .community-feedback-ticker__track {
+    animation: none;
+  }
 }

@@ -1,4 +1,17 @@
+from datetime import date
+from typing import Any
+
+import pytest
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.models.song import Song
+from app.services.domain_catalog import (
+    canonical_timezone,
+    fixed_reviewed_festival,
+    reviewed_festival_collection_labels,
+    reviewed_festival_context,
+    sequential_song_of_the_day,
+)
 from app.services.recommendations import RecommendationContext, RecommendationEngine
 
 
@@ -22,3 +35,145 @@ def test_recommendation_scores_match_metadata() -> None:
         RecommendationContext(occasion="morning meditation", mood="hopeful", season="spring"),
     )
     assert score >= 9
+
+
+def test_reviewed_2026_festival_dates_are_available_to_daily_recommendations() -> None:
+    assert fixed_reviewed_festival(8, 28, 2026) == "Shrávanii Purnimá"
+    assert fixed_reviewed_festival(9, 14, 2026) == "Prabháta Saḿgiita Divasa"
+
+
+def test_chromium_india_timezone_alias_is_canonicalized() -> None:
+    assert canonical_timezone("Asia/Calcutta") == "Asia/Kolkata"
+    assert canonical_timezone("Europe/Berlin") == "Europe/Berlin"
+
+
+def test_festival_day_omits_sequential_song_of_the_day() -> None:
+    sharad = date(2026, 10, 16)
+    assert fixed_reviewed_festival(sharad.month, sharad.day, sharad.year) == "Sharadotsava"
+    festival = fixed_reviewed_festival(sharad.month, sharad.day, sharad.year)
+    effective = None if festival else sequential_song_of_the_day(sharad)
+    assert effective is None
+    assert sequential_song_of_the_day(sharad) != sequential_song_of_the_day(date(2026, 10, 15))
+
+
+def test_song_of_the_day_is_sequential_and_wraps() -> None:
+    assert sequential_song_of_the_day(date(1970, 1, 1)) == 1
+    assert sequential_song_of_the_day(date(1970, 1, 2)) == 2
+    same_day = date(1983, 9, 23)
+    assert sequential_song_of_the_day(same_day) == sequential_song_of_the_day(same_day)
+    day_5018 = date.fromordinal(date(1970, 1, 1).toordinal() + 5017)
+    day_5019 = date.fromordinal(date(1970, 1, 1).toordinal() + 5018)
+    assert sequential_song_of_the_day(day_5018) == 5018
+    assert sequential_song_of_the_day(day_5019) == 1
+    assert "Children Songs" in reviewed_festival_collection_labels(10, 16, 2026)
+
+
+def test_lunar_festival_dates_are_not_guessed_for_other_years() -> None:
+    assert fixed_reviewed_festival(8, 28, 2027) is None
+    assert fixed_reviewed_festival(5, 21, 2027) == "Bábá Birthday"
+
+
+def test_reviewed_observances_map_to_canonical_song_collections() -> None:
+    assert reviewed_festival_context(5, 1, 2026)["festival"] == "Bábá Birthday"
+    assert reviewed_festival_context(4, 14, 2026)["festival"] == "New Year"
+    assert reviewed_festival_context(6, 5, 2026)["theme"] == "PROUT"
+    assert reviewed_festival_context(8, 28, 2026)["festival"] == "Shravanii Purnima Day"
+    assert reviewed_festival_context(10, 20, 2026)["festival"] == "Victory Day"
+    assert fixed_reviewed_festival(10, 1, 2026) is None
+    assert fixed_reviewed_festival(10, 16, 2026) == "Sharadotsava"
+    assert fixed_reviewed_festival(10, 17, 2026) == "Public Day"
+    assert fixed_reviewed_festival(10, 18, 2026) == "Fine Arts Day"
+    assert fixed_reviewed_festival(10, 19, 2026) == "Music Day"
+    assert fixed_reviewed_festival(10, 20, 2026) == "Vijayotsava"
+    assert reviewed_festival_context(11, 8, 2026)["festival"] == "Dipavali (Colour Festival) Day"
+
+
+class UnavailableSession:
+    async def execute(self, statement: Any) -> None:
+        raise SQLAlchemyError("database unavailable")
+
+    async def rollback(self) -> None:
+        return None
+
+
+@pytest.mark.asyncio
+async def test_explicit_service_collection_excludes_unrelated_seasonal_song() -> None:
+    service_song = Song(number=4599, title="PROUT song", theme="PROUT", metadata_json={})
+    spring_song = Song(number=10, title="Vasant song", season="spring", metadata_json={})
+    context = RecommendationContext(theme="AMURT|Neo-Humanism|PROUT", occasion="service")
+
+    ranked = await RecommendationEngine().rank(
+        UnavailableSession(),  # type: ignore[arg-type]
+        [spring_song, service_song],
+        context,
+    )
+
+    assert [item.song.number for item in ranked] == [4599]
+
+
+@pytest.mark.asyncio
+async def test_service_eligibility_uses_canonical_assignment_not_contaminated_text() -> None:
+    unrelated = Song(
+        number=10,
+        title="Spring song",
+        theme="PROUT",
+        metadata_json={"canonical_theme_assignments": {"themes": ["Spring"]}},
+    )
+    service = Song(
+        number=4599,
+        title="PROUT song",
+        theme="PROUT",
+        metadata_json={"canonical_theme_assignments": {"themes": ["PROUT"]}},
+    )
+
+    ranked = await RecommendationEngine().rank(
+        UnavailableSession(),  # type: ignore[arg-type]
+        [unrelated, service],
+        RecommendationContext(theme="PROUT", occasion="service"),
+    )
+
+    assert [item.song.number for item in ranked] == [4599]
+
+
+@pytest.mark.asyncio
+async def test_source_constrained_ranking_rewards_complete_listenable_songs() -> None:
+    complete = Song(
+        number=9001,
+        title="Complete song",
+        lyrics_original="Verified lyrics",
+        english_meaning="Verified meaning",
+        is_verified=True,
+        canonical_source_status="verified",
+        metadata_json={},
+    )
+    incomplete = Song(
+        number=9002,
+        title="Incomplete song",
+        is_verified=True,
+        canonical_source_status="verified",
+        metadata_json={},
+    )
+    unverified = Song(
+        number=9003,
+        title="Unverified song",
+        canonical_source_status="pending",
+        metadata_json={},
+    )
+
+    ranked = await RecommendationEngine().rank_source_constrained(
+        UnavailableSession(),  # type: ignore[arg-type]
+        [incomplete, unverified, complete],
+    )
+
+    assert [item.song.number for item in ranked] == [9001, 9002]
+    assert ranked[0].breakdown["lyrics"] == 1.0
+    assert ranked[0].breakdown["meaning"] == 1.0
+
+
+def test_song_number_parity_never_changes_recommendation_score() -> None:
+    engine = RecommendationEngine()
+    context = RecommendationContext(occasion="meditation")
+    odd = Song(number=1, title="Odd", occasion="meditation", metadata_json={})
+    even = Song(number=2, title="Even", occasion="meditation", metadata_json={})
+
+    assert engine.score(odd, context) == engine.score(even, context)

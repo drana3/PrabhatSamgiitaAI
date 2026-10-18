@@ -1,0 +1,187 @@
+[
+  {
+    "slug": "ps-prashanta",
+    "title": "System of giving Prabhat Samgiita",
+    "author": "Prashanta Das",
+    "url": "https://prabhatasamgiita.net/ps-prashanta.html",
+    "teaser": "How Prabhat Samgiita is shared and received as a living gift in collective spiritual life.",
+    "themes": ["practice", "community", "sharing"]
+  },
+  {
+    "slug": "interview-prashanta",
+    "title": "An interview with Prashanta Das",
+    "author": "Prashanta Das",
+    "url": "https://prabhatasamgiita.net/interview-prashanta.html",
+    "teaser": "Reflections on devotion, melody, and the heart behind bringing Prabhat Samgiita to others.",
+    "themes": ["devotion", "interview", "practice"]
+  },
+  {
+    "slug": "candranath",
+    "title": "Language, translation, meaning and melody in Prabhat Samgiit",
+    "author": "Ac. Chandranath",
+    "url": "https://prabhatasamgiita.net/candranath.html",
+    "teaser": "On how language, meaning, and melody work together in Prabhat Samgiita.",
+    "themes": ["translation", "meaning", "melody"]
+  },
+  {
+    "slug": "sarveshvarananda",
+    "title": "On Baba and Prabhat Samgiita",
+    "author": "Ac. Sarveshvarananda Avt.",
+    "url": "https://prabhatasamgiita.net/sarveshvarananda.html",
+    "teaser": "A devotee's remembrance of Baba and the spiritual place of Prabhat Samgiita.",
+    "themes": ["devotion", "baba", "remembrance"]
+  },
+  {
+    "slug": "dhruvananda",
+    "title": "On Prabhat Samgiit",
+    "author": "Ac. Dhruvananda Avt.",
+    "url": "https://prabhatasamgiita.net/dhruvananda.html",
+    "teaser": "Personal insights into singing, listening, and living with Prabhat Samgiita.",
+    "themes": ["devotion", "singing", "practice"]
+  },
+  {
+    "slug": "shambhushivananda",
+    "title": "70 Questions and Answers on Prabhata Samgiita",
+    "author": "Ac. Shambhushivananda Avt.",
+    "url": "https://prabhatasamgiita.net/shambhushivananda.html",
+    "teaser": "Clear answers on history, practice, and understanding of the 5,018 songs.",
+    "themes": ["guidance", "questions", "understanding"]
+  },
+  {
+    "slug": "gatimayananda",
+    "title": "Understanding of Prabhat Samgiita",
+    "author": "Ac. Gatimayananda Avt.",
+    "url": "https://prabhatasamgiita.net/gatimayananda.html",
+    "teaser": "A deeper look at what Prabhat Samgiita means for inner life and collective welfare.",
+    "themes": ["understanding", "spiritual practice", "devotion"]
+  },
+  {
+    "slug": "tapeshvarananda-akhanda",
+    "title": "Akhanda Prabhat Samgiit",
+    "author": "Ac. Tapeshvarananda Avt.",
+    "url": "https://prabhatasamgiita.net/tapeshvarananda.html",
+    "teaser": "The spirit of unbroken singing and collective immersion in Prabhat Samgiita.",
+    "themes": ["singing", "community", "akhanda"]
+  },
+  {
+    "slug": "tapeshvarananda-singing",
+    "title": "Singing for Baba",
+    "author": "Ac. Tapeshvarananda Avt.",
+    "url": "https://prabhatasamgiita.net/tapeshvarananda-2.html",
+    "teaser": "A moving account of singing Prabhat Samgiita with love and surrender.",
+    "themes": ["singing", "devotion", "surrender"]
+  },
+  {
+    "slug": "anandashubha",
+    "title": "An experience recalled",
+    "author": "Avtk. Ánanda Shubha Ac.",
+    "url": "https://prabhatasamgiita.net/anandashubha.html",
+    "teaser": "A personal memory of how a song opened the heart in an unexpected moment.",
+    "themes": ["personal experience", "devotion"]
+  },
+  {
+    "slug": "anandakaruna-419",
+    "title": "Prabhata Samgiita 419 — Kende Kende Kata D'a'ki",
+    "author": "Avt. Ananda Karuna Ac.",
+    "url": "https://prabhatasamgiita.net/anandakaruna.html",
+    "teaser": "A devotee's story connected to song 419 and its call to the Beloved.",
+    "themes": ["song story", "devotion", "personal experience"],
+    "song_numbers": [419]
+  },
+  {
+    "slug": "muktatmananda",
+    "title": "Prabhat Samgiita Bliss",
+    "author": "Ac. Muktatmananda Avt.",
+    "url": "https://prabhatasamgiita.net/muktatmananda.html",
+    "teaser": "On the bliss that arises when Prabhat Samgiita becomes part of daily sadhana.",
+    "themes": ["bliss", "meditation", "practice"]
+  },
+  {
+    "slug": "priyashivananda-therapeutic",
+    "title": "The therapeutic effects of Prabhata Samgiita",
+    "author": "Ac. Priyashivananda Avt.",
+    "url": "https://prabhatasamgiita.net/priyashivananda.html",
+    "teaser": "How singing and listening can heal, calm, and restore the mind.",
+    "themes": ["healing", "therapy", "wellbeing"]
+  },
+  {
+    "slug": "priyashivananda-surrender",
+    "title": "Complete Surrender",
+    "author": "Ac. Priyashivananda Avt.",
+    "url": "https://prabhatasamgiita.net/priyashivananda-2.html",
+    "teaser": "A reflection on surrender through Prabhat Samgiita and inner offering.",
+    "themes": ["surrender", "devotion", "spiritual practice"]
+  },
+  {
+    "slug": "svarupananda",
+    "title": "A very touching story",
+    "author": "Ac. Svarupananda Avt.",
+    "url": "https://prabhatasamgiita.net/svarupananda.html",
+    "teaser": "A tender remembrance that shows how Prabhat Samgiita touches ordinary life.",
+    "themes": ["personal experience", "devotion", "remembrance"]
+  },
+  {
+    "slug": "vijayananda-tour",
+    "title": "A tour of India",
+    "author": "Ac. Vijayananda Avt.",
+    "url": "https://prabhatasamgiita.net/vijayananda.html",
+    "teaser": "Prabhat Samgiita carried across India — songs, people, and shared spiritual journey.",
+    "themes": ["travel", "community", "India"]
+  },
+  {
+    "slug": "vijayananda-poet",
+    "title": "Writer, Composer and Poet",
+    "author": "Ac. Vijayananda Avt.",
+    "url": "https://prabhatasamgiita.net/vijayananda-2.html",
+    "teaser": "On Baba as poet-composer and the literary heart of Prabhat Samgiita.",
+    "themes": ["poetry", "composer", "understanding"]
+  },
+  {
+    "slug": "vijayananda-mirror",
+    "title": "The Magic Mirror",
+    "author": "Ac. Vijayananda Avt.",
+    "url": "https://prabhatasamgiita.net/vijayananda-3.html",
+    "teaser": "A symbolic story of how Prabhat Samgiita reflects the seeker's inner world.",
+    "themes": ["symbolism", "personal experience", "understanding"]
+  },
+  {
+    "slug": "kalyan-deva",
+    "title": "Prabhat Samgiita Has Been Written With the Ink of the Heart",
+    "author": "Kalyan Deva",
+    "url": "https://prabhatasamgiita.net/kalyan-deva.html",
+    "teaser": "On the heart as the true source of every Prabhat Samgiita song.",
+    "themes": ["heart", "devotion", "understanding"]
+  },
+  {
+    "slug": "sudhakar-deva-rao",
+    "title": "Baba's Divine Reception",
+    "author": "Sudhakar Deva Rao",
+    "url": "https://prabhatasamgiita.net/sudhakar-deva-rao.html",
+    "teaser": "A remembrance of Baba's reception and the grace behind the songs.",
+    "themes": ["baba", "remembrance", "devotion"]
+  },
+  {
+    "slug": "cidrupananda",
+    "title": "This song is for you",
+    "author": "Ac. Cidrupananda Avt.",
+    "url": "https://prabhatasamgiita.net/cidrupananda.html",
+    "teaser": "When a song feels personally addressed — intimacy between singer and Beloved.",
+    "themes": ["personal experience", "devotion", "song story"]
+  },
+  {
+    "slug": "gayatrii",
+    "title": "You will bring the guitar. And you will sing.",
+    "author": "Gayatrii",
+    "url": "https://prabhatasamgiita.net/gayatrii.html",
+    "teaser": "A gentle command to share Prabhat Samgiita through one's own voice and instrument.",
+    "themes": ["singing", "instruments", "personal experience"]
+  },
+  {
+    "slug": "ramesh",
+    "title": "These songs can be played on all kinds of instruments",
+    "author": "Ramesh",
+    "url": "https://prabhatasamgiita.net/ramesh.html",
+    "teaser": "Prabhat Samgiita adapts to many instruments while keeping its devotional spirit.",
+    "themes": ["instruments", "practice", "accessibility"]
+  }
+]

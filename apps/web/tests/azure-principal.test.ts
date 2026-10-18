@@ -1,0 +1,74 @@
+import { describe, expect, it, vi } from "vitest"
+
+import {
+  buildClientPrincipal,
+  parseClientPrincipalProfile,
+  resolveClientPrincipal,
+} from "@/lib/azure-principal"
+
+describe("resolveClientPrincipal", () => {
+  it("returns the full principal header when present", () => {
+    const headers = new Headers({ "x-ms-client-principal": "abc123" })
+    expect(resolveClientPrincipal(headers)).toBe("abc123")
+  })
+
+  it("does not synthesize principals from id headers without an auth cookie in production", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    const headers = new Headers({
+      "x-ms-client-principal-id": "user-oid-42",
+      "x-ms-client-principal-name": "member@example.com",
+    })
+    expect(resolveClientPrincipal(headers)).toBeNull()
+    vi.unstubAllEnvs()
+  })
+
+  it("synthesizes principals from id headers when the SWA auth cookie is present", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    const headers = new Headers({
+      "x-ms-client-principal-id": "user-oid-42",
+      "x-ms-client-principal-name": "member@example.com",
+      cookie: "StaticWebAppsAuthCookie=fake-session",
+    })
+    expect(resolveClientPrincipal(headers)).toBeTruthy()
+    vi.unstubAllEnvs()
+  })
+
+  it("builds a principal from Azure id and name headers", () => {
+    const headers = new Headers({
+      "x-ms-client-principal-id": "user-oid-42",
+      "x-ms-client-principal-name": "dewasheesh.rana3%40gmail.com",
+    })
+    const principal = resolveClientPrincipal(headers)
+    expect(principal).toBeTruthy()
+
+    const payload = JSON.parse(Buffer.from(principal!, "base64").toString("utf8")) as {
+      auth_typ: string
+      claims: Array<{ typ: string; val: string }>
+    }
+    expect(payload.auth_typ).toBe("aad")
+    expect(payload.claims.some((claim) => claim.val === "user-oid-42")).toBe(true)
+    expect(payload.claims.some((claim) => claim.val === "dewasheesh.rana3@gmail.com")).toBe(true)
+  })
+
+  it("builds an email-enriched principal blob", () => {
+    const principal = buildClientPrincipal("abc", "member@example.com")
+    const payload = JSON.parse(Buffer.from(principal, "base64").toString("utf8")) as {
+      claims: Array<{ typ: string; val: string }>
+    }
+    expect(payload.claims.some((claim) => claim.typ === "email" && claim.val === "member@example.com")).toBe(true)
+  })
+
+  it("parses a principal blob into a member profile", () => {
+    const principal = buildClientPrincipal("user-oid-42", "member@example.com")
+    expect(parseClientPrincipalProfile(principal)).toEqual({
+      authenticated: true,
+      id: "aad:user-oid-42",
+      display_name: "member@example.com",
+      email: "member@example.com",
+      identity_provider: "aad",
+      personalization_enabled: true,
+      favorite_song_numbers: [],
+      is_admin: false,
+    })
+  })
+})

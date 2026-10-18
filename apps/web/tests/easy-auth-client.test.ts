@@ -1,0 +1,143 @@
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import { fetchBrowserEasyAuthPrincipal, easyAuthSyncBlockedOnPage, syncEasyAuthSessionFromBrowser } from "@/lib/easy-auth-client"
+
+describe("easy-auth-client", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it("reads /.auth/me in the browser and posts the principal to easy-auth-sync", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED", "true")
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ authenticated: false }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          {
+            clientPrincipal: {
+              identityProvider: "aad",
+              userId: "oid-1",
+              userDetails: "member@example.com",
+              userRoles: ["authenticated"],
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ ok: true })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/.auth/me",
+      expect.objectContaining({ credentials: "same-origin" }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/auth/easy-auth-sync",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("oid-1"),
+      }),
+    )
+
+  })
+
+  it("does not overwrite an existing member session with SWA /.auth/me", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ authenticated: true }),
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith("/api/member/session", expect.any(Object))
+
+  })
+
+  it("skips Microsoft SWA sync when Microsoft web sign-in is disabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED", "false")
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ authenticated: false }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          {
+            clientPrincipal: {
+              identityProvider: "aad",
+              userId: "oid-1",
+              userDetails: "member@example.com",
+              userRoles: ["authenticated"],
+            },
+          },
+        ],
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("falls back to /api/auth/principal when easy-auth-sync rejects the SWA cookie", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED", "true")
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ authenticated: false }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          clientPrincipal: {
+            identityProvider: "aad",
+            userId: "oid-2",
+            userDetails: "member@example.com",
+            userRoles: ["authenticated"],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(syncEasyAuthSessionFromBrowser()).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/auth/principal", expect.objectContaining({ method: "POST" }))
+
+  })
+
+  it("returns null when /.auth/me has no principal", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ clientPrincipal: null }),
+      }),
+    )
+
+    await expect(fetchBrowserEasyAuthPrincipal()).resolves.toBeNull()
+  })
+
+  it("blocks Easy Auth auto-sync on the signed-out query", () => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { pathname: "/", search: "?signedOut=1", href: "https://example.test/?signedOut=1" },
+    })
+    expect(easyAuthSyncBlockedOnPage()).toBe(true)
+  })
+})

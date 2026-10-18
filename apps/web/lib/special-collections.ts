@@ -1,0 +1,491 @@
+import canonicalCollections from "../../../data/generated/theme_collections.json"
+import {
+  canonicalSearchKey,
+  catalogLookupKeys,
+  feelingSearchAllowed,
+  foldLyricPhonetic,
+  normalizeLyricText,
+  planSearch,
+  type SearchAuth,
+} from "@prabhat/core"
+import { isCompleteSargamQuery } from "@/lib/complete-sargam"
+
+export type SpecialCollection = {
+  label: string
+  query: string
+  count: number
+}
+
+export type SpecialCollectionGroup = {
+  title: string
+  description: string
+  collections: SpecialCollection[]
+}
+
+type CanonicalCollection = {
+  label: string
+  category: string
+  value: string
+  count: number
+  song_numbers: number[]
+}
+
+type CollectionRef =
+  | { canonicalLabel: string; displayLabel?: string }
+  | { displayLabel: string; query: string; sourceLabels: string[] }
+
+type GroupDefinition = {
+  title: string
+  description: string
+  collections: CollectionRef[]
+}
+
+const canonicalByLabel = new Map(
+  (canonicalCollections as CanonicalCollection[]).map((row) => [row.label, row]),
+)
+
+const displayLabelOverrides: Record<string, string> = {
+  "Sanskrit Songs": "Sanskrit",
+  "English Songs": "English",
+  "Hindi Songs": "Hindi",
+  "Urdu Songs": "Urdu",
+  "Aungika Songs": "Aungika",
+  "Maethili Song": "Maithili",
+  "Shiva Songs": "Shiva",
+  "Krśńa Songs": "Krśńa",
+  "Krśńa and Devotees Songs": "Krśńa and devotees",
+  "Mahabharata Song": "Mahabharata",
+  "Bábá Birthday Songs": "Bábá birthday",
+  "New Year Songs": "New Year",
+  "Year-end Song": "Year-end",
+  "Dipavali (Colour Festival) Day Songs": "Dipavali",
+  "Shravanii Purnima Day Song": "Shravanii Purnima",
+  "Victory Day Song": "Victory Day",
+  "National Day Song (or Song of Love for one's Country)": "National Day",
+  "Baby Naming Ceremony Song": "Baby naming",
+  "Marriage Ceremony Song": "Marriage",
+  "Passing Away Ceremony Song": "Passing away",
+  "House Warming Ceremony Song": "House warming",
+  "Tree Planting Ceremony Song": "Tree planting",
+  "Dharma Song": "Dharma",
+  "PROUT Song": "PROUT",
+  "Neo-Humanism Songs": "Neo-Humanism",
+  "AMURT Song": "AMURT",
+  "Flag Ceremony Song": "Flag ceremony",
+  "Marching Song": "Marching",
+  "VSS Song": "VSS",
+  "Gurukula Song": "Gurukula",
+  "Ánanda Nagar Song": "Ánanda Nagar",
+  "Guru Sakasha Song": "Guru Sakasha",
+  "Spring Songs": "Spring",
+  "Summer Songs": "Summer",
+  "Autumn Songs (Sharat)": "Autumn: Sharat",
+  "Autumn Songs (Hemante)": "Autumn: Hemante",
+  "Winter Songs": "Winter",
+  "Rainy Season Songs": "Rainy season",
+  "Dry Season Songs": "Dry season",
+  "Songs to Attract Rain / Draught Songs / Farmer's Songs": "Rain, drought, and farmers",
+  "Children Songs": "Children",
+  "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"": "The Golden Lotus of the Blue Sea",
+  "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)": "Sat Bhai Chompa",
+  "Women Songs": "Women",
+  "Song for those approaching the end of their life": "Approaching the end of life",
+  "Songs in memory of one's family members": "In memory of family",
+  "Song with sanyasii spirit": "Sanyasii spirit",
+  "Sinners Song": "Sinners",
+  "Song in memory of Lord Buddha": "Lord Buddha",
+  "Songs in memory of Rabindranath Tagore": "Rabindranath Tagore",
+  "Song in memory of Avtk. Ananda Bharati Ac.": "Avtk. Ananda Bharati Ac.",
+  "Song in memory of the musician Suradas": "Musician Suradas",
+  "Himalaya Songs": "Himalaya",
+  "River Songs": "Rivers",
+  "Song for a Dust Particle": "A dust particle",
+  "Song for a Dewdrop": "A dewdrop",
+  "Taj Mahal Song": "Taj Mahal",
+  "End of Communism Song": "End of Communism",
+  "Chinese-tune Song": "Chinese tune",
+  "Chinese-European blending-tune Song": "Chinese-European blend",
+  "Scandinavian-tune Song": "Scandinavian tune",
+  "Belgium-tune Song": "Belgium tune",
+  "Turkish-tune Song": "Turkish tune",
+  "Songs containing 'extinct' melodies": "Extinct melodies",
+  "Songs composed in Baba's youth": "Composed in Bábá's youth",
+  "Song with a very rare verse form": "Rare verse form",
+  "Classicalised kiirtan-style song": "Classicalised kiirtan style",
+}
+
+function compositeCount(sourceLabels: string[]): number {
+  const numbers = new Set<number>()
+  for (const label of sourceLabels) {
+    for (const number of canonicalByLabel.get(label)?.song_numbers ?? []) {
+      numbers.add(number)
+    }
+  }
+  return numbers.size
+}
+
+function resolveCollection(ref: CollectionRef): SpecialCollection {
+  if ("canonicalLabel" in ref) {
+    const row = canonicalByLabel.get(ref.canonicalLabel)
+    if (!row) {
+      throw new Error(`Missing canonical collection: ${ref.canonicalLabel}`)
+    }
+    return {
+      label: ref.displayLabel ?? displayLabelOverrides[ref.canonicalLabel] ?? ref.canonicalLabel,
+      query: ref.canonicalLabel,
+      count: row.count,
+    }
+  }
+
+  return {
+    label: ref.displayLabel,
+    query: ref.query,
+    count: compositeCount(ref.sourceLabels),
+  }
+}
+
+function intersectionCount(leftLabel: string, rightLabel: string): number {
+  const left = new Set(canonicalByLabel.get(leftLabel)?.song_numbers ?? [])
+  const right = new Set(canonicalByLabel.get(rightLabel)?.song_numbers ?? [])
+  let overlap = 0
+  for (const number of left) {
+    if (right.has(number)) overlap += 1
+  }
+  return overlap
+}
+
+export const hindiUrduSharedCount = intersectionCount("Hindi Songs", "Urdu Songs")
+
+const groupDefinitions: GroupDefinition[] = [
+  {
+    title: "Languages",
+    description: `Find songs by their original language or dialect. The canonical Hindi list has ${canonicalByLabel.get("Hindi Songs")?.count ?? 0} songs and Urdu has ${canonicalByLabel.get("Urdu Songs")?.count ?? 0}; ${hindiUrduSharedCount} appear on both lists as Hindustani.`,
+    collections: [
+      { canonicalLabel: "Sanskrit Songs" },
+      { canonicalLabel: "English Songs" },
+      { canonicalLabel: "Hindi Songs" },
+      { canonicalLabel: "Urdu Songs" },
+      { canonicalLabel: "Aungika Songs" },
+      { canonicalLabel: "Maethili Song" },
+    ],
+  },
+  {
+    title: "Sacred figures and epics",
+    description: "Songs connected with Shiva, Krśńa, devotees, and the Mahabharata.",
+    collections: [
+      { canonicalLabel: "Shiva Songs" },
+      { canonicalLabel: "Krśńa Songs" },
+      { canonicalLabel: "Krśńa and Devotees Songs" },
+      { canonicalLabel: "Mahabharata Song" },
+    ],
+  },
+  {
+    title: "Festivals and observances",
+    description: "Music for annual celebrations, remembrance, and collective occasions.",
+    collections: [
+      { canonicalLabel: "Bábá Birthday Songs" },
+      { canonicalLabel: "New Year Songs" },
+      { canonicalLabel: "Year-end Song" },
+      { canonicalLabel: "Dipavali (Colour Festival) Day Songs" },
+      { canonicalLabel: "Shravanii Purnima Day Song" },
+      { canonicalLabel: "Victory Day Song" },
+      { canonicalLabel: "National Day Song (or Song of Love for one's Country)" },
+    ],
+  },
+  {
+    title: "Life ceremonies",
+    description: "Songs for meaningful transitions in family and community life.",
+    collections: [
+      { canonicalLabel: "Baby Naming Ceremony Song" },
+      {
+        displayLabel: "Birthday songs",
+        query: "All Birthday Songs",
+        sourceLabels: ["Bábá Birthday Songs", "Birthday Song"],
+      },
+      { canonicalLabel: "Marriage Ceremony Song" },
+      { canonicalLabel: "Passing Away Ceremony Song" },
+      { canonicalLabel: "House Warming Ceremony Song" },
+      { canonicalLabel: "Tree Planting Ceremony Song" },
+    ],
+  },
+  {
+    title: "Ideals and Ananda Marga",
+    description: "Spiritual, social, service, educational, and organizational themes.",
+    collections: [
+      { canonicalLabel: "Dharma Song" },
+      { canonicalLabel: "PROUT Song" },
+      { canonicalLabel: "Neo-Humanism Songs" },
+      { canonicalLabel: "AMURT Song" },
+      { canonicalLabel: "Flag Ceremony Song" },
+      { canonicalLabel: "Marching Song" },
+      { canonicalLabel: "VSS Song" },
+      { canonicalLabel: "Gurukula Song" },
+      { canonicalLabel: "Ánanda Nagar Song" },
+      { canonicalLabel: "Guru Sakasha Song" },
+    ],
+  },
+  {
+    title: "Seasons, earth, and rain",
+    description: "Follow the natural year and humanity's relationship with the land.",
+    collections: [
+      { canonicalLabel: "Spring Songs" },
+      { canonicalLabel: "Summer Songs" },
+      { canonicalLabel: "Autumn Songs (Sharat)" },
+      { canonicalLabel: "Autumn Songs (Hemante)" },
+      { canonicalLabel: "Winter Songs" },
+      { canonicalLabel: "Rainy Season Songs" },
+      { canonicalLabel: "Dry Season Songs" },
+      { canonicalLabel: "Songs to Attract Rain / Draught Songs / Farmer's Songs" },
+    ],
+  },
+  {
+    title: "Stories and human experience",
+    description: "Songs for children, women, inner struggle, remembrance, and folktales.",
+    collections: [
+      { canonicalLabel: "Children Songs" },
+      { canonicalLabel: "Songs based on the Fairy Tale \"The Golden Lotus of the Blue Sea\"" },
+      { canonicalLabel: "Songs based on the Folk Tale \"Sat Bhai Chompa\" (The Seven Magnolia Brothers)" },
+      { canonicalLabel: "Women Songs" },
+      { canonicalLabel: "Song for those approaching the end of their life" },
+      { canonicalLabel: "Songs in memory of one's family members" },
+      { canonicalLabel: "Song with sanyasii spirit" },
+      { canonicalLabel: "Sinners Song" },
+    ],
+  },
+  {
+    title: "Tributes and remembrance",
+    description: "Songs honouring spiritual, literary, and musical lives.",
+    collections: [
+      { canonicalLabel: "Song in memory of Lord Buddha" },
+      { canonicalLabel: "Songs in memory of Rabindranath Tagore" },
+      { canonicalLabel: "Song in memory of Avtk. Ananda Bharati Ac." },
+      { canonicalLabel: "Song in memory of the musician Suradas" },
+    ],
+  },
+  {
+    title: "Nature, places, and history",
+    description: "Landscapes, small wonders, landmarks, and moments in human history.",
+    collections: [
+      { canonicalLabel: "Himalaya Songs" },
+      { canonicalLabel: "River Songs" },
+      { canonicalLabel: "Song for a Dust Particle" },
+      { canonicalLabel: "Song for a Dewdrop" },
+      { canonicalLabel: "Taj Mahal Song" },
+      { canonicalLabel: "End of Communism Song" },
+    ],
+  },
+  {
+    title: "Musical traditions and rarities",
+    description: "Regional tunes, unusual forms, historic melodies, and distinctive compositions.",
+    collections: [
+      { canonicalLabel: "Chinese-tune Song" },
+      { canonicalLabel: "Chinese-European blending-tune Song" },
+      { canonicalLabel: "Scandinavian-tune Song" },
+      { canonicalLabel: "Belgium-tune Song" },
+      { canonicalLabel: "Turkish-tune Song" },
+      { canonicalLabel: "Songs containing 'extinct' melodies" },
+      { canonicalLabel: "Songs composed in Baba's youth" },
+      { canonicalLabel: "Song with a very rare verse form" },
+      { canonicalLabel: "Classicalised kiirtan-style song" },
+    ],
+  },
+]
+
+function songNumbersForRef(ref: CollectionRef): number[] {
+  if ("canonicalLabel" in ref) {
+    return [...(canonicalByLabel.get(ref.canonicalLabel)?.song_numbers ?? [])]
+  }
+  const numbers = new Set<number>()
+  for (const label of ref.sourceLabels) {
+    for (const number of canonicalByLabel.get(label)?.song_numbers ?? []) {
+      numbers.add(number)
+    }
+  }
+  return [...numbers].sort((a, b) => a - b)
+}
+
+export function collectionPrompt(label: string) {
+  return `Search Prabhat Samgiita for ${label}`
+}
+
+const songNumbersByCollectionPrompt = new Map<string, number[]>()
+for (const group of groupDefinitions) {
+  for (const ref of group.collections) {
+    const collection = resolveCollection(ref)
+    const numbers = songNumbersForRef(ref)
+    if (!numbers.length) continue
+    songNumbersByCollectionPrompt.set(collectionPrompt(collection.query).toLocaleLowerCase(), numbers)
+  }
+}
+
+export const specialCollectionGroups: SpecialCollectionGroup[] = groupDefinitions.map((group) => ({
+  title: group.title,
+  description: group.description,
+  collections: group.collections.map(resolveCollection),
+}))
+
+export const specialCollectionCount = specialCollectionGroups.reduce(
+  (total, group) => total + group.collections.length,
+  0,
+)
+
+export function queryMatchesCollection(query: string, collectionQuery: string) {
+  return query.trim().toLocaleLowerCase() === collectionPrompt(collectionQuery).toLocaleLowerCase()
+}
+
+const collectionPromptPrefix = "search prabhat samgiita for "
+
+const collectionKeywordAliases: Record<string, string> = {
+  diwali: "Dipavali (Colour Festival) Day Songs",
+  deepavali: "Dipavali (Colour Festival) Day Songs",
+  dipavali: "Dipavali (Colour Festival) Day Songs",
+  deepawali: "Dipavali (Colour Festival) Day Songs",
+  deewali: "Dipavali (Colour Festival) Day Songs",
+  siv: "Shiva Songs",
+  shiv: "Shiva Songs",
+  siva: "Shiva Songs",
+  shiva: "Shiva Songs",
+  mahadev: "Shiva Songs",
+  shankar: "Shiva Songs",
+  kisna: "Krśńa Songs",
+  kishna: "Krśńa Songs",
+  kishan: "Krśńa Songs",
+  krisna: "Krśńa Songs",
+  krishna: "Krśńa Songs",
+  krsna: "Krśńa Songs",
+  krushna: "Krśńa Songs",
+}
+
+function foldCollectionKeyword(value: string) {
+  const decomposed = value.normalize("NFKD").toLowerCase()
+  let plain = ""
+  for (const character of decomposed) {
+    if (character.charCodeAt(0) >= 0x300 && character.charCodeAt(0) <= 0x36f) continue
+    plain += character
+  }
+  return plain.replace(/[^a-z0-9]+/g, " ").trim()
+}
+
+
+const COLLECTION_STOP = new Set(
+  "a an and based ceremony containing day for in memory of on song songs the to tune with".split(" "),
+)
+
+function collectionHaystackMatches(queryKey: string, haystack: string) {
+  if (!queryKey || queryKey.length < 3) return false
+  if (haystack === queryKey || haystack.split(" ").includes(queryKey)) return true
+  const needle = foldLyricPhonetic(queryKey)
+  const canon = canonicalSearchKey(queryKey)
+  for (const word of haystack.split(" ")) {
+    if (word.length < 3 || COLLECTION_STOP.has(word)) continue
+    if (word === queryKey || word === canon) return true
+    if (canonicalSearchKey(word) === canon && canon.length >= 3) return true
+    const folded = foldLyricPhonetic(word)
+    if (needle && folded === needle) return true
+    if (
+      needle.length >= 5 &&
+      folded.length >= 5 &&
+      Math.abs(folded.length - needle.length) <= 3 &&
+      (folded.startsWith(needle) || needle.startsWith(folded))
+    ) {
+      return true
+    }
+    if (queryKey.length >= 4 && word.startsWith(queryKey) && word.length - queryKey.length <= 3) {
+      return true
+    }
+  }
+  return false
+}
+
+export function isCollectionSearchQuery(query: string) {
+  return query.trim().toLocaleLowerCase().startsWith(collectionPromptPrefix)
+}
+
+export function collectionSongNumbersForKeyword(query: string): number[] | null {
+  const exact = songNumbersByCollectionPrompt.get(query.trim().toLocaleLowerCase())
+  if (exact?.length) return exact
+
+  const keys = catalogLookupKeys(query)
+  if (!keys.length) return null
+  const distinctiveWordCount = normalizeLyricText(query)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !COLLECTION_STOP.has(token)).length
+  // Multi-word lyric lines must not match a theme collection via one fuzzy token
+  // ("nagariya" ≈ "nagar" → Ánanda Nagar). Keep fuzzy word matches for short queries.
+  const allowFuzzyWordMatch = distinctiveWordCount <= 1
+
+  for (const key of keys) {
+    const aliasLabel =
+      collectionKeywordAliases[key.replace(/ /g, "")] ?? collectionKeywordAliases[canonicalSearchKey(key)]
+    if (!aliasLabel) continue
+    const numbers = canonicalByLabel.get(aliasLabel)?.song_numbers
+    if (numbers?.length) return [...numbers]
+  }
+
+  for (const key of keys) {
+    const folded = foldCollectionKeyword(key)
+    if (!folded) continue
+    for (const row of canonicalCollections as CanonicalCollection[]) {
+      const labelKey = foldCollectionKeyword(row.label)
+      const valueKey = foldCollectionKeyword(row.value)
+      const displayKey = foldCollectionKeyword(displayLabelOverrides[row.label] ?? "")
+      if (folded === labelKey || folded === valueKey || (displayKey && folded === displayKey)) {
+        return [...row.song_numbers]
+      }
+    }
+  }
+
+  if (!allowFuzzyWordMatch) return null
+
+  let matched: CanonicalCollection | null = null
+  for (const row of canonicalCollections as CanonicalCollection[]) {
+    const haystack = foldCollectionKeyword(
+      `${row.label} ${row.value} ${displayLabelOverrides[row.label] ?? ""}`,
+    )
+    if (!keys.some((key) => collectionHaystackMatches(key, haystack))) continue
+    if (!matched || row.count < matched.count) matched = row
+  }
+  return matched?.song_numbers.length ? [...matched.song_numbers] : null
+}
+
+export function collectionSearchDisplayLabel(query: string) {
+  const trimmed = query.trim()
+  for (const group of specialCollectionGroups) {
+    for (const collection of group.collections) {
+      if (queryMatchesCollection(trimmed, collection.query)) {
+        return collection.label
+      }
+    }
+  }
+  if (isCollectionSearchQuery(trimmed)) {
+    return trimmed.slice(collectionPromptPrefix.length).trim()
+  }
+  return trimmed
+}
+
+export function collectionSearchCount(query: string): number | null {
+  const trimmed = query.trim()
+  for (const group of specialCollectionGroups) {
+    for (const collection of group.collections) {
+      if (queryMatchesCollection(trimmed, collection.query)) {
+        return collection.count
+      }
+    }
+  }
+  return null
+}
+
+export type ExploreSearchKind = "catalog" | "semantic"
+
+export function exploreSearchKind(
+  query: string,
+  explicitKind?: string | null,
+  auth?: SearchAuth,
+): ExploreSearchKind {
+  if (explicitKind === "catalog") return "catalog"
+  if (isCollectionSearchQuery(query)) return "catalog"
+  const trimmed = query.trim()
+  if (isCompleteSargamQuery(trimmed)) return "catalog"
+  if (explicitKind === "semantic" && feelingSearchAllowed(auth)) return "semantic"
+  return planSearch(query, auth).networkMode === "semantic" ? "semantic" : "catalog"
+}

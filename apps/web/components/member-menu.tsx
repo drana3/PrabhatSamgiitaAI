@@ -1,0 +1,109 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+
+import { useMember } from "@/components/member-provider"
+import { memberFirstName } from "@/lib/member"
+import { signOutMember } from "@/lib/sign-out"
+import { signInHref } from "@/lib/sign-in"
+
+export function MemberMenu() {
+  const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true"
+  const pathname = usePathname()
+  const { loading, session } = useMember()
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  if (!authEnabled) return null
+  if (loading) {
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs text-navy-950/70 sm:px-4 sm:text-sm"
+      >
+        Signing in…
+      </span>
+    )
+  }
+  if (!session.authenticated) {
+    return (
+      <Link
+        href={signInHref(pathname)}
+        className="outline-button shrink-0 whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm"
+      >
+        Sign in
+      </Link>
+    )
+  }
+
+  const firstName = memberFirstName(session.display_name)
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Open account menu"
+        onClick={() => setOpen((current) => !current)}
+        className="flex items-center gap-2 rounded-full border border-navy-900/10 bg-white px-3 py-2 text-xs font-semibold text-navy-950 transition hover:border-gold-500/40"
+      >
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-gold-100 text-gold-800">{firstName.slice(0, 1).toUpperCase()}</span>
+        <span className="hidden sm:inline">Namaskar, {firstName}</span>
+      </button>
+      {open ? (
+        <div role="menu" className="absolute right-0 z-50 mt-2 min-w-[12rem] overflow-hidden rounded-2xl border border-navy-900/10 bg-white py-1 shadow-xl">
+          <Link
+            href="/account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-3 text-sm font-semibold text-navy-950 transition hover:bg-ivory-50"
+          >
+            Manage profile
+          </Link>
+          <Link
+            href="/quiz"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-3 text-sm font-semibold text-navy-950 transition hover:bg-ivory-50"
+          >
+            Quiz &amp; certificates
+          </Link>
+          {session.is_admin ? (
+            <Link
+              href="/admin/feedback"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-3 text-sm font-semibold text-navy-950 transition hover:bg-ivory-50"
+            >
+              Admin
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
+              void signOutMember(session.identity_provider)
+            }}
+            className="block w-full px-4 py-3 text-left text-sm font-semibold text-stone-600 transition hover:bg-ivory-50"
+          >
+            Sign out
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}

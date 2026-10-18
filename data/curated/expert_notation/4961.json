@@ -1,0 +1,112 @@
+{
+  "song_number": 4961,
+  "scale": "C",
+  "verification_status": "expert_verified",
+  "source_url": "https://prabhatasamgiita.net/notations/andromeda.php",
+  "metadata_json": {
+    "source_kind": "expert_handwritten_sheet",
+    "curated_from": "expert_scan_whatsapp_2026-08-25",
+    "expert_sheet_image": "/notation/expert/4961.png",
+    "requires_human_review": false,
+    "learner_notice": "Expert-verified matra sheet (Kaharwa 8). Matches curated handwritten notation.",
+    "display_script": "hi",
+    "tala_name_hi": "कहरवा",
+    "line_count": 3,
+    "coverage_incomplete": false
+  },
+  "notation_text": {
+    "version": 1,
+    "source_scale": "C",
+    "tempo_bpm": 72,
+    "tala": { "name": "Kaharva", "beats": 8, "groups": [4, 4] },
+    "lines": [
+      {
+        "line_number": 1,
+        "lyrics": "ईष्टमन्त्र मोर प्रिय प्राणाधिक",
+        "transliteration": "Ishta mantra mor priya pranadhik",
+        "measures": [
+          {
+            "beats": [
+              { "beat": 1, "notes": [{ "sargam": "P", "western": "G4", "duration": 1, "octave": "middle", "syllable": "ई" }] },
+              { "beat": 2, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 3, "notes": [{ "sargam": "P", "western": "G4", "duration": 1, "octave": "middle", "syllable": "ट" }] },
+              { "beat": 4, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "म" }] },
+              { "beat": 5, "notes": [{ "sargam": "P", "western": "G4", "duration": 1, "octave": "middle", "syllable": "न" }] },
+              { "beat": 6, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "त्र" }] },
+              { "beat": 7, "notes": [{ "sargam": "P", "western": "G4", "duration": 1, "octave": "middle", "syllable": "मो" }] },
+              { "beat": 8, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "र" }] }
+            ]
+          },
+          {
+            "beats": [
+              { "beat": 9, "notes": [{ "sargam": "D", "western": "A4", "duration": 1, "octave": "middle", "syllable": "प्रि" }] },
+              { "beat": 10, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "य" }] },
+              { "beat": 11, "notes": [{ "sargam": "P", "western": "G4", "duration": 1, "octave": "middle", "syllable": "प्रा" }] },
+              { "beat": 12, "notes": [{ "sargam": "m", "western": "F4", "duration": 1, "octave": "middle", "syllable": "णा" }] },
+              { "beat": 13, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "धि" }] },
+              { "beat": 14, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 15, "notes": [{ "sargam": "R", "western": "D4", "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 16, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "क" }] }
+            ]
+          }
+        ]
+      },
+      {
+        "line_number": 2,
+        "lyrics": "कारो बिनिमये छाडिबो ना आ",
+        "transliteration": "Karao vinimaye chhadibo na a",
+        "measures": [
+          {
+            "beats": [
+              { "beat": 1, "notes": [{ "sargam": "S", "western": "C4", "duration": 1, "octave": "middle", "syllable": "का" }] },
+              { "beat": 2, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 3, "notes": [{ "sargam": "R", "western": "D4", "duration": 1, "octave": "middle", "syllable": "रो" }] },
+              { "beat": 4, "notes": [{ "sargam": "R", "western": "D4", "duration": 1, "octave": "middle", "syllable": "बि" }] },
+              { "beat": 5, "notes": [{ "sargam": "R", "western": "D4", "duration": 1, "octave": "middle", "syllable": "नि" }] },
+              { "beat": 6, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 7, "notes": [{ "sargam": "R", "western": "D4", "duration": 1, "octave": "middle", "syllable": "म" }] },
+              { "beat": 8, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "ये" }] }
+            ]
+          },
+          {
+            "beats": [
+              { "beat": 9, "notes": [{ "sargam": "P", "western": "G3", "duration": 1, "octave": "lower", "syllable": "छा" }] },
+              { "beat": 10, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 11, "notes": [{ "sargam": "m", "western": "F4", "duration": 1, "octave": "middle", "syllable": "डि" }] },
+              { "beat": 12, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "बो" }] },
+              { "beat": 13, "notes": [{ "sargam": "R", "western": "D4", "duration": 1, "octave": "middle", "syllable": "ना" }] },
+              { "beat": 14, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 15, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "आ" }] },
+              { "beat": 16, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "S" }] }
+            ]
+          }
+        ]
+      },
+      {
+        "line_number": 3,
+        "lyrics": "छाडिबो ना",
+        "transliteration": "Chhadibo na",
+        "measures": [
+          {
+            "beats": [
+              { "beat": 1, "notes": [{ "sargam": "S", "western": "C4", "duration": 1, "octave": "middle", "syllable": "छा" }] },
+              { "beat": 2, "notes": [{ "sargam": "R", "western": "D4", "duration": 1, "octave": "middle", "syllable": "डि" }] },
+              { "beat": 3, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "बो" }] },
+              { "beat": 4, "notes": [{ "sargam": "G", "western": "E4", "duration": 1, "octave": "middle", "syllable": "ना" }] },
+              {
+                "beat": 5,
+                "notes": [
+                  { "sargam": "G", "western": "E4", "duration": 0.5, "octave": "middle", "syllable": "S" },
+                  { "sargam": "R", "western": "D4", "duration": 0.5, "octave": "middle", "syllable": "S" }
+                ]
+              },
+              { "beat": 6, "notes": [{ "sargam": "S", "western": "C4", "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 7, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "S" }] },
+              { "beat": 8, "notes": [{ "sargam": "-", "western": null, "duration": 1, "octave": "middle", "syllable": "S" }] }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

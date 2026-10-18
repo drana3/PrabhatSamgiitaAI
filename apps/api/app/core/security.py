@@ -13,6 +13,7 @@ from app.config import Settings, get_settings
 
 admin_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
 admin_attempts: dict[str, deque[float]] = defaultdict(deque)
+public_attempts: dict[str, deque[float]] = defaultdict(deque)
 
 
 def hash_admin_api_key(value: str) -> str:
@@ -26,6 +27,28 @@ def _rate_limit(client_key: str, limit: int = 30, window_seconds: int = 60) -> N
         attempts.popleft()
     if len(attempts) >= limit:
         raise HTTPException(status_code=429, detail="Too many admin requests")
+    attempts.append(now)
+
+
+def require_public_quota(
+    request: Request,
+    *,
+    bucket: str,
+    limit: int,
+    window_seconds: int = 60,
+) -> None:
+    """Bound expensive public operations before retrieval or model calls."""
+    host = request.client.host if request.client else "unknown"
+    key = f"{bucket}:{host}"
+    now = monotonic()
+    attempts = public_attempts[key]
+    while attempts and attempts[0] <= now - window_seconds:
+        attempts.popleft()
+    if len(attempts) >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail="Please wait a moment before trying again.",
+        )
     attempts.append(now)
 
 

@@ -1,0 +1,51 @@
+{
+  "platform": {
+    "apiRuntime": "node:20"
+  },
+  "auth": {
+    "identityProviders": {
+      "azureActiveDirectory": {
+        "registration": {
+          "clientIdSettingName": "AZURE_CLIENT_ID",
+          "clientSecretSettingName": "AZURE_CLIENT_SECRET",
+          "openIdIssuer": "https://login.microsoftonline.com/common/v2.0"
+        }
+      }
+    }
+  },
+  "routes": [
+    {
+      "route": "/.well-known/apple-app-site-association",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    {
+      "route": "/.auth/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/api/member/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/api/auth/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/auth/callback/microsoft",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/auth/callback/google",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/logout",
+      "redirect": "/.auth/logout"
+    }
+  ],
+  "mimeTypes": {
+    ".json": "application/json"
+  }
+}

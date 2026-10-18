@@ -15,6 +15,8 @@ class AdminSongWrite(BaseModel):
     first_line: str | None = Field(default=None, max_length=512)
     lyrics_original: str | None = None
     transliteration: str | None = None
+    lyrics_devanagari: str | None = None
+    devanagari_status: Literal["none", "provisional", "pending_review", "approved"] = "none"
     hindi_meaning: str | None = None
     english_meaning: str | None = None
     theme: str | None = None
@@ -38,6 +40,8 @@ class AdminSongUpdate(BaseModel):
     first_line: str | None = Field(default=None, max_length=512)
     lyrics_original: str | None = None
     transliteration: str | None = None
+    lyrics_devanagari: str | None = None
+    devanagari_status: Literal["none", "provisional", "pending_review", "approved"] | None = None
     hindi_meaning: str | None = None
     english_meaning: str | None = None
     theme: str | None = None
@@ -111,3 +115,83 @@ class AdminActionResponse(BaseModel):
     status: str
     entity_type: str
     entity_id: str
+
+
+class CatalogRefreshWrite(BaseModel):
+    song_numbers: list[int] = Field(default_factory=list)
+    recent_minutes: int | None = Field(default=None, ge=1, le=180)
+
+
+class CatalogRefreshResponse(BaseModel):
+    refreshed: int
+
+
+class AdminAnalyticsItem(BaseModel):
+    date: str
+    metric_type: str
+    dimension: str
+    count: int
+
+
+class AdminAnalyticsSummary(BaseModel):
+    days: int
+    metrics: list[AdminAnalyticsItem]
+
+
+class AdminFeedbackReplyItem(BaseModel):
+    reply_id: str
+    body: str
+    author_label: str
+    kind: str = "admin"
+    email_delivered: bool = False
+    created_at: str
+
+
+class AdminFeedbackItem(BaseModel):
+    feedback_id: str
+    category: str
+    rating: int
+    comment: str
+    page_path: str | None = None
+    contact: str | None = None
+    status: str
+    created_at: str
+    priority: bool = False
+    on_live_ticker: bool = False
+    replies: list[AdminFeedbackReplyItem] = Field(default_factory=list)
+
+
+class AdminFeedbackUpdate(BaseModel):
+    status: Literal["new", "reviewed", "actioned", "dismissed"] | None = None
+    publish_to_live: bool = False
+    unpublish_from_live: bool = False
+    review_note: str | None = Field(default=None, max_length=2000)
+
+
+class AdminFeedbackReplyCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class AdminFeedbackListResponse(BaseModel):
+    total: int
+    items: list[AdminFeedbackItem]
+
+
+class AdminDevanagariSong(BaseModel):
+    song_number: int
+    title: str
+    lyrics_original: str | None = None
+    lyrics_devanagari: str | None = None
+    devanagari_status: str = "none"
+    line_count_roman: int = 0
+    line_count_devanagari: int = 0
+
+
+class AdminDevanagariUpdate(BaseModel):
+    lyrics_devanagari: str = Field(..., min_length=1)
+    submit_for_approval: bool = False
+    review_note: str | None = Field(default=None, max_length=1000)
+
+
+class AdminDevanagariApprove(BaseModel):
+    review_note: str | None = Field(default=None, max_length=1000)

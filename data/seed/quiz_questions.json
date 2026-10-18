@@ -1,0 +1,470 @@
+[
+  {
+    "id": "starter-001",
+    "level": "starter",
+    "prompt": "How many songs make up the complete Prabhat Samgiita collection?",
+    "options": [
+      { "id": "a", "text": "5,018" },
+      { "id": "b", "text": "4,000" },
+      { "id": "c", "text": "1,001" },
+      { "id": "d", "text": "10,000" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Prabhat Samgiita comprises 5,018 songs composed by Shrii Shrii Anandamurti ji."
+  },
+  {
+    "id": "starter-002",
+    "level": "starter",
+    "prompt": "Who composed Prabhat Samgiita?",
+    "options": [
+      { "id": "a", "text": "Rabindranath Tagore" },
+      { "id": "b", "text": "Shrii Shrii Anandamurti ji" },
+      { "id": "c", "text": "Surdas" },
+      { "id": "d", "text": "An anonymous collective" }
+    ],
+    "correct_option_id": "b",
+    "explanation": "Shrii Shrii Anandamurti ji (Baba) composed all 5,018 Prabhat Samgiita songs."
+  },
+  {
+    "id": "starter-003",
+    "level": "starter",
+    "prompt": "When did the composition of Prabhat Samgiita begin?",
+    "options": [
+      { "id": "a", "text": "14 September 1982" },
+      { "id": "b", "text": "1 January 1983" },
+      { "id": "c", "text": "15 August 1947" },
+      { "id": "d", "text": "20 October 1990" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "The first Prabhat Samgiita songs were given on 14 September 1982."
+  },
+  {
+    "id": "starter-004",
+    "level": "starter",
+    "prompt": "What does “Prabhat Samgiita” broadly signify?",
+    "options": [
+      { "id": "a", "text": "Music of the inner dawn" },
+      { "id": "b", "text": "Evening classical ragas only" },
+      { "id": "c", "text": "Folk songs of Bengal" },
+      { "id": "d", "text": "Instrumental-only compositions" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Prabhat Samgiita is the music of the crimson dawn — devotion, hope, and spiritual awakening."
+  },
+  {
+    "id": "starter-005",
+    "level": "starter",
+    "prompt": "On this app, what can you do with a song besides listening?",
+    "options": [
+      { "id": "a", "text": "Read lyrics, meaning, and ask the AI companion" },
+      { "id": "b", "text": "Only download MP3 files" },
+      { "id": "c", "text": "Edit the original composition" },
+      { "id": "d", "text": "Replace verified lyrics" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Prabhat Samgiita AI helps you listen, read, understand, practise, and ask grounded questions."
+  },
+  {
+    "id": "starter-006",
+    "level": "starter",
+    "prompt": "How many AI companion questions can a guest ask per day (approx.)?",
+    "options": [
+      { "id": "a", "text": "15 deeper AI questions" },
+      { "id": "b", "text": "Unlimited" },
+      { "id": "c", "text": "1 question only" },
+      { "id": "d", "text": "500 questions" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Guests receive grounded answers first; deeper AI questions are limited to about 15 per day."
+  },
+  {
+    "id": "starter-007",
+    "level": "starter",
+    "prompt": "Which feature requires signing in?",
+    "options": [
+      { "id": "a", "text": "Saving favourite songs to your playlist" },
+      { "id": "b", "text": "Reading English meanings" },
+      { "id": "c", "text": "Searching songs" },
+      { "id": "d", "text": "Listening to verified audio" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Signed-in members can save songs, take quizzes, earn certificates, and receive higher AI limits."
+  },
+  {
+    "id": "starter-008",
+    "level": "starter",
+    "prompt": "Where can you read devotee stories and interviews in this app?",
+    "options": [
+      { "id": "a", "text": "Stories section" },
+      { "id": "b", "text": "Admin panel only" },
+      { "id": "c", "text": "Notation PDFs" },
+      { "id": "d", "text": "Inventory logs" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "The Stories section indexes devotee experiences sourced from the official archive."
+  },
+  {
+    "id": "starter-009",
+    "level": "starter",
+    "prompt": "Prabhat Samgiita songs express devotion together with which themes?",
+    "options": [
+      { "id": "a", "text": "Nature, humanism, and universal love" },
+      { "id": "b", "text": "Only political slogans" },
+      { "id": "c", "text": "Only classical grammar exercises" },
+      { "id": "d", "text": "Only instrumental scales" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "The songs weave devotion with nature, mysticism, humanism, and collective welfare."
+  },
+  {
+    "id": "starter-010",
+    "level": "starter",
+    "prompt": "What is the passing score for a Prabhat Samgiita AI quiz?",
+    "options": [
+      { "id": "a", "text": "70% (7 out of 10)" },
+      { "id": "b", "text": "100% only" },
+      { "id": "c", "text": "50%" },
+      { "id": "d", "text": "No passing score" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "You need at least 7 correct answers out of 10 (70%) to earn your level certificate."
+  },
+  {
+    "id": "starter-011",
+    "level": "starter",
+    "prompt": "Which official site is the primary source for verified lyrics on this app?",
+    "options": [
+      { "id": "a", "text": "prabhatasamgiita.net" },
+      { "id": "b", "text": "A random lyrics blog" },
+      { "id": "c", "text": "Social media posts only" },
+      { "id": "d", "text": "User-generated wiki" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Canonical lyrics and translations are indexed from prabhatasamgiita.net."
+  },
+  {
+    "id": "starter-012",
+    "level": "starter",
+    "prompt": "When did the composition period of Prabhat Samgiita end?",
+    "options": [
+      { "id": "a", "text": "20 October 1990" },
+      { "id": "b", "text": "14 September 1982" },
+      { "id": "c", "text": "2 January 1983" },
+      { "id": "d", "text": "1999" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "The last songs were given on 20 October 1990, completing the 5,018-song collection."
+  },
+  {
+    "id": "intermediate-001",
+    "level": "intermediate",
+    "prompt": "On 2 January 1983, Baba described Prabhat Samgiita as written with the ink of what?",
+    "options": [
+      { "id": "a", "text": "The heart" },
+      { "id": "b", "text": "The pen only" },
+      { "id": "c", "text": "Academic textbooks" },
+      { "id": "d", "text": "Commercial contracts" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Baba said Prabhat Samgiita is the feeling and expression of the heart, written with the ink of the heart."
+  },
+  {
+    "id": "intermediate-002",
+    "level": "intermediate",
+    "prompt": "Which devotee story in our archive is explicitly linked to song 419?",
+    "options": [
+      { "id": "a", "text": "Avt. Ananda Karuna Ac. on “Kende Kende Kata D'a'ki”" },
+      { "id": "b", "text": "A tour of India only" },
+      { "id": "c", "text": "The Magic Mirror" },
+      { "id": "d", "text": "Complete Surrender" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "The Ananda Karuna story is indexed alongside song 419 in the Stories collection."
+  },
+  {
+    "id": "intermediate-003",
+    "level": "intermediate",
+    "prompt": "What does “Akhanda Prabhat Samgiit” refer to?",
+    "options": [
+      { "id": "a", "text": "Unbroken collective singing of Prabhat Samgiita" },
+      { "id": "b", "text": "Deleting half the songs" },
+      { "id": "c", "text": "Translating into one language only" },
+      { "id": "d", "text": "A copyright license" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Akhanda singing is continuous, collective immersion in Prabhat Samgiita."
+  },
+  {
+    "id": "intermediate-004",
+    "level": "intermediate",
+    "prompt": "Ac. Shambhushivananda Avt. contributed which resource type in the official stories index?",
+    "options": [
+      { "id": "a", "text": "70 Questions and Answers on Prabhata Samgiita" },
+      { "id": "b", "text": "Audio mastering software" },
+      { "id": "c", "text": "YouTube copyright claims" },
+      { "id": "d", "text": "Song numbering errors" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "His Q&A guide helps devotees understand history, practice, and meaning."
+  },
+  {
+    "id": "intermediate-005",
+    "level": "intermediate",
+    "prompt": "When the AI companion gives a “line-by-line” answer, what is it grounded in?",
+    "options": [
+      { "id": "a", "text": "Canonical lyrics paired with verified meaning text" },
+      { "id": "b", "text": "Random internet forums" },
+      { "id": "c", "text": "User guesses" },
+      { "id": "d", "text": "Unrelated poetry" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Structured answers pair each lyric line with the catalog meaning before any deeper AI is used."
+  },
+  {
+    "id": "intermediate-006",
+    "level": "intermediate",
+    "prompt": "Prashanta Das (later Ac. Priyashivananda Avt.) is especially remembered for what role?",
+    "options": [
+      { "id": "a", "text": "Receiving and recording new Prabhat Samgiita from Baba" },
+      { "id": "b", "text": "Designing the website logo only" },
+      { "id": "c", "text": "Removing songs from the canon" },
+      { "id": "d", "text": "Translating into computer code" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "His interviews and stories describe the sacred process of receiving songs in Baba's room."
+  },
+  {
+    "id": "intermediate-007",
+    "level": "intermediate",
+    "prompt": "Which practice coach feature helps you learn melody on this app?",
+    "options": [
+      { "id": "a", "text": "Harmonium / notation practice where available" },
+      { "id": "b", "text": "Automatic voice replacement" },
+      { "id": "c", "text": "Random lyric rewriting" },
+      { "id": "d", "text": "Deleting original taal" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Where verified notation exists, the harmonium practice section supports learning the song."
+  },
+  {
+    "id": "intermediate-008",
+    "level": "intermediate",
+    "prompt": "Signed-in members receive roughly how many deeper AI questions per day?",
+    "options": [
+      { "id": "a", "text": "About 50" },
+      { "id": "b", "text": "About 5" },
+      { "id": "c", "text": "Zero" },
+      { "id": "d", "text": "About 500" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Members receive a higher daily quota than guests while keeping usage cost-conscious."
+  },
+  {
+    "id": "intermediate-009",
+    "level": "intermediate",
+    "prompt": "Ac. Chandranath's story focuses mainly on which aspect of Prabhat Samgiit?",
+    "options": [
+      { "id": "a", "text": "Language, translation, meaning, and melody together" },
+      { "id": "b", "text": "Stock market analysis" },
+      { "id": "c", "text": "Website hosting fees" },
+      { "id": "d", "text": "Deleting old recordings" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "His reflection explains how language, meaning, and melody cooperate in each song."
+  },
+  {
+    "id": "intermediate-010",
+    "level": "intermediate",
+    "prompt": "What happens if you fail a quiz level?",
+    "options": [
+      { "id": "a", "text": "You can retry with a new random set of 10 questions" },
+      { "id": "b", "text": "Your account is locked forever" },
+      { "id": "c", "text": "You cannot see any answers" },
+      { "id": "d", "text": "You must wait one year" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Retries are always available; after submitting you see your answers compared with the correct ones."
+  },
+  {
+    "id": "intermediate-011",
+    "level": "intermediate",
+    "prompt": "Daily reflections on the home page draw primarily from which sources?",
+    "options": [
+      { "id": "a", "text": "Source-verified books such as Ánanda Sútram" },
+      { "id": "b", "text": "Unverified social posts" },
+      { "id": "c", "text": "Random song titles only" },
+      { "id": "d", "text": "Advertisement copy" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Reflection quotes require book provenance and verification status before rotation."
+  },
+  {
+    "id": "intermediate-012",
+    "level": "intermediate",
+    "prompt": "Which level must you pass before attempting “Experienced” in the quiz journey?",
+    "options": [
+      { "id": "a", "text": "No strict lock — choose any level, but Starter → Intermediate → Experienced is the suggested path" },
+      { "id": "b", "text": "Experienced is hidden entirely" },
+      { "id": "c", "text": "Only admins may quiz" },
+      { "id": "d", "text": "Guests can earn certificates" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "All three levels are open to signed-in members; progression is suggested for learning, not enforced."
+  },
+  {
+    "id": "experienced-001",
+    "level": "experienced",
+    "prompt": "In the official giving procedure described by Prashanta Das, how many persons should be present when Baba gives a new song?",
+    "options": [
+      { "id": "a", "text": "Three persons" },
+      { "id": "b", "text": "Exactly one hundred" },
+      { "id": "c", "text": "Nobody" },
+      { "id": "d", "text": "Only outsiders" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "According to his account, Baba's rule was that three persons should be present when a new song is given."
+  },
+  {
+    "id": "experienced-002",
+    "level": "experienced",
+    "prompt": "Kalyan Deva's indexed story title quotes Baba on Prabhat Samgiita being written with the ink of what?",
+    "options": [
+      { "id": "a", "text": "The heart" },
+      { "id": "b", "text": "The typewriter ribbon" },
+      { "id": "c", "text": "Legal statutes" },
+      { "id": "d", "text": "Market research" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Kalyan Deva's story centres on Baba's heart-centred description of the songs."
+  },
+  {
+    "id": "experienced-003",
+    "level": "experienced",
+    "prompt": "Ac. Priyashivananda Avt. wrote about which effect of Prabhat Samgiita besides “Complete Surrender”?",
+    "options": [
+      { "id": "a", "text": "Therapeutic / healing effects" },
+      { "id": "b", "text": "Increasing traffic fines" },
+      { "id": "c", "text": "Replacing all medicine with silence only" },
+      { "id": "d", "text": "Eliminating melody" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "His story on therapeutic effects discusses calm and restoration through singing and listening."
+  },
+  {
+    "id": "experienced-004",
+    "level": "experienced",
+    "prompt": "Which AI answer types are handled without using the daily deeper-AI quota?",
+    "options": [
+      { "id": "a", "text": "Line-by-line, overview, related songs, meditation, and stories when structured" },
+      { "id": "b", "text": "Every possible question" },
+      { "id": "c", "text": "None — all answers use GPT" },
+      { "id": "d", "text": "Only weather questions" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "The API serves grounded structured answers first; quota applies when LLM depth is needed."
+  },
+  {
+    "id": "experienced-005",
+    "level": "experienced",
+    "prompt": "Ac. Vijayananda Avt. contributed multiple stories including which symbolic title?",
+    "options": [
+      { "id": "a", "text": "The Magic Mirror" },
+      { "id": "b", "text": "The Empty Spreadsheet" },
+      { "id": "c", "text": "The Broken Server" },
+      { "id": "d", "text": "The Silent Auction" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Among his indexed stories are A tour of India, Writer Composer and Poet, and The Magic Mirror."
+  },
+  {
+    "id": "experienced-006",
+    "level": "experienced",
+    "prompt": "What does the app's query guard primarily protect against?",
+    "options": [
+      { "id": "a", "text": "Off-topic or abusive prompts outside Prabhat Samgiita scope" },
+      { "id": "b", "text": "All devotional singing" },
+      { "id": "c", "text": "Reading verified lyrics" },
+      { "id": "d", "text": "Saving favourites" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Guardrails keep the companion focused on songs, meanings, practice, and related spiritual context."
+  },
+  {
+    "id": "experienced-007",
+    "level": "experienced",
+    "prompt": "Gayatrii's indexed story recalls Baba saying which instrument-related instruction?",
+    "options": [
+      { "id": "a", "text": "“You will bring the guitar. And you will sing.”" },
+      { "id": "b", "text": "“Never sing again.”" },
+      { "id": "c", "text": "“Sell all instruments.”" },
+      { "id": "d", "text": "“Only use drums at midnight.”" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Her story is indexed under that memorable instruction about sharing Prabhat Samgiita through song."
+  },
+  {
+    "id": "experienced-008",
+    "level": "experienced",
+    "prompt": "When a member passes a quiz level, what identifier appears on their certificate?",
+    "options": [
+      { "id": "a", "text": "A unique certificate code plus level name and date" },
+      { "id": "b", "text": "Their password" },
+      { "id": "c", "text": "A random song MP3" },
+      { "id": "d", "text": "Nothing — certificates are not stored" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Passing creates a sample certificate authorized by Prabhat Samgiita AI with a readable certificate code."
+  },
+  {
+    "id": "experienced-009",
+    "level": "experienced",
+    "prompt": "Ramesh's story emphasises that Prabhat Samgiita can be played on what?",
+    "options": [
+      { "id": "a", "text": "All kinds of instruments" },
+      { "id": "b", "text": "Only one banned instrument" },
+      { "id": "c", "text": "No instruments at all" },
+      { "id": "d", "text": "Only digital synthesizers from 2026" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "His reflection highlights adaptability across instruments while keeping devotional spirit."
+  },
+  {
+    "id": "experienced-010",
+    "level": "experienced",
+    "prompt": "Which service selects today's recommended songs using festivals and humanitarian context?",
+    "options": [
+      { "id": "a", "text": "Recommendation engine with reviewed festival and occasion catalog" },
+      { "id": "b", "text": "Random number generator only" },
+      { "id": "c", "text": "Paid advertisements" },
+      { "id": "d", "text": "Alphabetical sort of song titles only" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Today's recommendations combine Ananda Marga observances, world days, and reviewed thematic lists."
+  },
+  {
+    "id": "experienced-011",
+    "level": "experienced",
+    "prompt": "Ac. Cidrupananda Avt.'s story is titled with which intimate phrase?",
+    "options": [
+      { "id": "a", "text": "“This song is for you”" },
+      { "id": "b", "text": "“This server is for you”" },
+      { "id": "c", "text": "“This invoice is for you”" },
+      { "id": "d", "text": "“This quiz is mandatory”" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "The story describes a song feeling personally addressed between singer and Beloved."
+  },
+  {
+    "id": "experienced-012",
+    "level": "experienced",
+    "prompt": "What is the recommended learning path through the three quiz levels?",
+    "options": [
+      { "id": "a", "text": "Starter → Intermediate → Experienced" },
+      { "id": "b", "text": "Experienced → Starter only" },
+      { "id": "c", "text": "Intermediate skipped always" },
+      { "id": "d", "text": "No levels exist" }
+    ],
+    "correct_option_id": "a",
+    "explanation": "Starter builds basics, Intermediate deepens practice and stories, Experienced covers richer context."
+  }
+]
