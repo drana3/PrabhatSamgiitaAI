@@ -458,12 +458,12 @@ async def reply_to_feedback(
 
 
 def _devanagari_song_payload(song: Song) -> AdminDevanagariSong:
-    roman = song.lyrics_original or ""
+    roman = (song.lyrics_original or song.transliteration or "").strip()
     dev = song.lyrics_devanagari or ""
     return AdminDevanagariSong(
         song_number=song.number,
         title=song.title,
-        lyrics_original=song.lyrics_original,
+        lyrics_original=roman or None,
         lyrics_devanagari=song.lyrics_devanagari,
         devanagari_status=song.devanagari_status or "none",
         line_count_roman=len(roman.split("\n")) if roman else 0,
