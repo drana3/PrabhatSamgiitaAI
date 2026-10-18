@@ -71,6 +71,10 @@ PRABHAT_SAMGIITA_RE = re.compile(
     r"prabhat\s*(?:samgiita|samgita|sangeet|sangeeta)",
     re.I,
 )
+# Manas Rawa and similar channels put the catalog number after dots:
+# "TUMI PRANER POROSHE ...4577" or "KAHAKEO PAPI BHEBE ....0695"
+ELLIPSIS_SONG_NUMBER_RE = re.compile(r"(?:\.{2,}|…)\s*(\d{1,4})\s*$", re.M)
+CATALOG_SIZE_RE = re.compile(r"(?:treasure\s+of\s+)?5018\s+spiritual\s+songs", re.I)
 PRABHAT_HINT_RE = re.compile(r"prab?h?a?t", re.I)
 SAMGIITA_HINT_RE = re.compile(
     r"sam?g+i+[et]{1,2}a?|sange+e?t+a?|samgita|samgiit|sangiita",
@@ -758,9 +762,34 @@ def enrich_videos_for_channel(
     return deferred
 
 
+def ellipsis_catalog_song_number(text: str) -> int | None:
+    """Read a catalog number written after two or more dots at the end of a line."""
+    for match in ELLIPSIS_SONG_NUMBER_RE.finditer(text):
+        number = int(match.group(1))
+        if MIN_SONG_NUMBER <= number <= MAX_SONG_NUMBER:
+            return number
+    return None
+
+
+def _number_is_catalog_size_or_year(text: str, start: int, end: int, number: int) -> bool:
+    if number == MAX_SONG_NUMBER and CATALOG_SIZE_RE.search(text):
+        window = text[max(0, start - 24) : end + 24]
+        if CATALOG_SIZE_RE.search(window):
+            return True
+    nearby = text[max(0, start - 2) : end + 2]
+    if re.search(rf"\(\s*{number}\s*\)", nearby) and (
+        1900 <= number <= 2099 or number == MAX_SONG_NUMBER
+    ):
+        return True
+    return False
+
+
 def explicit_song_number(title: str) -> int | None:
     if not mentions_prabhat_samgiita(title):
         return None
+    ellipsis = ellipsis_catalog_song_number(title)
+    if ellipsis is not None:
+        return ellipsis
     patterns = (
         r"(?:song\s*)?(?:number|no\.?|#)\s*(\d{1,4})",
         r"#\s*(\d{1,4})",
@@ -768,11 +797,13 @@ def explicit_song_number(title: str) -> int | None:
         r"prab[a-z]*\D{0,24}(\d{1,4})",
     )
     for pattern in patterns:
-        match = re.search(pattern, title, re.I)
-        if match:
+        for match in re.finditer(pattern, title, re.I):
             number = int(match.group(1))
-            if MIN_SONG_NUMBER <= number <= MAX_SONG_NUMBER:
-                return number
+            if not (MIN_SONG_NUMBER <= number <= MAX_SONG_NUMBER):
+                continue
+            if _number_is_catalog_size_or_year(title, match.start(1), match.end(1), number):
+                continue
+            return number
     return None
 
 
@@ -806,7 +837,7 @@ def media_row(
             text,
             re.I,
         )
-    )
+    ) or ellipsis_catalog_song_number(text) == number
     trusted = bool(channel.get("trusted", True))
     if trusted:
         score = round(
