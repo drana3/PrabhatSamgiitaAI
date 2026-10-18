@@ -23,6 +23,7 @@ from scripts.sync_youtube import (
     needs_description,
     parse_youtube_relative_time,
     persist_youtube_inventory,
+    queued_needs_description,
     review_matches_channel,
     review_row,
     video_match_text,
@@ -446,6 +447,22 @@ def test_review_matches_channel_accepts_name_and_handle() -> None:
     assert not review_matches_channel(
         {"channel_id": "other", "channel_name": "AMPS", "source_url": ""},
         channel,
+    )
+
+
+def test_queued_needs_description_skips_numbered_title_channels() -> None:
+    title_channel = {**CHANNELS[0], "number_source": "title"}
+    assert not queued_needs_description(
+        {"title": "Prabhat Samgiita Song Number 12"},
+        title_channel,
+    )
+    assert queued_needs_description(
+        {"title": "PRABHAT SAMGIITA || TUMI KON ATITE MORE || MANAS"},
+        title_channel,
+    )
+    assert queued_needs_description(
+        {"title": "Prabhat Samgiita Song Number 12"},
+        {**title_channel, "number_source": "description"},
     )
 
 
