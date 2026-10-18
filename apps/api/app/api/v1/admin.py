@@ -12,7 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings, get_settings
 from app.core.db import get_session
 from app.core.security import require_admin
-from app.models import AnalyticsDaily, ContentAudit, Media, Notation, Song, UserFeedback
+from app.models import (
+    AnalyticsDaily,
+    ContentAudit,
+    Media,
+    Notation,
+    Song,
+    UserFeedback,
+    UserFeedbackReply,
+)
 from app.schemas.admin import (
     AdminActionResponse,
     AdminAnalyticsItem,
@@ -327,8 +335,20 @@ async def analytics_summary(
     )
 
 
+def _reply_item(reply: UserFeedbackReply) -> AdminFeedbackReplyItem:
+    data = reply_to_dict(reply)
+    return AdminFeedbackReplyItem(
+        reply_id=str(data["reply_id"]),
+        body=str(data["body"]),
+        author_label=str(data["author_label"]),
+        kind=str(data["kind"]),
+        email_delivered=bool(data["email_delivered"]),
+        created_at=str(data["created_at"]),
+    )
+
+
 def _admin_feedback_item(
-    item: UserFeedback, replies: list | None = None
+    item: UserFeedback, replies: list[UserFeedbackReply] | None = None
 ) -> AdminFeedbackItem:
     return AdminFeedbackItem(
         feedback_id=str(item.id),
@@ -340,9 +360,7 @@ def _admin_feedback_item(
         status=item.status,
         created_at=item.created_at.isoformat() if item.created_at else "",
         priority=feedback_priority(item.category, item.rating),
-        replies=[
-            AdminFeedbackReplyItem(**reply_to_dict(reply)) for reply in (replies or [])
-        ],
+        replies=[_reply_item(reply) for reply in (replies or [])],
     )
 
 
