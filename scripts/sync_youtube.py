@@ -183,7 +183,8 @@ def persist_youtube_inventory(
                         review_reason = 'auto_linked_explicit_song_number',
                         review_note = 'Auto-linked from an explicit catalog song number.',
                         reviewed_at = NOW()
-                    WHERE external_id = %s AND status = 'pending_review'
+                    WHERE external_id = %s
+                      AND status IN ('pending_review', 'dismissed')
                     """,
                     (int(row["song_number"]), external_id),
                 )
@@ -362,7 +363,7 @@ def load_pending_youtube_reviews(database_url: str | None = None) -> list[dict[s
                 """
                 SELECT external_id, title, url, channel_id, channel_name, source_url
                 FROM youtube_review_queue
-                WHERE status = 'pending_review'
+                WHERE status IN ('pending_review', 'dismissed')
                 """
             )
             return [
@@ -401,7 +402,13 @@ def review_matches_channel(pending: dict[str, Any], channel: dict[str, Any]) -> 
     ).casefold()
     if channel_id and channel_id.casefold() in haystack:
         return True
-    if name and name.casefold() == str(pending.get("channel_name") or "").casefold():
+    pending_name = str(pending.get("channel_name") or "").casefold()
+    channel_name = name.casefold()
+    if channel_name and pending_name and (
+        pending_name == channel_name
+        or channel_name in pending_name
+        or pending_name in channel_name
+    ):
         return True
     handle = re.search(r"youtube\.com/@([\w.-]+)", str(channel.get("url") or ""), re.I)
     return bool(handle and handle.group(1).casefold() in haystack)
@@ -1134,6 +1141,10 @@ def main() -> None:
     pending_reviews = load_pending_youtube_reviews()
     for pending in pending_reviews:
         review_by_id.setdefault(pending["external_id"], pending)
+    print(
+        f"Loaded {len(pending_reviews)} queued YouTube reviews from Neon",
+        file=sys.stderr,
+    )
     for channel in scan_channels:
         channel_pending = [
             pending
@@ -1162,6 +1173,11 @@ def main() -> None:
         discovered_by_channel[channel["name"]] = len(discovered)
         videos = fold_pending_videos(discovered, channel_pending, linked_ids)
         pending_ids = {str(row["external_id"]) for row in channel_pending}
+        print(
+            f"{channel['name']}: {len(channel_pending)} queued, "
+            f"{len(discovered)} discovered, {len(videos)} after fold",
+            file=sys.stderr,
+        )
         for video in videos:
             if video["video_id"] in pending_ids:
                 video["_use_description"] = True

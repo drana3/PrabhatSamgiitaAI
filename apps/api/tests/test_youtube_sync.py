@@ -435,7 +435,7 @@ def test_review_matches_channel_accepts_name_and_handle() -> None:
         {
             "channel_id": "legacy",
             "channel_name": "MANAS RAWA ASSAM",
-            "source_url": "https://www.youtube.com/@rawaassam/videos",
+            "source_url": "",
         },
         channel,
     )
