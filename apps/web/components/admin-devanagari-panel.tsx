@@ -287,6 +287,10 @@ export function AdminDevanagariPanel({
 
   const roman = song?.lyrics_original?.trim() || ""
   const loading = progressKind === "load"
+  const actionProgress =
+    progressKind === "save" || progressKind === "submit" || progressKind === "approve"
+      ? progressKind
+      : null
   const progressLabel = song
     ? `Song #${song.song_number}`
     : songNumber.trim()
@@ -424,9 +428,9 @@ export function AdminDevanagariPanel({
             />
           </label>
 
-          {progressKind && progressKind !== "load" ? (
+          {actionProgress ? (
             <ActionProgress
-              kind={progressKind}
+              kind={actionProgress}
               stepIndex={progressStep}
               songLabel={progressLabel}
               className="mt-2"
