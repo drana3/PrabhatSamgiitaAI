@@ -1,11 +1,23 @@
 import Link from "next/link"
 
 import type { SongSummary } from "@/lib/api"
+import { localSongDetail } from "@/lib/local-song-catalog"
 import { songPagePath } from "@/lib/song-path"
 import { formatLyricLineTransliteration, titleCaseTransliteration } from "@/lib/transliteration-text"
 
+function scriptMeta(song: SongSummary): string {
+  const local = localSongDetail(song.number)
+  const hasDev = Boolean(local?.lyrics_devanagari?.trim())
+  const lang = (song.language || "").trim()
+  // Catalog often stores script name "Roman" in `language` — show available reading scripts.
+  const isRomanLabel = !lang || /^roman$/i.test(lang)
+  if (isRomanLabel) return hasDev ? "Roman · Devanagari" : "Roman"
+  return hasDev ? `${lang} · Roman · Devanagari` : lang
+}
+
 export function SongCard({ song, index = 0 }: { song: SongSummary; index?: number }) {
   const swatches = ["from-amber-100 to-orange-50", "from-sky-100 to-ivory-50", "from-emerald-100 to-ivory-50"]
+  const scripts = scriptMeta(song)
   return (
     <Link href={songPagePath(song.number)} className="group surface-card overflow-hidden transition duration-300 hover:-translate-y-1 hover:border-gold-500/50 hover:shadow-xl">
       <div className={`h-2 bg-gradient-to-r ${swatches[index % swatches.length]}`} />
@@ -24,7 +36,7 @@ export function SongCard({ song, index = 0 }: { song: SongSummary; index?: numbe
         <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-navy-900/8 pt-4 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-stone-500">
           <span>{song.theme || song.mood || "Devotion"}</span>
           <span className="text-gold-500">•</span>
-          <span>{song.language || "Roman"}</span>
+          <span>{scripts}</span>
           {song.is_verified ? <span className="ml-auto text-emerald-700">✓ Source verified</span> : null}
         </div>
       </div>

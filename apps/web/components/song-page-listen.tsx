@@ -43,14 +43,21 @@ export function SongPageListenShell({
   songNumber,
   recordings,
   children,
+  deferAudioWarm = false,
 }: {
   songNumber: number
   recordings: RankedAudio[]
   children: ReactNode
+  /** Prefer lyrics paint before prefetching MP3 bytes. */
+  deferAudioWarm?: boolean
 }) {
   if (!recordings.length) return children
   return (
-    <SongListenProvider songNumber={songNumber} recordings={recordings}>
+    <SongListenProvider
+      songNumber={songNumber}
+      recordings={recordings}
+      deferAudioWarm={deferAudioWarm}
+    >
       {children}
     </SongListenProvider>
   )
@@ -60,10 +67,12 @@ function SongListenProvider({
   songNumber,
   recordings,
   children,
+  deferAudioWarm = false,
 }: {
   songNumber: number
   recordings: RankedAudio[]
   children: ReactNode
+  deferAudioWarm?: boolean
 }) {
   const latestUrl = recordings.find((item) => item.isLatest)?.url ?? recordings[0]?.url ?? null
   const [url, setUrl] = useState(latestUrl)
@@ -86,8 +95,39 @@ function SongListenProvider({
 
   useEffect(() => {
     if (!selected?.url) return
-    void warmArchiveAudioStream(selected.url)
-  }, [selected?.url])
+    if (!deferAudioWarm) {
+      void warmArchiveAudioStream(selected.url)
+      return
+    }
+    // Lyrics-first: wait until the browser is idle (or a short fallback) before MP3 warm.
+    let cancelled = false
+    const run = () => {
+      if (!cancelled) void warmArchiveAudioStream(selected.url)
+    }
+    const ric = (
+      globalThis as typeof globalThis & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+        cancelIdleCallback?: (id: number) => void
+      }
+    ).requestIdleCallback
+    const cic = (
+      globalThis as typeof globalThis & {
+        cancelIdleCallback?: (id: number) => void
+      }
+    ).cancelIdleCallback
+    if (typeof ric === "function") {
+      const id = ric(run, { timeout: 2500 })
+      return () => {
+        cancelled = true
+        cic?.(id)
+      }
+    }
+    const timer = window.setTimeout(run, 1200)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [selected?.url, deferAudioWarm])
 
   if (!selected) return null
 

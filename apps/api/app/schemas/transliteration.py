@@ -36,7 +36,10 @@ class TransliterationRequest(BaseModel):
     # Language agents sit on top of the rule engine (never replace it).
     language_agents: list[str] | None = Field(
         default=None,
-        description="Subset of: hindi, bengali, samskrta, urdu. Empty/null = skip.",
+        description=(
+            "Subset of: hindi, bengali, samskrta, urdu, magahi, maithili, angika, "
+            "bhojpuri. Empty/null = skip."
+        ),
     )
     cross_validate: bool = Field(
         default=False,

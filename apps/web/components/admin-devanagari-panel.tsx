@@ -13,6 +13,14 @@ type DevanagariSong = {
   devanagari_status: string
   line_count_roman: number
   line_count_devanagari: number
+  song_language?: string | null
+  review_language?: string | null
+  conversion_confidence_percent?: number | null
+  conversion_notes?: string | null
+  regional_grammar_notes?: string | null
+  review_reasons?: string[]
+  ambiguous_tokens?: string[]
+  unsupported_tokens?: string[]
 }
 
 export function AdminDevanagariPanel({
@@ -163,6 +171,43 @@ export function AdminDevanagariPanel({
                 Roman lines {song.line_count_roman} · Devanagari lines{" "}
                 {draft.trim() ? draft.trim().split("\n").length : 0}
               </p>
+              {song.conversion_confidence_percent != null ? (
+                <p className="mt-2 rounded-xl border border-gold-500/25 bg-gold-50 px-3 py-2 text-sm text-navy-900">
+                  <span className="font-semibold">
+                    Roman→Devanagari confidence: {song.conversion_confidence_percent}%
+                  </span>
+                  {song.song_language ? ` · ${song.song_language}` : ""}
+                  {song.review_language ? ` · agent: ${song.review_language}` : ""}
+                  {song.conversion_notes ? (
+                    <span className="mt-1 block text-xs text-stone-600">{song.conversion_notes}</span>
+                  ) : null}
+                  {song.regional_grammar_notes ? (
+                    <span className="mt-1 block text-xs text-stone-600">
+                      Regional grammar: {song.regional_grammar_notes}
+                    </span>
+                  ) : null}
+                  {song.review_reasons?.length ? (
+                    <span className="mt-2 block text-xs text-stone-700">
+                      Review reasons:
+                      <ul className="mt-1 list-disc pl-4">
+                        {song.review_reasons.slice(0, 8).map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    </span>
+                  ) : null}
+                  {song.ambiguous_tokens?.length ? (
+                    <span className="mt-1 block text-xs text-amber-800">
+                      Ambiguous: {song.ambiguous_tokens.slice(0, 12).join(", ")}
+                    </span>
+                  ) : null}
+                  {song.unsupported_tokens?.length ? (
+                    <span className="mt-1 block text-xs text-red-700">
+                      Unsupported: {song.unsupported_tokens.slice(0, 12).join(", ")}
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
             </div>
           </div>
 

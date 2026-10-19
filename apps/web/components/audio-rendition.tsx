@@ -305,7 +305,7 @@ function CompactPlayer({
         <audio
           ref={assignAudioRef}
           aria-label={`Listen to ${title}`}
-          preload="auto"
+          preload="metadata"
           src={url}
           onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
           onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}

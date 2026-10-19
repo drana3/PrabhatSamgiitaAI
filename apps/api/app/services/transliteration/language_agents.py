@@ -48,6 +48,32 @@ class ReviewLanguage(StrEnum):
     BENGALI = "bengali"
     SAMSKRTA = "samskrta"
     URDU = "urdu"
+    # Eastern Indo-Aryan varieties: Hindi orthography layer + dialect notes.
+    MAGAHI = "magahi"
+    MAITHILI = "maithili"
+    ANGIKA = "angika"
+    BHOJPURI = "bhojpuri"
+
+
+#: Default set for cross-validation (regional agents are opt-in via API).
+CORE_REVIEW_LANGUAGES: tuple[ReviewLanguage, ...] = (
+    ReviewLanguage.HINDI,
+    ReviewLanguage.BENGALI,
+    ReviewLanguage.SAMSKRTA,
+    ReviewLanguage.URDU,
+)
+
+#: Regional agents that reuse Hindi deterministic orthography fixes.
+HINDI_FAMILY_LANGUAGES: frozenset[ReviewLanguage] = frozenset(
+    {
+        ReviewLanguage.HINDI,
+        ReviewLanguage.URDU,
+        ReviewLanguage.MAGAHI,
+        ReviewLanguage.MAITHILI,
+        ReviewLanguage.ANGIKA,
+        ReviewLanguage.BHOJPURI,
+    }
+)
 
 
 # Language-specific orthography notes layered *on* the shared ruleset.
@@ -86,7 +112,34 @@ _LANGUAGE_NOTES: dict[ReviewLanguage, str] = {
         "review common Urdu spellings (FAORAN→फ़ौरन); do NOT invent Perso-"
         "Arabic letters outside Devanagari+nukta."
     ),
+    ReviewLanguage.MAGAHI: (
+        "Magahi (on Hindi orthography layer): keep sung vowel length from Roman; "
+        "do not force Bengali hiatus spellings; apply Hindi य/व glides where "
+        "hiatus is clearly Hindi-like; flag English/loan nukta forms; never invent "
+        "glyphs outside the ruleset."
+    ),
+    ReviewLanguage.MAITHILI: (
+        "Maithili (on Hindi orthography layer): preserve long Á/ई from Roman; "
+        "watch endings (-ahi/-ain) without inventing glyphs; Hindi hiatus glides "
+        "apply when Roman clearly intends them; keep dialect lexicon literal."
+    ),
+    ReviewLanguage.ANGIKA: (
+        "Angika / Aungiká (on Hindi orthography layer): keep dialect lexicon "
+        "literal from Roman; do not Bengali-glide vowel hiatus; Hindi य/व glides "
+        "only when hiatus matches Hindi conventions."
+    ),
+    ReviewLanguage.BHOJPURI: (
+        "Bhojpuri (on Hindi orthography layer): preserve nasalization (Ḿ/ं); "
+        "common -ba/-wa endings stay as written in Roman; Hindi hiatus/vocative "
+        "conventions apply; do not invent Perso-Arabic letters."
+    ),
 }
+
+
+def language_note(language: ReviewLanguage | str) -> str:
+    """Public accessor for orthography notes (admin / HITL copy)."""
+    lang = ReviewLanguage(language) if not isinstance(language, ReviewLanguage) else language
+    return _LANGUAGE_NOTES[lang]
 
 
 _I_LIKE = set("इईिी")  # short/long i (independent or matra)
@@ -471,7 +524,7 @@ def review_deterministic(
             assessment="suggest_changes",
             overall_comment="Engine produced no Devanagari; nothing to language-review.",
         )
-    if lang in (ReviewLanguage.HINDI, ReviewLanguage.URDU):
+    if lang in HINDI_FAMILY_LANGUAGES:
         suggestions = _deterministic_hindi_urdu(lang, roman, engine_devanagari)
     elif lang is ReviewLanguage.BENGALI:
         suggestions = _deterministic_bengali(roman, engine_devanagari)
@@ -644,7 +697,7 @@ def cross_validate(
 
     Deterministic only (no LLM) so it is safe for batch / HITL prep.
     """
-    langs = languages or [lang.value for lang in ReviewLanguage]
+    langs = languages or [lang.value for lang in CORE_REVIEW_LANGUAGES]
     agents = [review_deterministic(lang, roman, engine_devanagari) for lang in langs]
     return _build_cross_validation(engine_devanagari, agents)
 
@@ -661,7 +714,7 @@ async def cross_validate_async(
     if not use_llm:
         return cross_validate(roman, engine_devanagari, languages)
 
-    langs = languages or [lang.value for lang in ReviewLanguage]
+    langs = languages or [lang.value for lang in CORE_REVIEW_LANGUAGES]
     agents = [
         await review_with_optional_llm(
             lang, roman, engine_devanagari, use_llm=True, provider=provider

@@ -39,6 +39,26 @@ def test_payload_fills_empty_db_from_catalogue() -> None:
     assert payload.lyrics_devanagari and "बन्धु" in payload.lyrics_devanagari
     assert payload.devanagari_status == "provisional"
     assert payload.line_count_devanagari >= 1
+    assert payload.conversion_confidence_percent is not None
+    assert 0 <= payload.conversion_confidence_percent <= 100
+
+
+def test_regional_profile_from_category() -> None:
+    from app.services.devanagari_admin import detect_song_language_profile
+
+    song = Song(
+        number=4513,
+        title="Magahi song",
+        lyrics_original="BANDHU",
+        metadata_json={"category": "K? (MAGAHII)"},
+    )
+    label, lang, note = detect_song_language_profile(song)
+    assert label == "Magahi"
+    assert lang.value == "magahi"
+    assert note and "Magahi" in note
+    payload = admin_devanagari_payload(song)
+    assert isinstance(payload.review_reasons, list)
+    assert payload.review_language == "magahi"
 
 
 @pytest.mark.asyncio
