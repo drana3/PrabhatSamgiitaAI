@@ -486,8 +486,18 @@ def test_catalogue_report_includes_token_and_dialect_triage() -> None:
                 "roman": {"text": "HRDAYE\nFAKIR", "lines": ["HRDAYE", "FAKIR"]},
                 "devanagari": {"text": "x", "lines": ["x", "x"]},
                 "line_pairs": [
-                    {"line_number": 1, "roman": "HRDAYE", "devanagari": "x", "status": "needs_review"},
-                    {"line_number": 2, "roman": "FAKIR", "devanagari": "x", "status": "needs_review"},
+                    {
+                        "line_number": 1,
+                        "roman": "HRDAYE",
+                        "devanagari": "x",
+                        "status": "needs_review",
+                    },
+                    {
+                        "line_number": 2,
+                        "roman": "FAKIR",
+                        "devanagari": "x",
+                        "status": "needs_review",
+                    },
                 ],
                 "provenance": {
                     "devanagari_origin": "rule_based",
