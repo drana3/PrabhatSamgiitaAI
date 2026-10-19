@@ -2,21 +2,17 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
-  type RefObject,
 } from "react"
 import type { RankedAudio } from "@prabhat/core"
 import { audioFreshnessBadge } from "@prabhat/core"
 
 import { AudioRendition } from "@/components/audio-rendition"
 import { defaultSongAudioUrl, writePreferredAudio } from "@/lib/preferred-audio"
-import { useSongPageLayout } from "@/lib/use-song-page-layout"
 import { warmArchiveAudioStream } from "@/lib/warm-audio-stream"
 
 type SongListenContextValue = {
@@ -26,9 +22,6 @@ type SongListenContextValue = {
   selectRecording: (url: string) => void
   tryNextRecording: (failedUrl: string) => void
   showList: boolean
-  sharedAudioRef: RefObject<HTMLAudioElement | null>
-  sharedAudioReady: boolean
-  registerSharedAudio: (element: HTMLAudioElement | null) => void
 }
 
 const SongListenContext = createContext<SongListenContextValue | null>(null)
@@ -76,13 +69,6 @@ function SongListenProvider({
 }) {
   const latestUrl = recordings.find((item) => item.isLatest)?.url ?? recordings[0]?.url ?? null
   const [url, setUrl] = useState(latestUrl)
-  const sharedAudioRef = useRef<HTMLAudioElement | null>(null)
-  const [sharedAudioReady, setSharedAudioReady] = useState(false)
-
-  const registerSharedAudio = useCallback((element: HTMLAudioElement | null) => {
-    sharedAudioRef.current = element
-    setSharedAudioReady(element !== null)
-  }, [])
 
   useEffect(() => {
     setUrl(defaultSongAudioUrl(recordings, songNumber) ?? latestUrl)
@@ -119,111 +105,20 @@ function SongListenProvider({
     selectRecording,
     tryNextRecording,
     showList: recordings.length > 1,
-    sharedAudioRef,
-    sharedAudioReady,
-    registerSharedAudio,
   }
 
   return <SongListenContext.Provider value={value}>{children}</SongListenContext.Provider>
 }
 
-export function SongListenTop() {
-  const layout = useSongPageLayout()
-  const {
-    selected,
-    recordings,
-    selectRecording,
-    tryNextRecording,
-    showList,
-    sharedAudioRef,
-    sharedAudioReady,
-    registerSharedAudio,
-  } = useSongListen()
-
-  const selectedBadge = showList ? audioFreshnessBadge(selected) : null
-  const title = [selectedBadge, selected.title].filter(Boolean).join(" · ")
-  const useSharedAudio = layout === "sidebar"
-
-  return (
-    <div id="listen" className="mb-6 scroll-mt-28">
-      <div className="space-y-4">
-        <AudioRendition
-          url={selected.url}
-          title={title}
-          provider={selected.provider}
-          compact
-          lazyMount
-          sharedAudioRef={useSharedAudio ? sharedAudioRef : undefined}
-          sharedAudioReady={useSharedAudio ? sharedAudioReady : true}
-          registerSharedAudio={useSharedAudio ? registerSharedAudio : undefined}
-          mountAudio={!useSharedAudio}
-          onPlaybackError={() => tryNextRecording(selected.url)}
-        />
-        {showList ? (
-          <details className="rounded-2xl border border-navy-900/10 bg-white p-4">
-            <summary className="cursor-pointer text-sm font-semibold text-gold-700">
-              More recordings ({recordings.length})
-            </summary>
-            <p className="mt-2 text-xs text-stone-500">
-              The best recording plays by default. Choose another take to remember it for this song.
-            </p>
-            <ul className="mt-3 space-y-2">
-              {recordings.map((item) => {
-                const active = item.url === selected.url
-                const badge = audioFreshnessBadge(item)
-                return (
-                  <li key={item.url}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => selectRecording(item.url)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left ${
-                        active
-                          ? "border-gold-500 bg-gold-50"
-                          : "border-navy-900/10 bg-ivory-50 hover:border-gold-500"
-                      }`}
-                    >
-                      <span>
-                        {badge ? (
-                          <span
-                            className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${
-                              item.isLatest ? "text-emerald-700" : "text-stone-500"
-                            }`}
-                          >
-                            {badge}
-                          </span>
-                        ) : null}
-                        <span className="text-sm font-semibold text-navy-950">{item.title}</span>
-                      </span>
-                      <span className="text-xs font-semibold text-gold-700">{active ? "Playing" : "Play"}</span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </details>
-        ) : layout === "sidebar" ? (
-          <p className="text-sm text-stone-600">
-            Or use the full player on the right while you explore with the AI Companion.
-          </p>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
+/** Single listen panel (aside / mobile stack). No duplicate compact player under lyrics. */
 export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
-  const layout = useSongPageLayout()
-  const { selected, tryNextRecording, sharedAudioRef, sharedAudioReady, registerSharedAudio } =
-    useSongListen()
-
-  if (layout !== "sidebar") return null
+  const { selected, recordings, selectRecording, tryNextRecording, showList } = useSongListen()
 
   const selectedBadge = audioFreshnessBadge(selected)
   const title = [selectedBadge, selected.title].filter(Boolean).join(" · ")
 
   return (
-    <section id="listen-sidebar" data-testid="listen-sidebar" className="surface-card scroll-mt-28 p-5 sm:p-6">
+    <section id="listen" data-testid="listen-sidebar" className="surface-card scroll-mt-28 p-5 sm:p-6">
       <p className="eyebrow">{selected.isLatest ? "Best recording" : "Listen"}</p>
       <h2 className="mt-2 font-serif text-3xl text-navy-950">Listen to this song</h2>
       <p className="mt-2 text-sm leading-6 text-stone-600">
@@ -235,12 +130,53 @@ export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
           title={title}
           provider={selected.provider}
           lazyMount
-          sharedAudioRef={sharedAudioRef}
-          sharedAudioReady={sharedAudioReady}
-          registerSharedAudio={registerSharedAudio}
           onPlaybackError={() => tryNextRecording(selected.url)}
         />
       </div>
+      {showList ? (
+        <details className="mt-4 rounded-2xl border border-navy-900/10 bg-ivory-50 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-gold-700">
+            More recordings ({recordings.length})
+          </summary>
+          <p className="mt-2 text-xs text-stone-500">
+            The best recording plays by default. Choose another take to remember it for this song.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {recordings.map((item) => {
+              const active = item.url === selected.url
+              const badge = audioFreshnessBadge(item)
+              return (
+                <li key={item.url}>
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => selectRecording(item.url)}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left ${
+                      active
+                        ? "border-gold-500 bg-gold-50"
+                        : "border-navy-900/10 bg-white hover:border-gold-500"
+                    }`}
+                  >
+                    <span>
+                      {badge ? (
+                        <span
+                          className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${
+                            item.isLatest ? "text-emerald-700" : "text-stone-500"
+                          }`}
+                        >
+                          {badge}
+                        </span>
+                      ) : null}
+                      <span className="text-sm font-semibold text-navy-950">{item.title}</span>
+                    </span>
+                    <span className="text-xs font-semibold text-gold-700">{active ? "Playing" : "Play"}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </details>
+      ) : null}
       <nav aria-label="Return to song text" className="mt-4 flex flex-wrap gap-2">
         <a href="#lyrics" className="soft-chip">
           Lyrics

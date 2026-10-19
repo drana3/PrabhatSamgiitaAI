@@ -1,11 +1,7 @@
 import React from "react"
 import { fireEvent, render, screen, within } from "@testing-library/react"
 
-import {
-  SongListenSidebar,
-  SongListenTop,
-  SongPageListenShell,
-} from "@/components/song-page-listen"
+import { SongListenSidebar, SongPageListenShell } from "@/components/song-page-listen"
 import type { RankedAudio } from "@prabhat/core"
 
 const recordings: RankedAudio[] = [
@@ -27,12 +23,6 @@ const recordings: RankedAudio[] = [
   },
 ]
 
-const layoutState = vi.hoisted(() => ({ layout: "mobile" as "mobile" | "sidebar" }))
-
-vi.mock("@/lib/use-song-page-layout", () => ({
-  useSongPageLayout: () => layoutState.layout,
-}))
-
 vi.mock("@/components/member-provider", () => ({
   useMember: () => ({ loading: false, session: { authenticated: false } }),
 }))
@@ -47,54 +37,36 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  layoutState.layout = "mobile"
   vi.restoreAllMocks()
 })
 
 describe("SongPageListenShell", () => {
-  it("shows the compact player on mobile and the sidebar player on desktop", () => {
-    const { rerender } = render(
-      <SongPageListenShell songNumber={1} recordings={recordings}>
-        <SongListenTop />
-        <SongListenSidebar hasMeaning={false} />
-      </SongPageListenShell>,
-    )
-
-    expect(screen.getByRole("button", { name: /Play Best/i })).toBeInTheDocument()
-    expect(screen.queryByText(/Listen to this song/i)).not.toBeInTheDocument()
-    // Lyrics-first: audio element stays unmounted until Play.
-    expect(screen.queryByLabelText(/Listen to Best/i)).not.toBeInTheDocument()
-
-    layoutState.layout = "sidebar"
-    rerender(
-      <SongPageListenShell songNumber={1} recordings={recordings}>
-        <SongListenTop />
-        <SongListenSidebar hasMeaning={false} />
-      </SongPageListenShell>,
-    )
-
-    expect(screen.getAllByRole("button", { name: /Play Best/i })).toHaveLength(1)
-    expect(screen.getByText(/Listen to this song/i)).toBeInTheDocument()
-    const sidebar = screen.getByTestId("listen-sidebar")
-    expect(within(sidebar).getByRole("button", { name: /Play recording/i })).toBeInTheDocument()
-    expect(within(sidebar).queryByLabelText(/Listen to Best/i)).not.toBeInTheDocument()
-
-    fireEvent.click(within(sidebar).getByRole("button", { name: /Play recording/i }))
-    expect(within(sidebar).getByLabelText(/Listen to Best/i)).toBeInTheDocument()
-  })
-
-  it("keeps alternate recordings in sync between top and sidebar", () => {
-    layoutState.layout = "sidebar"
+  it("shows one listen panel that mounts audio only after Play", () => {
     render(
       <SongPageListenShell songNumber={1} recordings={recordings}>
-        <SongListenTop />
+        <SongListenSidebar hasMeaning={false} />
+      </SongPageListenShell>,
+    )
+
+    expect(screen.getByText(/Listen to this song/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Play recording/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Listen to Best/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/full player on the right/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /Play recording/i }))
+    expect(screen.getByLabelText(/Listen to Best/i)).toBeInTheDocument()
+  })
+
+  it("switches recordings from the listen panel list", () => {
+    render(
+      <SongPageListenShell songNumber={1} recordings={recordings}>
         <SongListenSidebar hasMeaning={false} />
       </SongPageListenShell>,
     )
 
     fireEvent.click(screen.getByRole("button", { name: /Alternate take/i }))
-    const sidebar = screen.getByTestId("listen-sidebar")
-    fireEvent.click(within(sidebar).getByRole("button", { name: /Play recording/i }))
-    expect(within(sidebar).getByLabelText(/Listen to Alternate take/i)).toBeInTheDocument()
+    const panel = screen.getByTestId("listen-sidebar")
+    fireEvent.click(within(panel).getByRole("button", { name: /Play recording/i }))
+    expect(within(panel).getByLabelText(/Listen to Alternate take/i)).toBeInTheDocument()
   })
 })

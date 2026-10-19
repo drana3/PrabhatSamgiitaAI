@@ -352,16 +352,14 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(page.getByRole("button", { name: /Play on keys/i }).first()).toBeVisible()
   await expect(page.locator("#notation").getByText(/Bandhu he niye calo/i).first()).toBeVisible()
   await expect(songActions.getByRole("link", { name: /Listen/i })).toHaveAttribute("href", "#listen")
+  const listen = page.locator("#listen")
+  await expect(listen.getByText(/Listen to this song/i)).toBeVisible()
+  await expect(listen.getByRole("button", { name: /Play recording/i })).toBeVisible()
   if (testInfo.project.name === "mobile-chromium") {
-    await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Song sections" }).getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "#listen")
-  } else {
-    const sidebar = page.locator("#listen-sidebar")
-    await expect(sidebar.getByText(/Listen to this song/i)).toBeVisible()
-    await expect(sidebar.getByRole("button", { name: /Play recording/i })).toBeVisible()
-    await sidebar.getByRole("button", { name: /Play recording/i }).click()
-    await expect(sidebar.getByLabel(/Listen to/i)).toBeVisible()
   }
+  await listen.getByRole("button", { name: /Play recording/i }).click()
+  await expect(listen.getByLabel(/Listen to/i)).toBeVisible()
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
     listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
     watchBounds: document.querySelector("#watch")?.getBoundingClientRect().toJSON() ?? null,

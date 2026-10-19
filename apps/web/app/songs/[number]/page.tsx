@@ -7,7 +7,7 @@ import { LyricsScriptToggle } from "@/components/lyrics-script-toggle"
 import { HarmoniumNavLink, HarmoniumPracticeSection } from "@/components/harmonium-song-features"
 import { HashLanding } from "@/components/hash-landing"
 import { OpenInApp } from "@/components/open-in-app"
-import { SongListenSidebar, SongListenTop, SongPageListenShell } from "@/components/song-page-listen"
+import { SongListenSidebar, SongPageListenShell } from "@/components/song-page-listen"
 import { listSongAudio } from "@/lib/song-audio"
 import { ShareMenu } from "@/components/share-menu"
 import { SiteHeader } from "@/components/site-header"
@@ -117,11 +117,6 @@ export default async function SongPage({ params, searchParams }: { params: Promi
 
             {hasMeaning ? <SongMeaningSection songNumber={song.number} song={song} initialLanguage={language} /> : null}
           </div>
-          {audio.length ? (
-            <div className="mt-7 border-t border-navy-900/8 pt-7">
-              <SongListenTop />
-            </div>
-          ) : null}
 
           <HarmoniumPracticeSection
             songNumber={song.number}
