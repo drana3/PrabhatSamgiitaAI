@@ -88,9 +88,9 @@ def detect_song_language_profile(song: Song) -> tuple[str, ReviewLanguage, str |
         ch for ch in unicodedata.normalize("NFKD", blob) if not unicodedata.combining(ch)
     )
 
-    for key, label, lang in _REGIONAL_KEY_TO_LANG:
+    for key, label, review_lang in _REGIONAL_KEY_TO_LANG:
         if key in flat:
-            return label, lang, language_note(lang)
+            return label, review_lang, language_note(review_lang)
 
     if re.search(r"\bbangla\b|\bbengali\b|bangla dialect", flat):
         return "Bengali", ReviewLanguage.BENGALI, None
@@ -101,9 +101,11 @@ def detect_song_language_profile(song: Song) -> tuple[str, ReviewLanguage, str |
     if re.search(r"\bhindi\b", flat):
         return "Hindi", ReviewLanguage.HINDI, None
 
-    lang = (song.language or "").strip()
-    if lang and not re.fullmatch(r"roman", lang, flags=re.IGNORECASE):
-        return lang, ReviewLanguage.HINDI, None
+    catalog_language = (song.language or "").strip()
+    if catalog_language and not re.fullmatch(
+        r"roman", catalog_language, flags=re.IGNORECASE
+    ):
+        return catalog_language, ReviewLanguage.HINDI, None
     return "Roman (catalogue)", ReviewLanguage.HINDI, None
 
 
