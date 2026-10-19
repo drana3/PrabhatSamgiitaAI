@@ -43,4 +43,20 @@ describe("localSongDetail", () => {
     expect(merged?.notation_enabled).toBe(false)
     expect(merged?.notation_transposition_available).toBe(false)
   })
+
+  it("prefers approved API Devanagari over packaged seed text", () => {
+    const local = localSongDetail(1) as SongDetail
+    const remote = {
+      ...local,
+      lyrics_devanagari: "सम्पादित देवनागरी",
+      devanagari_status: "approved",
+    }
+    const merged = coalesceSongDetail(remote, {
+      ...local,
+      lyrics_devanagari: "पुराना कैटलॉग पाठ",
+      devanagari_status: "provisional",
+    })
+    expect(merged?.lyrics_devanagari).toBe("सम्पादित देवनागरी")
+    expect(merged?.devanagari_status).toBe("approved")
+  })
 })

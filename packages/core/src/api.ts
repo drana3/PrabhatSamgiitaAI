@@ -755,6 +755,7 @@ export function createApiClient(options: ApiClientOptions) {
     async approveAdminDevanagari(
       number: number,
       review_note?: string | null,
+      lyrics_devanagari?: string | null,
     ): Promise<{ ok: true; song: AdminDevanagariSong } | { ok: false; detail: string }> {
       try {
         const response = await fetchJson(
@@ -762,7 +763,10 @@ export function createApiClient(options: ApiClientOptions) {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ review_note: review_note ?? null }),
+            body: JSON.stringify({
+              review_note: review_note ?? null,
+              lyrics_devanagari: lyrics_devanagari?.trim() || null,
+            }),
           },
         )
         if (!response.ok) {

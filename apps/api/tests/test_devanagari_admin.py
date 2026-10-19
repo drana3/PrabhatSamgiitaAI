@@ -77,3 +77,33 @@ async def test_ensure_loads_and_persists() -> None:
     assert out.lyrics_devanagari and "बन्धु" in out.lyrics_devanagari
     assert out.devanagari_status == "provisional"
     session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_song_prefers_db_devanagari_over_stale_memory() -> None:
+    from unittest.mock import MagicMock
+
+    from app.services.catalog import CatalogService, songs_by_number
+
+    seeded = songs_by_number().get(1)
+    assert seeded is not None
+    db_song = Song(
+        number=1,
+        title=seeded.title,
+        lyrics_original=seeded.lyrics_original,
+        lyrics_devanagari="सम्पादित देवनागरी पंक्ति",
+        devanagari_status="approved",
+        metadata_json={"devanagari": {"origin": "manually_verified"}},
+    )
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = db_song
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=result)
+
+    service = CatalogService(session)
+    out = await service.get_song(1)
+    assert out is not None
+    assert out.lyrics_devanagari == "सम्पादित देवनागरी पंक्ति"
+    assert out.devanagari_status == "approved"
+    # Shared in-memory catalogue must stay untouched.
+    assert (seeded.lyrics_devanagari or "") != "सम्पादित देवनागरी पंक्ति"

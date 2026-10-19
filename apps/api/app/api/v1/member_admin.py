@@ -960,6 +960,9 @@ async def admin_approve_devanagari(
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
     song = await ensure_song_devanagari_loaded(session, song)
+    draft = (payload.lyrics_devanagari or "").strip()
+    if draft:
+        song.lyrics_devanagari = draft
     if not (song.lyrics_devanagari or "").strip():
         raise HTTPException(status_code=400, detail="No Devanagari lyrics to approve")
     song.devanagari_status = "approved"

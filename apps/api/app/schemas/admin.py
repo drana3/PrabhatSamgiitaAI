@@ -203,3 +203,5 @@ class AdminDevanagariUpdate(BaseModel):
 
 class AdminDevanagariApprove(BaseModel):
     review_note: str | None = Field(default=None, max_length=1000)
+    # Persist the editor draft in the same approve request (web/mobile).
+    lyrics_devanagari: str | None = Field(default=None, min_length=1)

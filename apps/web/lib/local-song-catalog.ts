@@ -290,7 +290,11 @@ export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail 
     ...remote,
     lyrics_original: firstFilled(remote.lyrics_original, local.lyrics_original),
     transliteration: firstFilled(remote.transliteration, local.transliteration),
-    lyrics_devanagari: firstFilled(remote.lyrics_devanagari, local.lyrics_devanagari),
+    // Prefer API Devanagari when approved/edited so packaged seed cannot mask Neon.
+    lyrics_devanagari:
+      remote.devanagari_status === "approved" && remote.lyrics_devanagari?.trim()
+        ? remote.lyrics_devanagari
+        : firstFilled(remote.lyrics_devanagari, local.lyrics_devanagari),
     devanagari_status:
       remote.devanagari_status && remote.devanagari_status !== "none"
         ? remote.devanagari_status

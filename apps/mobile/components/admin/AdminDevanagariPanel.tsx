@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,96 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { api } from "@/lib/client"
 
+type ProgressKind = "load" | "save" | "submit" | "approve"
+
+const PROGRESS_STEPS: Record<ProgressKind, { eyebrow: string; steps: readonly string[] }> = {
+  load: {
+    eyebrow: "Loading song",
+    steps: [
+      "Loading song…",
+      "Fetching Roman lyrics…",
+      "Loading Devanagari lyrics…",
+      "Preparing review workspace…",
+    ],
+  },
+  save: {
+    eyebrow: "Saving provisional",
+    steps: [
+      "Validating Devanagari draft…",
+      "Saving Roman + Devanagari…",
+      "Updating review status…",
+      "Confirming provisional save…",
+    ],
+  },
+  submit: {
+    eyebrow: "Submitting for approval",
+    steps: [
+      "Validating Devanagari draft…",
+      "Saving latest lyrics…",
+      "Queuing for approval…",
+      "Marking pending review…",
+    ],
+  },
+  approve: {
+    eyebrow: "Approving Devanagari",
+    steps: [
+      "Checking review status…",
+      "Approving Devanagari lyrics…",
+      "Publishing to apps…",
+      "Confirming approved status…",
+    ],
+  },
+}
+
+function ActionProgress({
+  kind,
+  stepIndex,
+  songLabel,
+}: {
+  kind: ProgressKind
+  stepIndex: number
+  songLabel: string
+}) {
+  const { eyebrow, steps } = PROGRESS_STEPS[kind]
+  const clamped = Math.min(Math.max(stepIndex, 0), steps.length - 1)
+  const percent = Math.round(((clamped + 1) / steps.length) * 100)
+
+  return (
+    <View style={styles.progressCard} accessibilityState={{ busy: true }}>
+      <Text style={styles.progressEyebrow}>{eyebrow}</Text>
+      <Text style={styles.progressTitle}>{songLabel}</Text>
+      <Text style={styles.progressActive}>{steps[clamped]}</Text>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${percent}%` }]} />
+      </View>
+      {steps.map((label, index) => {
+        const done = index < clamped
+        const active = index === clamped
+        return (
+          <View key={label} style={styles.progressStepRow}>
+            <View
+              style={[
+                styles.progressDot,
+                done ? styles.progressDotDone : active ? styles.progressDotActive : null,
+              ]}
+            >
+              <Text style={styles.progressDotText}>{done ? "✓" : String(index + 1)}</Text>
+            </View>
+            <Text
+              style={[
+                styles.progressStepLabel,
+                done ? styles.progressStepDone : active ? styles.progressStepActive : null,
+              ]}
+            >
+              {label}
+            </Text>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
 export function AdminDevanagariPanel({
   initialSongNumber,
 }: {
@@ -32,6 +122,42 @@ export function AdminDevanagariPanel({
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [progressKind, setProgressKind] = useState<ProgressKind | null>(
+    initialSongNumber && initialSongNumber >= 1 ? "load" : null,
+  )
+  const [progressStep, setProgressStep] = useState(0)
+  const progressTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  const clearProgressTimers = () => {
+    for (const id of progressTimers.current) clearTimeout(id)
+    progressTimers.current = []
+  }
+
+  const startProgress = (kind: ProgressKind) => {
+    clearProgressTimers()
+    setProgressKind(kind)
+    setProgressStep(0)
+    PROGRESS_STEPS[kind].steps.forEach((_, index) => {
+      if (index === 0) return
+      progressTimers.current.push(
+        setTimeout(() => setProgressStep(index), index * 400),
+      )
+    })
+  }
+
+  const finishProgress = (kind: ProgressKind) => {
+    clearProgressTimers()
+    setProgressStep(PROGRESS_STEPS[kind].steps.length - 1)
+  }
+
+  const endProgress = async (holdMs = 0) => {
+    if (holdMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, holdMs))
+    }
+    clearProgressTimers()
+    setProgressKind(null)
+    setProgressStep(0)
+  }
 
   const loadSong = useCallback(
     async (number = songNumber) => {
@@ -42,16 +168,21 @@ export function AdminDevanagariPanel({
       }
       setBusy(true)
       setMessage(null)
+      setSong(null)
+      startProgress("load")
       const result = await api.fetchAdminDevanagari(n)
-      setBusy(false)
       if (!result.ok) {
-        setSong(null)
+        await endProgress()
+        setBusy(false)
         Alert.alert("Devanagari", result.detail)
         return
       }
+      finishProgress("load")
       setSong(result.song)
       setDraft(result.song.lyrics_devanagari || "")
       setMessage(`Loaded #${result.song.song_number} · ${result.song.devanagari_status}`)
+      await endProgress(320)
+      setBusy(false)
     },
     [songNumber],
   )
@@ -61,6 +192,7 @@ export function AdminDevanagariPanel({
       setSongNumber(String(initialSongNumber))
       void loadSong(String(initialSongNumber))
     }
+    return () => clearProgressTimers()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when route/feedback picks a song
   }, [initialSongNumber])
 
@@ -84,18 +216,22 @@ export function AdminDevanagariPanel({
       Alert.alert("Devanagari", "Devanagari text is required.")
       return
     }
+    const kind: ProgressKind = submitForApproval ? "submit" : "save"
     setBusy(true)
     setMessage(null)
+    startProgress(kind)
     const result = await api.updateAdminDevanagari(song.song_number, {
       lyrics_devanagari: draft,
       submit_for_approval: submitForApproval,
       review_note: note.trim() || null,
     })
-    setBusy(false)
     if (!result.ok) {
+      await endProgress()
+      setBusy(false)
       Alert.alert("Devanagari", result.detail)
       return
     }
+    finishProgress(kind)
     setSong(result.song)
     setDraft(result.song.lyrics_devanagari || "")
     setMessage(
@@ -103,37 +239,45 @@ export function AdminDevanagariPanel({
         ? "Saved · pending_review"
         : `Saved · ${result.song.devanagari_status}`,
     )
+    await endProgress(320)
+    setBusy(false)
   }
 
   const approve = async () => {
     if (!song) return
+    if (!draft.trim()) {
+      Alert.alert("Devanagari", "Devanagari text is required before approve.")
+      return
+    }
     setBusy(true)
     setMessage(null)
-    if (draft.trim() && draft !== (song.lyrics_devanagari || "")) {
-      const saved = await api.updateAdminDevanagari(song.song_number, {
-        lyrics_devanagari: draft,
-        submit_for_approval: false,
-        review_note: note.trim() || null,
-      })
-      if (!saved.ok) {
-        setBusy(false)
-        Alert.alert("Devanagari", saved.detail)
-        return
-      }
-      setSong(saved.song)
-      setDraft(saved.song.lyrics_devanagari || "")
-    }
-    const result = await api.approveAdminDevanagari(song.song_number, note.trim() || null)
-    setBusy(false)
+    startProgress("approve")
+    const result = await api.approveAdminDevanagari(
+      song.song_number,
+      note.trim() || null,
+      draft,
+    )
     if (!result.ok) {
+      await endProgress()
+      setBusy(false)
       Alert.alert("Devanagari", result.detail)
       return
     }
+    finishProgress("approve")
     setSong(result.song)
+    setDraft(result.song.lyrics_devanagari || "")
     setMessage("Approved — reporters notified by email when contact is set.")
+    await endProgress(320)
+    setBusy(false)
   }
 
   const roman = song?.lyrics_original?.trim() || ""
+  const loading = progressKind === "load"
+  const progressLabel = song
+    ? `Song #${song.song_number}`
+    : songNumber.trim()
+      ? `Song #${songNumber.trim()}`
+      : "Devanagari review"
 
   return (
     <ScrollView
@@ -141,8 +285,8 @@ export function AdminDevanagariPanel({
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.heroSub}>
-        Load a song, compare Roman with editable Devanagari, then save or approve. Copy and paste
-        freely while editing.
+        Load a song, compare Roman with editable Devanagari, then save or approve. Copy → edit in
+        App/Other Tool → paste back here.
       </Text>
 
       <View style={styles.grantRow}>
@@ -153,22 +297,27 @@ export function AdminDevanagariPanel({
           placeholder="Song number"
           placeholderTextColor={colors.textMuted}
           style={styles.input}
+          editable={!busy}
         />
         <Pressable
           style={styles.actionBtn}
           disabled={busy}
           onPress={() => void loadSong()}
         >
-          {busy && !song ? (
+          {loading ? (
             <ActivityIndicator size="small" color={colors.primaryDark} />
           ) : (
             <Text style={styles.actionText}>Load</Text>
           )}
         </Pressable>
       </View>
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+      {message && !progressKind ? <Text style={styles.message}>{message}</Text> : null}
 
-      {song ? (
+      {loading && progressKind === "load" ? (
+        <ActionProgress kind="load" stepIndex={progressStep} songLabel={progressLabel} />
+      ) : null}
+
+      {!loading && song ? (
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <Languages size={16} color={colors.primary} />
@@ -231,12 +380,14 @@ export function AdminDevanagariPanel({
                 <Text style={styles.copyLink}>Copy</Text>
               </Pressable>
             </View>
+            <Text style={styles.helper}>Copy → edit in App/Other Tool → paste back here.</Text>
             <TextInput
               value={draft}
               onChangeText={setDraft}
               multiline
               textAlignVertical="top"
-              style={styles.editor}
+              editable={!busy}
+              style={[styles.editor, busy ? styles.disabledField : null]}
             />
           </View>
 
@@ -245,8 +396,17 @@ export function AdminDevanagariPanel({
             onChangeText={setNote}
             placeholder="Review note (optional)"
             placeholderTextColor={colors.textMuted}
-            style={styles.noteInput}
+            editable={!busy}
+            style={[styles.noteInput, busy ? styles.disabledField : null]}
           />
+
+          {progressKind && progressKind !== "load" ? (
+            <ActionProgress
+              kind={progressKind}
+              stepIndex={progressStep}
+              songLabel={progressLabel}
+            />
+          ) : null}
 
           <View style={styles.actions}>
             <Pressable
@@ -254,21 +414,29 @@ export function AdminDevanagariPanel({
               disabled={busy}
               onPress={() => void save(false)}
             >
-              <Text style={styles.actionText}>Save provisional</Text>
+              {progressKind === "save" ? (
+                <ActivityIndicator size="small" color={colors.primaryDark} />
+              ) : (
+                <Text style={styles.actionText}>Save provisional</Text>
+              )}
             </Pressable>
             <Pressable
               style={styles.actionBtn}
               disabled={busy}
               onPress={() => void save(true)}
             >
-              <Text style={styles.actionText}>Submit for approval</Text>
+              {progressKind === "submit" ? (
+                <ActivityIndicator size="small" color={colors.primaryDark} />
+              ) : (
+                <Text style={styles.actionText}>Submit for approval</Text>
+              )}
             </Pressable>
             <Pressable
               style={[styles.actionBtn, styles.approveBtn]}
               disabled={busy}
               onPress={() => void approve()}
             >
-              {busy ? (
+              {progressKind === "approve" ? (
                 <ActivityIndicator size="small" color={colors.primaryDark} />
               ) : (
                 <Text style={styles.actionText}>Approve</Text>
@@ -276,9 +444,9 @@ export function AdminDevanagariPanel({
             </Pressable>
           </View>
         </View>
-      ) : (
+      ) : !loading ? (
         <Text style={styles.empty}>Enter a song number and tap Load to review Devanagari.</Text>
-      )}
+      ) : null}
     </ScrollView>
   )
 }
@@ -350,6 +518,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   panelTitle: { ...typography.label, color: colors.textPrimary },
+  helper: { ...typography.caption, color: colors.textMuted },
   copyLink: {
     ...typography.caption,
     color: colors.primaryDark,
@@ -377,5 +546,50 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     backgroundColor: colors.background,
   },
+  disabledField: { opacity: 0.6 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
+  progressCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+    ...softShadow(1),
+  },
+  progressEyebrow: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontFamily: "Inter_600SemiBold",
+  },
+  progressTitle: { ...typography.body, color: colors.textPrimary, fontFamily: "Inter_600SemiBold" },
+  progressActive: { ...typography.bodySmall, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
+  progressTrack: {
+    height: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  progressStepRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  progressDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.border,
+  },
+  progressDotDone: { backgroundColor: "#D1FAE5" },
+  progressDotActive: { backgroundColor: colors.primaryLight },
+  progressDotText: { ...typography.caption, fontSize: 10, color: colors.textPrimary },
+  progressStepLabel: { ...typography.caption, color: colors.textMuted, flex: 1 },
+  progressStepDone: { color: "#065F46" },
+  progressStepActive: { color: colors.textPrimary, fontFamily: "Inter_600SemiBold" },
 })

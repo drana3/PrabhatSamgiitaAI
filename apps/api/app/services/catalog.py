@@ -316,14 +316,33 @@ class CatalogService:
 
     async def get_song(self, number: int) -> Song | None:
         seeded = songs_by_number().get(number)
-        if seeded is not None:
-            return seeded
+        db_song: Song | None = None
         try:
             result = await self.session.execute(select(Song).where(Song.number == number))
-            return result.scalar_one_or_none()
+            db_song = result.scalar_one_or_none()
         except SQLAlchemyError:
             await self.session.rollback()
-            return None
+            db_song = None
+
+        if seeded is None:
+            return db_song
+        if db_song is None:
+            return seeded
+
+        # In-memory catalogue can lag other Container App replicas after admin
+        # approve; always prefer Neon Devanagari text/status when present.
+        merged = _detach_song(seeded)
+        db_dev = (db_song.lyrics_devanagari or "").strip()
+        db_status = (db_song.devanagari_status or "none").strip() or "none"
+        if db_dev or db_status != "none":
+            merged.lyrics_devanagari = db_song.lyrics_devanagari
+            merged.devanagari_status = db_status
+        db_meta = db_song.metadata_json if isinstance(db_song.metadata_json, dict) else {}
+        if db_meta.get("devanagari"):
+            meta = dict(merged.metadata_json or {})
+            meta["devanagari"] = db_meta["devanagari"]
+            merged.metadata_json = meta
+        return merged
 
     async def search(self, query: str, limit: int = 20) -> list[Song]:
         query_norm = query.lower().strip()
