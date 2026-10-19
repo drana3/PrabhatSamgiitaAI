@@ -577,30 +577,36 @@ def _description_via_innertube(
     """Player only. ANDROID /next is multi-megabyte and OOM'd the API scan."""
     best = ""
     for key, client in _innertube_clients(api_key, client_version):
-        try:
-            payload = json.loads(
-                fetch(
-                    f"{INNERTUBE_PLAYER_URL}?key={key}",
-                    {
-                        "context": {"client": client},
-                        "videoId": video_id,
-                        "contentCheckOk": True,
-                        "racyCheckOk": True,
-                    },
-                    extra_headers=_innertube_headers(client) or None,
+        attempts = 2 if client.get("clientName") == "ANDROID" else 1
+        for attempt in range(attempts):
+            try:
+                payload = json.loads(
+                    fetch(
+                        f"{INNERTUBE_PLAYER_URL}?key={key}",
+                        {
+                            "context": {"client": client},
+                            "videoId": video_id,
+                            "contentCheckOk": True,
+                            "racyCheckOk": True,
+                        },
+                        extra_headers=_innertube_headers(client) or None,
+                    )
                 )
-            )
-        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
-            continue
-        description = _player_description(payload)
-        if _description_has_catalog_number(description):
-            return description
-        if len(description) > len(best):
-            best = description
+            except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+                if attempt == 0:
+                    time.sleep(0.4)
+                continue
+            description = _player_description(payload)
+            if _description_has_catalog_number(description):
+                return description
+            if len(description) > len(best):
+                best = description
+            if attempt == 0:
+                time.sleep(0.4)
     return best
 
 
-def fetch_video_description(video_id: str) -> str:
+def fetch_video_description(video_id: str, *, allow_watch_page: bool = True) -> str:
     """Fetch a video description without relying on a watch-page player shell.
 
     Channel listings only expose titles. Azure watch-page fetches often return a
@@ -613,6 +619,8 @@ def fetch_video_description(video_id: str) -> str:
     )
     if _description_has_catalog_number(description):
         return description
+    if not allow_watch_page:
+        return ""
     try:
         html = fetch(f"https://www.youtube.com/watch?v={video_id}")
     except (HTTPError, URLError, TimeoutError):
@@ -978,7 +986,9 @@ def enrich_video_for_channel(video: dict[str, Any], channel: dict[str, Any]) -> 
     """Populate ``video['description']`` when the channel needs it, in place."""
     if needs_description(video, channel):
         try:
-            video["description"] = fetch_video_description(video["video_id"])
+            video["description"] = fetch_video_description(
+                video["video_id"], allow_watch_page=False
+            )
         except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
             print(
                 f"Could not fetch description for {video['video_id']} "
