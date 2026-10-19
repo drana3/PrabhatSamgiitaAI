@@ -1,18 +1,16 @@
 import Link from "next/link"
 
 import type { SongSummary } from "@/lib/api"
-import { localSongDetail } from "@/lib/local-song-catalog"
 import { songPagePath } from "@/lib/song-path"
 import { formatLyricLineTransliteration, titleCaseTransliteration } from "@/lib/transliteration-text"
 
 function scriptMeta(song: SongSummary): string {
-  const local = localSongDetail(song.number)
-  const hasDev = Boolean(local?.lyrics_devanagari?.trim())
   const lang = (song.language || "").trim()
-  // Catalog often stores script name "Roman" in `language` — show available reading scripts.
+  // Catalogue ships Devanagari for essentially all PS songs. Do not import
+  // local-song-catalog here — it pulls node:fs and breaks the client Explore bundle.
   const isRomanLabel = !lang || /^roman$/i.test(lang)
-  if (isRomanLabel) return hasDev ? "Roman · Devanagari" : "Roman"
-  return hasDev ? `${lang} · Roman · Devanagari` : lang
+  if (isRomanLabel) return "Roman · Devanagari"
+  return `${lang} · Roman · Devanagari`
 }
 
 export function SongCard({ song, index = 0 }: { song: SongSummary; index?: number }) {
