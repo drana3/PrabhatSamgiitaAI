@@ -335,7 +335,7 @@ def test_needs_description_prefilters_on_title_scope() -> None:
 def test_enrich_videos_for_channel_defers_after_cap(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     fetched: list[str] = []
 
-    def fake_fetch(video_id: str) -> str:
+    def fake_fetch(video_id: str, **_kwargs: object) -> str:
         fetched.append(video_id)
         return "Prabhat Samgiita No. 1"
 
@@ -354,7 +354,7 @@ def test_enrich_videos_for_channel_defers_after_cap(monkeypatch) -> None:  # typ
 def test_enrich_video_for_channel_populates_description(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
         "scripts.sync_youtube.fetch_video_description",
-        lambda _video_id: "Prabhat Samgiita No. 1",
+        lambda _video_id, **_kwargs: "Prabhat Samgiita No. 1",
     )
     video = {"video_id": "desc-01", "title": "Prabhat Samgiita melody"}
     enrich_video_for_channel(video, DESCRIPTION_CHANNEL)

@@ -35,7 +35,8 @@ from scripts.sync_youtube import (  # noqa: E402
 
 ADMIN_SCAN_MAX_PAGES = 4
 BATCH_SCAN_MAX_PAGES = 50
-ADMIN_DESCRIPTION_FETCH_CAP = 24
+ADMIN_DESCRIPTION_FETCH_CAP = 80
+ADMIN_DESCRIPTION_WORKERS = 1
 
 
 def normalize_channel_url(url: str) -> str:
@@ -470,6 +471,7 @@ async def scan_youtube_channel(
         candidates,
         channel,
         max_fetches=ADMIN_DESCRIPTION_FETCH_CAP,
+        max_workers=ADMIN_DESCRIPTION_WORKERS,
     )
     descriptions_read = sum(
         1 for video in candidates if str(video.get("description") or "").strip()
