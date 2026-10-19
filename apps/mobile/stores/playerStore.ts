@@ -629,16 +629,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const state = get()
     if (isSameAudioTrack(state.currentSong, song)) {
       if (queue?.length && !state.stopQueueAfterCurrentTrack) {
-        set({ queue, playbackMode: resolvePlaybackMode(queue, state.playbackMode) })
+        // Stay in playlist when toggling the active playlist track; otherwise treat as casual.
+        const keepPlaylist =
+          state.playbackMode === "playlist" &&
+          Boolean(state.playlistBounds?.includes(song.number))
+        set({
+          queue,
+          playbackMode: resolvePlaybackMode(queue, keepPlaylist ? "playlist" : "default"),
+        })
       }
       get().togglePlay()
       return
     }
     if (isSameSong(state.currentSong, song)) {
-      get().loadSong(song, state.stopQueueAfterCurrentTrack ? [song.number] : queue)
+      get().loadSong(
+        song,
+        state.stopQueueAfterCurrentTrack ? [song.number] : queue,
+        state.playbackMode === "playlist" && state.playlistBounds?.includes(song.number)
+          ? "playlist"
+          : "default",
+      )
       return
     }
-    get().loadSong(song, queue)
+    // Casual Explore / song-page play always replaces a saved playlist session.
+    get().loadSong(song, queue, "default")
   },
 
   togglePlay: () => {

@@ -28,7 +28,7 @@ from app.services.transliteration.mapping import (
 )
 
 #: Version of the tokenizer/builder algorithm (independent of the mapping).
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.0.1"
 
 
 @dataclass
@@ -79,6 +79,8 @@ def _tokenize(normalized: str) -> list[Token]:
     i = 0
     n = len(normalized)
     max_len = MAPPING.max_len
+    # Uppercase once per call — NFC-preserving case fold for longest-match keys.
+    upper_slice_cache = normalized.upper()
     while i < n:
         ch = normalized[i]
         if not _is_letterish(ch):
@@ -88,7 +90,6 @@ def _tokenize(normalized: str) -> list[Token]:
             continue
 
         matched = False
-        upper_slice_cache = normalized.upper()
         for length in range(min(max_len, n - i), 0, -1):
             candidate = upper_slice_cache[i : i + length]
             rule = MAPPING.lookup(candidate)

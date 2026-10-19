@@ -162,6 +162,14 @@ export const adminDevanagariSongSchema = z.object({
   devanagari_status: z.string().optional().default("none"),
   line_count_roman: z.number().optional().default(0),
   line_count_devanagari: z.number().optional().default(0),
+  song_language: z.string().nullable().optional(),
+  review_language: z.string().nullable().optional(),
+  conversion_confidence_percent: z.number().nullable().optional(),
+  conversion_notes: z.string().nullable().optional(),
+  regional_grammar_notes: z.string().nullable().optional(),
+  review_reasons: z.array(z.string()).optional().default([]),
+  ambiguous_tokens: z.array(z.string()).optional().default([]),
+  unsupported_tokens: z.array(z.string()).optional().default([]),
 })
 
 export const adminMemberSchema = z.object({

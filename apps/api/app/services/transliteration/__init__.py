@@ -25,7 +25,9 @@ from app.services.transliteration.engine import (
     transliterate,
 )
 from app.services.transliteration.language_agents import (
+    CORE_REVIEW_LANGUAGES,
     CrossValidationResult,
+    HINDI_FAMILY_LANGUAGES,
     ReviewLanguage,
     cross_validate,
     review_deterministic,
@@ -39,7 +41,9 @@ from app.services.transliteration.verification import (
 __all__ = [
     "ENGINE_VERSION",
     "RULESET_VERSION",
+    "CORE_REVIEW_LANGUAGES",
     "CrossValidationResult",
+    "HINDI_FAMILY_LANGUAGES",
     "ReviewLanguage",
     "TransliterationResult",
     "VerificationReport",

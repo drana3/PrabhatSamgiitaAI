@@ -177,6 +177,40 @@ export function AdminDevanagariPanel({
             </Text>
           </View>
           <Text style={styles.snippet}>{song.title}</Text>
+          {song.conversion_confidence_percent != null ? (
+            <View style={styles.confidenceBox}>
+              <Text style={styles.confidenceTitle}>
+                Roman→Devanagari confidence: {song.conversion_confidence_percent}%
+              </Text>
+              {song.song_language ? (
+                <Text style={styles.meta}>
+                  Language: {song.song_language}
+                  {song.review_language ? ` · agent ${song.review_language}` : ""}
+                </Text>
+              ) : null}
+              {song.conversion_notes ? (
+                <Text style={styles.meta}>{song.conversion_notes}</Text>
+              ) : null}
+              {song.regional_grammar_notes ? (
+                <Text style={styles.meta}>Regional: {song.regional_grammar_notes}</Text>
+              ) : null}
+              {(song.review_reasons?.length ?? 0) > 0 ? (
+                <Text style={styles.meta}>
+                  Reasons: {(song.review_reasons ?? []).slice(0, 6).join(" · ")}
+                </Text>
+              ) : null}
+              {(song.ambiguous_tokens?.length ?? 0) > 0 ? (
+                <Text style={styles.meta}>
+                  Ambiguous: {(song.ambiguous_tokens ?? []).slice(0, 10).join(", ")}
+                </Text>
+              ) : null}
+              {(song.unsupported_tokens?.length ?? 0) > 0 ? (
+                <Text style={[styles.meta, styles.warnMeta]}>
+                  Unsupported: {(song.unsupported_tokens ?? []).slice(0, 10).join(", ")}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={styles.panel}>
             <View style={styles.panelHead}>
@@ -288,6 +322,20 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   meta: { ...typography.caption, color: colors.textMuted },
   snippet: { ...typography.bodySmall, color: colors.textPrimary },
+  confidenceBox: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  confidenceTitle: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    fontFamily: "Inter_600SemiBold",
+  },
+  warnMeta: { color: colors.error },
   panel: {
     borderWidth: 1,
     borderColor: colors.border,

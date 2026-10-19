@@ -308,6 +308,49 @@ def validate_export() -> list[str]:
 # ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------
+def _dialect_label_from_category(category: str | None) -> str:
+    """Map catalogue metadata category → dialect bucket for triage reports."""
+    import unicodedata
+
+    raw = unicodedata.normalize("NFKC", category or "")
+    flat = "".join(
+        ch for ch in unicodedata.normalize("NFKD", raw.lower()) if not unicodedata.combining(ch)
+    )
+    checks = (
+        ("magahi", "Magahi"),
+        ("magahii", "Magahi"),
+        ("maithil", "Maithili"),
+        ("aungika", "Angika"),
+        ("angika", "Angika"),
+        ("bhojpuri", "Bhojpuri"),
+        ("bangla", "Bengali dialect"),
+        ("bengali", "Bengali dialect"),
+        ("samskrta", "Saṃskṛta"),
+        ("urdu", "Urdu"),
+        ("hindi", "Hindi"),
+    )
+    for key, label in checks:
+        if key in flat:
+            return label
+    return "Unspecified"
+
+
+def _category_by_song_number() -> dict[int, str]:
+    if not SOURCE_JSON.exists():
+        return {}
+    raw = json.loads(SOURCE_JSON.read_text(encoding="utf-8"))
+    out: dict[int, str] = {}
+    for entry in raw:
+        number = entry.get("number")
+        if not isinstance(number, int):
+            continue
+        meta = entry.get("metadata_json") or {}
+        cat = meta.get("category") if isinstance(meta, dict) else None
+        if isinstance(cat, str) and cat.strip():
+            out[number] = cat
+    return out
+
+
 def build_report(catalogue: dict[str, Any] | None = None) -> dict[str, Any]:
     if catalogue is None:
         if not EXPORT_JSON.exists():
@@ -317,16 +360,34 @@ def build_report(catalogue: dict[str, Any] | None = None) -> dict[str, Any]:
     songs = catalogue.get("songs", [])
     status_counts: Counter[str] = Counter()
     line_status: Counter[str] = Counter()
+    ambiguous_tokens: Counter[str] = Counter()
+    unsupported_tokens: Counter[str] = Counter()
+    dialect_status: dict[str, Counter[str]] = {}
     with_authoritative = 0
     expected_ids = set(range(1, 5019))
     present_ids = {s["song_number"] for s in songs}
+    categories = _category_by_song_number()
 
     for s in songs:
-        status_counts[s["provenance"]["verification_status"]] += 1
+        status = s["provenance"]["verification_status"]
+        status_counts[status] += 1
         if s["provenance"]["devanagari_origin"] in {"authoritative", "manually_verified"}:
             with_authoritative += 1
         for lp in s["line_pairs"]:
             line_status[lp["status"]] += 1
+
+        dialect = _dialect_label_from_category(categories.get(s["song_number"]))
+        dialect_status.setdefault(dialect, Counter())[status] += 1
+
+        # Token triage for songs that need review (or always sample via full roman).
+        if status in {"needs_review", "unsupported_input"}:
+            roman_text = (s.get("roman") or {}).get("text") or ""
+            if roman_text.strip():
+                result = transliterate(roman_text)
+                for tok in result.ambiguous_tokens:
+                    ambiguous_tokens[tok] += 1
+                for tok in result.unsupported_tokens:
+                    unsupported_tokens[tok] += 1
 
     total_lines = sum(line_status.values())
     report = {
@@ -345,6 +406,17 @@ def build_report(catalogue: dict[str, Any] | None = None) -> dict[str, Any]:
         )
         if total_lines
         else 0.0,
+        "top_ambiguous_tokens": [
+            {"token": tok, "song_hits": count}
+            for tok, count in ambiguous_tokens.most_common(25)
+        ],
+        "top_unsupported_tokens": [
+            {"token": tok, "song_hits": count}
+            for tok, count in unsupported_tokens.most_common(25)
+        ],
+        "dialect_status_counts": {
+            dialect: dict(counts) for dialect, counts in sorted(dialect_status.items())
+        },
         "missing_song_ids": sorted(expected_ids - present_ids)[:50],
         "missing_song_count": len(expected_ids - present_ids),
         "duplicate_song_ids": [n for n, c in Counter(

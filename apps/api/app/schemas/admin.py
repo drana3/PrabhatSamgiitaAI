@@ -185,6 +185,14 @@ class AdminDevanagariSong(BaseModel):
     devanagari_status: str = "none"
     line_count_roman: int = 0
     line_count_devanagari: int = 0
+    song_language: str | None = None
+    review_language: str | None = None
+    conversion_confidence_percent: int | None = None
+    conversion_notes: str | None = None
+    regional_grammar_notes: str | None = None
+    review_reasons: list[str] = Field(default_factory=list)
+    ambiguous_tokens: list[str] = Field(default_factory=list)
+    unsupported_tokens: list[str] = Field(default_factory=list)
 
 
 class AdminDevanagariUpdate(BaseModel):

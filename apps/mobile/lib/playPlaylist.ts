@@ -43,6 +43,7 @@ export async function playPlaylist(
   })
 
   const song = starterSongForNumber(start)
+  // Always start a fresh playlist session (replaces casual Explore playback).
   usePlayerStore.getState().loadSong(song, numbers, "playlist")
 
   return null

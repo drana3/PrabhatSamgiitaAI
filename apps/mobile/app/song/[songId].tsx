@@ -60,7 +60,6 @@ export default function SongDetailScreen() {
   const syncCurrentSong = usePlayerStore((s) => s.syncCurrentSong)
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
   const pause = usePlayerStore((s) => s.pause)
-  const setQueue = usePlayerStore((s) => s.setQueue)
   const playbackMode = usePlayerStore((s) => s.playbackMode)
   const activeQueue = usePlayerStore((s) => s.queue)
   const playlistBounds = usePlayerStore((s) => s.playlistBounds)
@@ -79,7 +78,7 @@ export default function SongDetailScreen() {
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
   const [localizing, setLocalizing] = useState(false)
-  const [journey, setJourney] = useState<SongJourneyTab>("listen")
+  const [journey, setJourney] = useState<SongJourneyTab>("understand")
   const [watchPlaying, setWatchPlaying] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
   const journeyFocusY = useRef(0)
@@ -145,7 +144,7 @@ export default function SongDetailScreen() {
       setSong(peeked.song)
       setRelated(peeked.related)
       setLoadingSong(false)
-      if (Platform.OS !== "android") usePlayerStore.getState().warmAudio(peeked.song)
+      // Lyrics-first: do not warm/prefetch MP3 until the user opens Listen or presses play.
     } else {
       setLoadingSong(true)
     }
@@ -167,7 +166,6 @@ export default function SongDetailScreen() {
       setRelated(bundle.related)
       setLoadingSong(false)
       setHasNotation(isSargamEnabledForSong(bundle.song.number))
-      if (Platform.OS !== "android") usePlayerStore.getState().warmAudio(bundle.song)
       if (isSargamEnabledForSong(bundle.song.number)) {
         void fetchNotationCached(bundle.song.number, "C")
       }
@@ -208,7 +206,8 @@ export default function SongDetailScreen() {
         setJourney(requestedTab)
         return
       }
-      setJourney("listen")
+      // Default: lyrics / meaning first (not Listen + audio).
+      setJourney(journeyTabs.some((tab) => tab.id === "understand") ? "understand" : "listen")
     }
   }, [journeyTabs, journey, requestedTab])
 
@@ -222,34 +221,41 @@ export default function SongDetailScreen() {
       player.queue,
       player.playlistBounds,
     )
-    // Watch / Notation / Lyrics open should show that tab — not force Listen + audio.
-    if (requestedTab && requestedTab !== "listen") {
+    const inActivePlaylist =
+      player.playbackMode === "playlist" &&
+      Boolean(player.playlistBounds?.includes(song.number))
+
+    // Explicit deep-link tab (watch / listen / …).
+    if (requestedTab) {
       setJourney(requestedTab)
       if (autoPlayedFor.current === song.id) return
       autoPlayedFor.current = song.id
       const current = usePlayerStore.getState().currentSong
-      // Keep whatever is already playing; only sync metadata for Listen controls.
-      if (isSameSong(current, song)) syncCurrentSong(song, queue)
-      else setQueue(queue)
+      if (isSameSong(current, song)) {
+        syncCurrentSong(song, queue)
+        return
+      }
+      // Do not clobber an active saved playlist when only browsing another song.
+      if (player.playbackMode === "playlist" && !inActivePlaylist) return
+      if (requestedTab === "listen") {
+        // User asked for Listen — start audio and replace casual/playlist as needed.
+        loadSong(song, queue, inActivePlaylist ? "playlist" : "default")
+      }
       return
     }
-    // Once per song visit — avoid restarting on related[] updates.
+
+    // Once per song visit — lyrics-first; never auto-start MP3 on open (iOS or Android).
     if (autoPlayedFor.current === song.id) return
     autoPlayedFor.current = song.id
-    setJourney("listen")
+    setJourney(song.lyrics?.trim() ? "understand" : "listen")
     const current = usePlayerStore.getState().currentSong
     if (isSameSong(current, song)) {
-      // Already playing this track from Home/mini-player — do not touch the Sound.
       syncCurrentSong(song, queue)
       return
     }
-    // Android: do not create AVPlayer while the song screen is mounting (native crash).
-    if (Platform.OS === "android") {
-      setQueue(queue)
-      return
-    }
-    loadSong(song, queue)
-  }, [song?.id, song, related, loadSong, syncCurrentSong, setQueue, requestedTab])
+    // Browsing a song while a playlist plays: leave queue/bounds alone until Play.
+    if (player.playbackMode === "playlist" && !inActivePlaylist) return
+  }, [song?.id, song, related, loadSong, syncCurrentSong, requestedTab])
 
   useEffect(() => {
     if (!song) return
@@ -591,6 +597,9 @@ export default function SongDetailScreen() {
             selected={journey}
             onSelect={(id) => {
               setJourney(id)
+              if (id === "listen" && song) {
+                usePlayerStore.getState().warmAudio(song)
+              }
               scrollRef.current?.scrollTo({
                 y: Math.max(0, journeyFocusY.current - 8),
                 animated: false,

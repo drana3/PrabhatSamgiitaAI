@@ -379,6 +379,30 @@ def test_urdu_agent_same_glide_convention_as_hindi() -> None:
     assert "दुनियावालों" in h_sugs and "दुनियावालों" in u_sugs
 
 
+@pytest.mark.parametrize("lang", ["magahi", "maithili", "angika", "bhojpuri"])
+def test_regional_agents_reuse_hindi_glide(lang: str) -> None:
+    """Bihari / eastern varieties share Hindi orthography suggestions."""
+    from app.services.transliteration import review_deterministic, transliterate
+    from app.services.transliteration.language_agents import language_note
+
+    engine = transliterate("DUNIÁ")
+    assert engine.devanagari == "दुनिआ"
+    review = review_deterministic(lang, "DUNIÁ", engine.devanagari)
+    assert any(s.suggested_devanagari == "दुनिया" for s in review.suggestions)
+    assert all(s.status == "pending_review" for s in review.suggestions)
+    note = language_note(lang)
+    assert lang[:4] in note.lower() or "Hindi" in note
+
+
+def test_cross_validate_defaults_to_core_four() -> None:
+    from app.services.transliteration import cross_validate, transliterate
+    from app.services.transliteration.language_agents import CORE_REVIEW_LANGUAGES
+
+    engine = transliterate("RÁMA")
+    xv = cross_validate("RÁMA", engine.devanagari)
+    assert {a.language for a in xv.agents} == {lang.value for lang in CORE_REVIEW_LANGUAGES}
+
+
 def test_samskrta_agent_flags_vocalic_r() -> None:
     from app.services.transliteration import review_deterministic, transliterate
 
@@ -445,6 +469,38 @@ def test_unknown_language_agent_rejected() -> None:
         json={"text": "RÁMA", "language_agents": ["tamil"]},
     )
     assert resp.status_code == 422
+
+
+def test_catalogue_report_includes_token_and_dialect_triage() -> None:
+    from app.jobs import import_prabhata_catalogue as job
+
+    assert job._dialect_label_from_category("K? (MAGAHII)") == "Magahi"
+    assert job._dialect_label_from_category("D BHOJPURI MIXED") == "Bhojpuri"
+    catalogue = {
+        "ruleset_version": "1.0.0",
+        "engine_version": "1.0.1",
+        "songs": [
+            {
+                "song_number": 1,
+                "title": "t",
+                "roman": {"text": "HRDAYE\nFAKIR", "lines": ["HRDAYE", "FAKIR"]},
+                "devanagari": {"text": "x", "lines": ["x", "x"]},
+                "line_pairs": [
+                    {"line_number": 1, "roman": "HRDAYE", "devanagari": "x", "status": "needs_review"},
+                    {"line_number": 2, "roman": "FAKIR", "devanagari": "x", "status": "needs_review"},
+                ],
+                "provenance": {
+                    "devanagari_origin": "rule_based",
+                    "verification_status": "needs_review",
+                },
+            }
+        ],
+    }
+    report = job.build_report(catalogue)
+    assert "top_ambiguous_tokens" in report
+    assert "dialect_status_counts" in report
+    tokens = {row["token"] for row in report["top_ambiguous_tokens"]}
+    assert "R" in tokens or "F" in tokens
 
 
 def test_catalogue_detects_bad_status() -> None:
