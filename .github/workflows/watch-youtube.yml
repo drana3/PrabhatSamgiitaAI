@@ -46,6 +46,69 @@ jobs:
           fi
           apps/api/.venv/bin/python scripts/sync_youtube.py --general-search-limit 0
 
+      - name: Scan channels on Azure for full descriptions
+        env:
+          CATALOG_API_URL: ${{ secrets.CATALOG_API_URL || 'https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io' }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          if [ -z "$ADMIN_API_KEY" ]; then
+            echo "Set GitHub secret ADMIN_API_KEY so nightly can scan via Azure."
+            exit 1
+          fi
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api = os.environ["CATALOG_API_URL"].rstrip("/")
+          key = os.environ["ADMIN_API_KEY"]
+
+          def call(method: str, path: str, timeout: int = 230):
+              request = urllib.request.Request(
+                  f"{api}{path}",
+                  method=method,
+                  headers={
+                      "Accept": "application/json",
+                      "X-Admin-Key": key,
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=timeout) as response:
+                      return json.loads(response.read().decode("utf-8"))
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", errors="replace")[:400]
+                  print(f"{method} {path} failed: {exc.code} {body}", file=sys.stderr)
+                  raise
+
+          payload = call("GET", "/api/v1/admin/youtube-channels")
+          channels = [row for row in payload.get("items", []) if row.get("is_active")]
+          print(f"Active scan channels: {len(channels)}", file=sys.stderr)
+          if not channels:
+              raise SystemExit("No active YouTube scan channels on the API")
+          failed = 0
+          for channel in channels:
+              channel_id = channel["id"]
+              name = channel["name"]
+              last = {}
+              for attempt in range(1, 5):
+                  try:
+                      last = call(
+                          "POST",
+                          f"/api/v1/admin/youtube-channels/{channel_id}/scan?max_pages=4",
+                      )
+                  except Exception as exc:
+                      print(f"{name}: Azure scan failed: {exc}", file=sys.stderr)
+                      failed += 1
+                      break
+                  print(f"{name} pass {attempt}: {json.dumps(last)}", file=sys.stderr)
+                  if int(last.get("deferred") or 0) == 0:
+                      break
+          if failed:
+              raise SystemExit(failed)
+          PY
+
       - name: Validate media inventory
         run: |
           apps/api/.venv/bin/python scripts/validate_data.py
