@@ -59,7 +59,7 @@ export default async function HomePage() {
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link href="/explore" className="outline-button">Explore 5,018 songs <span aria-hidden="true">♪</span></Link>
-              <Link href="/songs/1#ask" className="text-sm font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">Start with Song 1</Link>
+              <Link href="/songs/1#lyrics" className="text-sm font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">Start with Song 1</Link>
             </div>
             <div className="mt-5 max-w-xl">
               <MemberQuizBadge />

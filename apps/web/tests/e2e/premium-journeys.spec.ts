@@ -80,17 +80,14 @@ async function clickCollectionLink(page: Page, name: RegExp | string) {
   await link.click()
 }
 
-/** Mobile song pages should open at the hero, not auto-jump to #ask. */
-async function expectMobileSongLanding(page: Page, heading?: RegExp | string) {
-  await expect.poll(() => new URL(page.url()).hash).toBe("")
-  const hero = heading
-    ? page.getByRole("heading", { name: heading })
-    : page.locator("h1").first()
-  await expect(hero).toBeInViewport()
-  await expect.poll(async () => {
-    const top = await hero.evaluate((element) => element.getBoundingClientRect().top)
-    return top >= 0 && top <= 240
-  }).toBe(true)
+/** Song opens land on lyrics (hash #lyrics) so words paint before audio. */
+async function expectSongLyricsLanding(page: Page) {
+  await expect.poll(() => new URL(page.url()).hash).toBe("#lyrics")
+  await expect(page.locator("#lyrics")).toBeInViewport()
+  const maximumLandingTop = (page.viewportSize()?.height ?? 800) * 0.35
+  await expect.poll(
+    () => page.locator("#lyrics").evaluate((element) => element.getBoundingClientRect().top),
+  ).toBeLessThanOrEqual(maximumLandingTop)
 }
 
 const songResult = {
@@ -157,31 +154,13 @@ test("home delivers a complete, nonblank spiritual journey", async ({ page }) =>
   expect(shadowedText).toBe(0)
 })
 
-test("general song links settle on the AI Companion after layout", async ({ page }, testInfo) => {
+test("general song links settle on lyrics after layout", async ({ page }) => {
   await page.goto("/")
   await page.getByRole("link", { name: "Start with Song 1" }).click()
-  if (testInfo.project.name === "mobile-chromium") {
-    await expect(page).toHaveURL(/\/songs\/1\/?$/)
-    await expectMobileSongLanding(page, /Bandhu He Niye Calo/i)
-    return
-  }
-  await expect(page).toHaveURL(/\/songs\/1#ask$/)
-  await expect(page.locator("#ask")).toBeInViewport()
-  await expect(page.getByRole("heading", { name: "Know more about this song" })).toBeVisible()
-  const maximumLandingTop = (page.viewportSize()?.height ?? 800) * 0.25
-  await expect.poll(
-    () => page.locator("#ask").evaluate((element) => element.getBoundingClientRect().top),
-  ).toBeLessThanOrEqual(maximumLandingTop)
-  const landing = await page.evaluate(() => ({
-    askTop: document.querySelector("#ask")?.getBoundingClientRect().top ?? null,
-    notationTop: document.querySelector("#notation")?.getBoundingClientRect().top ?? null,
-  }))
-  expect(landing.askTop).not.toBeNull()
-  expect(landing.notationTop).not.toBeNull()
-  expect(landing.askTop!).toBeGreaterThanOrEqual(0)
-  expect(landing.askTop!).toBeLessThanOrEqual(maximumLandingTop)
-  // Harmonium (#notation) sits above the companion in the page; after #ask landing it is off-screen above.
-  expect(landing.notationTop!).toBeLessThan(landing.askTop!)
+  await expect(page).toHaveURL(/\/songs\/1#lyrics$/)
+  await expectSongLyricsLanding(page)
+  await expect(page.getByRole("heading", { name: /Bandhu He Niye Calo/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Sing with the words/i })).toBeVisible()
 })
 
 test("Guru portrait and reflection remain aligned without overlap", async ({ page }, testInfo) => {
@@ -377,8 +356,11 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
     await expect(page.locator("#listen").getByRole("button", { name: /Play/i })).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Song sections" }).getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "#listen")
   } else {
-    await expect(page.locator("#listen-sidebar").getByLabel(/Listen to/i)).toBeVisible()
-    await expect(page.locator("#listen-sidebar").getByText(/Listen to this song/i)).toBeVisible()
+    const sidebar = page.locator("#listen-sidebar")
+    await expect(sidebar.getByText(/Listen to this song/i)).toBeVisible()
+    await expect(sidebar.getByRole("button", { name: /Play recording/i })).toBeVisible()
+    await sidebar.getByRole("button", { name: /Play recording/i }).click()
+    await expect(sidebar.getByLabel(/Listen to/i)).toBeVisible()
   }
   const { listenBounds, watchBounds } = await page.evaluate(() => ({
     listenBounds: document.querySelector("#listen")?.getBoundingClientRect().toJSON() ?? null,
@@ -391,14 +373,10 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   if (await alternateRecordings.count()) await expect(alternateRecordings).toBeVisible()
 })
 
-test("opening a song lands on the AI companion", async ({ page }, testInfo) => {
+test("opening a song lands on lyrics", async ({ page }) => {
   await page.goto("/songs/1")
-  if (testInfo.project.name === "mobile-chromium") {
-    await expectMobileSongLanding(page, /Bandhu He Niye Calo/i)
-    return
-  }
-  await expect.poll(() => new URL(page.url()).hash).toBe("#ask")
-  await expect(page.getByRole("status", { name: "AI companion ready to help" })).toBeVisible()
+  await expectSongLyricsLanding(page)
+  await expect(page.getByRole("heading", { name: /Sing with the words/i })).toBeVisible()
 })
 
 test("members can discover the configured sign-in flow", async ({ page }) => {
@@ -571,17 +549,13 @@ test("harmonium search lands on notation for guests", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Practise on harmonium" })).toBeVisible()
 })
 
-test("home and Explore resolve natural-language song number intent before RAG", async ({ page }, testInfo) => {
+test("home and Explore resolve natural-language song number intent before RAG", async ({ page }) => {
   await page.goto("/")
   await page.getByLabel(/Search by song number/i).fill("explain about prabhat sagiat 223")
   await clickSearchButton(page)
-  if (testInfo.project.name === "mobile-chromium") {
-    await expect(page).toHaveURL(/\/songs\/223\/?$/)
-    await expectMobileSongLanding(page)
-  } else {
-    await expect(page).toHaveURL(/\/songs\/223#ask$/)
-    await expect(page.locator("#ask")).toBeVisible()
-  }
+  // Explanation-shaped queries still deep-link to the AI companion.
+  await expect(page).toHaveURL(/\/songs\/223#ask$/)
+  await expect(page.locator("#ask")).toBeVisible()
 
   await stubSignedInMember(page)
   await page.goto("/explore")
