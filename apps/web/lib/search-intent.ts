@@ -28,7 +28,7 @@ export function extractSongSearchIntent(value: string): SongSearchIntent | null 
 }
 
 export function songIntentPath(intent: SongSearchIntent) {
-  return `/songs/${intent.number}#${intent.section ?? "ask"}`
+  return `/songs/${intent.number}#${intent.section ?? "lyrics"}`
 }
 
 function createIntent(number: number, query: string): SongSearchIntent | null {
@@ -37,5 +37,5 @@ function createIntent(number: number, query: string): SongSearchIntent | null {
   if (/\b(?:audio|hear|listen|recording|video|watch)\b/i.test(query)) return { number, section: "listen" }
   if (/\b(?:lyrics?|words)\b/i.test(query)) return { number, section: "lyrics" }
   if (explanationTerms.test(query)) return { number, section: "ask" }
-  return { number, section: "ask" }
+  return { number, section: "lyrics" }
 }

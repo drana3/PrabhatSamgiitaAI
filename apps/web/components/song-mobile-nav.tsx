@@ -8,8 +8,8 @@ type SongMobileNavProps = {
 
 export function SongMobileNav({ hasAudio, hasLyrics, hasMeaning }: SongMobileNavProps) {
   const items = [
-    hasAudio ? { href: "#listen", label: "Listen", icon: "♪" } : null,
     hasLyrics ? { href: "#lyrics", label: "Lyrics", icon: "≡" } : null,
+    hasAudio ? { href: "#listen", label: "Listen", icon: "♪" } : null,
     hasMeaning ? { href: "#meaning", label: "Meaning", icon: "✦" } : null,
     { href: "#ask", label: "Ask AI", icon: "AI" },
   ].filter(Boolean) as Array<{ href: string; label: string; icon: string }>

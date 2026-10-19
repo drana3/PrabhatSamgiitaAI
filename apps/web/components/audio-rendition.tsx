@@ -103,6 +103,7 @@ function CompactPlayer({
   sharedAudioReady = true,
   registerSharedAudio,
   mountAudio = true,
+  lazyMount = false,
 }: {
   url: string
   title: string
@@ -112,9 +113,13 @@ function CompactPlayer({
   sharedAudioReady?: boolean
   registerSharedAudio?: (element: HTMLAudioElement | null) => void
   mountAudio?: boolean
+  /** Do not attach the audio element or warm the stream until the first play press. */
+  lazyMount?: boolean
 }) {
   const localAudioRef = useRef<HTMLAudioElement>(null)
   const audioRef = sharedAudioRef ?? localAudioRef
+  const pendingPlay = useRef(false)
+  const [audioLive, setAudioLive] = useState(!lazyMount && mountAudio)
 
   function assignAudioRef(element: HTMLAudioElement | null) {
     localAudioRef.current = element
@@ -128,33 +133,53 @@ function CompactPlayer({
   const [muted, setMuted] = useState(false)
   const [buffering, setBuffering] = useState(false)
 
+  const shouldMount = mountAudio && audioLive
+
+  useEffect(() => {
+    if (!lazyMount && mountAudio) setAudioLive(true)
+  }, [lazyMount, mountAudio])
+
   useEffect(() => {
     setPlaying(false)
     setCurrentTime(0)
     setDuration(0)
     setMuted(false)
     setBuffering(false)
-    if (mountAudio) void warmArchiveAudioStream(url)
-  }, [url, mountAudio])
+    if (lazyMount) setAudioLive(false)
+  }, [url, lazyMount])
 
   useEffect(() => {
-    if (!sharedAudioReady) return
+    if (!shouldMount) return
+    void warmArchiveAudioStream(url)
+  }, [url, shouldMount])
+
+  useEffect(() => {
+    if (!shouldMount || !pendingPlay.current) return
+    const audio = audioRef.current
+    if (!audio) return
+    pendingPlay.current = false
+    setBuffering(true)
+    void audio.play().catch(() => setBuffering(false))
+  }, [shouldMount, url, audioRef])
+
+  useEffect(() => {
+    if (!sharedAudioReady || !shouldMount) return
     const audio = audioRef.current
     if (!audio) return
     // iOS Safari ignores audio.volume; muted still works.
     audio.muted = muted
     audio.volume = muted ? 0 : volume
-  }, [muted, volume, url, sharedAudioReady, audioRef])
+  }, [muted, volume, url, sharedAudioReady, audioRef, shouldMount])
 
   useEffect(() => {
-    if (!sharedAudioReady) return
+    if (!sharedAudioReady || !shouldMount) return
     const audio = audioRef.current
     if (!audio) return
-    if (mountAudio) return bindExclusiveAudio(audio)
-  }, [url, mountAudio, sharedAudioReady, audioRef])
+    return bindExclusiveAudio(audio)
+  }, [url, shouldMount, sharedAudioReady, audioRef])
 
   useEffect(() => {
-    if (!sharedAudioReady) return
+    if (!sharedAudioReady || !shouldMount) return
     const audio = audioRef.current
     if (!audio) return
     const syncPlaying = () => setPlaying(!audio.paused && !audio.ended)
@@ -188,7 +213,7 @@ function CompactPlayer({
       audio.removeEventListener("canplay", markReady)
       audio.removeEventListener("playing", markReady)
     }
-  }, [url, sharedAudioReady, audioRef])
+  }, [url, sharedAudioReady, audioRef, shouldMount])
 
   function seekBy(deltaSeconds: number) {
     const audio = audioRef.current
@@ -207,6 +232,12 @@ function CompactPlayer({
   }
 
   function togglePlay() {
+    if (!shouldMount) {
+      pendingPlay.current = true
+      setAudioLive(true)
+      setBuffering(true)
+      return
+    }
     const audio = audioRef.current
     if (!audio) return
     if (playing) {
@@ -301,7 +332,7 @@ function CompactPlayer({
         </p>
       ) : null}
 
-      {mountAudio ? (
+      {shouldMount ? (
         <audio
           ref={assignAudioRef}
           aria-label={`Listen to ${title}`}
@@ -336,6 +367,7 @@ function NativeAudio({
   sharedAudioRef,
   registerSharedAudio,
   mountAudio = true,
+  lazyMount = false,
 }: {
   url: string
   title: string
@@ -346,9 +378,13 @@ function NativeAudio({
   sharedAudioRef?: RefObject<HTMLAudioElement | null>
   registerSharedAudio?: (element: HTMLAudioElement | null) => void
   mountAudio?: boolean
+  lazyMount?: boolean
 }) {
   const localAudioRef = useRef<HTMLAudioElement>(null)
   const [buffering, setBuffering] = useState(false)
+  const [audioLive, setAudioLive] = useState(!lazyMount && mountAudio)
+  const pendingPlay = useRef(false)
+  const shouldMount = mountAudio && audioLive
 
   function assignAudioRef(element: HTMLAudioElement | null) {
     if (sharedAudioRef) sharedAudioRef.current = element
@@ -357,21 +393,30 @@ function NativeAudio({
   }
 
   useEffect(() => {
+    if (!lazyMount && mountAudio) setAudioLive(true)
+  }, [lazyMount, mountAudio])
+
+  useEffect(() => {
     setBuffering(false)
+    if (lazyMount) setAudioLive(false)
+  }, [url, lazyMount])
+
+  useEffect(() => {
+    if (!shouldMount) return
     if (warmStream) void warmArchiveAudioStream(url)
-  }, [url, warmStream])
+  }, [url, warmStream, shouldMount])
 
   useEffect(() => () => registerSharedAudio?.(null), [registerSharedAudio])
 
   useEffect(() => {
     const audio = sharedAudioRef?.current ?? localAudioRef.current
-    if (!audio || !mountAudio) return
+    if (!audio || !shouldMount) return
     return bindExclusiveAudio(audio)
-  }, [url, mountAudio, sharedAudioRef])
+  }, [url, shouldMount, sharedAudioRef])
 
   useEffect(() => {
     const audio = sharedAudioRef?.current ?? localAudioRef.current
-    if (!audio || !mountAudio) return
+    if (!audio || !shouldMount) return
     const resumeAfterStall = () => {
       if (audio.paused || audio.ended) return
       setBuffering(true)
@@ -388,9 +433,32 @@ function NativeAudio({
       audio.removeEventListener("canplay", markReady)
       audio.removeEventListener("playing", markReady)
     }
-  }, [url, mountAudio, sharedAudioRef])
+  }, [url, shouldMount, sharedAudioRef])
 
-  if (!mountAudio) return null
+  useEffect(() => {
+    if (!shouldMount || !pendingPlay.current) return
+    const audio = sharedAudioRef?.current ?? localAudioRef.current
+    if (!audio) return
+    pendingPlay.current = false
+    setBuffering(true)
+    void audio.play().catch(() => setBuffering(false))
+  }, [shouldMount, url, sharedAudioRef])
+
+  if (!shouldMount) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          pendingPlay.current = true
+          setAudioLive(true)
+          setBuffering(true)
+        }}
+        className={`mt-3 w-full rounded-xl border border-navy-900/10 bg-ivory-50 px-4 py-3 text-sm font-semibold text-navy-950 hover:border-gold-500 ${className ?? ""}`}
+      >
+        ♪ Play recording
+      </button>
+    )
+  }
 
   return (
     <>
@@ -435,6 +503,7 @@ export function AudioRendition({
   sharedAudioReady = true,
   registerSharedAudio,
   mountAudio = true,
+  lazyMount = false,
 }: {
   url: string
   title: string
@@ -447,6 +516,7 @@ export function AudioRendition({
   sharedAudioReady?: boolean
   registerSharedAudio?: (element: HTMLAudioElement | null) => void
   mountAudio?: boolean
+  lazyMount?: boolean
 }) {
   const { loading, session } = useMember()
   const allowDownload = !loading && session.authenticated
@@ -462,6 +532,7 @@ export function AudioRendition({
         sharedAudioReady={sharedAudioReady}
         registerSharedAudio={registerSharedAudio}
         mountAudio={mountAudio}
+        lazyMount={lazyMount}
       />
     )
   }
@@ -488,6 +559,7 @@ export function AudioRendition({
         sharedAudioRef={sharedAudioRef}
         registerSharedAudio={registerSharedAudio}
         mountAudio={mountAudio}
+        lazyMount={lazyMount}
         className="mt-3 w-full"
       />
       {!allowDownload ? (

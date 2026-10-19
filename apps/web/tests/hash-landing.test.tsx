@@ -12,6 +12,7 @@ describe("HashLanding", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.history.replaceState(null, "", "/songs/135")
+    document.body.innerHTML = '<section id="lyrics"></section>'
     Object.defineProperty(window, "scrollRestoration", {
       configurable: true,
       value: "auto",
@@ -38,34 +39,23 @@ describe("HashLanding", () => {
     }))
   })
 
-  it("defaults to the AI companion when a song opens without a hash on desktop", async () => {
+  it("defaults to lyrics when a song opens without a hash", async () => {
     render(<HashLanding />)
 
     await waitFor(() => {
-      expect(window.location.hash).toBe("#ask")
-      expect(scrollToSectionId).toHaveBeenCalledWith("ask")
+      expect(window.location.hash).toBe("#lyrics")
+      expect(scrollToSectionId).toHaveBeenCalledWith("lyrics")
     })
   })
 
-  it("lands at the song start on mobile instead of the AI companion", async () => {
-    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
-      matches: query.includes("max-width: 767px"),
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }))
-    window.history.replaceState(null, "", "/songs/135#ask")
+  it("lands on lyrics when the hash is #lyrics", async () => {
+    window.history.replaceState(null, "", "/songs/135#lyrics")
     render(<HashLanding />)
 
     await waitFor(() => {
-      expect(window.location.hash).toBe("")
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" })
+      expect(scrollToSectionId).toHaveBeenCalledWith("lyrics")
     })
-    expect(scrollToSectionId).not.toHaveBeenCalled()
+    expect(window.location.hash).toBe("#lyrics")
   })
 
   it("honors an explicit section hash", async () => {
@@ -78,27 +68,17 @@ describe("HashLanding", () => {
     expect(window.location.hash).toBe("#notation")
   })
 
-  it("honors explicit non-ask hashes on mobile", async () => {
-    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
-      matches: query.includes("max-width: 767px"),
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }))
-    window.history.replaceState(null, "", "/songs/135#lyrics")
+  it("honors #ask when linked intentionally", async () => {
+    window.history.replaceState(null, "", "/songs/135#ask")
     render(<HashLanding />)
 
     await waitFor(() => {
-      expect(scrollToSectionId).toHaveBeenCalledWith("lyrics")
+      expect(scrollToSectionId).toHaveBeenCalledWith("ask")
     })
-    expect(window.location.hash).toBe("#lyrics")
+    expect(window.location.hash).toBe("#ask")
   })
 
-  it("does not auto-open the AI companion when returning from sign-in", async () => {
+  it("does not auto-open a section when returning from sign-in", async () => {
     window.history.replaceState(null, "", "/songs/135?from=signin")
     render(<HashLanding />)
 

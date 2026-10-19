@@ -48,7 +48,7 @@ describe("hero search", () => {
     render(<HeroSearch />)
     await user.type(screen.getByLabelText(/Search by song number/i), "111")
     await user.click(screen.getByRole("button", { name: "Search" }))
-    expect(push).toHaveBeenCalledWith("/songs/111#ask")
+    expect(push).toHaveBeenCalledWith("/songs/111#lyrics")
   })
 
   it("routes thematic queries to Explore", async () => {
@@ -64,7 +64,7 @@ describe("hero search", () => {
     render(<HeroSearch />)
 
     await user.click(screen.getByRole("button", { name: /By number/i }))
-    expect(push).toHaveBeenCalledWith("/songs/111#ask")
+    expect(push).toHaveBeenCalledWith("/songs/111#lyrics")
 
     push.mockClear()
     await user.click(screen.getByRole("button", { name: /By words/i }))
@@ -164,7 +164,7 @@ describe("hero search", () => {
         },
         { timeout: 15000 },
       )
-      expect(screen.getByRole("link", { name: /PS 1\s+Bandhu He Niye Calo/i })).toHaveAttribute("href", "/songs/1#ask")
+      expect(screen.getByRole("link", { name: /PS 1\s+Bandhu He Niye Calo/i })).toHaveAttribute("href", "/songs/1#lyrics")
     },
     20000,
   )

@@ -46,7 +46,7 @@ describe("SearchForm", () => {
     await waitFor(() => {
       expect(screen.getByRole("listbox", { name: "Song suggestions" })).toBeInTheDocument()
     })
-    expect(screen.getByRole("link", { name: /PS 1\b/i })).toHaveAttribute("href", "/songs/1#ask")
+    expect(screen.getByRole("link", { name: /PS 1\b/i })).toHaveAttribute("href", "/songs/1#lyrics")
   })
 
   it("keeps typed text stable when parent echoes a committed query", async () => {
