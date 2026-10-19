@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -21,6 +21,7 @@ from app.models import (
     UserFeedback,
     UserFeedbackReply,
 )
+from app.models.admin_workflow import YoutubeScanChannel
 from app.schemas.admin import (
     AdminActionResponse,
     AdminAnalyticsItem,
@@ -40,6 +41,11 @@ from app.schemas.admin import (
     AdminSongWrite,
     CatalogRefreshResponse,
     CatalogRefreshWrite,
+)
+from app.schemas.admin_workflow import (
+    YoutubeScanChannelItem,
+    YoutubeScanChannelListResponse,
+    YoutubeScanChannelScanResult,
 )
 from app.schemas.song import MediaItemResponse, SongSummary
 from app.services.catalog import (
@@ -61,6 +67,11 @@ from app.services.feedback_replies import (
 )
 from app.services.feedback_triage import feedback_is_priority
 from app.services.media_quality import to_media_item_response
+from app.services.youtube_channels import (
+    list_all_youtube_scan_channels,
+    scan_all_youtube_channels,
+    scan_youtube_channel,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 AdminIdentity = Annotated[str, Depends(require_admin)]
@@ -300,6 +311,67 @@ async def refresh_catalog_memory(
     elif not numbers:
         refreshed += await refresh_recent_catalog_changes(session, minutes=30)
     return CatalogRefreshResponse(refreshed=refreshed)
+
+
+def _youtube_channel_item(row: YoutubeScanChannel) -> YoutubeScanChannelItem:
+    return YoutubeScanChannelItem(
+        id=str(row.id),
+        name=row.name,
+        channel_id=row.channel_id,
+        channel_url=row.channel_url,
+        number_source=cast(
+            Literal["title", "description", "title_or_description"],
+            row.number_source or "title",
+        ),
+        is_trusted=row.is_trusted,
+        is_active=row.is_active,
+        notes=row.notes,
+        last_scanned_at=row.last_scanned_at.isoformat() if row.last_scanned_at else None,
+        last_scan_discovered=row.last_scan_discovered,
+        last_scan_new=row.last_scan_new,
+        last_scan_known=row.last_scan_known,
+        created_at=row.created_at.isoformat() if row.created_at else "",
+    )
+
+
+@router.get("/youtube-channels", response_model=YoutubeScanChannelListResponse)
+async def list_youtube_channels_for_job(
+    admin: AdminIdentity,
+    session: DatabaseSession,
+) -> YoutubeScanChannelListResponse:
+    del admin
+    rows = await list_all_youtube_scan_channels(session)
+    return YoutubeScanChannelListResponse(items=[_youtube_channel_item(row) for row in rows])
+
+
+@router.post("/youtube-channels/scan-all", response_model=dict[str, object])
+async def scan_all_youtube_channels_for_job(
+    admin: AdminIdentity,
+    session: DatabaseSession,
+    max_pages: int = Query(default=4, ge=1, le=50),
+) -> dict[str, object]:
+    del admin
+    return await scan_all_youtube_channels(session, max_pages=max_pages)
+
+
+@router.post("/youtube-channels/{channel_id}/scan", response_model=YoutubeScanChannelScanResult)
+async def scan_youtube_channel_for_job(
+    channel_id: UUID,
+    admin: AdminIdentity,
+    session: DatabaseSession,
+    max_pages: int = Query(default=4, ge=1, le=50),
+) -> YoutubeScanChannelScanResult:
+    del admin
+    try:
+        result = await scan_youtube_channel(session, channel_id, max_pages=max_pages)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Could not scan channel: {exc}",
+        ) from exc
+    return YoutubeScanChannelScanResult(**result)
 
 
 @router.post("/reindex", response_model=AdminActionResponse, status_code=status.HTTP_202_ACCEPTED)
