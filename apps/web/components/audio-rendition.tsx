@@ -21,6 +21,15 @@ function controlsList(signedIn: boolean) {
   return signedIn ? "noplaybackrate" : "nodownload noplaybackrate"
 }
 
+/** Normalize play() across browsers and jsdom (may return undefined or throw). */
+function playAudio(audio: HTMLMediaElement) {
+  try {
+    return Promise.resolve(audio.play()).catch(() => undefined)
+  } catch {
+    return Promise.resolve()
+  }
+}
+
 function IconButton({
   label,
   onClick,
@@ -159,7 +168,7 @@ function CompactPlayer({
     if (!audio) return
     pendingPlay.current = false
     setBuffering(true)
-    void audio.play().catch(() => setBuffering(false))
+    void playAudio(audio).catch(() => setBuffering(false))
   }, [shouldMount, url, audioRef])
 
   useEffect(() => {
@@ -190,7 +199,7 @@ function CompactPlayer({
     const resumeAfterStall = () => {
       if (audio.paused || audio.ended) return
       setBuffering(true)
-      void audio.play().catch(() => undefined)
+      void playAudio(audio).catch(() => undefined)
     }
     const markReady = () => setBuffering(false)
     syncPlaying()
@@ -245,7 +254,7 @@ function CompactPlayer({
       return
     }
     setBuffering(true)
-    void audio.play().catch(() => setBuffering(false))
+    void playAudio(audio).catch(() => setBuffering(false))
   }
 
   function toggleMute() {
@@ -420,7 +429,7 @@ function NativeAudio({
     const resumeAfterStall = () => {
       if (audio.paused || audio.ended) return
       setBuffering(true)
-      void audio.play().catch(() => undefined)
+      void playAudio(audio).catch(() => undefined)
     }
     const markReady = () => setBuffering(false)
     audio.addEventListener("waiting", resumeAfterStall)
@@ -441,7 +450,7 @@ function NativeAudio({
     if (!audio) return
     pendingPlay.current = false
     setBuffering(true)
-    void audio.play().catch(() => setBuffering(false))
+    void playAudio(audio).catch(() => setBuffering(false))
   }, [shouldMount, url, sharedAudioRef])
 
   if (!shouldMount) {

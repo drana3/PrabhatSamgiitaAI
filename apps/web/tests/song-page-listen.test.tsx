@@ -41,6 +41,11 @@ vi.mock("@/lib/warm-audio-stream", () => ({
   warmArchiveAudioStream: vi.fn().mockResolvedValue(undefined),
 }))
 
+beforeEach(() => {
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined)
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined)
+})
+
 afterEach(() => {
   layoutState.layout = "mobile"
   vi.restoreAllMocks()
@@ -57,6 +62,8 @@ describe("SongPageListenShell", () => {
 
     expect(screen.getByRole("button", { name: /Play Best/i })).toBeInTheDocument()
     expect(screen.queryByText(/Listen to this song/i)).not.toBeInTheDocument()
+    // Lyrics-first: audio element stays unmounted until Play.
+    expect(screen.queryByLabelText(/Listen to Best/i)).not.toBeInTheDocument()
 
     layoutState.layout = "sidebar"
     rerender(
@@ -68,7 +75,12 @@ describe("SongPageListenShell", () => {
 
     expect(screen.getAllByRole("button", { name: /Play Best/i })).toHaveLength(1)
     expect(screen.getByText(/Listen to this song/i)).toBeInTheDocument()
-    expect(within(screen.getByTestId("listen-sidebar")).getByLabelText(/Listen to Best/i)).toBeInTheDocument()
+    const sidebar = screen.getByTestId("listen-sidebar")
+    expect(within(sidebar).getByRole("button", { name: /Play recording/i })).toBeInTheDocument()
+    expect(within(sidebar).queryByLabelText(/Listen to Best/i)).not.toBeInTheDocument()
+
+    fireEvent.click(within(sidebar).getByRole("button", { name: /Play recording/i }))
+    expect(within(sidebar).getByLabelText(/Listen to Best/i)).toBeInTheDocument()
   })
 
   it("keeps alternate recordings in sync between top and sidebar", () => {
@@ -81,6 +93,8 @@ describe("SongPageListenShell", () => {
     )
 
     fireEvent.click(screen.getByRole("button", { name: /Alternate take/i }))
-    expect(within(screen.getByTestId("listen-sidebar")).getByLabelText(/Listen to Alternate take/i)).toBeInTheDocument()
+    const sidebar = screen.getByTestId("listen-sidebar")
+    fireEvent.click(within(sidebar).getByRole("button", { name: /Play recording/i }))
+    expect(within(sidebar).getByLabelText(/Listen to Alternate take/i)).toBeInTheDocument()
   })
 })
