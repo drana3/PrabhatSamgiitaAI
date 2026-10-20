@@ -153,6 +153,47 @@ async def test_localize_uses_google_then_skips_llm(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_localize_translates_central_idea_when_meaning_is_stored(tmp_path: Path) -> None:
+    """Curated Hindi meaning must not short-circuit and leave Central idea in English."""
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
+        GOOGLE_TRANSLATE_API_KEY="test-key",
+        GOOGLE_TRANSLATE_ENABLED=True,
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=400_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+        GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
+    )
+    gt.reset_quota_store_for_tests()
+    english_idea = "Paramapurusa is the real friend."
+    song = Song(
+        number=1,
+        title="Song 1",
+        english_meaning="O dearest Friend, lead me on.",
+        hindi_meaning="हे प्रिय सखा, मुझे आगे ले चलो।",
+        metadata_json={},
+    )
+    service = LocalizationService()
+    with (
+        patch("app.services.localization.get_settings", return_value=settings),
+        patch(
+            "app.services.localization.translate_texts",
+            new=AsyncMock(return_value=["परमपुरुष ही सच्चे मित्र हैं।"]),
+        ) as translate_mock,
+        patch("app.services.localization.google_translate_configured", return_value=True),
+    ):
+        await translation_cache.clear()
+        result = await service.localize(song, "Hindi", explanation=english_idea)
+
+    assert result.localized_meaning == "हे प्रिय सखा, मुझे आगे ले चलो।"
+    assert result.localized_explanation == "परमपुरुष ही सच्चे मित्र हैं।"
+    assert result.localized_explanation != english_idea
+    assert result.provider == "google"
+    translate_mock.assert_awaited_once()
+    assert translate_mock.await_args.args[0] == [english_idea]
+
+
+@pytest.mark.asyncio
 async def test_localize_falls_back_to_llm_when_google_unavailable(tmp_path: Path) -> None:
     settings = Settings(
         DATABASE_URL="postgresql+psycopg://test:test@localhost/test",

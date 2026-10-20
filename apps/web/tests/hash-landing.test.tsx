@@ -89,4 +89,23 @@ describe("HashLanding", () => {
     })
     expect(scrollToSectionId).not.toHaveBeenCalled()
   })
+
+  it("honors a later #meaning hash instead of re-landing on lyrics", async () => {
+    vi.useFakeTimers()
+    const fontsReady = Promise.resolve()
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { ready: fontsReady },
+    })
+    document.body.innerHTML =
+      '<section id="lyrics"></section><section id="meaning"></section>'
+    render(<HashLanding />)
+
+    await fontsReady
+    window.history.replaceState(null, "", "/songs/135?language=hi#meaning")
+    await vi.advanceTimersByTimeAsync(350)
+
+    expect(scrollToSectionId).toHaveBeenCalledWith("meaning")
+    vi.useRealTimers()
+  })
 })

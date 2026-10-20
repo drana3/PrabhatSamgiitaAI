@@ -20,6 +20,10 @@ import {
 
 function keepMeaningInView() {
   if (typeof window === "undefined") return
+  if (window.location.hash !== "#meaning") {
+    const { pathname, search } = window.location
+    window.history.replaceState(window.history.state, "", `${pathname}${search}#meaning`)
+  }
   scrollToSectionId("meaning", { behavior: "auto" })
   // Re-pin after layout settles (translated blocks + fonts can shift the page).
   window.requestAnimationFrame(() => {
@@ -27,6 +31,7 @@ function keepMeaningInView() {
   })
   window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 120)
   window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 360)
+  window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 800)
 }
 
 function MeaningBlock({ label, value }: { label: string; value?: string | null }) {

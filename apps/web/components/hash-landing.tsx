@@ -13,6 +13,17 @@ function scrollToSongStart() {
   document.body.scrollTop = 0
 }
 
+function currentSongSection(): SongSection | null {
+  const raw = window.location.hash.slice(1)
+  if (!raw) return null
+  try {
+    const section = decodeURIComponent(raw) as SongSection
+    return SONG_SECTIONS.has(section) ? section : null
+  } catch {
+    return null
+  }
+}
+
 export function HashLanding() {
   useEffect(() => {
     if ("scrollRestoration" in history) history.scrollRestoration = "manual"
@@ -23,18 +34,25 @@ export function HashLanding() {
       return
     }
 
-    const rawHash = window.location.hash.slice(1)
-    const section = (rawHash ? decodeURIComponent(rawHash) : "lyrics") as SongSection
-    if (rawHash && !SONG_SECTIONS.has(section)) return
+    const initialHash = window.location.hash.slice(1)
+    const initialSection = (initialHash ? decodeURIComponent(initialHash) : "lyrics") as SongSection
+    if (initialHash && !SONG_SECTIONS.has(initialSection)) return
 
     // Default / catalog links land on lyrics so the first paint is words, not the player.
-    if (!rawHash || section === "lyrics") {
-      if (!rawHash) {
+    if (!initialHash || initialSection === "lyrics") {
+      if (!initialHash && !window.location.hash) {
         history.replaceState(null, "", `${window.location.pathname}${window.location.search}#lyrics`)
       }
       let cancelled = false
       const land = () => {
         if (cancelled) return
+        // Language switch / section chips may have moved the hash (e.g. #meaning)
+        // before fonts.ready or the 300ms settle fire — honor the live hash.
+        const live = currentSongSection()
+        if (live && live !== "lyrics") {
+          scrollToSectionId(live)
+          return
+        }
         const lyrics = document.getElementById("lyrics")
         if (lyrics) scrollToSectionId("lyrics")
         else scrollToSongStart()
@@ -51,7 +69,9 @@ export function HashLanding() {
 
     let cancelled = false
     const scrollToSection = () => {
-      if (!cancelled) scrollToSectionId(section)
+      if (cancelled) return
+      const live = currentSongSection() ?? initialSection
+      scrollToSectionId(live)
     }
     const settle = () => requestAnimationFrame(() => requestAnimationFrame(scrollToSection))
     settle()

@@ -77,6 +77,9 @@ export function SongLanguageSwitcher({
               ? "#meaning"
               : window.location.hash || ""
             const url = `${pathname}${query ? `?${query}` : ""}${hash}`
+            // Blur so mobile browsers do not scroll the closed native picker into
+            // the Listen / Harmonium block after the Meaning section grows.
+            event.currentTarget.blur()
             if (onLanguageChange) {
               window.sessionStorage.removeItem("song-translation-scroll")
               window.history.replaceState(window.history.state, "", url)

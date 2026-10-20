@@ -82,5 +82,10 @@ export function storedExplanationForLanguage(
   const explanations = song.metadata_json?.localized_explanations
   if (!explanations || typeof explanations !== "object") return null
   const value = (explanations as Record<string, unknown>)[code]
-  return typeof value === "string" && value.trim() ? normalizeProseBlock(value) : null
+  if (typeof value !== "string" || !value.trim()) return null
+  const prose = normalizeProseBlock(value)
+  // Reject English Central idea echoes cached under another language code.
+  const english = centralIdeaText(song)
+  if (english && prose === english) return null
+  return prose || null
 }

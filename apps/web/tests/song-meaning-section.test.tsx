@@ -82,17 +82,30 @@ describe("SongMeaningSection", () => {
     expect(screen.getByText("English")).toBeInTheDocument()
   })
 
-  it("uses stored Hindi without calling localization", async () => {
+  it("uses stored Hindi meaning but still localizes Central idea", async () => {
+    fetchSongLocalization.mockResolvedValue({
+      localized_meaning: "हिन्दी अर्थ",
+      localized_explanation: "अनुवादित केंद्रीय भाव",
+    })
+
     render(
       <SongMeaningSection
         songNumber={1}
-        song={{ ...song, hindi_meaning: "हिन्दी अर्थ" }}
+        song={{
+          ...song,
+          hindi_meaning: "हिन्दी अर्थ",
+          central_idea: "Paramapurusa is the real friend.",
+        }}
         initialLanguage="hi"
       />,
     )
 
     expect(await screen.findByText("हिन्दी अर्थ")).toBeInTheDocument()
-    expect(fetchSongLocalization).not.toHaveBeenCalled()
+    expect(await screen.findByText("अनुवादित केंद्रीय भाव")).toBeInTheDocument()
+    expect(screen.getByText(/Central idea \(English\)/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(fetchSongLocalization).toHaveBeenCalledWith(1, "Hindi")
+    })
   })
 
   it("offers copy for the visible meaning", async () => {

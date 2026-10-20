@@ -189,12 +189,21 @@ class LocalizationService:
         elif explanation_source and explanation_source == meaning_source:
             localized_explanation = meaning
 
+        # Never echo the English Central idea as a "translation".
+        if (
+            localized_explanation
+            and explanation_source
+            and localized_explanation == explanation_source
+            and explanation_source != meaning_source
+        ):
+            localized_explanation = None
+
         return LocalizedSongText(
             language=language_display_name(language_code),
             localized_title=song.title,
             localized_first_line=song.first_line,
             localized_meaning=meaning,
-            localized_explanation=localized_explanation or explanation_source,
+            localized_explanation=localized_explanation,
             provider="google",
         )
 
@@ -293,6 +302,38 @@ class LocalizationService:
                 provider="llm" if fallback_meaning else None,
             )
 
+    def _usable_localized_explanation(
+        self,
+        candidate: str | None,
+        explanation_source: str | None,
+    ) -> str | None:
+        text = normalize_prose_block(candidate or "") or None
+        if not text:
+            return None
+        source = normalize_prose_block(explanation_source or "") or None
+        if source and text == source:
+            return None
+        return text
+
+    async def _translate_explanation_with_google(
+        self,
+        language_code: str,
+        explanation: str | None,
+    ) -> str | None:
+        if not google_translate_configured():
+            return None
+        explanation_source = normalize_prose_block(explanation or "") or None
+        if not explanation_source:
+            return None
+        translated = await translate_texts(
+            [explanation_source],
+            target_language=language_code,
+            source_language="en",
+        )
+        if not translated or not translated[0].strip():
+            return None
+        return self._usable_localized_explanation(translated[0], explanation_source)
+
     async def localize(
         self,
         song: Song,
@@ -303,29 +344,60 @@ class LocalizationService:
         normalized = language.strip()
         language_code = normalize_language_code(normalized) or normalized.casefold()
         display_language = language_display_name(normalized)
+        explanation_source = normalize_prose_block(explanation or "") or None
         stored_meaning = stored_meaning_for_language(song, normalized)
         if stored_meaning:
             stored_meaning = normalize_prose_block(stored_meaning) or stored_meaning
-        stored_explanation = self._stored_explanation(song, language_code)
+        stored_explanation = self._usable_localized_explanation(
+            self._stored_explanation(song, language_code),
+            explanation_source,
+        )
         if stored_meaning:
+            # Hindi (and other curated meanings) used to short-circuit and return the
+            # English Central idea unchanged. Translate the purport when it is missing.
+            localized_explanation = stored_explanation
+            provider = "stored"
+            if not localized_explanation and explanation_source:
+                localized_explanation = await self._translate_explanation_with_google(
+                    language_code,
+                    explanation_source,
+                )
+                if localized_explanation:
+                    provider = "google"
+                    await self._persist_localized(
+                        session,
+                        song,
+                        language_code,
+                        LocalizedSongText(
+                            language=display_language,
+                            localized_title=song.title,
+                            localized_first_line=song.first_line,
+                            localized_meaning=stored_meaning,
+                            localized_explanation=localized_explanation,
+                            provider=provider,
+                        ),
+                    )
             return LocalizedSongText(
                 language=display_language,
                 localized_title=song.title,
                 localized_first_line=song.first_line,
                 localized_meaning=stored_meaning,
-                localized_explanation=stored_explanation
-                or (normalize_prose_block(explanation or "") or None),
-                provider="stored",
+                localized_explanation=localized_explanation,
+                provider=provider,
             )
 
         cached = await translation_cache.get(self._cache_key(song, language_code))
         if isinstance(cached, dict) and not cached.get("fallback_error"):
+            cached_explanation = self._usable_localized_explanation(
+                self._text(cached, "localized_explanation"),
+                explanation_source,
+            )
             return LocalizedSongText(
                 language=str(cached.get("language", display_language)),
                 localized_title=self._text(cached, "localized_title"),
                 localized_first_line=self._text(cached, "localized_first_line"),
                 localized_meaning=self._text(cached, "localized_meaning"),
-                localized_explanation=self._text(cached, "localized_explanation"),
+                localized_explanation=cached_explanation,
                 provider=str(cached.get("provider") or "cache"),
             )
 
@@ -338,6 +410,11 @@ class LocalizationService:
                 display_language,
                 explanation,
             )
+            if result.localized_explanation:
+                result.localized_explanation = self._usable_localized_explanation(
+                    result.localized_explanation,
+                    explanation_source,
+                )
 
         if result.localized_meaning:
             await translation_cache.set(
