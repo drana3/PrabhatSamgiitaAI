@@ -4,9 +4,13 @@ import type { SongSummary } from "@/lib/api"
 import { songPagePath } from "@/lib/song-path"
 import { formatLyricLineTransliteration, titleCaseTransliteration } from "@/lib/transliteration-text"
 
-function scriptMeta(song: SongSummary): string {
+/** Script chips on Explore cards. English poems are Latin-only — never advertise Devanagari. */
+export function scriptMeta(song: Pick<SongSummary, "language">): string {
   const lang = (song.language || "").trim()
-  // Catalogue ships Devanagari for essentially all PS songs. Do not import
+  if (/^english$/i.test(lang) || /^en$/i.test(lang) || /^eng$/i.test(lang)) {
+    return "English"
+  }
+  // Catalogue ships Devanagari for essentially all Roman PS songs. Do not import
   // local-song-catalog here — it pulls node:fs and breaks the client Explore bundle.
   const isRomanLabel = !lang || /^roman$/i.test(lang)
   if (isRomanLabel) return "Roman · Devanagari"
