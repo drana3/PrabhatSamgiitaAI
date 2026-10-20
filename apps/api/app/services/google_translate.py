@@ -19,10 +19,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from sqlalchemy import select
 
 from app.config import Settings, get_settings
-from app.models.google_translate_usage import GoogleTranslateUsage
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +172,11 @@ def billable_characters(*texts: str | None) -> int:
 
 
 async def _reserve_in_database(characters: int, settings: Settings) -> bool | None:
-    """Reserve chars in Neon. True/False = decided; None = DB unavailable."""
+    """Reserve chars in Neon. True/False = decided; None = DB unavailable.
+
+    Uses INSERT + conditional UPDATE (no SELECT FOR UPDATE) so it works through
+    Neon's pooled connections (FOR UPDATE is unreliable with transaction poolers).
+    """
     if characters <= 0:
         return True
     limit = effective_monthly_limit(settings)
@@ -182,28 +184,38 @@ async def _reserve_in_database(characters: int, settings: Settings) -> bool | No
         return False
     month = _month_key()
     try:
+        from sqlalchemy import text
+
         from app.core.db import SessionLocal
 
         async with SessionLocal() as session:
-            row = (
-                await session.execute(
-                    select(GoogleTranslateUsage)
-                    .where(GoogleTranslateUsage.month_key == month)
-                    .with_for_update()
-                )
-            ).scalar_one_or_none()
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO google_translate_usage (month_key, characters)
+                    VALUES (:month, 0)
+                    ON CONFLICT (month_key) DO NOTHING
+                    """
+                ),
+                {"month": month},
+            )
+            result = await session.execute(
+                text(
+                    """
+                    UPDATE google_translate_usage
+                    SET characters = characters + :chars,
+                        updated_at = NOW()
+                    WHERE month_key = :month
+                      AND characters + :chars <= :limit
+                    RETURNING characters
+                    """
+                ),
+                {"month": month, "chars": characters, "limit": limit},
+            )
+            row = result.first()
             if row is None:
-                if characters > limit:
-                    await session.rollback()
-                    return False
-                session.add(
-                    GoogleTranslateUsage(month_key=month, characters=characters)
-                )
-            else:
-                if int(row.characters) + characters > limit:
-                    await session.rollback()
-                    return False
-                row.characters = int(row.characters) + characters
+                await session.rollback()
+                return False
             await session.commit()
             return True
     except Exception:

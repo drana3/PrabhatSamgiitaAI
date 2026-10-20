@@ -98,6 +98,7 @@ async def get_localized_song(
         localized_first_line=localized.localized_first_line,
         localized_meaning=localized.localized_meaning,
         localized_explanation=localized.localized_explanation,
+        provider=localized.provider,
     )
 
 

@@ -362,6 +362,13 @@ class CatalogService:
                 meta["devanagari"] = db_meta["devanagari"]
             if db_meta.get("official_theme_label"):
                 meta["official_theme_label"] = db_meta["official_theme_label"]
+            # Persisted language switcher output (Google/LLM) must win on every replica.
+            for key in ("localized_meanings", "localized_explanations", "localized_provider"):
+                value = db_meta.get(key)
+                if isinstance(value, dict) and value:
+                    meta[key] = value
+            if db_meta.get("purport") and not meta.get("purport"):
+                meta["purport"] = db_meta["purport"]
             merged.metadata_json = meta
         return merged
 
