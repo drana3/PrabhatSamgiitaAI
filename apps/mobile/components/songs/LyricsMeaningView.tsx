@@ -374,61 +374,68 @@ export function LyricsMeaningView({
           </View>
         ) : null}
         <MeaningBody language={language} meaning={meaning} />
-        {localizedCentralIdea?.trim() &&
-        localizedCentralIdea.trim() !== (centralIdea || "").trim() &&
-        // Hide only near-exact meaning dumps; prefer showing LLM Central idea.
-        !(
-          meaning.status === "ready" &&
-          isNearDuplicateProse(localizedCentralIdea, meaning.text, 0.95)
-        ) ? (
-          <View style={styles.centralIdeaBlock}>
-            <Text style={styles.centralIdeaLabel}>
-              {centralIdea?.trim()
-                ? `${localeLabel(language)} · Central idea`
-                : language === "en"
-                  ? "Central idea · In simple words"
-                  : `${localeLabel(language)} · In simple words`}
-            </Text>
-            <Text style={styles.body}>{normalizeProseBlock(localizedCentralIdea)}</Text>
-          </View>
-        ) : null}
-        {centralIdeaPending && !localizedCentralIdea?.trim() ? (
-          <View style={styles.centralIdeaPendingRow}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.centralIdeaPendingText}>
-              Central idea generation in progress
-            </Text>
-          </View>
-        ) : null}
         {(() => {
-          const hasLocalizedIdea = Boolean(localizedCentralIdea?.trim())
-          const hasOfficialEnglish = Boolean(centralIdea?.trim())
-          // English + official purport already fills Central idea — no retry needed.
-          const englishOfficialOk = language === "en" && hasOfficialEnglish
+          const idea = localizedCentralIdea?.trim() || ""
+          const official = (centralIdea || "").trim()
+          const meaningText = meaning.status === "ready" ? meaning.text : ""
+          // Same gates as the visible Central idea block — cached English echoes /
+          // meaning dumps must not hide the retry control.
+          const usableLocalizedIdea =
+            Boolean(idea) &&
+            idea !== official &&
+            !(meaningText && isNearDuplicateProse(idea, meaningText, 0.95))
+          // English already showing official purport needs no LLM retry.
+          const englishOfficialOk = language === "en" && Boolean(official)
           const showRefresh =
             Boolean(onRefreshTranslation) &&
             !centralIdeaPending &&
             !localizing &&
             !englishOfficialOk &&
-            (meaning.status === "unavailable" || !hasLocalizedIdea)
-          if (!showRefresh) return null
+            !usableLocalizedIdea
+
           return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Refresh translation"
-              onPress={onRefreshTranslation}
-              style={({ pressed }) => [
-                styles.refreshTranslationBtn,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Text style={styles.refreshTranslationText}>Refresh translation</Text>
-              <Text style={styles.refreshTranslationHint}>
-                {meaning.status === "unavailable"
-                  ? `Retry ${localeLabel(language)} meaning and Central idea`
-                  : `Retry Central idea for ${localeLabel(language)}`}
-              </Text>
-            </Pressable>
+            <>
+              {usableLocalizedIdea ? (
+                <View style={styles.centralIdeaBlock}>
+                  <Text style={styles.centralIdeaLabel}>
+                    {official
+                      ? `${localeLabel(language)} · Central idea`
+                      : language === "en"
+                        ? "Central idea · In simple words"
+                        : `${localeLabel(language)} · In simple words`}
+                  </Text>
+                  <Text style={styles.body}>{normalizeProseBlock(idea)}</Text>
+                </View>
+              ) : null}
+              {centralIdeaPending && !usableLocalizedIdea ? (
+                <View style={styles.centralIdeaPendingRow}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.centralIdeaPendingText}>
+                    Central idea generation in progress
+                  </Text>
+                </View>
+              ) : null}
+              {showRefresh ? (
+                <View style={styles.refreshTranslationBox}>
+                  <Text style={styles.refreshTranslationHint}>
+                    {meaning.status === "unavailable"
+                      ? `${localeLabel(language)} meaning and Central idea aren’t ready yet.`
+                      : `Central idea isn’t available in ${localeLabel(language)} yet.`}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry Central idea"
+                    onPress={onRefreshTranslation}
+                    style={({ pressed }) => [
+                      styles.refreshTranslationBtn,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text style={styles.refreshTranslationText}>Retry Central idea</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </>
           )
         })()}
         {centralIdea?.trim() ? (
@@ -656,12 +663,23 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  refreshTranslationBtn: {
+  refreshTranslationBox: {
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    gap: 2,
+    gap: spacing.sm,
+  },
+  refreshTranslationBtn: {
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 40,
+    justifyContent: "center",
   },
   refreshTranslationText: {
     ...typography.label,
