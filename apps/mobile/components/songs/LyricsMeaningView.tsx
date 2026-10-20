@@ -89,6 +89,8 @@ type Props = {
   /** LLM Central idea generate in flight (meaning already shown). */
   centralIdeaPending?: boolean
   onSelectLanguage: (code: string) => void
+  /** Bypass cache and retry meaning / Central idea for the selected language. */
+  onRefreshTranslation?: () => void
 }
 
 function MeaningBody({
@@ -199,6 +201,7 @@ export function LyricsMeaningView({
   centralIdeaPending = false,
   meaning,
   onSelectLanguage,
+  onRefreshTranslation,
 }: Props) {
   const router = useRouter()
   const authMode = useAuthStore((s) => s.mode)
@@ -397,6 +400,37 @@ export function LyricsMeaningView({
             </Text>
           </View>
         ) : null}
+        {(() => {
+          const hasLocalizedIdea = Boolean(localizedCentralIdea?.trim())
+          const hasOfficialEnglish = Boolean(centralIdea?.trim())
+          // English + official purport already fills Central idea — no retry needed.
+          const englishOfficialOk = language === "en" && hasOfficialEnglish
+          const showRefresh =
+            Boolean(onRefreshTranslation) &&
+            !centralIdeaPending &&
+            !localizing &&
+            !englishOfficialOk &&
+            (meaning.status === "unavailable" || !hasLocalizedIdea)
+          if (!showRefresh) return null
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Refresh translation"
+              onPress={onRefreshTranslation}
+              style={({ pressed }) => [
+                styles.refreshTranslationBtn,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={styles.refreshTranslationText}>Refresh translation</Text>
+              <Text style={styles.refreshTranslationHint}>
+                {meaning.status === "unavailable"
+                  ? `Retry ${localeLabel(language)} meaning and Central idea`
+                  : `Retry Central idea for ${localeLabel(language)}`}
+              </Text>
+            </Pressable>
+          )
+        })()}
         {centralIdea?.trim() ? (
           <View
             style={[
@@ -621,6 +655,21 @@ const styles = StyleSheet.create({
   centralIdeaPendingText: {
     ...typography.caption,
     color: colors.textSecondary,
+  },
+  refreshTranslationBtn: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 2,
+  },
+  refreshTranslationText: {
+    ...typography.label,
+    color: colors.primaryDark,
+  },
+  refreshTranslationHint: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   centralIdeaFollowUp: {
     borderTopWidth: 0,

@@ -13,6 +13,7 @@ import {
   fetchNotationCached,
   fetchSongDetailCached,
   fetchSongLocalizationCached,
+  forgetSongLocalization,
   peekSongDetail,
   prefetchNotation,
 } from "@/lib/songCache"
@@ -51,6 +52,26 @@ describe("songCache", () => {
     expect(first?.localized_meaning).toBe("अर्थ")
     expect(second?.localized_meaning).toBe("अर्थ")
     expect(api.fetchSongLocalization).toHaveBeenCalledTimes(1)
+  })
+
+  it("force refresh bypasses localization cache", async () => {
+    vi.mocked(api.fetchSongLocalization)
+      .mockResolvedValueOnce({
+        localized_meaning: "अर्थ",
+        localized_explanation: null,
+      } as never)
+      .mockResolvedValueOnce({
+        localized_meaning: "अर्थ",
+        localized_explanation: "केंद्रीय भाव",
+      } as never)
+    await fetchSongLocalizationCached(2, "Hindi")
+    forgetSongLocalization(2, "Hindi")
+    const refreshed = await fetchSongLocalizationCached(2, "Hindi", {
+      generateCentralIdea: true,
+      force: true,
+    })
+    expect(refreshed?.localized_explanation).toBe("केंद्रीय भाव")
+    expect(api.fetchSongLocalization).toHaveBeenCalledTimes(2)
   })
 
   it("caches notation by tonic", async () => {

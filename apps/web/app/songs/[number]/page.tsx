@@ -146,7 +146,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
           />
         </section>
 
-        <div className="mt-7 grid gap-7 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="mt-7 grid gap-7 [overflow-anchor:none] xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-7">
             <section className="surface-card p-4 sm:p-6"><StreamExplanation songNumber={song.number} language={language !== "en" ? localeLabel(language) : null} /></section>
             {song.related_songs.length ? <section className="surface-card p-5 sm:p-7"><p className="eyebrow">Continue exploring</p><h2 className="mt-2 font-serif text-3xl text-navy-950">Related songs</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{song.related_songs.map((related) => <Link key={related.number} href={songPagePath(related.number)} className="rounded-2xl border border-navy-900/10 bg-ivory-50 p-4 hover:border-gold-500"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-700">Song {related.number}</p><h3 className="mt-2 font-serif text-lg font-semibold text-navy-950">{titleCaseTransliteration(related.title)}</h3></Link>)}</div></section> : null}

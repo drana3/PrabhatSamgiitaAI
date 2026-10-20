@@ -19,7 +19,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Song
 from app.schemas.admin import AdminDevanagariSong
 from app.services.catalog import songs_by_number
-from app.services.lyrics_theme import drop_last_nonempty_line, extract_trailing_english_theme
+from app.services.lyrics_theme import (
+    extract_trailing_english_theme,
+    strip_trailing_theme_from_devanagari,
+)
 from app.services.transliteration import review_deterministic, transliterate, verify
 from app.services.transliteration.language_agents import ReviewLanguage, language_note
 from app.services.transliteration.verification import VerificationStatus
@@ -240,13 +243,11 @@ def admin_devanagari_payload(song: Song) -> AdminDevanagariSong:
             dev = cat_dev
             if status == "none":
                 status = cat_status if cat_status != "none" else "provisional"
-    if peeled_theme and dev:
-        # If Roman still had a glued theme, drop the matching converted last line
-        # when line counts suggest a 1:1 trailing pair.
-        roman_n = len([ln for ln in roman.split("\n") if ln.strip()])
-        dev_n = len([ln for ln in dev.split("\n") if ln.strip()])
-        if dev_n == roman_n + 1:
-            dev = drop_last_nonempty_line(dev).strip()
+    if dev:
+        # Drop a glued/converted English theme last line (Roman peel or known theme).
+        stripped = strip_trailing_theme_from_devanagari(roman, dev, known_theme=theme)
+        if stripped is not None:
+            dev = stripped.strip()
 
     lang_label, review_lang, regional = detect_song_language_profile(song)
     confidence, conf_note, reasons, ambiguous, unsupported = conversion_confidence(

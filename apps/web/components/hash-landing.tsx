@@ -7,6 +7,8 @@ import type { SongSection } from "@/lib/song-path"
 
 const SONG_SECTIONS = new Set<SongSection>(["ask", "lyrics", "meaning", "listen", "watch", "notation"])
 
+export const SONG_HASH_LANDED_EVENT = "ps:song-hash-landed"
+
 function scrollToSongStart() {
   window.scrollTo({ top: 0, left: 0, behavior: "auto" })
   document.documentElement.scrollTop = 0
@@ -22,6 +24,12 @@ function currentSongSection(): SongSection | null {
   } catch {
     return null
   }
+}
+
+function announceLanded(section: SongSection) {
+  window.dispatchEvent(
+    new CustomEvent(SONG_HASH_LANDED_EVENT, { detail: { section } }),
+  )
 }
 
 export function HashLanding() {
@@ -48,34 +56,43 @@ export function HashLanding() {
       const land = () => {
         if (cancelled) return
         // Language switch / section chips may have moved the hash (e.g. #meaning)
-        // before fonts.ready or the 300ms settle fire — honor the live hash.
+        // before fonts.ready or the settle fire — honor the live hash.
         const live = currentSongSection()
         if (live && live !== "lyrics") {
           scrollToSectionId(live)
+          announceLanded(live)
           return
         }
         const lyrics = document.getElementById("lyrics")
         if (!lyrics) {
           scrollToSongStart()
+          announceLanded("lyrics")
           return
         }
-        // After the first lyrics land, skip late settles that fight Central idea
-        // progress on first open from Explore (Listen flash).
-        if (hasLandedOnLyrics) {
-          const top = lyrics.getBoundingClientRect().top
-          const header = stickyHeaderOffset()
-          if (top >= header - 24 && top <= header + 220) return
-        }
+        // One successful lyrics land is enough. Late settles (fonts / timeout)
+        // used to re-scroll after Central idea layout shifts and fight the hold,
+        // which could leave the viewport on Listen.
+        if (hasLandedOnLyrics) return
         scrollToSectionId("lyrics")
-        hasLandedOnLyrics = true
+        const top = lyrics.getBoundingClientRect().top
+        const header = stickyHeaderOffset()
+        if (top >= header - 40 && top <= header + 280) {
+          hasLandedOnLyrics = true
+          announceLanded("lyrics")
+        }
       }
       const settle = () => requestAnimationFrame(() => requestAnimationFrame(land))
       settle()
       void document.fonts.ready.then(settle)
       const timeout = window.setTimeout(settle, 300)
+      // Safety: always release CI deferral even if geometry never matched.
+      const readyFallback = window.setTimeout(() => {
+        if (!cancelled) announceLanded("lyrics")
+      }, 480)
       return () => {
         cancelled = true
         window.clearTimeout(timeout)
+        window.clearTimeout(readyFallback)
       }
     }
 
@@ -84,6 +101,7 @@ export function HashLanding() {
       if (cancelled) return
       const live = currentSongSection() ?? initialSection
       scrollToSectionId(live)
+      announceLanded(live)
     }
     const settle = () => requestAnimationFrame(() => requestAnimationFrame(scrollToSection))
     settle()

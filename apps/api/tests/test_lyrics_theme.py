@@ -5,6 +5,8 @@ from app.services.lyrics_theme import (
     extract_trailing_english_theme,
     format_theme_label,
     is_english_theme_line,
+    looks_like_converted_theme_line,
+    strip_trailing_theme_from_devanagari,
 )
 
 
@@ -30,3 +32,21 @@ def test_format_theme_label() -> None:
 def test_drop_last_nonempty_devanagari_line() -> None:
     dev = "एलो\nचेतनार्\nसोन्ग् ओफ़् फ़ुल्फ़िल्ल्मेन्त्\n"
     assert drop_last_nonempty_line(dev).rstrip() == "एलो\nचेतनार्"
+
+
+def test_looks_like_converted_theme_line() -> None:
+    assert looks_like_converted_theme_line("सोन्ग् ओफ़् फ़ुल्फ़िल्ल्मेन्त्")
+    assert not looks_like_converted_theme_line("चेतनार् मधुर ताने")
+
+
+def test_strip_trailing_theme_from_devanagari() -> None:
+    roman = "ELO\nCETANAR TANE"
+    dev = "एलो\nचेतनार्\nसोन्ग् ओफ़् फ़ुल्फ़िल्ल्मेन्त्"
+    assert (
+        strip_trailing_theme_from_devanagari(
+            roman, dev, known_theme="Song of Fulfillment"
+        )
+        == "एलो\nचेतनार्"
+    )
+    # Also strip by pattern alone (no known theme).
+    assert strip_trailing_theme_from_devanagari(roman, dev) == "एलो\nचेतनार्"

@@ -22,7 +22,10 @@ from app.services.localization import (
     LocalizedSongText,
     localized_response_cache,
 )
-from app.services.lyrics_theme import drop_last_nonempty_line, extract_trailing_english_theme
+from app.services.lyrics_theme import (
+    extract_trailing_english_theme,
+    strip_trailing_theme_from_devanagari,
+)
 from app.services.media_quality import (
     client_media_items,
     media_quality_key,
@@ -232,11 +235,15 @@ async def get_song(
         summary = summary.model_copy(update={"theme": theme})
     transliteration = song.transliteration
     lyrics_devanagari = getattr(song, "lyrics_devanagari", None)
-    if peeled_theme and isinstance(lyrics_devanagari, str) and lyrics_devanagari.strip():
-        roman_n = len([ln for ln in (lyrics_original or "").split("\n") if ln.strip()])
-        dev_n = len([ln for ln in lyrics_devanagari.split("\n") if ln.strip()])
-        if dev_n == roman_n + 1:
-            lyrics_devanagari = drop_last_nonempty_line(lyrics_devanagari) or None
+    known_theme = None
+    if isinstance(meta, dict) and meta.get("official_theme_label"):
+        known_theme = str(meta["official_theme_label"])
+    known_theme = known_theme or theme
+    lyrics_devanagari = strip_trailing_theme_from_devanagari(
+        lyrics_original,
+        lyrics_devanagari if isinstance(lyrics_devanagari, str) else None,
+        known_theme=known_theme,
+    )
     devanagari_status = getattr(song, "devanagari_status", None) or "none"
     hindi_meaning = song.hindi_meaning
     english_meaning = song.english_meaning

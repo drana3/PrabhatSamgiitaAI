@@ -118,7 +118,11 @@ export function SongListenSidebar({ hasMeaning }: { hasMeaning: boolean }) {
   const title = [selectedBadge, selected.title].filter(Boolean).join(" · ")
 
   return (
-    <section id="listen" data-testid="listen-sidebar" className="surface-card scroll-mt-28 p-5 sm:p-6">
+    <section
+      id="listen"
+      data-testid="listen-sidebar"
+      className="surface-card scroll-mt-28 p-5 [overflow-anchor:none] sm:p-6"
+    >
       <p className="eyebrow">{selected.isLatest ? "Best recording" : "Listen"}</p>
       <h2 className="mt-2 font-serif text-3xl text-navy-950">Listen to this song</h2>
       <p className="mt-2 text-sm leading-6 text-stone-600">

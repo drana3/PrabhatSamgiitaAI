@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Any
 
 from app.services.lyrics_theme import (
-    drop_last_nonempty_line,
     extract_trailing_english_theme,
+    strip_trailing_theme_from_devanagari,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -31,37 +31,43 @@ def backfill_song(song: dict[str, Any]) -> bool:
     """Mutate one song row. Returns True when something changed."""
     roman = song.get("lyrics_original")
     cleaned, theme = extract_trailing_english_theme(roman if isinstance(roman, str) else None)
-    if not theme:
-        return False
+    meta = dict(song.get("metadata_json") or {})
+    known_theme = theme or (str(meta.get("official_theme_label") or "").strip() or None)
+    if not known_theme:
+        known_theme = (song.get("theme") or "").strip() or None
 
     changed = False
-    if cleaned != (roman or ""):
+    if theme and cleaned != (roman or ""):
         song["lyrics_original"] = cleaned or None
         changed = True
 
-    meta = dict(song.get("metadata_json") or {})
-    if meta.get("official_theme_label") != theme:
-        meta["official_theme_label"] = theme
-        song["metadata_json"] = meta
-        changed = True
-
-    # Prefer official label when theme is empty; do not clobber collection themes
-    # that look different (comma-joined assignments from seed merge).
-    current_theme = (song.get("theme") or "").strip()
-    if not current_theme:
-        song["theme"] = theme
-        changed = True
-    elif current_theme.lower() == theme.lower():
-        if song.get("theme") != theme:
-            song["theme"] = theme
+    if theme:
+        if meta.get("official_theme_label") != theme:
+            meta["official_theme_label"] = theme
+            song["metadata_json"] = meta
             changed = True
 
+        # Prefer official label when theme is empty; do not clobber collection themes
+        # that look different (comma-joined assignments from seed merge).
+        current_theme = (song.get("theme") or "").strip()
+        if not current_theme:
+            song["theme"] = theme
+            changed = True
+        elif current_theme.lower() == theme.lower():
+            if song.get("theme") != theme:
+                song["theme"] = theme
+                changed = True
+
+    roman_for_strip = cleaned if theme else (roman if isinstance(roman, str) else None)
     dev = song.get("lyrics_devanagari")
     if isinstance(dev, str) and dev.strip():
-        # Roman lost one non-empty line; drop the matching trailing Devanagari line.
-        stripped_dev = drop_last_nonempty_line(dev)
+        stripped_dev = strip_trailing_theme_from_devanagari(
+            roman_for_strip,
+            dev,
+            known_theme=known_theme,
+        )
         if stripped_dev != dev:
-            song["lyrics_devanagari"] = stripped_dev or None
+            song["lyrics_devanagari"] = stripped_dev
             changed = True
 
     return changed

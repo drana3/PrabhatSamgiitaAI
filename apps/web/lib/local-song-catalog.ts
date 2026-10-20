@@ -4,8 +4,8 @@ import { join } from "node:path"
 import {
   bookletHarmoniumSong,
   compareAudioQuality,
-  dropLastNonemptyLine,
   extractTrailingEnglishTheme,
+  stripTrailingThemeFromDevanagari,
 } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
 import { centralIdeaText } from "@/lib/song-meanings"
@@ -252,14 +252,11 @@ export function localSongDetail(number: number): SongDetail | null {
     peeledTheme ||
     song.theme?.trim() ||
     null
-  let lyricsDevanagari = song.lyrics_devanagari?.trim() || null
-  if (peeledTheme && lyricsDevanagari) {
-    const romanN = romanClean.split("\n").filter((ln) => ln.trim()).length
-    const devN = lyricsDevanagari.split("\n").filter((ln) => ln.trim()).length
-    if (devN === romanN + 1) {
-      lyricsDevanagari = dropLastNonemptyLine(lyricsDevanagari).trim() || null
-    }
-  }
+  const lyricsDevanagari = stripTrailingThemeFromDevanagari(
+    romanClean,
+    song.lyrics_devanagari,
+    officialTheme,
+  )
   return {
     ...summary(song),
     theme: officialTheme || song.theme,

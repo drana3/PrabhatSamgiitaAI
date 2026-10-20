@@ -1,6 +1,6 @@
 import {
-  dropLastNonemptyLine,
   extractTrailingEnglishTheme,
+  stripTrailingThemeFromDevanagari,
   type SongDetail,
   type SongSummary,
 } from "@prabhat/core"
@@ -315,14 +315,13 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
   const englishSong =
     isEnglishSongLanguage(detail.language) || englishPoemAsLyrics(detail)
   // Phonetic Devanagari of English verse is not useful — keep Roman only.
-  let lyricsDevanagari = englishSong ? null : detail.lyrics_devanagari?.trim() || null
-  if (peeledTheme && lyricsDevanagari) {
-    const romanN = romanClean.split("\n").filter((ln) => ln.trim()).length
-    const devN = lyricsDevanagari.split("\n").filter((ln) => ln.trim()).length
-    if (devN === romanN + 1) {
-      lyricsDevanagari = dropLastNonemptyLine(lyricsDevanagari).trim() || null
-    }
-  }
+  const lyricsDevanagari = englishSong
+    ? null
+    : stripTrailingThemeFromDevanagari(
+        romanClean,
+        detail.lyrics_devanagari,
+        officialTheme,
+      )
   const themes = [officialTheme || detail.theme, detail.mood, detail.occasion].filter(
     Boolean,
   ) as string[]

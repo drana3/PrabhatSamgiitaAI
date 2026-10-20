@@ -46,29 +46,41 @@ export function peekSongLocalization(number: number, language: string): SongLoca
   return localizationCache.get(localizationKey(number, language)) ?? null
 }
 
+/** Drop a cached localization so the next fetch hits the network (retry CI / translation). */
+export function forgetSongLocalization(number: number, language: string) {
+  localizationCache.delete(localizationKey(number, language))
+}
+
 export async function fetchSongLocalizationCached(
   number: number,
   language: string,
-  options: { generateCentralIdea?: boolean } = {},
+  options: { generateCentralIdea?: boolean; force?: boolean } = {},
 ): Promise<SongLocalization | null> {
   const key = localizationKey(number, language)
+  if (options.force) {
+    localizationCache.delete(key)
+  }
   const cached = localizationCache.get(key)
   if (
+    !options.force &&
     cached?.localized_meaning?.trim() &&
     (!options.generateCentralIdea || cached.localized_explanation?.trim())
   ) {
     return cached
   }
-  const live = await api.fetchSongLocalization(number, language, options)
+  const live = await api.fetchSongLocalization(number, language, {
+    generateCentralIdea: options.generateCentralIdea,
+  })
   if (live?.localized_meaning?.trim() || live?.localized_explanation?.trim()) {
-    const merged = cached
+    const prior = options.force ? null : cached
+    const merged = prior
       ? {
-          ...cached,
+          ...prior,
           ...live,
-          localized_meaning: live.localized_meaning ?? cached.localized_meaning,
+          localized_meaning: live.localized_meaning ?? prior.localized_meaning,
           localized_explanation:
-            live.localized_explanation ?? cached.localized_explanation,
-          explanation_kind: live.explanation_kind ?? cached.explanation_kind,
+            live.localized_explanation ?? prior.localized_explanation,
+          explanation_kind: live.explanation_kind ?? prior.explanation_kind,
         }
       : live
     localizationCache.set(key, merged)

@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
+import { SONG_HASH_LANDED_EVENT } from "@/components/hash-landing"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { CopyTextButton } from "@/components/copy-text-button"
 import { SongLanguageSwitcher } from "@/components/song-language-switcher"
@@ -17,6 +18,7 @@ import {
   normalizeProseBlock,
   type SongMeaningSource,
 } from "@/lib/song-meanings"
+import { useSongScrollHold } from "@/lib/song-scroll-hold"
 
 /** Prefer #lyrics in the URL without forcing a scroll jump. */
 function ensureLyricsHash() {
@@ -132,53 +134,30 @@ export function SongMeaningSection({
   const [centralIdeaUnavailable, setCentralIdeaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
-  /** Preserve scroll across Central idea progress / result paints (no Listen flash). */
-  const freezeScrollY = useRef<number | null>(null)
   /**
    * First open from Explore races HashLanding (#lyrics) with CI progress.
    * Wait until landing has settled before showing/fetching generated Central idea.
    */
   const [ciLandingReady, setCiLandingReady] = useState(false)
-
-  const lockScroll = () => {
-    if (typeof window === "undefined") return
-    // Freezing Y≈0 before HashLanding lands undoes #lyrics and can leave the
-    // viewport on the audio block once the meaning column grows.
-    if (window.scrollY < 48) return
-    freezeScrollY.current = window.scrollY
-  }
+  /** Pin #lyrics across CI progress/result layout shifts (no Listen flash). */
+  const [holdLyricsScroll, setHoldLyricsScroll] = useState(true)
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setCiLandingReady(true), 520)
-    return () => window.clearTimeout(timer)
-  }, [])
-
-  useLayoutEffect(() => {
-    const y = freezeScrollY.current
-    if (y == null || typeof window === "undefined") return
-    const restore = () => {
-      if (Math.abs(window.scrollY - y) > 0.5) {
-        window.scrollTo({ top: y, left: 0, behavior: "auto" })
-      }
-    }
-    restore()
-    const a = window.requestAnimationFrame(() => {
-      restore()
-      window.requestAnimationFrame(restore)
-    })
-    const t = window.setTimeout(() => {
-      restore()
-      freezeScrollY.current = null
-    }, 80)
+    const onLanded = () => setCiLandingReady(true)
+    window.addEventListener(SONG_HASH_LANDED_EVENT, onLanded)
+    // Fallback if HashLanding never announces (tests / missing #lyrics).
+    const timer = window.setTimeout(() => setCiLandingReady(true), 600)
     return () => {
-      window.cancelAnimationFrame(a)
-      window.clearTimeout(t)
+      window.removeEventListener(SONG_HASH_LANDED_EVENT, onLanded)
+      window.clearTimeout(timer)
     }
-  }, [centralIdeaPending, centralIdeaUnavailable, localizedExplanation])
+  }, [])
 
   useEffect(() => {
     setLanguage(initialLanguage)
   }, [initialLanguage])
+
+  useSongScrollHold("lyrics", holdLyricsScroll)
 
   const officialCentralIdea = centralIdeaText(song)
 
@@ -187,7 +166,7 @@ export function SongMeaningSection({
     const storedExpl = storedExplanationForLanguage(song, nextLanguage)
     const needsExplanation =
       !storedExpl && !(nextLanguage === "en" && Boolean(officialCentralIdea))
-    lockScroll()
+    setHoldLyricsScroll(true)
     setLanguage(nextLanguage)
     setLocalizedMeaning(null)
     setLocalizedExplanation(storedExpl)
@@ -212,15 +191,19 @@ export function SongMeaningSection({
     const needsMeaning = language !== "en" && !hasStoredMeaningForLanguage(song, language)
     const needsExplanation =
       !storedExpl && !(language === "en" && Boolean(officialCentralIdea))
+    const currentRequest = ++requestId.current
+
     if (!needsMeaning && !needsExplanation) {
       if (language === "en") setLocalizedMeaning(null)
       setLoadingMeaning(false)
       setCentralIdeaPending(false)
       setError(null)
+      window.setTimeout(() => {
+        if (currentRequest === requestId.current) setHoldLyricsScroll(false)
+      }, 400)
       return
     }
 
-    const currentRequest = ++requestId.current
     setError(null)
     setCentralIdeaUnavailable(false)
     if (needsMeaning) setLocalizedMeaning(null)
@@ -232,7 +215,7 @@ export function SongMeaningSection({
     const runGeneratedIdea = needsGeneratedIdea && ciLandingReady
 
     setLoadingMeaning(needsFastFetch)
-    if (runGeneratedIdea) lockScroll()
+    if (runGeneratedIdea || needsFastFetch) setHoldLyricsScroll(true)
     setCentralIdeaPending(runGeneratedIdea)
 
     const label = localeLabel(language)
@@ -269,17 +252,20 @@ export function SongMeaningSection({
       if (!runGeneratedIdea) {
         if (currentRequest === requestId.current && !needsGeneratedIdea) {
           setCentralIdeaPending(false)
+          // Nothing volatile left — release hold after a short settle.
+          window.setTimeout(() => {
+            if (currentRequest === requestId.current) setHoldLyricsScroll(false)
+          }, 400)
         }
         return
       }
 
-      // LLM Central idea — lock scroll around progress ↔ result so Listen never flashes.
+      // LLM Central idea — keep #lyrics pinned until progress and result have painted.
       try {
         const idea = await fetchSongLocalization(songNumber, label, {
           generateCentralIdea: true,
         })
         if (currentRequest !== requestId.current) return
-        lockScroll()
         const explanation = idea?.localized_explanation?.trim() || null
         applyExplanationResult(
           explanation,
@@ -296,13 +282,14 @@ export function SongMeaningSection({
         }
       } catch {
         if (currentRequest === requestId.current) {
-          lockScroll()
           setCentralIdeaUnavailable(true)
         }
       } finally {
         if (currentRequest === requestId.current) {
-          lockScroll()
           setCentralIdeaPending(false)
+          window.setTimeout(() => {
+            if (currentRequest === requestId.current) setHoldLyricsScroll(false)
+          }, 450)
         }
       }
     }
@@ -372,9 +359,13 @@ export function SongMeaningSection({
           value={localizedExplanation}
         />
       ) : null}
-      {/* Reserved slot; live=false so aria-live does not scroll this into Listen. */}
+      {/*
+        Always reserve the CI slot once generation is in flight (or unavailable) so
+        progress ↔ result does not resize the column into the Listen panel.
+        live=false: aria-live must not scroll this into view.
+      */}
       {(centralIdeaPending || centralIdeaUnavailable) && !showLocalizedCentralIdea ? (
-        <div className="mt-4 flex min-h-[2rem] items-center justify-center [overflow-anchor:none]">
+        <div className="mt-4 flex min-h-[3.25rem] items-center justify-center [overflow-anchor:none]">
           {centralIdeaPending ? (
             <div className="text-gold-800">
               <LoadingIndicator
