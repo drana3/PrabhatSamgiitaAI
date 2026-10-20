@@ -690,12 +690,13 @@ test("catalog titles and source-only content never render fabricated blank secti
   const resultTitles = await page.locator("#results").first().locator("xpath=following-sibling::div[1]//h3").allTextContents()
   expect(resultTitles.some((title) => /^Song\s+\d+$/i.test(title.trim()))).toBe(false)
 
-  await page.goto("/songs/68#meaning")
-  const meaningHeading = page.locator("#meaning").getByRole("heading", { name: "Understand the song" })
-  await meaningHeading.scrollIntoViewIfNeeded()
-  await expect(meaningHeading).toBeVisible()
-  await expect(page.locator("#lyrics")).toHaveCount(0)
+  // English song 68 stores the poem in english_meaning — that is real lyrics, not a blank section.
+  await page.goto("/songs/68#lyrics")
+  await expect(page.locator("#lyrics")).toBeVisible()
+  await expect(page.locator("#lyrics")).toContainText(/tiny green island/i)
   await expect(page.locator("#meaning")).toBeVisible()
+  // English cards/pages must not advertise Devanagari.
+  await expect(page.locator("#lyrics").getByRole("tab", { name: "Devanagari" })).toHaveCount(0)
 })
 
 test("practice coach always reports microphone and audio-analysis outcomes", async ({ page }) => {
