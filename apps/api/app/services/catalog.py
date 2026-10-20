@@ -346,8 +346,10 @@ class CatalogService:
         db_central = (getattr(db_song, "central_idea", None) or "").strip()
         if db_central:
             merged.central_idea = db_song.central_idea
-        elif isinstance(db_song.metadata_json, dict) and (db_song.metadata_json.get("purport") or "").strip():
-            merged.central_idea = str(db_song.metadata_json["purport"]).strip()
+        elif isinstance(db_song.metadata_json, dict):
+            purport = (db_song.metadata_json.get("purport") or "").strip()
+            if purport:
+                merged.central_idea = purport
         db_dev = (db_song.lyrics_devanagari or "").strip()
         db_status = (db_song.devanagari_status or "none").strip() or "none"
         if db_dev or db_status != "none":

@@ -75,7 +75,7 @@ def test_build_song_chunks_creates_grounded_sections() -> None:
     assert chunks[0]["chunk_type"] == "summary"
     assert chunks[1]["chunk_type"] == "lyrics"
     assert chunks[2]["chunk_type"] == "transliteration"
-    assert any(chunk["chunk_type"] == "purport" for chunk in chunks)
+    assert any(chunk["chunk_type"] == "central_idea" for chunk in chunks)
     assert any("grounded explanation" in chunk["content"] for chunk in chunks)
 
 

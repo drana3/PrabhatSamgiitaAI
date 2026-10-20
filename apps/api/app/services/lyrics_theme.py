@@ -40,7 +40,8 @@ def is_english_theme_line(line: str) -> bool:
         return False
     if sum(1 for c in letters if c.isupper()) / len(letters) < 0.9:
         return False
-    return bool(re.search(r"(?i)\b(song|liberation|fulfilment|fulfilment|neohumanism|awakening)\b", text))
+    theme_words = r"(?i)\b(song|liberation|fulfilment|fulfilment|neohumanism|awakening)\b"
+    return bool(re.search(theme_words, text))
 
 
 def format_theme_label(raw: str) -> str:
