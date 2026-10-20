@@ -87,6 +87,32 @@ describe("song mappers", () => {
     ).toBe("The Great is with me.")
   })
 
+  it("uses multiline english_meaning as lyrics when catalog language is Roman (PS 68 seed)", () => {
+    const poem =
+      "I love this tiny green island\nsurrounded by the sea.\nTouched by the sea."
+    expect(
+      lyricsTextFromDetail({
+        language: "Roman",
+        lyrics_original: null,
+        transliteration: null,
+        english_meaning: poem,
+        first_line: "I love this tiny green island",
+        title: "I love this tiny green island",
+      }),
+    ).toBe(poem)
+    const song = songDetailToMockSong({
+      ...apiSongDetail(68),
+      language: "Roman",
+      first_line: "I love this tiny green island",
+      title: "I love this tiny green island",
+      lyrics_original: null,
+      transliteration: null,
+      english_meaning: poem,
+    })
+    expect(song.lyrics.split("\n").length).toBeGreaterThanOrEqual(3)
+    expect(song.lyrics).toContain("Touched by the sea")
+  })
+
   it("hides Devanagari for English songs even when the API sends a phonetic script", () => {
     const song = songDetailToMockSong({
       ...apiSongDetail(68),

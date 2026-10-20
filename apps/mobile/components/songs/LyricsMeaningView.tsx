@@ -342,7 +342,14 @@ export function LyricsMeaningView({
         <View style={styles.paneHeader}>
           <CopyButton text={activeLyrics} label="Copy lyrics" />
         </View>
-        <Text style={styles.lyrics}>{activeLyrics}</Text>
+        <Text style={styles.lyrics} selectable>
+          {activeLyrics.split("\n").map((line, index, lines) => (
+            <Text key={`lyric-${index}`} style={styles.lyrics}>
+              {line}
+              {index < lines.length - 1 ? "\n" : ""}
+            </Text>
+          ))}
+        </Text>
       </View>
       <View style={[styles.pane, mode !== "meaning" && styles.hiddenPane]} pointerEvents={mode === "meaning" ? "auto" : "none"}>
         <LanguageRow

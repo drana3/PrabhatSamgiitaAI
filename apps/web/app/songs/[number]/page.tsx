@@ -45,12 +45,19 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   const initialNotation = notationOn ? localTransposedNotation(song.number) ?? submittedNotation : null
   const audio = listSongAudio(song.media)
   const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
-  const isEnglishSong = Boolean(song.language?.toLowerCase().includes("english"))
+  const lang = song.language?.toLowerCase() ?? ""
+  const englishMeaning = song.english_meaning?.trim() || ""
+  const hasLyricColumns = Boolean(
+    song.lyrics_original?.trim() || song.transliteration?.trim(),
+  )
+  // English poems often live only in english_meaning (PS 68); seed may say "Roman".
+  const isEnglishSong =
+    lang.includes("english") ||
+    (!hasLyricColumns && englishMeaning.includes("\n"))
   const lyrics =
     song.lyrics_original?.trim() ||
     song.transliteration?.trim() ||
-    // English songs often store the poem only in english_meaning (e.g. PS 68).
-    (isEnglishSong ? song.english_meaning?.trim() || null : null)
+    (isEnglishSong ? englishMeaning || null : null)
   const hasLyrics = Boolean(lyrics)
   // Phonetic Devanagari of English verse is not useful.
   const lyricsDevanagari = isEnglishSong ? null : song.lyrics_devanagari

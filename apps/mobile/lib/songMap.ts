@@ -101,6 +101,21 @@ export function isEnglishSongLanguage(value: string | null | undefined) {
   return token.includes("english") || token === "en" || token === "eng"
 }
 
+/** Poem lives in english_meaning with empty lyric columns (PS 68; seed may say Roman). */
+export function englishPoemAsLyrics(detail: {
+  lyrics_original?: string | null
+  transliteration?: string | null
+  english_meaning?: string | null
+  language?: string | null
+}): boolean {
+  const poem = detail.english_meaning?.trim() || ""
+  if (!poem) return false
+  if (detail.lyrics_original?.trim() || detail.transliteration?.trim()) return false
+  if (isEnglishSongLanguage(detail.language)) return true
+  // Seed/catalog sometimes tags English verse as "Roman" with only english_meaning filled.
+  return poem.includes("\n")
+}
+
 /** English catalog songs often store the poem only in english_meaning. */
 export function lyricsTextFromDetail(detail: {
   lyrics_original?: string | null
@@ -114,9 +129,8 @@ export function lyricsTextFromDetail(detail: {
   if (original) return original
   const translit = detail.transliteration?.trim() || ""
   if (translit) return translit
-  if (isEnglishSongLanguage(detail.language)) {
-    const poem = detail.english_meaning?.trim() || ""
-    if (poem) return poem
+  if (englishPoemAsLyrics(detail)) {
+    return detail.english_meaning!.trim()
   }
   return detail.first_line?.trim() || detail.title?.trim() || ""
 }
@@ -134,12 +148,9 @@ export function englishMeaningFromDetail(detail: {
   metadata_json?: Record<string, unknown> | null
 }) {
   const curated = detail.english_meaning?.trim() || ""
-  const hasLyricColumns = Boolean(
-    detail.lyrics_original?.trim() || detail.transliteration?.trim(),
-  )
   // When the English poem lives only in english_meaning, that text is the lyric —
   // Meaning should prefer Central idea / theme instead of repeating the poem.
-  if (isEnglishSongLanguage(detail.language) && curated && !hasLyricColumns) {
+  if (englishPoemAsLyrics(detail) && curated) {
     const purport =
       detail.central_idea?.trim() ||
       (typeof detail.metadata_json?.purport === "string"
@@ -277,7 +288,8 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     peeledTheme ||
     detail.theme?.trim() ||
     null
-  const englishSong = isEnglishSongLanguage(detail.language)
+  const englishSong =
+    isEnglishSongLanguage(detail.language) || englishPoemAsLyrics(detail)
   // Phonetic Devanagari of English verse is not useful — keep Roman only.
   let lyricsDevanagari = englishSong ? null : detail.lyrics_devanagari?.trim() || null
   if (peeledTheme && lyricsDevanagari) {
