@@ -44,6 +44,15 @@ const canonicalByLabel = new Map(
   (canonicalCollections as CanonicalCollection[]).map((row) => [row.label, row]),
 )
 
+/** Canonical English poems (PS 68, 5008, 5009) — Latin-only; never advertise Devanagari. */
+export const ENGLISH_CATALOG_SONG_NUMBERS = new Set<number>(
+  canonicalByLabel.get("English Songs")?.song_numbers ?? [],
+)
+
+export function isEnglishCatalogSong(number: number): boolean {
+  return ENGLISH_CATALOG_SONG_NUMBERS.has(number)
+}
+
 const displayLabelOverrides: Record<string, string> = {
   "Sanskrit Songs": "Sanskrit",
   "English Songs": "English",

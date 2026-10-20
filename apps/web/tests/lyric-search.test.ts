@@ -107,6 +107,7 @@ describe("web lyric search", () => {
     expect(youth).toHaveLength(3)
     const english = instantExploreSongs("Search Prabhat Samgiita for English Songs")
     expect(english?.map((song) => song.number)).toEqual([68, 5008, 5009])
+    expect(english?.every((song) => song.language === "English")).toBe(true)
     const urdu = instantExploreSongs("Search Prabhat Samgiita for Urdu Songs")
     expect(urdu?.length).toBe(16)
   })
@@ -120,6 +121,7 @@ describe("web lyric search", () => {
       number: 99999,
       title: "Prabhat Samgiita 99999",
       first_line: null,
+      language: null,
       is_verified: false,
     })
   })

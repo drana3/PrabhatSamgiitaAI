@@ -1,13 +1,19 @@
 import Link from "next/link"
 
 import type { SongSummary } from "@/lib/api"
+import { isEnglishCatalogSong } from "@/lib/special-collections"
 import { songPagePath } from "@/lib/song-path"
 import { formatLyricLineTransliteration, titleCaseTransliteration } from "@/lib/transliteration-text"
 
 /** Script chips on Explore cards. English poems are Latin-only — never advertise Devanagari. */
-export function scriptMeta(song: Pick<SongSummary, "language">): string {
+export function scriptMeta(song: Pick<SongSummary, "number" | "language">): string {
   const lang = (song.language || "").trim()
-  if (/^english$/i.test(lang) || /^en$/i.test(lang) || /^eng$/i.test(lang)) {
+  if (
+    isEnglishCatalogSong(song.number) ||
+    /^english$/i.test(lang) ||
+    /^en$/i.test(lang) ||
+    /^eng$/i.test(lang)
+  ) {
     return "English"
   }
   // Catalogue ships Devanagari for essentially all Roman PS songs. Do not import

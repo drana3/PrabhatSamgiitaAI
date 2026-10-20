@@ -21,7 +21,11 @@ import type { SongSummary } from "@/lib/api"
 import { normalizeTransliterationText } from "@/lib/transliteration-text"
 import { isCompleteSargamQuery } from "@/lib/complete-sargam"
 import type { ExploreSearchKind } from "@/lib/special-collections"
-import { collectionSongNumbersForKeyword, isCollectionSearchQuery } from "@/lib/special-collections"
+import {
+  collectionSongNumbersForKeyword,
+  isCollectionSearchQuery,
+  isEnglishCatalogSong,
+} from "@/lib/special-collections"
 import payload from "../../../data/generated/lyric_search_index.json"
 import moodCatalog from "../../../data/generated/mobile_category_songs.json"
 
@@ -52,6 +56,7 @@ function rowToSong(row: LyricSearchRow): SongSummary {
     number: row.n,
     title: normalizeTransliterationText(row.t),
     first_line: row.o ? normalizeTransliterationText(row.o) : null,
+    language: isEnglishCatalogSong(row.n) ? "English" : null,
     is_verified: true,
   }
 }
@@ -88,6 +93,7 @@ export function lyricHitsToSongs(hits: LyricSearchHit[]): SongSummary[] {
     number: hit.number,
     title: hit.title || hit.firstLine,
     first_line: hit.snippet || hit.firstLine || hit.title,
+    language: isEnglishCatalogSong(hit.number) ? "English" : null,
     is_verified: true,
   }))
 }
@@ -104,7 +110,13 @@ export function songsByNumbers(numbers: number[]): SongSummary[] {
     const row = rowsByNumber.get(number)
     return row
       ? rowToSong(row)
-      : { number, title: `Prabhat Samgiita ${number}`, first_line: null, is_verified: false }
+      : {
+          number,
+          title: `Prabhat Samgiita ${number}`,
+          first_line: null,
+          language: isEnglishCatalogSong(number) ? "English" : null,
+          is_verified: false,
+        }
   })
 }
 
