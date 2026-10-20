@@ -152,7 +152,7 @@ export function SongMeaningSection({
   const [localizedExplanation, setLocalizedExplanation] = useState<string | null>(null)
   const [explanationKind, setExplanationKind] = useState<"official" | "generated" | null>(null)
   const [loadingMeaning, setLoadingMeaning] = useState(false)
-  /** True while LLM Central idea runs in the background (no spinner — quiet fill-in). */
+  /** True while LLM Central idea runs — show progress; meaning stays usable. */
   const [centralIdeaPending, setCentralIdeaPending] = useState(false)
   const [centralIdeaUnavailable, setCentralIdeaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -257,7 +257,7 @@ export function SongMeaningSection({
         return
       }
 
-      // Quiet path: LLM "In simple words" — no spinner; fill in when ready.
+      // LLM "In simple words" — progress message only; do not block meaning.
       const scrollYBeforeIdea =
         typeof window !== "undefined" ? window.scrollY : 0
       try {
@@ -354,6 +354,11 @@ export function SongMeaningSection({
           label={centralIdeaLabel(language, explanationKind)}
           value={localizedExplanation}
         />
+      ) : null}
+      {centralIdeaPending && !showLocalizedCentralIdea ? (
+        <div className="mt-4 flex justify-center text-gold-800">
+          <LoadingIndicator label="Central idea generation in progress" compact />
+        </div>
       ) : null}
       {!centralIdeaPending && centralIdeaUnavailable && !showLocalizedCentralIdea ? (
         <p className="mt-4 text-sm text-stone-500">

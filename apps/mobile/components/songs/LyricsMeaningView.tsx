@@ -86,6 +86,8 @@ type Props = {
   centralIdea?: string | null
   /** Translated Central idea for the selected meaning language. */
   localizedCentralIdea?: string | null
+  /** LLM Central idea generate in flight (meaning already shown). */
+  centralIdeaPending?: boolean
   onSelectLanguage: (code: string) => void
 }
 
@@ -194,6 +196,7 @@ export function LyricsMeaningView({
   localizing,
   centralIdea,
   localizedCentralIdea,
+  centralIdeaPending = false,
   meaning,
   onSelectLanguage,
 }: Props) {
@@ -280,7 +283,10 @@ export function LyricsMeaningView({
                   key={item.id}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
-                  onPress={() => setScript(item.id)}
+                  onPress={() => {
+                    setScript(item.id)
+                    if (item.id === "roman") setReportOpen(false)
+                  }}
                   style={[styles.scriptChip, active && styles.scriptChipActive]}
                 >
                   <Text style={[styles.scriptChipText, active && styles.scriptChipTextActive]}>
@@ -289,6 +295,22 @@ export function LyricsMeaningView({
                 </Pressable>
               )
             })}
+          </View>
+        ) : null}
+        <View style={styles.paneHeader}>
+          <CopyButton text={activeLyrics} label="Copy lyrics" />
+        </View>
+        <Text style={styles.lyrics} selectable>
+          {activeLyrics.split("\n").map((line, index, lines) => (
+            <Text key={`lyric-${index}`} style={styles.lyrics}>
+              {line}
+              {index < lines.length - 1 ? "\n" : ""}
+            </Text>
+          ))}
+        </Text>
+        {/* Status / disclaimer below verse so Devanagari toggle does not shove scroll. */}
+        {activeScript === "devanagari" && hasDevanagari ? (
+          <View style={styles.scriptMetaRow}>
             {badge ? (
               <Text
                 style={[
@@ -299,19 +321,15 @@ export function LyricsMeaningView({
                 {badge}
               </Text>
             ) : null}
-            {activeScript === "devanagari" ? (
-              <>
-                <Text style={styles.disclaimerInline}>May contain mistakes.</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setReportOpen((v) => !v)}
-                  hitSlop={8}
-                  style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-                >
-                  <Text style={styles.reportLink}>Report</Text>
-                </Pressable>
-              </>
-            ) : null}
+            <Text style={styles.disclaimerInline}>May contain mistakes.</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setReportOpen((v) => !v)}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.reportLink}>Report</Text>
+            </Pressable>
           </View>
         ) : null}
         {activeScript === "devanagari" && hasDevanagari && reportOpen ? (
@@ -339,17 +357,6 @@ export function LyricsMeaningView({
             </Pressable>
           </View>
         ) : null}
-        <View style={styles.paneHeader}>
-          <CopyButton text={activeLyrics} label="Copy lyrics" />
-        </View>
-        <Text style={styles.lyrics} selectable>
-          {activeLyrics.split("\n").map((line, index, lines) => (
-            <Text key={`lyric-${index}`} style={styles.lyrics}>
-              {line}
-              {index < lines.length - 1 ? "\n" : ""}
-            </Text>
-          ))}
-        </Text>
       </View>
       <View style={[styles.pane, mode !== "meaning" && styles.hiddenPane]} pointerEvents={mode === "meaning" ? "auto" : "none"}>
         <LanguageRow
@@ -383,6 +390,14 @@ export function LyricsMeaningView({
                   : `${localeLabel(language)} · In simple words`}
             </Text>
             <Text style={styles.body}>{normalizeProseBlock(localizedCentralIdea)}</Text>
+          </View>
+        ) : null}
+        {centralIdeaPending && !localizedCentralIdea?.trim() ? (
+          <View style={styles.centralIdeaPendingRow}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.centralIdeaPendingText}>
+              Central idea generation in progress
+            </Text>
           </View>
         ) : null}
         {centralIdea?.trim() ? (
@@ -445,6 +460,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  scriptMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: spacing.md,
   },
   scriptChip: {
     borderRadius: radius.pill,
@@ -589,6 +611,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: spacing.xs,
+  },
+  centralIdeaPendingRow: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  centralIdeaPendingText: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   centralIdeaFollowUp: {
     borderTopWidth: 0,

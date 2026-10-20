@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, type MouseEvent } from "react"
 
 import { CopyTextButton } from "@/components/copy-text-button"
 import { submitFeedback } from "@/lib/api"
@@ -19,6 +19,32 @@ function statusLabel(status: string | null | undefined): string {
   return ""
 }
 
+/** Keep #lyrics pinned in the viewport when script toggle reflows the block. */
+function retainLyricsScroll(mutate: () => void) {
+  if (typeof window === "undefined") {
+    mutate()
+    return
+  }
+  const lyrics = document.getElementById("lyrics")
+  const topBefore = lyrics?.getBoundingClientRect().top
+  const yBefore = window.scrollY
+  mutate()
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (lyrics && topBefore != null) {
+        const delta = lyrics.getBoundingClientRect().top - topBefore
+        if (Math.abs(delta) > 1) {
+          window.scrollBy({ top: delta, left: 0, behavior: "auto" })
+          return
+        }
+      }
+      if (Math.abs(window.scrollY - yBefore) > 1) {
+        window.scrollTo({ top: yBefore, left: 0, behavior: "auto" })
+      }
+    })
+  })
+}
+
 export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Props) {
   const hasDevanagari = Boolean(devanagari?.trim())
   const [script, setScript] = useState<"roman" | "devanagari">("roman")
@@ -33,6 +59,14 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
     [script, hasDevanagari, devanagari, roman],
   )
   const badge = script === "devanagari" ? statusLabel(status) : ""
+
+  function selectScript(next: "roman" | "devanagari") {
+    if (next === script) return
+    retainLyricsScroll(() => {
+      setScript(next)
+      if (next === "roman") setReportOpen(false)
+    })
+  }
 
   async function sendReport() {
     setReportBusy(true)
@@ -71,7 +105,11 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setScript(item.id)}
+                // Avoid focus-driven scrollIntoView jumping the song page mid-section.
+                onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                  if (event.button === 0) event.preventDefault()
+                }}
+                onClick={() => selectScript(item.id)}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                   active
                     ? "bg-navy-950 text-white"
@@ -82,6 +120,23 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
               </button>
             )
           })}
+        </div>
+      ) : null}
+
+      {/*
+        Lyrics first — status / disclaimer / report sit below so toggling Devanagari
+        does not insert chrome above the verse and shove scroll into the gap between
+        Lyrics and Listen.
+      */}
+      <p className="mt-5 [overflow-anchor:none] whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">
+        {text}
+      </p>
+      <div className="mt-4">
+        <CopyTextButton text={text} label="Copy lyrics" />
+      </div>
+
+      {script === "devanagari" && hasDevanagari ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {badge ? (
             <span
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
@@ -93,21 +148,22 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
               {badge}
             </span>
           ) : null}
-          {script === "devanagari" ? (
-            <>
-              <span className="text-[11px] text-stone-500">May contain mistakes.</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setReportOpen((v) => !v)
-                  setReportErr(null)
-                }}
-                className="text-[11px] font-semibold text-gold-700 underline underline-offset-2"
-              >
-                Report
-              </button>
-            </>
-          ) : null}
+          <span className="text-[11px] text-stone-500">May contain mistakes.</span>
+          <button
+            type="button"
+            onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+              if (event.button === 0) event.preventDefault()
+            }}
+            onClick={() => {
+              retainLyricsScroll(() => {
+                setReportOpen((v) => !v)
+                setReportErr(null)
+              })
+            }}
+            className="text-[11px] font-semibold text-gold-700 underline underline-offset-2"
+          >
+            Report
+          </button>
         </div>
       ) : null}
 
@@ -141,13 +197,6 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
       ) : null}
       {reportMsg ? <p className="mt-2 text-xs text-emerald-800">{reportMsg}</p> : null}
       {reportErr ? <p className="mt-2 text-xs text-red-700">{reportErr}</p> : null}
-
-      <p className="mt-5 whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">
-        {text}
-      </p>
-      <div className="mt-4">
-        <CopyTextButton text={text} label="Copy lyrics" />
-      </div>
     </div>
   )
 }

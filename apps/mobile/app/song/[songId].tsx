@@ -86,6 +86,7 @@ export default function SongDetailScreen() {
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
   const [localizedCentralIdea, setLocalizedCentralIdea] = useState<string | null>(null)
+  const [centralIdeaPending, setCentralIdeaPending] = useState(false)
   const [localizing, setLocalizing] = useState(false)
   const [journey, setJourney] = useState<SongJourneyTab>("understand")
   const [watchPlaying, setWatchPlaying] = useState(false)
@@ -106,6 +107,7 @@ export default function SongDetailScreen() {
       setLanguage(code)
       if (!song) {
         setLocalizing(false)
+        setCentralIdeaPending(false)
         return
       }
       const storedExpl = storedExplanationForLanguage(song, code)
@@ -120,7 +122,8 @@ export default function SongDetailScreen() {
         // No official purport → still load a simple LLM Central idea in English.
         const needsExpl =
           !song.centralIdea?.trim() && !storedExpl && !remembered?.explanation
-        setLocalizing(needsExpl)
+        setLocalizing(false)
+        setCentralIdeaPending(needsExpl)
         return
       }
       const stored = storedMeaningForLanguage(song, code)
@@ -131,7 +134,8 @@ export default function SongDetailScreen() {
           setLocalizedCentralIdea(remembered.explanation)
         }
         const needsExpl = !storedExpl && !remembered?.explanation
-        setLocalizing(needsExpl)
+        setLocalizing(false)
+        setCentralIdeaPending(needsExpl)
         return
       }
       if (remembered) {
@@ -139,6 +143,7 @@ export default function SongDetailScreen() {
         setLocalizedTitle(remembered.title)
         if (!storedExpl) setLocalizedCentralIdea(remembered.explanation)
         setLocalizing(false)
+        setCentralIdeaPending(false)
         return
       }
       const peeked = peekSongLocalization(song.number, localeLabel(code))
@@ -149,10 +154,12 @@ export default function SongDetailScreen() {
         setLocalizedTitle(peeked.localized_title ?? null)
         if (peekedExpl && !storedExpl) setLocalizedCentralIdea(peekedExpl)
         const needsExpl = !storedExpl && !peekedExpl
-        setLocalizing(needsExpl)
+        setLocalizing(false)
+        setCentralIdeaPending(needsExpl)
         return
       }
       setLocalizing(true)
+      setCentralIdeaPending(!storedExpl && !song.centralIdea?.trim())
     },
     [song],
   )
@@ -169,6 +176,7 @@ export default function SongDetailScreen() {
     setLocalizedTitle(null)
     setLocalizedCentralIdea(null)
     setLocalizing(false)
+    setCentralIdeaPending(false)
 
     const peeked = peekResolvedSong(typeof songId === "string" ? songId : undefined)
     if (peeked) {
@@ -397,12 +405,14 @@ export default function SongDetailScreen() {
 
     if (!needsMeaning && !needsGeneratedIdea && (hasMeaning || language === "en") && hasExpl) {
       setLocalizing(false)
+      setCentralIdeaPending(false)
       return
     }
 
     let active = true
     // Meaning spinner only — Central idea LLM must not block translation paint.
     setLocalizing(needsMeaning || (needsGeneratedIdea === false && !hasExpl && hasOfficialIdea))
+    setCentralIdeaPending(needsGeneratedIdea)
 
     void (async () => {
       if (needsMeaning || (!hasExpl && hasOfficialIdea)) {
@@ -445,7 +455,10 @@ export default function SongDetailScreen() {
         setLocalizing(false)
       }
 
-      if (!needsGeneratedIdea || !active) return
+      if (!needsGeneratedIdea || !active) {
+        if (active) setCentralIdeaPending(false)
+        return
+      }
       const scrollYBeforeIdea = scrollYRef.current
       try {
         const idea = await fetchSongCentralIdeaLocalization(song.number, language)
@@ -464,6 +477,7 @@ export default function SongDetailScreen() {
         // Meaning already shown; generated Central idea is optional.
       } finally {
         if (active) {
+          setCentralIdeaPending(false)
           requestAnimationFrame(() => {
             scrollRef.current?.scrollTo({ y: scrollYBeforeIdea, animated: false })
           })
@@ -825,6 +839,7 @@ export default function SongDetailScreen() {
             meaning={meaningResolution}
             centralIdea={song.centralIdea}
             localizedCentralIdea={localizedCentralIdea}
+            centralIdeaPending={centralIdeaPending}
             onSelectLanguage={selectLanguage}
           />
         </View>
