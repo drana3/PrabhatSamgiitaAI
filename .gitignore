@@ -38,3 +38,4 @@ data/generated/faiss/
 .tmp-ocr/
 .tmp-rs/
 
+data/generated/google_translate_quota.json

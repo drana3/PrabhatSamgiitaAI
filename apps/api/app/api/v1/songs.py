@@ -85,7 +85,12 @@ async def get_localized_song(
         or song.first_line
         or song.title
     )
-    localized = await LocalizationService().localize(song, language, explanation=explanation)
+    localized = await LocalizationService().localize(
+        song,
+        language,
+        explanation=explanation,
+        session=session,
+    )
     return SongLocalizationResponse(
         song_number=song.number,
         language=localized.language,
