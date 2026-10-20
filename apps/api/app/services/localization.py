@@ -21,6 +21,7 @@ from app.services.meaning_translation import (
     build_central_idea_summary_prompt,
     build_localization_prompt,
     build_meaning_translation_prompt,
+    format_central_idea_prose,
     pick_meaning_source,
     refine_meaning_translation,
 )
@@ -32,6 +33,9 @@ from app.services.song_meanings import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Bump when the Central idea LLM prompt/format changes so old generated cache refreshes.
+CENTRAL_IDEA_SUMMARY_VERSION = 2
 
 
 @dataclass(slots=True)
@@ -91,6 +95,14 @@ class LocalizationService:
         value = explanations.get(language_code)
         if not isinstance(value, str) or not value.strip():
             return None
+        kinds = meta.get("localized_explanation_kinds")
+        versions = meta.get("localized_explanation_versions")
+        if isinstance(kinds, dict) and kinds.get(language_code) == "generated":
+            version = 1
+            if isinstance(versions, dict) and isinstance(versions.get(language_code), int):
+                version = versions[language_code]
+            if version < CENTRAL_IDEA_SUMMARY_VERSION:
+                return None
         return normalize_prose_block(value) or None
 
     def _usable_localized_meaning(
@@ -234,6 +246,10 @@ class LocalizationService:
                     kinds = dict(meta.get("localized_explanation_kinds") or {})
                     kinds[language_code] = result.explanation_kind
                     meta["localized_explanation_kinds"] = kinds
+                    if result.explanation_kind == "generated":
+                        versions = dict(meta.get("localized_explanation_versions") or {})
+                        versions[language_code] = CENTRAL_IDEA_SUMMARY_VERSION
+                        meta["localized_explanation_versions"] = versions
             meta["localized_provider"] = {
                 **dict(meta.get("localized_provider") or {}),
                 language_code: result.provider or "llm",
@@ -353,13 +369,13 @@ class LocalizationService:
         language: str,
         language_code: str,
     ) -> str | None:
-        """LLM plain-language Central idea when the catalog has no official purport."""
+        """LLM Central idea when the catalog has no official purport — polished + grounded."""
         try:
             prompt = build_central_idea_summary_prompt(song, language)
         except ValueError:
             return None
         try:
-            async with asyncio.timeout(55):
+            async with asyncio.timeout(70):
                 draft = (await self.provider.complete(prompt)).strip()
         except Exception:
             logger.exception(
@@ -368,7 +384,8 @@ class LocalizationService:
                 language,
             )
             return None
-        return self._usable_localized_explanation(song, draft, explanation_source=None)
+        formatted = format_central_idea_prose(draft)
+        return self._usable_localized_explanation(song, formatted, explanation_source=None)
 
     async def _ensure_central_idea(
         self,

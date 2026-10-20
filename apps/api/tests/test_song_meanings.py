@@ -17,6 +17,18 @@ def test_normalize_language_code_accepts_labels_and_codes() -> None:
     assert normalize_language_code("Bengali") == "bn"
 
 
+def test_format_central_idea_prose_makes_two_paragraphs() -> None:
+    from app.services.meaning_translation import format_central_idea_prose
+
+    formatted = format_central_idea_prose(
+        "Central idea: The heart longs for light. Darkness feels heavy. "
+        "Walk toward the fountain of love with trust."
+    )
+    assert "\n\n" in formatted
+    assert "Central idea:" not in formatted
+    assert "heart longs" in formatted
+
+
 def test_collect_stored_meanings_merges_columns_and_metadata() -> None:
     song = Song(
         id=1,

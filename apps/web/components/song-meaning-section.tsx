@@ -232,7 +232,7 @@ export function SongMeaningSection({
       </div>
       {loading ? (
         <div className="mt-4 flex justify-center text-gold-800">
-          <LoadingIndicator label="Translating meaning" />
+          <LoadingIndicator label="Preparing meaning & central idea" />
         </div>
       ) : null}
       {error ? <p role="alert" className="mt-4 text-sm text-amber-800">{error}</p> : null}

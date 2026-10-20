@@ -223,7 +223,7 @@ def build_meaning_translation_prompt(
 
 
 def build_central_idea_summary_prompt(song: Song, target_language: str) -> str:
-    """Prompt for a short plain-language Central idea when no official purport exists."""
+    """Prompt for a polished, grounded Central idea when no official purport exists."""
     target_code = normalize_language_code(target_language) or target_language.casefold()
     target_label = language_display_name(target_language)
     bundle = meaning_source_bundle(song)
@@ -237,25 +237,90 @@ def build_central_idea_summary_prompt(song: Song, target_language: str) -> str:
         f"First line: {bundle.first_line or ''}",
     ]
     if bundle.transliteration:
-        context_lines.append(f"Transliteration (reference): {bundle.transliteration[:400]}")
+        context_lines.append(f"Transliteration (reference only): {bundle.transliteration[:500]}")
+    if bundle.english and source_code != "en":
+        context_lines.append(f"English meaning (reference): {bundle.english}")
+    if bundle.hindi and source_code != "hi":
+        context_lines.append(f"Hindi meaning (reference): {bundle.hindi}")
 
     return "\n".join(
         [
-            "You write a short Central idea for a Prabhat Samgiita song for devotees.",
-            "There is no official Central idea / Purport for this song.",
-            f"Write 2–4 short sentences in {target_label} ({target_code}) using simple everyday words.",
-            "Rules:",
-            "1. Ground every sentence only in the PRIMARY meaning below — no new theology or facts.",
-            "2. Explain the heart of the song simply; do not translate line-by-line.",
-            "3. Keep a warm, clear, respectful tone.",
-            "4. Do not mention song numbers, AI, missing purport, translation, or your process.",
-            "5. Return only the Central idea prose — no title, JSON, or bullet list.",
+            "You are a gifted spiritual writer crafting the Central idea of a Prabhat Samgiita song",
+            "for devotees — in the spirit of a clear, luminous purport (not a dry paraphrase).",
+            "There is no official Central idea / Purport for this song; you must invent nothing beyond",
+            "what the PRIMARY meaning already says.",
+            "",
+            f"Write the Central idea entirely in {target_label} ({target_code}).",
+            "",
+            "Voice & quality:",
+            "- Warm, elevated, and memorable — the kind of prose a devotee would reread.",
+            "- Clear everyday words first; allow a few graceful spiritual phrases when they fit the source.",
+            "- Speak to the heart: longing, light, friendship with the Divine, inner journey — only if present in the source.",
+            "- Prefer vivid but faithful imagery drawn from the meaning (fountain, darkness, path, friend, etc.).",
+            "- Never sound like a textbook, bullet list, or machine translation.",
+            "",
+            "Structure & formatting (strict):",
+            "- Exactly 2 short paragraphs, separated by one blank line.",
+            "- Paragraph 1 (2–3 sentences): the living heart of the song — what the seeker feels and asks.",
+            "- Paragraph 2 (1–2 sentences): the spiritual resolve or invitation the song leaves with the listener.",
+            "- No title, heading, label, bullets, numbers, quotes around the whole text, or markdown.",
+            "- No emoji. No “This song is about…”. No song numbers. No AI / translation meta-commentary.",
+            "",
+            "Fidelity (non-negotiable):",
+            "1. Every idea must be grounded in the PRIMARY meaning — do not add theology, history, or new facts.",
+            "2. Do not translate line-by-line; crystallize the purport.",
+            "3. If the source is quiet or short, stay short — do not pad with generic devotion.",
+            "4. Return only the two paragraphs of Central idea prose.",
+            "",
             "Context:",
             "\n".join(context_lines),
+            "",
             f"PRIMARY meaning ({source_code}):",
             source_text,
         ]
     )
+
+
+def format_central_idea_prose(text: str) -> str:
+    """Normalize LLM Central idea output into clean 1–2 paragraph prose."""
+    from app.services.prose_normalize import normalize_prose_block
+
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return ""
+    # Strip common LLM wrappers.
+    cleaned = re.sub(r"^```(?:\w+)?\s*", "", cleaned)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    cleaned = re.sub(
+        r"^(?:central\s*idea|purport|in\s+simple\s+words)\s*[:\-—]\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = cleaned.replace("**", "").replace("__", "").strip()
+    prose = normalize_prose_block(cleaned)
+    if not prose:
+        return ""
+    paragraphs = [part.strip() for part in prose.split("\n\n") if part.strip()]
+    if len(paragraphs) == 1:
+        # Split a single dense blob into two paragraphs at a natural sentence break.
+        sentences = re.split(r"(?<=[.!?।॥])\s+", paragraphs[0])
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if len(sentences) >= 3:
+            mid = max(1, len(sentences) // 2)
+            paragraphs = [
+                " ".join(sentences[:mid]).strip(),
+                " ".join(sentences[mid:]).strip(),
+            ]
+        elif len(sentences) == 2:
+            paragraphs = sentences
+    # Cap at two paragraphs for a calm reading rhythm.
+    if len(paragraphs) > 2:
+        paragraphs = [
+            " ".join(paragraphs[:-1]).strip(),
+            paragraphs[-1].strip(),
+        ]
+    return "\n\n".join(paragraphs)
 
 
 def build_localization_prompt(
