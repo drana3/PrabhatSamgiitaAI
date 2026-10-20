@@ -21,6 +21,8 @@ from typing import Any
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 SONGS_JSON = _REPO_ROOT / "data" / "generated" / "songs.json"
 
+from app.services.lyrics_theme import normalize_prose_block
+
 CENTRAL_IDEA_LABEL_RE = re.compile(
     r"(?is)^(.*?)\n?(central\s*idea|purport)\s*:\s*(.*)$"
 )
@@ -62,6 +64,13 @@ def backfill_song(song: dict[str, Any]) -> bool:
         song["central_idea"] = purport_text
         current = purport_text
         changed = True
+
+    if current:
+        normalized = normalize_prose_block(current)
+        if normalized and normalized != current:
+            song["central_idea"] = normalized
+            current = normalized
+            changed = True
 
     if current and meta.get("purport") != current:
         meta["purport"] = current

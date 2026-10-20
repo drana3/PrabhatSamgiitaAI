@@ -111,3 +111,21 @@ def drop_last_nonempty_line(text: str | None) -> str:
     if ends_with_newline and cleaned:
         cleaned += "\n"
     return cleaned
+
+def normalize_prose_block(text: str | None) -> str | None:
+    """Unwrap HTML soft line-breaks into readable prose paragraphs.
+
+    Official Central idea / Purport blocks are continuous prose; source HTML
+    wraps at ~70 columns. Preserving those wraps produces mid-sentence
+    newlines in the UI. Blank lines still become paragraph breaks.
+    """
+    raw = (text or "").strip()
+    if not raw:
+        return None
+    paragraphs: list[str] = []
+    for block in re.split(r"\n\s*\n", raw):
+        joined = re.sub(r"[ \t]*\n[ \t]*", " ", block.strip())
+        joined = re.sub(r" {2,}", " ", joined).strip()
+        if joined:
+            paragraphs.append(joined)
+    return "\n\n".join(paragraphs) if paragraphs else None

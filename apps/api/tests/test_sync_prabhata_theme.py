@@ -48,6 +48,21 @@ def test_split_song_sections_extracts_central_idea() -> None:
     assert "entire evolution" in "\n".join(idea)
 
 
+def test_normalize_prose_block_unwraps_soft_line_breaks() -> None:
+    raw = (
+        "Darkness has come to an end, crossing the threshold at the edge of light. Now is the\n"
+        "proper time to call all and announce that the crimson dawn has come. The air is\n"
+        "sweetlyscented."
+    )
+    from app.services.lyrics_theme import normalize_prose_block
+
+    out = normalize_prose_block(raw)
+    assert out is not None
+    assert "\n" not in out
+    assert "Now is the proper time" in out
+    assert "The air is sweetlyscented" in out
+
+
 def test_split_song_sections_extracts_purport_label() -> None:
     paragraphs = [
         [

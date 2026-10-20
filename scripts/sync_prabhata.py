@@ -24,6 +24,7 @@ from app.services.lyrics_theme import (  # noqa: E402
     extract_trailing_english_theme,
     format_theme_label,
     is_english_theme_line,
+    normalize_prose_block,
 )
 
 LYRICS_PAGE = "/1-5018.htm"
@@ -272,7 +273,7 @@ def parse_song_page(page_path: str) -> list[SongRecord]:
             (line for line in lyrics_lines if not line.endswith(":")),
             english_lines[0] if english_lines else None,
         )
-        central_idea = "\n".join(central_idea_lines).strip() or None
+        central_idea = normalize_prose_block("\n".join(central_idea_lines))
         meta = {
             "source": "official-lyrics-page",
             **metadata,

@@ -192,10 +192,18 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     thumbnailUrl: thumb,
     themes: themes.length ? themes : ["Prabhat Samgiita"],
     meaning: englishMeaningFromDetail(detail),
-    centralIdea:
-      detail.central_idea?.trim() ||
-      (typeof meta.purport === "string" ? meta.purport.trim() : null) ||
-      null,
+    centralIdea: (() => {
+      const raw =
+        detail.central_idea?.trim() ||
+        (typeof meta.purport === "string" ? meta.purport.trim() : "") ||
+        ""
+      if (!raw) return null
+      return raw
+        .split(/\n\s*\n/)
+        .map((block) => block.replace(/[ \t]*\n[ \t]*/g, " ").replace(/ {2,}/g, " ").trim())
+        .filter(Boolean)
+        .join("\n\n")
+    })(),
     hindiMeaning: detail.hindi_meaning?.trim() || null,
     localizedMeanings: readLocalizedMeanings(detail.metadata_json),
     lyrics: romanClean || detail.first_line || detail.title,

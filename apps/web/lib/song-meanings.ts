@@ -9,12 +9,24 @@ export type SongMeaningSource = {
   metadata_json?: Record<string, unknown> | null
 }
 
+/** Unwrap HTML soft line-wraps in Central idea / Purport prose. */
+export function normalizeProseBlock(text: string): string {
+  return text
+    .trim()
+    .split(/\n\s*\n/)
+    .map((block) => block.replace(/[ \t]*\n[ \t]*/g, " ").replace(/ {2,}/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n")
+}
+
 /** Official Central idea / Purport prose when present. */
 export function centralIdeaText(song: SongMeaningSource): string {
   const direct = song.central_idea?.trim()
-  if (direct) return direct
+  if (direct) return normalizeProseBlock(direct)
   const purport = song.metadata_json?.purport
-  return typeof purport === "string" ? purport.trim() : ""
+  return typeof purport === "string" && purport.trim()
+    ? normalizeProseBlock(purport)
+    : ""
 }
 
 export function isEnglishSongLanguage(value?: string | null) {

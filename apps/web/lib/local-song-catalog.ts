@@ -8,6 +8,7 @@ import {
   extractTrailingEnglishTheme,
 } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
+import { centralIdeaText } from "@/lib/song-meanings"
 import { normalizeTransliterationText } from "@/lib/transliteration-text"
 import { completeSargamSongs, isCompleteSargamSong } from "@/lib/complete-sargam"
 import { isRomanPracticeNotation } from "@/lib/sargam-display"
@@ -268,10 +269,7 @@ export function localSongDetail(number: number): SongDetail | null {
     devanagari_status: song.devanagari_status || "none",
     hindi_meaning: song.hindi_meaning,
     english_meaning: song.english_meaning,
-    central_idea:
-      song.central_idea?.trim() ||
-      (typeof meta.purport === "string" ? meta.purport.trim() : null) ||
-      null,
+    central_idea: centralIdeaText(song) || null,
     festival: song.festival,
     season: song.season,
     meditation_context: song.meditation_context,

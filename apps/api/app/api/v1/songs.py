@@ -187,6 +187,10 @@ async def get_song(
         purport = metadata_json.get("purport")
         if isinstance(purport, str) and purport.strip():
             central_idea = purport.strip()
+    if central_idea:
+        from app.services.lyrics_theme import normalize_prose_block
+
+        central_idea = normalize_prose_block(central_idea)
     festival = song.festival
     season = song.season
     meditation_context = song.meditation_context
