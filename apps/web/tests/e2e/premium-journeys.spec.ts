@@ -313,7 +313,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   const translationScroll = await page.evaluate(() => window.scrollY)
   await expect(language).toBeEnabled()
   await language.selectOption("hi")
-  await expect(page).toHaveURL(/\/songs\/1\?language=hi$/, { timeout: 20000 })
+  await expect(page).toHaveURL(/\/songs\/1\?language=hi#meaning$/, { timeout: 20000 })
   await expect(page.locator("#meaning").getByLabel("Language").first()).toHaveValue("hi")
   await expect(page.getByRole("status", { name: /translating/i })).toHaveCount(0, { timeout: 20000 })
   const hindiMeaningArticle = page.locator("#meaning article").filter({ hasText: /hindi meaning/i })
@@ -330,7 +330,17 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   const meaningArticleCount = await page.locator("#meaning article").count()
   expect(meaningArticleCount).toBeGreaterThanOrEqual(3)
   expect(meaningArticleCount).toBeLessThanOrEqual(4)
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(translationScroll)
+  // Stay on Meaning — do not jump down to Listen after translation settles.
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const meaning = document.getElementById("meaning")
+      if (!meaning) return false
+      const top = meaning.getBoundingClientRect().top
+      return top >= 0 && top < window.innerHeight * 0.55
+    })
+  }).toBe(true)
+  const scrollAfter = await page.evaluate(() => window.scrollY)
+  expect(Math.abs(scrollAfter - translationScroll)).toBeLessThan(220)
 
   await expect(page.locator("#lyrics")).toBeVisible()
   await expect(page.locator("#meaning")).toBeVisible()

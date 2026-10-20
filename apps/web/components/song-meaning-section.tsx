@@ -7,6 +7,7 @@ import { CopyTextButton } from "@/components/copy-text-button"
 import { SongLanguageSwitcher } from "@/components/song-language-switcher"
 import { fetchSongLocalization } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
+import { scrollToSectionId } from "@/lib/scroll-to-section"
 import {
   hasStoredMeaningForLanguage,
   storedMeaningForLanguage,
@@ -16,6 +17,17 @@ import {
   normalizeProseBlock,
   type SongMeaningSource,
 } from "@/lib/song-meanings"
+
+function keepMeaningInView() {
+  if (typeof window === "undefined") return
+  scrollToSectionId("meaning", { behavior: "auto" })
+  // Re-pin after layout settles (translated blocks + fonts can shift the page).
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => scrollToSectionId("meaning", { behavior: "auto" }))
+  })
+  window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 120)
+  window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 360)
+}
 
 function MeaningBlock({ label, value }: { label: string; value?: string | null }) {
   const prose = value?.trim() ? normalizeProseBlock(value) : ""
@@ -72,6 +84,7 @@ export function SongMeaningSection({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
+  const pinMeaningAfterLoad = useRef(false)
 
   useEffect(() => {
     setLanguage(initialLanguage)
@@ -80,6 +93,7 @@ export function SongMeaningSection({
   const englishCentralIdea = centralIdeaText(song)
 
   const handleLanguageChange = (nextLanguage: string) => {
+    pinMeaningAfterLoad.current = true
     setLanguage(nextLanguage)
     setLocalizedMeaning(null)
     setLocalizedExplanation(storedExplanationForLanguage(song, nextLanguage))
@@ -90,7 +104,14 @@ export function SongMeaningSection({
       Boolean(englishCentralIdea) &&
       !storedExplanationForLanguage(song, nextLanguage)
     setLoading(needsMeaning || needsExplanation)
+    keepMeaningInView()
   }
+
+  useEffect(() => {
+    if (loading || !pinMeaningAfterLoad.current) return
+    pinMeaningAfterLoad.current = false
+    keepMeaningInView()
+  }, [loading, language, localizedMeaning, localizedExplanation])
 
   useEffect(() => {
     if (language === "en") {

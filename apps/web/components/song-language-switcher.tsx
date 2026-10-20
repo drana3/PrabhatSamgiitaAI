@@ -64,7 +64,6 @@ export function SongLanguageSwitcher({
             const next = new URLSearchParams(searchParams.toString())
             const value = event.target.value
             if (value === selectedLanguage) return
-            window.sessionStorage.setItem("song-translation-scroll", String(window.scrollY))
             setTargetLanguage(value)
             if (value === "en") {
               next.delete("language")
@@ -72,13 +71,21 @@ export function SongLanguageSwitcher({
               next.set("language", value)
             }
             const query = next.toString()
-            const url = `${pathname}${query ? `?${query}` : ""}`
-            window.history.replaceState(window.history.state, "", url)
+            // Meaning switcher: stay on #meaning. Otherwise keep the current hash
+            // (replaceState without a hash used to drop #lyrics and jump the page).
+            const hash = onLanguageChange
+              ? "#meaning"
+              : window.location.hash || ""
+            const url = `${pathname}${query ? `?${query}` : ""}${hash}`
             if (onLanguageChange) {
+              window.sessionStorage.removeItem("song-translation-scroll")
+              window.history.replaceState(window.history.state, "", url)
               onLanguageChange(value)
               setTargetLanguage(null)
               return
             }
+            window.sessionStorage.setItem("song-translation-scroll", String(window.scrollY))
+            window.history.replaceState(window.history.state, "", url)
             go(url)
             router.refresh()
           }}
