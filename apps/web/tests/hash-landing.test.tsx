@@ -6,6 +6,7 @@ import { scrollToSectionId } from "@/lib/scroll-to-section"
 
 vi.mock("@/lib/scroll-to-section", () => ({
   scrollToSectionId: vi.fn(),
+  stickyHeaderOffset: () => 0,
 }))
 
 describe("HashLanding", () => {
