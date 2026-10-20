@@ -18,10 +18,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from app.services.lyrics_theme import normalize_prose_block
+
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 SONGS_JSON = _REPO_ROOT / "data" / "generated" / "songs.json"
-
-from app.services.lyrics_theme import normalize_prose_block
 
 CENTRAL_IDEA_LABEL_RE = re.compile(
     r"(?is)^(.*?)\n?(central\s*idea|purport)\s*:\s*(.*)$"
