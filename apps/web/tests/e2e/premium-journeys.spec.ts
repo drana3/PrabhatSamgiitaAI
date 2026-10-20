@@ -300,7 +300,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(songHeroPortrait).toHaveCSS("background-position", /82% 0/)
   const language = page.getByLabel("Language")
   await expect(language).toBeVisible()
-  await expect(language.locator("option")).toHaveCount(36)
+  await expect(language.locator("option")).toHaveCount(193)
   await expect(language.locator("optgroup")).toHaveCount(2)
   const languageBounds = await language.boundingBox()
   const viewport = page.viewportSize()

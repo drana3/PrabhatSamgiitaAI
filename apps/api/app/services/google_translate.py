@@ -21,54 +21,13 @@ from typing import Any
 import httpx
 
 from app.config import Settings, get_settings
+from app.services.google_translate_languages import google_target_code
 
 logger = logging.getLogger(__name__)
 
 TRANSLATE_URL = "https://translation.googleapis.com/language/translate/v2"
 # Stay below Google's ~500k free monthly characters even if env is mis-set.
 FREE_TIER_HARD_CAP = 450_000
-
-# Our catalog codes → Google Translate target codes (omit = unsupported → LLM).
-GOOGLE_TARGET_CODES: dict[str, str] = {
-    "hi": "hi",
-    "bn": "bn",
-    "ta": "ta",
-    "ur": "ur",
-    "as": "as",
-    "gu": "gu",
-    "kn": "kn",
-    "ml": "ml",
-    "mr": "mr",
-    "ne": "ne",
-    "or": "or",
-    "pa": "pa",
-    "sa": "sa",
-    "te": "te",
-    "ar": "ar",
-    "zh": "zh-CN",
-    "nl": "nl",
-    "fr": "fr",
-    "de": "de",
-    "id": "id",
-    "it": "it",
-    "ja": "ja",
-    "ko": "ko",
-    "fa": "fa",
-    "pl": "pl",
-    "pt": "pt",
-    "ru": "ru",
-    "si": "si",
-    "es": "es",
-    "sw": "sw",
-    "th": "th",
-    "tr": "tr",
-    "vi": "vi",
-    # mai / mag: not reliably supported by Cloud Translation — use LLM.
-}
-
-
-def google_target_code(language_code: str) -> str | None:
-    return GOOGLE_TARGET_CODES.get(language_code.casefold().strip())
 
 
 def _month_key(now: datetime | None = None) -> str:
