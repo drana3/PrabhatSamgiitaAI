@@ -15,6 +15,7 @@ const song: MockSong = {
   meaning: "English meaning",
   hindiMeaning: "हिन्दी अर्थ",
   localizedMeanings: { bn: "বাংলা অর্থ" },
+  centralIdea: "The Supreme is the real friend.",
   localizedExplanations: { es: "Idea central en español" },
   lyrics: "Lyrics",
   translation: "Translation",
@@ -36,6 +37,11 @@ describe("storedExplanationForLanguage", () => {
     expect(storedExplanationForLanguage(song, "es")).toBe("Idea central en español")
     expect(storedExplanationForLanguage(song, "en")).toBeNull()
     expect(storedExplanationForLanguage(song, "hi")).toBeNull()
+  })
+
+  it("keeps generated Central idea cache when the song has no purport", () => {
+    const { centralIdea: _drop, ...withoutIdea } = song
+    expect(storedExplanationForLanguage(withoutIdea, "es")).toBe("Idea central en español")
   })
 })
 

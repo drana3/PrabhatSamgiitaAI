@@ -72,20 +72,25 @@ export function hasStoredMeaningForLanguage(song: SongMeaningSource, language: s
   return Boolean(storedMeaningForLanguage(song, language))
 }
 
-/** Cached Central idea translation from metadata_json.localized_explanations. */
+/** Cached Central idea translation / LLM summary from metadata_json.localized_explanations. */
 export function storedExplanationForLanguage(
   song: SongMeaningSource,
   language: string,
 ): string | null {
   const code = language.trim().toLowerCase()
-  if (!code || code === "en") return null
+  if (!code) return null
   const explanations = song.metadata_json?.localized_explanations
   if (!explanations || typeof explanations !== "object") return null
   const value = (explanations as Record<string, unknown>)[code]
   if (typeof value !== "string" || !value.trim()) return null
   const prose = normalizeProseBlock(value)
-  // Reject English Central idea echoes cached under another language code.
-  const english = centralIdeaText(song)
-  if (english && prose === english) return null
-  return prose || null
+  if (!prose) return null
+  // Reject official English Central idea echoes and meaning mirrors.
+  const official = centralIdeaText(song)
+  if (official && prose === official) return null
+  const meaning = englishMeaningText(song)
+  if (meaning && prose === normalizeProseBlock(meaning)) return null
+  const hindi = song.hindi_meaning?.trim() ? normalizeProseBlock(song.hindi_meaning) : ""
+  if (hindi && prose === hindi) return null
+  return prose
 }

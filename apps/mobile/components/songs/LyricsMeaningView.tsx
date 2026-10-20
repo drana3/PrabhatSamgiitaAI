@@ -361,7 +361,11 @@ export function LyricsMeaningView({
         localizedCentralIdea.trim() !== (centralIdea || "").trim() ? (
           <View style={styles.centralIdeaBlock}>
             <Text style={styles.centralIdeaLabel}>
-              {localeLabel(language)} · Central idea
+              {centralIdea?.trim()
+                ? `${localeLabel(language)} · Central idea`
+                : language === "en"
+                  ? "Central idea · In simple words"
+                  : `${localeLabel(language)} · In simple words`}
             </Text>
             <Text style={styles.body}>{normalizeProseBlock(localizedCentralIdea)}</Text>
           </View>

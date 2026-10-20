@@ -131,6 +131,8 @@ class SongLocalizationResponse(BaseModel):
     localized_first_line: str | None = None
     localized_meaning: str | None = None
     localized_explanation: str | None = None
+    # official = catalog purport/central_idea; generated = LLM simple summary when absent
+    explanation_kind: str | None = None
     # stored | cache | google | llm — helps confirm free-tier Google vs LLM path
     provider: str | None = None
 

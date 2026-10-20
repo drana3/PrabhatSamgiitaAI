@@ -200,13 +200,23 @@ export function storedMeaningForLanguage(
 }
 
 export function storedExplanationForLanguage(
-  song: Pick<MockSong, "localizedExplanations">,
+  song: Pick<MockSong, "localizedExplanations" | "centralIdea" | "meaning" | "hindiMeaning">,
   language: string,
 ): string | null {
   const code = language.trim().toLowerCase()
-  if (!code || code === "en") return null
+  if (!code) return null
   const value = song.localizedExplanations?.[code]
-  return typeof value === "string" && value.trim() ? normalizeProseBlock(value) : null
+  if (typeof value !== "string" || !value.trim()) return null
+  const prose = normalizeProseBlock(value)
+  if (!prose) return null
+  const official = song.centralIdea?.trim() ? normalizeProseBlock(song.centralIdea) : ""
+  if (official && prose === official) return null
+  // Reject old bad cache that mirrored meaning as Central idea.
+  const meaning = song.meaning?.trim() ? normalizeProseBlock(song.meaning) : ""
+  const hindi = song.hindiMeaning?.trim() ? normalizeProseBlock(song.hindiMeaning) : ""
+  if (meaning && prose === meaning) return null
+  if (hindi && prose === hindi) return null
+  return prose
 }
 
 export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong {

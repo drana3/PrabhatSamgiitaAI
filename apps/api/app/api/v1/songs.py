@@ -77,13 +77,13 @@ async def get_localized_song(
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
     meta = song.metadata_json if isinstance(song.metadata_json, dict) else {}
+    # Only official Central idea / Purport — never fall back to english_meaning
+    # (that made translated Meaning appear as a fake "Central idea" on most songs).
+    purport = meta.get("purport") if isinstance(meta.get("purport"), str) else None
     explanation = (
         (getattr(song, "central_idea", None) or "").strip()
-        or (meta.get("purport") if isinstance(meta.get("purport"), str) else None)
-        or song.english_meaning
-        or song.hindi_meaning
-        or song.first_line
-        or song.title
+        or (purport.strip() if purport else "")
+        or None
     )
     localized = await LocalizationService().localize(
         song,
@@ -98,6 +98,7 @@ async def get_localized_song(
         localized_first_line=localized.localized_first_line,
         localized_meaning=localized.localized_meaning,
         localized_explanation=localized.localized_explanation,
+        explanation_kind=localized.explanation_kind,
         provider=localized.provider,
     )
 

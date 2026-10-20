@@ -109,10 +109,30 @@ describe("SongMeaningSection", () => {
   })
 
   it("offers copy for the visible meaning", async () => {
+    fetchSongLocalization.mockResolvedValue({
+      localized_explanation: "A simple heart of the song.",
+      explanation_kind: "generated",
+    })
     render(
       <SongMeaningSection songNumber={42} song={song} initialLanguage="en" />,
     )
 
-    expect(screen.getByRole("button", { name: "Copy meaning" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "Copy meaning" })).toBeInTheDocument()
+  })
+
+  it("shows an LLM simple Central idea when the song has no official purport", async () => {
+    fetchSongLocalization.mockResolvedValue({
+      localized_meaning: "Door de sluier van duisternis heen.",
+      localized_explanation: "Het lied vraagt om licht in eenvoudige woorden.",
+      explanation_kind: "generated",
+    })
+
+    render(
+      <SongMeaningSection songNumber={42} song={song} initialLanguage="nl" />,
+    )
+
+    expect(await screen.findByText("Door de sluier van duisternis heen.")).toBeInTheDocument()
+    expect(screen.getByText(/In simple words/i)).toBeInTheDocument()
+    expect(screen.getByText("Het lied vraagt om licht in eenvoudige woorden.")).toBeInTheDocument()
   })
 })

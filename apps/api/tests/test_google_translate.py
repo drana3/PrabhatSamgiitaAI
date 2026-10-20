@@ -153,6 +153,48 @@ async def test_localize_uses_google_then_skips_llm(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_localize_generates_simple_central_idea_when_purport_missing(tmp_path: Path) -> None:
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
+        GOOGLE_TRANSLATE_API_KEY="test-key",
+        GOOGLE_TRANSLATE_ENABLED=True,
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=400_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+        GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
+    )
+    gt.reset_quota_store_for_tests()
+    song = Song(
+        number=4,
+        title="Song 4",
+        english_meaning="All minds' veenas play in one tune today.",
+        hindi_meaning=None,
+        metadata_json={},
+    )
+    service = LocalizationService()
+    service.provider = AsyncMock(
+        complete=AsyncMock(
+            return_value="Today every heart sings the same loving tune toward the Divine."
+        )
+    )
+    with (
+        patch("app.services.localization.get_settings", return_value=settings),
+        patch(
+            "app.services.localization.translate_texts",
+            new=AsyncMock(return_value=["Alle geesten spelen vandaag in één toon."]),
+        ),
+        patch("app.services.localization.google_translate_configured", return_value=True),
+    ):
+        await translation_cache.clear()
+        result = await service.localize(song, "Dutch", explanation=None)
+
+    assert result.localized_meaning == "Alle geesten spelen vandaag in één toon."
+    assert result.explanation_kind == "generated"
+    assert "loving tune" in (result.localized_explanation or "")
+    service.provider.complete.assert_awaited()
+
+
+@pytest.mark.asyncio
 async def test_localize_translates_central_idea_when_meaning_is_stored(tmp_path: Path) -> None:
     """Curated Hindi meaning must not short-circuit and leave Central idea in English."""
     settings = Settings(

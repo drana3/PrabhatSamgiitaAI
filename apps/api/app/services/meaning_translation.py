@@ -222,6 +222,42 @@ def build_meaning_translation_prompt(
     )
 
 
+def build_central_idea_summary_prompt(song: Song, target_language: str) -> str:
+    """Prompt for a short plain-language Central idea when no official purport exists."""
+    target_code = normalize_language_code(target_language) or target_language.casefold()
+    target_label = language_display_name(target_language)
+    bundle = meaning_source_bundle(song)
+    source_text, source_code = pick_meaning_source(song, target_language)
+    if not source_text:
+        raise ValueError("No source meaning available for central-idea summary.")
+
+    context_lines = [
+        f"Song number: {song.number}",
+        f"Title: {bundle.title or ''}",
+        f"First line: {bundle.first_line or ''}",
+    ]
+    if bundle.transliteration:
+        context_lines.append(f"Transliteration (reference): {bundle.transliteration[:400]}")
+
+    return "\n".join(
+        [
+            "You write a short Central idea for a Prabhat Samgiita song for devotees.",
+            "There is no official Central idea / Purport for this song.",
+            f"Write 2–4 short sentences in {target_label} ({target_code}) using simple everyday words.",
+            "Rules:",
+            "1. Ground every sentence only in the PRIMARY meaning below — no new theology or facts.",
+            "2. Explain the heart of the song simply; do not translate line-by-line.",
+            "3. Keep a warm, clear, respectful tone.",
+            "4. Do not mention song numbers, AI, missing purport, translation, or your process.",
+            "5. Return only the Central idea prose — no title, JSON, or bullet list.",
+            "Context:",
+            "\n".join(context_lines),
+            f"PRIMARY meaning ({source_code}):",
+            source_text,
+        ]
+    )
+
+
 def build_localization_prompt(
     song: Song,
     target_language: str,
