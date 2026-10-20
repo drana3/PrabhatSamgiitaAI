@@ -9,6 +9,50 @@ export type SongMeaningSource = {
   metadata_json?: Record<string, unknown> | null
 }
 
+/** Collapse punctuation/case for near-duplicate checks (Latin + Devanagari). */
+export function proseFingerprint(text: string): string {
+  return text
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+/** Dice coefficient on character bigrams — true near-duplicates score high. */
+export function proseSimilarity(left: string, right: string): number {
+  const a = proseFingerprint(left)
+  const b = proseFingerprint(right)
+  if (!a || !b) return 0
+  if (a === b) return 1
+  if (a.length < 2 || b.length < 2) return 0
+  const counts = (s: string) => {
+    const map = new Map<string, number>()
+    for (let i = 0; i < s.length - 1; i++) {
+      const gram = s.slice(i, i + 2)
+      map.set(gram, (map.get(gram) || 0) + 1)
+    }
+    return map
+  }
+  const aGrams = counts(a)
+  const bGrams = counts(b)
+  let overlap = 0
+  for (const [gram, count] of aGrams) {
+    overlap += Math.min(count, bGrams.get(gram) || 0)
+  }
+  return (2 * overlap) / (a.length - 1 + (b.length - 1))
+}
+
+/** True when prose is the same meaning restated — not merely similar length. */
+export function isNearDuplicateProse(
+  left: string | null | undefined,
+  right: string | null | undefined,
+  threshold = 0.88,
+): boolean {
+  if (!left?.trim() || !right?.trim()) return false
+  return proseSimilarity(left, right) >= threshold
+}
+
 /** Unwrap HTML soft line-wraps; collapse bogus one-line "paragraphs" from translators. */
 export function normalizeProseBlock(text: string): string {
   const paragraphs = text
@@ -85,27 +129,13 @@ export function storedExplanationForLanguage(
   if (typeof value !== "string" || !value.trim()) return null
   const prose = normalizeProseBlock(value)
   if (!prose) return null
-  // Reject official English Central idea echoes and meaning mirrors.
+  // Reject official English Central idea echoes and true meaning mirrors.
   const official = centralIdeaText(song)
   if (official && prose === official) return null
   const meaning = englishMeaningText(song)
   const hindi = song.hindi_meaning?.trim() ? normalizeProseBlock(song.hindi_meaning) : ""
-  const fingerprint = (value: string) =>
-    value
-      .normalize("NFKC")
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-  const explFp = fingerprint(prose)
   for (const raw of [meaning, hindi]) {
-    if (!raw) continue
-    const other = fingerprint(normalizeProseBlock(raw))
-    if (!other) continue
-    if (explFp === other) return null
-    const shorter = explFp.length <= other.length ? explFp : other
-    const longer = explFp.length <= other.length ? other : explFp
-    if (longer.length >= 80 && shorter.length / longer.length >= 0.82) return null
+    if (raw && isNearDuplicateProse(prose, raw)) return null
   }
   return prose
 }

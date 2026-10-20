@@ -14,6 +14,7 @@ import {
   storedExplanationForLanguage,
   englishMeaningText,
   centralIdeaText,
+  isNearDuplicateProse,
   normalizeProseBlock,
   type SongMeaningSource,
 } from "@/lib/song-meanings"
@@ -56,26 +57,11 @@ function sameText(left: string | null | undefined, right: string | null | undefi
   return Boolean(a && b && a === b)
 }
 
-function proseFingerprint(value: string) {
-  return value
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-/** Hide "In simple words" when it is just the meaning restated. */
+/** Hide "In simple words" when it is just the meaning restated (content, not length). */
 function isMeaningMirror(explanation: string | null | undefined, ...meanings: Array<string | null | undefined>) {
-  const expl = explanation?.trim() ? proseFingerprint(explanation) : ""
-  if (!expl) return false
+  if (!explanation?.trim()) return false
   for (const meaning of meanings) {
-    const m = meaning?.trim() ? proseFingerprint(meaning) : ""
-    if (!m) continue
-    if (expl === m) return true
-    const shorter = expl.length <= m.length ? expl : m
-    const longer = expl.length <= m.length ? m : expl
-    if (longer.length >= 80 && shorter.length / longer.length >= 0.82) return true
+    if (isNearDuplicateProse(explanation, meaning)) return true
   }
   return false
 }

@@ -26,7 +26,7 @@ import { api } from "@/lib/client"
 import type { UnderstandMode } from "@/lib/lyricsMeaningPager"
 import type { SongMeaningResolution } from "@/lib/songMeanings"
 import { meaningUnavailableMessage } from "@/lib/songMeanings"
-import { normalizeProseBlock } from "@/lib/songMap"
+import { isNearDuplicateProse, normalizeProseBlock } from "@/lib/songMap"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
@@ -373,13 +373,10 @@ export function LyricsMeaningView({
         <MeaningBody language={language} meaning={meaning} />
         {localizedCentralIdea?.trim() &&
         localizedCentralIdea.trim() !== (centralIdea || "").trim() &&
-        // Never show a Central idea that is just the meaning restated.
-        normalizeProseBlock(localizedCentralIdea) !==
-          normalizeProseBlock(meaning.status === "ready" ? meaning.text : "") &&
+        // Never show a Central idea that is just the meaning restated (content, not length).
         !(
           meaning.status === "ready" &&
-          normalizeProseBlock(localizedCentralIdea).length >=
-            Math.floor(normalizeProseBlock(meaning.text).length * 0.82)
+          isNearDuplicateProse(localizedCentralIdea, meaning.text)
         ) ? (
           <View style={styles.centralIdeaBlock}>
             <Text style={styles.centralIdeaLabel}>

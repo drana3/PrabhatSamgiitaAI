@@ -193,6 +193,44 @@ export function normalizeProseBlock(text: string): string {
   return paragraphs.join("\n\n")
 }
 
+function proseFingerprint(text: string): string {
+  return text
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+/** True when prose is the same meaning restated — not merely similar length. */
+export function isNearDuplicateProse(
+  left: string | null | undefined,
+  right: string | null | undefined,
+  threshold = 0.88,
+): boolean {
+  if (!left?.trim() || !right?.trim()) return false
+  const a = proseFingerprint(left)
+  const b = proseFingerprint(right)
+  if (!a || !b) return false
+  if (a === b) return true
+  if (a.length < 2 || b.length < 2) return false
+  const counts = (s: string) => {
+    const map = new Map<string, number>()
+    for (let i = 0; i < s.length - 1; i++) {
+      const gram = s.slice(i, i + 2)
+      map.set(gram, (map.get(gram) || 0) + 1)
+    }
+    return map
+  }
+  const aGrams = counts(a)
+  const bGrams = counts(b)
+  let overlap = 0
+  for (const [gram, count] of aGrams) {
+    overlap += Math.min(count, bGrams.get(gram) || 0)
+  }
+  return (2 * overlap) / (a.length - 1 + (b.length - 1)) >= threshold
+}
+
 export function storedMeaningForLanguage(
   song: Pick<MockSong, "meaning" | "hindiMeaning" | "localizedMeanings">,
   language: string,
@@ -222,22 +260,8 @@ export function storedExplanationForLanguage(
   if (!prose) return null
   const official = song.centralIdea?.trim() ? normalizeProseBlock(song.centralIdea) : ""
   if (official && prose === official) return null
-  const fingerprint = (text: string) =>
-    text
-      .normalize("NFKC")
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-  const explFp = fingerprint(prose)
   for (const raw of [song.meaning, song.hindiMeaning]) {
-    if (!raw?.trim()) continue
-    const other = fingerprint(normalizeProseBlock(raw))
-    if (!other) continue
-    if (explFp === other) return null
-    const shorter = explFp.length <= other.length ? explFp : other
-    const longer = explFp.length <= other.length ? other : explFp
-    if (longer.length >= 80 && shorter.length / longer.length >= 0.82) return null
+    if (raw?.trim() && isNearDuplicateProse(prose, raw)) return null
   }
   return prose
 }
