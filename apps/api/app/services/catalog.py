@@ -325,7 +325,7 @@ class CatalogService:
                 timeout=5.0,
             )
             db_song = result.scalar_one_or_none()
-        except (SQLAlchemyError, TimeoutError, asyncio.TimeoutError):
+        except (SQLAlchemyError, TimeoutError):
             try:
                 await self.session.rollback()
             except Exception:
@@ -518,7 +518,7 @@ class CatalogService:
                 timeout=5.0,
             )
             return list(result.scalars().all())
-        except (SQLAlchemyError, TimeoutError, asyncio.TimeoutError):
+        except (SQLAlchemyError, TimeoutError):
             try:
                 await self.session.rollback()
             except Exception:
@@ -529,7 +529,7 @@ class CatalogService:
         seeded = notations_by_song_number().get(song_number)
         try:
             db_row = await asyncio.wait_for(self._db_notation(song_number), timeout=5.0)
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             db_row = None
         if seeded is not None:
             return _merge_notation_with_db(seeded, db_row)
@@ -601,7 +601,7 @@ class CatalogService:
             faiss_stats = get_faiss_store().stats()
             database["embedded_songs"] = int(faiss_stats["songs"])
             database["embedded_chunks"] = int(faiss_stats["chunks"])
-        except (SQLAlchemyError, TimeoutError, asyncio.TimeoutError):
+        except (SQLAlchemyError, TimeoutError):
             try:
                 await self.session.rollback()
             except Exception:

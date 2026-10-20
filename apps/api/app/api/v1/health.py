@@ -27,7 +27,7 @@ async def readiness(
     settings = get_settings()
     try:
         stats = await asyncio.wait_for(CatalogService(session).statistics(), timeout=6.0)
-    except (TimeoutError, asyncio.TimeoutError, Exception):
+    except (TimeoutError, Exception):
         # Neon stalls must not hang Container Apps readiness / mobile song loads.
         return {
             "status": "degraded",
