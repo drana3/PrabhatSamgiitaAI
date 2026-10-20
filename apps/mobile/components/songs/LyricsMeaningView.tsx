@@ -81,8 +81,10 @@ type Props = {
   language: string
   localizing: boolean
   meaning: SongMeaningResolution
-  /** Official Central idea / Purport when present. */
+  /** Official Central idea / Purport when present (English source). */
   centralIdea?: string | null
+  /** Translated Central idea for the selected meaning language. */
+  localizedCentralIdea?: string | null
   onSelectLanguage: (code: string) => void
 }
 
@@ -190,6 +192,7 @@ export function LyricsMeaningView({
   language,
   localizing,
   centralIdea,
+  localizedCentralIdea,
   meaning,
   onSelectLanguage,
 }: Props) {
@@ -352,9 +355,31 @@ export function LyricsMeaningView({
           </View>
         ) : null}
         <MeaningBody language={language} meaning={meaning} />
-        {centralIdea?.trim() ? (
+        {localizedCentralIdea?.trim() &&
+        localizedCentralIdea.trim() !== (centralIdea || "").trim() ? (
           <View style={styles.centralIdeaBlock}>
-            <Text style={styles.centralIdeaLabel}>Central idea</Text>
+            <Text style={styles.centralIdeaLabel}>
+              {localeLabel(language)} · Central idea
+            </Text>
+            <Text style={styles.body}>{localizedCentralIdea.trim()}</Text>
+          </View>
+        ) : null}
+        {centralIdea?.trim() ? (
+          <View
+            style={[
+              styles.centralIdeaBlock,
+              localizedCentralIdea?.trim() &&
+              localizedCentralIdea.trim() !== centralIdea.trim()
+                ? styles.centralIdeaFollowUp
+                : null,
+            ]}
+          >
+            <Text style={styles.centralIdeaLabel}>
+              {localizedCentralIdea?.trim() &&
+              localizedCentralIdea.trim() !== centralIdea.trim()
+                ? "Central idea (English)"
+                : "Central idea"}
+            </Text>
             <Text style={styles.body}>{centralIdea.trim()}</Text>
           </View>
         ) : null}
@@ -543,6 +568,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: spacing.xs,
+  },
+  centralIdeaFollowUp: {
+    borderTopWidth: 0,
+    paddingTop: spacing.sm,
+    marginTop: spacing.sm,
   },
   centralIdeaLabel: {
     ...typography.label,

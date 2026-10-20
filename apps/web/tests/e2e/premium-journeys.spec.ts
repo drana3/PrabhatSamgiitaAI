@@ -323,10 +323,13 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await expect(hindiMeaningArticle).toBeVisible({ timeout: 20000 })
   await expect(englishMeaningArticle).toBeVisible()
   const centralIdeaArticle = page.locator("#meaning article").filter({
-    has: page.locator("p").filter({ hasText: /^Central idea$/ }),
+    has: page.locator("p").filter({ hasText: /^Central idea/ }),
   })
-  await expect(centralIdeaArticle).toBeVisible()
-  await expect(page.locator("#meaning article")).toHaveCount(3)
+  await expect(centralIdeaArticle.first()).toBeVisible()
+  // Hindi meaning + English + Central idea (+ optional translated Central idea)
+  const meaningArticleCount = await page.locator("#meaning article").count()
+  expect(meaningArticleCount).toBeGreaterThanOrEqual(3)
+  expect(meaningArticleCount).toBeLessThanOrEqual(4)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(translationScroll)
 
   await expect(page.locator("#lyrics")).toBeVisible()

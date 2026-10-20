@@ -27,6 +27,8 @@ export type MockSong = {
   hindiMeaning?: string | null
   /** Admin-approved meanings keyed by language code (e.g. bn, ta). */
   localizedMeanings?: Record<string, string>
+  /** Cached Central idea translations keyed by language code. */
+  localizedExplanations?: Record<string, string>
   lyrics: string
   /** Roman transliteration when available from the catalog. */
   transliteration?: string | null

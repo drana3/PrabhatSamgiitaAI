@@ -71,16 +71,29 @@ export function routeString(value: string | string[] | undefined): string | unde
   return undefined
 }
 
-function readLocalizedMeanings(metadata: Record<string, unknown> | undefined): Record<string, string> {
-  const raw = metadata?.localized_meanings
+function readLocalizedStringMap(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+): Record<string, string> {
+  const raw = metadata?.[key]
   if (!raw || typeof raw !== "object") return {}
-  const meanings: Record<string, string> = {}
+  const out: Record<string, string> = {}
   for (const [code, text] of Object.entries(raw)) {
     if (typeof text === "string" && text.trim()) {
-      meanings[code.toLowerCase()] = text.trim()
+      out[code.toLowerCase()] = text.trim()
     }
   }
-  return meanings
+  return out
+}
+
+function readLocalizedMeanings(metadata: Record<string, unknown> | undefined): Record<string, string> {
+  return readLocalizedStringMap(metadata, "localized_meanings")
+}
+
+function readLocalizedExplanations(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, string> {
+  return readLocalizedStringMap(metadata, "localized_explanations")
 }
 
 export function isEnglishSongLanguage(value: string | null | undefined) {
@@ -119,6 +132,16 @@ export function storedMeaningForLanguage(
   if (code === "en") return song.meaning?.trim() || null
   if (code === "hi") return song.hindiMeaning?.trim() || null
   return song.localizedMeanings?.[code] ?? null
+}
+
+export function storedExplanationForLanguage(
+  song: Pick<MockSong, "localizedExplanations">,
+  language: string,
+): string | null {
+  const code = language.trim().toLowerCase()
+  if (!code || code === "en") return null
+  const value = song.localizedExplanations?.[code]
+  return typeof value === "string" && value.trim() ? value.trim() : null
 }
 
 export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong {
@@ -206,6 +229,7 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     })(),
     hindiMeaning: detail.hindi_meaning?.trim() || null,
     localizedMeanings: readLocalizedMeanings(detail.metadata_json),
+    localizedExplanations: readLocalizedExplanations(detail.metadata_json),
     lyrics: romanClean || detail.first_line || detail.title,
     transliteration: detail.transliteration?.trim() || null,
     lyricsDevanagari,

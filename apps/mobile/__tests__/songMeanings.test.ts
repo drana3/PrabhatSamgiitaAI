@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { MockSong } from "@/data/mock"
-import { storedMeaningForLanguage } from "@/lib/songMap"
+import { storedExplanationForLanguage, storedMeaningForLanguage } from "@/lib/songMap"
 import { meaningUnavailableMessage, resolveSongMeaning } from "@/lib/songMeanings"
 
 const song: MockSong = {
@@ -15,6 +15,7 @@ const song: MockSong = {
   meaning: "English meaning",
   hindiMeaning: "हिन्दी अर्थ",
   localizedMeanings: { bn: "বাংলা অর্থ" },
+  localizedExplanations: { es: "Idea central en español" },
   lyrics: "Lyrics",
   translation: "Translation",
   durationSeconds: 300,
@@ -27,6 +28,14 @@ describe("storedMeaningForLanguage", () => {
     expect(storedMeaningForLanguage(song, "hi")).toBe("हिन्दी अर्थ")
     expect(storedMeaningForLanguage(song, "bn")).toBe("বাংলা অর্থ")
     expect(storedMeaningForLanguage(song, "ta")).toBeNull()
+  })
+})
+
+describe("storedExplanationForLanguage", () => {
+  it("returns cached Central idea translations", () => {
+    expect(storedExplanationForLanguage(song, "es")).toBe("Idea central en español")
+    expect(storedExplanationForLanguage(song, "en")).toBeNull()
+    expect(storedExplanationForLanguage(song, "hi")).toBeNull()
   })
 })
 

@@ -64,3 +64,16 @@ export function storedMeaningForLanguage(song: SongMeaningSource, language: stri
 export function hasStoredMeaningForLanguage(song: SongMeaningSource, language: string): boolean {
   return Boolean(storedMeaningForLanguage(song, language))
 }
+
+/** Cached Central idea translation from metadata_json.localized_explanations. */
+export function storedExplanationForLanguage(
+  song: SongMeaningSource,
+  language: string,
+): string | null {
+  const code = language.trim().toLowerCase()
+  if (!code || code === "en") return null
+  const explanations = song.metadata_json?.localized_explanations
+  if (!explanations || typeof explanations !== "object") return null
+  const value = (explanations as Record<string, unknown>)[code]
+  return typeof value === "string" && value.trim() ? normalizeProseBlock(value) : null
+}

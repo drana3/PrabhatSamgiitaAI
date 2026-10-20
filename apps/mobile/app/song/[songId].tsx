@@ -34,7 +34,12 @@ import { listenQueueForSong } from "@/lib/playbackQueue"
 import { resolveSongBundle, peekResolvedSong } from "@/lib/songs"
 import { fetchSongMeaningLocalization } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
-import { parseSongNumber, storedMeaningForLanguage, routeString } from "@/lib/songMap"
+import {
+  parseSongNumber,
+  storedExplanationForLanguage,
+  storedMeaningForLanguage,
+  routeString,
+} from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
 import { practiceLyricSource, isSargamEnabledForSong } from "@/lib/sargamDisplay"
 import { prefetchScenicForSong } from "@/lib/scenicPrefetch"
@@ -77,6 +82,7 @@ export default function SongDetailScreen() {
   const [language, setLanguage] = useState("en")
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
+  const [localizedCentralIdea, setLocalizedCentralIdea] = useState<string | null>(null)
   const [localizing, setLocalizing] = useState(false)
   const [journey, setJourney] = useState<SongJourneyTab>("understand")
   const [watchPlaying, setWatchPlaying] = useState(false)
@@ -85,7 +91,9 @@ export default function SongDetailScreen() {
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
   const lastAiOpenAt = useRef(0)
-  const meaningCache = useRef<Record<string, { meaning: string | null; title: string | null }>>({})
+  const meaningCache = useRef<
+    Record<string, { meaning: string | null; title: string | null; explanation: string | null }>
+  >({})
 
   const selectLanguage = useCallback(
     (code: string) => {
@@ -97,29 +105,40 @@ export default function SongDetailScreen() {
       if (code === "en") {
         setLocalizedMeaning(null)
         setLocalizedTitle(null)
+        setLocalizedCentralIdea(null)
         setLocalizing(false)
         return
       }
+      const storedExpl = storedExplanationForLanguage(song, code)
+      setLocalizedCentralIdea(storedExpl)
+      const remembered = meaningCache.current[code]
       const stored = storedMeaningForLanguage(song, code)
       if (stored) {
         setLocalizedMeaning(stored)
         setLocalizedTitle(null)
-        setLocalizing(false)
+        if (remembered?.explanation && !storedExpl) {
+          setLocalizedCentralIdea(remembered.explanation)
+        }
+        const needsExpl = Boolean(song.centralIdea?.trim()) && !storedExpl && !remembered?.explanation
+        setLocalizing(needsExpl)
         return
       }
-      const remembered = meaningCache.current[code]
       if (remembered) {
         setLocalizedMeaning(remembered.meaning)
         setLocalizedTitle(remembered.title)
+        if (!storedExpl) setLocalizedCentralIdea(remembered.explanation)
         setLocalizing(false)
         return
       }
       const peeked = peekSongLocalization(song.number, localeLabel(code))
       const peekedText = peeked?.localized_meaning?.trim() || ""
+      const peekedExpl = peeked?.localized_explanation?.trim() || ""
       if (peekedText) {
         setLocalizedMeaning(peekedText)
         setLocalizedTitle(peeked.localized_title ?? null)
-        setLocalizing(false)
+        if (peekedExpl && !storedExpl) setLocalizedCentralIdea(peekedExpl)
+        const needsExpl = Boolean(song.centralIdea?.trim()) && !storedExpl && !peekedExpl
+        setLocalizing(needsExpl)
         return
       }
       setLocalizing(true)
@@ -137,6 +156,7 @@ export default function SongDetailScreen() {
     setLanguage("en")
     setLocalizedMeaning(null)
     setLocalizedTitle(null)
+    setLocalizedCentralIdea(null)
     setLocalizing(false)
 
     const peeked = peekResolvedSong(typeof songId === "string" ? songId : undefined)
@@ -312,59 +332,96 @@ export default function SongDetailScreen() {
     if (language === "en") {
       setLocalizedMeaning(null)
       setLocalizedTitle(null)
+      setLocalizedCentralIdea(null)
       setLocalizing(false)
       return
     }
+    const englishIdea = song.centralIdea?.trim() || ""
+    const storedExpl = storedExplanationForLanguage(song, language)
+    setLocalizedCentralIdea(storedExpl)
+
     const curated = storedMeaningForLanguage(song, language)
+    const remembered = meaningCache.current[language]
+    const peeked = peekSongLocalization(song.number, localeLabel(language))
+    const peekedMeaning = peeked?.localized_meaning?.trim() || ""
+    const peekedExpl = peeked?.localized_explanation?.trim() || ""
+
     if (curated) {
       setLocalizedMeaning(curated)
       setLocalizedTitle(null)
-      setLocalizing(false)
-      return
-    }
-    const remembered = meaningCache.current[language]
-    if (remembered) {
+      if (!storedExpl && remembered?.explanation) setLocalizedCentralIdea(remembered.explanation)
+      else if (!storedExpl && peekedExpl) setLocalizedCentralIdea(peekedExpl)
+    } else if (remembered) {
       setLocalizedMeaning(remembered.meaning)
       setLocalizedTitle(remembered.title)
-      setLocalizing(false)
-      return
-    }
-    const peeked = peekSongLocalization(song.number, localeLabel(language))
-    if (peeked?.localized_meaning?.trim()) {
+      if (!storedExpl) setLocalizedCentralIdea(remembered.explanation)
+    } else if (peekedMeaning) {
       const english = song.meaning?.trim() || ""
-      const translated = peeked.localized_meaning.trim()
-      const meaning = translated !== english ? translated : null
-      meaningCache.current[language] = { meaning, title: peeked.localized_title ?? null }
-      setLocalizedMeaning(meaning)
-      setLocalizedTitle(peeked.localized_title ?? null)
-      setLocalizing(false)
-      return
-    }
-    let active = true
-    setLocalizing(true)
-    void fetchSongMeaningLocalization(song.number, language).then((result) => {
-      if (!active) return
-      setLocalizing(false)
-      if (!result) {
-        setLocalizedMeaning(null)
-        setLocalizedTitle(null)
-        return
-      }
-      const english = song.meaning?.trim() || ""
-      const translated = result.localized_meaning?.trim() || ""
-      const meaning = translated && translated !== english ? translated : null
+      const meaning = peekedMeaning !== english ? peekedMeaning : null
+      const explanation =
+        peekedExpl && peekedExpl !== englishIdea ? peekedExpl : storedExpl
       meaningCache.current[language] = {
         meaning,
-        title: result.localized_title ?? null,
+        title: peeked.localized_title ?? null,
+        explanation,
       }
       setLocalizedMeaning(meaning)
-      setLocalizedTitle(result.localized_title ?? null)
-    }).catch(() => {
-      if (!active) return
+      setLocalizedTitle(peeked.localized_title ?? null)
+      if (!storedExpl) setLocalizedCentralIdea(explanation)
+    }
+
+    const hasMeaning = Boolean(curated || remembered || peekedMeaning)
+    const hasExpl =
+      Boolean(storedExpl) ||
+      Boolean(remembered?.explanation) ||
+      Boolean(peekedExpl) ||
+      !englishIdea
+    if (hasMeaning && hasExpl) {
       setLocalizing(false)
-      setLocalizedMeaning(null)
-      setLocalizedTitle(null)
-    })
+      return
+    }
+
+    let active = true
+    setLocalizing(true)
+    void fetchSongMeaningLocalization(song.number, language)
+      .then((result) => {
+        if (!active) return
+        setLocalizing(false)
+        if (!result) {
+          if (!hasMeaning) {
+            setLocalizedMeaning(null)
+            setLocalizedTitle(null)
+          }
+          return
+        }
+        const english = song.meaning?.trim() || ""
+        const translated = result.localized_meaning?.trim() || ""
+        const meaning = translated && translated !== english ? translated : null
+        const explRaw = result.localized_explanation?.trim() || ""
+        const explanation = explRaw && explRaw !== englishIdea ? explRaw : storedExpl
+        meaningCache.current[language] = {
+          meaning: hasMeaning
+            ? curated || remembered?.meaning || (peekedMeaning !== english ? peekedMeaning : null)
+            : meaning,
+          title: hasMeaning
+            ? remembered?.title ?? (peekedMeaning ? peeked?.localized_title ?? null : null)
+            : result.localized_title ?? null,
+          explanation,
+        }
+        if (!hasMeaning) {
+          setLocalizedMeaning(meaning)
+          setLocalizedTitle(result.localized_title ?? null)
+        }
+        if (explanation) setLocalizedCentralIdea(explanation)
+      })
+      .catch(() => {
+        if (!active) return
+        setLocalizing(false)
+        if (!hasMeaning) {
+          setLocalizedMeaning(null)
+          setLocalizedTitle(null)
+        }
+      })
     return () => {
       active = false
     }
@@ -714,6 +771,7 @@ export default function SongDetailScreen() {
             localizing={localizing}
             meaning={meaningResolution}
             centralIdea={song.centralIdea}
+            localizedCentralIdea={localizedCentralIdea}
             onSelectLanguage={selectLanguage}
           />
         </View>

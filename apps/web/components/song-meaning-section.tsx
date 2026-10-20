@@ -10,6 +10,7 @@ import { localeLabel } from "@/lib/languages"
 import {
   hasStoredMeaningForLanguage,
   storedMeaningForLanguage,
+  storedExplanationForLanguage,
   englishMeaningText,
   centralIdeaText,
   type SongMeaningSource,
@@ -65,6 +66,7 @@ export function SongMeaningSection({
 }) {
   const [language, setLanguage] = useState(initialLanguage)
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
+  const [localizedExplanation, setLocalizedExplanation] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
@@ -73,15 +75,36 @@ export function SongMeaningSection({
     setLanguage(initialLanguage)
   }, [initialLanguage])
 
+  const englishCentralIdea = centralIdeaText(song)
+
   const handleLanguageChange = (nextLanguage: string) => {
     setLanguage(nextLanguage)
     setLocalizedMeaning(null)
+    setLocalizedExplanation(storedExplanationForLanguage(song, nextLanguage))
     setError(null)
-    setLoading(nextLanguage !== "en" && !hasStoredMeaningForLanguage(song, nextLanguage))
+    const needsMeaning = nextLanguage !== "en" && !hasStoredMeaningForLanguage(song, nextLanguage)
+    const needsExplanation =
+      nextLanguage !== "en" &&
+      Boolean(englishCentralIdea) &&
+      !storedExplanationForLanguage(song, nextLanguage)
+    setLoading(needsMeaning || needsExplanation)
   }
 
   useEffect(() => {
-    if (language === "en" || hasStoredMeaningForLanguage(song, language)) {
+    if (language === "en") {
+      setLocalizedMeaning(null)
+      setLocalizedExplanation(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    const storedExpl = storedExplanationForLanguage(song, language)
+    setLocalizedExplanation(storedExpl)
+
+    const needsMeaning = !hasStoredMeaningForLanguage(song, language)
+    const needsExplanation = Boolean(englishCentralIdea) && !storedExpl
+    if (!needsMeaning && !needsExplanation) {
       setLocalizedMeaning(null)
       setLoading(false)
       setError(null)
@@ -91,7 +114,7 @@ export function SongMeaningSection({
     const currentRequest = ++requestId.current
     setLoading(true)
     setError(null)
-    setLocalizedMeaning(null)
+    if (needsMeaning) setLocalizedMeaning(null)
 
     void fetchSongLocalization(songNumber, localeLabel(language))
       .then((result) => {
@@ -99,32 +122,45 @@ export function SongMeaningSection({
         const meaning = result?.localized_meaning?.trim() || null
         const english = englishMeaningText(song)
         const usable = meaning && meaning !== english ? meaning : null
-        setLocalizedMeaning(usable)
-        if (!usable) {
-          setError(meaningUnavailableMessage(language))
+        if (needsMeaning) {
+          setLocalizedMeaning(usable)
+          if (!usable) setError(meaningUnavailableMessage(language))
+        }
+        const explanation = result?.localized_explanation?.trim() || null
+        if (explanation && !sameText(explanation, englishCentralIdea)) {
+          setLocalizedExplanation(explanation)
         }
       })
       .catch(() => {
         if (currentRequest !== requestId.current) return
-        setError(meaningUnavailableMessage(language))
+        if (needsMeaning) setError(meaningUnavailableMessage(language))
       })
       .finally(() => {
         if (currentRequest === requestId.current) {
           setLoading(false)
         }
       })
-  }, [language, song, songNumber])
+  }, [language, song, songNumber, englishCentralIdea])
 
   const selectedMeaning = selectedMeaningForLanguage(song, language, localizedMeaning)
   const english = englishMeaningText(song)
-  const centralIdea = centralIdeaText(song)
-  const hasMeaning = Boolean(selectedMeaning || english || song.hindi_meaning || centralIdea)
+  const translatedCentralIdea =
+    language !== "en" && localizedExplanation && !sameText(localizedExplanation, englishCentralIdea)
+      ? localizedExplanation
+      : null
+  const hasMeaning = Boolean(
+    selectedMeaning || english || song.hindi_meaning || englishCentralIdea,
+  )
 
   if (!hasMeaning) return null
 
   const meaningLabel = language === "en" ? "English" : `${localeLabel(language)} meaning`
   const copyText =
-    [selectedMeaning || english || song.hindi_meaning?.trim(), centralIdea]
+    [
+      selectedMeaning || english || song.hindi_meaning?.trim(),
+      translatedCentralIdea,
+      englishCentralIdea,
+    ]
       .filter(Boolean)
       .join("\n\n") || ""
 
@@ -153,7 +189,16 @@ export function SongMeaningSection({
       {language !== "hi" && !english ? (
         <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
       ) : null}
-      <MeaningBlock label="Central idea" value={centralIdea || null} />
+      {translatedCentralIdea ? (
+        <MeaningBlock
+          label={`${localeLabel(language)} · Central idea`}
+          value={translatedCentralIdea}
+        />
+      ) : null}
+      <MeaningBlock
+        label={translatedCentralIdea ? "Central idea (English)" : "Central idea"}
+        value={englishCentralIdea || null}
+      />
       {!loading ? <CopyTextButton text={copyText} label="Copy meaning" /> : null}
     </section>
   )

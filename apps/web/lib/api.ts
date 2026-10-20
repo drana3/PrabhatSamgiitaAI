@@ -170,6 +170,7 @@ const songLocalizationSchema = z.object({
   localized_first_line: z.string().nullable().optional(),
   localized_meaning: z.string().nullable().optional(),
   localized_explanation: z.string().nullable().optional(),
+  provider: z.string().nullable().optional(),
 })
 
 export type SongSummary = z.output<typeof songSummarySchema>
