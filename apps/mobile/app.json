@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "129",
+      "buildNumber": "130",
       "associatedDomains": [
         "applinks:www.prabhatasamgiita.org"
       ],
