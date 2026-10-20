@@ -1,7 +1,15 @@
 import type { SongSummary } from "@prabhat/core"
 import { describe, expect, it } from "vitest"
 
-import { parseSongNumber, routeString, songSummaryToMockSong, englishMeaningFromDetail } from "@/lib/songMap"
+import {
+  parseSongNumber,
+  routeString,
+  songSummaryToMockSong,
+  englishMeaningFromDetail,
+  lyricsTextFromDetail,
+  songDetailToMockSong,
+} from "@/lib/songMap"
+import { apiSongDetail } from "./helpers/apiSongDetail"
 import { todayHeadline, todayModeLabel, todaySummary } from "@/lib/today"
 
 describe("song mappers", () => {
@@ -55,6 +63,44 @@ describe("song mappers", () => {
         theme: "Devotion",
       }),
     ).toBe("Devotion")
+  })
+
+  it("uses english_meaning as lyrics for English songs when lyric columns are empty", () => {
+    const poem = "I love this tiny green island\nsurrounded by the sea."
+    expect(
+      lyricsTextFromDetail({
+        language: "English",
+        lyrics_original: null,
+        transliteration: null,
+        english_meaning: poem,
+        first_line: "I love this tiny green island",
+      }),
+    ).toBe(poem)
+    expect(
+      englishMeaningFromDetail({
+        language: "English",
+        lyrics_original: null,
+        english_meaning: poem,
+        theme: "Nature",
+        central_idea: "The Great is with me.",
+      }),
+    ).toBe("The Great is with me.")
+  })
+
+  it("hides Devanagari for English songs even when the API sends a phonetic script", () => {
+    const song = songDetailToMockSong({
+      ...apiSongDetail(68),
+      language: "English",
+      first_line: "I love this tiny green island",
+      title: "I love this tiny green island",
+      lyrics_original: null,
+      english_meaning: "I love this tiny green island\nsurrounded by the sea.",
+      lyrics_devanagari: "आइ लव दिस टाइनी ग्रीन आइलैण्ड",
+      devanagari_status: "provisional",
+    })
+    expect(song.lyrics).toContain("surrounded by the sea")
+    expect(song.lyricsDevanagari).toBeNull()
+    expect(song.devanagariStatus).toBe("none")
   })
 })
 

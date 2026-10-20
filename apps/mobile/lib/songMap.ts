@@ -101,16 +101,57 @@ export function isEnglishSongLanguage(value: string | null | undefined) {
   return token.includes("english") || token === "en" || token === "eng"
 }
 
+/** English catalog songs often store the poem only in english_meaning. */
+export function lyricsTextFromDetail(detail: {
+  lyrics_original?: string | null
+  transliteration?: string | null
+  english_meaning?: string | null
+  language?: string | null
+  first_line?: string | null
+  title?: string | null
+}): string {
+  const original = detail.lyrics_original?.trim() || ""
+  if (original) return original
+  const translit = detail.transliteration?.trim() || ""
+  if (translit) return translit
+  if (isEnglishSongLanguage(detail.language)) {
+    const poem = detail.english_meaning?.trim() || ""
+    if (poem) return poem
+  }
+  return detail.first_line?.trim() || detail.title?.trim() || ""
+}
+
 export function englishMeaningFromDetail(detail: {
   english_meaning?: string | null
   language?: string | null
   lyrics_original?: string | null
+  transliteration?: string | null
   first_line?: string | null
   title?: string | null
   meditation_context?: string | null
   theme?: string | null
+  central_idea?: string | null
+  metadata_json?: Record<string, unknown> | null
 }) {
-  const curated = detail.english_meaning?.trim()
+  const curated = detail.english_meaning?.trim() || ""
+  const hasLyricColumns = Boolean(
+    detail.lyrics_original?.trim() || detail.transliteration?.trim(),
+  )
+  // When the English poem lives only in english_meaning, that text is the lyric —
+  // Meaning should prefer Central idea / theme instead of repeating the poem.
+  if (isEnglishSongLanguage(detail.language) && curated && !hasLyricColumns) {
+    const purport =
+      detail.central_idea?.trim() ||
+      (typeof detail.metadata_json?.purport === "string"
+        ? detail.metadata_json.purport.trim()
+        : "")
+    return (
+      purport ||
+      detail.meditation_context?.trim() ||
+      detail.theme?.trim() ||
+      "A song from the Prabhat Samgiita collection."
+    )
+  }
   if (curated) return curated
   if (isEnglishSongLanguage(detail.language)) {
     const lyrics =
@@ -206,16 +247,17 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     thumbnailUrl: item.thumbnailUrl,
   }))
 
-  const { lyrics: romanClean, theme: peeledTheme } = extractTrailingEnglishTheme(
-    detail.lyrics_original || detail.transliteration || "",
-  )
+  const lyricSource = lyricsTextFromDetail(detail)
+  const { lyrics: romanClean, theme: peeledTheme } = extractTrailingEnglishTheme(lyricSource)
   const meta = detail.metadata_json ?? {}
   const officialTheme =
     (typeof meta.official_theme_label === "string" && meta.official_theme_label.trim()) ||
     peeledTheme ||
     detail.theme?.trim() ||
     null
-  let lyricsDevanagari = detail.lyrics_devanagari?.trim() || null
+  const englishSong = isEnglishSongLanguage(detail.language)
+  // Phonetic Devanagari of English verse is not useful — keep Roman only.
+  let lyricsDevanagari = englishSong ? null : detail.lyrics_devanagari?.trim() || null
   if (peeledTheme && lyricsDevanagari) {
     const romanN = romanClean.split("\n").filter((ln) => ln.trim()).length
     const devN = lyricsDevanagari.split("\n").filter((ln) => ln.trim()).length
@@ -226,6 +268,13 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
   const themes = [officialTheme || detail.theme, detail.mood, detail.occasion].filter(
     Boolean,
   ) as string[]
+  const centralIdea = (() => {
+    const raw =
+      detail.central_idea?.trim() ||
+      (typeof meta.purport === "string" ? meta.purport.trim() : "") ||
+      ""
+    return raw ? normalizeProseBlock(raw) : null
+  })()
 
   return {
     id: `ps-${detail.number}`,
@@ -239,20 +288,15 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     thumbnailUrl: thumb,
     themes: themes.length ? themes : ["Prabhat Samgiita"],
     meaning: englishMeaningFromDetail(detail),
-    centralIdea: (() => {
-      const raw =
-        detail.central_idea?.trim() ||
-        (typeof meta.purport === "string" ? meta.purport.trim() : "") ||
-        ""
-      return raw ? normalizeProseBlock(raw) : null
-    })(),
+    centralIdea,
     hindiMeaning: detail.hindi_meaning?.trim() || null,
     localizedMeanings: readLocalizedMeanings(detail.metadata_json),
     localizedExplanations: readLocalizedExplanations(detail.metadata_json),
     lyrics: romanClean || detail.first_line || detail.title,
+    language: detail.language?.trim() || null,
     transliteration: detail.transliteration?.trim() || null,
     lyricsDevanagari,
-    devanagariStatus: detail.devanagari_status || "none",
+    devanagariStatus: englishSong ? "none" : detail.devanagari_status || "none",
     translation: detail.english_meaning || detail.hindi_meaning || detail.first_line || detail.title,
     durationSeconds: 300,
     performer: "Prabhat Samgiita Collection",

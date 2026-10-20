@@ -207,9 +207,10 @@ export function LyricsMeaningView({
   const [reportNote, setReportNote] = useState("")
   const [reportBusy, setReportBusy] = useState(false)
   const hasDevanagari = Boolean(lyricsDevanagari?.trim())
+  const activeScript = hasDevanagari ? script : "roman"
   const activeLyrics =
-    script === "devanagari" && hasDevanagari ? lyricsDevanagari!.trim() : lyrics
-  const badge = script === "devanagari" ? statusLabel(devanagariStatus) : ""
+    activeScript === "devanagari" && hasDevanagari ? lyricsDevanagari!.trim() : lyrics
+  const badge = activeScript === "devanagari" ? statusLabel(devanagariStatus) : ""
 
   async function sendDevanagariReport() {
     if (authMode === "guest") {
@@ -273,7 +274,7 @@ export function LyricsMeaningView({
                 { id: "devanagari" as const, label: "Devanagari" },
               ] as const
             ).map((item) => {
-              const active = script === item.id
+              const active = activeScript === item.id
               return (
                 <Pressable
                   key={item.id}
@@ -298,7 +299,7 @@ export function LyricsMeaningView({
                 {badge}
               </Text>
             ) : null}
-            {script === "devanagari" ? (
+            {activeScript === "devanagari" ? (
               <>
                 <Text style={styles.disclaimerInline}>May contain mistakes.</Text>
                 <Pressable
@@ -313,7 +314,7 @@ export function LyricsMeaningView({
             ) : null}
           </View>
         ) : null}
-        {script === "devanagari" && hasDevanagari && reportOpen ? (
+        {activeScript === "devanagari" && hasDevanagari && reportOpen ? (
           <View style={styles.reportBox}>
             <TextInput
               value={reportNote}

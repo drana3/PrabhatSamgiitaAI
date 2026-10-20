@@ -30,6 +30,8 @@ export type MockSong = {
   /** Cached Central idea translations keyed by language code. */
   localizedExplanations?: Record<string, string>
   lyrics: string
+  /** Catalog language label (e.g. English, Roman, Bengali). */
+  language?: string | null
   /** Roman transliteration when available from the catalog. */
   transliteration?: string | null
   /** Devanagari lyrics (rule-based or approved), when available. */

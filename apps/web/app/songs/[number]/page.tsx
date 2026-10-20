@@ -45,8 +45,16 @@ export default async function SongPage({ params, searchParams }: { params: Promi
   const initialNotation = notationOn ? localTransposedNotation(song.number) ?? submittedNotation : null
   const audio = listSongAudio(song.media)
   const videos = song.media.filter((item) => item.kind === "video" && item.embed_url)
-  const lyrics = song.lyrics_original?.trim() || song.transliteration?.trim() || null
+  const isEnglishSong = Boolean(song.language?.toLowerCase().includes("english"))
+  const lyrics =
+    song.lyrics_original?.trim() ||
+    song.transliteration?.trim() ||
+    // English songs often store the poem only in english_meaning (e.g. PS 68).
+    (isEnglishSong ? song.english_meaning?.trim() || null : null)
   const hasLyrics = Boolean(lyrics)
+  // Phonetic Devanagari of English verse is not useful.
+  const lyricsDevanagari = isEnglishSong ? null : song.lyrics_devanagari
+  const lyricsDevanagariStatus = isEnglishSong ? "none" : song.devanagari_status
   const hasMeaning = Boolean(englishMeaningText(song) || song.hindi_meaning)
   const details = [
     ["Theme", song.theme],
@@ -91,8 +99,8 @@ export default async function SongPage({ params, searchParams }: { params: Promi
                 <LyricsScriptToggle
                   songNumber={song.number}
                   roman={lyrics ?? ""}
-                  devanagari={song.lyrics_devanagari}
-                  status={song.devanagari_status}
+                  devanagari={lyricsDevanagari}
+                  status={lyricsDevanagariStatus}
                 />
                 {notationOn && song.sargam_attribution && submittedNotation?.notation.lines.length ? (
                   <div className="mt-5 space-y-3 rounded-2xl border border-gold-500/25 bg-white p-4">
