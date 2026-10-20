@@ -7,7 +7,7 @@ import { CopyTextButton } from "@/components/copy-text-button"
 import { SongLanguageSwitcher } from "@/components/song-language-switcher"
 import { fetchSongLocalization } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
-import { scrollToSectionId } from "@/lib/scroll-to-section"
+import { scrollToSectionId, stickyHeaderOffset } from "@/lib/scroll-to-section"
 import {
   hasStoredMeaningForLanguage,
   storedMeaningForLanguage,
@@ -19,25 +19,29 @@ import {
   type SongMeaningSource,
 } from "@/lib/song-meanings"
 
-/** Stay on lyrics — never scroll down toward Listen after translation / Central idea. */
-function keepLyricsInView() {
+/** Prefer #lyrics in the URL without forcing a scroll jump. */
+function ensureLyricsHash() {
   if (typeof window === "undefined") return
-  if (window.location.hash !== "#lyrics") {
-    const { pathname, search } = window.location
-    window.history.replaceState(window.history.state, "", `${pathname}${search}#lyrics`)
-  }
-  scrollToSectionId("lyrics", { behavior: "auto" })
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => scrollToSectionId("lyrics", { behavior: "auto" }))
-  })
+  if (window.location.hash === "#lyrics") return
+  const { pathname, search } = window.location
+  window.history.replaceState(window.history.state, "", `${pathname}${search}#lyrics`)
 }
 
-function restoreScrollY(y: number) {
+/**
+ * Stay on lyrics after a meaning language switch — but only scroll when lyrics
+ * have actually left the viewport. Blind scrollTo + rAF was bouncing the page
+ * to Listen and back while “Central idea generation in progress” reflowed.
+ */
+function keepLyricsInView() {
   if (typeof window === "undefined") return
-  window.scrollTo({ top: y, behavior: "auto" })
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" }))
-  })
+  ensureLyricsHash()
+  const lyrics = document.getElementById("lyrics")
+  if (!lyrics) return
+  const top = lyrics.getBoundingClientRect().top
+  const header = stickyHeaderOffset()
+  // Already near the lyrics band — leave scroll alone.
+  if (top >= header - 16 && top <= header + 160) return
+  scrollToSectionId("lyrics", { behavior: "auto" })
 }
 
 function MeaningBlock({ label, value }: { label: string; value?: string | null }) {
@@ -153,27 +157,30 @@ export function SongMeaningSection({
   const officialCentralIdea = centralIdeaText(song)
 
   const handleLanguageChange = (nextLanguage: string) => {
-    pinLyricsAfterMeaning.current = true
+    const needsMeaning = nextLanguage !== "en" && !hasStoredMeaningForLanguage(song, nextLanguage)
+    const storedExpl = storedExplanationForLanguage(song, nextLanguage)
+    const needsExplanation =
+      !storedExpl && !(nextLanguage === "en" && Boolean(officialCentralIdea))
+    // Only re-pin after meaning paint — never for CI-only generate (that caused Listen flash).
+    pinLyricsAfterMeaning.current = needsMeaning
     setLanguage(nextLanguage)
     setLocalizedMeaning(null)
-    const storedExpl = storedExplanationForLanguage(song, nextLanguage)
     setLocalizedExplanation(storedExpl)
     setExplanationKind(
       storedExpl ? (officialCentralIdea ? "official" : "generated") : null,
     )
     setError(null)
     setCentralIdeaUnavailable(false)
-    const needsMeaning = nextLanguage !== "en" && !hasStoredMeaningForLanguage(song, nextLanguage)
-    const needsExplanation =
-      !storedExpl && !(nextLanguage === "en" && Boolean(officialCentralIdea))
     setLoadingMeaning(needsMeaning || (needsExplanation && Boolean(officialCentralIdea)))
     setCentralIdeaPending(needsExplanation && !officialCentralIdea)
-    keepLyricsInView()
+    ensureLyricsHash()
+    if (needsMeaning) keepLyricsInView()
   }
 
   useEffect(() => {
     if (loadingMeaning || !pinLyricsAfterMeaning.current) return
     pinLyricsAfterMeaning.current = false
+    // Meaning just painted — gentle pin only (skip if already on lyrics).
     keepLyricsInView()
   }, [loadingMeaning, language, localizedMeaning])
 
@@ -243,9 +250,8 @@ export function SongMeaningSection({
         return
       }
 
-      // LLM "In simple words" — progress message only; do not block meaning.
-      const scrollYBeforeIdea =
-        typeof window !== "undefined" ? window.scrollY : 0
+      // LLM "In simple words" — progress only; never touch scroll (restoreScrollY
+      // bounced the page to Listen then back to Lyrics when the status line reflowed).
       try {
         const idea = await fetchSongLocalization(songNumber, label, {
           generateCentralIdea: true,
@@ -272,10 +278,7 @@ export function SongMeaningSection({
       } catch {
         if (currentRequest === requestId.current) setCentralIdeaUnavailable(true)
       } finally {
-        if (currentRequest === requestId.current) {
-          setCentralIdeaPending(false)
-          restoreScrollY(scrollYBeforeIdea)
-        }
+        if (currentRequest === requestId.current) setCentralIdeaPending(false)
       }
     }
 
@@ -311,7 +314,10 @@ export function SongMeaningSection({
       .join("\n\n") || ""
 
   return (
-    <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7">
+    <section
+      id="meaning"
+      className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 [overflow-anchor:none] sm:p-7"
+    >
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="w-full sm:w-auto">
           <p className="eyebrow">Meaning</p>
@@ -341,16 +347,20 @@ export function SongMeaningSection({
           value={localizedExplanation}
         />
       ) : null}
-      {centralIdeaPending && !showLocalizedCentralIdea ? (
-        <div className="mt-4 flex justify-center text-gold-800">
-          <LoadingIndicator label="Central idea generation in progress" compact />
+      {/* Reserved slot — avoids Listen flashing into view when progress ↔ empty-state swaps. */}
+      {(centralIdeaPending || centralIdeaUnavailable) && !showLocalizedCentralIdea ? (
+        <div className="mt-4 flex min-h-[2rem] items-center justify-center [overflow-anchor:none]">
+          {centralIdeaPending ? (
+            <div className="text-gold-800">
+              <LoadingIndicator label="Central idea generation in progress" compact />
+            </div>
+          ) : (
+            <p className="text-sm text-stone-500">
+              A short Central idea isn’t available in {localeLabel(language)} yet — the meaning
+              above is still complete.
+            </p>
+          )}
         </div>
-      ) : null}
-      {!centralIdeaPending && centralIdeaUnavailable && !showLocalizedCentralIdea ? (
-        <p className="mt-4 text-sm text-stone-500">
-          A short Central idea isn’t available in {localeLabel(language)} yet — the meaning
-          above is still complete.
-        </p>
       ) : null}
       {officialCentralIdea ? (
         <MeaningBlock

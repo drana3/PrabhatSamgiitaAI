@@ -459,7 +459,6 @@ export default function SongDetailScreen() {
         if (active) setCentralIdeaPending(false)
         return
       }
-      const scrollYBeforeIdea = scrollYRef.current
       try {
         const idea = await fetchSongCentralIdeaLocalization(song.number, language)
         if (!active) return
@@ -476,12 +475,7 @@ export default function SongDetailScreen() {
       } catch {
         // Meaning already shown; generated Central idea is optional.
       } finally {
-        if (active) {
-          setCentralIdeaPending(false)
-          requestAnimationFrame(() => {
-            scrollRef.current?.scrollTo({ y: scrollYBeforeIdea, animated: false })
-          })
-        }
+        if (active) setCentralIdeaPending(false)
       }
     })()
 
