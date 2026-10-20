@@ -141,7 +141,7 @@ class RecommendationEngine:
                 song.mood,
                 song.meditation_context,
                 metadata.get("category"),
-                metadata.get("purport"),
+                getattr(song, "central_idea", None) or metadata.get("purport"),
             )
             if value
         )

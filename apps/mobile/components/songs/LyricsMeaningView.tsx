@@ -81,6 +81,8 @@ type Props = {
   language: string
   localizing: boolean
   meaning: SongMeaningResolution
+  /** Official Central idea / Purport when present. */
+  centralIdea?: string | null
   onSelectLanguage: (code: string) => void
 }
 
@@ -187,6 +189,7 @@ export function LyricsMeaningView({
   devanagariStatus,
   language,
   localizing,
+  centralIdea,
   meaning,
   onSelectLanguage,
 }: Props) {
@@ -349,6 +352,12 @@ export function LyricsMeaningView({
           </View>
         ) : null}
         <MeaningBody language={language} meaning={meaning} />
+        {centralIdea?.trim() ? (
+          <View style={styles.centralIdeaBlock}>
+            <Text style={styles.centralIdeaLabel}>Central idea</Text>
+            <Text style={styles.body}>{centralIdea.trim()}</Text>
+          </View>
+        ) : null}
       </View>
 
       <LanguagePickerModal
@@ -528,6 +537,18 @@ const styles = StyleSheet.create({
   },
   copyText: { ...typography.caption, color: colors.textSecondary },
   body: { ...typography.bodySmall, color: colors.textSecondary },
+  centralIdeaBlock: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.xs,
+  },
+  centralIdeaLabel: {
+    ...typography.label,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
   meaningLoadingRow: {
     flexDirection: "row",
     alignItems: "center",

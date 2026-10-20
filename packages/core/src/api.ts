@@ -22,6 +22,7 @@ export const songDetailSchema = songSummarySchema.extend({
   devanagari_status: z.string().optional().default("none"),
   hindi_meaning: z.string().nullable().optional(),
   english_meaning: z.string().nullable().optional(),
+  central_idea: z.string().nullable().optional(),
   festival: z.string().nullable().optional(),
   season: z.string().nullable().optional(),
   meditation_context: z.string().nullable().optional(),
@@ -157,6 +158,7 @@ export const adminFeedbackListSchema = z.object({
 export const adminDevanagariSongSchema = z.object({
   song_number: z.number(),
   title: z.string(),
+  theme: z.string().nullable().optional(),
   lyrics_original: z.string().nullable().optional(),
   lyrics_devanagari: z.string().nullable().optional(),
   devanagari_status: z.string().optional().default("none"),

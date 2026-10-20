@@ -180,6 +180,7 @@ class AdminFeedbackListResponse(BaseModel):
 class AdminDevanagariSong(BaseModel):
     song_number: int
     title: str
+    theme: str | None = None
     lyrics_original: str | None = None
     lyrics_devanagari: str | None = None
     devanagari_status: str = "none"

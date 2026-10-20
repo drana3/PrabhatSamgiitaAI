@@ -1,11 +1,20 @@
 export type SongMeaningSource = {
   english_meaning?: string | null
   hindi_meaning?: string | null
+  central_idea?: string | null
   language?: string | null
   lyrics_original?: string | null
   first_line?: string | null
   title?: string | null
   metadata_json?: Record<string, unknown> | null
+}
+
+/** Official Central idea / Purport prose when present. */
+export function centralIdeaText(song: SongMeaningSource): string {
+  const direct = song.central_idea?.trim()
+  if (direct) return direct
+  const purport = song.metadata_json?.purport
+  return typeof purport === "string" ? purport.trim() : ""
 }
 
 export function isEnglishSongLanguage(value?: string | null) {

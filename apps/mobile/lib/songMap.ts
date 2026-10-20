@@ -1,4 +1,9 @@
-import type { SongDetail, SongSummary } from "@prabhat/core"
+import {
+  dropLastNonemptyLine,
+  extractTrailingEnglishTheme,
+  type SongDetail,
+  type SongSummary,
+} from "@prabhat/core"
 
 import type { MockSong, SongVideo } from "@/data/mock"
 import { listPlayableAudio, mediaVideosToEmbeds, pickPreferredAudioUrl } from "@/lib/mediaEmbed"
@@ -154,7 +159,26 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     thumbnailUrl: item.thumbnailUrl,
   }))
 
-  const themes = [detail.theme, detail.mood, detail.occasion].filter(Boolean) as string[]
+  const { lyrics: romanClean, theme: peeledTheme } = extractTrailingEnglishTheme(
+    detail.lyrics_original || detail.transliteration || "",
+  )
+  const meta = detail.metadata_json ?? {}
+  const officialTheme =
+    (typeof meta.official_theme_label === "string" && meta.official_theme_label.trim()) ||
+    peeledTheme ||
+    detail.theme?.trim() ||
+    null
+  let lyricsDevanagari = detail.lyrics_devanagari?.trim() || null
+  if (peeledTheme && lyricsDevanagari) {
+    const romanN = romanClean.split("\n").filter((ln) => ln.trim()).length
+    const devN = lyricsDevanagari.split("\n").filter((ln) => ln.trim()).length
+    if (devN === romanN + 1) {
+      lyricsDevanagari = dropLastNonemptyLine(lyricsDevanagari).trim() || null
+    }
+  }
+  const themes = [officialTheme || detail.theme, detail.mood, detail.occasion].filter(
+    Boolean,
+  ) as string[]
 
   return {
     id: `ps-${detail.number}`,
@@ -163,16 +187,20 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
       ? detail.first_line?.trim() || detail.title
       : detail.title,
     originalTitle: detail.first_line || undefined,
-    shortDescription: detail.first_line || detail.theme || "Prabhat Samgiita",
+    shortDescription: detail.first_line || officialTheme || detail.theme || "Prabhat Samgiita",
     imageUrl: hero,
     thumbnailUrl: thumb,
     themes: themes.length ? themes : ["Prabhat Samgiita"],
     meaning: englishMeaningFromDetail(detail),
+    centralIdea:
+      detail.central_idea?.trim() ||
+      (typeof meta.purport === "string" ? meta.purport.trim() : null) ||
+      null,
     hindiMeaning: detail.hindi_meaning?.trim() || null,
     localizedMeanings: readLocalizedMeanings(detail.metadata_json),
-    lyrics: detail.lyrics_original || detail.transliteration || detail.first_line || detail.title,
+    lyrics: romanClean || detail.first_line || detail.title,
     transliteration: detail.transliteration?.trim() || null,
-    lyricsDevanagari: detail.lyrics_devanagari?.trim() || null,
+    lyricsDevanagari,
     devanagariStatus: detail.devanagari_status || "none",
     translation: detail.english_meaning || detail.hindi_meaning || detail.first_line || detail.title,
     durationSeconds: 300,

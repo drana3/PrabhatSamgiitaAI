@@ -18,6 +18,14 @@ ROOT_DIR = SCRIPT_DIR.parent
 DATA_DIR = ROOT_DIR / "data"
 GENERATED_DIR = DATA_DIR / "generated"
 
+# Shared theme peeling (stdlib-only module under the API package).
+sys.path.insert(0, str(ROOT_DIR / "apps" / "api"))
+from app.services.lyrics_theme import (  # noqa: E402
+    extract_trailing_english_theme,
+    format_theme_label,
+    is_english_theme_line,
+)
+
 LYRICS_PAGE = "/1-5018.htm"
 AUDIO_ARCHIVE_PAGES = [
     "/1-999/andromeda.php",
@@ -79,6 +87,7 @@ class SongRecord:
     transliteration: str | None = None
     hindi_meaning: str | None = None
     english_meaning: str | None = None
+    central_idea: str | None = None
     theme: str | None = None
     occasion: str | None = None
     festival: str | None = None
@@ -94,6 +103,10 @@ class SongRecord:
     canonical_source_status: str = "verified"
     is_verified: bool = True
     metadata_json: dict[str, Any] = field(default_factory=dict)
+
+
+# Official discursive block after the verse translation.
+CENTRAL_IDEA_LABEL_RE = re.compile(r"(?i)^(central\s*idea|purport)\s*:\s*(.*)$")
 
 
 def fetch(url: str) -> str:
@@ -162,6 +175,9 @@ def parse_song_header(header: str, anchor: str) -> tuple[int, dict[str, str]]:
 def is_roman_lyric_line(line: str) -> bool:
     if not line:
         return False
+    # Official English theme labels (SONG OF …) sit after lyrics — never lyrics.
+    if is_english_theme_line(line):
+        return False
     # Dialogue songs use mixed-case speaker labels such as "Krs'n'a:" before
     # uppercase Roman-Samskrta lyrics. Treat short labels as part of the lyric
     # block and classify the remaining lines by uppercase letter ratio.
@@ -174,16 +190,26 @@ def is_roman_lyric_line(line: str) -> bool:
     return uppercase / len(letters) >= 0.72
 
 
-def split_song_sections(paragraphs: list[list[str]]) -> tuple[list[str], list[str], list[str]]:
+def _split_central_idea(lines: list[str]) -> tuple[list[str], list[str]]:
+    """Peel Central idea / Purport from *lines*. Returns (before, central_idea_lines)."""
+    for idx, line in enumerate(lines):
+        match = CENTRAL_IDEA_LABEL_RE.match(line)
+        if not match:
+            continue
+        inline = (match.group(2) or "").strip()
+        idea = ([inline] if inline else []) + lines[idx + 1 :]
+        return lines[:idx], idea
+    return lines, []
+
+
+def split_song_sections(
+    paragraphs: list[list[str]],
+) -> tuple[list[str], list[str], list[str], str | None]:
+    """Return lyrics, english meaning, central-idea lines, and optional English theme."""
     if not paragraphs:
-        return [], [], []
+        return [], [], [], None
     lines = [line for paragraph in paragraphs for line in paragraph]
-    purport_index = next(
-        (idx for idx, line in enumerate(lines) if line.lower().startswith("purport:")),
-        None,
-    )
-    content = lines if purport_index is None else lines[:purport_index]
-    purport = [] if purport_index is None else lines[purport_index + 1 :]
+    content, central_idea = _split_central_idea(lines)
 
     lyric_start = next(
         (
@@ -196,16 +222,35 @@ def split_song_sections(paragraphs: list[list[str]]) -> tuple[list[str], list[st
         None,
     )
     if lyric_start is None:
-        return [], content, purport
+        # Meaning may still contain a glued Central idea label.
+        meaning, glued_idea = _split_central_idea(content)
+        if glued_idea and not central_idea:
+            central_idea = glued_idea
+        return [], meaning, central_idea, None
 
     lyric_end = lyric_start
     while lyric_end < len(content) and is_roman_lyric_line(content[lyric_end]):
         lyric_end += 1
     lyrics = content[lyric_start:lyric_end]
-    meaning = content[:lyric_start] + content[lyric_end:]
+    rest = content[:lyric_start] + content[lyric_end:]
+
+    theme: str | None = None
+    # Theme may sit immediately after the lyric block (not classified as lyric).
+    if rest and is_english_theme_line(rest[0]):
+        theme = format_theme_label(rest.pop(0))
+    else:
+        # Legacy / glued extracts: theme still trailing inside lyrics.
+        peeled_text, peeled_theme = extract_trailing_english_theme("\n".join(lyrics))
+        if peeled_theme:
+            theme = peeled_theme
+            lyrics = peeled_text.split("\n") if peeled_text else []
+
+    meaning, glued_idea = _split_central_idea(rest)
+    if glued_idea and not central_idea:
+        central_idea = glued_idea
     if lyrics and lyrics[-1].endswith(":") and meaning:
         meaning.insert(len(content[:lyric_start]), lyrics.pop())
-    return lyrics, meaning, purport
+    return lyrics, meaning, central_idea, theme
 
 
 def parse_lyrics_page() -> list[SongRecord]:
@@ -222,11 +267,20 @@ def parse_song_page(page_path: str) -> list[SongRecord]:
         paragraphs = [paragraph for paragraph in paragraphs if paragraph]
         if not paragraphs:
             continue
-        lyrics_lines, english_lines, purport_lines = split_song_sections(paragraphs)
+        lyrics_lines, english_lines, central_idea_lines, theme = split_song_sections(paragraphs)
         first_line = next(
             (line for line in lyrics_lines if not line.endswith(":")),
             english_lines[0] if english_lines else None,
         )
+        central_idea = "\n".join(central_idea_lines).strip() or None
+        meta = {
+            "source": "official-lyrics-page",
+            **metadata,
+            # Mirrored for one release; prefer SongRecord.central_idea / songs.central_idea.
+            "purport": central_idea,
+        }
+        if theme:
+            meta["official_theme_label"] = theme
         songs.append(
             SongRecord(
                 number=number,
@@ -234,11 +288,9 @@ def parse_song_page(page_path: str) -> list[SongRecord]:
                 first_line=first_line,
                 lyrics_original="\n".join(lyrics_lines) or None,
                 english_meaning="\n".join(english_lines) or None,
-                metadata_json={
-                    "source": "official-lyrics-page",
-                    **metadata,
-                    "purport": "\n".join(purport_lines) or None,
-                },
+                central_idea=central_idea,
+                theme=theme,
+                metadata_json=meta,
             )
         )
     songs.sort(key=lambda item: item.number)

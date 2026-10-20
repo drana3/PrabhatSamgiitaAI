@@ -105,6 +105,7 @@ def _detach_song(song: Song) -> Song:
         devanagari_status=getattr(song, "devanagari_status", None) or "none",
         hindi_meaning=song.hindi_meaning,
         english_meaning=song.english_meaning,
+        central_idea=getattr(song, "central_idea", None),
         theme=song.theme,
         occasion=song.occasion,
         festival=song.festival,
@@ -330,17 +331,35 @@ class CatalogService:
             return seeded
 
         # In-memory catalogue can lag other Container App replicas after admin
-        # approve; always prefer Neon Devanagari text/status when present.
+        # edits or Neon backfills; prefer Neon content fields when present.
         merged = _detach_song(seeded)
+        if (db_song.lyrics_original or "").strip():
+            merged.lyrics_original = db_song.lyrics_original
+        if (db_song.transliteration or "").strip():
+            merged.transliteration = db_song.transliteration
+        if (db_song.theme or "").strip():
+            merged.theme = db_song.theme
+        if (db_song.english_meaning or "").strip():
+            merged.english_meaning = db_song.english_meaning
+        if (db_song.hindi_meaning or "").strip():
+            merged.hindi_meaning = db_song.hindi_meaning
+        db_central = (getattr(db_song, "central_idea", None) or "").strip()
+        if db_central:
+            merged.central_idea = db_song.central_idea
+        elif isinstance(db_song.metadata_json, dict) and (db_song.metadata_json.get("purport") or "").strip():
+            merged.central_idea = str(db_song.metadata_json["purport"]).strip()
         db_dev = (db_song.lyrics_devanagari or "").strip()
         db_status = (db_song.devanagari_status or "none").strip() or "none"
         if db_dev or db_status != "none":
             merged.lyrics_devanagari = db_song.lyrics_devanagari
             merged.devanagari_status = db_status
         db_meta = db_song.metadata_json if isinstance(db_song.metadata_json, dict) else {}
-        if db_meta.get("devanagari"):
+        if db_meta:
             meta = dict(merged.metadata_json or {})
-            meta["devanagari"] = db_meta["devanagari"]
+            if db_meta.get("devanagari"):
+                meta["devanagari"] = db_meta["devanagari"]
+            if db_meta.get("official_theme_label"):
+                meta["official_theme_label"] = db_meta["official_theme_label"]
             merged.metadata_json = meta
         return merged
 

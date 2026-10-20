@@ -11,6 +11,7 @@ import {
   hasStoredMeaningForLanguage,
   storedMeaningForLanguage,
   englishMeaningText,
+  centralIdeaText,
   type SongMeaningSource,
 } from "@/lib/song-meanings"
 
@@ -116,12 +117,16 @@ export function SongMeaningSection({
 
   const selectedMeaning = selectedMeaningForLanguage(song, language, localizedMeaning)
   const english = englishMeaningText(song)
-  const hasMeaning = Boolean(selectedMeaning || english || song.hindi_meaning)
+  const centralIdea = centralIdeaText(song)
+  const hasMeaning = Boolean(selectedMeaning || english || song.hindi_meaning || centralIdea)
 
   if (!hasMeaning) return null
 
   const meaningLabel = language === "en" ? "English" : `${localeLabel(language)} meaning`
-  const copyText = selectedMeaning || english || song.hindi_meaning?.trim() || ""
+  const copyText =
+    [selectedMeaning || english || song.hindi_meaning?.trim(), centralIdea]
+      .filter(Boolean)
+      .join("\n\n") || ""
 
   return (
     <section id="meaning" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-white p-5 sm:p-7">
@@ -148,6 +153,7 @@ export function SongMeaningSection({
       {language !== "hi" && !english ? (
         <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
       ) : null}
+      <MeaningBlock label="Central idea" value={centralIdea || null} />
       {!loading ? <CopyTextButton text={copyText} label="Copy meaning" /> : null}
     </section>
   )

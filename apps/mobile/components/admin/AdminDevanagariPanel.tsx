@@ -2,12 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type LayoutChangeEvent,
 } from "react-native"
 import type { AdminDevanagariSong } from "@prabhat/core"
 import * as Clipboard from "expo-clipboard"
@@ -126,7 +130,33 @@ export function AdminDevanagariPanel({
     initialSongNumber && initialSongNumber >= 1 ? "load" : null,
   )
   const [progressStep, setProgressStep] = useState(0)
+  const [keyboardPad, setKeyboardPad] = useState(0)
   const progressTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const scrollRef = useRef<ScrollView>(null)
+  const cardOffsetY = useRef(0)
+  const editorRelativeY = useRef(0)
+  const noteRelativeY = useRef(0)
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardPad(event.endCoordinates.height)
+    })
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardPad(0))
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [])
+
+  const scrollFieldIntoView = (absoluteY: number) => {
+    const top = Math.max(0, absoluteY - spacing.lg)
+    const run = () => scrollRef.current?.scrollTo({ y: top, animated: true })
+    requestAnimationFrame(run)
+    // Second pass after the keyboard finishes animating / resizing.
+    setTimeout(run, Platform.OS === "ios" ? 280 : 120)
+  }
 
   const clearProgressTimers = () => {
     for (const id of progressTimers.current) clearTimeout(id)
@@ -280,9 +310,20 @@ export function AdminDevanagariPanel({
       : "Devanagari review"
 
   return (
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+    >
     <ScrollView
-      contentContainerStyle={styles.content}
+      ref={scrollRef}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: spacing.section + keyboardPad },
+      ]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets
     >
       <Text style={styles.heroSub}>
         Load a song, compare Roman with editable Devanagari, then save or approve. Copy → edit in
@@ -318,7 +359,12 @@ export function AdminDevanagariPanel({
       ) : null}
 
       {!loading && song ? (
-        <View style={styles.card}>
+        <View
+          style={styles.card}
+          onLayout={(event: LayoutChangeEvent) => {
+            cardOffsetY.current = event.nativeEvent.layout.y
+          }}
+        >
           <View style={styles.cardTop}>
             <Languages size={16} color={colors.primary} />
             <Text style={styles.meta}>
@@ -326,6 +372,9 @@ export function AdminDevanagariPanel({
             </Text>
           </View>
           <Text style={styles.snippet}>{song.title}</Text>
+          {song.theme ? (
+            <Text style={styles.meta}>Theme (not lyrics): {song.theme}</Text>
+          ) : null}
           {song.conversion_confidence_percent != null ? (
             <View style={styles.confidenceBox}>
               <Text style={styles.confidenceTitle}>
@@ -373,7 +422,12 @@ export function AdminDevanagariPanel({
             </Text>
           </View>
 
-          <View style={styles.panel}>
+          <View
+            style={styles.panel}
+            onLayout={(event: LayoutChangeEvent) => {
+              editorRelativeY.current = event.nativeEvent.layout.y
+            }}
+          >
             <View style={styles.panelHead}>
               <Text style={styles.panelTitle}>Devanagari (edit)</Text>
               <Pressable onPress={() => void copyText("Devanagari", draft)} hitSlop={8}>
@@ -385,20 +439,33 @@ export function AdminDevanagariPanel({
               value={draft}
               onChangeText={setDraft}
               multiline
+              scrollEnabled
               textAlignVertical="top"
               editable={!busy}
+              onFocus={() =>
+                scrollFieldIntoView(cardOffsetY.current + editorRelativeY.current)
+              }
               style={[styles.editor, busy ? styles.disabledField : null]}
             />
           </View>
 
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Review note (optional)"
-            placeholderTextColor={colors.textMuted}
-            editable={!busy}
-            style={[styles.noteInput, busy ? styles.disabledField : null]}
-          />
+          <View
+            onLayout={(event: LayoutChangeEvent) => {
+              noteRelativeY.current = event.nativeEvent.layout.y
+            }}
+          >
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="Review note (optional)"
+              placeholderTextColor={colors.textMuted}
+              editable={!busy}
+              onFocus={() =>
+                scrollFieldIntoView(cardOffsetY.current + noteRelativeY.current)
+              }
+              style={[styles.noteInput, busy ? styles.disabledField : null]}
+            />
+          </View>
 
           {progressKind && progressKind !== "load" ? (
             <ActionProgress
@@ -448,10 +515,12 @@ export function AdminDevanagariPanel({
         <Text style={styles.empty}>Enter a song number and tap Load to review Devanagari.</Text>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section, gap: spacing.md },
   heroSub: { ...typography.bodySmall, color: colors.textSecondary },
   grantRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
