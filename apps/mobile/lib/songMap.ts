@@ -261,7 +261,7 @@ export function storedExplanationForLanguage(
   const official = song.centralIdea?.trim() ? normalizeProseBlock(song.centralIdea) : ""
   if (official && prose === official) return null
   for (const raw of [song.meaning, song.hindiMeaning]) {
-    if (raw?.trim() && isNearDuplicateProse(prose, raw)) return null
+    if (raw?.trim() && isNearDuplicateProse(prose, raw, 0.95)) return null
   }
   return prose
 }

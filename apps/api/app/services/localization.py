@@ -39,7 +39,7 @@ PersistScheduler = Callable[[int, str, "LocalizedSongText"], None]
 logger = logging.getLogger(__name__)
 
 # Bump when the Central idea LLM prompt/format changes so old generated cache refreshes.
-CENTRAL_IDEA_SUMMARY_VERSION = 5
+CENTRAL_IDEA_SUMMARY_VERSION = 6
 
 CENTRAL_IDEA_SYSTEM_PROMPT = (
     "You write short Central idea / purport prose for Prabhat Samgiita devotees. "
@@ -421,26 +421,20 @@ class LocalizationService:
         source = normalize_prose_block(explanation_source or "") or None
         if source and is_near_duplicate_prose(text, source):
             return None
-        # Reject meaning mirrors (exact or near-copy of English/Hindi/localized meaning).
+        # Reject only true meaning dumps (very high similarity). Length alone is a
+        # bad proxy across languages and caused empty-state UX for Marathi/etc.
         mirrors = self._meaning_mirrors(song, language)
         same_lang = normalize_prose_block(localized_meaning or "") or None
         if same_lang:
             mirrors.append(same_lang)
         for meaning in mirrors:
-            if meaning and is_near_duplicate_prose(text, meaning):
+            if meaning and is_near_duplicate_prose(text, meaning, threshold=0.92):
                 return None
-        # Length gate: prefer same-language meaning. Cross-language char counts
-        # are a poor proxy (Galician/Spanish/etc. often expand vs English) and
-        # were discarding valid Central ideas → empty-state on the client.
+        # English only: keep generated Central idea clearly shorter than meaning.
         lang = (language or "").casefold()
-        if same_lang and len(same_lang) >= 120:
-            ratio = 0.85 if lang in {"en", "english"} else 1.65
-            if len(text) >= int(len(same_lang) * ratio):
-                return None
-        else:
-            ratio = 0.85 if lang in {"en", "english"} else 1.85
+        if lang in {"en", "english"}:
             for meaning in mirrors:
-                if meaning and len(meaning) >= 160 and len(text) >= int(len(meaning) * ratio):
+                if meaning and len(meaning) >= 160 and len(text) >= int(len(meaning) * 0.9):
                     return None
         return text
 
@@ -538,13 +532,30 @@ class LocalizationService:
                 language,
             )
             return None
-        return self._usable_localized_explanation(
+        usable2 = self._usable_localized_explanation(
             song,
             format_central_idea_prose(draft2),
             explanation_source=None,
             language=language,
             localized_meaning=localized_meaning,
         )
+        if usable2:
+            return usable2
+        # Last resort: accept a non-empty draft that is not an exact meaning copy.
+        # Prefer showing a Central idea over the client empty-state for every language.
+        for draft_text in (format_central_idea_prose(draft2), formatted):
+            soft = normalize_prose_block(draft_text or "") or None
+            if not soft or len(soft) < 40:
+                continue
+            mirrors = self._meaning_mirrors(song, language)
+            if localized_meaning:
+                mirrors.append(normalize_prose_block(localized_meaning))
+            if any(
+                m and is_near_duplicate_prose(soft, m, threshold=0.95) for m in mirrors if m
+            ):
+                continue
+            return soft
+        return None
 
     async def _ensure_central_idea(
         self,

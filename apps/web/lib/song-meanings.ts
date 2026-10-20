@@ -135,7 +135,7 @@ export function storedExplanationForLanguage(
   const meaning = englishMeaningText(song)
   const hindi = song.hindi_meaning?.trim() ? normalizeProseBlock(song.hindi_meaning) : ""
   for (const raw of [meaning, hindi]) {
-    if (raw && isNearDuplicateProse(prose, raw)) return null
+    if (raw && isNearDuplicateProse(prose, raw, 0.95)) return null
   }
   return prose
 }

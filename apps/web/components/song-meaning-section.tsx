@@ -61,11 +61,14 @@ function sameText(left: string | null | undefined, right: string | null | undefi
   return Boolean(a && b && a === b)
 }
 
-/** Hide "In simple words" when it is just the meaning restated (content, not length). */
+/**
+ * Hide Central idea only for near-exact meaning dumps (very high similarity).
+ * Mild paraphrases / similar length must still show — empty-state is last resort.
+ */
 function isMeaningMirror(explanation: string | null | undefined, ...meanings: Array<string | null | undefined>) {
   if (!explanation?.trim()) return false
   for (const meaning of meanings) {
-    if (isNearDuplicateProse(explanation, meaning)) return true
+    if (isNearDuplicateProse(explanation, meaning, 0.95)) return true
   }
   return false
 }
@@ -265,15 +268,12 @@ export function SongMeaningSection({
           setLocalizedExplanation,
           setExplanationKind,
         )
-        const mirrorsMeaning = isMeaningMirror(
-          explanation,
-          selectedMeaningForLanguage(song, language, localizedMeaning),
-          englishMeaningText(song),
-          song.hindi_meaning,
-        )
-        if (!explanation || mirrorsMeaning) {
+        // Trust the API: empty-state only when generate returned nothing usable.
+        // Do not second-guess wording / length here (that hid valid Marathi/etc.).
+        if (!explanation) {
           setCentralIdeaUnavailable(true)
-          setLocalizedExplanation(null)
+        } else {
+          setCentralIdeaUnavailable(false)
         }
       } catch {
         if (currentRequest === requestId.current) setCentralIdeaUnavailable(true)

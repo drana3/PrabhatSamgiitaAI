@@ -373,10 +373,10 @@ export function LyricsMeaningView({
         <MeaningBody language={language} meaning={meaning} />
         {localizedCentralIdea?.trim() &&
         localizedCentralIdea.trim() !== (centralIdea || "").trim() &&
-        // Never show a Central idea that is just the meaning restated (content, not length).
+        // Hide only near-exact meaning dumps; prefer showing LLM Central idea.
         !(
           meaning.status === "ready" &&
-          isNearDuplicateProse(localizedCentralIdea, meaning.text)
+          isNearDuplicateProse(localizedCentralIdea, meaning.text, 0.95)
         ) ? (
           <View style={styles.centralIdeaBlock}>
             <Text style={styles.centralIdeaLabel}>
