@@ -14,15 +14,22 @@ def _engine_kwargs(database_url: str) -> dict[str, object]:
         "echo": False,
         "pool_pre_ping": True,
     }
+    # Fail fast when Neon/Postgres stalls — song detail must fall back to seed.
+    connect_args: dict[str, object] = {
+        "prepare_threshold": None,
+        "connect_timeout": 5,
+        # statement_timeout is ms; keeps hung queries from blocking Container Apps.
+        "options": "-c statement_timeout=8000",
+    }
     if "neon.tech" in database_url or "-pooler" in database_url:
         # Neon pooled connections are PgBouncer transaction mode.
         kwargs["poolclass"] = NullPool
-        kwargs["connect_args"] = {"prepare_threshold": None}
+        kwargs["connect_args"] = connect_args
     else:
         kwargs["pool_size"] = 5
         kwargs["max_overflow"] = 10
         if database_url.startswith("postgresql"):
-            kwargs["connect_args"] = {"prepare_threshold": None}
+            kwargs["connect_args"] = connect_args
     return kwargs
 
 

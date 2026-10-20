@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -319,10 +320,16 @@ class CatalogService:
         seeded = songs_by_number().get(number)
         db_song: Song | None = None
         try:
-            result = await self.session.execute(select(Song).where(Song.number == number))
+            result = await asyncio.wait_for(
+                self.session.execute(select(Song).where(Song.number == number)),
+                timeout=5.0,
+            )
             db_song = result.scalar_one_or_none()
-        except SQLAlchemyError:
-            await self.session.rollback()
+        except (SQLAlchemyError, TimeoutError, asyncio.TimeoutError):
+            try:
+                await self.session.rollback()
+            except Exception:
+                pass
             db_song = None
 
         if seeded is None:
@@ -506,17 +513,24 @@ class CatalogService:
         if snapshot:
             return snapshot
         try:
-            result = await self.session.execute(
-                select(Media).where(Media.song_number == song_number)
+            result = await asyncio.wait_for(
+                self.session.execute(select(Media).where(Media.song_number == song_number)),
+                timeout=5.0,
             )
             return list(result.scalars().all())
-        except SQLAlchemyError:
-            await self.session.rollback()
+        except (SQLAlchemyError, TimeoutError, asyncio.TimeoutError):
+            try:
+                await self.session.rollback()
+            except Exception:
+                pass
             return []
 
     async def get_notation(self, song_number: int) -> Notation | None:
         seeded = notations_by_song_number().get(song_number)
-        db_row = await self._db_notation(song_number)
+        try:
+            db_row = await asyncio.wait_for(self._db_notation(song_number), timeout=5.0)
+        except (TimeoutError, asyncio.TimeoutError):
+            db_row = None
         if seeded is not None:
             return _merge_notation_with_db(seeded, db_row)
         return db_row
@@ -563,23 +577,33 @@ class CatalogService:
             "embedded_chunks": 0,
         }
         try:
+            async def _count(model: type) -> int:
+                result = await self.session.execute(select(func.count()).select_from(model))
+                return int(result.scalar_one())
+
             for key, model in (
                 ("songs", Song),
                 ("media", Media),
                 ("notations", Notation),
                 ("inventory", InventoryItem),
             ):
-                result = await self.session.execute(select(func.count()).select_from(model))
-                database[key] = int(result.scalar_one())
-            chunked = await self.session.execute(
-                select(func.count(func.distinct(SongChunk.song_number)))
+                database[key] = await asyncio.wait_for(_count(model), timeout=4.0)
+            chunked = await asyncio.wait_for(
+                self.session.execute(select(func.count(func.distinct(SongChunk.song_number)))),
+                timeout=4.0,
             )
             database["rag_song_chunks"] = int(chunked.scalar_one())
-            chunk_count = await self.session.execute(select(func.count()).select_from(SongChunk))
+            chunk_count = await asyncio.wait_for(
+                self.session.execute(select(func.count()).select_from(SongChunk)),
+                timeout=4.0,
+            )
             database["rag_chunks"] = int(chunk_count.scalar_one())
             faiss_stats = get_faiss_store().stats()
             database["embedded_songs"] = int(faiss_stats["songs"])
             database["embedded_chunks"] = int(faiss_stats["chunks"])
-        except SQLAlchemyError:
-            await self.session.rollback()
+        except (SQLAlchemyError, TimeoutError, asyncio.TimeoutError):
+            try:
+                await self.session.rollback()
+            except Exception:
+                pass
         return {"snapshot": snapshot, "database": database}

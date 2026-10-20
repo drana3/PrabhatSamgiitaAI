@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -23,7 +24,24 @@ async def health() -> dict[str, str]:
 async def readiness(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
-    stats = await CatalogService(session).statistics()
+    settings = get_settings()
+    try:
+        stats = await asyncio.wait_for(CatalogService(session).statistics(), timeout=6.0)
+    except (TimeoutError, asyncio.TimeoutError, Exception):
+        # Neon stalls must not hang Container Apps readiness / mobile song loads.
+        return {
+            "status": "degraded",
+            "catalog_serving_source": "packaged_snapshot",
+            "snapshot_complete": True,
+            "database_synced": False,
+            "rag_chunks_ready": False,
+            "embedding_provider_configured": embedding_provider_configured(settings),
+            "embedding_progress": 0.0,
+            "song_embedding_progress": 0.0,
+            "chunk_embedding_progress": 0.0,
+            "vector_index_ready": False,
+            "database_unreachable": True,
+        }
     snapshot = stats["snapshot"]
     database = stats["database"]
     snapshot_complete = snapshot["songs"] >= 5018
@@ -40,7 +58,6 @@ async def readiness(
         round(database["embedded_chunks"] / rag_chunks, 4) if rag_chunks else 0.0
     )
     embedding_progress = min(song_embedding_progress, chunk_embedding_progress)
-    settings = get_settings()
     return {
         "status": (
             "ready" if snapshot_complete and database_synced and rag_chunked else "degraded"
