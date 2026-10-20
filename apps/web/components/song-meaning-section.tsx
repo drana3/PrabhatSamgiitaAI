@@ -134,11 +134,24 @@ export function SongMeaningSection({
   const requestId = useRef(0)
   /** Preserve scroll across Central idea progress / result paints (no Listen flash). */
   const freezeScrollY = useRef<number | null>(null)
+  /**
+   * First open from Explore races HashLanding (#lyrics) with CI progress.
+   * Wait until landing has settled before showing/fetching generated Central idea.
+   */
+  const [ciLandingReady, setCiLandingReady] = useState(false)
 
   const lockScroll = () => {
     if (typeof window === "undefined") return
+    // Freezing Y≈0 before HashLanding lands undoes #lyrics and can leave the
+    // viewport on the audio block once the meaning column grows.
+    if (window.scrollY < 48) return
     freezeScrollY.current = window.scrollY
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCiLandingReady(true), 520)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   useLayoutEffect(() => {
     const y = freezeScrollY.current
@@ -149,7 +162,6 @@ export function SongMeaningSection({
       }
     }
     restore()
-    // Aria / focus scroll often runs after layout — re-pin for a couple frames.
     const a = window.requestAnimationFrame(() => {
       restore()
       window.requestAnimationFrame(restore)
@@ -185,6 +197,7 @@ export function SongMeaningSection({
     setError(null)
     setCentralIdeaUnavailable(false)
     setLoadingMeaning(needsMeaning || (needsExplanation && Boolean(officialCentralIdea)))
+    // Language switches happen after landing — progress can show immediately.
     setCentralIdeaPending(needsExplanation && !officialCentralIdea)
     ensureLyricsHash()
   }
@@ -215,10 +228,12 @@ export function SongMeaningSection({
     // Fast path: meaning (+ official Central idea translate). Never wait on LLM generate.
     const needsFastFetch = needsMeaning || (needsExplanation && Boolean(officialCentralIdea))
     const needsGeneratedIdea = needsExplanation && !officialCentralIdea
+    // Defer LLM CI until HashLanding has finished its first #lyrics settle.
+    const runGeneratedIdea = needsGeneratedIdea && ciLandingReady
 
     setLoadingMeaning(needsFastFetch)
-    if (needsGeneratedIdea) lockScroll()
-    setCentralIdeaPending(needsGeneratedIdea)
+    if (runGeneratedIdea) lockScroll()
+    setCentralIdeaPending(runGeneratedIdea)
 
     const label = localeLabel(language)
 
@@ -251,8 +266,10 @@ export function SongMeaningSection({
         setLoadingMeaning(false)
       }
 
-      if (!needsGeneratedIdea) {
-        if (currentRequest === requestId.current) setCentralIdeaPending(false)
+      if (!runGeneratedIdea) {
+        if (currentRequest === requestId.current && !needsGeneratedIdea) {
+          setCentralIdeaPending(false)
+        }
         return
       }
 
@@ -291,7 +308,7 @@ export function SongMeaningSection({
     }
 
     void run()
-  }, [language, song, songNumber, officialCentralIdea])
+  }, [language, song, songNumber, officialCentralIdea, ciLandingReady])
 
   const selectedMeaning = selectedMeaningForLanguage(song, language, localizedMeaning)
   const english = englishMeaningText(song)

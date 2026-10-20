@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 
-import { scrollToSectionId } from "@/lib/scroll-to-section"
+import { scrollToSectionId, stickyHeaderOffset } from "@/lib/scroll-to-section"
 import type { SongSection } from "@/lib/song-path"
 
 const SONG_SECTIONS = new Set<SongSection>(["ask", "lyrics", "meaning", "listen", "watch", "notation"])
@@ -44,6 +44,7 @@ export function HashLanding() {
         history.replaceState(null, "", `${window.location.pathname}${window.location.search}#lyrics`)
       }
       let cancelled = false
+      let hasLandedOnLyrics = false
       const land = () => {
         if (cancelled) return
         // Language switch / section chips may have moved the hash (e.g. #meaning)
@@ -54,8 +55,19 @@ export function HashLanding() {
           return
         }
         const lyrics = document.getElementById("lyrics")
-        if (lyrics) scrollToSectionId("lyrics")
-        else scrollToSongStart()
+        if (!lyrics) {
+          scrollToSongStart()
+          return
+        }
+        // After the first lyrics land, skip late settles that fight Central idea
+        // progress on first open from Explore (Listen flash).
+        if (hasLandedOnLyrics) {
+          const top = lyrics.getBoundingClientRect().top
+          const header = stickyHeaderOffset()
+          if (top >= header - 24 && top <= header + 220) return
+        }
+        scrollToSectionId("lyrics")
+        hasLandedOnLyrics = true
       }
       const settle = () => requestAnimationFrame(() => requestAnimationFrame(land))
       settle()
