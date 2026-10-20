@@ -37,7 +37,7 @@ FREE_TIER_HARD_CAP = 450_000
 QUOTA_LEASE_CHUNK = 2_500
 # Re-read Neon usage at least this often so other replicas / limit changes
 # refresh the in-memory lease without a DB hop on every translate.
-QUOTA_LEASE_SYNC_SECONDS = 60
+QUOTA_LEASE_SYNC_SECONDS = 45 * 60
 
 # Months for which this process already claimed / saw the exhaustion alert.
 _alert_claimed_months: set[str] = set()
