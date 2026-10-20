@@ -42,6 +42,7 @@ import {
   parseSongNumber,
   storedExplanationForLanguage,
   storedMeaningForLanguage,
+  usableLocalizedExplanation,
   routeString,
 } from "@/lib/songMap"
 import { localeLabel } from "@/constants/languages"
@@ -357,60 +358,59 @@ export default function SongDetailScreen() {
     if (!song) return
     const englishIdea = song.centralIdea?.trim() || ""
     const hasOfficialIdea = Boolean(englishIdea)
-    const storedExpl = storedExplanationForLanguage(song, language)
-    setLocalizedCentralIdea(storedExpl)
-
     const curated = language === "en" ? null : storedMeaningForLanguage(song, language)
     const remembered = meaningCache.current[language]
     const peeked = peekSongLocalization(song.number, localeLabel(language))
     const peekedMeaning = peeked?.localized_meaning?.trim() || ""
-    const peekedExpl = peeked?.localized_explanation?.trim() || ""
+    const englishMeaning = song.meaning?.trim() || ""
+    const meaningForDup =
+      curated ||
+      remembered?.meaning ||
+      (peekedMeaning && peekedMeaning !== englishMeaning ? peekedMeaning : null) ||
+      song.hindiMeaning ||
+      englishMeaning
+
+    const pickExpl = (raw: string | null | undefined) =>
+      usableLocalizedExplanation(raw, {
+        officialCentralIdea: englishIdea,
+        meaningCandidates: [meaningForDup, curated, remembered?.meaning, peekedMeaning],
+      })
+
+    const storedExpl = storedExplanationForLanguage(song, language)
+    const rememberedExpl = pickExpl(remembered?.explanation)
+    const peekedExpl = pickExpl(peeked?.localized_explanation)
+    const initialExpl = storedExpl || rememberedExpl || peekedExpl
+    setLocalizedCentralIdea(initialExpl)
 
     if (language === "en") {
       setLocalizedMeaning(null)
       setLocalizedTitle(null)
-      if (!storedExpl && remembered?.explanation) setLocalizedCentralIdea(remembered.explanation)
-      else if (!storedExpl && peekedExpl && peekedExpl !== englishIdea) {
-        setLocalizedCentralIdea(peekedExpl)
-      }
     } else if (curated) {
       setLocalizedMeaning(curated)
       setLocalizedTitle(null)
-      if (!storedExpl && remembered?.explanation) {
-        setLocalizedCentralIdea(remembered.explanation)
-      } else if (!storedExpl && peekedExpl) {
-        setLocalizedCentralIdea(peekedExpl)
-      }
     } else if (remembered) {
       setLocalizedMeaning(remembered.meaning)
       setLocalizedTitle(remembered.title)
-      if (!storedExpl) setLocalizedCentralIdea(remembered.explanation)
     } else if (peekedMeaning) {
-      const english = song.meaning?.trim() || ""
-      const meaning = peekedMeaning !== english ? peekedMeaning : null
-      const explanation =
-        peekedExpl && peekedExpl !== englishIdea ? peekedExpl : storedExpl
+      const meaning = peekedMeaning !== englishMeaning ? peekedMeaning : null
       meaningCache.current[language] = {
         meaning,
         title: peeked.localized_title ?? null,
-        explanation,
+        explanation: initialExpl,
       }
       setLocalizedMeaning(meaning)
       setLocalizedTitle(peeked.localized_title ?? null)
-      if (!storedExpl) setLocalizedCentralIdea(explanation)
     }
 
     const hasMeaning =
-      language === "en" || Boolean(curated || remembered || peekedMeaning)
+      language === "en" || Boolean(curated || remembered?.meaning || peekedMeaning)
     const hasExpl =
-      Boolean(storedExpl) ||
-      Boolean(remembered?.explanation) ||
-      Boolean(peekedExpl) ||
-      (language === "en" && hasOfficialIdea)
+      Boolean(initialExpl) || (language === "en" && hasOfficialIdea)
     const needsMeaning = language !== "en" && !hasMeaning
+    const needsOfficialTranslate = hasOfficialIdea && !hasExpl
     const needsGeneratedIdea = !hasExpl && !hasOfficialIdea
 
-    if (!needsMeaning && !needsGeneratedIdea && (hasMeaning || language === "en") && hasExpl) {
+    if (!needsMeaning && !needsOfficialTranslate && !needsGeneratedIdea) {
       setLocalizing(false)
       setCentralIdeaPending(false)
       return
@@ -418,51 +418,96 @@ export default function SongDetailScreen() {
 
     let active = true
     // Meaning spinner only — Central idea LLM must not block translation paint.
-    setLocalizing(needsMeaning || (needsGeneratedIdea === false && !hasExpl && hasOfficialIdea))
+    setLocalizing(needsMeaning || needsOfficialTranslate)
     setCentralIdeaPending(needsGeneratedIdea)
 
-    // Meaning cached without Central idea — bypass cache once so a failed CI can recover.
-    const staleMissingExpl =
-      !hasExpl && Boolean(remembered?.meaning || peekedMeaning || (language === "en" && hasMeaning))
-
     void (async () => {
-      if (needsMeaning || (!hasExpl && hasOfficialIdea)) {
-        try {
-          const result = await fetchSongMeaningLocalization(song.number, language, {
-            force: staleMissingExpl && !needsMeaning,
-          })
-          if (!active) return
-          setLocalizing(false)
-          if (!result) {
-            if (needsMeaning) {
-              setLocalizedMeaning(null)
-              setLocalizedTitle(null)
-            }
-          } else {
-            const english = song.meaning?.trim() || ""
-            const translated = result.localized_meaning?.trim() || ""
-            const meaning = translated && translated !== english ? translated : null
-            const explRaw = result.localized_explanation?.trim() || ""
-            const explanation =
-              explRaw && explRaw !== englishIdea ? explRaw : storedExpl
-            meaningCache.current[language] = {
-              meaning: language === "en" ? null : needsMeaning ? meaning : curated || remembered?.meaning || null,
-              title: language === "en" ? null : needsMeaning ? result.localized_title ?? null : remembered?.title ?? null,
-              explanation,
-            }
-            if (needsMeaning) {
-              setLocalizedMeaning(meaning)
-              setLocalizedTitle(result.localized_title ?? null)
-            }
-            if (explanation) setLocalizedCentralIdea(explanation)
-          }
-        } catch {
-          if (!active) return
-          setLocalizing(false)
+      const applyMeaningResult = (
+        result: {
+          localized_meaning?: string | null
+          localized_title?: string | null
+          localized_explanation?: string | null
+        } | null,
+        { preferExistingMeaning = false }: { preferExistingMeaning?: boolean } = {},
+      ) => {
+        if (!result) {
           if (needsMeaning) {
             setLocalizedMeaning(null)
             setLocalizedTitle(null)
           }
+          return null as string | null
+        }
+        const translated = result.localized_meaning?.trim() || ""
+        const meaning =
+          translated && translated !== englishMeaning
+            ? translated
+            : preferExistingMeaning
+              ? curated || remembered?.meaning || null
+              : null
+        const explanation = pickExpl(result.localized_explanation) || initialExpl
+        meaningCache.current[language] = {
+          meaning: language === "en" ? null : needsMeaning ? meaning : curated || remembered?.meaning || meaning,
+          title:
+            language === "en"
+              ? null
+              : needsMeaning
+                ? result.localized_title ?? null
+                : remembered?.title ?? result.localized_title ?? null,
+          explanation,
+        }
+        if (needsMeaning) {
+          setLocalizedMeaning(meaning)
+          setLocalizedTitle(result.localized_title ?? null)
+        }
+        if (explanation) setLocalizedCentralIdea(explanation)
+        return explanation
+      }
+
+      // One round-trip when both meaning + LLM Central idea are missing (same as a
+      // generate call on web, but without a prior fast-path wait).
+      if (needsMeaning && needsGeneratedIdea) {
+        try {
+          const idea = await fetchSongCentralIdeaLocalization(song.number, language)
+          if (!active) return
+          applyMeaningResult(idea)
+          setLocalizing(false)
+          const explRaw = pickExpl(idea?.localized_explanation)
+          if (explRaw) {
+            setLocalizedCentralIdea(explRaw)
+            const prev = meaningCache.current[language]
+            meaningCache.current[language] = {
+              meaning: prev?.meaning ?? null,
+              title: prev?.title ?? null,
+              explanation: explRaw,
+            }
+          }
+        } catch {
+          if (active && needsMeaning) {
+            setLocalizedMeaning(null)
+            setLocalizedTitle(null)
+          }
+        } finally {
+          if (active) {
+            setLocalizing(false)
+            setCentralIdeaPending(false)
+          }
+        }
+        return
+      }
+
+      if (needsMeaning || needsOfficialTranslate) {
+        try {
+          const result = await fetchSongMeaningLocalization(song.number, language)
+          if (!active) return
+          applyMeaningResult(result, { preferExistingMeaning: !needsMeaning })
+        } catch {
+          if (!active) return
+          if (needsMeaning) {
+            setLocalizedMeaning(null)
+            setLocalizedTitle(null)
+          }
+        } finally {
+          if (active) setLocalizing(false)
         }
       } else {
         setLocalizing(false)
@@ -473,12 +518,11 @@ export default function SongDetailScreen() {
         return
       }
       try {
-        const idea = await fetchSongCentralIdeaLocalization(song.number, language, {
-          force: staleMissingExpl,
-        })
+        // Never force on the automatic path — force re-LLM is only for Retry.
+        const idea = await fetchSongCentralIdeaLocalization(song.number, language)
         if (!active) return
-        const explRaw = idea?.localized_explanation?.trim() || ""
-        if (explRaw && explRaw !== englishIdea) {
+        const explRaw = pickExpl(idea?.localized_explanation)
+        if (explRaw) {
           setLocalizedCentralIdea(explRaw)
           const prev = meaningCache.current[language]
           meaningCache.current[language] = {

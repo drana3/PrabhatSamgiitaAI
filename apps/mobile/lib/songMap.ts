@@ -248,6 +248,26 @@ export function storedMeaningForLanguage(
   return value?.trim() ? normalizeProseBlock(value) : null
 }
 
+/** Reject official echoes and meaning dumps wrongly stored as Central idea. */
+export function usableLocalizedExplanation(
+  explanation: string | null | undefined,
+  options: {
+    officialCentralIdea?: string | null
+    meaningCandidates?: Array<string | null | undefined>
+  } = {},
+): string | null {
+  const prose = explanation?.trim() ? normalizeProseBlock(explanation) : ""
+  if (!prose) return null
+  const official = options.officialCentralIdea?.trim()
+    ? normalizeProseBlock(options.officialCentralIdea)
+    : ""
+  if (official && prose === official) return null
+  for (const raw of options.meaningCandidates || []) {
+    if (raw?.trim() && isNearDuplicateProse(prose, raw, 0.95)) return null
+  }
+  return prose
+}
+
 export function storedExplanationForLanguage(
   song: Pick<
     MockSong,
@@ -259,16 +279,10 @@ export function storedExplanationForLanguage(
   if (!code) return null
   const value = song.localizedExplanations?.[code]
   if (typeof value !== "string" || !value.trim()) return null
-  const prose = normalizeProseBlock(value)
-  if (!prose) return null
-  const official = song.centralIdea?.trim() ? normalizeProseBlock(song.centralIdea) : ""
-  if (official && prose === official) return null
-  const localizedMeaning = song.localizedMeanings?.[code]
-  for (const raw of [song.meaning, song.hindiMeaning, localizedMeaning]) {
-    // Reject meaning dumps wrongly stored as Central idea (e.g. PS 111 Hindi).
-    if (raw?.trim() && isNearDuplicateProse(prose, raw, 0.95)) return null
-  }
-  return prose
+  return usableLocalizedExplanation(value, {
+    officialCentralIdea: song.centralIdea,
+    meaningCandidates: [song.meaning, song.hindiMeaning, song.localizedMeanings?.[code]],
+  })
 }
 
 export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong {
