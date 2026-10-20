@@ -35,7 +35,14 @@ from app.services.song_meanings import (
 logger = logging.getLogger(__name__)
 
 # Bump when the Central idea LLM prompt/format changes so old generated cache refreshes.
-CENTRAL_IDEA_SUMMARY_VERSION = 3
+CENTRAL_IDEA_SUMMARY_VERSION = 4
+
+CENTRAL_IDEA_SYSTEM_PROMPT = (
+    "You write short Central idea / purport prose for Prabhat Samgiita devotees. "
+    "The song meaning provided in the user message is canonical source material — "
+    "summarize and crystallize it faithfully. Do not refuse for lack of a separate "
+    "purport field. Return only the Central idea prose."
+)
 
 
 @dataclass(slots=True)
@@ -403,8 +410,12 @@ class LocalizationService:
         except ValueError:
             return None
         try:
-            async with asyncio.timeout(70):
-                draft = (await self.provider.complete(prompt)).strip()
+            async with asyncio.timeout(95):
+                draft = (
+                    await self.provider.complete(
+                        prompt, system=CENTRAL_IDEA_SYSTEM_PROMPT
+                    )
+                ).strip()
         except Exception:
             logger.exception(
                 "Central idea summary failed for song %s in %s",
@@ -434,9 +445,18 @@ class LocalizationService:
             ]
         )
         try:
-            async with asyncio.timeout(55):
-                draft2 = (await self.provider.complete(retry_prompt)).strip()
+            async with asyncio.timeout(75):
+                draft2 = (
+                    await self.provider.complete(
+                        retry_prompt, system=CENTRAL_IDEA_SYSTEM_PROMPT
+                    )
+                ).strip()
         except Exception:
+            logger.exception(
+                "Central idea summary retry failed for song %s in %s",
+                song.number,
+                language,
+            )
             return None
         return self._usable_localized_explanation(
             song,

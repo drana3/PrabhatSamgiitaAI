@@ -17,7 +17,7 @@ class EmbeddingProvider(Protocol):
 
 
 class TextProvider(Protocol):
-    async def complete(self, prompt: str) -> str: ...
+    async def complete(self, prompt: str, *, system: str | None = None) -> str: ...
 
 
 class GroundedProvider(EmbeddingProvider, TextProvider, Protocol):
@@ -65,7 +65,15 @@ class MockProvider:
     async def embed_many(self, texts: list[str]) -> list[list[float]]:
         return [await self.embed(text) for text in texts]
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, prompt: str, *, system: str | None = None) -> str:
+        _ = system
+        if "Central idea of a" in prompt or "crafting the Central idea" in prompt:
+            return (
+                "The seeker waits at life's edge, gathering what little remains, "
+                "while the world passes by unseen.\n\n"
+                "Yet the Beloved promised to come and carry the soul across — "
+                "so the heart keeps watching the path."
+            )
         if "DRAFT (" in prompt and "PRIMARY source" in prompt:
             draft_match = re.search(
                 r"DRAFT \([^)]+\):\n(.+?)(?:\nAutomated review notes:|\Z)",
@@ -120,8 +128,9 @@ class OpenAICompatibleProvider:
             data = sorted(payload["data"], key=lambda item: item["index"])
             return [cast(list[float], item["embedding"]) for item in data]
 
-    async def complete(self, prompt: str) -> str:
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
+    async def complete(self, prompt: str, *, system: str | None = None) -> str:
+        system_text = system or "Answer only from provided canonical data."
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=90) as client:
             response = await client.post(
                 "/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
@@ -129,7 +138,7 @@ class OpenAICompatibleProvider:
                     "model": self.model,
                     "max_completion_tokens": 700,
                     "messages": [
-                        {"role": "system", "content": "Answer only from provided canonical data."},
+                        {"role": "system", "content": system_text},
                         {"role": "user", "content": prompt},
                     ],
                 },
@@ -161,8 +170,9 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
             data = sorted(payload["data"], key=lambda item: item["index"])
             return [cast(list[float], item["embedding"]) for item in data]
 
-    async def complete(self, prompt: str) -> str:
-        async with httpx.AsyncClient(timeout=30) as client:
+    async def complete(self, prompt: str, *, system: str | None = None) -> str:
+        system_text = system or "Answer only from canonical data."
+        async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(
                 f"{self.base_url}/openai/responses?api-version={self.responses_api_version}",
                 headers={"api-key": self.api_key},
@@ -177,7 +187,7 @@ class AzureOpenAIProvider(OpenAICompatibleProvider):
                             "content": [
                                 {
                                     "type": "input_text",
-                                    "text": "Answer only from canonical data.",
+                                    "text": system_text,
                                 }
                             ],
                         },

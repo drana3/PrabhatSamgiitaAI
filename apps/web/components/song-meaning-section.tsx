@@ -147,6 +147,7 @@ export function SongMeaningSection({
   const [explanationKind, setExplanationKind] = useState<"official" | "generated" | null>(null)
   const [loadingMeaning, setLoadingMeaning] = useState(false)
   const [loadingCentralIdea, setLoadingCentralIdea] = useState(false)
+  const [centralIdeaUnavailable, setCentralIdeaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
   const pinMeaningAfterLoad = useRef(false)
@@ -167,6 +168,7 @@ export function SongMeaningSection({
       storedExpl ? (officialCentralIdea ? "official" : "generated") : null,
     )
     setError(null)
+    setCentralIdeaUnavailable(false)
     const needsMeaning = nextLanguage !== "en" && !hasStoredMeaningForLanguage(song, nextLanguage)
     const needsExplanation =
       !storedExpl && !(nextLanguage === "en" && Boolean(officialCentralIdea))
@@ -201,6 +203,7 @@ export function SongMeaningSection({
 
     const currentRequest = ++requestId.current
     setError(null)
+    setCentralIdeaUnavailable(false)
     if (needsMeaning) setLocalizedMeaning(null)
 
     // Fast path: meaning (+ official Central idea translate). Never wait on LLM generate.
@@ -252,15 +255,26 @@ export function SongMeaningSection({
           generateCentralIdea: true,
         })
         if (currentRequest !== requestId.current) return
+        const explanation = idea?.localized_explanation?.trim() || null
         applyExplanationResult(
-          idea?.localized_explanation?.trim() || null,
+          explanation,
           idea?.explanation_kind ?? "generated",
           officialCentralIdea,
           setLocalizedExplanation,
           setExplanationKind,
         )
+        const mirrorsMeaning = isMeaningMirror(
+          explanation,
+          selectedMeaningForLanguage(song, language, localizedMeaning),
+          englishMeaningText(song),
+          song.hindi_meaning,
+        )
+        if (!explanation || mirrorsMeaning) {
+          setCentralIdeaUnavailable(true)
+          setLocalizedExplanation(null)
+        }
       } catch {
-        // Meaning already shown; Central idea is optional.
+        if (currentRequest === requestId.current) setCentralIdeaUnavailable(true)
       } finally {
         if (currentRequest === requestId.current) setLoadingCentralIdea(false)
       }
@@ -332,6 +346,12 @@ export function SongMeaningSection({
           label={centralIdeaLabel(language, explanationKind)}
           value={localizedExplanation}
         />
+      ) : null}
+      {!loadingCentralIdea && centralIdeaUnavailable && !showLocalizedCentralIdea ? (
+        <p className="mt-4 text-sm text-stone-500">
+          A short Central idea isn’t available in {localeLabel(language)} yet — the meaning
+          above is still complete.
+        </p>
       ) : null}
       {officialCentralIdea ? (
         <MeaningBlock

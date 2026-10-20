@@ -201,6 +201,10 @@ async def test_localize_generates_simple_central_idea_when_purport_missing(tmp_p
     assert result.explanation_kind == "generated"
     assert "loving tune" in (result.localized_explanation or "")
     service.provider.complete.assert_awaited()
+    assert "system" in (service.provider.complete.await_args.kwargs or {})
+    assert "summarize and crystallize" in (
+        service.provider.complete.await_args.kwargs.get("system") or ""
+    )
 
 
 @pytest.mark.asyncio
