@@ -96,9 +96,9 @@ export default async function SongPage({ params, searchParams }: { params: Promi
         <SongPageListenShell songNumber={song.number} recordings={audio} deferAudioWarm>
         <section className="mt-7 rounded-[2rem] border border-navy-900/10 bg-white p-5 shadow-lg sm:p-7 lg:p-9">
           {/* Lyrics first — audio player mounts after so MP3 warm does not race the first paint. */}
-          <div className={`grid gap-7 ${hasLyrics && hasMeaning ? "xl:grid-cols-2" : "max-w-4xl"}`}>
+          <div className={`grid gap-7 [overflow-anchor:none] ${hasLyrics && hasMeaning ? "xl:grid-cols-2" : "max-w-4xl"}`}>
             {hasLyrics ? (
-              <section id="lyrics" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5 sm:p-7">
+              <section id="lyrics" className="scroll-mt-28 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5 [overflow-anchor:none] sm:p-7">
                 <div>
                   <p className="eyebrow">Lyrics</p>
                   <h2 className="mt-2 font-serif text-3xl text-navy-950">Sing with the words</h2>

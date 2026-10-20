@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { CopyTextButton } from "@/components/copy-text-button"
 import { SongLanguageSwitcher } from "@/components/song-language-switcher"
 import { fetchSongLocalization } from "@/lib/api"
 import { localeLabel } from "@/lib/languages"
-import { scrollToSectionId, stickyHeaderOffset } from "@/lib/scroll-to-section"
 import {
   hasStoredMeaningForLanguage,
   storedMeaningForLanguage,
@@ -25,23 +24,6 @@ function ensureLyricsHash() {
   if (window.location.hash === "#lyrics") return
   const { pathname, search } = window.location
   window.history.replaceState(window.history.state, "", `${pathname}${search}#lyrics`)
-}
-
-/**
- * Stay on lyrics after a meaning language switch — but only scroll when lyrics
- * have actually left the viewport. Blind scrollTo + rAF was bouncing the page
- * to Listen and back while “Central idea generation in progress” reflowed.
- */
-function keepLyricsInView() {
-  if (typeof window === "undefined") return
-  ensureLyricsHash()
-  const lyrics = document.getElementById("lyrics")
-  if (!lyrics) return
-  const top = lyrics.getBoundingClientRect().top
-  const header = stickyHeaderOffset()
-  // Already near the lyrics band — leave scroll alone.
-  if (top >= header - 16 && top <= header + 160) return
-  scrollToSectionId("lyrics", { behavior: "auto" })
 }
 
 function MeaningBlock({ label, value }: { label: string; value?: string | null }) {
@@ -150,8 +132,37 @@ export function SongMeaningSection({
   const [centralIdeaUnavailable, setCentralIdeaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
-  /** Re-pin lyrics once after meaning paints — never after Central idea (that jumped to Listen). */
-  const pinLyricsAfterMeaning = useRef(false)
+  /** Preserve scroll across Central idea progress / result paints (no Listen flash). */
+  const freezeScrollY = useRef<number | null>(null)
+
+  const lockScroll = () => {
+    if (typeof window === "undefined") return
+    freezeScrollY.current = window.scrollY
+  }
+
+  useLayoutEffect(() => {
+    const y = freezeScrollY.current
+    if (y == null || typeof window === "undefined") return
+    const restore = () => {
+      if (Math.abs(window.scrollY - y) > 0.5) {
+        window.scrollTo({ top: y, left: 0, behavior: "auto" })
+      }
+    }
+    restore()
+    // Aria / focus scroll often runs after layout — re-pin for a couple frames.
+    const a = window.requestAnimationFrame(() => {
+      restore()
+      window.requestAnimationFrame(restore)
+    })
+    const t = window.setTimeout(() => {
+      restore()
+      freezeScrollY.current = null
+    }, 80)
+    return () => {
+      window.cancelAnimationFrame(a)
+      window.clearTimeout(t)
+    }
+  }, [centralIdeaPending, centralIdeaUnavailable, localizedExplanation])
 
   useEffect(() => {
     setLanguage(initialLanguage)
@@ -164,8 +175,7 @@ export function SongMeaningSection({
     const storedExpl = storedExplanationForLanguage(song, nextLanguage)
     const needsExplanation =
       !storedExpl && !(nextLanguage === "en" && Boolean(officialCentralIdea))
-    // Only re-pin after meaning paint — never for CI-only generate (that caused Listen flash).
-    pinLyricsAfterMeaning.current = needsMeaning
+    lockScroll()
     setLanguage(nextLanguage)
     setLocalizedMeaning(null)
     setLocalizedExplanation(storedExpl)
@@ -177,15 +187,7 @@ export function SongMeaningSection({
     setLoadingMeaning(needsMeaning || (needsExplanation && Boolean(officialCentralIdea)))
     setCentralIdeaPending(needsExplanation && !officialCentralIdea)
     ensureLyricsHash()
-    if (needsMeaning) keepLyricsInView()
   }
-
-  useEffect(() => {
-    if (loadingMeaning || !pinLyricsAfterMeaning.current) return
-    pinLyricsAfterMeaning.current = false
-    // Meaning just painted — gentle pin only (skip if already on lyrics).
-    keepLyricsInView()
-  }, [loadingMeaning, language, localizedMeaning])
 
   useEffect(() => {
     const storedExpl = storedExplanationForLanguage(song, language)
@@ -215,6 +217,7 @@ export function SongMeaningSection({
     const needsGeneratedIdea = needsExplanation && !officialCentralIdea
 
     setLoadingMeaning(needsFastFetch)
+    if (needsGeneratedIdea) lockScroll()
     setCentralIdeaPending(needsGeneratedIdea)
 
     const label = localeLabel(language)
@@ -253,13 +256,13 @@ export function SongMeaningSection({
         return
       }
 
-      // LLM "In simple words" — progress only; never touch scroll (restoreScrollY
-      // bounced the page to Listen then back to Lyrics when the status line reflowed).
+      // LLM Central idea — lock scroll around progress ↔ result so Listen never flashes.
       try {
         const idea = await fetchSongLocalization(songNumber, label, {
           generateCentralIdea: true,
         })
         if (currentRequest !== requestId.current) return
+        lockScroll()
         const explanation = idea?.localized_explanation?.trim() || null
         applyExplanationResult(
           explanation,
@@ -269,16 +272,21 @@ export function SongMeaningSection({
           setExplanationKind,
         )
         // Trust the API: empty-state only when generate returned nothing usable.
-        // Do not second-guess wording / length here (that hid valid Marathi/etc.).
         if (!explanation) {
           setCentralIdeaUnavailable(true)
         } else {
           setCentralIdeaUnavailable(false)
         }
       } catch {
-        if (currentRequest === requestId.current) setCentralIdeaUnavailable(true)
+        if (currentRequest === requestId.current) {
+          lockScroll()
+          setCentralIdeaUnavailable(true)
+        }
       } finally {
-        if (currentRequest === requestId.current) setCentralIdeaPending(false)
+        if (currentRequest === requestId.current) {
+          lockScroll()
+          setCentralIdeaPending(false)
+        }
       }
     }
 
@@ -347,12 +355,16 @@ export function SongMeaningSection({
           value={localizedExplanation}
         />
       ) : null}
-      {/* Reserved slot — avoids Listen flashing into view when progress ↔ empty-state swaps. */}
+      {/* Reserved slot; live=false so aria-live does not scroll this into Listen. */}
       {(centralIdeaPending || centralIdeaUnavailable) && !showLocalizedCentralIdea ? (
         <div className="mt-4 flex min-h-[2rem] items-center justify-center [overflow-anchor:none]">
           {centralIdeaPending ? (
             <div className="text-gold-800">
-              <LoadingIndicator label="Central idea generation in progress" compact />
+              <LoadingIndicator
+                label="Central idea generation in progress"
+                compact
+                live={false}
+              />
             </div>
           ) : (
             <p className="text-sm text-stone-500">
