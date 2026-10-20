@@ -49,14 +49,31 @@ export function peekSongLocalization(number: number, language: string): SongLoca
 export async function fetchSongLocalizationCached(
   number: number,
   language: string,
+  options: { generateCentralIdea?: boolean } = {},
 ): Promise<SongLocalization | null> {
   const key = localizationKey(number, language)
   const cached = localizationCache.get(key)
-  if (cached?.localized_meaning?.trim()) return cached
-  const live = await api.fetchSongLocalization(number, language)
-  if (live?.localized_meaning?.trim()) {
-    localizationCache.set(key, live)
+  if (
+    cached?.localized_meaning?.trim() &&
+    (!options.generateCentralIdea || cached.localized_explanation?.trim())
+  ) {
+    return cached
+  }
+  const live = await api.fetchSongLocalization(number, language, options)
+  if (live?.localized_meaning?.trim() || live?.localized_explanation?.trim()) {
+    const merged = cached
+      ? {
+          ...cached,
+          ...live,
+          localized_meaning: live.localized_meaning ?? cached.localized_meaning,
+          localized_explanation:
+            live.localized_explanation ?? cached.localized_explanation,
+          explanation_kind: live.explanation_kind ?? cached.explanation_kind,
+        }
+      : live
+    localizationCache.set(key, merged)
     trimMap(localizationCache, LOCALIZATION_CACHE_MAX)
+    return merged
   }
   return live
 }

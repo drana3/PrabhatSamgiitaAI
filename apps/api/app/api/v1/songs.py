@@ -71,6 +71,13 @@ async def get_localized_song(
     number: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     language: str = Query(min_length=2),
+    generate_central_idea: bool = Query(
+        default=False,
+        description=(
+            "When true and the song has no official purport, run the slow LLM "
+            "Central idea summary. Meaning translation always runs without this."
+        ),
+    ),
 ) -> SongLocalizationResponse:
     service = CatalogService(session)
     song = await service.get_song(number)
@@ -90,6 +97,9 @@ async def get_localized_song(
         language,
         explanation=explanation,
         session=session,
+        # Official purport still translates (Google) in the fast path.
+        # LLM "In simple words" generation is opt-in so Meaning is not blocked.
+        generate_missing_central_idea=generate_central_idea,
     )
     return SongLocalizationResponse(
         song_number=song.number,

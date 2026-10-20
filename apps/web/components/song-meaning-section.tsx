@@ -25,7 +25,6 @@ function keepMeaningInView() {
     window.history.replaceState(window.history.state, "", `${pathname}${search}#meaning`)
   }
   scrollToSectionId("meaning", { behavior: "auto" })
-  // Re-pin after layout settles (translated blocks + fonts can shift the page).
   window.requestAnimationFrame(() => {
     window.requestAnimationFrame(() => scrollToSectionId("meaning", { behavior: "auto" }))
   })
@@ -82,6 +81,33 @@ function centralIdeaLabel(language: string, kind: "official" | "generated" | nul
   return language === "en" ? "Central idea" : `${lang} · Central idea`
 }
 
+function applyExplanationResult(
+  explanation: string | null,
+  kindRaw: string | null | undefined,
+  officialCentralIdea: string,
+  setLocalizedExplanation: (value: string | null) => void,
+  setExplanationKind: (value: "official" | "generated" | null) => void,
+) {
+  const kind =
+    kindRaw === "official" || kindRaw === "generated"
+      ? kindRaw
+      : explanation
+        ? officialCentralIdea
+          ? "official"
+          : "generated"
+        : null
+  if (explanation && !sameText(explanation, officialCentralIdea || null)) {
+    setLocalizedExplanation(explanation)
+    setExplanationKind(kind)
+  } else if (explanation && officialCentralIdea && sameText(explanation, officialCentralIdea)) {
+    setLocalizedExplanation(null)
+    setExplanationKind("official")
+  } else if (!explanation) {
+    setLocalizedExplanation(null)
+    setExplanationKind(null)
+  }
+}
+
 export function SongMeaningSection({
   songNumber,
   song,
@@ -95,7 +121,8 @@ export function SongMeaningSection({
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
   const [localizedExplanation, setLocalizedExplanation] = useState<string | null>(null)
   const [explanationKind, setExplanationKind] = useState<"official" | "generated" | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingMeaning, setLoadingMeaning] = useState(false)
+  const [loadingCentralIdea, setLoadingCentralIdea] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
   const pinMeaningAfterLoad = useRef(false)
@@ -117,18 +144,18 @@ export function SongMeaningSection({
     )
     setError(null)
     const needsMeaning = nextLanguage !== "en" && !hasStoredMeaningForLanguage(song, nextLanguage)
-    // English + official purport is already on the page; otherwise translate or LLM-summarize.
     const needsExplanation =
       !storedExpl && !(nextLanguage === "en" && Boolean(officialCentralIdea))
-    setLoading(needsMeaning || needsExplanation)
+    setLoadingMeaning(needsMeaning || (needsExplanation && Boolean(officialCentralIdea)))
+    setLoadingCentralIdea(needsExplanation && !officialCentralIdea)
     keepMeaningInView()
   }
 
   useEffect(() => {
-    if (loading || !pinMeaningAfterLoad.current) return
+    if ((loadingMeaning || loadingCentralIdea) || !pinMeaningAfterLoad.current) return
     pinMeaningAfterLoad.current = false
     keepMeaningInView()
-  }, [loading, language, localizedMeaning, localizedExplanation])
+  }, [loadingMeaning, loadingCentralIdea, language, localizedMeaning, localizedExplanation])
 
   useEffect(() => {
     const storedExpl = storedExplanationForLanguage(song, language)
@@ -138,62 +165,84 @@ export function SongMeaningSection({
     )
 
     const needsMeaning = language !== "en" && !hasStoredMeaningForLanguage(song, language)
-    // Official purport → translate; missing purport → LLM simple Central idea (incl. English).
     const needsExplanation =
       !storedExpl && !(language === "en" && Boolean(officialCentralIdea))
     if (!needsMeaning && !needsExplanation) {
       if (language === "en") setLocalizedMeaning(null)
-      setLoading(false)
+      setLoadingMeaning(false)
+      setLoadingCentralIdea(false)
       setError(null)
       return
     }
 
     const currentRequest = ++requestId.current
-    setLoading(true)
     setError(null)
     if (needsMeaning) setLocalizedMeaning(null)
 
-    void Promise.resolve(fetchSongLocalization(songNumber, localeLabel(language)))
-      .then((result) => {
+    // Fast path: meaning (+ official Central idea translate). Never wait on LLM generate.
+    const needsFastFetch = needsMeaning || (needsExplanation && Boolean(officialCentralIdea))
+    const needsGeneratedIdea = needsExplanation && !officialCentralIdea
+
+    setLoadingMeaning(needsFastFetch)
+    setLoadingCentralIdea(needsGeneratedIdea)
+
+    const label = localeLabel(language)
+
+    const run = async () => {
+      if (needsFastFetch) {
+        try {
+          const result = await fetchSongLocalization(songNumber, label)
+          if (currentRequest !== requestId.current) return
+          const meaning = result?.localized_meaning?.trim() || null
+          const english = englishMeaningText(song)
+          const usable = meaning && meaning !== english ? meaning : null
+          if (needsMeaning) {
+            setLocalizedMeaning(usable)
+            if (!usable) setError(meaningUnavailableMessage(language))
+          }
+          applyExplanationResult(
+            result?.localized_explanation?.trim() || null,
+            result?.explanation_kind,
+            officialCentralIdea,
+            setLocalizedExplanation,
+            setExplanationKind,
+          )
+        } catch {
+          if (currentRequest !== requestId.current) return
+          if (needsMeaning) setError(meaningUnavailableMessage(language))
+        } finally {
+          if (currentRequest === requestId.current) setLoadingMeaning(false)
+        }
+      } else {
+        setLoadingMeaning(false)
+      }
+
+      if (!needsGeneratedIdea) {
+        if (currentRequest === requestId.current) setLoadingCentralIdea(false)
+        return
+      }
+
+      // Slow path: LLM "In simple words" — independent of meaning paint.
+      try {
+        const idea = await fetchSongLocalization(songNumber, label, {
+          generateCentralIdea: true,
+        })
         if (currentRequest !== requestId.current) return
-        const meaning = result?.localized_meaning?.trim() || null
-        const english = englishMeaningText(song)
-        const usable = meaning && meaning !== english ? meaning : null
-        if (needsMeaning) {
-          setLocalizedMeaning(usable)
-          if (!usable) setError(meaningUnavailableMessage(language))
-        }
-        const explanation = result?.localized_explanation?.trim() || null
-        const kindRaw = result?.explanation_kind
-        const kind =
-          kindRaw === "official" || kindRaw === "generated"
-            ? kindRaw
-            : explanation
-              ? officialCentralIdea
-                ? "official"
-                : "generated"
-              : null
-        if (explanation && !sameText(explanation, officialCentralIdea || null)) {
-          setLocalizedExplanation(explanation)
-          setExplanationKind(kind)
-        } else if (explanation && officialCentralIdea && sameText(explanation, officialCentralIdea)) {
-          // English selected with official purport — show catalog text, not a duplicate fetch.
-          setLocalizedExplanation(null)
-          setExplanationKind("official")
-        } else if (!explanation) {
-          setLocalizedExplanation(null)
-          setExplanationKind(null)
-        }
-      })
-      .catch(() => {
-        if (currentRequest !== requestId.current) return
-        if (needsMeaning) setError(meaningUnavailableMessage(language))
-      })
-      .finally(() => {
-        if (currentRequest === requestId.current) {
-          setLoading(false)
-        }
-      })
+        applyExplanationResult(
+          idea?.localized_explanation?.trim() || null,
+          idea?.explanation_kind ?? "generated",
+          officialCentralIdea,
+          setLocalizedExplanation,
+          setExplanationKind,
+        )
+      } catch {
+        // Meaning already shown; Central idea is optional.
+      } finally {
+        if (currentRequest === requestId.current) setLoadingCentralIdea(false)
+      }
+    }
+
+    void run()
   }, [language, song, songNumber, officialCentralIdea])
 
   const selectedMeaning = selectedMeaningForLanguage(song, language, localizedMeaning)
@@ -230,9 +279,9 @@ export function SongMeaningSection({
           onLanguageChange={handleLanguageChange}
         />
       </div>
-      {loading ? (
+      {loadingMeaning ? (
         <div className="mt-4 flex justify-center text-gold-800">
-          <LoadingIndicator label="Preparing meaning & central idea" />
+          <LoadingIndicator label="Translating meaning" />
         </div>
       ) : null}
       {error ? <p role="alert" className="mt-4 text-sm text-amber-800">{error}</p> : null}
@@ -242,6 +291,11 @@ export function SongMeaningSection({
       <MeaningBlock label="English" value={english} />
       {language !== "hi" && !english ? (
         <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
+      ) : null}
+      {loadingCentralIdea ? (
+        <div className="mt-4 flex justify-center text-gold-800">
+          <LoadingIndicator label="Writing central idea" />
+        </div>
       ) : null}
       {showLocalizedCentralIdea ? (
         <MeaningBlock
@@ -259,7 +313,7 @@ export function SongMeaningSection({
           value={officialCentralIdea}
         />
       ) : null}
-      {!loading ? <CopyTextButton text={copyText} label="Copy meaning" /> : null}
+      {!loadingMeaning ? <CopyTextButton text={copyText} label="Copy meaning" /> : null}
     </section>
   )
 }

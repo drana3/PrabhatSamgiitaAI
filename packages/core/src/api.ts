@@ -605,10 +605,16 @@ export function createApiClient(options: ApiClientOptions) {
       }
     },
 
-    async fetchSongLocalization(number: number, language: string): Promise<SongLocalization | null> {
+    async fetchSongLocalization(
+      number: number,
+      language: string,
+      options: { generateCentralIdea?: boolean } = {},
+    ): Promise<SongLocalization | null> {
       try {
+        const params = new URLSearchParams({ language })
+        if (options.generateCentralIdea) params.set("generate_central_idea", "true")
         const response = await fetchJson(
-          `/api/v1/songs/${number}/localized?language=${encodeURIComponent(language)}`,
+          `/api/v1/songs/${number}/localized?${params.toString()}`,
           undefined,
           90_000,
         )

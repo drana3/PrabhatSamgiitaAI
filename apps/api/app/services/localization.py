@@ -400,8 +400,14 @@ class LocalizationService:
         title: str | None,
         first_line: str | None,
         provider: str | None,
+        generate_missing: bool,
     ) -> tuple[str | None, str | None, str | None]:
-        """Return (explanation, explanation_kind, provider)."""
+        """Return (explanation, explanation_kind, provider).
+
+        Official purport is always translated (Google, fast). LLM generation for
+        songs without purport runs only when generate_missing=True so meaning
+        responses are not blocked on a slow summary.
+        """
         existing = self._usable_localized_explanation(
             song, localized_explanation, explanation_source
         )
@@ -430,6 +436,9 @@ class LocalizationService:
                 )
                 return translated, "official", "google"
 
+        if not generate_missing:
+            return None, None, provider
+
         generated = await self._generate_central_idea_summary(song, language, language_code)
         if generated:
             await self._persist_localized(
@@ -455,6 +464,8 @@ class LocalizationService:
         language: str,
         explanation: str | None = None,
         session: AsyncSession | None = None,
+        *,
+        generate_missing_central_idea: bool = False,
     ) -> LocalizedSongText:
         normalized = language.strip()
         language_code = normalize_language_code(normalized) or normalized.casefold()
@@ -480,6 +491,7 @@ class LocalizationService:
                 title=song.title,
                 first_line=song.first_line,
                 provider="stored",
+                generate_missing=generate_missing_central_idea,
             )
             return LocalizedSongText(
                 language=display_language,
@@ -509,6 +521,7 @@ class LocalizationService:
                 title=self._text(cached, "localized_title") or song.title,
                 first_line=self._text(cached, "localized_first_line") or song.first_line,
                 provider=str(cached.get("provider") or "cache"),
+                generate_missing=generate_missing_central_idea,
             )
             return LocalizedSongText(
                 language=str(cached.get("language", display_language)),
@@ -547,6 +560,7 @@ class LocalizationService:
             title=result.localized_title,
             first_line=result.localized_first_line,
             provider=result.provider,
+            generate_missing=generate_missing_central_idea,
         )
         result.localized_explanation = expl
         result.explanation_kind = kind

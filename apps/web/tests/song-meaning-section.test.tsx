@@ -86,6 +86,7 @@ describe("SongMeaningSection", () => {
     fetchSongLocalization.mockResolvedValue({
       localized_meaning: "हिन्दी अर्थ",
       localized_explanation: "अनुवादित केंद्रीय भाव",
+      explanation_kind: "official",
     })
 
     render(
@@ -120,19 +121,31 @@ describe("SongMeaningSection", () => {
     expect(await screen.findByRole("button", { name: "Copy meaning" })).toBeInTheDocument()
   })
 
-  it("shows an LLM simple Central idea when the song has no official purport", async () => {
-    fetchSongLocalization.mockResolvedValue({
-      localized_meaning: "Door de sluier van duisternis heen.",
-      localized_explanation: "Het lied vraagt om licht in eenvoudige woorden.",
-      explanation_kind: "generated",
-    })
+  it("loads meaning before the slow LLM Central idea when purport is missing", async () => {
+    fetchSongLocalization.mockImplementation(
+      async (_number: number, _language: string, options?: { generateCentralIdea?: boolean }) => {
+        if (options?.generateCentralIdea) {
+          await new Promise((resolve) => setTimeout(resolve, 30))
+          return {
+            localized_explanation: "Het lied vraagt om licht in eenvoudige woorden.",
+            explanation_kind: "generated",
+          }
+        }
+        return { localized_meaning: "Door de sluier van duisternis heen." }
+      },
+    )
 
     render(
       <SongMeaningSection songNumber={42} song={song} initialLanguage="nl" />,
     )
 
     expect(await screen.findByText("Door de sluier van duisternis heen.")).toBeInTheDocument()
-    expect(screen.getByText(/In simple words/i)).toBeInTheDocument()
+    expect(screen.queryByText(/In simple words/i)).not.toBeInTheDocument()
+    expect(await screen.findByText(/In simple words/i)).toBeInTheDocument()
     expect(screen.getByText("Het lied vraagt om licht in eenvoudige woorden.")).toBeInTheDocument()
+    expect(fetchSongLocalization).toHaveBeenCalledWith(42, "Dutch")
+    expect(fetchSongLocalization).toHaveBeenCalledWith(42, "Dutch", {
+      generateCentralIdea: true,
+    })
   })
 })

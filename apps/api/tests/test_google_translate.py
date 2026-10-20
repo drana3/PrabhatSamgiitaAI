@@ -186,7 +186,16 @@ async def test_localize_generates_simple_central_idea_when_purport_missing(tmp_p
         patch("app.services.localization.google_translate_configured", return_value=True),
     ):
         await translation_cache.clear()
-        result = await service.localize(song, "Dutch", explanation=None)
+        fast = await service.localize(
+            song, "Dutch", explanation=None, generate_missing_central_idea=False
+        )
+        assert fast.localized_meaning == "Alle geesten spelen vandaag in één toon."
+        assert fast.localized_explanation is None
+        service.provider.complete.assert_not_awaited()
+
+        result = await service.localize(
+            song, "Dutch", explanation=None, generate_missing_central_idea=True
+        )
 
     assert result.localized_meaning == "Alle geesten spelen vandaag in één toon."
     assert result.explanation_kind == "generated"

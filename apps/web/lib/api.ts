@@ -349,14 +349,20 @@ export async function fetchNotation(
 export async function fetchSongLocalization(
   number: number,
   language: string,
+  options: { generateCentralIdea?: boolean } = {},
 ): Promise<SongLocalization | null> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), localizationTimeoutMs)
   try {
-    const response = await fetch(`${apiBase}/api/v1/songs/${number}/localized?language=${encodeURIComponent(language)}`, {
-      signal: controller.signal,
-      cache: "no-store",
-    })
+    const params = new URLSearchParams({ language })
+    if (options.generateCentralIdea) params.set("generate_central_idea", "true")
+    const response = await fetch(
+      `${apiBase}/api/v1/songs/${number}/localized?${params.toString()}`,
+      {
+        signal: controller.signal,
+        cache: "no-store",
+      },
+    )
     if (!response.ok) {
       return null
     }
