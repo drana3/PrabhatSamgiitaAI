@@ -1,9 +1,11 @@
 """Google Cloud Translation (Basic v2) with a hard free-tier budget.
 
 Uses the REST translate API when ``GOOGLE_TRANSLATE_API_KEY`` is set.
-Character usage is reserved in Neon *before* calling Google so restarts and
-multiple replicas cannot accidentally exceed the free allowance. If quota
-cannot be reserved durably, Google is skipped and the LLM localizer is used.
+Character usage is reserved in Neon in *chunks* (leased into process memory)
+so most translate calls avoid a Neon round-trip. Replicas still cannot exceed
+the free allowance because every lease increments the shared Neon counter.
+If quota cannot be reserved durably, Google is skipped and the LLM localizer
+is used.
 
 Google's published free NMT allowance is ~500k characters/month. We default to
 400k and hard-cap at 450k unless ``GOOGLE_TRANSLATE_ALLOW_PAID=true``.
@@ -11,6 +13,7 @@ Google's published free NMT allowance is ~500k characters/month. We default to
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
@@ -28,6 +31,9 @@ logger = logging.getLogger(__name__)
 TRANSLATE_URL = "https://translation.googleapis.com/language/translate/v2"
 # Stay below Google's ~500k free monthly characters even if env is mis-set.
 FREE_TIER_HARD_CAP = 450_000
+# Pre-reserve this many characters from Neon per top-up (~10–20 meaning calls).
+# Unused lease dies with the process (conservative under-use of free tier).
+QUOTA_LEASE_CHUNK = 2_500
 
 
 def _month_key(now: datetime | None = None) -> str:
@@ -115,12 +121,6 @@ def get_quota_store(settings: Settings | None = None) -> TranslateQuotaStore:
         return _quota_store
 
 
-def reset_quota_store_for_tests() -> None:
-    global _quota_store
-    with _quota_lock:
-        _quota_store = None
-
-
 def google_translate_configured(settings: Settings | None = None) -> bool:
     cfg = settings or get_settings()
     return bool(cfg.google_translate_enabled and (cfg.google_translate_api_key or "").strip())
@@ -182,8 +182,89 @@ async def _reserve_in_database(characters: int, settings: Settings) -> bool | No
         return None
 
 
+class DurableQuotaLease:
+    """Process-local lease of characters already reserved in Neon.
+
+    Most ``reserve_characters`` calls debit this lease in memory (no Neon hop).
+    When the lease is empty, one Neon UPDATE tops up ``QUOTA_LEASE_CHUNK`` chars
+    (or the exact request size when the monthly budget is nearly exhausted).
+    """
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self._month = _month_key()
+        self._available = 0
+        self._db_topups = 0
+
+    def reset(self) -> None:
+        self._month = _month_key()
+        self._available = 0
+        self._db_topups = 0
+
+    @property
+    def available(self) -> int:
+        return self._available
+
+    @property
+    def db_topups(self) -> int:
+        return self._db_topups
+
+    def _roll_month(self) -> None:
+        month = _month_key()
+        if month != self._month:
+            self._month = month
+            self._available = 0
+
+    async def reserve(self, characters: int, settings: Settings) -> bool | None:
+        """True/False from durable path; None if Neon is unavailable."""
+        if characters <= 0:
+            return True
+        async with self._lock:
+            self._roll_month()
+            if characters <= self._available:
+                self._available -= characters
+                return True
+
+            # Top up a chunk (or the exact need if larger than the chunk).
+            need_from_db = max(characters - self._available, 0)
+            topup = max(need_from_db, QUOTA_LEASE_CHUNK)
+            decided = await _reserve_in_database(topup, settings)
+            if decided is True:
+                self._db_topups += 1
+                self._available += topup
+                self._available -= characters
+                return True
+            if decided is False and topup != need_from_db and need_from_db > 0:
+                # Chunk would exceed monthly limit — try the exact shortfall.
+                decided = await _reserve_in_database(need_from_db, settings)
+                if decided is True:
+                    self._db_topups += 1
+                    self._available += need_from_db
+                    self._available -= characters
+                    return True
+            return decided
+
+
+_durable_lease = DurableQuotaLease()
+
+
+def get_durable_lease() -> DurableQuotaLease:
+    return _durable_lease
+
+
+def reset_quota_store_for_tests() -> None:
+    global _quota_store
+    with _quota_lock:
+        _quota_store = None
+    _durable_lease.reset()
+
+
 async def reserve_characters(characters: int, settings: Settings | None = None) -> bool:
-    """Reserve budget before calling Google. Fail closed when unpaid mode cannot track usage."""
+    """Reserve budget before calling Google. Fail closed when unpaid mode cannot track usage.
+
+    Production uses an in-memory lease topped up from Neon in chunks so most
+    calls skip the database. Tests use the file-backed store only.
+    """
     cfg = settings or get_settings()
     limit = effective_monthly_limit(cfg)
     if characters <= 0:
@@ -195,7 +276,7 @@ async def reserve_characters(characters: int, settings: Settings | None = None) 
     if cfg.app_env == "test":
         return get_quota_store(cfg).try_reserve(characters)
 
-    reserved = await _reserve_in_database(characters, cfg)
+    reserved = await _durable_lease.reserve(characters, cfg)
     if reserved is True:
         # Mirror into local file for ops visibility when the volume is writable.
         try:

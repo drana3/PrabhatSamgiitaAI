@@ -117,6 +117,59 @@ async def test_translate_texts_skips_when_over_quota(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_durable_lease_tops_up_once_for_many_reserves(tmp_path: Path) -> None:
+    """Most reserves debit memory; Neon is hit once per chunk, not per call."""
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="production",
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=400_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+    )
+    gt.reset_quota_store_for_tests()
+    lease = gt.get_durable_lease()
+    db_calls: list[int] = []
+
+    async def fake_db(characters: int, _settings: Settings) -> bool:
+        db_calls.append(characters)
+        return True
+
+    with patch("app.services.google_translate._reserve_in_database", new=fake_db):
+        for _ in range(8):
+            assert await lease.reserve(200, settings) is True
+
+    assert lease.db_topups == 1
+    assert db_calls == [gt.QUOTA_LEASE_CHUNK]
+    assert lease.available == gt.QUOTA_LEASE_CHUNK - (8 * 200)
+
+
+@pytest.mark.asyncio
+async def test_durable_lease_falls_back_to_exact_when_chunk_blocked(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="production",
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=400_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+    )
+    gt.reset_quota_store_for_tests()
+    lease = gt.get_durable_lease()
+    db_calls: list[int] = []
+
+    async def fake_db(characters: int, _settings: Settings) -> bool:
+        db_calls.append(characters)
+        # Chunk would exceed remaining monthly budget; exact shortfall fits.
+        return characters < gt.QUOTA_LEASE_CHUNK
+
+    with patch("app.services.google_translate._reserve_in_database", new=fake_db):
+        assert await lease.reserve(180, settings) is True
+
+    assert db_calls == [gt.QUOTA_LEASE_CHUNK, 180]
+    assert lease.available == 0
+    assert lease.db_topups == 1
+
+
+@pytest.mark.asyncio
 async def test_localize_uses_google_then_skips_llm(tmp_path: Path) -> None:
     settings = Settings(
         DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
