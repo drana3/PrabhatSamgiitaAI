@@ -23,6 +23,7 @@ from app.services.meaning_translation import (
     pick_meaning_source,
     refine_meaning_translation,
 )
+from app.services.prose_normalize import normalize_prose_block
 from app.services.song_meanings import (
     language_display_name,
     normalize_language_code,
@@ -46,7 +47,7 @@ translation_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
     ttl_seconds=86400,
     maxsize=512,
 )
-LOCALIZATION_PROMPT_VERSION = 6
+LOCALIZATION_PROMPT_VERSION = 7
 
 
 class LocalizationService:
@@ -74,7 +75,10 @@ class LocalizationService:
 
     def _text(self, payload: dict[str, object], key: str) -> str | None:
         value = payload.get(key)
-        return value if isinstance(value, str) else None
+        if not isinstance(value, str):
+            return None
+        cleaned = normalize_prose_block(value)
+        return cleaned or None
 
     def _stored_explanation(self, song: Song, language_code: str) -> str | None:
         meta = song.metadata_json if isinstance(song.metadata_json, dict) else {}
@@ -82,7 +86,9 @@ class LocalizationService:
         if not isinstance(explanations, dict):
             return None
         value = explanations.get(language_code)
-        return value.strip() if isinstance(value, str) and value.strip() else None
+        if not isinstance(value, str) or not value.strip():
+            return None
+        return normalize_prose_block(value) or None
 
     def _usable_localized_meaning(
         self,
@@ -91,10 +97,10 @@ class LocalizationService:
         candidate: str | None,
     ) -> str | None:
         """Keep only meanings that match the target language (reject English echoes)."""
-        text = (candidate or "").strip()
+        text = normalize_prose_block(candidate or "")
         if not text:
             return None
-        english = (song.english_meaning or "").strip()
+        english = normalize_prose_block(song.english_meaning or "")
         if english and text == english:
             return None
         audit = audit_meaning_translation(
@@ -154,11 +160,12 @@ class LocalizationService:
         if not google_translate_configured():
             return None
         # Match the official site: translate from English meaning / central idea.
-        english = (song.english_meaning or "").strip()
+        # Unwrap soft line-breaks first so Google does not preserve catalog wrap artifacts.
+        english = normalize_prose_block(song.english_meaning or "")
         if not english:
             return None
         meaning_source = english
-        explanation_source = (explanation or "").strip() or None
+        explanation_source = normalize_prose_block(explanation or "") or None
         texts = [meaning_source]
         if explanation_source and explanation_source != meaning_source:
             texts.append(explanation_source)
@@ -178,7 +185,7 @@ class LocalizationService:
 
         localized_explanation: str | None = None
         if len(translated) > 1 and translated[1].strip():
-            localized_explanation = translated[1].strip()
+            localized_explanation = normalize_prose_block(translated[1])
         elif explanation_source and explanation_source == meaning_source:
             localized_explanation = meaning
 
@@ -222,14 +229,10 @@ class LocalizationService:
             db_song.updated_at = datetime.now(UTC)
             await session.commit()
 
-            # Keep the request-scoped song object and in-process catalog aligned.
+            # Keep this request's song object aligned. Other replicas already merge
+            # localized_* from Neon in CatalogService.get_song — skip a full catalog
+            # refresh so language switches are not blocked on re-index work.
             song.metadata_json = dict(meta)
-            try:
-                from app.services.catalog import refresh_catalog_song
-
-                await refresh_catalog_song(session, song.number)
-            except Exception:
-                logger.exception("Catalog refresh after localization persist failed")
         except Exception:
             logger.exception(
                 "Failed to persist localized meaning for song %s (%s)",
@@ -301,6 +304,8 @@ class LocalizationService:
         language_code = normalize_language_code(normalized) or normalized.casefold()
         display_language = language_display_name(normalized)
         stored_meaning = stored_meaning_for_language(song, normalized)
+        if stored_meaning:
+            stored_meaning = normalize_prose_block(stored_meaning) or stored_meaning
         stored_explanation = self._stored_explanation(song, language_code)
         if stored_meaning:
             return LocalizedSongText(
@@ -308,7 +313,8 @@ class LocalizationService:
                 localized_title=song.title,
                 localized_first_line=song.first_line,
                 localized_meaning=stored_meaning,
-                localized_explanation=stored_explanation or explanation,
+                localized_explanation=stored_explanation
+                or (normalize_prose_block(explanation or "") or None),
                 provider="stored",
             )
 

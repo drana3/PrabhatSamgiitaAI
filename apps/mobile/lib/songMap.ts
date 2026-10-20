@@ -124,14 +124,38 @@ export function englishMeaningFromDetail(detail: {
   )
 }
 
+/** Unwrap soft line-wraps; collapse bogus one-line paragraphs from translators. */
+export function normalizeProseBlock(text: string): string {
+  const paragraphs = text
+    .trim()
+    .split(/\n\s*\n/)
+    .map((block) => block.replace(/[ \t]*\n[ \t]*/g, " ").replace(/ {2,}/g, " ").trim())
+    .filter(Boolean)
+  if (!paragraphs.length) return ""
+  if (paragraphs.length >= 4) {
+    const short = paragraphs.filter((part) => part.length < 90).length
+    if (short / paragraphs.length >= 0.7) {
+      return paragraphs.join(" ").replace(/ {2,}/g, " ").trim()
+    }
+  }
+  return paragraphs.join("\n\n")
+}
+
 export function storedMeaningForLanguage(
   song: Pick<MockSong, "meaning" | "hindiMeaning" | "localizedMeanings">,
   language: string,
 ): string | null {
   const code = language.toLowerCase()
-  if (code === "en") return song.meaning?.trim() || null
-  if (code === "hi") return song.hindiMeaning?.trim() || null
-  return song.localizedMeanings?.[code] ?? null
+  if (code === "en") {
+    const value = song.meaning?.trim()
+    return value ? normalizeProseBlock(value) : null
+  }
+  if (code === "hi") {
+    const value = song.hindiMeaning?.trim()
+    return value ? normalizeProseBlock(value) : null
+  }
+  const value = song.localizedMeanings?.[code]
+  return value?.trim() ? normalizeProseBlock(value) : null
 }
 
 export function storedExplanationForLanguage(
@@ -141,7 +165,7 @@ export function storedExplanationForLanguage(
   const code = language.trim().toLowerCase()
   if (!code || code === "en") return null
   const value = song.localizedExplanations?.[code]
-  return typeof value === "string" && value.trim() ? value.trim() : null
+  return typeof value === "string" && value.trim() ? normalizeProseBlock(value) : null
 }
 
 export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong {
@@ -220,12 +244,7 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
         detail.central_idea?.trim() ||
         (typeof meta.purport === "string" ? meta.purport.trim() : "") ||
         ""
-      if (!raw) return null
-      return raw
-        .split(/\n\s*\n/)
-        .map((block) => block.replace(/[ \t]*\n[ \t]*/g, " ").replace(/ {2,}/g, " ").trim())
-        .filter(Boolean)
-        .join("\n\n")
+      return raw ? normalizeProseBlock(raw) : null
     })(),
     hindiMeaning: detail.hindi_meaning?.trim() || null,
     localizedMeanings: readLocalizedMeanings(detail.metadata_json),

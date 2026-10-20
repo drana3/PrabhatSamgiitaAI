@@ -4,6 +4,7 @@ import {
   collectStoredMeanings,
   englishMeaningText,
   hasStoredMeaningForLanguage,
+  normalizeProseBlock,
   storedMeaningForLanguage,
 } from "@/lib/song-meanings"
 
@@ -24,6 +25,19 @@ describe("song meaning priority helpers", () => {
       hi: "हिन्दी अर्थ",
       bn: "বাংলা অর্থ",
     })
+  })
+
+  it("unwraps soft wraps and collapses line-as-paragraph artifacts", () => {
+    expect(
+      normalizeProseBlock("Darkness ends,\ncrossing the threshold.\n\nCall all."),
+    ).toBe("Darkness ends, crossing the threshold.\n\nCall all.")
+    expect(
+      normalizeProseBlock(
+        ["Calling all,", "I will sing", "of this dawn", "in divine light.", "Stars above."].join(
+          "\n\n",
+        ),
+      ),
+    ).toBe("Calling all, I will sing of this dawn in divine light. Stars above.")
   })
 
   it("uses English lyrics as the English meaning when the song itself is English", () => {

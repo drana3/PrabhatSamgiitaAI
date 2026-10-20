@@ -26,6 +26,7 @@ import { api } from "@/lib/client"
 import type { UnderstandMode } from "@/lib/lyricsMeaningPager"
 import type { SongMeaningResolution } from "@/lib/songMeanings"
 import { meaningUnavailableMessage } from "@/lib/songMeanings"
+import { normalizeProseBlock } from "@/lib/songMap"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
@@ -104,7 +105,7 @@ function MeaningBody({
     )
   }
   if (meaning.status === "ready") {
-    return <Text style={styles.body}>{meaning.text}</Text>
+    return <Text style={styles.body}>{normalizeProseBlock(meaning.text)}</Text>
   }
   return (
     <Text style={styles.meaningUnavailable}>{meaningUnavailableMessage(language)}</Text>
@@ -361,7 +362,7 @@ export function LyricsMeaningView({
             <Text style={styles.centralIdeaLabel}>
               {localeLabel(language)} · Central idea
             </Text>
-            <Text style={styles.body}>{localizedCentralIdea.trim()}</Text>
+            <Text style={styles.body}>{normalizeProseBlock(localizedCentralIdea)}</Text>
           </View>
         ) : null}
         {centralIdea?.trim() ? (
@@ -380,7 +381,7 @@ export function LyricsMeaningView({
                 ? "Central idea (English)"
                 : "Central idea"}
             </Text>
-            <Text style={styles.body}>{centralIdea.trim()}</Text>
+            <Text style={styles.body}>{normalizeProseBlock(centralIdea)}</Text>
           </View>
         ) : null}
       </View>

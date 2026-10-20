@@ -9,14 +9,21 @@ export type SongMeaningSource = {
   metadata_json?: Record<string, unknown> | null
 }
 
-/** Unwrap HTML soft line-wraps in Central idea / Purport prose. */
+/** Unwrap HTML soft line-wraps; collapse bogus one-line "paragraphs" from translators. */
 export function normalizeProseBlock(text: string): string {
-  return text
+  const paragraphs = text
     .trim()
     .split(/\n\s*\n/)
     .map((block) => block.replace(/[ \t]*\n[ \t]*/g, " ").replace(/ {2,}/g, " ").trim())
     .filter(Boolean)
-    .join("\n\n")
+  if (!paragraphs.length) return ""
+  if (paragraphs.length >= 4) {
+    const short = paragraphs.filter((part) => part.length < 90).length
+    if (short / paragraphs.length >= 0.7) {
+      return paragraphs.join(" ").replace(/ {2,}/g, " ").trim()
+    }
+  }
+  return paragraphs.join("\n\n")
 }
 
 /** Official Central idea / Purport prose when present. */
@@ -46,12 +53,12 @@ export function collectStoredMeanings(song: SongMeaningSource): Record<string, s
   const meanings: Record<string, string> = {}
   const english = englishMeaningText(song)
   const hindi = song.hindi_meaning?.trim()
-  if (english) meanings.en = english
-  if (hindi) meanings.hi = hindi
+  if (english) meanings.en = normalizeProseBlock(english)
+  if (hindi) meanings.hi = normalizeProseBlock(hindi)
   const localized = (song.metadata_json?.localized_meanings ?? {}) as Record<string, unknown>
   for (const [code, text] of Object.entries(localized)) {
     if (typeof text === "string" && text.trim()) {
-      meanings[code.toLowerCase()] = text.trim()
+      meanings[code.toLowerCase()] = normalizeProseBlock(text)
     }
   }
   return meanings

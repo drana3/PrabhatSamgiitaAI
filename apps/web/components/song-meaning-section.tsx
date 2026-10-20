@@ -13,15 +13,17 @@ import {
   storedExplanationForLanguage,
   englishMeaningText,
   centralIdeaText,
+  normalizeProseBlock,
   type SongMeaningSource,
 } from "@/lib/song-meanings"
 
 function MeaningBlock({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null
+  const prose = value?.trim() ? normalizeProseBlock(value) : ""
+  if (!prose) return null
   return (
     <article className="mt-4 rounded-2xl border border-navy-900/10 bg-ivory-50 p-5">
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">{label}</p>
-      <p dir="auto" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700 select-text">{value}</p>
+      <p dir="auto" className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700 select-text">{prose}</p>
     </article>
   )
 }
