@@ -39,7 +39,7 @@ PersistScheduler = Callable[[int, str, "LocalizedSongText"], None]
 logger = logging.getLogger(__name__)
 
 # Bump when the Central idea LLM prompt/format changes so old generated cache refreshes.
-CENTRAL_IDEA_SUMMARY_VERSION = 4
+CENTRAL_IDEA_SUMMARY_VERSION = 5
 
 CENTRAL_IDEA_SYSTEM_PROMPT = (
     "You write short Central idea / purport prose for Prabhat Samgiita devotees. "
@@ -423,15 +423,25 @@ class LocalizationService:
             return None
         # Reject meaning mirrors (exact or near-copy of English/Hindi/localized meaning).
         mirrors = self._meaning_mirrors(song, language)
-        if localized_meaning:
-            mirrors.append(normalize_prose_block(localized_meaning))
+        same_lang = normalize_prose_block(localized_meaning or "") or None
+        if same_lang:
+            mirrors.append(same_lang)
         for meaning in mirrors:
             if meaning and is_near_duplicate_prose(text, meaning):
                 return None
-        # Generated Central idea must be clearly shorter than a long meaning.
-        for meaning in mirrors:
-            if meaning and len(meaning) >= 160 and len(text) >= int(len(meaning) * 0.75):
+        # Length gate: prefer same-language meaning. Cross-language char counts
+        # are a poor proxy (Galician/Spanish/etc. often expand vs English) and
+        # were discarding valid Central ideas → empty-state on the client.
+        lang = (language or "").casefold()
+        if same_lang and len(same_lang) >= 120:
+            ratio = 0.85 if lang in {"en", "english"} else 1.65
+            if len(text) >= int(len(same_lang) * ratio):
                 return None
+        else:
+            ratio = 0.85 if lang in {"en", "english"} else 1.85
+            for meaning in mirrors:
+                if meaning and len(meaning) >= 160 and len(text) >= int(len(meaning) * ratio):
+                    return None
         return text
 
     async def _translate_explanation_with_google(
@@ -493,13 +503,23 @@ class LocalizationService:
         )
         if usable:
             return usable
-        # One retry with an explicit anti-copy instruction when the model echoed the meaning.
+        # One retry when the draft was a meaning mirror or too long for a purport.
+        max_chars = 220
+        if localized_meaning and len(localized_meaning) >= 120:
+            max_chars = max(140, int(len(localized_meaning) * 0.55))
+        else:
+            for mirror in self._meaning_mirrors(song, language):
+                if mirror and len(mirror) >= 120:
+                    max_chars = max(140, int(len(mirror) * 0.7))
+                    break
         retry_prompt = "\n".join(
             [
                 prompt,
                 "",
-                "CRITICAL REVISION: Your previous draft copied the meaning too closely.",
-                "Rewrite as a SHORT purport (about 30–45% the length of the meaning).",
+                "CRITICAL REVISION: Your previous draft was too close to the meaning",
+                "or too long for a Central idea.",
+                f"Rewrite as a SHORT purport — at most {max_chars} characters,",
+                "still exactly 2 short paragraphs.",
                 "Do NOT reuse whole sentences from the PRIMARY meaning.",
                 "Crystallize the longing and the promise into fresh simple words.",
             ]

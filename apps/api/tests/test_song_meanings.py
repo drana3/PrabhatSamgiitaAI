@@ -70,6 +70,50 @@ def test_usable_explanation_rejects_meaning_mirror() -> None:
     )
 
 
+def test_usable_explanation_allows_expanding_language_central_idea() -> None:
+    """Romance/Indic Central ideas can exceed English char length without being mirrors."""
+    english = (
+        "The lyres of all minds play to the same tune today. There is fragrance "
+        "in all hearts. You came onto this earth with Your exquisite appearance "
+        "and gave the same feeling to all. Do not tear my garland of flowers, "
+        "my entire wealth of compassion. Come close to me, come closer, still "
+        "closer, take all that I have."
+    )
+    galician_meaning = (
+        "As liras de todas as mentes tocan a mesma melodía hoxe. Hai fragancia "
+        "en todos os corazóns. Viñeches a esta terra co teu exquisito aspecto "
+        "e décheslle o mesmo sentimento a todos. Non rompas a miña guirlanda "
+        "de flores, toda a miña riqueza de compaixón. Achegácheste a min."
+    )
+    # Longer than 75% of English (old gate) but under 1.65× Galician meaning.
+    galician_idea = (
+        "Hoxe todas as mentes vibran nunha soa melodía e hai un sutil aroma "
+        "de ternura en cada corazón; sentín a túa chegada, tan fermosa, e esa "
+        "presenza chea de luz instaurou a mesma ledicia en todos nós. "
+        "Ofrezoche o meu colar de flores, todo o meu afecto e compaixón.\n\n"
+        "Achega‑te máis, cada paso teu preto axústame o corazón; toma canto teño."
+    )
+    song = Song(
+        number=4,
+        title="Test",
+        english_meaning=english,
+        metadata_json={},
+    )
+    service = LocalizationService()
+    assert len(galician_idea) >= int(len(english) * 0.75)
+    assert len(galician_idea) < int(len(galician_meaning) * 1.65)
+    assert (
+        service._usable_localized_explanation(
+            song,
+            galician_idea,
+            None,
+            language="gl",
+            localized_meaning=galician_meaning,
+        )
+        == galician_idea
+    )
+
+
 def test_collect_stored_meanings_merges_columns_and_metadata() -> None:
     song = Song(
         id=1,
