@@ -84,10 +84,10 @@ async def apply_db(*, dry_run: bool = False, force: bool = False) -> dict[str, A
             if isinstance(meta, dict) and meta.get("official_theme_label"):
                 known_theme = str(meta["official_theme_label"])
             known_theme = known_theme or song.theme
-            if src and (src.get("theme") or (src.get("metadata_json") or {}).get("official_theme_label")):
-                known_theme = known_theme or src.get("theme") or (
-                    (src.get("metadata_json") or {}).get("official_theme_label")
-                )
+            src_meta = (src or {}).get("metadata_json") or {}
+            src_theme = (src or {}).get("theme") or src_meta.get("official_theme_label")
+            if src and src_theme:
+                known_theme = known_theme or src_theme
             text = (
                 strip_trailing_theme_from_devanagari(
                     song.lyrics_original or (src or {}).get("lyrics_original"),
