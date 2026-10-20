@@ -4,7 +4,6 @@ from app.models.admin_workflow import (
     YoutubeScanChannel,
 )
 from app.models.ai_usage import AiDailyUsage
-from app.models.google_translate_usage import GoogleTranslateUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
 from app.models.base import Base
 from app.models.chunk import SongChunk
@@ -24,6 +23,7 @@ from app.models.domain import (
     UserFeedback,
     UserFeedbackReply,
 )
+from app.models.google_translate_usage import GoogleTranslateUsage
 from app.models.inventory import InventoryItem
 from app.models.media import Media
 from app.models.member import (
