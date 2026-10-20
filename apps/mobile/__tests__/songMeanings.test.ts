@@ -43,6 +43,19 @@ describe("storedExplanationForLanguage", () => {
     const { centralIdea: _drop, ...withoutIdea } = song
     expect(storedExplanationForLanguage(withoutIdea, "es")).toBe("Idea central en español")
   })
+
+  it("rejects meaning dumps stored as Central idea", () => {
+    const dump =
+      "आज, पत्तों के झड़ने के दर्द में बाँस का झुरमुट क्या कहता है?\nवह मौन होकर देखता रहता है।"
+    const broken = {
+      ...song,
+      centralIdea: null,
+      hindiMeaning: null,
+      localizedMeanings: { hi: dump },
+      localizedExplanations: { hi: dump },
+    }
+    expect(storedExplanationForLanguage(broken, "hi")).toBeNull()
+  })
 })
 
 describe("resolveSongMeaning", () => {

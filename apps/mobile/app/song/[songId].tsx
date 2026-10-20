@@ -38,6 +38,7 @@ import {
 } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
 import {
+  isNearDuplicateProse,
   parseSongNumber,
   storedExplanationForLanguage,
   storedMeaningForLanguage,
@@ -502,17 +503,18 @@ export default function SongDetailScreen() {
     if (!song || localizing || centralIdeaPending) return
     const code = language
     const englishIdea = song.centralIdea?.trim() || ""
-    const storedExpl = storedExplanationForLanguage(song, code)
     const curated = code === "en" ? null : storedMeaningForLanguage(song, code)
     delete meaningCache.current[code]
     forgetSongLocalization(song.number, localeLabel(code))
 
-    setLocalizedCentralIdea(storedExpl)
+    // Explicit retry: ignore bad cached "explanations" that are meaning dumps.
+    // Always regenerate when there is no official English purport.
     const needsMeaning = code !== "en" && !curated
-    const needsOfficialTranslate = Boolean(englishIdea) && !storedExpl
-    const needsGenerated = !englishIdea && !storedExpl
+    const needsOfficialTranslate = Boolean(englishIdea)
+    const needsGenerated = !englishIdea
     if (!needsMeaning && !needsOfficialTranslate && !needsGenerated) return
 
+    setLocalizedCentralIdea(null)
     setLocalizing(needsMeaning || needsOfficialTranslate)
     setCentralIdeaPending(needsGenerated)
 
@@ -524,7 +526,11 @@ export default function SongDetailScreen() {
         const meaning = translated && translated !== english ? translated : null
         const explRaw = result?.localized_explanation?.trim() || ""
         const explanation =
-          explRaw && explRaw !== englishIdea ? explRaw : storedExpl
+          explRaw &&
+          explRaw !== englishIdea &&
+          !(meaning && isNearDuplicateProse(explRaw, meaning, 0.95))
+            ? explRaw
+            : null
         meaningCache.current[code] = {
           meaning: code === "en" ? null : meaning ?? curated,
           title: code === "en" ? null : result?.localized_title ?? null,
@@ -539,7 +545,17 @@ export default function SongDetailScreen() {
       if (needsGenerated) {
         const idea = await fetchSongCentralIdeaLocalization(song.number, code, { force: true })
         const explRaw = idea?.localized_explanation?.trim() || ""
-        if (explRaw && explRaw !== englishIdea) {
+        const meaningNow =
+          meaningCache.current[code]?.meaning ||
+          curated ||
+          localizedMeaning ||
+          song.meaning?.trim() ||
+          ""
+        const usable =
+          Boolean(explRaw) &&
+          explRaw !== englishIdea &&
+          !(meaningNow && isNearDuplicateProse(explRaw, meaningNow, 0.95))
+        if (usable) {
           setLocalizedCentralIdea(explRaw)
           const prev = meaningCache.current[code]
           meaningCache.current[code] = {
@@ -547,6 +563,18 @@ export default function SongDetailScreen() {
             title: prev?.title ?? null,
             explanation: explRaw,
           }
+          // Keep Retry from re-reading a meaning-dump on the next effect.
+          setSong((prevSong) =>
+            prevSong
+              ? {
+                  ...prevSong,
+                  localizedExplanations: {
+                    ...(prevSong.localizedExplanations || {}),
+                    [code]: explRaw,
+                  },
+                }
+              : prevSong,
+          )
         }
       }
     } catch {
@@ -555,7 +583,7 @@ export default function SongDetailScreen() {
       setLocalizing(false)
       setCentralIdeaPending(false)
     }
-  }, [song, language, localizing, centralIdeaPending])
+  }, [song, language, localizing, centralIdeaPending, localizedMeaning])
 
   if (loadingSong && !song) {
     return (

@@ -249,7 +249,10 @@ export function storedMeaningForLanguage(
 }
 
 export function storedExplanationForLanguage(
-  song: Pick<MockSong, "localizedExplanations" | "centralIdea" | "meaning" | "hindiMeaning">,
+  song: Pick<
+    MockSong,
+    "localizedExplanations" | "localizedMeanings" | "centralIdea" | "meaning" | "hindiMeaning"
+  >,
   language: string,
 ): string | null {
   const code = language.trim().toLowerCase()
@@ -260,7 +263,9 @@ export function storedExplanationForLanguage(
   if (!prose) return null
   const official = song.centralIdea?.trim() ? normalizeProseBlock(song.centralIdea) : ""
   if (official && prose === official) return null
-  for (const raw of [song.meaning, song.hindiMeaning]) {
+  const localizedMeaning = song.localizedMeanings?.[code]
+  for (const raw of [song.meaning, song.hindiMeaning, localizedMeaning]) {
+    // Reject meaning dumps wrongly stored as Central idea (e.g. PS 111 Hindi).
     if (raw?.trim() && isNearDuplicateProse(prose, raw, 0.95)) return null
   }
   return prose
