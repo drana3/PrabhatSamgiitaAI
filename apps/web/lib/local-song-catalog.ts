@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { bookletHarmoniumSong, compareAudioQuality } from "@prabhat/core"
+import {
+  bookletHarmoniumSong,
+  compareAudioQuality,
+  dropLastNonemptyLine,
+  extractTrailingEnglishTheme,
+} from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
 import { normalizeTransliterationText } from "@/lib/transliteration-text"
 import { completeSargamSongs, isCompleteSargamSong } from "@/lib/complete-sargam"
@@ -20,6 +25,7 @@ type SeedSong = {
   devanagari_status?: string | null
   hindi_meaning?: string | null
   english_meaning?: string | null
+  central_idea?: string | null
   theme?: string | null
   occasion?: string | null
   festival?: string | null
@@ -162,6 +168,7 @@ function resolvedSong(number: number): SeedSong | null {
     devanagari_status: firstFilled(seed.devanagari_status, generated.devanagari_status) || "none",
     hindi_meaning: firstFilled(seed.hindi_meaning, generated.hindi_meaning),
     english_meaning: firstFilled(seed.english_meaning, generated.english_meaning),
+    central_idea: firstFilled(seed.central_idea, generated.central_idea),
     canonical_source_url: firstFilled(seed.canonical_source_url, generated.canonical_source_url),
     metadata_json: { ...(generated.metadata_json ?? {}), ...(seed.metadata_json ?? {}) },
   }
@@ -236,14 +243,35 @@ export function localSongDetail(number: number): SongDetail | null {
     bookletHarmoniumSong(number) &&
       (notation?.notation_text?.trim().startsWith("{") || song.harmonium_notation?.trim().startsWith("{")),
   )
+  const romanRaw = normalizeCatalogText(song.lyrics_original)
+  const { lyrics: romanClean, theme: peeledTheme } = extractTrailingEnglishTheme(romanRaw)
+  const meta = song.metadata_json ?? {}
+  const officialTheme =
+    (typeof meta.official_theme_label === "string" && meta.official_theme_label.trim()) ||
+    peeledTheme ||
+    song.theme?.trim() ||
+    null
+  let lyricsDevanagari = song.lyrics_devanagari?.trim() || null
+  if (peeledTheme && lyricsDevanagari) {
+    const romanN = romanClean.split("\n").filter((ln) => ln.trim()).length
+    const devN = lyricsDevanagari.split("\n").filter((ln) => ln.trim()).length
+    if (devN === romanN + 1) {
+      lyricsDevanagari = dropLastNonemptyLine(lyricsDevanagari).trim() || null
+    }
+  }
   return {
     ...summary(song),
-    lyrics_original: normalizeCatalogText(song.lyrics_original),
+    theme: officialTheme || song.theme,
+    lyrics_original: romanClean || null,
     transliteration: normalizeCatalogText(song.transliteration),
-    lyrics_devanagari: song.lyrics_devanagari?.trim() || null,
+    lyrics_devanagari: lyricsDevanagari,
     devanagari_status: song.devanagari_status || "none",
     hindi_meaning: song.hindi_meaning,
     english_meaning: song.english_meaning,
+    central_idea:
+      song.central_idea?.trim() ||
+      (typeof meta.purport === "string" ? meta.purport.trim() : null) ||
+      null,
     festival: song.festival,
     season: song.season,
     meditation_context: song.meditation_context,
@@ -259,7 +287,10 @@ export function localSongDetail(number: number): SongDetail | null {
     notation_verification_status: notation?.verification_status,
     notation_transposition_available: playable,
     notation_enabled: Boolean(bookletHarmoniumSong(number)),
-    metadata_json: song.metadata_json ?? {},
+    metadata_json: {
+      ...meta,
+      ...(officialTheme ? { official_theme_label: officialTheme } : {}),
+    },
   }
 }
 
@@ -301,6 +332,7 @@ export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail 
         : local.devanagari_status || "none",
     hindi_meaning: firstFilled(remote.hindi_meaning, local.hindi_meaning),
     english_meaning: firstFilled(remote.english_meaning, local.english_meaning),
+    central_idea: firstFilled(remote.central_idea, local.central_idea),
     media: remote.media.length ? remote.media : local.media,
     notation_scale: remote.notation_scale || local.notation_scale,
     notation_source_url: remote.notation_source_url || local.notation_source_url,

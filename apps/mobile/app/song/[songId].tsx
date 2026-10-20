@@ -713,6 +713,7 @@ export default function SongDetailScreen() {
             language={language}
             localizing={localizing}
             meaning={meaningResolution}
+            centralIdea={song.centralIdea}
             onSelectLanguage={selectLanguage}
           />
         </View>

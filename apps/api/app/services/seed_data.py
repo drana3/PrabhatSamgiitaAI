@@ -264,18 +264,29 @@ def _merge_songs(
         for key, value in seed_row.items():
             if row.get(key) in (None, "", [], {}):
                 row[key] = value
+        metadata = dict(row.get("metadata_json") or {})
+        official_theme = (
+            metadata.get("official_theme_label")
+            or (row.get("theme") if isinstance(row.get("theme"), str) else None)
+        )
         assignment = assignments.get(row.get("number"))
         if assignment:
-            row["theme"] = ", ".join(assignment.get("themes", [])) or row.get("theme")
+            collection_theme = ", ".join(assignment.get("themes", [])) or None
+            # Prefer official English label from the lyrics page when present;
+            # otherwise use canonical collection theme tags.
+            row["theme"] = official_theme or collection_theme or row.get("theme")
             row["festival"] = ", ".join(assignment.get("festivals", [])) or row.get("festival")
             row["occasion"] = ", ".join(assignment.get("occasions", [])) or row.get("occasion")
             row["season"] = ", ".join(assignment.get("seasons", [])) or row.get("season")
             languages = assignment.get("languages", [])
             if languages:
                 row["language"] = ", ".join(languages)
-            metadata = dict(row.get("metadata_json") or {})
             metadata["canonical_theme_assignments"] = assignment
-            row["metadata_json"] = metadata
+        elif official_theme and not (row.get("theme") or "").strip():
+            row["theme"] = official_theme
+        if official_theme:
+            metadata["official_theme_label"] = official_theme
+        row["metadata_json"] = metadata
         merged.append(row)
     return merged
 

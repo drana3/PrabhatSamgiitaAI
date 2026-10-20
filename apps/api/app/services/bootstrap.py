@@ -165,6 +165,7 @@ class BootstrapService:
             "devanagari_status",
             "hindi_meaning",
             "english_meaning",
+            "central_idea",
             "theme",
             "occasion",
             "festival",

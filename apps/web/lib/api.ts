@@ -58,6 +58,7 @@ const songDetailBaseSchema = songSummaryBaseSchema.extend({
   devanagari_status: z.string().optional().default("none"),
   hindi_meaning: z.string().nullable().optional(),
   english_meaning: z.string().nullable().optional(),
+  central_idea: z.string().nullable().optional(),
   festival: z.string().nullable().optional(),
   season: z.string().nullable().optional(),
   meditation_context: z.string().nullable().optional(),

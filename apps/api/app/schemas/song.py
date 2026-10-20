@@ -49,6 +49,7 @@ class SongDetail(SongSummary):
     devanagari_status: str = "none"
     hindi_meaning: str | None = None
     english_meaning: str | None = None
+    central_idea: str | None = None
     festival: str | None = None
     season: str | None = None
     meditation_context: str | None = None

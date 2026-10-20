@@ -1,7 +1,21 @@
-# Shrink EAS upload — exclude local artifacts and store assets not needed to compile.
+# Shrink EAS upload under the 2 GB limit.
+*.aab
+*.ipa
+*.apk
+build-*.log
 build-*.aab
+build-*.ipa
+build-android-*.log
+build-ios-*.log
 store-screenshots/
-**/*.aab
-**/*.ipa
+ios/
+android/
+.expo/
+dist/
 **/.next/
 **/node_modules/.cache/
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.orig.*

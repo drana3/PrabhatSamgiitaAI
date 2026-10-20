@@ -1,4 +1,26 @@
+# Monorepo EAS upload exclusions (project root packaging).
+apps/mobile/*.aab
+apps/mobile/*.ipa
+apps/mobile/*.apk
+apps/mobile/build-*.log
 apps/mobile/build-*.aab
+apps/mobile/build-*.ipa
+apps/mobile/build-android-*.log
+apps/mobile/build-ios-*.log
 apps/mobile/store-screenshots/
+apps/mobile/ios/
+apps/mobile/android/
 **/*.aab
+**/*.ipa
+**/*.apk
 data/cache/
+# Keep mobile bundle inputs; drop the rest (faiss, catalogues, etc.)
+data/generated/*
+!data/generated/theme_collections.json
+!data/generated/collection_song_titles.json
+!data/generated/mobile_category_songs.json
+!data/generated/complete_sargam_songs.json
+!data/generated/lyric_search_index.json
+docs/
+apps/web/.next/
+**/node_modules/.cache/

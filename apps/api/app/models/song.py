@@ -24,6 +24,8 @@ class Song(Base, TimestampMixin):
     )
     hindi_meaning: Mapped[str | None] = mapped_column(Text)
     english_meaning: Mapped[str | None] = mapped_column(Text)
+    # Official discursive block after the verse translation (Central idea / Purport).
+    central_idea: Mapped[str | None] = mapped_column(Text)
     theme: Mapped[str | None] = mapped_column(Text)
     occasion: Mapped[str | None] = mapped_column(String(255))
     festival: Mapped[str | None] = mapped_column(String(255))

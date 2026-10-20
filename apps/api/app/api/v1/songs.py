@@ -18,6 +18,7 @@ from app.schemas.song import (
 )
 from app.services.catalog import CatalogService
 from app.services.localization import LocalizationService
+from app.services.lyrics_theme import drop_last_nonempty_line, extract_trailing_english_theme
 from app.services.media_quality import (
     client_media_items,
     media_quality_key,
@@ -75,8 +76,10 @@ async def get_localized_song(
     song = await service.get_song(number)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
+    meta = song.metadata_json if isinstance(song.metadata_json, dict) else {}
     explanation = (
-        (song.metadata_json or {}).get("purport")
+        (getattr(song, "central_idea", None) or "").strip()
+        or (meta.get("purport") if isinstance(meta.get("purport"), str) else None)
         or song.english_meaning
         or song.hindi_meaning
         or song.first_line
@@ -158,11 +161,32 @@ async def get_song(
         raise HTTPException(status_code=404, detail="Song not found")
     summary = _summary(song)
     lyrics_original = song.lyrics_original
+    peeled_theme = None
+    if isinstance(lyrics_original, str):
+        lyrics_original, peeled_theme = extract_trailing_english_theme(lyrics_original)
+        lyrics_original = lyrics_original or None
+    theme = summary.theme or peeled_theme
+    meta = song.metadata_json or {}
+    if isinstance(meta, dict) and meta.get("official_theme_label"):
+        theme = str(meta["official_theme_label"]) or theme
+    if theme and not summary.theme:
+        summary = summary.model_copy(update={"theme": theme})
     transliteration = song.transliteration
     lyrics_devanagari = getattr(song, "lyrics_devanagari", None)
+    if peeled_theme and isinstance(lyrics_devanagari, str) and lyrics_devanagari.strip():
+        roman_n = len([ln for ln in (lyrics_original or "").split("\n") if ln.strip()])
+        dev_n = len([ln for ln in lyrics_devanagari.split("\n") if ln.strip()])
+        if dev_n == roman_n + 1:
+            lyrics_devanagari = drop_last_nonempty_line(lyrics_devanagari) or None
     devanagari_status = getattr(song, "devanagari_status", None) or "none"
     hindi_meaning = song.hindi_meaning
     english_meaning = song.english_meaning
+    metadata_json = song.metadata_json or {}
+    central_idea = (getattr(song, "central_idea", None) or "").strip() or None
+    if not central_idea and isinstance(metadata_json, dict):
+        purport = metadata_json.get("purport")
+        if isinstance(purport, str) and purport.strip():
+            central_idea = purport.strip()
     festival = song.festival
     season = song.season
     meditation_context = song.meditation_context
@@ -171,7 +195,6 @@ async def get_song(
     harmonium_notation = song.harmonium_notation
     canonical_source_url = song.canonical_source_url
     canonical_source_status = song.canonical_source_status
-    metadata_json = song.metadata_json or {}
     related_summaries = [_summary(item) for item in await service.related_songs(song)]
     media_items = sorted(
         client_media_items(await service.get_media(number)),
@@ -188,6 +211,7 @@ async def get_song(
         devanagari_status=devanagari_status,
         hindi_meaning=hindi_meaning,
         english_meaning=english_meaning,
+        central_idea=central_idea,
         festival=festival,
         season=season,
         meditation_context=meditation_context,

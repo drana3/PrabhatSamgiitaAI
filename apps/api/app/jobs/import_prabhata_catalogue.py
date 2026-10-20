@@ -35,6 +35,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from app.services.lyrics_theme import extract_trailing_english_theme, is_english_theme_line
 from app.services.transliteration import (
     ENGINE_VERSION,
     RULESET_VERSION,
@@ -78,6 +79,7 @@ def extract_songs() -> list[dict[str, Any]]:
             continue
         seen.add(number)
         roman = (entry.get("lyrics_original") or "").strip("\n")
+        roman, _theme = extract_trailing_english_theme(roman)
         rel = entry.get("canonical_source_url")
         url = f"{CONTENT_SOURCE}{rel}" if rel and rel.startswith("/") else rel
         songs.append(
@@ -101,6 +103,8 @@ def _hash(text: str) -> str:
 # ---------------------------------------------------------------------------
 def build_song_record(song: dict[str, Any]) -> dict[str, Any]:
     roman_text: str = song["roman_text"]
+    # Never convert official English theme labels that were glued into lyrics.
+    roman_text, _theme = extract_trailing_english_theme(roman_text)
     roman_lines = roman_text.split("\n") if roman_text else []
 
     dev_lines: list[str | None] = []
@@ -113,6 +117,9 @@ def build_song_record(song: dict[str, Any]) -> dict[str, Any]:
             line_pairs.append(
                 {"line_number": idx, "roman": line, "devanagari": line, "status": "rules_passed"}
             )
+            continue
+        # Defense in depth: omit mid-block English theme labels from singing text.
+        if is_english_theme_line(line):
             continue
         result = transliterate(line)
         report = verify(result)

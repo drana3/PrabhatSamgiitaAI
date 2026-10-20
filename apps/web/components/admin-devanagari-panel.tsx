@@ -8,6 +8,7 @@ import { CopyTextButton } from "@/components/copy-text-button"
 type DevanagariSong = {
   song_number: number
   title: string
+  theme?: string | null
   lyrics_original: string | null
   lyrics_devanagari: string | null
   devanagari_status: string
@@ -342,6 +343,11 @@ export function AdminDevanagariPanel({
                 Song #{song.song_number}
               </p>
               <h2 className="font-serif text-2xl text-navy-950">{song.title}</h2>
+              {song.theme ? (
+                <p className="mt-1 text-sm text-navy-900">
+                  Theme (not lyrics): <span className="font-semibold">{song.theme}</span>
+                </p>
+              ) : null}
               <p className="mt-1 text-sm text-stone-600">
                 Status: <span className="font-semibold">{song.devanagari_status}</span>
                 {" · "}

@@ -21,6 +21,8 @@ export type MockSong = {
   themes: string[]
   /** English meaning (primary for language=en). */
   meaning: string
+  /** Official Central idea / Purport when present. */
+  centralIdea?: string | null
   /** Curated Hindi meaning from the catalog when available. */
   hindiMeaning?: string | null
   /** Admin-approved meanings keyed by language code (e.g. bn, ta). */

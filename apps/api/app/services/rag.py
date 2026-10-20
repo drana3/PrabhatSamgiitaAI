@@ -121,7 +121,8 @@ def build_song_chunks(song: Song) -> list[dict[str, Any]]:
     add_chunk("transliteration", "Canonical transliteration", song.transliteration)
     add_chunk("meaning", "Canonical English meaning", song.english_meaning)
     add_chunk("meaning", "Canonical Hindi meaning", song.hindi_meaning)
-    add_chunk("purport", "Canonical purport", metadata.get("purport"))
+    central_idea = (getattr(song, "central_idea", None) or "").strip() or metadata.get("purport")
+    add_chunk("central_idea", "Canonical central idea", central_idea)
     return chunks
 
 
