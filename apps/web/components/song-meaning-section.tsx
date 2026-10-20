@@ -50,6 +50,30 @@ function sameText(left: string | null | undefined, right: string | null | undefi
   return Boolean(a && b && a === b)
 }
 
+function proseFingerprint(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+/** Hide "In simple words" when it is just the meaning restated. */
+function isMeaningMirror(explanation: string | null | undefined, ...meanings: Array<string | null | undefined>) {
+  const expl = explanation?.trim() ? proseFingerprint(explanation) : ""
+  if (!expl) return false
+  for (const meaning of meanings) {
+    const m = meaning?.trim() ? proseFingerprint(meaning) : ""
+    if (!m) continue
+    if (expl === m) return true
+    const shorter = expl.length <= m.length ? expl : m
+    const longer = expl.length <= m.length ? m : expl
+    if (longer.length >= 80 && shorter.length / longer.length >= 0.82) return true
+  }
+  return false
+}
+
 function selectedMeaningForLanguage(
   song: SongMeaningSource,
   language: string,
@@ -249,7 +273,13 @@ export function SongMeaningSection({
   const english = englishMeaningText(song)
   const showLocalizedCentralIdea = Boolean(
     localizedExplanation &&
-      (!officialCentralIdea || !sameText(localizedExplanation, officialCentralIdea)),
+      (!officialCentralIdea || !sameText(localizedExplanation, officialCentralIdea)) &&
+      !isMeaningMirror(
+        localizedExplanation,
+        selectedMeaning,
+        english,
+        song.hindi_meaning,
+      ),
   )
   const hasMeaning = Boolean(
     selectedMeaning || english || song.hindi_meaning || officialCentralIdea || showLocalizedCentralIdea,

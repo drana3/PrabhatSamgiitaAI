@@ -358,7 +358,15 @@ export function LyricsMeaningView({
         ) : null}
         <MeaningBody language={language} meaning={meaning} />
         {localizedCentralIdea?.trim() &&
-        localizedCentralIdea.trim() !== (centralIdea || "").trim() ? (
+        localizedCentralIdea.trim() !== (centralIdea || "").trim() &&
+        // Never show a Central idea that is just the meaning restated.
+        normalizeProseBlock(localizedCentralIdea) !==
+          normalizeProseBlock(meaning.status === "ready" ? meaning.text : "") &&
+        !(
+          meaning.status === "ready" &&
+          normalizeProseBlock(localizedCentralIdea).length >=
+            Math.floor(normalizeProseBlock(meaning.text).length * 0.82)
+        ) ? (
           <View style={styles.centralIdeaBlock}>
             <Text style={styles.centralIdeaLabel}>
               {centralIdea?.trim()

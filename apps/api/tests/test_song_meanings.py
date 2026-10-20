@@ -29,6 +29,47 @@ def test_format_central_idea_prose_makes_two_paragraphs() -> None:
     assert "heart longs" in formatted
 
 
+def test_usable_explanation_rejects_meaning_mirror() -> None:
+    from app.services.localization import LocalizationService
+
+    hindi = (
+        "जीवन के अंतिम पड़ाव पर, सीपियाँ इकट्ठी करते हुए, मेरा जीवन बीतता जा रहा है। "
+        "कितने लोग आए और चले गए, बिना मेरी ओर देखे?"
+    )
+    song = Song(
+        number=99,
+        title="Test",
+        english_meaning="At the far end of my life, collecting shells.",
+        hindi_meaning=hindi,
+        metadata_json={},
+    )
+    service = LocalizationService()
+    assert (
+        service._usable_localized_explanation(
+            song,
+            hindi,
+            None,
+            language="hi",
+            localized_meaning=hindi,
+        )
+        is None
+    )
+    short = (
+        "जीवन के अंत में साधिका सीपियाँ बटोरती हुई प्रभु की राह जोहती है।\n\n"
+        "उन्होंने कहा था वे आकर उसे सागर पार ले जाएँगे।"
+    )
+    assert (
+        service._usable_localized_explanation(
+            song,
+            short,
+            None,
+            language="hi",
+            localized_meaning=hindi,
+        )
+        == short
+    )
+
+
 def test_collect_stored_meanings_merges_columns_and_metadata() -> None:
     song = Song(
         id=1,

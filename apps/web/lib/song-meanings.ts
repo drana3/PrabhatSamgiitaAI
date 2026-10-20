@@ -89,8 +89,23 @@ export function storedExplanationForLanguage(
   const official = centralIdeaText(song)
   if (official && prose === official) return null
   const meaning = englishMeaningText(song)
-  if (meaning && prose === normalizeProseBlock(meaning)) return null
   const hindi = song.hindi_meaning?.trim() ? normalizeProseBlock(song.hindi_meaning) : ""
-  if (hindi && prose === hindi) return null
+  const fingerprint = (value: string) =>
+    value
+      .normalize("NFKC")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  const explFp = fingerprint(prose)
+  for (const raw of [meaning, hindi]) {
+    if (!raw) continue
+    const other = fingerprint(normalizeProseBlock(raw))
+    if (!other) continue
+    if (explFp === other) return null
+    const shorter = explFp.length <= other.length ? explFp : other
+    const longer = explFp.length <= other.length ? other : explFp
+    if (longer.length >= 80 && shorter.length / longer.length >= 0.82) return null
+  }
   return prose
 }

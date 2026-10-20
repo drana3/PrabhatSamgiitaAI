@@ -25,7 +25,7 @@ from app.services.meaning_translation import (
     pick_meaning_source,
     refine_meaning_translation,
 )
-from app.services.prose_normalize import normalize_prose_block
+from app.services.prose_normalize import is_near_duplicate_prose, normalize_prose_block
 from app.services.song_meanings import (
     language_display_name,
     normalize_language_code,
@@ -35,7 +35,7 @@ from app.services.song_meanings import (
 logger = logging.getLogger(__name__)
 
 # Bump when the Central idea LLM prompt/format changes so old generated cache refreshes.
-CENTRAL_IDEA_SUMMARY_VERSION = 2
+CENTRAL_IDEA_SUMMARY_VERSION = 3
 
 
 @dataclass(slots=True)
@@ -201,10 +201,13 @@ class LocalizationService:
         localized_explanation: str | None = None
         if len(translated) > 1 and translated[1].strip():
             localized_explanation = self._usable_localized_explanation(
-                song, translated[1], explanation_source
+                song,
+                translated[1],
+                explanation_source,
+                language=language_code,
+                localized_meaning=meaning,
             )
-        elif explanation_source and explanation_source == meaning_source:
-            localized_explanation = meaning
+        # Never use the meaning text itself as Central idea.
 
         return LocalizedSongText(
             language=language_display_name(language_code),
@@ -322,25 +325,46 @@ class LocalizationService:
                 provider="llm" if fallback_meaning else None,
             )
 
+    def _meaning_mirrors(self, song: Song, language: str | None = None) -> list[str]:
+        mirrors: list[str] = []
+        for raw in (song.english_meaning, song.hindi_meaning):
+            prose = normalize_prose_block(raw or "")
+            if prose:
+                mirrors.append(prose)
+        if language:
+            stored = stored_meaning_for_language(song, language)
+            if stored:
+                prose = normalize_prose_block(stored)
+                if prose:
+                    mirrors.append(prose)
+        return mirrors
+
     def _usable_localized_explanation(
         self,
         song: Song,
         candidate: str | None,
         explanation_source: str | None,
+        *,
+        language: str | None = None,
+        localized_meaning: str | None = None,
     ) -> str | None:
         text = normalize_prose_block(candidate or "") or None
         if not text:
             return None
         source = normalize_prose_block(explanation_source or "") or None
-        if source and text == source:
+        if source and is_near_duplicate_prose(text, source):
             return None
-        # Reject old bad cache that mirrored the meaning as "Central idea".
-        meaning_en = normalize_prose_block(song.english_meaning or "") or None
-        meaning_hi = normalize_prose_block(song.hindi_meaning or "") or None
-        if meaning_en and text == meaning_en:
-            return None
-        if meaning_hi and text == meaning_hi:
-            return None
+        # Reject meaning mirrors (exact or near-copy of English/Hindi/localized meaning).
+        mirrors = self._meaning_mirrors(song, language)
+        if localized_meaning:
+            mirrors.append(normalize_prose_block(localized_meaning))
+        for meaning in mirrors:
+            if meaning and is_near_duplicate_prose(text, meaning):
+                return None
+        # Generated Central idea must be clearly shorter than a long meaning.
+        for meaning in mirrors:
+            if meaning and len(meaning) >= 160 and len(text) >= int(len(meaning) * 0.75):
+                return None
         return text
 
     async def _translate_explanation_with_google(
@@ -361,13 +385,17 @@ class LocalizationService:
         )
         if not translated or not translated[0].strip():
             return None
-        return self._usable_localized_explanation(song, translated[0], explanation_source)
+        return self._usable_localized_explanation(
+            song, translated[0], explanation_source, language=language_code
+        )
 
     async def _generate_central_idea_summary(
         self,
         song: Song,
         language: str,
         language_code: str,
+        *,
+        localized_meaning: str | None = None,
     ) -> str | None:
         """LLM Central idea when the catalog has no official purport — polished + grounded."""
         try:
@@ -385,7 +413,38 @@ class LocalizationService:
             )
             return None
         formatted = format_central_idea_prose(draft)
-        return self._usable_localized_explanation(song, formatted, explanation_source=None)
+        usable = self._usable_localized_explanation(
+            song,
+            formatted,
+            explanation_source=None,
+            language=language,
+            localized_meaning=localized_meaning,
+        )
+        if usable:
+            return usable
+        # One retry with an explicit anti-copy instruction when the model echoed the meaning.
+        retry_prompt = "\n".join(
+            [
+                prompt,
+                "",
+                "CRITICAL REVISION: Your previous draft copied the meaning too closely.",
+                "Rewrite as a SHORT purport (about 30–45% the length of the meaning).",
+                "Do NOT reuse whole sentences from the PRIMARY meaning.",
+                "Crystallize the longing and the promise into fresh simple words.",
+            ]
+        )
+        try:
+            async with asyncio.timeout(55):
+                draft2 = (await self.provider.complete(retry_prompt)).strip()
+        except Exception:
+            return None
+        return self._usable_localized_explanation(
+            song,
+            format_central_idea_prose(draft2),
+            explanation_source=None,
+            language=language,
+            localized_meaning=localized_meaning,
+        )
 
     async def _ensure_central_idea(
         self,
@@ -409,7 +468,11 @@ class LocalizationService:
         responses are not blocked on a slow summary.
         """
         existing = self._usable_localized_explanation(
-            song, localized_explanation, explanation_source
+            song,
+            localized_explanation,
+            explanation_source,
+            language=language,
+            localized_meaning=meaning,
         )
         if existing:
             kind = "official" if explanation_source else "generated"
@@ -418,6 +481,13 @@ class LocalizationService:
         if explanation_source:
             translated = await self._translate_explanation_with_google(
                 song, language_code, explanation_source
+            )
+            translated = self._usable_localized_explanation(
+                song,
+                translated,
+                explanation_source,
+                language=language,
+                localized_meaning=meaning,
             )
             if translated:
                 await self._persist_localized(
@@ -439,7 +509,12 @@ class LocalizationService:
         if not generate_missing:
             return None, None, provider
 
-        generated = await self._generate_central_idea_summary(song, language, language_code)
+        generated = await self._generate_central_idea_summary(
+            song,
+            language,
+            language_code,
+            localized_meaning=meaning,
+        )
         if generated:
             await self._persist_localized(
                 session,
@@ -478,6 +553,8 @@ class LocalizationService:
             song,
             self._stored_explanation(song, language_code),
             explanation_source,
+            language=normalized,
+            localized_meaning=stored_meaning,
         )
         if stored_meaning:
             expl, kind, provider = await self._ensure_central_idea(
@@ -505,10 +582,13 @@ class LocalizationService:
 
         cached = await translation_cache.get(self._cache_key(song, language_code))
         if isinstance(cached, dict) and not cached.get("fallback_error"):
+            cached_meaning = self._text(cached, "localized_meaning")
             cached_explanation = self._usable_localized_explanation(
                 song,
                 self._text(cached, "localized_explanation"),
                 explanation_source,
+                language=normalized,
+                localized_meaning=cached_meaning,
             )
             expl, kind, provider = await self._ensure_central_idea(
                 song,
@@ -517,7 +597,7 @@ class LocalizationService:
                 explanation_source=explanation_source,
                 localized_explanation=cached_explanation,
                 session=session,
-                meaning=self._text(cached, "localized_meaning"),
+                meaning=cached_meaning,
                 title=self._text(cached, "localized_title") or song.title,
                 first_line=self._text(cached, "localized_first_line") or song.first_line,
                 provider=str(cached.get("provider") or "cache"),
@@ -527,7 +607,7 @@ class LocalizationService:
                 language=str(cached.get("language", display_language)),
                 localized_title=self._text(cached, "localized_title"),
                 localized_first_line=self._text(cached, "localized_first_line"),
-                localized_meaning=self._text(cached, "localized_meaning"),
+                localized_meaning=cached_meaning,
                 localized_explanation=expl,
                 explanation_kind=kind,
                 provider=provider,
@@ -547,6 +627,8 @@ class LocalizationService:
                     song,
                     result.localized_explanation,
                     explanation_source,
+                    language=normalized,
+                    localized_meaning=result.localized_meaning,
                 )
 
         expl, kind, provider = await self._ensure_central_idea(

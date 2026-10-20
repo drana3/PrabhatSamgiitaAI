@@ -211,11 +211,23 @@ export function storedExplanationForLanguage(
   if (!prose) return null
   const official = song.centralIdea?.trim() ? normalizeProseBlock(song.centralIdea) : ""
   if (official && prose === official) return null
-  // Reject old bad cache that mirrored meaning as Central idea.
-  const meaning = song.meaning?.trim() ? normalizeProseBlock(song.meaning) : ""
-  const hindi = song.hindiMeaning?.trim() ? normalizeProseBlock(song.hindiMeaning) : ""
-  if (meaning && prose === meaning) return null
-  if (hindi && prose === hindi) return null
+  const fingerprint = (text: string) =>
+    text
+      .normalize("NFKC")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\u0900-\u097F]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  const explFp = fingerprint(prose)
+  for (const raw of [song.meaning, song.hindiMeaning]) {
+    if (!raw?.trim()) continue
+    const other = fingerprint(normalizeProseBlock(raw))
+    if (!other) continue
+    if (explFp === other) return null
+    const shorter = explFp.length <= other.length ? explFp : other
+    const longer = explFp.length <= other.length ? other : explFp
+    if (longer.length >= 80 && shorter.length / longer.length >= 0.82) return null
+  }
   return prose
 }
 
