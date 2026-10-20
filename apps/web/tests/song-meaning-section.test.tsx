@@ -140,9 +140,12 @@ describe("SongMeaningSection", () => {
     )
 
     expect(await screen.findByText("Door de sluier van duisternis heen.")).toBeInTheDocument()
+    // Quiet Central idea: no spinner while LLM runs in the background.
+    expect(screen.queryByText(/Writing central idea/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/In simple words/i)).not.toBeInTheDocument()
     expect(await screen.findByText(/In simple words/i)).toBeInTheDocument()
     expect(screen.getByText("Het lied vraagt om licht in eenvoudige woorden.")).toBeInTheDocument()
+    expect(screen.queryByText(/Writing central idea/i)).not.toBeInTheDocument()
     expect(fetchSongLocalization).toHaveBeenCalledWith(42, "Dutch")
     expect(fetchSongLocalization).toHaveBeenCalledWith(42, "Dutch", {
       generateCentralIdea: true,

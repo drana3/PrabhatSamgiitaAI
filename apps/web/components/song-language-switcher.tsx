@@ -71,10 +71,11 @@ export function SongLanguageSwitcher({
               next.set("language", value)
             }
             const query = next.toString()
-            // Meaning switcher: stay on #meaning. Otherwise keep the current hash
-            // (replaceState without a hash used to drop #lyrics and jump the page).
+            // Meaning switcher: stay on #lyrics (Central idea must not jump to Listen).
+            // Otherwise keep the current hash (replaceState without a hash used to
+            // drop #lyrics and jump the page).
             const hash = onLanguageChange
-              ? "#meaning"
+              ? "#lyrics"
               : window.location.hash || ""
             const url = `${pathname}${query ? `?${query}` : ""}${hash}`
             // Blur so mobile browsers do not scroll the closed native picker into

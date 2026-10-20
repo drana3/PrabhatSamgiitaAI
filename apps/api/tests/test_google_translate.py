@@ -10,7 +10,11 @@ import pytest
 from app.config import Settings
 from app.models import Song
 from app.services import google_translate as gt
-from app.services.localization import LocalizationService, translation_cache
+from app.services.localization import (
+    LocalizationService,
+    localized_response_cache,
+    translation_cache,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -289,3 +293,75 @@ async def test_localize_falls_back_to_llm_when_google_unavailable(tmp_path: Path
     assert result.provider == "llm"
     assert result.localized_meaning == "लाल भोर आ गई है।"
     service.provider.complete.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_localize_defers_neon_persist_when_scheduler_provided(
+    tmp_path: Path,
+) -> None:
+    """Return Google meaning without awaiting DB commit when schedule_persist is set."""
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
+        GOOGLE_TRANSLATE_API_KEY="test-key",
+        GOOGLE_TRANSLATE_ENABLED=True,
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=400_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+        GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
+    )
+    gt.reset_quota_store_for_tests()
+    song = Song(
+        number=9,
+        title="Song 9",
+        english_meaning="The crimson dawn has come.",
+        metadata_json={},
+    )
+    scheduled: list[tuple[int, str, object]] = []
+    session = AsyncMock()
+    session.execute = AsyncMock()
+    service = LocalizationService()
+    service.provider = AsyncMock()
+    with (
+        patch("app.services.localization.get_settings", return_value=settings),
+        patch(
+            "app.services.localization.translate_texts",
+            new=AsyncMock(return_value=["लाल भोर आ गई है।"]),
+        ),
+        patch("app.services.localization.google_translate_configured", return_value=True),
+    ):
+        await translation_cache.clear()
+        result = await service.localize(
+            song,
+            "hi",
+            session=session,
+            schedule_persist=lambda n, code, payload: scheduled.append((n, code, payload)),
+        )
+    assert result.provider == "google"
+    assert result.localized_meaning == "लाल भोर आ गई है।"
+    assert len(scheduled) == 1
+    assert scheduled[0][0] == 9
+    assert scheduled[0][1] == "hi"
+    # Deferred path must not commit on the request session.
+    session.commit.assert_not_called()
+    # In-memory song metadata updated for this request.
+    meanings = (song.metadata_json or {}).get("localized_meanings") or {}
+    assert meanings.get("hi") == "लाल भोर आ गई है।"
+
+
+@pytest.mark.asyncio
+async def test_localized_response_cache_roundtrip() -> None:
+    await localized_response_cache.clear()
+    payload = {
+        "song_number": 4,
+        "language": "Swahili",
+        "localized_title": None,
+        "localized_first_line": None,
+        "localized_meaning": "Vinubi vya akili…",
+        "localized_explanation": None,
+        "explanation_kind": None,
+        "provider": "google",
+    }
+    await localized_response_cache.set("4:sw", payload)
+    hit = await localized_response_cache.get("4:sw")
+    assert hit == payload
+    await localized_response_cache.clear()

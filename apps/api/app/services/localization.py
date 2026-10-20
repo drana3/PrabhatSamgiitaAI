@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import cast
@@ -31,6 +32,9 @@ from app.services.song_meanings import (
     normalize_language_code,
     stored_meaning_for_language,
 )
+
+# Schedule Neon persist after the HTTP response (FastAPI BackgroundTasks.add_task).
+PersistScheduler = Callable[[int, str, "LocalizedSongText"], None]
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +65,78 @@ translation_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
     ttl_seconds=86400,
     maxsize=512,
 )
+# Fast /localized responses (meaning only — never LLM generate).
+localized_response_cache: AsyncTTLCache[dict[str, object]] = AsyncTTLCache(
+    ttl_seconds=600,
+    maxsize=1024,
+)
 LOCALIZATION_PROMPT_VERSION = 7
 
 
 class LocalizationService:
     def __init__(self) -> None:
         self.provider = select_provider(get_settings())
+
+    @staticmethod
+    async def persist_localized_detached(
+        song_number: int,
+        language_code: str,
+        result: LocalizedSongText,
+    ) -> None:
+        """Write localized_* into Neon using a fresh session (post-response)."""
+        if not result.localized_meaning and not result.localized_explanation:
+            return
+        from app.core.db import SessionLocal
+
+        try:
+            async with SessionLocal() as session:
+                db_song = (
+                    await session.execute(select(Song).where(Song.number == song_number))
+                ).scalar_one_or_none()
+                if db_song is None:
+                    return
+                meta = LocalizationService._merge_localized_metadata(
+                    dict(db_song.metadata_json or {}),
+                    language_code,
+                    result,
+                )
+                db_song.metadata_json = meta
+                db_song.updated_at = datetime.now(UTC)
+                await session.commit()
+        except Exception:
+            logger.exception(
+                "Background persist failed for song %s (%s)",
+                song_number,
+                language_code,
+            )
+
+    @staticmethod
+    def _merge_localized_metadata(
+        meta: dict,
+        language_code: str,
+        result: LocalizedSongText,
+    ) -> dict:
+        if result.localized_meaning and result.localized_meaning.strip():
+            meanings = dict(meta.get("localized_meanings") or {})
+            meanings[language_code] = result.localized_meaning.strip()
+            meta["localized_meanings"] = meanings
+        if result.localized_explanation and result.localized_explanation.strip():
+            explanations = dict(meta.get("localized_explanations") or {})
+            explanations[language_code] = result.localized_explanation.strip()
+            meta["localized_explanations"] = explanations
+            if result.explanation_kind:
+                kinds = dict(meta.get("localized_explanation_kinds") or {})
+                kinds[language_code] = result.explanation_kind
+                meta["localized_explanation_kinds"] = kinds
+                if result.explanation_kind == "generated":
+                    versions = dict(meta.get("localized_explanation_versions") or {})
+                    versions[language_code] = CENTRAL_IDEA_SUMMARY_VERSION
+                    meta["localized_explanation_versions"] = versions
+        meta["localized_provider"] = {
+            **dict(meta.get("localized_provider") or {}),
+            language_code: result.provider or "llm",
+        }
+        return meta
 
     def _cache_key(self, song: Song, language: str) -> str:
         return json.dumps(
@@ -232,10 +302,21 @@ class LocalizationService:
         song: Song,
         language_code: str,
         result: LocalizedSongText,
+        *,
+        schedule_persist: PersistScheduler | None = None,
     ) -> None:
-        if session is None:
-            return
         if not result.localized_meaning and not result.localized_explanation:
+            return
+        # Align in-memory song immediately so this request / cache stay consistent.
+        song.metadata_json = self._merge_localized_metadata(
+            dict(song.metadata_json or {}),
+            language_code,
+            result,
+        )
+        if schedule_persist is not None:
+            schedule_persist(song.number, language_code, result)
+            return
+        if session is None:
             return
         try:
             db_song = (
@@ -243,35 +324,14 @@ class LocalizationService:
             ).scalar_one_or_none()
             if db_song is None:
                 return
-            meta = dict(db_song.metadata_json or {})
-            if result.localized_meaning and result.localized_meaning.strip():
-                meanings = dict(meta.get("localized_meanings") or {})
-                meanings[language_code] = result.localized_meaning.strip()
-                meta["localized_meanings"] = meanings
-            if result.localized_explanation and result.localized_explanation.strip():
-                explanations = dict(meta.get("localized_explanations") or {})
-                explanations[language_code] = result.localized_explanation.strip()
-                meta["localized_explanations"] = explanations
-                if result.explanation_kind:
-                    kinds = dict(meta.get("localized_explanation_kinds") or {})
-                    kinds[language_code] = result.explanation_kind
-                    meta["localized_explanation_kinds"] = kinds
-                    if result.explanation_kind == "generated":
-                        versions = dict(meta.get("localized_explanation_versions") or {})
-                        versions[language_code] = CENTRAL_IDEA_SUMMARY_VERSION
-                        meta["localized_explanation_versions"] = versions
-            meta["localized_provider"] = {
-                **dict(meta.get("localized_provider") or {}),
-                language_code: result.provider or "llm",
-            }
+            meta = self._merge_localized_metadata(
+                dict(db_song.metadata_json or {}),
+                language_code,
+                result,
+            )
             db_song.metadata_json = meta
             db_song.updated_at = datetime.now(UTC)
             await session.commit()
-
-            # Keep this request's song object aligned. Other replicas already merge
-            # localized_* from Neon in CatalogService.get_song — skip a full catalog
-            # refresh so language switches are not blocked on re-index work.
-            song.metadata_json = dict(meta)
         except Exception:
             logger.exception(
                 "Failed to persist localized meaning for song %s (%s)",
@@ -480,6 +540,7 @@ class LocalizationService:
         first_line: str | None,
         provider: str | None,
         generate_missing: bool,
+        schedule_persist: PersistScheduler | None = None,
     ) -> tuple[str | None, str | None, str | None]:
         """Return (explanation, explanation_kind, provider).
 
@@ -523,6 +584,7 @@ class LocalizationService:
                         explanation_kind="official",
                         provider="google",
                     ),
+                    schedule_persist=schedule_persist,
                 )
                 return translated, "official", "google"
 
@@ -549,6 +611,7 @@ class LocalizationService:
                     explanation_kind="generated",
                     provider="llm",
                 ),
+                schedule_persist=schedule_persist,
             )
             return generated, "generated", "llm"
         return None, None, provider
@@ -561,6 +624,7 @@ class LocalizationService:
         session: AsyncSession | None = None,
         *,
         generate_missing_central_idea: bool = False,
+        schedule_persist: PersistScheduler | None = None,
     ) -> LocalizedSongText:
         normalized = language.strip()
         language_code = normalize_language_code(normalized) or normalized.casefold()
@@ -589,6 +653,7 @@ class LocalizationService:
                 first_line=song.first_line,
                 provider="stored",
                 generate_missing=generate_missing_central_idea,
+                schedule_persist=schedule_persist,
             )
             return LocalizedSongText(
                 language=display_language,
@@ -622,6 +687,7 @@ class LocalizationService:
                 first_line=self._text(cached, "localized_first_line") or song.first_line,
                 provider=str(cached.get("provider") or "cache"),
                 generate_missing=generate_missing_central_idea,
+                schedule_persist=schedule_persist,
             )
             return LocalizedSongText(
                 language=str(cached.get("language", display_language)),
@@ -663,6 +729,7 @@ class LocalizationService:
             first_line=result.localized_first_line,
             provider=result.provider,
             generate_missing=generate_missing_central_idea,
+            schedule_persist=schedule_persist,
         )
         result.localized_explanation = expl
         result.explanation_kind = kind
@@ -681,5 +748,11 @@ class LocalizationService:
                     "provider": result.provider or "llm",
                 },
             )
-            await self._persist_localized(session, song, language_code, result)
+            await self._persist_localized(
+                session,
+                song,
+                language_code,
+                result,
+                schedule_persist=schedule_persist,
+            )
         return result

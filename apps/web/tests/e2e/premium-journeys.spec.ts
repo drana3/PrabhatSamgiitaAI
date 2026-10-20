@@ -309,11 +309,11 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   expect(languageBounds!.x).toBeGreaterThanOrEqual(0)
   expect(languageBounds!.x + languageBounds!.width).toBeLessThanOrEqual(viewport!.width)
 
-  await page.locator("#meaning").scrollIntoViewIfNeeded()
+  await page.locator("#lyrics").scrollIntoViewIfNeeded()
   const translationScroll = await page.evaluate(() => window.scrollY)
   await expect(language).toBeEnabled()
   await language.selectOption("hi")
-  await expect(page).toHaveURL(/\/songs\/1\?language=hi#meaning$/, { timeout: 20000 })
+  await expect(page).toHaveURL(/\/songs\/1\?language=hi#lyrics$/, { timeout: 20000 })
   await expect(page.locator("#meaning").getByLabel("Language").first()).toHaveValue("hi")
   await expect(page.getByRole("status", { name: /translating/i })).toHaveCount(0, { timeout: 20000 })
   const hindiMeaningArticle = page.locator("#meaning article").filter({ hasText: /hindi meaning/i })
@@ -330,17 +330,21 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   const meaningArticleCount = await page.locator("#meaning article").count()
   expect(meaningArticleCount).toBeGreaterThanOrEqual(3)
   expect(meaningArticleCount).toBeLessThanOrEqual(4)
-  // Stay on Meaning — do not jump down to Listen after translation settles.
+  // Stay on Lyrics — do not jump down to Listen after translation / Central idea.
   await expect.poll(async () => {
     return page.evaluate(() => {
-      const meaning = document.getElementById("meaning")
-      if (!meaning) return false
-      const top = meaning.getBoundingClientRect().top
-      return top >= 0 && top < window.innerHeight * 0.55
+      const lyrics = document.getElementById("lyrics")
+      const listen = document.getElementById("listen")
+      if (!lyrics) return false
+      const lyricsTop = lyrics.getBoundingClientRect().top
+      const listenTop = listen?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY
+      const lyricsInView = lyricsTop >= -40 && lyricsTop < window.innerHeight * 0.65
+      const notOnListen = listenTop > window.innerHeight * 0.35
+      return lyricsInView && notOnListen
     })
   }).toBe(true)
   const scrollAfter = await page.evaluate(() => window.scrollY)
-  expect(Math.abs(scrollAfter - translationScroll)).toBeLessThan(220)
+  expect(Math.abs(scrollAfter - translationScroll)).toBeLessThan(280)
 
   await expect(page.locator("#lyrics")).toBeVisible()
   await expect(page.locator("#meaning")).toBeVisible()

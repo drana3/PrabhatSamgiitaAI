@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -17,7 +17,11 @@ from app.schemas.song import (
     SongSummary,
 )
 from app.services.catalog import CatalogService
-from app.services.localization import LocalizationService
+from app.services.localization import (
+    LocalizationService,
+    LocalizedSongText,
+    localized_response_cache,
+)
 from app.services.lyrics_theme import drop_last_nonempty_line, extract_trailing_english_theme
 from app.services.media_quality import (
     client_media_items,
@@ -31,10 +35,30 @@ from app.services.sargam_capture import (
     is_notation_enabled,
     sargam_attribution_payload,
 )
+from app.services.song_meanings import normalize_language_code
 
 router = APIRouter(prefix="/songs", tags=["songs"])
 
 CATALOG_SONG_COUNT = 5018
+
+
+def _localized_response_cache_key(number: int, language: str) -> str:
+    code = normalize_language_code(language) or language.strip().casefold()
+    return f"{number}:{code}"
+
+
+def _schedule_localized_persist(
+    background_tasks: BackgroundTasks,
+    song_number: int,
+    language_code: str,
+    result: LocalizedSongText,
+) -> None:
+    background_tasks.add_task(
+        LocalizationService.persist_localized_detached,
+        song_number,
+        language_code,
+        result,
+    )
 
 
 def _summary(song: Song) -> SongSummary:
@@ -70,6 +94,7 @@ async def list_published_sargam(
 async def get_localized_song(
     number: int,
     session: Annotated[AsyncSession, Depends(get_session)],
+    background_tasks: BackgroundTasks,
     language: str = Query(min_length=2),
     generate_central_idea: bool = Query(
         default=False,
@@ -79,6 +104,13 @@ async def get_localized_song(
         ),
     ),
 ) -> SongLocalizationResponse:
+    cache_key = _localized_response_cache_key(number, language)
+    # Fast meaning path only — never cache slow LLM Central idea responses.
+    if not generate_central_idea:
+        cached = await localized_response_cache.get(cache_key)
+        if isinstance(cached, dict):
+            return SongLocalizationResponse.model_validate(cached)
+
     service = CatalogService(session)
     song = await service.get_song(number)
     if not song:
@@ -92,6 +124,12 @@ async def get_localized_song(
         or (purport.strip() if purport else "")
         or None
     )
+
+    def schedule_persist(
+        song_number: int, language_code: str, result: LocalizedSongText
+    ) -> None:
+        _schedule_localized_persist(background_tasks, song_number, language_code, result)
+
     localized = await LocalizationService().localize(
         song,
         language,
@@ -100,8 +138,9 @@ async def get_localized_song(
         # Official purport still translates (Google) in the fast path.
         # LLM "In simple words" generation is opt-in so Meaning is not blocked.
         generate_missing_central_idea=generate_central_idea,
+        schedule_persist=schedule_persist,
     )
-    return SongLocalizationResponse(
+    response = SongLocalizationResponse(
         song_number=song.number,
         language=localized.language,
         localized_title=localized.localized_title,
@@ -111,6 +150,9 @@ async def get_localized_song(
         explanation_kind=localized.explanation_kind,
         provider=localized.provider,
     )
+    if not generate_central_idea and response.localized_meaning:
+        await localized_response_cache.set(cache_key, response.model_dump(mode="json"))
+    return response
 
 
 @router.get("", response_model=list[SongSummary])

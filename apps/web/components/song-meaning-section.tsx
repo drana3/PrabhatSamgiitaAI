@@ -18,19 +18,25 @@ import {
   type SongMeaningSource,
 } from "@/lib/song-meanings"
 
-function keepMeaningInView() {
+/** Stay on lyrics — never scroll down toward Listen after translation / Central idea. */
+function keepLyricsInView() {
   if (typeof window === "undefined") return
-  if (window.location.hash !== "#meaning") {
+  if (window.location.hash !== "#lyrics") {
     const { pathname, search } = window.location
-    window.history.replaceState(window.history.state, "", `${pathname}${search}#meaning`)
+    window.history.replaceState(window.history.state, "", `${pathname}${search}#lyrics`)
   }
-  scrollToSectionId("meaning", { behavior: "auto" })
+  scrollToSectionId("lyrics", { behavior: "auto" })
   window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => scrollToSectionId("meaning", { behavior: "auto" }))
+    window.requestAnimationFrame(() => scrollToSectionId("lyrics", { behavior: "auto" }))
   })
-  window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 120)
-  window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 360)
-  window.setTimeout(() => scrollToSectionId("meaning", { behavior: "auto" }), 800)
+}
+
+function restoreScrollY(y: number) {
+  if (typeof window === "undefined") return
+  window.scrollTo({ top: y, behavior: "auto" })
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" }))
+  })
 }
 
 function MeaningBlock({ label, value }: { label: string; value?: string | null }) {
@@ -146,11 +152,13 @@ export function SongMeaningSection({
   const [localizedExplanation, setLocalizedExplanation] = useState<string | null>(null)
   const [explanationKind, setExplanationKind] = useState<"official" | "generated" | null>(null)
   const [loadingMeaning, setLoadingMeaning] = useState(false)
-  const [loadingCentralIdea, setLoadingCentralIdea] = useState(false)
+  /** True while LLM Central idea runs in the background (no spinner — quiet fill-in). */
+  const [centralIdeaPending, setCentralIdeaPending] = useState(false)
   const [centralIdeaUnavailable, setCentralIdeaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
-  const pinMeaningAfterLoad = useRef(false)
+  /** Re-pin lyrics once after meaning paints — never after Central idea (that jumped to Listen). */
+  const pinLyricsAfterMeaning = useRef(false)
 
   useEffect(() => {
     setLanguage(initialLanguage)
@@ -159,7 +167,7 @@ export function SongMeaningSection({
   const officialCentralIdea = centralIdeaText(song)
 
   const handleLanguageChange = (nextLanguage: string) => {
-    pinMeaningAfterLoad.current = true
+    pinLyricsAfterMeaning.current = true
     setLanguage(nextLanguage)
     setLocalizedMeaning(null)
     const storedExpl = storedExplanationForLanguage(song, nextLanguage)
@@ -173,15 +181,15 @@ export function SongMeaningSection({
     const needsExplanation =
       !storedExpl && !(nextLanguage === "en" && Boolean(officialCentralIdea))
     setLoadingMeaning(needsMeaning || (needsExplanation && Boolean(officialCentralIdea)))
-    setLoadingCentralIdea(needsExplanation && !officialCentralIdea)
-    keepMeaningInView()
+    setCentralIdeaPending(needsExplanation && !officialCentralIdea)
+    keepLyricsInView()
   }
 
   useEffect(() => {
-    if ((loadingMeaning || loadingCentralIdea) || !pinMeaningAfterLoad.current) return
-    pinMeaningAfterLoad.current = false
-    keepMeaningInView()
-  }, [loadingMeaning, loadingCentralIdea, language, localizedMeaning, localizedExplanation])
+    if (loadingMeaning || !pinLyricsAfterMeaning.current) return
+    pinLyricsAfterMeaning.current = false
+    keepLyricsInView()
+  }, [loadingMeaning, language, localizedMeaning])
 
   useEffect(() => {
     const storedExpl = storedExplanationForLanguage(song, language)
@@ -196,7 +204,7 @@ export function SongMeaningSection({
     if (!needsMeaning && !needsExplanation) {
       if (language === "en") setLocalizedMeaning(null)
       setLoadingMeaning(false)
-      setLoadingCentralIdea(false)
+      setCentralIdeaPending(false)
       setError(null)
       return
     }
@@ -211,7 +219,7 @@ export function SongMeaningSection({
     const needsGeneratedIdea = needsExplanation && !officialCentralIdea
 
     setLoadingMeaning(needsFastFetch)
-    setLoadingCentralIdea(needsGeneratedIdea)
+    setCentralIdeaPending(needsGeneratedIdea)
 
     const label = localeLabel(language)
 
@@ -245,11 +253,13 @@ export function SongMeaningSection({
       }
 
       if (!needsGeneratedIdea) {
-        if (currentRequest === requestId.current) setLoadingCentralIdea(false)
+        if (currentRequest === requestId.current) setCentralIdeaPending(false)
         return
       }
 
-      // Slow path: LLM "In simple words" — independent of meaning paint.
+      // Quiet path: LLM "In simple words" — no spinner; fill in when ready.
+      const scrollYBeforeIdea =
+        typeof window !== "undefined" ? window.scrollY : 0
       try {
         const idea = await fetchSongLocalization(songNumber, label, {
           generateCentralIdea: true,
@@ -276,7 +286,10 @@ export function SongMeaningSection({
       } catch {
         if (currentRequest === requestId.current) setCentralIdeaUnavailable(true)
       } finally {
-        if (currentRequest === requestId.current) setLoadingCentralIdea(false)
+        if (currentRequest === requestId.current) {
+          setCentralIdeaPending(false)
+          restoreScrollY(scrollYBeforeIdea)
+        }
       }
     }
 
@@ -336,18 +349,13 @@ export function SongMeaningSection({
       {language !== "hi" && !english ? (
         <MeaningBlock label="हिन्दी" value={song.hindi_meaning} />
       ) : null}
-      {loadingCentralIdea ? (
-        <div className="mt-4 flex justify-center text-gold-800">
-          <LoadingIndicator label="Writing central idea" />
-        </div>
-      ) : null}
       {showLocalizedCentralIdea ? (
         <MeaningBlock
           label={centralIdeaLabel(language, explanationKind)}
           value={localizedExplanation}
         />
       ) : null}
-      {!loadingCentralIdea && centralIdeaUnavailable && !showLocalizedCentralIdea ? (
+      {!centralIdeaPending && centralIdeaUnavailable && !showLocalizedCentralIdea ? (
         <p className="mt-4 text-sm text-stone-500">
           A short Central idea isn’t available in {localeLabel(language)} yet — the meaning
           above is still complete.

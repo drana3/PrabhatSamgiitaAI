@@ -91,6 +91,7 @@ export default function SongDetailScreen() {
   const [watchPlaying, setWatchPlaying] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
   const journeyFocusY = useRef(0)
+  const scrollYRef = useRef(0)
   const autoPlayedFor = useRef<string | null>(null)
   const lastPlayToggleAt = useRef(0)
   const lastAiOpenAt = useRef(0)
@@ -100,6 +101,8 @@ export default function SongDetailScreen() {
 
   const selectLanguage = useCallback(
     (code: string) => {
+      // Language is for Meaning — stay on Lyrics & Meaning (never jump to Listen).
+      setJourney("understand")
       setLanguage(code)
       if (!song) {
         setLocalizing(false)
@@ -443,6 +446,7 @@ export default function SongDetailScreen() {
       }
 
       if (!needsGeneratedIdea || !active) return
+      const scrollYBeforeIdea = scrollYRef.current
       try {
         const idea = await fetchSongCentralIdeaLocalization(song.number, language)
         if (!active) return
@@ -458,6 +462,12 @@ export default function SongDetailScreen() {
         }
       } catch {
         // Meaning already shown; generated Central idea is optional.
+      } finally {
+        if (active) {
+          requestAnimationFrame(() => {
+            scrollRef.current?.scrollTo({ y: scrollYBeforeIdea, animated: false })
+          })
+        }
       }
     })()
 
@@ -608,6 +618,10 @@ export default function SongDetailScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="always"
         nestedScrollEnabled
+        onScroll={(event) => {
+          scrollYRef.current = event.nativeEvent.contentOffset.y
+        }}
+        scrollEventThrottle={16}
       >
         {loadingSong ? (
           <View style={styles.loadingRow}>
