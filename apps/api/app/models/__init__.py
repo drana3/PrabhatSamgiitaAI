@@ -4,6 +4,7 @@ from app.models.admin_workflow import (
     YoutubeScanChannel,
 )
 from app.models.ai_usage import AiDailyUsage
+from app.models.google_translate_usage import GoogleTranslateUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
 from app.models.base import Base
 from app.models.chunk import SongChunk
@@ -49,6 +50,7 @@ from app.models.song import Song
 
 __all__ = [
     "AiDailyUsage",
+    "GoogleTranslateUsage",
     "AnalyticsDaily",
     "Base",
     "ContentAudit",

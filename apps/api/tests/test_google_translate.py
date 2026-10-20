@@ -1,4 +1,4 @@
-"""Google Translate quota + localization provider switch."""
+"""Google Translate free-tier quota + localization provider switch."""
 
 from __future__ import annotations
 
@@ -20,31 +20,42 @@ def _reset_quota(tmp_path: Path):
     gt.reset_quota_store_for_tests()
 
 
+def test_effective_limit_hard_caps_unpaid() -> None:
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=999_999,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+    )
+    assert gt.effective_monthly_limit(settings) == gt.FREE_TIER_HARD_CAP
+
+
+def test_effective_limit_allows_paid_when_flag_set() -> None:
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=900_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=True,
+    )
+    assert gt.effective_monthly_limit(settings) == 900_000
+
+
 def test_quota_store_blocks_over_limit(tmp_path: Path) -> None:
     path = tmp_path / "quota.json"
     store = gt.TranslateQuotaStore(path, monthly_limit=100)
-    assert store.can_spend(100)
-    store.record(90)
-    assert store.can_spend(10)
-    assert not store.can_spend(11)
-    assert store.used() == 90
-
-
-def test_quota_store_resets_on_new_month(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    path = tmp_path / "quota.json"
-    path.write_text('{"month": "1999-01", "characters": 999999}\n', encoding="utf-8")
-    store = gt.TranslateQuotaStore(path, monthly_limit=500_000)
-    assert store.used() == 0
-    assert store.can_spend(1000)
+    assert store.try_reserve(90)
+    assert store.try_reserve(10)
+    assert not store.try_reserve(1)
+    assert store.used() == 100
 
 
 @pytest.mark.asyncio
 async def test_translate_texts_records_quota(tmp_path: Path) -> None:
     settings = Settings(
         DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
         GOOGLE_TRANSLATE_API_KEY="test-key",
         GOOGLE_TRANSLATE_ENABLED=True,
         GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=500_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
         GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
     )
     gt.reset_quota_store_for_tests()
@@ -88,13 +99,15 @@ async def test_translate_texts_records_quota(tmp_path: Path) -> None:
 async def test_translate_texts_skips_when_over_quota(tmp_path: Path) -> None:
     settings = Settings(
         DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
         GOOGLE_TRANSLATE_API_KEY="test-key",
         GOOGLE_TRANSLATE_ENABLED=True,
         GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=5,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
         GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
     )
     gt.reset_quota_store_for_tests()
-    gt.get_quota_store(settings).record(5)
+    assert gt.get_quota_store(settings).try_reserve(5)
     out = await gt.translate_texts(["too-long"], target_language="hi", settings=settings)
     assert out is None
 
@@ -103,9 +116,11 @@ async def test_translate_texts_skips_when_over_quota(tmp_path: Path) -> None:
 async def test_localize_uses_google_then_skips_llm(tmp_path: Path) -> None:
     settings = Settings(
         DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
         GOOGLE_TRANSLATE_API_KEY="test-key",
         GOOGLE_TRANSLATE_ENABLED=True,
-        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=500_000,
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=400_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
         GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
     )
     gt.reset_quota_store_for_tests()
@@ -141,8 +156,10 @@ async def test_localize_uses_google_then_skips_llm(tmp_path: Path) -> None:
 async def test_localize_falls_back_to_llm_when_google_unavailable(tmp_path: Path) -> None:
     settings = Settings(
         DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
         GOOGLE_TRANSLATE_API_KEY="",
         GOOGLE_TRANSLATE_ENABLED=True,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
     )
     song = Song(
         number=3,

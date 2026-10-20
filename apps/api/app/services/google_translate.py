@@ -1,8 +1,12 @@
-"""Google Cloud Translation (Basic v2) with monthly character quota.
+"""Google Cloud Translation (Basic v2) with a hard free-tier budget.
 
 Uses the REST translate API when ``GOOGLE_TRANSLATE_API_KEY`` is set.
-Tracks characters in a local JSON file so we can stop before the free tier
-(~500k chars/month) and fall back to the LLM localizer.
+Character usage is reserved in Neon *before* calling Google so restarts and
+multiple replicas cannot accidentally exceed the free allowance. If quota
+cannot be reserved durably, Google is skipped and the LLM localizer is used.
+
+Google's published free NMT allowance is ~500k characters/month. We default to
+400k and hard-cap at 450k unless ``GOOGLE_TRANSLATE_ALLOW_PAID=true``.
 """
 
 from __future__ import annotations
@@ -15,12 +19,16 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from sqlalchemy import select
 
 from app.config import Settings, get_settings
+from app.models.google_translate_usage import GoogleTranslateUsage
 
 logger = logging.getLogger(__name__)
 
 TRANSLATE_URL = "https://translation.googleapis.com/language/translate/v2"
+# Stay below Google's ~500k free monthly characters even if env is mis-set.
+FREE_TIER_HARD_CAP = 450_000
 
 # Our catalog codes → Google Translate target codes (omit = unsupported → LLM).
 GOOGLE_TARGET_CODES: dict[str, str] = {
@@ -70,8 +78,17 @@ def _month_key(now: datetime | None = None) -> str:
     return f"{stamp.year:04d}-{stamp.month:02d}"
 
 
+def effective_monthly_limit(settings: Settings | None = None) -> int:
+    """Characters we will ever send to Google this month (₹0 guard)."""
+    cfg = settings or get_settings()
+    configured = max(0, int(cfg.google_translate_monthly_char_limit))
+    if cfg.google_translate_allow_paid:
+        return configured
+    return min(configured, FREE_TIER_HARD_CAP)
+
+
 class TranslateQuotaStore:
-    """Process-safe monthly character counter persisted to disk."""
+    """Process-safe monthly character counter persisted to disk (tests / local)."""
 
     def __init__(self, path: Path, monthly_limit: int) -> None:
         self.path = path
@@ -101,11 +118,6 @@ class TranslateQuotaStore:
         with self._lock:
             return int(self._read()["characters"])
 
-    def remaining(self) -> int:
-        if self.monthly_limit <= 0:
-            return 0
-        return max(0, self.monthly_limit - self.used())
-
     def can_spend(self, characters: int) -> bool:
         if characters <= 0:
             return True
@@ -113,14 +125,18 @@ class TranslateQuotaStore:
             return False
         return self.used() + characters <= self.monthly_limit
 
-    def record(self, characters: int) -> int:
+    def try_reserve(self, characters: int) -> bool:
+        """Atomically reserve characters; False if over budget."""
         if characters <= 0:
-            return self.used()
+            return True
         with self._lock:
             payload = self._read()
-            payload["characters"] = int(payload["characters"]) + int(characters)
+            used = int(payload["characters"])
+            if self.monthly_limit <= 0 or used + characters > self.monthly_limit:
+                return False
+            payload["characters"] = used + characters
             self._write(payload)
-            return int(payload["characters"])
+            return True
 
 
 _quota_store: TranslateQuotaStore | None = None
@@ -130,14 +146,15 @@ _quota_lock = threading.Lock()
 def get_quota_store(settings: Settings | None = None) -> TranslateQuotaStore:
     global _quota_store
     cfg = settings or get_settings()
+    limit = effective_monthly_limit(cfg)
     with _quota_lock:
         if _quota_store is None or _quota_store.path != Path(cfg.google_translate_quota_path):
             _quota_store = TranslateQuotaStore(
                 Path(cfg.google_translate_quota_path),
-                cfg.google_translate_monthly_char_limit,
+                limit,
             )
         else:
-            _quota_store.monthly_limit = cfg.google_translate_monthly_char_limit
+            _quota_store.monthly_limit = limit
         return _quota_store
 
 
@@ -154,6 +171,77 @@ def google_translate_configured(settings: Settings | None = None) -> bool:
 
 def billable_characters(*texts: str | None) -> int:
     return sum(len(text) for text in texts if text)
+
+
+async def _reserve_in_database(characters: int, settings: Settings) -> bool | None:
+    """Reserve chars in Neon. True/False = decided; None = DB unavailable."""
+    if characters <= 0:
+        return True
+    limit = effective_monthly_limit(settings)
+    if limit <= 0:
+        return False
+    month = _month_key()
+    try:
+        from app.core.db import SessionLocal
+
+        async with SessionLocal() as session:
+            row = (
+                await session.execute(
+                    select(GoogleTranslateUsage)
+                    .where(GoogleTranslateUsage.month_key == month)
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if row is None:
+                if characters > limit:
+                    await session.rollback()
+                    return False
+                session.add(
+                    GoogleTranslateUsage(month_key=month, characters=characters)
+                )
+            else:
+                if int(row.characters) + characters > limit:
+                    await session.rollback()
+                    return False
+                row.characters = int(row.characters) + characters
+            await session.commit()
+            return True
+    except Exception:
+        logger.exception("Google Translate durable quota reserve failed")
+        return None
+
+
+async def reserve_characters(characters: int, settings: Settings | None = None) -> bool:
+    """Reserve budget before calling Google. Fail closed when unpaid mode cannot track usage."""
+    cfg = settings or get_settings()
+    limit = effective_monthly_limit(cfg)
+    if characters <= 0:
+        return True
+    if limit <= 0:
+        return False
+
+    # Unit tests / local without DB: file-backed store.
+    if cfg.app_env == "test":
+        return get_quota_store(cfg).try_reserve(characters)
+
+    reserved = await _reserve_in_database(characters, cfg)
+    if reserved is True:
+        # Mirror into local file for ops visibility when the volume is writable.
+        try:
+            get_quota_store(cfg).try_reserve(characters)
+        except Exception:
+            pass
+        return True
+    if reserved is False:
+        return False
+
+    # DB unavailable: never call Google in unpaid mode (could exceed free tier).
+    if not cfg.google_translate_allow_paid:
+        logger.warning(
+            "Skipping Google Translate: cannot confirm free-tier budget in database"
+        )
+        return False
+    return get_quota_store(cfg).try_reserve(characters)
 
 
 async def translate_texts(
@@ -175,12 +263,10 @@ async def translate_texts(
         return ["" for _ in texts]
 
     chars = billable_characters(*cleaned)
-    quota = get_quota_store(cfg)
-    if not quota.can_spend(chars):
+    if not await reserve_characters(chars, cfg):
         logger.info(
-            "Google Translate quota exhausted (%s/%s); skipping",
-            quota.used(),
-            quota.monthly_limit,
+            "Google Translate skipped (free-tier budget); limit=%s",
+            effective_monthly_limit(cfg),
         )
         return None
 
@@ -201,6 +287,7 @@ async def translate_texts(
             response.raise_for_status()
             body = response.json()
     except Exception:
+        # Keep the reservation (conservative) so retries cannot burn free tier.
         logger.exception("Google Translate request failed for target=%s", target)
         return None
 
@@ -214,5 +301,4 @@ async def translate_texts(
         logger.warning("Google Translate returned %s rows for %s inputs", len(out), len(cleaned))
         return None
 
-    quota.record(chars)
     return out

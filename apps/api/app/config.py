@@ -75,14 +75,18 @@ class Settings(BaseSettings):
     )
     acs_email_from: str | None = Field(default=None, alias="ACS_EMAIL_FROM")
     acs_email_enabled: bool = Field(default=False, alias="ACS_EMAIL_ENABLED")
-    # Cloud Translation (NMT). Free tier ~500k chars/month; over quota → LLM fallback.
+    # Cloud Translation (NMT). Stay inside Google free tier; over budget → LLM.
+    # Google's free allowance is ~500k chars/month; we default lower and hard-cap
+    # so billing stays at ₹0 even if the env limit is raised by mistake.
     google_translate_api_key: str | None = Field(default=None, alias="GOOGLE_TRANSLATE_API_KEY")
     google_translate_enabled: bool = Field(default=True, alias="GOOGLE_TRANSLATE_ENABLED")
     google_translate_monthly_char_limit: int = Field(
-        default=500_000,
+        default=400_000,
         alias="GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT",
         ge=0,
     )
+    # When false (default), never exceed FREE_TIER_HARD_CAP regardless of env limit.
+    google_translate_allow_paid: bool = Field(default=False, alias="GOOGLE_TRANSLATE_ALLOW_PAID")
     google_translate_quota_path: str = Field(
         default="./data/generated/google_translate_quota.json",
         alias="GOOGLE_TRANSLATE_QUOTA_PATH",
