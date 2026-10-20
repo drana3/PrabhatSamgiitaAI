@@ -696,7 +696,7 @@ test("catalog titles and source-only content never render fabricated blank secti
   await expect(page.locator("#lyrics")).toContainText(/tiny green island/i)
   await expect(page.locator("#meaning")).toBeVisible()
   // English cards/pages must not advertise Devanagari.
-  await expect(page.locator("#lyrics").getByRole("tab", { name: "Devanagari" })).toHaveCount(0)
+  await expect(page.locator("#lyrics").getByRole("button", { name: "Devanagari" })).toHaveCount(0)
 })
 
 test("practice coach always reports microphone and audio-analysis outcomes", async ({ page }) => {
