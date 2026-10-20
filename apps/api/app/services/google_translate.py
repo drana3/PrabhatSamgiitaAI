@@ -19,6 +19,7 @@ import logging
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from time import monotonic
 from typing import Any
 
 import httpx
@@ -34,6 +35,9 @@ FREE_TIER_HARD_CAP = 450_000
 # Pre-reserve this many characters from Neon per top-up (~10–20 meaning calls).
 # Unused lease dies with the process (conservative under-use of free tier).
 QUOTA_LEASE_CHUNK = 2_500
+# Re-read Neon usage at least this often so other replicas / limit changes
+# refresh the in-memory lease without a DB hop on every translate.
+QUOTA_LEASE_SYNC_SECONDS = 60
 
 
 def _month_key(now: datetime | None = None) -> str:
@@ -182,12 +186,43 @@ async def _reserve_in_database(characters: int, settings: Settings) -> bool | No
         return None
 
 
+async def _read_usage_from_database(settings: Settings) -> int | None:
+    """Current month characters reserved in Neon. None if DB unavailable."""
+    month = _month_key()
+    try:
+        from sqlalchemy import text
+
+        from app.core.db import SessionLocal
+
+        async with SessionLocal() as session:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT characters
+                    FROM google_translate_usage
+                    WHERE month_key = :month
+                    """
+                ),
+                {"month": month},
+            )
+            row = result.first()
+            if row is None:
+                return 0
+            return max(0, int(row[0] or 0))
+    except Exception:
+        logger.exception("Google Translate usage read failed")
+        return None
+
+
 class DurableQuotaLease:
     """Process-local lease of characters already reserved in Neon.
 
     Most ``reserve_characters`` calls debit this lease in memory (no Neon hop).
     When the lease is empty, one Neon UPDATE tops up ``QUOTA_LEASE_CHUNK`` chars
     (or the exact request size when the monthly budget is nearly exhausted).
+
+    Every ``QUOTA_LEASE_SYNC_SECONDS``, usage is re-read from Neon so the lease
+    stays aligned with other replicas and the configured monthly limit.
     """
 
     def __init__(self) -> None:
@@ -195,11 +230,17 @@ class DurableQuotaLease:
         self._month = _month_key()
         self._available = 0
         self._db_topups = 0
+        self._sync_reads = 0
+        self._last_sync_mono = 0.0
+        self._neon_used: int | None = None
 
     def reset(self) -> None:
         self._month = _month_key()
         self._available = 0
         self._db_topups = 0
+        self._sync_reads = 0
+        self._last_sync_mono = 0.0
+        self._neon_used = None
 
     @property
     def available(self) -> int:
@@ -209,11 +250,47 @@ class DurableQuotaLease:
     def db_topups(self) -> int:
         return self._db_topups
 
+    @property
+    def sync_reads(self) -> int:
+        return self._sync_reads
+
+    @property
+    def neon_used(self) -> int | None:
+        return self._neon_used
+
     def _roll_month(self) -> None:
         month = _month_key()
         if month != self._month:
             self._month = month
             self._available = 0
+            self._neon_used = None
+            self._last_sync_mono = 0.0
+
+    async def _sync_from_neon_if_stale(
+        self, settings: Settings, *, force: bool = False
+    ) -> None:
+        now = monotonic()
+        if (
+            not force
+            and self._last_sync_mono > 0
+            and (now - self._last_sync_mono) < QUOTA_LEASE_SYNC_SECONDS
+        ):
+            return
+        used = await _read_usage_from_database(settings)
+        if used is None:
+            return
+        self._last_sync_mono = now
+        self._neon_used = used
+        self._sync_reads += 1
+        limit = effective_monthly_limit(settings)
+        # Global budget gone (other replicas / lowered limit) — stop local spend.
+        if used >= limit:
+            self._available = 0
+
+    def _remaining_for_topup(self, settings: Settings) -> int | None:
+        if self._neon_used is None:
+            return None
+        return max(0, effective_monthly_limit(settings) - self._neon_used)
 
     async def reserve(self, characters: int, settings: Settings) -> bool | None:
         """True/False from durable path; None if Neon is unavailable."""
@@ -221,18 +298,31 @@ class DurableQuotaLease:
             return True
         async with self._lock:
             self._roll_month()
+            await self._sync_from_neon_if_stale(settings)
+
             if characters <= self._available:
                 self._available -= characters
                 return True
 
-            # Top up a chunk (or the exact need if larger than the chunk).
             need_from_db = max(characters - self._available, 0)
+            remaining = self._remaining_for_topup(settings)
+            if remaining is not None and remaining < need_from_db:
+                return False
+
+            # Top up a chunk (capped by Neon remaining when known).
             topup = max(need_from_db, QUOTA_LEASE_CHUNK)
+            if remaining is not None:
+                topup = min(topup, remaining)
+            if topup < need_from_db:
+                return False
+
             decided = await _reserve_in_database(topup, settings)
             if decided is True:
                 self._db_topups += 1
                 self._available += topup
                 self._available -= characters
+                if self._neon_used is not None:
+                    self._neon_used += topup
                 return True
             if decided is False and topup != need_from_db and need_from_db > 0:
                 # Chunk would exceed monthly limit — try the exact shortfall.
@@ -241,6 +331,8 @@ class DurableQuotaLease:
                     self._db_topups += 1
                     self._available += need_from_db
                     self._available -= characters
+                    if self._neon_used is not None:
+                        self._neon_used += need_from_db
                     return True
             return decided
 

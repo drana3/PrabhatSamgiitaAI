@@ -133,13 +133,20 @@ async def test_durable_lease_tops_up_once_for_many_reserves(tmp_path: Path) -> N
         db_calls.append(characters)
         return True
 
-    with patch("app.services.google_translate._reserve_in_database", new=fake_db):
+    with (
+        patch(
+            "app.services.google_translate._read_usage_from_database",
+            new=AsyncMock(return_value=0),
+        ),
+        patch("app.services.google_translate._reserve_in_database", new=fake_db),
+    ):
         for _ in range(8):
             assert await lease.reserve(200, settings) is True
 
     assert lease.db_topups == 1
     assert db_calls == [gt.QUOTA_LEASE_CHUNK]
     assert lease.available == gt.QUOTA_LEASE_CHUNK - (8 * 200)
+    assert lease.sync_reads == 1
 
 
 @pytest.mark.asyncio
@@ -158,15 +165,58 @@ async def test_durable_lease_falls_back_to_exact_when_chunk_blocked(
 
     async def fake_db(characters: int, _settings: Settings) -> bool:
         db_calls.append(characters)
-        # Chunk would exceed remaining monthly budget; exact shortfall fits.
+        # Chunk UPDATE fails near the free-tier edge; exact shortfall fits.
         return characters < gt.QUOTA_LEASE_CHUNK
 
-    with patch("app.services.google_translate._reserve_in_database", new=fake_db):
+    with (
+        patch(
+            "app.services.google_translate._read_usage_from_database",
+            new=AsyncMock(return_value=0),
+        ),
+        patch("app.services.google_translate._reserve_in_database", new=fake_db),
+    ):
         assert await lease.reserve(180, settings) is True
 
     assert db_calls == [gt.QUOTA_LEASE_CHUNK, 180]
     assert lease.available == 0
     assert lease.db_topups == 1
+
+
+@pytest.mark.asyncio
+async def test_durable_lease_resyncs_neon_usage_on_interval(tmp_path: Path) -> None:
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="production",
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=400_000,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+    )
+    gt.reset_quota_store_for_tests()
+    lease = gt.get_durable_lease()
+    reads = {"n": 0}
+
+    async def fake_read(_settings: Settings) -> int:
+        reads["n"] += 1
+        # Second sync: other replicas exhausted the month.
+        return 0 if reads["n"] == 1 else 400_000
+
+    with (
+        patch(
+            "app.services.google_translate._read_usage_from_database",
+            new=fake_read,
+        ),
+        patch(
+            "app.services.google_translate._reserve_in_database",
+            new=AsyncMock(return_value=True),
+        ),
+        patch("app.services.google_translate.QUOTA_LEASE_SYNC_SECONDS", 0),
+    ):
+        assert await lease.reserve(100, settings) is True
+        assert lease.available == gt.QUOTA_LEASE_CHUNK - 100
+        # Interval 0 → every reserve re-reads Neon; exhausted → lease cleared.
+        assert await lease.reserve(50, settings) is False
+        assert lease.available == 0
+        assert lease.sync_reads >= 2
+        assert lease.neon_used == 400_000
 
 
 @pytest.mark.asyncio
