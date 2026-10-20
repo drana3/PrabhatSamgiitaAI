@@ -39,10 +39,21 @@ QUOTA_LEASE_CHUNK = 2_500
 # refresh the in-memory lease without a DB hop on every translate.
 QUOTA_LEASE_SYNC_SECONDS = 60
 
+# Months for which this process already claimed / saw the exhaustion alert.
+_alert_claimed_months: set[str] = set()
+
 
 def _month_key(now: datetime | None = None) -> str:
     stamp = now or datetime.now(UTC)
     return f"{stamp.year:04d}-{stamp.month:02d}"
+
+
+def quota_resets_at_utc(now: datetime | None = None) -> datetime:
+    """Start of next UTC calendar month (when the free-tier counter resets)."""
+    stamp = now or datetime.now(UTC)
+    if stamp.month == 12:
+        return datetime(stamp.year + 1, 1, 1, tzinfo=UTC)
+    return datetime(stamp.year, stamp.month + 1, 1, tzinfo=UTC)
 
 
 def effective_monthly_limit(settings: Settings | None = None) -> int:
@@ -233,6 +244,8 @@ class DurableQuotaLease:
         self._sync_reads = 0
         self._last_sync_mono = 0.0
         self._neon_used: int | None = None
+        # Once True for the month, skip Google until UTC month rolls (use LLM).
+        self._exhausted = False
 
     def reset(self) -> None:
         self._month = _month_key()
@@ -241,6 +254,7 @@ class DurableQuotaLease:
         self._sync_reads = 0
         self._last_sync_mono = 0.0
         self._neon_used = None
+        self._exhausted = False
 
     @property
     def available(self) -> int:
@@ -258,6 +272,14 @@ class DurableQuotaLease:
     def neon_used(self) -> int | None:
         return self._neon_used
 
+    @property
+    def exhausted(self) -> bool:
+        return self._exhausted
+
+    def mark_exhausted(self) -> None:
+        self._exhausted = True
+        self._available = 0
+
     def _roll_month(self) -> None:
         month = _month_key()
         if month != self._month:
@@ -265,6 +287,7 @@ class DurableQuotaLease:
             self._available = 0
             self._neon_used = None
             self._last_sync_mono = 0.0
+            self._exhausted = False
 
     async def _sync_from_neon_if_stale(
         self, settings: Settings, *, force: bool = False
@@ -285,7 +308,7 @@ class DurableQuotaLease:
         limit = effective_monthly_limit(settings)
         # Global budget gone (other replicas / lowered limit) — stop local spend.
         if used >= limit:
-            self._available = 0
+            self.mark_exhausted()
 
     def _remaining_for_topup(self, settings: Settings) -> int | None:
         if self._neon_used is None:
@@ -298,7 +321,11 @@ class DurableQuotaLease:
             return True
         async with self._lock:
             self._roll_month()
+            if self._exhausted:
+                return False
             await self._sync_from_neon_if_stale(settings)
+            if self._exhausted:
+                return False
 
             if characters <= self._available:
                 self._available -= characters
@@ -307,6 +334,7 @@ class DurableQuotaLease:
             need_from_db = max(characters - self._available, 0)
             remaining = self._remaining_for_topup(settings)
             if remaining is not None and remaining < need_from_db:
+                self.mark_exhausted()
                 return False
 
             # Top up a chunk (capped by Neon remaining when known).
@@ -314,6 +342,7 @@ class DurableQuotaLease:
             if remaining is not None:
                 topup = min(topup, remaining)
             if topup < need_from_db:
+                self.mark_exhausted()
                 return False
 
             decided = await _reserve_in_database(topup, settings)
@@ -334,6 +363,8 @@ class DurableQuotaLease:
                     if self._neon_used is not None:
                         self._neon_used += need_from_db
                     return True
+            if decided is False:
+                self.mark_exhausted()
             return decided
 
 
@@ -349,6 +380,132 @@ def reset_quota_store_for_tests() -> None:
     with _quota_lock:
         _quota_store = None
     _durable_lease.reset()
+    _alert_claimed_months.clear()
+
+
+async def _claim_quota_alert(settings: Settings) -> bool:
+    """Atomically claim the once-per-month admin alert. True = this process sends it."""
+    month = _month_key()
+    try:
+        from sqlalchemy import text
+
+        from app.core.db import SessionLocal
+
+        async with SessionLocal() as session:
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO google_translate_usage (month_key, characters)
+                    VALUES (:month, 0)
+                    ON CONFLICT (month_key) DO NOTHING
+                    """
+                ),
+                {"month": month},
+            )
+            result = await session.execute(
+                text(
+                    """
+                    UPDATE google_translate_usage
+                    SET quota_alert_sent_at = NOW(),
+                        updated_at = NOW()
+                    WHERE month_key = :month
+                      AND quota_alert_sent_at IS NULL
+                    RETURNING month_key
+                    """
+                ),
+                {"month": month},
+            )
+            row = result.first()
+            if row is None:
+                await session.rollback()
+                return False
+            await session.commit()
+            return True
+    except Exception:
+        logger.exception("Google Translate quota alert claim failed")
+        return False
+
+
+def _send_quota_exhausted_emails(settings: Settings, *, used: int | None) -> int:
+    from app.services.acs_email import send_transactional_email
+    from app.services.admin_members import owner_admin_emails
+
+    recipients = sorted(owner_admin_emails(settings))
+    if not recipients:
+        logger.warning("Google Translate quota exhausted but no admin emails configured")
+        return 0
+
+    limit = effective_monthly_limit(settings)
+    reset_at = quota_resets_at_utc()
+    reset_label = reset_at.strftime("%d %b %Y 00:00 UTC")
+    used_label = f"{used:,}" if used is not None else "unknown"
+    subject = "Prabhat Samgiita: Google Translate free-tier quota reached"
+    plain = (
+        "Google Cloud Translation has reached the configured free-tier character "
+        f"budget for {_month_key()}.\n\n"
+        f"Used: {used_label} / {limit:,} characters\n"
+        f"Paid overage: {'allowed' if settings.google_translate_allow_paid else 'blocked'}\n\n"
+        "Meaning localization will use the LLM fallback until the monthly counter "
+        f"resets at {reset_label}.\n"
+    )
+    html = (
+        "<p>Google Cloud Translation has reached the configured free-tier character "
+        f"budget for <strong>{_month_key()}</strong>.</p>"
+        f"<p>Used: <strong>{used_label}</strong> / <strong>{limit:,}</strong> characters</p>"
+        f"<p>Paid overage: <strong>"
+        f"{'allowed' if settings.google_translate_allow_paid else 'blocked'}"
+        "</strong></p>"
+        "<p>Meaning localization will use the <strong>LLM fallback</strong> until "
+        f"the monthly counter resets at <strong>{reset_label}</strong>.</p>"
+    )
+    sent = 0
+    for address in recipients:
+        if send_transactional_email(
+            to_address=address,
+            subject=subject,
+            plain_text=plain,
+            html_body=html,
+        ):
+            sent += 1
+    return sent
+
+
+async def maybe_alert_quota_exhausted(settings: Settings | None = None) -> bool:
+    """Email admins once per month when Google free-tier budget is exhausted.
+
+    Returns True if this process sent (or attempted) the alert.
+    """
+    cfg = settings or get_settings()
+    month = _month_key()
+    if month in _alert_claimed_months:
+        return False
+
+    # File-backed test path: claim in-process only.
+    if cfg.app_env == "test":
+        if month in _alert_claimed_months:
+            return False
+        _alert_claimed_months.add(month)
+        used = get_quota_store(cfg).used()
+        _send_quota_exhausted_emails(cfg, used=used)
+        return True
+
+    claimed = await _claim_quota_alert(cfg)
+    if not claimed:
+        _alert_claimed_months.add(month)
+        return False
+    _alert_claimed_months.add(month)
+    used = _durable_lease.neon_used
+    if used is None:
+        used = await _read_usage_from_database(cfg)
+    sent = _send_quota_exhausted_emails(cfg, used=used)
+    logger.warning(
+        "Google Translate quota exhausted for %s; admin alert recipients_sent=%s; "
+        "LLM fallback until %s",
+        month,
+        sent,
+        quota_resets_at_utc().isoformat(),
+    )
+    return True
 
 
 async def reserve_characters(characters: int, settings: Settings | None = None) -> bool:
@@ -356,6 +513,8 @@ async def reserve_characters(characters: int, settings: Settings | None = None) 
 
     Production uses an in-memory lease topped up from Neon in chunks so most
     calls skip the database. Tests use the file-backed store only.
+    When the monthly budget is exhausted, Google stays off until UTC month reset
+    and callers fall back to the LLM localizer.
     """
     cfg = settings or get_settings()
     limit = effective_monthly_limit(cfg)
@@ -409,9 +568,11 @@ async def translate_texts(
     chars = billable_characters(*cleaned)
     if not await reserve_characters(chars, cfg):
         logger.info(
-            "Google Translate skipped (free-tier budget); limit=%s",
+            "Google Translate skipped (free-tier budget); LLM fallback until %s; limit=%s",
+            quota_resets_at_utc().isoformat(),
             effective_monthly_limit(cfg),
         )
+        await maybe_alert_quota_exhausted(cfg)
         return None
 
     api_key = (cfg.google_translate_api_key or "").strip()

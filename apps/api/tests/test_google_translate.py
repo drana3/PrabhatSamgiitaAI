@@ -183,6 +183,44 @@ async def test_durable_lease_falls_back_to_exact_when_chunk_blocked(
 
 
 @pytest.mark.asyncio
+async def test_quota_exhausted_alerts_admins_once(tmp_path: Path) -> None:
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
+        GOOGLE_TRANSLATE_API_KEY="test-key",
+        GOOGLE_TRANSLATE_ENABLED=True,
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=5,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+        GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
+        DEFAULT_ADMIN_EMAILS="owner@example.com,ops@example.com",
+        ACS_EMAIL_ENABLED=False,
+    )
+    gt.reset_quota_store_for_tests()
+    assert gt.get_quota_store(settings).try_reserve(5)
+    sent_to: list[str] = []
+
+    def fake_send(
+        *,
+        to_address: str,
+        subject: str,
+        plain_text: str,
+        html_body: str | None = None,
+    ) -> bool:
+        sent_to.append(to_address)
+        assert "quota" in subject.casefold() or "Translate" in subject
+        assert "LLM" in plain_text
+        return True
+
+    with patch("app.services.acs_email.send_transactional_email", new=fake_send):
+        out = await gt.translate_texts(["too-long"], target_language="hi", settings=settings)
+        again = await gt.maybe_alert_quota_exhausted(settings)
+
+    assert out is None
+    assert again is False  # once per month
+    assert set(sent_to) == {"owner@example.com", "ops@example.com"}
+
+
+@pytest.mark.asyncio
 async def test_durable_lease_resyncs_neon_usage_on_interval(tmp_path: Path) -> None:
     settings = Settings(
         DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
