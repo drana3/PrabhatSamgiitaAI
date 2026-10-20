@@ -97,6 +97,13 @@ describe("resolveSongMeaning", () => {
   it("reports loading while localization is in flight", () => {
     expect(resolveSongMeaning(song, "nl", null, true)).toEqual({ status: "loading" })
   })
+
+  it("keeps peeked translation visible while a parallel fetch runs", () => {
+    expect(resolveSongMeaning(song, "nl", "Nederlandse betekenis", true)).toEqual({
+      status: "ready",
+      text: "Nederlandse betekenis",
+    })
+  })
 })
 
 describe("meaningUnavailableMessage", () => {

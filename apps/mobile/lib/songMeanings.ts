@@ -38,10 +38,12 @@ export function resolveSongMeaning(
   const stored = storedMeaningForLanguage(song, code)?.trim()
   if (stored && !sameText(stored, english)) return { status: "ready", text: stored }
 
-  if (localizing) return { status: "loading" }
-
+  // Prefer text already on screen (peek/cache) even while a parallel fetch runs —
+  // otherwise official-CI translate or generate keeps meaning stuck on "loading".
   const translated = localizedMeaning?.trim()
   if (translated && !sameText(translated, english)) return { status: "ready", text: translated }
+
+  if (localizing) return { status: "loading" }
 
   return { status: "unavailable" }
 }

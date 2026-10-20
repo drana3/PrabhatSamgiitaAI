@@ -417,8 +417,10 @@ export default function SongDetailScreen() {
     }
 
     let active = true
-    // Meaning spinner only — Central idea LLM must not block translation paint.
-    setLocalizing(needsMeaning || needsOfficialTranslate)
+    // Match web: fast meaning (+ official CI translate) first; LLM generate never
+    // blocks meaning paint — even when both are missing.
+    const needsFastFetch = needsMeaning || needsOfficialTranslate
+    setLocalizing(needsMeaning)
     setCentralIdeaPending(needsGeneratedIdea)
 
     void (async () => {
@@ -446,7 +448,12 @@ export default function SongDetailScreen() {
               : null
         const explanation = pickExpl(result.localized_explanation) || initialExpl
         meaningCache.current[language] = {
-          meaning: language === "en" ? null : needsMeaning ? meaning : curated || remembered?.meaning || meaning,
+          meaning:
+            language === "en"
+              ? null
+              : needsMeaning
+                ? meaning
+                : curated || remembered?.meaning || meaning,
           title:
             language === "en"
               ? null
@@ -463,39 +470,7 @@ export default function SongDetailScreen() {
         return explanation
       }
 
-      // One round-trip when both meaning + LLM Central idea are missing (same as a
-      // generate call on web, but without a prior fast-path wait).
-      if (needsMeaning && needsGeneratedIdea) {
-        try {
-          const idea = await fetchSongCentralIdeaLocalization(song.number, language)
-          if (!active) return
-          applyMeaningResult(idea)
-          setLocalizing(false)
-          const explRaw = pickExpl(idea?.localized_explanation)
-          if (explRaw) {
-            setLocalizedCentralIdea(explRaw)
-            const prev = meaningCache.current[language]
-            meaningCache.current[language] = {
-              meaning: prev?.meaning ?? null,
-              title: prev?.title ?? null,
-              explanation: explRaw,
-            }
-          }
-        } catch {
-          if (active && needsMeaning) {
-            setLocalizedMeaning(null)
-            setLocalizedTitle(null)
-          }
-        } finally {
-          if (active) {
-            setLocalizing(false)
-            setCentralIdeaPending(false)
-          }
-        }
-        return
-      }
-
-      if (needsMeaning || needsOfficialTranslate) {
+      if (needsFastFetch) {
         try {
           const result = await fetchSongMeaningLocalization(song.number, language)
           if (!active) return
