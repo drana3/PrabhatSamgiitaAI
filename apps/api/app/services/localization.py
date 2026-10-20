@@ -7,7 +7,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -112,10 +112,10 @@ class LocalizationService:
 
     @staticmethod
     def _merge_localized_metadata(
-        meta: dict,
+        meta: dict[str, Any],
         language_code: str,
         result: LocalizedSongText,
-    ) -> dict:
+    ) -> dict[str, Any]:
         if result.localized_meaning and result.localized_meaning.strip():
             meanings = dict(meta.get("localized_meanings") or {})
             meanings[language_code] = result.localized_meaning.strip()

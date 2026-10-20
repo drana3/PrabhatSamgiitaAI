@@ -485,8 +485,7 @@ async def maybe_alert_quota_exhausted(settings: Settings | None = None) -> bool:
         if month in _alert_claimed_months:
             return False
         _alert_claimed_months.add(month)
-        used = get_quota_store(cfg).used()
-        _send_quota_exhausted_emails(cfg, used=used)
+        _send_quota_exhausted_emails(cfg, used=get_quota_store(cfg).used())
         return True
 
     claimed = await _claim_quota_alert(cfg)
@@ -494,10 +493,10 @@ async def maybe_alert_quota_exhausted(settings: Settings | None = None) -> bool:
         _alert_claimed_months.add(month)
         return False
     _alert_claimed_months.add(month)
-    used = _durable_lease.neon_used
-    if used is None:
-        used = await _read_usage_from_database(cfg)
-    sent = _send_quota_exhausted_emails(cfg, used=used)
+    usage: int | None = _durable_lease.neon_used
+    if usage is None:
+        usage = await _read_usage_from_database(cfg)
+    sent = _send_quota_exhausted_emails(cfg, used=usage)
     logger.warning(
         "Google Translate quota exhausted for %s; admin alert recipients_sent=%s; "
         "LLM fallback until %s",
