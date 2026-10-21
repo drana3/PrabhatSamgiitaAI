@@ -50,10 +50,11 @@ export function SongListenControls({
   const files = useOfflineAudioStore((s) => s.files)
   const progressMap = useOfflineAudioStore((s) => s.progress)
   const errorsMap = useOfflineAudioStore((s) => s.errors)
+  const activeBySong = useOfflineAudioStore((s) => s.activeBySong)
   const download = useOfflineAudioStore((s) => s.download)
   const removeDownload = useOfflineAudioStore((s) => s.remove)
   const stopIfPlayingLocalUri = usePlayerStore((s) => s.stopIfPlayingLocalUri)
-  const offlineSnapshot = { files, progress: progressMap, errors: errorsMap }
+  const offlineSnapshot = { files, progress: progressMap, errors: errorsMap, activeBySong }
   const currentRecording = offlineRecordingState(audioUrl, offlineSnapshot, {
     songNumber,
   })

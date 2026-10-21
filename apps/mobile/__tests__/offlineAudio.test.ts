@@ -271,14 +271,19 @@ describe("offline save UI", () => {
     })
 
     const pending = useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
-    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBe(0))
+    await vi.waitFor(() => {
+      const s = useOfflineAudioStore.getState()
+      expect(s.activeBySong[12]).toBe(url)
+      expect(s.progress[url]).toBe(0)
+    })
     report?.({ totalBytesWritten: 40, totalBytesExpectedToWrite: 100 })
     await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBe(0.4))
 
     const snapshot = useOfflineAudioStore.getState()
+    expect(snapshot.activeBySong[12]).toBe(url)
     const state = offlineRecordingState(dest, snapshot, { songNumber: 12 })
-    expect(state.downloading).toBe(true)
     expect(state.progress).toBe(0.4)
+    expect(state.downloading).toBe(true)
     expect(
       offlineSaveControls({
         mode: "signed_in",
@@ -316,6 +321,7 @@ describe("offline audio", () => {
       files: {},
       progress: {},
       errors: {},
+      activeBySong: {},
     })
   })
 

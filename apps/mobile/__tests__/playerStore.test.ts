@@ -84,6 +84,7 @@ vi.mock("@/lib/audioFocus", () => ({
 }))
 
 vi.mock("@/lib/offlineAudio", () => ({
+  toPlayableLocalUri: (uri: string) => uri,
   resolvePlaybackUri: vi.fn(async (_number: number, remoteUrl?: string | null) =>
     remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
   ),

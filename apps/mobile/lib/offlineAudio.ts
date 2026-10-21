@@ -22,6 +22,8 @@ type OfflineAudioState = {
   files: Record<string, OfflineAudioEntry>
   progress: Record<string, number>
   errors: Record<string, string>
+  /** songNumber → remote URL while a save is in flight (drives UI progress). */
+  activeBySong: Record<number, string>
   hydrate: () => Promise<void>
   download: (
     remoteUrl: string | null | undefined,
@@ -97,7 +99,9 @@ export function offlineSaveControls(input: {
     showError: Boolean(input.error),
     downloading,
     label,
-    bufferingLabel: input.downloaded ? "Opening saved audio…" : "Starting stream…",
+    bufferingLabel: input.downloaded
+      ? "Opening saved audio…"
+      : "Starting stream…",
   }
 }
 
@@ -169,7 +173,12 @@ export function isOfflineTransferActive(url: string | null | undefined) {
 }
 
 /** Remote URL currently downloading for this song (progress / spinner binding). */
-export function activeDownloadUrlForSong(songNumber: number): string | null {
+export function activeDownloadUrlForSong(
+  songNumber: number,
+  snapshot?: { activeBySong?: Record<number, string> },
+): string | null {
+  const fromStore = snapshot?.activeBySong?.[songNumber]
+  if (fromStore) return fromStore
   for (const [url, meta] of pendingMeta.entries()) {
     if (meta.songNumber === songNumber) return url
   }
@@ -215,6 +224,7 @@ export function offlineRecordingState(
     files: Record<string, OfflineAudioEntry>
     progress: Record<string, number>
     errors: Record<string, string>
+    activeBySong?: Record<number, string>
   },
   options?: { songNumber?: number },
 ) {
@@ -239,7 +249,9 @@ export function offlineRecordingState(
     }
   }
   const activeForSong =
-    options?.songNumber != null ? activeDownloadUrlForSong(options.songNumber) : null
+    options?.songNumber != null
+      ? activeDownloadUrlForSong(options.songNumber, snapshot)
+      : null
   const key = entry?.remoteUrl || activeForSong || keys[0] || raw
   const downloaded = Boolean(entry)
   const progress =
@@ -386,7 +398,16 @@ function bumpEpoch(url: string) {
 function setDownloadProgress(url: string, ratio: number) {
   const clamped = Math.min(1, Math.max(0, ratio))
   const now = Date.now()
-  if (clamped < FINALIZING_RATIO && now - (lastProgressAt[url] ?? 0) < 250) return
+  const previous = useOfflineAudioStore.getState().progress[url]
+  // Always publish the first move off 0% so remove → save-again shows progress.
+  const leavingZero = (previous == null || previous === 0) && clamped > 0
+  if (
+    !leavingZero &&
+    clamped < FINALIZING_RATIO &&
+    now - (lastProgressAt[url] ?? 0) < 250
+  ) {
+    return
+  }
   lastProgressAt[url] = now
   useOfflineAudioStore.setState((state) => ({
     progress: { ...state.progress, [url]: clamped },
@@ -420,11 +441,22 @@ function clearProgress(url: string) {
   useOfflineAudioStore.setState({ progress })
 }
 
+function clearActiveSong(songNumber: number, url?: string) {
+  useOfflineAudioStore.setState((state) => {
+    const activeBySong = { ...state.activeBySong }
+    if (activeBySong[songNumber] && (!url || activeBySong[songNumber] === url)) {
+      delete activeBySong[songNumber]
+    }
+    return { activeBySong }
+  })
+}
+
 export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
   ready: false,
   files: {},
   progress: {},
   errors: {},
+  activeBySong: {},
 
   hydrate: async () => {
     const scope = offlineAudioScopeKey(currentAuth())
@@ -437,7 +469,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         }
       }),
     )
-    set({ ready: true, files, errors: {}, progress: {} })
+    set({ ready: true, files, errors: {}, progress: {}, activeBySong: {} })
     await persistCurrent(scope)
     sweepStaleProgress()
   },
@@ -503,6 +535,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
       set((state) => ({
         progress: { ...state.progress, [url]: state.progress[url] ?? 0 },
         errors: { ...state.errors, [url]: "" },
+        activeBySong: { ...state.activeBySong, [songNumber]: url },
       }))
       let result = await Promise.race([
         task.downloadAsync().catch(() => null),
@@ -518,23 +551,30 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         } catch {
           /* ignore */
         }
+        clearActiveSong(songNumber, url)
         return
       }
       if (!result || result.status >= 400) {
         throw new Error("Save failed. Try again on a stronger connection.")
       }
-      set((state) => ({
-        files: {
-          ...state.files,
-          [url]: { remoteUrl: url, fileUri: result.uri || fileUri, songNumber },
-        },
-      }))
+      set((state) => {
+        const activeBySong = { ...state.activeBySong }
+        delete activeBySong[songNumber]
+        return {
+          files: {
+            ...state.files,
+            [url]: { remoteUrl: url, fileUri: result.uri || fileUri, songNumber },
+          },
+          activeBySong,
+        }
+      })
       clearProgress(url)
       pendingMeta.delete(url)
       await persistCurrent(scope)
     } catch (error) {
       inflight.delete(url)
       pendingMeta.delete(url)
+      clearActiveSong(songNumber, url)
       if (downloadEpoch[url] !== epoch) return
       clearProgress(url)
       const message = error instanceof Error ? error.message : "Save failed."
@@ -544,6 +584,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
       throw error
     } finally {
       pendingMeta.delete(url)
+      clearActiveSong(songNumber, url)
       sweepStaleProgress()
     }
   },

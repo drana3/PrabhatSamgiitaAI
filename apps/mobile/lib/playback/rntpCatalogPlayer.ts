@@ -5,7 +5,9 @@ import type { CatalogTrack } from "@/lib/playback/catalogTrack"
 import { getTrackPlayer, loadTrackPlayerModule } from "@/lib/playback/trackPlayerBridge"
 
 function trackForNativePlayer(track: CatalogTrack): Track {
-  return { ...track, url: toPlayableLocalUri(track.url) } as Track
+  const url =
+    typeof toPlayableLocalUri === "function" ? toPlayableLocalUri(track.url) : track.url
+  return { ...track, url } as Track
 }
 
 let setupPromise: Promise<void> | null = null

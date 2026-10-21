@@ -213,6 +213,20 @@ function loopCurrentTrackForSession(
 }
 
 async function startNativeSong(song: MockSong, generation: number) {
+  // Buffer immediately — after Remove offline, hydrate may fetch a remote URL
+  // before the player can start (felt like a hang with no progress).
+  playerExtras.__psWantPlaying = true
+  setPlaybackIntent(song.number)
+  usePlayerStore.setState({
+    currentSong: song,
+    isPlaying: true,
+    isBuffering: true,
+    position: 0,
+    duration: song.durationSeconds,
+    audioError: null,
+  })
+  publishRadioSession()
+
   const ready = await hydrate(song)
   if (generation !== playerExtras.__psLoadGeneration) return
   if (!ready.audioUrl?.trim()) {
@@ -227,8 +241,6 @@ async function startNativeSong(song: MockSong, generation: number) {
     return
   }
   cacheSong(ready)
-  setPlaybackIntent(ready.number)
-  playerExtras.__psWantPlaying = true
   usePreferencesStore.getState().recordRecentPlay(ready)
   usePlayerStore.setState({
     currentSong: ready,
