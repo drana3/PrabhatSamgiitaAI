@@ -93,6 +93,8 @@ type PlayerState = {
   reassertBackgroundPlayback: () => void
   reconcileForegroundCatalogPlayback: () => void
   pause: () => void
+  /** Stop if the active track is this local file (after Remove from this app). */
+  stopIfPlayingLocalUri: (fileUri: string | null | undefined) => void
   prepareForSpeechCapture: () => Promise<void>
   seekTo: (position: number) => void
   seekBy: (deltaSeconds: number) => void
@@ -695,6 +697,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     setPlaybackIntent(null)
     set({ isPlaying: false, isBuffering: false })
     void nativePause()
+  },
+
+  stopIfPlayingLocalUri: (fileUri) => {
+    const uri = fileUri?.trim()
+    if (!uri) return
+    const current = get().currentSong
+    if (!current?.audioUrl?.trim() || current.audioUrl.trim() !== uri) return
+    playerExtras.__psWantPlaying = false
+    playerExtras.__psLoadGeneration += 1
+    setPlaybackIntent(null)
+    void nativeStop()
+    set({
+      isPlaying: false,
+      isBuffering: false,
+      hasAudio: false,
+      position: 0,
+      currentSong: { ...current, audioUrl: null, mediaHydrated: false },
+      audioError:
+        "Saved copy removed. Connect to the internet to stream, or save again for offline play.",
+    })
+    publishRadioSession()
   },
 
   prepareForSpeechCapture: async () => {

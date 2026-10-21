@@ -268,6 +268,40 @@ describe("offline audio", () => {
     expect(source).toEqual({ uri: "https://cdn.test/3.mp3", local: false })
   })
 
+  it("plays a saved copy when the song list has no remote audioUrl (offline)", async () => {
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 1024 })
+    const url = "https://cdn.test/12.mp3"
+    const dest = fileUriFor(memberA, 12, url)
+    useOfflineAudioStore.setState({
+      files: {
+        [url]: { remoteUrl: url, fileUri: dest, songNumber: 12 },
+      },
+    })
+    expect(await resolvePlaybackUri(12, null)).toEqual({ uri: dest, local: true })
+    expect(await resolvePlaybackUri(12, undefined)).toEqual({ uri: dest, local: true })
+  })
+
+  it("does not keep a deleted file:// URI as a stream target", async () => {
+    fs.getInfoAsync.mockResolvedValue({ exists: false, isDirectory: false })
+    const dest = fileUriFor(memberA, 12, "https://cdn.test/12.mp3")
+    useOfflineAudioStore.setState({ files: {} })
+    expect(await resolvePlaybackUri(12, dest)).toBeNull()
+  })
+
+  it("stops resolving to local after remove", async () => {
+    mockSuccessfulDownload()
+    const url = "https://cdn.test/12.mp3"
+    await useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
+    expect(await resolvePlaybackUri(12, url)).toEqual({
+      uri: fileUriFor(memberA, 12, url),
+      local: true,
+    })
+    fs.getInfoAsync.mockResolvedValue({ exists: false, isDirectory: false })
+    await useOfflineAudioStore.getState().remove(url)
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+    expect(await resolvePlaybackUri(12, url)).toEqual({ uri: url, local: false })
+  })
+
   it("lets other playback keep working while a download is in flight", async () => {
     let finish: ((value: { status: number; uri: string }) => void) | undefined
     fs.createDownloadResumable.mockImplementation((_url: string, dest: string) => ({

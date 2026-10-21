@@ -51,8 +51,16 @@ export function SongListenControls({
   const errorsMap = useOfflineAudioStore((s) => s.errors)
   const download = useOfflineAudioStore((s) => s.download)
   const removeDownload = useOfflineAudioStore((s) => s.remove)
+  const stopIfPlayingLocalUri = usePlayerStore((s) => s.stopIfPlayingLocalUri)
   const offlineSnapshot = { files, progress: progressMap, errors: errorsMap }
   const currentRecording = offlineRecordingState(audioUrl, offlineSnapshot)
+
+  const removeSavedCopy = (remoteKey: string, fileUri?: string) => {
+    void (async () => {
+      await removeDownload(remoteKey)
+      stopIfPlayingLocalUri(fileUri)
+    })()
+  }
   const saveUi = offlineSaveControls({
     mode: signedIn ? "signed_in" : "guest",
     downloaded: currentRecording.downloaded,
@@ -126,7 +134,7 @@ export function SongListenControls({
           accessibilityRole="button"
           accessibilityLabel={`Remove saved ${label}`}
           hitSlop={6}
-          onPress={() => void removeDownload(state.key)}
+          onPress={() => removeSavedCopy(state.key, state.fileUri)}
           style={({ pressed }) => [styles.recordingDl, pressed && styles.ctrlPressed]}
         >
           <Trash2 size={16} color={colors.primaryDark} />
@@ -220,7 +228,7 @@ export function SongListenControls({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Remove in-app copy of ${title}`}
-            onPress={() => void removeDownload(currentRecording.key)}
+            onPress={() => removeSavedCopy(currentRecording.key, currentRecording.fileUri)}
             style={({ pressed }) => [styles.downloadBtn, pressed && styles.ctrlPressed]}
           >
             <Trash2 size={16} color={colors.textPrimary} />
@@ -237,7 +245,7 @@ export function SongListenControls({
             disabled={downloading}
             onPress={() => {
               if (downloaded) {
-                void removeDownload(currentRecording.key)
+                removeSavedCopy(currentRecording.key, currentRecording.fileUri)
                 return
               }
               void download(audioUrl, songNumber, { userInitiated: true }).catch(() => undefined)

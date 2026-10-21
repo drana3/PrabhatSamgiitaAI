@@ -96,9 +96,34 @@ function normalizeUrl(url: string | null | undefined): string {
   return url?.trim() || ""
 }
 
+function isHttpAudioUrl(url: string | null | undefined): boolean {
+  return /^https?:\/\//i.test(normalizeUrl(url))
+}
+
 function canonicalAudioUrl(url: string | null | undefined): string {
   const trimmed = normalizeUrl(url)
   return trimmed ? unwrapArchiveAudioUrl(trimmed) : ""
+}
+
+/** Lookup key for the offline index — prefer unwrapped archive URLs. */
+function offlineIndexKeys(url: string | null | undefined): string[] {
+  const raw = normalizeUrl(url)
+  const canon = canonicalAudioUrl(url)
+  const keys: string[] = []
+  if (canon) keys.push(canon)
+  if (raw && raw !== canon) keys.push(raw)
+  return keys
+}
+
+function findOfflineEntry(
+  files: Record<string, OfflineAudioEntry>,
+  url: string | null | undefined,
+): OfflineAudioEntry | null {
+  for (const key of offlineIndexKeys(url)) {
+    const entry = files[key]
+    if (entry) return entry
+  }
+  return null
 }
 
 const lastProgressAt: Record<string, number> = {}
@@ -130,13 +155,26 @@ export function offlineRecordingState(
     errors: Record<string, string>
   },
 ) {
-  const key = normalizeOfflineUrl(url)
-  const downloaded = Boolean(key && snapshot.files[key])
-  const progress = key ? snapshot.progress[key] : undefined
-  const error = key ? snapshot.errors[key] : undefined
-  const active = key ? isOfflineTransferActive(key) : false
+  const keys = offlineIndexKeys(url)
+  const key = keys[0] || normalizeOfflineUrl(url)
+  const entry = findOfflineEntry(snapshot.files, url)
+  const downloaded = Boolean(entry)
+  const progress =
+    keys.map((k) => snapshot.progress[k]).find((value) => value != null) ??
+    (key ? snapshot.progress[key] : undefined)
+  const error =
+    keys.map((k) => snapshot.errors[k]).find((value) => Boolean(value)) ??
+    (key ? snapshot.errors[key] : undefined)
+  const active = keys.some((k) => isOfflineTransferActive(k)) || (key ? isOfflineTransferActive(key) : false)
   const downloading = Boolean(key && !downloaded && active)
-  return { key, downloaded, downloading, progress, error, fileUri: key ? snapshot.files[key]?.fileUri : undefined }
+  return {
+    key: entry?.remoteUrl || key,
+    downloaded,
+    downloading,
+    progress,
+    error,
+    fileUri: entry?.fileUri,
+  }
 }
 
 function sweepStaleProgress() {
@@ -418,20 +456,23 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
   },
 
   remove: async (remoteUrl) => {
-    const url = normalizeUrl(remoteUrl)
+    const keys = offlineIndexKeys(remoteUrl)
+    const url = keys[0] || normalizeUrl(remoteUrl)
     if (!url) return
-    bumpEpoch(url)
-    pendingMeta.delete(url)
-    const task = inflight.get(url)
-    inflight.delete(url)
-    if (task) {
-      try {
-        await task.cancelAsync()
-      } catch {
-        /* ignore */
+    for (const key of keys.length ? keys : [url]) {
+      bumpEpoch(key)
+      pendingMeta.delete(key)
+      const task = inflight.get(key)
+      inflight.delete(key)
+      if (task) {
+        try {
+          await task.cancelAsync()
+        } catch {
+          /* ignore */
+        }
       }
     }
-    const entry = get().files[url]
+    const entry = findOfflineEntry(get().files, remoteUrl)
     if (entry) {
       try {
         await FileSystem.deleteAsync(entry.fileUri, { idempotent: true })
@@ -442,14 +483,22 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
     const scope = offlineAudioScopeKey(currentAuth())
     set((state) => {
       const files = { ...state.files }
-      delete files[url]
       const progress = { ...state.progress }
-      delete progress[url]
       const errors = { ...state.errors }
-      delete errors[url]
+      for (const key of keys.length ? keys : [url]) {
+        delete files[key]
+        delete progress[key]
+        delete errors[key]
+        delete lastProgressAt[key]
+      }
+      if (entry?.remoteUrl) {
+        delete files[entry.remoteUrl]
+        delete progress[entry.remoteUrl]
+        delete errors[entry.remoteUrl]
+        delete lastProgressAt[entry.remoteUrl]
+      }
       return { files, progress, errors }
     })
-    delete lastProgressAt[url]
     await persistCurrent(scope)
   },
 }))
@@ -485,30 +534,40 @@ export async function resolvePlaybackUri(
   remoteUrl?: string | null,
 ): Promise<{ uri: string; local: boolean } | null> {
   const signedIn = useAuthStore.getState().mode === "signed_in"
-  const remote = canonicalAudioUrl(remoteUrl)
-  const legacyKey = normalizeUrl(remoteUrl)
+  // Only http(s) counts as a stream target — never treat stale file:// as remote.
+  const remoteHttp = (() => {
+    const canon = canonicalAudioUrl(remoteUrl)
+    return canon && isHttpAudioUrl(canon) ? canon : ""
+  })()
+  const legacyHttp = (() => {
+    const raw = normalizeUrl(remoteUrl)
+    return raw && isHttpAudioUrl(raw) ? raw : ""
+  })()
   if (signedIn) {
     const files = useOfflineAudioStore.getState().files
-    const entry = (remote && files[remote]) || (legacyKey && files[legacyKey])
+    const entry = findOfflineEntry(files, remoteUrl)
     if (entry && (await fileExists(entry.fileUri))) {
       return { uri: entry.fileUri, local: true }
     }
     const offlineEntries = Object.values(files).filter((file) => file.songNumber === songNumber)
     const askedAnotherRecording =
-      Boolean(remote) &&
+      Boolean(remoteHttp) &&
       offlineEntries.length > 0 &&
-      !offlineEntries.some(
-        (file) =>
-          file.remoteUrl === remote ||
-          canonicalAudioUrl(file.remoteUrl) === remote ||
-          file.remoteUrl === legacyKey,
-      )
+      !offlineEntries.some((file) => {
+        const saved = canonicalAudioUrl(file.remoteUrl) || file.remoteUrl
+        return (
+          saved === remoteHttp ||
+          file.remoteUrl === remoteHttp ||
+          file.remoteUrl === legacyHttp ||
+          saved === legacyHttp
+        )
+      })
     if (!askedAnotherRecording) {
       const byNumber = await offlineFileForSong(songNumber)
       if (byNumber) return { uri: byNumber, local: true }
     }
   }
-  if (remote) return { uri: remote, local: false }
+  if (remoteHttp) return { uri: remoteHttp, local: false }
   if (signedIn) {
     const byNumber = await offlineFileForSong(songNumber)
     if (byNumber) return { uri: byNumber, local: true }

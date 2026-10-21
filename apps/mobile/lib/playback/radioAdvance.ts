@@ -3,7 +3,7 @@ import { api } from "@/lib/client"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
 import { nextPlayableInQueue, randomPlayableSongNumber } from "@/lib/playableAudio"
 import { playlistStep } from "@/lib/playbackQueue"
-import { songDetailToMockSong } from "@/lib/songMap"
+import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
 import { cacheCatalogSong } from "@/lib/playback/catalogSongCache"
 import {
   enqueueTrack,
@@ -22,15 +22,49 @@ export function resetRadioAdvance(): void {
   advancing = false
 }
 
+function isRemoteStreamUrl(url: string | null | undefined): boolean {
+  return Boolean(url?.trim() && /^https?:\/\//i.test(url.trim()))
+}
+
+/**
+ * Resolve a playable URI for a song.
+ * Offline-first: saved in-app copies play without hitting the network (Saved tab
+ * rows often have no audioUrl until a detail fetch — that must not block offline).
+ */
 export async function hydratePlayableSong(number: number, seed?: MockSong | null): Promise<MockSong | null> {
   let song = seed ?? null
-  if (!song?.audioUrl?.trim()) {
-    const detail = await api.fetchSong(number)
-    if (!detail) return song?.audioUrl?.trim() ? song : null
-    song = song ? { ...song, ...songDetailToMockSong(detail), mediaHydrated: true } : songDetailToMockSong(detail)
+
+  const offline = await resolvePlaybackUri(number, song?.audioUrl)
+  if (offline?.local) {
+    const base =
+      song ??
+      songSummaryToMockSong({
+        number,
+        title: `Prabhat Samgiita ${number}`,
+        is_verified: false,
+      })
+    return { ...base, audioUrl: offline.uri, mediaHydrated: true }
   }
+
+  if (!isRemoteStreamUrl(song?.audioUrl)) {
+    try {
+      const detail = await api.fetchSong(number)
+      if (detail) {
+        song = song
+          ? { ...song, ...songDetailToMockSong(detail), mediaHydrated: true }
+          : songDetailToMockSong(detail)
+      }
+    } catch {
+      /* offline / timeout — may still stream if seed already had https */
+    }
+  }
+
+  if (!song) return null
+
   const resolved = await resolvePlaybackUri(number, song.audioUrl)
-  const uri = resolved?.uri || song.audioUrl?.trim()
+  const uri =
+    resolved?.uri ||
+    (isRemoteStreamUrl(song.audioUrl) ? song.audioUrl!.trim() : null)
   if (!uri) return null
   return { ...song, audioUrl: uri, mediaHydrated: true }
 }
