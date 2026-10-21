@@ -29,6 +29,8 @@ vi.mock("@/lib/playback/trackPlayerBridge", () => ({
 
 vi.mock("@/lib/playback/radioSession", () => ({
   getRadioSession: vi.fn(() => ({ kind: "casual" })),
+  setRadioSession: vi.fn(),
+  resetRadioSession: vi.fn(),
 }))
 
 import { hydratePlayableSong } from "@/lib/playback/radioAdvance"
