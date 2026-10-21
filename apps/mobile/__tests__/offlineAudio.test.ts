@@ -180,6 +180,25 @@ describe("offline save UI", () => {
     expect(cleaned.progress[alt]).toBeUndefined()
     expect(cleaned.progress[third]).toBeUndefined()
   })
+
+  it("shows downloaded when playback URI is the local file (cold start offline)", () => {
+    const url = "https://cdn.test/12.mp3"
+    const dest = fileUriFor(memberA, 12, url)
+    const snapshot = {
+      files: {
+        [url]: { remoteUrl: url, fileUri: dest, songNumber: 12 },
+      },
+      progress: {},
+      errors: {},
+    }
+    expect(offlineRecordingState(dest, snapshot, { songNumber: 12 }).downloaded).toBe(true)
+    expect(offlineRecordingState(dest, snapshot, { songNumber: 12 }).key).toBe(url)
+    expect(offlineRecordingState(null, snapshot, { songNumber: 12 }).downloaded).toBe(true)
+    // Different remote must not inherit another recording's save.
+    expect(
+      offlineRecordingState("https://cdn.test/12-alt.mp3", snapshot, { songNumber: 12 }).downloaded,
+    ).toBe(false)
+  })
 })
 
 describe("offline audio", () => {

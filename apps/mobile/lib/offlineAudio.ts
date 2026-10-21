@@ -147,6 +147,24 @@ export function isOfflineTransferActive(url: string | null | undefined) {
   return inflight.has(key) || pendingMeta.has(key)
 }
 
+function findEntryByLocalUri(
+  files: Record<string, OfflineAudioEntry>,
+  fileUri: string,
+): OfflineAudioEntry | null {
+  const target = fileUri.trim()
+  if (!target) return null
+  for (const entry of Object.values(files)) {
+    if (entry.fileUri === target) return entry
+  }
+  return null
+}
+
+/**
+ * UI status for a recording's offline copy.
+ * After cold start offline, playback often uses a `file://` URI (or null remote
+ * URL on Saved rows) — still resolve against the saved index so "Available
+ * offline" / Remove stay visible.
+ */
 export function offlineRecordingState(
   url: string | null | undefined,
   snapshot: {
@@ -154,10 +172,27 @@ export function offlineRecordingState(
     progress: Record<string, number>
     errors: Record<string, string>
   },
+  options?: { songNumber?: number },
 ) {
   const keys = offlineIndexKeys(url)
-  const key = keys[0] || normalizeOfflineUrl(url)
-  const entry = findOfflineEntry(snapshot.files, url)
+  const raw = normalizeOfflineUrl(url)
+  let entry = findOfflineEntry(snapshot.files, url)
+  if (!entry && raw.startsWith("file:")) {
+    entry = findEntryByLocalUri(snapshot.files, raw)
+  }
+  // Only fall back by song number when we don't have a distinct remote URL
+  // (keeps multi-recording rows from claiming each other's saves).
+  if (!entry && options?.songNumber && (!raw || raw.startsWith("file:"))) {
+    const forSong = Object.values(snapshot.files).filter(
+      (file) => file.songNumber === options.songNumber,
+    )
+    if (raw.startsWith("file:")) {
+      entry = forSong.find((file) => file.fileUri === raw) ?? (forSong.length === 1 ? forSong[0] : null)
+    } else if (forSong.length >= 1) {
+      entry = forSong[0]
+    }
+  }
+  const key = entry?.remoteUrl || keys[0] || raw
   const downloaded = Boolean(entry)
   const progress =
     keys.map((k) => snapshot.progress[k]).find((value) => value != null) ??

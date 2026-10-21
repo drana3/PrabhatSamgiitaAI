@@ -53,7 +53,9 @@ export function SongListenControls({
   const removeDownload = useOfflineAudioStore((s) => s.remove)
   const stopIfPlayingLocalUri = usePlayerStore((s) => s.stopIfPlayingLocalUri)
   const offlineSnapshot = { files, progress: progressMap, errors: errorsMap }
-  const currentRecording = offlineRecordingState(audioUrl, offlineSnapshot)
+  const currentRecording = offlineRecordingState(audioUrl, offlineSnapshot, {
+    songNumber,
+  })
 
   const removeSavedCopy = (remoteKey: string, fileUri?: string) => {
     void (async () => {
