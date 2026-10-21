@@ -74,7 +74,11 @@ export function offlineSaveControls(input: {
       bufferingLabel: "Opening saved audio…",
     }
   }
-  const downloading = input.downloading ?? (input.progress != null && !input.downloaded)
+  // Prefer explicit downloading, but never ignore live progress (?? would keep
+  // false and hide "Saving… 40%" after remove → save-again key mismatches).
+  const downloading =
+    !input.downloaded &&
+    (Boolean(input.downloading) || input.progress != null)
   const ratio = input.progress ?? 0
   let label = "Save in this app"
   if (downloading) {
@@ -158,7 +162,18 @@ export function normalizeOfflineUrl(url: string | null | undefined) {
 export function isOfflineTransferActive(url: string | null | undefined) {
   const key = normalizeOfflineUrl(url)
   if (!key) return false
-  return inflight.has(key) || pendingMeta.has(key)
+  if (inflight.has(key) || pendingMeta.has(key)) return true
+  const canon = canonicalAudioUrl(key)
+  if (canon && canon !== key && (inflight.has(canon) || pendingMeta.has(canon))) return true
+  return false
+}
+
+/** Remote URL currently downloading for this song (progress / spinner binding). */
+export function activeDownloadUrlForSong(songNumber: number): string | null {
+  for (const [url, meta] of pendingMeta.entries()) {
+    if (meta.songNumber === songNumber) return url
+  }
+  return null
 }
 
 function normalizeLocalUriKey(uri: string): string {
@@ -223,18 +238,25 @@ export function offlineRecordingState(
       entry = forSong[0]
     }
   }
-  const key = entry?.remoteUrl || keys[0] || raw
+  const activeForSong =
+    options?.songNumber != null ? activeDownloadUrlForSong(options.songNumber) : null
+  const key = entry?.remoteUrl || activeForSong || keys[0] || raw
   const downloaded = Boolean(entry)
   const progress =
     keys.map((k) => snapshot.progress[k]).find((value) => value != null) ??
+    (activeForSong != null ? snapshot.progress[activeForSong] : undefined) ??
     (key ? snapshot.progress[key] : undefined)
   const error =
     keys.map((k) => snapshot.errors[k]).find((value) => Boolean(value)) ??
+    (activeForSong != null ? snapshot.errors[activeForSong] : undefined) ??
     (key ? snapshot.errors[key] : undefined)
-  const active = keys.some((k) => isOfflineTransferActive(k)) || (key ? isOfflineTransferActive(key) : false)
-  const downloading = Boolean(key && !downloaded && active)
+  const active =
+    Boolean(activeForSong) ||
+    keys.some((k) => isOfflineTransferActive(k)) ||
+    (key ? isOfflineTransferActive(key) : false)
+  const downloading = Boolean(!downloaded && (active || progress != null))
   return {
-    key: entry?.remoteUrl || key,
+    key: entry?.remoteUrl || activeForSong || key,
     downloaded,
     downloading,
     progress,
@@ -429,16 +451,21 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
 
     const scope = offlineAudioScopeKey(auth)
 
+    // After offline play, UI may still pass file:// — ignore and resolve HTTP.
     let url = canonicalAudioUrl(remoteUrl)
+    if (!isHttpAudioUrl(url)) {
+      url = ""
+    }
     if (!url) {
       const detail = await api.fetchSong(songNumber)
       url = detail ? canonicalAudioUrl(songDetailToMockSong(detail).audioUrl) : ""
     }
-    if (!url) {
-      throw new Error("No in-app audio is available to download for this song yet.")
-    }
-    if (!/^https?:\/\//i.test(url)) {
-      throw new Error("This recording cannot be saved in the app.")
+    if (!isHttpAudioUrl(url)) {
+      throw new Error(
+        url
+          ? "This recording cannot be saved in the app."
+          : "No in-app audio is available to download for this song yet.",
+      )
     }
     const inFlightProgress = get().progress[url]
     if (inFlightProgress != null) {

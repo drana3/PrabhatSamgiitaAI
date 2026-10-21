@@ -173,10 +173,12 @@ describe("offline save UI", () => {
       },
     })
     const snapshot = useOfflineAudioStore.getState()
-    expect(offlineRecordingState(primary, snapshot).downloading).toBe(false)
+    // Orphan progress (no active transfer) still surfaces as downloading until sweep.
+    expect(offlineRecordingState(primary, snapshot).downloading).toBe(true)
+    expect(offlineRecordingState(primary, snapshot).progress).toBe(0.5)
     expect(offlineRecordingState(alt, snapshot).downloaded).toBe(true)
     expect(offlineRecordingState(alt, snapshot).downloading).toBe(false)
-    expect(offlineRecordingState(third, snapshot).downloading).toBe(false)
+    expect(offlineRecordingState(third, snapshot).downloading).toBe(true)
     reconcileOfflineProgress()
     const cleaned = useOfflineAudioStore.getState()
     expect(cleaned.progress[alt]).toBeUndefined()
@@ -227,6 +229,67 @@ describe("offline save UI", () => {
     expect(ui.label).toBe("Checking offline…")
     expect(ui.badge).toBe(false)
     expect(ui.downloading).toBe(true)
+  })
+
+  it("shows percent even when downloading flag is false but progress exists", () => {
+    expect(
+      offlineSaveControls({
+        mode: "signed_in",
+        downloaded: false,
+        downloading: false,
+        progress: 0.42,
+      }).label,
+    ).toBe("Saving… 42%")
+  })
+
+  it("binds re-save progress when UI still has a file:// audioUrl", async () => {
+    const url = "https://cdn.test/12.mp3"
+    const dest = fileUriFor(memberA, 12, url)
+    let report: ((progress: {
+      totalBytesWritten: number
+      totalBytesExpectedToWrite: number
+    }) => void) | undefined
+    let finish: ((value: { status: number; uri: string }) => void) | undefined
+    let fileOnDisk = false
+    fs.getInfoAsync.mockImplementation(async () => ({
+      exists: fileOnDisk,
+      isDirectory: false,
+      size: fileOnDisk ? 1024 : 0,
+    }))
+    fs.createDownloadResumable.mockImplementation((_u: string, d: string, _o: unknown, cb: typeof report) => {
+      report = cb
+      return {
+        downloadAsync: () =>
+          new Promise((resolve) => {
+            finish = resolve
+          }).then(() => {
+            fileOnDisk = true
+            return { status: 200, uri: d }
+          }),
+        cancelAsync: vi.fn(async () => undefined),
+      }
+    })
+
+    const pending = useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBe(0))
+    report?.({ totalBytesWritten: 40, totalBytesExpectedToWrite: 100 })
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBe(0.4))
+
+    const snapshot = useOfflineAudioStore.getState()
+    const state = offlineRecordingState(dest, snapshot, { songNumber: 12 })
+    expect(state.downloading).toBe(true)
+    expect(state.progress).toBe(0.4)
+    expect(
+      offlineSaveControls({
+        mode: "signed_in",
+        downloaded: state.downloaded,
+        downloading: state.downloading,
+        progress: state.progress,
+      }).label,
+    ).toBe("Saving… 40%")
+
+    finish?.({ status: 200, uri: dest })
+    await pending
   })
 
   it("decodes percent-encoded local paths for Android ExoPlayer", () => {

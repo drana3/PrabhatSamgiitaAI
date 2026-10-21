@@ -64,6 +64,21 @@ export function SongListenControls({
       stopIfPlayingLocalUri(fileUri)
     })()
   }
+
+  /** Prefer a real https URL so progress binds after remove → save-again. */
+  const remoteUrlForSave = (() => {
+    const candidates = [
+      audioUrl,
+      ...recordings.map((item) => item.url),
+      currentRecording.key,
+    ]
+    for (const candidate of candidates) {
+      const trimmed = candidate?.trim() || ""
+      if (/^https?:\/\//i.test(trimmed)) return trimmed
+    }
+    return audioUrl
+  })()
+
   const saveUi = offlineSaveControls({
     mode: signedIn ? "signed_in" : "guest",
     downloaded: currentRecording.downloaded,
@@ -253,7 +268,9 @@ export function SongListenControls({
                 removeSavedCopy(currentRecording.key, currentRecording.fileUri)
                 return
               }
-              void download(audioUrl, songNumber, { userInitiated: true }).catch(() => undefined)
+              void download(remoteUrlForSave, songNumber, { userInitiated: true }).catch(
+                () => undefined,
+              )
             }}
             style={({ pressed }) => [styles.downloadBtn, pressed && styles.ctrlPressed]}
           >
