@@ -230,13 +230,22 @@ export function offlineRecordingState(
 ) {
   const keys = offlineIndexKeys(url)
   const raw = normalizeOfflineUrl(url)
+  const activeForSong =
+    options?.songNumber != null
+      ? activeDownloadUrlForSong(options.songNumber, snapshot)
+      : null
   let entry = findOfflineEntry(snapshot.files, url)
   if (!entry && raw.startsWith("file:")) {
     entry = findEntryByLocalUri(snapshot.files, raw)
   }
-  // Only fall back by song number when we don't have a distinct remote URL
-  // (keeps multi-recording rows from claiming each other's saves).
-  if (!entry && options?.songNumber && (!raw || raw.startsWith("file:"))) {
+  // Song-number fallback only when not mid-save (otherwise a leftover recording
+  // would hide re-save progress after Remove).
+  if (
+    !entry &&
+    !activeForSong &&
+    options?.songNumber &&
+    (!raw || raw.startsWith("file:"))
+  ) {
     const forSong = Object.values(snapshot.files).filter(
       (file) => file.songNumber === options.songNumber,
     )
@@ -248,10 +257,6 @@ export function offlineRecordingState(
       entry = forSong[0]
     }
   }
-  const activeForSong =
-    options?.songNumber != null
-      ? activeDownloadUrlForSong(options.songNumber, snapshot)
-      : null
   const key = entry?.remoteUrl || activeForSong || keys[0] || raw
   const downloaded = Boolean(entry)
   const progress =

@@ -118,6 +118,17 @@ function mockSuccessfulDownload() {
 }
 
 describe("offline save UI", () => {
+  beforeEach(() => {
+    applyAuth(memberA)
+    useOfflineAudioStore.setState({
+      ready: true,
+      files: {},
+      progress: {},
+      errors: {},
+      activeBySong: {},
+    })
+  })
+
   it("hides save controls for anyone who is not signed in", () => {
     expect(
       offlineSaveControls({ mode: "guest", downloaded: true, progress: 0.4, error: "failed" }),
