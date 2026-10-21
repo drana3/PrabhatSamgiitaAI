@@ -49,6 +49,13 @@ export default function RootLayout() {
     void usePlaylistStore.getState().hydrateFromCache()
   }, [authHydrated])
 
+  // Load offline audio index as soon as auth scope is known — do not defer on
+  // Android (InteractionManager raced play before files were ready offline).
+  useEffect(() => {
+    if (!authHydrated) return
+    void hydrateOfflineAudio()
+  }, [authHydrated])
+
   useEffect(() => {
     startPlaylistBackgroundSync()
   }, [])
@@ -58,7 +65,6 @@ export default function RootLayout() {
     const warmCaches = () => {
       prefetchScenicArt()
       void warmCategorySongsCache()
-      void hydrateOfflineAudio()
     }
     if (Platform.OS === "android") {
       InteractionManager.runAfterInteractions(warmCaches)

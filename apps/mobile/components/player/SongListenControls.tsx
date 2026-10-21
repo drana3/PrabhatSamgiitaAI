@@ -46,6 +46,7 @@ export function SongListenControls({
   compact = false,
 }: Props) {
   const signedIn = useAuthStore((s) => s.mode === "signed_in")
+  const offlineReady = useOfflineAudioStore((s) => s.ready)
   const files = useOfflineAudioStore((s) => s.files)
   const progressMap = useOfflineAudioStore((s) => s.progress)
   const errorsMap = useOfflineAudioStore((s) => s.errors)
@@ -67,6 +68,7 @@ export function SongListenControls({
     mode: signedIn ? "signed_in" : "guest",
     downloaded: currentRecording.downloaded,
     downloading: currentRecording.downloading,
+    indexPending: signedIn && !offlineReady,
     progress: currentRecording.progress,
     error: currentRecording.error,
   })
@@ -121,11 +123,12 @@ export function SongListenControls({
     recordings[selectedIndex] ? audioRecordingLabel(recordings[selectedIndex], selectedIndex) : "Original rendition"
 
   const renderRecordingSave = (recordingUrl: string, label: string) => {
-    const state = offlineRecordingState(recordingUrl, offlineSnapshot)
+    const state = offlineRecordingState(recordingUrl, offlineSnapshot, { songNumber })
     const ui = offlineSaveControls({
       mode: signedIn ? "signed_in" : "guest",
       downloaded: state.downloaded,
       downloading: state.downloading,
+      indexPending: signedIn && !offlineReady,
       progress: state.progress,
       error: state.error,
     })

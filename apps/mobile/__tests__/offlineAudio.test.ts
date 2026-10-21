@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { Platform } from "react-native"
 
 const store = new Map<string, string>()
 
@@ -63,6 +64,7 @@ import {
   offlineSaveControls,
   reconcileOfflineProgress,
   resolvePlaybackUri,
+  toPlayableLocalUri,
   useOfflineAudioStore,
 } from "@/lib/offlineAudio"
 
@@ -199,6 +201,43 @@ describe("offline save UI", () => {
       offlineRecordingState("https://cdn.test/12-alt.mp3", snapshot, { songNumber: 12 }).downloaded,
     ).toBe(false)
   })
+
+  it("matches encoded vs decoded local file URIs after cold start", () => {
+    const url = "https://cdn.test/12.mp3"
+    const encoded =
+      "file:///docs/offline-audio/member%3Aoid-a/12-abc.mp3"
+    const decoded = "file:///docs/offline-audio/member:oid-a/12-abc.mp3"
+    const snapshot = {
+      files: {
+        [url]: { remoteUrl: url, fileUri: encoded, songNumber: 12 },
+      },
+      progress: {},
+      errors: {},
+    }
+    expect(offlineRecordingState(decoded, snapshot, { songNumber: 12 }).downloaded).toBe(true)
+    expect(offlineRecordingState(encoded, snapshot, { songNumber: 12 }).key).toBe(url)
+  })
+
+  it("does not flash Save while the offline index is still loading", () => {
+    const ui = offlineSaveControls({
+      mode: "signed_in",
+      downloaded: false,
+      indexPending: true,
+    })
+    expect(ui.label).toBe("Checking offline…")
+    expect(ui.badge).toBe(false)
+    expect(ui.downloading).toBe(true)
+  })
+
+  it("decodes percent-encoded local paths for Android ExoPlayer", () => {
+    const encoded = "file:///docs/offline-audio/member%3Aoid-a/12.mp3"
+    const prev = Platform.OS
+    ;(Platform as { OS: string }).OS = "android"
+    expect(toPlayableLocalUri(encoded)).toBe("file:///docs/offline-audio/member:oid-a/12.mp3")
+    ;(Platform as { OS: string }).OS = "ios"
+    expect(toPlayableLocalUri(encoded)).toBe(encoded)
+    ;(Platform as { OS: string }).OS = prev
+  })
 })
 
 describe("offline audio", () => {
@@ -233,6 +272,7 @@ describe("offline audio", () => {
   it("does not use a saved file while signed out", async () => {
     fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
     useOfflineAudioStore.setState({
+      ready: true,
       files: {
         "https://cdn.test/12.mp3": {
           remoteUrl: "https://cdn.test/12.mp3",
@@ -259,6 +299,7 @@ describe("offline audio", () => {
   it("streams an alternate recording instead of a saved different file", async () => {
     fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
     useOfflineAudioStore.setState({
+      ready: true,
       files: {
         "https://cdn.test/12.mp3": {
           remoteUrl: "https://cdn.test/12.mp3",
@@ -292,6 +333,7 @@ describe("offline audio", () => {
     const url = "https://cdn.test/12.mp3"
     const dest = fileUriFor(memberA, 12, url)
     useOfflineAudioStore.setState({
+      ready: true,
       files: {
         [url]: { remoteUrl: url, fileUri: dest, songNumber: 12 },
       },
@@ -303,7 +345,7 @@ describe("offline audio", () => {
   it("does not keep a deleted file:// URI as a stream target", async () => {
     fs.getInfoAsync.mockResolvedValue({ exists: false, isDirectory: false })
     const dest = fileUriFor(memberA, 12, "https://cdn.test/12.mp3")
-    useOfflineAudioStore.setState({ files: {} })
+    useOfflineAudioStore.setState({ ready: true, files: {} })
     expect(await resolvePlaybackUri(12, dest)).toBeNull()
   })
 

@@ -1,7 +1,12 @@
 import type { Track } from "react-native-track-player"
 
+import { toPlayableLocalUri } from "@/lib/offlineAudio"
 import type { CatalogTrack } from "@/lib/playback/catalogTrack"
 import { getTrackPlayer, loadTrackPlayerModule } from "@/lib/playback/trackPlayerBridge"
+
+function trackForNativePlayer(track: CatalogTrack): Track {
+  return { ...track, url: toPlayableLocalUri(track.url) } as Track
+}
 
 let setupPromise: Promise<void> | null = null
 let listenersHooked = false
@@ -59,13 +64,13 @@ export async function playTrackNow(track: CatalogTrack): Promise<void> {
   await setupNativeCatalogPlayer()
   const TrackPlayer = getTrackPlayer()
   await TrackPlayer.reset()
-  await TrackPlayer.add(track as Track)
+  await TrackPlayer.add(trackForNativePlayer(track))
   await TrackPlayer.play()
 }
 
 export async function enqueueTrack(track: CatalogTrack): Promise<void> {
   await setupNativeCatalogPlayer()
-  await getTrackPlayer().add(track as Track)
+  await getTrackPlayer().add(trackForNativePlayer(track))
 }
 
 export async function nativePlay(): Promise<void> {
