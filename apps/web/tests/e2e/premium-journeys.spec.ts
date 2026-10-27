@@ -170,7 +170,8 @@ test("Guru portrait and reflection remain aligned without overlap", async ({ pag
   const heroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji", exact: true }).first()
   await expect(heroPortrait).toBeVisible()
   await expect(page.getByText("Shri Prabhat Ranjan Sarkar", { exact: true }).first()).toBeVisible()
-  await expect(page.getByText("Shrii Shrii Anandamurti ji", { exact: true }).first()).toBeVisible()
+  await expect(page.getByText("Shrii Prabhat Rainjan Sarkar", { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole("img", { name: "Shrii Prabhat Rainjan Sarkar", exact: true })).toBeVisible()
 
   const headingBounds = await heading.boundingBox()
   const heroBounds = await heroPortrait.boundingBox()
