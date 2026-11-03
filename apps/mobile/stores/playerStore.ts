@@ -34,6 +34,7 @@ import {
   nativePlay,
   nativeRemoveUpcomingTracks,
   nativeSeek,
+  nativeSetRate,
   nativeSetRepeatTrack,
   nativeSetVolume,
   nativeSkipToNext,
@@ -53,6 +54,7 @@ import {
   loadTrackPlayerModule,
 } from "@/lib/playback/trackPlayerBridge"
 import { setRadioSession } from "@/lib/playback/radioSession"
+import { runTrackEndHook } from "@/lib/playback/trackEndHook"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -63,6 +65,8 @@ type PlayerState = {
   position: number
   duration: number
   volume: number
+  /** Playback speed, 0.5 to 1.5 (redesigned player). */
+  rate: number
   hasAudio: boolean
   audioError: string | null
   isBuffering: boolean
@@ -88,6 +92,9 @@ type PlayerState = {
   warmAudio: (song?: MockSong | null) => void
   playOrToggle: (song: MockSong, queue?: number[]) => void
   setQueue: (numbers: number[]) => void
+  /** Replace the queue, adding or removing songs; a saved-playlist session follows it. */
+  replaceQueue: (numbers: number[]) => void
+  setRate: (rate: number) => void
   togglePlay: () => void
   play: () => void
   reassertBackgroundPlayback: () => void
@@ -260,6 +267,8 @@ async function startNativeSong(song: MockSong, generation: number) {
   if (generation !== playerExtras.__psLoadGeneration) return
   await playTrackNow(songToTrack(ready, ready.audioUrl))
   if (generation !== playerExtras.__psLoadGeneration) return
+  const rate = usePlayerStore.getState().rate
+  if (rate !== 1) void nativeSetRate(rate).catch(() => undefined)
   await ensureUpcomingRadioTrack()
 }
 
@@ -321,6 +330,7 @@ async function advanceCatalogAfterTrackEnd(): Promise<void> {
 }
 
 function handleCatalogQueueEnded(): void {
+  if (runTrackEndHook()) return
   const state = usePlayerStore.getState()
   const session = listeningSessionFromStore(state)
   const queue = playbackAdvanceQueue(state.playbackMode, state.playlistBounds, state.queue)
@@ -458,6 +468,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   position: 0,
   duration: 0,
   volume: 1,
+  rate: 1,
   hasAudio: false,
   audioError: null,
   isBuffering: false,
@@ -562,6 +573,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       playlistBounds: samePlaylistReorder ? numbers : bounds,
     })
     publishRadioSession()
+  },
+
+  replaceQueue: (numbers) => {
+    const mode = get().playbackMode
+    set({
+      queue: numbers,
+      playlistBounds: mode === "playlist" ? numbers : get().playlistBounds,
+    })
+    publishRadioSession()
+    if (mode === "playlist") void nativeRemoveUpcomingTracks().then(() => ensureUpcomingRadioTrack())
+  },
+
+  setRate: (rate) => {
+    const clamped = Math.min(1.5, Math.max(0.5, rate))
+    set({ rate: clamped })
+    void nativeSetRate(clamped).catch(() => undefined)
   },
 
   syncCurrentSong: (song, queue) => {
