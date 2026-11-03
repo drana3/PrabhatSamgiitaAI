@@ -1,3 +1,4 @@
+import { holdUpcomingTrack } from "@/lib/playback/trackEndHook"
 import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
@@ -73,6 +74,7 @@ export async function hydratePlayableSong(number: number, seed?: MockSong | null
 export async function ensureUpcomingRadioTrack(): Promise<void> {
   if (!isTrackPlayerLinked()) return
   if (advancing) return
+  if (holdUpcomingTrack()) return
   const session = getRadioSession()
   if (session.kind === "casual") return
   if (session.driveRepeat || session.repeat) return

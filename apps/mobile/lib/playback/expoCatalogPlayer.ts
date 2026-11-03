@@ -159,6 +159,11 @@ export async function nativeSetVolume(volume: number): Promise<void> {
   await sound.setVolumeAsync(Math.min(1, Math.max(0, volume)))
 }
 
+export async function nativeSetRate(rate: number): Promise<void> {
+  if (!sound) return
+  await sound.setRateAsync(Math.min(1.5, Math.max(0.5, rate)), true)
+}
+
 export async function nativeSkipToNext(): Promise<void> {
   /* JS store owns playlist steps on Android. */
 }

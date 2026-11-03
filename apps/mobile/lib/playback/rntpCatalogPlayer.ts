@@ -102,6 +102,10 @@ export async function nativeSetVolume(volume: number): Promise<void> {
   await getTrackPlayer().setVolume(Math.min(1, Math.max(0, volume)))
 }
 
+export async function nativeSetRate(rate: number): Promise<void> {
+  await getTrackPlayer().setRate(Math.min(1.5, Math.max(0.5, rate)))
+}
+
 export async function nativeSkipToNext(): Promise<void> {
   await getTrackPlayer().skipToNext()
 }
