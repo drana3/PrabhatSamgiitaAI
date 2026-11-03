@@ -104,7 +104,7 @@ export default function TodayScreen() {
         contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
       >
         <Reveal index={next()}>
-          <TodayTopBar theme={theme} initials={initials} onAvatar={() => router.push(href("/(tabs)/profile"))} />
+          <TodayTopBar theme={theme} initials={initials} onAvatar={() => router.push(href("/profile-sheet"))} />
         </Reveal>
 
         <Reveal index={next()}>

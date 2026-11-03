@@ -29,6 +29,7 @@ import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
+import { useAppearanceStore } from "@/stores/appearanceStore"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlaylistStore } from "@/stores/playlistStore"
 
@@ -36,6 +37,8 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined)
 
 export default function RootLayout() {
   const [authHydrated, setAuthHydrated] = useState(() => useAuthStore.persist.hasHydrated())
+  // The saved Light / Dark choice is read before the first frame so redesign screens never flash the wrong theme.
+  const [appearanceHydrated, setAppearanceHydrated] = useState(() => useAppearanceStore.persist.hasHydrated())
   const [interLoaded] = useInter({
     Inter_400Regular,
     Inter_500Medium,
@@ -53,11 +56,16 @@ export default function RootLayout() {
   })
   const [fontWaitExpired, setFontWaitExpired] = useState(false)
   const fontsReady = (interLoaded && loraLoaded && robotoLoaded) || fontWaitExpired
-  const shellReady = fontsReady && authHydrated
+  const shellReady = fontsReady && authHydrated && (appearanceHydrated || fontWaitExpired)
 
   useEffect(() => {
     if (useAuthStore.persist.hasHydrated()) setAuthHydrated(true)
     return useAuthStore.persist.onFinishHydration(() => setAuthHydrated(true))
+  }, [])
+
+  useEffect(() => {
+    if (useAppearanceStore.persist.hasHydrated()) setAppearanceHydrated(true)
+    return useAppearanceStore.persist.onFinishHydration(() => setAppearanceHydrated(true))
   }, [])
 
   useEffect(() => {
@@ -165,6 +173,11 @@ export default function RootLayout() {
           <Stack.Screen name="stories/[slug]" options={{ presentation: "card" }} />
           <Stack.Screen name="signin/index" options={{ presentation: "modal" }} />
           <Stack.Screen name="about/index" options={{ presentation: "card" }} />
+          {/* Redesign profile sheet: it animates itself, so the navigator adds no motion. */}
+          <Stack.Screen
+            name="profile-sheet"
+            options={{ presentation: "transparentModal", animation: "none" }}
+          />
           <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
         </Stack>
       </SafeAreaProvider>

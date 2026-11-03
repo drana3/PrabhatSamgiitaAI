@@ -32,5 +32,6 @@ export const amSpring = {
 
 /** Where a gesture lands if released with velocity v (dp/s): x + (v/1000) * 0.998 / (1 - 0.998). */
 export function projectMomentum(x: number, velocity: number, rate = 0.998): number {
+  "worklet"
   return x + (velocity / 1000) * (rate / (1 - rate))
 }
