@@ -253,9 +253,40 @@ async function startNativeSong(song: MockSong, generation: number) {
   })
   publishRadioSession()
   await nativeSetRepeatTrack(shouldLoopCurrent())
+  // A newer load may have started while the native player was busy; starting
+  // this stream now would play two songs (BUG-05).
+  if (generation !== playerExtras.__psLoadGeneration) return
   await playTrackNow(songToTrack(ready, ready.audioUrl))
   if (generation !== playerExtras.__psLoadGeneration) return
   await ensureUpcomingRadioTrack()
+}
+
+/**
+ * Hydrate and start one catalog song for a queue step (next, previous, track end).
+ * Ignores the result when a newer load superseded it, and never leaves the
+ * loading spinner stuck when the song has no stream or hydration throws.
+ */
+async function startSongByNumber(number: number, generation: number): Promise<void> {
+  const failStep = () => {
+    if (generation !== playerExtras.__psLoadGeneration) return
+    playerExtras.__psWantPlaying = false
+    usePlayerStore.setState({
+      isPlaying: false,
+      isBuffering: false,
+      audioError: "No in-app audio stream is available for this song yet.",
+    })
+  }
+  try {
+    const song = await hydratePlayableSong(number)
+    if (generation !== playerExtras.__psLoadGeneration) return
+    if (!song) {
+      failStep()
+      return
+    }
+    await startNativeSong(song, generation)
+  } catch {
+    failStep()
+  }
 }
 
 function songFromActiveTrack() {
@@ -284,8 +315,7 @@ async function advanceCatalogAfterTrackEnd(): Promise<void> {
   playerExtras.__psWantPlaying = true
   playerExtras.__psLoadGeneration += 1
   const generation = playerExtras.__psLoadGeneration
-  const song = await hydratePlayableSong(nextNumber)
-  if (song) await startNativeSong(song, generation)
+  await startSongByNumber(nextNumber, generation)
 }
 
 function handleCatalogQueueEnded(): void {
@@ -796,10 +826,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       playerExtras.__psLoadGeneration += 1
       const generation = playerExtras.__psLoadGeneration
       set({ isBuffering: true })
-      void (async () => {
-        const song = await hydratePlayableSong(nextNumber)
-        if (song) await startNativeSong(song, generation)
-      })()
+      void startSongByNumber(nextNumber, generation)
       return
     }
     void (async () => {
@@ -834,10 +861,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       playerExtras.__psLoadGeneration += 1
       const generation = playerExtras.__psLoadGeneration
       set({ isBuffering: true })
-      void (async () => {
-        const song = await hydratePlayableSong(stepped)
-        if (song) await startNativeSong(song, generation)
-      })()
+      void startSongByNumber(stepped, generation)
       return
     }
     void nativeSkipToPrevious().catch(() => get().seekTo(0))
