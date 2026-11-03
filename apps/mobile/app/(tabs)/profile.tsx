@@ -474,7 +474,14 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <Text style={styles.version}>Prabhat Samgiita AI · mobile</Text>
+        {/* Hidden door to the redesign preview: hold the footer for a second. */}
+        <Pressable
+          accessible={false}
+          onLongPress={() => router.push(href("/v2/today"))}
+          delayLongPress={1200}
+        >
+          <Text style={styles.version}>Prabhat Samgiita AI · mobile</Text>
+        </Pressable>
       </ScrollView>
 
       <Modal
