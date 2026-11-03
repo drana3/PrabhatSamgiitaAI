@@ -17,7 +17,7 @@ import { audioRecordingLabel } from "@/lib/mediaEmbed"
 import { songPlayback } from "@/lib/playback"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
-import { formatDuration } from "@/utils/formatDuration"
+import { formatDuration, formatKnownDuration } from "@/utils/formatDuration"
 
 type Props = {
   songId: string
@@ -198,7 +198,7 @@ export function SongListenControls({
               <SeekBar position={position} duration={duration} onSeek={seekTo} />
               <View style={styles.timeRow}>
                 <Text style={styles.time}>{formatDuration(position)}</Text>
-                <Text style={styles.time}>{formatDuration(duration)}</Text>
+                <Text style={styles.time}>{formatKnownDuration(duration)}</Text>
               </View>
             </>
           ) : (
@@ -375,7 +375,7 @@ export function SongListenControls({
           <SeekBar position={position} duration={duration} onSeek={seekTo} />
           <View style={styles.timeRow}>
             <Text style={styles.time}>{formatDuration(position)}</Text>
-            <Text style={styles.time}>{formatDuration(duration)}</Text>
+            <Text style={styles.time}>{formatKnownDuration(duration)}</Text>
           </View>
         </View>
       ) : null}

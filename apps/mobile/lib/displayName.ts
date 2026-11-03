@@ -145,6 +145,18 @@ export function profileAvatarInitial(
   return label.charAt(0).toUpperCase()
 }
 
+/**
+ * First word of a display name, or the whole name when that word is only an
+ * initial: "I M Dada" must not become "I" (BUG-26).
+ */
+export function firstNameForGreeting(label: string): string {
+  const trimmed = label.trim()
+  const first = trimmed.split(/\s+/)[0]?.trim()
+  if (!first) return ""
+  if (/^\p{L}\.?$/u.test(first)) return trimmed
+  return first
+}
+
 /** First name for greetings — from saved name or signed-in email. */
 export function greetFirstName(
   displayName?: string | null,
@@ -152,6 +164,5 @@ export function greetFirstName(
 ): string {
   const label = profileDisplayLabel(displayName, email, "signed_in")
   if (!label || label === "Tap to add your name") return ""
-  const first = label.split(/\s+/)[0]?.trim()
-  return first || ""
+  return firstNameForGreeting(label)
 }

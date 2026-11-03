@@ -32,7 +32,7 @@ export function MiniPlayer() {
   const playlistLine = playlistPlaybackSubtitle(
     playbackMode,
     playlistBounds,
-    currentSong.number,
+    currentSong?.number,
     activePlaylist,
   )
 

@@ -29,6 +29,25 @@ export function songCardTitle(song: {
   return song.title?.trim() || `PS ${song.number}`
 }
 
+function comparableText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s.,;:!?"'()\-–—]+/g, " ")
+    .trim()
+}
+
+/** Subtitle to show under a title, or null when it only repeats the title (BUG-13). */
+export function distinctSubtitle(
+  title: string | null | undefined,
+  subtitle: string | null | undefined,
+): string | null {
+  const sub = subtitle?.trim() ?? ""
+  if (!sub) return null
+  if (comparableText(sub) === comparableText(title ?? "")) return null
+  return sub
+}
+
 /** Lightweight song shell for instant navigation from search rows. */
 export function songPlaceholder(
   number: number,

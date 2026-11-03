@@ -47,3 +47,17 @@ export function songPlayback(
     isBuffering: isCurrent && state.isBuffering,
   }
 }
+
+export type PlayControlState = "loading" | "pause" | "play"
+
+/**
+ * What the big play button shows. Loading wins over the pause icon so the UI
+ * never shows "pause" next to "Loading audio…" (BUG-27).
+ */
+export function playControlState(state: {
+  isPlaying: boolean
+  isBuffering: boolean
+}): PlayControlState {
+  if (state.isBuffering) return "loading"
+  return state.isPlaying ? "pause" : "play"
+}
