@@ -12,6 +12,14 @@ import {
   useFonts as useInter,
 } from "@expo-google-fonts/inter"
 import { Lora_700Bold, useFonts as useLora } from "@expo-google-fonts/lora"
+import {
+  Roboto_400Regular,
+  Roboto_500Medium,
+  Roboto_600SemiBold,
+  Roboto_700Bold,
+  Roboto_800ExtraBold,
+  useFonts as useRoboto,
+} from "@expo-google-fonts/roboto"
 import * as SplashScreen from "expo-splash-screen"
 
 import { startPlaylistBackgroundSync } from "@/lib/playlistBackgroundSync"
@@ -35,8 +43,16 @@ export default function RootLayout() {
     Inter_700Bold,
   })
   const [loraLoaded] = useLora({ Lora_700Bold })
+  // Redesign typeface (constants/tokens/amTypography.ts); current screens still use Inter.
+  const [robotoLoaded] = useRoboto({
+    Roboto_400Regular,
+    Roboto_500Medium,
+    Roboto_600SemiBold,
+    Roboto_700Bold,
+    Roboto_800ExtraBold,
+  })
   const [fontWaitExpired, setFontWaitExpired] = useState(false)
-  const fontsReady = (interLoaded && loraLoaded) || fontWaitExpired
+  const fontsReady = (interLoaded && loraLoaded && robotoLoaded) || fontWaitExpired
   const shellReady = fontsReady && authHydrated
 
   useEffect(() => {
