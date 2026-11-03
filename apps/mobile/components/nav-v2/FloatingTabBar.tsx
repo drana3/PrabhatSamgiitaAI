@@ -1,0 +1,338 @@
+import { useCallback, useEffect, useState } from "react"
+import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
+import { BlurView } from "expo-blur"
+import { BookOpen, CirclePlay, ListMusic, Sunrise } from "lucide-react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated"
+import { scheduleOnRN } from "react-native-worklets"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+
+import { amReveal, amSpring } from "@/constants/tokens/amMotion"
+import { amNav } from "@/constants/tokens/amNav"
+import { amRadius } from "@/constants/tokens/amSpacing"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { useAmTheme } from "@/hooks/useAmTheme"
+import {
+  NAV_V2_TABS,
+  navV2Layout,
+  pillVariantFor,
+  releaseSpringKind,
+  rubberBand,
+  settleTabIndex,
+  tabIndexAtX,
+  tabIndexForId,
+  tabPillPalette,
+  isDarkTheme,
+  type NavV2Tab,
+  type NavV2TabId,
+} from "@/lib/navV2"
+
+const ICONS = {
+  today: Sunrise,
+  songs: ListMusic,
+  player: CirclePlay,
+  learn: BookOpen,
+} as const
+
+/** Finger travel (px) before a touch counts as a drag instead of a tap. */
+const DRAG_SLOP = 4
+const FADE_EASING = Easing.bezier(...amReveal.easing)
+
+type Props = {
+  /** tab that is currently shown */
+  activeId: NavV2TabId
+  /** called once, on release, with the tab the indicator settled on */
+  onSelect: (id: NavV2TabId) => void
+  tabs?: readonly NavV2Tab[]
+}
+
+/**
+ * Floating glass tab pill with a sliding orange indicator (spec 2.1, SCR-07, SCR-12).
+ *
+ * - The indicator answers on touch-down (it heads for the touched tab at once).
+ * - Dragging moves it 1:1 from where the finger grabbed it, with a rubber band at the ends.
+ * - On release it settles on the tab found by momentum projection of the finger's velocity.
+ * - Position and press state are shared values animated by springs from their current
+ *   on-screen value, so every motion can be interrupted. Only transform and opacity animate.
+ * - The pill turns dark on the Player tab by cross-fading two fills (opacity only).
+ * - With Reduce Motion the indicator jumps and the fill cross-fades; no springs.
+ */
+export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props) {
+  const theme = useAmTheme()
+  const insets = useSafeAreaInsets()
+  const reduce = useReducedMotion()
+  const count = tabs.length
+  const activeIndex = tabIndexForId(activeId, tabs)
+  const variant = pillVariantFor(activeId)
+  const lightPalette = tabPillPalette(theme, "light")
+  const darkPalette = tabPillPalette(theme, "dark")
+  const { tabBottom } = navV2Layout(insets.bottom)
+
+  const [trayWidth, setTrayWidth] = useState(0)
+  const trayW = useSharedValue(0)
+  const x = useSharedValue(0)
+  const targetIndex = useSharedValue(activeIndex)
+  const pressed = useSharedValue(0)
+  const dark = useSharedValue(variant === "dark" ? 1 : 0)
+  const dragging = useSharedValue(0)
+  const grab = useSharedValue(0)
+
+  const tabWidth = count > 0 ? trayWidth / count : 0
+
+  const onTrayLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const width = event.nativeEvent.layout.width
+      setTrayWidth(width)
+      trayW.value = width
+      // a new width (first layout, rotation) snaps; it is not a gesture
+      cancelAnimation(x)
+      x.value = targetIndex.value * (count > 0 ? width / count : 0)
+    },
+    [count, targetIndex, trayW, x],
+  )
+
+  // The route changed from somewhere else (deep link, back, a button): follow it.
+  // A change we caused ourselves on release is already in flight with its velocity.
+  useEffect(() => {
+    if (targetIndex.value === activeIndex) return
+    targetIndex.value = activeIndex
+    const target = activeIndex * tabWidth
+    x.value = reduce ? target : withSpring(target, amSpring.default)
+  }, [activeIndex, reduce, tabWidth, targetIndex, x])
+
+  useEffect(() => {
+    const next = variant === "dark" ? 1 : 0
+    dark.value = reduce
+      ? withTiming(next, { duration: amReveal.durationMs })
+      : withTiming(next, { duration: amReveal.durationMs, easing: FADE_EASING })
+  }, [variant, reduce, dark])
+
+  const commit = useCallback(
+    (index: number) => {
+      const tab = tabs[index]
+      if (tab && tab.id !== activeId) onSelect(tab.id)
+    },
+    [tabs, activeId, onSelect],
+  )
+
+  const pan = Gesture.Pan()
+    .minDistance(0)
+    .onBegin((event) => {
+      "worklet"
+      const tw = trayW.value / count
+      if (tw <= 0) return
+      const px = event.x - amNav.tabPad
+      dragging.value = 0
+      pressed.value = reduce ? 1 : withSpring(1, amSpring.default)
+      // touch-down feedback: unless the finger landed on the indicator, head for the touched tab now
+      if (px < x.value || px > x.value + tw) {
+        const index = tabIndexAtX(px, tw, count)
+        targetIndex.value = index
+        x.value = reduce ? index * tw : withSpring(index * tw, amSpring.default)
+      }
+    })
+    .onUpdate((event) => {
+      "worklet"
+      const tw = trayW.value / count
+      if (tw <= 0) return
+      const px = event.x - amNav.tabPad
+      if (!dragging.value) {
+        if (Math.abs(event.translationX) < DRAG_SLOP) return
+        // take over from wherever the indicator is on screen right now: no jump
+        dragging.value = 1
+        cancelAnimation(x)
+        grab.value = px - x.value
+      }
+      x.value = rubberBand(px - grab.value, 0, (count - 1) * tw, trayW.value)
+    })
+    .onEnd((event) => {
+      "worklet"
+      const tw = trayW.value / count
+      pressed.value = reduce ? 0 : withSpring(0, amSpring.default)
+      if (tw <= 0) return
+      let index: number
+      let velocity = 0
+      if (dragging.value) {
+        velocity = event.velocityX
+        index = settleTabIndex({ indicatorX: x.value, velocity, tabWidth: tw, count })
+      } else {
+        index = tabIndexAtX(event.x - amNav.tabPad, tw, count)
+      }
+      dragging.value = 0
+      targetIndex.value = index
+      const base = releaseSpringKind(velocity) === "fling" ? amSpring.fling : amSpring.default
+      x.value = reduce ? index * tw : withSpring(index * tw, { ...base, velocity })
+      scheduleOnRN(commit, index)
+    })
+    .onFinalize((_event, success) => {
+      "worklet"
+      if (success) return
+      // cancelled by the system: put the indicator back where the route says it is
+      const tw = trayW.value / count
+      dragging.value = 0
+      pressed.value = reduce ? 0 : withSpring(0, amSpring.default)
+      x.value = reduce ? targetIndex.value * tw : withSpring(targetIndex.value * tw, amSpring.default)
+    })
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }, { scale: 1 - (1 - amNav.pressedScale) * pressed.value }],
+  }))
+  const insideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -x.value }] }))
+  const lightFill = useAnimatedStyle(() => ({ opacity: 1 - dark.value }))
+  const darkFill = useAnimatedStyle(() => ({ opacity: dark.value }))
+
+  const blurTint = isDarkTheme(theme) ? "dark" : "light"
+
+  return (
+    <View pointerEvents="box-none" style={[styles.slot, { bottom: tabBottom }]}>
+      <GestureDetector gesture={pan}>
+        <View style={styles.pill} collapsable={false}>
+          <BlurView
+            intensity={amNav.tabBlurIntensity}
+            tint={blurTint}
+            experimentalBlurMethod="dimezisBlurView"
+            style={StyleSheet.absoluteFill}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: lightPalette.background }, lightFill]}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: darkPalette.background }, darkFill]}
+          />
+          <View pointerEvents="none" style={[styles.edge, { borderColor: lightPalette.edge }]} />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.edge, { borderColor: darkPalette.edge }, darkFill]}
+          />
+
+          <View style={styles.tray} onLayout={onTrayLayout}>
+            {/* inactive faces, one set per fill, cross-faded with the fill */}
+            <Animated.View pointerEvents="none" style={[styles.row, lightFill]}>
+              <Faces tabs={tabs} color={lightPalette.inactive} />
+            </Animated.View>
+            <Animated.View pointerEvents="none" style={[styles.row, darkFill]}>
+              <Faces tabs={tabs} color={darkPalette.inactive} />
+            </Animated.View>
+
+            {/* orange indicator; the white faces inside it are revealed by its mask */}
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.indicator, { width: tabWidth, backgroundColor: theme.brand }, indicatorStyle]}
+            >
+              <Animated.View style={[styles.insideRow, { width: trayWidth }, insideStyle]}>
+                <Faces tabs={tabs} color={theme.onBrand} />
+              </Animated.View>
+            </Animated.View>
+
+            {/* screen-reader layer: one real control per tab, outside the gesture's visuals */}
+            <View style={styles.row} accessibilityRole="tablist">
+              {tabs.map((tab, index) => (
+                <View
+                  key={tab.id}
+                  style={styles.hit}
+                  accessible
+                  accessibilityRole="tab"
+                  accessibilityLabel={tab.label}
+                  accessibilityState={{ selected: index === activeIndex }}
+                  accessibilityActions={[{ name: "activate" }]}
+                  onAccessibilityAction={() => commit(index)}
+                />
+              ))}
+            </View>
+          </View>
+        </View>
+      </GestureDetector>
+    </View>
+  )
+}
+
+function Faces({ tabs, color }: { tabs: readonly NavV2Tab[]; color: string }) {
+  return (
+    <>
+      {tabs.map((tab) => {
+        const Icon = ICONS[tab.icon]
+        return (
+          <View
+            key={tab.id}
+            style={styles.face}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon size={22} color={color} strokeWidth={2} />
+            <Text style={[styles.label, { color }]} numberOfLines={1}>
+              {tab.label}
+            </Text>
+          </View>
+        )
+      })}
+    </>
+  )
+}
+
+const styles = StyleSheet.create({
+  slot: {
+    position: "absolute",
+    left: amNav.inset,
+    right: amNav.inset,
+  },
+  pill: {
+    height: amNav.tabHeight,
+    borderRadius: amNav.radius,
+    overflow: "hidden",
+    padding: amNav.tabPad,
+  },
+  edge: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: amNav.radius,
+    borderWidth: 1,
+  },
+  tray: {
+    flex: 1,
+  },
+  row: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: "row",
+  },
+  insideRow: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: "row",
+  },
+  indicator: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: amNav.tabItemHeight,
+    borderRadius: amRadius.pill,
+    overflow: "hidden",
+  },
+  face: {
+    flex: 1,
+    height: amNav.tabItemHeight,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  hit: {
+    flex: 1,
+    height: amNav.tabItemHeight,
+  },
+  label: {
+    fontFamily: amFonts.semi,
+    fontSize: 12,
+    lineHeight: 14,
+  },
+})
+
