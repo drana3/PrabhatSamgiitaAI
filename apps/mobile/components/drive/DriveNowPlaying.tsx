@@ -1,4 +1,4 @@
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { Pause, Play, Repeat, SkipBack, SkipForward } from "lucide-react-native"
 
@@ -10,7 +10,8 @@ import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { DriveSeekBar } from "@/components/drive/DriveSeekBar"
 import type { PlaybackMode } from "@/lib/playbackQueue"
-import { formatDuration } from "@/utils/formatDuration"
+import { playControlState } from "@/lib/playback"
+import { formatDuration, formatKnownDuration } from "@/utils/formatDuration"
 
 type Props = {
   song: MockSong
@@ -47,6 +48,7 @@ export function DriveNowPlaying({
   onToggleDriveRepeat,
   playlistSubtitle,
 }: Props) {
+  const control = playControlState({ isPlaying, isBuffering: Boolean(isBuffering) })
   const modeLabel =
     mode === "random"
       ? "Random drive"
@@ -77,7 +79,7 @@ export function DriveNowPlaying({
           />
           <View style={styles.timeRow}>
             <Text style={styles.time}>{formatDuration(position)}</Text>
-            <Text style={styles.time}>{formatDuration(duration)}</Text>
+            <Text style={styles.time}>{formatKnownDuration(duration)}</Text>
           </View>
         </View>
 
@@ -99,11 +101,14 @@ export function DriveNowPlaying({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={isPlaying ? "Pause" : "Play"}
+            accessibilityLabel={control === "loading" ? "Loading audio" : isPlaying ? "Pause" : "Play"}
+            accessibilityState={{ busy: control === "loading" }}
             onPress={onTogglePlay}
             style={({ pressed }) => [styles.playBtn, pressed && styles.pressed]}
           >
-            {isPlaying ? (
+            {control === "loading" ? (
+              <ActivityIndicator size="large" color={colors.white} />
+            ) : isPlaying ? (
               <Pause size={34} color={colors.white} fill={colors.white} />
             ) : (
               <Play size={34} color={colors.white} fill={colors.white} style={{ marginLeft: 4 }} />

@@ -179,3 +179,47 @@ describe("playlist step failures (BUG-05 / BUG-27)", () => {
     expect(state.audioError).toBeTruthy()
   })
 })
+
+describe("placeholder duration (BUG-27)", () => {
+  beforeEach(async () => {
+    vi.resetModules()
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })))
+    const { api } = await import("@/lib/client")
+    vi.mocked(api.fetchSong).mockImplementation(async (n: number) => apiSongDetail(n) as never)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("does not publish the 5:00 catalog placeholder as the track duration", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(seed(30) as never, [30], "default")
+    await vi.waitFor(async () => expect(await addedUrls()).toContain("https://example.com/30.mp3"))
+    expect(usePlayerStore.getState().duration).toBe(0)
+  })
+
+  it("takes the real duration from the native progress event", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const events = (await import("react-native-track-player")) as unknown as {
+      Event: { PlaybackProgressUpdated: string }
+      __emitTrackPlayer: (event: string, payload: unknown) => void
+    }
+    usePlayerStore.getState().loadSong(seed(31) as never, [31], "default")
+    await vi.waitFor(async () => expect(await addedUrls()).toContain("https://example.com/31.mp3"))
+    events.__emitTrackPlayer(events.Event.PlaybackProgressUpdated, { position: 4, duration: 187 })
+    expect(usePlayerStore.getState().duration).toBe(187)
+  })
+
+  it("keeps the duration unknown when the native player reports 0 while loading", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    const events = (await import("react-native-track-player")) as unknown as {
+      Event: { PlaybackProgressUpdated: string }
+      __emitTrackPlayer: (event: string, payload: unknown) => void
+    }
+    usePlayerStore.getState().loadSong(seed(32) as never, [32], "default")
+    await vi.waitFor(async () => expect(await addedUrls()).toContain("https://example.com/32.mp3"))
+    events.__emitTrackPlayer(events.Event.PlaybackProgressUpdated, { position: 0, duration: 0 })
+    expect(usePlayerStore.getState().duration).toBe(0)
+  })
+})

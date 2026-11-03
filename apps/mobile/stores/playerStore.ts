@@ -222,7 +222,9 @@ async function startNativeSong(song: MockSong, generation: number) {
     isPlaying: true,
     isBuffering: true,
     position: 0,
-    duration: song.durationSeconds,
+    // The catalog 5:00 value is a placeholder; the real length arrives with the
+    // first native progress event (BUG-27).
+    duration: 0,
     audioError: null,
   })
   publishRadioSession()
@@ -247,7 +249,7 @@ async function startNativeSong(song: MockSong, generation: number) {
     isPlaying: true,
     isBuffering: true,
     position: 0,
-    duration: ready.durationSeconds,
+    duration: 0,
     hasAudio: true,
     audioError: null,
   })
@@ -400,9 +402,12 @@ function installNativeListeners() {
     }
   })
   listen(Event.PlaybackProgressUpdated, (event) => {
+    // Native reports duration 0 while loading; keep "unknown" (0) instead of faking 0:01.
+    const reported = Number(event.duration)
     usePlayerStore.setState({
       position: Math.floor(event.position || 0),
-      duration: Math.max(1, Math.floor(event.duration || usePlayerStore.getState().duration || 1)),
+      duration:
+        reported > 0 ? Math.max(1, Math.floor(reported)) : usePlayerStore.getState().duration,
     })
   })
   listen(Event.PlaybackActiveTrackChanged, (event) => {
