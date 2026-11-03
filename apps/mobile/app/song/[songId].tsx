@@ -38,6 +38,7 @@ import {
 } from "@/lib/songLocalization"
 import { resolveSongMeaning } from "@/lib/songMeanings"
 import {
+  distinctSubtitle,
   isNearDuplicateProse,
   parseSongNumber,
   storedExplanationForLanguage,
@@ -681,6 +682,7 @@ export default function SongDetailScreen() {
     : { status: "unavailable" as const }
   const displayTitle =
     language !== "en" && localizedTitle?.trim() ? localizedTitle : song?.title ?? ""
+  const subtitle = distinctSubtitle(displayTitle, song.shortDescription)
   const watchVideos = song.videos.filter((video) => video.embedUrl)
   const practiceLyrics = practiceLyricSource({
     lyricsOriginal: song.lyrics,
@@ -818,9 +820,11 @@ export default function SongDetailScreen() {
             <Text style={styles.aiCompanionText}>AI Companion</Text>
           </Pressable>
         </View>
-        <Text style={[styles.description, song.audioUrl ? styles.descriptionSpaced : null]}>
-          {song.shortDescription}
-        </Text>
+        {subtitle ? (
+          <Text style={[styles.description, song.audioUrl ? styles.descriptionSpaced : null]}>
+            {subtitle}
+          </Text>
+        ) : null}
         {song.audioUrl ? null : (
           <Text style={styles.audioHint}>No direct audio stream yet — player opens when media exists.</Text>
         )}

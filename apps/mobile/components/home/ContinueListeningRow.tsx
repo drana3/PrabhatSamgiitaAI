@@ -45,7 +45,7 @@ export function ContinueListeningRow({ songs, onOpen }: Props) {
             />
             <View style={styles.meta}>
               <Text style={styles.ps}>PS {song.number}</Text>
-              <Text style={styles.title} numberOfLines={1}>
+              <Text style={styles.title} numberOfLines={2}>
                 {songCardTitle(song)}
               </Text>
               <Text style={styles.themes} numberOfLines={1}>

@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { apiSongDetail } from "./helpers/apiSongDetail"
 import { catalogPlayer } from "./helpers/nativePlayer"
 
+// The test double is a vi.fn() object; the real RNTP types do not expose .mock.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fakePlayer = async () => (await catalogPlayer()) as any
+
 /**
  * BUG-05 (playback races: two songs at once, next/previous broken, intermittent
  * start failure) and BUG-27 (spinner stuck on the play button) regressions.
@@ -71,8 +75,8 @@ function deferred<T = void>() {
 const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms))
 
 async function addedUrls() {
-  const TrackPlayer = await catalogPlayer()
-  return TrackPlayer.add.mock.calls.map((call) => (call[0] as { url: string }).url)
+  const TrackPlayer = await fakePlayer()
+  return TrackPlayer.add.mock.calls.map((call: unknown[]) => (call[0] as { url: string }).url)
 }
 
 describe("playback races (BUG-05)", () => {
@@ -89,7 +93,7 @@ describe("playback races (BUG-05)", () => {
 
   it("a superseded load never starts its stream (no two songs at once)", async () => {
     const { usePlayerStore } = await import("@/stores/playerStore")
-    const TrackPlayer = await catalogPlayer()
+    const TrackPlayer = await fakePlayer()
     TrackPlayer.setRepeatMode.mockClear()
     const gate = deferred()
     TrackPlayer.setRepeatMode.mockImplementationOnce(async () => gate.promise)
@@ -111,7 +115,7 @@ describe("playback races (BUG-05)", () => {
   it("a slow next() in a playlist cannot override a newer load", async () => {
     const { usePlayerStore } = await import("@/stores/playerStore")
     const { api } = await import("@/lib/client")
-    const TrackPlayer = await catalogPlayer()
+    const TrackPlayer = await fakePlayer()
     const slow = deferred<ReturnType<typeof apiSongDetail>>()
     vi.mocked(api.fetchSong).mockImplementation(async (n: number) =>
       n === 11 ? (slow.promise as never) : (apiSongDetail(n) as never),

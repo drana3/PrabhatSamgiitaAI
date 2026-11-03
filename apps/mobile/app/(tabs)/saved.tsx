@@ -13,6 +13,7 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { MockSong } from "@/data/mock"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
+import { savedViewState } from "@/lib/savedView"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { parseSongNumber, songSummaryToMockSong } from "@/lib/songMap"
 import { playPlaylist } from "@/lib/playPlaylist"
@@ -63,6 +64,8 @@ export default function SavedScreen() {
     })
   }, [savedSongIds])
 
+  const viewState = savedViewState({ syncing: syncingFavorites, count: songs.length })
+
   useFocusEffect(
     useCallback(() => {
       if (mode !== "signed_in") return
@@ -97,9 +100,7 @@ export default function SavedScreen() {
                   : "Tap ♥ on any song · this build cannot sync the website playlist yet"}
             </Text>
           </View>
-          {syncingFavorites && savedSongIds.length === 0 ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : null}
+          {viewState === "loading" ? <ActivityIndicator color={colors.primary} /> : null}
       </View>
         <PlaylistSyncBar />
         <Text style={styles.playlistHint}>Tap ▶ to play a playlist · tap the name to edit</Text>
@@ -165,7 +166,7 @@ export default function SavedScreen() {
         ))}
       </View>
 
-      {songs.length === 0 ? (
+      {viewState === "loading" ? null : viewState === "empty" ? (
         <EmptyState
           title="No saved songs yet"
           description="Open a song and tap the heart (♥) at the top. Your list appears here in the Saved tab."

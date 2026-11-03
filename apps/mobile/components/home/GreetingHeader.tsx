@@ -6,7 +6,7 @@ import { brandAssets } from "@/constants/brand"
 import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
-import { greetFirstName, memberProfileName } from "@/lib/displayName"
+import { firstNameForGreeting, greetFirstName, memberProfileName } from "@/lib/displayName"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
@@ -24,12 +24,12 @@ export function GreetingHeader() {
     mode === "guest"
       ? ""
       : greetFirstName(displayName, email) ||
-        memberProfileName({
+        firstNameForGreeting(memberProfileName({
           mode: "signed_in",
           email,
           displayName,
           displayNameOverridden,
-        }).split(/\s+/)[0] ||
+        })) ||
         ""
   const greeting =
     mode === "guest" || !firstName ? "Namaskar" : `Namaskar ${firstName}`
