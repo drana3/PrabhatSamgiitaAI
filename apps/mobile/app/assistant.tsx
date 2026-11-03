@@ -108,14 +108,15 @@ export default function AssistantScreen() {
     void ask(value)
   }
 
-  // A question handed over from search is sent once.
+  // A question handed over from search lands in the field; the reader taps
+  // send. A deep link must never spend a question on its own.
   const handedOver = useRef(false)
   useEffect(() => {
     const q = Array.isArray(params.q) ? params.q[0] : params.q
     if (!q || handedOver.current) return
     handedOver.current = true
-    void ask(q)
-  }, [params.q, ask])
+    setDraft(q)
+  }, [params.q])
 
   const close = () => {
     if (router.canGoBack()) router.back()
