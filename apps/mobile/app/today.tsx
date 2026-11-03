@@ -91,7 +91,7 @@ export default function TodayScreen() {
     return songPlayback(state, song).showPause
   }
   const isHeroPlaying = view.hero ? playing(view.hero) && currentSong?.number === view.hero.number : false
-  const openSong = (song: MockSong) => router.push(href(`/song/${song.id}`))
+  const openSong = (song: MockSong) => router.push(href(`/song-v2/${song.id}`))
   const resumeIsCurrent = view.resume && currentSong?.number === view.resume.song.number
 
   let block = 0
@@ -108,7 +108,7 @@ export default function TodayScreen() {
         </Reveal>
 
         <Reveal index={next()}>
-          <TodaySearchPill theme={theme} onPress={() => router.push(href("/search?focus=1"))} />
+          <TodaySearchPill theme={theme} onPress={() => router.push(href("/search-v2?focus=1"))} />
         </Reveal>
 
         {view.hero ? (
@@ -150,7 +150,7 @@ export default function TodayScreen() {
 
         {story ? (
           <Reveal index={next()}>
-            <StoryCard title={story.title} onPress={() => router.push(href(`/stories/${story.slug}`))} />
+            <StoryCard title={story.title} onPress={() => router.push(href(`/story-sheet/${story.slug}`))} />
           </Reveal>
         ) : null}
 

@@ -7,7 +7,7 @@ export const LEARN_ROUTES = {
   learn: "/learn",
   words: "/learn/words",
   quiz: "/learn/quiz",
-  songs: "/(tabs)/songs",
+  songs: "/songs-v2",
   stories: "/stories",
   about: "/about",
   liveQuiz: "/quiz",
@@ -21,7 +21,7 @@ export function songPathHref(songId: string): string {
 }
 
 export function songHref(songId: string): string {
-  return `/song/${songId}`
+  return `/song-v2/${songId}`
 }
 
 /** Word cards for one song (SCR-21 step 1), or for all words when no song is given. */

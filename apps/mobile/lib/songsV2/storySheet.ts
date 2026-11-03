@@ -44,7 +44,7 @@ export function shapeParagraphs(body: readonly string[], teaser = ""): string[] 
 }
 
 export function songHrefFor(songNumber: number | null): string | null {
-  return songNumber && songNumber > 0 ? `/song/ps-${songNumber}` : null
+  return songNumber && songNumber > 0 ? `/song-v2/ps-${songNumber}` : null
 }
 
 export function buildStorySheet(story: {

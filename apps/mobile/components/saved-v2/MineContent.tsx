@@ -136,7 +136,7 @@ export function MineContent({ theme: themeProp, revealStart = 0 }: { theme?: AmT
                   eyebrow={songEyebrow(number, offlineNumbers.has(number))}
                   title={title}
                   accessibilityLabel={`PS ${number}, ${title}`}
-                  onOpen={() => router.push(href(`/song/ps-${number}`))}
+                  onOpen={() => router.push(href(`/song-v2/ps-${number}`))}
                   trailing={
                     <HeartButton
                       theme={theme}

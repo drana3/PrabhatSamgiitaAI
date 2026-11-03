@@ -151,7 +151,7 @@ export default function SongsV2Screen() {
           <Press
             accessibilityRole="button"
             accessibilityLabel="Profile"
-            onPress={() => router.push(href("/(tabs)/profile"))}
+            onPress={() => router.push(href("/profile-sheet"))}
             pressedScale={0.94}
             style={[styles.avatar, { backgroundColor: theme.card, borderColor: theme.line }]}
           >
@@ -159,7 +159,7 @@ export default function SongsV2Screen() {
           </Press>
         </Reveal>
         <Reveal index={1}>
-          <TodaySearchPill theme={theme} onPress={() => router.push(href("/search?focus=1"))} />
+          <TodaySearchPill theme={theme} onPress={() => router.push(href("/search-v2?focus=1"))} />
         </Reveal>
         <Reveal index={2}>
           <Segmented theme={theme} value={segment} onChange={setSegment} />

@@ -96,7 +96,7 @@ describe("resumeProgress", () => {
 describe("TODAY_FIND_ROWS", () => {
   it("has Number, Words and Feeling rows that open search", () => {
     expect(TODAY_FIND_ROWS.map((r) => r.id)).toEqual(["number", "words", "feeling"])
-    for (const row of TODAY_FIND_ROWS) expect(row.href).toMatch(/^\/search\?focus=1&hint=/)
+    for (const row of TODAY_FIND_ROWS) expect(row.href).toMatch(/^\/search-v2\?focus=1&hint=/)
   })
 })
 

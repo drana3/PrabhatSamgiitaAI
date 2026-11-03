@@ -14,7 +14,7 @@ export const PROFILE_ROUTES = {
   /** SCR-27, another branch */
   reviewStyle: "/review-style",
   /** SCR-20, another branch */
-  downloads: "/downloads",
+  downloads: "/storage",
 } as const
 
 export type ProfileRoute = (typeof PROFILE_ROUTES)[keyof typeof PROFILE_ROUTES]
@@ -26,7 +26,7 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/about": true,
   "/script-translations": false,
   "/review-style": false,
-  "/downloads": false,
+  "/storage": true,
 }
 
 export type ProfileIdentity = {

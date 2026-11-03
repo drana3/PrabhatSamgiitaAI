@@ -191,7 +191,7 @@ export default function UnifiedSearchScreen() {
   const openItem = useCallback(
     (item: SearchResultItem) => {
       remember(query)
-      router.push(href(`/song/${item.song.id}`))
+      router.push(href(`/song-v2/${item.song.id}`))
     },
     [query, remember, router],
   )
@@ -263,7 +263,7 @@ export default function UnifiedSearchScreen() {
                   theme={theme}
                   answer={result.answer}
                   onOpen={openItem}
-                  onAsk={() => router.push(href("/(tabs)/ai"))}
+                  onAsk={() => router.push(href("/assistant"))}
                 />
               ) : null}
               {result.groups.map((group) => (

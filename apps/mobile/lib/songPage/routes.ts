@@ -7,5 +7,5 @@ export function learnSongRoute(songId: string): string {
 }
 
 export function askAboutSongRoute(songNumber: number): string {
-  return `/(tabs)/ai?song=${songNumber}`
+  return `/assistant?song=${songNumber}`
 }

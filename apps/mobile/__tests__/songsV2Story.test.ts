@@ -29,7 +29,7 @@ describe("story sheet content", () => {
   it("opens the first related song", () => {
     const c = buildStorySheet({ slug: "s", title: "T", body: ["one two three"], songNumbers: [0, 7, 9], sourceUrl: " https://x " })
     expect(c.songNumber).toBe(7)
-    expect(c.songHref).toBe("/song/ps-7")
+    expect(c.songHref).toBe("/song-v2/ps-7")
     expect(c.eyebrow).toBe("Story · 1 min read")
     expect(c.sourceUrl).toBe("https://x")
   })

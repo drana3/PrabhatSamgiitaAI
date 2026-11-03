@@ -6,9 +6,9 @@ const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "
 
 /** Rows of "Find a song your way". They open search; `hint` lets search prefill its field. */
 export const TODAY_FIND_ROWS = [
-  { id: "number", title: "By number", hint: "PS 1 to PS 5018", href: "/search?focus=1&hint=number" },
-  { id: "words", title: "By words", hint: "A line you remember", href: "/search?focus=1&hint=words" },
-  { id: "feeling", title: "By feeling", hint: "Peace, longing, joy", href: "/search?focus=1&hint=feeling" },
+  { id: "number", title: "By number", hint: "PS 1 to PS 5018", href: "/search-v2?focus=1&hint=number" },
+  { id: "words", title: "By words", hint: "A line you remember", href: "/search-v2?focus=1&hint=words" },
+  { id: "feeling", title: "By feeling", hint: "Peace, longing, joy", href: "/search-v2?focus=1&hint=feeling" },
 ] as const
 
 export type TodayResume =

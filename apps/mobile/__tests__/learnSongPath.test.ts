@@ -79,7 +79,7 @@ describe("currentStep and headline", () => {
 describe("links", () => {
   it("builds the routes, with harmonium by path only", () => {
     expect(pathLinks("ps-3", 3)).toEqual({
-      listen: "/song/ps-3",
+      listen: "/song-v2/ps-3",
       words: "/learn/words?song=3",
       quiz: "/learn/quiz?song=3",
       harmonium: "/harmonium-v2",

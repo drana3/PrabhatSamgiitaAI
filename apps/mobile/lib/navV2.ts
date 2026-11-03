@@ -38,16 +38,16 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
     icon: "songs",
     screen: "songs",
     href: "/v2/songs",
-    owns: ["/v2/songs", "/songs", "/collections"],
+    owns: ["/v2/songs", "/songs", "/songs-v2", "/collections", "/story-sheet"],
   },
-  { id: "player", label: "Player", icon: "player", screen: "player", href: "/v2/player", owns: ["/v2/player", "/player"] },
+  { id: "player", label: "Player", icon: "player", screen: "player", href: "/v2/player", owns: ["/v2/player", "/player", "/player-v2"] },
   {
     id: "learn",
     label: "Learn",
     icon: "learn",
     screen: "learn",
     href: "/v2/learn",
-    owns: ["/v2/learn", "/learn", "/stories", "/quiz"],
+    owns: ["/v2/learn", "/learn", "/stories", "/quiz", "/harmonium-v2"],
   },
 ]
 
@@ -55,7 +55,7 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
 export const NAV_V2_PROFILE_SHEET_ROUTE = "/profile-sheet"
 
 /** Routes outside the tabs on which the mini-player is also shown (spec SCR-12: "and the Song page"). */
-export const NAV_V2_MINI_EXTRA_PREFIXES: readonly string[] = ["/song"]
+export const NAV_V2_MINI_EXTRA_PREFIXES: readonly string[] = ["/song", "/song-v2"]
 
 function normalisePath(pathname: string): string {
   const withoutQuery = pathname.split(/[?#]/)[0] ?? ""
