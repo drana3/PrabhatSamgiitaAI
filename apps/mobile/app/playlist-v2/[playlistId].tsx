@@ -1,36 +1,43 @@
 import { useEffect, useMemo, useState } from "react"
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { Play, X } from "lucide-react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { Play } from "lucide-react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { SongCardRow } from "@/components/saved-v2/SongCardRow"
-import { BackButton, Note, PillButton } from "@/components/saved-v2/ui"
-import { PressScale, Reveal } from "@/components/today/motion"
+import { PillButton } from "@/components/songs-v2/Pill"
+import { PlaylistSongRow } from "@/components/songs-v2/PlaylistSongRow"
+import { Press } from "@/components/songs-v2/Press"
+import { EmptyNote, overStyle } from "@/components/songs-v2/primitives"
+import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
+import { BackHeader } from "@/components/songs-v2/StorageParts"
 import { amColors } from "@/constants/tokens/amColors"
-import { amGap, amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amFontSize, amFonts, amType } from "@/constants/tokens/amTypography"
-import { useAmTheme } from "@/hooks/useAmTheme"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { useFlushPlaylistsOnBlur } from "@/hooks/useFlushPlaylistsOnBlur"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongTitles } from "@/hooks/useSongTitles"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { mineSyncStatus, playlistMeta, songEyebrow } from "@/lib/mineView"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { playPlaylist } from "@/lib/playPlaylist"
 import { routeString } from "@/lib/songMap"
+import { displayTitle } from "@/lib/songsV2/entry"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { href } from "@/utils/href"
 
 /**
- * One playlist (redesign of app/playlist/[playlistId]): name, `9 songs · made by you`,
- * Play, Rename, the song rows with Remove, and Delete behind a confirmation.
- * Reorder is not offered: the playlist API has no reorder call yet.
+ * One playlist. The prototype has no page for it (a playlist row in Mine just plays), so this page
+ * borrows the prototype pieces: round back button, `.over` meta, 45px page heading, `.pill`
+ * buttons and `.card.song` rows. Name, Play, Rename, Remove and Delete (behind a confirmation)
+ * are the working logic of the first build. Reorder is not offered: the API has no reorder call.
  */
 export default function PlaylistV2Screen() {
   useFlushPlaylistsOnBlur()
   const router = useRouter()
-  const theme = useAmTheme()
+  const theme = useSongsTheme()
+  const insets = useSafeAreaInsets()
+  const inset = Platform.OS === "web" ? 54 : insets.top
+  const openedAt = useRevealClock()
   const params = useLocalSearchParams<{ playlistId?: string | string[] }>()
   const playlistId = routeString(params.playlistId)
 
@@ -109,169 +116,154 @@ export default function PlaylistV2Screen() {
     })
   }
 
-  let block = 0
+  let block = 1
   const next = () => block++
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
-      >
-        <Reveal index={next()}>
-          <View style={styles.topBar}>
-            <BackButton theme={theme} onPress={() => router.back()} />
-          </View>
-        </Reveal>
+    <RevealClock.Provider value={openedAt}>
+      <View style={[styles.root, { backgroundColor: theme.page, paddingTop: inset }]}>
+        <SongsReveal index={0}>
+          <BackHeader theme={theme} onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+        </SongsReveal>
 
-        {!playlist ? (
-          <Reveal index={next()}>
-            <Note theme={theme}>Looking for this playlist…</Note>
-          </Reveal>
-        ) : (
-          <>
-            <Reveal index={next()}>
-              <Text style={[amType.label, { color: theme.eyebrow }]}>{playlistMeta(numbers.length)}</Text>
-              {renaming ? (
-                <TextInput
-                  autoFocus
-                  value={name}
-                  onChangeText={setName}
-                  onSubmitEditing={() => void commitRename()}
-                  onBlur={() => void commitRename()}
-                  returnKeyType="done"
-                  accessibilityLabel="Playlist name"
-                  style={[
-                    styles.nameInput,
-                    { backgroundColor: theme.card, borderColor: theme.line, color: theme.textHeading },
-                  ]}
-                />
-              ) : (
-                <Text style={[amType.title, styles.title, { color: theme.textHeading }]} accessibilityRole="header">
-                  {playlist.name}
-                </Text>
-              )}
-            </Reveal>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.body}
+        >
+          {!playlist ? (
+            <SongsReveal index={next()}>
+              <EmptyNote theme={theme}>Looking for this playlist…</EmptyNote>
+            </SongsReveal>
+          ) : (
+            <>
+              <SongsReveal index={next()} style={styles.head}>
+                <Text style={[overStyle, { color: theme.accent }]}>{playlistMeta(numbers.length)}</Text>
+                {renaming ? (
+                  <TextInput
+                    autoFocus
+                    value={name}
+                    onChangeText={setName}
+                    onSubmitEditing={() => void commitRename()}
+                    onBlur={() => void commitRename()}
+                    returnKeyType="done"
+                    accessibilityLabel="Playlist name"
+                    style={[styles.nameInput, { backgroundColor: theme.card, borderColor: theme.line, color: theme.textHeading }]}
+                  />
+                ) : (
+                  <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
+                    {playlist.name}
+                  </Text>
+                )}
+              </SongsReveal>
 
-            <Reveal index={next()}>
-              <View style={styles.actions}>
-                <View style={styles.grow}>
+              <SongsReveal index={next()}>
+                <View style={styles.actions}>
                   <PillButton
                     theme={theme}
+                    fill
                     label="Play"
                     onPress={play}
                     disabled={numbers.length === 0}
-                    icon={<Play size={18} color={theme.onBrand} fill={theme.onBrand} />}
+                    icon={<Play size={18} color={amColors.white} fill={amColors.white} />}
                   />
-                </View>
-                <View style={styles.grow}>
                   <PillButton
                     theme={theme}
+                    fill
                     tone="sand"
                     label={renaming ? "Save name" : "Rename"}
                     onPress={() => (renaming ? void commitRename() : setRenaming(true))}
                   />
                 </View>
-              </View>
-              {sync.kind !== "hidden" ? (
-                <View style={styles.sync}>
-                  <Text
-                    style={[amType.body, { color: sync.kind === "error" ? theme.textHeading : theme.textBody, fontFamily: sync.kind === "error" ? amFonts.semi : amFonts.regular }]}
-                    accessibilityRole={sync.kind === "error" ? "alert" : undefined}
-                  >
-                    {sync.text}
-                  </Text>
-                  {sync.kind === "error" ? (
-                    <PillButton theme={theme} tone="sand" label="Try again" onPress={() => void flushSync()} />
-                  ) : null}
-                </View>
-              ) : null}
-            </Reveal>
+                {sync.kind !== "hidden" ? (
+                  <View style={styles.sync}>
+                    <Text
+                      style={[
+                        styles.syncText,
+                        { color: sync.kind === "error" ? theme.textHeading : theme.textBody },
+                        sync.kind === "error" && { fontFamily: amFonts.semi },
+                      ]}
+                      accessibilityRole={sync.kind === "error" ? "alert" : undefined}
+                    >
+                      {sync.text}
+                    </Text>
+                    {sync.kind === "error" ? (
+                      <PillButton theme={theme} tone="sand" label="Try again" onPress={() => void flushSync()} style={styles.start} />
+                    ) : null}
+                  </View>
+                ) : null}
+              </SongsReveal>
 
-            <Reveal index={next()}>
-              {numbers.length === 0 ? (
-                <Note theme={theme}>
-                  Nothing here yet. Open a song and choose Add to playlist, or press and hold a song in the catalog.
-                </Note>
-              ) : (
-                <View style={styles.stack}>
-                  {numbers.map((number: number) => {
-                    const title = titles.get(number) ?? `Prabhat Samgiita ${number}`
+              <SongsReveal index={next()} style={styles.list}>
+                {numbers.length === 0 ? (
+                  <EmptyNote theme={theme}>
+                    Nothing here yet. Open a song and choose Add to playlist, or press and hold a song in the catalog.
+                  </EmptyNote>
+                ) : (
+                  numbers.map((number: number) => {
+                    const title = displayTitle(titles.get(number) ?? `Prabhat Samgiita ${number}`)
                     return (
-                      <SongCardRow
+                      <PlaylistSongRow
                         key={number}
                         theme={theme}
                         eyebrow={songEyebrow(number, offlineNumbers.has(number))}
                         title={title}
                         accessibilityLabel={`PS ${number}, ${title}`}
+                        removeLabel={`Remove PS ${number} from this playlist`}
                         onOpen={() => router.push(href(`/song/ps-${number}`))}
-                        trailing={
-                          <PressScale
-                            accessibilityRole="button"
-                            accessibilityLabel={`Remove PS ${number} from this playlist`}
-                            onPress={() => {
-                              if (playlistId) void removeSong(playlistId, number)
-                            }}
-                            pressedScale={0.88}
-                            style={styles.remove}
-                          >
-                            <X size={20} color={theme.textBody} />
-                          </PressScale>
-                        }
+                        onRemove={() => {
+                          if (playlistId) void removeSong(playlistId, number)
+                        }}
                       />
                     )
-                  })}
-                </View>
-              )}
-            </Reveal>
+                  })
+                )}
+              </SongsReveal>
 
-            <Reveal index={next()}>
-              <View style={[styles.danger, { borderTopColor: theme.line }]}>
-                <PressScale
+              <SongsReveal index={next()} style={[styles.danger, { borderTopColor: theme.line }]}>
+                <Press
                   accessibilityRole="button"
                   accessibilityLabel="Delete playlist"
                   onPress={confirmDelete}
+                  pressedScale={0.98}
                   style={styles.deleteHit}
                 >
-                  <Text style={[styles.deleteText, { color: amColors.danger }]}>Delete playlist</Text>
-                </PressScale>
-              </View>
-            </Reveal>
-          </>
-        )}
-        <View style={styles.tail} />
-      </ScrollView>
-    </SafeAreaView>
+                  <Text style={styles.deleteText}>Delete playlist</Text>
+                </Press>
+              </SongsReveal>
+            </>
+          )}
+        </ScrollView>
+      </View>
+    </RevealClock.Provider>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { gap: amGap.block },
-  topBar: { height: 56, justifyContent: "center", alignItems: "flex-start" },
-  title: { marginTop: 6 },
+  root: { flex: 1 },
+  body: { paddingHorizontal: 10, paddingBottom: 140, gap: 20 },
+  head: { gap: 8, paddingHorizontal: 10 },
+  h1: {
+    fontFamily: amFonts.display,
+    fontSize: 45,
+    lineHeight: 45,
+    letterSpacing: -0.9,
+    textTransform: "uppercase",
+  },
   nameInput: {
-    marginTop: 6,
     height: 56,
-    borderRadius: amRadius.pill,
+    borderRadius: 70,
     borderWidth: 1,
     paddingHorizontal: 20,
     fontFamily: amFonts.semi,
     fontSize: 19,
   },
-  actions: { flexDirection: "row", gap: 10 },
-  grow: { flex: 1 },
-  sync: { marginTop: amGap.text, gap: 10 },
-  stack: { gap: amGap.grid },
-  remove: {
-    width: amTouchTarget,
-    height: amTouchTarget,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  danger: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: amGap.block, marginTop: amGap.block },
-  deleteHit: { minHeight: amTouchTarget, justifyContent: "center", alignSelf: "flex-start" },
-  deleteText: { fontFamily: amFonts.bold, fontSize: amFontSize.lead },
-  tail: { height: 140 },
+  actions: { flexDirection: "row", gap: 8 },
+  sync: { marginTop: 12, gap: 10, paddingHorizontal: 10 },
+  syncText: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  start: { alignSelf: "flex-start" },
+  list: { gap: 10 },
+  danger: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, marginTop: 8, marginHorizontal: 10 },
+  deleteHit: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
+  deleteText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20, color: amColors.danger },
 })

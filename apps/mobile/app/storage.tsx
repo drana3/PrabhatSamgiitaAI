@@ -1,104 +1,110 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { useEffect, useState } from "react"
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import {
-  CacheLimitChips,
+  BackHeader,
+  CacheLimitSection,
   ClearActionPill,
   StorageListHeader,
   StorageRow,
   StorageTotalCard,
-  Toast,
-} from "@/components/saved-v2/StorageParts"
-import { BackButton, Note, SectionHeading } from "@/components/saved-v2/ui"
-import { Reveal } from "@/components/today/motion"
-import { amGap, amRadius } from "@/constants/tokens/amSpacing"
-import { useAmTheme } from "@/hooks/useAmTheme"
+} from "@/components/songs-v2/StorageParts"
+import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
+import { Toast } from "@/components/songs-v2/Toast"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongTitles } from "@/hooks/useSongTitles"
 import { useStorageScreen } from "@/hooks/useStorageScreen"
+import { displayTitle } from "@/lib/songsV2/entry"
 import { listViewState } from "@/lib/mineView"
 
 /**
- * Storage and downloads (spec SCR-20): how many megabytes the songs take,
- * delete everything or only the songs you pick. Redesign screen, reachable at
- * /storage; Profile > Listening and Mine > On this phone open it.
+ * Storage and downloads (prototype lines 1972-2011). How many megabytes the songs take, the cache
+ * limit, and a list you can select from. Tap rows to select; the bottom pill clears the selection,
+ * or everything after a second tap. Reachable at /storage; Mine > On this phone and Profile open it.
  */
 export default function StorageScreen() {
   const router = useRouter()
-  const theme = useAmTheme()
+  const theme = useSongsTheme()
+  const insets = useSafeAreaInsets()
+  // The phone-frame preview on the web draws the 54px status area of the board.
+  const inset = Platform.OS === "web" ? 54 : insets.top
   const state = useStorageScreen()
   const titles = useSongTitles(state.items.map((item) => item.songNumber))
   const view = listViewState({ loading: !state.scanned, count: state.items.length })
+  const openedAt = useRevealClock()
 
-  let block = 0
-  const next = () => block++
+  const [toast, setToast] = useState<string | null>(null)
+  useEffect(() => {
+    if (!state.toast) return
+    setToast(state.toast.text)
+    const timer = setTimeout(() => setToast(null), 2400)
+    return () => clearTimeout(timer)
+  }, [state.toast])
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
-      >
-        <Reveal index={next()}>
-          <View style={styles.topBar}>
-            <BackButton theme={theme} onPress={() => router.back()} />
-          </View>
-        </Reveal>
+    <RevealClock.Provider value={openedAt}>
+      <View style={[styles.root, { backgroundColor: theme.page, paddingTop: inset }]}>
+        <SongsReveal index={0}>
+          <BackHeader
+            theme={theme}
+            title="Storage and downloads"
+            onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          />
+        </SongsReveal>
 
-        <Reveal index={next()}>
-          <SectionHeading theme={theme} first="Storage" second="and downloads" />
-          <StorageTotalCard theme={theme} totalBytes={state.total} count={state.items.length} limit={state.limit} />
-        </Reveal>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
+          <SongsReveal index={1}>
+            <StorageTotalCard theme={theme} totalBytes={state.total} count={state.items.length} limit={state.limit} />
+          </SongsReveal>
 
-        <Reveal index={next()}>
-          <CacheLimitChips theme={theme} value={state.limit.id} onChange={state.chooseLimit} />
-        </Reveal>
+          <SongsReveal index={2}>
+            <CacheLimitSection theme={theme} value={state.limit.id} onChange={state.chooseLimit} />
+          </SongsReveal>
 
-        <Reveal index={next()}>
-          {view === "empty" ? (
-            <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.line }]}>
-              <Note theme={theme}>No downloads yet. Tap Download on any song to hear it without internet.</Note>
-            </View>
-          ) : view === "list" ? (
-            <View style={styles.list}>
-              <StorageListHeader
-                theme={theme}
-                count={state.items.length}
-                allSelected={state.allSelected}
-                onToggleAll={state.toggleAll}
-              />
-              {state.items.map((item) => (
-                <StorageRow
-                  key={item.key}
+          <SongsReveal index={3} style={styles.list}>
+            {view === "list" ? (
+              <>
+                <StorageListHeader
                   theme={theme}
-                  item={item}
-                  items={state.items}
-                  title={titles.get(item.songNumber) ?? `Prabhat Samgiita ${item.songNumber}`}
-                  selected={state.selected.includes(item.key)}
-                  onToggle={() => state.toggleRow(item.key)}
+                  count={state.items.length}
+                  allSelected={state.allSelected}
+                  onToggleAll={state.toggleAll}
                 />
-              ))}
-            </View>
-          ) : (
-            <Text style={{ color: theme.textBody }} accessibilityLiveRegion="polite">
-              Checking this phone…
-            </Text>
-          )}
-        </Reveal>
-        <View style={styles.tail} />
-      </ScrollView>
+                {state.items.map((item) => (
+                  <StorageRow
+                    key={item.key}
+                    theme={theme}
+                    item={item}
+                    items={state.items}
+                    title={displayTitle(titles.get(item.songNumber) ?? `Prabhat Samgiita ${item.songNumber}`)}
+                    selected={state.selected.includes(item.key)}
+                    onToggle={() => state.toggleRow(item.key)}
+                  />
+                ))}
+              </>
+            ) : (
+              <Text style={[styles.empty, { color: theme.textBody }]} accessibilityLiveRegion="polite">
+                {view === "empty"
+                  ? "\nNo downloads yet. Tap Download on any song to hear it without internet."
+                  : "\nChecking this phone…"}
+              </Text>
+            )}
+          </SongsReveal>
+        </ScrollView>
 
-      <Toast message={state.toast} />
-      <ClearActionPill theme={theme} action={state.action} onPress={() => void state.pressAction()} />
-    </SafeAreaView>
+        <Toast message={toast} theme={theme} />
+        <ClearActionPill theme={theme} action={state.action} onPress={() => void state.pressAction()} />
+      </View>
+    </RevealClock.Provider>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { gap: amGap.section / 2 },
-  topBar: { height: 56, justifyContent: "center", alignItems: "flex-start" },
-  list: { gap: amGap.grid },
-  empty: { borderRadius: amRadius.card, borderWidth: 1, padding: amGap.padCard },
-  tail: { height: 160 },
+  root: { flex: 1 },
+  body: { paddingHorizontal: 10, paddingBottom: 140, gap: 20 },
+  list: { gap: 10 },
+  empty: { paddingHorizontal: 20, maxWidth: 360, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22 },
 })
