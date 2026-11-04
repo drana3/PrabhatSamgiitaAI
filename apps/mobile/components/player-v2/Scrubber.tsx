@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
@@ -6,21 +6,19 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
-  type SharedValue,
+  withSpring,
 } from "react-native-reanimated"
 
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { scrubRatio, secondsFromRatio } from "@/lib/playerV2/gesture"
 import { formatClock } from "@/lib/playerV2/transportState"
-import { waveformHeights } from "@/lib/playerV2/waveform"
+import { amSpring } from "@/constants/tokens/amMotion"
 
 type Props = {
   position: number
   /** Null until the file or API reports it; the bar is then inert and shows no total. */
   duration: number | null
-  /** Song number: seeds the bar heights, so every song has its own shape. */
-  songNumber: number
   onSeek: (seconds: number) => void
 }
 
@@ -28,7 +26,7 @@ type Props = {
 const GRAB_RADIUS = 22
 
 /**
- * Seek logic shared by the waveform and the thick bar. The head answers on
+ * Seek logic shared by the thin line and the thick bar. The head answers on
  * touch-down, follows the finger 1:1 from where it was grabbed, and the seek is
  * sent on release, so the audio never stutters under a moving finger.
  */
@@ -110,7 +108,7 @@ function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "dura
     },
   }
 
-  return { gesture, width, shown, known, total, elapsed: scrubSeconds ?? position, accessibility }
+  return { gesture, width, shown, dragging, known, total, elapsed: scrubSeconds ?? position, accessibility }
 }
 
 function Times({ elapsed, total, known }: { elapsed: number; total: number; known: boolean }) {
@@ -122,27 +120,40 @@ function Times({ elapsed, total, known }: { elapsed: number; total: number; know
   )
 }
 
-/** The seek bar of the Player: 56 bars, the played ones solid, a gold head (prototype .wave). */
-export function Waveform(props: Props) {
-  const { gesture, width, shown, known, total, elapsed, accessibility } = useScrub(props)
-  const heights = useMemo(() => waveformHeights(props.songNumber, playerSize.waveBars), [props.songNumber])
-
-  const head = useAnimatedStyle(() => ({ transform: [{ translateX: shown.value * width.value }] }))
+/**
+ * The seek bar of the Player: a 3px line, the played part in the accent orange, a 10px dot at the
+ * position that grows to 14px while a finger holds it, the times under it. The touch area is 32px
+ * tall. It answers on touch-down and follows the finger 1:1 from where it was grabbed.
+ */
+export function ThinScrubber(props: Props) {
+  const { gesture, width, shown, dragging, known, total, elapsed, accessibility } = useScrub(props)
+  const fill = useAnimatedStyle(() => ({ transform: [{ translateX: (shown.value - 1) * width.value }] }))
+  // The dot grows by a spring that starts from the size on screen, so a quick tap never jumps.
+  const grow = useSharedValue(1)
+  useAnimatedReaction(
+    () => dragging.value,
+    (down) => {
+      grow.value = withSpring(down ? playerSize.thinDotGrown / playerSize.thinDot : 1, amSpring.default)
+    },
+  )
+  const dot = useAnimatedStyle(() => ({
+    transform: [{ translateX: shown.value * width.value - playerSize.thinDot / 2 }, { scale: grow.value }],
+  }))
 
   return (
     <View>
       <GestureDetector gesture={gesture}>
         <View
-          style={styles.wave}
+          style={styles.thin}
           onLayout={(e) => {
             width.value = e.nativeEvent.layout.width
           }}
           {...accessibility}
         >
-          {heights.map((h, i) => (
-            <WaveBar key={i} index={i} count={heights.length} height={h} shown={shown} />
-          ))}
-          <Animated.View pointerEvents="none" style={[styles.head, head]} />
+          <View style={styles.thinTrack}>
+            <Animated.View style={[styles.thinFill, fill]} />
+          </View>
+          <Animated.View pointerEvents="none" style={[styles.thinDot, dot]} />
         </View>
       </GestureDetector>
       <Times elapsed={elapsed} total={total} known={known} />
@@ -150,13 +161,8 @@ export function Waveform(props: Props) {
   )
 }
 
-function WaveBar({ index, count, height, shown }: { index: number; count: number; height: number; shown: SharedValue<number> }) {
-  const style = useAnimatedStyle(() => ({ opacity: index / count < shown.value ? 1 : 0.32 }))
-  return <Animated.View style={[styles.bar, { height: `${height}%` }, style]} />
-}
-
 /** Drive mode seek bar: 8px track in the sun colour, 44px to grab (prototype .thick). */
-export function ThickScrubber(props: Omit<Props, "songNumber">) {
+export function ThickScrubber(props: Props) {
   const { gesture, width, shown, known, total, elapsed, accessibility } = useScrub(props)
   const fill = useAnimatedStyle(() => ({ transform: [{ translateX: (shown.value - 1) * width.value }] }))
 
@@ -181,22 +187,19 @@ export function ThickScrubber(props: Omit<Props, "songNumber">) {
 }
 
 const styles = StyleSheet.create({
-  wave: {
-    height: playerSize.waveHeight,
-    marginHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: playerSize.waveGap,
-  },
-  bar: { flex: 1, minWidth: 0, borderRadius: 2, backgroundColor: "#FFFFFF" },
-  head: {
+  thin: { height: playerSize.thinHit, marginHorizontal: 20, justifyContent: "center" },
+  thinTrack: { height: playerSize.thinTrack, borderRadius: 9999, backgroundColor: playerColors.thickTrack, overflow: "hidden" },
+  thinFill: { ...StyleSheet.absoluteFillObject, borderRadius: 9999, backgroundColor: playerColors.brand },
+  thinDot: {
     position: "absolute",
     left: 0,
-    top: 0,
-    bottom: 0,
-    width: playerSize.waveHead,
-    borderRadius: 2,
-    backgroundColor: playerColors.sun,
+    top: (playerSize.thinHit - playerSize.thinDot) / 2,
+    width: playerSize.thinDot,
+    height: playerSize.thinDot,
+    borderRadius: 9999,
+    backgroundColor: playerColors.brand,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
   },
   thick: { height: playerSize.thickHit, marginHorizontal: 20, justifyContent: "center" },
   thickTrack: {

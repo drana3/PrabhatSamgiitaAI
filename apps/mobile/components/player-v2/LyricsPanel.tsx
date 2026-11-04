@@ -4,6 +4,8 @@ import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
 import { useReducedMotion } from "react-native-reanimated"
 
+import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { TouchButton } from "@/components/player-v2/TouchButton"
 import { karaokeColors, playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { autoScrollReduce, lineState, wordState, type LineState, type LyricLine } from "@/lib/playerV2/lyricsSync"
@@ -18,6 +20,8 @@ type Props = {
   onSeekToLine: (index: number) => void
   /** Shown instead of lyrics when there are none. */
   emptyText: string
+  /** The Aa button in the top-right corner of the card. Left out, no button. */
+  onOptions?: () => void
 }
 
 /** The prototype puts the sung line at 24% of the panel height (`_syncLyr`). */
@@ -48,6 +52,7 @@ export function LyricsPanel({
   showTranslation,
   onSeekToLine,
   emptyText,
+  onOptions,
 }: Props) {
   const reduce = useReducedMotion()
   const scroll = useRef<ScrollView>(null)
@@ -123,6 +128,17 @@ export function LyricsPanel({
           <Text style={styles.emptyText}>{emptyText}</Text>
         </View>
       )}
+      {onOptions ? (
+        <TouchButton
+          accessibilityRole="button"
+          accessibilityLabel="Lyrics display: script, translation, word meanings"
+          onAction={onOptions}
+          containerStyle={styles.optionsHit}
+          style={styles.options}
+        >
+          <PlayerIcon name="aa" size={20} color={playerColors.text} />
+        </TouchButton>
+      ) : null}
     </View>
   )
 }
@@ -205,6 +221,17 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   tint: { backgroundColor: playerColors.panelFill },
+  optionsHit: { position: "absolute", top: 8, right: 8, zIndex: 3 },
+  options: {
+    width: 40,
+    height: 40,
+    borderRadius: 9999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: playerColors.chipFill,
+    borderWidth: 1,
+    borderColor: playerColors.chipEdge,
+  },
   scrollWrap: { flex: 1, minHeight: 0 },
   fade: { position: "absolute", left: 0, right: 0 },
   content: { paddingTop: 8, paddingBottom: 40 },

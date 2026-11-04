@@ -30,6 +30,8 @@ const ICON: Record<ActionRow["icon"], PlayerIconName> = {
   music: "music",
   library: "library",
   timer: "timer",
+  drive: "drive",
+  layers: "layers",
   flag: "flag",
 }
 

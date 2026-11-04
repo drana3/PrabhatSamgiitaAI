@@ -34,11 +34,11 @@ export const playerSize = {
   /** karaoke panel */
   panelMarginTop: 16,
   panelRadius: 30,
-  /** waveform */
-  waveHeight: 64,
-  waveBars: 56,
-  waveGap: 2,
-  waveHead: 3,
+  /** thin seek line: touch area, track, dot (grows while dragging) */
+  thinHit: 32,
+  thinTrack: 3,
+  thinDot: 10,
+  thinDotGrown: 14,
   /** transport */
   small: { w: 44, h: 56 },
   skip: 48,

@@ -17,12 +17,12 @@ import {
 import { buildSharePayload, SHARE_BACKGROUNDS, SHARE_TARGETS, sharePalette, shareTargetUrl, shareToast } from "@/lib/playerV2/playerShare"
 import { COVER_IDS, COVER_TINTS, contrastRatio, coverIdFor, FOREST, hexAlpha, mixHex, tintForSong } from "@/lib/playerV2/coverTint"
 
-const base = { saved: false, inQueue: false, collectionName: null, speedText: "1×", sleepText: "Off" }
+const base = { sourceName: "All songs", saved: false, inQueue: false, collectionName: null, speedText: "1×", sleepText: "Off" }
 
 describe("More sheet rows", () => {
   it("lists the actions in the agreed order", () => {
     expect(buildActionRows(base).map((r) => r.id)).toEqual([
-      "share", "save", "playlist", "queue", "goQueue", "songPage", "collection", "playback", "report",
+      "share", "save", "playlist", "queue", "goQueue", "source", "songPage", "collection", "playback", "drive", "report",
     ])
   })
 
@@ -44,6 +44,12 @@ describe("More sheet rows", () => {
     expect(rows.find((r) => r.id === "queue")!.meta).toBe("Already in this queue")
     expect(queueAddMessage(true)).toBe("Already in the queue")
     expect(queueAddMessage(false)).toBe("Added to the queue")
+  })
+
+  it("keeps Drive mode and the source picker reachable from the sheet", () => {
+    const rows = buildActionRows({ ...base, sourceName: "Mine" })
+    expect(rows.find((r) => r.id === "drive")?.label).toBe("Drive mode")
+    expect(rows.find((r) => r.id === "source")).toMatchObject({ label: "Play songs from", meta: "Mine" })
   })
 
   it("picks the most specific collection of a song", () => {

@@ -64,3 +64,25 @@ export function shouldHoldUpcoming(
 ): boolean {
   return mode === "all" && versionIndex + 1 < versionCount
 }
+
+/**
+ * The one chip line under the title: `Voice · Performer A · 6 versions`. While "all" is on the count
+ * gives way to the position (`2/6`, drawn in gold). `pickable` is false for a single version: nothing to choose.
+ */
+export function versionChipText(
+  summary: string,
+  versionCount: number,
+  mode: PlayMode,
+  versionIndex: number,
+): { text: string; position: string | null; pickable: boolean } {
+  const position = versionPositionLabel(mode, versionIndex, versionCount)
+  const pickable = versionCount > 1
+  const text = pickable && !position ? `${summary} · ${versionCount} versions` : summary
+  return { text, position, pickable }
+}
+
+/** The two choices of the scope toggle at the top of the Versions sheet. */
+export const PLAY_SCOPE_OPTIONS: ReadonlyArray<{ mode: PlayMode; label: string }> = [
+  { mode: "this", label: "Play only this version" },
+  { mode: "all", label: "Play all versions" },
+]

@@ -19,12 +19,12 @@ import { PlayerToast, usePlayerToast } from "@/components/player-v2/PlayerToast"
 import { PlaylistSheet, type PlaylistSheetRow } from "@/components/player-v2/PlaylistSheet"
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { QueueSheet, splitQueue, type QueueRow } from "@/components/player-v2/QueueSheet"
-import { ThickScrubber, Waveform } from "@/components/player-v2/Scrubber"
+import { ThickScrubber, ThinScrubber } from "@/components/player-v2/Scrubber"
 import { ShareSheet } from "@/components/player-v2/ShareSheet"
 import { SourceSheet } from "@/components/player-v2/SourceSheet"
 import { TouchButton } from "@/components/player-v2/TouchButton"
 import { TransportRow } from "@/components/player-v2/TransportRow"
-import { PlayModeToggle, VersionChip } from "@/components/player-v2/VersionControls"
+import { VersionChip } from "@/components/player-v2/VersionControls"
 import { demoDownloadKey, demoDownloadSize, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
 import { VersionsSheet } from "@/components/player-v2/VersionsSheet"
 import { Reveal } from "@/components/today/motion"
@@ -84,7 +84,7 @@ import {
   type SourceKey,
 } from "@/lib/playerV2/sources"
 import { knownDuration, playButtonState } from "@/lib/playerV2/transportState"
-import { effectivePlayMode, versionPositionLabel } from "@/lib/playerV2/versionMode"
+import { effectivePlayMode, versionChipText } from "@/lib/playerV2/versionMode"
 import { selectedVersionIndex, versionsFromSong, versionSummary } from "@/lib/playerV2/versions"
 import { readTodayCache } from "@/lib/todayCache"
 import { todayItemToMockSong } from "@/lib/today"
@@ -521,10 +521,11 @@ export default function PlayerV2Screen() {
         saved: isSaved,
         inQueue: song ? list.includes(song.number) : false,
         collectionName: collection?.label ?? null,
+        sourceName: source,
         speedText: formatRate(rate).replace("x", "×"),
         sleepText: sleepValue,
       }),
-    [isSaved, song, list, collection, rate, sleepValue],
+    [isSaved, song, list, collection, source, rate, sleepValue],
   )
   const sharePayload = useMemo(
     () => (song ? buildSharePayload({ number: song.number, title: songTitle, performer }) : null),
@@ -569,8 +570,13 @@ export default function PlayerV2Screen() {
           href(label ? `/songs-v2-collection?id=${encodeURIComponent(label)}&title=${encodeURIComponent(label)}` : "/songs-v2-index"),
         )
       }
+      case "source":
+        return setSheet("source")
       case "playback":
         return setSheet("playback")
+      case "drive":
+        setSheet(null)
+        return setDrive(true)
       case "report":
         // TODO(api): send the report (song number, version, text) to the catalog team. Nothing leaves the phone yet.
         setSheet(null)
@@ -589,6 +595,11 @@ export default function PlayerV2Screen() {
     })
   }
   const coverTint = tintForSong(song?.number ?? null)
+  const chip = versionChipText(selectedVersion ? versionSummary(selectedVersion) : "", versions.length, mode, versionIndex)
+  const closePlayer = () => {
+    if (router.canGoBack()) router.back()
+    else router.replace(href("/v2/today"))
+  }
   const canAdvance = canGoNext(deps) || playbackMode === "random"
   const sourceKey = activeSourceKey(playbackMode, activePlaylist?.id)
 
@@ -620,38 +631,35 @@ export default function PlayerV2Screen() {
           <View style={styles.topBar}>
             <TouchButton
               accessibilityRole="button"
-              accessibilityLabel={`${drive ? "Drive mode" : `Playing from ${source}`}. Change`}
-              onAction={() => setSheet("source")}
+              accessibilityLabel="Close the player"
+              onAction={closePlayer}
+              style={styles.topButton}
+            >
+              <PlayerIcon name="chevronDown" size={30} color={amColors.white} />
+            </TouchButton>
+            <TouchButton
+              accessibilityRole="button"
+              accessibilityLabel={`${drive ? "Drive mode" : `Playing from ${source}`}. Open the queue`}
+              onAction={() => setSheet("queue")}
               containerStyle={styles.sourceHit}
               style={styles.sourceChip}
             >
               <Text style={styles.sourceText} numberOfLines={1}>
-                {drive ? "Drive mode" : `Playing from ${source}`}
+                {drive ? "Drive mode" : source}
               </Text>
-              <PlayerIcon name="chevronDown" size={playerSize.chevron} color={amColors.white} />
             </TouchButton>
             {song ? (
-              <View style={styles.topActions}>
-                {!drive ? (
-                  <TouchButton
-                    accessibilityRole="button"
-                    accessibilityLabel="Lyrics display: script, translation, word meanings"
-                    onAction={() => setSheet("lyrics")}
-                    style={styles.aaButton}
-                  >
-                    <PlayerIcon name="aa" size={playerSize.topIcon} color={amColors.white} />
-                  </TouchButton>
-                ) : null}
-                <TouchButton
-                  accessibilityRole="button"
-                  accessibilityLabel="More actions: share, save, add to playlist, queue, song page"
-                  onAction={() => setSheet("actions")}
-                  style={styles.aaButton}
-                >
-                  <PlayerIcon name="more" size={playerSize.topIcon} color={amColors.white} />
-                </TouchButton>
-              </View>
-            ) : null}
+              <TouchButton
+                accessibilityRole="button"
+                accessibilityLabel="More actions: share, save, add to playlist, queue, song page"
+                onAction={() => setSheet("actions")}
+                style={styles.topButton}
+              >
+                <PlayerIcon name="more" size={playerSize.topIcon} color={amColors.white} />
+              </TouchButton>
+            ) : (
+              <View style={styles.topButton} />
+            )}
           </View>
         </Reveal>
 
@@ -669,21 +677,21 @@ export default function PlayerV2Screen() {
           <>
             <Reveal index={1}>
               <View style={styles.titleBlock}>
+                <Text style={styles.title} accessibilityRole="header">
+                  {song.title}
+                </Text>
                 {selectedVersion ? (
                   <VersionChip
-                    songNumber={song.number}
-                    summary={versionSummary(selectedVersion)}
-                    position={versionPositionLabel(mode, versionIndex, versions.length)}
+                    text={chip.text}
+                    position={chip.position}
+                    pickable={chip.pickable}
+                    instrument={selectedVersion.instrument === "voice" ? "voice" : "other"}
                     onPress={() => setSheet("versions")}
                   />
                 ) : (
                   <Text style={styles.noAudio}>PS {song.number} · No recording available yet</Text>
                 )}
-                <Text style={styles.title} accessibilityRole="header">
-                  {song.title}
-                </Text>
               </View>
-              <PlayModeToggle mode={mode} versionCount={versions.length} onChange={onPlayMode} />
             </Reveal>
 
             {drive ? (
@@ -717,11 +725,12 @@ export default function PlayerV2Screen() {
                     showTranslation={showTranslation}
                     onSeekToLine={onSeekLine}
                     emptyText="Lyrics are not available for this song yet."
+                    onOptions={() => setSheet("lyrics")}
                   />
                 </Reveal>
                 <View style={styles.gap} />
                 <Reveal index={3}>
-                  <Waveform position={position} duration={knownLength} songNumber={song.number} onSeek={seekTo} />
+                  <ThinScrubber position={position} duration={knownLength} onSeek={seekTo} />
                 </Reveal>
                 <Reveal index={4}>
                   <TransportRow
@@ -738,15 +747,6 @@ export default function PlayerV2Screen() {
                 </Reveal>
                 <Reveal index={5}>
                   <View style={styles.iconRow}>
-                    <UtilButton label="Drive mode" onPress={() => setDrive(true)}>
-                      <PlayerIcon name="drive" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
-                    </UtilButton>
-                    <UtilButton label="Add to playlist" onPress={() => setSheet("playlist")}>
-                      <PlayerIcon name="playlistAdd" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
-                    </UtilButton>
-                    <UtilButton label="Queue" onPress={() => setSheet("queue")}>
-                      <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
-                    </UtilButton>
                     <UtilButton label={isSaved ? "Remove from Mine" : "Save to Mine"} onPress={() => onFavourite()}>
                       <PlayerIcon
                         name="heart"
@@ -755,11 +755,11 @@ export default function PlayerV2Screen() {
                         filled={isSaved}
                       />
                     </UtilButton>
+                    <UtilButton label="Queue" onPress={() => setSheet("queue")}>
+                      <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
+                    </UtilButton>
                     <UtilButton label="Share" onPress={() => setSheet("share")}>
                       <PlayerIcon name="share" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
-                    </UtilButton>
-                    <UtilButton label="Playback: speed, sleep timer" onPress={() => setSheet("playback")}>
-                      <PlayerIcon name="timer" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
                   </View>
                 </Reveal>
@@ -784,6 +784,8 @@ export default function PlayerV2Screen() {
         versions={versions}
         selectedIndex={versionIndex}
         download={downloadPill}
+        playMode={mode}
+        onPlayMode={onPlayMode}
         onSelect={(index) => {
           const picked = versions[index]
           if (song && picked && index !== versionIndex) playVersion(deps, song, picked)
@@ -926,13 +928,12 @@ const styles = StyleSheet.create({
     paddingLeft: playerSize.topBarInsetLeft,
     paddingRight: playerSize.topBarInsetRight,
   },
-  sourceHit: { flexShrink: 1 },
-  sourceChip: { flexDirection: "row", alignItems: "center", gap: 4, height: playerSize.topButton },
-  sourceText: { ...amType.label, color: amColors.white, flexShrink: 1 },
-  topActions: { flexDirection: "row", alignItems: "center" },
+  topButton: { width: playerSize.topButton, height: playerSize.topButton, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
+  sourceHit: { flex: 1, minWidth: 0 },
+  sourceChip: { height: playerSize.topButton, alignItems: "center", justifyContent: "center" },
+  sourceText: { ...amType.label, color: amColors.white, textAlign: "center" },
   aboutWrap: { marginTop: 10 },
-  aaButton: { width: playerSize.topButton, height: playerSize.topButton, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
-  titleBlock: { paddingHorizontal: 20, gap: playerSize.titleGap, marginTop: playerSize.titleLift },
+  titleBlock: { paddingHorizontal: 20, gap: 12, marginTop: playerSize.titleLift },
   title: {
     fontFamily: amFonts.display,
     fontSize: playerSize.titleFont,
@@ -944,6 +945,6 @@ const styles = StyleSheet.create({
   noAudio: { fontFamily: amFonts.bold, fontSize: 13, color: playerColors.gold },
   driveSpace: { flex: 1, minHeight: 12 },
   driveControls: { marginTop: 16 },
-  iconRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6, marginHorizontal: 24 },
+  iconRow: { flexDirection: "row", justifyContent: "space-evenly", alignItems: "center", marginTop: 6, marginHorizontal: 24 },
   util: { width: playerSize.util, height: playerSize.util, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
 })

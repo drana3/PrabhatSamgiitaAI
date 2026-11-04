@@ -12,6 +12,8 @@ import {
   effectivePlayMode,
   playModeLabel,
   shouldHoldUpcoming,
+  versionChipText,
+  PLAY_SCOPE_OPTIONS,
   versionPositionLabel,
 } from "@/lib/playerV2/versionMode"
 
@@ -136,5 +138,12 @@ describe("play every version or just one", () => {
     expect(shouldHoldUpcoming("all", 0, 3)).toBe(true)
     expect(shouldHoldUpcoming("all", 2, 3)).toBe(false)
     expect(shouldHoldUpcoming("this", 0, 3)).toBe(false)
+  })
+
+  it("builds the one-line version chip", () => {
+    expect(versionChipText("Voice · Performer A", 6, "this", 0)).toEqual({ text: "Voice · Performer A · 6 versions", position: null, pickable: true })
+    expect(versionChipText("Voice · Performer A", 6, "all", 1)).toEqual({ text: "Voice · Performer A", position: "2/6", pickable: true })
+    expect(versionChipText("Voice · Performer A", 1, "this", 0)).toEqual({ text: "Voice · Performer A", position: null, pickable: false })
+    expect(PLAY_SCOPE_OPTIONS.map((o) => o.mode)).toEqual(["this", "all"])
   })
 })

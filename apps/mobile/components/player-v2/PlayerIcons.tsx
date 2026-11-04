@@ -34,7 +34,9 @@ export type PlayerIconName =
   | "library"
   | "timer"
   | "flag"
-  | "queueAdd";
+  | "queueAdd"
+  | "mic"
+  | "layers";
 
 type Props = {
   name: PlayerIconName;
@@ -199,6 +201,13 @@ export function PlayerIcon({ name, size, color, filled, strokeWidth }: Props) {
             <Path {...stroke} d="M17.5 14.6v3.8M15.6 16.5h3.8" />
           </>
         ) : null}
+        {name === "mic" ? (
+          <>
+            <Rect {...stroke} x={9} y={3} width={6} height={11} rx={3} />
+            <Path {...stroke} d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
+          </>
+        ) : null}
+        {name === "layers" ? <Path {...stroke} d="M12 4l8 4-8 4-8-4 8-4zM4 12l8 4 8-4M4 16l8 4 8-4" /> : null}
       </Svg>
     </View>
   );

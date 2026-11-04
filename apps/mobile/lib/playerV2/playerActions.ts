@@ -13,7 +13,9 @@ export type ActionId =
   | "goQueue"
   | "songPage"
   | "collection"
+  | "source"
   | "playback"
+  | "drive"
   | "report"
 
 export type ActionIcon =
@@ -25,6 +27,8 @@ export type ActionIcon =
   | "music"
   | "library"
   | "timer"
+  | "drive"
+  | "layers"
   | "flag"
 
 export type ActionRow = {
@@ -43,6 +47,8 @@ export type ActionInput = {
   inQueue: boolean
   /** Name of the collection the song belongs to, or null (the row then opens the list of all collections). */
   collectionName: string | null
+  /** "All songs", "Mine", a playlist name */
+  sourceName: string
   /** "1×" */
   speedText: string
   /** "Off", "15:00", "End of song" */
@@ -68,6 +74,7 @@ export function buildActionRows(input: ActionInput): ActionRow[] {
       icon: "queueAdd",
     },
     { id: "goQueue", label: "Go to queue", icon: "queue" },
+    { id: "source", label: "Play songs from", meta: input.sourceName, icon: "layers" },
     { id: "songPage", label: "Open song page", meta: "Words, chords and story", icon: "music" },
     {
       id: "collection",
@@ -81,6 +88,7 @@ export function buildActionRows(input: ActionInput): ActionRow[] {
       meta: `Speed ${input.speedText} · Sleep timer ${input.sleepText}`,
       icon: "timer",
     },
+    { id: "drive", label: "Drive mode", meta: "Big buttons, lyrics hidden, screen stays on", icon: "drive" },
     { id: "report", label: "Report a mistake", icon: "flag" },
   ]
 }
