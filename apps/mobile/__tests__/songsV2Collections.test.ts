@@ -88,7 +88,7 @@ describe("Mine", () => {
   it("builds saved rows newest first with offline marker and unknown songs", () => {
     const rows = buildSavedRows({ savedNumbers: [3, 9, 3], entries, offlineNumbers: new Set([3]) })
     expect(rows.map((r) => r.number)).toEqual([3, 9])
-    expect(rows[0].eyebrow).toBe("PS 3 / 4:31 · Offline")
+    expect(rows[0].eyebrow).toBe("PS 3 · 4:31 · Offline")
     expect(rows[0].entry.title).toBe("Ándhára")
     expect(rows[1].entry.number).toBe(9)
     expect(rows[1].title).toBe("Prabhat Samgiita 9")

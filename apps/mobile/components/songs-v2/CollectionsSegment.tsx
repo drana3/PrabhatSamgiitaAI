@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 10, gap: 10 },
   lcard: { borderRadius: 30, paddingHorizontal: 20, gap: 12, overflow: "hidden" },
   festName: { fontFamily: amFonts.display, fontSize: 28, lineHeight: 28, letterSpacing: -0.56, textTransform: "uppercase", color: "#FFFFFF" },
-  festCount: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19, color: "rgba(255,255,255,0.82)" },
+  festCount: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 21, color: "rgba(255,255,255,0.82)" },
   festActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 },
   tiles: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 10, rowGap: 10 },
   cell: { width: "50%" },

@@ -7,7 +7,7 @@ export const MINE_COPY = {
     "A playlist is a list of songs you put together yourself, for example for a morning meditation or an evening kirtan.",
   newPlaylist: "New playlist",
   quickStartTitle: "Random Prabhat Samgiita",
-  quickStartHint: "Shuffles the catalog and plays in Drive mode.",
+  quickStartHint: "Shuffles the whole catalog and plays hands-free in Drive mode.",
   playlistsEmpty: "No playlists yet.",
 } as const
 

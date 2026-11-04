@@ -70,33 +70,34 @@ export const SongCardRow = memo(function SongCardRow({
         </View>
       )}
     >
-      <Press
-        accessibilityRole="button"
-        accessibilityLabel={`${eyebrow}, ${entry.title}`}
-        accessibilityActions={[
-          { name: "save", label: saved ? "Remove from saved" : "Save" },
-          { name: "queue", label: "Add to queue" },
-          { name: "menu", label: "More actions" },
-        ]}
-        onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === "save") onToggleSave(entry)
-          else if (event.nativeEvent.actionName === "queue") onQueue(entry)
-          else onMenu(entry)
-        }}
-        onPress={() => onOpen(entry)}
-        onLongPress={() => onMenu(entry)}
-        delayLongPress={350}
-        pressedScale={0.98}
-        style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}
-      >
-        <View style={styles.main}>
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}>
+        <Press
+          accessibilityRole="button"
+          accessibilityLabel={`${eyebrow}, ${entry.title}`}
+          accessibilityActions={[
+            { name: "save", label: saved ? "Remove from saved" : "Save" },
+            { name: "queue", label: "Add to queue" },
+            { name: "menu", label: "More actions" },
+          ]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === "save") onToggleSave(entry)
+            else if (event.nativeEvent.actionName === "queue") onQueue(entry)
+            else onMenu(entry)
+          }}
+          onPress={() => onOpen(entry)}
+          onLongPress={() => onMenu(entry)}
+          delayLongPress={350}
+          pressedScale={0.98}
+          outerStyle={styles.mainOuter}
+          style={styles.main}
+        >
           <Text style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
             {eyebrow}
           </Text>
           <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
             {entry.title}
           </Text>
-        </View>
+        </Press>
         <Press
           accessibilityRole="button"
           accessibilityLabel={saved ? `Remove PS ${entry.number} from Mine` : `Save PS ${entry.number} to Mine`}
@@ -107,7 +108,7 @@ export const SongCardRow = memo(function SongCardRow({
         >
           <Heart size={22} strokeWidth={1.75} color={saved ? theme.accent : theme.textBody} fill={saved ? theme.accent : "none"} />
         </Press>
-      </Press>
+      </View>
     </ReanimatedSwipeable>
   )
 })
@@ -126,7 +127,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  main: { flex: 1, minWidth: 0, gap: 4 },
+  mainOuter: { flex: 1, minWidth: 0 },
+  main: { gap: 4 },
   title: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 22, letterSpacing: -0.19 },
   heart: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   action: {
