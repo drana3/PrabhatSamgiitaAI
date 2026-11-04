@@ -18,3 +18,7 @@ build to judge feel and gestures.
 
 Routes to try: /v2/today, /v2/songs, /v2/player, /v2/learn, /search-v2,
 /song-v2/ps-1, /profile-sheet, /assistant, /harmonium-v2, /storage.
+
+`npm run web` also starts a small local proxy (`scripts/cors-proxy.js`, port
+8100) that adds the CORS headers the API does not send, so songs and stories
+load. Stop it with `pkill -f cors-proxy.js` when you finish.

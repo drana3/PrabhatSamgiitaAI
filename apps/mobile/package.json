@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "patch-package",
     "start": "expo start",
-    "web": "expo start --web --clear",
+    "web": "node scripts/cors-proxy.js & EXPO_PUBLIC_API_BASE_URL=http://localhost:8100 expo start --web --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "lint": "expo lint",
