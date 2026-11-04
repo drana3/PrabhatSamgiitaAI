@@ -9,7 +9,7 @@ export const COVER_IDS = ["lake", "garland", "portrait", "lotus", "seated", "gui
 export type CoverId = (typeof COVER_IDS)[number]
 
 /** The Player forest (amColors.sage900); the tint falls back to it when no song is playing. */
-export const FOREST = "#20281A"
+export const FOREST = "#121110"
 
 /**
  * Hand-picked tones, one per picture: dark enough that white text on them passes WCAG AA (4.5:1) and

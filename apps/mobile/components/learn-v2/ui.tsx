@@ -23,7 +23,7 @@ import Svg, { Path } from "react-native-svg"
 
 import { DottedGlow } from "@/components/learn-v2/GreenPanel"
 import { PressBox } from "@/components/learn-v2/PressBox"
-import { amColors, amDark, type AmTheme } from "@/constants/tokens/amColors"
+import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { amReveal, amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
@@ -44,13 +44,13 @@ export function toneOf(theme: AmTheme) {
   return {
     dark,
     /** --am-ink-900: chip.on background, big numbers */
-    ink900: dark ? "#F5F2EF" : amColors.ink900,
+    ink900: dark ? amDarkSurface.heading : amColors.ink900,
     /** --on-ink */
-    onInk: dark ? amColors.sage900 : amColors.white,
+    onInk: dark ? amDarkSurface.onLight : amColors.white,
     /** --am-ink-300: second tone of headings, "of 5" */
-    ink300: dark ? "#6A7761" : amColors.ink300,
+    ink300: dark ? amDarkSurface.muted : amColors.ink300,
     /** --am-orange-100: peach card, avatar */
-    peach: dark ? "#4A2E1C" : amColors.orange100,
+    peach: dark ? amDarkSurface.peach : amColors.orange100,
   }
 }
 
@@ -203,8 +203,8 @@ export function Chip({
   green?: boolean
 }) {
   const tone = toneOf(theme)
-  const onBg = green ? amColors.sage700 : tone.ink900
-  const onFg = green ? amColors.white : tone.onInk
+  const onBg = tone.dark ? amColors.orange500 : green ? amColors.sage700 : tone.ink900
+  const onFg = tone.dark ? tone.onInk : green ? amColors.white : tone.onInk
   return (
     <PressBox
       accessibilityRole="radio"
@@ -389,7 +389,7 @@ export function Meter({ theme, strength }: { theme: AmTheme; strength: number })
   return (
     <View style={styles.meter} accessibilityLabel={`Memory strength ${strength} of 5`}>
       {[1, 2, 3, 4, 5].map((k) => (
-        <View key={k} style={[styles.meterBar, { backgroundColor: strength >= k ? amColors.sage700 : theme.line }]} />
+        <View key={k} style={[styles.meterBar, { backgroundColor: strength >= k ? (isDarkLearnTheme(theme) ? amColors.orange500 : amColors.sage700) : theme.line }]} />
       ))}
     </View>
   )

@@ -203,8 +203,8 @@ export function SpChip({
         {
           height,
           paddingHorizontal: padding,
-          backgroundColor: on ? t.ink900 : t.white,
-          borderColor: on ? t.ink900 : t.sand300,
+          backgroundColor: on ? (t.dark ? t.orange500 : t.ink900) : t.white,
+          borderColor: on ? (t.dark ? t.orange500 : t.ink900) : t.sand300,
         },
         style,
       ]}

@@ -1,4 +1,4 @@
-import { amColors } from "@/constants/tokens/amColors"
+import { amColors, amDarkSurface } from "@/constants/tokens/amColors"
 
 /**
  * Player-only sizes and colours, copied from the prototype
@@ -60,7 +60,8 @@ export const playerSize = {
 } as const
 
 export const playerColors = {
-  ground: amColors.sage900,
+  /** neutral near-black under the cover tint (was forest): the tint reads as a colour over black */
+  ground: amDarkSurface.page,
   text: amColors.white,
   textSoft: "rgba(255, 255, 255, 0.82)",
   textFaint: "rgba(255, 255, 255, 0.7)",
@@ -69,7 +70,7 @@ export const playerColors = {
   brand: amColors.orange500,
   onBrand: amColors.white,
   /** --am-glass-dark */
-  glassDark: "rgba(32, 40, 26, 0.35)",
+  glassDark: "rgba(18, 17, 16, 0.35)",
   /** border of the round glass buttons */
   glassEdge: "rgba(255, 255, 255, 0.35)",
   /** version chip */
@@ -81,11 +82,11 @@ export const playerColors = {
   scopeText: "rgba(255, 255, 255, 0.84)",
   scopeLabel: "rgba(255, 255, 255, 0.7)",
   /** karaoke panel */
-  panelFill: "rgba(32, 40, 26, 0.78)",
+  panelFill: "rgba(18, 17, 16, 0.78)",
   panelEdge: "rgba(255, 255, 255, 0.16)",
   /** the fade over the photograph */
-  fadeTop: "rgba(32, 40, 26, 0.30)",
-  fadeMid: "rgba(32, 40, 26, 0.62)",
+  fadeTop: "rgba(18, 17, 16, 0.30)",
+  fadeMid: "rgba(18, 17, 16, 0.62)",
   /** waveform and thick scrubber */
   waveOff: "rgba(255, 255, 255, 0.32)",
   thickTrack: "rgba(255, 255, 255, 0.3)",
@@ -95,7 +96,7 @@ export const playerColors = {
   driveEdge: "rgba(255, 255, 255, 0.28)",
   scrim: "rgba(30, 30, 30, 0.45)",
   /** transparent forest at the edge of the lyric scroll area */
-  maskClear: "rgba(32, 40, 26, 0)",
+  maskClear: "rgba(18, 17, 16, 0)",
 } as const
 
 /** Karaoke word / translation colours by state (.kw, .kw.past, .kl-on, .sung, .now, .ktr). */

@@ -100,23 +100,50 @@ export const amLight: AmTheme = {
  * Dark theme: the same tokens re-mapped (spec section 1).
  * Orange buttons keep white text.
  */
+/**
+ * The ONE place dark surfaces are defined: neutral near-black with a barely warm tint
+ * (Spotify structure, orange where Spotify uses green). amDark, protoDark, spDark, the
+ * Songs and Learn themes, the mini player and the tab pill all read from here.
+ * Contrast (WCAG): heading 15:1+, body 6:1+, muted 4.8:1+ on every surface below.
+ */
+export const amDarkSurface = {
+  page: "#121110",
+  raised: "#181614",
+  card: "#1C1A18",
+  inner: "#262320",
+  /** progress tracks, hairlines that must read as solid, pressed fills */
+  tile: "#2E2A27",
+  line: "rgba(255, 255, 255, 0.09)",
+  heading: "#F4F1EC",
+  body: "#A8A29A",
+  muted: "#948E86",
+  /** warm tint of orange on dark: selected chips behind text, peach tiles */
+  peach: "#3A2418",
+  glass: "rgba(28, 26, 24, 0.55)",
+  glassStrong: "rgba(28, 26, 24, 0.78)",
+  glassSolid: "rgba(24, 22, 20, 0.94)",
+  glassEdge: "rgba(255, 255, 255, 0.14)",
+  /** text and icons on the light (white/ink) controls in dark */
+  onLight: "#121110",
+} as const
+
 export const amDark: AmTheme = {
-  page: "#161B12",
-  raised: "#1C2217",
-  card: "#222B1D",
-  inner: "#262F20",
-  line: "rgba(255, 255, 255, 0.12)",
-  textHeading: "#F2EFE9",
-  textBody: "#B7BCA6",
-  textMuted: "#8C917F",
+  page: amDarkSurface.page,
+  raised: amDarkSurface.raised,
+  card: amDarkSurface.card,
+  inner: amDarkSurface.inner,
+  line: amDarkSurface.line,
+  textHeading: amDarkSurface.heading,
+  textBody: amDarkSurface.body,
+  textMuted: amDarkSurface.muted,
   eyebrow: amColors.gold300,
   brand: amColors.orange500,
   brandPress: amColors.orange600,
   onBrand: amColors.white,
   forest: amColors.sage900,
-  glass: "rgba(34, 43, 29, 0.55)",
-  glassStrong: "rgba(34, 43, 29, 0.92)",
-  glassEdge: "rgba(255, 255, 255, 0.16)",
+  glass: amDarkSurface.glass,
+  glassStrong: "rgba(28, 26, 24, 0.92)",
+  glassEdge: amDarkSurface.glassEdge,
 }
 
 /** Scrim for text over photography. */

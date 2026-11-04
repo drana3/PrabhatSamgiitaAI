@@ -142,3 +142,26 @@ export const MOCK_STORAGE: readonly (StorageItem & { title: string; sub: string 
   { key: "mock-2-1", songNumber: 3, bytes: mb(271 + 22) * 1048576, modifiedMs: 2, title: "Ándhára Sheśe Álora Deshe", sub: "PS 3 · Guitar · Performer B" },
   { key: "mock-5-2", songNumber: 6, bytes: mb(300 - 18) * 1048576, modifiedMs: 1, title: "Bandhu Ámár", sub: "PS 6 · Harmonium · Performer C" },
 ]
+
+/** Songs played lately, newest first (preview of "Recently played"). TODO(api): the real play history. */
+export const MOCK_RECENT: readonly number[] = [3, 1, 6, 5, 2]
+
+/** Preview of the Morning / Evening / Festival / Meditation chips: the prototype tags that fit each. TODO(api). */
+const MOCK_CATEGORY_TAG: Record<string, string> = { morning: "dawn", evening: "longing", festival: "joy", meditation: "peaceful" }
+
+export function mockCategoryNumbers(category: string): Set<number> {
+  const tag = MOCK_CATEGORY_TAG[category]
+  return tag ? mockChipNumbers(tag) : new Set()
+}
+
+/**
+ * Songs of a collection in the preview. The real ids (morning, festival, a collection label) point at
+ * song numbers the 64-song sample does not hold, so the preview takes the sample songs that fit.
+ */
+export function mockCollectionNumbers(id: string): number[] {
+  const key = id.toLowerCase()
+  const tag = Object.entries(MOCK_CATEGORY_TAG).find(([name]) => key.includes(name))?.[1]
+  const pool = MOCK_SONGS.filter((s) => (tag ? s.tags.includes(tag) : s.tags.includes(key) || s.tag.toLowerCase() === key))
+  const picked = pool.length ? pool : MOCK_SONGS.filter((_, i) => i % 3 === (key.length % 3))
+  return picked.map((s) => s.n)
+}

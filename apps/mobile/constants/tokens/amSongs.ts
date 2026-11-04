@@ -1,4 +1,4 @@
-import { amColors, type AmTheme } from "./amColors"
+import { amColors, amDarkSurface, type AmTheme } from "./amColors"
 
 /**
  * Songs area palette: the `--am-*` variables of the prototype (.app and .app.dark in
@@ -27,10 +27,10 @@ export function songsTheme(am: AmTheme, dark: boolean): SongsTheme {
   return {
     ...am,
     dark,
-    ink900: dark ? "#F5F2EF" : amColors.ink900,
-    ink300: dark ? "#6A7761" : amColors.ink300,
-    onInk: dark ? amColors.sage900 : amColors.white,
-    peach: dark ? "#4A2E1C" : amColors.orange100,
+    ink900: dark ? amDarkSurface.heading : amColors.ink900,
+    ink300: dark ? amDarkSurface.muted : amColors.ink300,
+    onInk: dark ? amDarkSurface.onLight : amColors.white,
+    peach: dark ? amDarkSurface.peach : amColors.orange100,
     accent: dark ? amColors.gold300 : amColors.orange700,
     oliveBg: amColors.sage200,
     oliveText: amColors.sage900,

@@ -145,8 +145,8 @@ export function Chip({ p, label, on, onPress, compact = true }: ChipProps) {
         s.chip,
         compact ? s.chipCompact : null,
         {
-          backgroundColor: on ? p.ink900 : p.white,
-          borderColor: on ? p.ink900 : p.sand300,
+          backgroundColor: on ? (p.dark ? p.orange500 : p.ink900) : p.white,
+          borderColor: on ? (p.dark ? p.orange500 : p.ink900) : p.sand300,
         },
       ]}
     >

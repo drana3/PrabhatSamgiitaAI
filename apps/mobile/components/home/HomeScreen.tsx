@@ -367,7 +367,7 @@ export function HomeScreen() {
         contentContainerStyle={styles.content}
       >
         <View style={styles.sticky}>
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stuckStyle, { backgroundColor: p.dark ? "rgba(22, 27, 18, 0.96)" : "rgba(238, 233, 229, 0.96)" }]} />
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stuckStyle, { backgroundColor: p.dark ? "rgba(18, 17, 16, 0.96)" : "rgba(238, 233, 229, 0.96)" }]} />
           <HomeTopRow
             p={p}
             initial={initials}

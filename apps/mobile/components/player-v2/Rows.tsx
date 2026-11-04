@@ -3,19 +3,19 @@ import { StyleSheet, Text, View } from "react-native"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { PressScale } from "@/components/today/motion"
-import { amColors, type AmTheme } from "@/constants/tokens/amColors"
+import { amColors, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { amRadius } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { isDarkTheme } from "@/lib/navV2"
 
 /** The inactive ring of a radio or check: --am-ink-300 in Light, #6A7761 in Dark. */
 export function ringColor(theme: AmTheme): string {
-  return isDarkTheme(theme) ? "#6A7761" : amColors.ink300
+  return isDarkTheme(theme) ? amDarkSurface.muted : amColors.ink300
 }
 
 /** The selected-row wash (--am-orange-100): #FFDCC5 in Light, #4A2E1C in Dark. */
 export function orangeWash(theme: AmTheme): string {
-  return isDarkTheme(theme) ? "#4A2E1C" : amColors.orange100
+  return isDarkTheme(theme) ? amDarkSurface.peach : amColors.orange100
 }
 
 /** Rounded white card that holds a list of rows (prototype .group). */

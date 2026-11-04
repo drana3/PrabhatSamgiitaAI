@@ -155,7 +155,7 @@ export default function LibraryProposalScreen() {
         </Reveal>
 
         <Reveal index={3} style={s.bannerWrap}>
-          <TodayPress accessibilityRole="button" accessibilityLabel="Bring your own playlist" onPress={addPlaylist} pressedScale={0.98} style={[s.banner, { backgroundColor: p.dark ? p.sage800 : p.sage900 }]}>
+          <TodayPress accessibilityRole="button" accessibilityLabel="Bring your own playlist" onPress={addPlaylist} pressedScale={0.98} style={[s.banner, { backgroundColor: p.dark ? p.sand100 : p.sage900 }]}>
             <View style={[s.bannerTile, { backgroundColor: p.gold300 }]}>
               <ListPlus size={24} color="#1E1E1E" strokeWidth={1.9} />
             </View>

@@ -50,7 +50,7 @@ export function SpTools({
           accessibilityLabel="Chords"
           style={[
             styles.tpill,
-            { backgroundColor: chordsOn ? t.ink900 : t.white, borderColor: chordsOn ? t.ink900 : t.sand300 },
+            { backgroundColor: chordsOn ? (t.dark ? t.orange500 : t.ink900) : t.white, borderColor: chordsOn ? (t.dark ? t.orange500 : t.ink900) : t.sand300 },
           ]}
         >
           <Text style={[styles.tpillText, { color: chordsOn ? t.onInk : t.ink800 }]}>Chords</Text>
@@ -79,9 +79,9 @@ export function SpChordChip({ t, text, onPress }: { t: SpTheme; text: string; on
 /** `.gloss`: the sage card that shows the meaning of the word you touch. */
 export function SpGloss({ t, title, detail }: { t: SpTheme; title: string; detail: string }) {
   return (
-    <View style={[styles.gloss, { backgroundColor: t.sage200 }]} accessibilityLiveRegion="polite">
-      <Text style={[styles.glossTitle, { color: t.sage900 }]}>{title}</Text>
-      <Text style={[styles.glossDetail, { color: t.sage900 }]}>{detail}</Text>
+    <View style={[styles.gloss, { backgroundColor: t.dark ? t.sand100 : t.sage200 }]} accessibilityLiveRegion="polite">
+      <Text style={[styles.glossTitle, { color: t.dark ? t.ink900 : t.sage900 }]}>{title}</Text>
+      <Text style={[styles.glossDetail, { color: t.dark ? t.ink500 : t.sage900 }]}>{detail}</Text>
     </View>
   )
 }

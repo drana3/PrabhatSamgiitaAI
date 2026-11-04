@@ -15,7 +15,7 @@ import { coverSheet } from "@/components/nav-v2/sheetCover"
 import { PressScale } from "@/components/today/motion"
 import { playerColors, queueColors } from "@/components/player-v2/playerTokens"
 import { ringColor } from "@/components/player-v2/Rows"
-import { amColors, type AmTheme } from "@/constants/tokens/amColors"
+import { amColors, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { rubberBandClamp, settleSnap } from "@/lib/playerV2/gesture"
@@ -135,7 +135,7 @@ export function Sheet({ visible, onClose, title, theme, dark, fill, children }: 
 
   if (!mounted) return null
 
-  const ground = dark ? amColors.sage900 : theme.page
+  const ground = dark ? amDarkSurface.card : theme.page
   const ink = dark ? amColors.white : theme.textHeading
   const over = dark ? amColors.gold300 : theme.eyebrow
   const handle = dark ? queueColors.grab : ringColor(theme)

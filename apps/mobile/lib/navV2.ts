@@ -1,4 +1,4 @@
-import { amColors, type AmTheme, amDark } from "@/constants/tokens/amColors"
+import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { projectMomentum } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
 
@@ -213,7 +213,8 @@ export type PillPalette = {
 export function tabPillPalette(theme: AmTheme, variant: PillVariant): PillPalette {
   if (variant === "dark") {
     return {
-      background: hexAlpha(amColors.sage900, amNav.tabDarkAlpha),
+      /** forest in Light (the Player tab is dark in both themes); neutral near-black in Dark */
+      background: hexAlpha(isDarkTheme(theme) ? amDarkSurface.page : amColors.sage900, amNav.tabDarkAlpha),
       edge: hexAlpha(amColors.white, amNav.darkEdgeAlpha),
       inactive: hexAlpha(amColors.white, amNav.tabDarkInactiveAlpha),
     }
@@ -225,7 +226,7 @@ export function tabPillPalette(theme: AmTheme, variant: PillVariant): PillPalett
 export function miniPillPalette(theme: AmTheme): { background: string; edge: string } {
   if (isDarkTheme(theme)) {
     return {
-      background: hexAlpha(theme.forest, amNav.miniAlphaDark),
+      background: hexAlpha(amDarkSurface.inner, amNav.miniAlphaDark),
       edge: hexAlpha(amColors.white, amNav.darkEdgeAlpha),
     }
   }

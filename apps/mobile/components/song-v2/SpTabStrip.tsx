@@ -97,7 +97,7 @@ export function SpTabStrip({
         style={[
           StyleSheet.absoluteFill,
           styles.ground,
-          { backgroundColor: t.dark ? "rgba(22,27,18,0.88)" : "rgba(238,233,229,0.88)", borderBottomColor: t.sand300 },
+          { backgroundColor: t.dark ? "rgba(18,17,16,0.88)" : "rgba(238,233,229,0.88)", borderBottomColor: t.sand300 },
           // blur of the pinned bar: the web build has backdrop-filter, native keeps the 88% ground
           { backdropFilter: "blur(22px) saturate(1.4)" } as object,
           groundStyle,

@@ -20,12 +20,12 @@ import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
 
 /**
- * Pill colours from the prototype (.mini): white 38% with a 60% edge in Light, forest
- * rgb(34,43,29) at 90% with an 18% edge in Dark, and a 1px highlight along the top edge.
+ * Pill colours from the prototype (.mini): white 38% with a 60% edge in Light, neutral
+ * rgb(38,35,32) at 94% with a 10% edge in Dark, and a 1px highlight along the top edge.
  */
 const MINI_PALETTE = {
   light: { background: "rgba(255, 255, 255, 0.38)", edge: "rgba(255, 255, 255, 0.6)", highlight: "rgba(255, 255, 255, 0.55)" },
-  dark: { background: "rgba(34, 43, 29, 0.9)", edge: "rgba(255, 255, 255, 0.18)", highlight: "rgba(255, 255, 255, 0.12)" },
+  dark: { background: "rgba(38, 35, 32, 0.94)", edge: "rgba(255, 255, 255, 0.10)", highlight: "rgba(255, 255, 255, 0.08)" },
 } as const
 
 /** Distance the pill travels when it appears or leaves. */

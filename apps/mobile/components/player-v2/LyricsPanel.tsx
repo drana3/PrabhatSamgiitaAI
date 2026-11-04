@@ -33,8 +33,8 @@ const FADE_BOTTOM = 0.12
 const WEB_MASK = "linear-gradient(rgba(0,0,0,0) 0, #000 8%, #000 88%, rgba(0,0,0,0) 100%)"
 const webMaskStyle = (Platform.OS === "web" ? { maskImage: WEB_MASK, WebkitMaskImage: WEB_MASK } : null) as ViewStyle | null
 
-/** The panel's own colour (forest at 78% over the dark end of the photograph), so the edges melt into it. */
-const PANEL_FADE_COLOR = "rgba(34, 42, 28, 1)"
+/** The panel's own colour (near-black at 78% over the dark end of the photograph), so the edges melt into it. */
+const PANEL_FADE_COLOR = "rgba(22, 21, 19, 1)"
 
 /**
  * Karaoke panel (prototype .lpanel.kar). Every word sits over its short English

@@ -50,7 +50,7 @@ export function SpWords({
               accessibilityLabel={language.label}
               style={[
                 styles.wchip,
-                { backgroundColor: on ? t.sage700 : t.white, borderColor: on ? t.sage700 : t.sand300 },
+                { backgroundColor: on ? (t.dark ? t.orange500 : t.sage700) : t.white, borderColor: on ? (t.dark ? t.orange500 : t.sage700) : t.sand300 },
               ]}
             >
               <Text style={[styles.wchipText, { color: on ? "#FFFFFF" : t.ink800 }]}>{language.label}</Text>
@@ -101,9 +101,9 @@ export function SpMeaning({
   return (
     <SpCard t={t}>
       {central ? (
-        <View style={[styles.central, { backgroundColor: t.sage200 }]}>
-          <Text style={[over(t), { color: t.sage700 }]}>Central idea</Text>
-          <Text style={{ fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22.4, color: t.sage900, maxWidth: CENTRAL_MAX }}>
+        <View style={[styles.central, { backgroundColor: t.dark ? t.sand100 : t.sage200 }]}>
+          <Text style={[over(t), { color: t.dark ? t.orange700 : t.sage700 }]}>Central idea</Text>
+          <Text style={{ fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22.4, color: t.dark ? t.ink900 : t.sage900, maxWidth: CENTRAL_MAX }}>
             {central}
           </Text>
         </View>
@@ -352,9 +352,9 @@ export function SpChords({
           <SpPress
             onPress={onCapoBest}
             accessibilityLabel={capoHintText}
-            style={[styles.capohint, { backgroundColor: t.sage200 }]}
+            style={[styles.capohint, { backgroundColor: t.dark ? t.sand100 : t.sage200 }]}
           >
-            <Text style={[styles.capohintText, { color: t.sage900 }]}>{capoHintText}</Text>
+            <Text style={[styles.capohintText, { color: t.dark ? t.ink900 : t.sage900 }]}>{capoHintText}</Text>
             <Text style={[styles.capohintGo, { color: t.orange700 }]}>{capoHintAction}</Text>
           </SpPress>
           <ScrollView

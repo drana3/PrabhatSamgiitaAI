@@ -1,3 +1,4 @@
+import { amColors, amDarkSurface } from "./amColors"
 /**
  * Tokens of the Song area, copied from the `--am-*` variables of the design prototype
  * (apps/mobile/public/mockup/Main.dc.html, `.app` and `.app.dark`). Values are not re-typed
@@ -76,22 +77,22 @@ export const spLight: SpTheme = {
 export const spDark: SpTheme = {
   ...spLight,
   dark: true,
-  orange100: "#4A2E1C",
-  sand100: "#262F20",
-  sand200: "#161B12",
-  sand300: "rgba(255,255,255,0.12)",
-  sand400: "#3B4634",
-  white: "#222B1D",
-  ink900: "#F5F2EF",
-  ink800: "#F2EFE9",
-  ink500: "#B7BCA6",
-  ink300: "#6A7761",
-  orange700: "#F5C253",
-  onInk: "#20281A",
-  glass: "rgba(34,43,29,0.55)",
-  glassStrong: "rgba(34,43,29,0.78)",
-  glassSolid: "rgba(34,43,29,0.92)",
-  glassEdge: "rgba(255,255,255,0.16)",
+  orange100: amDarkSurface.peach,
+  sand100: amDarkSurface.inner,
+  sand200: amDarkSurface.page,
+  sand300: amDarkSurface.line,
+  sand400: amDarkSurface.tile,
+  white: amDarkSurface.card,
+  ink900: amDarkSurface.heading,
+  ink800: amDarkSurface.heading,
+  ink500: amDarkSurface.body,
+  ink300: amDarkSurface.muted,
+  orange700: amColors.gold300,
+  onInk: amDarkSurface.onLight,
+  glass: amDarkSurface.glass,
+  glassStrong: amDarkSurface.glassStrong,
+  glassSolid: amDarkSurface.glassSolid,
+  glassEdge: amDarkSurface.glassEdge,
 }
 
 /** Radii of the prototype (`--radius-*`). */

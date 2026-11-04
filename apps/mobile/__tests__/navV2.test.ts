@@ -207,17 +207,18 @@ describe("nav v2: colours from tokens", () => {
     expect(hexAlpha("#20281A", 0.42)).toBe("rgba(32, 40, 26, 0.42)")
   })
 
-  it("mini-player: white at 38% in Light, forest at 42% in Dark", () => {
+  it("mini-player: white at 38% in Light, neutral at 42% in Dark", () => {
     expect(isDarkTheme(amLight)).toBe(false)
     expect(isDarkTheme(amDark)).toBe(true)
     expect(miniPillPalette(amLight).background).toBe("rgba(255, 255, 255, 0.38)")
-    expect(miniPillPalette(amDark).background).toBe("rgba(32, 40, 26, 0.42)")
+    expect(miniPillPalette(amDark).background).toBe("rgba(38, 35, 32, 0.42)")
     expect(amNav.miniBlur).toBe(24)
   })
 
   it("tab pill: glass in light, forest on the Player", () => {
     expect(tabPillPalette(amLight, "light").background).toBe(amLight.glassStrong)
     expect(tabPillPalette(amLight, "dark").background).toBe("rgba(32, 40, 26, 0.78)")
+    expect(tabPillPalette(amDark, "dark").background).toBe("rgba(18, 17, 16, 0.78)")
     expect(tabPillPalette(amLight, "dark").inactive).toBe("rgba(255, 255, 255, 0.78)")
     expect(amNav.tabBlur).toBe(14)
   })

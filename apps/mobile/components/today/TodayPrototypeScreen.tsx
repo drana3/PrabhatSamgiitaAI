@@ -313,7 +313,7 @@ export default function TodayScreen() {
         <View style={styles.sticky}>
           <Animated.View pointerEvents="none" style={[styles.stickyBack, stuckStyle]}>
             <BlurView intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: p.dark ? "rgba(22, 27, 18, 0.95)" : "rgba(238, 233, 229, 0.95)" }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: p.dark ? "rgba(18, 17, 16, 0.95)" : "rgba(238, 233, 229, 0.95)" }]} />
           </Animated.View>
           <Reveal index={1}>
             <Animated.View style={[styles.fieldWrap, Platform.OS === "web" ? null : null, fieldStyle]}>

@@ -76,7 +76,7 @@ export function StorageTotalCard({
   }))
 
   return (
-    <View style={[styles.total, { backgroundColor: theme.forest }]}>
+    <View style={[styles.total, { backgroundColor: theme.dark ? theme.inner : theme.forest }]}>
       <Text style={[overStyle, { color: amColors.gold300 }]}>Downloaded songs</Text>
       <Text style={styles.totalValue} accessibilityLabel={`${formatBytes(totalBytes)} downloaded`} numberOfLines={1}>
         {formatBytes(totalBytes)}

@@ -34,7 +34,7 @@ export function StatsStrip({
 }) {
   const tone = toneOf(theme)
   const cells: Array<{ key: string; value: string; suffix?: string; label: string; color: string }> = [
-    { key: "learned", value: String(learned), suffix: `/${total}`, label: "Songs learned", color: amColors.sage700 },
+    { key: "learned", value: String(learned), suffix: `/${total}`, label: "Songs learned", color: tone.dark ? amColors.sage300 : amColors.sage700 },
     { key: "learning", value: String(learning), label: "Learning now", color: theme.eyebrow },
     { key: "words", value: String(words), label: "Words learned", color: tone.ink900 },
   ]

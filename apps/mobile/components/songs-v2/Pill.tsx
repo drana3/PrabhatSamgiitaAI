@@ -79,7 +79,7 @@ export function Chip({
       style={[
         styles.chip,
         active
-          ? { backgroundColor: theme.ink900, borderColor: theme.ink900 }
+          ? { backgroundColor: theme.dark ? theme.brand : theme.ink900, borderColor: theme.dark ? theme.brand : theme.ink900 }
           : { backgroundColor: theme.card, borderColor: theme.line },
       ]}
     >
