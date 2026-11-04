@@ -9,8 +9,8 @@ npm install --legacy-peer-deps
 npm run web
 ```
 
-Open http://localhost:8081/v2/today and make the window phone-sized
-(Chrome: View > Developer > Developer Tools, then the device toolbar).
+Open http://localhost:8081/phone.html: a phone frame with buttons that jump
+to each screen. Click inside the phone like on a real one.
 
 This is a preview, not the real app. Audio playback, haptics, glass blur and
 the lock screen behave differently or not at all in a browser. Use a real
