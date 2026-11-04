@@ -10,6 +10,7 @@ import {
   lineTimings,
   scrollOffsetForLine,
   seekTargetForLine,
+  sentenceCaseLine,
   splitLines,
   wordState,
 } from "@/lib/playerV2/lyricsSync"
@@ -98,5 +99,17 @@ describe("karaoke lyrics", () => {
       words: [{ text: "a", gloss: "A" }, { text: "b", gloss: undefined }],
     })
     expect(built[1]?.words[0]?.gloss).toBe("C")
+  })
+})
+
+describe("sentenceCaseLine", () => {
+  it("lowers a line that is all capitals and keeps its first letter", () => {
+    expect(sentenceCaseLine("BANDHU HE NIYE CALO")).toBe("Bandhu he niye calo")
+    expect(sentenceCaseLine("ÁLOR OI JHARAŃÁ")).toBe("Álor oi jharańá")
+  })
+  it("leaves mixed case, short lines and uncased scripts alone", () => {
+    expect(sentenceCaseLine("Bandhu he Niye calo")).toBe("Bandhu he Niye calo")
+    expect(sentenceCaseLine("OM")).toBe("OM")
+    expect(sentenceCaseLine("बन्धु हे")).toBe("बन्धु हे")
   })
 })

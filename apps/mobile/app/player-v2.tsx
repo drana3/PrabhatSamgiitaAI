@@ -24,7 +24,7 @@ import { PlayModeToggle, VersionChip } from "@/components/player-v2/VersionContr
 import { VersionsSheet } from "@/components/player-v2/VersionsSheet"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
-import { amFonts } from "@/constants/tokens/amTypography"
+import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
@@ -46,6 +46,7 @@ import {
   buildLyricLines,
   lineTimings,
   seekTargetForLine,
+  sentenceCaseLine,
   splitLines,
   splitWords,
 } from "@/lib/playerV2/lyricsSync"
@@ -198,7 +199,7 @@ export default function PlayerV2Screen() {
   })
 
   // Lyrics
-  const romanLines = useMemo(() => splitLines(song?.lyrics), [song?.lyrics])
+  const romanLines = useMemo(() => splitLines(song?.lyrics).map(sentenceCaseLine), [song?.lyrics])
   const devanagariLines = useMemo(() => splitLines(song?.lyricsDevanagari), [song?.lyricsDevanagari])
   const useDevanagari = v2.script === "devanagari" && devanagariLines.length > 0
   const scriptLines = useDevanagari ? devanagariLines : romanLines
@@ -260,7 +261,7 @@ export default function PlayerV2Screen() {
     return list.map((number) => ({
       key: `ps-${number}`,
       number,
-      title: titles.get(number) ?? `Prabhat Samgiita ${number}`,
+      title: sentenceCaseLine(titles.get(number) ?? `Prabhat Samgiita ${number}`),
     }))
   }, [sheet, list, song?.number])
   const source = sourceLabel({ playbackMode, playlistName: activePlaylist?.name ?? null })
@@ -495,7 +496,7 @@ export default function PlayerV2Screen() {
         </Reveal>
 
         {!song ? (
-          <Reveal index={1} style={styles.flex}>
+          <Reveal index={1} style={[styles.flex, styles.emptyPad]}>
             <EmptyPlayer
               title={"Nothing\nplaying"}
               continueCard={emptyContinue}
@@ -625,7 +626,7 @@ export default function PlayerV2Screen() {
         sourceTitle={source}
         rows={queueRows}
         currentNumber={song?.number ?? null}
-        currentTitle={song?.title ?? ""}
+        currentTitle={sentenceCaseLine(song?.title ?? "")}
         playing={isPlaying}
         savedNumbers={savedNumbers}
         isPlayable={playableOrUnknown}
@@ -682,7 +683,7 @@ export default function PlayerV2Screen() {
       <PlaylistSheet
         visible={sheet === "playlist"}
         theme={theme}
-        songTitle={song?.title ?? ""}
+        songTitle={sentenceCaseLine(song?.title ?? "")}
         rows={playlistRows}
         onToggle={onTogglePlaylist}
         onNew={onNewPlaylist}
@@ -706,6 +707,7 @@ const styles = StyleSheet.create({
   column: { flex: 1 },
   flex: { flex: 1, minHeight: 0 },
   gap: { height: 8 },
+  emptyPad: { paddingHorizontal: 20 },
   topBar: {
     height: playerSize.topBar,
     flexDirection: "row",
@@ -716,7 +718,7 @@ const styles = StyleSheet.create({
   },
   sourceHit: { flexShrink: 1 },
   sourceChip: { flexDirection: "row", alignItems: "center", gap: 4, height: playerSize.topButton },
-  sourceText: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2, textTransform: "uppercase", color: amColors.white, flexShrink: 1 },
+  sourceText: { ...amType.label, color: amColors.white, flexShrink: 1 },
   aaButton: { width: playerSize.topButton, height: playerSize.topButton, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
   titleBlock: { paddingHorizontal: 20, gap: playerSize.titleGap, marginTop: playerSize.titleLift },
   title: {

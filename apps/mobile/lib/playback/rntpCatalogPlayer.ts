@@ -4,10 +4,21 @@ import { toPlayableLocalUri } from "@/lib/offlineAudio"
 import type { CatalogTrack } from "@/lib/playback/catalogTrack"
 import { getTrackPlayer, loadTrackPlayerModule } from "@/lib/playback/trackPlayerBridge"
 
+/** The photograph the design shows on the lock screen (SysIosLock), used when a song has no artwork of its own. */
+function defaultArtwork(): string | undefined {
+  try {
+    // Lazy: this module is also loaded where react-native is not (tests).
+    const { Image } = require("react-native") as typeof import("react-native")
+    return Image.resolveAssetSource(require("../../assets/player-baba.jpg"))?.uri
+  } catch {
+    return undefined
+  }
+}
+
 function trackForNativePlayer(track: CatalogTrack): Track {
   const url =
     typeof toPlayableLocalUri === "function" ? toPlayableLocalUri(track.url) : track.url
-  return { ...track, url } as Track
+  return { ...track, url, artwork: track.artwork ?? defaultArtwork() } as Track
 }
 
 let setupPromise: Promise<void> | null = null

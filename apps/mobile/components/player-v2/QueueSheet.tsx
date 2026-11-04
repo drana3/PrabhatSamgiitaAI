@@ -56,7 +56,7 @@ export function splitQueue<T extends { number: number }>(rows: readonly T[], cur
 /** Three gold bars (prototype .eq): they move while the song plays and rest low when it is paused. */
 function Equalizer({ playing }: { playing: boolean }) {
   return (
-    <View style={styles.eq} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={styles.eq} aria-hidden>
       <EqBar delay={0} playing={playing} />
       <EqBar delay={300} playing={playing} />
       <EqBar delay={600} playing={playing} />
