@@ -1,67 +1,84 @@
 import { useState } from "react"
-import { Alert } from "react-native"
+import { Alert, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import Constants from "expo-constants"
-import {
-  Eraser,
-  HardDriveDownload,
-  Info,
-  Languages,
-  LogIn,
-  LogOut,
-  MessageSquareHeart,
-  Repeat,
-  Sparkles,
-  SunMoon,
-  Trash2,
-} from "lucide-react-native"
 import {
   AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
   AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
 } from "@prabhat/core"
 
-import { AccountHeader, AppearanceControl, Group, Hairline, Row, SectionLabel } from "@/components/profile-v2/Rows"
 import { ConfirmSheet, type ConfirmRequest } from "@/components/profile-v2/ConfirmSheet"
+import { Chip, ChipRow, Group, SetRow, SheetTitle } from "@/components/profile-v2/SheetBlocks"
 import { useDownloadsStorage } from "@/components/profile-v2/useDownloadsStorage"
-import { Reveal } from "@/components/today/motion"
-import { amColors, type AmTheme } from "@/constants/tokens/amColors"
+import type { AmTheme } from "@/constants/tokens/amColors"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { protoFor, type AmProto } from "@/constants/tokens/amToday"
 import { api } from "@/lib/client"
 import { companionReceivesMemberQuota } from "@/lib/chat"
+import { languageSummary } from "@/lib/languageSheet"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { getCachedMemberEmail } from "@/lib/memberEmail"
+import { NAV_V2_TABS } from "@/lib/navV2"
 import {
   PROFILE_ROUTES,
   assistantLimitLabel,
   buildProfileIdentity,
-  isRouteReady,
   reviewStyleRowValue,
   storageRowValue,
   versionLabel,
   type ProfileRoute,
 } from "@/lib/profileSheet"
 import { completeMemberSignOut } from "@/lib/session"
+import { APPEARANCE_LABELS, APPEARANCE_PREFERENCES } from "@/lib/appearance"
 import { useAppearanceStore } from "@/stores/appearanceStore"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
+import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
+const LEARN_HREF = NAV_V2_TABS.find((tab) => tab.id === "learn")?.href ?? "/v2/learn"
+
+/** `.avatar` at 64dp with 28dp initial, the name in `.t-h3` at 28dp capitals, the subtitle `.muted` 14 / 500. */
+function ProfileHeader({ p, initial, title, subtitle }: { p: AmProto; initial: string; title: string; subtitle: string | null }) {
+  return (
+    <View style={s.header}>
+      <View style={[s.avatar, { backgroundColor: p.orange100 }]}>
+        <Text style={[s.avatarText, { color: p.orange700 }]}>{initial}</Text>
+      </View>
+      <View style={s.who}>
+        <Text style={[s.name, { color: p.ink800 }]} numberOfLines={1} accessibilityRole="header">
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={[s.subtitle, { color: p.ink500 }]} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  )
+}
+
 /**
- * Sections of the profile sheet (spec SCR-14): Account, Reading, Learning,
- * Listening, Assistant, About, Feedback, and a Danger zone set apart by a rule.
- * Every row has its own icon. Rows whose screen is built on another branch
- * are shown inert (see PROFILE_ROUTE_READY) rather than linked to nothing.
+ * Body of the profile sheet (prototype PROFILE SHEET, Main.dc.html 2247-2288): the account header, then
+ * Member, Offline, Preferences and Account groups and the footer line. Rows the prototype does not
+ * have but the app needs (assistant limit, clear chat history, About, Auto appearance) sit in a
+ * quiet "More" group under Account so nothing the app can do is lost.
  */
 export function useProfileContent(theme: AmTheme) {
+  const p = protoFor(theme)
   const router = useRouter()
-  const mode = useAuthStore((s) => s.mode)
-  const displayName = useAuthStore((s) => s.displayName)
-  const email = useAuthStore((s) => s.email)
-  const memberId = useAuthStore((s) => s.memberId)
-  const getAccountId = useChatStore((s) => s.getAccountId)
-  const clearAccountMemory = useChatStore((s) => s.clearAccountMemory)
-  const appearance = useAppearanceStore((s) => s.appearance)
-  const setAppearance = useAppearanceStore((s) => s.setAppearance)
-  const reviewStyle = useAppearanceStore((s) => s.reviewStyle)
+  const mode = useAuthStore((st) => st.mode)
+  const displayName = useAuthStore((st) => st.displayName)
+  const email = useAuthStore((st) => st.email)
+  const memberId = useAuthStore((st) => st.memberId)
+  const getAccountId = useChatStore((st) => st.getAccountId)
+  const clearAccountMemory = useChatStore((st) => st.clearAccountMemory)
+  const appearance = useAppearanceStore((st) => st.appearance)
+  const setAppearance = useAppearanceStore((st) => st.setAppearance)
+  const reviewStyle = useAppearanceStore((st) => st.reviewStyle)
+  const script = useSongPageStore((st) => st.script)
+  const translations = useSongPageStore((st) => st.translations)
   const storage = useDownloadsStorage()
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
@@ -77,7 +94,8 @@ export function useProfileContent(theme: AmTheme) {
   })
 
   const go = (route: ProfileRoute | string) => router.push(href(route))
-  const goIfReady = (route: ProfileRoute) => (isRouteReady(route) ? () => go(route) : undefined)
+  /** the prototype swaps the profile sheet for the next one */
+  const swapTo = (route: ProfileRoute) => router.replace(href(route))
 
   const requestClearChat = () =>
     setConfirm({
@@ -126,155 +144,114 @@ export function useProfileContent(theme: AmTheme) {
 
   const body = (
     <>
-      <Reveal index={0}>
-        <AccountHeader
-          theme={theme}
-          initial={identity.initial}
-          title={identity.title}
-          subtitle={identity.subtitle}
+      <ProfileHeader p={p} initial={identity.initial} title={identity.title} subtitle={identity.subtitle} />
+
+      <SheetTitle p={p} label="Member" />
+      <Group p={p}>
+        <SetRow p={p} label="Quiz and certificates" value="None yet" onPress={() => router.navigate(href(LEARN_HREF))} />
+        <SetRow
+          p={p}
+          label="Send feedback"
+          chevron
+          onPress={() => go(signedIn ? PROFILE_ROUTES.feedback : PROFILE_ROUTES.signIn)}
         />
-      </Reveal>
+      </Group>
 
-      <Reveal index={1}>
-        <Group theme={theme}>
-          {signedIn ? (
-            <Row
-              theme={theme}
-              icon={<LogOut size={18} color={theme.textBody} />}
-              label="Sign out"
-              noChevron
-              onPress={signOut}
-            />
-          ) : (
-            <Row
-              theme={theme}
-              icon={<LogIn size={18} color={theme.textBody} />}
-              label="Sign in or create an account"
-              onPress={() => go(PROFILE_ROUTES.signIn)}
-            />
+      <SheetTitle p={p} label="Offline" spaced />
+      <Group p={p}>
+        <SetRow
+          p={p}
+          label="Storage and downloads"
+          value={storageRowValue(storage.bytes, storage.fileCount)}
+          onPress={() => go(PROFILE_ROUTES.downloads)}
+        />
+      </Group>
+
+      <SheetTitle p={p} label="Preferences" spaced />
+      <Group p={p}>
+        <SetRow
+          p={p}
+          label="Appearance"
+          right={
+            <ChipRow>
+              {APPEARANCE_PREFERENCES.map((option) => (
+                <Chip
+                  key={option}
+                  p={p}
+                  label={APPEARANCE_LABELS[option]}
+                  on={appearance === option}
+                  onPress={() => setAppearance(option)}
+                />
+              ))}
+            </ChipRow>
+          }
+        />
+        <SetRow p={p} label="Language" value="English" />
+        <SetRow
+          p={p}
+          label="Script and translations"
+          value={languageSummary(script, translations)}
+          onPress={() => swapTo(PROFILE_ROUTES.scriptAndTranslations)}
+        />
+        <SetRow
+          p={p}
+          label="Word review style"
+          value={reviewStyleRowValue(reviewStyle)}
+          onPress={() => swapTo(PROFILE_ROUTES.reviewStyle)}
+        />
+      </Group>
+
+      <SheetTitle p={p} label="Account" spaced />
+      <Group p={p}>
+        {signedIn ? (
+          <SetRow p={p} label="Sign out" onPress={signOut} />
+        ) : (
+          <SetRow p={p} label="Sign in or create an account" chevron onPress={() => go(PROFILE_ROUTES.signIn)} />
+        )}
+        {signedIn ? <SetRow p={p} label="Delete account data" danger onPress={requestDelete} /> : null}
+      </Group>
+
+      <SheetTitle p={p} label="More" spaced />
+      <Group p={p}>
+        <SetRow
+          p={p}
+          label="Questions to the assistant"
+          value={assistantLimitLabel(
+            memberQuota,
+            AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
+            AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
           )}
-        </Group>
-      </Reveal>
+        />
+        {signedIn ? <SetRow p={p} label="Clear chat history" onPress={requestClearChat} /> : null}
+        <SetRow
+          p={p}
+          label="About Prabhat Samgiita"
+          value={versionLabel(Constants.expoConfig?.version)}
+          chevron
+          onPress={() => go(PROFILE_ROUTES.about)}
+        />
+      </Group>
 
-      <Reveal index={2}>
-        <SectionLabel theme={theme}>Reading</SectionLabel>
-        <Group theme={theme}>
-          <Row
-            theme={theme}
-            icon={<Languages size={18} color={theme.textBody} />}
-            label="Script and translations"
-            value={isRouteReady(PROFILE_ROUTES.scriptAndTranslations) ? undefined : "Soon"}
-            disabled={!isRouteReady(PROFILE_ROUTES.scriptAndTranslations)}
-            onPress={goIfReady(PROFILE_ROUTES.scriptAndTranslations)}
-          />
-          <Hairline theme={theme} />
-          <Row
-            theme={theme}
-            icon={<SunMoon size={18} color={theme.textBody} />}
-            label="Appearance"
-            noChevron
-            onPress={undefined}
-          />
-          <AppearanceControl theme={theme} value={appearance} onChange={setAppearance} />
-        </Group>
-      </Reveal>
-
-      <Reveal index={3}>
-        <SectionLabel theme={theme}>Learning</SectionLabel>
-        <Group theme={theme}>
-          <Row
-            theme={theme}
-            icon={<Repeat size={18} color={theme.textBody} />}
-            label="Review style"
-            value={reviewStyleRowValue(reviewStyle)}
-            disabled={!isRouteReady(PROFILE_ROUTES.reviewStyle)}
-            onPress={goIfReady(PROFILE_ROUTES.reviewStyle)}
-          />
-        </Group>
-      </Reveal>
-
-      <Reveal index={4}>
-        <SectionLabel theme={theme}>Listening</SectionLabel>
-        <Group theme={theme}>
-          <Row
-            theme={theme}
-            icon={<HardDriveDownload size={18} color={theme.textBody} />}
-            label="Storage and downloads"
-            value={storageRowValue(storage.bytes, storage.fileCount)}
-            disabled={!isRouteReady(PROFILE_ROUTES.downloads)}
-            onPress={goIfReady(PROFILE_ROUTES.downloads)}
-          />
-        </Group>
-      </Reveal>
-
-      <Reveal index={5}>
-        <SectionLabel theme={theme}>Assistant</SectionLabel>
-        <Group theme={theme}>
-          <Row
-            theme={theme}
-            icon={<Sparkles size={18} color={theme.textBody} />}
-            label="Questions"
-            value={assistantLimitLabel(
-              memberQuota,
-              AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
-              AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
-            )}
-            noChevron
-          />
-          {signedIn ? (
-            <>
-              <Hairline theme={theme} />
-              <Row
-                theme={theme}
-                icon={<Eraser size={18} color={theme.textBody} />}
-                label="Clear chat history"
-                noChevron
-                onPress={requestClearChat}
-              />
-            </>
-          ) : null}
-        </Group>
-      </Reveal>
-
-      <Reveal index={6}>
-        <SectionLabel theme={theme}>About</SectionLabel>
-        <Group theme={theme}>
-          <Row
-            theme={theme}
-            icon={<Info size={18} color={theme.textBody} />}
-            label="About Prabhat Samgiita"
-            value={versionLabel(Constants.expoConfig?.version)}
-            onPress={() => go(PROFILE_ROUTES.about)}
-          />
-          <Hairline theme={theme} />
-          <Row
-            theme={theme}
-            icon={<MessageSquareHeart size={18} color={theme.textBody} />}
-            label="Send feedback"
-            onPress={() => go(signedIn ? PROFILE_ROUTES.feedback : PROFILE_ROUTES.signIn)}
-          />
-        </Group>
-      </Reveal>
-
-      {signedIn ? (
-        <Reveal index={7}>
-          <SectionLabel theme={theme}>Danger zone</SectionLabel>
-          <Group theme={theme}>
-            <Row
-              theme={theme}
-              icon={<Trash2 size={18} color={amColors.danger} />}
-              label="Delete account data"
-              noChevron
-              danger
-              dangerColor={amColors.danger}
-              onPress={requestDelete}
-            />
-          </Group>
-        </Reveal>
-      ) : null}
+      <Text style={[s.footer, { color: p.ink500 }]}>Prabhat Samgiita · mobile</Text>
     </>
   )
 
   const overlay = <ConfirmSheet theme={theme} request={confirm} onDismiss={() => setConfirm(null)} />
-  return { body, overlay }
+  return { body, overlay, p }
 }
+
+const s = StyleSheet.create({
+  header: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 20, paddingBottom: 24 },
+  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontFamily: amFonts.bold, fontSize: 28, lineHeight: 41 },
+  who: { flex: 1, minWidth: 0, gap: 2 },
+  name: {
+    fontFamily: amFonts.display,
+    fontSize: 28,
+    lineHeight: 28,
+    letterSpacing: -0.56,
+    textTransform: "uppercase",
+  },
+  subtitle: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
+  footer: { paddingHorizontal: 20, paddingTop: 16, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 19 },
+})

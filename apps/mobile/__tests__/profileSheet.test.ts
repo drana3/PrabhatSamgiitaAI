@@ -63,7 +63,8 @@ describe("profile sheet: rows", () => {
 
   it("only links to screens that exist", () => {
     expect(isRouteReady(PROFILE_ROUTES.signIn)).toBe(true)
-    expect(isRouteReady(PROFILE_ROUTES.reviewStyle)).toBe(false)
+    expect(isRouteReady(PROFILE_ROUTES.reviewStyle)).toBe(true)
+    expect(isRouteReady(PROFILE_ROUTES.scriptAndTranslations)).toBe(true)
     expect(Object.keys(PROFILE_ROUTE_READY).sort()).toEqual([...Object.values(PROFILE_ROUTES)].sort())
   })
 

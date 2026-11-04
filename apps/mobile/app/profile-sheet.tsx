@@ -3,22 +3,22 @@ import { StyleSheet, View } from "react-native"
 import { useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 
-import { ProfileSheet } from "@/components/profile-v2/ProfileSheet"
+import { SheetShell } from "@/components/profile-v2/SheetShell"
 import { useProfileContent } from "@/components/profile-v2/ProfileContent"
 import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
 import { href } from "@/utils/href"
 
 /**
- * Profile sheet (spec SCR-14). Opened by the avatar button on Today and Songs;
- * presented as a transparent modal so the screen behind stays visible under
- * the scrim. The sheet animates itself (drag, spring, momentum).
+ * Profile sheet (prototype PROFILE SHEET). Opened by the avatar button on Today and Songs; presented as
+ * a transparent modal so the screen behind stays visible under the scrim. The sheet animates itself
+ * (drag, spring, momentum).
  */
 export default function ProfileSheetScreen() {
   const router = useRouter()
   const theme = useAmTheme()
   const resolved = useResolvedAppearance()
-  const { body, overlay } = useProfileContent(theme)
+  const { body, overlay, p } = useProfileContent(theme)
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
@@ -28,9 +28,9 @@ export default function ProfileSheetScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyleFor(resolved)} />
-      <ProfileSheet theme={theme} onClosed={onClosed} overlay={overlay}>
+      <SheetShell p={p} label="Profile and settings" onClosed={onClosed} overlay={overlay}>
         {body}
-      </ProfileSheet>
+      </SheetShell>
     </View>
   )
 }

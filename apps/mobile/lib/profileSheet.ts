@@ -9,9 +9,9 @@ export const PROFILE_ROUTES = {
   signIn: "/signin",
   feedback: "/feedback",
   about: "/about",
-  /** SCR-25, another branch */
+  /** prototype LANGUAGE SHEET: app/script-translations.tsx */
   scriptAndTranslations: "/script-translations",
-  /** SCR-27, another branch */
+  /** prototype REVIEW STYLE SHEET: app/review-style.tsx */
   reviewStyle: "/review-style",
   /** SCR-20, another branch */
   downloads: "/storage",
@@ -24,8 +24,8 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/signin": true,
   "/feedback": true,
   "/about": true,
-  "/script-translations": false,
-  "/review-style": false,
+  "/script-translations": true,
+  "/review-style": true,
   "/storage": true,
 }
 

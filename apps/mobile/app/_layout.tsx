@@ -178,6 +178,15 @@ export default function RootLayout() {
             name="profile-sheet"
             options={{ presentation: "transparentModal", animation: "none" }}
           />
+          {/* Sheets that replace the profile sheet; they animate themselves too. */}
+          <Stack.Screen
+            name="script-translations"
+            options={{ presentation: "transparentModal", animation: "none" }}
+          />
+          <Stack.Screen
+            name="review-style"
+            options={{ presentation: "transparentModal", animation: "none" }}
+          />
           <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
         </Stack>
       </SafeAreaProvider>
