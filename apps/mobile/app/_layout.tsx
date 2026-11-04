@@ -1,3 +1,4 @@
+import "@/lib/webFontSmoothing"
 import { useEffect, useState } from "react"
 import { ActivityIndicator, InteractionManager, Platform, StyleSheet, View } from "react-native"
 import { Stack } from "expo-router"
