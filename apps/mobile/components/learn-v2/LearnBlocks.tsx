@@ -51,7 +51,7 @@ export function StatsStrip({
             {cell.value}
             {cell.suffix ? <Text style={[styles.stripSuffix, { color: tone.ink300 }]}>{cell.suffix}</Text> : null}
           </Text>
-          <Text numberOfLines={1} style={[styles.stripLabel, { color: theme.textBody }]}>
+          <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.stripLabel, { color: theme.textBody }]}>
             {cell.label}
           </Text>
         </View>
@@ -139,7 +139,7 @@ export function EmptyCard({
 const styles = StyleSheet.create({
   logo: { height: 36, width: 30 },
   strip: { flexDirection: "row", marginTop: 12, height: 72, borderRadius: 30, borderWidth: 1, overflow: "hidden" },
-  cell: { flex: 1, minWidth: 0, justifyContent: "center", gap: 3, paddingHorizontal: 14 },
+  cell: { flex: 1, minWidth: 0, justifyContent: "center", gap: 3, paddingLeft: 14, paddingRight: 4 },
   stripNumber: { fontFamily: amFonts.display, fontSize: 28, lineHeight: 28, letterSpacing: -0.84 },
   stripSuffix: { fontFamily: amFonts.semi, fontSize: 15, letterSpacing: 0 },
   stripLabel: { fontFamily: amFonts.bold, fontSize: 11, lineHeight: 15, letterSpacing: 0.44, textTransform: "uppercase" },

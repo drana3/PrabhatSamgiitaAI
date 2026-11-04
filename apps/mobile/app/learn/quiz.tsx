@@ -218,6 +218,6 @@ const styles = StyleSheet.create({
   next: { alignSelf: "flex-start" },
   result: { backgroundColor: amColors.sage900, borderRadius: 30, padding: 24, gap: 10, overflow: "hidden" },
   resultNumber: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase", color: amColors.white, fontVariant: ["tabular-nums"] },
-  resultText: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6, color: "rgba(255,255,255,0.82)" },
+  resultText: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6, maxWidth: 252, color: "rgba(255,255,255,0.82)" },
   buttons: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
 })

@@ -42,7 +42,9 @@ export default function LearnSongScreen() {
   const theme = useAmTheme()
   const tone = toneOf(theme)
   const params = useLocalSearchParams<{ songId?: string | string[] }>()
-  const songId = (Array.isArray(params.songId) ? params.songId[0] : params.songId) ?? ""
+  const rawId = (Array.isArray(params.songId) ? params.songId[0] : params.songId) ?? ""
+  // /learn/song/1 and /learn/song/ps-1 are the same song
+  const songId = /^\d+$/.test(rawId) ? `ps-${rawId}` : rawId
   const number = songNumberFromId(songId)
   const hydrated = useLearnHydrated()
 
@@ -139,7 +141,7 @@ export default function LearnSongScreen() {
                 {stepOver(meta.step, done)}
               </Over>
               <CardTitle color={c.text}>{meta.title}</CardTitle>
-              <CardText color={c.body}>{meta.text}</CardText>
+              <CardText wide color={c.body}>{meta.text}</CardText>
               <Pill theme={theme} go label={stepCta(meta.step, path)} onPress={actions[i]!} />
             </View>
           </Reveal>

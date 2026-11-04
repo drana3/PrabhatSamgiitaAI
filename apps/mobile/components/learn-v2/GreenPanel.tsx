@@ -16,12 +16,12 @@ export function DottedGlow({ glow = 0.2 }: { glow?: number }) {
   const dots = `dots${uid}`
   const halo = `glow${uid}`
   return (
-    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+    <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
       <Defs>
         <Pattern id={dots} width="18" height="18" patternUnits="userSpaceOnUse">
           <Circle cx="1" cy="1" r="1.4" fill={amColors.gold300} fillOpacity={0.34} />
         </Pattern>
-        <RadialGradient id={halo} cx="100%" cy="0%" rx="80%" ry="95%" fx="100%" fy="0%">
+        <RadialGradient id={halo} gradientUnits="userSpaceOnUse" cx="100%" cy="0%" rx="80%" ry="95%" fx="100%" fy="0%">
           <Stop offset="0" stopColor={amColors.orange500} stopOpacity={glow} />
           <Stop offset="0.65" stopColor={amColors.orange500} stopOpacity="0" />
         </RadialGradient>

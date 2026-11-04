@@ -290,8 +290,19 @@ export function LCard({
 }
 
 /** Body line of a card: 16px 500, at most 28ch wide. */
-export function CardText({ children, color, bold }: { children: ReactNode; color: string; bold?: boolean }) {
-  return <Text style={[styles.cardText, { color }, bold && { fontFamily: amFonts.semi }]}>{children}</Text>
+export function CardText({
+  children,
+  color,
+  bold,
+  wide,
+}: {
+  children: ReactNode
+  color: string
+  bold?: boolean
+  /** `.step p{max-width:none}`: the full width of the card */
+  wide?: boolean
+}) {
+  return <Text style={[styles.cardText, { color }, bold && { fontFamily: amFonts.semi }, wide && { maxWidth: "100%" }]}>{children}</Text>
 }
 
 /** `.card.cardbtn`: white row, 20px radius, 76px high, eyebrow and title, chevron. */

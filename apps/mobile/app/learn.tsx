@@ -19,6 +19,7 @@ import {
 } from "@/components/learn-v2/ui"
 import { useOpenProfileSheet } from "@/components/nav-v2/useOpenProfileSheet"
 import { Reveal } from "@/components/today/motion"
+import { amColors } from "@/constants/tokens/amColors"
 import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
@@ -148,7 +149,7 @@ export default function LearnScreen() {
     () => sessionDeck(SAMPLE_LEARN_WORDS, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
     [songs, savedSongIds],
   )
-  const wordOfDay = useMemo(() => wordOfTheDay(deck, new Date(now)), [deck, now])
+  const wordOfDay = useMemo(() => wordOfTheDay(deck.filter((word) => word.roman.length > 3), new Date(now)), [deck, now])
 
   const openFirstSong = () => go(songHref(songs[0]?.songId ?? "ps-1"))
 
@@ -193,7 +194,7 @@ export default function LearnScreen() {
               {(c) => (
                 <>
                   <Over color={c.over}>{levelOver}</Over>
-                  <Track theme={theme} value={progress.fraction} />
+                  <Track theme={theme} value={progress.fraction} fill={amColors.gold300} trackColor="rgba(255,255,255,0.2)" />
                   <CardText color={c.body}>{progressLine(progress)}</CardText>
                   <Pill theme={theme} label={`Take the level ${quizLevel} quiz`} onPress={() => go(quizHref({ level: quizLevel }))} />
                 </>
@@ -216,7 +217,7 @@ export default function LearnScreen() {
             ) : null}
           </Reveal>
         ) : tab === "library" ? (
-          <Reveal key="library" index={3} style={{ marginTop: 6 }}>
+          <Reveal key="library" index={3}>
             <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Show">
               {FILTERS.map((item) => (
                 <Chip key={item.key} theme={theme} small green label={item.label} on={filter === item.key} onPress={() => setFilter(item.key)} />
@@ -283,6 +284,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pad: { paddingHorizontal: 10 },
   list: { gap: 10, paddingHorizontal: 10 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 12, paddingBottom: 6, paddingHorizontal: 10 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 7, paddingBottom: 4, paddingHorizontal: 10 },
   empty: { fontFamily: "Roboto_500Medium", fontSize: 16, lineHeight: 23, paddingHorizontal: 20, maxWidth: 300 },
 })
