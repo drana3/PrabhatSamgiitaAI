@@ -37,14 +37,16 @@ function learned(id: string): WordCard {
 }
 
 describe("song path steps", () => {
-  it("step 1 needs both the listen pass and the graded words", () => {
-    expect(pathStepDone(path({ listen: true }), 1)).toBe(false)
-    expect(pathStepDone(path({ words: true }), 1)).toBe(false)
-    expect(pathStepDone(path({ listen: true, words: true }), 1)).toBe(true)
+  it("each step has its own part: listen, words, chords", () => {
+    expect(pathStepDone(path({ listen: true }), 1)).toBe(true)
+    expect(pathStepDone(path({ listen: true }), 2)).toBe(false)
+    expect(pathStepDone(path({ words: true }), 2)).toBe(true)
+    expect(pathStepDone(path({ meaning: true }), 2)).toBe(false)
+    expect(pathStepDone(path({ chords: true }), 3)).toBe(true)
   })
 
   it("counts steps and shows three dots", () => {
-    const p = path({ listen: true, words: true, chords: true })
+    const p = path({ listen: true, chords: true })
     expect(pathDoneCount(p)).toBe(2)
     expect(pathDots(p)).toEqual([true, false, true])
     expect(pathDots(undefined)).toEqual([false, false, false])
@@ -52,14 +54,15 @@ describe("song path steps", () => {
   })
 
   it("a song is learned only when all three are done", () => {
-    expect(isSongLearned(path({ listen: true, words: true, meaning: true }))).toBe(false)
-    expect(isSongLearned(path({ listen: true, words: true, meaning: true, chords: true }))).toBe(true)
+    expect(isSongLearned(path({ listen: true, words: true }))).toBe(false)
+    expect(isSongLearned(path({ listen: true, words: true, chords: true }))).toBe(true)
   })
 
   it("library state: not started, learning, learned", () => {
     expect(songLibraryState(undefined)).toBe("notStarted")
-    expect(songLibraryState(path({ meaning: true }))).toBe("learning")
-    expect(songLibraryState(path({ listen: true, words: true, meaning: true, chords: true }))).toBe("learned")
+    expect(songLibraryState(path({ meaning: true }))).toBe("notStarted")
+    expect(songLibraryState(path({ listen: true }))).toBe("learning")
+    expect(songLibraryState(path({ listen: true, words: true, chords: true }))).toBe("learned")
   })
 
   it("marks a part without touching other songs", () => {
@@ -134,22 +137,23 @@ describe("level name and today's practice", () => {
     expect(nextOpenQuizLevel({ 1: passed, 2: passed, 3: passed })).toBe(3)
   })
 
-  it("sums due word cards and songs to continue", () => {
-    const cards: Record<string, WordCard> = {
-      a: { ...learned("a"), dueAt: NOW - 1 },
-      b: { ...learned("b"), dueAt: NOW - 1 },
-      c: learned("c"),
-    }
-    const summary = practiceSummary([song(1), song(2)], { "ps-2": path({ listen: true, words: true, meaning: true, chords: true }) }, cards, NOW)
-    expect(summary.dueWords).toBe(2)
-    expect(summary.songsInProgress).toBe(1)
+  it("sums due word cards and songs to sing again", () => {
+    const summary = practiceSummary(2, 1)
+    expect(summary).toMatchObject({ dueWords: 2, dueSongs: 1, minutes: 6 })
     expect(summary.headline).toBe("3 things to repeat")
-    expect(summary.detail).toBe("2 word cards and 1 song to continue")
+    expect(summary.detail).toBe("2 word cards and 1 song to sing again. About 6 minutes.")
+  })
+
+  it("uses singular forms", () => {
+    const summary = practiceSummary(1, 0)
+    expect(summary.headline).toBe("1 thing to repeat")
+    expect(summary.detail).toBe("1 word card. About 1 minute.")
   })
 
   it("says so when there is nothing to repeat", () => {
-    const summary = practiceSummary([], {}, {}, NOW)
+    const summary = practiceSummary(0, 0)
     expect(summary.headline).toBe("Nothing to repeat")
+    expect(summary.minutes).toBe(0)
   })
 })
 

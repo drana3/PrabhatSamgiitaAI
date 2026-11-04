@@ -1,9 +1,11 @@
 import { wordId, type LearnWord } from "@/lib/learn/words"
 
 /**
- * SAMPLE CONTENT. The catalog has no word-by-word glosses yet (spec API-07 and
- * API-12). These words and meanings are placeholders from the design mockup for
- * PS 1 and PS 3, to be replaced by the reviewed word list from the API.
+ * SAMPLE CONTENT. TODO(api): the catalog has no word-by-word glosses yet (spec API-07
+ * and API-12). These words and meanings are the placeholders of the design prototype
+ * for PS 1 and PS 3 (Main.dc.html `_content`), to be replaced by the reviewed word
+ * list from the API. The order is the order of the words in the song, so the first
+ * ten words of the starter deck are the first ten words of PS 1, as in the prototype.
  */
 type Raw = [roman: string, devanagari: string, meaning: string]
 
@@ -21,36 +23,45 @@ function build(songNumber: number, example: string, rows: Raw[]): LearnWord[] {
 export const SAMPLE_LEARN_WORDS: LearnWord[] = [
   ...build(1, "Friend, take me along.", [
     ["Bandhu", "बन्धु", "friend"],
-    ["Niye", "निये", "take"],
-    ["Calo", "चलो", "lead on"],
+    ["he", "हे", "O"],
+    ["niye", "निये", "take"],
+    ["calo", "चलो", "lead on"],
   ]),
   ...build(1, "Wash me in the flowing stream of light.", [
     ["Álor", "आलोर", "of light"],
-    ["Jharańá", "झरना", "spring"],
-    ["Dháráy", "धाराय", "in the stream"],
-    ["Dhuiye", "धुइये", "wash"],
+    ["jharańá", "झरना", "spring"],
+    ["dháráy", "धाराय", "in the stream"],
+    ["dhuiye", "धुइये", "wash"],
+    ["dáo", "दाओ", "give"],
   ]),
   ...build(1, "Lift me into your lap.", [
     ["Tomár", "तोमार", "your"],
-    ["Kole", "कोले", "lap"],
-    ["Tule", "तुले", "lifting"],
+    ["kole", "कोले", "lap"],
+    ["ámáy", "आमाय", "me"],
+    ["tule", "तुले", "lifting"],
+    ["náo", "नाओ", "take"],
   ]),
   ...build(1, "Let the darkness be cut away.", [
     ["Andhakár", "अन्धकार", "darkness"],
-    ["Kete", "केटे", "cut away"],
+    ["kete", "केटे", "cut away"],
+    ["yáy", "याय", "goes"],
   ]),
   ...build(3, "At the end of the dark, in the land of light.", [
-    ["Ándhára", "अन्धार", "dark"],
-    ["Sheśe", "शेषे", "at the end"],
-    ["Deshe", "देशे", "in the land"],
+    ["Ándhára", "अन्धार", "darkness"],
+    ["sheśe", "शेषे", "at the end"],
+    ["álora", "आलोर", "of light"],
+    ["deshe", "देशे", "in the land"],
   ]),
   ...build(3, "You come, holding my hand.", [
-    ["Tumi", "तुमि", "you"],
-    ["Eso", "एसो", "come"],
-    ["Háte", "हाते", "by the hand"],
+    ["Tumi", "तुमि", "You"],
+    ["eso", "एसो", "come"],
+    ["háte", "हाते", "by the hand"],
+    ["dhare", "धरे", "holding"],
   ]),
   ...build(3, "Kindle a light on my path.", [
-    ["Pathe", "पथे", "on the path"],
-    ["Jválo", "ज्वालो", "kindle"],
+    ["Ámár", "आमार", "my"],
+    ["pathe", "पथे", "on the path"],
+    ["álo", "आलो", "light"],
+    ["jválo", "ज्वालो", "kindle"],
   ]),
 ]

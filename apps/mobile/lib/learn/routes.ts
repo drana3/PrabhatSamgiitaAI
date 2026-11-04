@@ -14,7 +14,13 @@ export const LEARN_ROUTES = {
   liveQuizScan: "/quiz/scan",
   harmonium: "/harmonium-v2",
   harmoniumChords: "/harmonium-v2/chords",
+  ragaTalaIndex: "/learn/ragas",
 } as const
+
+/** Raga and tala index (prototype "Index"), on the Raga or the Tala tab. */
+export function indexHref(kind: "raga" | "tala" = "raga"): string {
+  return kind === "raga" ? LEARN_ROUTES.ragaTalaIndex : `${LEARN_ROUTES.ragaTalaIndex}?tab=tala`
+}
 
 export function songPathHref(songId: string): string {
   return `/learn/song/${songId}`

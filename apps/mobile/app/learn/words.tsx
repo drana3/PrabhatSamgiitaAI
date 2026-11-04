@@ -1,16 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
 
-import { GreenPanel } from "@/components/learn-v2/GreenPanel"
+import { DoneCard, FlashCard, GradeButtons, QueueCounters, ReviewStyleBar } from "@/components/learn-v2/CardsParts"
 import { ReviewStyleSheet } from "@/components/learn-v2/ReviewStyleSheet"
-import { FlipCard, GradeButtons, QueueCounters } from "@/components/learn-v2/WordCardParts"
-import { PillButton, ProgressBar, SubHeader } from "@/components/learn-v2/ui"
+import { OverlayScreen, Over, Pill, Track } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
-import { amColors } from "@/constants/tokens/amColors"
-import { amGap } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
 import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
@@ -19,24 +14,24 @@ import { LEARN_ROUTES, parseNumberParam } from "@/lib/learn/routes"
 import {
   advanceQueue,
   buildDailyQueue,
-  describeNextDue,
   newCard,
-  nextDueAt,
   previewIntervals,
   queueCounts,
   queueKind,
   REVIEW_STYLES,
   type Grade,
 } from "@/lib/learn/srs"
-import { pickDeck, songNumbersFromIds, wordsForSong } from "@/lib/learn/words"
+import { sessionDeck, songNumbersFromIds, wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
+const KIND_LABEL = { new: "New card", learning: "Learning card", due: "Review card" } as const
+
 /**
- * Word cards, Anki style (spec SCR-22). Full-screen over Learn or the song path.
- * With ?song=3 the deck is the words of that song, and finishing every card once
- * marks the words part of the song path done.
+ * Word cards, Anki style (prototype FLASHCARDS, SCR-22). Full screen over Learn or the
+ * song path. With ?song=3 the deck is the words of that song, and answering every card
+ * once marks the words step of that song's path done.
  */
 export default function WordCardsScreen() {
   const router = useRouter()
@@ -57,7 +52,7 @@ export default function WordCardsScreen() {
     () =>
       songNumber !== undefined
         ? wordsForSong(SAMPLE_LEARN_WORDS, songNumber)
-        : pickDeck(SAMPLE_LEARN_WORDS, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
+        : sessionDeck(SAMPLE_LEARN_WORDS, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
     [songNumber, songs, savedSongIds],
   )
   const wordById = useMemo(() => new Map(deck.map((word) => [word.id, word])), [deck])
@@ -67,25 +62,25 @@ export default function WordCardsScreen() {
   const [flipped, setFlipped] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const [round, setRound] = useState(0)
 
   useEffect(() => {
-    if (!hydrated || queue !== null) return
+    if (!hydrated) return
     const stamp = Date.now()
-    const built = buildDailyQueue(
-      deck.map((word) => word.id),
-      useLearnStore.getState().cards,
-      stamp,
-    )
+    const ids = deck.map((word) => word.id)
+    // "Study again" goes through the whole deck once more, due or not
+    const built = round > 0 ? ids : buildDailyQueue(ids, useLearnStore.getState().cards, stamp)
     setNow(stamp)
     setQueue(built)
     setTotal(built.length)
-  }, [hydrated, queue, deck])
+    setFlipped(false)
+  }, [hydrated, deck, round])
 
   const headId = queue?.[0]
   const head = headId ? wordById.get(headId) : undefined
   const headCard = headId ? (cards[headId] ?? newCard(headId, now)) : null
 
-  const finish = () => {
+  const back = () => {
     if (router.canGoBack()) router.back()
     else router.replace(href(LEARN_ROUTES.learn))
   }
@@ -104,104 +99,75 @@ export default function WordCardsScreen() {
   const styleName = REVIEW_STYLES.find((option) => option.key === reviewStyle)?.name ?? ""
   const remaining = queue?.length ?? 0
   const fraction = total === 0 ? 1 : 1 - remaining / total
-  const title = songNumber !== undefined ? `PS ${songNumber} · Word cards` : "Word cards"
+  const live = Boolean(head && headCard)
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
-      >
-        <SubHeader theme={theme} title={title} onBack={finish} />
-
-        {queue === null ? (
-          <Text style={[amType.body, { color: theme.textBody }]}>Loading your cards…</Text>
-        ) : (
-          <>
-            <Reveal index={0} style={styles.stack}>
-              <View style={styles.topRow}>
-                <QueueCounters
-                  theme={theme}
-                  counts={queueCounts(queue, cards, now)}
-                  active={headCard ? queueKind(headCard) : null}
-                />
-                <PillButton
-                  theme={theme}
-                  label={`Review style: ${styleName}`}
-                  variant="sand"
-                  onPress={() => setSheetOpen(true)}
-                  style={styles.styleButton}
-                />
-              </View>
-              <ProgressBar value={fraction} trackColor={theme.line} fillColor={theme.brand} />
+    <OverlayScreen
+      theme={theme}
+      onBack={back}
+      label={songNumber !== undefined ? `Words · PS ${songNumber}` : "Words"}
+      right={
+        queue && headCard !== undefined ? (
+          <QueueCounters
+            theme={theme}
+            counts={queueCounts(queue, cards, now)}
+            active={headCard ? queueKind(headCard) : null}
+          />
+        ) : null
+      }
+      overlay={
+        <ReviewStyleSheet
+          theme={theme}
+          visible={sheetOpen}
+          value={reviewStyle}
+          onSelect={setReviewStyle}
+          onClose={() => setSheetOpen(false)}
+        />
+      }
+    >
+      {queue === null ? (
+        <Over color={theme.eyebrow}>Loading your cards</Over>
+      ) : (
+        <>
+          <Reveal index={0}>
+            <Track theme={theme} value={fraction} />
+          </Reveal>
+          <Reveal index={1}>
+            <ReviewStyleBar theme={theme} name={styleName} onPress={() => setSheetOpen(true)} />
+          </Reveal>
+          {live && head && headCard ? (
+            <Reveal index={2} style={styles.stack}>
+              <FlashCard word={head} kindLabel={KIND_LABEL[queueKind(headCard)]} flipped={flipped} onShow={() => setFlipped(true)} />
+              {flipped ? (
+                <GradeButtons theme={theme} intervals={previewIntervals(headCard, reviewStyle)} onGrade={onGrade} />
+              ) : (
+                <Pill theme={theme} full height={56} label="Show answer" onPress={() => setFlipped(true)} />
+              )}
+              <Text style={[styles.note, { color: theme.textBody }]}>
+                The time under each button is when you will see this card again.
+              </Text>
             </Reveal>
-
-            {head && headCard ? (
-              <Reveal index={1} style={styles.stack}>
-                <FlipCard word={head} flipped={flipped} />
-                {flipped ? (
-                  <GradeButtons theme={theme} intervals={previewIntervals(headCard, reviewStyle)} onGrade={onGrade} />
-                ) : (
-                  <PillButton theme={theme} label="Show answer" onPress={() => setFlipped(true)} />
-                )}
-              </Reveal>
-            ) : (
+          ) : (
+            <Reveal index={2} style={styles.stack}>
               <DoneCard
-                total={total}
-                nextLine={describeNextDue(nextDueAt(cards, Date.now()), Date.now())}
-                onBack={finish}
                 theme={theme}
+                text={
+                  total === 0
+                    ? "No word is waiting right now. Words come back here when it is time."
+                    : `${total} ${total === 1 ? "card" : "cards"} answered. The next ones come back in 10 minutes and tomorrow.`
+                }
+                onAgain={() => setRound((value) => value + 1)}
+                onBack={back}
               />
-            )}
-          </>
-        )}
-      </ScrollView>
-
-      <ReviewStyleSheet
-        theme={theme}
-        visible={sheetOpen}
-        value={reviewStyle}
-        onSelect={setReviewStyle}
-        onClose={() => setSheetOpen(false)}
-      />
-    </SafeAreaView>
-  )
-}
-
-function DoneCard({
-  theme,
-  total,
-  nextLine,
-  onBack,
-}: {
-  theme: ReturnType<typeof useAmTheme>
-  total: number
-  nextLine: string
-  onBack: () => void
-}) {
-  return (
-    <Reveal index={1}>
-      <GreenPanel>
-        <Text style={[amType.title, { color: amColors.white }]}>
-          {total === 0 ? "Nothing due" : "All cards done for today"}
-        </Text>
-        <Text style={[amType.lead, { color: amColors.white }]}>
-          {total === 0
-            ? "No word is waiting right now."
-            : `${total} ${total === 1 ? "card" : "cards"} learned today.`}
-        </Text>
-        <Text style={[amType.body, { color: "rgba(255,255,255,0.86)" }]}>{nextLine}</Text>
-        <PillButton theme={theme} label="Back to Learn" onPress={onBack} style={styles.back} />
-      </GreenPanel>
-    </Reveal>
+            </Reveal>
+          )}
+        </>
+      )}
+    </OverlayScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { gap: amGap.block, paddingBottom: 140 },
-  stack: { gap: amGap.block },
-  topRow: { gap: amGap.grid },
-  styleButton: { alignSelf: "flex-start", minHeight: 44 },
-  back: { alignSelf: "flex-start", marginTop: 6 },
+  stack: { gap: 20 },
+  note: { fontFamily: "Roboto_500Medium", fontSize: 13, lineHeight: 18, textAlign: "center" },
 })

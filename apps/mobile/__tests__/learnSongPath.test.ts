@@ -2,77 +2,48 @@ import { describe, expect, it } from "vitest"
 
 import { EMPTY_PATH, type PathState } from "@/lib/learn/progress"
 import {
-  currentStep,
+  PATH_STEPS,
   nextSongToLearn,
-  pathHeadline,
+  nextStepNote,
+  pathFraction,
   pathLinks,
+  pathProgressLabel,
   songNumberFromId,
-  stepAvailable,
-  stepOneNote,
-  stepStatuses,
+  stepCta,
+  stepOver,
 } from "@/lib/learn/songPath"
 
 const path = (patch: Partial<PathState>): PathState => ({ ...EMPTY_PATH, ...patch })
+const learned = path({ listen: true, words: true, chords: true })
 
-describe("stepStatuses", () => {
-  it("starts with step 1 current and the rest locked", () => {
-    expect(stepStatuses(undefined, false)).toEqual(["current", "locked", "locked"])
+describe("the three steps", () => {
+  it("are hear it, learn what it means, play it, with the prototype's text", () => {
+    expect(PATH_STEPS.map((s) => s.title)).toEqual(["Hear it and sing it", "Learn what it means", "Play it"])
+    expect(PATH_STEPS.map((s) => s.part)).toEqual(["listen", "words", "chords"])
+    expect(PATH_STEPS.map((s) => s.cta)).toEqual(["Listen and sing", "Study the words", "Open the chords"])
   })
 
-  it("step 1 needs both listen and words", () => {
-    expect(stepStatuses(path({ listen: true }), false)).toEqual(["current", "locked", "locked"])
-    expect(stepStatuses(path({ listen: true, words: true }), false)).toEqual(["done", "current", "locked"])
-  })
-
-  it("moves on to chords after the meaning quiz", () => {
-    expect(stepStatuses(path({ listen: true, words: true, meaning: true }), false)).toEqual(["done", "done", "current"])
-  })
-
-  it("everything is done once chords are done", () => {
-    expect(stepStatuses(path({ listen: true, words: true, meaning: true, chords: true }), false)).toEqual([
-      "done",
-      "done",
-      "done",
-    ])
-  })
-
-  it("skip ahead opens the steps after the current one", () => {
-    expect(stepStatuses(undefined, true)).toEqual(["current", "open", "open"])
-    expect(stepStatuses(path({ listen: true, words: true }), true)).toEqual(["done", "current", "open"])
-  })
-
-  it("a step finished early by skipping stays done and step 1 stays current", () => {
-    expect(stepStatuses(path({ chords: true }), false)).toEqual(["current", "locked", "done"])
-    expect(stepStatuses(path({ meaning: true }), true)).toEqual(["current", "done", "open"])
-  })
-
-  it("only a locked step is unavailable", () => {
-    expect(stepAvailable("locked")).toBe(false)
-    expect(stepAvailable("open")).toBe(true)
-    expect(stepAvailable("current")).toBe(true)
-    expect(stepAvailable("done")).toBe(true)
+  it("label the step and the button", () => {
+    expect(stepOver(1, false)).toBe("Step 1 · To do")
+    expect(stepOver(2, true)).toBe("Step 2 · Done")
+    expect(stepCta(1, undefined)).toBe("Listen and sing")
+    expect(stepCta(1, path({ listen: true }))).toBe("Do it again")
+    expect(stepCta(3, path({ listen: true }))).toBe("Open the chords")
   })
 })
 
-describe("currentStep and headline", () => {
-  it("finds the first unfinished step", () => {
-    expect(currentStep(undefined)).toBe(1)
-    expect(currentStep(path({ listen: true, words: true }))).toBe(2)
-    expect(currentStep(path({ listen: true, words: true, meaning: true, chords: true }))).toBeNull()
+describe("progress", () => {
+  it("counts steps for the label and the bar", () => {
+    expect(pathProgressLabel(undefined)).toBe("0 of 3 steps")
+    expect(pathProgressLabel(path({ listen: true, chords: true }))).toBe("2 of 3 steps")
+    expect(pathFraction(learned)).toBe(1)
+    expect(pathFraction(path({ words: true }))).toBeCloseTo(1 / 3)
   })
 
-  it("writes the headline", () => {
-    expect(pathHeadline(undefined)).toBe("Not started")
-    expect(pathHeadline(path({ listen: true }))).toBe("Step 1 of 3")
-    expect(pathHeadline(path({ listen: true, words: true }))).toBe("Step 2 of 3")
-    expect(pathHeadline(path({ listen: true, words: true, meaning: true, chords: true }))).toBe("Song learned")
-  })
-
-  it("says which half of step 1 is left", () => {
-    expect(stepOneNote(undefined)).toBe("Two parts: listen, then word cards.")
-    expect(stepOneNote(path({ listen: true }))).toBe("Listened. Word cards are left.")
-    expect(stepOneNote(path({ words: true }))).toBe("Word cards done. Listen to the song once.")
-    expect(stepOneNote(path({ listen: true, words: true }))).toBe("Listened, and all word cards done.")
+  it("names the next step in the library row", () => {
+    expect(nextStepNote(undefined)).toBe("Step 1 of 3 · hear it")
+    expect(nextStepNote(path({ listen: true }))).toBe("Step 2 of 3 · know what it means")
+    expect(nextStepNote(path({ listen: true, words: true }))).toBe("Step 3 of 3 · play it")
   })
 })
 
@@ -81,9 +52,7 @@ describe("links", () => {
     expect(pathLinks("ps-3", 3)).toEqual({
       listen: "/song-v2/ps-3",
       words: "/learn/words?song=3",
-      quiz: "/learn/quiz?song=3",
-      harmonium: "/harmonium-v2",
-      chords: "/harmonium-v2/chords",
+      harmoniumChords: "/harmonium-v2/chords",
     })
   })
 
@@ -95,7 +64,6 @@ describe("links", () => {
 })
 
 describe("nextSongToLearn", () => {
-  const learned = path({ listen: true, words: true, meaning: true, chords: true })
   it("skips the current and learned songs", () => {
     expect(nextSongToLearn(["ps-1", "ps-2", "ps-3"], { "ps-2": learned }, "ps-1")).toBe("ps-3")
   })

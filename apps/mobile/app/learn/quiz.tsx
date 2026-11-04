@@ -1,37 +1,35 @@
 import { useMemo, useRef, useState } from "react"
-import { ScrollView, StyleSheet, Text } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
 
-import { EmptyBlock } from "@/components/learn-v2/LearnBlocks"
-import { AnswerCards, ResultCard } from "@/components/learn-v2/QuizParts"
-import { PillButton, ProgressBar, SubHeader } from "@/components/learn-v2/ui"
+import { EmptyCard } from "@/components/learn-v2/LearnBlocks"
+import { PressBox } from "@/components/learn-v2/PressBox"
+import { OverlayScreen, Over, Pill, Track, toneOf, useToast } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
-import { amGap } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
 import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
+import { amColors, type AmTheme } from "@/constants/tokens/amColors"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { SAMPLE_QUIZ, SAMPLE_QUIZ_PASS_MARK } from "@/lib/fixtures/learn"
 import {
   QUIZ_LEVELS,
-  answerFeedback,
   buildWordQuiz,
   levelStatuses,
-  resultMessage,
   scoreQuiz,
   type LearnQuizLevel,
+  type LearnQuizQuestion,
 } from "@/lib/learn/quiz"
+import { quizFeedback } from "@/lib/learn/quizFeedback"
 import { LEARN_ROUTES, parseNumberParam } from "@/lib/learn/routes"
-import { pickDeck, songNumbersFromIds, wordsForSong } from "@/lib/learn/words"
+import { wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
-import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
 /**
- * Quiz (spec SCR-15): progress bar, "Question 2 of 10", the question, four answer
- * cards, one line of feedback, Next question or See result, then the result card.
- * Pass mark 7 of 10. ?level=1..3 picks the level, ?song=3 limits level 1 to the
- * words of one song, and a pass then marks the meaning part of that song's path.
- * Level 2 and 3 have no question bank yet (API-12) and say so.
+ * Quiz (prototype QUIZ, SCR-15). Level 1 is the three-question sample from the prototype
+ * (pass mark 2); the real quiz has 10 questions and a pass mark of 7. ?level=1..3 picks the
+ * level, ?song=3 asks about the words of that song. Level 2 and 3 have no question bank
+ * yet (API-12) and say so.
  */
 export default function LearnQuizScreen() {
   const router = useRouter()
@@ -40,27 +38,23 @@ export default function LearnQuizScreen() {
   const requested = parseNumberParam(params.level) ?? 1
   const level = (requested >= 1 && requested <= 3 ? requested : 1) as LearnQuizLevel
   const songNumber = parseNumberParam(params.song)
+  const toast = useToast()
 
   const quizBest = useLearnStore((s) => s.quizBest)
-  const songs = useLearnStore((s) => s.songs)
   const recordQuiz = useLearnStore((s) => s.recordQuiz)
   const markPart = useLearnStore((s) => s.markPart)
-  const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
 
   const status = levelStatuses(quizBest).find((entry) => entry.level === level)!
   const levelTitle = QUIZ_LEVELS.find((entry) => entry.level === level)?.title ?? ""
 
   const [attempt, setAttempt] = useState(1)
-  const questions = useMemo(() => {
+  const questions = useMemo<LearnQuizQuestion[]>(() => {
     if (level !== 1) return []
-    const words =
-      songNumber !== undefined
-        ? wordsForSong(SAMPLE_LEARN_WORDS, songNumber)
-        : pickDeck(SAMPLE_LEARN_WORDS, [...songs.map((s) => s.number), ...songNumbersFromIds(savedSongIds)])
-    // a song with too few words borrows from the whole starter deck so the quiz can run
-    const pool = songNumber !== undefined && words.length < 4 ? SAMPLE_LEARN_WORDS : words
-    return buildWordQuiz(pool, { seed: attempt * 7919 + (songNumber ?? 0) })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (songNumber !== undefined) {
+      const own = buildWordQuiz(wordsForSong(SAMPLE_LEARN_WORDS, songNumber), { count: 3, seed: attempt * 7919 + songNumber })
+      if (own.length > 0) return own
+    }
+    return SAMPLE_QUIZ
   }, [level, songNumber, attempt])
 
   const [index, setIndex] = useState(0)
@@ -84,7 +78,7 @@ export default function LearnQuizScreen() {
   }
 
   const question = questions[index]
-  const result = useMemo(() => scoreQuiz(questions, answers), [questions, answers])
+  const result = useMemo(() => scoreQuiz(questions, answers, SAMPLE_QUIZ_PASS_MARK), [questions, answers])
   const isLast = index >= questions.length - 1
 
   const onPick = (optionId: string) => {
@@ -94,6 +88,10 @@ export default function LearnQuizScreen() {
   }
 
   const onNext = () => {
+    if (picked === null) {
+      toast.show("Choose an answer first")
+      return
+    }
     if (!isLast) {
       setIndex((value) => value + 1)
       setPicked(null)
@@ -107,95 +105,119 @@ export default function LearnQuizScreen() {
     setFinished(true)
   }
 
-  const header = (
-    <SubHeader
-      theme={theme}
-      title={`Level ${level} · ${levelTitle}${songNumber !== undefined ? ` · PS ${songNumber}` : ""}`}
-      onBack={back}
-    />
-  )
+  const label = `Level ${level} · ${levelTitle}${songNumber !== undefined ? ` · PS ${songNumber}` : ""}`
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
-      >
-        {header}
-
-        {!status.open ? (
-          <EmptyBlock theme={theme} title="Locked" text={status.unlockRule} actionLabel="Back to Learn" onAction={back} />
-        ) : level !== 1 ? (
-          <EmptyBlock
-            theme={theme}
-            title="Questions are on the way"
-            text="This level needs its question bank, which arrives with the next content update."
-            actionLabel="Back to Learn"
-            onAction={back}
-          />
-        ) : questions.length === 0 ? (
-          <EmptyBlock
-            theme={theme}
-            title="Not enough words yet"
-            text="The quiz needs at least four different words. Practise some word cards first."
-            actionLabel="Back to Learn"
-            onAction={back}
-          />
-        ) : finished ? (
-          <Reveal index={0}>
-            <ResultCard
-              theme={theme}
-              view={resultMessage(result)}
-              passed={result.passed}
-              onAgain={restart}
-              onBack={back}
-              extra={
-                result.passed && songNumber !== undefined
-                  ? `Step 2 of PS ${songNumber} is done.`
-                  : level === 1 && result.passed
-                    ? "Level 2 is open."
-                    : undefined
-              }
-            />
-          </Reveal>
-        ) : question ? (
-          <Reveal index={0} style={styles.stack}>
-            <ProgressBar
-              value={(index + (picked !== null ? 1 : 0)) / questions.length}
-              trackColor={theme.line}
-              fillColor={theme.brand}
-            />
-            <Text style={[amType.label, { color: theme.eyebrow }]}>
-              Question {index + 1} of {questions.length}
+    <OverlayScreen theme={theme} onBack={back} label={label} overlay={toast.node}>
+      {!status.open ? (
+        <EmptyCard theme={theme} eyebrow="Locked" title="Locked" text={status.unlockRule} action="Back to Learn" onAction={back} />
+      ) : level !== 1 ? (
+        <EmptyCard
+          theme={theme}
+          eyebrow={`Level ${level}`}
+          title="Questions are on the way"
+          text="This level needs its question bank, which arrives with the next content update."
+          action="Back to Learn"
+          onAction={back}
+        />
+      ) : finished ? (
+        <Reveal index={0} style={styles.stack}>
+          <View style={styles.result}>
+            <Over color={amColors.gold300}>Your result</Over>
+            <Text style={styles.resultNumber}>{`${result.score} of ${result.total}`}</Text>
+            <Text style={styles.resultText}>
+              {result.passed
+                ? "Passed. Level 2 opens. The real quiz has 10 questions and a pass mark of 7."
+                : "Not yet. Read the words again and try once more."}
             </Text>
-            <Text style={[amType.title, { color: theme.textHeading }]} accessibilityRole="header">
-              {question.prompt}
-            </Text>
-            <AnswerCards theme={theme} question={question} picked={picked} onPick={onPick} />
-            <Text
-              accessibilityLiveRegion="polite"
-              style={[amType.body, { color: theme.textBody, minHeight: 44 }]}
-            >
-              {picked !== null ? answerFeedback(question, picked) : ""}
-            </Text>
-            {picked !== null ? (
-              <PillButton
+          </View>
+          <View style={styles.buttons}>
+            <Pill theme={theme} label="Try again" onPress={restart} />
+            <Pill theme={theme} variant="sand" label="Back to Learn" onPress={back} />
+          </View>
+        </Reveal>
+      ) : question ? (
+        <Reveal index={0} style={styles.stack}>
+          <Track theme={theme} value={(index + (picked !== null ? 1 : 0)) / questions.length} />
+          <Over color={theme.eyebrow} numeric>{`Question ${index + 1} of ${questions.length}`}</Over>
+          <Text accessibilityRole="header" style={[styles.question, { color: theme.textHeading }]}>
+            {question.prompt}
+          </Text>
+          <View style={styles.options}>
+            {question.options.map((option) => (
+              <Option
+                key={option.id}
                 theme={theme}
-                label={isLast ? "See result" : "Next question"}
-                onPress={onNext}
-                style={styles.next}
+                label={option.text}
+                state={
+                  picked === null
+                    ? "idle"
+                    : option.id === question.correctOptionId
+                      ? "ok"
+                      : option.id === picked
+                        ? "bad"
+                        : "idle"
+                }
+                onPress={() => onPick(option.id)}
               />
-            ) : null}
-          </Reveal>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+            ))}
+          </View>
+          <Text accessibilityLiveRegion="polite" style={[styles.feedback, { color: theme.textBody }]}>
+            {picked !== null ? quizFeedback(question, picked) : ""}
+          </Text>
+          <Pill theme={theme} style={styles.next} label={isLast ? "See result" : "Next question"} onPress={onNext} />
+        </Reveal>
+      ) : null}
+    </OverlayScreen>
+  )
+}
+
+/** `.card.cardbtn.qopt`: white row; right answer turns forest green, a wrong pick gets a 2px red border. */
+function Option({
+  theme,
+  label,
+  state,
+  onPress,
+}: {
+  theme: AmTheme
+  label: string
+  state: "idle" | "ok" | "bad"
+  onPress: () => void
+}) {
+  const tone = toneOf(theme)
+  const ok = state === "ok"
+  const bad = state === "bad"
+  return (
+    <PressBox
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: ok || bad }}
+      onPress={onPress}
+      pressedScale={0.98}
+      style={[
+        styles.option,
+        {
+          backgroundColor: ok ? amColors.sage700 : theme.card,
+          borderColor: ok ? "transparent" : bad ? amColors.danger : theme.line,
+          borderWidth: bad ? 2 : 1,
+        },
+      ]}
+    >
+      <Text style={[styles.optionText, { color: ok ? amColors.white : theme.textHeading }]}>{label}</Text>
+    </PressBox>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { gap: amGap.block, paddingBottom: 140 },
-  stack: { gap: amGap.block },
+  stack: { gap: 20 },
+  question: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: -0.6, textTransform: "uppercase" },
+  options: { gap: 10 },
+  option: { minHeight: 76, justifyContent: "center", paddingVertical: 12, paddingLeft: 20, paddingRight: 16, borderRadius: 20, width: "100%" },
+  optionText: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 22, letterSpacing: -0.19 },
+  feedback: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20, minHeight: 20 },
   next: { alignSelf: "flex-start" },
+  result: { backgroundColor: amColors.sage900, borderRadius: 30, padding: 24, gap: 10, overflow: "hidden" },
+  resultNumber: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase", color: amColors.white, fontVariant: ["tabular-nums"] },
+  resultText: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6, maxWidth: 252, color: "rgba(255,255,255,0.82)" },
+  buttons: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
 })

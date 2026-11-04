@@ -63,3 +63,9 @@ export function songNumbersFromIds(ids: readonly string[]): number[] {
   }
   return numbers
 }
+
+/** Words of one practice session: the deck, in song order, capped like the prototype's ten cards. */
+export function sessionDeck(all: readonly LearnWord[], songNumbers: readonly number[], limit = 10): LearnWord[] {
+  const sorted = [...new Set(songNumbers)].sort((a, b) => a - b)
+  return pickDeck(all, sorted).slice(0, limit)
+}

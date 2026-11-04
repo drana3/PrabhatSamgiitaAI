@@ -1,63 +1,72 @@
-import { EMPTY_PATH, isSongLearned, pathDoneCount, pathStepDone, type PathState, type PathStep } from "@/lib/learn/progress"
-import { LEARN_ROUTES, quizHref, songHref, wordsHref } from "@/lib/learn/routes"
+import { EMPTY_PATH, isSongLearned, pathDoneCount, pathStepDone, type PathPart, type PathState, type PathStep } from "@/lib/learn/progress"
+import { LEARN_ROUTES, songHref, wordsHref } from "@/lib/learn/routes"
 
 /**
- * The three-step path for one song (spec SCR-21): listen and word cards, a short
- * quiz on the meaning, then chords and playing along on the keyboard.
- *
- * Status of a step card:
- * - done: finished (forest card)
- * - current: the first unfinished step (orange outline)
- * - open: not the current step but can be started, because the learner chose to skip ahead
- * - locked: waits for the step before it
+ * The three-step path of one song, as in the design prototype ("Learn a song"):
+ * 1 hear it and sing it, 2 learn what it means (the song's word cards), 3 play it
+ * (chords). Every step can be started at any time and repeated.
  */
-export type StepStatus = "done" | "current" | "open" | "locked"
-
-export const PATH_STEPS: ReadonlyArray<{ step: PathStep; title: string; text: string }> = [
-  { step: 1, title: "Listen and learn the words", text: "Hear the song once, then go through its word cards." },
-  { step: 2, title: "Check the meaning", text: "A short quiz on the words of this song." },
-  { step: 3, title: "Play it on the keyboard", text: "See the chords, then play along with the song." },
+export const PATH_STEPS: ReadonlyArray<{
+  step: PathStep
+  part: PathPart
+  title: string
+  text: string
+  cta: string
+  /** the short name used in the library row: "Step 2 of 3 · know what it means" */
+  short: string
+}> = [
+  {
+    step: 1,
+    part: "listen",
+    title: "Hear it and sing it",
+    text: "Play it at 0.75 speed with the words lighting up. Sing along line by line until the tune stays with you.",
+    cta: "Listen and sing",
+    short: "hear it",
+  },
+  {
+    step: 2,
+    part: "words",
+    title: "Learn what it means",
+    text: "Go through this song's words as flashcards, then read the meaning of each line.",
+    cta: "Study the words",
+    short: "know what it means",
+  },
+  {
+    step: 3,
+    part: "chords",
+    title: "Play it",
+    text: "Chord letters sit above the words, in your key. Pick guitar or harmonium and play along.",
+    cta: "Open the chords",
+    short: "play it",
+  },
 ]
 
-/** Status of the three steps. `skipAhead` opens the steps after the current one. */
-export function stepStatuses(path: PathState | undefined, skipAhead: boolean): [StepStatus, StepStatus, StepStatus] {
-  const safe = path ?? EMPTY_PATH
-  const steps: PathStep[] = [1, 2, 3]
-  const current = steps.find((step) => !pathStepDone(safe, step))
-  const statuses = steps.map((step): StepStatus => {
-    if (pathStepDone(safe, step)) return "done"
-    if (step === current) return "current"
-    return skipAhead ? "open" : "locked"
-  })
-  return statuses as [StepStatus, StepStatus, StepStatus]
+/** "Step 1 · To do" or "Step 2 · Done". */
+export function stepOver(step: PathStep, done: boolean): string {
+  return `Step ${step} · ${done ? "Done" : "To do"}`
 }
 
-/** Whether a step can be started right now. */
-export function stepAvailable(status: StepStatus): boolean {
-  return status !== "locked"
+/** Button text of a step: its own, or "Do it again" once done. */
+export function stepCta(step: PathStep, path: PathState | undefined): string {
+  const meta = PATH_STEPS[step - 1]!
+  return pathStepDone(path ?? EMPTY_PATH, step) ? "Do it again" : meta.cta
 }
 
-/** The first unfinished step, or null when the song is learned. */
-export function currentStep(path: PathState | undefined): PathStep | null {
-  const safe = path ?? EMPTY_PATH
-  return ([1, 2, 3] as const).find((step) => !pathStepDone(safe, step)) ?? null
+/** "2 of 3 steps". */
+export function pathProgressLabel(path: PathState | undefined): string {
+  return `${pathDoneCount(path)} of 3 steps`
 }
 
-/** "Step 2 of 3", "Song learned" or "Not started". */
-export function pathHeadline(path: PathState | undefined): string {
-  if (isSongLearned(path)) return "Song learned"
-  const step = currentStep(path)
-  if (pathDoneCount(path) === 0 && step === 1 && !(path?.listen || path?.words)) return "Not started"
-  return `Step ${step} of 3`
+/** 0 to 1 for the path progress bar. */
+export function pathFraction(path: PathState | undefined): number {
+  return pathDoneCount(path) / 3
 }
 
-/** Plain-English note under step 1: which half is left. */
-export function stepOneNote(path: PathState | undefined): string {
-  const safe = path ?? EMPTY_PATH
-  if (safe.listen && safe.words) return "Listened, and all word cards done."
-  if (safe.listen) return "Listened. Word cards are left."
-  if (safe.words) return "Word cards done. Listen to the song once."
-  return "Two parts: listen, then word cards."
+/** The "Learning now" line under a song in the library: "Step 2 of 3 · know what it means". */
+export function nextStepNote(path: PathState | undefined): string {
+  const done = pathDoneCount(path)
+  const step = Math.min(3, done + 1)
+  return `Step ${step} of 3 · ${PATH_STEPS[Math.min(2, done)]!.short}`
 }
 
 /** Where each button of the path goes. Harmonium routes belong to another branch and are linked by path only. */
@@ -65,9 +74,7 @@ export function pathLinks(songId: string, songNumber: number) {
   return {
     listen: songHref(songId),
     words: wordsHref({ song: songNumber }),
-    quiz: quizHref({ song: songNumber }),
-    harmonium: LEARN_ROUTES.harmonium,
-    chords: LEARN_ROUTES.harmoniumChords,
+    harmoniumChords: LEARN_ROUTES.harmoniumChords,
   }
 }
 
