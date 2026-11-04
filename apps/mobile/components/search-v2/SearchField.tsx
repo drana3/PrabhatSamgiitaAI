@@ -1,19 +1,17 @@
 import type { RefObject } from "react"
 import { StyleSheet, TextInput, View } from "react-native"
-import { Mic, Search, X } from "lucide-react-native"
 
-import { PressScale } from "@/components/today/motion"
-import type { AmTheme } from "@/constants/tokens/amColors"
-import { amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amFonts, amFontSize } from "@/constants/tokens/amTypography"
-import { SEARCH_PLACEHOLDER_V2 } from "@/lib/unifiedSearchQuery"
+import { SearchGlyph } from "@/components/today/protoIcons"
+import { TodayPress } from "@/components/today/TodayPress"
+import { amFonts } from "@/constants/tokens/amTypography"
+import type { AmProto } from "@/constants/tokens/amToday"
+import { SEARCH_INPUT_PLACEHOLDER } from "@/lib/searchProto"
+import { Mic, X } from "lucide-react-native"
 
-/** Spec SCR-10 / SCR-13: a white pill field, 56px high. */
 export const SEARCH_FIELD_HEIGHT = 56
-const ICON = 20
 
 type Props = {
-  theme: AmTheme
+  p: AmProto
   value: string
   onChangeText: (text: string) => void
   onSubmit: () => void
@@ -25,9 +23,12 @@ type Props = {
   inputRef: RefObject<TextInput | null>
 }
 
-/** One field for a number, a name, a line of lyrics and a feeling. Mic sits inside it. */
+/**
+ * `.s-in`: a white pill with a 2dp ink border, the magnifier and the input (17 / 500).
+ * Extra to the prototype: a clear button and the voice mic sit inside the pill on the right.
+ */
 export function SearchField({
-  theme,
+  p,
   value,
   onChangeText,
   onSubmit,
@@ -38,73 +39,67 @@ export function SearchField({
   inputRef,
 }: Props) {
   return (
-    <View style={[styles.field, { backgroundColor: theme.card, borderColor: theme.line }]}>
-      <Search size={ICON} color={theme.textBody} />
+    <View style={[s.field, { backgroundColor: p.white, borderColor: p.ink900 }]}>
+      <SearchGlyph size={20} color={p.ink500} />
       <TextInput
         ref={inputRef}
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
-        placeholder={SEARCH_PLACEHOLDER_V2}
-        placeholderTextColor={theme.textMuted}
-        accessibilityLabel={SEARCH_PLACEHOLDER_V2}
+        placeholder={SEARCH_INPUT_PLACEHOLDER}
+        placeholderTextColor={p.ink500}
+        accessibilityLabel="Search songs"
         returnKeyType="search"
         autoCapitalize="none"
         autoCorrect={false}
+        spellCheck={false}
         selectTextOnFocus={selectOnFocus}
         blurOnSubmit={false}
         underlineColorAndroid="transparent"
-        style={[styles.input, { color: theme.textHeading }]}
+        style={[s.input, { color: p.ink800 }]}
       />
       {value ? (
-        <PressScale
-          accessibilityRole="button"
-          accessibilityLabel="Clear search"
-          onPress={onClear}
-          pressedScale={0.88}
-          style={styles.iconButton}
-        >
-          <X size={ICON} color={theme.textMuted} />
-        </PressScale>
+        <TodayPress accessibilityRole="button" accessibilityLabel="Clear search" onPress={onClear} pressedScale={0.88} style={s.icon}>
+          <X size={18} color={p.ink500} />
+        </TodayPress>
       ) : null}
-      <PressScale
+      <TodayPress
         accessibilityRole="button"
         accessibilityLabel={listening ? "Stop listening" : "Search by voice"}
         accessibilityState={{ selected: listening }}
         onPress={onMic}
         pressedScale={0.88}
-        style={[styles.iconButton, listening && { backgroundColor: theme.brand }]}
+        style={[s.icon, listening && { backgroundColor: p.dark ? p.sage700 : p.orange500 }]}
       >
-        <Mic size={ICON} color={listening ? theme.onBrand : theme.textBody} />
-      </PressScale>
+        <Mic size={18} color={listening ? "#FFFFFF" : p.ink500} />
+      </TodayPress>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   field: {
     flex: 1,
+    minWidth: 0,
     height: SEARCH_FIELD_HEIGHT,
-    borderRadius: amRadius.pill,
-    borderWidth: 1,
+    borderRadius: 70,
+    borderWidth: 2,
     flexDirection: "row",
     alignItems: "center",
-    gap: amSpace.s2,
-    paddingLeft: amSpace.s4 + amSpace.s1,
-    paddingRight: amSpace.s1,
+    gap: 12,
+    paddingLeft: 18,
+    paddingRight: 8,
   },
   input: {
     flex: 1,
-    height: SEARCH_FIELD_HEIGHT,
-    fontFamily: amFonts.regular,
-    fontSize: amFontSize.body,
+    minWidth: 0,
+    height: 48,
+    fontFamily: amFonts.medium,
+    fontSize: 17,
     paddingVertical: 0,
-  },
-  iconButton: {
-    width: amTouchTarget,
-    height: amTouchTarget,
-    borderRadius: amTouchTarget / 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    paddingHorizontal: 0,
+    // the web field draws its own outline; the 2dp border is the focus ring
+    outlineStyle: "none",
+  } as never,
+  icon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 })

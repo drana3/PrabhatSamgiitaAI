@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated"
 import { queryIsUseful, type SongSummary } from "@prabhat/core"
 
 import {
   AnswerCard,
+  CollectionChips,
+  DetectLabel,
+  EmptyMessage,
   EmptyState,
-  HintLine,
-  Message,
-  ResultGroup,
+  ResultList,
 } from "@/components/search-v2/SearchBlocks"
 import { SearchField } from "@/components/search-v2/SearchField"
-import { PressScale, Reveal } from "@/components/today/motion"
-import { amGap, amSpace } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
+import { TodayPress } from "@/components/today/TodayPress"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { api } from "@/lib/client"
+import { flattenResults } from "@/lib/searchProto"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
@@ -24,7 +27,8 @@ import {
   type SearchResultItem,
   type UnifiedResult,
 } from "@/lib/unifiedSearch"
-import { hintLine, parseSearchParams, withoutRecent } from "@/lib/unifiedSearchQuery"
+import { useOfflineAudioStore } from "@/lib/offlineAudio"
+import { hintLine, outOfRangeMessage, parseSearchParams, withoutRecent } from "@/lib/unifiedSearchQuery"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
@@ -48,6 +52,10 @@ type MeaningState = { query: string; rows: SongSummary[]; pending: boolean }
 export default function UnifiedSearchScreen() {
   const router = useRouter()
   const theme = useAmTheme()
+  const p = protoFor(theme)
+  const insets = useSafeAreaInsets()
+  const top = insets.top || amProto.statusArea
+  const reduce = useReducedMotion()
   const params = useLocalSearchParams<{ q?: string; hint?: string; focus?: string; listen?: string }>()
   const parsed = useMemo(
     () => parseSearchParams(params),
@@ -196,111 +204,91 @@ export default function UnifiedSearchScreen() {
     [query, remember, router],
   )
 
+  const offlineFiles = useOfflineAudioStore((state) => state.files)
+  const offlineNumbers = useMemo(() => new Set(Object.values(offlineFiles).map((entry) => entry.songNumber)), [offlineFiles])
   const empty = query.trim().length === 0
-  let block = 0
-  const next = () => block++
+  const rows = useMemo(() => flattenResults(result.groups), [result.groups])
+  const collections = useMemo(() => result.groups.flatMap((group) => group.collections ?? []), [result.groups])
+
+  // `.search`: the overlay drops in from 8dp above, 220ms (animation: searchin)
+  const drop = useSharedValue(reduce ? 1 : 0)
+  useEffect(() => {
+    if (!reduce) drop.value = withTiming(1, { duration: 220, easing: Easing.bezier(0.22, 1, 0.36, 1) })
+  }, [drop, reduce])
+  const dropStyle = useAnimatedStyle(() => ({ opacity: drop.value, transform: [{ translateY: (1 - drop.value) * -8 }] }))
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <View style={[styles.gutter, styles.header]}>
-        <Reveal index={next()} style={styles.fieldRow}>
-          <SearchField
-            theme={theme}
-            value={query}
-            onChangeText={(text: string) => {
-              setVoiceError(null)
-              setText(text)
-            }}
-            onSubmit={() => remember(query)}
-            onClear={() => {
-              stop()
-              setText("")
-              setLocal(searchLocal(""))
-              inputRef.current?.focus()
-            }}
-            onMic={() => void toggle()}
-            listening={listening}
-            selectOnFocus={selectOnFocus}
-            inputRef={inputRef}
-          />
-          <PressScale
-            accessibilityRole="button"
-            accessibilityLabel="Close search"
-            onPress={() => router.back()}
-            pressedScale={0.94}
-            style={styles.cancel}
-          >
-            <Text style={[amType.label, { color: theme.textHeading }]}>Cancel</Text>
-          </PressScale>
-        </Reveal>
-        <Reveal index={next()}>
-          <HintLine theme={theme} text={voiceError ?? hintLine(query, parsed.hint)} />
-        </Reveal>
+    <Animated.View style={[styles.safe, { backgroundColor: p.sand200, paddingTop: top }, dropStyle]}>
+      <View style={styles.top}>
+        <SearchField
+          p={p}
+          value={query}
+          onChangeText={(text: string) => {
+            setVoiceError(null)
+            setText(text)
+          }}
+          onSubmit={() => remember(query)}
+          onClear={() => {
+            stop()
+            setText("")
+            setLocal(searchLocal(""))
+            inputRef.current?.focus()
+          }}
+          onMic={() => void toggle()}
+          listening={listening}
+          selectOnFocus={selectOnFocus}
+          inputRef={inputRef}
+        />
+        <TodayPress accessibilityRole="button" accessibilityLabel="Close search" onPress={() => router.back()} pressedScale={0.94} style={styles.cancel}>
+          <Text style={[styles.cancelText, { color: p.ink800 }]}>Cancel</Text>
+        </TodayPress>
       </View>
+      <DetectLabel p={p} text={voiceError ?? hintLine(query, parsed.hint)} />
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.gutter, styles.content]}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
       >
-        <Reveal index={next()}>
-          {empty ? (
-            <EmptyState
-              theme={theme}
-              recents={recents}
-              onPick={pick}
-              onRemoveRecent={(item: string) =>
-                usePreferencesStore.setState({ searchRecents: withoutRecent(recents, item) })
-              }
-              onClearRecents={clearSearchRecents}
-              onBrowseCollections={() => router.push(href("/collections"))}
-            />
-          ) : (
-            <View style={styles.results}>
-              {result.answer ? (
-                <AnswerCard
-                  theme={theme}
-                  answer={result.answer}
-                  onOpen={openItem}
-                  onAsk={() => router.push(href("/assistant"))}
-                />
-              ) : null}
-              {result.groups.map((group) => (
-                <ResultGroup
-                  key={group.id}
-                  theme={theme}
-                  group={group}
-                  onOpen={openItem}
-                  onPickCollection={pick}
-                />
-              ))}
-              {waitingForMeaning ? (
-                <View style={styles.waiting} accessibilityLiveRegion="polite">
-                  <ActivityIndicator color={theme.brand} />
-                  <Text style={[amType.body, { color: theme.textBody }]}>Looking for songs by meaning…</Text>
-                </View>
-              ) : null}
-              {result.total === 0 && !waitingForMeaning && result.message ? (
-                <Message theme={theme} text={result.message} />
-              ) : null}
-            </View>
-          )}
-        </Reveal>
-        <View style={styles.tail} />
+        {empty ? (
+          <EmptyState
+            p={p}
+            recents={recents}
+            onPick={pick}
+            onRemoveRecent={(item: string) => usePreferencesStore.setState({ searchRecents: withoutRecent(recents, item) })}
+            onClearRecents={clearSearchRecents}
+          />
+        ) : (
+          <View style={styles.results}>
+            {result.answer ? (
+              <AnswerCard p={p} answer={result.answer} onOpen={openItem} onAsk={() => router.push(href("/assistant"))} />
+            ) : null}
+            {rows.length ? <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} /> : null}
+            {collections.length ? <CollectionChips p={p} names={collections} onPick={pick} /> : null}
+            {waitingForMeaning ? (
+              <View style={styles.waiting} accessibilityLiveRegion="polite">
+                <ActivityIndicator color={p.orange500} />
+                <Text style={[styles.waitingText, { color: p.ink500 }]}>Looking for songs by meaning…</Text>
+              </View>
+            ) : null}
+            {rows.length === 0 && !waitingForMeaning && !result.answer ? <EmptyMessage p={p} text={result.message === outOfRangeMessage() ? result.message : null} /> : null}
+          </View>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </Animated.View>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  gutter: { paddingHorizontal: amGap.gutter },
-  header: { gap: amSpace.s2, paddingBottom: amSpace.s3 },
-  fieldRow: { flexDirection: "row", alignItems: "center", gap: amSpace.s1 },
-  cancel: { minHeight: amSpace.s12, paddingHorizontal: amSpace.s2, justifyContent: "center" },
-  content: { paddingTop: amSpace.s2, gap: amGap.section },
-  results: { gap: amGap.block + amSpace.s4 },
-  waiting: { flexDirection: "row", alignItems: "center", gap: amSpace.s3 },
-  tail: { height: amSpace.s24 },
+  safe: { flex: 1, overflow: "hidden" },
+  top: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 8, paddingLeft: 10, paddingRight: 6 },
+  cancel: { height: 56, paddingHorizontal: 14, justifyContent: "center" },
+  cancelText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 18 },
+  scroll: { flex: 1 },
+  content: { paddingBottom: 32 },
+  results: { gap: 24 },
+  waiting: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20 },
+  waitingText: { fontFamily: amFonts.medium, fontSize: 16 },
 })

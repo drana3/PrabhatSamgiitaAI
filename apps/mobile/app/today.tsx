@@ -43,6 +43,7 @@ import { memberProfileName } from "@/lib/displayName"
 import { TODAY_FIXTURE_DAYS, TODAY_FIXTURE_RECENT, TODAY_FIXTURE_SONGS } from "@/lib/fixtures/today"
 import { formatClock } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
+import { readableTitle } from "@/lib/readableTitle"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import {
   buildTodayDay,
@@ -319,7 +320,7 @@ export default function TodayScreen() {
                     key={row.song.id}
                     p={p}
                     meta={`${row.meta}${row.length && !row.meta.includes("composed") ? ` · ${row.length}` : ""}`}
-                    title={row.song.title}
+                    title={readableTitle(row.song.title)}
                     firstLine={row.firstLine}
                     onOpen={() => openSong(row.song)}
                     onPlay={() => listen(row.song)}
@@ -335,7 +336,7 @@ export default function TodayScreen() {
 
             {also && day.alsoLabel ? (
               <Reveal index={6} style={[styles.list, { marginTop: 10 }]}>
-                <TodayCardButton p={p} label={day.alsoLabel} title={`PS ${also.song.number} · ${also.song.title}`} onPress={() => openSong(also.song)} />
+                <TodayCardButton p={p} label={day.alsoLabel} title={`PS ${also.song.number} · ${readableTitle(also.song.title)}`} onPress={() => openSong(also.song)} />
               </Reveal>
             ) : null}
           </>
@@ -396,7 +397,7 @@ export default function TodayScreen() {
             </Reveal>
             <Reveal index={9} style={styles.list}>
               {recentRows.map(({ song, length }) => (
-                <TodayRecentRow key={song.id} p={p} number={song.number} title={song.title} length={length} onPress={() => openSong(song)} />
+                <TodayRecentRow key={song.id} p={p} number={song.number} title={readableTitle(song.title)} length={length} onPress={() => openSong(song)} />
               ))}
             </Reveal>
           </View>

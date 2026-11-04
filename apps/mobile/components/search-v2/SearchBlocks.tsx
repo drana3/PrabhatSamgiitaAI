@@ -1,364 +1,255 @@
 import { StyleSheet, Text, View } from "react-native"
-import { ChevronRight, Clock, X } from "lucide-react-native"
 
-import { PressScale } from "@/components/today/motion"
-import { amColors, type AmTheme } from "@/constants/tokens/amColors"
-import { amGap, amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amFonts, amFontSize, amType } from "@/constants/tokens/amTypography"
-import type {
-  AnswerCard as AnswerCardData,
-  CollectionHit,
-  SearchGroup,
-  SearchResultItem,
-} from "@/lib/unifiedSearch"
+import { overStyle, TodaySectionHeading } from "@/components/today/TodayBlocks"
+import { readableTitle } from "@/lib/readableTitle"
+import { ChevronGlyph } from "@/components/today/protoIcons"
+import { TodayPress } from "@/components/today/TodayPress"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { amProto, type AmProto } from "@/constants/tokens/amToday"
 import {
-  EMPTY_SENTENCE,
-  FEELINGS,
-  reasonLabel,
-  SEARCH_EXAMPLES,
-} from "@/lib/unifiedSearchQuery"
+  resultCountLabel,
+  SEARCH_FEELING_CHIPS,
+  SEARCH_HINT_ROWS,
+  SEARCH_INTRO,
+  SEARCH_NO_MATCH,
+  type FlatResult,
+} from "@/lib/searchProto"
+import type { AnswerCard as AnswerCardData, CollectionHit, SearchResultItem } from "@/lib/unifiedSearch"
+import { Clock, X } from "lucide-react-native"
 
-type ThemeProps = { theme: AmTheme }
+type P = { p: AmProto }
+const PRESS = 0.98
 
-/** The line under the field. */
-export function HintLine({ theme, text }: ThemeProps & { text: string }) {
+/** `.muted` line under the field. */
+export function DetectLabel({ p, text }: P & { text: string }) {
   return (
-    <Text style={[amType.body, styles.hint, { color: theme.textBody }]} accessibilityLiveRegion="polite">
+    <Text style={[s.detect, { color: p.ink500 }]} accessibilityLiveRegion="polite">
       {text}
     </Text>
   )
 }
 
-function Chip({
-  theme,
-  label,
-  onPress,
-  accessibilityLabel,
-}: ThemeProps & { label: string; onPress: () => void; accessibilityLabel?: string }) {
+function Chip({ p, label, onPress, accessibilityLabel }: P & { label: string; onPress: () => void; accessibilityLabel?: string }) {
   return (
-    <PressScale
+    <TodayPress
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
-      pressedScale={0.94}
-      style={[styles.chip, { backgroundColor: theme.card, borderColor: theme.line }]}
+      pressedScale={PRESS}
+      style={[s.chip, { backgroundColor: p.white, borderColor: p.sand300 }]}
     >
-      <Text style={[styles.chipText, { color: theme.textHeading }]}>{label}</Text>
-    </PressScale>
+      <Text style={[s.chipText, { color: p.ink800 }]}>{label}</Text>
+    </TodayPress>
   )
 }
 
 /**
- * Empty field (spec SCR-13): one sentence, three examples that fill the field,
- * the feelings as a cloud of chips, then recent searches.
+ * Empty field (prototype `.s-hint` and `.cloud`): "Write anything", three example rows that fill the
+ * field, then "Or start from a feeling" as chips. Recent searches are an extra, kept at the end.
  */
 export function EmptyState({
-  theme,
+  p,
   recents,
   onPick,
   onRemoveRecent,
   onClearRecents,
-  onBrowseCollections,
-}: ThemeProps & {
+}: P & {
   recents: string[]
   onPick: (query: string) => void
   onRemoveRecent: (query: string) => void
   onClearRecents: () => void
-  onBrowseCollections: () => void
 }) {
   return (
-    <View style={styles.section}>
-      <Text style={[amType.lead, { color: theme.textHeading }]}>{EMPTY_SENTENCE}</Text>
-
-      <View style={styles.block}>
-        <Text style={[amType.label, { color: theme.eyebrow }]}>Try</Text>
-        <View style={styles.cloud}>
-          {SEARCH_EXAMPLES.map((example) => (
-            <Chip key={example} theme={theme} label={example} onPress={() => onPick(example)} />
-          ))}
-        </View>
+    <View>
+      <View style={s.hint}>
+        <TodaySectionHeading p={p} first="Write" second="anything" />
+        <Text style={[s.hintText, { color: p.ink500 }]}>{SEARCH_INTRO}</Text>
+        {SEARCH_HINT_ROWS.map((row) => (
+          <TodayPress
+            key={row.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${row.label}, for example ${row.example}`}
+            onPress={() => onPick(row.example)}
+            pressedScale={PRESS}
+            style={[s.cardBtn, { backgroundColor: p.white, borderColor: p.sand300 }]}
+          >
+            <View style={s.main}>
+              <Text style={[overStyle, { color: p.orange700 }]}>{row.label}</Text>
+              <Text style={[s.title, { color: p.ink800 }]}>{row.example}</Text>
+            </View>
+            <ChevronGlyph size={22} color={p.ink500} />
+          </TodayPress>
+        ))}
       </View>
 
-      <View style={styles.block}>
-        <Text style={[amType.label, { color: theme.eyebrow }]}>How you feel</Text>
-        <View style={styles.cloud}>
-          {FEELINGS.map((feeling) => (
-            <Chip
-              key={feeling.label}
-              theme={theme}
-              label={feeling.label}
-              accessibilityLabel={`Feeling: ${feeling.label}`}
-              onPress={() => onPick(feeling.label)}
-            />
-          ))}
-        </View>
+      <View style={s.feelHead}>
+        <TodaySectionHeading p={p} first="Or start from" second="a feeling" />
+      </View>
+      <View style={s.cloud}>
+        {SEARCH_FEELING_CHIPS.map((label) => (
+          <Chip key={label} p={p} label={label} accessibilityLabel={`Feeling: ${label}`} onPress={() => onPick(label)} />
+        ))}
       </View>
 
-      <View style={styles.block}>
-        <View style={styles.rowBetween}>
-          <Text style={[amType.label, { color: theme.eyebrow }]}>Recent searches</Text>
-          {recents.length ? (
-            <PressScale
-              accessibilityRole="button"
-              accessibilityLabel="Clear recent searches"
-              onPress={onClearRecents}
-              pressedScale={0.94}
-              style={styles.textButton}
-            >
-              <Text style={[amType.label, { color: theme.textBody }]}>Clear</Text>
-            </PressScale>
-          ) : null}
-        </View>
-        {recents.length === 0 ? (
-          <Text style={[amType.body, { color: theme.textBody }]}>Searches you run will appear here.</Text>
-        ) : (
-          recents.map((item) => (
-            <View key={item} style={[styles.recentRow, { borderBottomColor: theme.line }]}>
-              <PressScale
-                accessibilityRole="button"
-                accessibilityLabel={`Search ${item}`}
-                onPress={() => onPick(item)}
-                pressedScale={0.985}
-                style={styles.recentMain}
-              >
-                <Clock size={16} color={theme.textMuted} />
-                <Text style={[amType.body, { color: theme.textHeading, flex: 1 }]} numberOfLines={1}>
+      {recents.length ? (
+        <View style={s.recents}>
+          <View style={s.recentsHead}>
+            <Text style={[overStyle, { color: p.orange700 }]}>Recent searches</Text>
+            <TodayPress accessibilityRole="button" accessibilityLabel="Clear recent searches" onPress={onClearRecents} pressedScale={0.94} style={s.clear}>
+              <Text style={[s.clearText, { color: p.ink500 }]}>Clear</Text>
+            </TodayPress>
+          </View>
+          {recents.map((item) => (
+            <View key={item} style={[s.recentRow, { borderBottomColor: p.sand400 }]}>
+              <TodayPress accessibilityRole="button" accessibilityLabel={`Search ${item}`} onPress={() => onPick(item)} pressedScale={PRESS} style={s.recentMain}>
+                <Clock size={16} color={p.ink500} />
+                <Text style={[s.recentText, { color: p.ink800 }]} numberOfLines={1}>
                   {item}
                 </Text>
-              </PressScale>
-              <PressScale
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${item}`}
-                onPress={() => onRemoveRecent(item)}
-                pressedScale={0.88}
-                style={styles.iconButton}
-              >
-                <X size={16} color={theme.textMuted} />
-              </PressScale>
+              </TodayPress>
+              <TodayPress accessibilityRole="button" accessibilityLabel={`Remove ${item}`} onPress={() => onRemoveRecent(item)} pressedScale={0.88} style={s.remove}>
+                <X size={16} color={p.ink500} />
+              </TodayPress>
             </View>
-          ))
-        )}
-      </View>
-
-      <PressScale
-        accessibilityRole="button"
-        accessibilityLabel="Browse all collections"
-        onPress={onBrowseCollections}
-        pressedScale={0.985}
-        style={[styles.findRow, { backgroundColor: theme.card, borderColor: theme.line }]}
-      >
-        <Text style={[styles.rowTitle, { color: theme.textHeading, flex: 1 }]}>Browse all collections</Text>
-        <ChevronRight size={20} color={theme.textMuted} />
-      </PressScale>
-    </View>
-  )
-}
-
-/** One result: PS number, title, the line that matched, and the reason it matched. */
-export function ResultRow({
-  theme,
-  item,
-  onOpen,
-}: ThemeProps & { item: SearchResultItem; onOpen: (item: SearchResultItem) => void }) {
-  const tag = reasonLabel(item.reason)
-  const showLine = item.line.trim().length > 0 && item.line.trim().toLowerCase() !== item.song.title.trim().toLowerCase()
-  return (
-    <PressScale
-      accessibilityRole="button"
-      accessibilityLabel={`PS ${item.song.number}, ${item.song.title}. ${tag}`}
-      onPress={() => onOpen(item)}
-      pressedScale={0.985}
-      style={[styles.findRow, { backgroundColor: theme.card, borderColor: theme.line }]}
-    >
-      <View style={styles.cardCopy}>
-        <View style={styles.rowBetween}>
-          <Text style={[amType.label, { color: theme.eyebrow }]}>PS {item.song.number}</Text>
-          <View style={[styles.tag, { backgroundColor: theme.inner }]}>
-            <Text style={[styles.tagText, { color: theme.eyebrow }]}>{tag}</Text>
-          </View>
+          ))}
         </View>
-        <Text style={[styles.rowTitle, { color: theme.textHeading }]} numberOfLines={2}>
-          {item.song.title}
-        </Text>
-        {showLine ? (
-          <Text style={[amType.body, { color: theme.textBody }]} numberOfLines={2}>
-            {item.line}
-          </Text>
-        ) : null}
-      </View>
-    </PressScale>
-  )
-}
-
-function CollectionNames({
-  theme,
-  names,
-  onPick,
-}: ThemeProps & { names: CollectionHit[]; onPick: (label: string) => void }) {
-  return (
-    <View style={styles.cloud}>
-      {names.map((hit) => (
-        <Chip
-          key={hit.label}
-          theme={theme}
-          label={`${hit.label} · ${hit.count}`}
-          accessibilityLabel={`Collection ${hit.label}, ${hit.count} songs`}
-          onPress={() => onPick(hit.label)}
-        />
-      ))}
+      ) : null}
     </View>
   )
 }
 
-/** A group of results in the spec's order, with an eyebrow heading and a count. */
-export function ResultGroup({
-  theme,
-  group,
-  onOpen,
-  onPickCollection,
-}: ThemeProps & {
-  group: SearchGroup
-  onOpen: (item: SearchResultItem) => void
-  onPickCollection: (label: string) => void
-}) {
-  const count = group.items.length
+/** `.cardbtn` result: "PS 3", the title and, in orange, why it matched. */
+export function ResultCard({ p, row, offline, onOpen }: P & { row: FlatResult; offline: boolean; onOpen: (item: SearchResultItem) => void }) {
+  const { item, why } = row
   return (
-    <View style={styles.group}>
-      <Text style={[amType.label, { color: theme.eyebrow }]} accessibilityRole="header">
-        {group.title}
-        {count ? ` · ${count}` : ""}
+    <TodayPress
+      accessibilityRole="button"
+      accessibilityLabel={`PS ${item.song.number}, ${item.song.title}. ${why}`}
+      onPress={() => onOpen(item)}
+      pressedScale={PRESS}
+      style={[s.cardBtn, { backgroundColor: p.white, borderColor: p.sand300 }]}
+    >
+      <View style={s.main}>
+        <Text style={[overStyle, { color: p.orange700 }]}>
+          PS {item.song.number}
+          {offline ? " · Offline" : ""}
+        </Text>
+        <Text style={[s.title, { color: p.ink800 }]} numberOfLines={2}>
+          {readableTitle(item.song.title)}
+        </Text>
+        <Text style={[s.why, { color: p.orange700 }]}>{why}</Text>
+      </View>
+    </TodayPress>
+  )
+}
+
+/** "3 songs" heading and the list of results. */
+export function ResultList({ p, rows, offlineNumbers, onOpen }: P & { rows: FlatResult[]; offlineNumbers: ReadonlySet<number>; onOpen: (item: SearchResultItem) => void }) {
+  return (
+    <View>
+      <Text style={[s.count, { color: p.ink800 }]} accessibilityRole="header">
+        {resultCountLabel(rows.length)}
       </Text>
-      {group.collections?.length ? (
-        <CollectionNames theme={theme} names={group.collections} onPick={onPickCollection} />
-      ) : null}
-      <View style={styles.stack}>
-        {group.items.map((item) => (
-          <ResultRow key={`${group.id}-${item.song.number}`} theme={theme} item={item} onOpen={onOpen} />
+      <View style={s.list}>
+        {rows.map((row) => (
+          <ResultCard key={row.item.song.number} p={p} row={row} offline={offlineNumbers.has(Number(row.item.song.number))} onOpen={onOpen} />
         ))}
       </View>
     </View>
   )
 }
 
-/**
- * Answer card for questions (spec SCR-13). It names the songs that fit and links
- * to the assistant. The forest ground matches the Player and quiz card.
- */
-export function AnswerCard({
-  theme,
-  answer,
-  onOpen,
-  onAsk,
-}: ThemeProps & {
-  answer: AnswerCardData
-  onOpen: (item: SearchResultItem) => void
-  onAsk: () => void
-}) {
+/** Collections whose name matches: tapping one fills the field with its name. Extra to the prototype. */
+export function CollectionChips({ p, names, onPick }: P & { names: CollectionHit[]; onPick: (label: string) => void }) {
   return (
-    <View style={[styles.answer, { backgroundColor: theme.forest }]}>
-      <Text style={[amType.label, { color: amColors.gold300 }]}>Answer</Text>
-      <Text style={[amType.lead, { color: amColors.white }]}>
-        {answer.sources.length
-          ? "These songs speak to what you asked."
-          : "Ask the assistant. It answers from the songs."}
-      </Text>
-      {answer.sources.map((item) => (
-        <PressScale
-          key={item.song.number}
-          accessibilityRole="button"
-          accessibilityLabel={`PS ${item.song.number}, ${item.song.title}`}
-          onPress={() => onOpen(item)}
-          pressedScale={0.985}
-          style={styles.sourceRow}
-        >
-          <Text style={[amType.label, { color: amColors.gold300 }]}>PS {item.song.number}</Text>
-          <Text style={[styles.sourceTitle, { color: amColors.white }]} numberOfLines={2}>
-            {item.song.title}
-          </Text>
-        </PressScale>
+    <View style={s.cloud}>
+      {names.map((hit) => (
+        <Chip key={hit.label} p={p} label={`${hit.label} · ${hit.count}`} accessibilityLabel={`Collection ${hit.label}, ${hit.count} songs`} onPress={() => onPick(hit.label)} />
       ))}
-      <PressScale
-        accessibilityRole="button"
-        accessibilityLabel="Ask the assistant"
-        onPress={onAsk}
-        pressedScale={0.97}
-        style={[styles.askButton, { backgroundColor: theme.brand }]}
-      >
-        <Text style={[styles.askText, { color: theme.onBrand }]}>Ask the assistant</Text>
-      </PressScale>
     </View>
   )
 }
 
-export function Message({ theme, text }: ThemeProps & { text: string }) {
-  return <Text style={[amType.body, { color: theme.textBody }]}>{text}</Text>
+/** Answer to a question, from the songs. Extra to the prototype; uses the forest panel colours. */
+export function AnswerCard({
+  p,
+  answer,
+  onOpen,
+  onAsk,
+}: P & { answer: AnswerCardData; onOpen: (item: SearchResultItem) => void; onAsk: () => void }) {
+  return (
+    <View style={[s.answer, { backgroundColor: p.sage700 }]}>
+      <Text style={[overStyle, { color: "#F5C253" }]}>Answer</Text>
+      <Text style={s.answerLead}>
+        {answer.sources.length ? "These songs speak to what you asked." : "Ask the assistant. It answers from the songs."}
+      </Text>
+      {answer.sources.map((item) => (
+        <TodayPress key={item.song.number} accessibilityRole="button" accessibilityLabel={`PS ${item.song.number}, ${item.song.title}`} onPress={() => onOpen(item)} pressedScale={PRESS} style={s.source}>
+          <Text style={[overStyle, { color: "#F5C253" }]}>PS {item.song.number}</Text>
+          <Text style={s.sourceTitle} numberOfLines={2}>
+            {item.song.title}
+          </Text>
+        </TodayPress>
+      ))}
+      <TodayPress accessibilityRole="button" accessibilityLabel="Ask the assistant" onPress={onAsk} pressedScale={PRESS} style={[s.ask, { backgroundColor: p.orange500 }]}>
+        <Text style={s.askText}>Ask the assistant</Text>
+      </TodayPress>
+    </View>
+  )
 }
 
-const styles = StyleSheet.create({
-  hint: { paddingHorizontal: amSpace.s4 + amSpace.s1 },
-  section: { gap: amGap.block + amSpace.s4 },
-  block: { gap: amGap.text },
-  cloud: { flexDirection: "row", flexWrap: "wrap", gap: amSpace.s2 },
-  chip: {
-    minHeight: amTouchTarget,
-    borderRadius: amRadius.pill,
+/** `.empty`: nothing matched (or a plain message from the engine). */
+export function EmptyMessage({ p, text }: P & { text?: string | null }) {
+  return <Text style={[s.empty, { color: p.ink500 }]}>{text || SEARCH_NO_MATCH}</Text>
+}
+
+const s = StyleSheet.create({
+  detect: { paddingTop: 14, paddingHorizontal: 20, paddingBottom: 16, fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20.3 },
+  hint: { paddingTop: 20, gap: 12 },
+  hintText: { marginHorizontal: 20, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6 },
+  feelHead: { paddingTop: 32, paddingBottom: 16 },
+  cloud: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: amProto.gutter },
+  chip: { height: 44, paddingHorizontal: 20, borderRadius: 70, borderWidth: 1, justifyContent: "center" },
+  chipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 18 },
+  cardBtn: {
+    minHeight: 76,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: amSpace.s4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chipText: { fontFamily: amFonts.medium, fontSize: amFontSize.body },
-  rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: amSpace.s2 },
-  textButton: {
-    minHeight: amTouchTarget,
-    paddingHorizontal: amSpace.s2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  recentRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingLeft: 20,
+    paddingRight: 16,
+    marginHorizontal: amProto.gutter,
   },
-  recentMain: {
-    flex: 1,
-    minHeight: amTouchTarget,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: amSpace.s3,
+  main: { flex: 1, minWidth: 0, gap: 4 },
+  title: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 22, letterSpacing: -0.19 },
+  why: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18.85 },
+  count: {
+    paddingHorizontal: amProto.gutter,
+    paddingBottom: 16,
+    fontFamily: amFonts.display,
+    fontSize: 30,
+    lineHeight: 30,
+    letterSpacing: -0.6,
+    textTransform: "uppercase",
   },
-  iconButton: {
-    width: amTouchTarget,
-    height: amTouchTarget,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  group: { gap: amGap.text },
-  stack: { gap: amGap.grid },
-  findRow: {
-    minHeight: amSpace.s16,
-    borderRadius: amRadius.card,
-    borderWidth: 1,
-    paddingHorizontal: amGap.padCard,
-    paddingVertical: amSpace.s3,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: amSpace.s3,
-  },
-  cardCopy: { flex: 1, gap: amSpace.s2 },
-  rowTitle: { fontFamily: amFonts.semi, fontSize: amFontSize.lead, lineHeight: 24 },
-  tag: { borderRadius: amRadius.pill, paddingHorizontal: amSpace.s2 + amSpace.s1, paddingVertical: amSpace.s1 },
-  tagText: { fontFamily: amFonts.semi, fontSize: amFontSize.label, lineHeight: 16 },
-  answer: { borderRadius: amRadius.panel, padding: amGap.padPanel, gap: amGap.text },
-  sourceRow: { minHeight: amTouchTarget, justifyContent: "center", gap: amSpace.s1 },
-  sourceTitle: { fontFamily: amFonts.semi, fontSize: amFontSize.lead, lineHeight: 24 },
-  askButton: {
-    height: amTouchTarget + amSpace.s1,
-    borderRadius: amRadius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: amSpace.s6,
-  },
-  askText: { fontFamily: amFonts.semi, fontSize: amFontSize.body },
+  list: { gap: 10 },
+  empty: { paddingHorizontal: 20, maxWidth: 330, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6 },
+  recents: { paddingTop: 32, paddingHorizontal: amProto.gutter + 10 },
+  recentsHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  clear: { minHeight: 44, paddingHorizontal: 8, justifyContent: "center" },
+  clearText: { fontFamily: amFonts.semi, fontSize: 14 },
+  recentRow: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1 },
+  recentMain: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12 },
+  recentText: { flex: 1, fontFamily: amFonts.medium, fontSize: 16 },
+  remove: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  answer: { marginHorizontal: amProto.gutter, borderRadius: 30, padding: 24, gap: 12 },
+  answerLead: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 24, color: "#FFFFFF" },
+  source: { minHeight: 44, justifyContent: "center", gap: 4 },
+  sourceTitle: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 24, color: "#FFFFFF" },
+  ask: { alignSelf: "flex-start", height: 48, borderRadius: 70, paddingHorizontal: 24, justifyContent: "center" },
+  askText: { fontFamily: amFonts.semi, fontSize: 16, color: "#FFFFFF" },
 })
