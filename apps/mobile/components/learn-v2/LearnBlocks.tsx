@@ -140,9 +140,9 @@ const styles = StyleSheet.create({
   logo: { height: 36, width: 30 },
   strip: { flexDirection: "row", marginTop: 12, height: 72, borderRadius: 30, borderWidth: 1, overflow: "hidden" },
   cell: { flex: 1, minWidth: 0, justifyContent: "center", gap: 3, paddingLeft: 14, paddingRight: 4 },
-  stripNumber: { fontFamily: amFonts.display, fontSize: 28, lineHeight: 28, letterSpacing: -0.84 },
-  stripSuffix: { fontFamily: amFonts.semi, fontSize: 15, letterSpacing: 0 },
-  stripLabel: { fontFamily: amFonts.bold, fontSize: 11, lineHeight: 15, letterSpacing: 0.44, textTransform: "uppercase" },
+  stripNumber: { fontFamily: amFonts.display, fontSize: 28, lineHeight: 28, height: 28, position: "relative", top: -1, letterSpacing: -0.84 },
+  stripSuffix: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 28, letterSpacing: 0 },
+  stripLabel: { fontFamily: amFonts.bold, fontSize: 11, lineHeight: 13, letterSpacing: 0.44, textTransform: "uppercase" },
   card: {
     flexDirection: "row",
     alignItems: "center",

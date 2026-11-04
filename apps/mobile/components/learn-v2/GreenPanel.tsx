@@ -21,7 +21,9 @@ export function DottedGlow({ glow = 0.2 }: { glow?: number }) {
         <Pattern id={dots} width="18" height="18" patternUnits="userSpaceOnUse">
           <Circle cx="1" cy="1" r="1.4" fill={amColors.gold300} fillOpacity={0.34} />
         </Pattern>
-        <RadialGradient id={halo} gradientUnits="userSpaceOnUse" cx="100%" cy="0%" rx="80%" ry="95%" fx="100%" fy="0%">
+        {/* an ellipse of 80% x 95% of the panel at its top right corner. SVG has no rx/ry on a gradient, so it
+            is a unit circle in bounding-box space, squeezed by the transform (works on web and native) */}
+        <RadialGradient id={halo} cx="1" cy="0" r="1" fx="1" fy="0" gradientTransform="translate(1 0) scale(0.8 0.95) translate(-1 0)">
           <Stop offset="0" stopColor={amColors.orange500} stopOpacity={glow} />
           <Stop offset="0.65" stopColor={amColors.orange500} stopOpacity="0" />
         </RadialGradient>
