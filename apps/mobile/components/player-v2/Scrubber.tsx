@@ -1,43 +1,44 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
-  withSpring,
+  type SharedValue,
 } from "react-native-reanimated"
 
-import { amSpring } from "@/constants/tokens/amMotion"
-import { amFontSize, amFonts, amType } from "@/constants/tokens/amTypography"
-import { amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { scrubRatio, secondsFromRatio } from "@/lib/playerV2/gesture"
-import { formatClock, formatRemaining } from "@/lib/playerV2/transportState"
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { scrubRatio, secondsFromRatio } from "@/lib/playerV2/gesture"
+import { formatClock } from "@/lib/playerV2/transportState"
+import { waveformHeights } from "@/lib/playerV2/waveform"
 
 type Props = {
   position: number
   /** Null until the file or API reports it; the bar is then inert and shows no total. */
   duration: number | null
+  /** Song number: seeds the bar heights, so every song has its own shape. */
+  songNumber: number
   onSeek: (seconds: number) => void
 }
 
+/** A finger within this distance of the head grabs it instead of jumping. */
+const GRAB_RADIUS = 22
+
 /**
- * Seek bar. The thumb answers on touch-down (it grows), follows the finger
- * 1:1 from where it was grabbed, and springs back to size on release.
- * Fill and thumb move with transforms only.
+ * Seek logic shared by the waveform and the thick bar. The head answers on
+ * touch-down, follows the finger 1:1 from where it was grabbed, and the seek is
+ * sent on release, so the audio never stutters under a moving finger.
  */
-export function Scrubber({ position, duration, onSeek }: Props) {
-  const reduce = useReducedMotion()
+function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "duration" | "onSeek">) {
   const width = useSharedValue(0)
   const playRatio = useSharedValue(0)
   const dragRatio = useSharedValue(0)
   const dragging = useSharedValue(0)
   const grabX = useSharedValue(0)
   const startRatio = useSharedValue(0)
-  const thumbScale = useSharedValue(1)
   const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
 
   const known = duration != null && duration > 1
@@ -54,11 +55,10 @@ export function Scrubber({ position, duration, onSeek }: Props) {
     },
   )
 
-  const pan = Gesture.Pan()
+  const gesture = Gesture.Pan()
     .enabled(known)
     .minDistance(0)
     .onBegin((event) => {
-      // Touch-down: feedback first, seek on release.
       dragging.value = 1
       grabX.value = event.x
       startRatio.value = playRatio.value
@@ -67,9 +67,8 @@ export function Scrubber({ position, duration, onSeek }: Props) {
         touchX: event.x,
         width: width.value,
         startRatio: playRatio.value,
-        thumbRadius: amTouchTarget / 2,
+        thumbRadius: GRAB_RADIUS,
       })
-      thumbScale.value = withSpring(playerSize.thumbPressed / playerSize.thumb, amSpring.default)
     })
     .onUpdate((event) => {
       dragRatio.value = scrubRatio({
@@ -77,7 +76,7 @@ export function Scrubber({ position, duration, onSeek }: Props) {
         touchX: event.x,
         width: width.value,
         startRatio: startRatio.value,
-        thumbRadius: amTouchTarget / 2,
+        thumbRadius: GRAB_RADIUS,
       })
     })
     .onFinalize(() => {
@@ -87,91 +86,126 @@ export function Scrubber({ position, duration, onSeek }: Props) {
         playRatio.value = dragRatio.value
         dragging.value = 0
       }
-      thumbScale.value = withSpring(1, amSpring.default)
     })
 
-  const shown = () => {
-    "worklet"
-    return dragging.value ? dragRatio.value : playRatio.value
+  /** The ratio on screen: the finger while it is down, the song otherwise. */
+  const shown = useSharedValue(0)
+  useAnimatedReaction(
+    () => (dragging.value ? dragRatio.value : playRatio.value),
+    (ratio) => {
+      shown.value = ratio
+    },
+  )
+
+  const accessibility = {
+    accessible: true,
+    accessibilityRole: "adjustable" as const,
+    accessibilityLabel: "Position",
+    accessibilityValue: known ? { min: 0, max: Math.floor(total), now: Math.floor(position) } : undefined,
+    accessibilityActions: [{ name: "increment" }, { name: "decrement" }],
+    onAccessibilityAction: (e: { nativeEvent: { actionName: string } }) => {
+      if (!known) return
+      const step = e.nativeEvent.actionName === "increment" ? 10 : -10
+      onSeek(Math.min(total, Math.max(0, position + step)))
+    },
   }
 
-  const fillStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: (shown() - 1) * width.value }],
-  }))
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: shown() * width.value - playerSize.thumb / 2 },
-      { scale: reduce ? 1 : thumbScale.value },
-    ],
-  }))
+  return { gesture, width, shown, known, total, elapsed: scrubSeconds ?? position, accessibility }
+}
 
-  const elapsed = scrubSeconds ?? position
+function Times({ elapsed, total, known }: { elapsed: number; total: number; known: boolean }) {
+  return (
+    <View style={styles.times}>
+      <Text style={styles.time}>{formatClock(elapsed)}</Text>
+      <Text style={styles.time}>{known ? formatClock(total) : ""}</Text>
+    </View>
+  )
+}
+
+/** The seek bar of the Player: 56 bars, the played ones solid, a gold head (prototype .wave). */
+export function Waveform(props: Props) {
+  const { gesture, width, shown, known, total, elapsed, accessibility } = useScrub(props)
+  const heights = useMemo(() => waveformHeights(props.songNumber, playerSize.waveBars), [props.songNumber])
+
+  const head = useAnimatedStyle(() => ({ transform: [{ translateX: shown.value * width.value }] }))
 
   return (
-    <View style={styles.wrap}>
-      <GestureDetector gesture={pan}>
+    <View>
+      <GestureDetector gesture={gesture}>
         <View
-          style={styles.hit}
+          style={styles.wave}
           onLayout={(e) => {
             width.value = e.nativeEvent.layout.width
           }}
-          accessible
-          accessibilityRole="adjustable"
-          accessibilityLabel="Seek"
-          accessibilityValue={known ? { min: 0, max: Math.floor(total), now: Math.floor(position) } : undefined}
-          accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
-          onAccessibilityAction={(e) => {
-            if (!known) return
-            const step = e.nativeEvent.actionName === "increment" ? 10 : -10
-            onSeek(Math.min(total, Math.max(0, position + step)))
-          }}
+          {...accessibility}
         >
-          <View style={styles.track}>
-            <Animated.View style={[styles.fill, fillStyle]} />
-          </View>
-          {known ? <Animated.View style={[styles.thumb, thumbStyle]} /> : null}
+          {heights.map((h, i) => (
+            <WaveBar key={i} index={i} count={heights.length} height={h} shown={shown} />
+          ))}
+          <Animated.View pointerEvents="none" style={[styles.head, head]} />
         </View>
       </GestureDetector>
-      <View style={styles.times}>
-        <Text style={styles.time}>{formatClock(elapsed)}</Text>
-        <Text style={styles.time}>{known ? formatRemaining(elapsed, total) : ""}</Text>
-      </View>
+      <Times elapsed={elapsed} total={total} known={known} />
+    </View>
+  )
+}
+
+function WaveBar({ index, count, height, shown }: { index: number; count: number; height: number; shown: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => ({ opacity: index / count < shown.value ? 1 : 0.32 }))
+  return <Animated.View style={[styles.bar, { height: `${height}%` }, style]} />
+}
+
+/** Drive mode seek bar: 8px track in the sun colour, 44px to grab (prototype .thick). */
+export function ThickScrubber(props: Omit<Props, "songNumber">) {
+  const { gesture, width, shown, known, total, elapsed, accessibility } = useScrub(props)
+  const fill = useAnimatedStyle(() => ({ transform: [{ translateX: (shown.value - 1) * width.value }] }))
+
+  return (
+    <View>
+      <GestureDetector gesture={gesture}>
+        <View
+          style={styles.thick}
+          onLayout={(e) => {
+            width.value = e.nativeEvent.layout.width
+          }}
+          {...accessibility}
+        >
+          <View style={styles.thickTrack}>
+            <Animated.View style={[styles.thickFill, fill]} />
+          </View>
+        </View>
+      </GestureDetector>
+      <Times elapsed={elapsed} total={total} known={known} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 0 },
-  hit: { height: amTouchTarget, justifyContent: "center" },
-  track: {
-    height: playerSize.trackHeight,
-    borderRadius: playerSize.trackHeight / 2,
-    backgroundColor: playerColors.trackBase,
-    overflow: "hidden",
+  wave: {
+    height: playerSize.waveHeight,
+    marginHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: playerSize.waveGap,
   },
-  fill: {
+  bar: { flex: 1, minWidth: 0, borderRadius: 2, backgroundColor: "#FFFFFF" },
+  head: {
     position: "absolute",
     left: 0,
-    right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: playerColors.brand,
+    width: playerSize.waveHead,
+    borderRadius: 2,
+    backgroundColor: playerColors.sun,
   },
-  thumb: {
-    position: "absolute",
-    left: 0,
-    width: playerSize.thumb,
-    height: playerSize.thumb,
-    borderRadius: playerSize.thumb / 2,
-    backgroundColor: playerColors.text,
+  thick: { height: playerSize.thickHit, marginHorizontal: 20, justifyContent: "center" },
+  thickTrack: {
+    height: playerSize.thickTrack,
+    borderRadius: 9999,
+    backgroundColor: playerColors.thickTrack,
+    overflow: "hidden",
   },
-  times: { flexDirection: "row", justifyContent: "space-between", paddingBottom: amSpace.s1 },
-  time: {
-    ...amType.body,
-    fontFamily: amFonts.medium,
-    fontSize: amFontSize.label,
-    lineHeight: 16,
-    color: playerColors.textSoft,
-    fontVariant: ["tabular-nums"],
-  },
+  thickFill: { ...StyleSheet.absoluteFillObject, borderRadius: 9999, backgroundColor: playerColors.sun },
+  times: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, marginHorizontal: 20 },
+  time: { fontFamily: amFonts.medium, fontSize: 13, color: playerColors.textSoft, fontVariant: ["tabular-nums"] },
 })

@@ -1,10 +1,12 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
-import { Pause, Play, SkipBack, SkipForward } from "lucide-react-native"
+import { BlurView } from "expo-blur"
 
+import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { TouchButton } from "@/components/player-v2/TouchButton"
-import { amRadius, amSpace } from "@/constants/tokens/amSpacing"
-import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
+import { amColors } from "@/constants/tokens/amColors"
+import { amRadius } from "@/constants/tokens/amSpacing"
+import { amFonts } from "@/constants/tokens/amTypography"
 import type { PlayButtonState } from "@/lib/playerV2/transportState"
 
 type Props = {
@@ -17,31 +19,23 @@ type Props = {
 }
 
 /**
- * Drive mode (spec SCR-12 item 10): large on purpose, so the driver can hit
- * a control without looking. Play/pause is a full-width 96px pill, previous
- * and next are 72px pills.
+ * Drive mode (prototype .drive-ctrls, .drive-play): large on purpose, so the driver
+ * can hit a control without looking. Previous and next are 72px pills side by side,
+ * play/pause is a full-width 96px pill under them, and one pill leaves the mode.
  */
 export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onNext, onExit }: Props) {
   return (
-    <View style={styles.wrap}>
-      <TouchButton
-        accessibilityRole="button"
-        accessibilityLabel={playState === "pause" ? "Pause" : playState === "spinner" ? "Loading" : "Play"}
-        onAction={onPlayPause}
-        pressedScale={0.97}
-        style={styles.play}
-      >
-        {playState === "spinner" ? (
-          <ActivityIndicator size="large" color={playerColors.onBrand} />
-        ) : playState === "pause" ? (
-          <Pause size={playerSize.driveGlyph} color={playerColors.onBrand} fill={playerColors.onBrand} />
-        ) : (
-          <Play size={playerSize.driveGlyph} color={playerColors.onBrand} fill={playerColors.onBrand} />
-        )}
-      </TouchButton>
+    <View>
       <View style={styles.pair}>
-        <TouchButton accessibilityRole="button" accessibilityLabel="Previous song" onAction={onPrevious} containerStyle={styles.skipHit} style={styles.skip}>
-          <SkipBack size={playerSize.driveGlyph} color={playerColors.text} fill={playerColors.text} />
+        <TouchButton
+          accessibilityRole="button"
+          accessibilityLabel="Previous song"
+          onAction={onPrevious}
+          containerStyle={styles.skipHit}
+          style={styles.skip}
+        >
+          <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+          <PlayerIcon name="prev" size={playerSize.driveGlyph} color={amColors.white} />
         </TouchButton>
         <TouchButton
           accessibilityRole="button"
@@ -51,18 +45,56 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
           containerStyle={styles.skipHit}
           style={[styles.skip, !canNext && styles.disabled]}
         >
-          <SkipForward size={playerSize.driveGlyph} color={playerColors.text} fill={playerColors.text} />
+          <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+          <PlayerIcon name="next" size={playerSize.driveGlyph} color={amColors.white} />
         </TouchButton>
       </View>
-      <TouchButton accessibilityRole="button" accessibilityLabel="Leave Drive mode" onAction={onExit} style={styles.exit}>
-        <Text style={styles.exitText}>Leave Drive mode</Text>
+
+      <TouchButton
+        accessibilityRole="button"
+        accessibilityLabel={playState === "pause" ? "Pause" : playState === "spinner" ? "Loading" : "Play"}
+        onAction={onPlayPause}
+        pressedScale={0.985}
+        containerStyle={styles.playHit}
+        style={styles.play}
+      >
+        {playState === "spinner" ? (
+          <ActivityIndicator size="large" color={playerColors.onBrand} />
+        ) : (
+          <PlayerIcon name={playState === "pause" ? "pause" : "play"} size={playerSize.drivePlayGlyph} color={playerColors.onBrand} />
+        )}
+      </TouchButton>
+
+      <TouchButton
+        accessibilityRole="button"
+        accessibilityLabel="Drive mode on. Leave Drive mode"
+        onAction={onExit}
+        containerStyle={styles.exitHit}
+        style={styles.exit}
+      >
+        <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+        <PlayerIcon name="drive" size={18} color={playerColors.gold} />
+        <Text style={styles.exitText}>Drive mode on. Tap to leave</Text>
       </TouchButton>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: amSpace.s3 },
+  pair: { flexDirection: "row", gap: 10, marginHorizontal: 10 },
+  skipHit: { flex: 1 },
+  skip: {
+    height: playerSize.driveSkipHeight,
+    borderRadius: amRadius.pill,
+    backgroundColor: playerColors.glassDark,
+    borderWidth: 1,
+    borderColor: playerColors.glassEdge,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  disabled: { opacity: 0.35 },
+  playHit: { marginTop: 10, marginHorizontal: 10 },
   play: {
     height: playerSize.drivePlayHeight,
     borderRadius: amRadius.pill,
@@ -70,18 +102,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pair: { flexDirection: "row", gap: amSpace.s3 },
-  skipHit: { flex: 1 },
-  skip: {
-    height: playerSize.driveSkipHeight,
+  exitHit: { marginTop: 10, marginHorizontal: 10 },
+  exit: {
+    height: 48,
+    flexDirection: "row",
+    gap: 6,
     borderRadius: amRadius.pill,
-    backgroundColor: playerColors.glass,
+    backgroundColor: playerColors.glassDark,
     borderWidth: 1,
-    borderColor: playerColors.glassEdge,
+    borderColor: playerColors.gold,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
-  disabled: { opacity: 0.35 },
-  exit: { minHeight: 44, alignItems: "center", justifyContent: "center" },
-  exitText: { ...amType.label, fontFamily: amFonts.semi, color: playerColors.gold },
+  exitText: { fontFamily: amFonts.semi, fontSize: 13, color: playerColors.gold },
 })

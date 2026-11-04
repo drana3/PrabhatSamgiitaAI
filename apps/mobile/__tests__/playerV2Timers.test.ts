@@ -99,3 +99,22 @@ describe("playback speed", () => {
     expect(formatRate(0.75)).toBe("0.75x")
   })
 })
+
+describe("sleep timer steps (More sheet row)", () => {
+  it("steps Off, 15 min, 30 min, end of song, Off", async () => {
+    const { nextSleepStep, sleepToast, SLEEP_OFF } = await import("@/lib/playerV2/sleepTimer")
+    const a = nextSleepStep(SLEEP_OFF, 7, 1000)
+    expect(a).toEqual({ kind: "minutes", minutes: 15, endsAt: 1000 + 15 * 60_000 })
+    const b = nextSleepStep(a, 7, 2000)
+    expect(b).toEqual({ kind: "minutes", minutes: 30, endsAt: 2000 + 30 * 60_000 })
+    const c = nextSleepStep(b, 7, 3000)
+    expect(c).toEqual({ kind: "endOfSong", songNumber: 7 })
+    expect(nextSleepStep(c, 7, 4000)).toEqual(SLEEP_OFF)
+    expect([a, b, c, SLEEP_OFF].map(sleepToast)).toEqual([
+      "Sleep timer: 15 min",
+      "Sleep timer: 30 min",
+      "Sleep timer: end of song",
+      "Sleep timer off",
+    ])
+  })
+})

@@ -7,7 +7,7 @@ import type { PlayMode } from "@/lib/playerV2/versionMode"
 import { SLEEP_OFF, startSleepEndOfSong, startSleepMinutes, type SleepTimer } from "@/lib/playerV2/sleepTimer"
 
 export type LyricScript = "roman" | "devanagari"
-export type TranslationLang = "en" | "off"
+export type TranslationLang = "en" | "ru" | "off"
 
 type PlayerV2State = {
   /** Persisted: "This version" or "All N versions". */
@@ -40,7 +40,8 @@ export const usePlayerV2Store = create<PlayerV2State>()(
       repeatMode: "off",
       script: "roman",
       translation: "en",
-      wordMeanings: false,
+      // The prototype opens with the word meanings on.
+      wordMeanings: true,
       versionByNumber: {},
       shuffleOriginal: null,
       sleep: SLEEP_OFF,

@@ -1,154 +1,185 @@
 import type { ReactNode } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
-import { Check } from "lucide-react-native"
+import { StyleSheet, Text, View } from "react-native"
 
-import { amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amFontSize, amFonts, amType } from "@/constants/tokens/amTypography"
-import type { AmTheme } from "@/constants/tokens/amColors"
+import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { PressScale } from "@/components/today/motion"
+import { amColors, type AmTheme } from "@/constants/tokens/amColors"
+import { amRadius } from "@/constants/tokens/amSpacing"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { isDarkTheme } from "@/lib/navV2"
 
-/** Selectable sheet row: title, optional meta line, check on the selected one. */
-export function ChoiceRow({
+/** The inactive ring of a radio or check: --am-ink-300 in Light, #6A7761 in Dark. */
+export function ringColor(theme: AmTheme): string {
+  return isDarkTheme(theme) ? "#6A7761" : amColors.ink300
+}
+
+/** The selected-row wash (--am-orange-100): #FFDCC5 in Light, #4A2E1C in Dark. */
+export function orangeWash(theme: AmTheme): string {
+  return isDarkTheme(theme) ? "#4A2E1C" : amColors.orange100
+}
+
+/** Rounded white card that holds a list of rows (prototype .group). */
+export function SheetGroup({ theme, children }: { theme: AmTheme; children: ReactNode }) {
+  return <View style={[styles.group, { backgroundColor: theme.card, borderColor: theme.line }]}>{children}</View>
+}
+
+/** 24px ring that fills orange with a white dot (single choice). */
+export function Radio({ theme, on }: { theme: AmTheme; on: boolean }) {
+  return (
+    <View style={[styles.ring, { borderColor: on ? amColors.orange500 : ringColor(theme) }, on && styles.ringOn]}>
+      {on ? <View style={styles.dot} /> : null}
+    </View>
+  )
+}
+
+/** 24px ring that fills orange with a white tick (multiple choice). */
+export function CheckRing({ theme, on }: { theme: AmTheme; on: boolean }) {
+  return (
+    <View style={[styles.ring, { borderColor: on ? amColors.orange500 : ringColor(theme) }, on && styles.ringOn]}>
+      {on ? <View style={styles.tick} /> : null}
+    </View>
+  )
+}
+
+/**
+ * One row of a settings group (prototype .lrow): a bold line, a small grey line
+ * under it and, on the right, a value or a ring. Feedback starts on touch-down.
+ */
+export function SheetRow({
   theme,
   title,
   meta,
-  selected,
+  value,
+  trailing,
+  last,
   disabled,
   onPress,
+  accessibilityRole = "button",
+  selected,
 }: {
   theme: AmTheme
   title: string
   meta?: string
-  selected?: boolean
+  value?: string
+  trailing?: ReactNode
+  last?: boolean
   disabled?: boolean
   onPress: () => void
+  accessibilityRole?: "button" | "radio" | "checkbox"
+  selected?: boolean
 }) {
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected: Boolean(selected), disabled: Boolean(disabled) }}
+    <PressScale
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={value ? `${title}, ${value}` : title}
+      accessibilityState={{ selected, checked: accessibilityRole === "checkbox" ? selected : undefined, disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { borderBottomColor: theme.line, backgroundColor: pressed ? theme.raised : "transparent" },
-        disabled && styles.disabled,
-      ]}
+      pressedScale={0.98}
+      style={[styles.row, { borderBottomColor: theme.line }, last && styles.rowLast, disabled && styles.disabled]}
     >
       <View style={styles.rowText}>
-        <Text style={[amType.body, { fontFamily: amFonts.bold, color: theme.textHeading }]} numberOfLines={1}>
+        <Text style={[styles.rowTitle, { color: theme.textHeading }]} numberOfLines={1}>
           {title}
         </Text>
         {meta ? (
-          <Text style={[amType.body, styles.meta, { color: theme.textBody }]} numberOfLines={1}>
+          <Text style={[styles.rowMeta, { color: theme.textBody }]} numberOfLines={2}>
             {meta}
           </Text>
         ) : null}
       </View>
-      {selected ? <Check size={20} color={theme.brand} /> : null}
-    </Pressable>
+      {value ? <Text style={[styles.value, { color: theme.eyebrow }]}>{value}</Text> : null}
+      {trailing}
+    </PressScale>
   )
 }
 
-/** Pill button for sheets (48px, spec section 1). */
-export function PillButton({
+/** Small grey explanation under a group (prototype .note). */
+export function SheetNote({ theme, children }: { theme: AmTheme; children: ReactNode }) {
+  return <Text style={[styles.note, { color: theme.textBody }]}>{children}</Text>
+}
+
+/** Pill button for sheets: 48px, 70px radius (prototype .pill.brand / .sand / .ink). */
+export function SheetPill({
   theme,
   label,
-  onPress,
   tone = "brand",
+  icon,
+  onPress,
   disabled,
 }: {
   theme: AmTheme
   label: string
+  tone?: "brand" | "sand" | "ink"
+  icon?: boolean
   onPress: () => void
-  tone?: "brand" | "ink"
   disabled?: boolean
 }) {
+  const fill = tone === "brand" ? amColors.orange500 : tone === "ink" ? theme.textHeading : theme.card
+  const ink = tone === "brand" ? amColors.white : tone === "ink" ? theme.page : theme.textHeading
   return (
-    <Pressable
+    <PressScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.pill,
-        { backgroundColor: tone === "brand" ? (pressed ? theme.brandPress : theme.brand) : theme.textHeading },
-        disabled && styles.disabled,
-      ]}
-    >
-      <Text style={[amType.body, { fontFamily: amFonts.semi, color: theme.onBrand }]}>{label}</Text>
-    </Pressable>
-  )
-}
-
-export function SectionLabel({ theme, children }: { theme: AmTheme; children: ReactNode }) {
-  return <Text style={[amType.label, styles.section, { color: theme.eyebrow }]}>{children}</Text>
-}
-
-/** Row of chips (script, translation, speed, sleep). */
-export function ChipRow({ children }: { children: ReactNode }) {
-  return <View style={styles.chips}>{children}</View>
-}
-
-export function Chip({
-  theme,
-  label,
-  selected,
-  disabled,
-  onPress,
-}: {
-  theme: AmTheme
-  label: string
-  selected: boolean
-  disabled?: boolean
-  onPress: () => void
-}) {
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected, disabled: Boolean(disabled) }}
-      disabled={disabled}
-      onPress={onPress}
+      pressedScale={0.98}
       style={[
-        styles.chip,
-        { backgroundColor: selected ? theme.brand : theme.inner, borderColor: selected ? theme.brand : theme.line },
+        styles.pill,
+        { backgroundColor: fill, borderColor: tone === "sand" ? theme.line : fill },
         disabled && styles.disabled,
       ]}
     >
-      <Text style={[amType.body, { fontFamily: amFonts.semi, color: selected ? theme.onBrand : theme.textHeading }]}>
-        {label}
-      </Text>
-    </Pressable>
+      {icon ? <PlayerIcon name="plus" size={18} color={ink} /> : null}
+      <Text style={[styles.pillText, { color: ink }]}>{label}</Text>
+    </PressScale>
   )
 }
 
 const styles = StyleSheet.create({
+  group: { marginHorizontal: 10, borderRadius: amRadius.card, borderWidth: 1, overflow: "hidden" },
   row: {
-    minHeight: 64,
     flexDirection: "row",
     alignItems: "center",
-    gap: amSpace.s3,
-    paddingVertical: amSpace.s3,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: "space-between",
+    gap: 12,
+    minHeight: 56,
+    paddingVertical: 6,
+    paddingLeft: 20,
+    paddingRight: 16,
+    borderBottomWidth: 1,
   },
-  rowText: { flex: 1, gap: amSpace.s1 },
-  meta: { fontSize: amFontSize.label, lineHeight: 18 },
+  rowLast: { borderBottomWidth: 0 },
+  rowText: { flex: 1, minWidth: 0 },
+  rowTitle: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
+  rowMeta: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
+  value: { flexShrink: 0, marginLeft: 12, fontFamily: amFonts.bold, fontSize: 15 },
+  disabled: { opacity: 0.4 },
+  ring: { width: 24, height: 24, borderRadius: 9999, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  ringOn: { backgroundColor: amColors.orange500 },
+  dot: { position: "absolute", left: 3, top: 3, right: 3, bottom: 3, borderRadius: 9999, backgroundColor: amColors.white },
+  tick: {
+    position: "absolute",
+    left: 5,
+    top: 1,
+    width: 6,
+    height: 11,
+    borderColor: amColors.white,
+    borderRightWidth: 2.5,
+    borderBottomWidth: 2.5,
+    transform: [{ rotate: "45deg" }],
+  },
+  note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingTop: 12, paddingHorizontal: 20 },
   pill: {
     height: 48,
-    borderRadius: amRadius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: amSpace.s6,
-  },
-  disabled: { opacity: 0.4 },
-  section: { marginTop: amSpace.s6, marginBottom: amSpace.s3 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: amSpace.s2 },
-  chip: {
-    minHeight: amTouchTarget,
-    paddingHorizontal: amSpace.s4,
+    paddingHorizontal: 24,
     borderRadius: amRadius.pill,
     borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
     alignItems: "center",
     justifyContent: "center",
   },
+  pillText: { fontFamily: amFonts.semi, fontSize: 16 },
 })

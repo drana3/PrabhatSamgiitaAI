@@ -1,19 +1,12 @@
-import { memo, useEffect, useReducer, useRef } from "react"
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native"
+import { memo, useEffect, useReducer, useRef, useState } from "react"
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { BlurView } from "expo-blur"
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated"
+import { LinearGradient } from "expo-linear-gradient"
+import { useReducedMotion } from "react-native-reanimated"
 
-import { amRadius, amSpace } from "@/constants/tokens/amSpacing"
-import { amFontSize, amFonts, amType } from "@/constants/tokens/amTypography"
-import { lyricOpacity, playerColors, playerSize } from "@/components/player-v2/playerTokens"
-import {
-  autoScrollReduce,
-  lineState,
-  scrollOffsetForLine,
-  wordState,
-  type LineState,
-  type LyricLine,
-} from "@/lib/playerV2/lyricsSync"
+import { karaokeColors, playerColors, playerSize } from "@/components/player-v2/playerTokens"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { autoScrollReduce, lineState, wordState, type LineState, type LyricLine } from "@/lib/playerV2/lyricsSync"
 
 type Props = {
   lines: LyricLine[]
@@ -25,16 +18,22 @@ type Props = {
   onSeekToLine: (index: number) => void
   /** Shown instead of lyrics when there are none. */
   emptyText: string
-  /** Notes under the lyrics, such as "Word meanings are not available yet". */
-  note?: string | null
 }
 
-const FADE_MS = 200
+/** The prototype puts the sung line at 24% of the panel height (`_syncLyr`). */
+const SUNG_LINE_SHARE = 0.24
+/** .kscroll mask: transparent to opaque over the first 8% and the last 12%. */
+const FADE_TOP = 0.08
+const FADE_BOTTOM = 0.12
+/** The panel's own colour (forest at 78% over the dark end of the photograph), so the edges melt into it. */
+const PANEL_FADE_COLOR = "rgba(34, 42, 28, 1)"
 
 /**
- * Karaoke panel (spec SCR-12 item 3): the sung line is bright, the sung word
- * is gold, finished lines dim, coming lines are faint. It follows the song by
- * itself; touching it pauses that until the line changes.
+ * Karaoke panel (prototype .lpanel.kar). Every word sits over its short English
+ * gloss and wraps like text; the translation of a line follows it. Words of the
+ * sung line are white, the word being sung is gold, finished lines dim and coming
+ * lines are faint. It follows the song by itself; touching it pauses that until
+ * the line changes. Tapping a word seeks to the start of its line.
  */
 export function LyricsPanel({
   lines,
@@ -45,63 +44,72 @@ export function LyricsPanel({
   showTranslation,
   onSeekToLine,
   emptyText,
-  note,
 }: Props) {
   const reduce = useReducedMotion()
   const scroll = useRef<ScrollView>(null)
   const tops = useRef<number[]>([])
-  const panelHeight = useRef(0)
+  const [viewport, setViewport] = useState(0)
   const [auto, dispatch] = useReducer(autoScrollReduce, { paused: false, lineAtPause: -1 })
+  const firstScroll = useRef(true)
 
   useEffect(() => {
     dispatch({ type: "line", line: activeLine })
   }, [activeLine])
 
   useEffect(() => {
-    if (auto.paused || activeLine < 0) return
+    if (auto.paused || activeLine < 0 || viewport <= 0) return
     const top = tops.current[activeLine]
     if (top == null) return
-    scroll.current?.scrollTo({
-      y: scrollOffsetForLine(top, panelHeight.current),
-      animated: !reduce,
-    })
-  }, [activeLine, auto.paused, reduce])
+    const y = Math.max(0, top - viewport * SUNG_LINE_SHARE)
+    scroll.current?.scrollTo({ y, animated: !reduce && !firstScroll.current })
+    firstScroll.current = false
+  }, [activeLine, auto.paused, reduce, viewport, lines])
 
   return (
-    <View
-      style={styles.panel}
-      onLayout={(e) => {
-        panelHeight.current = e.nativeEvent.layout.height
-      }}
-    >
+    <View style={styles.panel}>
       <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, styles.tint]} />
       {lines.length ? (
-        <ScrollView
-          ref={scroll}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-          onScrollBeginDrag={() => dispatch({ type: "touch", line: activeLine })}
-          onTouchStart={() => dispatch({ type: "touch", line: activeLine })}
+        <View
+          style={styles.scrollWrap}
+          onLayout={(e) => {
+            setViewport(e.nativeEvent.layout.height)
+          }}
         >
-          {lines.map((line, index) => (
-            <LyricRow
-              key={`${index}-${line.text}`}
-              line={line}
-              state={lineState(index, activeLine)}
-              activeWord={index === activeLine ? activeWord : -1}
-              devanagari={devanagari}
-              showGloss={showGloss}
-              showTranslation={showTranslation}
-              reduce={reduce}
-              onLayoutTop={(y) => {
-                tops.current[index] = y
-              }}
-              onPress={() => onSeekToLine(index)}
-            />
-          ))}
-          {note ? <Text style={styles.note}>{note}</Text> : null}
-        </ScrollView>
+          <ScrollView
+            ref={scroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.content}
+            onScrollBeginDrag={() => dispatch({ type: "touch", line: activeLine })}
+            onTouchStart={() => dispatch({ type: "touch", line: activeLine })}
+          >
+            {lines.map((line, index) => (
+              <LyricRow
+                key={`${index}-${line.text}`}
+                line={line}
+                state={lineState(index, activeLine)}
+                activeWord={index === activeLine ? activeWord : -1}
+                devanagari={devanagari}
+                showGloss={showGloss}
+                showTranslation={showTranslation}
+                onLayoutTop={(y) => {
+                  tops.current[index] = y
+                }}
+                onPress={() => onSeekToLine(index)}
+              />
+            ))}
+          </ScrollView>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[PANEL_FADE_COLOR, playerColors.maskClear]}
+            style={[styles.fade, { top: 0, height: viewport * FADE_TOP }]}
+          />
+          <LinearGradient
+            pointerEvents="none"
+            colors={[playerColors.maskClear, PANEL_FADE_COLOR]}
+            style={[styles.fade, { bottom: 0, height: viewport * FADE_BOTTOM }]}
+          />
+        </View>
       ) : (
         <View style={styles.empty}>
           <Text style={styles.emptyText}>{emptyText}</Text>
@@ -118,7 +126,6 @@ type RowProps = {
   devanagari: boolean
   showGloss: boolean
   showTranslation: boolean
-  reduce: boolean
   onLayoutTop: (y: number) => void
   onPress: () => void
 }
@@ -130,91 +137,75 @@ const LyricRow = memo(function LyricRow({
   devanagari,
   showGloss,
   showTranslation,
-  reduce,
   onLayoutTop,
   onPress,
 }: RowProps) {
-  const opacity = useSharedValue<number>(lyricOpacity[state])
-  useEffect(() => {
-    opacity.value = withTiming(lyricOpacity[state], { duration: reduce ? 0 : FADE_MS })
-  }, [state, reduce, opacity])
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
-
-  const hasGloss = showGloss && line.words.some((w) => w.gloss)
-  const scriptFont = devanagari ? null : { fontFamily: amFonts.bold }
-
+  const translation = showTranslation ? line.translation : undefined
+  const wordFont = devanagari ? amFonts.devanagariBold : amFonts.bold
   return (
-    <Animated.View style={style} onLayout={(e) => onLayoutTop(e.nativeEvent.layout.y)}>
-      <Pressable
-        onPressIn={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={`${line.text}. Go to this line`}
-        style={styles.row}
-      >
-        {hasGloss ? (
-          <View style={styles.wordWrap}>
-            {line.words.map((word, w) => (
-              <View key={`${w}-${word.text}`} style={styles.wordCol}>
-                <Text style={[styles.word, scriptFont, { color: wordColor(wordState(w, activeWord, state === "current")) }]}>
-                  {word.text}
-                </Text>
-                <Text style={styles.gloss} numberOfLines={1}>
-                  {word.gloss ?? ""}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={[styles.word, scriptFont, styles.inline]}>
-            {line.words.map((word, w) => (
-              <Text key={`${w}-${word.text}`} style={{ color: wordColor(wordState(w, activeWord, state === "current")) }}>
-                {word.text}
-                {w < line.words.length - 1 ? " " : ""}
-              </Text>
-            ))}
-          </Text>
-        )}
-        {showTranslation && line.translation ? (
-          <Text style={styles.translation}>{line.translation}</Text>
-        ) : null}
-      </Pressable>
-    </Animated.View>
+    <View onLayout={(e) => onLayoutTop(e.nativeEvent.layout.y)}>
+      <View style={styles.words}>
+        {line.words.map((word, w) => {
+          const color = wordColor(state, wordState(w, activeWord, state === "current"))
+          return (
+            <Pressable
+              key={`${w}-${word.text}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${word.text}${word.gloss && showGloss ? `, ${word.gloss}` : ""}. Go to this line`}
+              onPress={onPress}
+              style={styles.word}
+            >
+              <Text style={[styles.kt, { fontFamily: wordFont, color }]}>{word.text}</Text>
+              {showGloss && word.gloss ? <Text style={[styles.kg, { color }]}>{word.gloss}</Text> : null}
+            </Pressable>
+          )
+        })}
+      </View>
+      {translation ? (
+        <Text style={[styles.translation, { color: translationColor(state) }]}>{translation}</Text>
+      ) : (
+        <View style={styles.noTranslation} />
+      )}
+    </View>
   )
 })
 
-function wordColor(state: "sung" | "current" | "coming"): string {
-  if (state === "current") return playerColors.gold
-  return state === "sung" ? playerColors.text : playerColors.textSoft
+function wordColor(line: LineState, word: "sung" | "current" | "coming"): string {
+  if (line === "done") return karaokeColors.word.past
+  if (line === "coming") return karaokeColors.word.coming
+  if (word === "current") return karaokeColors.word.now
+  return word === "sung" ? karaokeColors.word.sung : karaokeColors.word.onLine
+}
+
+function translationColor(line: LineState): string {
+  if (line === "done") return karaokeColors.translation.past
+  return line === "current" ? karaokeColors.translation.onLine : karaokeColors.translation.coming
 }
 
 const styles = StyleSheet.create({
   panel: {
     flex: 1,
-    borderRadius: amRadius.panel,
+    minHeight: 0,
+    marginTop: playerSize.panelMarginTop,
+    marginHorizontal: 10,
+    borderRadius: playerSize.panelRadius,
     borderWidth: 1,
-    borderColor: playerColors.glassEdge,
+    borderColor: playerColors.panelEdge,
     overflow: "hidden",
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
-  tint: { backgroundColor: playerColors.glass },
-  content: { padding: amSpace.s4, paddingBottom: amSpace.s16, gap: amSpace.s2 },
-  row: { paddingVertical: amSpace.s2, minHeight: 44, gap: amSpace.s1 },
-  inline: { flexShrink: 1 },
-  word: {
-    fontFamily: amFonts.regular,
-    fontSize: amFontSize.heading,
-    lineHeight: Math.round(amFontSize.heading * 1.25),
-    color: playerColors.text,
-  },
-  wordWrap: { flexDirection: "row", flexWrap: "wrap", columnGap: amSpace.s2 },
-  wordCol: { alignItems: "flex-start" },
-  gloss: {
-    fontFamily: amFonts.regular,
-    fontSize: playerSize.gloss,
-    lineHeight: 14,
-    color: playerColors.textFaint,
-  },
-  translation: { ...amType.body, fontSize: amFontSize.label, lineHeight: 18, color: playerColors.textSoft },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: amSpace.s6 },
-  emptyText: { ...amType.body, color: playerColors.textSoft, textAlign: "center" },
-  note: { ...amType.body, fontSize: amFontSize.label, color: playerColors.textFaint, paddingTop: amSpace.s4 },
+  tint: { backgroundColor: playerColors.panelFill },
+  scrollWrap: { flex: 1, minHeight: 0 },
+  fade: { position: "absolute", left: 0, right: 0 },
+  content: { paddingTop: 8, paddingBottom: 40 },
+  words: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" },
+  word: { alignItems: "flex-start", marginRight: 10, marginBottom: 2 },
+  kt: { fontSize: 23, lineHeight: 30, letterSpacing: -0.23 },
+  kg: { fontFamily: amFonts.medium, fontSize: 11, lineHeight: 14, letterSpacing: 0.22, opacity: 0.9 },
+  translation: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingBottom: 12 },
+  noTranslation: { height: 8 },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  emptyText: { fontFamily: amFonts.regular, fontSize: 16, lineHeight: 23, color: playerColors.textSoft, textAlign: "center" },
 })

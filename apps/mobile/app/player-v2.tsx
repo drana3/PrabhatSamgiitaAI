@@ -1,33 +1,36 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Alert, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { Car, ChevronDown, Ellipsis, Heart, ListMusic, ListPlus, Type } from "lucide-react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { DriveControls } from "@/components/player-v2/DriveControls"
 import { EmptyPlayer, type EmptyAction } from "@/components/player-v2/EmptyPlayer"
 import { LyricsOptionsSheet } from "@/components/player-v2/LyricsOptionsSheet"
 import { LyricsPanel } from "@/components/player-v2/LyricsPanel"
 import { PlaybackSheet } from "@/components/player-v2/PlaybackSheet"
+import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { PlayerToast, usePlayerToast } from "@/components/player-v2/PlayerToast"
+import { PlaylistSheet, type PlaylistSheetRow } from "@/components/player-v2/PlaylistSheet"
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
-import { QueueSheet, type QueueRow } from "@/components/player-v2/QueueSheet"
-import { Scrubber } from "@/components/player-v2/Scrubber"
+import { QueueSheet, splitQueue, type QueueRow } from "@/components/player-v2/QueueSheet"
+import { ThickScrubber, Waveform } from "@/components/player-v2/Scrubber"
+import { SourceSheet } from "@/components/player-v2/SourceSheet"
 import { TouchButton } from "@/components/player-v2/TouchButton"
 import { TransportRow } from "@/components/player-v2/TransportRow"
 import { PlayModeToggle, VersionChip } from "@/components/player-v2/VersionControls"
 import { VersionsSheet } from "@/components/player-v2/VersionsSheet"
 import { Reveal } from "@/components/today/motion"
-import { brandAssets } from "@/constants/brand"
-import { amGap, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
+import { amColors } from "@/constants/tokens/amColors"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
-import { hasPlayableAudio, randomPlayableSongNumber } from "@/lib/playableAudio"
+import { hasPlayableAudio, playableAudioCount, playableNumbersList, randomPlayableSongNumber } from "@/lib/playableAudio"
 import { hydratePlayableSong } from "@/lib/playback/radioAdvance"
-import { playlistSongNumbers, playPlaylist } from "@/lib/playPlaylist"
+import { playlistSongNumbers, playPlaylist, starterSongForNumber } from "@/lib/playPlaylist"
 import {
   activeQueue,
   canGoNext,
@@ -46,15 +49,20 @@ import {
   splitLines,
   splitWords,
 } from "@/lib/playerV2/lyricsSync"
-import { clampRate } from "@/lib/playerV2/playbackSpeed"
+import { formatRate, nextRate } from "@/lib/playerV2/playbackSpeed"
 import { sourceLabel } from "@/lib/playerV2/queueOps"
 import { realControllerDeps, realQueueActions, startPlayerV2Services } from "@/lib/playerV2/services"
-import { sleepLabel } from "@/lib/playerV2/sleepTimer"
-import { knownDuration, playButtonState } from "@/lib/playerV2/transportState"
+import { nextSleepStep, sleepLabel, sleepToast } from "@/lib/playerV2/sleepTimer"
 import {
-  effectivePlayMode,
-  versionPositionLabel,
-} from "@/lib/playerV2/versionMode"
+  activeSourceKey,
+  MINE_SOURCE_ID,
+  sourcePickedMessage,
+  sourceRows,
+  startNumber,
+  type SourceKey,
+} from "@/lib/playerV2/sources"
+import { knownDuration, playButtonState } from "@/lib/playerV2/transportState"
+import { effectivePlayMode, versionPositionLabel } from "@/lib/playerV2/versionMode"
 import { selectedVersionIndex, versionsFromSong, versionSummary } from "@/lib/playerV2/versions"
 import { readTodayCache } from "@/lib/todayCache"
 import { todayItemToMockSong } from "@/lib/today"
@@ -63,24 +71,31 @@ import { offlineRecordingState, useOfflineAudioStore } from "@/lib/offlineAudio"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
-import { usePlaylistStore } from "@/stores/playlistStore"
+import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useResumeStore } from "@/stores/resumeStore"
 import { resumePositionFor } from "@/lib/playerV2/resume"
 import type { MockSong } from "@/data/mock"
 import { href } from "@/utils/href"
 
+type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "source" | "playlist"
+
+/** The photograph of Shrii Shrii Anandamurti used by the design (public/mockup/img/c21a6e97...jpg). */
+const PLAYER_PHOTO = require("../assets/player-baba.jpg")
+
 /**
- * Player (spec SCR-12). Redesign screen, reachable at /player-v2 until the
- * tab bar branch makes it the Player tab. Dark forest ground in both themes,
- * the photograph fading in from the top, a karaoke lyric panel, version chip
- * with "This version / All N versions", transport, and the queue, versions,
- * lyrics and playback sheets. One audio engine: this screen only renders
- * playerStore state and sends commands to it.
+ * Player (prototype PLAYER, Main.dc.html). Dark forest ground in both themes, the
+ * photograph fading in from the top, the playing-from header, version chip and
+ * title, the "Play: This version | All N versions" switch, the word-by-word
+ * karaoke card, the waveform, the transport and the utility bar; Drive mode swaps
+ * the lyrics and transport for big controls. One audio engine: this screen only
+ * renders playerStore state and sends commands to it.
  */
 export default function PlayerV2Screen() {
   const router = useRouter()
   const theme = useAmTheme()
+  const insets = useSafeAreaInsets()
+  const toast = usePlayerToast()
 
   useEffect(() => {
     startPlayerV2Services()
@@ -112,6 +127,10 @@ export default function PlayerV2Screen() {
   const recentPlays = usePreferencesStore((s) => s.recentPlays)
   const resumeEntries = useResumeStore((s) => s.entries)
   const playlists = usePlaylistStore((s) => s.playlists)
+  const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
+  const addSong = usePlaylistStore((s) => s.addSong)
+  const removeSong = usePlaylistStore((s) => s.removeSong)
+  const flushPlaylists = usePlaylistStore((s) => s.flushSync)
   const authMode = useAuthStore((s) => s.mode)
   const offlineFiles = useOfflineAudioStore((s) => s.files)
   const offlineProgress = useOfflineAudioStore((s) => s.progress)
@@ -121,7 +140,7 @@ export default function PlayerV2Screen() {
   const removeAudio = useOfflineAudioStore((s) => s.remove)
   const stopIfPlayingLocalUri = usePlayerStore((s) => s.stopIfPlayingLocalUri)
 
-  const [sheet, setSheet] = useState<null | "versions" | "queue" | "lyrics" | "playback">(null)
+  const [sheet, setSheet] = useState<SheetName>(null)
   const [drive, setDrive] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [todaySong, setTodaySong] = useState<MockSong | null>(null)
@@ -183,11 +202,32 @@ export default function PlayerV2Screen() {
   const devanagariLines = useMemo(() => splitLines(song?.lyricsDevanagari), [song?.lyricsDevanagari])
   const useDevanagari = v2.script === "devanagari" && devanagariLines.length > 0
   const scriptLines = useDevanagari ? devanagariLines : romanLines
-  const aligned = useMemo(() => alignTranslation(scriptLines, song?.translation), [scriptLines, song?.translation])
-  const showTranslation = v2.translation === "en" && aligned != null
+
+  const englishLines = useMemo(() => alignTranslation(scriptLines, song?.translation), [scriptLines, song?.translation])
+  // TODO(api): Russian translations and word glosses come from lib/fixtures/player.ts until the catalog has them.
+  const russianLines = useMemo(
+    () => (song ? sampleRussianLines(song.number, scriptLines.length) : null),
+    [song, scriptLines.length],
+  )
+  const translationLines = v2.translation === "en" ? englishLines : v2.translation === "ru" ? russianLines : null
+  const showTranslation = translationLines != null
+  const hasTranslation = v2.translation === "en" ? englishLines != null : russianLines != null
+
+  const glosses = useMemo(() => {
+    const rows = scriptLines.map((line, i) => {
+      const roman = splitWords(romanLines[i] ?? "")
+      const words = splitWords(line)
+      // Devanagari shows the gloss of the Roman word in the same position.
+      const source = useDevanagari && roman.length === words.length ? roman : words
+      return source.map((word) => sampleGloss(word))
+    })
+    return rows.some((row) => row.some(Boolean)) ? rows : null
+  }, [scriptLines, romanLines, useDevanagari])
+  const showGloss = v2.wordMeanings && glosses != null
+
   const lyricLines = useMemo(
-    () => buildLyricLines(scriptLines, showTranslation ? aligned : null),
-    [scriptLines, aligned, showTranslation],
+    () => buildLyricLines(scriptLines, translationLines, showGloss ? glosses : null),
+    [scriptLines, translationLines, glosses, showGloss],
   )
   const timings = useMemo(() => lineTimings(scriptLines, knownLength ?? 0), [scriptLines, knownLength])
   const activeLine = activeLineIndex(timings, position)
@@ -211,15 +251,18 @@ export default function PlayerV2Screen() {
     : queue
   const queueRows: QueueRow[] = useMemo(() => {
     if (sheet !== "queue") return []
+    // Only the rows the sheet will draw look up a title; a long catalog list keeps cheap placeholders after them.
+    const { head, upcoming } = splitQueue(list.map((number) => ({ number })), song?.number ?? null)
+    const shown = [...head, ...upcoming].map((r) => r.number)
     const titles = new Map(
-      catalogSongsByNumbers(list, list.length).map((hit) => [hit.number, hit.firstLine || hit.title]),
+      catalogSongsByNumbers(shown, shown.length).map((hit) => [hit.number, hit.firstLine || hit.title]),
     )
     return list.map((number) => ({
       key: `ps-${number}`,
       number,
       title: titles.get(number) ?? `Prabhat Samgiita ${number}`,
     }))
-  }, [sheet, list])
+  }, [sheet, list, song?.number])
   const source = sourceLabel({ playbackMode, playlistName: activePlaylist?.name ?? null })
 
   // Offline state of the selected version, for the Download pill in the Versions sheet.
@@ -241,6 +284,7 @@ export default function PlayerV2Screen() {
         : offline.downloaded
           ? {
               label: "Downloaded · tap to remove",
+              done: true,
               disabled: false,
               onPress: () => {
                 void removeAudio(offline.key).then(() => stopIfPlayingLocalUri(offline.fileUri))
@@ -266,23 +310,104 @@ export default function PlayerV2Screen() {
     if (!goPrevious(deps)) storePrevious()
   }
   const onRepeat = () => {
-    v2.cycleRepeat()
+    const next = v2.cycleRepeat()
+    toast.show(next === "off" ? "Repeat off" : next === "all" ? `Repeat all in ${source}` : "Repeat this song")
   }
   const onShuffle = () => {
     queueActions.toggleShuffle()
   }
   const onFavourite = () => {
     if (!song) return
+    const wasSaved = isSaved
     void toggleSaved(song.id).then((result) => {
       if (result.needsAuth) router.push(href("/signin"))
+      else toast.show(wasSaved ? "Removed from Mine" : "Saved to Mine")
     })
-  }
-  const onAddToPlaylist = () => {
-    if (song) router.push(href(`/playlist/add?song=${song.number}`))
   }
   const onSeekLine = (index: number) => {
     const target = seekTargetForLine(timings, index)
     if (target != null) seekTo(target)
+  }
+  const onPlayMode = (next: "this" | "all") => {
+    v2.setPlayMode(next)
+    toast.show(next === "this" ? "Playing this version only" : `Playing all ${versions.length} versions in a row`)
+  }
+
+  // Lyrics display: each row steps through its options.
+  const onCycleScript = () => v2.setScript(v2.script === "roman" ? "devanagari" : "roman")
+  const onCycleTranslation = () => v2.setTranslation(v2.translation === "en" ? "ru" : v2.translation === "ru" ? "off" : "en")
+
+  // Play songs from
+  const sourceChoices = useMemo(
+    () =>
+      sourceRows({
+        catalogCount: playableAudioCount() || 5018,
+        savedCount: savedNumbers.size,
+        playlists: playlists.map((p) => ({ id: p.id, name: p.name, count: p.songs.length })),
+      }),
+    [savedNumbers.size, playlists],
+  )
+  const onPickSource = (key: SourceKey) => {
+    setSheet(null)
+    const current = song?.number ?? null
+    if (key === "all") {
+      const numbers = [...playableNumbersList()]
+      const first = startNumber(numbers, current, hasPlayableAudio)
+      if (first == null) return toast.show(sourcePickedMessage("All songs", 0))
+      usePlayerStore.setState({ activePlaylist: null })
+      usePlayerStore.getState().loadSong(starterSongForNumber(first), numbers, "default")
+      return toast.show(sourcePickedMessage("All songs", numbers.length))
+    }
+    if (key === "mine") {
+      const numbers = [...savedNumbers].sort((a, b) => a - b)
+      const first = startNumber(numbers, current, hasPlayableAudio)
+      if (first == null) return toast.show(sourcePickedMessage("Mine", 0))
+      usePlayerStore.setState({ activePlaylist: { id: MINE_SOURCE_ID, name: "Mine" } })
+      usePlayerStore.getState().loadSong(starterSongForNumber(first), numbers, "playlist")
+      return toast.show(sourcePickedMessage("Mine", numbers.length))
+    }
+    const playlist = playlists.find((p) => `pl:${p.id}` === key)
+    if (!playlist) return
+    const count = playlistSongNumbers(playlist).length
+    void playPlaylist(playlist)
+    toast.show(sourcePickedMessage(playlist.name, count))
+  }
+
+  // Add to playlist, in place
+  const playlistRows: PlaylistSheetRow[] = playlists.map((p) => ({
+    id: p.id,
+    name: p.name,
+    meta: `${p.songs.length} ${p.songs.length === 1 ? "song" : "songs"}`,
+    has: song ? playlistSongNumbers(p).includes(song.number) : false,
+  }))
+  const reportPlaylistFailure = (result: unknown) => {
+    if (result && typeof result === "object" && "needsAuth" in result) {
+      setSheet(null)
+      router.push(href("/signin"))
+    } else if (result && typeof result === "object" && "error" in result) {
+      Alert.alert("Playlist", String((result as { error: string }).error))
+    }
+  }
+  const onTogglePlaylist = (id: string, has: boolean) => {
+    if (!song) return
+    const name = playlists.find((p) => p.id === id)?.name ?? "playlist"
+    void (has ? removeSong(id, song.number) : addSong(id, song.number)).then((result) => {
+      if (!isPlaylist(result)) return reportPlaylistFailure(result)
+      toast.show(has ? `Removed from ${name}` : `Saved to ${name}`)
+      void flushPlaylists()
+    })
+  }
+  const onNewPlaylist = () => {
+    if (!song) return
+    const name = `Playlist ${playlists.length + 1}`
+    void createPlaylist(name).then((created) => {
+      if (!isPlaylist(created)) return reportPlaylistFailure(created)
+      void addSong(created.id, song.number).then((result) => {
+        if (!isPlaylist(result)) return reportPlaylistFailure(result)
+        toast.show(`Created ${name}`)
+        void flushPlaylists()
+      })
+    })
   }
 
   // Empty state data
@@ -321,12 +446,14 @@ export default function PlayerV2Screen() {
     onPress: () => void playPlaylist(p),
   }))
 
-  const sleepRunning = v2.sleep.kind === "off" ? null : sleepLabel(v2.sleep, now)
+  const sleepValue = v2.sleep.kind === "off" ? "Off" : sleepLabel(v2.sleep, now)
+  const canAdvance = canGoNext(deps) || playbackMode === "random"
+  const sourceKey = activeSourceKey(playbackMode, activePlaylist?.id)
 
   return (
     <View style={[styles.root, { backgroundColor: playerColors.ground }]}>
       <Image
-        source={brandAssets.guruQuoteHero}
+        source={PLAYER_PHOTO}
         style={styles.photo}
         contentFit="cover"
         contentPosition="top"
@@ -334,53 +461,53 @@ export default function PlayerV2Screen() {
       />
       <LinearGradient
         pointerEvents="none"
-        colors={[playerColors.groundClear, playerColors.groundMostly, playerColors.ground]}
-        locations={[0, 0.55, 1]}
+        colors={[playerColors.fadeTop, playerColors.fadeMid, playerColors.ground]}
+        locations={[0, 0.46, 0.82]}
         style={styles.photo}
       />
 
-      <SafeAreaView edges={["top", "bottom"]} style={styles.safe}>
-        <View style={[styles.column, { paddingBottom: playerSize.tabBarClearance }]}>
-          <Reveal index={0}>
-            <View style={styles.topBar}>
+      <View style={[styles.column, { paddingTop: insets.top || playerSize.topBand, paddingBottom: playerSize.tabBarClearance }]}>
+        <Reveal index={0}>
+          <View style={styles.topBar}>
+            <TouchButton
+              accessibilityRole="button"
+              accessibilityLabel={`${drive ? "Drive mode" : `Playing from ${source}`}. Change`}
+              onAction={() => setSheet("source")}
+              containerStyle={styles.sourceHit}
+              style={styles.sourceChip}
+            >
+              <Text style={styles.sourceText} numberOfLines={1}>
+                {drive ? "Drive mode" : `Playing from ${source}`}
+              </Text>
+              <PlayerIcon name="chevronDown" size={playerSize.chevron} color={amColors.white} />
+            </TouchButton>
+            {song && !drive ? (
               <TouchButton
                 accessibilityRole="button"
-                accessibilityLabel={`Playing from ${source}. Open the queue`}
-                onAction={() => setSheet("queue")}
-                style={styles.sourceChip}
+                accessibilityLabel="Lyrics display: script, translation, word meanings"
+                onAction={() => setSheet("lyrics")}
+                style={styles.aaButton}
               >
-                <Text style={styles.sourceText} numberOfLines={1}>
-                  Playing from {source}
-                </Text>
-                <ChevronDown size={16} color={playerColors.textSoft} />
+                <PlayerIcon name="aa" size={playerSize.topIcon} color={amColors.white} />
               </TouchButton>
-              {song ? (
-                <TouchButton
-                  accessibilityRole="button"
-                  accessibilityLabel="Lyrics options"
-                  onAction={() => setSheet("lyrics")}
-                  style={styles.round}
-                >
-                  <Type size={20} color={playerColors.text} />
-                </TouchButton>
-              ) : null}
-            </View>
-          </Reveal>
+            ) : null}
+          </View>
+        </Reveal>
 
-          {!song ? (
-            <Reveal index={1} style={styles.flex}>
-              <EmptyPlayer
-                title={"Nothing\nplaying"}
-                continueCard={emptyContinue}
-                today={emptyToday}
-                random={emptyRandom}
-                playlists={emptyPlaylists}
-              />
-            </Reveal>
-          ) : (
-            <>
-              <View style={styles.photoSpace} />
-              <Reveal index={1}>
+        {!song ? (
+          <Reveal index={1} style={styles.flex}>
+            <EmptyPlayer
+              title={"Nothing\nplaying"}
+              continueCard={emptyContinue}
+              today={emptyToday}
+              random={emptyRandom}
+              playlists={emptyPlaylists}
+            />
+          </Reveal>
+        ) : (
+          <>
+            <Reveal index={1}>
+              <View style={styles.titleBlock}>
                 {selectedVersion ? (
                   <VersionChip
                     songNumber={song.number}
@@ -391,210 +518,218 @@ export default function PlayerV2Screen() {
                 ) : (
                   <Text style={styles.noAudio}>PS {song.number} · No recording available yet</Text>
                 )}
-              </Reveal>
-
-              <Reveal index={2}>
-                <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
+                <Text style={styles.title} accessibilityRole="header">
                   {song.title}
                 </Text>
-              </Reveal>
+              </View>
+              <PlayModeToggle mode={mode} versionCount={versions.length} onChange={onPlayMode} />
+            </Reveal>
 
-              <Reveal index={3}>
-                <PlayModeToggle mode={mode} versionCount={versions.length} onChange={v2.setPlayMode} />
-              </Reveal>
-
-              {drive ? (
-                <View style={styles.flex} />
-              ) : (
-                <Reveal index={4} style={styles.flex}>
+            {drive ? (
+              <>
+                <View style={styles.driveSpace} />
+                <Reveal index={2}>
+                  <ThickScrubber position={position} duration={knownLength} onSeek={seekTo} />
+                </Reveal>
+                <Reveal index={3}>
+                  <View style={styles.driveControls}>
+                    <DriveControls
+                      playState={playState}
+                      canNext={canAdvance}
+                      onPlayPause={onPlayPause}
+                      onPrevious={onPrevious}
+                      onNext={onNext}
+                      onExit={() => setDrive(false)}
+                    />
+                  </View>
+                </Reveal>
+              </>
+            ) : (
+              <>
+                <Reveal index={2} style={styles.flex}>
                   <LyricsPanel
                     lines={lyricLines}
                     devanagari={useDevanagari}
                     activeLine={activeLine}
                     activeWord={activeWord}
-                    showGloss={false}
+                    showGloss={showGloss}
                     showTranslation={showTranslation}
                     onSeekToLine={onSeekLine}
                     emptyText="Lyrics are not available for this song yet."
-                    note={
-                      knownLength == null
-                        ? null
-                        : "The sung line is timed from the song length until line timestamps arrive."
-                    }
                   />
                 </Reveal>
-              )}
-
-              <Reveal index={5}>
-                <Scrubber position={position} duration={knownLength} onSeek={seekTo} />
-              </Reveal>
-
-              <Reveal index={6}>
-                {drive ? (
-                  <DriveControls
-                    playState={playState}
-                    canNext={canGoNext(deps) || playbackMode === "random"}
-                    onPlayPause={onPlayPause}
-                    onPrevious={onPrevious}
-                    onNext={onNext}
-                    onExit={() => setDrive(false)}
-                  />
-                ) : (
+                <View style={styles.gap} />
+                <Reveal index={3}>
+                  <Waveform position={position} duration={knownLength} songNumber={song.number} onSeek={seekTo} />
+                </Reveal>
+                <Reveal index={4}>
                   <TransportRow
                     playState={playState}
                     shuffleOn={v2.shuffleOriginal != null}
                     repeatMode={v2.repeatMode}
-                    canNext={canGoNext(deps) || playbackMode === "random"}
+                    canNext={canAdvance}
                     onPlayPause={onPlayPause}
                     onPrevious={onPrevious}
                     onNext={onNext}
                     onShuffle={onShuffle}
                     onRepeat={onRepeat}
                   />
-                )}
-              </Reveal>
-
-              {drive ? null : (
-                <Reveal index={7}>
+                </Reveal>
+                <Reveal index={5}>
                   <View style={styles.iconRow}>
-                    <IconButton label="Drive mode" onPress={() => setDrive(true)}>
-                      <Car size={playerSize.smallGlyph} color={playerColors.textSoft} />
-                    </IconButton>
-                    <IconButton label="Add to playlist" onPress={onAddToPlaylist}>
-                      <ListPlus size={playerSize.smallGlyph} color={playerColors.textSoft} />
-                    </IconButton>
-                    <IconButton label="Queue" onPress={() => setSheet("queue")}>
-                      <ListMusic size={playerSize.smallGlyph} color={playerColors.textSoft} />
-                    </IconButton>
-                    <IconButton label={isSaved ? "Remove from favourites" : "Add to favourites"} onPress={onFavourite}>
-                      <Heart
-                        size={playerSize.smallGlyph}
-                        color={isSaved ? playerColors.brand : playerColors.textSoft}
-                        fill={isSaved ? playerColors.brand : "none"}
+                    <UtilButton label="Drive mode" onPress={() => setDrive(true)}>
+                      <PlayerIcon name="drive" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
+                    </UtilButton>
+                    <UtilButton label="Add to playlist" onPress={() => setSheet("playlist")}>
+                      <PlayerIcon name="playlistAdd" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
+                    </UtilButton>
+                    <UtilButton label="Queue" onPress={() => setSheet("queue")}>
+                      <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
+                    </UtilButton>
+                    <UtilButton label={isSaved ? "Remove from Mine" : "Save to Mine"} onPress={onFavourite}>
+                      <PlayerIcon
+                        name="heart"
+                        size={playerSize.utilGlyph}
+                        color={isSaved ? playerColors.brand : playerColors.utilIcon}
+                        filled={isSaved}
                       />
-                    </IconButton>
-                    <IconButton label="More: speed and sleep timer" onPress={() => setSheet("playback")}>
-                      <Ellipsis size={playerSize.smallGlyph} color={playerColors.textSoft} />
-                    </IconButton>
+                    </UtilButton>
+                    <UtilButton label="More: speed, sleep timer" onPress={() => setSheet("playback")}>
+                      <PlayerIcon name="more" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
+                    </UtilButton>
                   </View>
                 </Reveal>
-              )}
-            </>
-          )}
-        </View>
+              </>
+            )}
+          </>
+        )}
+      </View>
 
-        <VersionsSheet
-          visible={sheet === "versions"}
-          theme={theme}
-          versions={versions}
-          selectedIndex={versionIndex}
-          download={downloadPill}
-          onSelect={(index) => {
-            const picked = versions[index]
-            if (song && picked && index !== versionIndex) playVersion(deps, song, picked)
-          }}
-          onClose={() => setSheet(null)}
-        />
-        <QueueSheet
-          visible={sheet === "queue"}
-          theme={theme}
-          sourceTitle={source}
-          rows={queueRows}
-          currentNumber={song?.number ?? null}
-          savedNumbers={savedNumbers}
-          isPlayable={playableOrUnknown}
-          onPlay={(number) => {
-            void playNumber(deps, number)
-            setSheet(null)
-          }}
-          onRemove={queueActions.remove}
-          onOrder={queueActions.setOrder}
-          onClearUpcoming={queueActions.clearUpcoming}
-          onClose={() => setSheet(null)}
-        />
-        <LyricsOptionsSheet
-          visible={sheet === "lyrics"}
-          theme={theme}
-          script={v2.script}
-          translation={v2.translation}
-          wordMeanings={false}
-          hasDevanagari={devanagariLines.length > 0}
-          hasLineTranslation={aligned != null}
-          hasWordMeanings={false}
-          onScript={v2.setScript}
-          onTranslation={v2.setTranslation}
-          onWordMeanings={v2.setWordMeanings}
-          onClose={() => setSheet(null)}
-        />
-        <PlaybackSheet
-          visible={sheet === "playback"}
-          theme={theme}
-          rate={rate}
-          sleep={v2.sleep}
-          sleepRunning={sleepRunning}
-          onRate={(next) => setRate(clampRate(next))}
-          onSleepMinutes={(minutes) => v2.startSleepMinutes(minutes)}
-          onSleepEndOfSong={() => song && v2.startSleepEndOfSong(song.number)}
-          onSleepOff={v2.cancelSleep}
-          onDrive={() => {
-            setSheet(null)
-            setDrive(true)
-          }}
-          onClose={() => setSheet(null)}
-        />
-      </SafeAreaView>
+      <PlayerToast message={toast.message} theme={theme} />
+
+      <VersionsSheet
+        visible={sheet === "versions"}
+        theme={theme}
+        versions={versions}
+        selectedIndex={versionIndex}
+        download={downloadPill}
+        onSelect={(index) => {
+          const picked = versions[index]
+          if (song && picked && index !== versionIndex) playVersion(deps, song, picked)
+        }}
+        onClose={() => setSheet(null)}
+      />
+      <QueueSheet
+        visible={sheet === "queue"}
+        theme={theme}
+        sourceTitle={source}
+        rows={queueRows}
+        currentNumber={song?.number ?? null}
+        currentTitle={song?.title ?? ""}
+        playing={isPlaying}
+        savedNumbers={savedNumbers}
+        isPlayable={playableOrUnknown}
+        onPlay={(number) => {
+          void playNumber(deps, number)
+          setSheet(null)
+        }}
+        onRemove={queueActions.remove}
+        onOrder={queueActions.setOrder}
+        onClearUpcoming={queueActions.clearUpcoming}
+        onClose={() => setSheet(null)}
+      />
+      <LyricsOptionsSheet
+        visible={sheet === "lyrics"}
+        theme={theme}
+        script={v2.script}
+        translation={v2.translation}
+        wordMeanings={v2.wordMeanings}
+        hasDevanagari={devanagariLines.length > 0}
+        hasTranslation={hasTranslation}
+        hasWordMeanings={glosses != null}
+        onCycleScript={onCycleScript}
+        onCycleTranslation={onCycleTranslation}
+        onToggleWordMeanings={() => v2.setWordMeanings(!v2.wordMeanings)}
+        onClose={() => setSheet(null)}
+      />
+      <PlaybackSheet
+        visible={sheet === "playback"}
+        theme={theme}
+        rate={rate}
+        sleepValue={sleepValue}
+        onCycleSpeed={() => setRate(nextRate(rate))}
+        onCycleSleep={() => {
+          const next = nextSleepStep(v2.sleep, song?.number ?? 0, Date.now())
+          if (next.kind === "off") v2.cancelSleep()
+          else if (next.kind === "minutes") v2.startSleepMinutes(next.minutes)
+          else v2.startSleepEndOfSong(next.songNumber)
+          toast.show(sleepToast(next))
+        }}
+        onDrive={() => {
+          setSheet(null)
+          setDrive(true)
+        }}
+        onClose={() => setSheet(null)}
+      />
+      <SourceSheet
+        visible={sheet === "source"}
+        theme={theme}
+        rows={sourceChoices}
+        activeKey={sourceKey}
+        onPick={onPickSource}
+        onClose={() => setSheet(null)}
+      />
+      <PlaylistSheet
+        visible={sheet === "playlist"}
+        theme={theme}
+        songTitle={song?.title ?? ""}
+        rows={playlistRows}
+        onToggle={onTogglePlaylist}
+        onNew={onNewPlaylist}
+        onClose={() => setSheet(null)}
+      />
     </View>
   )
 }
 
-function IconButton({ label, onPress, children }: { label: string; onPress: () => void; children: ReactNode }) {
+function UtilButton({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
   return (
-    <TouchButton accessibilityRole="button" accessibilityLabel={label} onAction={onPress} style={styles.icon}>
+    <TouchButton accessibilityRole="button" accessibilityLabel={label} onAction={onPress} style={styles.util}>
       {children}
     </TouchButton>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { ...StyleSheet.absoluteFillObject },
   photo: { position: "absolute", top: 0, left: 0, right: 0, height: playerSize.photoHeight },
-  safe: { flex: 1 },
-  column: { flex: 1, paddingHorizontal: amGap.gutter, gap: amSpace.s3 },
-  flex: { flex: 1 },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 56 },
-  sourceChip: {
+  column: { flex: 1 },
+  flex: { flex: 1, minHeight: 0 },
+  gap: { height: 8 },
+  topBar: {
+    height: playerSize.topBar,
     flexDirection: "row",
     alignItems: "center",
-    gap: amSpace.s2,
-    minHeight: amTouchTarget,
-    paddingHorizontal: amSpace.s3,
-    borderRadius: 9999,
-    backgroundColor: playerColors.glass,
-    borderWidth: 1,
-    borderColor: playerColors.glassEdge,
-    maxWidth: 260,
+    justifyContent: "space-between",
+    paddingLeft: playerSize.topBarInsetLeft,
+    paddingRight: playerSize.topBarInsetRight,
   },
-  sourceText: { ...amType.label, color: playerColors.text, flexShrink: 1 },
-  round: {
-    width: amTouchTarget,
-    height: amTouchTarget,
-    borderRadius: amTouchTarget / 2,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: playerColors.glass,
-    borderWidth: 1,
-    borderColor: playerColors.glassEdge,
-  },
-  /** Keeps the title below the face (spec section 1: the title never crosses the eyes). */
-  photoSpace: { height: amSpace.s8 },
+  sourceHit: { flexShrink: 1 },
+  sourceChip: { flexDirection: "row", alignItems: "center", gap: 4, height: playerSize.topButton },
+  sourceText: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2, textTransform: "uppercase", color: amColors.white, flexShrink: 1 },
+  aaButton: { width: playerSize.topButton, height: playerSize.topButton, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
+  titleBlock: { paddingHorizontal: 20, gap: playerSize.titleGap, marginTop: playerSize.titleLift },
   title: {
-    ...amType.title,
-    fontSize: playerSize.title,
+    fontFamily: amFonts.display,
+    fontSize: playerSize.titleFont,
     lineHeight: playerSize.titleLine,
-    letterSpacing: playerSize.title * -0.02,
+    letterSpacing: playerSize.titleFont * -0.02,
+    textTransform: "uppercase",
     color: playerColors.text,
   },
-  noAudio: { ...amType.label, color: playerColors.gold },
-  iconRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: amSpace.s2 },
-  icon: { width: playerSize.small, height: playerSize.small, alignItems: "center", justifyContent: "center" },
+  noAudio: { fontFamily: amFonts.bold, fontSize: 13, color: playerColors.gold },
+  driveSpace: { flex: 1, minHeight: 12 },
+  driveControls: { marginTop: 16 },
+  iconRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6, marginHorizontal: 24 },
+  util: { width: playerSize.util, height: playerSize.util, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
 })

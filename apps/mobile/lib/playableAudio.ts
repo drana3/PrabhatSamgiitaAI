@@ -43,3 +43,8 @@ export function nextPlayableInQueue(
   }
   return null
 }
+
+/** Every PS number that has a known audio file, ascending. Do not mutate. */
+export function playableNumbersList(): readonly number[] {
+  return PLAYABLE_LIST
+}

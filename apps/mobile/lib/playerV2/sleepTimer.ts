@@ -55,3 +55,17 @@ export function sleepLabel(timer: SleepTimer, now: number): string {
   if (timer.kind === "endOfSong") return "End of song"
   return formatSleepRemaining(sleepRemainingMs(timer, now) ?? 0)
 }
+
+/** The More sheet row steps Off, 15 min, 30 min, End of song, then Off again (prototype: Off, 15, 30). */
+export function nextSleepStep(timer: SleepTimer, songNumber: number, now: number): SleepTimer {
+  if (timer.kind === "off") return startSleepMinutes(15, now)
+  if (timer.kind === "minutes") return timer.minutes < 30 ? startSleepMinutes(30, now) : startSleepEndOfSong(songNumber)
+  return SLEEP_OFF
+}
+
+/** Toast text after a step of {@link nextSleepStep}. */
+export function sleepToast(timer: SleepTimer): string {
+  if (timer.kind === "off") return "Sleep timer off"
+  if (timer.kind === "endOfSong") return "Sleep timer: end of song"
+  return `Sleep timer: ${timer.minutes} min`
+}
