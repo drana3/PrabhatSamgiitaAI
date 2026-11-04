@@ -1,0 +1,1606 @@
+{
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 370,
+   "w": 390,
+   "h": 844,
+   "title": "Prototype, all screens",
+   "is_interactive": true
+  },
+  "Today.dc.html": {
+   "x": 0,
+   "y": 1834,
+   "w": 390,
+   "h": 844,
+   "title": "Today, three songs for today",
+   "is_interactive": true
+  },
+  "TodayOne.dc.html": {
+   "x": 470,
+   "y": 1834,
+   "w": 390,
+   "h": 844,
+   "title": "Today, one song for today",
+   "is_interactive": true
+  },
+  "TodayFest.dc.html": {
+   "x": 940,
+   "y": 1834,
+   "w": 390,
+   "h": 844,
+   "title": "Today, festival day",
+   "is_interactive": true
+  },
+  "TodaySeason.dc.html": {
+   "x": 1410,
+   "y": 1834,
+   "w": 390,
+   "h": 844,
+   "title": "Today, season",
+   "is_interactive": true
+  },
+  "Search.dc.html": {
+   "x": 1880,
+   "y": 1834,
+   "w": 390,
+   "h": 844,
+   "title": "Search, results",
+   "is_interactive": true
+  },
+  "SearchHint.dc.html": {
+   "x": 2350,
+   "y": 1834,
+   "w": 390,
+   "h": 844,
+   "title": "Search, hints",
+   "is_interactive": true
+  },
+  "SearchName.dc.html": {
+   "x": 2820,
+   "y": 1834,
+   "w": 390,
+   "h": 844,
+   "title": "Search, a name",
+   "is_interactive": true
+  },
+  "Songs.dc.html": {
+   "x": 0,
+   "y": 3298,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, Catalog",
+   "is_interactive": true
+  },
+  "SongsScrolled.dc.html": {
+   "x": 470,
+   "y": 3298,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, category strip pinned while scrolling",
+   "is_interactive": true
+  },
+  "SongsSort.dc.html": {
+   "x": 940,
+   "y": 3298,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, sort sheet, nine orders",
+   "is_interactive": true
+  },
+  "SongsAz.dc.html": {
+   "x": 1410,
+   "y": 3298,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, A to Z with letter headers",
+   "is_interactive": true
+  },
+  "SongsRail.dc.html": {
+   "x": 1880,
+   "y": 3298,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, fast-scroll rail held, bubble shows the letter",
+   "is_interactive": true
+  },
+  "SongsCat.dc.html": {
+   "x": 0,
+   "y": 4272,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, sorted by category",
+   "is_interactive": true
+  },
+  "Collections.dc.html": {
+   "x": 470,
+   "y": 4272,
+   "w": 390,
+   "h": 844,
+   "title": "Collections",
+   "is_interactive": true
+  },
+  "Mine.dc.html": {
+   "x": 940,
+   "y": 4272,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, Mine",
+   "is_interactive": true
+  },
+  "Story.dc.html": {
+   "x": 1410,
+   "y": 4272,
+   "w": 390,
+   "h": 844,
+   "title": "Story sheet",
+   "is_interactive": true
+  },
+  "Song.dc.html": {
+   "x": 0,
+   "y": 5736,
+   "w": 390,
+   "h": 844,
+   "title": "Song, lyrics with word gloss",
+   "is_interactive": true
+  },
+  "SongBoth.dc.html": {
+   "x": 470,
+   "y": 5736,
+   "w": 390,
+   "h": 844,
+   "title": "Song, Roman and English",
+   "is_interactive": true
+  },
+  "SongDeva.dc.html": {
+   "x": 940,
+   "y": 5736,
+   "w": 390,
+   "h": 844,
+   "title": "Song, Devanagari",
+   "is_interactive": true
+  },
+  "SongLang.dc.html": {
+   "x": 1410,
+   "y": 5736,
+   "w": 390,
+   "h": 844,
+   "title": "Song, script and translation sheet",
+   "is_interactive": true
+  },
+  "SongTwo.dc.html": {
+   "x": 1880,
+   "y": 5736,
+   "w": 390,
+   "h": 844,
+   "title": "Song, two translations",
+   "is_interactive": true
+  },
+  "SongScrolled.dc.html": {
+   "x": 0,
+   "y": 6710,
+   "w": 390,
+   "h": 844,
+   "title": "Song, tab bar pinned while scrolling",
+   "is_interactive": true
+  },
+  "SongDl.dc.html": {
+   "x": 470,
+   "y": 6710,
+   "w": 390,
+   "h": 844,
+   "title": "Song, versions and download",
+   "is_interactive": true
+  },
+  "SongVersions.dc.html": {
+   "x": 940,
+   "y": 6710,
+   "w": 390,
+   "h": 844,
+   "title": "Song, versions sheet",
+   "is_interactive": true
+  },
+  "SongWatch.dc.html": {
+   "x": 1410,
+   "y": 6710,
+   "w": 390,
+   "h": 844,
+   "title": "Song, Watch tab, video",
+   "is_interactive": true
+  },
+  "SongGuitar.dc.html": {
+   "x": 1880,
+   "y": 6710,
+   "w": 390,
+   "h": 844,
+   "title": "Song, guitar version, chords on",
+   "is_interactive": true
+  },
+  "SongWords.dc.html": {
+   "x": 0,
+   "y": 7684,
+   "w": 390,
+   "h": 844,
+   "title": "Song, word by word, grid",
+   "is_interactive": true
+  },
+  "SongWordsTwo.dc.html": {
+   "x": 470,
+   "y": 7684,
+   "w": 390,
+   "h": 844,
+   "title": "Song, word by word, two languages",
+   "is_interactive": true
+  },
+  "SongMeaning.dc.html": {
+   "x": 940,
+   "y": 7684,
+   "w": 390,
+   "h": 844,
+   "title": "Song, meaning",
+   "is_interactive": true
+  },
+  "SongExplain.dc.html": {
+   "x": 1410,
+   "y": 7684,
+   "w": 390,
+   "h": 844,
+   "title": "Song, explained",
+   "is_interactive": true
+  },
+  "SongPl.dc.html": {
+   "x": 1880,
+   "y": 7684,
+   "w": 390,
+   "h": 844,
+   "title": "Song, add to playlist",
+   "is_interactive": true
+  },
+  "SongChords.dc.html": {
+   "x": 0,
+   "y": 8658,
+   "w": 390,
+   "h": 844,
+   "title": "Song, chords tab, guitar, capo 5",
+   "is_interactive": true
+  },
+  "SongChordsIn.dc.html": {
+   "x": 470,
+   "y": 8658,
+   "w": 390,
+   "h": 844,
+   "title": "Song, guitar chords above the lyrics",
+   "is_interactive": true
+  },
+  "SongChordsSound.dc.html": {
+   "x": 940,
+   "y": 8658,
+   "w": 390,
+   "h": 844,
+   "title": "Song, chords, sounding names",
+   "is_interactive": true
+  },
+  "SongChordsNoCapo.dc.html": {
+   "x": 1410,
+   "y": 8658,
+   "w": 390,
+   "h": 844,
+   "title": "Song, chords, no capo",
+   "is_interactive": true
+  },
+  "SongGuitarScrolled.dc.html": {
+   "x": 1880,
+   "y": 8658,
+   "w": 390,
+   "h": 844,
+   "title": "Song, guitar version, scrolled",
+   "is_interactive": true
+  },
+  "SongHarmLyr.dc.html": {
+   "x": 0,
+   "y": 9632,
+   "w": 390,
+   "h": 844,
+   "title": "Song, harmonium chords and swaras above the lyrics",
+   "is_interactive": true
+  },
+  "SongHarmonium.dc.html": {
+   "x": 470,
+   "y": 9632,
+   "w": 390,
+   "h": 844,
+   "title": "Song, harmonium, keys view",
+   "is_interactive": true
+  },
+  "Player.dc.html": {
+   "x": 0,
+   "y": 11096,
+   "w": 390,
+   "h": 844,
+   "title": "Player, karaoke with word meanings",
+   "is_interactive": true
+  },
+  "PlayerRep.dc.html": {
+   "x": 470,
+   "y": 11096,
+   "w": 390,
+   "h": 844,
+   "title": "Player, repeat one song",
+   "is_interactive": true
+  },
+  "PlayerSrc.dc.html": {
+   "x": 940,
+   "y": 11096,
+   "w": 390,
+   "h": 844,
+   "title": "Player, play from, choose a list",
+   "is_interactive": true
+  },
+  "PlayerPl.dc.html": {
+   "x": 1410,
+   "y": 11096,
+   "w": 390,
+   "h": 844,
+   "title": "Player, add to playlist",
+   "is_interactive": true
+  },
+  "Drive.dc.html": {
+   "x": 1880,
+   "y": 11096,
+   "w": 390,
+   "h": 844,
+   "title": "Player, Drive on",
+   "is_interactive": true
+  },
+  "PlayerLyr.dc.html": {
+   "x": 2350,
+   "y": 11096,
+   "w": 390,
+   "h": 844,
+   "title": "Player, Lyrics display sheet",
+   "is_interactive": true
+  },
+  "PlayerMore.dc.html": {
+   "x": 0,
+   "y": 12070,
+   "w": 390,
+   "h": 844,
+   "title": "Player, More sheet, speed and sleep",
+   "is_interactive": true
+  },
+  "Queue.dc.html": {
+   "x": 470,
+   "y": 12070,
+   "w": 390,
+   "h": 844,
+   "title": "Player, queue from the chosen list",
+   "is_interactive": true
+  },
+  "KaraokeRu.dc.html": {
+   "x": 940,
+   "y": 12070,
+   "w": 390,
+   "h": 844,
+   "title": "Player, karaoke, Russian",
+   "is_interactive": true
+  },
+  "KaraokeDeva.dc.html": {
+   "x": 1410,
+   "y": 12070,
+   "w": 390,
+   "h": 844,
+   "title": "Player, karaoke, Devanagari",
+   "is_interactive": true
+  },
+  "PlayerVA.dc.html": {
+   "x": 0,
+   "y": 13534,
+   "w": 390,
+   "h": 844,
+   "title": "Player, play all versions on",
+   "is_interactive": true
+  },
+  "Learn.dc.html": {
+   "x": 0,
+   "y": 14998,
+   "w": 390,
+   "h": 844,
+   "title": "Learn",
+   "is_interactive": true
+  },
+  "Quiz.dc.html": {
+   "x": 470,
+   "y": 14998,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, quiz",
+   "is_interactive": true
+  },
+  "QuizDone.dc.html": {
+   "x": 940,
+   "y": 14998,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, quiz result",
+   "is_interactive": true
+  },
+  "Harm.dc.html": {
+   "x": 1410,
+   "y": 14998,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, harmonium keys",
+   "is_interactive": true
+  },
+  "Index.dc.html": {
+   "x": 1880,
+   "y": 14998,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, raga index",
+   "is_interactive": true
+  },
+  "Cards.dc.html": {
+   "x": 0,
+   "y": 15972,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, word card, question",
+   "is_interactive": true
+  },
+  "CardsBack.dc.html": {
+   "x": 470,
+   "y": 15972,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, word card, answer",
+   "is_interactive": true
+  },
+  "CardsMid.dc.html": {
+   "x": 940,
+   "y": 15972,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, cards, session in progress",
+   "is_interactive": true
+  },
+  "CardsDone.dc.html": {
+   "x": 1410,
+   "y": 15972,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, cards, done for today",
+   "is_interactive": true
+  },
+  "CardsSong.dc.html": {
+   "x": 1880,
+   "y": 15972,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, cards from one song",
+   "is_interactive": true
+  },
+  "CardsAdaptive.dc.html": {
+   "x": 0,
+   "y": 16946,
+   "w": 390,
+   "h": 844,
+   "title": "Cards, Adaptive review style",
+   "is_interactive": true
+  },
+  "CardsDaily.dc.html": {
+   "x": 470,
+   "y": 16946,
+   "w": 390,
+   "h": 844,
+   "title": "Cards, Daily practice review style",
+   "is_interactive": true
+  },
+  "Srs.dc.html": {
+   "x": 940,
+   "y": 16946,
+   "w": 390,
+   "h": 844,
+   "title": "Review style, choose how words come back",
+   "is_interactive": true
+  },
+  "LearnPath.dc.html": {
+   "x": 1410,
+   "y": 16946,
+   "w": 390,
+   "h": 844,
+   "title": "Learn a song, step 1 done",
+   "is_interactive": true
+  },
+  "LearnPathNew.dc.html": {
+   "x": 1880,
+   "y": 16946,
+   "w": 390,
+   "h": 844,
+   "title": "Learn a song, just started",
+   "is_interactive": true
+  },
+  "LearnPathDone.dc.html": {
+   "x": 0,
+   "y": 17920,
+   "w": 390,
+   "h": 844,
+   "title": "Learn a song, all three steps",
+   "is_interactive": true
+  },
+  "ChordHow.dc.html": {
+   "x": 470,
+   "y": 17920,
+   "w": 390,
+   "h": 844,
+   "title": "Harmonium, how chords work",
+   "is_interactive": true
+  },
+  "LearnA.dc.html": {
+   "x": 0,
+   "y": 19384,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, option A, practice first",
+   "is_interactive": true
+  },
+  "LearnB.dc.html": {
+   "x": 470,
+   "y": 19384,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, option B, tab Practice",
+   "is_interactive": true
+  },
+  "LearnBLib.dc.html": {
+   "x": 940,
+   "y": 19384,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, option B, tab My songs",
+   "is_interactive": true
+  },
+  "LearnBTools.dc.html": {
+   "x": 1410,
+   "y": 19384,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, option B, tab Tools",
+   "is_interactive": true
+  },
+  "LearnC.dc.html": {
+   "x": 1880,
+   "y": 19384,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, option C, library first",
+   "is_interactive": true
+  },
+  "LearnAFull.dc.html": {
+   "x": 0,
+   "y": 20358,
+   "w": 390,
+   "h": 2322,
+   "title": "Learn, option A, full page",
+   "is_interactive": true
+  },
+  "LearnBFull.dc.html": {
+   "x": 470,
+   "y": 20358,
+   "w": 390,
+   "h": 1442,
+   "title": "Learn, option B, Practice, full",
+   "is_interactive": true
+  },
+  "LearnBLibFull.dc.html": {
+   "x": 940,
+   "y": 20358,
+   "w": 390,
+   "h": 1481,
+   "title": "Learn, option B, My songs, full",
+   "is_interactive": true
+  },
+  "LearnBToolsFull.dc.html": {
+   "x": 1410,
+   "y": 20358,
+   "w": 390,
+   "h": 1528,
+   "title": "Learn, option B, Tools, full",
+   "is_interactive": true
+  },
+  "LearnCFull.dc.html": {
+   "x": 1880,
+   "y": 20358,
+   "w": 390,
+   "h": 1973,
+   "title": "Learn, option C, full page",
+   "is_interactive": true
+  },
+  "TodayC2.dc.html": {
+   "x": 0,
+   "y": 23300,
+   "w": 390,
+   "h": 844,
+   "title": "Today, set 2, Forest panel",
+   "is_interactive": true
+  },
+  "TodayC3.dc.html": {
+   "x": 470,
+   "y": 23300,
+   "w": 390,
+   "h": 844,
+   "title": "Today, set 3, Dawn",
+   "is_interactive": true
+  },
+  "TodayC4.dc.html": {
+   "x": 940,
+   "y": 23300,
+   "w": 390,
+   "h": 844,
+   "title": "Today, set 4, Ink and flame",
+   "is_interactive": true
+  },
+  "TodayC2Full.dc.html": {
+   "x": 0,
+   "y": 24274,
+   "w": 390,
+   "h": 2758,
+   "title": "Today, set 2, full",
+   "is_interactive": true
+  },
+  "TodayC3Full.dc.html": {
+   "x": 470,
+   "y": 24274,
+   "w": 390,
+   "h": 2737,
+   "title": "Today, set 3, full",
+   "is_interactive": true
+  },
+  "TodayC4Full.dc.html": {
+   "x": 940,
+   "y": 24274,
+   "w": 390,
+   "h": 2722,
+   "title": "Today, set 4, full",
+   "is_interactive": true
+  },
+  "Profile.dc.html": {
+   "x": 0,
+   "y": 27652,
+   "w": 390,
+   "h": 844,
+   "title": "Profile sheet",
+   "is_interactive": true
+  },
+  "Storage.dc.html": {
+   "x": 470,
+   "y": 27652,
+   "w": 390,
+   "h": 844,
+   "title": "Storage and downloads",
+   "is_interactive": true
+  },
+  "StorageSel.dc.html": {
+   "x": 940,
+   "y": 27652,
+   "w": 390,
+   "h": 844,
+   "title": "Storage, selected",
+   "is_interactive": true
+  },
+  "PcToday.dc.html": {
+   "x": 0,
+   "y": 29116,
+   "w": 390,
+   "h": 844,
+   "title": "Today, sand and orange",
+   "is_interactive": true
+  },
+  "PcSongs.dc.html": {
+   "x": 470,
+   "y": 29116,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, sand and orange",
+   "is_interactive": true
+  },
+  "PcLearn.dc.html": {
+   "x": 940,
+   "y": 29116,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, sand and orange",
+   "is_interactive": true
+  },
+  "PcPlayer.dc.html": {
+   "x": 1410,
+   "y": 29116,
+   "w": 390,
+   "h": 844,
+   "title": "Player, dark green",
+   "is_interactive": true
+  },
+  "PcSong.dc.html": {
+   "x": 1880,
+   "y": 29116,
+   "w": 390,
+   "h": 844,
+   "title": "Song page, sand and orange",
+   "is_interactive": true
+  },
+  "SysIosLock.dc.html": {
+   "x": 0,
+   "y": 30580,
+   "w": 390,
+   "h": 844,
+   "title": "iPhone, lock screen, now playing",
+   "is_interactive": false
+  },
+  "SysIosLyrics.dc.html": {
+   "x": 470,
+   "y": 30580,
+   "w": 390,
+   "h": 844,
+   "title": "iPhone, lock screen, lyrics expanded (ideal)",
+   "is_interactive": false
+  },
+  "SysIosHome.dc.html": {
+   "x": 940,
+   "y": 30580,
+   "w": 390,
+   "h": 844,
+   "title": "iPhone, app closed, Dynamic Island and widget",
+   "is_interactive": false
+  },
+  "SysAndLock.dc.html": {
+   "x": 1410,
+   "y": 30580,
+   "w": 390,
+   "h": 844,
+   "title": "Android, lock screen, now playing",
+   "is_interactive": false
+  },
+  "SysAndShade.dc.html": {
+   "x": 1880,
+   "y": 30580,
+   "w": 390,
+   "h": 844,
+   "title": "Android, notification shade",
+   "is_interactive": false
+  },
+  "SysAndLyrics.dc.html": {
+   "x": 2350,
+   "y": 30580,
+   "w": 390,
+   "h": 844,
+   "title": "Android, lock screen, lyrics line (ideal)",
+   "is_interactive": false
+  },
+  "Logo.dc.html": {
+   "x": 0,
+   "y": 32044,
+   "w": 1200,
+   "h": 4181,
+   "title": "Logo options",
+   "is_interactive": false
+  },
+  "TodayFull.dc.html": {
+   "x": 0,
+   "y": 36845,
+   "w": 390,
+   "h": 2737,
+   "title": "Today, full page",
+   "is_interactive": true
+  },
+  "SongsFull.dc.html": {
+   "x": 470,
+   "y": 36845,
+   "w": 390,
+   "h": 1868,
+   "title": "Songs, full page",
+   "is_interactive": true
+  },
+  "CollectionsFull.dc.html": {
+   "x": 940,
+   "y": 36845,
+   "w": 390,
+   "h": 1780,
+   "title": "Collections, full page",
+   "is_interactive": true
+  },
+  "MineFull.dc.html": {
+   "x": 1410,
+   "y": 36845,
+   "w": 390,
+   "h": 1735,
+   "title": "Mine, full page",
+   "is_interactive": true
+  },
+  "LearnFull.dc.html": {
+   "x": 1880,
+   "y": 36845,
+   "w": 390,
+   "h": 1442,
+   "title": "Learn, full page",
+   "is_interactive": true
+  },
+  "SongAll.dc.html": {
+   "x": 0,
+   "y": 39712,
+   "w": 390,
+   "h": 5113,
+   "title": "Song page, top to bottom",
+   "is_interactive": true
+  },
+  "ProfileFull.dc.html": {
+   "x": 0,
+   "y": 44955,
+   "w": 390,
+   "h": 883,
+   "title": "Profile sheet, full",
+   "is_interactive": true
+  },
+  "StorageFull.dc.html": {
+   "x": 470,
+   "y": 44955,
+   "w": 390,
+   "h": 950,
+   "title": "Storage, full",
+   "is_interactive": true
+  },
+  "PathFull.dc.html": {
+   "x": 940,
+   "y": 44955,
+   "w": 390,
+   "h": 1297,
+   "title": "Learn a song, full",
+   "is_interactive": true
+  },
+  "ChordHowFull.dc.html": {
+   "x": 1410,
+   "y": 44955,
+   "w": 390,
+   "h": 2013,
+   "title": "Harmonium chords, full",
+   "is_interactive": true
+  },
+  "IndexFull.dc.html": {
+   "x": 1880,
+   "y": 44955,
+   "w": 390,
+   "h": 1000,
+   "title": "Raga index, full",
+   "is_interactive": true
+  },
+  "SongLangFull.dc.html": {
+   "x": 0,
+   "y": 47098,
+   "w": 390,
+   "h": 1300,
+   "title": "Script and translation sheet, full",
+   "is_interactive": true
+  },
+  "SrsFull.dc.html": {
+   "x": 470,
+   "y": 47098,
+   "w": 390,
+   "h": 1718,
+   "title": "Review style sheet, full",
+   "is_interactive": true
+  },
+  "TodayDark.dc.html": {
+   "x": 3600,
+   "y": 370,
+   "w": 390,
+   "h": 844,
+   "title": "Today, dark",
+   "is_interactive": true
+  },
+  "SongsDark.dc.html": {
+   "x": 4070,
+   "y": 370,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, dark",
+   "is_interactive": true
+  },
+  "SongsRailDark.dc.html": {
+   "x": 4540,
+   "y": 370,
+   "w": 390,
+   "h": 844,
+   "title": "Songs, A to Z rail, dark",
+   "is_interactive": true
+  },
+  "CollectionsDark.dc.html": {
+   "x": 5010,
+   "y": 370,
+   "w": 390,
+   "h": 844,
+   "title": "Collections, dark",
+   "is_interactive": true
+  },
+  "MineDark.dc.html": {
+   "x": 5480,
+   "y": 370,
+   "w": 390,
+   "h": 844,
+   "title": "Mine, dark",
+   "is_interactive": true
+  },
+  "LearnDark.dc.html": {
+   "x": 3600,
+   "y": 1344,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, dark",
+   "is_interactive": true
+  },
+  "SearchDark.dc.html": {
+   "x": 4070,
+   "y": 1344,
+   "w": 390,
+   "h": 844,
+   "title": "Search, dark",
+   "is_interactive": true
+  },
+  "StoryDark.dc.html": {
+   "x": 4540,
+   "y": 1344,
+   "w": 390,
+   "h": 844,
+   "title": "Story sheet, dark",
+   "is_interactive": true
+  },
+  "SongDark.dc.html": {
+   "x": 3600,
+   "y": 2808,
+   "w": 390,
+   "h": 844,
+   "title": "Song, Roman and English, dark",
+   "is_interactive": true
+  },
+  "SongWordsDark.dc.html": {
+   "x": 4070,
+   "y": 2808,
+   "w": 390,
+   "h": 844,
+   "title": "Song, word by word, dark",
+   "is_interactive": true
+  },
+  "SongChordsDark.dc.html": {
+   "x": 4540,
+   "y": 2808,
+   "w": 390,
+   "h": 844,
+   "title": "Song, guitar chords, dark",
+   "is_interactive": true
+  },
+  "SongChordsInDark.dc.html": {
+   "x": 5010,
+   "y": 2808,
+   "w": 390,
+   "h": 844,
+   "title": "Song, chords above lyrics, dark",
+   "is_interactive": true
+  },
+  "SongHarmLyrDark.dc.html": {
+   "x": 5480,
+   "y": 2808,
+   "w": 390,
+   "h": 844,
+   "title": "Song, harmonium chords and swaras, dark",
+   "is_interactive": true
+  },
+  "SongHarmoniumDark.dc.html": {
+   "x": 3600,
+   "y": 3782,
+   "w": 390,
+   "h": 844,
+   "title": "Song, harmonium keys, dark",
+   "is_interactive": true
+  },
+  "SongLangDark.dc.html": {
+   "x": 4070,
+   "y": 3782,
+   "w": 390,
+   "h": 844,
+   "title": "Song, script and translation sheet, dark",
+   "is_interactive": true
+  },
+  "SongDlDark.dc.html": {
+   "x": 4540,
+   "y": 3782,
+   "w": 390,
+   "h": 844,
+   "title": "Song, versions, dark",
+   "is_interactive": true
+  },
+  "CardsBackDark.dc.html": {
+   "x": 3600,
+   "y": 5246,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, word card, dark",
+   "is_interactive": true
+  },
+  "LearnPathDark.dc.html": {
+   "x": 4070,
+   "y": 5246,
+   "w": 390,
+   "h": 844,
+   "title": "Learn a song, dark",
+   "is_interactive": true
+  },
+  "ChordHowDark.dc.html": {
+   "x": 4540,
+   "y": 5246,
+   "w": 390,
+   "h": 844,
+   "title": "Harmonium chords, dark",
+   "is_interactive": true
+  },
+  "QuizDark.dc.html": {
+   "x": 5010,
+   "y": 5246,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, quiz, dark",
+   "is_interactive": true
+  },
+  "HarmDark.dc.html": {
+   "x": 5480,
+   "y": 5246,
+   "w": 390,
+   "h": 844,
+   "title": "Learn, harmonium keys, dark",
+   "is_interactive": true
+  },
+  "ProfileDark.dc.html": {
+   "x": 3600,
+   "y": 6220,
+   "w": 390,
+   "h": 844,
+   "title": "Profile sheet, dark",
+   "is_interactive": true
+  },
+  "StorageDark.dc.html": {
+   "x": 4070,
+   "y": 6220,
+   "w": 390,
+   "h": 844,
+   "title": "Storage, dark",
+   "is_interactive": true
+  },
+  "SrsDark.dc.html": {
+   "x": 4540,
+   "y": 6220,
+   "w": 390,
+   "h": 844,
+   "title": "Review style sheet, dark",
+   "is_interactive": true
+  },
+  "TodayFullDark.dc.html": {
+   "x": 3600,
+   "y": 7684,
+   "w": 390,
+   "h": 2737,
+   "title": "Today, full page, dark",
+   "is_interactive": true
+  },
+  "SongsFullDark.dc.html": {
+   "x": 4070,
+   "y": 7684,
+   "w": 390,
+   "h": 1868,
+   "title": "Songs, full page, dark",
+   "is_interactive": true
+  },
+  "CollectionsFullDark.dc.html": {
+   "x": 4540,
+   "y": 7684,
+   "w": 390,
+   "h": 1780,
+   "title": "Collections, full page, dark",
+   "is_interactive": true
+  },
+  "MineFullDark.dc.html": {
+   "x": 5010,
+   "y": 7684,
+   "w": 390,
+   "h": 1735,
+   "title": "Mine, full page, dark",
+   "is_interactive": true
+  },
+  "LearnFullDark.dc.html": {
+   "x": 5480,
+   "y": 7684,
+   "w": 390,
+   "h": 1442,
+   "title": "Learn, full page, dark",
+   "is_interactive": true
+  },
+  "SongAllDark.dc.html": {
+   "x": 3600,
+   "y": 10551,
+   "w": 390,
+   "h": 5113,
+   "title": "Song page, top to bottom, dark",
+   "is_interactive": true
+  },
+  "ProfileFullDark.dc.html": {
+   "x": 3600,
+   "y": 15794,
+   "w": 390,
+   "h": 883,
+   "title": "Profile sheet, full, dark",
+   "is_interactive": true
+  },
+  "StorageFullDark.dc.html": {
+   "x": 4070,
+   "y": 15794,
+   "w": 390,
+   "h": 950,
+   "title": "Storage, full, dark",
+   "is_interactive": true
+  },
+  "SongLangFullDark.dc.html": {
+   "x": 4540,
+   "y": 15794,
+   "w": 390,
+   "h": 1300,
+   "title": "Script and translation sheet, full, dark",
+   "is_interactive": true
+  },
+  "SrsFullDark.dc.html": {
+   "x": 5010,
+   "y": 15794,
+   "w": 390,
+   "h": 1718,
+   "title": "Review style sheet, full, dark",
+   "is_interactive": true
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-11-01T12:00:00Z",
+  "v": 1
+ },
+ "designSystems": [],
+ "launch": {
+  "file": "Main.dc.html",
+  "view": "focused"
+ },
+ "notes": {
+  "n1": {
+   "x": 0,
+   "y": -520,
+   "text": "Prabhat Samgiita, light theme",
+   "kind": "title1",
+   "maxW": 3200
+  },
+  "n2": {
+   "x": 0,
+   "y": -380,
+   "w": 3000,
+   "text": "Sections run top to bottom: the working prototype, then each tab (Today, Songs, Song page, Player, Learn), Profile and Storage, page colours, the lock screens, logo options and the full-length pages. Dark theme sits in its own block to the right. PS 1 to PS 7 titles are the catalog titles. Everything else (PS 8 and up, durations, tags, translations, word glosses, chords, capo hints, swaras, performers, sizes, quiz questions, playlists, story text) is sample data to be replaced by the database.",
+   "size": "s"
+  },
+  "n3": {
+   "x": 0,
+   "y": 40,
+   "text": "1  The working prototype",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n4": {
+   "x": 0,
+   "y": 180,
+   "w": 2300,
+   "text": "One phone, every screen live. Click through the tabs, open a song, play, sort, drag the right-hand rail, add to a playlist. All the boards below are snapshots of this same prototype in a chosen state.",
+   "size": "s"
+  },
+  "n5": {
+   "x": 0,
+   "y": 1504,
+   "text": "2  Today",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n6": {
+   "x": 0,
+   "y": 1644,
+   "w": 2300,
+   "text": "Songs for today, two kinds. Ordinary day: songs B\u00e1b\u00e1 gave on this calendar date. Festival day or season: songs written for that festival or season, with a coloured label under the date and a link to the song composed on the same date. The first song is a large card with the portrait, the rest are rows. The dashed Mockup only block at the bottom switches the sample day. Round 18: the search field and the account button stay pinned while you scroll. The account button never moves. When the search field reaches the top it narrows to leave room for it and sits on a frosted strip.",
+   "size": "s"
+  },
+  "n7": {
+   "x": 0,
+   "y": 2968,
+   "text": "3  Songs, Collections and Mine",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n8": {
+   "x": 0,
+   "y": 3108,
+   "w": 2300,
+   "text": "The catalog keeps its three tabs on top. The category strip (All, Devotion, Dawn, Nature and so on) pins under the status bar once you scroll, like the menu on anandamarga.org. A sort button offers nine orders. Catalog, Collections and Mine are the pill switch again. The fast-scroll rail on the right appears only while you scroll and fades after about a second; it grabs for the 5,018 songs: letters when sorted by title, category names when sorted by category, a plain thumb when sorted by number. Round 18: the account button and the search field stay pinned while you scroll the catalog, and the Devotion, Dance and Nature filters pin right under them.",
+   "size": "s"
+  },
+  "n9": {
+   "x": 0,
+   "y": 5406,
+   "text": "4  Song page",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n10": {
+   "x": 0,
+   "y": 5546,
+   "w": 2300,
+   "text": "The song comes first. Compact header, one line for the version, Play and Learning. Tabs Lyrics, Words, Meaning, Explain, Chords and Watch pin to the top while you scroll. The Lyrics tab shows only a one-line chord chip with a Change button; the full instrument, capo and key controls live on the Chords tab. A guitar version switches chords on by itself. The round button next to the heart adds the song to a playlist. Open any board and press everything.",
+   "size": "s"
+  },
+  "n11": {
+   "x": 0,
+   "y": 10766,
+   "text": "5  Player",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n12": {
+   "x": 0,
+   "y": 10906,
+   "w": 2300,
+   "text": "A calm player: the lyrics panel, the waveform, the transport row and one quiet icon row (heart, add to playlist, queue, Drive, more). The top bar says what is playing from (All songs, a playlist, Today) and opens a sheet to change it. The Aa button at the top right opens Lyrics display: Script (Roman or Devanagari), Translation (which language shows under each line) and Word meanings (a small gloss under each word). These replace the three white buttons of the earlier version. The three dots open Playback: speed, sleep timer, Drive. Repeat sits on the transport row with three states: off, the whole list, one song. Round 18: the version chip (Voice, Performer A) moved up and has more air between it and the song title.",
+   "size": "s"
+  },
+  "n13": {
+   "x": 0,
+   "y": 13204,
+   "text": "5a  Player, play every version or just one",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n14": {
+   "x": 0,
+   "y": 13344,
+   "w": 2300,
+   "text": "Round 19. A song can have several performances (voice, guitar, harmonium, kirtan group). A Play row under the song title lets the listener choose This version or All 6 versions. With All on, when a version ends the next version of the same song starts, the version chip shows the position (for example 2/6), and after the last version the player moves to the next song. With This version, the player behaves as before. The row is always visible and needs no explanation. It costs one row of height. The two other options considered in round 18 (a switch inside the Versions sheet, and a fourth state of the repeat button) were dropped.",
+   "size": "s"
+  },
+  "n15": {
+   "x": 0,
+   "y": 14668,
+   "text": "6  Learn",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n16": {
+   "x": 0,
+   "y": 14808,
+   "w": 2300,
+   "text": "Learn a song in three steps, word cards with review styles, a quiz, the harmonium keys and the raga index.",
+   "size": "s"
+  },
+  "n17": {
+   "x": 0,
+   "y": 19054,
+   "text": "6a  Learn, three ways to structure it",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n18": {
+   "x": 0,
+   "y": 19194,
+   "w": 2300,
+   "text": "Owner picked option B (round 14): it is now the Learn page in the prototype and in every Learn board. A and C stay here for comparison; the old page is still behind the Current chip. The Learn page rebuilt around the songs you have studied. Every option has the same pieces: a library of learned and learning songs with a memory meter, a Repeat button per song, a daily practice block, and the tools (word cards, quiz, harmonium, chords, stories, raga and tala). They differ in what comes first. A: practice first, then My songs, then new things to learn. B: three tabs, Practice, My songs, Tools. C: the library is the page, tools sit at the bottom. In the prototype use the A / B / C chips at the bottom of the Learn page. Round 18: the statistics became one slim strip (songs learned, learning now, words learned) right under the three tabs. It shows on every tab of option B and the big tiles are gone from My songs.",
+   "size": "s"
+  },
+  "n19": {
+   "x": 0,
+   "y": 22970,
+   "text": "6b  Today, colour sets",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n20": {
+   "x": 0,
+   "y": 23110,
+   "w": 2300,
+   "text": "Round 15. Three new sets, built on one rule: the sand ground is about 60% of the screen, one dominant family about 30%, orange about 10% and only on things you tap or on one focal block. No more than one pastel per screen. 2 Forest panel: the songs sit in one deep green panel, everything else is white and hairlines. 3 Dawn: a peach sky fades into the sand, the logo sun rises in the corner, one deep green story card anchors the bottom. 4 Ink and flame: ink lines instead of cards, a black hero strip, a solid orange story block, orange on every play button. Round 17: set 3 Dawn is the Today page in the prototype and in every light Today board. The sun, the scroll animation and the label colour options were dropped: the day label stays green. The note under the title is gone, Find a song tiles have their own colours and the story card is the pale green of set 2. The dark boards keep the old dark look. In the prototype use the colour chips at the bottom of Today; Before is the old set.",
+   "size": "s"
+  },
+  "n21": {
+   "x": 0,
+   "y": 27322,
+   "text": "7  Profile and Storage",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n22": {
+   "x": 0,
+   "y": 27462,
+   "w": 2300,
+   "text": "Profile opens from the avatar. There is no Look setting: the page colours are fixed by design (section 8). Storage lists downloads per song and version.",
+   "size": "s"
+  },
+  "n23": {
+   "x": 0,
+   "y": 28786,
+   "text": "8  Page colours",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n24": {
+   "x": 0,
+   "y": 28926,
+   "w": 2300,
+   "text": "Back to the earlier look for the tab pages: sand ground, white cards and orange accents on Today, Songs, Collections, Mine, Learn and the Song page. The Player stays dark green. The Song page is back to the same look. Sheets stay sand and the dark theme is plain dark.",
+   "size": "s"
+  },
+  "n25": {
+   "x": 0,
+   "y": 30250,
+   "text": "9  Outside the app",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n26": {
+   "x": 0,
+   "y": 30390,
+   "w": 3000,
+   "text": "Left to right: iPhone lock screen, iPhone with lyrics expanded, iPhone with the app closed; Android lock screen, notification shade, lock screen with a lyrics line. The two lyrics boards show the ideal. The system draws the real controls, so a full karaoke list on the lock screen is not possible for a third-party app. One current line is.",
+   "size": "s"
+  },
+  "n27": {
+   "x": 0,
+   "y": 31714,
+   "text": "10  Logo options",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n28": {
+   "x": 0,
+   "y": 31854,
+   "w": 2300,
+   "text": "Four logo directions with a recommendation at the end of the board.",
+   "size": "s"
+  },
+  "n29": {
+   "x": 0,
+   "y": 36515,
+   "text": "11  Full-length pages",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n30": {
+   "x": 0,
+   "y": 36655,
+   "w": 2300,
+   "text": "Every screen from the first pixel to the last, no scrolling needed. The other boards scroll inside their frame when you click them. The Songs page shows the first rows only; the catalog has 5,018.",
+   "size": "s"
+  },
+  "n31": {
+   "x": 3600,
+   "y": -520,
+   "text": "Prabhat Samgiita, dark theme",
+   "kind": "title1",
+   "maxW": 2400
+  },
+  "n32": {
+   "x": 3600,
+   "y": -380,
+   "w": 2300,
+   "text": "Dark theme kept apart from the light boards. Same screens, same sample data. The player and the lock screens are dark in both themes, so they live only in the light block. In the app the theme follows the phone setting and can be forced in Profile, Appearance.",
+   "size": "s"
+  },
+  "n33": {
+   "x": 3600,
+   "y": 40,
+   "text": "D1  Today, Songs, Collections, Mine, Learn",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n34": {
+   "x": 3600,
+   "y": 180,
+   "w": 2300,
+   "text": "The four tabs in dark, plus the fast-scroll rail in dark.",
+   "size": "s"
+  },
+  "n35": {
+   "x": 3600,
+   "y": 2478,
+   "text": "D2  Song page",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n36": {
+   "x": 3600,
+   "y": 2618,
+   "w": 2300,
+   "text": "Lyrics, words, chords for both instruments, versions and the script sheet in dark.",
+   "size": "s"
+  },
+  "n37": {
+   "x": 3600,
+   "y": 4916,
+   "text": "D3  Learn, Profile, Storage",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n38": {
+   "x": 3600,
+   "y": 5056,
+   "w": 2300,
+   "text": "Learn screens, profile and storage in dark.",
+   "size": "s"
+  },
+  "n39": {
+   "x": 3600,
+   "y": 7354,
+   "text": "D4  Full-length pages, dark",
+   "kind": "title1",
+   "maxW": 2300
+  },
+  "n40": {
+   "x": 3600,
+   "y": 7494,
+   "w": 2300,
+   "text": "Same full-length pages as in the light block.",
+   "size": "s"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Today.dc.html",
+  "TodayOne.dc.html",
+  "TodayFest.dc.html",
+  "TodaySeason.dc.html",
+  "Search.dc.html",
+  "SearchHint.dc.html",
+  "SearchName.dc.html",
+  "Songs.dc.html",
+  "SongsScrolled.dc.html",
+  "SongsSort.dc.html",
+  "SongsAz.dc.html",
+  "SongsRail.dc.html",
+  "SongsCat.dc.html",
+  "Collections.dc.html",
+  "Mine.dc.html",
+  "Story.dc.html",
+  "Song.dc.html",
+  "SongBoth.dc.html",
+  "SongDeva.dc.html",
+  "SongLang.dc.html",
+  "SongTwo.dc.html",
+  "SongScrolled.dc.html",
+  "SongDl.dc.html",
+  "SongVersions.dc.html",
+  "SongWatch.dc.html",
+  "SongGuitar.dc.html",
+  "SongWords.dc.html",
+  "SongWordsTwo.dc.html",
+  "SongMeaning.dc.html",
+  "SongExplain.dc.html",
+  "SongPl.dc.html",
+  "SongChords.dc.html",
+  "SongChordsIn.dc.html",
+  "SongChordsSound.dc.html",
+  "SongChordsNoCapo.dc.html",
+  "SongGuitarScrolled.dc.html",
+  "SongHarmLyr.dc.html",
+  "SongHarmonium.dc.html",
+  "Player.dc.html",
+  "PlayerRep.dc.html",
+  "PlayerSrc.dc.html",
+  "PlayerPl.dc.html",
+  "Drive.dc.html",
+  "PlayerLyr.dc.html",
+  "PlayerMore.dc.html",
+  "Queue.dc.html",
+  "KaraokeRu.dc.html",
+  "KaraokeDeva.dc.html",
+  "Learn.dc.html",
+  "Quiz.dc.html",
+  "QuizDone.dc.html",
+  "Harm.dc.html",
+  "Index.dc.html",
+  "Cards.dc.html",
+  "CardsBack.dc.html",
+  "CardsMid.dc.html",
+  "CardsDone.dc.html",
+  "CardsSong.dc.html",
+  "CardsAdaptive.dc.html",
+  "CardsDaily.dc.html",
+  "Srs.dc.html",
+  "LearnPath.dc.html",
+  "LearnPathNew.dc.html",
+  "LearnPathDone.dc.html",
+  "ChordHow.dc.html",
+  "LearnA.dc.html",
+  "LearnB.dc.html",
+  "LearnBLib.dc.html",
+  "LearnBTools.dc.html",
+  "LearnC.dc.html",
+  "LearnAFull.dc.html",
+  "LearnBFull.dc.html",
+  "LearnBLibFull.dc.html",
+  "LearnBToolsFull.dc.html",
+  "LearnCFull.dc.html",
+  "TodayC2.dc.html",
+  "TodayC3.dc.html",
+  "TodayC4.dc.html",
+  "TodayC2Full.dc.html",
+  "TodayC3Full.dc.html",
+  "TodayC4Full.dc.html",
+  "Profile.dc.html",
+  "Storage.dc.html",
+  "StorageSel.dc.html",
+  "PcToday.dc.html",
+  "PcSongs.dc.html",
+  "PcLearn.dc.html",
+  "PcPlayer.dc.html",
+  "PcSong.dc.html",
+  "SysIosLock.dc.html",
+  "SysIosLyrics.dc.html",
+  "SysIosHome.dc.html",
+  "SysAndLock.dc.html",
+  "SysAndShade.dc.html",
+  "SysAndLyrics.dc.html",
+  "Logo.dc.html",
+  "TodayFull.dc.html",
+  "SongsFull.dc.html",
+  "CollectionsFull.dc.html",
+  "MineFull.dc.html",
+  "LearnFull.dc.html",
+  "SongAll.dc.html",
+  "ProfileFull.dc.html",
+  "StorageFull.dc.html",
+  "PathFull.dc.html",
+  "ChordHowFull.dc.html",
+  "IndexFull.dc.html",
+  "SongLangFull.dc.html",
+  "SrsFull.dc.html",
+  "TodayDark.dc.html",
+  "SongsDark.dc.html",
+  "SongsRailDark.dc.html",
+  "CollectionsDark.dc.html",
+  "MineDark.dc.html",
+  "LearnDark.dc.html",
+  "SearchDark.dc.html",
+  "StoryDark.dc.html",
+  "SongDark.dc.html",
+  "SongWordsDark.dc.html",
+  "SongChordsDark.dc.html",
+  "SongChordsInDark.dc.html",
+  "SongHarmLyrDark.dc.html",
+  "SongHarmoniumDark.dc.html",
+  "SongLangDark.dc.html",
+  "SongDlDark.dc.html",
+  "CardsBackDark.dc.html",
+  "LearnPathDark.dc.html",
+  "ChordHowDark.dc.html",
+  "QuizDark.dc.html",
+  "HarmDark.dc.html",
+  "ProfileDark.dc.html",
+  "StorageDark.dc.html",
+  "SrsDark.dc.html",
+  "TodayFullDark.dc.html",
+  "SongsFullDark.dc.html",
+  "CollectionsFullDark.dc.html",
+  "MineFullDark.dc.html",
+  "LearnFullDark.dc.html",
+  "SongAllDark.dc.html",
+  "ProfileFullDark.dc.html",
+  "StorageFullDark.dc.html",
+  "SongLangFullDark.dc.html",
+  "SrsFullDark.dc.html",
+  "PlayerVA.dc.html"
+ ],
+ "pages": [],
+ "title": "Prabhat Samgiita app mockups"
+}
