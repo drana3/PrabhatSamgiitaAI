@@ -23,6 +23,9 @@ type Props = {
   inputRef: RefObject<TextInput | null>
   /** preview: only the magnifier and the input, exactly as the prototype draws the pill */
   bare?: boolean
+  /** the browse layout: a thin sand border, its own placeholder, and the mic shows only once there is text */
+  soft?: boolean
+  placeholder?: string
 }
 
 /**
@@ -40,16 +43,18 @@ export function SearchField({
   selectOnFocus = false,
   inputRef,
   bare = false,
+  soft = false,
+  placeholder,
 }: Props) {
   return (
-    <View style={[s.field, bare && s.fieldBare, { backgroundColor: p.white, borderColor: p.ink900 }]}>
+    <View style={[s.field, bare && s.fieldBare, soft && s.fieldSoft, { backgroundColor: p.white, borderColor: soft ? p.sand300 : p.ink900 }]}>
       <SearchGlyph size={20} color={p.ink500} />
       <TextInput
         ref={inputRef}
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
-        placeholder={SEARCH_INPUT_PLACEHOLDER}
+        placeholder={placeholder ?? SEARCH_INPUT_PLACEHOLDER}
         placeholderTextColor={p.ink500}
         accessibilityLabel="Search songs"
         returnKeyType="search"
@@ -66,7 +71,7 @@ export function SearchField({
           <X size={18} color={p.ink500} />
         </TodayPress>
       ) : null}
-      {bare ? null : <TodayPress
+      {bare || (soft && !value) ? null : <TodayPress
         accessibilityRole="button"
         accessibilityLabel={listening ? "Stop listening" : "Search by voice"}
         accessibilityState={{ selected: listening }}
@@ -95,6 +100,7 @@ const s = StyleSheet.create({
   },
   // the prototype's <input> keeps the browser's 2px side padding
   inputBare: { paddingHorizontal: 2 },
+  fieldSoft: { borderWidth: 1 },
   fieldBare: { paddingLeft: 20, paddingRight: 20 },
   input: {
     flex: 1,

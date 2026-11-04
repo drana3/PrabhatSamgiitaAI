@@ -216,7 +216,17 @@ export function useProfileContent(theme: AmTheme) {
         {signedIn ? <SetRow p={p} label="Delete account data" danger onPress={requestDelete} /> : null}
       </Group>
 
-      {MOCKUP_DATA ? null : <SheetTitle p={p} label="More" spaced />}
+      {MOCKUP_DATA ? (
+        <>
+          <SheetTitle p={p} label="More" spaced />
+          <Group p={p}>
+            {/* preview only: a design proposal, not part of the prototype boards */}
+            <SetRow p={p} label="Library (proposal)" chevron onPress={() => go("/library-proposal")} />
+          </Group>
+        </>
+      ) : (
+        <SheetTitle p={p} label="More" spaced />
+      )}
       {MOCKUP_DATA ? null : <Group p={p}>
         <SetRow
           p={p}

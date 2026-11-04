@@ -1,6 +1,8 @@
 import { useEffect } from "react"
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
 import { BlurView } from "expo-blur"
+import { useRouter } from "expo-router"
+import { CirclePlus } from "lucide-react-native"
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -15,6 +17,7 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { miniProgress, miniSubtitle, navV2Layout, isDarkTheme } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { usePlayerStore } from "@/stores/playerStore"
+import { href } from "@/utils/href"
 
 /**
  * Pill colours from the prototype (.mini): white 38% with a 60% edge in Light, forest
@@ -43,6 +46,7 @@ type Props = {
  */
 export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
   const theme = useAmTheme()
+  const router = useRouter()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
   const palette = MINI_PALETTE[isDarkTheme(theme) ? "dark" : "light"]
@@ -103,6 +107,14 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
           </Text>
         </Pressable>
 
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel={`Save ${currentSong.title} to a playlist`}
+          onPress={() => router.push(href(`/playlist/add?song=${currentSong.number}`))}
+          style={styles.control}
+        >
+          <CirclePlus size={24} color={theme.textHeading} strokeWidth={1.8} />
+        </PressScale>
         <PressScale
           accessibilityRole="button"
           accessibilityLabel={showPause ? `Pause ${currentSong.title}` : `Play ${currentSong.title}`}

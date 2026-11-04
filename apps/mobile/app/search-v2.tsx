@@ -10,9 +10,9 @@ import {
   CollectionChips,
   DetectLabel,
   EmptyMessage,
-  EmptyState,
   ResultList,
 } from "@/components/search-v2/SearchBlocks"
+import { BrowseView, SearchHeader } from "@/components/search-v2/BrowseBlocks"
 import { SearchField } from "@/components/search-v2/SearchField"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -22,6 +22,9 @@ import { api } from "@/lib/client"
 import { flattenResults, sampleFlatResults } from "@/lib/searchProto"
 import { SAMPLE_OFFLINE_NUMBERS } from "@/lib/fixtures/search"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { SEARCH_BROWSE_ALL, SEARCH_DISCOVER, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
+import { memberProfileName } from "@/lib/displayName"
+import { useAuthStore } from "@/stores/authStore"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
@@ -65,6 +68,13 @@ export default function UnifiedSearchScreen() {
     [params.q, params.hint, params.focus, params.listen],
   )
 
+  const authMode = useAuthStore((st) => st.mode)
+  const authName = useAuthStore((st) => st.displayName)
+  const authEmail = useAuthStore((st) => st.email)
+  const authOverridden = useAuthStore((st) => st.displayNameOverridden)
+  const initials = MOCKUP_DATA
+    ? "D"
+    : memberProfileName({ mode: authMode, email: authEmail, displayName: authName, displayNameOverridden: authOverridden }).trim().charAt(0).toUpperCase() || "·"
   const recents = usePreferencesStore((s) => s.searchRecents)
   const addSearchRecent = usePreferencesStore((s) => s.addSearchRecent)
   const clearSearchRecents = usePreferencesStore((s) => s.clearSearchRecents)
@@ -228,48 +238,72 @@ export default function UnifiedSearchScreen() {
   }, [drop, reduce])
   const dropStyle = useAnimatedStyle(() => ({ opacity: drop.value, transform: [{ translateY: (1 - drop.value) * -8 }] }))
 
-  return (
-    <Animated.View style={[styles.safe, { backgroundColor: p.sand200, paddingTop: top }, dropStyle]}>
-      <View style={styles.top}>
-        <SearchField
-          p={p}
-          value={query}
-          onChangeText={(text: string) => {
-            setVoiceError(null)
-            setText(text)
-          }}
-          onSubmit={() => remember(query)}
-          onClear={() => {
-            stop()
-            setText("")
-            setLocal(searchLocal(""))
-            inputRef.current?.focus()
-          }}
-          onMic={() => void toggle()}
-          listening={listening}
-          selectOnFocus={selectOnFocus}
-          inputRef={inputRef}
-          bare={MOCKUP_DATA}
-        />
+  const typing = !empty
+  const showHint = typing || Boolean(voiceError) || Boolean(parsed.hint)
+  const field = (
+    <View style={[styles.top, { backgroundColor: p.sand200 }]}>
+      <SearchField
+        p={p}
+        value={query}
+        onChangeText={(text: string) => {
+          setVoiceError(null)
+          setText(text)
+        }}
+        onSubmit={() => remember(query)}
+        onClear={() => {
+          stop()
+          setText("")
+          setLocal(searchLocal(""))
+          inputRef.current?.focus()
+        }}
+        onMic={() => void toggle()}
+        listening={listening}
+        selectOnFocus={selectOnFocus}
+        inputRef={inputRef}
+        soft
+        placeholder="What do you want to listen to?"
+      />
+      {typing ? (
         <TodayPress accessibilityRole="button" accessibilityLabel="Close search" onPress={() => router.back()} pressedScale={0.94} style={styles.cancel}>
           <Text style={[styles.cancelText, { color: p.ink800 }]}>Cancel</Text>
         </TodayPress>
-      </View>
-      <DetectLabel p={p} text={voiceError ?? hintLine(query, parsed.hint)} />
+      ) : null}
+    </View>
+  )
 
+  return (
+    <Animated.View style={[styles.safe, { backgroundColor: p.sand200, paddingTop: top }, dropStyle]}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[typing ? 0 : 1]}
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        {empty ? (
-          <EmptyState
+        {typing ? null : (
+          <SearchHeader
             p={p}
+            initial={initials}
+            listening={listening}
+            onAvatar={() => router.push(href("/profile-sheet"))}
+            onMic={() => void toggle()}
+            onClose={() => router.back()}
+          />
+        )}
+        {field}
+        {showHint ? <DetectLabel p={p} text={voiceError ?? hintLine(query, parsed.hint)} /> : null}
+
+        {empty ? (
+          <BrowseView
+            p={p}
+            top={SEARCH_TOP_TILES}
+            discover={SEARCH_DISCOVER}
+            all={SEARCH_BROWSE_ALL}
             recents={MOCKUP_DATA ? [] : recents}
-            onPick={pick}
-            onRemoveRecent={(item: string) => usePreferencesStore.setState({ searchRecents: withoutRecent(recents, item) })}
+            onTile={(tile) => router.push(href(tile.target))}
+            onTag={(tag) => pick(tag.query)}
+            onRecent={pick}
             onClearRecents={clearSearchRecents}
           />
         ) : (
@@ -295,11 +329,11 @@ export default function UnifiedSearchScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, overflow: "hidden" },
-  top: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 8, paddingLeft: 10, paddingRight: 6 },
+  top: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 4, paddingBottom: 8, paddingLeft: 10, paddingRight: 6, zIndex: 5 },
   cancel: { height: 56, paddingHorizontal: 14, justifyContent: "center" },
   cancelText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 18 },
   scroll: { flex: 1 },
-  content: { paddingBottom: 32 },
+  content: { paddingBottom: 48 },
   results: { gap: 24 },
   waiting: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20 },
   waitingText: { fontFamily: amFonts.medium, fontSize: 16 },
