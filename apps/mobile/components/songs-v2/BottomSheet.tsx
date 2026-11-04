@@ -156,7 +156,7 @@ export function BottomSheet({
   }));
   const scrimStyle = useAnimatedStyle(() => ({
     opacity:
-      (reduce ? fade.value : scrimOpacity(offset.value, sheetHeight.value)) *
+      (reduce ? fade.value : scrimOpacity(offset.value, sheetHeight.value, 1)) *
       SCRIM_ALPHA,
   }));
 

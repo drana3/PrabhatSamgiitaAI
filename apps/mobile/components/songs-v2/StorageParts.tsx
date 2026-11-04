@@ -259,7 +259,7 @@ export function ClearActionPill({ action, onPress }: ThemeProps & { action: Clea
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 12 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 21, letterSpacing: -0.19 },
+  headerTitle: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 21, letterSpacing: -0.19, paddingBottom: 2 },
   total: { borderRadius: 30, padding: 20, gap: 10, overflow: "hidden" },
   totalValue: {
     fontFamily: amFonts.display,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   track: { height: 10, borderRadius: 5, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.2)" },
   fill: { height: 10, width: "100%", borderRadius: 5, backgroundColor: amColors.orange500 },
-  legend: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, color: "rgba(255,255,255,0.82)" },
+  legend: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingBottom: 1, color: "rgba(255,255,255,0.82)" },
   limitBlock: { gap: 12 },
   rowAct: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10 },
   chips: { gap: 8 },

@@ -1,137 +1,107 @@
 import { useMemo, useState } from "react"
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useRouter } from "expo-router"
-import { ChevronLeft, ChevronRight, Search } from "lucide-react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { Press } from "@/components/songs-v2/Press"
-import { Reveal } from "@/components/today/motion"
-import { TwoToneHeading } from "@/components/today/TodayBlocks"
-import { amControl, amGap, amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amFonts, amType } from "@/constants/tokens/amTypography"
+import { SearchGlyph } from "@/components/songs-v2/Glyphs"
+import { CardButton, EmptyNote, overStyle, SectionHeading } from "@/components/songs-v2/primitives"
+import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
+import { BackHeader } from "@/components/songs-v2/StorageParts"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { collectionCount, collectionGroups } from "@/data/collections"
-import { useAmTheme } from "@/hooks/useAmTheme"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { allCollectionsLabel, filterCollectionGroups, songCountLabel } from "@/lib/songsV2/collections"
 import { href } from "@/utils/href"
 
 /**
- * `All 68` (spec SCR-11 item 4): a full-screen, searchable index of every
- * collection, grouped, one white card row each with its song count.
+ * `All 68` (spec SCR-11 item 4): a full-screen, searchable index of every collection, grouped, one
+ * white card row each with its song count. The prototype has no board for it, so it is built from
+ * the overlay vocabulary of the Storage board: round back button, 30px two-tone heading, a 56px
+ * search pill, `.over` group labels and `.cardbtn` rows. The Catalog strip hides its entry link in
+ * the preview (the prototype strip has none), so this screen is reached by route or on device.
  */
 export default function SongsV2IndexScreen() {
   const router = useRouter()
-  const theme = useAmTheme()
+  const theme = useSongsTheme()
+  const insets = useSafeAreaInsets()
+  const inset = Platform.OS === "web" ? 54 : insets.top
+  const openedAt = useRevealClock()
   const [query, setQuery] = useState("")
   const groups = useMemo(() => filterCollectionGroups(collectionGroups, query), [query])
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
-      >
-        <Reveal index={0}>
-          <Press
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={() => router.back()}
-            pressedScale={0.92}
-            style={[styles.back, { backgroundColor: theme.card, borderColor: theme.line }]}
-          >
-            <ChevronLeft size={22} color={theme.textHeading} />
-          </Press>
-        </Reveal>
-        <Reveal index={1}>
-          <TwoToneHeading theme={theme} first={allCollectionsLabel(collectionCount)} second="collections" />
-        </Reveal>
-        <Reveal index={2}>
-          <View style={[styles.search, { backgroundColor: theme.card, borderColor: theme.line }]}>
-            <Search size={20} color={theme.textBody} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Find a collection"
-              placeholderTextColor={theme.textMuted}
-              accessibilityLabel="Find a collection"
-              autoCorrect={false}
-              style={[styles.input, { color: theme.textHeading }]}
-            />
-          </View>
-        </Reveal>
+    <RevealClock.Provider value={openedAt}>
+      <View style={[styles.root, { backgroundColor: theme.page, paddingTop: inset }]}>
+        <SongsReveal index={0}>
+          <BackHeader theme={theme} onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+        </SongsReveal>
 
-        {groups.map((group, index) => (
-          <Reveal key={group.id} index={3 + index} style={styles.group}>
-            <View style={styles.groupHead}>
-              <Text style={[amType.label, { color: theme.eyebrow }]}>{group.title}</Text>
-              <Text style={[amType.label, { color: theme.textMuted }]}>{group.items.length}</Text>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.body}
+        >
+          <SongsReveal index={1} style={styles.heading}>
+            <SectionHeading theme={theme} first={allCollectionsLabel(collectionCount)} second="collections" />
+          </SongsReveal>
+
+          <SongsReveal index={2}>
+            <View style={[styles.search, { backgroundColor: theme.card, borderColor: theme.line }]}>
+              <SearchGlyph color={theme.textBody} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Find a collection"
+                placeholderTextColor={theme.textBody}
+                accessibilityLabel="Find a collection"
+                autoCorrect={false}
+                style={[styles.input, { color: theme.textHeading }]}
+              />
             </View>
-            <View style={styles.stack}>
+          </SongsReveal>
+
+          {groups.map((group, index) => (
+            <SongsReveal key={group.id} index={3 + index} style={styles.group}>
+              <View style={styles.groupHead}>
+                <Text style={[overStyle, { color: theme.accent }]}>{group.title}</Text>
+                <Text style={[overStyle, { color: theme.textBody }]}>{group.items.length}</Text>
+              </View>
               {group.items.map((item) => (
-                <Press
+                <CardButton
                   key={item.label}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${item.label}, ${songCountLabel(item.count)}`}
+                  theme={theme}
+                  eyebrow={songCountLabel(item.count)}
+                  title={item.label}
                   onPress={() =>
                     router.push(
                       href(`/songs-v2-collection?id=${encodeURIComponent(item.label)}&title=${encodeURIComponent(item.label)}`),
                     )
                   }
-                  pressedScale={0.985}
-                  style={[styles.row, { backgroundColor: theme.card, borderColor: theme.line }]}
-                >
-                  <View style={styles.flex}>
-                    <Text style={[styles.rowTitle, { color: theme.textHeading }]} numberOfLines={2}>
-                      {item.label}
-                    </Text>
-                    <Text style={[amType.label, { color: theme.eyebrow }]}>{songCountLabel(item.count)}</Text>
-                  </View>
-                  <ChevronRight size={20} color={theme.textMuted} />
-                </Press>
+                />
               ))}
-            </View>
-          </Reveal>
-        ))}
-        {!groups.length ? <Text style={[amType.body, { color: theme.textBody }]}>No collection matches “{query}”.</Text> : null}
-      </ScrollView>
-    </SafeAreaView>
+            </SongsReveal>
+          ))}
+          {!groups.length ? <EmptyNote theme={theme}>No collection matches “{query}”.</EmptyNote> : null}
+        </ScrollView>
+      </View>
+    </RevealClock.Provider>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { gap: amGap.block, paddingBottom: amSpace.s32, paddingTop: amSpace.s2 },
-  back: {
-    width: amTouchTarget,
-    height: amTouchTarget,
-    borderRadius: amTouchTarget / 2,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  root: { flex: 1 },
+  body: { paddingHorizontal: 10, paddingBottom: 48, gap: 20 },
+  heading: { paddingHorizontal: 10 },
   search: {
-    height: amControl.pillHeight,
-    borderRadius: amRadius.pill,
+    height: 56,
+    borderRadius: 70,
     borderWidth: 1,
+    paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: amSpace.s3,
-    paddingHorizontal: amGap.padCard,
+    gap: 12,
   },
-  input: { flex: 1, fontFamily: amFonts.regular, fontSize: 16, height: amControl.pillHeight },
-  group: { gap: amSpace.s3 },
-  groupHead: { flexDirection: "row", justifyContent: "space-between" },
-  stack: { gap: amGap.grid },
-  flex: { flex: 1, gap: amSpace.s1 },
-  row: {
-    minHeight: 64,
-    borderRadius: amRadius.card,
-    borderWidth: 1,
-    paddingHorizontal: amGap.padCard,
-    paddingVertical: amSpace.s3,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: amSpace.s3,
-  },
-  rowTitle: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 24 },
+  input: { flex: 1, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 20, height: 56 },
+  group: { gap: 10 },
+  groupHead: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 10 },
 })
