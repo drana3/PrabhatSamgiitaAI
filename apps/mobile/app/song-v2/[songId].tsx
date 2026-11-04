@@ -127,6 +127,7 @@ export default function SongPageV2() {
     section?: string | string[]
     ver?: string | string[]
     dlprog?: string | string[]
+    sel?: string | string[]
   }>()
   const songId = routeString(params.songId)
   const demo = __DEV__ && routeString(params.demo) === "1"
@@ -141,7 +142,12 @@ export default function SongPageV2() {
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
   const [plOpen, setPlOpen] = useState(false)
-  const [selectedWord, setSelectedWord] = useState<string | null>(MOCKUP_DATA ? "0-0" : null)
+  const [selectedWord, setSelectedWord] = useState<string | null>(() => {
+    if (!MOCKUP_DATA) return null
+    // preview only: `?sel=none` or `?sel=0-1` starts with another word picked, like the prototype's boards
+    const pick = routeString(params.sel)
+    return pick === "none" ? null : pick || "0-0"
+  })
   const [toast, setToast] = useState("")
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [demoPlaylists, setDemoPlaylists] = useState(() =>
@@ -882,7 +888,7 @@ export default function SongPageV2() {
                   script={lines.primaryScript}
                   note={wordNote(translations, glossLanguages, localeLabel)}
                   languages={glossLanguages.map((code) => ({ code, label: localeLabel(code) }))}
-                  activeLanguage={translations[0] ?? null}
+                  activeLanguages={translations}
                   onLanguage={(code) => settings().setTranslations([code])}
                   onMore={() => setLangOpen(true)}
                 />
@@ -1007,7 +1013,8 @@ export default function SongPageV2() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  // web: the prototype sets -webkit-font-smoothing: antialiased on the whole app (thinner light-on-dark text)
+  root: { flex: 1, ...({ WebkitFontSmoothing: "antialiased" } as object) },
   centered: { alignItems: "center", justifyContent: "center", gap: 16 },
   content: { paddingBottom: 190 },
   head: { paddingBottom: 12 },

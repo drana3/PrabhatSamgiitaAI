@@ -10,8 +10,8 @@ import { SpCard, SpPress } from "./SpUi"
 
 /** Font family and size of a word in a script (`.wd`, `.dv .wd`). */
 function wordFont(script: ScriptId): { fontFamily: string; fontSize: number; lineHeight: number } {
-  if (script === "devanagari") return { fontFamily: amFonts.devanagari, fontSize: 20, lineHeight: 30 }
-  if (script === "bengali") return { fontFamily: amFonts.bengali, fontSize: 20, lineHeight: 30 }
+  if (script === "devanagari") return { fontFamily: amFonts.devanagari, fontSize: 20, lineHeight: 28 }
+  if (script === "bengali") return { fontFamily: amFonts.bengali, fontSize: 20, lineHeight: 28 }
   return { fontFamily: amFonts.medium, fontSize: 19, lineHeight: 28 }
 }
 

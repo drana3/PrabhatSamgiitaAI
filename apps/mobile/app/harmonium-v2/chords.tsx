@@ -18,6 +18,7 @@ import {
   keyInChord,
   spKeys,
 } from "@/lib/songPage/spKeyboard"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
@@ -47,7 +48,8 @@ export default function HarmoniumChordsScreen() {
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
   const stepKey = useSongPageStore((s) => s.stepHarmoniumKey)
   const setInstrument = useSongPageStore((s) => s.setInstrument)
-  const [base, setBase] = useState<string>(EXPLAINER_CHORDS[0])
+  // MOCKUP_DATA: the prototype boards open with Am picked
+  const [base, setBase] = useState<string>(MOCKUP_DATA ? "Am" : EXPLAINER_CHORDS[0])
 
   const saPitch = keyPitch(harmoniumKey)
   const chord = useMemo(() => explainChord(base, saPitch), [base, saPitch])

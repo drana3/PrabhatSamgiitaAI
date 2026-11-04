@@ -21,7 +21,7 @@ export function SpWords({
   script,
   note: wNote,
   languages,
-  activeLanguage,
+  activeLanguages,
   onLanguage,
   onMore,
 }: {
@@ -30,7 +30,8 @@ export function SpWords({
   script: ScriptId
   note: string
   languages: Array<{ code: string; label: string }>
-  activeLanguage: string | null
+  /** every chosen translation language that has word meanings */
+  activeLanguages: string[]
   onLanguage: (code: string) => void
   onMore: () => void
 }) {
@@ -40,7 +41,7 @@ export function SpWords({
       <SpTcHead t={t} label="Word by word" note={wNote} />
       <View style={styles.wlangs}>
         {languages.map((language) => {
-          const on = activeLanguage === language.code
+          const on = activeLanguages.includes(language.code)
           return (
             <SpPress
               key={language.code}
@@ -354,7 +355,7 @@ export function SpChords({
             style={[styles.capohint, { backgroundColor: t.sage200 }]}
           >
             <Text style={[styles.capohintText, { color: t.sage900 }]}>{capoHintText}</Text>
-            {capoHintAction ? <Text style={[styles.capohintGo, { color: t.orange700 }]}>{capoHintAction}</Text> : null}
+            <Text style={[styles.capohintGo, { color: t.orange700 }]}>{capoHintAction}</Text>
           </SpPress>
           <ScrollView
             horizontal
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
   rm: { flex: 5, fontSize: 19, lineHeight: 24 },
   glCol: { flex: 6, gap: 2 },
   gl: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 21 },
-  gl2: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19 },
+  gl2: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 21 },
   central: { padding: 20, paddingVertical: 16, borderRadius: 30, gap: 12 },
   mlist: { gap: 12 },
   lnrow: { paddingVertical: 4 },
@@ -536,8 +537,8 @@ const styles = StyleSheet.create({
   ccardS: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18.85, letterSpacing: 0.26, textAlign: "center", fontVariant: ["tabular-nums"] },
   swaras: { flexDirection: "row", gap: 6 },
   swara: { flex: 1, alignItems: "center", gap: 2, paddingVertical: 10, borderRadius: 20 },
-  swaraB: { fontFamily: amFonts.display, fontSize: 15 },
-  swaraS: { fontFamily: amFonts.semi, fontSize: 13 },
+  swaraB: { fontFamily: amFonts.display, fontSize: 15, lineHeight: 21.75 },
+  swaraS: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18.85 },
   cardbtn: {
     flexDirection: "row",
     alignItems: "center",
