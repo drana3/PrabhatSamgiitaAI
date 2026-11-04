@@ -1,7 +1,10 @@
 import playableNumbers from "@/assets/playable-audio-numbers.json"
+import { DEMO_CATALOG_COUNT, demoNumbers } from "@/lib/fixtures/playerDemo"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 const PLAYABLE = new Set(playableNumbers as number[])
-const PLAYABLE_LIST = playableNumbers as number[]
+// Web preview with prototype data: every song of the design plays (simulated), the list is the design's 64.
+const PLAYABLE_LIST = MOCKUP_DATA ? demoNumbers() : (playableNumbers as number[])
 
 function fallbackRandom(exclude: number, total = 5018): number {
   if (total <= 1) return 1
@@ -11,11 +14,12 @@ function fallbackRandom(exclude: number, total = 5018): number {
 }
 
 export function hasPlayableAudio(number: number): boolean {
+  if (MOCKUP_DATA) return number >= 1 && number <= DEMO_CATALOG_COUNT
   return PLAYABLE.has(number)
 }
 
 export function playableAudioCount(): number {
-  return PLAYABLE_LIST.length
+  return MOCKUP_DATA ? DEMO_CATALOG_COUNT : PLAYABLE_LIST.length
 }
 
 /** Random PS with a known official audio file in corpus (~3.7k of 5018). */

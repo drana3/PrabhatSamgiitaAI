@@ -21,12 +21,15 @@ import { SourceSheet } from "@/components/player-v2/SourceSheet"
 import { TouchButton } from "@/components/player-v2/TouchButton"
 import { TransportRow } from "@/components/player-v2/TransportRow"
 import { PlayModeToggle, VersionChip } from "@/components/player-v2/VersionControls"
+import { demoDownloadKey, demoDownloadSize, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
 import { VersionsSheet } from "@/components/player-v2/VersionsSheet"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
+import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { hasPlayableAudio, playableAudioCount, playableNumbersList, randomPlayableSongNumber } from "@/lib/playableAudio"
 import { hydratePlayableSong } from "@/lib/playback/radioAdvance"
@@ -230,10 +233,27 @@ export default function PlayerV2Screen() {
     () => buildLyricLines(scriptLines, translationLines, showGloss ? glosses : null),
     [scriptLines, translationLines, glosses, showGloss],
   )
-  const timings = useMemo(() => lineTimings(scriptLines, knownLength ?? 0), [scriptLines, knownLength])
-  const activeLine = activeLineIndex(timings, position)
+  // The prototype steps the karaoke highlight one line every 7 seconds and loops, so the preview does the same.
+  const timings = useMemo(
+    () =>
+      MOCKUP_DATA
+        ? scriptLines.map((_, i) => ({ start: i * DEMO_LINE_SECONDS, end: (i + 1) * DEMO_LINE_SECONDS }))
+        : lineTimings(scriptLines, knownLength ?? 0),
+    [scriptLines, knownLength],
+  )
+  const loopSlot = Math.floor(position / DEMO_LINE_SECONDS)
+  const activeLine =
+    MOCKUP_DATA && scriptLines.length ? loopSlot % scriptLines.length : activeLineIndex(timings, position)
   const activeWord =
-    activeLine >= 0 ? activeWordIndex(splitWords(scriptLines[activeLine] ?? ""), timings[activeLine]!, position) : -1
+    activeLine < 0
+      ? -1
+      : activeWordIndex(
+          splitWords(scriptLines[activeLine] ?? ""),
+          MOCKUP_DATA
+            ? { start: loopSlot * DEMO_LINE_SECONDS, end: (loopSlot + 1) * DEMO_LINE_SECONDS }
+            : timings[activeLine]!,
+          position,
+        )
 
   const playableOrUnknown = useCallback((n: number) => hasPlayableAudio(n), [])
 
@@ -256,12 +276,15 @@ export default function PlayerV2Screen() {
     const { head, upcoming } = splitQueue(list.map((number) => ({ number })), song?.number ?? null)
     const shown = [...head, ...upcoming].map((r) => r.number)
     const titles = new Map(
-      catalogSongsByNumbers(shown, shown.length).map((hit) => [hit.number, hit.firstLine || hit.title]),
+      MOCKUP_DATA
+        ? shown.flatMap((n) => (demoTitle(n) ? ([[n, demoTitle(n)!]] as Array<[number, string]>) : []))
+        : catalogSongsByNumbers(shown, shown.length).map((hit) => [hit.number, hit.firstLine || hit.title] as [number, string]),
     )
     return list.map((number) => ({
       key: `ps-${number}`,
       number,
       title: sentenceCaseLine(titles.get(number) ?? `Prabhat Samgiita ${number}`),
+      seconds: MOCKUP_DATA ? demoSeconds(number) : undefined,
     }))
   }, [sheet, list, song?.number])
   const source = sourceLabel({ playbackMode, playlistName: activePlaylist?.name ?? null })
@@ -272,8 +295,25 @@ export default function PlayerV2Screen() {
     { files: offlineFiles, progress: offlineProgress, errors: offlineErrors, activeBySong: offlineActive },
     { songNumber: song?.number },
   )
+  const demoKey = song ? demoDownloadKey(song.number, versionIndex) : ""
+  const demoDone = useDemoDownloads((d) => d.done[demoKey] === true)
+  const demoProgress = useDemoDownloads((d) => d.progress[demoKey])
   const downloadPill = !song || !selectedVersion
     ? null
+    : MOCKUP_DATA
+      ? {
+          label: demoDone
+            ? "Downloaded"
+            : demoProgress !== undefined
+              ? `Downloading ${Math.round(demoProgress * 100)}%`
+              : `Download · ${demoDownloadSize(selectedVersion.lengthSeconds ?? 0)}`,
+          done: demoDone,
+          tone: demoDone ? ("brand" as const) : ("ink" as const),
+          disabled: demoProgress !== undefined,
+          onPress: () => {
+            if (useDemoDownloads.getState().toggle(demoKey) === "removed") toast.show("Removed from this phone")
+          },
+        }
     : authMode !== "signed_in"
       ? { label: "Sign in to download", disabled: false, onPress: () => router.push(href("/signin")) }
       : offline.downloading
@@ -637,6 +677,7 @@ export default function PlayerV2Screen() {
         onRemove={queueActions.remove}
         onOrder={queueActions.setOrder}
         onClearUpcoming={queueActions.clearUpcoming}
+        compact={MOCKUP_DATA}
         onClose={() => setSheet(null)}
       />
       <LyricsOptionsSheet

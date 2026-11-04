@@ -1,7 +1,7 @@
 import { Sheet } from "@/components/player-v2/Sheet"
 import { SheetGroup, SheetRow } from "@/components/player-v2/Rows"
 import type { AmTheme } from "@/constants/tokens/amColors"
-import { formatRate } from "@/lib/playerV2/playbackSpeed"
+import { clampRate } from "@/lib/playerV2/playbackSpeed"
 
 type Props = {
   visible: boolean
@@ -25,7 +25,7 @@ export function PlaybackSheet(props: Props) {
           theme={theme}
           title="Speed"
           meta="Tap to step from 0.5× to 1.5×"
-          value={formatRate(props.rate).replace("x", "×")}
+          value={`${clampRate(props.rate).toFixed(2).replace(/0$/, "")}×`}
           onPress={props.onCycleSpeed}
         />
         <SheetRow

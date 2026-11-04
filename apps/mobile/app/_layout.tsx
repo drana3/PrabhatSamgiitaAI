@@ -20,6 +20,12 @@ import {
   Roboto_800ExtraBold,
   useFonts as useRoboto,
 } from "@expo-google-fonts/roboto"
+import {
+  NotoSansDevanagari_400Regular,
+  NotoSansDevanagari_600SemiBold,
+  NotoSansDevanagari_700Bold,
+  useFonts as useDevanagari,
+} from "@expo-google-fonts/noto-sans-devanagari"
 import * as SplashScreen from "expo-splash-screen"
 
 import { startPlaylistBackgroundSync } from "@/lib/playlistBackgroundSync"
@@ -54,6 +60,8 @@ export default function RootLayout() {
     Roboto_700Bold,
     Roboto_800ExtraBold,
   })
+  // Devanagari lyrics (Player karaoke, Song page). Not awaited: the text shows in a fallback first.
+  useDevanagari({ NotoSansDevanagari_400Regular, NotoSansDevanagari_600SemiBold, NotoSansDevanagari_700Bold })
   const [fontWaitExpired, setFontWaitExpired] = useState(false)
   const fontsReady = (interLoaded && loraLoaded && robotoLoaded) || fontWaitExpired
   const shellReady = fontsReady && authHydrated && (appearanceHydrated || fontWaitExpired)

@@ -1,4 +1,6 @@
 import type { MockSong } from "@/data/mock"
+import { demoVersions, isDemoUrl } from "@/lib/fixtures/playerDemo"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 /** Spec API-09: one playable version of a song. */
 export type Instrument = "voice" | "guitar" | "harmonium" | "group" | "instrumental"
@@ -7,6 +9,8 @@ export type PlayerVersion = {
   id: string
   songNumber: number
   instrument: Instrument
+  /** Display name when the generic instrument word is not enough ("Kirtan group"). */
+  label?: string
   performer: string
   /** Seconds. Null until the file or the API tells us (never a placeholder). */
   lengthSeconds: number | null
@@ -59,6 +63,8 @@ function performerFor(title: string | null | undefined, index: number): string {
  * changes; every screen reads `PlayerVersion[]`.
  */
 export function versionsFromSong(song: SongVersionSource): PlayerVersion[] {
+  // Web preview with prototype data: the six sample versions of the design.
+  if (MOCKUP_DATA && isDemoUrl(song.audioUrl)) return demoVersions(song.number)
   const seen = new Set<string>()
   const rows: Array<{ title: string; url: string }> = []
   const push = (title: string, url: string | null | undefined) => {
@@ -108,12 +114,12 @@ export function selectedVersionIndex(
 
 /** `Voice · Performer A` (the chip text after the PS number). */
 export function versionSummary(version: PlayerVersion): string {
-  return `${instrumentLabel(version.instrument)} · ${version.performer}`
+  return `${version.label ?? instrumentLabel(version.instrument)} · ${version.performer}`
 }
 
 /** Row sub line in the Versions sheet: `Instrument · length · tag`. */
 export function versionRowMeta(version: PlayerVersion, formatLength: (s: number) => string): string {
-  const parts: string[] = [instrumentLabel(version.instrument)]
+  const parts: string[] = [version.label ?? instrumentLabel(version.instrument)]
   if (version.lengthSeconds != null) parts.push(formatLength(version.lengthSeconds))
   if (version.tag) parts.push(version.tag)
   return parts.join(" · ")

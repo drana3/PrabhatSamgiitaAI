@@ -207,5 +207,5 @@ const styles = StyleSheet.create({
   },
   thickFill: { ...StyleSheet.absoluteFillObject, borderRadius: 9999, backgroundColor: playerColors.sun },
   times: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, marginHorizontal: 20 },
-  time: { fontFamily: amFonts.medium, fontSize: 13, color: playerColors.textSoft, fontVariant: ["tabular-nums"] },
+  time: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18.85, color: playerColors.textSoft, fontVariant: ["tabular-nums"] },
 })

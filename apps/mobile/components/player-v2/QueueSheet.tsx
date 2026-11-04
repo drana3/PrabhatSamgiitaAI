@@ -21,8 +21,10 @@ import { Sheet } from "@/components/player-v2/Sheet"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { queueOrigin } from "@/lib/playerV2/queueOps"
+import { formatClock } from "@/lib/playerV2/transportState"
 
-export type QueueRow = { key: string; number: number; title: string }
+/** `seconds` (when known) replaces the "from Catalog" origin with the song length, as the prototype shows it. */
+export type QueueRow = { key: string; number: number; title: string; seconds?: number }
 
 type Props = {
   visible: boolean
@@ -40,7 +42,12 @@ type Props = {
   onOrder: (numbers: number[]) => void
   onClearUpcoming: () => void
   onClose: () => void
+  /** Preview mode: the prototype's short static list (six rows, no Clear) that sizes itself to its content. */
+  compact?: boolean
 }
+
+/** Rows the prototype's queue lists. */
+const COMPACT_ROWS = 6
 
 /** The prototype shows a short list; a long catalog list is cut here so the sheet stays quick. */
 export const QUEUE_ROW_LIMIT = 100
@@ -99,10 +106,12 @@ export function QueueSheet(props: Props) {
   const { head, upcoming, tail } = useMemo(() => splitQueue(rows, currentNumber), [rows, currentNumber])
   const total = upcoming.length + tail.length
 
-  const renderItem = ({ item, drag, isActive }: RenderItemParams<QueueRow>) => {
+  const subLine = (item: QueueRow, playable: boolean) =>
+    `PS ${item.number} · ${item.seconds != null ? formatClock(item.seconds) : `from ${queueOrigin(item.number, props.savedNumbers)}`}${playable ? "" : " · no audio yet"}`
+
+  const renderRow = (item: QueueRow, drag: (() => void) | null, isActive: boolean) => {
     const playable = props.isPlayable(item.number)
     return (
-      <ScaleDecorator>
         <ReanimatedSwipeable
           overshootRight={false}
           rightThreshold={72}
@@ -124,21 +133,23 @@ export function QueueSheet(props: Props) {
                 {item.title}
               </Text>
               <Text style={styles.sub} numberOfLines={1}>
-                PS {item.number} · from {queueOrigin(item.number, props.savedNumbers)}
-                {playable ? "" : " · no audio yet"}
+                {subLine(item, playable)}
               </Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Reorder ${item.title}`} onPressIn={drag} style={styles.handle}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Reorder ${item.title}`} onPressIn={drag ?? undefined} style={styles.handle}>
               <PlayerIcon name="handle" size={20} color={queueColors.handle} />
             </Pressable>
           </View>
         </ReanimatedSwipeable>
-      </ScaleDecorator>
     )
   }
 
+  const renderItem = ({ item, drag, isActive }: RenderItemParams<QueueRow>) => (
+    <ScaleDecorator>{renderRow(item, drag, isActive)}</ScaleDecorator>
+  )
+
   return (
-    <Sheet visible={props.visible} onClose={props.onClose} title={`Playing from ${props.sourceTitle}`} theme={theme} dark fill>
+    <Sheet visible={props.visible} onClose={props.onClose} title={`Playing from ${props.sourceTitle}`} theme={theme} dark fill={!props.compact}>
       {props.currentNumber != null ? (
         <View style={[styles.row, styles.now]}>
           <Equalizer playing={props.playing} />
@@ -161,13 +172,15 @@ export function QueueSheet(props: Props) {
             {total} {total === 1 ? "song" : "songs"} in this list
           </Text>
         </View>
-        {total > 0 ? (
+        {total > 0 && !props.compact ? (
           <Pressable accessibilityRole="button" onPress={props.onClearUpcoming} style={styles.clear}>
             <Text style={styles.clearText}>Clear</Text>
           </Pressable>
         ) : null}
       </View>
-      {upcoming.length ? (
+      {upcoming.length && props.compact ? (
+        <View>{upcoming.slice(0, COMPACT_ROWS).map((item) => <View key={item.key}>{renderRow(item, null, false)}</View>)}</View>
+      ) : upcoming.length ? (
         <DraggableFlatList
           data={upcoming}
           keyExtractor={(r) => r.key}
@@ -203,7 +216,7 @@ const styles = StyleSheet.create({
   now: { backgroundColor: queueColors.rowNow },
   main: { flex: 1, minWidth: 0, gap: 2 },
   title: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 20, color: amColors.white },
-  sub: { fontFamily: amFonts.medium, fontSize: 13, color: queueColors.sub, fontVariant: ["tabular-nums"] },
+  sub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18.85, color: queueColors.sub, fontVariant: ["tabular-nums"] },
   handle: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   dim: { opacity: 0.5 },
   eq: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 16, width: 16 },

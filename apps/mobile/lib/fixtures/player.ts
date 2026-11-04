@@ -5,6 +5,8 @@
  * and songs that match, and nothing for the rest. Replace with API data, then delete.
  */
 
+import { MOCKUP_DATA } from "@/lib/mockupMode"
+
 /** Roman lyric word, lower case and without diacritics, to its short English gloss. */
 const GLOSS_ENTRIES: Array<[string, string]> = [
   // PS 1 sample
@@ -50,6 +52,7 @@ const RU_LINES: Record<number, string[]> = {
 
 /** Russian translation lines for a song, only when they line up with the lyric lines. */
 export function sampleRussianLines(songNumber: number, lineCount: number): string[] | null {
-  const lines = RU_LINES[songNumber]
+  // The web preview plays every sample song with one of the two sample texts, so match by line count.
+  const lines = RU_LINES[songNumber] ?? (MOCKUP_DATA ? (lineCount === 3 ? RU_LINES[3] : RU_LINES[1]) : undefined)
   return lines && lines.length === lineCount ? lines : null
 }

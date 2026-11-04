@@ -1,3 +1,5 @@
+import { demoSong } from "@/lib/fixtures/playerDemo"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { hasPlayableAudio } from "@/lib/playableAudio"
 import { setTrackEndHook } from "@/lib/playback/trackEndHook"
 import { hydratePlayableSong } from "@/lib/playback/radioAdvance"
@@ -5,6 +7,7 @@ import {
   createTrackEndHook,
   type ControllerDeps,
 } from "@/lib/playerV2/controller"
+import { installDemoPlayer } from "@/lib/playerV2/demoEngine"
 import { createQueueActions } from "@/lib/playerV2/queueActions"
 import { activeQueue } from "@/lib/playerV2/controller"
 import { createResumeTracker } from "@/lib/playerV2/resumeTracker"
@@ -31,7 +34,7 @@ export function realControllerDeps(): ControllerDeps {
       return { playMode: s.playMode, repeatMode: s.repeatMode, versionByNumber: s.versionByNumber }
     },
     loadSong: (song, queue, mode) => usePlayerStore.getState().loadSong(song, queue, mode),
-    loadNumber: (number) => hydratePlayableSong(number),
+    loadNumber: (number) => (MOCKUP_DATA ? Promise.resolve(demoSong(number)) : hydratePlayableSong(number)),
     isPlayable: (number) => hasPlayableAudio(number),
     remember: (songNumber, versionId) => usePlayerV2Store.getState().rememberVersion(songNumber, versionId),
     seekTo: (seconds) => usePlayerStore.getState().seekTo(seconds),
@@ -112,3 +115,7 @@ export function startPlayerV2Services(): void {
     })
   }, 1000)
 }
+
+// Web preview with prototype data: the simulated player starts as soon as the app loads, so the
+// Player tab and the mini player show the design's state from the first screen.
+if (MOCKUP_DATA) installDemoPlayer(realControllerDeps())
