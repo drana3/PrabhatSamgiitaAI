@@ -71,6 +71,7 @@ describe("oEmbed", () => {
     const ok = await fetchOEmbed(ID, async () => ({ ok: true, status: 200, json: async () => ({ title: "T", author_name: "A" }) }))
     expect(ok).toEqual({ ok: true, preview: { title: "T", author: "A", thumbnailUrl: null } })
     expect(await fetchOEmbed(ID, async () => ({ ok: false, status: 404, json: async () => ({}) }))).toEqual({ ok: false, reason: "not_found" })
+    expect(await fetchOEmbed(ID, async () => ({ ok: false, status: 400, json: async () => ({}) }))).toEqual({ ok: false, reason: "not_found" })
     expect(await fetchOEmbed(ID, async () => ({ ok: false, status: 401, json: async () => ({}) }))).toEqual({ ok: false, reason: "not_embeddable" })
     expect(await fetchOEmbed(ID, async () => ({ ok: false, status: 500, json: async () => ({}) }))).toEqual({ ok: false, reason: "unreachable" })
     expect(await fetchOEmbed(ID, async () => ({ ok: true, status: 200, json: async () => ({ nope: 1 }) }))).toEqual({ ok: false, reason: "bad_response" })
@@ -90,5 +91,40 @@ describe("oEmbed", () => {
       return { ok: false, status: 404, json: async () => ({}) }
     })
     expect(asked).toBe(oembedEndpoint(ID))
+  })
+})
+
+import { commandMessage, embedErrorText, embedStateFromNumber, LISTEN_MESSAGE, parseEmbedMessage } from "@/lib/kirtan/iframeApi"
+
+describe("IFrame player messages", () => {
+  it("reads state and time from the player", () => {
+    expect(parseEmbedMessage(JSON.stringify({ event: "onStateChange", info: 1 }))).toEqual({ type: "state", state: "playing" })
+    expect(parseEmbedMessage({ event: "onStateChange", info: 0 })).toEqual({ type: "state", state: "ended" })
+    expect(parseEmbedMessage({ event: "infoDelivery", info: { currentTime: 12.5, duration: 760, playerState: 2 } })).toEqual({
+      type: "time",
+      current: 12.5,
+      duration: 760,
+      state: "paused",
+    })
+    expect(parseEmbedMessage({ event: "initialDelivery", info: { currentTime: 0, duration: 0 } })).toEqual({ type: "time", current: 0, duration: null, state: null })
+    expect(parseEmbedMessage({ event: "infoDelivery", info: { playerState: 3 } })).toEqual({ type: "state", state: "buffering" })
+    expect(parseEmbedMessage({ event: "onError", info: 150 })).toEqual({ type: "error", code: 150 })
+    expect(parseEmbedMessage({ event: "onReady" })).toEqual({ type: "ready" })
+  })
+
+  it("ignores anything else", () => {
+    expect(parseEmbedMessage("not json")).toBeNull()
+    expect(parseEmbedMessage(42)).toBeNull()
+    expect(parseEmbedMessage({ event: "somethingNew" })).toBeNull()
+    expect(parseEmbedMessage({ event: "onStateChange", info: 99 })).toBeNull()
+    expect(embedStateFromNumber(-1)).toBe("unstarted")
+    expect(embedStateFromNumber("1")).toBeNull()
+  })
+
+  it("builds the listening and command messages", () => {
+    expect(JSON.parse(LISTEN_MESSAGE)).toEqual({ event: "listening", id: 1, channel: "widget" })
+    expect(JSON.parse(commandMessage({ func: "playVideo" }))).toEqual({ event: "command", func: "playVideo", args: [] })
+    expect(JSON.parse(commandMessage({ func: "seekTo", seconds: -4 }))).toEqual({ event: "command", func: "seekTo", args: [0, true] })
+    expect(embedErrorText(150)).toMatch(/does not allow/)
   })
 })

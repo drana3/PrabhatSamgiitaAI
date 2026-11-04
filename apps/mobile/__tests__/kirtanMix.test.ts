@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { KIRTAN_FIXTURES, MIX_FIXTURES } from "@/lib/fixtures/kirtan"
 import { filterKirtans, formatKirtanLength, kirtanSubline, newestFirst, typesInUse } from "@/lib/kirtan/list"
-import { handoffAfter, handoffPrompt, itemKey, mixCaption, playableItems, runFrom, type MixItem } from "@/lib/kirtan/mix"
+import { handoffAfter, handoffPrompt, itemKey, mixCaption, playableItems, runFrom, songRunFinished, type MixItem } from "@/lib/kirtan/mix"
 import { nextAfter, playNext, positionLabel, previousBefore } from "@/lib/kirtan/queue"
 import { isVideoId } from "@/lib/kirtan/youtube"
 
@@ -104,5 +104,39 @@ describe("kirtan queue", () => {
     expect(previousBefore(state, "a")).toBeNull()
     expect(positionLabel(state.context, "b")).toBe("2 of 3")
     expect(positionLabel(state.context, "zz")).toBe("")
+  })
+})
+
+import { splitKirtanTitle } from "@/lib/kirtan/list"
+
+describe("splitKirtanTitle", () => {
+  it("makes the part before the first break heavy and the rest light", () => {
+    expect(splitKirtanTitle("Baba Nam Kevalam, morning round")).toEqual({ heavy: "Baba Nam Kevalam,", light: "morning round" })
+    expect(splitKirtanTitle("Lila kirtan: Krishna and the flute")).toEqual({ heavy: "Lila kirtan:", light: "Krishna and the flute" })
+    expect(splitKirtanTitle("Dipavali kirtan - a night of lamps")).toEqual({ heavy: "Dipavali kirtan", light: "a night of lamps" })
+    expect(splitKirtanTitle("Buddha Purnima kirtan")).toEqual({ heavy: "Buddha Purnima kirtan", light: "" })
+    expect(splitKirtanTitle("  ")).toEqual({ heavy: "", light: "" })
+  })
+})
+
+
+describe("songRunFinished", () => {
+  const session = { mixId: "m", items: [ps(2), ps(3), k("a")] as MixItem[], index: 0 }
+  const at = (number: number, over: Partial<{ isPlaying: boolean; position: number; duration: number }> = {}) => ({
+    currentSong: { number },
+    isPlaying: false,
+    position: 270,
+    duration: 271,
+    ...over,
+  })
+
+  it("is true only when the last song of the run stopped at its end", () => {
+    expect(songRunFinished(session, at(3))).toBe(true)
+    expect(songRunFinished(session, at(2))).toBe(false)
+    expect(songRunFinished(session, at(3, { isPlaying: true }))).toBe(false)
+    expect(songRunFinished(session, at(3, { position: 100 }))).toBe(false)
+    expect(songRunFinished(session, at(3, { duration: 0 }))).toBe(false)
+    expect(songRunFinished(session, { currentSong: null, isPlaying: false, position: 0, duration: 0 })).toBe(false)
+    expect(songRunFinished({ ...session, index: 2 }, at(3))).toBe(false)
   })
 })

@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { Alert, Platform, StyleSheet, Text, View } from "react-native"
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { SOURCE_BAR_BLOCK, SOURCE_BAR_HEIGHT, SourceSwitch, type SourceId } from "@/components/kirtan/KirtanParts"
+import { KirtanSegment } from "@/components/kirtan/KirtanSegment"
+import { MixesSegment } from "@/components/kirtan/MixesSegment"
 import { FilterSheet, RowMenuSheet, SortSheet } from "@/components/songs-v2/CatalogSheets"
 import { CollectionsSegment } from "@/components/songs-v2/CollectionsSegment"
 import { MineSegment, type MinePlaylist } from "@/components/songs-v2/MineSegment"
@@ -31,6 +35,7 @@ import { buildSavedRows, downloadsSummary } from "@/lib/songsV2/mine"
 import { parseSegment, type SongSegmentId } from "@/lib/songsV2/segments"
 import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
+import { useKirtanPlayerStore } from "@/stores/kirtanPlayerStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { MOCK_OFFLINE, MOCK_PLAYLISTS, MOCK_SAVED, MOCK_STORIES, MOCK_STRIP, MOCK_TOTAL, mockCountLabel } from "@/lib/fixtures/songsMock"
@@ -41,16 +46,16 @@ import { href } from "@/utils/href"
 const CATALOG_SIZE = 5018
 
 /**
- * Songs: `Catalog | Collections | Mine` (prototype lines 1125-1264). One scroll surface with a
- * pinned search pill, a pinned category strip, the A-Z rail, and the sort sheet.
- * Reachable at /songs-v2 and, as the Songs tab, at /v2/songs.
+ * Songs, Prabhat Samgiita source: `Catalog | Collections | Mine` (prototype lines 1125-1264). One
+ * scroll surface with a pinned search pill, a pinned category strip, the A-Z rail, and the sort sheet.
+ * `topExtra` is the height of the source switch above it (Prabhat Samgiita | Kirtan | Mixes).
  */
-export default function SongsV2Screen() {
+function PsSongs({ topExtra }: { topExtra: number }) {
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
-  const inset = Platform.OS === "web" ? 54 : insets.top
+  const inset = (Platform.OS === "web" ? 54 : insets.top) + topExtra
   const params = useLocalSearchParams<{ segment?: string }>()
   const [segment, setSegment] = useState<SongSegmentId>(parseSegment(params.segment))
 
@@ -330,8 +335,73 @@ export default function SongsV2Screen() {
   )
 }
 
+/**
+ * A layer of the source switch. Only opacity changes (a quick fade, none with reduced motion); the
+ * hidden layers stay mounted so the Prabhat Samgiita list keeps its place when you come back.
+ */
+function SourceLayer({ active, children }: { active: boolean; children: ReactNode }) {
+  const reduce = useReducedMotion()
+  const opacity = useSharedValue(active ? 1 : 0)
+  useEffect(() => {
+    opacity.value = withTiming(active ? 1 : 0, { duration: reduce ? 0 : 180 })
+  }, [active, reduce, opacity])
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, style]} pointerEvents={active ? "auto" : "none"} accessibilityElementsHidden={!active} importantForAccessibility={active ? "auto" : "no-hide-descendants"}>
+      {children}
+    </Animated.View>
+  )
+}
+
+/**
+ * Songs tab. A switch on top picks the source: Prabhat Samgiita (the catalog, collections and Mine),
+ * Kirtan (YouTube kirtans people shared) or Mixes (songs and kirtans in one order). The choice is kept
+ * in memory for the session. `?source=kirtan|mixes` opens a source directly.
+ * Reachable at /songs-v2 and, as the Songs tab, at /v2/songs.
+ */
+export default function SongsV2Screen() {
+  const theme = useSongsTheme()
+  const insets = useSafeAreaInsets()
+  const params = useLocalSearchParams<{ source?: string }>()
+  const source = useKirtanPlayerStore((s) => s.source)
+  const setSource = useKirtanPlayerStore((s) => s.setSource)
+  const top = Platform.OS === "web" ? 54 : insets.top
+  const [seen, setSeen] = useState<Record<SourceId, boolean>>({ ps: true, kirtan: false, mixes: false })
+
+  useEffect(() => {
+    if (params.source === "kirtan" || params.source === "mixes" || params.source === "ps") setSource(params.source)
+  }, [params.source, setSource])
+  useEffect(() => {
+    setSeen((cur) => (cur[source] ? cur : { ...cur, [source]: true }))
+  }, [source])
+
+  const content = top + SOURCE_BAR_BLOCK
+  return (
+    <View style={[styles.root, { backgroundColor: theme.page }]}>
+      <SourceLayer active={source === "ps"}>
+        <PsSongs topExtra={SOURCE_BAR_BLOCK} />
+      </SourceLayer>
+      {seen.kirtan ? (
+        <SourceLayer active={source === "kirtan"}>
+          <KirtanSegment inset={content} avatarTop={content + 6} />
+        </SourceLayer>
+      ) : null}
+      {seen.mixes ? (
+        <SourceLayer active={source === "mixes"}>
+          <MixesSegment inset={content} avatarTop={content + 6} />
+        </SourceLayer>
+      ) : null}
+      {/* the switch sits on the page colour, above whatever scrolls under it */}
+      <View pointerEvents="box-none" style={[styles.sourceBand, { height: top + SOURCE_BAR_HEIGHT + 4, paddingTop: top, backgroundColor: theme.page }]}>
+        <SourceSwitch theme={theme} value={source} onChange={setSource} />
+      </View>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  sourceBand: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 30 },
   groupHeader: {
     paddingTop: 20,
     paddingLeft: 10,

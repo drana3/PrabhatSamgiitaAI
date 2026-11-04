@@ -197,6 +197,10 @@ export default function RootLayout() {
             options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
           />
           <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
+          {/* Kirtans: shared YouTube links, played in YouTube's embedded player. */}
+          <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
+          <Stack.Screen name="kirtan-player" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+          <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

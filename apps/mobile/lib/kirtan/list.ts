@@ -43,3 +43,16 @@ export function typesInUse(list: readonly Pick<Kirtan, "type">[]): KirtanTypeFil
 export function kirtanRowLabel(k: Kirtan): string {
   return `Kirtan, ${k.title}. ${kirtanSubline(k)}`
 }
+
+/**
+ * Splits a title for the two-weight heading of the kirtan player: the part before the first comma or
+ * colon is heavy, the rest light. A title with no such break stays whole.
+ */
+export function splitKirtanTitle(title: string): { heavy: string; light: string } {
+  const text = title.trim().replace(/\s+/g, " ")
+  const at = text.search(/[,:;]| [-–—] /)
+  if (at <= 0 || at >= text.length - 1) return { heavy: text, light: "" }
+  const sep = text[at] === " " ? text.slice(at, at + 3).trim() : text[at]
+  const rest = text.slice(at + (text[at] === " " ? 3 : 1)).trim()
+  return { heavy: sep === "," || sep === ":" || sep === ";" ? `${text.slice(0, at)}${sep}` : text.slice(0, at), light: rest }
+}

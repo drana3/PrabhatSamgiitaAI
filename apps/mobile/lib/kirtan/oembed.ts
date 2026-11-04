@@ -41,7 +41,8 @@ export async function fetchOEmbed(id: string, fetchImpl?: FetchLike, timeoutMs =
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
   try {
     const response = await doFetch(oembedEndpoint(id), controller ? { signal: controller.signal } : undefined)
-    if (response.status === 404) return { ok: false, reason: "not_found" }
+    // YouTube answers 400 for an id that is not a video and 404 for one that is gone
+    if (response.status === 404 || response.status === 400) return { ok: false, reason: "not_found" }
     if (response.status === 401 || response.status === 403) return { ok: false, reason: "not_embeddable" }
     if (!response.ok) return { ok: false, reason: "unreachable" }
     const preview = parseOEmbed(await response.json())

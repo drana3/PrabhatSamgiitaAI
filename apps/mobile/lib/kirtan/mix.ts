@@ -77,3 +77,16 @@ export function handoffPrompt(title: string, to: "song-player" | "kirtan-player"
 export function mixesWithCaption(mixes: readonly Mix[]): (Mix & { caption: string })[] {
   return mixes.map((m) => ({ ...m, caption: mixCaption(m.items) }))
 }
+
+/** Has the last song of the run that started at `session.index` finished? Used to hand over to a kirtan. */
+export function songRunFinished(
+  session: { items: readonly MixItem[]; index: number },
+  player: { currentSong: { number: number | string } | null; isPlaying: boolean; position: number; duration: number },
+): boolean {
+  const run = runFrom(session.items, session.index)
+  if (!run || run.kind !== "ps") return false
+  const last = run.items[run.items.length - 1]
+  if (last.kind !== "ps" || !player.currentSong) return false
+  if (Number(player.currentSong.number) !== last.number) return false
+  return !player.isPlaying && player.duration > 1 && player.position >= player.duration - 1.5
+}
