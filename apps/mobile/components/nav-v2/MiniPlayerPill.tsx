@@ -75,8 +75,7 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
   return (
     <Animated.View
       pointerEvents={visible ? "box-none" : "none"}
-      accessibilityElementsHidden={!visible}
-      importantForAccessibility={visible ? "auto" : "no-hide-descendants"}
+      aria-hidden={!visible}
       style={[styles.slot, { bottom: miniBottom }, animated]}
     >
       <View style={[styles.pill, { backgroundColor: palette.background, borderColor: palette.edge }]}>
