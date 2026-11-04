@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
 import { BlurView } from "expo-blur"
-import { BookOpen, CirclePlay, ListMusic, Sunrise } from "lucide-react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   Easing,
@@ -15,6 +14,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { TabGlyph } from "@/components/today/protoIcons"
 import { amReveal, amSpring } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
 import { amRadius } from "@/constants/tokens/amSpacing"
@@ -34,13 +34,6 @@ import {
   type NavV2Tab,
   type NavV2TabId,
 } from "@/lib/navV2"
-
-const ICONS = {
-  today: Sunrise,
-  songs: ListMusic,
-  player: CirclePlay,
-  learn: BookOpen,
-} as const
 
 /** Finger travel (px) before a touch counts as a drag instead of a tap. */
 const DRAG_SLOP = 4
@@ -260,7 +253,6 @@ function Faces({ tabs, color }: { tabs: readonly NavV2Tab[]; color: string }) {
   return (
     <>
       {tabs.map((tab) => {
-        const Icon = ICONS[tab.icon]
         return (
           <View
             key={tab.id}
@@ -268,7 +260,7 @@ function Faces({ tabs, color }: { tabs: readonly NavV2Tab[]; color: string }) {
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <Icon size={22} color={color} strokeWidth={2} />
+            <TabGlyph name={tab.icon} size={22} color={color} />
             <Text style={[styles.label, { color }]} numberOfLines={1}>
               {tab.label}
             </Text>

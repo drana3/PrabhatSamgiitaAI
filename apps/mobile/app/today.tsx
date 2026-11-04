@@ -1,56 +1,148 @@
 import { useEffect, useMemo, useState } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
-import { useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { Platform, StyleSheet, Text, View, useWindowDimensions } from "react-native"
+import { BlurView } from "expo-blur"
+import { LinearGradient } from "expo-linear-gradient"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import Animated, {
+  interpolate,
+  useAnimatedReaction,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+  Easing,
+  Extrapolation,
+} from "react-native-reanimated"
 import type { TodayRecommendationItem, TodayRecommendations } from "@prabhat/core"
 
 import { Reveal } from "@/components/today/motion"
-import { TodayHero } from "@/components/today/TodayHero"
 import {
-  FindWayRows,
-  RecentRows,
-  ResumeCard,
-  StoryCard,
-  TodaySearchPill,
-  TodayTopBar,
-  TwoToneHeading,
+  TodayAvatar,
+  TodayCardButton,
+  TodayHead,
+  TodayHeader,
+  TodayHeroPanel,
+  TodayPlayAll,
+  TodayQuickTiles,
+  TodayRecentRow,
+  TodayResumeCard,
+  TodaySearchField,
+  TodaySectionHeading,
+  TodaySongPill,
+  TodayStoryCard,
 } from "@/components/today/TodayBlocks"
-import { amGap } from "@/constants/tokens/amSpacing"
+import { amProto, protoFor } from "@/constants/tokens/amToday"
 import type { MockSong } from "@/data/mock"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { loadCatalog } from "@/lib/catalog"
 import { api } from "@/lib/client"
 import { memberProfileName } from "@/lib/displayName"
+import { TODAY_FIXTURE_DAYS, TODAY_FIXTURE_RECENT, TODAY_FIXTURE_SONGS } from "@/lib/fixtures/today"
+import { formatClock } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { songSummaryToMockSong } from "@/lib/songMap"
+import {
+  buildTodayDay,
+  formatDayLine,
+  resumeLine,
+  searchHref,
+  TODAY_QUICK_INTRO,
+  TODAY_QUICK_SEARCHES,
+  type TodayDay,
+} from "@/lib/todayDay"
 import { todayItemToMockSong } from "@/lib/today"
 import { readTodayCache, refreshTodayRecommendations } from "@/lib/todayCache"
-import { buildTodayView, formatTodayEyebrow, storyOfTheWeek } from "@/lib/todayView"
+import { buildTodayView, resumeProgress, storyOfTheWeek } from "@/lib/todayView"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { useResumeStore } from "@/stores/resumeStore"
 import { href } from "@/utils/href"
 
+/** How many songs Today offers: the hero and two more (prototype `tcount`). */
+const SONGS_PER_DAY = 3
+const REVEAL_EASING = Easing.bezier(0.2, 0.7, 0.2, 1)
+/** Scroll offset where the search field reaches the top of the page and sticks. */
+const STICK_AT = amProto.headHeight
+const NARROW_FROM = 6
+
+type TodayRow = {
+  song: MockSong
+  /** "PS 1 · composed 1982" */
+  meta: string
+  firstLine: string
+  /** a real length, when we have one */
+  length?: string
+}
+
+function firstLineOf(song: MockSong): string {
+  const line = (song.lyrics ?? "").trim()
+  if (!line || line.length > 90) return ""
+  return line.toLowerCase() === song.title.trim().toLowerCase() ? "" : line
+}
+
+/** Song rows built from the design prototype's sample day (?day=fest, for design review only). */
+function fixtureDay(kind: "date" | "fest" | "season", count: number) {
+  const def = TODAY_FIXTURE_DAYS[kind]
+  const now = "date" in def ? def.date : new Date(2026, 10, 1)
+  const toRow = (index: number, composed?: string): TodayRow => {
+    const fix = TODAY_FIXTURE_SONGS[index]
+    const song = songSummaryToMockSong({ number: fix.number, title: fix.title, first_line: fix.firstLine, is_verified: true })
+    return {
+      song,
+      meta: composed ? `PS ${fix.number} · composed ${composed}` : `PS ${fix.number}`,
+      firstLine: fix.firstLine,
+      length: formatClock(fix.seconds),
+    }
+  }
+  const rows = def.songs.slice(0, count).map((n, i) => toRow(n, def.composed[i]))
+  const context =
+    kind === "fest"
+      ? { festival: "Díipávalii", recommendation_mode: "strict_festival" }
+      : kind === "season"
+        ? { season: "Hemanta", recommendation_mode: "season" }
+        : {}
+  const day = buildTodayDay({ context, signals: [], recommendations: [], disclaimer: "" } as unknown as TodayRecommendations, now)
+  const alsoRow = def.also != null ? toRow(def.also) : null
+  const tag = kind === "date" && def.composed[0] ? `Composed 1 Nov ${def.composed[0]}` : day.tag
+  return { rows, day: { ...day, dateLabel: formatDayLine(now), tag }, also: alsoRow }
+}
+
 /**
- * Today (spec SCR-10): the daily ritual in under 30 seconds.
- * Redesign screen, reachable at /today until the tab bar switches to it.
+ * Today (spec SCR-10; prototype `<!-- TODAY -->`, Main.dc.html lines 1010-1124). The daily ritual in under
+ * 30 seconds: the songs of this day, where you stopped, three ways to search, one story, what you played.
+ * Colours are the prototype's "Dawn" set (light) and the dark theme.
  */
 export default function TodayScreen() {
   const router = useRouter()
   const theme = useAmTheme()
-  const now = useMemo(() => new Date(), [])
+  const p = protoFor(theme)
+  const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const reduce = useReducedMotion()
+  const params = useLocalSearchParams<{ day?: string; count?: string }>()
+  const sampleKind = params.day === "date" || params.day === "fest" || params.day === "season" ? params.day : null
+  const songCount = Math.min(3, Math.max(1, Number(params.count) || SONGS_PER_DAY))
+  // the prototype's status area is 54dp; a phone reports its own inset, the browser reports 0
+  const top = insets.top || amProto.statusArea
 
+  const now = useMemo(() => new Date(), [])
   const recentPlays = usePreferencesStore((s) => s.recentPlays)
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
   const currentSong = usePlayerStore((s) => s.currentSong)
+  const isPlaying = usePlayerStore((s) => s.isPlaying)
   const position = usePlayerStore((s) => s.position)
   const duration = usePlayerStore((s) => s.duration)
+  const resumeEntries = useResumeStore((s) => s.entries)
   const mode = useAuthStore((s) => s.mode)
   const displayName = useAuthStore((s) => s.displayName)
   const email = useAuthStore((s) => s.email)
   const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
 
+  const [today, setToday] = useState<TodayRecommendations | null>(null)
   const [recommended, setRecommended] = useState<MockSong[]>([])
   const [stories, setStories] = useState<StorySummary[]>([])
 
@@ -58,7 +150,9 @@ export default function TodayScreen() {
     let active = true
     const apply = (value: TodayRecommendations) => {
       const songs = (value.recommendations ?? []).slice(0, 8).map((item: TodayRecommendationItem, i: number) => todayItemToMockSong(item, i))
-      if (active && songs.length) setRecommended(songs)
+      if (!active) return
+      setToday(value)
+      if (songs.length) setRecommended(songs)
     }
     void (async () => {
       const cached = await readTodayCache()
@@ -83,96 +177,268 @@ export default function TodayScreen() {
 
   const view = useMemo(() => buildTodayView({ recommended, recentPlays, now }), [recommended, recentPlays, now])
   const story = useMemo(() => storyOfTheWeek(stories, now), [stories, now])
-  const initials =
-    memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initials = memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
 
-  const playing = (song: MockSong) => {
+  const sample = useMemo(() => (sampleKind ? fixtureDay(sampleKind, songCount) : null), [sampleKind, songCount])
+  const day: TodayDay = sample?.day ?? buildTodayDay(today, now)
+  const rows: TodayRow[] = useMemo(
+    () =>
+      sample
+        ? sample.rows
+        : recommended.slice(0, songCount).map((song) => ({ song, meta: `PS ${song.number}`, firstLine: firstLineOf(song) })),
+    [sample, recommended, songCount],
+  )
+  const hero = rows[0] ?? null
+  const more = rows.slice(1)
+  const also = sample?.also ?? null
+
+  // TODO(api): ?day= design-review mode shows the prototype's sample "pick up" card (PS 6, 1:12 of 5:00)
+  const sampleResume = useMemo(() => {
+    if (!sample) return null
+    const fix = TODAY_FIXTURE_SONGS[5]
+    return songSummaryToMockSong({ number: fix.number, title: fix.title, first_line: fix.firstLine, is_verified: true })
+  }, [sample])
+  const resumeSong = sampleResume ?? (view.resume?.kind === "resume" ? view.resume.song : null)
+  const resumeIsCurrent = resumeSong != null && currentSong?.number === resumeSong.number
+  const saved = resumeSong ? resumeEntries[String(resumeSong.number)] : undefined
+  const resumePos = sampleResume ? 72 : resumeIsCurrent ? position : (saved?.position ?? 0)
+  const resumeDur = sampleResume ? 300 : resumeIsCurrent ? duration : (saved?.duration ?? 0)
+
+  // TODO(api): ?day= design-review mode lists the prototype's sample recent plays with their lengths
+  const recentRows = useMemo(
+    () =>
+      sample
+        ? TODAY_FIXTURE_RECENT.map((index) => {
+            const fix = TODAY_FIXTURE_SONGS[index]
+            const song = songSummaryToMockSong({ number: fix.number, title: fix.title, first_line: fix.firstLine, is_verified: true })
+            return { song, length: formatClock(fix.seconds) as string | undefined }
+          })
+        : view.recent.map((song) => ({ song, length: undefined as string | undefined })),
+    [sample, view.recent],
+  )
+
+  const goPlayer = () => router.navigate(href("/v2/player"))
+  /** Play, and show the player, like the prototype's `_play(i); _go('player')`. */
+  const listen = (song: MockSong, queue?: number[]) => {
     const state = usePlayerStore.getState()
-    return songPlayback(state, song).showPause
+    const wasPlaying = songPlayback(state, song).showPause
+    playOrToggle(song, queue)
+    if (!wasPlaying) goPlayer()
   }
-  const isHeroPlaying = view.hero ? playing(view.hero) && currentSong?.number === view.hero.number : false
   const openSong = (song: MockSong) => router.push(href(`/song-v2/${song.id}`))
-  const resumeIsCurrent = view.resume && currentSong?.number === view.resume.song.number
+  const heroPlaying = hero ? songPlayback({ currentSong, isPlaying, isBuffering: false }, hero.song).showPause : false
 
-  let block = 0
-  const next = () => block++
+  /* --- scroll-linked header: the search field narrows, then sticks under the status bar --- */
+  const scrollY = useSharedValue(0)
+  const narrow = useSharedValue(0)
+  const onScroll = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y
+  })
+  useAnimatedReaction(
+    () => scrollY.value > NARROW_FROM,
+    (isNarrow, was) => {
+      if (isNarrow === was) return
+      narrow.value = reduce ? (isNarrow ? 1 : 0) : withTiming(isNarrow ? 1 : 0, { duration: 200, easing: REVEAL_EASING })
+    },
+  )
+  // `.pstk.nar .pillfield{width:calc(100% - 76px)}`: the field makes room for the avatar
+  const fieldStyle = useAnimatedStyle(() => ({ width: width - 2 * amProto.gutter - narrow.value * 56 }))
+  const stuckStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [STICK_AT - 12, STICK_AT], [0, 1], Extrapolation.CLAMP),
+  }))
+  // the dawn wash scrolls away with the page; the status strip fades with it
+  const washStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, STICK_AT], [1, 0], Extrapolation.CLAMP),
+  }))
+
+  const dawn = !p.dark
+  const bg = p.sand200
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <ScrollView
+    <View style={[styles.root, { backgroundColor: bg }]}>
+      {dawn ? (
+        <Animated.View pointerEvents="none" style={[styles.statusWash, { height: top }, washStyle]}>
+          <LinearGradient colors={[p.orange100, "rgba(255, 220, 197, 0.93)"]} style={StyleSheet.absoluteFill} />
+        </Animated.View>
+      ) : null}
+
+      <Animated.ScrollView
+        style={[styles.scroll, { marginTop: top }]}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
+        stickyHeaderIndices={[dawn ? 2 : 1]}
+        contentContainerStyle={styles.content}
       >
-        <Reveal index={next()}>
-          <TodayTopBar theme={theme} initials={initials} onAvatar={() => router.push(href("/profile-sheet"))} />
-        </Reveal>
-
-        <Reveal index={next()}>
-          <TodaySearchPill theme={theme} onPress={() => router.push(href("/search-v2?focus=1"))} />
-        </Reveal>
-
-        {view.hero ? (
-          <Reveal index={next()}>
-            <TodayHero
-              theme={theme}
-              song={view.hero}
-              eyebrow={formatTodayEyebrow(now)}
-              isPlaying={isHeroPlaying}
-              onListen={() => playOrToggle(view.hero!)}
-              onReadLyrics={() => openSong(view.hero!)}
-            />
-          </Reveal>
+        {dawn ? (
+          <LinearGradient
+            pointerEvents="none"
+            colors={[p.orange100, "rgba(255, 220, 197, 0)"]}
+            style={[styles.wash, { top: -top }]}
+          />
         ) : null}
 
-        {view.resume ? (
-          <Reveal index={next()}>
-            <TwoToneHeading
-              theme={theme}
-              first={view.resume.kind === "resume" ? "Pick up" : "Song"}
-              second={view.resume.kind === "resume" ? "where you stopped" : "of the day"}
-            />
-            <ResumeCard
-              theme={theme}
-              song={view.resume.song}
-              kind={view.resume.kind}
-              positionSeconds={resumeIsCurrent ? position : 0}
-              durationSeconds={resumeIsCurrent ? duration : 0}
-              onPlay={() => playOrToggle(view.resume!.song)}
-              onOpen={() => openSong(view.resume!.song)}
-            />
+        <Reveal index={0}>
+          <TodayHeader p={p} />
+        </Reveal>
+
+        <View style={styles.sticky}>
+          <Animated.View pointerEvents="none" style={[styles.stickyBack, stuckStyle]}>
+            <BlurView intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: p.dark ? "rgba(22, 27, 18, 0.95)" : "rgba(238, 233, 229, 0.95)" }]} />
+          </Animated.View>
+          <Reveal index={1}>
+            <Animated.View style={[styles.fieldWrap, Platform.OS === "web" ? null : null, fieldStyle]}>
+              <TodaySearchField p={p} onPress={() => router.push(href("/search-v2?focus=1"))} width="100%" />
+            </Animated.View>
           </Reveal>
+        </View>
+
+        <Reveal index={2}>
+          <TodayHead p={p} dateLabel={day.dateLabel} kind={day.kind} kindLabel={day.kindLabel} note={day.note} />
+        </Reveal>
+
+        {hero ? (
+          <>
+            <Reveal index={3}>
+              <TodayHeroPanel
+                p={p}
+                tag={day.tag}
+                meta={`PS ${hero.song.number}${hero.length ? ` · ${hero.length}` : ""} · Read lyrics`}
+                title={hero.song.title}
+                playing={heroPlaying}
+                onOpen={() => openSong(hero.song)}
+                onListen={() => listen(hero.song, rows.map((row) => Number(row.song.number)))}
+              />
+            </Reveal>
+
+            {more.length ? (
+              <Reveal index={5} style={[styles.list, { marginTop: 10 }]}>
+                {more.map((row) => (
+                  <TodaySongPill
+                    key={row.song.id}
+                    p={p}
+                    meta={`${row.meta}${row.length && !row.meta.includes("composed") ? ` · ${row.length}` : ""}`}
+                    title={row.song.title}
+                    firstLine={row.firstLine}
+                    onOpen={() => openSong(row.song)}
+                    onPlay={() => listen(row.song)}
+                  />
+                ))}
+                <TodayPlayAll
+                  p={p}
+                  count={rows.length}
+                  onPress={() => listen(hero.song, rows.map((row) => Number(row.song.number)))}
+                />
+              </Reveal>
+            ) : null}
+
+            {also && day.alsoLabel ? (
+              <Reveal index={6} style={[styles.list, { marginTop: 10 }]}>
+                <TodayCardButton p={p} label={day.alsoLabel} title={`PS ${also.song.number} · ${also.song.title}`} onPress={() => openSong(also.song)} />
+              </Reveal>
+            ) : null}
+          </>
+        ) : (
+          <Text style={[styles.empty, { color: p.ink500 }]}>Loading today's song…</Text>
+        )}
+
+        {resumeSong ? (
+          <View style={styles.sect}>
+            <Reveal index={2}>
+              <TodaySectionHeading p={p} first="Pick up" second="where you stopped" />
+            </Reveal>
+            <Reveal index={3} style={styles.list}>
+              <TodayResumeCard
+                p={p}
+                title={resumeSong.title}
+                line={resumeLine({ number: resumeSong.number, position: resumePos, duration: resumeDur })}
+                progress={resumeProgress(resumePos, resumeDur)}
+                onPress={() => listen(resumeSong)}
+              />
+            </Reveal>
+          </View>
         ) : null}
 
-        <Reveal index={next()}>
-          <TwoToneHeading theme={theme} first="Find a song" second="your way" />
-          <FindWayRows theme={theme} onOpen={(to) => router.push(href(to))} />
-        </Reveal>
+        <View style={styles.sect}>
+          <Reveal index={4}>
+            <TodaySectionHeading p={p} first="Find a song" second="your way" />
+          </Reveal>
+          <Reveal index={4}>
+            <Text style={[styles.intro, { color: p.ink500 }]}>{TODAY_QUICK_INTRO}</Text>
+          </Reveal>
+          <Reveal index={5}>
+            <TodayQuickTiles p={p} tiles={TODAY_QUICK_SEARCHES} onPress={(query) => router.push(href(searchHref(query)))} />
+          </Reveal>
+        </View>
 
         {story ? (
-          <Reveal index={next()}>
-            <StoryCard title={story.title} onPress={() => router.push(href(`/story-sheet/${story.slug}`))} />
-          </Reveal>
+          <View style={styles.sect}>
+            <Reveal index={6}>
+              <TodaySectionHeading p={p} first="Story" second="of the week" />
+            </Reveal>
+            <Reveal index={7} style={styles.list}>
+              <TodayStoryCard
+                p={p}
+                label="Story"
+                title={story.title}
+                blurb={story.teaser}
+                onPress={() => router.push(href(`/story-sheet/${story.slug}`))}
+              />
+            </Reveal>
+          </View>
         ) : null}
 
-        {view.recent.length ? (
-          <Reveal index={next()}>
-            <TwoToneHeading theme={theme} first="Recently" second="played" />
-            <RecentRows theme={theme} songs={view.recent} onOpen={openSong} />
-          </Reveal>
-        ) : null}
-
-        {!view.hero ? (
-          <Text style={[styles.empty, { color: theme.textBody }]}>Loading today's song…</Text>
+        {recentRows.length ? (
+          <View style={styles.sect}>
+            <Reveal index={8}>
+              <TodaySectionHeading p={p} first="Recently" second="played" />
+            </Reveal>
+            <Reveal index={9} style={styles.list}>
+              {recentRows.map(({ song, length }) => (
+                <TodayRecentRow key={song.id} p={p} number={song.number} title={song.title} length={length} onPress={() => openSong(song)} />
+              ))}
+            </Reveal>
+          </View>
         ) : null}
         <View style={styles.tail} />
-      </ScrollView>
-    </SafeAreaView>
+      </Animated.ScrollView>
+
+      <TodayAvatar_ p={p} top={top} initial={initials} onPress={() => router.push(href("/profile-sheet"))} />
+    </View>
+  )
+}
+
+/** The avatar floats above the scroll, 6dp under the status area, and stays while the page moves. */
+function TodayAvatar_({ p, top, initial, onPress }: { p: ReturnType<typeof protoFor>; top: number; initial: string; onPress: () => void }) {
+  return (
+    <View pointerEvents="box-none" style={[styles.avatarSlot, { top: top + 6 }]}>
+      <TodayAvatar p={p} initial={initial} onPress={onPress} />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { gap: amGap.section },
-  empty: { textAlign: "center" },
-  tail: { height: 140 },
+  root: { flex: 1 },
+  statusWash: { position: "absolute", left: 0, right: 0, top: 0, zIndex: 1 },
+  scroll: { flex: 1 },
+  content: { paddingBottom: 190 },
+  wash: { position: "absolute", left: 0, right: 0, height: 720 },
+  sticky: { paddingBottom: 8, zIndex: 9 },
+  stickyBack: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
+  fieldWrap: { marginHorizontal: amProto.gutter - amProto.gutter },
+  list: { paddingHorizontal: amProto.gutter, gap: 10 },
+  sect: { paddingTop: 40, gap: 20 },
+  intro: {
+    maxWidth: 309,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    fontFamily: "Roboto_500Medium",
+    fontSize: 16,
+    lineHeight: 23,
+    marginBottom: 0,
+  },
+  empty: { textAlign: "center", marginTop: 40 },
+  tail: { height: 0 },
+  avatarSlot: { position: "absolute", right: amProto.gutter, zIndex: 12 },
 })
