@@ -147,14 +147,14 @@ export function SpRound({
   size?: number
   iconSize?: number
   /** glass: top bar buttons. sand: the key / capo steppers */
-  tone?: "glass" | "sand" | "peach"
+  tone?: "glass" | "sand" | "peach" | "white"
   color?: string
   filled?: boolean
   children?: ReactNode
   style?: StyleProp<ViewStyle>
 }) {
-  const bg = tone === "sand" ? t.sand100 : tone === "peach" ? t.orange100 : t.glassStrong
-  const border = tone === "sand" ? t.sand300 : tone === "peach" ? "transparent" : t.glassEdge
+  const bg = tone === "sand" ? t.sand100 : tone === "peach" ? t.orange100 : tone === "white" ? t.white : t.glassStrong
+  const border = tone === "sand" || tone === "white" ? t.sand300 : tone === "peach" ? "transparent" : t.glassEdge
   const fg = color ?? (tone === "peach" ? t.orange700 : t.ink800)
   return (
     <SpPress

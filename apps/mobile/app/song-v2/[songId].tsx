@@ -108,7 +108,7 @@ const POSTER = require("../../assets/song-v2-poster.jpg")
  * Word glosses, chord charts and the explanation come from `lib/fixtures/songPage.ts` until the API has them.
  */
 export default function SongPageV2() {
-  const params = useLocalSearchParams<{ songId: string | string[]; demo?: string | string[] }>()
+  const params = useLocalSearchParams<{ songId: string | string[]; demo?: string | string[]; section?: string | string[] }>()
   const songId = routeString(params.songId)
   const demo = __DEV__ && routeString(params.demo) === "1"
   const router = useRouter()
@@ -535,6 +535,25 @@ export default function SongPageV2() {
     },
     [reduce],
   )
+
+  // `?section=chords` (from the harmonium screens) opens the page scrolled to that section, once it is laid out
+  const sectionParam = routeString(params.section)
+  const jumped = useRef(false)
+  useEffect(() => {
+    if (!sectionParam || jumped.current || !song) return
+    if (!(sectionIds as string[]).includes(sectionParam)) return
+    let tries = 0
+    const timer = setInterval(() => {
+      tries += 1
+      if (topsRef.current[sectionParam as SectionId] != null) {
+        jumped.current = true
+        clearInterval(timer)
+        goTo(sectionParam as SectionId)
+      } else if (tries > 20) clearInterval(timer)
+    }, 150)
+    return () => clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionParam, song, sectionIds.join(","), goTo])
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = event.nativeEvent.contentOffset.y

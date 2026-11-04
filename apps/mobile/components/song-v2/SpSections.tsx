@@ -188,6 +188,7 @@ export function SpKeyRow({
   onUp,
   downLabel,
   upLabel,
+  inset,
 }: {
   t: SpTheme
   label: string
@@ -197,9 +198,11 @@ export function SpKeyRow({
   onUp: () => void
   downLabel: string
   upLabel: string
+  /** the row of an overlay page: 10 in from each side */
+  inset?: boolean
 }) {
   return (
-    <View style={styles.keyrow}>
+    <View style={[styles.keyrow, inset && { paddingHorizontal: 10 }]}>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Text style={over(t)}>{label}</Text>
         <Text style={note(t)}>{noteText}</Text>
@@ -213,7 +216,63 @@ export function SpKeyRow({
   )
 }
 
+/** `.card.press.cardbtn`: white 20-radius row with an eyebrow over a title and a chevron. */
+export function SpCardButton({
+  t,
+  eyebrow,
+  title,
+  onPress,
+  accessibilityLabel,
+}: {
+  t: SpTheme
+  eyebrow: string
+  title: string
+  onPress: () => void
+  accessibilityLabel?: string
+}) {
+  return (
+    <SpPress
+      onPress={onPress}
+      accessibilityLabel={accessibilityLabel ?? `${eyebrow}, ${title}`}
+      style={[styles.cardbtn, { backgroundColor: t.white, borderColor: t.sand300 }]}
+    >
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text style={over(t)}>{eyebrow}</Text>
+        <Text style={[styles.cardbtnT, { color: t.ink800 }]}>{title}</Text>
+      </View>
+      <SpIcon name="chevRight" size={22} color={t.ink500} />
+    </SpPress>
+  )
+}
+
 export type SpChordToken = { key: string; chord: string; word: string; swara: string; lineBreak?: boolean }
+
+/** `.ctoks`: words with the chord letter above and the swara under, wrapped; a `lineBreak` token starts a new line. */
+export function SpChordTokens({
+  t,
+  tokens,
+  wordFont = amFonts.medium,
+}: {
+  t: SpTheme
+  tokens: SpChordToken[]
+  wordFont?: string
+}) {
+  return (
+    <View style={styles.ctoks}>
+      {tokens.map((token) =>
+        token.lineBreak ? (
+          <View key={token.key} style={{ flexBasis: "100%", height: 14 }} />
+        ) : (
+          <View key={token.key} style={styles.cw}>
+            <Text style={[styles.cch, { color: t.orange700 }]}>{token.chord}</Text>
+            <Text style={[styles.cwd, { color: t.ink800, fontFamily: wordFont }]}>{token.word}</Text>
+            {token.swara ? <Text style={[styles.csw, { color: t.ink500 }]}>{token.swara}</Text> : null}
+          </View>
+        ),
+      )}
+    </View>
+  )
+}
 
 export function SpChords({
   t,
@@ -341,19 +400,7 @@ export function SpChords({
         </>
       )}
       <Text style={note(t)}>{strum}</Text>
-      <View style={styles.ctoks}>
-        {tokens.map((token) =>
-          token.lineBreak ? (
-            <View key={token.key} style={{ flexBasis: "100%", height: 14 }} />
-          ) : (
-            <View key={token.key} style={styles.cw}>
-              <Text style={[styles.cch, { color: t.orange700 }]}>{token.chord}</Text>
-              <Text style={[styles.cwd, { color: t.ink800, fontFamily: wordFont }]}>{token.word}</Text>
-              {token.swara ? <Text style={[styles.csw, { color: t.ink500 }]}>{token.swara}</Text> : null}
-            </View>
-          ),
-        )}
-      </View>
+      <SpChordTokens t={t} tokens={tokens} wordFont={wordFont} />
     </SpCard>
   )
 }

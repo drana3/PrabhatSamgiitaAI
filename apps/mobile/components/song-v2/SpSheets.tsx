@@ -18,7 +18,7 @@ function Group({ t, children }: { t: SpTheme; children: ReactNode }) {
   return <View style={[styles.group, { backgroundColor: t.white, borderColor: t.sand300 }]}>{children}</View>
 }
 
-function ShTitle({
+export function ShTitle({
   t,
   label,
   right,
@@ -37,7 +37,7 @@ function ShTitle({
   )
 }
 
-function DoneLink({ t, onPress }: { t: SpTheme; onPress: () => void }) {
+export function DoneLink({ t, onPress }: { t: SpTheme; onPress: () => void }) {
   return (
     <SpPress onPress={onPress} accessibilityLabel="Done" style={styles.doneBtn}>
       <Text style={{ fontFamily: amFonts.semi, fontSize: 15, color: t.ink800 }}>Done</Text>
