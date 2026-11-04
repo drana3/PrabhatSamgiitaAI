@@ -211,7 +211,8 @@ export function LangRow({ p, name, sub, control, on, action, dim, onPress, last 
           {name}
         </Text>
         <Text style={[s.lSub, { color: p.ink500 }]} numberOfLines={1}>
-          {sub}
+          {/* a left-to-right mark keeps a right-to-left native name from flipping the whole line */}
+          {"\u200E" + sub}
         </Text>
       </View>
       {action ? <Text style={[s.rq, { color: p.orange700 }]}>{action}</Text> : null}

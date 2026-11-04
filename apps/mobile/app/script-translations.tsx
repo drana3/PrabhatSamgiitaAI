@@ -42,7 +42,7 @@ export default function ScriptTranslationsScreen() {
       <SheetShell p={p} label="Script and translations" onClosed={onClosed}>
         <SheetTitle p={p} label="Script" baseline />
         <Group p={p}>
-          {SCRIPT_ROWS.map((row) => (
+          {SCRIPT_ROWS.filter((row) => row.id !== "both" || script === "both").map((row) => (
             <LangRow
               key={row.id}
               p={p}

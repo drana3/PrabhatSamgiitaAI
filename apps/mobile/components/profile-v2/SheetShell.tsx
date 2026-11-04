@@ -46,7 +46,7 @@ export function SheetShell({ p, label, onClosed, overlay, children }: Props) {
   const { height: windowHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   const top = insets.top || amProto.statusArea
-  const maxHeight = Math.min(amProto.sheetMaxHeight, windowHeight - top - 12)
+  const maxHeight = Math.min(amProto.sheetMaxHeight, windowHeight - top - 10)
   const reduce = useReducedMotion()
 
   const heightSV = useSharedValue(windowHeight)
@@ -152,9 +152,6 @@ export function SheetShell({ p, label, onClosed, overlay, children }: Props) {
           onLayout={onLayout}
           style={[s.sheet, { backgroundColor: surface, maxHeight }, sheetStyle]}
         >
-          <View style={s.grab}>
-            <View style={[s.grabBar, { backgroundColor: p.ink300 }]} />
-          </View>
           <ScrollView
             showsVerticalScrollIndicator={false}
             ref={scrollRef as unknown as Ref<ScrollView>}
@@ -168,6 +165,10 @@ export function SheetShell({ p, label, onClosed, overlay, children }: Props) {
             scrollEventThrottle={16}
             contentContainerStyle={{ paddingBottom: 32 + (insets.bottom > 0 ? insets.bottom - 8 : 0) }}
           >
+            {/* like `.sheet` in the prototype, the grab strip scrolls away with the content */}
+            <View style={s.grab}>
+              <View style={[s.grabBar, { backgroundColor: p.ink300 }]} />
+            </View>
             {children}
           </ScrollView>
           {overlay}

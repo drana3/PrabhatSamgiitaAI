@@ -69,5 +69,5 @@ const styles = StyleSheet.create({
     letterSpacing: -0.56,
     textTransform: "uppercase",
   },
-  intro: { marginTop: 8, fontFamily: amFonts.regular, fontSize: 15, lineHeight: 23 },
+  intro: { marginTop: 8, fontFamily: amFonts.regular, fontSize: 15, lineHeight: 23.25 },
 })
