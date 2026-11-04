@@ -14,6 +14,8 @@ type SongPageState = SongPageSettings & {
   setScript: (script: ScriptChoice) => void
   toggleTranslation: (code: string) => void
   setPrimaryTranslation: (code: string) => void
+  /** Replace the chosen translation languages (the Words chips pick exactly one). */
+  setTranslations: (codes: string[]) => void
   setChordsOn: (on: boolean) => void
   setInstrument: (instrument: ChordInstrument) => void
   setCapo: (capo: number) => void
@@ -34,6 +36,7 @@ export const useSongPageStore = create<SongPageState>()(
       setScript: (script) => set({ script }),
       toggleTranslation: (code) => set((s) => ({ translations: toggleTranslation(s.translations, code) })),
       setPrimaryTranslation: (code) => set((s) => ({ translations: setPrimaryTranslation(s.translations, code) })),
+      setTranslations: (codes) => set({ translations: codes.length ? codes.slice(0, 2) : ["en"] }),
       setChordsOn: (chordsOn) => set({ chordsOn }),
       setInstrument: (instrument) => set({ instrument }),
       setCapo: (capo) => set({ capo: clampCapo(capo) }),

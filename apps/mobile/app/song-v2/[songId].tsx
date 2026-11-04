@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native"
@@ -18,25 +18,20 @@ import { NotoSansBengali_400Regular, NotoSansBengali_700Bold } from "@expo-googl
 import { NotoSansDevanagari_400Regular, NotoSansDevanagari_700Bold } from "@expo-google-fonts/noto-sans-devanagari"
 
 import { WatchVideoCard } from "@/components/player/WatchVideoCard"
-import { ChordPopover } from "@/components/song-v2/ChordPopover"
-import { ChordsSection } from "@/components/song-v2/ChordsSection"
-import { Pill, SectionHeading } from "@/components/song-v2/common"
-import { ExplainSection } from "@/components/song-v2/ExplainSection"
-import { LyricsSection, type TranslationUnder } from "@/components/song-v2/LyricsSection"
-import { MeaningSection } from "@/components/song-v2/MeaningSection"
-import { ScriptTranslationSheet } from "@/components/song-v2/ScriptTranslationSheet"
-import { SongTitleBlock, SongTopBar } from "@/components/song-v2/SongHeader"
-import { TabStrip, TAB_HEIGHT } from "@/components/song-v2/TabStrip"
-import { ToolsRow } from "@/components/song-v2/ToolsRow"
-import { VersionsSheet } from "@/components/song-v2/VersionsSheet"
-import { WordsSection } from "@/components/song-v2/WordsSection"
+import { SpActions, SpTitleBlock, SpTopBar } from "@/components/song-v2/SpHeader"
+import { SpChordChip, SpLyrics, SpTools } from "@/components/song-v2/SpLyrics"
+import { SpChords, SpExplain, SpMeaning, SpWatch, SpWords, type SpChordToken } from "@/components/song-v2/SpSections"
+import { SpLanguageSheet, SpPlaylistSheet, SpRecordingsSheet, type SpPlaylistRow } from "@/components/song-v2/SpSheets"
+import { SP_TAB_HEIGHT, SpTabStrip } from "@/components/song-v2/SpTabStrip"
+import { SpCard, SpPill, SpSectionTitle, SpToast } from "@/components/song-v2/SpUi"
 import { Reveal } from "@/components/today/motion"
-import { amFonts, amFontSize } from "@/constants/tokens/amTypography"
-import { localeOptions } from "@/constants/languages"
-import { amGap, amSpace } from "@/constants/tokens/amSpacing"
+import { SP_STATUS_BAR } from "@/constants/tokens/amSong"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { localeLabel, localeOptions } from "@/constants/languages"
 import type { MockSong } from "@/data/mock"
-import { useAmTheme } from "@/hooks/useAmTheme"
+import { useSpTheme } from "@/hooks/useSpTheme"
 import { useSongMeaning } from "@/hooks/useSongMeaning"
+import { FIXTURE_CENTRAL_IDEA, FIXTURE_MORE_VIDEOS, FIXTURE_PLAYLISTS, fixtureExtras } from "@/lib/fixtures/songPage"
 import {
   offlineRecordingState,
   offlineSaveControls,
@@ -45,41 +40,52 @@ import {
 } from "@/lib/offlineAudio"
 import { songPlayback } from "@/lib/playback"
 import { listenQueueForSong } from "@/lib/playbackQueue"
-import {
-  chartIsUsable,
-  chordSummary,
-  columnsInScript,
-  displayChord,
-  layoutChart,
-  type ChordDisplay,
-  type WordColumn,
-} from "@/lib/songPage/chordChart"
-import { shapeChord, soundingChord } from "@/lib/songPage/chords"
+import { chartIsUsable, columnsInScript, layoutChart, splitWords, type WordColumn } from "@/lib/songPage/chordChart"
 import { coverageForSong } from "@/lib/songPage/meaning"
 import { askAboutSongRoute, learnSongRoute } from "@/lib/songPage/routes"
-import { availableScripts, buildLyricSources, scriptLines, SCRIPT_LABEL } from "@/lib/songPage/scripts"
+import { availableScripts, buildLyricSources, scriptLines } from "@/lib/songPage/scripts"
 import {
   activeSection,
   isAtBottom,
   scrollTargetFor,
-  SECTION_GAP,
+  SECTION_LABEL,
   visibleSections,
   type SectionId,
 } from "@/lib/songPage/sections"
-import { demoExtras, explanationIsUsable, extrasForSong, glossesAreUsable } from "@/lib/songPage/songContent"
+import { explanationIsUsable, extrasForSong, glossesAreUsable } from "@/lib/songPage/songContent"
+import {
+  capoHint,
+  capoName,
+  chordChipText,
+  guitarKeyNote,
+  harmoniumChord,
+  harmoniumKeyNote,
+  keyLabel,
+  shapeCards,
+  spBestCapo,
+  spShape,
+  strumNote,
+  swaraAt,
+  swaraRow,
+  uniqueChords,
+} from "@/lib/songPage/spChords"
+import { buildSpLines, buildWordRows, glossCard, wordNote } from "@/lib/songPage/spLines"
 import { alignTranslationLines, translationPill } from "@/lib/songPage/translations"
 import {
   buildVersions,
   chordsForVersion,
   downloadLabel,
   downloadPhase,
+  INSTRUMENT_LABEL,
   versionLine,
   type SongVersion,
 } from "@/lib/songPage/versions"
 import { peekResolvedSong, resolveSongBundle } from "@/lib/songs"
 import { routeString, storedMeaningForLanguage } from "@/lib/songMap"
+import { meaningUnavailableMessage } from "@/lib/songMeanings"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
+import { usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
@@ -91,17 +97,22 @@ const NOTO_FONTS = {
   NotoSansBengali_700Bold,
 }
 
+const PILL_SCRIPT = { roman: "Roman", devanagari: "देवनागरी", bengali: "বাংলা", both: "Both" } as const
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const POSTER = require("../../assets/song-v2-poster.jpg")
+
 /**
- * Song page (spec SCR-16, 18, 25, 26): one hero-less header, a pinned section
- * strip, and the sections stacked on one long page. Redesign route, reachable
- * at /song-v2/<id> until the song rows switch to it. The old /song/<id> stays.
+ * Song page, ported from the design prototype (Main.dc.html, SONG): a header, a pinned tab strip, and the
+ * sections on one long page (Lyrics, Words, Meaning, Explain, Chords, Watch). Reachable at /song-v2/<id>.
+ * Word glosses, chord charts and the explanation come from `lib/fixtures/songPage.ts` until the API has them.
  */
 export default function SongPageV2() {
-  const params = useLocalSearchParams<{ songId: string | string[]; demo?: string | string[] }>()
+  const params = useLocalSearchParams<{ songId: string | string[]; demo?: string | string[]; section?: string | string[] }>()
   const songId = routeString(params.songId)
   const demo = __DEV__ && routeString(params.demo) === "1"
   const router = useRouter()
-  const theme = useAmTheme()
+  const t = useSpTheme()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
 
@@ -110,7 +121,25 @@ export default function SongPageV2() {
   const [loading, setLoading] = useState(true)
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
-  const [popover, setPopover] = useState<{ shape: string; sounding: string } | null>(null)
+  const [plOpen, setPlOpen] = useState(false)
+  const [selectedWord, setSelectedWord] = useState<string | null>(null)
+  const [toast, setToast] = useState("")
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [demoPlaylists, setDemoPlaylists] = useState(() =>
+    FIXTURE_PLAYLISTS.map((p) => ({ id: p.id, name: p.name, songs: p.songs.slice() })),
+  )
+
+  const showToast = useCallback((message: string) => {
+    setToast(message)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(""), 2200)
+  }, [])
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+    },
+    [],
+  )
 
   // settings (shared with the Player karaoke view)
   const script = useSongPageStore((s) => s.script)
@@ -137,6 +166,7 @@ export default function SongPageV2() {
   const duration = usePlayerStore((s) => s.duration)
   const showPause = usePlayerStore((s) => (song ? songPlayback(s, song).showPause : false))
   const isCurrent = usePlayerStore((s) => (song ? songPlayback(s, song).isCurrent : false))
+  const playlists = usePlaylistStore((s) => s.playlists)
 
   // offline files
   const files = useOfflineAudioStore((s) => s.files)
@@ -201,38 +231,49 @@ export default function SongPageV2() {
   )
   const scripts = useMemo(() => availableScripts(sources), [sources])
   const lines = useMemo(() => scriptLines(sources, script), [sources, script])
-  const extras = useMemo(
-    () =>
-      demo ? demoExtras(sources.roman) : song ? extrasForSong(song) : { chart: null, glosses: null, explanation: null },
-    [demo, song, sources.roman],
-  )
+
+  // Real extras when the API has them; the prototype's samples otherwise (TODO(api) in lib/fixtures/songPage.ts).
+  const extras = useMemo(() => {
+    if (!song) return { chart: null, glosses: null, explanation: null }
+    const real = extrasForSong(song)
+    const sample = fixtureExtras(sources.roman, song.number)
+    return {
+      chart: real.chart ?? sample.chart,
+      glosses: real.glosses ?? sample.glosses,
+      explanation: real.explanation ?? sample.explanation,
+    }
+  }, [song, sources.roman])
   const chart = chartIsUsable(extras.chart) ? extras.chart : null
   const glosses = glossesAreUsable(extras.glosses) ? extras.glosses : null
   const explanation = explanationIsUsable(extras.explanation) ? extras.explanation : null
-  const hasVideo = Boolean(song?.videos.some((video) => video.embedUrl))
+  const hasRealVideo = Boolean(song?.videos.some((video) => video.embedUrl))
 
   // Noto only when the song has that script, and only on this screen.
   const needsNoto = scripts.includes("devanagari") || scripts.includes("bengali")
   useFonts(needsNoto ? NOTO_FONTS : {})
 
-  const display: ChordDisplay = useMemo(
-    () => ({ instrument, capo, mode: chordMode, key: harmoniumKey }),
-    [instrument, capo, chordMode, harmoniumKey],
+  // chord letters as the prototype spells them, laid out against the Roman lines
+  const showChord = useCallback(
+    (chord: string) => {
+      const base = chart?.baseKey
+      if (instrument === "harmonium") return harmoniumChord(chord, base, harmoniumKey)
+      return chordMode === "shapes" ? spShape(chord, capo) : chord
+    },
+    [chart?.baseKey, instrument, chordMode, capo, harmoniumKey],
   )
-  const chordsVisible = Boolean(chart && chordsOn)
-
-  const columnsByLine: Array<WordColumn[] | null> | null = useMemo(() => {
-    if (!chart || !chordsOn) return null
-    const laid = layoutChart(sources.roman, chart, (chord) => displayChord(chord, display, chart.baseKey))
+  const columnsAll: Array<WordColumn[] | null> | null = useMemo(() => {
+    if (!chart) return null
+    const laid = layoutChart(sources.roman, chart, showChord)
     return lines.primary.map((line, index) => {
       const columns = laid[index]
       if (!columns) return null
       if (lines.primaryScript === "roman") return columns
       return columnsInScript(columns, line)
     })
-  }, [chart, chordsOn, sources.roman, display, lines])
+  }, [chart, sources.roman, showChord, lines])
+  const chordsVisible = Boolean(chart && chordsOn)
 
-  const translationsUnder: TranslationUnder[] = useMemo(() => {
+  const translationsUnder = useMemo(() => {
     if (!song) return []
     return translations
       .map((code) => {
@@ -241,6 +282,28 @@ export default function SongPageV2() {
       })
       .filter((item) => item.lines.length > 0)
   }, [song, translations, sources.roman, lines.primary])
+
+  const spLines = useMemo(
+    () =>
+      buildSpLines({
+        primary: lines.primary,
+        columnsByLine: chordsVisible ? columnsAll : null,
+        secondary: lines.secondary,
+        translations: translationsUnder,
+        chordsOn: chordsVisible,
+        instrument,
+      }),
+    [lines, columnsAll, chordsVisible, translationsUnder, instrument],
+  )
+  // a word gloss belongs to the Roman word at the same place; other scripts only when the counts match
+  const wordCountsMatch = useMemo(
+    () =>
+      lines.primary.map((line, i) =>
+        lines.primaryScript === "roman" ? true : splitWords(line).length === splitWords(sources.roman[i] ?? "").length,
+      ),
+    [lines, sources.roman],
+  )
+  const gloss = glossCard(selectedWord, spLines, glosses, translations, wordCountsMatch)
 
   const coverage = useMemo(
     () =>
@@ -306,6 +369,7 @@ export default function SongPageV2() {
       store.setInstrument(effect.instrument)
       store.setChordsOn(effect.chordsOn)
     }
+    showToast(`Playing ${INSTRUMENT_LABEL[version.instrument].toLowerCase()}, ${version.performer}`)
   }
 
   const offlineSnapshot = { files, progress: progressMap, errors: errorsMap, activeBySong }
@@ -321,6 +385,11 @@ export default function SongPageV2() {
   const phase = downloadPhase({ downloaded: offline.downloaded, downloading: saveUi.downloading })
   const dlLabel = downloadLabel(phase, offline.progress)
   const canDownload = Boolean(selectedUrl)
+  const lastPhase = useRef(phase)
+  useEffect(() => {
+    if (lastPhase.current === "downloading" && phase === "saved") showToast("Saved. Plays without internet")
+    lastPhase.current = phase
+  }, [phase, showToast])
 
   const signInFirst = (message: string) =>
     Alert.alert("Sign in", message, [
@@ -339,6 +408,7 @@ export default function SongPageV2() {
       void (async () => {
         await removeDownload(offline.key)
         stopIfPlayingLocalUri(offline.fileUri)
+        showToast("Removed from this phone")
       })()
       return
     }
@@ -354,6 +424,7 @@ export default function SongPageV2() {
       return
     }
     void toggleSaved(song.id)
+    showToast(isSaved ? "Removed from Mine" : "Saved to Mine")
   }
 
   const learning = Boolean(song && learningMap[song.id])
@@ -365,6 +436,74 @@ export default function SongPageV2() {
 
   const askAbout = () => song && router.push(href(askAboutSongRoute(song.number)))
 
+  // ---- playlists ----
+  const guestPlaylists = authMode !== "signed_in"
+  const openPlaylist = () => {
+    if (!song) return
+    if (guestPlaylists && !demo) {
+      signInFirst("Playlists need you to sign in.")
+      return
+    }
+    if (!guestPlaylists) void usePlaylistStore.getState().refresh()
+    setPlOpen(true)
+  }
+  const playlistRows: SpPlaylistRow[] = useMemo(() => {
+    if (!song) return []
+    if (guestPlaylists) {
+      return demoPlaylists.map((p) => ({
+        id: p.id,
+        name: p.name,
+        meta: `${p.songs.length} songs`,
+        has: p.songs.includes(song.number),
+      }))
+    }
+    return playlists.map((p) => ({
+      id: p.id,
+      name: p.name,
+      meta: `${p.songs.length} songs`,
+      has: p.songs.some((entry: { song_number: number }) => entry.song_number === song.number),
+    }))
+  }, [song, guestPlaylists, demoPlaylists, playlists])
+
+  const togglePlaylist = (id: string) => {
+    if (!song) return
+    const row = playlistRows.find((r) => r.id === id)
+    if (!row) return
+    if (guestPlaylists) {
+      setDemoPlaylists((list) =>
+        list.map((p) =>
+          p.id === id
+            ? { ...p, songs: row.has ? p.songs.filter((n) => n !== song.number) : [...p.songs, song.number] }
+            : p,
+        ),
+      )
+    } else {
+      const store = usePlaylistStore.getState()
+      void (row.has ? store.removeSong(id, song.number) : store.addSong(id, song.number))
+    }
+    showToast(row.has ? `Removed from ${row.name}` : `Added to ${row.name}`)
+  }
+
+  const newPlaylist = () => {
+    if (!song) return
+    const name = `Playlist ${playlistRows.length + 1}`
+    if (guestPlaylists) {
+      setDemoPlaylists((list) => [...list, { id: `fx-${list.length + 1}`, name, songs: [song.number] }])
+      showToast(`Created ${name}`)
+      return
+    }
+    void (async () => {
+      const store = usePlaylistStore.getState()
+      const made = await store.createPlaylist(name)
+      if ("id" in made) {
+        await store.addSong(made.id, song.number)
+        showToast(`Created ${name}`)
+      } else if ("error" in made) {
+        showToast(made.error)
+      }
+    })()
+  }
+
   // ---- long page: sections, pinned strip, scroll sync ----
   const sectionIds = visibleSections({
     lyrics: true,
@@ -372,7 +511,7 @@ export default function SongPageV2() {
     meaning: true,
     explain: Boolean(explanation),
     chords: Boolean(chart),
-    watch: hasVideo,
+    watch: true,
   })
   const [active, setActive] = useState<SectionId>("lyrics")
   const [stuck, setStuck] = useState(false)
@@ -390,12 +529,31 @@ export default function SongPageV2() {
       const top = topsRef.current[id]
       setActive(id)
       if (top == null) return
-      const target = scrollTargetFor(top, TAB_HEIGHT)
+      const target = scrollTargetFor(top, SP_TAB_HEIGHT)
       lockRef.current = { target, until: Date.now() + 900 }
       scrollRef.current?.scrollTo({ y: target, animated: !reduce })
     },
     [reduce],
   )
+
+  // `?section=chords` (from the harmonium screens) opens the page scrolled to that section, once it is laid out
+  const sectionParam = routeString(params.section)
+  const jumped = useRef(false)
+  useEffect(() => {
+    if (!sectionParam || jumped.current || !song) return
+    if (!(sectionIds as string[]).includes(sectionParam)) return
+    let tries = 0
+    const timer = setInterval(() => {
+      tries += 1
+      if (topsRef.current[sectionParam as SectionId] != null) {
+        jumped.current = true
+        clearInterval(timer)
+        goTo(sectionParam as SectionId)
+      } else if (tries > 20) clearInterval(timer)
+    }, 150)
+    return () => clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionParam, song, sectionIds.join(","), goTo])
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = event.nativeEvent.contentOffset.y
@@ -413,47 +571,93 @@ export default function SongPageV2() {
       order: sectionIds,
       tops: topsRef.current,
       scrollY: y,
-      stripHeight: TAB_HEIGHT,
+      stripHeight: SP_TAB_HEIGHT,
       atBottom: isAtBottom(y, viewport.current, contentHeight.current),
     })
     if (next) setActive((current) => (current === next ? current : next))
   }
 
-  const section = (id: SectionId) => (event: LayoutChangeEvent) => {
-    topsRef.current[id] = contentY.current + event.nativeEvent.layout.y
-  }
-
-  // Chords section is reached from the Lyrics summary chip.
-  const showChords = () => goTo("chords")
-
-  const openChordFromLyrics = (shown: string) => {
-    if (display.instrument === "harmonium") return
-    const shape = chordMode === "shapes" ? shown : shapeChord(shown, capo)
-    const sounding = chordMode === "shapes" ? soundingChord(shown, capo) : shown
-    setPopover({ shape, sounding })
+  const sectionTop = (id: SectionId) => (y: number) => {
+    topsRef.current[id] = contentY.current + y
   }
 
   if (loading && !song) {
     return (
-      <View style={[styles.root, styles.centered, { backgroundColor: theme.page }]}>
-        <ActivityIndicator color={theme.brand} />
+      <View style={[styles.root, styles.centered, { backgroundColor: t.sand200 }]}>
+        <ActivityIndicator color={t.orange500} />
       </View>
     )
   }
   if (!song) {
     return (
-      <View style={[styles.root, styles.centered, { backgroundColor: theme.page }]}>
-        <Text style={[styles.message, { color: theme.textBody }]}>Song not found.</Text>
-        <Pill theme={theme} label="Go back" onPress={() => router.back()} />
+      <View style={[styles.root, styles.centered, { backgroundColor: t.sand200 }]}>
+        <Text style={{ fontFamily: amFonts.medium, fontSize: 17, color: t.ink800 }}>Song not found.</Text>
+        <SpPill t={t} label="Go back" onPress={() => router.back()} />
       </View>
     )
   }
 
+  // ---- derived values for the sections ----
   const eyebrow = [`PS ${song.number}`, song.themes?.[0]].filter(Boolean).join(" · ")
-  const summary = chordsVisible && chart ? chordSummary(display) : null
+  const soundingChords = chart ? uniqueChords(chart.lines.flatMap((line) => line.placements.map((p) => p.chord))) : []
+
+  const glossLanguages = glosses
+    ? Object.entries(glosses.byLanguage)
+        .filter(([, map]) => Object.keys(map).length > 0)
+        .map(([code]) => code)
+    : []
+  const wordRows = buildWordRows(spLines, glosses, translations, wordCountsMatch)
+
+  const meaningRows: Array<{ label: string; text: string }> = (() => {
+    if (translationsUnder.length) {
+      const rows: Array<{ label: string; text: string }> = []
+      const count = Math.max(...translationsUnder.map((item) => item.lines.length))
+      for (let li = 0; li < count; li += 1) {
+        for (const item of translationsUnder) {
+          const text = item.lines[li]
+          if (!text) continue
+          const code = item.code.split("-")[0].toUpperCase()
+          rows.push({ label: translationsUnder.length > 1 ? `Line ${li + 1} · ${code}` : `Line ${li + 1}`, text })
+        }
+      }
+      return rows
+    }
+    if (meaningView.meaning.status === "ready") return [{ label: "", text: meaningView.meaning.text }]
+    if (meaningView.meaning.status === "loading" || meaningView.loading) {
+      return [{ label: "", text: `Translating into ${localeLabel(meaningLanguage)}…` }]
+    }
+    return [{ label: "", text: meaningUnavailableMessage(meaningLanguage) }]
+  })()
+  const central = meaningView.centralIdea ?? FIXTURE_CENTRAL_IDEA[song.number] ?? null
+
+  const chordTokens: SpChordToken[] = (() => {
+    if (!chart || !columnsAll) return []
+    const out: SpChordToken[] = []
+    const romanColumns = layoutChart(sources.roman, chart, showChord)
+    lines.primary.forEach((_, li) => {
+      const columns = columnsAll[li] ?? romanColumns[li] ?? []
+      if (li > 0) out.push({ key: `br-${li}`, chord: "", word: "", swara: "", lineBreak: true })
+      columns.forEach((column, wi) =>
+        out.push({
+          key: `${li}-${wi}`,
+          chord: column.chord ?? "",
+          word: column.word,
+          swara: instrument === "harmonium" ? swaraAt(li, wi) : "",
+        }),
+      )
+    })
+    return out
+  })()
+
+  const hint = capoHint(soundingChords, capo)
+  const bestCapo = spBestCapo(soundingChords)
+  const watchMore = FIXTURE_MORE_VIDEOS.map((video) => ({
+    ...video,
+    go: () => showToast("Video plays here"),
+  }))
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.page, paddingTop: insets.top }]}>
+    <View style={[styles.root, { backgroundColor: t.sand200, paddingTop: insets.top || SP_STATUS_BAR }]}>
       <ScrollView
         ref={scrollRef}
         stickyHeaderIndices={[1]}
@@ -468,155 +672,172 @@ export default function SongPageV2() {
         }}
         contentContainerStyle={styles.content}
       >
-        <Reveal index={0} style={styles.header}>
-          <SongTopBar
-            theme={theme}
-            saved={isSaved}
-            onBack={() => router.back()}
-            onHeart={handleHeart}
-            downloadPhase={phase}
-            downloadProgress={offline.progress ?? 0}
-            downloadLabelText={dlLabel}
-            onDownload={handleDownload}
-            showDownload={canDownload}
-          />
-          <SongTitleBlock
-            theme={theme}
-            eyebrow={eyebrow}
-            title={song.title}
-            versionText={versionLine(selectedVersion)}
-            onOpenVersions={() => setVersionsOpen(true)}
-            playing={showPause}
-            hasAudio={Boolean(selectedUrl)}
-            onPlay={handlePlay}
-            learning={learning}
-            onLearn={handleLearn}
-          />
-          {demo ? (
-            <Text style={[styles.demo, { color: theme.eyebrow }]}>
-              Sample chords, word meanings and explanation for layout review. Not reviewed content.
-            </Text>
-          ) : null}
-        </Reveal>
-
         <View
-          style={styles.stripWrap}
+          style={styles.head}
           onLayout={(event) => {
-            stripY.current = event.nativeEvent.layout.y
+            // the strip follows the header; its own layout.y is 0 inside the sticky cell
+            stripY.current = event.nativeEvent.layout.height
           }}
         >
-          <TabStrip theme={theme} sections={sectionIds} active={active} stuck={stuck} onSelect={goTo} />
+          <Reveal index={0}>
+            <SpTopBar
+              t={t}
+              saved={isSaved}
+              onBack={() => router.back()}
+              onPlaylist={openPlaylist}
+              onHeart={handleHeart}
+              phase={phase}
+              progress={offline.progress ?? 0}
+              downloadLabel={dlLabel}
+              showDownload={canDownload}
+              onDownload={handleDownload}
+            />
+          </Reveal>
+          <Reveal index={1}>
+            <SpTitleBlock
+              t={t}
+              eyebrow={eyebrow}
+              title={song.title}
+              versionText={versionLine(selectedVersion)}
+              onVersions={() => setVersionsOpen(true)}
+            />
+          </Reveal>
+          <Reveal index={2}>
+            <SpActions t={t} playing={showPause} onPlay={handlePlay} learning={learning} onLearn={handleLearn} />
+          </Reveal>
+        </View>
+
+        <View>
+          <SpTabStrip t={t} sections={sectionIds} active={active} stuck={stuck} onSelect={goTo} />
         </View>
 
         <View
-          style={styles.sections}
           onLayout={(event) => {
             contentY.current = event.nativeEvent.layout.y
           }}
         >
-          <Reveal index={1} style={styles.sectionsInner}>
-            <ToolsRow
-              theme={theme}
-              scriptLabel={SCRIPT_LABEL[lines.choice]}
-              translationPill={translationPill(translations)}
+          <Reveal index={3}>
+            <SpSectionTitle t={t} first label={SECTION_LABEL.lyrics} onLayoutY={sectionTop("lyrics")} />
+            <SpTools
+              t={t}
+              langPill={`${PILL_SCRIPT[lines.choice]} · ${translations.length ? translationPill(translations) : "No translation"}`}
               chordsAvailable={Boolean(chart)}
               chordsOn={chordsOn}
-              onOpenSheet={() => setLangOpen(true)}
-              onToggleChords={() => settings().setChordsOn(!chordsOn)}
+              onLang={() => setLangOpen(true)}
+              onChords={() => settings().setChordsOn(!chordsOn)}
             />
-
-            <View onLayout={section("lyrics")}>
-              <LyricsSection
-                theme={theme}
-                lines={lines}
-                translations={translationsUnder}
-                columnsByLine={columnsByLine}
-                summary={summary}
-                onChangeChords={showChords}
-                onChord={openChordFromLyrics}
+            {chordsVisible ? (
+              <SpChordChip t={t} text={chordChipText(instrument, capo, harmoniumKey)} onPress={() => goTo("chords")} />
+            ) : null}
+            <View style={styles.cardGap}>
+              <SpLyrics
+                t={t}
+                lines={spLines}
+                script={lines.primaryScript}
+                secondScript={lines.secondaryScript}
+                selected={selectedWord}
+                onSelect={setSelectedWord}
+                glossTitle={gloss.title}
+                glossDetail={gloss.detail}
+                chordsOn={chordsVisible}
                 emptyText="The lyrics of this song are not in the app yet."
               />
             </View>
 
             {glosses ? (
-              <View onLayout={section("words")}>
-                <WordsSection
-                  theme={theme}
-                  romanLines={sources.roman}
-                  devanagariLines={sources.devanagari}
-                  glosses={glosses}
-                  languages={translations}
-                  onMissingGloss={() => router.push(href("/feedback"))}
+              <>
+                <SpSectionTitle t={t} label={SECTION_LABEL.words} onLayoutY={sectionTop("words")} />
+                <SpWords
+                  t={t}
+                  rows={wordRows}
+                  script={lines.primaryScript}
+                  note={wordNote(translations, glossLanguages, localeLabel)}
+                  languages={glossLanguages.map((code) => ({ code, label: localeLabel(code) }))}
+                  activeLanguage={translations[0] ?? null}
+                  onLanguage={(code) => settings().setTranslations([code])}
+                  onMore={() => setLangOpen(true)}
                 />
-              </View>
+              </>
             ) : null}
 
-            <View onLayout={section("meaning")}>
-              <MeaningSection
-                theme={theme}
-                language={meaningLanguage}
-                chosen={translations}
-                meaning={meaningView.meaning}
-                centralIdea={meaningView.centralIdea}
-                loading={meaningView.loading}
-                onPick={(code) => settings().setPrimaryTranslation(code)}
-                onMore={() => setLangOpen(true)}
-                onAsk={explanation ? undefined : askAbout}
-              />
-            </View>
+            <SpSectionTitle t={t} label={SECTION_LABEL.meaning} onLayoutY={sectionTop("meaning")} />
+            <SpMeaning t={t} central={central} rows={meaningRows} />
 
             {explanation ? (
-              <View onLayout={section("explain")}>
-                <ExplainSection theme={theme} explanation={explanation} onAsk={askAbout} />
-              </View>
+              <>
+                <SpSectionTitle t={t} label={SECTION_LABEL.explain} onLayoutY={sectionTop("explain")} />
+                <SpExplain t={t} explanation={explanation} onAsk={askAbout} />
+              </>
             ) : null}
 
             {chart ? (
-              <View onLayout={section("chords")}>
-                <ChordsSection
-                  theme={theme}
-                  chart={chart}
+              <>
+                <SpSectionTitle t={t} label={SECTION_LABEL.chords} onLayoutY={sectionTop("chords")} />
+                <SpChords
+                  t={t}
                   instrument={instrument}
-                  capo={capo}
-                  mode={chordMode}
-                  harmoniumKey={harmoniumKey}
                   onInstrument={(next) => settings().setInstrument(next)}
-                  onCapo={(next) => settings().setCapo(next)}
+                  capo={capoName(capo)}
+                  capoNoteText={guitarKeyNote(soundingChords, capo)}
+                  onCapoDown={() => settings().setCapo(capo - 1)}
+                  onCapoUp={() => settings().setCapo(capo + 1)}
+                  capoHintText={hint.text}
+                  capoHintAction={hint.action}
+                  onCapoBest={() => settings().setCapo(bestCapo)}
+                  cards={shapeCards(soundingChords, capo)}
+                  mode={chordMode}
                   onMode={(next) => settings().setChordMode(next)}
-                  onHarmoniumStep={(direction) => settings().stepHarmoniumKey(direction)}
-                  onOpenChord={(shape, sounding) => setPopover({ shape, sounding })}
+                  keyName={keyLabel(harmoniumKey)}
+                  keyNoteText={harmoniumKeyNote(harmoniumKey)}
+                  onKeyDown={() => settings().stepHarmoniumKey(-1)}
+                  onKeyUp={() => settings().stepHarmoniumKey(1)}
+                  swaras={swaraRow(harmoniumKey)}
+                  onHow={() => router.push(href("/harmonium-v2/chords"))}
+                  strum={strumNote(instrument, chart.strum)}
+                  tokens={chordTokens}
+                  script={lines.primaryScript}
                 />
-              </View>
+              </>
             ) : null}
 
-            {hasVideo ? (
-              <View onLayout={section("watch")} style={styles.watch}>
-                <SectionHeading theme={theme}>Watch</SectionHeading>
+            <SpSectionTitle t={t} label={SECTION_LABEL.watch} onLayoutY={sectionTop("watch")} />
+            {hasRealVideo ? (
+              <SpCard t={t}>
                 {song.videos
                   .filter((video) => video.embedUrl)
                   .map((video) => (
                     <WatchVideoCard key={video.id} video={video} songNumber={song.number} />
                   ))}
-              </View>
-            ) : null}
+              </SpCard>
+            ) : (
+              <SpWatch
+                t={t}
+                title={song.title}
+                poster={<Image source={POSTER} style={StyleSheet.absoluteFill} resizeMode="cover" />}
+                onPlay={() => showToast("Video plays here")}
+                more={watchMore}
+              />
+            )}
           </Reveal>
         </View>
       </ScrollView>
 
-      <VersionsSheet
-        theme={theme}
+      <SpToast t={t} message={toast} />
+
+      <SpRecordingsSheet
+        t={t}
         visible={versionsOpen}
+        onClose={() => setVersionsOpen(false)}
         versions={versions}
         selectedUrl={selectedUrl}
-        onClose={() => setVersionsOpen(false)}
         onPick={pickVersion}
         phase={phase}
         progress={offline.progress ?? 0}
         showDownload={canDownload}
         onDownload={handleDownload}
       />
-      <ScriptTranslationSheet
-        theme={theme}
+      <SpLanguageSheet
+        t={t}
         visible={langOpen}
         onClose={() => setLangOpen(false)}
         scripts={scripts}
@@ -625,12 +846,16 @@ export default function SongPageV2() {
         selected={translations}
         coverage={coverage}
         onToggleLanguage={(code) => settings().toggleTranslation(code)}
+        onMissingScript={(name) => showToast(`${name} script is not added yet`)}
       />
-      <ChordPopover
-        theme={theme}
-        shape={popover?.shape ?? null}
-        sounding={popover?.sounding ?? null}
-        onClose={() => setPopover(null)}
+      <SpPlaylistSheet
+        t={t}
+        visible={plOpen}
+        onClose={() => setPlOpen(false)}
+        songTitle={song.title}
+        rows={playlistRows}
+        onToggle={togglePlaylist}
+        onNew={newPlaylist}
       />
     </View>
   )
@@ -638,14 +863,8 @@ export default function SongPageV2() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  centered: { alignItems: "center", justifyContent: "center", gap: amSpace.s4 },
-  message: { fontFamily: amFonts.medium, fontSize: amFontSize.body },
-  content: { paddingHorizontal: amGap.gutter, paddingBottom: 140 },
-  header: { gap: amSpace.s6, paddingBottom: amSpace.s4 },
-  stripWrap: { marginTop: amSpace.s2 },
-  // layout.y of this wrapper already includes the margin, so section tops measured inside it stay true.
-  sections: { marginTop: SECTION_GAP },
-  sectionsInner: { gap: amGap.section },
-  watch: { gap: amSpace.s3 },
-  demo: { fontFamily: amFonts.semi, fontSize: amFontSize.label },
+  centered: { alignItems: "center", justifyContent: "center", gap: 16 },
+  content: { paddingBottom: 190 },
+  head: { paddingBottom: 12 },
+  cardGap: { marginTop: 10 },
 })

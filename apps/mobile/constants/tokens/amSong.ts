@@ -1,0 +1,101 @@
+/**
+ * Tokens of the Song area, copied from the `--am-*` variables of the design prototype
+ * (apps/mobile/public/mockup/Main.dc.html, `.app` and `.app.dark`). Values are not re-typed
+ * elsewhere: the Song page, the story sheet and the harmonium screens all read this file.
+ */
+export type SpTheme = {
+  dark: boolean
+  orange100: string
+  orange500: string
+  orange600: string
+  orange700: string
+  gold300: string
+  logoSun: string
+  sage200: string
+  sage300: string
+  sage700: string
+  sage800: string
+  sage900: string
+  olive100: string
+  olive700: string
+  sand100: string
+  sand200: string
+  sand300: string
+  sand400: string
+  white: string
+  ink900: string
+  ink800: string
+  ink500: string
+  ink300: string
+  glass: string
+  glassStrong: string
+  glassSolid: string
+  glassDark: string
+  glassEdge: string
+  danger: string
+  /** text on an ink-coloured button */
+  onInk: string
+  scrim: string
+}
+
+export const spLight: SpTheme = {
+  dark: false,
+  orange100: "#FFDCC5",
+  orange500: "#F67931",
+  orange600: "#E5610F",
+  orange700: "#B94D0C",
+  gold300: "#F5C253",
+  logoSun: "#FECC31",
+  sage200: "#E5E4D4",
+  sage300: "#C4CBAF",
+  sage700: "#3C5535",
+  sage800: "#2C3A27",
+  sage900: "#20281A",
+  olive100: "#DFE5C6",
+  olive700: "#5B6B24",
+  sand100: "#F5F2EF",
+  sand200: "#EEE9E5",
+  sand300: "#E9E4E0",
+  sand400: "#D8D1CA",
+  white: "#FFFFFF",
+  ink900: "#1E1E1E",
+  ink800: "#333333",
+  ink500: "#68635F",
+  ink300: "#B3B3B3",
+  glass: "rgba(255,255,255,0.55)",
+  glassStrong: "rgba(255,255,255,0.72)",
+  glassSolid: "rgba(255,255,255,0.9)",
+  glassDark: "rgba(32,40,26,0.35)",
+  glassEdge: "rgba(255,255,255,0.7)",
+  danger: "#EC221F",
+  onInk: "#FFFFFF",
+  scrim: "rgba(30,30,30,0.45)",
+}
+
+/** `.app.dark` remaps these variables and leaves the rest as they are. */
+export const spDark: SpTheme = {
+  ...spLight,
+  dark: true,
+  orange100: "#4A2E1C",
+  sand100: "#262F20",
+  sand200: "#161B12",
+  sand300: "rgba(255,255,255,0.12)",
+  sand400: "#3B4634",
+  white: "#222B1D",
+  ink900: "#F5F2EF",
+  ink800: "#F2EFE9",
+  ink500: "#B7BCA6",
+  ink300: "#6A7761",
+  orange700: "#F5C253",
+  onInk: "#20281A",
+  glass: "rgba(34,43,29,0.55)",
+  glassStrong: "rgba(34,43,29,0.78)",
+  glassSolid: "rgba(34,43,29,0.92)",
+  glassEdge: "rgba(255,255,255,0.16)",
+}
+
+/** Radii of the prototype (`--radius-*`). */
+export const spRadius = { lg: 20, xl: 30, xxl: 40, pill: 70 } as const
+
+/** Phone top inset the prototype reserves for the status bar; used where the device reports none (web). */
+export const SP_STATUS_BAR = 54

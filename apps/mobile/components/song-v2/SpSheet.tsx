@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { BackHandler, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native"
+import {
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+} from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   cancelAnimation,
@@ -14,55 +22,52 @@ import Animated, {
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import type { AmTheme } from "@/constants/tokens/amColors"
+import type { SpTheme } from "@/constants/tokens/amSong"
 import { amSpring } from "@/constants/tokens/amMotion"
-import { amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
 import { sheetPosition, sheetSettle } from "@/lib/songPage/sheetPhysics"
 
-const RUBBER_LIMIT = amSpace.s24
+const RUBBER_LIMIT = 96
 const REDUCED_MS = 150
-
-type Props = {
-  theme: AmTheme
-  visible: boolean
-  onClose: () => void
-  title: string
-  /** share of the screen height the sheet fills */
-  heightRatio?: number
-  children: ReactNode
-}
+const MAX_HEIGHT = 780
 
 /**
- * Bottom sheet (spec SCR-18, SCR-25). The handle and title follow the finger
- * 1:1 from the grab point, release lands by momentum projection with the
- * finger's velocity handed to the spring, and pulling it above the open
- * position meets a rubber band. Entry, exit and drag share one value, so
- * every move can be interrupted from where the sheet is on screen. Only
- * transform and opacity move; reduced motion turns the slide into a cross-fade.
+ * `.sheetroot` + `.scrim` + `.sheet` + `.grab`: a sand sheet with 40px top corners, a 44x5 grab handle in a
+ * 44px zone, a scrim of rgba(30,30,30,.45). The handle follows the finger 1:1 from the grab point,
+ * the release lands by momentum projection with the finger's velocity handed to the spring, pulling it up
+ * meets a rubber band. Enter, exit and drag are one value, so every move is interruptible from the
+ * on-screen position. Only transform and opacity move.
  */
-export function BottomSheet({ theme, visible, onClose, title, heightRatio = 0.82, children }: Props) {
+export function SpSheet({
+  t,
+  visible,
+  onClose,
+  label,
+  children,
+  testID,
+}: {
+  t: SpTheme
+  visible: boolean
+  onClose: () => void
+  label: string
+  children: ReactNode
+  testID?: string
+}) {
   const { height: windowHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
-  const height = Math.round(windowHeight * heightRatio)
   const [mounted, setMounted] = useState(visible)
-  const translateY = useSharedValue(height)
+  const heightValue = useSharedValue(windowHeight)
+  const translateY = useSharedValue(windowHeight)
   const start = useSharedValue(0)
-  const heightValue = useSharedValue(height)
   const closeRef = useRef(onClose)
   closeRef.current = onClose
-
-  useEffect(() => {
-    heightValue.value = height
-  }, [height, heightValue])
+  const maxHeight = Math.min(MAX_HEIGHT, windowHeight - 40)
 
   const unmount = useCallback(() => setMounted(false), [])
 
   useEffect(() => {
     if (visible) {
       setMounted(true)
-      // From wherever the sheet is now, never from a fixed start.
       translateY.value = reduce ? withTiming(0, { duration: REDUCED_MS }) : withSpring(0, amSpring.default)
       return
     }
@@ -111,6 +116,10 @@ export function BottomSheet({ theme, visible, onClose, title, heightRatio = 0.82
       )
     })
 
+  const onSheetLayout = (event: LayoutChangeEvent) => {
+    heightValue.value = event.nativeEvent.layout.height
+  }
+
   const scrimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(translateY.value, [0, heightValue.value], [1, 0], Extrapolation.CLAMP),
   }))
@@ -123,59 +132,54 @@ export function BottomSheet({ theme, visible, onClose, title, heightRatio = 0.82
   if (!mounted) return null
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none" accessibilityViewIsModal>
-      <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
+    <View style={styles.root} pointerEvents="box-none" accessibilityViewIsModal testID={testID}>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.scrim }, scrimStyle]}>
         <Pressable
           style={StyleSheet.absoluteFill}
           accessibilityRole="button"
-          accessibilityLabel={`Close ${title}`}
+          accessibilityLabel={`Close ${label}`}
           onPress={onClose}
         />
       </Animated.View>
       <Animated.View
+        onLayout={onSheetLayout}
+        accessibilityLabel={label}
         style={[
           styles.sheet,
-          { height, backgroundColor: theme.page, borderColor: theme.line, paddingBottom: insets.bottom },
+          { maxHeight, backgroundColor: t.sand200, paddingBottom: Math.max(32, insets.bottom) },
           sheetStyle,
         ]}
       >
         <GestureDetector gesture={pan}>
-          <View style={styles.grab} accessible accessibilityRole="header" accessibilityLabel={title}>
-            <View style={[styles.handle, { backgroundColor: theme.line }]} />
-            <Text style={[amType.heading, { color: theme.textHeading }]}>{title}</Text>
+          <View style={styles.grab} accessible accessibilityRole="header" accessibilityLabel={`${label}, drag down to close`}>
+            <View style={[styles.handle, { backgroundColor: t.ink300 }]} />
           </View>
         </GestureDetector>
-        <View style={styles.body}>{children}</View>
+        <ScrollView
+          style={styles.body}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          {children}
+        </ScrollView>
       </Animated.View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  scrim: { backgroundColor: "rgba(0,0,0,0.4)" },
+  root: { ...StyleSheet.absoluteFillObject, zIndex: 50 },
   sheet: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    borderTopLeftRadius: amRadius.sheet,
-    borderTopRightRadius: amRadius.sheet,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: 0,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     overflow: "hidden",
   },
-  grab: {
-    minHeight: amTouchTarget + amSpace.s8,
-    paddingHorizontal: amSpace.s6,
-    paddingTop: amSpace.s2,
-    paddingBottom: amSpace.s3,
-    gap: amSpace.s3,
-  },
-  handle: {
-    alignSelf: "center",
-    width: amSpace.s12,
-    height: amSpace.s1,
-    borderRadius: amRadius.full,
-  },
-  body: { flex: 1 },
+  grab: { height: 44, alignItems: "center", justifyContent: "center" },
+  handle: { width: 44, height: 5, borderRadius: 9999 },
+  body: { flexGrow: 0, flexShrink: 1 },
 })

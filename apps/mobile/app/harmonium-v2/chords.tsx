@@ -1,210 +1,151 @@
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { harmoniumKeyboardLayout } from "@prabhat/core"
+import { Text, View } from "react-native"
+import { useRouter } from "expo-router"
 
-import { HarmoniumKeyboard } from "@/components/harmonium-v2/Keyboard"
-import { SwaraLine } from "@/components/harmonium-v2/SwaraLine"
-import { Overline, PillButton, PressBox, SaStepper, SubHeader } from "@/components/harmonium-v2/ui"
+import { SpKeyboard, SpChipRow, SpOverlayPage, SpReadout } from "@/components/song-v2/SpHarmonium"
+import { SpChordTokens, SpKeyRow } from "@/components/song-v2/SpSections"
+import { bodyT, note, over, secH2 } from "@/components/song-v2/spType"
+import { SpCard, SpChip, SpPill } from "@/components/song-v2/SpUi"
 import { Reveal } from "@/components/today/motion"
-import { amColors } from "@/constants/tokens/amColors"
-import { amGap, amRadius } from "@/constants/tokens/amSpacing"
-import { amFonts, amType } from "@/constants/tokens/amTypography"
-import { SAMPLE_HARMONIUM_SONG } from "@/data/harmoniumSample"
-import { useAmTheme } from "@/hooks/useAmTheme"
-import { chordKeyIndexes, noteName, parseChord, pitchClassOf, windowAround } from "@/lib/harmonium-v2/chords"
-import { sliceKeyboard } from "@/lib/harmonium-v2/keyboardWindow"
-import { buildHarmoniumLine, chordChips } from "@/lib/harmonium-v2/lines"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { useSpTheme } from "@/hooks/useSpTheme"
+import { EXPLAINER_SONG_LINES } from "@/lib/fixtures/harmonium"
+import { keyLabel, keyPitch } from "@/lib/songPage/spChords"
+import {
+  EXPLAINER_CHORDS,
+  explainChord,
+  explainerTokens,
+  keyInChord,
+  spKeys,
+} from "@/lib/songPage/spKeyboard"
+import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
-const STEPS = [
-  { title: "Start on the root", text: "A chord is named for its first key. C starts on C. Press that key first." },
+const HOW = [
   {
-    title: "Add the third",
-    text: "Count four keys up for a major chord, three for a minor chord. This one note decides if it sounds bright or sad.",
+    title: "Two hands, two jobs",
+    text: "Your right hand plays the keys. Your left hand pumps the bellows with a steady push and pull. If your harmonium has a drone stop, open it: Sa then hums under the whole song.",
   },
-  { title: "Add the fifth", text: "Count seven keys up from the root. It is the same for every chord, and it makes the sound full." },
+  {
+    title: "A chord is three keys",
+    text: "Press a root key, the key 4 steps above it and the key 7 steps above it, all together. Count every key, black ones too. In a minor chord the middle key is 3 steps above the root, not 4.",
+  },
+  {
+    title: "Letters tell you when",
+    text: "The letter above a word is the chord to press on that word. Hold it until the next letter appears.",
+  },
 ] as const
 
-function firstParam(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value
-}
-
 /**
- * How chords work on the harmonium (spec SCR-23). Three numbered cards, a "Try it"
- * block where a chord lights its keys on the keyboard, and the chords of a song line.
- * Query: ?sa=D&chords=C,Am,F,G
+ * How chords work on the harmonium (prototype `HARMONIUM CHORDS EXPLAINER`, boards ChordHow and chordhowfull): three
+ * numbered cards, then "Try it" with the key you sing in, the chord letters of the song, the three keys lit on the
+ * keyboard, and the first lines of the song with the letters over the words.
  */
 export default function HarmoniumChordsScreen() {
   const router = useRouter()
-  const theme = useAmTheme()
-  const params = useLocalSearchParams<{ sa?: string; chords?: string }>()
-  const { width: screenWidth } = useWindowDimensions()
+  const t = useSpTheme()
+  const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
+  const stepKey = useSongPageStore((s) => s.stepHarmoniumKey)
+  const setInstrument = useSongPageStore((s) => s.setInstrument)
+  const [base, setBase] = useState<string>(EXPLAINER_CHORDS[0])
 
-  const [saPitchClass, setSaPitchClass] = useState(() => pitchClassOf(firstParam(params.sa) ?? "C") ?? 0)
-  const chordNames = useMemo(() => {
-    const fromQuery = (firstParam(params.chords) ?? "")
-      .split(",")
-      .map((part) => part.trim())
-      .filter((part) => parseChord(part))
-    return fromQuery.length ? fromQuery : SAMPLE_HARMONIUM_SONG.chords
-  }, [params.chords])
-  const [selected, setSelected] = useState<string>(() => chordNames[0] ?? "C")
+  const saPitch = keyPitch(harmoniumKey)
+  const chord = useMemo(() => explainChord(base, saPitch), [base, saPitch])
+  const { whites, blacks } = useMemo(() => spKeys(saPitch), [saPitch])
+  const tokens = useMemo(() => explainerTokens(EXPLAINER_SONG_LINES, saPitch), [saPitch])
 
-  const saName = noteName(saPitchClass)
-  const chips = useMemo(() => chordChips(chordNames, saName), [chordNames, saName])
-  const readout = chips.find((chip) => chip.chord.name === selected) ?? chips[0]
-
-  const lit = useMemo(() => {
-    const keys = readout ? chordKeyIndexes(readout.chord, saPitchClass) : []
-    if (!keys.length) return { keys: [] as ReturnType<typeof sliceKeyboard>["keys"], lit: new Set<number>() }
-    const win = windowAround(keys)
-    const sliced = sliceKeyboard(harmoniumKeyboardLayout(saName), win.start, win.length)
-    const set = new Set(keys.map((index) => index - sliced.firstIndex).filter((i) => i >= 0 && i < sliced.keys.length))
-    return { keys: sliced.keys, lit: set }
-  }, [readout, saPitchClass, saName])
-
-  const stepSa = useCallback((direction: -1 | 1) => setSaPitchClass((current) => (current + direction + 12) % 12), [])
-
-  const back = () => {
+  const back = useCallback(() => {
     if (router.canGoBack()) router.back()
-    else router.replace(href("/harmonium-v2"))
+    else router.replace(href("/learn"))
+  }, [router])
+
+  const openSong = () => {
+    setInstrument("harmonium")
+    router.push(href("/song-v2/ps-1?section=chords"))
   }
 
-  const keyboardWidth = screenWidth - amGap.gutter * 2
-  const lines = useMemo(() => SAMPLE_HARMONIUM_SONG.lines.map((line) => buildHarmoniumLine(line)), [])
-
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingHorizontal: amGap.gutter }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <SubHeader theme={theme} title="HOW CHORDS WORK" onBack={back} />
-
-        <Reveal index={0} style={styles.stack}>
-          <Text style={[amType.title, { color: theme.textHeading }]}>THREE KEYS AT ONCE</Text>
-          <Text style={[amType.body, { color: theme.textBody }]}>
-            Songs on the harmonium are played with the melody on the right hand and chords under it. A chord is three keys
-            pressed together.
+    <SpOverlayPage t={t} title="Harmonium chords" onBack={back}>
+      <Reveal index={0}>
+        <View style={{ paddingHorizontal: 10 }}>
+          <Text accessibilityRole="header" style={secH2(t, 40)}>
+            Three keys
           </Text>
-        </Reveal>
+          <Text style={[secH2(t, 40), { color: t.ink300 }]}>at once</Text>
+        </View>
+      </Reveal>
 
-        <Reveal index={1} style={styles.stack}>
-          {STEPS.map((step, index) => (
-            <View key={step.title} style={[styles.step, { backgroundColor: theme.card, borderColor: theme.line }]}>
-              <View style={[styles.stepNumber, { backgroundColor: amColors.sage700 }]}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
-              </View>
-              <View style={styles.stepBody}>
-                <Text style={[amType.lead, { color: theme.textHeading }]}>{step.title}</Text>
-                <Text style={[amType.body, { color: theme.textBody }]}>{step.text}</Text>
-              </View>
+      <Reveal index={1}>
+        <View style={{ gap: 10 }}>
+          {HOW.map((card, index) => (
+            <View
+              key={card.title}
+              style={{
+                gap: 12,
+                padding: 25,
+                borderRadius: 30,
+                borderWidth: 1,
+                backgroundColor: t.white,
+                borderColor: t.sand300,
+              }}
+            >
+              <Text
+                style={{ fontFamily: amFonts.display, fontSize: 44, lineHeight: 44, color: t.orange500 }}
+              >
+                {index + 1}
+              </Text>
+              <Text style={[secH2(t, 22), { fontSize: 22, lineHeight: 22 }]}>{card.title}</Text>
+              <Text style={[bodyT(t), { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6 }]}>{card.text}</Text>
             </View>
           ))}
-        </Reveal>
+        </View>
+      </Reveal>
 
-        <Reveal index={2} style={styles.stack}>
-          <Overline color={theme.eyebrow}>TRY IT</Overline>
-          <SaStepper theme={theme} value={saName} onStep={stepSa} />
-          <View style={styles.chips}>
-            {chips.map((chip) => {
-              const active = chip.chord.name === readout?.chord.name
-              return (
-                <PressBox
-                  key={chip.chord.name}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Chord ${chip.chord.name}`}
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setSelected(chip.chord.name)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: active ? amColors.orange500 : theme.card,
-                      borderColor: active ? amColors.orange500 : theme.line,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.chipText, { color: active ? amColors.white : theme.textHeading }]}>
-                    {chip.chord.name}
-                  </Text>
-                </PressBox>
-              )
-            })}
-          </View>
+      <Reveal index={2}>
+        {/* the label sits in a block with the page line height, so it is taller than the 16px text */}
+        <View style={{ paddingHorizontal: 10, minHeight: 23, paddingTop: 3 }}>
+          <Text style={over(t)}>Try it</Text>
+        </View>
+      </Reveal>
 
-          {readout ? (
-            <View style={[styles.readout, { backgroundColor: amColors.sage700 }]}>
-              <Text style={styles.readoutTitle}>
-                {readout.chord.name} {readout.kindLabel}
-              </Text>
-              <Text style={styles.readoutSwaras}>{readout.swaraLine}</Text>
-              <Text style={styles.readoutNotes}>{readout.noteLine}</Text>
-            </View>
-          ) : null}
+      <Reveal index={3} style={{ gap: 20 }}>
+        <SpKeyRow
+          t={t}
+          label="Sa is"
+          noteText="Pick the key you sing in"
+          value={keyLabel(harmoniumKey)}
+          onDown={() => stepKey(-1)}
+          onUp={() => stepKey(1)}
+          downLabel="Lower the key"
+          upLabel="Raise the key"
+          inset
+        />
+        <SpChipRow>
+          {EXPLAINER_CHORDS.map((name) => (
+            <SpChip
+              key={name}
+              t={t}
+              label={explainChord(name, saPitch).name}
+              on={name === base}
+              onPress={() => setBase(name)}
+            />
+          ))}
+        </SpChipRow>
+        <SpReadout t={t} live keepCase big={chord.name} small={chord.kind} />
+        <SpKeyboard t={t} whites={whites} blacks={blacks} lit={(key) => keyInChord(key, chord)} />
+        <Text style={[note(t), { paddingHorizontal: 10 }]}>{`${chord.equation}. Orange keys are pressed together.`}</Text>
+      </Reveal>
 
-          {lit.keys.length ? (
-            <HarmoniumKeyboard theme={theme} keys={lit.keys} width={keyboardWidth} lit={lit.lit} tonic={saName} />
-          ) : null}
-          {readout ? (
-            <Text style={[amType.label, { color: theme.textBody }]}>{`From the root: ${readout.formula}`}</Text>
-          ) : null}
-        </Reveal>
-
-        <Reveal index={3} style={styles.stack}>
-          <Overline color={theme.eyebrow}>IN THE SONG</Overline>
-          <Text style={[amType.body, { color: theme.textBody }]}>
-            {`Tap a chord above a word to see its keys. Sample line from PS ${SAMPLE_HARMONIUM_SONG.number}, ${SAMPLE_HARMONIUM_SONG.title}.`}
+      <Reveal index={4} style={{ gap: 20 }}>
+        <SpCard t={t} style={{ marginHorizontal: 0 }}>
+          <Text style={over(t)}>In the song</Text>
+          <SpChordTokens t={t} tokens={tokens} />
+          <Text style={note(t)}>
+            Press the chord when its letter appears over a word. The swara under each word is the note to hold.
           </Text>
-          <View style={[styles.song, { backgroundColor: theme.card, borderColor: theme.line }]}>
-            {lines.map((line, index) => (
-              <SwaraLine
-                key={index}
-                theme={theme}
-                words={line}
-                activeChord={readout?.chord.name}
-                onChordPress={(chord) => {
-                  if (chips.some((chip) => chip.chord.name === chord)) setSelected(chord)
-                }}
-              />
-            ))}
-          </View>
-          <PillButton theme={theme} label="Open the harmonium" onPress={() => router.push(href("/harmonium-v2"))} />
-        </Reveal>
-      </ScrollView>
-    </SafeAreaView>
+        </SpCard>
+        <SpPill t={t} label="Open this song's chords" onPress={openSong} style={{ width: "100%" }} />
+      </Reveal>
+    </SpOverlayPage>
   )
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { paddingBottom: 96, gap: amGap.section / 2 },
-  stack: { gap: amGap.block },
-  step: {
-    flexDirection: "row",
-    gap: amGap.block,
-    borderRadius: amRadius.card,
-    borderWidth: 1,
-    padding: amGap.padCard,
-  },
-  stepNumber: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  stepNumberText: { fontFamily: amFonts.bold, fontSize: 16, color: amColors.white },
-  stepBody: { flex: 1, gap: 4 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: amGap.grid },
-  chip: {
-    minWidth: 56,
-    minHeight: 44,
-    paddingHorizontal: 16,
-    borderRadius: amRadius.pill,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chipText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20 },
-  readout: { borderRadius: amRadius.panel, padding: amGap.padPanel, gap: 4 },
-  readoutTitle: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, color: amColors.gold300, letterSpacing: 1 },
-  readoutSwaras: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 34, color: amColors.white },
-  readoutNotes: { fontFamily: amFonts.medium, fontSize: 19, lineHeight: 24, color: amColors.sage300 },
-  song: { borderRadius: amRadius.card, borderWidth: 1, padding: amGap.padCard, gap: amGap.block },
-})
