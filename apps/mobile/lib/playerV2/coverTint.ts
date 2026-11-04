@@ -16,12 +16,12 @@ export const FOREST = "#20281A"
  * different enough from each other that a change of song is visible.
  */
 export const COVER_TINTS: Record<CoverId, string> = {
-  lake: "#6B3F33",
-  garland: "#6A4531",
-  portrait: "#2C3A4E",
+  lake: "#2F5560",
+  garland: "#7A3A2C",
+  portrait: "#33405A",
   lotus: "#3F5018",
-  seated: "#5E4A3A",
-  guitar: "#625B1F",
+  seated: "#6B5030",
+  guitar: "#6A4A1A",
 }
 
 /** A stable picture for a song number (same formula as lib/homeShelves coverFor). */

@@ -33,11 +33,11 @@ export function sharePalette(id: ShareBackground, tint: string): SharePalette {
     case "forest":
       return { from: "#2C3A27", to: "#20281A", text: "#FFFFFF", sub: "#DDE3CF", accent: "#F5C253" }
     case "sand":
-      return { from: "#F8F6F3", to: "#FFDCC5", text: "#333333", sub: "#4F4A46", accent: "#B94D0C" }
+      return { from: "#F8F6F3", to: "#FFDCC5", text: "#333333", sub: "#4F4A46", accent: "#933B06" }
     case "ink":
       return { from: "#2A2A2A", to: "#161616", text: "#FFFFFF", sub: "#D4D4D4", accent: "#F5C253" }
     case "cover":
-      return { from: mixHex(tint, "#FFFFFF", 0.08), to: mixHex(tint, "#000000", 0.35), text: "#FFFFFF", sub: "#F1EBE4", accent: "#F5C253" }
+      return { from: mixHex(tint, "#000000", 0.15), to: mixHex(tint, "#000000", 0.5), text: "#FFFFFF", sub: "#F1EBE4", accent: "#F5C253" }
   }
 }
 
@@ -86,5 +86,14 @@ export function shareTargetUrl(target: ShareTargetId, payload: SharePayload, pla
     if (platform === "ios") return `sms:&body=${encodeURIComponent(payload.message)}`
     if (platform === "android") return `sms:?body=${encodeURIComponent(payload.message)}`
   }
+  return null
+}
+
+export type ShareOutcome = "copied" | "copy-failed" | "opened" | "shared" | "dismissed"
+
+/** Toast text for an outcome, or null when the other app or the system sheet already said it all. */
+export function shareToast(outcome: ShareOutcome): string | null {
+  if (outcome === "copied") return "Link copied"
+  if (outcome === "copy-failed") return "Could not copy the link"
   return null
 }

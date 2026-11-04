@@ -18,8 +18,11 @@ import { Trash2 } from "lucide-react-native"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { queueColors } from "@/components/player-v2/playerTokens"
 import { Sheet } from "@/components/player-v2/Sheet"
+import { TouchButton } from "@/components/player-v2/TouchButton"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { buildQueueFooter, shufflingFromLine } from "@/lib/playerV2/playerActions"
+import type { RepeatMode } from "@/lib/playerV2/controller"
 import { queueOrigin } from "@/lib/playerV2/queueOps"
 import { formatClock } from "@/lib/playerV2/transportState"
 
@@ -44,6 +47,15 @@ type Props = {
   onClose: () => void
   /** Preview mode: the prototype's short static list (six rows, no Clear) that sizes itself to its content. */
   compact?: boolean
+  /** Footer under the list: Shuffle, Repeat, Timer. Left out, the footer is not drawn. */
+  footer?: {
+    shuffleOn: boolean
+    repeat: RepeatMode
+    timerOn: boolean
+    onShuffle: () => void
+    onRepeat: () => void
+    onTimer: () => void
+  }
 }
 
 /** Rows the prototype's queue lists. */
@@ -105,6 +117,7 @@ export function QueueSheet(props: Props) {
   const { theme, rows, currentNumber } = props
   const { head, upcoming, tail } = useMemo(() => splitQueue(rows, currentNumber), [rows, currentNumber])
   const total = upcoming.length + tail.length
+  const shuffleLine = shufflingFromLine(props.footer?.shuffleOn ?? false, props.sourceTitle)
 
   const subLine = (item: QueueRow, playable: boolean) =>
     `PS ${item.number} · ${item.seconds != null ? formatClock(item.seconds) : `from ${queueOrigin(item.number, props.savedNumbers)}`}${playable ? "" : " · no audio yet"}`
@@ -163,6 +176,15 @@ export function QueueSheet(props: Props) {
           </View>
         </View>
       ) : null}
+      {shuffleLine ? (
+        <View style={styles.shuffleRow} accessibilityRole="text" accessibilityLabel={shuffleLine}>
+          <View style={styles.shuffleRule} />
+          <Text style={styles.shuffleText} numberOfLines={1}>
+            {shuffleLine}
+          </Text>
+          <View style={styles.shuffleRule} />
+        </View>
+      ) : null}
       <View style={styles.headingRow}>
         <View>
           <Text style={styles.heading} accessibilityRole="header">
@@ -193,12 +215,58 @@ export function QueueSheet(props: Props) {
       ) : (
         <Text style={styles.empty}>Nothing is queued after this song.</Text>
       )}
+      {props.footer ? <QueueFooter {...props.footer} /> : null}
     </Sheet>
+  )
+}
+
+/** Shuffle, Repeat (off, all, one) and Timer: three equal buttons, orange when on. Each answers on touch-down. */
+function QueueFooter({ shuffleOn, repeat, timerOn, onShuffle, onRepeat, onTimer }: NonNullable<Props["footer"]>) {
+  const buttons = buildQueueFooter({ shuffleOn, repeat, timerOn })
+  const act = { shuffle: onShuffle, repeat: onRepeat, timer: onTimer }
+  const icon = { shuffle: "shuffle", repeat: "repeat", timer: "timer" } as const
+  return (
+    <View style={styles.footer}>
+      {buttons.map((b) => (
+        <TouchButton
+          key={b.id}
+          accessibilityRole="button"
+          accessibilityLabel={b.label}
+          accessibilityState={{ selected: b.active }}
+          onAction={act[b.id]}
+          containerStyle={styles.footerHit}
+          style={[styles.footerBtn, b.active && styles.footerBtnOn]}
+        >
+          <PlayerIcon name={icon[b.id]} size={20} color={amColors.white} />
+          <Text style={styles.footerText} numberOfLines={1}>
+            {b.label}
+          </Text>
+        </TouchButton>
+      ))}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   list: { flex: 1 },
+  shuffleRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingTop: 2, paddingBottom: 2 },
+  shuffleRule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: queueColors.grab },
+  shuffleText: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, color: queueColors.heading, flexShrink: 1 },
+  footer: { flexDirection: "row", gap: 8, paddingHorizontal: 10, paddingTop: 12 },
+  footerHit: { flex: 1 },
+  footerBtn: {
+    height: 48,
+    borderRadius: 9999,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: queueColors.row,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.16)",
+  },
+  footerBtnOn: { backgroundColor: amColors.orange500, borderColor: amColors.orange500 },
+  footerText: { fontFamily: amFonts.semi, fontSize: 14, color: amColors.white },
   row: {
     flexDirection: "row",
     alignItems: "center",

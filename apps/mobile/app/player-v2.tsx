@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, StyleSheet, Text, View } from "react-native"
+import { Alert, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 import { useRouter } from "expo-router"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { AboutCard, AboutSheet } from "@/components/player-v2/AboutSong"
+import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
+import { CrossfadeGradient } from "@/components/player-v2/CrossfadeGradient"
 import { DriveControls } from "@/components/player-v2/DriveControls"
 import { EmptyPlayer, type EmptyAction } from "@/components/player-v2/EmptyPlayer"
 import { LyricsOptionsSheet } from "@/components/player-v2/LyricsOptionsSheet"
@@ -17,6 +20,7 @@ import { PlaylistSheet, type PlaylistSheetRow } from "@/components/player-v2/Pla
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { QueueSheet, splitQueue, type QueueRow } from "@/components/player-v2/QueueSheet"
 import { ThickScrubber, Waveform } from "@/components/player-v2/Scrubber"
+import { ShareSheet } from "@/components/player-v2/ShareSheet"
 import { SourceSheet } from "@/components/player-v2/SourceSheet"
 import { TouchButton } from "@/components/player-v2/TouchButton"
 import { TransportRow } from "@/components/player-v2/TransportRow"
@@ -25,10 +29,12 @@ import { demoDownloadKey, demoDownloadSize, useDemoDownloads } from "@/lib/playe
 import { VersionsSheet } from "@/components/player-v2/VersionsSheet"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
+import { allCollections } from "@/data/collections"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
 import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
+import { mockupSong } from "@/lib/fixtures/songMockup"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { hasPlayableAudio, playableAudioCount, playableNumbersList, randomPlayableSongNumber } from "@/lib/playableAudio"
@@ -53,6 +59,18 @@ import {
   splitLines,
   splitWords,
 } from "@/lib/playerV2/lyricsSync"
+import { hexAlpha, tintForSong } from "@/lib/playerV2/coverTint"
+import {
+  aboutContent,
+  buildActionRows,
+  collectionForSong,
+  queueAddMessage,
+  repeatMessage,
+  REPORT_THANKS,
+  type ActionId,
+} from "@/lib/playerV2/playerActions"
+import { runShare } from "@/lib/playerV2/playerActionsIO"
+import { buildSharePayload, shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { formatRate, nextRate } from "@/lib/playerV2/playbackSpeed"
 import { sourceLabel } from "@/lib/playerV2/queueOps"
 import { realControllerDeps, realQueueActions, startPlayerV2Services } from "@/lib/playerV2/services"
@@ -82,7 +100,7 @@ import { resumePositionFor } from "@/lib/playerV2/resume"
 import type { MockSong } from "@/data/mock"
 import { href } from "@/utils/href"
 
-type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "source" | "playlist"
+type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "source" | "playlist" | "actions" | "share" | "about"
 
 /** The photograph of Shrii Shrii Anandamurti used by the design (public/mockup/img/c21a6e97...jpg). */
 const PLAYER_PHOTO = require("../assets/player-baba.jpg")
@@ -99,6 +117,7 @@ export default function PlayerV2Screen() {
   const router = useRouter()
   const theme = useAmTheme()
   const insets = useSafeAreaInsets()
+  const { height: windowHeight } = useWindowDimensions()
   const toast = usePlayerToast()
 
   useEffect(() => {
@@ -352,17 +371,20 @@ export default function PlayerV2Screen() {
   }
   const onRepeat = () => {
     const next = v2.cycleRepeat()
-    toast.show(next === "off" ? "Repeat off" : next === "all" ? `Repeat all in ${source}` : "Repeat this song")
+    toast.show(repeatMessage(next, source))
   }
   const onShuffle = () => {
     queueActions.toggleShuffle()
   }
-  const onFavourite = () => {
+  /** `silent`: the row in the More sheet changes its own label, so no toast over the sheet. */
+  const onFavourite = (silent = false) => {
     if (!song) return
     const wasSaved = isSaved
     void toggleSaved(song.id).then((result) => {
-      if (result.needsAuth) router.push(href("/signin"))
-      else toast.show(wasSaved ? "Removed from Mine" : "Saved to Mine")
+      if (result.needsAuth) {
+        setSheet(null)
+        router.push(href("/signin"))
+      } else if (!silent) toast.show(wasSaved ? "Removed from Mine" : "Saved to Mine")
     })
   }
   const onSeekLine = (index: number) => {
@@ -488,6 +510,85 @@ export default function PlayerV2Screen() {
   }))
 
   const sleepValue = v2.sleep.kind === "off" ? "Off" : sleepLabel(v2.sleep, now)
+
+  // More actions, Share and About this song
+  const songTitle = sentenceCaseLine(song?.title ?? "")
+  const collection = useMemo(() => (song ? collectionForSong(song.number, allCollections) : null), [song])
+  const performer = selectedVersion?.performer ?? song?.performer ?? ""
+  const actionRows = useMemo(
+    () =>
+      buildActionRows({
+        saved: isSaved,
+        inQueue: song ? list.includes(song.number) : false,
+        collectionName: collection?.label ?? null,
+        speedText: formatRate(rate).replace("x", "×"),
+        sleepText: sleepValue,
+      }),
+    [isSaved, song, list, collection, rate, sleepValue],
+  )
+  const sharePayload = useMemo(
+    () => (song ? buildSharePayload({ number: song.number, title: songTitle, performer }) : null),
+    [song, songTitle, performer],
+  )
+  // TODO(api): the story text comes from the song's central idea; the prototype's sample text stands in
+  // while MOCKUP_DATA is on (its "Placeholder." lines are skipped).
+  const about = useMemo(() => {
+    if (!song) return null
+    const sample = MOCKUP_DATA ? mockupSong(song.number)?.centralIdea : null
+    return aboutContent(song, sample && !/^placeholder/i.test(sample) ? sample : null)
+  }, [song])
+  const showAbout = about != null && !drive && windowHeight >= 740
+  const openSongPage = () => {
+    if (!song) return
+    setSheet(null)
+    router.push(href(`/song-v2/ps-${song.number}`))
+  }
+  const onAction = (id: ActionId) => {
+    if (!song) return
+    switch (id) {
+      case "share":
+        return setSheet("share")
+      case "save":
+        return onFavourite(true)
+      case "playlist":
+        return setSheet("playlist")
+      case "queue": {
+        const there = list.includes(song.number)
+        if (!there) queueActions.add(song.number)
+        setSheet(null)
+        return toast.show(queueAddMessage(there))
+      }
+      case "goQueue":
+        return setSheet("queue")
+      case "songPage":
+        return openSongPage()
+      case "collection": {
+        setSheet(null)
+        const label = collection?.label
+        return router.push(
+          href(label ? `/songs-v2-collection?id=${encodeURIComponent(label)}&title=${encodeURIComponent(label)}` : "/songs-v2-index"),
+        )
+      }
+      case "playback":
+        return setSheet("playback")
+      case "report":
+        // TODO(api): send the report (song number, version, text) to the catalog team. Nothing leaves the phone yet.
+        setSheet(null)
+        return toast.show(REPORT_THANKS)
+    }
+  }
+  const onShareTarget = (target: ShareTargetId) => {
+    if (!sharePayload) return
+    void runShare(target, sharePayload).then((outcome) => {
+      const message = shareToast(outcome)
+      // A copied link closes the sheet, so the toast rises over the Player and not over the buttons.
+      if (message) {
+        setSheet(null)
+        toast.show(message)
+      }
+    })
+  }
+  const coverTint = tintForSong(song?.number ?? null)
   const canAdvance = canGoNext(deps) || playbackMode === "random"
   const sourceKey = activeSourceKey(playbackMode, activePlaylist?.id)
 
@@ -507,6 +608,13 @@ export default function PlayerV2Screen() {
         style={styles.photo}
       />
 
+      <CrossfadeGradient
+        colors={[hexAlpha(coverTint, 0.42), hexAlpha(coverTint, 0.3), hexAlpha(coverTint, 0.26)]}
+        locations={[0, 0.5, 1]}
+        duration={400}
+        style={StyleSheet.absoluteFill}
+      />
+
       <View style={[styles.column, { paddingTop: insets.top || playerSize.topBand, paddingBottom: playerSize.tabBarClearance }]}>
         <Reveal index={0}>
           <View style={styles.topBar}>
@@ -522,15 +630,27 @@ export default function PlayerV2Screen() {
               </Text>
               <PlayerIcon name="chevronDown" size={playerSize.chevron} color={amColors.white} />
             </TouchButton>
-            {song && !drive ? (
-              <TouchButton
-                accessibilityRole="button"
-                accessibilityLabel="Lyrics display: script, translation, word meanings"
-                onAction={() => setSheet("lyrics")}
-                style={styles.aaButton}
-              >
-                <PlayerIcon name="aa" size={playerSize.topIcon} color={amColors.white} />
-              </TouchButton>
+            {song ? (
+              <View style={styles.topActions}>
+                {!drive ? (
+                  <TouchButton
+                    accessibilityRole="button"
+                    accessibilityLabel="Lyrics display: script, translation, word meanings"
+                    onAction={() => setSheet("lyrics")}
+                    style={styles.aaButton}
+                  >
+                    <PlayerIcon name="aa" size={playerSize.topIcon} color={amColors.white} />
+                  </TouchButton>
+                ) : null}
+                <TouchButton
+                  accessibilityRole="button"
+                  accessibilityLabel="More actions: share, save, add to playlist, queue, song page"
+                  onAction={() => setSheet("actions")}
+                  style={styles.aaButton}
+                >
+                  <PlayerIcon name="more" size={playerSize.topIcon} color={amColors.white} />
+                </TouchButton>
+              </View>
             ) : null}
           </View>
         </Reveal>
@@ -627,7 +747,7 @@ export default function PlayerV2Screen() {
                     <UtilButton label="Queue" onPress={() => setSheet("queue")}>
                       <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
-                    <UtilButton label={isSaved ? "Remove from Mine" : "Save to Mine"} onPress={onFavourite}>
+                    <UtilButton label={isSaved ? "Remove from Mine" : "Save to Mine"} onPress={() => onFavourite()}>
                       <PlayerIcon
                         name="heart"
                         size={playerSize.utilGlyph}
@@ -635,11 +755,21 @@ export default function PlayerV2Screen() {
                         filled={isSaved}
                       />
                     </UtilButton>
-                    <UtilButton label="More: speed, sleep timer" onPress={() => setSheet("playback")}>
-                      <PlayerIcon name="more" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
+                    <UtilButton label="Share" onPress={() => setSheet("share")}>
+                      <PlayerIcon name="share" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
+                    </UtilButton>
+                    <UtilButton label="Playback: speed, sleep timer" onPress={() => setSheet("playback")}>
+                      <PlayerIcon name="timer" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
                   </View>
                 </Reveal>
+                {showAbout && about ? (
+                  <Reveal index={6}>
+                    <View style={styles.aboutWrap}>
+                      <AboutCard preview={about.preview} onOpen={() => setSheet("about")} />
+                    </View>
+                  </Reveal>
+                ) : null}
               </>
             )}
           </>
@@ -678,6 +808,14 @@ export default function PlayerV2Screen() {
         onOrder={queueActions.setOrder}
         onClearUpcoming={queueActions.clearUpcoming}
         compact={MOCKUP_DATA}
+        footer={{
+          shuffleOn: v2.shuffleOriginal != null,
+          repeat: v2.repeatMode,
+          timerOn: v2.sleep.kind !== "off",
+          onShuffle,
+          onRepeat,
+          onTimer: () => setSheet("playback"),
+        }}
         onClose={() => setSheet(null)}
       />
       <LyricsOptionsSheet
@@ -730,6 +868,37 @@ export default function PlayerV2Screen() {
         onNew={onNewPlaylist}
         onClose={() => setSheet(null)}
       />
+      {song ? (
+        <>
+          <ActionsSheet
+            visible={sheet === "actions"}
+            theme={theme}
+            songNumber={song.number}
+            title={songTitle}
+            subtitle={[collection?.label, performer].filter(Boolean).join(" · ") || `PS ${song.number}`}
+            rows={actionRows}
+            onAction={onAction}
+            onClose={() => setSheet(null)}
+          />
+          <ShareSheet
+            visible={sheet === "share"}
+            theme={theme}
+            songNumber={song.number}
+            title={songTitle}
+            performer={performer}
+            onShare={onShareTarget}
+            onClose={() => setSheet(null)}
+          />
+          <AboutSheet
+            visible={sheet === "about"}
+            theme={theme}
+            songTitle={songTitle}
+            about={about}
+            onOpenSong={openSongPage}
+            onClose={() => setSheet(null)}
+          />
+        </>
+      ) : null}
     </View>
   )
 }
@@ -760,6 +929,8 @@ const styles = StyleSheet.create({
   sourceHit: { flexShrink: 1 },
   sourceChip: { flexDirection: "row", alignItems: "center", gap: 4, height: playerSize.topButton },
   sourceText: { ...amType.label, color: amColors.white, flexShrink: 1 },
+  topActions: { flexDirection: "row", alignItems: "center" },
+  aboutWrap: { marginTop: 10 },
   aaButton: { width: playerSize.topButton, height: playerSize.topButton, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
   titleBlock: { paddingHorizontal: 20, gap: playerSize.titleGap, marginTop: playerSize.titleLift },
   title: {

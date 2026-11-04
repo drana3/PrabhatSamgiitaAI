@@ -148,8 +148,8 @@ export function shufflingFromLine(shuffleOn: boolean, source: string): string | 
 export type AboutContent = {
   /** First lines, for the peek card. */
   preview: string
-  /** Everything, one paragraph per entry, for the sheet. */
-  paragraphs: string[]
+  /** Everything, one block per entry, for the sheet. */
+  sections: Array<{ heading: string; text: string }>
 }
 
 type AboutSource = {
@@ -180,7 +180,9 @@ export function previewOf(text: string, limit = PREVIEW_CHARS): string {
 export function aboutContent(song: AboutSource, fallbackCentral?: string | null): AboutContent | null {
   const central = clean(song.centralIdea) || clean(fallbackCentral)
   const meaning = clean(song.meaning) || clean(song.shortDescription)
-  const paragraphs = [central, meaning && meaning !== central ? meaning : ""].filter(Boolean)
-  if (!paragraphs.length) return null
-  return { preview: previewOf(paragraphs[0]!), paragraphs }
+  const sections: AboutContent["sections"] = []
+  if (central) sections.push({ heading: "Central idea", text: central })
+  if (meaning && meaning !== central) sections.push({ heading: "Meaning", text: meaning })
+  if (!sections.length) return null
+  return { preview: previewOf(sections[0]!.text), sections }
 }
