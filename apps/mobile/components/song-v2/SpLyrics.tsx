@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -152,6 +152,8 @@ export function SpLyrics({
                             textDecorationLine: "underline",
                             textDecorationStyle: "dotted",
                             textDecorationColor: t.ink300,
+                            // web only: the prototype sets text-underline-offset: 7px
+                            ...(UNDERLINE_OFFSET as object),
                           },
                         ]}
                       >
@@ -193,6 +195,8 @@ export function SpLyrics({
     </SpCard>
   )
 }
+
+const UNDERLINE_OFFSET = Platform.OS === "web" ? { textUnderlineOffset: 7 } : {}
 
 const styles = StyleSheet.create({
   tools: { flexDirection: "row", gap: 5, paddingHorizontal: 10 },

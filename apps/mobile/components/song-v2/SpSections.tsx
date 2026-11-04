@@ -68,7 +68,7 @@ export function SpWords({
       <View style={styles.wtoks}>
         {rows.map((row, ri) => (
           <View key={ri}>
-            <Text style={[over(t), { paddingTop: ri === 0 ? 0 : 20, paddingBottom: 4 }]}>{row.header}</Text>
+            <Text style={[over(t), { paddingTop: ri === 0 ? 0 : 20, paddingBottom: 4, lineHeight: 23.2 }]}>{row.header}</Text>
             {row.tokens.map((token) => (
               <View key={token.key} style={[styles.wtok, { borderBottomColor: t.sand300 }]}>
                 <Text style={[styles.rm, { color: t.ink800, fontFamily: rmFont }]}>{token.word}</Text>
@@ -102,7 +102,9 @@ export function SpMeaning({
       {central ? (
         <View style={[styles.central, { backgroundColor: t.sage200 }]}>
           <Text style={[over(t), { color: t.sage700 }]}>Central idea</Text>
-          <Text style={{ fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22.4, color: t.sage900 }}>{central}</Text>
+          <Text style={{ fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22.4, color: t.sage900, maxWidth: CENTRAL_MAX }}>
+            {central}
+          </Text>
         </View>
       ) : null}
       <View style={styles.mlist}>
@@ -111,7 +113,7 @@ export function SpMeaning({
             key={i}
             style={[styles.lnrow, i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: t.sand300 }]}
           >
-            {row.label ? <Text style={[over(t), { fontVariant: ["tabular-nums"] }]}>{row.label}</Text> : null}
+            {row.label ? <Text style={[over(t), { fontVariant: ["tabular-nums"], lineHeight: 23.2 }]}>{row.label}</Text> : null}
             <Text style={bodyT(t)}>{row.text}</Text>
           </View>
         ))}
@@ -139,8 +141,11 @@ export function SpExplain({ t, explanation, onAsk }: { t: SpTheme; explanation: 
       <View style={styles.tlist}>
         {explanation.keyTerms.map((term, i) => (
           <View key={i} style={[styles.term, { backgroundColor: t.sand100 }]}>
-            <Text style={[styles.termB, { color: t.ink800 }]}>{term.term}</Text>
-            <Text style={[styles.termS, { color: t.ink500 }]}>{term.meaning}</Text>
+            {/* the prototype's `.term span` rule also restyles the span inside <b>: the term is 14/500 grey in a 16 bold line */}
+            <Text style={[styles.termB, { color: t.ink800 }]}>
+              <Text style={[styles.termS, { color: t.ink500, lineHeight: 20.3 }]}>{term.term}</Text>
+            </Text>
+            <Text style={[styles.termS, { color: t.ink500, lineHeight: 20.3 }]}>{term.meaning}</Text>
           </View>
         ))}
       </View>
@@ -172,7 +177,10 @@ function ChordBox({ t, card }: { t: SpTheme; card: ChordCard }) {
           </SvgText>
         ) : null}
       </Svg>
-      <Text style={[styles.ccardB, { color: t.ink800 }]}>{card.name}</Text>
+      {/* `.ccard span` also restyles the span inside <b>, so the chord name is the 13/600 grey text in a 26px line */}
+      <Text style={[styles.ccardB, { color: t.ink800 }]}>
+        <Text style={[styles.ccardS, { color: t.ink500, lineHeight: 13 }]}>{card.name}</Text>
+      </Text>
       <Text style={[styles.ccardS, { color: t.ink500 }]}>{card.sub}</Text>
     </View>
   )
@@ -456,6 +464,9 @@ export function SpWatch({
   )
 }
 
+/** `.lcard p { max-width: 28ch }` at 16px, measured in the prototype */
+const CENTRAL_MAX = 254.7
+
 const styles = StyleSheet.create({
   wlangs: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 12, paddingBottom: 6 },
   wchip: {
@@ -477,14 +488,14 @@ const styles = StyleSheet.create({
   gl2: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19 },
   central: { padding: 20, paddingVertical: 16, borderRadius: 30, gap: 12 },
   mlist: { gap: 12 },
-  lnrow: { paddingVertical: 4, paddingBottom: 12 },
+  lnrow: { paddingVertical: 4 },
   plist: { gap: 12 },
   pt: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
   ptDot: { width: 8, height: 8, borderRadius: 9999, marginTop: 8 },
   ptText: { flex: 1, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22.4 },
   tlist: { gap: 8 },
   term: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, gap: 2 },
-  termB: { fontFamily: amFonts.bold, fontSize: 16 },
+  termB: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 23.2 },
   termS: { fontFamily: amFonts.medium, fontSize: 14 },
   scripts: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tcHeadWrap: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 },
@@ -522,7 +533,7 @@ const styles = StyleSheet.create({
   },
   cdg: { marginBottom: 4 },
   ccardB: { fontFamily: amFonts.display, fontSize: 26, lineHeight: 26, letterSpacing: -0.52, textAlign: "center" },
-  ccardS: { fontFamily: amFonts.semi, fontSize: 13, letterSpacing: 0.26, textAlign: "center", fontVariant: ["tabular-nums"] },
+  ccardS: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18.85, letterSpacing: 0.26, textAlign: "center", fontVariant: ["tabular-nums"] },
   swaras: { flexDirection: "row", gap: 6 },
   swara: { flex: 1, alignItems: "center", gap: 2, paddingVertical: 10, borderRadius: 20 },
   swaraB: { fontFamily: amFonts.display, fontSize: 15 },

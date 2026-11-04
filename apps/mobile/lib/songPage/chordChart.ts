@@ -100,12 +100,21 @@ export function capoHeadline(capo: number): string {
   return capoNote(capo) || "No capo"
 }
 
-/** Columns for every lyric line, carrying the "only where it changes" rule from one line to the next. */
-export function layoutChart(romanLines: string[], chart: ChordChart, show: (chord: string) => string): WordColumn[][] {
+/**
+ * Columns for every lyric line, carrying the "only where it changes" rule from one line to the next.
+ * `repeatAtLineStart` writes the chord at the start of every line even when the line before ended on it
+ * (the design prototype does).
+ */
+export function layoutChart(
+  romanLines: string[],
+  chart: ChordChart,
+  show: (chord: string) => string,
+  repeatAtLineStart = false,
+): WordColumn[][] {
   let previous: string | null = null
   return romanLines.map((line, index) => {
     const placements = chart.lines[index]?.placements ?? []
-    const result = wordColumns(line, placements, previous, show)
+    const result = wordColumns(line, placements, repeatAtLineStart ? null : previous, show)
     previous = result.lastChord
     return result.columns
   })

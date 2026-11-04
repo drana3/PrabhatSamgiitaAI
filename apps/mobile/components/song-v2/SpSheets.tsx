@@ -3,10 +3,10 @@ import { StyleSheet, Text, TextInput, View } from "react-native"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { localeOptions } from "@/constants/languages"
+import { localeOptions, type LocaleOption } from "@/constants/languages"
 import { SCRIPT_LABEL, type ScriptChoice, type ScriptId } from "@/lib/songPage/scripts"
 import { groupLanguages, type Coverage } from "@/lib/songPage/translations"
-import { versionDetail, formatLength, INSTRUMENT_LABEL, type DownloadPhase, type SongVersion } from "@/lib/songPage/versions"
+import { versionDetail, type DownloadPhase, type SongVersion } from "@/lib/songPage/versions"
 
 import { SpIcon } from "./SpIcon"
 import { SpSheet } from "./SpSheet"
@@ -52,6 +52,7 @@ function Row({
   on,
   kind,
   muted,
+  action,
   last,
   onPress,
 }: {
@@ -61,6 +62,8 @@ function Row({
   on: boolean
   kind: "check" | "radio"
   muted?: boolean
+  /** `.rq`: the orange word before the mark, e.g. "Request" */
+  action?: string
   last?: boolean
   onPress: () => void
 }) {
@@ -76,6 +79,7 @@ function Row({
         <Text style={[styles.lmB, { color: muted ? t.ink500 : t.ink800 }]}>{name}</Text>
         <Text style={[styles.lmS, { color: t.ink500 }]}>{sub}</Text>
       </View>
+      {action ? <Text style={[styles.rq, { color: t.orange700 }]}>{action}</Text> : null}
       <SpMark t={t} on={on} kind={kind} />
     </SpPress>
   )
@@ -100,6 +104,10 @@ export function SpLanguageSheet({
   coverage,
   onToggleLanguage,
   onMissingScript,
+  options,
+  searchCount,
+  requested,
+  onRequest,
 }: {
   t: SpTheme
   visible: boolean
@@ -111,9 +119,21 @@ export function SpLanguageSheet({
   coverage: Record<string, Coverage>
   onToggleLanguage: (code: string) => void
   onMissingScript: (name: string) => void
+  /** Languages to list; all of them when left out */
+  options?: LocaleOption[]
+  /** Number in the search placeholder; the length of `options` when left out */
+  searchCount?: number
+  /** Languages the reader asked for, which have no translation yet */
+  requested: string[]
+  /** Ask for a language that has no translation yet (`Request`) */
+  onRequest: (code: string) => void
 }) {
   const [query, setQuery] = useState("")
-  const rows = useMemo(() => groupLanguages(coverage, query).flatMap((group) => group.rows), [coverage, query])
+  const pool = options ?? localeOptions
+  const rows = useMemo(
+    () => groupLanguages(coverage, query, pool).flatMap((group) => group.rows),
+    [coverage, query, pool],
+  )
   const scriptRows: Array<{ id: ScriptChoice; name: string; sub: string; missing?: boolean }> = [
     { id: "roman", name: "Roman", sub: "Latin letters, for example Bandhu, Álo" },
     { id: "devanagari", name: "देवनागरी", sub: "Devanagari" },
@@ -164,7 +184,7 @@ export function SpLanguageSheet({
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder={`Search ${localeOptions.length} languages`}
+          placeholder={`Search ${searchCount ?? pool.length} languages`}
           placeholderTextColor={t.ink500}
           accessibilityLabel="Search languages"
           autoCorrect={false}
@@ -179,12 +199,17 @@ export function SpLanguageSheet({
             key={row.option.code}
             t={t}
             name={row.option.label}
-            sub={`${row.option.nativeLabel} · ${STATE_TEXT[row.coverage]}`}
+            sub={`${row.option.nativeLabel} · ${
+              row.coverage === "none" && requested.includes(row.option.code) ? "Requested" : STATE_TEXT[row.coverage]
+            }`}
             on={selected.includes(row.option.code)}
             kind="check"
             muted={row.coverage === "none"}
+            action={row.coverage === "none" && !requested.includes(row.option.code) ? "Request" : undefined}
             last={i === rows.length - 1}
-            onPress={() => onToggleLanguage(row.option.code)}
+            onPress={() =>
+              row.coverage === "none" ? onRequest(row.option.code) : onToggleLanguage(row.option.code)
+            }
           />
         ))}
       </Group>
@@ -210,6 +235,7 @@ export function SpRecordingsSheet({
   progress,
   showDownload,
   onDownload,
+  sizeText,
 }: {
   t: SpTheme
   visible: boolean
@@ -221,13 +247,17 @@ export function SpRecordingsSheet({
   progress: number
   showDownload: boolean
   onDownload: () => void
+  /** File size shown on the idle pill: `Download · 3.7 MB` */
+  sizeText?: string
 }) {
   const dlText =
     phase === "saved"
       ? "Downloaded"
       : phase === "downloading"
         ? `Downloading ${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`
-        : "Download"
+        : sizeText
+          ? `Download · ${sizeText}`
+          : "Download"
   return (
     <SpSheet t={t} visible={visible} onClose={onClose} label="Recordings" testID="sp-recordings-sheet">
       <ShTitle t={t} label="Versions" right={<DoneLink t={t} onPress={onClose} />} />
@@ -237,9 +267,7 @@ export function SpRecordingsSheet({
         ) : (
           versions.map((version) => {
             const on = version.url === selectedUrl
-            const meta = [INSTRUMENT_LABEL[version.instrument], formatLength(version.length), version.tag]
-              .filter(Boolean)
-              .join(" · ")
+            const meta = versionDetail(version)
             return (
               <SpPress
                 key={version.id}
@@ -351,6 +379,7 @@ const styles = StyleSheet.create({
   lm: { flex: 1, minWidth: 0 },
   lmB: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   lmS: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
+  rq: { fontFamily: amFonts.semi, fontSize: 13 },
   search: {
     marginHorizontal: 20,
     marginBottom: 12,
