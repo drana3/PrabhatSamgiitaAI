@@ -19,25 +19,32 @@ import type { TodayRecommendationItem, TodayRecommendations } from "@prabhat/cor
 
 import { Reveal } from "@/components/today/motion"
 import {
+  TODAY_SETS,
   TodayAvatar,
   TodayCardButton,
   TodayHead,
   TodayHeader,
   TodayHeroPanel,
+  TodayList,
+  TodayMockupPanel,
   TodayPlayAll,
   TodayQuickTiles,
   TodayRecentRow,
   TodayResumeCard,
   TodaySearchField,
   TodaySectionHeading,
+  TodaySetContext,
   TodaySongPill,
   TodayStoryCard,
+  type SampleDayKind,
+  type TodaySet,
 } from "@/components/today/TodayBlocks"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import type { MockSong } from "@/data/mock"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { loadCatalog } from "@/lib/catalog"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { api } from "@/lib/client"
 import { memberProfileName } from "@/lib/displayName"
 import { TODAY_FIXTURE_DAYS, TODAY_FIXTURE_RECENT, TODAY_FIXTURE_SONGS } from "@/lib/fixtures/today"
@@ -95,7 +102,8 @@ function fixtureDay(kind: "date" | "fest" | "season", count: number) {
     return {
       song,
       meta: composed ? `PS ${fix.number} · composed ${composed}` : `PS ${fix.number}`,
-      firstLine: fix.firstLine,
+      // the prototype's sample lyrics are one text for every song (`_content(i).lines[0]`)
+      firstLine: "Bandhu he niye calo",
       length: formatClock(fix.seconds),
     }
   }
@@ -109,7 +117,8 @@ function fixtureDay(kind: "date" | "fest" | "season", count: number) {
   const day = buildTodayDay({ context, signals: [], recommendations: [], disclaimer: "" } as unknown as TodayRecommendations, now)
   const alsoRow = def.also != null ? toRow(def.also) : null
   const tag = kind === "date" && def.composed[0] ? `Composed 1 Nov ${def.composed[0]}` : day.tag
-  return { rows, day: { ...day, dateLabel: formatDayLine(now), tag }, also: alsoRow }
+  const note = "note" in def ? def.note : day.note
+  return { rows, day: { ...day, dateLabel: formatDayLine(now), tag, note }, also: alsoRow }
 }
 
 /**
@@ -124,8 +133,16 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const reduce = useReducedMotion()
-  const params = useLocalSearchParams<{ day?: string; count?: string }>()
-  const sampleKind = params.day === "date" || params.day === "fest" || params.day === "season" ? params.day : null
+  const params = useLocalSearchParams<{ day?: string; count?: string; tc?: string }>()
+  // MOCKUP_DATA (preview builds): the prototype's own sample day, as on its Today board, and its
+  // "Mockup only" switches for another day and another colour set (`?day=` and `?tc=` start them)
+  const startKind: SampleDayKind | null =
+    params.day === "date" || params.day === "fest" || params.day === "season" ? params.day : MOCKUP_DATA ? "date" : null
+  const [pickedKind, setPickedKind] = useState<SampleDayKind | null>(null)
+  const sampleKind = pickedKind ?? startKind
+  const startSet = TODAY_SETS.find(([id]) => id === params.tc)?.[0] ?? "3"
+  const [pickedSet, setPickedSet] = useState<TodaySet | null>(null)
+  const set: TodaySet = MOCKUP_DATA || params.day ? (pickedSet ?? startSet) : "3"
   const songCount = Math.min(3, Math.max(1, Number(params.count) || SONGS_PER_DAY))
   // the prototype's status area is 54dp; a phone reports its own inset, the browser reports 0
   const top = insets.top || amProto.statusArea
@@ -177,10 +194,19 @@ export default function TodayScreen() {
   }, [])
 
   const view = useMemo(() => buildTodayView({ recommended, recentPlays, now }), [recommended, recentPlays, now])
-  const story = useMemo(() => storyOfTheWeek(stories, now), [stories, now])
-  const initials = memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initials = MOCKUP_DATA
+    ? "D"
+    : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
 
   const sample = useMemo(() => (sampleKind ? fixtureDay(sampleKind, songCount) : null), [sampleKind, songCount])
+  // TODO(api): the prototype's sample story card (Main.dc.html 1085-1090) while a sample day is shown
+  const story = useMemo(
+    () =>
+      sample
+        ? ({ slug: "ps-3", title: "The story behind PS 3", teaser: "Placeholder blurb from the stories database." } as StorySummary)
+        : storyOfTheWeek(stories, now),
+    [sample, stories, now],
+  )
   const day: TodayDay = sample?.day ?? buildTodayDay(today, now)
   const rows: TodayRow[] = useMemo(
     () =>
@@ -252,10 +278,11 @@ export default function TodayScreen() {
     opacity: interpolate(scrollY.value, [0, STICK_AT], [1, 0], Extrapolation.CLAMP),
   }))
 
-  const dawn = !p.dark
+  const dawn = !p.dark && set === "3"
   const bg = p.sand200
 
   return (
+    <TodaySetContext.Provider value={set}>
     <View style={[styles.root, { backgroundColor: bg }]}>
       {dawn ? (
         <Animated.View pointerEvents="none" style={[styles.statusWash, { height: top }, washStyle]}>
@@ -314,11 +341,13 @@ export default function TodayScreen() {
             </Reveal>
 
             {more.length ? (
-              <Reveal index={5} style={[styles.list, { marginTop: 10 }]}>
-                {more.map((row) => (
+              <Reveal index={5} style={{ marginTop: set === "2" && !p.dark ? 0 : 10 }}>
+                <TodayList p={p}>
+                {more.map((row, i) => (
                   <TodaySongPill
                     key={row.song.id}
                     p={p}
+                    last={i === more.length - 1}
                     meta={`${row.meta}${row.length && !row.meta.includes("composed") ? ` · ${row.length}` : ""}`}
                     title={readableTitle(row.song.title)}
                     firstLine={row.firstLine}
@@ -331,6 +360,7 @@ export default function TodayScreen() {
                   count={rows.length}
                   onPress={() => listen(hero.song, rows.map((row) => Number(row.song.number)))}
                 />
+                </TodayList>
               </Reveal>
             ) : null}
 
@@ -381,7 +411,7 @@ export default function TodayScreen() {
             <Reveal index={7} style={styles.list}>
               <TodayStoryCard
                 p={p}
-                label="Story"
+                label={sample ? "Story · 4 min read" : "Story"}
                 title={story.title}
                 blurb={story.teaser}
                 onPress={() => router.push(href(`/story-sheet/${story.slug}`))}
@@ -402,11 +432,23 @@ export default function TodayScreen() {
             </Reveal>
           </View>
         ) : null}
+        {MOCKUP_DATA ? (
+          <Reveal index={10}>
+            <TodayMockupPanel
+              p={p}
+              day={sampleKind ?? "date"}
+              onDay={setPickedKind}
+              set={set}
+              onSet={setPickedSet}
+            />
+          </Reveal>
+        ) : null}
         <View style={styles.tail} />
       </Animated.ScrollView>
 
       <TodayAvatar_ p={p} top={top} initial={initials} onPress={() => router.push(href("/profile-sheet"))} />
     </View>
+    </TodaySetContext.Provider>
   )
 }
 
@@ -436,7 +478,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     fontFamily: "Roboto_500Medium",
     fontSize: 16,
-    lineHeight: 23,
+    lineHeight: 23.2,
     marginBottom: 0,
   },
   empty: { textAlign: "center", marginTop: 40 },

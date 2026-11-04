@@ -5,6 +5,7 @@ import { View } from "react-native"
 import { FloatingTabBar } from "@/components/nav-v2/FloatingTabBar"
 import { MiniPlayerPill } from "@/components/nav-v2/MiniPlayerPill"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useMockupPlayerSeed } from "@/lib/mockupPlayerSeed"
 import { startPlayerV2Services } from "@/lib/playerV2/services"
 import { NAV_V2_TABS, miniPlayerVisible, type NavV2TabId } from "@/lib/navV2"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -20,6 +21,7 @@ export default function V2Layout() {
   const router = useRouter()
   const pathname = usePathname()
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  useMockupPlayerSeed()
 
   // The redesigned player services only run inside the v2 shell, so the
   // current app behaves exactly as before until the redesign replaces it.

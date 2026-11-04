@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, ScrollView, type TextStyle } from "react-native"
+import { createContext, useContext, type ReactNode } from "react"
+import { Platform, StyleSheet, Text, View, ScrollView, type TextStyle } from "react-native"
 import { Search } from "lucide-react-native"
 import { BlurView } from "expo-blur"
 import { Image } from "expo-image"
@@ -14,6 +15,24 @@ import { amProto, type AmProto } from "@/constants/tokens/amToday"
 import type { TodayDayKind } from "@/lib/todayDay"
 
 type P = { p: AmProto }
+
+/**
+ * The prototype's four Today colour sets (Main.dc.html "Today colour sets", `tc-1` to `tc-4`):
+ * 1 Before, 2 Forest panel, 3 Dawn (the default), 4 Ink and flame. They only exist in the light theme.
+ */
+export type TodaySet = "1" | "2" | "3" | "4"
+export const TODAY_SETS: ReadonlyArray<readonly [TodaySet, string]> = [
+  ["1", "Before"],
+  ["2", "Forest panel"],
+  ["3", "Dawn"],
+  ["4", "Ink and flame"],
+]
+export const TodaySetContext = createContext<TodaySet>("3")
+/** The colour set in force; the dark theme always uses the default look. */
+function useSet(p: AmProto): TodaySet {
+  const set = useContext(TodaySetContext)
+  return p.dark ? "3" : set
+}
 
 /** Letter spacing in dp from an em value. */
 const em = (size: number, value: number) => Math.round(size * value * 100) / 100
@@ -44,8 +63,8 @@ export function TodayHeader({ p }: P) {
 
 /** `.avatar`: 44dp circle, top right, stays while the page scrolls. */
 export function TodayAvatar({ p, initial, onPress }: P & { initial: string; onPress: () => void }) {
-  // Dawn (light) uses a white disc; in the dark theme the tinted orange one.
-  const bg = p.dark ? p.orange100 : p.white
+  // Dawn (light) uses a white disc; the other sets and the dark theme the tinted orange one.
+  const bg = useSet(p) === "3" && !p.dark ? p.white : p.orange100
   return (
     <TodayPress
       accessibilityRole="button"
@@ -94,9 +113,11 @@ export function TodayHead({
   kindLabel,
   note,
 }: P & { dateLabel: string; kind: TodayDayKind; kindLabel: string; note: string }) {
-  const chip = KIND_COLORS(p, kind)
-  // Dawn sets the date and the note in ink; the dark theme keeps the gold eyebrow.
-  const overColor = p.dark ? p.orange700 : p.ink800
+  const set = useSet(p)
+  const chip = set === "4" ? { bg: p.ink900, fg: "#FFFFFF" } : KIND_COLORS(p, kind)
+  // Dawn sets the date and the note in ink; the other sets and the dark theme keep the eyebrow colour.
+  const dawnInk = set === "3" && !p.dark
+  const overColor = dawnInk ? p.ink800 : p.orange700
   return (
     <View style={s.tdhead}>
       <Text style={[overStyle, { color: overColor }]}>{dateLabel}</Text>
@@ -107,7 +128,7 @@ export function TodayHead({
         Songs{"\n"}
         <Text style={{ color: p.ink300 }}>for today</Text>
       </Text>
-      {note ? <Text style={[s.note, { color: p.dark ? p.ink500 : p.ink800 }]}>{note}</Text> : <View style={s.noteGap} />}
+      {note ? <Text style={[s.note, { color: dawnInk ? p.ink800 : p.ink500 }]}>{note}</Text> : <View style={s.noteGap} />}
     </View>
   )
 }
@@ -125,12 +146,13 @@ type HeroProps = P & {
 
 /** `.hpanel` photograph with a glass tag, and `.herocard`, a frosted card that overlaps its bottom 60dp. */
 export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing }: HeroProps) {
+  const ink = useSet(p) === "4"
   return (
     <View>
       <View style={[s.panel, { backgroundColor: p.sage900 }]}>
         <Image
           source={todayAssets.hero}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, ink && Platform.OS === "web" ? ({ filter: "saturate(0.7) contrast(1.05)" } as object) : null]}
           contentFit="cover"
           contentPosition={{ top: 0, left: "50%" }}
           accessibilityLabel="Shrii Shrii Anandamurti"
@@ -146,17 +168,20 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
         style={[
           s.heroCard,
           {
-            borderColor: p.dark ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.75)",
+            borderColor: ink ? "transparent" : p.dark ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.75)",
           },
+          ink && { backgroundColor: p.ink900 },
         ]}
       >
-        <BlurView intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: p.dark ? "rgba(34, 43, 29, 0.55)" : "rgba(255, 255, 255, 0.62)" },
-          ]}
-        />
+        {ink ? null : <BlurView intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />}
+        {ink ? null : (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: p.dark ? "rgba(34, 43, 29, 0.55)" : "rgba(255, 255, 255, 0.62)" },
+            ]}
+          />
+        )}
         <TodayPress
           accessibilityRole="button"
           accessibilityLabel={`Read lyrics of ${title}`}
@@ -164,8 +189,8 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
           pressedScale={PRESS}
           style={s.heroMain}
         >
-          <Text style={[overStyle, { color: p.orange700 }]}>{meta}</Text>
-          <Text style={[s.h3, { color: p.ink800 }]}>{title}</Text>
+          <Text style={[overStyle, { color: ink ? p.orange500 : p.orange700 }]}>{meta}</Text>
+          <Text style={[s.h3, { color: ink ? "#FFFFFF" : p.ink800 }]}>{title}</Text>
         </TodayPress>
         <TodayPress
           accessibilityRole="button"
@@ -183,6 +208,16 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
 
 /* -------------------------------------------------------------------- rows */
 
+/**
+ * `.tdlist`: today's other songs and "Play all". Forest panel puts them on one dark rounded panel;
+ * the other sets leave them as separate rows.
+ */
+export function TodayList({ p, children }: P & { children: ReactNode }) {
+  const forest = useSet(p) === "2"
+  const ruled = useSet(p) === "4"
+  return <View style={forest ? [s.forestList, { backgroundColor: p.sage900 }] : ruled ? s.ruledList : s.plainList}>{children}</View>
+}
+
 /** `.tsong`: a pill row for one of today's songs, with the first line in italics. */
 export function TodaySongPill({
   p,
@@ -191,9 +226,20 @@ export function TodaySongPill({
   firstLine,
   onOpen,
   onPlay,
-}: P & { meta: string; title: string; firstLine: string; onOpen: () => void; onPlay: () => void }) {
+  last,
+}: P & { meta: string; title: string; firstLine: string; onOpen: () => void; onPlay: () => void; last?: boolean }) {
+  const set = useSet(p)
+  const forest = set === "2"
+  const rule = set === "4"
+  const rowStyle = forest
+    ? [s.songRowForest, { borderBottomColor: "rgba(255, 255, 255, 0.14)", borderBottomWidth: last ? 0 : 1 }]
+    : rule
+      ? [s.songRowRule, { borderBottomColor: p.ink900 }]
+      : [s.songPill, { backgroundColor: p.white, borderColor: p.sand300 }]
+  const playBg = set === "3" ? (p.dark ? p.sage700 : p.ink900) : p.orange500
+  const playFg = set === "3" ? (p.dark ? "#FFFFFF" : p.onInk) : "#FFFFFF"
   return (
-    <View style={[s.songPill, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+    <View style={rowStyle}>
       <TodayPress
         accessibilityRole="button"
         accessibilityLabel={`${meta}, ${title}`}
@@ -201,14 +247,14 @@ export function TodaySongPill({
         pressedScale={PRESS}
         style={s.songPillMain}
       >
-        <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
+        <Text style={[overStyle, { color: forest ? p.gold300 : p.orange700 }]} numberOfLines={1}>
           {meta}
         </Text>
-        <Text style={[s.songTitle, { color: p.ink800 }]} numberOfLines={1}>
+        <Text style={[s.songTitle, { color: forest ? "#FFFFFF" : p.ink800 }]} numberOfLines={1}>
           {title}
         </Text>
         {firstLine ? (
-          <Text style={[s.firstLine, { color: p.ink500 }]} numberOfLines={1}>
+          <Text style={[s.firstLine, { color: forest ? "rgba(255, 255, 255, 0.7)" : p.ink500 }]} numberOfLines={1}>
             {firstLine}
           </Text>
         ) : null}
@@ -218,9 +264,9 @@ export function TodaySongPill({
         accessibilityLabel={`Play ${title}`}
         onPress={onPlay}
         pressedScale={PRESS}
-        style={[s.playSm, { backgroundColor: p.dark ? p.sage700 : p.ink900 }]}
+        style={[s.playSm, { backgroundColor: playBg }]}
       >
-        <PlayGlyph size={22} color={p.dark ? "#FFFFFF" : p.onInk} />
+        <PlayGlyph size={22} color={playFg} />
       </TodayPress>
     </View>
   )
@@ -228,17 +274,20 @@ export function TodaySongPill({
 
 /** `.pill.ink.tdall`: "Play all 3". */
 export function TodayPlayAll({ p, count, onPress }: P & { count: number; onPress: () => void }) {
+  const forest = useSet(p) === "2"
+  const bg = forest ? p.sand100 : p.ink900
+  const fg = forest ? p.ink900 : p.onInk
   return (
     <TodayPress
       accessibilityRole="button"
       accessibilityLabel={`Play all ${count}`}
       onPress={onPress}
       pressedScale={PRESS}
-      style={[s.playAll, { backgroundColor: p.ink900 }]}
+      style={[s.playAll, forest && s.playAllForest, { backgroundColor: bg }]}
     >
-      <PlayGlyph size={18} color={p.onInk} />
-      <Text style={[s.pillText, { color: p.onInk }]}>Play all</Text>
-      <Text style={[s.pillText, { color: p.onInk }]}>{count}</Text>
+      <PlayGlyph size={18} color={fg} />
+      <Text style={[s.pillText, { color: fg }]}>Play all</Text>
+      <Text style={[s.pillText, { color: fg }]}>{count}</Text>
     </TodayPress>
   )
 }
@@ -288,17 +337,18 @@ export function TodayResumeCard({
   progress,
   onPress,
 }: P & { title: string; line: string; progress: number; onPress: () => void }) {
+  const ink = useSet(p) === "4"
   return (
     <TodayPress
       accessibilityRole="button"
       accessibilityLabel={`Resume ${title}`}
       onPress={onPress}
       pressedScale={PRESS}
-      style={[s.resume, { backgroundColor: p.white, borderColor: p.sand400 }]}
+      style={ink ? [s.resumeRule, { borderTopColor: p.ink900 }] : [s.resume, { backgroundColor: p.white, borderColor: p.sand400 }]}
     >
       <Text style={[s.resumeTitle, { color: p.ink800 }]}>{title}</Text>
       <Text style={[s.resumeLine, { color: p.ink500 }]}>{line}</Text>
-      <View style={[s.track, { backgroundColor: p.sand300 }]}>
+      <View style={[s.track, { backgroundColor: ink ? p.sand400 : p.sand300 }]}>
         <View style={[s.trackFill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 1000) / 10}%`, backgroundColor: p.orange500 }]} />
       </View>
     </TodayPress>
@@ -314,6 +364,7 @@ export function TodayQuickTiles({
   tiles: ReadonlyArray<{ id: string; label: string; example: string; query: string }>
   onPress: (query: string) => void
 }) {
+  const set = useSet(p)
   return (
     <ScrollView
       horizontal
@@ -322,7 +373,7 @@ export function TodayQuickTiles({
       accessibilityRole="list"
     >
       {tiles.map((tile, index) => {
-        const look = tileLook(p, index)
+        const look = tileLook(p, index, set)
         return (
           <TodayPress
             key={tile.id}
@@ -330,7 +381,7 @@ export function TodayQuickTiles({
             accessibilityLabel={`Search by ${tile.label.toLowerCase()}, for example ${tile.example}`}
             onPress={() => onPress(tile.query)}
             pressedScale={PRESS}
-            style={[s.tile, { backgroundColor: look.bg }]}
+            style={[s.tile, { backgroundColor: look.bg }, look.border]}
           >
             <View style={s.tileCopy}>
               <Text style={[overStyle, { color: look.over }]}>{tile.label}</Text>
@@ -344,8 +395,19 @@ export function TodayQuickTiles({
   )
 }
 
-/** Dawn tile colours: peach, olive, forest. Dark keeps every tile readable on dark. */
-function tileLook(p: AmProto, index: number) {
+/** Dawn tile colours: peach, olive, forest. Dark keeps every tile readable on dark. The other sets use one look for all three. */
+function tileLook(p: AmProto, index: number, set: TodaySet) {
+  if (set === "4") {
+    return { bg: "transparent", fg: p.ink900, over: p.ink500, chev: p.ink900, border: { borderWidth: 1.5, borderColor: p.ink900 } }
+  }
+  if (set === "1" || set === "2") {
+    return { bg: p.white, fg: p.ink900, over: p.orange700, chev: p.ink900, border: { borderWidth: 1, borderColor: set === "2" ? p.sand400 : p.sand300 } }
+  }
+  const look = dawnTileLook(p, index)
+  return { ...look, border: null }
+}
+
+function dawnTileLook(p: AmProto, index: number) {
   if (index === 0) return { bg: p.orange100, fg: p.ink800, over: p.orange700, chev: p.ink500 }
   if (index === 1) {
     return p.dark
@@ -363,9 +425,10 @@ export function TodayStoryCard({
   blurb,
   onPress,
 }: P & { label: string; title: string; blurb: string; onPress: () => void }) {
-  const bg = p.dark ? p.sage700 : p.sage200
-  const fg = p.dark ? "#FFFFFF" : p.sage900
-  const over = p.dark ? p.gold300 : p.sage700
+  const flame = useSet(p) === "4"
+  const bg = flame ? p.orange500 : p.dark ? p.sage700 : p.sage200
+  const fg = flame ? p.ink900 : p.dark ? "#FFFFFF" : p.sage900
+  const over = flame ? p.ink900 : p.dark ? p.gold300 : p.sage700
   return (
     <TodayPress
       accessibilityRole="button"
@@ -408,7 +471,79 @@ export function TodayRecentRow({
   )
 }
 
+/* ------------------------------------------------------- mockup-only panel */
+
+const DAY_CHIPS = [
+  ["date", "Ordinary day"],
+  ["fest", "Festival day"],
+  ["season", "Season"],
+] as const
+export type SampleDayKind = (typeof DAY_CHIPS)[number][0]
+
+function PanelChip({ p, label, on, onPress }: P & { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <TodayPress
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: on }}
+      onPress={onPress}
+      pressedScale={0.96}
+      style={[s.panelChip, { backgroundColor: on ? p.sage700 : p.white, borderColor: on ? p.sage700 : p.sand300 }]}
+    >
+      <Text style={[s.panelChipText, { color: on ? "#FFFFFF" : p.ink800 }]}>{label}</Text>
+    </TodayPress>
+  )
+}
+
+/**
+ * `.demoday`: "Mockup only" switches at the end of the prototype's Today. They exist only in the
+ * preview build (MOCKUP_DATA), to try another sample day and another colour set.
+ */
+export function TodayMockupPanel({
+  p,
+  day,
+  onDay,
+  set,
+  onSet,
+}: P & { day: SampleDayKind; onDay: (day: SampleDayKind) => void; set: TodaySet; onSet: (set: TodaySet) => void }) {
+  return (
+    <View style={[s.demo, { borderColor: p.sand300 }]}>
+      <Text style={[overStyle, { color: p.orange700 }]}>Mockup only · try another day</Text>
+      <View style={s.panelRow}>
+        {DAY_CHIPS.map(([id, label]) => (
+          <PanelChip key={id} p={p} label={label} on={day === id} onPress={() => onDay(id)} />
+        ))}
+      </View>
+      <Text style={[overStyle, { color: p.orange700, marginTop: 6 }]}>Mockup only · try another colour set</Text>
+      <View style={s.panelRow}>
+        {TODAY_SETS.map(([id, label]) => (
+          <PanelChip key={id} p={p} label={label} on={set === id} onPress={() => onSet(id)} />
+        ))}
+      </View>
+      <Text style={[s.panelNote, { color: p.ink500 }]}>
+        In the app the day decides by itself: a festival date shows the festival songs, otherwise the songs composed on this date.
+      </Text>
+    </View>
+  )
+}
+
 const s = StyleSheet.create({
+  demo: {
+    marginTop: 28,
+    marginHorizontal: amProto.gutter,
+    marginBottom: 8,
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderRadius: 20,
+    gap: 10,
+  },
+  panelRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  panelChip: { height: 36, paddingHorizontal: 13, borderRadius: 70, borderWidth: 1, justifyContent: "center" },
+  panelChipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20.3 },
+  panelNote: { maxWidth: 307, paddingHorizontal: 20, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 23.2 },
   head: {
     height: amProto.headHeight,
     flexDirection: "row",
@@ -436,7 +571,7 @@ const s = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 20,
   },
-  fieldText: { flex: 1, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 19 },
+  fieldText: { flex: 1, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 23.2 },
   tdhead: { paddingTop: 12, paddingBottom: 18, paddingHorizontal: 20, gap: 8 },
   kind: {
     alignSelf: "flex-start",
@@ -445,7 +580,7 @@ const s = StyleSheet.create({
     borderRadius: 9999,
     justifyContent: "center",
   },
-  kindText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18, letterSpacing: em(14, -0.005) },
+  kindText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 20.3, letterSpacing: em(14, -0.005) },
   h1: {
     fontFamily: amFonts.display,
     fontSize: 45,
@@ -453,7 +588,7 @@ const s = StyleSheet.create({
     letterSpacing: em(45, -0.02),
     textTransform: "uppercase",
   },
-  note: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20, maxWidth: 256 },
+  note: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20.25, maxWidth: 256 },
   /** the prototype's empty note still takes its 8dp gap */
   noteGap: { height: 0 },
   panel: {
@@ -491,7 +626,7 @@ const s = StyleSheet.create({
   h3: {
     fontFamily: amFonts.display,
     fontSize: 22,
-    lineHeight: 22,
+    lineHeight: 22.44,
     letterSpacing: em(22, -0.02),
     textTransform: "uppercase",
   },
@@ -506,6 +641,33 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     paddingLeft: 28,
     paddingRight: 12,
+  },
+  /** Forest panel: one dark panel with the rows ruled inside it */
+  forestList: { marginTop: 14, marginHorizontal: amProto.gutter, borderRadius: 36, paddingTop: 8, paddingHorizontal: 10, paddingBottom: 18 },
+  plainList: { gap: 10, paddingHorizontal: amProto.gutter },
+  ruledList: { gap: 0, paddingHorizontal: amProto.gutter },
+  songRowForest: {
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingLeft: 14,
+    paddingRight: 4,
+    borderBottomWidth: 1,
+  },
+  /** Ink and flame: rows ruled with 1.5dp ink lines */
+  songRowRule: {
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingLeft: 10,
+    paddingRight: 4,
+    borderBottomWidth: 1.5,
   },
   songPillMain: { flex: 1, minWidth: 0, gap: 3 },
   songTitle: {
@@ -527,6 +689,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
+  playAllForest: { marginTop: 10, marginLeft: 14 },
   pillText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   cardBtn: {
     minHeight: 76,
@@ -550,17 +713,18 @@ const s = StyleSheet.create({
     paddingHorizontal: amProto.gutter,
   },
   resume: { borderRadius: 30, borderWidth: 1, padding: 20 },
+  resumeRule: { borderTopWidth: 2, paddingTop: 22, paddingHorizontal: 10, paddingBottom: 8 },
   resumeTitle: {
     fontFamily: amFonts.display,
     fontSize: 26,
-    lineHeight: 27,
+    lineHeight: 27.3,
     letterSpacing: em(26, -0.02),
     textTransform: "uppercase",
   },
   resumeLine: {
     fontFamily: amFonts.medium,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 20.3,
     marginTop: 4,
     marginBottom: 14,
     fontVariant: ["tabular-nums"],
@@ -586,7 +750,7 @@ const s = StyleSheet.create({
     letterSpacing: em(22, -0.02),
     textTransform: "uppercase",
   },
-  storyBlurb: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
+  storyBlurb: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20.3 },
   recent: {
     minHeight: 76,
     flexDirection: "row",

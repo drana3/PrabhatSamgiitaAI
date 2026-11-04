@@ -18,6 +18,7 @@ import { companionReceivesMemberQuota } from "@/lib/chat"
 import { languageSummary } from "@/lib/languageSheet"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { getCachedMemberEmail } from "@/lib/memberEmail"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { NAV_V2_TABS } from "@/lib/navV2"
 import {
   PROFILE_ROUTES,
@@ -82,8 +83,11 @@ export function useProfileContent(theme: AmTheme) {
   const storage = useDownloadsStorage()
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
-  const identity = buildProfileIdentity({ mode, displayName, email })
-  const signedIn = mode === "signed_in"
+  // MOCKUP_DATA: the prototype's signed-in member, so the sheet matches its boards.
+  const identity = MOCKUP_DATA
+    ? { initial: "D", title: "I M Dada", subtitle: "Signed in with Apple" }
+    : buildProfileIdentity({ mode, displayName, email })
+  const signedIn = MOCKUP_DATA || mode === "signed_in"
   const accountId = getAccountId(mode, email)
   const memberQuota = companionReceivesMemberQuota({
     signedIn,
@@ -118,7 +122,7 @@ export function useProfileContent(theme: AmTheme) {
     })
 
   const requestDelete = () =>
-    setConfirm({
+    MOCKUP_DATA ? undefined : setConfirm({
       title: "Delete account data?",
       body: "This permanently removes your member profile, saved songs, quiz progress and chat history. This cannot be undone.",
       confirmLabel: "Delete my data",
@@ -138,6 +142,7 @@ export function useProfileContent(theme: AmTheme) {
     })
 
   const signOut = () => {
+    if (MOCKUP_DATA) return
     void completeMemberSignOut()
     router.replace(href("/welcome"))
   }
@@ -162,7 +167,7 @@ export function useProfileContent(theme: AmTheme) {
         <SetRow
           p={p}
           label="Storage and downloads"
-          value={storageRowValue(storage.bytes, storage.fileCount)}
+          value={MOCKUP_DATA ? "16.9 MB" : storageRowValue(storage.bytes, storage.fileCount)}
           onPress={() => go(PROFILE_ROUTES.downloads)}
         />
       </Group>
@@ -174,7 +179,7 @@ export function useProfileContent(theme: AmTheme) {
           label="Appearance"
           right={
             <ChipRow>
-              {APPEARANCE_PREFERENCES.map((option) => (
+              {APPEARANCE_PREFERENCES.filter((option) => !MOCKUP_DATA || option !== "auto").map((option) => (
                 <Chip
                   key={option}
                   p={p}
@@ -211,8 +216,8 @@ export function useProfileContent(theme: AmTheme) {
         {signedIn ? <SetRow p={p} label="Delete account data" danger onPress={requestDelete} /> : null}
       </Group>
 
-      <SheetTitle p={p} label="More" spaced />
-      <Group p={p}>
+      {MOCKUP_DATA ? null : <SheetTitle p={p} label="More" spaced />}
+      {MOCKUP_DATA ? null : <Group p={p}>
         <SetRow
           p={p}
           label="Questions to the assistant"
@@ -230,7 +235,7 @@ export function useProfileContent(theme: AmTheme) {
           chevron
           onPress={() => go(PROFILE_ROUTES.about)}
         />
-      </Group>
+      </Group>}
 
       <Text style={[s.footer, { color: p.ink500 }]}>Prabhat Samgiita · mobile</Text>
     </>
@@ -243,7 +248,7 @@ export function useProfileContent(theme: AmTheme) {
 const s = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 20, paddingBottom: 24 },
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontFamily: amFonts.bold, fontSize: 28, lineHeight: 41 },
+  avatarText: { fontFamily: amFonts.bold, fontSize: 28, lineHeight: 40.6 },
   who: { flex: 1, minWidth: 0, gap: 2 },
   name: {
     fontFamily: amFonts.display,
@@ -252,6 +257,6 @@ const s = StyleSheet.create({
     letterSpacing: -0.56,
     textTransform: "uppercase",
   },
-  subtitle: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
-  footer: { paddingHorizontal: 20, paddingTop: 16, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 19 },
+  subtitle: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20.3 },
+  footer: { paddingHorizontal: 20, paddingTop: 16, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18.85 },
 })

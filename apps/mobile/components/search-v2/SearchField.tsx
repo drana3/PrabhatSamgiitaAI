@@ -21,6 +21,8 @@ type Props = {
   /** an example from a Today hint: the first touch selects it so typing replaces it */
   selectOnFocus?: boolean
   inputRef: RefObject<TextInput | null>
+  /** preview: only the magnifier and the input, exactly as the prototype draws the pill */
+  bare?: boolean
 }
 
 /**
@@ -37,9 +39,10 @@ export function SearchField({
   listening,
   selectOnFocus = false,
   inputRef,
+  bare = false,
 }: Props) {
   return (
-    <View style={[s.field, { backgroundColor: p.white, borderColor: p.ink900 }]}>
+    <View style={[s.field, bare && s.fieldBare, { backgroundColor: p.white, borderColor: p.ink900 }]}>
       <SearchGlyph size={20} color={p.ink500} />
       <TextInput
         ref={inputRef}
@@ -56,14 +59,14 @@ export function SearchField({
         selectTextOnFocus={selectOnFocus}
         blurOnSubmit={false}
         underlineColorAndroid="transparent"
-        style={[s.input, { color: p.ink800 }]}
+        style={[s.input, bare && s.inputBare, { color: p.ink800 }]}
       />
-      {value ? (
+      {value && !bare ? (
         <TodayPress accessibilityRole="button" accessibilityLabel="Clear search" onPress={onClear} pressedScale={0.88} style={s.icon}>
           <X size={18} color={p.ink500} />
         </TodayPress>
       ) : null}
-      <TodayPress
+      {bare ? null : <TodayPress
         accessibilityRole="button"
         accessibilityLabel={listening ? "Stop listening" : "Search by voice"}
         accessibilityState={{ selected: listening }}
@@ -72,7 +75,7 @@ export function SearchField({
         style={[s.icon, listening && { backgroundColor: p.dark ? p.sage700 : p.orange500 }]}
       >
         <Mic size={18} color={listening ? "#FFFFFF" : p.ink500} />
-      </TodayPress>
+      </TodayPress>}
     </View>
   )
 }
@@ -90,6 +93,9 @@ const s = StyleSheet.create({
     paddingLeft: 18,
     paddingRight: 8,
   },
+  // the prototype's <input> keeps the browser's 2px side padding
+  inputBare: { paddingHorizontal: 2 },
+  fieldBare: { paddingLeft: 20, paddingRight: 20 },
   input: {
     flex: 1,
     minWidth: 0,

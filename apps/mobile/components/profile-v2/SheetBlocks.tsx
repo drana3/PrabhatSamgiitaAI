@@ -234,7 +234,8 @@ export function LanguageSearch({ p, value, onChangeText, placeholder }: SearchPr
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={p.ink500}
+        // the prototype sets no ::placeholder colour here, so the browser's default grey shows
+        placeholderTextColor="#757575"
         accessibilityLabel="Search languages"
         autoCapitalize="none"
         autoCorrect={false}
@@ -284,9 +285,9 @@ const s = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 16,
   },
-  setLabel: { flexShrink: 1, fontSize: 16, lineHeight: 23 },
+  setLabel: { flexShrink: 1, fontSize: 16, lineHeight: 23.2 },
   setRight: { flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 0 },
-  setValue: { fontFamily: amFonts.regular, fontSize: 14, lineHeight: 20 },
+  setValue: { fontFamily: amFonts.regular, fontSize: 14, lineHeight: 20.3 },
   chip: {
     height: 44,
     paddingHorizontal: 20,
@@ -323,10 +324,11 @@ const s = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 16,
   },
-  lm: { flex: 1, minWidth: 0 },
+  // not flex:1: with a Request action the three children spread evenly, as the prototype does
+  lm: { flexShrink: 1, minWidth: 0 },
   lName: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   lSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
-  rq: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 19 },
+  rq: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18.85 },
   search: {
     marginHorizontal: 20,
     marginBottom: 12,
@@ -338,9 +340,9 @@ const s = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
   },
-  searchInput: { flex: 1, minWidth: 0, height: 44, padding: 0, fontFamily: amFonts.medium, fontSize: 16 },
+  searchInput: { flex: 1, minWidth: 0, height: 44, paddingVertical: 0, paddingHorizontal: 2, fontFamily: amFonts.medium, fontSize: 16 },
   note: { paddingHorizontal: 20, paddingTop: 12, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   doneWrap: { paddingHorizontal: 20, paddingTop: 16 },
   done: { height: 48, borderRadius: 70, alignItems: "center", justifyContent: "center" },
-  doneText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 23, color: "#FFFFFF" },
+  doneText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 23.2, color: "#FFFFFF" },
 })

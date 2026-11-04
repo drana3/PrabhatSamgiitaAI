@@ -177,16 +177,16 @@ export default function RootLayout() {
           {/* Redesign profile sheet: it animates itself, so the navigator adds no motion. */}
           <Stack.Screen
             name="profile-sheet"
-            options={{ presentation: "transparentModal", animation: "none" }}
+            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
           />
           {/* Sheets that replace the profile sheet; they animate themselves too. */}
           <Stack.Screen
             name="script-translations"
-            options={{ presentation: "transparentModal", animation: "none" }}
+            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
           />
           <Stack.Screen
             name="review-style"
-            options={{ presentation: "transparentModal", animation: "none" }}
+            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
           />
           <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
         </Stack>

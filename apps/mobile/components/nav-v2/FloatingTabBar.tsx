@@ -316,6 +316,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
+    // the prototype's icon + label stack sits 1dp lower than the centred position (svg line box)
+    paddingTop: 2,
   },
   hit: {
     flex: 1,

@@ -132,6 +132,7 @@ export function ResultCard({ p, row, offline, onOpen }: P & { row: FlatResult; o
       <View style={s.main}>
         <Text style={[overStyle, { color: p.orange700 }]}>
           PS {item.song.number}
+          {row.durationLabel ? ` · ${row.durationLabel}` : ""}
           {offline ? " · Offline" : ""}
         </Text>
         <Text style={[s.title, { color: p.ink800 }]} numberOfLines={2}>
