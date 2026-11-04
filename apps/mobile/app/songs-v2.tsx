@@ -1,46 +1,53 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Alert, Platform, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { FilterSheet, RowMenuSheet, SortSheet } from "@/components/songs-v2/CatalogSheets"
-import { CatalogSegment } from "@/components/songs-v2/CatalogSegment"
 import { CollectionsSegment } from "@/components/songs-v2/CollectionsSegment"
 import { MineSegment, type MinePlaylist } from "@/components/songs-v2/MineSegment"
 import { Press } from "@/components/songs-v2/Press"
-import { Segmented } from "@/components/songs-v2/Segmented"
+import { SongCardRow } from "@/components/songs-v2/SongCardRow"
+import { SongsScroller } from "@/components/songs-v2/SongsScroller"
 import { StorySheet } from "@/components/songs-v2/StorySheet"
 import { Toast } from "@/components/songs-v2/Toast"
-import { Reveal } from "@/components/today/motion"
-import { TodaySearchPill } from "@/components/today/TodayBlocks"
-import { amGap, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
+import { songCategories } from "@/constants/categories"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { collectionCount } from "@/data/collections"
 import { mapApiStory, type StorySummary } from "@/data/stories"
-import { useAmTheme } from "@/hooks/useAmTheme"
 import { useCatalogController } from "@/hooks/useCatalogController"
+import { useOfflineStorageItems } from "@/hooks/useOfflineStorageItems"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { api } from "@/lib/client"
 import { memberProfileName } from "@/lib/displayName"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
-import { playPlaylist } from "@/lib/playPlaylist"
+import { formatBytes, totalBytes } from "@/lib/storageCache"
+import { allCollectionsLabel } from "@/lib/songsV2/collections"
 import { EMPTY_FILTERS } from "@/lib/songsV2/filters"
-import { buildSavedRows } from "@/lib/songsV2/mine"
+import { buildSavedRows, downloadsSummary } from "@/lib/songsV2/mine"
 import { parseSegment, type SongSegmentId } from "@/lib/songsV2/segments"
+import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
-import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
+/** The catalog is 5,018 songs; shown until the list has loaded. */
+const CATALOG_SIZE = 5018
+
 /**
- * Songs (spec SCR-11, SCR-17): `Catalog | Collections | Mine`.
- * Redesign screen, reachable at /songs-v2 until the tab bar switches to it.
- * The current Songs tab stays untouched.
+ * Songs: `Catalog | Collections | Mine` (prototype lines 1125-1264). One scroll surface with a
+ * pinned search pill, a pinned category strip, the A-Z rail, and the sort sheet.
+ * Reachable at /songs-v2 and, as the Songs tab, at /v2/songs.
  */
 export default function SongsV2Screen() {
   const router = useRouter()
-  const theme = useAmTheme()
+  const theme = useSongsTheme()
+  const insets = useSafeAreaInsets()
+  // The phone-frame preview on the web draws the 54px status area of the board.
+  const inset = Platform.OS === "web" ? 54 : insets.top
   const params = useLocalSearchParams<{ segment?: string }>()
   const [segment, setSegment] = useState<SongSegmentId>(parseSegment(params.segment))
 
@@ -61,7 +68,7 @@ export default function SongsV2Screen() {
   const refreshPlaylists = usePlaylistStore((s) => s.refresh)
   const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
   const offlineFiles = useOfflineAudioStore((s) => s.files)
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const { items: downloadItems, scanned: downloadsScanned } = useOfflineStorageItems()
 
   const [stories, setStories] = useState<StorySummary[]>([])
   const [storiesLoading, setStoriesLoading] = useState(true)
@@ -96,16 +103,16 @@ export default function SongsV2Screen() {
     }, [mode, hydrateFavorites, hydratePlaylists, refreshPlaylists]),
   )
 
-  const initials =
-    memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initial = memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
 
-  const savedNumbers = useMemo(() => {
-    const numbers = savedSongIds.flatMap((id) => {
-      const match = /^ps-(\d+)$/i.exec(id)
-      return match ? [Number(match[1])] : []
-    })
-    return numbers
-  }, [savedSongIds])
+  const savedNumbers = useMemo(
+    () =>
+      savedSongIds.flatMap((id) => {
+        const match = /^ps-(\d+)$/i.exec(id)
+        return match ? [Number(match[1])] : []
+      }),
+    [savedSongIds],
+  )
   const savedSet = useMemo(() => new Set(savedNumbers), [savedNumbers])
   const offlineNumbers = useMemo(() => new Set(Object.values(offlineFiles).map((f) => f.songNumber)), [offlineFiles])
   const savedRows = useMemo(
@@ -116,8 +123,8 @@ export default function SongsV2Screen() {
     () => playlists.map((p) => ({ id: p.id, name: p.name, songCount: p.songs.length })),
     [playlists],
   )
-
-  const bottomPadding = hasSong ? 160 : 110
+  const downloadsTotal =
+    downloadsScanned && downloadItems.length ? formatBytes(totalBytes(downloadItems)) : downloadsSummary(Object.keys(offlineFiles).length)
 
   const openCollection = (id: string, title: string) =>
     router.push(href(`/songs-v2-collection?id=${encodeURIComponent(id)}&title=${encodeURIComponent(title)}`))
@@ -136,59 +143,88 @@ export default function SongsV2Screen() {
     return result.error || "Could not make the playlist. Try again."
   }
 
-  const playListById = (id: string) => {
-    const playlist = playlists.find((p) => p.id === id)
-    if (playlist) void playPlaylist(playlist)
-  }
+  const { rows, filtered, sort, chip, filterCount } = controller
+  const loadingList = catalog.loading && !catalog.entries.length
+  const countLabel = loadingList ? "Loading" : `${filtered.length.toLocaleString("en-US")} ${filtered.length === 1 ? "song" : "songs"}`
 
-  return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.page }]}>
-      <View style={styles.header}>
-        <Reveal index={0} style={styles.titleRow}>
-          <Text style={[amType.display, { color: theme.textHeading }]} accessibilityRole="header">
-            Songs
-          </Text>
-          <Press
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-            onPress={() => router.push(href("/profile-sheet"))}
-            pressedScale={0.94}
-            style={[styles.avatar, { backgroundColor: theme.card, borderColor: theme.line }]}
-          >
-            <Text style={[amType.label, { color: theme.textHeading, letterSpacing: 0 }]}>{initials}</Text>
-          </Press>
-        </Reveal>
-        <Reveal index={1}>
-          <TodaySearchPill theme={theme} onPress={() => router.push(href("/search-v2?focus=1"))} />
-        </Reveal>
-        <Reveal index={2}>
-          <Segmented theme={theme} value={segment} onChange={setSegment} />
-        </Reveal>
-      </View>
-
-      {segment === "catalog" ? (
-        <CatalogSegment
+  const renderRow = useCallback(
+    (row: ListRow) =>
+      row.kind === "header" ? (
+        <Text style={[styles.groupHeader, { color: theme.ink300 }]} accessibilityRole="header">
+          {row.label}
+        </Text>
+      ) : (
+        <SongCardRow
           theme={theme}
-          controller={controller}
-          entries={catalog.entries}
-          loading={catalog.loading}
-          error={catalog.error}
-          onReload={() => void catalog.reload()}
-          savedNumbers={savedSet}
-          offlineNumbers={offlineNumbers}
-          bottomPadding={bottomPadding}
+          entry={row.entry}
+          saved={savedSet.has(row.entry.number)}
+          offline={offlineNumbers.has(row.entry.number)}
           onOpen={actions.open}
           onToggleSave={(entry) => void actions.toggleSave(entry)}
           onQueue={actions.queue}
-          onPlayAll={actions.playAll}
-          onOpenIndex={() => router.push(href("/songs-v2-index"))}
+          onMenu={controller.setMenuEntry}
         />
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: amGap.block, paddingBottom: bottomPadding }}
-        >
-          {segment === "collections" ? (
+      ),
+    [theme, savedSet, offlineNumbers, actions, controller.setMenuEntry],
+  )
+
+  const empty = loadingList ? (
+    <Text style={[styles.message, { color: theme.textBody }]}>Loading songs…</Text>
+  ) : catalog.error && !catalog.entries.length ? (
+    <Press accessibilityRole="button" accessibilityLabel="Try again" onPress={() => void catalog.reload()}>
+      <Text style={[styles.message, { color: theme.textBody }]}>{catalog.error} Tap to try again.</Text>
+    </Press>
+  ) : (
+    <View>
+      <Text style={[styles.message, { color: theme.textBody }]}>No songs match.</Text>
+      <Press accessibilityRole="button" accessibilityLabel="Clear filters" onPress={controller.clearAll}>
+        <Text style={[styles.clear, { color: theme.accent }]}>Clear filters</Text>
+      </Press>
+    </View>
+  )
+
+  const playAll = () => {
+    const numbers: number[] = []
+    for (const row of rows) if (row.kind === "song") numbers.push(row.entry.number)
+    actions.playAll(numbers)
+  }
+
+  const strip = useMemo(() => [{ id: "all", label: "All" }, ...songCategories.map((c) => ({ id: c.id as string, label: c.label }))], [])
+
+  return (
+    <View style={[styles.root, { backgroundColor: theme.page }]}>
+      <SongsScroller
+        theme={theme}
+        inset={inset}
+        total={catalog.entries.length || CATALOG_SIZE}
+        segment={segment}
+        onSegment={setSegment}
+        savedCount={savedSet.size}
+        initial={initial}
+        onOpenSearch={() => router.push(href("/search-v2?focus=1"))}
+        onOpenProfile={() => router.push(href("/profile-sheet"))}
+        catalog={{
+          rows,
+          groups: controller.groups,
+          grouped: controller.grouped,
+          category: sort === "cat",
+          strip,
+          chip,
+          onChip: controller.setChip,
+          indexLabel: allCollectionsLabel(collectionCount),
+          onOpenIndex: () => router.push(href("/songs-v2-index")),
+          sortShort: sortOption(sort).short,
+          onSort: () => controller.setSortOpen(true),
+          countLabel,
+          onCount: () => controller.setFilterOpen(true),
+          filterCount,
+          onPlayAll: playAll,
+          renderRow,
+          empty,
+          resetKey: `${sort}|${chip}`,
+        }}
+        body={
+          segment === "collections" ? (
             <CollectionsSegment
               theme={theme}
               stories={stories}
@@ -209,18 +245,19 @@ export default function SongsV2Screen() {
               playlists={minePlaylists}
               playlistsLoading={playlistsLoading && mode === "signed_in"}
               downloadCount={Object.keys(offlineFiles).length}
+              downloadsTotal={downloadsTotal}
               onOpen={actions.open}
               onToggleSave={(entry) => void actions.toggleSave(entry)}
               onQueue={actions.queue}
               onMenu={controller.setMenuEntry}
-              onOpenPlaylist={(id) => router.push(href(`/playlist/${id}`))}
-              onPlayPlaylist={playListById}
+              onOpenPlaylist={(id) => router.push(href(`/playlist-v2/${id}`))}
               onCreatePlaylist={createNewPlaylist}
               onQuickStart={() => router.push(href("/drive"))}
+              onOpenDownloads={() => router.push(href("/storage"))}
             />
-          )}
-        </ScrollView>
-      )}
+          )
+        }
+      />
 
       <SortSheet
         open={controller.sortOpen}
@@ -261,21 +298,23 @@ export default function SongsV2Screen() {
           router.push(href(target))
         }}
       />
-      <Toast message={actions.toast} bottom={bottomPadding - amSpace.s4} />
-    </SafeAreaView>
+      <Toast message={actions.toast} theme={theme} />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  header: { paddingHorizontal: amGap.gutter, gap: amGap.grid, paddingBottom: amSpace.s3 },
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 56 },
-  avatar: {
-    width: amTouchTarget,
-    height: amTouchTarget,
-    borderRadius: amTouchTarget / 2,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  root: { flex: 1 },
+  groupHeader: {
+    paddingTop: 20,
+    paddingLeft: 10,
+    paddingBottom: 2,
+    fontFamily: amFonts.display,
+    fontSize: 30,
+    lineHeight: 30,
+    letterSpacing: -0.6,
+    textTransform: "uppercase",
   },
+  message: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 23 },
+  clear: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20, paddingVertical: 12 },
 })

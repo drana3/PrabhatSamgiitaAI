@@ -1,22 +1,26 @@
 import { StyleSheet, Text } from "react-native"
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated"
 
-import { amColors } from "@/constants/tokens/amColors"
-import { amRadius, amSpace } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
+import type { SongsTheme } from "@/constants/tokens/amSongs"
+import { amFonts } from "@/constants/tokens/amTypography"
 
-/** Short status line above the mini-player. Fades; no movement. */
-export function Toast({ message, bottom }: { message: string | null; bottom: number }) {
+/**
+ * Prototype `.toast`: ink-900 pill, 48px high, 24px from the sides, 172px above the bottom.
+ * Rises 16px and fades in; fades out. Only opacity and transform.
+ */
+export function Toast({ message, theme }: { message: string | null; theme: SongsTheme }) {
   if (!message) return null
   return (
     <Animated.View
-      entering={FadeIn.duration(150)}
+      entering={FadeIn.duration(200)}
       exiting={FadeOut.duration(150)}
       pointerEvents="none"
       accessibilityLiveRegion="polite"
-      style={[styles.toast, { bottom }]}
+      style={[styles.toast, { backgroundColor: theme.ink900 }]}
     >
-      <Text style={[amType.label, styles.text]}>{message}</Text>
+      <Text style={[styles.text, { color: theme.onInk }]} numberOfLines={1}>
+        {message}
+      </Text>
     </Animated.View>
   )
 }
@@ -24,12 +28,15 @@ export function Toast({ message, bottom }: { message: string | null; bottom: num
 const styles = StyleSheet.create({
   toast: {
     position: "absolute",
-    alignSelf: "center",
-    backgroundColor: amColors.ink800,
-    borderRadius: amRadius.pill,
-    paddingHorizontal: amSpace.s4,
-    paddingVertical: amSpace.s3,
-    zIndex: 10,
+    left: 24,
+    right: 24,
+    bottom: 172,
+    height: 48,
+    paddingHorizontal: 20,
+    borderRadius: 70,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 60,
   },
-  text: { color: amColors.white, textTransform: "none" },
+  text: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
 })

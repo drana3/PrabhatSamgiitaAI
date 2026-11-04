@@ -5,9 +5,9 @@ import { Check, Heart, ListPlus, Share2 } from "lucide-react-native"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import { Chip, PillButton } from "@/components/songs-v2/Pill"
 import { Press } from "@/components/songs-v2/Press"
-import type { AmTheme } from "@/constants/tokens/amColors"
-import { amGap, amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amFonts, amType } from "@/constants/tokens/amTypography"
+import { overStyle } from "@/components/songs-v2/primitives"
+import type { SongsTheme } from "@/constants/tokens/amSongs"
+import { amFonts } from "@/constants/tokens/amTypography"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import {
   DURATION_BUCKETS,
@@ -21,7 +21,10 @@ import {
 } from "@/lib/songsV2/filters"
 import type { SortKey, SortOption } from "@/lib/songsV2/sort"
 
-/** Sort order: radio rows with a subtitle each (spec SCR-30). */
+/**
+ * Sort order (prototype `SORT SHEET`, lines 2358-2373): "Sort songs by" over a white group of rows,
+ * each a name, a small subtitle and a radio dot. A tap picks and closes.
+ */
 export function SortSheet({
   open,
   theme,
@@ -31,16 +34,16 @@ export function SortSheet({
   onClose,
 }: {
   open: boolean
-  theme: AmTheme
+  theme: SongsTheme
   options: readonly SortOption[]
   value: SortKey
   onPick: (key: SortKey) => void
   onClose: () => void
 }) {
   return (
-    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow="Sort songs" accessibilityLabel="Sort songs">
-      <View style={styles.stack}>
-        {options.map((option) => {
+    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow="Sort songs by" accessibilityLabel="Sort songs" flush>
+      <View style={[styles.sortGroup, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityRole="radiogroup">
+        {options.map((option, index) => {
           const selected = option.key === value
           return (
             <Press
@@ -49,14 +52,19 @@ export function SortSheet({
               accessibilityState={{ selected }}
               accessibilityLabel={`${option.title}. ${option.subtitle}`}
               onPress={() => onPick(option.key)}
-              pressedScale={0.985}
-              style={[styles.radioRow, { backgroundColor: selected ? theme.inner : "transparent", borderColor: theme.line }]}
+              pressedScale={0.99}
+              style={[
+                styles.lrow,
+                { borderBottomColor: theme.line, borderBottomWidth: index === options.length - 1 ? 0 : 1 },
+              ]}
             >
-              <View style={styles.flex}>
-                <Text style={[styles.rowTitle, { color: theme.textHeading }]}>{option.title}</Text>
-                <Text style={[amType.body, { color: theme.textBody }]}>{option.subtitle}</Text>
+              <View style={styles.lm}>
+                <Text style={[styles.lmName, { color: theme.textHeading }]}>{option.title}</Text>
+                <Text style={[styles.lmSub, { color: theme.textBody }]}>{option.subtitle}</Text>
               </View>
-              {selected ? <Check size={22} color={theme.brand} /> : null}
+              <View style={[styles.rdo, selected ? { backgroundColor: theme.brand, borderColor: theme.brand } : { borderColor: theme.ink300 }]}>
+                {selected ? <View style={styles.rdoDot} /> : null}
+              </View>
             </Press>
           )
         })}
@@ -65,10 +73,10 @@ export function SortSheet({
   )
 }
 
-function Group({ theme, label, children }: { theme: AmTheme; label: string; children: ReactNode }) {
+function Group({ theme, label, children }: { theme: SongsTheme; label: string; children: ReactNode }) {
   return (
     <View style={styles.group}>
-      <Text style={[amType.label, { color: theme.eyebrow }]}>{label}</Text>
+      <Text style={[overStyle, { color: theme.accent }]}>{label}</Text>
       <View style={styles.wrap}>{children}</View>
     </View>
   )
@@ -86,7 +94,7 @@ export function FilterSheet({
   resultCount,
 }: {
   open: boolean
-  theme: AmTheme
+  theme: SongsTheme
   state: FilterState
   languages: readonly { language: string; count: number }[]
   onChange: (next: FilterState) => void
@@ -159,7 +167,7 @@ export function RowMenuSheet({
   onClose,
 }: {
   open: boolean
-  theme: AmTheme
+  theme: SongsTheme
   entry: CatalogEntry | null
   saved: boolean
   onQueue: (entry: CatalogEntry) => void
@@ -198,14 +206,14 @@ export function RowMenuSheet({
   )
 }
 
-function MenuRow({ theme, label, icon, onPress }: { theme: AmTheme; label: string; icon: ReactNode; onPress: () => void }) {
+function MenuRow({ theme, label, icon, onPress }: { theme: SongsTheme; label: string; icon: ReactNode; onPress: () => void }) {
   return (
     <Press
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
       pressedScale={0.985}
-      style={[styles.menuRow, { borderColor: theme.line }]}
+      style={[styles.menuRow, { borderColor: theme.line, backgroundColor: theme.card }]}
     >
       {icon}
       <Text style={[styles.rowTitle, { color: theme.textHeading }]}>{label}</Text>
@@ -214,30 +222,36 @@ function MenuRow({ theme, label, icon, onPress }: { theme: AmTheme; label: strin
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  stack: { gap: amSpace.s2 },
-  wrap: { flexDirection: "row", flexWrap: "wrap", gap: amSpace.s2 },
-  group: { gap: amSpace.s3 },
-  footer: { flexDirection: "row", gap: amGap.grid, paddingTop: amSpace.s2 },
-  radioRow: {
-    minHeight: 64,
-    borderRadius: amRadius.card,
-    borderWidth: 1,
-    paddingHorizontal: amGap.padCard,
-    paddingVertical: amSpace.s3,
+  stack: { gap: 8 },
+  wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  group: { gap: 12 },
+  footer: { flexDirection: "row", gap: 10, paddingTop: 8 },
+  sortGroup: { marginHorizontal: 10, borderRadius: 20, borderWidth: 1, overflow: "hidden" },
+  lrow: {
+    minHeight: 56,
+    paddingTop: 6,
+    paddingBottom: 6,
+    paddingLeft: 20,
+    paddingRight: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: amSpace.s3,
+    justifyContent: "space-between",
+    gap: 12,
   },
-  rowTitle: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 24 },
-  menuTitle: { fontFamily: amFonts.bold, fontSize: 24, lineHeight: 28 },
+  lm: { flex: 1, minWidth: 0 },
+  lmName: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
+  lmSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
+  rdo: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  rdoDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" },
+  rowTitle: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22 },
+  menuTitle: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 24, letterSpacing: -0.48 },
   menuRow: {
-    minHeight: amTouchTarget + amSpace.s4,
-    borderRadius: amRadius.card,
+    minHeight: 60,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: amGap.padCard,
+    paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: amSpace.s3,
+    gap: 12,
   },
 })

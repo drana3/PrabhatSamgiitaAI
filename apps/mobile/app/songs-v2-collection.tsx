@@ -11,7 +11,7 @@ import { Toast } from "@/components/songs-v2/Toast"
 import { TwoToneHeading } from "@/components/today/TodayBlocks"
 import { amGap, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amType } from "@/constants/tokens/amTypography"
-import { useAmTheme } from "@/hooks/useAmTheme"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
@@ -28,7 +28,7 @@ import { usePreferencesStore } from "@/stores/preferencesStore"
  */
 export default function SongsV2CollectionScreen() {
   const router = useRouter()
-  const theme = useAmTheme()
+  const theme = useSongsTheme()
   const { id, title } = useLocalSearchParams<{ id?: string; title?: string }>()
   const catalog = useSongsV2Catalog()
   const actions = useSongsV2Actions()
@@ -52,7 +52,7 @@ export default function SongsV2CollectionScreen() {
         data={entries}
         keyExtractor={(entry) => String(entry.number)}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: amGap.gutter, paddingBottom: bottom, gap: amGap.grid }}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: bottom, gap: 10 }}
         ListHeaderComponent={
           <View style={styles.header}>
             <Press
@@ -69,7 +69,7 @@ export default function SongsV2CollectionScreen() {
               <PillButton
                 theme={theme}
                 label="Play all"
-                icon={<Play size={16} color={theme.onBrand} fill={theme.onBrand} />}
+                icon={<Play size={18} color="#FFFFFF" fill="#FFFFFF" strokeWidth={0} />}
                 onPress={() => actions.playAll(numbers)}
                 style={styles.start}
               />
@@ -94,7 +94,7 @@ export default function SongsV2CollectionScreen() {
           />
         )}
       />
-      <Toast message={actions.toast} bottom={bottom - amSpace.s4} />
+      <Toast message={actions.toast} theme={theme} />
     </SafeAreaView>
   )
 }

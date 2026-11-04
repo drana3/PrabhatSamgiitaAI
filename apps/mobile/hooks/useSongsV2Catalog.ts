@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
+import { withFixtureStats } from "@/lib/fixtures/songs"
 import { loadCatalog, readCatalogCache } from "@/lib/catalog"
 import { prefetchCategorySongs } from "@/lib/categorySongs"
 import { hasPlayableAudio } from "@/lib/playableAudio"
@@ -47,7 +48,7 @@ export function useSongsV2Catalog() {
   }, [load])
 
   const entries = useMemo<CatalogEntry[]>(
-    () => rows.map((row) => summaryToEntry(row, { hasAudio: hasPlayableAudio })),
+    () => rows.map((row) => withFixtureStats(summaryToEntry(row, { hasAudio: hasPlayableAudio }))),
     [rows],
   )
   const byNumber = useMemo(() => new Map(entries.map((e) => [e.number, e])), [entries])

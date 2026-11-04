@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { formatDuration, groupLetter, plainTitle, rowEyebrow, summaryToEntry, type CatalogEntry } from "@/lib/songsV2/entry"
+import { displayTitle, formatDuration, groupLetter, plainTitle, rowEyebrow, summaryToEntry, type CatalogEntry } from "@/lib/songsV2/entry"
 import {
   availableSortOptions,
   buildRows,
@@ -44,6 +44,13 @@ describe("entry helpers", () => {
     expect(summaryToEntry({ number: 1, title: "x", is_verified: false }).category).toBe("Other")
   })
 
+  it("shows capital-letter catalog titles as names and leaves mixed case alone", () => {
+    expect(displayTitle("BANDHU HE NIYE CALO")).toBe("Bandhu He Niye Calo")
+    expect(displayTitle("E GÁN ÁMÁR, ÁLOR JHARAŃÁ DHÁRÁ")).toBe("E Gán Ámár, Álor Jharańá Dhárá")
+    expect(displayTitle("Ándhára Sheśe")).toBe("Ándhára Sheśe")
+    expect(displayTitle("")).toBe("")
+  })
+
   it("formats durations", () => {
     expect(formatDuration(271)).toBe("4:31")
     expect(formatDuration(60)).toBe("1:00")
@@ -52,9 +59,9 @@ describe("entry helpers", () => {
   })
 
   it("builds the row eyebrow", () => {
-    expect(rowEyebrow({ number: 3, durationSeconds: 271 })).toBe("PS 3 / 4:31")
+    expect(rowEyebrow({ number: 3, durationSeconds: 271 })).toBe("PS 3 · 4:31")
     expect(rowEyebrow({ number: 3, durationSeconds: null })).toBe("PS 3")
-    expect(rowEyebrow({ number: 3, durationSeconds: 271 }, true)).toBe("PS 3 / 4:31 · Offline")
+    expect(rowEyebrow({ number: 3, durationSeconds: 271 }, true)).toBe("PS 3 · 4:31 · Offline")
   })
 
   it("folds diacritics for ordering and the rail letter", () => {

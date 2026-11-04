@@ -12,27 +12,31 @@ import Animated, {
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { overStyle } from "@/components/songs-v2/primitives"
 import { PressScale } from "@/components/today/motion"
 import { amSpring } from "@/constants/tokens/amMotion"
-import { amColors, type AmTheme } from "@/constants/tokens/amColors"
-import { amGap, amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
+import type { SongsTheme } from "@/constants/tokens/amSongs"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { resolveRelease, scrimOpacity, sheetOffsetForDrag } from "@/lib/songsV2/sheetPhysics"
 
 type Props = {
   open: boolean
   /** Called after the sheet has left the screen (drag, scrim tap, Done). */
   onClose: () => void
-  theme: AmTheme
+  theme: SongsTheme
   eyebrow?: string
   accessibilityLabel: string
   doneLabel?: string
-  /** Share of the window the sheet may fill. */
+  /** Share of the window the sheet may fill (prototype: 780 of 844). */
   maxHeightRatio?: number
+  /** No side padding or gap on the body: the content sets its own (prototype `.group` margin 0 10). */
+  flush?: boolean
   children: ReactNode
 }
 
 const FADE_MS = 150
+/** prototype `.scrim`: rgba(30,30,30,0.45) */
+const SCRIM_ALPHA = 0.45
 
 /**
  * White sheet, radius 40 (spec section 1). The finger drags it 1:1 from the
@@ -49,7 +53,8 @@ export function BottomSheet({
   eyebrow,
   accessibilityLabel,
   doneLabel = "Done",
-  maxHeightRatio = 0.86,
+  maxHeightRatio = 0.92,
+  flush = false,
   children,
 }: Props) {
   const reduce = useReducedMotion()
@@ -120,7 +125,7 @@ export function BottomSheet({
     transform: [{ translateY: reduce ? 0 : offset.value }],
   }))
   const scrimStyle = useAnimatedStyle(() => ({
-    opacity: reduce ? fade.value * 0.4 : scrimOpacity(offset.value, sheetHeight.value),
+    opacity: (reduce ? fade.value : scrimOpacity(offset.value, sheetHeight.value)) * SCRIM_ALPHA,
   }))
 
   if (!mounted) return null
@@ -145,25 +150,27 @@ export function BottomSheet({
         }}
         style={[
           styles.sheet,
-          { backgroundColor: theme.card, maxHeight: window.height * maxHeightRatio, paddingBottom: Math.max(insets.bottom, amSpace.s4) },
+          { backgroundColor: theme.page, maxHeight: window.height * maxHeightRatio, paddingBottom: Math.max(insets.bottom, 32) },
           sheetStyle,
         ]}
       >
         <GestureDetector gesture={pan}>
-          <View style={styles.grabArea}>
-            <View style={[styles.grabber, { backgroundColor: theme.line }]} />
+          <View>
+            <View style={styles.grab}>
+              <View style={[styles.grabber, { backgroundColor: theme.ink300 }]} />
+            </View>
             <View style={styles.titleRow}>
-              <Text style={[amType.label, { color: theme.eyebrow, flex: 1 }]} numberOfLines={1}>
+              <Text style={[overStyle, { color: theme.accent, flex: 1 }]} numberOfLines={1}>
                 {eyebrow ?? ""}
               </Text>
               <PressScale
                 accessibilityRole="button"
                 accessibilityLabel={doneLabel}
                 onPress={close}
-                pressedScale={0.94}
+                pressedScale={0.97}
                 style={styles.done}
               >
-                <Text style={[amType.label, { color: theme.textHeading }]}>{doneLabel}</Text>
+                <Text style={[styles.doneText, { color: theme.textHeading }]}>{doneLabel}</Text>
               </PressScale>
             </View>
           </View>
@@ -171,7 +178,7 @@ export function BottomSheet({
         <ScrollView
           bounces
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.body}
+          contentContainerStyle={flush ? undefined : styles.body}
           keyboardShouldPersistTaps="handled"
         >
           {children}
@@ -182,19 +189,20 @@ export function BottomSheet({
 }
 
 const styles = StyleSheet.create({
-  scrim: { backgroundColor: amColors.sage900 },
+  scrim: { backgroundColor: "#1E1E1E" },
   sheet: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    borderTopLeftRadius: amRadius.sheet,
-    borderTopRightRadius: amRadius.sheet,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     overflow: "hidden",
   },
-  grabArea: { paddingTop: amSpace.s2, paddingHorizontal: amGap.padCard },
-  grabber: { alignSelf: "center", width: amSpace.s12, height: amSpace.s1, borderRadius: amSpace.s1 / 2 },
-  titleRow: { minHeight: amTouchTarget, flexDirection: "row", alignItems: "center", gap: amSpace.s3 },
-  done: { minHeight: amTouchTarget, minWidth: amTouchTarget, alignItems: "flex-end", justifyContent: "center" },
-  body: { paddingHorizontal: amGap.padCard, paddingBottom: amSpace.s4, gap: amGap.text },
+  grab: { height: 44, alignItems: "center", justifyContent: "center" },
+  grabber: { width: 44, height: 5, borderRadius: 9999 },
+  titleRow: { paddingLeft: 20, paddingRight: 10, paddingBottom: 12, flexDirection: "row", alignItems: "center" },
+  done: { height: 44, paddingHorizontal: 16, justifyContent: "center" },
+  doneText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
+  body: { paddingHorizontal: 20, paddingBottom: 24, gap: 16 },
 })

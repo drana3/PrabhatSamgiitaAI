@@ -5,9 +5,13 @@ import type { ListRow } from "./sort"
  * anywhere or drag the thumb and the list jumps 1:1 to the matching row.
  */
 export const RAIL = {
-  width: 22,
-  topInset: 190,
+  /** prototype `.rail`: 12px wide, 1px from the right edge */
+  width: 12,
+  right: 1,
+  /** distance from the top of the board (54px inset + 136) and from the bottom */
+  topBelowInset: 136,
   bottomInset: 176,
+  thumbHeight: 30,
   bubbleSize: 56,
   /** rows keep this much padding on the right so none sit under the rail */
   listPaddingRight: 34,

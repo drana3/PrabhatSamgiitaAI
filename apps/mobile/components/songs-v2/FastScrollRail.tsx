@@ -1,129 +1,161 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { PanResponder, StyleSheet, Text, View } from "react-native"
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated"
+import { useCallback, useRef, useState } from "react"
+import { StyleSheet, Text, View } from "react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated"
 
-import { amSpring } from "@/constants/tokens/amMotion"
-import { amColors, type AmTheme } from "@/constants/tokens/amColors"
-import { amSpace } from "@/constants/tokens/amSpacing"
+import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { RAIL, railFraction, railLabelAt, railRowIndex, rowFraction } from "@/lib/songsV2/rail"
-import type { ListRow } from "@/lib/songsV2/sort"
+import { RAIL } from "@/lib/songsV2/rail"
+import type { RailTick } from "@/lib/songsV2/layout"
 
-const THUMB = 36
+/** Touch area is wider than the 12px drawn rail so a thumb can find it. */
+const TOUCH = 30
 
 /**
- * 22px frosted rail on the right edge (spec SCR-30). Touch down anywhere on it
- * or drag: the list jumps 1:1 to the matching row and a bubble to the left of
- * the finger names the letter, category, PS number or length. Release hides
- * the bubble. While the list scrolls by itself the thumb follows it.
- * Hidden when there are too few rows to need it (parent decides).
+ * Prototype `.rail`: a 12px frosted capsule on the right edge. One tick per letter (or category),
+ * five dots when the order has no groups, an orange thumb that follows the list and a dark bubble
+ * left of the finger naming where it lands. It fades in while the list scrolls and 1.1s after,
+ * and only takes touches while it is visible.
+ *
+ * The parent owns the list: `onScrub` gets the finger position (0 to 1) and returns the bubble text.
  */
 export function FastScrollRail({
   theme,
-  rows,
-  /** index of the first visible row, reported by the list */
-  visibleIndex,
-  onJump,
+  top,
+  ticks,
+  visible,
+  interactive,
+  scrollFraction,
+  held,
+  onScrub,
+  onHold,
 }: {
-  theme: AmTheme
-  rows: readonly ListRow[]
-  visibleIndex: number
-  onJump: (index: number) => void
+  theme: SongsTheme
+  /** distance from the top of the screen (status inset + 136) */
+  top: number
+  ticks: readonly RailTick[]
+  /** 0 to 1, driven by scrolling */
+  visible: SharedValue<number>
+  /** false while the rail is hidden: it must not eat touches meant for the rows */
+  interactive: boolean
+  /** list position as 0 to 1, drives the thumb while the finger is up */
+  scrollFraction: SharedValue<number>
+  /** 1 while a finger is on the rail; the parent reads it to keep the rail shown */
+  held: SharedValue<number>
+  onScrub: (fraction: number) => string
+  onHold: (held: boolean) => void
 }) {
-  const reduce = useReducedMotion()
-  const [height, setHeight] = useState(0)
-  const [bubble, setBubble] = useState<{ label: string; y: number } | null>(null)
-  const thumbY = useSharedValue(0)
-  const dragging = useRef(false)
-  const last = useRef(-1)
-  const rowsRef = useRef(rows)
-  rowsRef.current = rows
-  const heightRef = useRef(0)
-  heightRef.current = height
+  const height = useSharedValue(0)
+  const fingerY = useSharedValue(0)
+  const [label, setLabel] = useState("")
+  const lastIndex = useRef("")
 
-  const jumpTo = (y: number) => {
-    const h = heightRef.current
-    const f = railFraction(y, h)
-    const index = railRowIndex(f, rowsRef.current.length)
-    thumbY.value = f * Math.max(0, h - THUMB)
-    setBubble({ label: railLabelAt(rowsRef.current, index), y: f * h })
-    if (index !== last.current) {
-      last.current = index
-      onJump(index)
-    }
-  }
-
-  const responder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: (event) => {
-          dragging.current = true
-          jumpTo(event.nativeEvent.locationY)
-        },
-        onPanResponderMove: (event) => jumpTo(event.nativeEvent.locationY),
-        onPanResponderRelease: () => {
-          dragging.current = false
-          last.current = -1
-          setBubble(null)
-        },
-        onPanResponderTerminate: () => {
-          dragging.current = false
-          last.current = -1
-          setBubble(null)
-        },
-      }),
-    // jumpTo reads refs only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+  const scrub = useCallback(
+    (y: number, h: number) => {
+      const f = h > 0 ? Math.min(1, Math.max(0, y / h)) : 0
+      fingerY.value = f * h
+      const next = onScrub(f)
+      if (next !== lastIndex.current) {
+        lastIndex.current = next
+        setLabel(next)
+      }
+    },
+    [fingerY, onScrub],
   )
 
-  // The list scrolled by itself: the thumb follows with a spring.
-  const followTarget = rowFraction(visibleIndex, rows.length) * Math.max(0, height - THUMB)
-  useEffect(() => {
-    if (dragging.current) return
-    thumbY.value = reduce ? followTarget : withSpring(followTarget, amSpring.default)
-  }, [followTarget, reduce, thumbY])
+  const pan = Gesture.Pan()
+    .runOnJS(true)
+    .enabled(interactive)
+    .minDistance(0)
+    .onBegin((event) => {
+      held.value = 1
+      onHold(true)
+      scrub(event.y, height.value)
+    })
+    .onUpdate((event) => scrub(event.y, height.value))
+    .onFinalize(() => {
+      held.value = 0
+      lastIndex.current = ""
+      onHold(false)
+    })
 
-  const thumbStyle = useAnimatedStyle(() => ({ transform: [{ translateY: thumbY.value }] }))
+  const wrap = useAnimatedStyle(() => ({
+    opacity: Math.max(visible.value, held.value),
+    transform: [{ translateX: (1 - Math.max(visible.value, held.value)) * 10 }],
+  }))
+
+  const thumb = useAnimatedStyle(() => {
+    const room = Math.max(0, height.value - RAIL.thumbHeight)
+    const y = held.value ? Math.min(room, Math.max(0, fingerY.value - RAIL.thumbHeight / 2)) : scrollFraction.value * room
+    return { transform: [{ translateY: y }] }
+  })
+
+  const bubble = useAnimatedStyle(() => {
+    const y = Math.min(Math.max(0, height.value - RAIL.bubbleSize), Math.max(0, fingerY.value - RAIL.bubbleSize / 2))
+    return { opacity: held.value, transform: [{ translateY: y }, { scale: 0.92 + 0.08 * held.value }] }
+  })
 
   return (
-    <View
-      style={[styles.rail, { top: RAIL.topInset, bottom: RAIL.bottomInset }]}
-      onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
-      accessibilityLabel="Fast scroll"
-      accessibilityRole="adjustable"
-      {...responder.panHandlers}
-    >
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.track, { backgroundColor: theme.glass, borderColor: theme.glassEdge }]} />
-      <Animated.View pointerEvents="none" style={[styles.thumb, { backgroundColor: theme.brand }, thumbStyle]} />
-      {bubble ? (
-        <View pointerEvents="none" style={[styles.bubble, { top: Math.min(Math.max(0, bubble.y - RAIL.bubbleSize / 2), Math.max(0, height - RAIL.bubbleSize)) }]}>
-          <Text style={styles.bubbleText} numberOfLines={1} adjustsFontSizeToFit>
-            {bubble.label}
-          </Text>
+    <GestureDetector gesture={pan}>
+      <Animated.View
+        style={[styles.touch, { top }, wrap]}
+        pointerEvents={interactive ? "auto" : "none"}
+        accessibilityRole="adjustable"
+        accessibilityLabel="Fast scroll"
+        onLayout={(event) => {
+          height.value = event.nativeEvent.layout.height
+        }}
+      >
+        <View pointerEvents="none" style={styles.rail}>
+          <View style={[styles.bg, { backgroundColor: theme.dark ? "rgba(42,58,34,0.55)" : "rgba(255,255,255,0.55)" }]} />
+          {ticks.map((tick, index) =>
+            tick.dot ? (
+              <View key={`d${index}`} style={[styles.dot, { top: `${tick.y}%`, backgroundColor: theme.ink300 }]} />
+            ) : (
+              <Text key={`${tick.label}${index}`} numberOfLines={1} style={[styles.tick, { top: `${tick.y}%`, color: theme.textBody }]}>
+                {tick.label}
+              </Text>
+            ),
+          )}
+          <Animated.View style={[styles.thumb, { backgroundColor: theme.brand }, thumb]} />
         </View>
-      ) : null}
-    </View>
+        <Animated.View pointerEvents="none" style={[styles.bubble, { backgroundColor: theme.ink900 }, bubble]}>
+          <Text style={[styles.bubbleText, { color: theme.onInk }]} numberOfLines={1}>
+            {label}
+          </Text>
+        </Animated.View>
+      </Animated.View>
+    </GestureDetector>
   )
 }
 
 const styles = StyleSheet.create({
-  rail: { position: "absolute", right: 0, width: RAIL.width, zIndex: 5 },
-  track: { borderRadius: RAIL.width / 2, borderWidth: 1 },
-  thumb: { position: "absolute", left: amSpace.s1, width: RAIL.width - amSpace.s2, height: THUMB, borderRadius: (RAIL.width - amSpace.s2) / 2 },
+  touch: { position: "absolute", right: RAIL.right, bottom: RAIL.bottomInset, width: TOUCH, zIndex: 12 },
+  rail: { position: "absolute", right: 0, top: 0, bottom: 0, width: RAIL.width },
+  bg: { ...StyleSheet.absoluteFillObject, borderRadius: 70 },
+  tick: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontFamily: amFonts.bold,
+    fontSize: 8,
+    lineHeight: 10,
+    marginTop: -5,
+  },
+  dot: { position: "absolute", left: 4, width: 3, height: 3, borderRadius: 2, marginTop: -2 },
+  thumb: { position: "absolute", left: 3, right: 3, top: 0, height: RAIL.thumbHeight, borderRadius: 70 },
   bubble: {
     position: "absolute",
-    right: RAIL.width + amSpace.s6,
-    minWidth: RAIL.bubbleSize,
+    right: 22,
+    top: 0,
+    minWidth: 64,
     height: RAIL.bubbleSize,
-    paddingHorizontal: amSpace.s3,
-    borderRadius: RAIL.bubbleSize / 2,
-    backgroundColor: amColors.ink800,
+    paddingHorizontal: 20,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
+    transformOrigin: "100% 50%",
   },
-  bubbleText: { fontFamily: amFonts.bold, fontSize: 19, color: amColors.white },
+  bubbleText: { fontFamily: amFonts.display, fontSize: 26, lineHeight: 30, letterSpacing: -0.26 },
 })

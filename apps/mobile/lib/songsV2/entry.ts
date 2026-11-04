@@ -29,7 +29,7 @@ export function summaryToEntry(
   const category = (row.theme ?? row.mood ?? "").trim() || CATEGORY_FALLBACK
   return {
     number: row.number,
-    title: row.title,
+    title: displayTitle(row.title),
     firstLine: row.first_line?.trim() || null,
     category,
     language: row.language?.trim() || null,
@@ -50,13 +50,25 @@ export function formatDuration(seconds: number | null | undefined): string | nul
   return `${m}:${String(s).padStart(2, "0")}`
 }
 
-/** Row eyebrow: `PS 3 / 4:31`, or `PS 3` when the length is not known. */
+/** Row eyebrow: `PS 3 · 4:31 · Offline`, or `PS 3` when the length is not known. */
 export function rowEyebrow(entry: Pick<CatalogEntry, "number" | "durationSeconds">, offline = false): string {
   const parts = [`PS ${entry.number}`]
   const duration = formatDuration(entry.durationSeconds)
   if (duration) parts.push(duration)
-  const base = parts.join(" / ")
-  return offline ? `${base} · Offline` : base
+  if (offline) parts.push("Offline")
+  return parts.join(" · ")
+}
+
+/**
+ * The API sends catalog titles in capitals ("BANDHU HE NIYE CALO"); the design shows them as
+ * names ("Bandhu He Niye Calo"). Titles that already have lower-case letters are left alone.
+ */
+export function displayTitle(title: string): string {
+  const text = title.trim()
+  if (!text || text !== text.toUpperCase()) return text
+  return text
+    .toLocaleLowerCase("en")
+    .replace(/(^|[\s\-/("'])(\p{L})/gu, (_all, lead: string, letter: string) => lead + letter.toLocaleUpperCase("en"))
 }
 
 /**
