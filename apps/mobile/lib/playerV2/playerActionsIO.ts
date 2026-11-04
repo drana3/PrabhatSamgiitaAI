@@ -32,7 +32,7 @@ function platform(): SharePlatform {
 }
 
 /**
- * Sends a share. "Copy link" copies the link. WhatsApp and Messages open their own link when the
+ * Sends a share. "Copy link" copies the link. WhatsApp, Telegram and Messages open their own link when the
  * platform has one; every other channel opens the system share sheet (navigator.share on the web),
  * and when that is not available the link is copied instead.
  */

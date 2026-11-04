@@ -63,11 +63,12 @@ export function buildSharePayload(song: { number: number; title: string; perform
   }
 }
 
-export type ShareTargetId = "copy" | "whatsapp" | "instagram" | "messages" | "more"
+export type ShareTargetId = "copy" | "whatsapp" | "telegram" | "instagram" | "messages" | "more"
 
 export const SHARE_TARGETS: ReadonlyArray<{ id: ShareTargetId; label: string }> = [
   { id: "copy", label: "Copy link" },
   { id: "whatsapp", label: "WhatsApp" },
+  { id: "telegram", label: "Telegram" },
   { id: "instagram", label: "Instagram Stories" },
   { id: "messages", label: "Messages" },
   { id: "more", label: "More" },
@@ -82,11 +83,22 @@ export type SharePlatform = "ios" | "android" | "web"
  */
 export function shareTargetUrl(target: ShareTargetId, payload: SharePayload, platform: SharePlatform): string | null {
   if (target === "whatsapp") return `https://wa.me/?text=${encodeURIComponent(payload.message)}`
+  if (target === "telegram") return telegramShareUrl(payload)
   if (target === "messages") {
     if (platform === "ios") return `sms:&body=${encodeURIComponent(payload.message)}`
     if (platform === "android") return `sms:?body=${encodeURIComponent(payload.message)}`
   }
   return null
+}
+
+/**
+ * Telegram personal share (not a channel post). The link goes in `url`, the rest of the message in
+ * `text`; the message already ends with the link, so it is cut off the text to avoid showing it twice.
+ * The https link opens the Telegram app as a universal link on iOS and Android, and Telegram Web on the web.
+ */
+export function telegramShareUrl(payload: SharePayload): string {
+  const text = payload.message.endsWith(payload.url) ? payload.message.slice(0, -payload.url.length).trimEnd() : payload.message
+  return `https://t.me/share/url?url=${encodeURIComponent(payload.url)}&text=${encodeURIComponent(text)}`
 }
 
 export type ShareOutcome = "copied" | "copy-failed" | "opened" | "shared" | "dismissed"

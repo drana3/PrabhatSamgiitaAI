@@ -14,7 +14,7 @@ import {
   repeatMessage,
   shufflingFromLine,
 } from "@/lib/playerV2/playerActions"
-import { buildSharePayload, SHARE_BACKGROUNDS, SHARE_TARGETS, sharePalette, shareTargetUrl, shareToast } from "@/lib/playerV2/playerShare"
+import { buildSharePayload, SHARE_BACKGROUNDS, SHARE_TARGETS, sharePalette, shareTargetUrl, shareToast, telegramShareUrl } from "@/lib/playerV2/playerShare"
 import { COVER_IDS, COVER_TINTS, contrastRatio, coverIdFor, FOREST, hexAlpha, mixHex, tintForSong } from "@/lib/playerV2/coverTint"
 
 const base = { sourceName: "All songs", saved: false, inQueue: false, collectionName: null, speedText: "1×", sleepText: "Off" }
@@ -143,6 +143,19 @@ describe("share payload", () => {
     expect(shareTargetUrl("more", p, "android")).toBeNull()
   })
 
+  it("builds the Telegram personal-share link with the song link in url and the message in text", () => {
+    const p = buildSharePayload({ number: 3, title: "Ándhára Sheśe Álora Deshe", performer: "Performer A" })
+    const link = telegramShareUrl(p)
+    expect(link.startsWith("https://t.me/share/url?")).toBe(true)
+    const q = new URL(link).searchParams
+    expect(q.get("url")).toBe(p.url)
+    expect(q.get("text")).toContain("PS 3 · Ándhára Sheśe Álora Deshe")
+    expect(q.get("text")).not.toContain(p.url)
+    expect(shareTargetUrl("telegram", p, "web")).toBe(link)
+    expect(shareTargetUrl("telegram", p, "ios")).toBe(link)
+    expect(shareTargetUrl("telegram", p, "android")).toBe(link)
+  })
+
   it("says Link copied only when the link was copied", () => {
     expect(shareToast("copied")).toBe("Link copied")
     expect(shareToast("copy-failed")).toBe("Could not copy the link")
@@ -151,8 +164,8 @@ describe("share payload", () => {
     expect(shareToast("dismissed")).toBeNull()
   })
 
-  it("lists the five channels and four backgrounds", () => {
-    expect(SHARE_TARGETS.map((t) => t.id)).toEqual(["copy", "whatsapp", "instagram", "messages", "more"])
+  it("lists the six channels and four backgrounds", () => {
+    expect(SHARE_TARGETS.map((t) => t.id)).toEqual(["copy", "whatsapp", "telegram", "instagram", "messages", "more"])
     expect(SHARE_BACKGROUNDS.map((b) => b.id)).toEqual(["forest", "sand", "ink", "cover"])
   })
 

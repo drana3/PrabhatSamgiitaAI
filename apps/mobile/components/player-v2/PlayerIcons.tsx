@@ -28,6 +28,7 @@ export type PlayerIconName =
   | "share"
   | "link"
   | "whatsapp"
+  | "telegram"
   | "instagram"
   | "messages"
   | "music"
@@ -168,6 +169,9 @@ export function PlayerIcon({ name, size, color, filled, strokeWidth }: Props) {
             <Path {...stroke} d="M4 20l1.2-4.1A8.2 8.2 0 1112 20.2a8.1 8.1 0 01-3.9-1L4 20z" />
             <Path {...stroke} strokeWidth={strokeWidth ?? 1.5} d="M9.3 8.8c-.3.7-.1 1.7.9 3 1 1.3 2.3 2.3 3.4 2.6.9.2 1.5-.2 1.7-.9l-1.6-1-.8.7c-.8-.3-1.6-1-2.1-1.9l.7-.8-.9-1.6c-.5-.1-1 .1-1.3-.1z" />
           </>
+        ) : null}
+        {name === "telegram" ? (
+          <Path {...stroke} d="M20.5 4.5L3.7 11c-.6.2-.6 1 0 1.2l4.2 1.4 1.6 5c.2.5.8.6 1.1.2l2.3-2.3 4.3 3.2c.5.3 1.1.1 1.2-.5l2.6-14c.1-.6-.4-1-.9-.8zM8 13.6l9.5-6.4-7.3 7.2-.3 3.3L8 13.6z" />
         ) : null}
         {name === "instagram" ? (
           <>

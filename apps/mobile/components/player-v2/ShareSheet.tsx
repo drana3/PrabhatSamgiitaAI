@@ -33,6 +33,7 @@ type Props = {
 const TARGET_ICON: Record<ShareTargetId, PlayerIconName> = {
   copy: "link",
   whatsapp: "whatsapp",
+  telegram: "telegram",
   instagram: "instagram",
   messages: "messages",
   more: "more",
