@@ -1,5 +1,10 @@
 import { localeOptions, type LocaleOption } from "@/constants/languages"
-import { TRANSLATION_COVERAGE_FIXTURE, TRANSLATION_COVERAGE_ORDER, type FixtureCoverage } from "@/lib/fixtures/translations"
+import {
+  SAMPLE_LANGUAGES,
+  TRANSLATION_COVERAGE_FIXTURE,
+  TRANSLATION_COVERAGE_ORDER,
+  type FixtureCoverage,
+} from "@/lib/fixtures/translations"
 import type { ScriptChoice } from "@/lib/songPage/scripts"
 import { matchesLanguage, shortCode } from "@/lib/songPage/translations"
 
@@ -66,4 +71,28 @@ export function languageSummary(script: ScriptChoice, translations: readonly str
 
 export function languageSearchPlaceholder(total: number = localeOptions.length): string {
   return `Search ${total} languages`
+}
+
+export type SampleLanguageRow = {
+  code: string
+  name: string
+  native: string
+  /** a language that is not added yet: dimmed name, "Request" button */
+  pending: boolean
+  action: string
+}
+
+/**
+ * Preview rows (MOCKUP_DATA): the prototype's 14 languages. Languages not added yet show "Request";
+ * once requested the line reads "Requested" and the button goes.
+ */
+export function sampleLanguageRows(query: string, requested: ReadonlySet<string> = new Set()): SampleLanguageRow[] {
+  const q = query.trim().toLowerCase()
+  return SAMPLE_LANGUAGES.filter((l) => !q || `${l.name} ${l.native}`.toLowerCase().includes(q)).map((l) => {
+    const pending = l.coverage === "none"
+    const asked = requested.has(l.code)
+    const state =
+      l.coverage === "full" ? "Lines and word meanings" : l.coverage === "lines" ? "Lines only" : asked ? "Requested" : "Not added yet"
+    return { code: l.code, name: l.name, native: `${l.native} · ${state}`, pending, action: pending && !asked ? "Request" : "" }
+  })
 }

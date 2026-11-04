@@ -19,7 +19,9 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { api } from "@/lib/client"
-import { flattenResults } from "@/lib/searchProto"
+import { flattenResults, sampleFlatResults } from "@/lib/searchProto"
+import { SAMPLE_OFFLINE_NUMBERS } from "@/lib/fixtures/search"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
@@ -111,7 +113,7 @@ export default function UnifiedSearchScreen() {
   // Meaning search from the server, streamed in after the local results.
   useEffect(() => {
     const trimmed = local.query
-    if (!local.wantsMeaning || trimmed.length < MIN_MEANING_CHARS || !queryIsUseful(trimmed, 200)) {
+    if (MOCKUP_DATA || !local.wantsMeaning || trimmed.length < MIN_MEANING_CHARS || !queryIsUseful(trimmed, 200)) {
       setMeaning((prev) => (prev.pending ? { ...prev, pending: false } : prev))
       return
     }
@@ -136,7 +138,7 @@ export default function UnifiedSearchScreen() {
     () => (meaning.query === local.query ? mergeMeaningRows(local, meaning.rows) : local),
     [local, meaning],
   )
-  const waitingForMeaning = meaning.pending && meaning.query === local.query
+  const waitingForMeaning = !MOCKUP_DATA && meaning.pending && meaning.query === local.query
 
   const remember = useCallback((value: string) => addSearchRecent(value), [addSearchRecent])
 
@@ -205,10 +207,19 @@ export default function UnifiedSearchScreen() {
   )
 
   const offlineFiles = useOfflineAudioStore((state) => state.files)
-  const offlineNumbers = useMemo(() => new Set(Object.values(offlineFiles).map((entry) => entry.songNumber)), [offlineFiles])
+  const offlineNumbers = useMemo(
+    () => (MOCKUP_DATA ? SAMPLE_OFFLINE_NUMBERS : new Set(Object.values(offlineFiles).map((entry) => entry.songNumber))),
+    [offlineFiles],
+  )
   const empty = query.trim().length === 0
-  const rows = useMemo(() => flattenResults(result.groups), [result.groups])
-  const collections = useMemo(() => result.groups.flatMap((group) => group.collections ?? []), [result.groups])
+  const rows = useMemo(
+    () => (MOCKUP_DATA ? sampleFlatResults(query) : flattenResults(result.groups)),
+    [query, result.groups],
+  )
+  const collections = useMemo(
+    () => (MOCKUP_DATA ? [] : result.groups.flatMap((group) => group.collections ?? [])),
+    [result.groups],
+  )
 
   // `.search`: the overlay drops in from 8dp above, 220ms (animation: searchin)
   const drop = useSharedValue(reduce ? 1 : 0)
@@ -238,6 +249,7 @@ export default function UnifiedSearchScreen() {
           listening={listening}
           selectOnFocus={selectOnFocus}
           inputRef={inputRef}
+          bare={MOCKUP_DATA}
         />
         <TodayPress accessibilityRole="button" accessibilityLabel="Close search" onPress={() => router.back()} pressedScale={0.94} style={styles.cancel}>
           <Text style={[styles.cancelText, { color: p.ink800 }]}>Cancel</Text>
@@ -255,14 +267,14 @@ export default function UnifiedSearchScreen() {
         {empty ? (
           <EmptyState
             p={p}
-            recents={recents}
+            recents={MOCKUP_DATA ? [] : recents}
             onPick={pick}
             onRemoveRecent={(item: string) => usePreferencesStore.setState({ searchRecents: withoutRecent(recents, item) })}
             onClearRecents={clearSearchRecents}
           />
         ) : (
           <View style={styles.results}>
-            {result.answer ? (
+            {!MOCKUP_DATA && result.answer ? (
               <AnswerCard p={p} answer={result.answer} onOpen={openItem} onAsk={() => router.push(href("/assistant"))} />
             ) : null}
             {rows.length ? <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} /> : null}
@@ -273,7 +285,7 @@ export default function UnifiedSearchScreen() {
                 <Text style={[styles.waitingText, { color: p.ink500 }]}>Looking for songs by meaning…</Text>
               </View>
             ) : null}
-            {rows.length === 0 && !waitingForMeaning && !result.answer ? <EmptyMessage p={p} text={result.message === outOfRangeMessage() ? result.message : null} /> : null}
+            {rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={!MOCKUP_DATA && result.message === outOfRangeMessage() ? result.message : null} /> : null}
           </View>
         )}
       </ScrollView>

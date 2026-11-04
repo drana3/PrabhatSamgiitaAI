@@ -8,7 +8,9 @@ import { SheetShell } from "@/components/profile-v2/SheetShell"
 import { protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
-import { SCRIPT_ROWS, languageRows, languageSearchPlaceholder } from "@/lib/languageSheet"
+import { SCRIPT_ROWS, languageRows, languageSearchPlaceholder, sampleLanguageRows } from "@/lib/languageSheet"
+import { SAMPLE_LANGUAGE_COUNT } from "@/lib/fixtures/translations"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { MAX_TRANSLATIONS } from "@/lib/songPage/translations"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
@@ -29,7 +31,14 @@ export default function ScriptTranslationsScreen() {
   const toggleTranslation = useSongPageStore((st) => st.toggleTranslation)
   const [query, setQuery] = useState("")
 
-  const rows = useMemo(() => languageRows(query), [query])
+  const [requested, setRequested] = useState<ReadonlySet<string>>(new Set())
+  const rows = useMemo(
+    () =>
+      MOCKUP_DATA
+        ? sampleLanguageRows(query, requested)
+        : languageRows(query).map((row) => ({ code: row.code, name: row.name, native: row.native, pending: false, action: "" })),
+    [query, requested],
+  )
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
@@ -42,21 +51,26 @@ export default function ScriptTranslationsScreen() {
       <SheetShell p={p} label="Script and translations" onClosed={onClosed}>
         <SheetTitle p={p} label="Script" baseline />
         <Group p={p}>
-          {SCRIPT_ROWS.filter((row) => row.id !== "both" || script === "both").map((row) => (
-            <LangRow
-              key={row.id}
-              p={p}
-              name={row.name}
-              sub={row.sub}
-              control="radio"
-              on={script === row.id}
-              onPress={() => setScript(row.id)}
-            />
-          ))}
+          {SCRIPT_ROWS.filter((row) => (row.id !== "both" || script === "both") && !(MOCKUP_DATA && row.id === "both")).map((row) => {
+            // The prototype has no Bengali script yet: it reads "not added yet" and cannot be picked.
+            const notAdded = MOCKUP_DATA && row.id === "bengali"
+            return (
+              <LangRow
+                key={row.id}
+                p={p}
+                name={row.name}
+                sub={notAdded ? "Bengali, not added yet" : row.sub}
+                control="radio"
+                on={!notAdded && script === row.id}
+                dim={notAdded}
+                onPress={() => (notAdded ? undefined : setScript(row.id))}
+              />
+            )
+          })}
         </Group>
 
         <SheetTitle p={p} label="Translation under each line" note={`Up to ${MAX_TRANSLATIONS}`} spaced baseline />
-        <LanguageSearch p={p} value={query} onChangeText={setQuery} placeholder={languageSearchPlaceholder()} />
+        <LanguageSearch p={p} value={query} onChangeText={setQuery} placeholder={MOCKUP_DATA ? languageSearchPlaceholder(SAMPLE_LANGUAGE_COUNT) : languageSearchPlaceholder()} />
         {rows.length > 0 ? (
           <Group p={p}>
             {rows.map((row) => (
@@ -67,7 +81,11 @@ export default function ScriptTranslationsScreen() {
                 sub={row.native}
                 control="check"
                 on={translations.includes(row.code)}
-                onPress={() => toggleTranslation(row.code)}
+                action={row.action || undefined}
+                dim={row.pending}
+                onPress={() =>
+                  row.pending ? setRequested((prev) => new Set(prev).add(row.code)) : toggleTranslation(row.code)
+                }
               />
             ))}
           </Group>

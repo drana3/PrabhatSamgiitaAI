@@ -17,8 +17,8 @@ export const TODAY_FIXTURE_SONGS: Record<number, TodayFixtureSong> = {
 
 export const TODAY_FIXTURE_DAYS = {
   date: { songs: [2, 0, 4], composed: ["1983", "1982", "1985"], also: null as number | null },
-  fest: { songs: [3, 1, 5], composed: [] as string[], also: 4 as number | null, festival: "Díipávalii", date: new Date(2026, 10, 8) },
-  season: { songs: [6, 4, 1], composed: [] as string[], also: 0 as number | null, season: "Hemanta", date: new Date(2026, 10, 15) },
+  fest: { songs: [3, 1, 5], composed: [] as string[], also: 4 as number | null, festival: "Díipávalii", date: new Date(2026, 10, 8), note: "The festival of light. These songs belong to this day." },
+  season: { songs: [6, 4, 1], composed: [] as string[], also: 0 as number | null, season: "Hemanta", date: new Date(2026, 10, 15), note: "Late autumn. These songs belong to this time of the year." },
 } as const
 
 /** Recently played in the prototype: PS 6, PS 1, PS 4. */
