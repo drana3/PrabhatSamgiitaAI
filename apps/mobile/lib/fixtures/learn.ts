@@ -172,3 +172,16 @@ export function buildLearnDemoSeed(now: number): LearnDemoSeed {
   }
   return { songs, paths, cards }
 }
+
+/**
+ * Fixed numbers of the prototype's Learn tab (Main.dc.html, layout B). Used only in the preview
+ * (EXPO_PUBLIC_MOCKUP_DATA=1) so the screen can be compared 1:1; real mode derives them.
+ */
+export const MOCKUP_LEARN = {
+  initial: "D",
+  stats: { learned: 3, total: 5, learning: 2 },
+  dueWords: 2,
+  dueSongs: 1,
+  progress: { studied: 4, wordsLearned: 6 },
+  wordOfDay: "Bandhu",
+} as const

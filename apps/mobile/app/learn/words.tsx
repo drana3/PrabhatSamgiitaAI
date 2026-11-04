@@ -9,6 +9,8 @@ import { Reveal } from "@/components/today/motion"
 import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { mockCounts, mockIntervals, mockIsReview, mockKind, type MockGrades } from "@/lib/learn/mockupCards"
 import { songWordsComplete } from "@/lib/learn/progress"
 import { LEARN_ROUTES, parseNumberParam } from "@/lib/learn/routes"
 import {
@@ -51,7 +53,7 @@ export default function WordCardsScreen() {
   const deck = useMemo(
     () =>
       songNumber !== undefined
-        ? wordsForSong(SAMPLE_LEARN_WORDS, songNumber)
+        ? wordsForSong(SAMPLE_LEARN_WORDS, songNumber).slice(0, MOCKUP_DATA ? 10 : undefined)
         : sessionDeck(SAMPLE_LEARN_WORDS, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
     [songNumber, songs, savedSongIds],
   )
@@ -63,13 +65,17 @@ export default function WordCardsScreen() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [round, setRound] = useState(0)
+  // preview only: how each card was answered this session (the prototype's `fgr`)
+  const [mockGrades, setMockGrades] = useState<MockGrades>({})
 
   useEffect(() => {
     if (!hydrated) return
     const stamp = Date.now()
     const ids = deck.map((word) => word.id)
     // "Study again" goes through the whole deck once more, due or not
-    const built = round > 0 ? ids : buildDailyQueue(ids, useLearnStore.getState().cards, stamp)
+    // the preview shows the deck in song order, like the prototype
+    const built = MOCKUP_DATA || round > 0 ? ids : buildDailyQueue(ids, useLearnStore.getState().cards, stamp)
+    if (MOCKUP_DATA) setMockGrades({})
     setNow(stamp)
     setQueue(built)
     setTotal(built.length)
@@ -88,6 +94,7 @@ export default function WordCardsScreen() {
   const onGrade = (value: Grade) => {
     if (!queue || !headId) return
     grade(headId, value)
+    if (MOCKUP_DATA) setMockGrades((prev) => ({ ...prev, [headId]: value }))
     setQueue(advanceQueue(queue, value))
     setFlipped(false)
     if (songNumber !== undefined) {
@@ -100,6 +107,15 @@ export default function WordCardsScreen() {
   const remaining = queue?.length ?? 0
   const fraction = total === 0 ? 1 : 1 - remaining / total
   const live = Boolean(head && headCard)
+  const deckIds = useMemo(() => deck.map((word) => word.id), [deck])
+  const headKind = !headId ? null : MOCKUP_DATA ? mockKind(headId, deckIds, mockGrades) : headCard ? queueKind(headCard) : null
+  const counts = !queue ? null : MOCKUP_DATA ? mockCounts(queue, deckIds, mockGrades) : queueCounts(queue, cards, now)
+  const intervals =
+    headId && headCard
+      ? MOCKUP_DATA
+        ? mockIntervals(reviewStyle, mockIsReview(deckIds.indexOf(headId), deckIds.length), headKind === "learning")
+        : previewIntervals(headCard, reviewStyle)
+      : null
 
   return (
     <OverlayScreen
@@ -107,12 +123,8 @@ export default function WordCardsScreen() {
       onBack={back}
       label={songNumber !== undefined ? `Words · PS ${songNumber}` : "Words"}
       right={
-        queue && headCard !== undefined ? (
-          <QueueCounters
-            theme={theme}
-            counts={queueCounts(queue, cards, now)}
-            active={headCard ? queueKind(headCard) : null}
-          />
+        queue && counts && headCard !== undefined ? (
+          <QueueCounters theme={theme} counts={counts} active={headKind} />
         ) : null
       }
       overlay={
@@ -137,9 +149,9 @@ export default function WordCardsScreen() {
           </Reveal>
           {live && head && headCard ? (
             <Reveal index={2} style={styles.stack}>
-              <FlashCard word={head} kindLabel={KIND_LABEL[queueKind(headCard)]} flipped={flipped} onShow={() => setFlipped(true)} />
-              {flipped ? (
-                <GradeButtons theme={theme} intervals={previewIntervals(headCard, reviewStyle)} onGrade={onGrade} />
+              <FlashCard word={head} kindLabel={KIND_LABEL[headKind ?? "new"]} flipped={flipped} onShow={() => setFlipped(true)} />
+              {flipped && intervals ? (
+                <GradeButtons theme={theme} intervals={intervals} onGrade={onGrade} />
               ) : (
                 <Pill theme={theme} full height={56} label="Show answer" onPress={() => setFlipped(true)} />
               )}

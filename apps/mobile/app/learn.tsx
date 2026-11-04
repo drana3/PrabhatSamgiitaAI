@@ -23,7 +23,8 @@ import { amColors } from "@/constants/tokens/amColors"
 import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
-import { demoLibraryEntry, INDEX_SUMMARY } from "@/lib/fixtures/learn"
+import { demoLibraryEntry, INDEX_SUMMARY, MOCKUP_LEARN } from "@/lib/fixtures/learn"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { memberProfileName } from "@/lib/displayName"
 import {
   learnProgress,
@@ -80,8 +81,9 @@ export default function LearnScreen() {
   const email = useAuthStore((s) => s.email)
   const displayName = useAuthStore((s) => s.displayName)
   const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
-  const initials =
-    memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "D"
+  const initials = MOCKUP_DATA
+    ? MOCKUP_LEARN.initial
+    : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "D"
 
   const cards = useLearnStore((s) => s.cards)
   const songs = useLearnStore((s) => s.songs)
@@ -100,10 +102,10 @@ export default function LearnScreen() {
       const path = paths[song.songId]
       const learned = pathDoneCount(path) === 3
       const demo = demoLibraryEntry(song.number)
-      const due = learned && Boolean(demo?.due || dueBySong.has(song.number))
+      const due = learned && Boolean(demo?.due || (!MOCKUP_DATA && dueBySong.has(song.number)))
       let note: string
       if (!learned) note = nextStepNote(path)
-      else if (demo?.next) note = demo.next
+      else if (MOCKUP_DATA && demo?.next) note = demo.next
       else if (due) note = "Review due today"
       else {
         const nextWord = nextDueAt(
@@ -117,7 +119,7 @@ export default function LearnScreen() {
         title: song.title,
         learned,
         due,
-        strength: demo?.strength ?? 3,
+        strength: (MOCKUP_DATA ? demo?.strength : undefined) ?? 3,
         steps: pathDots(path),
         note,
       }
@@ -139,9 +141,13 @@ export default function LearnScreen() {
   const learningCount = rows.length - learnedCount
   const progressBase = useMemo(() => learnProgress(songs, paths, cards), [songs, paths, cards])
   const levelTotal = Math.max(LEVEL_SONG_TOTAL, songs.length)
-  const progress = { ...progressBase, total: levelTotal, fraction: progressBase.studied / levelTotal }
+  const progress = MOCKUP_DATA
+    ? { ...progressBase, ...MOCKUP_LEARN.progress, total: LEVEL_SONG_TOTAL, fraction: MOCKUP_LEARN.progress.studied / LEVEL_SONG_TOTAL }
+    : { ...progressBase, total: levelTotal, fraction: progressBase.studied / levelTotal }
   const dueSongCount = rows.filter((row) => row.due).length
-  const summary = practiceSummary(dueCardCount(cards, now), dueSongCount)
+  const summary = MOCKUP_DATA
+    ? practiceSummary(MOCKUP_LEARN.dueWords, MOCKUP_LEARN.dueSongs)
+    : practiceSummary(dueCardCount(cards, now), dueSongCount)
   const quizLevel = nextOpenQuizLevel(quizBest)
   const levelOver = `Level ${quizLevel} · ${quizLevel === 1 ? "Know the words" : quizLevel === 2 ? "Know the meaning" : "Know the story"}`
 
@@ -149,7 +155,13 @@ export default function LearnScreen() {
     () => sessionDeck(SAMPLE_LEARN_WORDS, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
     [songs, savedSongIds],
   )
-  const wordOfDay = useMemo(() => wordOfTheDay(deck.filter((word) => word.roman.length > 3), new Date(now)), [deck, now])
+  const wordOfDay = useMemo(
+    () =>
+      MOCKUP_DATA
+        ? (SAMPLE_LEARN_WORDS.find((word) => word.roman === MOCKUP_LEARN.wordOfDay) ?? null)
+        : wordOfTheDay(deck.filter((word) => word.roman.length > 3), new Date(now)),
+    [deck, now],
+  )
 
   const openFirstSong = () => go(songHref(songs[0]?.songId ?? "ps-1"))
 
@@ -173,7 +185,13 @@ export default function LearnScreen() {
           <Segmented theme={theme} options={TABS} value={tab} onChange={(key) => setTab(key as Tab)} />
         </Reveal>
         <Reveal index={3} style={styles.pad}>
-          <StatsStrip theme={theme} learned={learnedCount} total={rows.length} learning={learningCount} words={progress.wordsLearned} />
+          <StatsStrip
+            theme={theme}
+            learned={MOCKUP_DATA ? MOCKUP_LEARN.stats.learned : learnedCount}
+            total={MOCKUP_DATA ? MOCKUP_LEARN.stats.total : rows.length}
+            learning={MOCKUP_DATA ? MOCKUP_LEARN.stats.learning : learningCount}
+            words={progress.wordsLearned}
+          />
         </Reveal>
 
         {!hydrated ? null : tab === "practice" ? (
@@ -196,7 +214,7 @@ export default function LearnScreen() {
                   <Over color={c.over}>{levelOver}</Over>
                   <Track theme={theme} value={progress.fraction} fill={amColors.gold300} trackColor="rgba(255,255,255,0.2)" />
                   <CardText color={c.body}>{progressLine(progress)}</CardText>
-                  <Pill theme={theme} label={`Take the level ${quizLevel} quiz`} onPress={() => go(quizHref({ level: quizLevel }))} />
+                  <Pill theme={theme} go label={`Take the level ${quizLevel} quiz`} onPress={() => go(quizHref({ level: quizLevel }))} />
                 </>
               )}
             </LCard>
@@ -284,6 +302,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pad: { paddingHorizontal: 10 },
   list: { gap: 10, paddingHorizontal: 10 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 7, paddingBottom: 4, paddingHorizontal: 10 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 6, paddingBottom: 4, paddingHorizontal: 10 },
   empty: { fontFamily: "Roboto_500Medium", fontSize: 16, lineHeight: 23, paddingHorizontal: 20, maxWidth: 300 },
 })

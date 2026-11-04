@@ -133,7 +133,7 @@ export function ReviewStyleSheet({
           styles.sheet,
           {
             backgroundColor: theme.page,
-            maxHeight: Math.min(780, screenHeight - 64),
+            maxHeight: Math.min(900, screenHeight - 64),
           },
           sheetStyle,
         ]}
