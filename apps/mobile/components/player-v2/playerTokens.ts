@@ -29,7 +29,7 @@ export const playerSize = {
   chipIcon: 14,
   /** "Play: This version | All N versions" */
   scopeHeight: 40,
-  scopePad: 3,
+  scopePad: 4,
   scopeIcon: 15,
   /** karaoke panel */
   panelMarginTop: 16,

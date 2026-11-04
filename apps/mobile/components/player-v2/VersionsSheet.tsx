@@ -16,7 +16,7 @@ type Props = {
   versions: PlayerVersion[]
   selectedIndex: number
   /** Label and action of the single Download pill at the bottom (selected version). */
-  download: { label: string; disabled: boolean; onPress: () => void; done?: boolean } | null
+  download: { label: string; disabled: boolean; onPress: () => void; done?: boolean; tone?: "brand" | "sand" | "ink" } | null
   onSelect: (index: number) => void
   onClose: () => void
 }
@@ -46,11 +46,11 @@ export function VersionsSheet({ visible, theme, versions, selectedIndex, downloa
               style={[styles.row, on && { backgroundColor: orangeWash(theme) }]}
             >
               <View style={styles.name}>
-                <Text style={[styles.who, { color: theme.textHeading }]} numberOfLines={1}>
+                <Text style={[styles.who, { color: theme.textBody }]} numberOfLines={1}>
                   {version.performer}
                 </Text>
                 <Text style={[styles.meta, { color: theme.textBody }]} numberOfLines={1}>
-                  {versionRowMeta(version, formatClock)}
+                  {versionRowMeta({ ...version, tag: version.tag === "Best" || version.tag === "Community" ? version.tag : null }, formatClock)}
                 </Text>
               </View>
               {on ? <PlayerIcon name="check" size={22} color={amColors.orange500} /> : <View style={styles.noCheck} />}
@@ -63,7 +63,7 @@ export function VersionsSheet({ visible, theme, versions, selectedIndex, downloa
           <SheetPill
             theme={theme}
             label={download.label}
-            tone={download.done ? "sand" : "brand"}
+            tone={download.tone ?? (download.done ? "sand" : "brand")}
             disabled={download.disabled}
             onPress={download.onPress}
           />
@@ -85,8 +85,10 @@ const styles = StyleSheet.create({
     borderRadius: amRadius.card,
   },
   name: { flex: 1, minWidth: 0, gap: 2 },
-  who: { fontFamily: amFonts.semi, fontSize: 18, lineHeight: 22 },
-  meta: { fontFamily: amFonts.medium, fontSize: 14 },
+  // The prototype's `.vrow .vn span` rule also reaches the performer name, so the board draws it as
+  // 14px medium in the body colour. The board is the spec.
+  who: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 22, marginTop: 1 },
+  meta: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20.3 },
   noCheck: { width: 22, height: 22 },
   pad: { paddingHorizontal: 20, paddingBottom: 24 },
 })

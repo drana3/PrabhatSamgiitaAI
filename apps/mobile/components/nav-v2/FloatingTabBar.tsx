@@ -14,6 +14,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { useCoverFade, useSheetCover } from "@/components/nav-v2/sheetCover"
 import { TabGlyph } from "@/components/today/protoIcons"
 import { amReveal, amSpring } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
@@ -183,17 +184,30 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
   const darkFill = useAnimatedStyle(() => ({ opacity: dark.value }))
 
   const blurTint = isDarkTheme(theme) ? "dark" : "light"
+  const coverFade = useCoverFade()
+  const covered = useSheetCover((c) => c.count > 0)
 
   return (
-    <View pointerEvents="box-none" style={[styles.slot, { bottom: tabBottom }]}>
+    <Animated.View pointerEvents={covered ? "none" : "box-none"} style={[styles.slot, { bottom: tabBottom }, coverFade]}>
       <GestureDetector gesture={pan}>
         <View style={styles.pill} collapsable={false}>
-          <BlurView
-            intensity={amNav.tabBlurIntensity}
-            tint={blurTint}
-            experimentalBlurMethod="dimezisBlurView"
-            style={StyleSheet.absoluteFill}
-          />
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, lightFill]}>
+            <BlurView
+              intensity={amNav.tabBlurIntensity}
+              tint={blurTint}
+              experimentalBlurMethod="dimezisBlurView"
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
+          {/* The dark pill (Player tab) blurs with a dark tint, so no light wash shows through. */}
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, darkFill]}>
+            <BlurView
+              intensity={amNav.tabBlurIntensity}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
           <Animated.View
             pointerEvents="none"
             style={[StyleSheet.absoluteFill, { backgroundColor: lightPalette.background }, lightFill]}
@@ -202,7 +216,10 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
             pointerEvents="none"
             style={[StyleSheet.absoluteFill, { backgroundColor: darkPalette.background }, darkFill]}
           />
-          <View pointerEvents="none" style={[styles.edge, { borderColor: lightPalette.edge }]} />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.edge, { borderColor: lightPalette.edge }, lightFill]}
+          />
           <Animated.View
             pointerEvents="none"
             style={[styles.edge, { borderColor: darkPalette.edge }, darkFill]}
@@ -245,7 +262,7 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
           </View>
         </View>
       </GestureDetector>
-    </View>
+    </Animated.View>
   )
 }
 

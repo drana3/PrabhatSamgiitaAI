@@ -12,6 +12,8 @@ export const amFonts = {
   regular: "Roboto_400Regular",
   devanagari: "NotoSansDevanagari_400Regular",
   devanagariBold: "NotoSansDevanagari_700Bold",
+  /** The prototype asks for Noto Sans Devanagari 400 and 600 only, so its bold lyrics render at 600. */
+  devanagariSemi: "NotoSansDevanagari_600SemiBold",
   bengali: "NotoSansBengali_400Regular",
   bengaliBold: "NotoSansBengali_700Bold",
 } as const

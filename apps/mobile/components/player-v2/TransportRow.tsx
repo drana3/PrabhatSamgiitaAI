@@ -1,5 +1,4 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
-import { BlurView } from "expo-blur"
 import { RotateCcw } from "lucide-react-native"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
@@ -61,7 +60,6 @@ export function TransportRow(props: Props) {
       </TouchButton>
 
       <TouchButton accessibilityRole="button" accessibilityLabel="Previous song" onAction={props.onPrevious} style={styles.skip}>
-        <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
         <PlayerIcon name="prev" size={playerSize.smallGlyph} color={amColors.white} />
       </TouchButton>
 
@@ -83,7 +81,6 @@ export function TransportRow(props: Props) {
         onAction={canNext ? props.onNext : undefined}
         style={[styles.skip, !canNext && styles.disabled]}
       >
-        <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
         <PlayerIcon name="next" size={playerSize.smallGlyph} color={amColors.white} />
       </TouchButton>
 

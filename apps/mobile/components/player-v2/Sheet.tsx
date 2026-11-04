@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated"
 
+import { coverSheet } from "@/components/nav-v2/sheetCover"
 import { PressScale } from "@/components/today/motion"
 import { playerColors, queueColors } from "@/components/player-v2/playerTokens"
 import { ringColor } from "@/components/player-v2/Rows"
@@ -59,6 +60,9 @@ export function Sheet({ visible, onClose, title, theme, dark, fill, children }: 
   const measured = useSharedValue(0)
   const [mounted, setMounted] = useState(visible)
   const [ready, setReady] = useState(false)
+
+  // While mounted the sheet covers the tab pill and the mini player.
+  useEffect(() => (mounted ? coverSheet() : undefined), [mounted])
 
   const unmount = useCallback(() => {
     setMounted(false)

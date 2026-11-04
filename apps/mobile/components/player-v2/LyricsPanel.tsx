@@ -1,5 +1,5 @@
 import { memo, useEffect, useReducer, useRef, useState } from "react"
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native"
 import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
 import { useReducedMotion } from "react-native-reanimated"
@@ -25,6 +25,10 @@ const SUNG_LINE_SHARE = 0.24
 /** .kscroll mask: transparent to opaque over the first 8% and the last 12%. */
 const FADE_TOP = 0.08
 const FADE_BOTTOM = 0.12
+/** On the web the prototype's own mask (.kscroll) fades the text exactly; devices use the two gradients below. */
+const WEB_MASK = "linear-gradient(rgba(0,0,0,0) 0, #000 8%, #000 88%, rgba(0,0,0,0) 100%)"
+const webMaskStyle = (Platform.OS === "web" ? { maskImage: WEB_MASK, WebkitMaskImage: WEB_MASK } : null) as ViewStyle | null
+
 /** The panel's own colour (forest at 78% over the dark end of the photograph), so the edges melt into it. */
 const PANEL_FADE_COLOR = "rgba(34, 42, 28, 1)"
 
@@ -71,7 +75,7 @@ export function LyricsPanel({
       <View style={[StyleSheet.absoluteFill, styles.tint]} />
       {lines.length ? (
         <View
-          style={styles.scrollWrap}
+          style={[styles.scrollWrap, webMaskStyle]}
           onLayout={(e) => {
             setViewport(e.nativeEvent.layout.height)
           }}
@@ -99,16 +103,20 @@ export function LyricsPanel({
               />
             ))}
           </ScrollView>
-          <LinearGradient
-            pointerEvents="none"
-            colors={[PANEL_FADE_COLOR, playerColors.maskClear]}
-            style={[styles.fade, { top: 0, height: viewport * FADE_TOP }]}
-          />
-          <LinearGradient
-            pointerEvents="none"
-            colors={[playerColors.maskClear, PANEL_FADE_COLOR]}
-            style={[styles.fade, { bottom: 0, height: viewport * FADE_BOTTOM }]}
-          />
+          {webMaskStyle ? null : (
+            <>
+              <LinearGradient
+                pointerEvents="none"
+                colors={[PANEL_FADE_COLOR, playerColors.maskClear]}
+                style={[styles.fade, { top: 0, height: viewport * FADE_TOP }]}
+              />
+              <LinearGradient
+                pointerEvents="none"
+                colors={[playerColors.maskClear, PANEL_FADE_COLOR]}
+                style={[styles.fade, { bottom: 0, height: viewport * FADE_BOTTOM }]}
+              />
+            </>
+          )}
         </View>
       ) : (
         <View style={styles.empty}>
@@ -141,7 +149,7 @@ const LyricRow = memo(function LyricRow({
   onPress,
 }: RowProps) {
   const translation = showTranslation ? line.translation : undefined
-  const wordFont = devanagari ? amFonts.devanagariBold : amFonts.bold
+  const wordFont = devanagari ? amFonts.devanagariSemi : amFonts.bold
   return (
     <View onLayout={(e) => onLayoutTop(e.nativeEvent.layout.y)}>
       <View style={styles.words}>
@@ -204,7 +212,8 @@ const styles = StyleSheet.create({
   word: { alignItems: "flex-start", marginRight: 10, marginBottom: 2 },
   kt: { fontSize: 23, lineHeight: 30, letterSpacing: -0.23 },
   kg: { fontFamily: amFonts.medium, fontSize: 11, lineHeight: 14, letterSpacing: 0.22, opacity: 0.9 },
-  translation: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingBottom: 12 },
+  // The prototype's line box is 23px tall (16px parent strut) with the 18px text near its top: 35px in all.
+  translation: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingTop: 4.5, paddingBottom: 12.5 },
   noTranslation: { height: 8 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   emptyText: { fontFamily: amFonts.regular, fontSize: 16, lineHeight: 23, color: playerColors.textSoft, textAlign: "center" },

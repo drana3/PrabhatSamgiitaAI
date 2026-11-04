@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSprin
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { useSheetCover } from "@/components/nav-v2/sheetCover"
 import { PressScale } from "@/components/today/motion"
 import { amReveal, amSpring } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
@@ -56,11 +57,13 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
   const pause = usePlayerStore((s) => s.pause)
   const next = usePlayerStore((s) => s.next)
 
+  // A bottom sheet covers the mini player, as in the prototype.
+  const covered = useSheetCover((s) => s.count > 0)
   const shown = useSharedValue(visible ? 1 : 0)
   useEffect(() => {
-    const target = visible ? 1 : 0
+    const target = visible && !covered ? 1 : 0
     shown.value = reduce ? withTiming(target, { duration: amReveal.durationMs / 2 }) : withSpring(target, amSpring.default)
-  }, [visible, reduce, shown])
+  }, [visible, covered, reduce, shown])
 
   const animated = useAnimatedStyle(() => ({
     opacity: shown.value,
@@ -74,7 +77,7 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
 
   return (
     <Animated.View
-      pointerEvents={visible ? "box-none" : "none"}
+      pointerEvents={visible && !covered ? "box-none" : "none"}
       aria-hidden={!visible}
       style={[styles.slot, { bottom: miniBottom }, animated]}
     >
