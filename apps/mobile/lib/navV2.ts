@@ -125,6 +125,12 @@ export function tabIndexAtX(x: number, tabWidth: number, count: number): number 
   return clamp(Math.floor(x / tabWidth), 0, count - 1)
 }
 
+/** Declared before rubberBand: the worklet plugin captures it at definition time. */
+function rubberOffset(distance: number, dimension: number, coefficient: number): number {
+  "worklet"
+  return (1 - 1 / ((distance * coefficient) / dimension + 1)) * dimension
+}
+
 /**
  * Apple-style rubber band: past the limits the indicator follows the finger
  * with growing resistance instead of stopping hard. `dimension` is the span
@@ -136,11 +142,6 @@ export function rubberBand(x: number, min: number, max: number, dimension: numbe
   if (x < min) return min - rubberOffset(min - x, dimension, coefficient)
   if (x > max) return max + rubberOffset(x - max, dimension, coefficient)
   return x
-}
-
-function rubberOffset(distance: number, dimension: number, coefficient: number): number {
-  "worklet"
-  return (1 - 1 / ((distance * coefficient) / dimension + 1)) * dimension
 }
 
 /**
