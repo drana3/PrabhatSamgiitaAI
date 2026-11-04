@@ -1,55 +1,49 @@
-
-import { Chip, ChipRow, PillButton, SectionLabel } from "@/components/player-v2/Rows"
 import { Sheet } from "@/components/player-v2/Sheet"
+import { SheetGroup, SheetRow } from "@/components/player-v2/Rows"
 import type { AmTheme } from "@/constants/tokens/amColors"
-import { SLEEP_PRESET_MINUTES, type SleepTimer } from "@/lib/playerV2/sleepTimer"
-import { formatRate, SPEED_STEPS } from "@/lib/playerV2/playbackSpeed"
+import { formatRate } from "@/lib/playerV2/playbackSpeed"
 
 type Props = {
   visible: boolean
   theme: AmTheme
   rate: number
-  sleep: SleepTimer
-  /** Label of the running timer ("12:30", "End of song") or null when off. */
-  sleepRunning: string | null
-  onRate: (rate: number) => void
-  onSleepMinutes: (minutes: number) => void
-  onSleepEndOfSong: () => void
-  onSleepOff: () => void
+  /** "Off", "15 min", "12:30" or "End of song". */
+  sleepValue: string
+  onCycleSpeed: () => void
+  onCycleSleep: () => void
   onDrive: () => void
   onClose: () => void
 }
 
-/** The "more" sheet: speed, sleep timer and Drive (SCR-31). */
+/** The "more" sheet (prototype MORE): speed, sleep timer and Drive mode; the first two step through their options on each tap. */
 export function PlaybackSheet(props: Props) {
-  const { theme, sleep } = props
+  const { theme } = props
   return (
-    <Sheet visible={props.visible} onClose={props.onClose} title="Playback" theme={theme} heightShare={0.6}>
-      <SectionLabel theme={theme}>Speed</SectionLabel>
-      <ChipRow>
-        {SPEED_STEPS.map((step) => (
-          <Chip key={step} theme={theme} label={formatRate(step)} selected={props.rate === step} onPress={() => props.onRate(step)} />
-        ))}
-      </ChipRow>
-
-      <SectionLabel theme={theme}>{props.sleepRunning ? `Sleep timer · ${props.sleepRunning}` : "Sleep timer"}</SectionLabel>
-      <ChipRow>
-        <Chip theme={theme} label="Off" selected={sleep.kind === "off"} onPress={props.onSleepOff} />
-        {SLEEP_PRESET_MINUTES.map((m) => (
-          <Chip
-            key={m}
-            theme={theme}
-            label={`${m} min`}
-            selected={sleep.kind === "minutes" && sleep.minutes === m}
-            onPress={() => props.onSleepMinutes(m)}
-          />
-        ))}
-        <Chip theme={theme} label="End of song" selected={sleep.kind === "endOfSong"} onPress={props.onSleepEndOfSong} />
-      </ChipRow>
-
-      <SectionLabel theme={theme}>Driving</SectionLabel>
-      <PillButton theme={theme} label="Drive mode" tone="ink" onPress={props.onDrive} />
+    <Sheet visible={props.visible} onClose={props.onClose} title="Playback" theme={theme}>
+      <SheetGroup theme={theme}>
+        <SheetRow
+          theme={theme}
+          title="Speed"
+          meta="Tap to step from 0.5× to 1.5×"
+          value={formatRate(props.rate).replace("x", "×")}
+          onPress={props.onCycleSpeed}
+        />
+        <SheetRow
+          theme={theme}
+          title="Sleep timer"
+          meta="Stops playback after a while"
+          value={props.sleepValue}
+          onPress={props.onCycleSleep}
+        />
+        <SheetRow
+          theme={theme}
+          title="Drive mode"
+          meta="Big buttons, lyrics hidden, screen stays on"
+          value="Start"
+          onPress={props.onDrive}
+          last
+        />
+      </SheetGroup>
     </Sheet>
   )
 }
-

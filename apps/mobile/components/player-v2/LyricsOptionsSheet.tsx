@@ -1,9 +1,5 @@
-import { StyleSheet, Text, View } from "react-native"
-
-import { Chip, ChipRow, SectionLabel } from "@/components/player-v2/Rows"
 import { Sheet } from "@/components/player-v2/Sheet"
-import { amSpace } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
+import { SheetGroup, SheetNote, SheetRow } from "@/components/player-v2/Rows"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import type { LyricScript, TranslationLang } from "@/stores/playerV2Store"
 
@@ -13,72 +9,59 @@ type Props = {
   script: LyricScript
   translation: TranslationLang
   wordMeanings: boolean
-  /** What the current song actually has. Options without data are shown but disabled, with the reason. */
+  /** What the current song actually has; the choice is kept, the panel falls back and the note says why. */
   hasDevanagari: boolean
-  hasLineTranslation: boolean
+  hasTranslation: boolean
   hasWordMeanings: boolean
-  onScript: (script: LyricScript) => void
-  onTranslation: (lang: TranslationLang) => void
-  onWordMeanings: (on: boolean) => void
+  onCycleScript: () => void
+  onCycleTranslation: () => void
+  onToggleWordMeanings: () => void
   onClose: () => void
 }
 
-/** The `Aa` sheet: Script, Translation, Word meanings (SCR-31). */
+const TRANSLATION_LABEL: Record<TranslationLang, string> = {
+  en: "English",
+  ru: "Русский",
+  off: "No translation",
+}
+
+/** The `Aa` sheet (prototype LYRICS DISPLAY): Script, Translation, Word meanings; each row steps through its options. */
 export function LyricsOptionsSheet(props: Props) {
   const { theme } = props
+  const missing: string[] = []
+  if (props.script === "devanagari" && !props.hasDevanagari) missing.push("Devanagari is not available for this song yet, so it shows in Roman letters.")
+  if (props.translation !== "off" && !props.hasTranslation) missing.push(`${TRANSLATION_LABEL[props.translation]} translation is not available for this song yet.`)
+  if (props.wordMeanings && !props.hasWordMeanings) missing.push("Word meanings are not available for this song yet.")
   return (
-    <Sheet visible={props.visible} onClose={props.onClose} title="Lyrics" theme={theme} heightShare={0.52}>
-      <SectionLabel theme={theme}>Script</SectionLabel>
-      <ChipRow>
-        <Chip theme={theme} label="Roman" selected={props.script === "roman"} onPress={() => props.onScript("roman")} />
-        <Chip
+    <Sheet visible={props.visible} onClose={props.onClose} title="Lyrics display" theme={theme}>
+      <SheetGroup theme={theme}>
+        <SheetRow
           theme={theme}
-          label="Devanagari"
-          selected={props.script === "devanagari"}
-          disabled={!props.hasDevanagari}
-          onPress={() => props.onScript("devanagari")}
+          title="Script"
+          meta="Roman letters or Devanagari"
+          value={props.script === "devanagari" ? "देवनागरी" : "Roman"}
+          onPress={props.onCycleScript}
         />
-      </ChipRow>
-
-      <SectionLabel theme={theme}>Translation</SectionLabel>
-      <ChipRow>
-        <Chip
+        <SheetRow
           theme={theme}
-          label="English"
-          selected={props.translation === "en"}
-          disabled={!props.hasLineTranslation}
-          onPress={() => props.onTranslation("en")}
+          title="Translation"
+          meta="The language shown under each line"
+          value={TRANSLATION_LABEL[props.translation]}
+          onPress={props.onCycleTranslation}
         />
-        <Chip theme={theme} label="Off" selected={props.translation === "off"} onPress={() => props.onTranslation("off")} />
-      </ChipRow>
-      {!props.hasLineTranslation ? (
-        <Text style={[amType.body, styles.note, { color: theme.textBody }]}>
-          Line-by-line translation is not available for this song yet.
-        </Text>
-      ) : null}
-
-      <SectionLabel theme={theme}>Word meanings</SectionLabel>
-      <ChipRow>
-        <Chip
+        <SheetRow
           theme={theme}
-          label="On"
-          selected={props.wordMeanings}
-          disabled={!props.hasWordMeanings}
-          onPress={() => props.onWordMeanings(true)}
+          title="Word meanings"
+          meta="A short gloss under every word"
+          value={props.wordMeanings ? "On" : "Off"}
+          onPress={props.onToggleWordMeanings}
+          last
         />
-        <Chip theme={theme} label="Off" selected={!props.wordMeanings} onPress={() => props.onWordMeanings(false)} />
-      </ChipRow>
-      {!props.hasWordMeanings ? (
-        <View>
-          <Text style={[amType.body, styles.note, { color: theme.textBody }]}>
-            Word meanings need word-level data (API-11) and are not available yet.
-          </Text>
-        </View>
-      ) : null}
+      </SheetGroup>
+      <SheetNote theme={theme}>
+        These change only what you see in the lyrics panel. The recording does not change.
+        {missing.length ? `\n${missing.join(" ")}` : ""}
+      </SheetNote>
     </Sheet>
   )
 }
-
-const styles = StyleSheet.create({
-  note: { marginTop: amSpace.s2 },
-})

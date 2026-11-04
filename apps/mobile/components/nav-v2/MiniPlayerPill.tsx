@@ -1,19 +1,28 @@
 import { useEffect } from "react"
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
 import { BlurView } from "expo-blur"
-import { Pause, Play, SkipForward } from "lucide-react-native"
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { PressScale } from "@/components/today/motion"
 import { amReveal, amSpring } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
 import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
-import { miniPillPalette, miniProgress, miniSubtitle, navV2Layout, isDarkTheme } from "@/lib/navV2"
+import { miniProgress, miniSubtitle, navV2Layout, isDarkTheme } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { usePlayerStore } from "@/stores/playerStore"
+
+/**
+ * Pill colours from the prototype (.mini): white 38% with a 60% edge in Light, forest
+ * rgb(34,43,29) at 90% with an 18% edge in Dark, and a 1px highlight along the top edge.
+ */
+const MINI_PALETTE = {
+  light: { background: "rgba(255, 255, 255, 0.38)", edge: "rgba(255, 255, 255, 0.6)", highlight: "rgba(255, 255, 255, 0.55)" },
+  dark: { background: "rgba(34, 43, 29, 0.9)", edge: "rgba(255, 255, 255, 0.18)", highlight: "rgba(255, 255, 255, 0.12)" },
+} as const
 
 /** Distance the pill travels when it appears or leaves. */
 const SLIDE = 16
@@ -35,7 +44,7 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
   const theme = useAmTheme()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
-  const palette = miniPillPalette(theme)
+  const palette = MINI_PALETTE[isDarkTheme(theme) ? "dark" : "light"]
   const { miniBottom } = navV2Layout(insets.bottom)
 
   const currentSong = usePlayerStore((s) => s.currentSong)
@@ -66,8 +75,7 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
   return (
     <Animated.View
       pointerEvents={visible ? "box-none" : "none"}
-      accessibilityElementsHidden={!visible}
-      importantForAccessibility={visible ? "auto" : "no-hide-descendants"}
+      aria-hidden={!visible}
       style={[styles.slot, { bottom: miniBottom }, animated]}
     >
       <View style={[styles.pill, { backgroundColor: palette.background, borderColor: palette.edge }]}>
@@ -77,6 +85,7 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
           experimentalBlurMethod="dimezisBlurView"
           style={StyleSheet.absoluteFill}
         />
+        <View pointerEvents="none" style={[styles.highlight, { backgroundColor: palette.highlight }]} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Open the player, ${currentSong.title}`}
@@ -103,9 +112,9 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
           {isBuffering ? (
             <ActivityIndicator color={theme.onBrand} size="small" />
           ) : showPause ? (
-            <Pause size={22} color={theme.onBrand} fill={theme.onBrand} />
+            <PlayerIcon name="pause" size={22} color={theme.onBrand} />
           ) : (
-            <Play size={22} color={theme.onBrand} fill={theme.onBrand} />
+            <PlayerIcon name="play" size={22} color={theme.onBrand} />
           )}
         </PressScale>
         <PressScale
@@ -114,7 +123,7 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
           onPress={() => next()}
           style={styles.control}
         >
-          <SkipForward size={22} color={theme.textHeading} fill={theme.textHeading} />
+          <PlayerIcon name="next" size={22} color={theme.textHeading} />
         </PressScale>
 
         <View pointerEvents="none" style={styles.track}>
@@ -170,6 +179,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  highlight: { position: "absolute", left: 0, right: 0, top: 0, height: 1 },
   track: {
     position: "absolute",
     left: 0,

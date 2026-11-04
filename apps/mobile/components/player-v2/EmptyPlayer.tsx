@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: amSpace.s4,
     paddingVertical: amSpace.s3,
     borderRadius: amRadius.card,
-    backgroundColor: playerColors.glass,
+    backgroundColor: playerColors.glassDark,
     borderWidth: 1,
     borderColor: playerColors.glassEdge,
   },
