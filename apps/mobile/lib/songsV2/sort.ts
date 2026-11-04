@@ -108,6 +108,10 @@ function railLabelFor(entry: CatalogEntry, key: SortKey): string {
     case "short":
     case "long":
       return formatDuration(entry.durationSeconds) ?? ""
+    case "new":
+      return entry.addedRank == null ? `PS ${entry.number}` : `Added ${1 + (entry.addedRank % 28)} d ago`
+    case "most":
+      return entry.plays == null ? `PS ${entry.number}` : `${entry.plays} plays`
     default:
       return `PS ${entry.number}`
   }

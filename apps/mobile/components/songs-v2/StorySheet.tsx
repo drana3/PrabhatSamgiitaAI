@@ -2,11 +2,10 @@ import { useCallback, useEffect, useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
-import { PillButton } from "@/components/songs-v2/Pill"
+import { BrandPill } from "@/components/songs-v2/primitives"
 import { Press } from "@/components/songs-v2/Press"
-import type { AmTheme } from "@/constants/tokens/amColors"
-import { amSpace } from "@/constants/tokens/amSpacing"
-import { amType } from "@/constants/tokens/amTypography"
+import type { SongsTheme } from "@/constants/tokens/amSongs"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { storyLoader } from "@/lib/songsV2/storyApi"
 import { buildStorySheet, type StorySheetContent } from "@/lib/songsV2/storySheet"
 
@@ -27,7 +26,7 @@ export function StorySheet({
   onOpenSong,
 }: {
   open: boolean
-  theme: AmTheme
+  theme: SongsTheme
   slug: string | null
   preview?: Preview | null
   onClose: () => void
@@ -71,25 +70,21 @@ export function StorySheet({
       eyebrow={content?.eyebrow ?? "Story"}
       accessibilityLabel="Story"
     >
-      {content ? <Text style={[amType.title, { color: theme.textHeading }]}>{content.title}</Text> : null}
+      {content ? <Text style={[styles.title, { color: theme.textHeading }]}>{content.title}</Text> : null}
       {content?.paragraphs.map((paragraph, index) => (
-        <Text key={index} style={[amType.body, { color: theme.textBody }]}>
+        <Text key={index} style={[styles.body, { color: theme.textHeading }]}>
           {paragraph}
         </Text>
       ))}
-      {!content && !failed ? <Text style={[amType.body, { color: theme.textMuted }]}>Loading the story…</Text> : null}
+      {!content && !failed ? <Text style={[styles.body, { color: theme.textBody }]}>Loading the story…</Text> : null}
       {failed && !hasBody ? (
         <Press accessibilityRole="button" accessibilityLabel="Try again" onPress={retry} style={styles.retry}>
-          <Text style={[amType.body, { color: theme.textBody }]}>Could not load this story. Tap to try again.</Text>
+          <Text style={[styles.body, { color: theme.textBody }]}>Could not load this story. Tap to try again.</Text>
         </Press>
       ) : null}
       {content?.songHref ? (
         <View style={styles.cta}>
-          <PillButton
-            theme={theme}
-            label="Open the song"
-            onPress={() => onOpenSong(content.songHref!)}
-          />
+          <BrandPill theme={theme} label="Open the song" onPress={() => onOpenSong(content.songHref!)} />
         </View>
       ) : null}
     </BottomSheet>
@@ -97,6 +92,8 @@ export function StorySheet({
 }
 
 const styles = StyleSheet.create({
-  cta: { alignItems: "flex-start", paddingTop: amSpace.s2, paddingBottom: amSpace.s6 },
-  retry: { paddingVertical: amSpace.s3 },
+  title: { fontFamily: amFonts.display, fontSize: 28, lineHeight: 28, letterSpacing: -0.56, textTransform: "uppercase" },
+  body: { fontFamily: amFonts.regular, fontSize: 17, lineHeight: 26 },
+  cta: { alignItems: "flex-start", marginTop: 4, marginBottom: 24 },
+  retry: { paddingVertical: 12 },
 })

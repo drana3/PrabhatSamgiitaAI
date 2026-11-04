@@ -12,7 +12,7 @@ import {
   restrictToNumbers,
   type FilterState,
 } from "@/lib/songsV2/filters"
-import { availableSortOptions, buildRows, DEFAULT_SORT, resolveSort, type SortKey } from "@/lib/songsV2/sort"
+import { availableSortOptions, buildRows, DEFAULT_SORT, isGroupedSort, resolveSort, type SortKey } from "@/lib/songsV2/sort"
 
 const SORT_KEY = "ps-songs-v2-sort"
 
@@ -53,7 +53,9 @@ export function useCatalogController(entries: CatalogEntry[]) {
 
   const chipNumbers = useMemo(() => (chip === "all" ? null : new Set(songNumbersForCategory(chip))), [chip])
   const filtered = useMemo(() => applyFilters(restrictToNumbers(entries, chipNumbers), filters), [entries, chipNumbers, filters])
-  const rows = useMemo(() => buildRows(filtered, effectiveSort).rows, [filtered, effectiveSort])
+  const built = useMemo(() => buildRows(filtered, effectiveSort), [filtered, effectiveSort])
+  const rows = built.rows
+  const groups = built.groups
   const languages = useMemo(() => languageOptions(entries), [entries])
 
   const clearAll = useCallback(() => {
@@ -79,6 +81,8 @@ export function useCatalogController(entries: CatalogEntry[]) {
     setMenuEntry,
     filtered,
     rows,
+    groups,
+    grouped: isGroupedSort(effectiveSort),
     languages,
     clearAll,
   }

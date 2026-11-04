@@ -51,16 +51,16 @@ export type SpecialTile = {
 }
 
 /**
- * Special collections (spec SCR-17 item 3). Colours are arranged so that no
- * tile has the same tone as a neighbour in the two-column grid.
+ * Special collections (spec SCR-17 item 3). Tones follow the prototype (olive, white, white,
+ * olive, olive, white), so no tile shares a tone with a neighbour in the two-column grid.
  */
 export const SPECIAL_TILES: readonly SpecialTile[] = [
-  { id: "kiirtan", label: "Kiirtan", tone: "forest", browseId: "devotional" },
-  { id: "dhyana", label: "Dhyána", tone: "olive", browseId: "meditation" },
+  { id: "kiirtan", label: "Kiirtan", tone: "olive", browseId: "devotional" },
+  { id: "dhyana", label: "Dhyána", tone: "white", browseId: "meditation" },
   { id: "morning", label: "Morning", tone: "white", browseId: "morning" },
-  { id: "evening", label: "Evening", tone: "peach", browseId: "evening" },
+  { id: "evening", label: "Evening", tone: "olive", browseId: "evening" },
   { id: "nature", label: "Nature", tone: "olive", browseId: "nature" },
-  { id: "children", label: "Children", tone: "forest", browseId: "children" },
+  { id: "children", label: "Children", tone: "white", browseId: "children" },
 ]
 
 export type TileWithCount = SpecialTile & { count: number; countLabel: string }

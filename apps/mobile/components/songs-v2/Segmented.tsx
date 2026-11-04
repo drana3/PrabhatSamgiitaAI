@@ -4,12 +4,11 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSprin
 
 import { Press } from "@/components/songs-v2/Press"
 import { amSpring } from "@/constants/tokens/amMotion"
-import type { AmTheme } from "@/constants/tokens/amColors"
-import { amControl, amRadius, amSpace } from "@/constants/tokens/amSpacing"
+import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { indicatorOffset, segmentCellWidth, segmentIndex, SONG_SEGMENTS, type SongSegmentId } from "@/lib/songsV2/segments"
 
-const INSET = amSpace.s1
+const INSET = 4
 
 /**
  * `Catalog | Collections | Mine`. A segment answers touch-down, not release.
@@ -21,20 +20,25 @@ export function Segmented({
   theme,
   value,
   onChange,
+  savedCount,
 }: {
-  theme: AmTheme
+  theme: SongsTheme
   value: SongSegmentId
   onChange: (id: SongSegmentId) => void
+  /** shown as "Mine · 3" */
+  savedCount?: number
 }) {
   const reduce = useReducedMotion()
   const [width, setWidth] = useState(0)
   const x = useSharedValue(0)
   const fade = useSharedValue(1)
-  const cell = segmentCellWidth(width, INSET)
+  // the track has a 1px border: the cell and offsets live inside it, like the CSS padding box
+  const inner = Math.max(0, width - 2)
+  const cell = segmentCellWidth(inner, INSET)
 
   useEffect(() => {
     if (!width) return
-    const target = indicatorOffset(segmentIndex(value), width, INSET)
+    const target = indicatorOffset(segmentIndex(value), inner, INSET)
     if (reduce) {
       fade.value = 0
       x.value = target
@@ -52,7 +56,7 @@ export function Segmented({
       onLayout={(event) => {
         const w = event.nativeEvent.layout.width
         if (w !== width) {
-          x.value = indicatorOffset(segmentIndex(value), w, INSET)
+          x.value = indicatorOffset(segmentIndex(value), Math.max(0, w - 2), INSET)
           setWidth(w)
         }
       }}
@@ -65,14 +69,16 @@ export function Segmented({
           <Press
             key={segment.id}
             accessibilityRole="tab"
-            accessibilityLabel={segment.label}
+            accessibilityLabel={segment.id === "mine" && savedCount !== undefined ? `Mine, ${savedCount} saved` : segment.label}
             accessibilityState={{ selected }}
             onPressIn={() => onChange(segment.id)}
             pressedScale={0.97}
             outerStyle={styles.outer}
             style={styles.cell}
           >
-            <Text style={[styles.label, { color: selected ? theme.onBrand : theme.textHeading }]}>{segment.label}</Text>
+            <Text style={[styles.label, { color: selected ? "#FFFFFF" : theme.textBody }]}>
+              {segment.id === "mine" && savedCount !== undefined ? `Mine · ${savedCount}` : segment.label}
+            </Text>
           </Press>
         )
       })}
@@ -82,8 +88,9 @@ export function Segmented({
 
 const styles = StyleSheet.create({
   track: {
-    height: amControl.pillHeight + INSET * 2,
-    borderRadius: amRadius.pill,
+    height: 56,
+    marginHorizontal: 10,
+    borderRadius: 70,
     borderWidth: 1,
     padding: INSET,
     flexDirection: "row",
@@ -94,9 +101,9 @@ const styles = StyleSheet.create({
     top: INSET,
     bottom: INSET,
     left: 0,
-    borderRadius: amRadius.pill,
+    borderRadius: 70,
   },
   outer: { flex: 1 },
-  cell: { flex: 1, alignItems: "center", justifyContent: "center" },
+  cell: { height: 46, alignItems: "center", justifyContent: "center" },
   label: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
 })
