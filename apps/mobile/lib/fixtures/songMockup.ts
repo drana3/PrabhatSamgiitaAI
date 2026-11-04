@@ -148,7 +148,7 @@ const RECS: Rec[] = [
   { inst: "voice", label: "Voice", who: "Performer A", tag: "Best", d: 0 },
   { inst: "guitar", label: "Guitar", who: "Performer B", tag: "Verified", d: 22 },
   { inst: "harmonium", label: "Harmonium", who: "Performer C", tag: "Verified", d: -18 },
-  { inst: "group", label: "Kirtan group", who: "Group D", tag: "Verified", d: 42 },
+  { inst: "group", label: "Kiirtan group", who: "Group D", tag: "Verified", d: 42 },
   { inst: "guitar", label: "Guitar", who: "Performer E", tag: "Community", d: 9 },
   { inst: "harmonium", label: "Harmonium, solo", who: "Performer F", tag: "Instrumental", d: -30 },
 ]

@@ -8,6 +8,6 @@ import { youtubeWatchUrl } from "@/lib/kirtan/youtube"
  */
 export function kirtanSharePayload(k: Pick<Kirtan, "title" | "videoId">): SharePayload {
   const url = youtubeWatchUrl(k.videoId)
-  const title = k.title.trim() || "Kirtan"
-  return { title: `Kirtan · ${title}`, message: `${title}, a kirtan on YouTube.\n${url}`, url }
+  const title = k.title.trim() || "Kiirtan"
+  return { title: `Kiirtan · ${title}`, message: `${title}, a kiirtan on YouTube.\n${url}`, url }
 }

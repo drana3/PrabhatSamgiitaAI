@@ -34,13 +34,13 @@ export function useKirtanActions() {
   const playNext = useCallback(
     (k: Kirtan) => {
       useKirtanPlayerStore.getState().playNext(k.id)
-      flash("Plays next in the kirtan player")
+      flash("Plays next in the kiirtan player")
     },
     [flash],
   )
 
   // TODO(api): kirtans in playlists need the backend; playlists hold songs only today.
-  const addToPlaylist = useCallback(() => flash("Kirtans in playlists are coming soon"), [flash])
+  const addToPlaylist = useCallback(() => flash("Kiirtans in playlists are coming soon"), [flash])
 
   const toggleSaved = useCallback(
     (k: Kirtan) => {

@@ -57,8 +57,8 @@ describe("parseYouTubeUrl", () => {
 
 describe("oEmbed", () => {
   it("reads title, author and an https thumbnail", () => {
-    expect(parseOEmbed({ title: " Kirtan ", author_name: "Group", thumbnail_url: "https://i.ytimg.com/vi/x/hqdefault.jpg" })).toEqual({
-      title: "Kirtan",
+    expect(parseOEmbed({ title: " Kiirtan ", author_name: "Group", thumbnail_url: "https://i.ytimg.com/vi/x/hqdefault.jpg" })).toEqual({
+      title: "Kiirtan",
       author: "Group",
       thumbnailUrl: "https://i.ytimg.com/vi/x/hqdefault.jpg",
     })

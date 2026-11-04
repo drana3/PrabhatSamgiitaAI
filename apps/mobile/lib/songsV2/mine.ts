@@ -4,7 +4,7 @@ import { placeholderEntry, rowEyebrow, type CatalogEntry } from "./entry"
 export const MINE_COPY = {
   savedEmpty: "Tap the heart on any song to keep it here.",
   playlistCaption:
-    "A playlist is a list of songs you put together yourself, for example for a morning meditation or an evening kirtan.",
+    "A playlist is a list of songs you put together yourself, for example for a morning meditation or an evening kiirtan.",
   newPlaylist: "New playlist",
   quickStartTitle: "Random Prabhat Samgiita",
   quickStartHint: "Shuffles the whole catalog and plays hands-free in Drive mode.",

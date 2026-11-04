@@ -69,7 +69,7 @@ export const HOME_NOTIFICATIONS: readonly AppNotification[] = [
 export const HOME_LIBRARY: readonly LibraryItem[] = buildLibraryItems({
   playlists: [
     { id: "mock-0", name: "Morning meditation", count: 3 },
-    { id: "mock-1", name: "Evening kirtan", count: 4 },
+    { id: "mock-1", name: "Evening kiirtan", count: 4 },
   ],
   savedCount: 3,
   downloadCount: 3,
@@ -95,7 +95,7 @@ export const SEARCH_DISCOVER: readonly DiscoverTag[] = [
   { id: "devotion", tag: "#devotion", cover: 1, query: "devotion" },
   { id: "surrender", tag: "#surrender", cover: 3, query: "surrender" },
   { id: "morning", tag: "#morning", cover: 2, query: "morning" },
-  { id: "kirtan", tag: "#kirtan", cover: 6, query: "kirtan" },
+  { id: "kirtan", tag: "#kiirtan", cover: 6, query: "kiirtan" },
 ]
 
 /** "Browse all": coloured tiles, two columns. Each opens an existing list or collection. */

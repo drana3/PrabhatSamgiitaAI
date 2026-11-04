@@ -143,10 +143,10 @@ export default function AddKirtanScreen() {
         ) : (
           <>
             <Reveal index={0}>
-              <Text style={[styles.over, { color: theme.accent }]}>Share a kirtan</Text>
+              <Text style={[styles.over, { color: theme.accent }]}>Share a kiirtan</Text>
               <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
                 Add{"\n"}
-                <Text style={{ color: theme.ink300 }}>kirtan</Text>
+                <Text style={{ color: theme.ink300 }}>kiirtan</Text>
               </Text>
             </Reveal>
 
@@ -228,7 +228,7 @@ export default function AddKirtanScreen() {
                         }}
                         onFocus={() => setFocus("title")}
                         onBlur={() => setFocus(null)}
-                        placeholder="Name of the kirtan"
+                        placeholder="Name of the kiirtan"
                         placeholderTextColor={theme.textMuted}
                         accessibilityLabel="Title"
                         maxLength={120}
@@ -281,7 +281,7 @@ export default function AddKirtanScreen() {
                   <Text style={[styles.hint, { color: amColors.danger }]} accessibilityLiveRegion="polite">
                     {error === "duplicate"
                       ? duplicate?.status === "approved"
-                        ? "This video is already in the kirtan list."
+                        ? "This video is already in the kiirtan list."
                         : "You already sent this video. It is waiting for review."
                       : SUBMISSION_ERROR_TEXT[error]}
                   </Text>
@@ -291,7 +291,7 @@ export default function AddKirtanScreen() {
                   <Text style={styles.sendText}>Send for review</Text>
                 </KPress>
                 <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>
-                  A reviewer looks at every kirtan before it appears for everyone. It plays in YouTube's own player.
+                  A reviewer looks at every kiirtan before it appears for everyone. It plays in YouTube's own player.
                 </Text>
               </>
             ) : null}
@@ -322,7 +322,7 @@ function Sent({ theme, kirtan, onView, onAnother }: { theme: SongsTheme; kirtan:
         </Text>
       </View>
       <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>
-        Thank you. You can follow it under Kirtan, Your submissions. It plays for everyone once it is approved.
+        Thank you. You can follow it under Kiirtan, Your submissions. It plays for everyone once it is approved.
       </Text>
       <KPress accessibilityRole="button" accessibilityLabel="See my submissions" onPress={onView} pressedScale={0.98} outerStyle={styles.full} style={[styles.send, { backgroundColor: theme.brand }]}>
         <Text style={styles.sendText}>See my submissions</Text>

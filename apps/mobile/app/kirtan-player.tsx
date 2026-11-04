@@ -98,7 +98,7 @@ export default function KirtanPlayerScreen() {
   const next = useMemo(() => (inMix ? handoffAfter(mixItems!, mixIndex) : null), [inMix, mixItems, mixIndex])
 
   const titleOfMixItem = useCallback(
-    (item: { kind: "ps"; number: number } | { kind: "kirtan"; id: string }) => (item.kind === "kirtan" ? byId.get(item.id)?.title ?? "Kirtan" : `PS ${item.number}`),
+    (item: { kind: "ps"; number: number } | { kind: "kirtan"; id: string }) => (item.kind === "kirtan" ? byId.get(item.id)?.title ?? "Kiirtan" : `PS ${item.number}`),
     [byId],
   )
 
@@ -199,11 +199,11 @@ export default function KirtanPlayerScreen() {
       <View style={[styles.column, { paddingTop: top, paddingBottom: bottom }]}>
         <Reveal index={0}>
           <View style={styles.topBar}>
-            <TouchButton accessibilityRole="button" accessibilityLabel="Close the kirtan player" onAction={close} style={styles.topButton}>
+            <TouchButton accessibilityRole="button" accessibilityLabel="Close the kiirtan player" onAction={close} style={styles.topButton}>
               <PlayerIcon name="chevronDown" size={30} color={amColors.white} />
             </TouchButton>
             <Text style={styles.label} accessibilityRole="header">
-              Kirtan
+              Kiirtan
             </Text>
             <TouchButton accessibilityRole="button" accessibilityLabel="More actions" onAction={() => kirtan && setSheet("menu")} style={styles.topButton}>
               <PlayerIcon name="more" size={playerSize.topIcon} color={amColors.white} />
@@ -213,7 +213,7 @@ export default function KirtanPlayerScreen() {
 
         {!kirtan ? (
           <View style={styles.missing}>
-            <Text style={styles.missingTitle}>This kirtan is not in the list.</Text>
+            <Text style={styles.missingTitle}>This kiirtan is not in the list.</Text>
             <TouchButton accessibilityRole="button" accessibilityLabel="Back to the list" onAction={close} style={styles.listButton}>
               <Text style={styles.listButtonText}>Back to the list</Text>
             </TouchButton>
@@ -316,7 +316,7 @@ export default function KirtanPlayerScreen() {
         onClose={() => setSheet((cur) => (cur === "menu" ? null : cur))}
       />
       <KirtanShareSheet open={sheet === "share"} theme={theme} kirtan={sheet === "share" ? kirtan : null} onShare={onShare} onClose={() => setSheet((cur) => (cur === "share" ? null : cur))} />
-      <BottomSheet open={sheet === "queue"} onClose={() => setSheet((cur) => (cur === "queue" ? null : cur))} theme={theme} eyebrow="Up next" accessibilityLabel="Kirtan queue">
+      <BottomSheet open={sheet === "queue"} onClose={() => setSheet((cur) => (cur === "queue" ? null : cur))} theme={theme} eyebrow="Up next" accessibilityLabel="Kiirtan queue">
         {upcoming.length ? (
           <View style={styles.queue}>
             {upcoming.map((k) => (
@@ -338,7 +338,7 @@ export default function KirtanPlayerScreen() {
             ))}
           </View>
         ) : (
-          <Text style={[styles.queueEmpty, { color: theme.textBody }]}>Nothing is waiting. Choose "Play next" in a kirtan's menu to line one up.</Text>
+          <Text style={[styles.queueEmpty, { color: theme.textBody }]}>Nothing is waiting. Choose "Play next" in a kiirtan's menu to line one up.</Text>
         )}
       </BottomSheet>
       <Toast message={actions.toast} theme={theme} />

@@ -118,7 +118,7 @@ describe("versions and download", () => {
   it("reads the instrument from the title", () => {
     expect(inferInstrument("Guitar - B")).toBe("guitar")
     expect(inferInstrument("harmonium solo")).toBe("harmonium")
-    expect(inferInstrument("Group kirtan")).toBe("group")
+    expect(inferInstrument("Group kiirtan")).toBe("group")
     expect(inferInstrument("Original rendition")).toBe("voice")
   })
 

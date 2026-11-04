@@ -77,7 +77,7 @@ export const MOCK_OFFLINE: readonly number[] = [1, 3, 6]
 
 export const MOCK_PLAYLISTS: readonly { id: string; name: string; songs: number[] }[] = [
   { id: "mock-0", name: "Morning meditation", songs: [1, 3, 5] },
-  { id: "mock-1", name: "Evening kirtan", songs: [2, 4, 6, 7] },
+  { id: "mock-1", name: "Evening kiirtan", songs: [2, 4, 6, 7] },
 ]
 
 export const MOCK_FESTIVALS: readonly { id: string; label: string; eyebrow: string; count: number; songNumbers: number[] }[] = [

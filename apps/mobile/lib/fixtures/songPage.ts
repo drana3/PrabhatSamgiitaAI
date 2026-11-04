@@ -178,12 +178,12 @@ export function fixtureExtras(romanLines: string[], songNumber: number): SongExt
 
 /** TODO(api): "More videos" rows of the Watch section (placeholder titles of the prototype). */
 export const FIXTURE_MORE_VIDEOS = [
-  { name: "Kirtan with the group", meta: "Placeholder", len: "4:12" },
+  { name: "Kiirtan with the group", meta: "Placeholder", len: "4:12" },
   { name: "Lyrics on screen", meta: "Placeholder", len: "3:58" },
 ]
 
 /** TODO(api): playlists of the signed-in user until the playlist store feeds the sheet (it does when signed in). */
 export const FIXTURE_PLAYLISTS = [
   { id: "fx-morning", name: "Morning meditation", songs: [1, 3, 5] },
-  { id: "fx-evening", name: "Evening kirtan", songs: [2, 4, 6, 7] },
+  { id: "fx-evening", name: "Evening kiirtan", songs: [2, 4, 6, 7] },
 ]

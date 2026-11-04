@@ -50,7 +50,7 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
   }
   const ink = theme.textHeading
   return (
-    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Kirtan" accessibilityLabel="Kirtan actions">
+    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Kiirtan" accessibilityLabel="Kiirtan actions">
       {shown ? (
         <Text style={[styles.menuTitle, { color: theme.textHeading }]} numberOfLines={3}>
           {shown.title}
@@ -88,7 +88,7 @@ export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { op
   if (kirtan) last.current = kirtan
   const shown = kirtan ?? last.current
   return (
-    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Share" accessibilityLabel="Share kirtan">
+    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Share" accessibilityLabel="Share kiirtan">
       {shown ? (
         <Text style={[styles.menuTitle, { color: theme.textHeading }]} numberOfLines={3}>
           {shown.title}

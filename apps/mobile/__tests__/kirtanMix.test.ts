@@ -20,8 +20,8 @@ describe("fixtures", () => {
   })
 
   it("has the four system mixes with the promised makeup", () => {
-    expect(MIX_FIXTURES.map((m) => m.title)).toEqual(["Morning", "Dipavali", "Evening meditation", "Kirtan only: Baba Nam Kevalam"])
-    expect(mixCaption(MIX_FIXTURES[0].items)).toBe("3 songs + 2 kirtans")
+    expect(MIX_FIXTURES.map((m) => m.title)).toEqual(["Morning", "Dipavali", "Evening meditation", "Kiirtan only: Baba Nam Kevalam"])
+    expect(mixCaption(MIX_FIXTURES[0].items)).toBe("3 songs + 2 kiirtans")
     expect(MIX_FIXTURES[3].items.every((i) => i.kind === "kirtan")).toBe(true)
   })
 })
@@ -47,9 +47,9 @@ describe("mix ordering", () => {
   const items = [ps(2), ps(3), k("a"), ps(1), k("b")]
 
   it("captions with singular and plural", () => {
-    expect(mixCaption(items)).toBe("3 songs + 2 kirtans")
+    expect(mixCaption(items)).toBe("3 songs + 2 kiirtans")
     expect(mixCaption([ps(1)])).toBe("1 song")
-    expect(mixCaption([k("a"), k("b")])).toBe("2 kirtans")
+    expect(mixCaption([k("a"), k("b")])).toBe("2 kiirtans")
     expect(mixCaption([])).toBe("Empty")
   })
 
@@ -82,7 +82,7 @@ describe("mix ordering", () => {
   })
 
   it("words the prompt", () => {
-    expect(handoffPrompt("Baba Nam Kevalam", "kirtan-player")).toBe("Next: Baba Nam Kevalam (opens kirtan player)")
+    expect(handoffPrompt("Baba Nam Kevalam", "kirtan-player")).toBe("Next: Baba Nam Kevalam (opens kiirtan player)")
     expect(handoffPrompt("Bandhu He", "song-player")).toBe("Next: Bandhu He (opens song player)")
   })
 })
@@ -112,9 +112,9 @@ import { splitKirtanTitle } from "@/lib/kirtan/list"
 describe("splitKirtanTitle", () => {
   it("makes the part before the first break heavy and the rest light", () => {
     expect(splitKirtanTitle("Baba Nam Kevalam, morning round")).toEqual({ heavy: "Baba Nam Kevalam,", light: "morning round" })
-    expect(splitKirtanTitle("Lila kirtan: Krishna and the flute")).toEqual({ heavy: "Lila kirtan:", light: "Krishna and the flute" })
-    expect(splitKirtanTitle("Dipavali kirtan - a night of lamps")).toEqual({ heavy: "Dipavali kirtan", light: "a night of lamps" })
-    expect(splitKirtanTitle("Buddha Purnima kirtan")).toEqual({ heavy: "Buddha Purnima kirtan", light: "" })
+    expect(splitKirtanTitle("Lila kiirtan: Krishna and the flute")).toEqual({ heavy: "Lila kiirtan:", light: "Krishna and the flute" })
+    expect(splitKirtanTitle("Dipavali kiirtan - a night of lamps")).toEqual({ heavy: "Dipavali kiirtan", light: "a night of lamps" })
+    expect(splitKirtanTitle("Buddha Purnima kiirtan")).toEqual({ heavy: "Buddha Purnima kiirtan", light: "" })
     expect(splitKirtanTitle("  ")).toEqual({ heavy: "", light: "" })
   })
 })

@@ -44,7 +44,7 @@ export function KirtanTag({ theme, color }: { theme: SongsTheme; color?: string 
   const tone = color ?? theme.accent
   return (
     <View style={[styles.tag, { borderColor: tone }]}>
-      <Text style={[styles.tagText, { color: tone }]}>KIRTAN</Text>
+      <Text style={[styles.tagText, { color: tone }]}>KIIRTAN</Text>
     </View>
   )
 }
@@ -180,7 +180,7 @@ export function AddKirtanRow({ theme, onPress }: { theme: SongsTheme; onPress: (
   return (
     <KPress
       accessibilityRole="button"
-      accessibilityLabel="Add kirtan. Share a public YouTube link."
+      accessibilityLabel="Add kiirtan. Share a public YouTube link."
       onPress={onPress}
       pressedScale={0.98}
       style={[styles.add, { borderColor: theme.accent }]}
@@ -189,7 +189,7 @@ export function AddKirtanRow({ theme, onPress }: { theme: SongsTheme; onPress: (
         <PlusGlyph color={theme.accent} strokeWidth={2.25} />
       </View>
       <View style={styles.rowText}>
-        <Text style={[styles.addTitle, { color: theme.textHeading }]}>Add kirtan</Text>
+        <Text style={[styles.addTitle, { color: theme.textHeading }]}>Add kiirtan</Text>
         <Text style={[styles.subText, { color: theme.textBody }]}>Share a public YouTube link for review</Text>
       </View>
       <ChevronGlyph color={theme.textBody} />
@@ -226,7 +226,7 @@ export function TypeChips({ theme, value, onChange }: { theme: SongsTheme; value
 
 export const SOURCE_SEGMENTS = [
   { id: "ps", label: "Prabhat Samgiita" },
-  { id: "kirtan", label: "Kirtan" },
+  { id: "kirtan", label: "Kiirtan" },
   { id: "mixes", label: "Mixes" },
 ] as const
 export type SourceId = (typeof SOURCE_SEGMENTS)[number]["id"]

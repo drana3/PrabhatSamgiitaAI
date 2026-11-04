@@ -41,7 +41,7 @@ export function typesInUse(list: readonly Pick<Kirtan, "type">[]): KirtanTypeFil
 
 /** Spoken label of a row for screen readers. */
 export function kirtanRowLabel(k: Kirtan): string {
-  return `Kirtan, ${k.title}. ${kirtanSubline(k)}`
+  return `Kiirtan, ${k.title}. ${kirtanSubline(k)}`
 }
 
 /**

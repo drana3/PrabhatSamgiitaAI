@@ -6,7 +6,7 @@
 
 export const KIRTAN_TYPES = [
   { id: "bnk", label: "Baba Nam Kevalam" },
-  { id: "lila", label: "Lila kirtan" },
+  { id: "lila", label: "Lila kiirtan" },
   { id: "festival", label: "Festival" },
   { id: "other", label: "Other" },
 ] as const

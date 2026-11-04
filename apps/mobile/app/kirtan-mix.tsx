@@ -135,7 +135,7 @@ export default function KirtanMixScreen() {
                 <PlayFilled size={18} color="#FFFFFF" />
                 <Text style={styles.playText}>Play</Text>
               </KPress>
-              <Text style={[styles.note, { color: theme.textBody }]}>Songs play in the song player, kirtans in the YouTube player. The other player opens when it is its turn, with a short pause between.</Text>
+              <Text style={[styles.note, { color: theme.textBody }]}>Songs play in the song player, kiirtans in the YouTube player. The other player opens when it is its turn, with a short pause between.</Text>
             </View>
           </View>
         }

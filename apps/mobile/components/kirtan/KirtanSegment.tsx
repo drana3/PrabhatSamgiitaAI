@@ -55,7 +55,7 @@ export function KirtanSegment({ inset, avatarTop }: { inset: number; avatarTop: 
     <View>
       <View style={{ height: inset }} />
       <SongsReveal index={0}>
-        <KirtanScreenHead theme={theme} title="Kirtan" count={playable.length} />
+        <KirtanScreenHead theme={theme} title="Kiirtan" count={playable.length} />
       </SongsReveal>
       <SongsReveal index={1} style={styles.block}>
         <AddKirtanRow theme={theme} onPress={() => router.push(href("/add-kirtan"))} />
@@ -105,7 +105,7 @@ export function KirtanSegment({ inset, avatarTop }: { inset: number; avatarTop: 
             </View>
           )}
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: theme.textBody }]}>No kirtans of this type yet. Add one with the button above.</Text>
+            <Text style={[styles.empty, { color: theme.textBody }]}>No kiirtans of this type yet. Add one with the button above.</Text>
           }
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}

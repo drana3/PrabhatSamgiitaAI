@@ -18,7 +18,7 @@ export const DEMO_LINE_SECONDS = 7
 export const DEMO_SAVED_NUMBERS = [1, 3]
 export const DEMO_PLAYLISTS: Array<{ id: string; name: string; songs: number[] }> = [
   { id: "demo-pl-0", name: "Morning meditation", songs: [1, 3, 5] },
-  { id: "demo-pl-1", name: "Evening kirtan", songs: [2, 4, 6, 7] },
+  { id: "demo-pl-1", name: "Evening kiirtan", songs: [2, 4, 6, 7] },
 ]
 
 export type DemoRow = { number: number; title: string; seconds: number }
@@ -102,7 +102,7 @@ const RECORDINGS: Array<{ instrument: Instrument; label: string; who: string; ta
   { instrument: "voice", label: "Voice", who: "Performer A", tag: "Best", delta: 0 },
   { instrument: "guitar", label: "Guitar", who: "Performer B", tag: "Verified", delta: 22 },
   { instrument: "harmonium", label: "Harmonium", who: "Performer C", tag: "Verified", delta: -18 },
-  { instrument: "group", label: "Kirtan group", who: "Group D", tag: "Verified", delta: 42 },
+  { instrument: "group", label: "Kiirtan group", who: "Group D", tag: "Verified", delta: 42 },
   { instrument: "guitar", label: "Guitar", who: "Performer E", tag: "Community", delta: 9 },
   { instrument: "harmonium", label: "Harmonium, solo", who: "Performer F", tag: "Instrumental", delta: -30 },
 ]

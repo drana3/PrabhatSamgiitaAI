@@ -30,7 +30,7 @@ export function mixCaption(items: readonly MixItem[]): string {
   const kirtans = items.length - songs
   const parts: string[] = []
   if (songs) parts.push(`${songs} ${songs === 1 ? "song" : "songs"}`)
-  if (kirtans) parts.push(`${kirtans} ${kirtans === 1 ? "kirtan" : "kirtans"}`)
+  if (kirtans) parts.push(`${kirtans} ${kirtans === 1 ? "kiirtan" : "kiirtans"}`)
   return parts.length ? parts.join(" + ") : "Empty"
 }
 
@@ -70,7 +70,7 @@ export function handoffAfter(items: readonly MixItem[], index: number): Handoff 
 
 /** Text of the prompt before the other player opens. */
 export function handoffPrompt(title: string, to: "song-player" | "kirtan-player"): string {
-  return `Next: ${title} (opens ${to === "kirtan-player" ? "kirtan player" : "song player"})`
+  return `Next: ${title} (opens ${to === "kirtan-player" ? "kiirtan player" : "song player"})`
 }
 
 /** The Mixes shelf of Songs and Home. */

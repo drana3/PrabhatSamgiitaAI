@@ -9,14 +9,14 @@ describe("sourceRows", () => {
       savedCount: 3,
       playlists: [
         { id: "a", name: "Morning", count: 1 },
-        { id: "b", name: "Kirtan", count: 12 },
+        { id: "b", name: "Kiirtan", count: 12 },
       ],
     })
     expect(rows).toEqual([
       { key: "all", name: "All songs", meta: "5,018 songs" },
       { key: "mine", name: "Mine", meta: "3 saved" },
       { key: "pl:a", name: "Morning", meta: "1 song, playlist" },
-      { key: "pl:b", name: "Kirtan", meta: "12 songs, playlist" },
+      { key: "pl:b", name: "Kiirtan", meta: "12 songs, playlist" },
     ])
   })
 })
