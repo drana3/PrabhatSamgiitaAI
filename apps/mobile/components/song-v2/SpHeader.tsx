@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   h1: {
     fontFamily: amFonts.display,
     fontSize: 30,
-    lineHeight: 29,
+    lineHeight: 29.4,
     letterSpacing: -0.6,
     textTransform: "uppercase",
   },

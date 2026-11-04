@@ -3,10 +3,11 @@ import { StyleSheet, Text, TextInput, View } from "react-native"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { localeOptions } from "@/constants/languages"
+import { localeOptions, type LocaleOption } from "@/constants/languages"
 import { SCRIPT_LABEL, type ScriptChoice, type ScriptId } from "@/lib/songPage/scripts"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { groupLanguages, type Coverage } from "@/lib/songPage/translations"
-import { versionDetail, formatLength, INSTRUMENT_LABEL, type DownloadPhase, type SongVersion } from "@/lib/songPage/versions"
+import { versionDetail, type DownloadPhase, type SongVersion } from "@/lib/songPage/versions"
 
 import { SpIcon } from "./SpIcon"
 import { SpSheet } from "./SpSheet"
@@ -52,6 +53,7 @@ function Row({
   on,
   kind,
   muted,
+  action,
   last,
   onPress,
 }: {
@@ -61,6 +63,8 @@ function Row({
   on: boolean
   kind: "check" | "radio"
   muted?: boolean
+  /** `.rq`: the orange word before the mark, e.g. "Request" */
+  action?: string
   last?: boolean
   onPress: () => void
 }) {
@@ -76,6 +80,7 @@ function Row({
         <Text style={[styles.lmB, { color: muted ? t.ink500 : t.ink800 }]}>{name}</Text>
         <Text style={[styles.lmS, { color: t.ink500 }]}>{sub}</Text>
       </View>
+      {action !== undefined ? <Text style={[styles.rq, { color: t.orange700 }]}>{action}</Text> : null}
       <SpMark t={t} on={on} kind={kind} />
     </SpPress>
   )
@@ -100,6 +105,10 @@ export function SpLanguageSheet({
   coverage,
   onToggleLanguage,
   onMissingScript,
+  options,
+  searchCount,
+  requested,
+  onRequest,
 }: {
   t: SpTheme
   visible: boolean
@@ -111,15 +120,28 @@ export function SpLanguageSheet({
   coverage: Record<string, Coverage>
   onToggleLanguage: (code: string) => void
   onMissingScript: (name: string) => void
+  /** Languages to list; all of them when left out */
+  options?: LocaleOption[]
+  /** Number in the search placeholder; the length of `options` when left out */
+  searchCount?: number
+  /** Languages the reader asked for, which have no translation yet */
+  requested: string[]
+  /** Ask for a language that has no translation yet (`Request`) */
+  onRequest: (code: string) => void
 }) {
   const [query, setQuery] = useState("")
-  const rows = useMemo(() => groupLanguages(coverage, query).flatMap((group) => group.rows), [coverage, query])
+  const pool = options ?? localeOptions
+  const rows = useMemo(
+    () => groupLanguages(coverage, query, pool).flatMap((group) => group.rows),
+    [coverage, query, pool],
+  )
   const scriptRows: Array<{ id: ScriptChoice; name: string; sub: string; missing?: boolean }> = [
     { id: "roman", name: "Roman", sub: "Latin letters, for example Bandhu, Álo" },
     { id: "devanagari", name: "देवनागरी", sub: "Devanagari" },
     { id: "bengali", name: "বাংলা", sub: scripts.includes("bengali") ? "Bengali" : "Bengali, not added yet" },
   ]
-  const hasBoth = scripts.length > 1 && scripts.includes("roman")
+  // The prototype has no Both row (its boards show Roman or Devanagari only), so the preview leaves it out.
+  const hasBoth = !MOCKUP_DATA && scripts.length > 1 && scripts.includes("roman")
   return (
     <SpSheet t={t} visible={visible} onClose={onClose} label="Script and translations" testID="sp-lang-sheet">
       <ShTitle t={t} label="Script" />
@@ -164,7 +186,7 @@ export function SpLanguageSheet({
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder={`Search ${localeOptions.length} languages`}
+          placeholder={`Search ${searchCount ?? pool.length} languages`}
           placeholderTextColor={t.ink500}
           accessibilityLabel="Search languages"
           autoCorrect={false}
@@ -179,12 +201,17 @@ export function SpLanguageSheet({
             key={row.option.code}
             t={t}
             name={row.option.label}
-            sub={`${row.option.nativeLabel} · ${STATE_TEXT[row.coverage]}`}
+            sub={`${row.option.nativeLabel} · ${
+              row.coverage === "none" && requested.includes(row.option.code) ? "Requested" : STATE_TEXT[row.coverage]
+            }`}
             on={selected.includes(row.option.code)}
             kind="check"
             muted={row.coverage === "none"}
+            action={row.coverage === "none" && !requested.includes(row.option.code) ? "Request" : ""}
             last={i === rows.length - 1}
-            onPress={() => onToggleLanguage(row.option.code)}
+            onPress={() =>
+              row.coverage === "none" ? onRequest(row.option.code) : onToggleLanguage(row.option.code)
+            }
           />
         ))}
       </Group>
@@ -210,6 +237,7 @@ export function SpRecordingsSheet({
   progress,
   showDownload,
   onDownload,
+  sizeText,
 }: {
   t: SpTheme
   visible: boolean
@@ -221,13 +249,17 @@ export function SpRecordingsSheet({
   progress: number
   showDownload: boolean
   onDownload: () => void
+  /** File size shown on the idle pill: `Download · 3.7 MB` */
+  sizeText?: string
 }) {
   const dlText =
     phase === "saved"
       ? "Downloaded"
       : phase === "downloading"
         ? `Downloading ${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`
-        : "Download"
+        : sizeText
+          ? `Download · ${sizeText}`
+          : "Download"
   return (
     <SpSheet t={t} visible={visible} onClose={onClose} label="Recordings" testID="sp-recordings-sheet">
       <ShTitle t={t} label="Versions" right={<DoneLink t={t} onPress={onClose} />} />
@@ -237,9 +269,7 @@ export function SpRecordingsSheet({
         ) : (
           versions.map((version) => {
             const on = version.url === selectedUrl
-            const meta = [INSTRUMENT_LABEL[version.instrument], formatLength(version.length), version.tag]
-              .filter(Boolean)
-              .join(" · ")
+            const meta = versionDetail(version)
             return (
               <SpPress
                 key={version.id}
@@ -249,10 +279,11 @@ export function SpRecordingsSheet({
                 style={[styles.vrow, on && { backgroundColor: t.orange100 }]}
               >
                 <View style={styles.vn}>
+                  {/* the prototype's `.vrow .vn span` rule also restyles the span inside <b>: the name is 14/500 grey in an 18 line */}
                   <Text style={[styles.vnB, { color: t.ink800 }]} numberOfLines={2}>
-                    {version.performer}
+                    <Text style={[styles.vnS, { color: t.ink500, lineHeight: 20.3 }]}>{version.performer}</Text>
                   </Text>
-                  <Text style={[styles.vnS, { color: t.ink500 }]} numberOfLines={1}>
+                  <Text style={[styles.vnS, { color: t.ink500, lineHeight: 20.3 }]} numberOfLines={1}>
                     {meta}
                   </Text>
                 </View>
@@ -267,7 +298,7 @@ export function SpRecordingsSheet({
           <SpPill
             t={t}
             label={dlText}
-            variant={phase === "saved" ? "peach" : "brand"}
+            variant={phase === "saved" ? "brand" : "ink"}
             onPress={onDownload}
             style={{ width: "100%" }}
           />
@@ -348,9 +379,10 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 16,
   },
-  lm: { flex: 1, minWidth: 0 },
+  lm: { flexShrink: 1, minWidth: 0 },
   lmB: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   lmS: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
+  rq: { fontFamily: amFonts.semi, fontSize: 13 },
   search: {
     marginHorizontal: 20,
     marginBottom: 12,
@@ -372,7 +404,7 @@ const styles = StyleSheet.create({
     ...({ outlineStyle: "none" } as object),
   },
   pad: { paddingHorizontal: 20, paddingTop: 16 },
-  shPad: { paddingHorizontal: 20, paddingBottom: 24, paddingTop: 4 },
+  shPad: { paddingHorizontal: 20, paddingBottom: 24 },
   vlist: { paddingHorizontal: 10, paddingBottom: 4 },
   vrow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
   vn: { flex: 1, minWidth: 0, gap: 2 },

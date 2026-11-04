@@ -5,6 +5,7 @@ import { useRouter } from "expo-router"
 import { SpCardButton, SpKeyRow } from "@/components/song-v2/SpSections"
 import { SpKeyboard, SpOverlayPage, SpReadout } from "@/components/song-v2/SpHarmonium"
 import { note, over } from "@/components/song-v2/spType"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { Reveal } from "@/components/today/motion"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { PRACTISE_SONGS } from "@/lib/fixtures/harmonium"
@@ -24,7 +25,8 @@ export default function HarmoniumV2Screen() {
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
   const stepKey = useSongPageStore((s) => s.stepHarmoniumKey)
   const setInstrument = useSongPageStore((s) => s.setInstrument)
-  const [selected, setSelected] = useState<string | null>(null)
+  // MOCKUP_DATA: the prototype board opens with the second white key (Re) lit
+  const [selected, setSelected] = useState<string | null>(MOCKUP_DATA ? "w2" : null)
 
   const saPitch = keyPitch(harmoniumKey)
   const { whites, blacks } = useMemo(() => spKeys(saPitch), [saPitch])
@@ -77,6 +79,7 @@ export default function HarmoniumV2Screen() {
       <Reveal index={3}>
         <Text style={[note(t), { paddingHorizontal: 0 }]}>
           Sa and the other swaras are marked on the keys that belong to the key you picked.
+          {MOCKUP_DATA ? " Sound is not part of this mockup." : ""}
         </Text>
       </Reveal>
       <Reveal index={4}>

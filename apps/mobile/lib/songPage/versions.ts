@@ -7,9 +7,11 @@ export type SongVersion = {
   url: string
   instrument: VersionInstrument
   performer: string
+  /** Name shown instead of the instrument word, e.g. "Kirtan group" (the prototype's sample versions) */
+  label?: string
   /** seconds, only when the real length is known */
   length: number | null
-  tag: "Best" | "Verified" | "Community" | null
+  tag: "Best" | "Verified" | "Community" | "Instrumental" | null
 }
 
 type Recording = { title: string; url: string; provider: string }
@@ -69,17 +71,22 @@ export function formatLength(seconds: number | null): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`
 }
 
+export function versionName(version: SongVersion): string {
+  return version.label ?? INSTRUMENT_LABEL[version.instrument]
+}
+
 /** `Voice · Performer A · 3:58` — the one-line version picker. Length is left out when unknown. */
 export function versionLine(version: SongVersion | null): string {
   if (!version) return "No recording yet"
-  return [INSTRUMENT_LABEL[version.instrument], version.performer, formatLength(version.length)]
+  return [versionName(version), version.performer, formatLength(version.length)]
     .filter(Boolean)
     .join(" · ")
 }
 
-/** `Instrument · length · tag` under the performer name in the sheet. */
+/** `Instrument · length · tag` under the performer name in the sheet. Only Best and Community are named (the prototype's `recRows`). */
 export function versionDetail(version: SongVersion): string {
-  return [INSTRUMENT_LABEL[version.instrument], formatLength(version.length), version.tag].filter(Boolean).join(" · ")
+  const tag = version.tag === "Best" || version.tag === "Community" ? version.tag : null
+  return [versionName(version), formatLength(version.length), tag].filter(Boolean).join(" · ")
 }
 
 /** What picking a version does to the chord settings (spec round 7). */

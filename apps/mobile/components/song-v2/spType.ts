@@ -35,7 +35,7 @@ export function secH2(t: SpTheme, size = 30): TextStyle {
 
 /** `.body-t`: 17 / 1.55, 400 */
 export function bodyT(t: SpTheme): TextStyle {
-  return { fontFamily: amFonts.regular, fontSize: 17, lineHeight: 26, color: t.ink800 }
+  return { fontFamily: amFonts.regular, fontSize: 17, lineHeight: 26.35, color: t.ink800 }
 }
 
 /** `.note`: 13/18, 500, ink-500 */

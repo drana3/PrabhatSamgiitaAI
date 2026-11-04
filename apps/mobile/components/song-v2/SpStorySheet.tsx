@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { fixtureStory } from "@/lib/fixtures/story"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { storyLoader } from "@/lib/songsV2/storyApi"
 import type { StorySheetContent } from "@/lib/songsV2/storySheet"
 
@@ -35,7 +36,7 @@ export function SpStorySheet({
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    if (!visible || !slug) return
+    if (!visible || !slug || MOCKUP_DATA) return
     let active = true
     setFailed(false)
     const cached = storyLoader.peek(slug)
@@ -55,7 +56,8 @@ export function SpStorySheet({
   }, [visible, slug, attempt])
 
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
-  const shown = content ?? (failed ? fixtureStory(slug) : null)
+  // MOCKUP_DATA: always the prototype's sample story, never the API
+  const shown = MOCKUP_DATA ? fixtureStory(slug) : (content ?? (failed ? fixtureStory(slug) : null))
 
   return (
     <SpSheet t={t} visible={visible} onClose={onClose} label="Story" testID="sp-story-sheet">
