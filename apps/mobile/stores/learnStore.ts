@@ -9,6 +9,7 @@ import {
   type PathPart,
   type PathState,
 } from "@/lib/learn/progress"
+import { buildLearnDemoSeed } from "@/lib/fixtures/learn"
 import { mergeBest, type LearnQuizLevel, type QuizBest, type QuizBestMap } from "@/lib/learn/quiz"
 import {
   DEFAULT_REVIEW_STYLE,
@@ -30,6 +31,10 @@ type LearnState = {
   songs: LearningSong[]
   paths: Record<string, PathState>
   quizBest: QuizBestMap
+  /** true once the sample library of the prototype has been put in (TODO(api): remove with the fixtures) */
+  demoSeeded: boolean
+  /** put the prototype's sample library in an empty store, once */
+  seedDemo: (now?: number) => void
   setReviewStyle: (style: ReviewStyle) => void
   /** grade one word card; the first grade creates the card */
   grade: (wordId: string, grade: Grade, now?: number) => void
@@ -47,6 +52,7 @@ const INITIAL = {
   songs: [] as LearningSong[],
   paths: {} as Record<string, PathState>,
   quizBest: {} as QuizBestMap,
+  demoSeeded: false,
 }
 
 export const useLearnStore = create<LearnState>()(
@@ -55,6 +61,16 @@ export const useLearnStore = create<LearnState>()(
       ...INITIAL,
 
       setReviewStyle: (reviewStyle) => set({ reviewStyle }),
+
+      seedDemo: (now = Date.now()) => {
+        const { demoSeeded, songs, cards } = get()
+        if (demoSeeded) return
+        if (songs.length > 0 || Object.keys(cards).length > 0) {
+          set({ demoSeeded: true })
+          return
+        }
+        set({ ...buildLearnDemoSeed(now), demoSeeded: true })
+      },
 
       grade: (wordId, grade, now = Date.now()) => {
         const { cards, reviewStyle } = get()
@@ -93,6 +109,7 @@ export const useLearnStore = create<LearnState>()(
         songs: state.songs,
         paths: state.paths,
         quizBest: state.quizBest,
+        demoSeeded: state.demoSeeded,
       }),
     },
   ),

@@ -47,7 +47,7 @@ export const REVIEW_STYLES: ReadonlyArray<{
     tag: "Easiest to follow",
     description:
       "A fixed ladder. Every word comes back after 1, 3, 7, 14 and 30 days. Press Again and that word starts the ladder over. You always know what is coming.",
-    ladder: "1d, 3d, 7d, 14d, 30d",
+    ladder: "1d → 3d → 7d → 14d → 30d",
   },
   {
     key: "adaptive",
@@ -55,7 +55,7 @@ export const REVIEW_STYLES: ReadonlyArray<{
     tag: "Fewest reviews",
     description:
       "Like Anki. Every word gets its own gap: easy words come back later and later, hard words sooner. Less work over months, but the gaps differ from word to word.",
-    ladder: "An easy word: 1d, 4d, 11d, 30d, 80d",
+    ladder: "An easy word: 1d → 4d → 11d → 30d → 80d",
   },
   {
     key: "daily",
@@ -63,7 +63,7 @@ export const REVIEW_STYLES: ReadonlyArray<{
     tag: "Best for one song",
     description:
       "For a song you sing every day. Each word comes back tomorrow until you press Easy, then once a week. Short sessions, every day.",
-    ladder: "1d, 1d, 1d, then 7d",
+    ladder: "1d → 1d → 1d → 7d",
   },
 ]
 

@@ -11,8 +11,9 @@ export type LearningSong = {
 }
 
 /**
- * Per song, what has been done (API-13: lpath). Step 1 is listen + words,
- * step 2 is meaning (the short quiz), step 3 is chords and playing.
+ * Per song, what has been done (API-13: lpath). The prototype's three steps:
+ * 1 hear it (listen), 2 know what it means (word cards), 3 play it (chords).
+ * `meaning` records a passed song quiz; it is kept for sync but is not a step.
  */
 export type PathState = {
   listen: boolean
@@ -27,8 +28,8 @@ export type PathStep = 1 | 2 | 3
 export const EMPTY_PATH: PathState = { listen: false, words: false, meaning: false, chords: false }
 
 export function pathStepDone(path: PathState, step: PathStep): boolean {
-  if (step === 1) return path.listen && path.words
-  if (step === 2) return path.meaning
+  if (step === 1) return path.listen
+  if (step === 2) return path.words
   return path.chords
 }
 
@@ -38,9 +39,9 @@ export function pathDoneCount(path: PathState | undefined): number {
   return ([1, 2, 3] as const).filter((step) => pathStepDone(path, step)).length
 }
 
-/** True once anything on the path has been done, even half of step 1. */
+/** True once anything on the path has been done. */
 export function pathStarted(path: PathState | undefined): boolean {
-  return Boolean(path && (path.listen || path.words || path.meaning || path.chords))
+  return Boolean(path && (path.listen || path.words || path.chords))
 }
 
 export function isSongLearned(path: PathState | undefined): boolean {
@@ -119,27 +120,32 @@ export function nextOpenQuizLevel(best: QuizBestMap): LearnQuizLevel {
 
 export type PracticeSummary = {
   dueWords: number
-  songsInProgress: number
+  /** learned songs that are due to be sung again */
+  dueSongs: number
+  minutes: number
   headline: string
   detail: string
 }
 
-/** The "Today's practice" card: word cards that are due and songs to continue. */
-export function practiceSummary(
-  songs: readonly LearningSong[],
-  paths: Readonly<Record<string, PathState>>,
-  cards: Readonly<Record<string, WordCard>>,
-  now: number,
-): PracticeSummary {
-  const dueWords = dueCardCount(cards, now)
-  const songsInProgress = songs.filter((song) => pathDoneCount(paths[song.songId]) < 3).length
-  const things = dueWords + songsInProgress
+const MINUTES_PER_CARD = 1
+const MINUTES_PER_SONG = 4
+
+/**
+ * The "Today's practice" card: word cards that are due and learned songs to sing
+ * again. "3 things to repeat" and "2 word cards and 1 song to sing again. About 6 minutes."
+ */
+export function practiceSummary(dueWords: number, dueSongs: number): PracticeSummary {
+  const things = dueWords + dueSongs
+  const minutes = dueWords * MINUTES_PER_CARD + dueSongs * MINUTES_PER_SONG
   const headline = things === 0 ? "Nothing to repeat" : `${things} ${things === 1 ? "thing" : "things"} to repeat`
   const parts: string[] = []
   if (dueWords > 0) parts.push(`${dueWords} word ${dueWords === 1 ? "card" : "cards"}`)
-  if (songsInProgress > 0) parts.push(`${songsInProgress} ${songsInProgress === 1 ? "song" : "songs"} to continue`)
-  const detail = parts.length ? parts.join(" and ") : "Start a song from Songs, or open the word cards."
-  return { dueWords, songsInProgress, headline, detail }
+  if (dueSongs > 0) parts.push(`${dueSongs} ${dueSongs === 1 ? "song" : "songs"} to sing again`)
+  const detail =
+    things === 0
+      ? "You have nothing due. Words and songs come back here when it is time."
+      : `${parts.join(" and ")}. About ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`
+  return { dueWords, dueSongs, minutes, headline, detail }
 }
 
 /** Step 1 needs every word of the song graded at least once (SCR-21). */

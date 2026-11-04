@@ -6,28 +6,37 @@ import { amColors } from "@/constants/tokens/amColors"
 import { amGap, amRadius } from "@/constants/tokens/amSpacing"
 
 /**
- * Forest green learn card (spec SCR-34): sage-700 ground, gold dots on an 18px
- * grid and a soft orange glow in the top-right corner. Depth by layers, no shadow.
+ * The background of `.lcard.dark.green.prg` in the prototype: gold dots on an 18px grid
+ * (circle at 1px 1px, 1.1px solid, fading to 1.7px, at 0.34) and an orange glow from
+ * the top right corner (80% x 95% ellipse, 0.2 fading out at 65%) over sage-700.
+ * Depth by layers, no shadow.
  */
-export function GreenPanel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function DottedGlow({ glow = 0.2 }: { glow?: number }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "")
   const dots = `dots${uid}`
-  const glow = `glow${uid}`
+  const halo = `glow${uid}`
+  return (
+    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        <Pattern id={dots} width="18" height="18" patternUnits="userSpaceOnUse">
+          <Circle cx="1" cy="1" r="1.4" fill={amColors.gold300} fillOpacity={0.34} />
+        </Pattern>
+        <RadialGradient id={halo} cx="100%" cy="0%" rx="80%" ry="95%" fx="100%" fy="0%">
+          <Stop offset="0" stopColor={amColors.orange500} stopOpacity={glow} />
+          <Stop offset="0.65" stopColor={amColors.orange500} stopOpacity="0" />
+        </RadialGradient>
+      </Defs>
+      <Rect width="100%" height="100%" fill={`url(#${halo})`} />
+      <Rect width="100%" height="100%" fill={`url(#${dots})`} />
+    </Svg>
+  )
+}
+
+/** Forest green learn panel with the dotted glow. */
+export function GreenPanel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[styles.panel, style]}>
-      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <Pattern id={dots} width="18" height="18" patternUnits="userSpaceOnUse">
-            <Circle cx="9" cy="9" r="1.1" fill={amColors.gold300} fillOpacity={0.3} />
-          </Pattern>
-          <RadialGradient id={glow} cx="100%" cy="0%" rx="75%" ry="75%" fx="100%" fy="0%">
-            <Stop offset="0" stopColor={amColors.orange500} stopOpacity="0.42" />
-            <Stop offset="1" stopColor={amColors.orange500} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill={`url(#${glow})`} />
-        <Rect width="100%" height="100%" fill={`url(#${dots})`} />
-      </Svg>
+      <DottedGlow />
       {children}
     </View>
   )
@@ -38,7 +47,7 @@ const styles = StyleSheet.create({
     backgroundColor: amColors.sage700,
     borderRadius: amRadius.panel,
     padding: amGap.padPanel,
-    gap: amGap.grid,
+    gap: 12,
     overflow: "hidden",
   },
 })
