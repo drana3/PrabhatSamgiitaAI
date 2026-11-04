@@ -11,6 +11,7 @@ import { SongCardRow } from "@/components/songs-v2/SongCardRow"
 import { SongsScroller } from "@/components/songs-v2/SongsScroller"
 import { StorySheet } from "@/components/songs-v2/StorySheet"
 import { Toast } from "@/components/songs-v2/Toast"
+import type { CatalogEntry } from "@/lib/songsV2/entry"
 import { songCategories } from "@/constants/categories"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { collectionCount } from "@/data/collections"
@@ -32,6 +33,8 @@ import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { MOCK_OFFLINE, MOCK_PLAYLISTS, MOCK_SAVED, MOCK_STORIES, MOCK_STRIP, MOCK_TOTAL, mockCountLabel } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { href } from "@/utils/href"
 
 /** The catalog is 5,018 songs; shown until the list has loaded. */
@@ -70,8 +73,14 @@ export default function SongsV2Screen() {
   const offlineFiles = useOfflineAudioStore((s) => s.files)
   const { items: downloadItems, scanned: downloadsScanned } = useOfflineStorageItems()
 
-  const [stories, setStories] = useState<StorySummary[]>([])
-  const [storiesLoading, setStoriesLoading] = useState(true)
+  // Preview (MOCKUP_DATA): hearts, playlists, stories and downloads of the prototype sample.
+  const [mockSaved, setMockSaved] = useState<number[]>([...MOCK_SAVED])
+  const [stories, setStories] = useState<StorySummary[]>(() =>
+    MOCKUP_DATA
+      ? MOCK_STORIES.map((s) => ({ slug: s.slug, title: s.title, author: "", url: "", teaser: "", themes: [], songNumbers: [s.song] }))
+      : [],
+  )
+  const [storiesLoading, setStoriesLoading] = useState(!MOCKUP_DATA)
   const [openStory, setOpenStory] = useState<StorySummary | null>(null)
   const [storySheetOpen, setStorySheetOpen] = useState(false)
 
@@ -80,6 +89,7 @@ export default function SongsV2Screen() {
   }, [params.segment])
 
   useEffect(() => {
+    if (MOCKUP_DATA) return
     let active = true
     void api
       .fetchStories({ limit: 12 })
@@ -103,28 +113,41 @@ export default function SongsV2Screen() {
     }, [mode, hydrateFavorites, hydratePlaylists, refreshPlaylists]),
   )
 
-  const initial = memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initial = MOCKUP_DATA ? "D" : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
 
   const savedNumbers = useMemo(
     () =>
-      savedSongIds.flatMap((id) => {
-        const match = /^ps-(\d+)$/i.exec(id)
-        return match ? [Number(match[1])] : []
-      }),
-    [savedSongIds],
+      MOCKUP_DATA
+        ? mockSaved
+        : savedSongIds.flatMap((id) => {
+            const match = /^ps-(\d+)$/i.exec(id)
+            return match ? [Number(match[1])] : []
+          }),
+    [savedSongIds, mockSaved],
+  )
+  const toggleSave = useCallback(
+    (entry: CatalogEntry) => {
+      if (MOCKUP_DATA) setMockSaved((cur) => (cur.includes(entry.number) ? cur.filter((n) => n !== entry.number) : [...cur, entry.number]))
+      else void actions.toggleSave(entry)
+    },
+    [actions],
   )
   const savedSet = useMemo(() => new Set(savedNumbers), [savedNumbers])
-  const offlineNumbers = useMemo(() => new Set(Object.values(offlineFiles).map((f) => f.songNumber)), [offlineFiles])
+  const offlineNumbers = useMemo(() => (MOCKUP_DATA ? new Set(MOCK_OFFLINE) : new Set(Object.values(offlineFiles).map((f) => f.songNumber))), [offlineFiles])
   const savedRows = useMemo(
     () => buildSavedRows({ savedNumbers, entries: catalog.byNumber, offlineNumbers }),
     [savedNumbers, catalog.byNumber, offlineNumbers],
   )
   const minePlaylists = useMemo<MinePlaylist[]>(
-    () => playlists.map((p) => ({ id: p.id, name: p.name, songCount: p.songs.length })),
+    () =>
+      MOCKUP_DATA
+        ? MOCK_PLAYLISTS.map((p) => ({ id: p.id, name: p.name, songCount: p.songs.length }))
+        : playlists.map((p) => ({ id: p.id, name: p.name, songCount: p.songs.length })),
     [playlists],
   )
-  const downloadsTotal =
-    downloadsScanned && downloadItems.length ? formatBytes(totalBytes(downloadItems)) : downloadsSummary(Object.keys(offlineFiles).length)
+  const downloadsTotal = MOCKUP_DATA
+    ? "16.9 MB"
+    : downloadsScanned && downloadItems.length ? formatBytes(totalBytes(downloadItems)) : downloadsSummary(Object.keys(offlineFiles).length)
 
   const openCollection = (id: string, title: string) =>
     router.push(href(`/songs-v2-collection?id=${encodeURIComponent(id)}&title=${encodeURIComponent(title)}`))
@@ -145,7 +168,11 @@ export default function SongsV2Screen() {
 
   const { rows, filtered, sort, chip, filterCount } = controller
   const loadingList = catalog.loading && !catalog.entries.length
-  const countLabel = loadingList ? "Loading" : `${filtered.length.toLocaleString("en-US")} ${filtered.length === 1 ? "song" : "songs"}`
+  const countLabel = MOCKUP_DATA
+    ? mockCountLabel(chip, filtered.length)
+    : loadingList
+      ? "Loading"
+      : `${filtered.length.toLocaleString("en-US")} ${filtered.length === 1 ? "song" : "songs"}`
 
   const renderRow = useCallback(
     (row: ListRow) =>
@@ -160,12 +187,12 @@ export default function SongsV2Screen() {
           saved={savedSet.has(row.entry.number)}
           offline={offlineNumbers.has(row.entry.number)}
           onOpen={actions.open}
-          onToggleSave={(entry) => void actions.toggleSave(entry)}
+          onToggleSave={toggleSave}
           onQueue={actions.queue}
           onMenu={controller.setMenuEntry}
         />
       ),
-    [theme, savedSet, offlineNumbers, actions, controller.setMenuEntry],
+    [theme, savedSet, offlineNumbers, actions, toggleSave, controller.setMenuEntry],
   )
 
   const empty = loadingList ? (
@@ -189,14 +216,14 @@ export default function SongsV2Screen() {
     actions.playAll(numbers)
   }
 
-  const strip = useMemo(() => [{ id: "all", label: "All" }, ...songCategories.map((c) => ({ id: c.id as string, label: c.label }))], [])
+  const strip = useMemo(() => (MOCKUP_DATA ? [...MOCK_STRIP] : [{ id: "all", label: "All" }, ...songCategories.map((c) => ({ id: c.id as string, label: c.label }))]), [])
 
   return (
     <View style={[styles.root, { backgroundColor: theme.page }]}>
       <SongsScroller
         theme={theme}
         inset={inset}
-        total={catalog.entries.length || CATALOG_SIZE}
+        total={MOCKUP_DATA ? MOCK_TOTAL : catalog.entries.length || CATALOG_SIZE}
         segment={segment}
         onSegment={setSegment}
         savedCount={savedSet.size}
@@ -211,8 +238,8 @@ export default function SongsV2Screen() {
           strip,
           chip,
           onChip: controller.setChip,
-          indexLabel: allCollectionsLabel(collectionCount),
-          onOpenIndex: () => router.push(href("/songs-v2-index")),
+          indexLabel: MOCKUP_DATA ? undefined : allCollectionsLabel(collectionCount),
+          onOpenIndex: MOCKUP_DATA ? undefined : () => router.push(href("/songs-v2-index")),
           sortShort: sortOption(sort).short,
           onSort: () => controller.setSortOpen(true),
           countLabel,
@@ -247,7 +274,7 @@ export default function SongsV2Screen() {
               downloadCount={Object.keys(offlineFiles).length}
               downloadsTotal={downloadsTotal}
               onOpen={actions.open}
-              onToggleSave={(entry) => void actions.toggleSave(entry)}
+              onToggleSave={toggleSave}
               onQueue={actions.queue}
               onMenu={controller.setMenuEntry}
               onOpenPlaylist={(id) => router.push(href(`/playlist-v2/${id}`))}
@@ -283,7 +310,7 @@ export default function SongsV2Screen() {
         entry={controller.menuEntry}
         saved={controller.menuEntry ? savedSet.has(controller.menuEntry.number) : false}
         onQueue={actions.queue}
-        onToggleSave={(entry) => void actions.toggleSave(entry)}
+        onToggleSave={toggleSave}
         onShare={actions.share}
         onClose={() => controller.setMenuEntry(null)}
       />

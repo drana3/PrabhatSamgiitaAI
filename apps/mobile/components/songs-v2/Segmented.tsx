@@ -77,7 +77,7 @@ export function Segmented({
             style={styles.cell}
           >
             <Text style={[styles.label, { color: selected ? "#FFFFFF" : theme.textBody }]}>
-              {segment.id === "mine" && savedCount !== undefined ? `Mine · ${savedCount}` : segment.label}
+              {segment.id === "mine" && savedCount !== undefined ? `Mine ·${savedCount}` : segment.label}
             </Text>
           </Press>
         )

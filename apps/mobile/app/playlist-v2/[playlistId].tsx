@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { Play } from "lucide-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { PlayGlyph } from "@/components/songs-v2/Glyphs"
 import { PillButton } from "@/components/songs-v2/Pill"
 import { PlaylistSongRow } from "@/components/songs-v2/PlaylistSongRow"
 import { Press } from "@/components/songs-v2/Press"
@@ -20,6 +20,8 @@ import { mineSyncStatus, playlistMeta, songEyebrow } from "@/lib/mineView"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { playPlaylist } from "@/lib/playPlaylist"
 import { routeString } from "@/lib/songMap"
+import { MOCK_PLAYLISTS, MOCK_SONGS } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { displayTitle } from "@/lib/songsV2/entry"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
@@ -42,7 +44,15 @@ export default function PlaylistV2Screen() {
   const playlistId = routeString(params.playlistId)
 
   const mode = useAuthStore((s) => s.mode)
-  const playlist = usePlaylistStore((s) => s.playlists.find((item) => item.id === playlistId))
+  const storePlaylist = usePlaylistStore((s) => s.playlists.find((item) => item.id === playlistId))
+  // Preview (MOCKUP_DATA): the prototype's two playlists.
+  const mockPlaylist = useMemo(() => {
+    const found = MOCKUP_DATA ? MOCK_PLAYLISTS.find((p) => p.id === playlistId) : undefined
+    return found
+      ? ({ id: found.id, name: found.name, songs: found.songs.map((n, i) => ({ song_number: n, position: i })) } as unknown as typeof storePlaylist)
+      : undefined
+  }, [playlistId])
+  const playlist = storePlaylist ?? mockPlaylist
   const syncing = usePlaylistStore((s) => s.syncing)
   const syncError = usePlaylistStore((s) => s.error)
   const refresh = usePlaylistStore((s) => s.refresh)
@@ -56,7 +66,7 @@ export default function PlaylistV2Screen() {
   const [name, setName] = useState(playlist?.name ?? "")
 
   useEffect(() => {
-    if (!playlist) void refresh()
+    if (!playlist && !MOCKUP_DATA) void refresh()
   }, [playlist, refresh])
 
   useEffect(() => {
@@ -70,7 +80,11 @@ export default function PlaylistV2Screen() {
         .map((song) => song.song_number),
     [playlist?.songs],
   )
-  const titles = useSongTitles(numbers)
+  const realTitles = useSongTitles(numbers)
+  const titles = useMemo(
+    () => (MOCKUP_DATA ? new Map(MOCK_SONGS.map((s) => [s.n, s.title] as const)) : realTitles),
+    [realTitles],
+  )
   const offlineNumbers = useMemo(
     () => new Set(Object.values(offlineFiles).map((entry) => entry.songNumber)),
     [offlineFiles],
@@ -165,7 +179,7 @@ export default function PlaylistV2Screen() {
                     label="Play"
                     onPress={play}
                     disabled={numbers.length === 0}
-                    icon={<Play size={18} color={amColors.white} fill={amColors.white} />}
+                    icon={<PlayGlyph color={amColors.white} />}
                   />
                   <PillButton
                     theme={theme}

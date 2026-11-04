@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import { songNumbersForCategory } from "@/lib/categorySongs"
+import { mockChipNumbers } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import {
   activeFilterCount,
@@ -51,7 +53,7 @@ export function useCatalogController(entries: CatalogEntry[]) {
     AsyncStorage.setItem(SORT_KEY, key).catch(() => undefined)
   }, [])
 
-  const chipNumbers = useMemo(() => (chip === "all" ? null : new Set(songNumbersForCategory(chip))), [chip])
+  const chipNumbers = useMemo(() => (chip === "all" ? null : MOCKUP_DATA ? mockChipNumbers(chip) : new Set(songNumbersForCategory(chip))), [chip])
   const filtered = useMemo(() => applyFilters(restrictToNumbers(entries, chipNumbers), filters), [entries, chipNumbers, filters])
   const built = useMemo(() => buildRows(filtered, effectiveSort), [filtered, effectiveSort])
   const rows = built.rows

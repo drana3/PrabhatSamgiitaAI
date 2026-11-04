@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { withFixtureStats } from "@/lib/fixtures/songs"
+import { mockEntries } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { loadCatalog, readCatalogCache } from "@/lib/catalog"
 import { prefetchCategorySongs } from "@/lib/categorySongs"
 import { hasPlayableAudio } from "@/lib/playableAudio"
@@ -14,7 +16,7 @@ import type { SongSummary } from "@prabhat/core"
  */
 export function useSongsV2Catalog() {
   const [rows, setRows] = useState<SongSummary[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!MOCKUP_DATA)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,6 +33,8 @@ export function useSongsV2Catalog() {
   }, [])
 
   useEffect(() => {
+    // Preview: the prototype sample, no network.
+    if (MOCKUP_DATA) return
     let active = true
     void (async () => {
       const cached = await readCatalogCache()
@@ -48,7 +52,7 @@ export function useSongsV2Catalog() {
   }, [load])
 
   const entries = useMemo<CatalogEntry[]>(
-    () => rows.map((row) => withFixtureStats(summaryToEntry(row, { hasAudio: hasPlayableAudio }))),
+    () => (MOCKUP_DATA ? mockEntries() : rows.map((row) => withFixtureStats(summaryToEntry(row, { hasAudio: hasPlayableAudio })))),
     [rows],
   )
   const byNumber = useMemo(() => new Map(entries.map((e) => [e.number, e])), [entries])

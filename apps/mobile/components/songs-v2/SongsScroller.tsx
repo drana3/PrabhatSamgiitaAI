@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Image, LayoutChangeEvent, ScrollView, StyleSheet, Text, View, type FlatList } from "react-native"
 import { BlurView } from "expo-blur"
-import { ArrowDownUp, ChevronRight, Play, Search } from "lucide-react-native"
+import { ChevronRightGlyph, PlayGlyph, SearchGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
 import Animated, {
   runOnJS,
   runOnUI,
@@ -51,8 +51,9 @@ export type CatalogPart = {
   strip: readonly StripItem[]
   chip: string
   onChip: (id: string) => void
-  indexLabel: string
-  onOpenIndex: () => void
+  /** the "All 68" link at the end of the strip; the prototype strip has none */
+  indexLabel?: string
+  onOpenIndex?: () => void
   sortShort: string
   onSort: () => void
   countLabel: string
@@ -263,7 +264,7 @@ export function SongsScroller({
               pressedScale={0.98}
               style={[styles.sortbtn, { backgroundColor: theme.card, borderColor: theme.line }]}
             >
-              <ArrowDownUp size={18} color={theme.textHeading} strokeWidth={2} />
+              <SortGlyph size={18} color={theme.textHeading} />
               <Text style={[styles.sortLabel, { color: theme.textHeading }]} numberOfLines={1}>
                 {catalog.sortShort}
               </Text>
@@ -280,7 +281,7 @@ export function SongsScroller({
                 {catalog.countLabel}
               </Text>
             </Press>
-            <BrandPill theme={theme} small label="Play all" onPress={catalog.onPlayAll} icon={<Play size={18} color="#FFFFFF" fill="#FFFFFF" strokeWidth={0} />} />
+            <BrandPill theme={theme} small label="Play all" onPress={catalog.onPlayAll} icon={<PlayGlyph color="#FFFFFF" />} />
           </SongsReveal>
         </>
       ) : null}
@@ -336,7 +337,7 @@ export function SongsScroller({
                 pressedScale={0.98}
                 style={[styles.pillfield, { backgroundColor: theme.card, borderColor: theme.line }]}
               >
-                <Search size={20} color={theme.textBody} strokeWidth={2} />
+                <SearchGlyph color={theme.textBody} />
                 <Text style={[styles.pillText, { color: theme.textBody }]} numberOfLines={1}>
                   Search a number, a name or a feeling
                 </Text>
@@ -356,7 +357,9 @@ export function SongsScroller({
               {catalog.strip.map((item) => (
                 <Stab key={item.id} theme={theme} label={item.label} on={catalog.chip === item.id} onPress={() => catalog.onChip(item.id)} />
               ))}
-              <Stab theme={theme} label={catalog.indexLabel} on={false} onPress={catalog.onOpenIndex} trailing />
+              {catalog.indexLabel && catalog.onOpenIndex ? (
+                <Stab theme={theme} label={catalog.indexLabel} on={false} onPress={catalog.onOpenIndex} trailing />
+              ) : null}
             </ScrollView>
           </Animated.View>
         ) : null}
@@ -420,7 +423,7 @@ function Stab({
       style={styles.stab}
     >
       <Text style={[styles.stabText, { color: on ? theme.ink900 : theme.textBody }]}>{label}</Text>
-      {trailing ? <ChevronRight size={16} color={theme.textBody} strokeWidth={2.2} style={styles.stabChev} /> : null}
+      {trailing ? <ChevronRightGlyph size={16} color={theme.textBody} /> : null}
       <Animated.View style={[styles.stabLine, { backgroundColor: theme.brand }, underline]} />
     </Press>
   )

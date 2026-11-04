@@ -6,6 +6,8 @@ import { BrandPill } from "@/components/songs-v2/primitives"
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { mockStoryContent } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { storyLoader } from "@/lib/songsV2/storyApi"
 import { buildStorySheet, type StorySheetContent } from "@/lib/songsV2/storySheet"
 
@@ -41,6 +43,10 @@ export function StorySheet({
     if (!open || !slug) return
     let active = true
     setFailed(false)
+    if (MOCKUP_DATA) {
+      setContent(mockStoryContent(slug))
+      return
+    }
     const cached = storyLoader.peek(slug)
     if (cached) {
       setContent(cached)

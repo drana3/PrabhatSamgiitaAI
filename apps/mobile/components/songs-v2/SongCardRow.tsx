@@ -1,7 +1,9 @@
 import { memo, useRef } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import ReanimatedSwipeable, { SwipeDirection, type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable"
-import { Heart, ListPlus } from "lucide-react-native"
+import { ListPlus } from "lucide-react-native"
+
+import { HeartGlyph } from "@/components/songs-v2/Glyphs"
 
 import { overStyle } from "@/components/songs-v2/primitives"
 import { Press } from "@/components/songs-v2/Press"
@@ -59,7 +61,7 @@ export const SongCardRow = memo(function SongCardRow({
       }}
       renderLeftActions={() => (
         <View style={[styles.action, { backgroundColor: theme.brand }]} accessibilityElementsHidden>
-          <Heart size={20} color={amColors.white} fill={saved ? amColors.white : "none"} />
+          <HeartGlyph size={20} color={amColors.white} filled={saved} />
           <Text style={[overStyle, { color: amColors.white }]}>{saved ? "Unsave" : "Save"}</Text>
         </View>
       )}
@@ -106,7 +108,7 @@ export const SongCardRow = memo(function SongCardRow({
           pressedScale={0.88}
           style={styles.heart}
         >
-          <Heart size={22} strokeWidth={1.75} color={saved ? theme.accent : theme.textBody} fill={saved ? theme.accent : "none"} />
+          <HeartGlyph color={saved ? theme.accent : theme.textBody} filled={saved} />
         </Press>
       </View>
     </ReanimatedSwipeable>

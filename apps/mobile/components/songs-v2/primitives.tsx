@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native"
-import { ChevronRight } from "lucide-react-native"
+import { ChevronRightGlyph } from "@/components/songs-v2/Glyphs"
 
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
@@ -67,7 +67,7 @@ export function CardButton({
           {title}
         </Text>
       </View>
-      <ChevronRight size={22} color={theme.textBody} strokeWidth={1.75} />
+      <ChevronRightGlyph color={theme.textBody} />
     </Press>
   )
 }

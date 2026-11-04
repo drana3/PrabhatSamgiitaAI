@@ -112,5 +112,5 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  chipLabel: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
+  chipLabel: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 18 },
 })

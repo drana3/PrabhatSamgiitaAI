@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { FlatList, StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { ChevronLeft, Play } from "lucide-react-native"
+import { BackGlyph, PlayGlyph } from "@/components/songs-v2/Glyphs"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { PillButton } from "@/components/songs-v2/Pill"
@@ -62,14 +62,14 @@ export default function SongsV2CollectionScreen() {
               pressedScale={0.92}
               style={[styles.back, { backgroundColor: theme.card, borderColor: theme.line }]}
             >
-              <ChevronLeft size={22} color={theme.textHeading} />
+              <BackGlyph color={theme.textHeading} />
             </Press>
             <TwoToneHeading theme={theme} first={heading} second={songCountLabel(entries.length)} />
             {entries.length ? (
               <PillButton
                 theme={theme}
                 label="Play all"
-                icon={<Play size={18} color="#FFFFFF" fill="#FFFFFF" strokeWidth={0} />}
+                icon={<PlayGlyph color="#FFFFFF" />}
                 onPress={() => actions.playAll(numbers)}
                 style={styles.start}
               />

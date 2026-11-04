@@ -6,7 +6,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated"
-import { Check, ChevronLeft } from "lucide-react-native"
+import { BackGlyph } from "@/components/songs-v2/Glyphs"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Chip } from "@/components/songs-v2/Pill"
@@ -41,7 +41,7 @@ export function BackHeader({ theme, onBack, title }: ThemeProps & { onBack: () =
         pressedScale={0.92}
         style={[styles.round, { backgroundColor: theme.card, borderColor: theme.line }]}
       >
-        <ChevronLeft size={22} color={theme.textHeading} strokeWidth={2} />
+        <BackGlyph color={theme.textHeading} />
       </Press>
       {title ? (
         <Text style={[styles.headerTitle, { color: theme.textHeading }]} accessibilityRole="header">
@@ -164,16 +164,19 @@ export function StorageRow({
   item,
   items,
   title,
+  sub: subLine,
   selected,
   onToggle,
 }: ThemeProps & {
   item: StorageItem
   items: readonly StorageItem[]
   title: string
+  /** line under the title; default `PS 3` or `PS 3 · Version 2` */
+  sub?: string
   selected: boolean
   onToggle: () => void
 }) {
-  const sub = storageRowEyebrow(items, item)
+  const sub = subLine ?? storageRowEyebrow(items, item)
   return (
     <Press
       accessibilityRole="checkbox"
@@ -189,7 +192,7 @@ export function StorageRow({
           selected ? { backgroundColor: theme.brand, borderColor: theme.brand } : { borderColor: theme.ink300 },
         ]}
       >
-        {selected ? <Check size={16} color={amColors.white} strokeWidth={3} /> : null}
+        {selected ? <View style={styles.tick} /> : null}
       </View>
       <View style={styles.rowMain}>
         <Text style={[styles.rowTitle, { color: theme.textHeading }]} numberOfLines={2}>
@@ -289,6 +292,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   check: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  tick: { position: "absolute", left: 8, top: 3, width: 6, height: 11, borderColor: amColors.white, borderRightWidth: 2.5, borderBottomWidth: 2.5, transform: [{ rotate: "45deg" }] },
   rowMain: { flex: 1, minWidth: 0, gap: 2 },
   rowTitle: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22, letterSpacing: -0.17 },
   rowSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },

@@ -18,6 +18,8 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongTitles } from "@/hooks/useSongTitles"
 import { useStorageScreen } from "@/hooks/useStorageScreen"
 import { displayTitle } from "@/lib/songsV2/entry"
+import { MOCK_STORAGE } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { listViewState } from "@/lib/mineView"
 
 /**
@@ -79,7 +81,12 @@ export default function StorageScreen() {
                     theme={theme}
                     item={item}
                     items={state.items}
-                    title={displayTitle(titles.get(item.songNumber) ?? `Prabhat Samgiita ${item.songNumber}`)}
+                    title={
+                      MOCKUP_DATA
+                        ? (MOCK_STORAGE.find((m) => m.key === item.key)?.title ?? `Prabhat Samgiita ${item.songNumber}`)
+                        : displayTitle(titles.get(item.songNumber) ?? `Prabhat Samgiita ${item.songNumber}`)
+                    }
+                    sub={MOCKUP_DATA ? MOCK_STORAGE.find((m) => m.key === item.key)?.sub : undefined}
                     selected={state.selected.includes(item.key)}
                     onToggle={() => state.toggleRow(item.key)}
                   />

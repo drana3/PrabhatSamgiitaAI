@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { StyleSheet, Text, TextInput, View } from "react-native"
-import { Plus } from "lucide-react-native"
+import { PlusGlyph } from "@/components/songs-v2/Glyphs"
 
 import { PillButton } from "@/components/songs-v2/Pill"
 import { Press } from "@/components/songs-v2/Press"
@@ -139,7 +139,7 @@ export function MineSegment(props: Props) {
             <PillButton
               theme={theme}
               label={MINE_COPY.newPlaylist}
-              icon={<Plus size={18} color="#FFFFFF" strokeWidth={2} />}
+              icon={<PlusGlyph color="#FFFFFF" />}
               onPress={() => setNaming(true)}
               style={styles.start}
             />

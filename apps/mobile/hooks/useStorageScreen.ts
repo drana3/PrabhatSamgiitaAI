@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
+import { MOCK_STORAGE } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { savedNewestFirst } from "@/lib/mineView"
 import { parseSongNumber } from "@/lib/songMap"
@@ -29,7 +31,11 @@ export type StorageToast = { id: number; text: string }
 
 /** State and actions of the Storage and downloads screen (spec SCR-20). */
 export function useStorageScreen() {
-  const { items, scanned } = useOfflineStorageItems()
+  const real = useOfflineStorageItems()
+  // Preview (MOCKUP_DATA): the four downloads of the prototype, removable in place.
+  const [mockItems, setMockItems] = useState<StorageItem[]>(() => MOCK_STORAGE.map((m) => ({ key: m.key, songNumber: m.songNumber, bytes: m.bytes, modifiedMs: m.modifiedMs })))
+  const items = MOCKUP_DATA ? mockItems : real.items
+  const scanned = MOCKUP_DATA ? true : real.scanned
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const [limitId, setLimitId] = useState<CacheLimitId>(DEFAULT_CACHE_LIMIT)
   const [limitLoaded, setLimitLoaded] = useState(false)
@@ -85,6 +91,10 @@ export function useStorageScreen() {
   }, [armed])
 
   const removeKeys = useCallback(async (keys: string[]) => {
+    if (MOCKUP_DATA) {
+      setMockItems((cur) => cur.filter((item) => !keys.includes(item.key)))
+      return
+    }
     const remove = useOfflineAudioStore.getState().remove
     for (const key of keys) {
       await remove(key)

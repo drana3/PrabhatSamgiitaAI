@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
-import { Play } from "lucide-react-native"
+import { PlayGlyph } from "@/components/songs-v2/Glyphs"
 
 import { Chip, PillButton } from "@/components/songs-v2/Pill"
 import { CardButton, EmptyNote, overStyle, SectionHeading } from "@/components/songs-v2/primitives"
@@ -14,6 +14,8 @@ import type { StorySummary } from "@/data/stories"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { festivalChips, pickFestival, SPECIAL_TILES, storyEyebrow, tilesWithCounts, type TileTone } from "@/lib/songsV2/collections"
 import { storyLoader } from "@/lib/songsV2/storyApi"
+import { MOCK_FESTIVALS, MOCK_STORIES, MOCK_TILES } from "@/lib/fixtures/songsMock"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 type Props = {
   theme: SongsTheme
@@ -38,15 +40,21 @@ function tileColors(theme: SongsTheme, tone: TileTone) {
  * collections. A festival chip swaps the green card in place. Blocks reveal with `--i` 3 to 9.
  */
 export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, onOpenFestival, onOpenStory, onOpenTile }: Props) {
-  const chips = useMemo(() => festivalChips(allCollections), [])
+  const chips = useMemo(() => (MOCKUP_DATA ? [...MOCK_FESTIVALS] : festivalChips(allCollections)), [])
   const [festivalId, setFestivalId] = useState<string | null>(null)
   const festival = pickFestival(chips, festivalId)
-  const tiles = useMemo(() => tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length), [])
+  const tiles = useMemo(
+    () =>
+      MOCKUP_DATA
+        ? MOCK_TILES.map((t) => ({ ...t, browseId: t.id }))
+        : tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length),
+    [],
+  )
   const [, bump] = useState(0)
 
   // Read times arrive as stories load; show them as they come.
   useEffect(() => {
-    if (!stories.length) return
+    if (MOCKUP_DATA || !stories.length) return
     let active = true
     void storyLoader.prefetch(stories.map((s) => s.slug)).then(() => {
       if (active) bump((n) => n + 1)
@@ -79,10 +87,12 @@ export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, 
                 <PillButton
                   theme={theme}
                   label="Play all"
-                  icon={<Play size={18} color="#FFFFFF" fill="#FFFFFF" strokeWidth={0} />}
+                  icon={<PlayGlyph color="#FFFFFF" />}
                   onPress={() => onPlayAll(festival.songNumbers)}
                 />
-                <PillButton theme={theme} tone="sand" label="See songs" onPress={() => onOpenFestival(festival.label)} />
+                {MOCKUP_DATA ? null : (
+                  <PillButton theme={theme} tone="sand" label="See songs" onPress={() => onOpenFestival(festival.label)} />
+                )}
               </View>
             </View>
           </SongsReveal>
@@ -98,7 +108,7 @@ export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, 
             <CardButton
               key={story.slug}
               theme={theme}
-              eyebrow={storyEyebrow(storyLoader.peekMinutes(story.slug))}
+              eyebrow={MOCKUP_DATA ? (MOCK_STORIES.find((m) => m.slug === story.slug)?.eyebrow ?? "Story") : storyEyebrow(storyLoader.peekMinutes(story.slug))}
               title={story.title}
               onPress={() => onOpenStory(story)}
             />
@@ -156,5 +166,5 @@ const styles = StyleSheet.create({
   cellR: { paddingLeft: 5 },
   tile: { width: 168, height: 140, borderRadius: 30, padding: 20, justifyContent: "space-between", alignItems: "flex-start" },
   tileName: { fontFamily: amFonts.display, fontSize: 20, lineHeight: 20, letterSpacing: -0.4, textTransform: "uppercase" },
-  tileCount: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 17 },
+  tileCount: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 23 },
 })

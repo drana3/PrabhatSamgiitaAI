@@ -29,8 +29,8 @@ export const SONGS_LAYOUT = {
   header: 52,
   /** the strip pins this far below the pinned search pill (`.spbar.under{top:64px}`) */
   stripPin: 64,
-  /** the pill narrows by this much (76 minus its 10px margin) when it sticks */
-  pillNarrow: 66,
+  /** the pill narrows by this much when it sticks (board: 370 wide, 312 stuck) */
+  pillNarrow: 58,
   /** the pill starts narrowing this far before it sticks */
   narrowLead: 50,
   /** scroll content bottom padding */
