@@ -1,27 +1,22 @@
-import * as AuthSession from "expo-auth-session"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin"
 import { Platform } from "react-native"
 
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
-import { identityFromIdToken } from "@/lib/msalToken"
 import {
   googleAuthConfigured,
   googleIosClientId,
   googleSetupHint,
   googleWebClientId,
 } from "@/lib/googleOAuthConfig"
-import { oauthRedirectHint } from "@/lib/oauthRedirectUri"
 
 export { googleAuthConfigured, googleSetupHint } from "@/lib/googleOAuthConfig"
 
 WebBrowser.maybeCompleteAuthSession()
 
-const GOOGLE_DISCOVERY = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
-  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
-}
+/** Shown to members. Setup steps for the team live in docs/android-google-signin.md. */
+export const ANDROID_DEVELOPER_ERROR_MESSAGE =
+  "Google sign-in isn’t available in this build yet. Use another sign-in method."
 
 let configured = false
 
@@ -52,7 +47,7 @@ function googleSignInErrorMessage(error: unknown) {
   return "Google sign-in didn’t finish. Try again."
 }
 
-function shouldUseBrowserFallback(error: unknown) {
+function isDeveloperError(error: unknown) {
   const code = (error as { code?: string })?.code
   const message = error instanceof Error ? error.message : String(error ?? "")
   return (
@@ -60,56 +55,6 @@ function shouldUseBrowserFallback(error: unknown) {
     code === statusCodes.DEVELOPER_ERROR ||
     /DEVELOPER_ERROR/i.test(message)
   )
-}
-
-async function signInWithGoogleBrowser(): Promise<OAuthIdentity> {
-  const clientId = googleWebClientId()
-  if (!clientId) {
-    throw new Error("Google browser sign-in is not configured for this platform.")
-  }
-
-  const redirectUri = oauthRedirectHint("auth/google")
-  const request = new AuthSession.AuthRequest({
-    clientId,
-    redirectUri,
-    scopes: ["openid", "profile", "email"],
-    responseType: AuthSession.ResponseType.Code,
-    usePKCE: true,
-    extraParams: { prompt: "select_account" },
-  })
-
-  await request.makeAuthUrlAsync(GOOGLE_DISCOVERY)
-  const result = await request.promptAsync(GOOGLE_DISCOVERY, { showInRecents: true })
-  if (result.type !== "success" || !result.params.code) {
-    if (result.type === "dismiss") throw new Error("Sign-in was cancelled.")
-    throw new Error("Google sign-in didn’t finish. Try again.")
-  }
-
-  const tokenResult = await AuthSession.exchangeCodeAsync(
-    {
-      clientId,
-      code: result.params.code,
-      redirectUri,
-      extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
-    },
-    GOOGLE_DISCOVERY,
-  )
-
-  if (!tokenResult.idToken) {
-    throw new Error("Google did not return an identity token.")
-  }
-  const identity = identityFromIdToken(tokenResult.idToken)
-  if (!identity?.id) {
-    throw new Error("Could not read your Google account profile.")
-  }
-
-  return {
-    id: identity.id,
-    email: identity.email,
-    displayName: identity.displayName,
-    provider: "google",
-    ...(identity.picture ? { photoUrl: identity.picture } : {}),
-  }
 }
 
 export async function signInWithGoogle(): Promise<OAuthIdentity> {
@@ -139,15 +84,11 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
       ...(profile.photo ? { photoUrl: profile.photo } : {}),
     }
   } catch (error) {
-    if (shouldUseBrowserFallback(error)) {
+    if (isDeveloperError(error)) {
+      // No browser fallback on purpose: Google rejects custom-scheme redirects for Web clients,
+      // so a browser retry could never succeed. Say what is wrong instead of pretending.
       if (Platform.OS === "android") {
-        try {
-          return await signInWithGoogleBrowser()
-        } catch {
-          throw new Error(
-            "Google sign-in failed on this build. If you installed from Play Store, add the Play App signing SHA-1 fingerprint to your Google Cloud Android OAuth client (Setup → App signing in Play Console).",
-          )
-        }
+        throw new Error(ANDROID_DEVELOPER_ERROR_MESSAGE)
       }
       throw new Error(
         "Google sign-in failed. Confirm the iOS OAuth client in Google Cloud uses bundle ID net.prabhatasamgiita.ai and matches EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in this build.",
