@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 
@@ -74,5 +74,12 @@ describe("app.json native config", () => {
     // expo-av would otherwise write its generic "access your microphone" string over the voice-search one
     expect(av[1].microphonePermission).toBe(speech[1].microphonePermission)
     expect(speech[1].microphonePermission).toMatch(/voice search/)
+  })
+
+  it("has no dead native build pieces left behind", () => {
+    const root = path.resolve(__dirname, "..")
+    const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+    expect(pkg.dependencies).not.toHaveProperty("@gorhom/bottom-sheet")
+    expect(existsSync(path.join(root, "plugins/withTrackPlayerAndroid.js"))).toBe(false)
   })
 })
