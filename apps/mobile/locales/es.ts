@@ -5,6 +5,7 @@ import { ugcEs } from "./ugc"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { playerErrorsEs } from "./playerErrors"
+import { assistantErrorsEs } from "./assistantErrors"
 
 /** Español. Trato de «tú». Kiirtan y Bhajan se escriben como en inglés; Prabhat Samgiita no se traduce. */
 export const es: Dictionary = {
@@ -1249,4 +1250,5 @@ export const es: Dictionary = {
   ...offlineEs,
   ...accountEs,
   ...playerErrorsEs,
+  ...assistantErrorsEs,
 }

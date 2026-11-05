@@ -203,8 +203,8 @@ export function useAssistantChat(input: { songParam: number | null }) {
       try {
         const result = await runAssistantTurn(
           {
-            stream: (songNumber, onChunk, prompt, history) =>
-              api.streamExplanation(songNumber, onChunk, prompt, history, controller.signal),
+            stream: (songNumber, onChunk, prompt, history, onNotice) =>
+              api.streamExplanation(songNumber, onChunk, prompt, history, controller.signal, onNotice),
             beginExchange: (display) => beginExchange(accountId, display),
             updateMessage: (id, value) => updateAssistantMessage(accountId, id, value),
             saveMemory:
@@ -218,6 +218,7 @@ export function useAssistantChat(input: { songParam: number | null }) {
             history: buildHistory(storedMessages ?? []),
             sheetSong: groundedNumber,
             language,
+            isMember,
           },
         )
         if (result.status === "done") {
@@ -233,6 +234,7 @@ export function useAssistantChat(input: { songParam: number | null }) {
     [
       sending,
       mode,
+      isMember,
       accountId,
       groundedNumber,
       language,

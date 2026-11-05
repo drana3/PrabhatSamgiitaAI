@@ -4,6 +4,7 @@ import { ugcEn } from "./ugc"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { playerErrorsEn } from "./playerErrors"
+import { assistantErrorsEn } from "./assistantErrors"
 
 /**
  * English: the source of truth. Every other language mirrors these keys (the parity test enforces it).
@@ -1255,4 +1256,5 @@ export const en = {
   ...offlineEn,
   ...accountEn,
   ...playerErrorsEn,
+  ...assistantErrorsEn,
 } as const

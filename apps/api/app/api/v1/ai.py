@@ -38,6 +38,23 @@ explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=86_400, 
 logger = logging.getLogger(__name__)
 
 
+ERROR_CODE_HEADER = "X-Error-Code"
+"""Stable machine-readable reason, sent next to the plain-text notices of /ai/explain.
+
+The text stays human and can change; apps map the code to their own words and language.
+Codes: song_not_found, question_not_allowed, quota_exceeded. A rate limit (HTTP 429) carries
+rate_limited, see app.core.security.
+"""
+
+
+def _notice(parts: list[str], code: str) -> StreamingResponse:
+    return StreamingResponse(
+        stream_text(parts),
+        media_type="text/event-stream",
+        headers={ERROR_CODE_HEADER: code},
+    )
+
+
 def _stream_answer(parts: list[str]) -> list[str]:
     return [part for section in parts for part in re.split(r"\n{2,}", section) if part.strip()]
 
@@ -62,7 +79,7 @@ async def explain(
     catalog = CatalogService(session)
     song = await catalog.get_song(payload.song_number)
     if not song:
-        return StreamingResponse(stream_text(["Song not found."]), media_type="text/event-stream")
+        return _notice(["Song not found."], "song_not_found")
 
     prompt = payload.prompt or f"Explain song {song.number}: {song.title}"
     assessment = assess_query(
@@ -72,10 +89,7 @@ async def explain(
         allow_follow_up=bool(payload.history),
     )
     if not assessment.allowed:
-        return StreamingResponse(
-            stream_text([assessment.guidance]),
-            media_type="text/event-stream",
-        )
+        return _notice([assessment.guidance], "question_not_allowed")
     prompt = assessment.normalized
     profile_context = _sanitize_profile_context(payload.profile_context)
     history: list[tuple[str, str]] = []
@@ -144,7 +158,7 @@ async def explain(
         settings=settings,
     )
     if not quota.allowed:
-        return StreamingResponse(stream_text([quota.guidance]), media_type="text/event-stream")
+        return _notice([quota.guidance], "quota_exceeded")
     await record_daily_ai_question_persisted(
         is_member=member is not None,
         identity=quota_identity,

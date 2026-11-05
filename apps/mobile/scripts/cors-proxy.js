@@ -13,6 +13,7 @@ const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
   "access-control-allow-headers": "*",
+  "access-control-expose-headers": "x-error-code",
 }
 
 http

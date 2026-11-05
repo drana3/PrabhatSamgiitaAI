@@ -1397,6 +1397,8 @@ export function createApiClient(options: ApiClientOptions) {
       prompt?: string,
       history: ConversationTurn[] = [],
       signal?: AbortSignal,
+      /** Called with the server's `X-Error-Code` when the reply is a notice (quota, unknown song, refused question). */
+      onNotice?: (code: string) => void,
     ): Promise<void> {
       if (prompt && !queryIsUseful(prompt, 800, { companion: true, allowFollowUp: history.length > 0 })) {
         onChunk(queryGuidanceFor(prompt, { companion: true, allowFollowUp: history.length > 0 }))
@@ -1434,9 +1436,11 @@ export function createApiClient(options: ApiClientOptions) {
           signal: controller.signal,
         })
         touch()
+        const code = response.headers?.get?.("x-error-code") ?? null
         if (!response.ok) {
-          throw new Error("The song companion is temporarily unavailable.")
+          throw new ApiRequestError(response.status, code)
         }
+        if (code) onNotice?.(code)
         await readEventStream(response, onChunk, touch)
       } finally {
         clearTimeout(idle)
@@ -1447,3 +1451,19 @@ export function createApiClient(options: ApiClientOptions) {
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>
+
+/**
+ * A request the server answered with an error. `code` is the server's stable `X-Error-Code`
+ * (for example `rate_limited`) or, without one, `http_<status>`. Show the person your own words
+ * for the code, not `message`.
+ */
+export class ApiRequestError extends Error {
+  readonly status: number
+  readonly code: string
+  constructor(status: number, code?: string | null) {
+    super(`Request failed with status ${status}`)
+    this.name = "ApiRequestError"
+    this.status = status
+    this.code = code || `http_${status}`
+  }
+}

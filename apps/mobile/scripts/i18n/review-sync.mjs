@@ -6,17 +6,30 @@
  *   - existing `true` values are kept.
  * Usage: node scripts/i18n/review-sync.mjs [--list ru]   (--list prints the unreviewed keys of a language)
  */
-import { readFileSync, writeFileSync } from "node:fs"
+import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const reviewPath = join(root, "locales", "review.json")
 
+/** Keys of the main dictionary plus those of every `<area>Ru` / `<area>Es` block it spreads in from the other locales files. */
 function keysOf(language) {
-  const source = readFileSync(join(root, "locales", `${language}.ts`), "utf8")
+  const suffix = language === "ru" ? "Ru" : "Es"
+  const sources = [readFileSync(join(root, "locales", `${language}.ts`), "utf8")]
+  for (const file of readdirSync(join(root, "locales"))) {
+    if (!file.endsWith(".ts") || ["en.ts", "ru.ts", "es.ts", "index.ts"].includes(file)) continue
+    const text = readFileSync(join(root, "locales", file), "utf8")
+    for (const block of text.split(/^export const /m).slice(1)) {
+      const name = new RegExp(`^(\\w+${suffix})\\b`).exec(block)?.[1]
+      // only blocks the main dictionary really spreads in (`...accountRu`)
+      if (name && sources[0].includes(`...${name}`)) sources.push(block)
+    }
+  }
   const keys = []
-  for (const match of source.matchAll(/^\s*"([^"]+)":\s*"/gm)) keys.push(match[1])
+  for (const source of sources) {
+    for (const match of source.matchAll(/^\s*"([^"]+)":\s*(?:"|\n)/gm)) keys.push(match[1])
+  }
   return keys
 }
 

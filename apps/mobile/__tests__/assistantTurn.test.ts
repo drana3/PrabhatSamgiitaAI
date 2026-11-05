@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
+import { classifyAnswer } from "@/lib/assistantAnswer"
 import { buildHistory, friendlyError, runAssistantTurn, type TurnDeps } from "@/lib/assistantTurn"
 import { groupThreadsByDay, questionCountLabel, threadsForScope } from "@/lib/assistantHistory"
 import type { ChatThread } from "@/stores/chatStore"
@@ -153,6 +154,8 @@ describe("friendlyError", () => {
     expect(friendlyError(abort)).toMatch(/too long/)
     expect(friendlyError(new Error("Network request failed"))).toMatch(/offline/)
     expect(friendlyError("x")).toMatch(/temporarily unavailable/)
+    // a technical message never reaches the person
+    expect(friendlyError(new Error("TypeError: undefined is not a function"))).toMatch(/temporarily unavailable/)
   })
 })
 
@@ -205,5 +208,34 @@ describe("assistant history", () => {
   it("counts questions in words", () => {
     expect(questionCountLabel(thread("a", now, null, 1))).toBe("1 question")
     expect(questionCountLabel(thread("a", now, null, 3))).toBe("3 questions")
+  })
+})
+
+describe("server error codes", () => {
+  const coded = (code: string) => Object.assign(new Error("Request failed"), { code })
+
+  it("maps rate limit, expired sign-in and server errors to friendly words", () => {
+    expect(friendlyError(coded("rate_limited"))).toMatch(/Too many questions/)
+    expect(friendlyError(coded("http_429"))).toMatch(/Too many questions/)
+    expect(friendlyError(coded("http_401"))).toMatch(/sign-in/)
+    expect(friendlyError(coded("http_403"))).toMatch(/sign-in/)
+    expect(friendlyError(coded("http_500"))).toMatch(/temporarily unavailable/)
+  })
+
+  it("tells the daily limit in the app's words, whatever the server's sentence, and counts it as a quota notice", async () => {
+    const { deps, saveMemory } = makeDeps([])
+    deps.stream = async (_n, onChunk, _p, _h, onNotice) => {
+      onNotice?.("quota_exceeded")
+      onChunk("You have reached today's guest limit of 10 AI companion questions.")
+    }
+    const result = await runAssistantTurn(deps, { prompt: "What does this song mean?", history: [], sheetSong: 1, language: "auto", isMember: false })
+    expect(result.status === "done" && result.kind).toBe("quota")
+    expect(result.status === "done" && result.text).toMatch(/Sign in for more/)
+    expect(saveMemory).not.toHaveBeenCalled()
+  })
+
+  it("keeps a saved error notice a notice in every language", () => {
+    expect(classifyAnswer("Слишком много вопросов подряд. Подождите минуту и попробуйте снова.")).toBe("notice")
+    expect(classifyAnswer("Has usado las preguntas de hoy. Vuelve mañana, o sigue explorando letras, significados y grabaciones.")).toBe("quota")
   })
 })

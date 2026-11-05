@@ -7,6 +7,8 @@
  * the songs an answer can honestly point to. A notice never gets a source row.
  */
 
+import { dictionaries } from "@/locales"
+
 export type AnswerKind = "answer" | "notice" | "quota" | "empty"
 
 /** The only place the word AI appears (spec 4b). */
@@ -32,9 +34,33 @@ const NOTICE_PATTERNS: RegExp[] = [
   /^You appear to be offline/i,
 ]
 
+/**
+ * The app's own error and quota sentences (locales/assistantErrors.ts), in every language, so a
+ * saved notice is still recognised as a notice after the language changes.
+ */
+let ownNotices: { notice: Set<string>; quota: Set<string> } | null = null
+function ownNoticeKind(value: string): "notice" | "quota" | null {
+  if (!ownNotices) {
+    const notice = new Set<string>()
+    const quota = new Set<string>()
+    for (const dictionary of Object.values(dictionaries)) {
+      for (const [key, text] of Object.entries(dictionary)) {
+        if (!key.startsWith("assistant.error.")) continue
+        ;(key.startsWith("assistant.error.quota") ? quota : notice).add(text)
+      }
+    }
+    ownNotices = { notice, quota }
+  }
+  if (ownNotices.quota.has(value)) return "quota"
+  if (ownNotices.notice.has(value)) return "notice"
+  return null
+}
+
 export function classifyAnswer(text: string | null | undefined): AnswerKind {
   const value = (text ?? "").replace(/\s+/g, " ").trim()
   if (!value || value === "…") return "empty"
+  const own = ownNoticeKind(value)
+  if (own) return own
   const normalized = value.replace(/[’]/g, "'")
   if (QUOTA_PATTERN.test(normalized)) return "quota"
   if (NOTICE_PATTERNS.some((pattern) => pattern.test(value) || pattern.test(normalized))) {

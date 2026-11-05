@@ -58,4 +58,24 @@ describe("assistant answer stream", () => {
     controller.abort()
     expect(await settled).toBe("aborted")
   })
+
+  it("throws the server's error code on a failed request and reports a notice code on a 200", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response("slow down", { status: 429, headers: { "x-error-code": "rate_limited" } }),
+    ) as unknown as typeof fetch
+    let client = createApiClient({ baseUrl: "https://api.example.test" })
+    const failed = await client.streamExplanation(1, () => undefined, "What is this song about?").catch((error: { code: string; status: number }) => error)
+    expect(failed).toMatchObject({ code: "rate_limited", status: 429 })
+
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("data: Song not found.\n\n", { status: 200, headers: { "x-error-code": "song_not_found" } })) as unknown as typeof fetch
+    client = createApiClient({ baseUrl: "https://api.example.test" })
+    const codes: string[] = []
+    await client.streamExplanation(1, () => undefined, "What is this song about?", [], undefined, (code) => codes.push(code))
+    expect(codes).toEqual(["song_not_found"])
+
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("boom", { status: 502 })) as unknown as typeof fetch
+    client = createApiClient({ baseUrl: "https://api.example.test" })
+    const bare = await client.streamExplanation(1, () => undefined, "What is this song about?").catch((error: { code: string }) => error)
+    expect(bare).toMatchObject({ code: "http_502" })
+  })
 })

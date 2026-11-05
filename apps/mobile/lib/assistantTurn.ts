@@ -6,6 +6,7 @@ import {
   type AnswerKind,
   type TurnGrounding,
 } from "@/lib/assistantAnswer"
+import { t } from "@/lib/i18n"
 import { promptWithLanguage, type AssistantLanguage } from "@/lib/assistantLanguage"
 import {
   explicitSongNumberFromPrompt,
@@ -30,15 +31,34 @@ export function buildHistory(messages: StoredTurn[], limit = 12): HistoryTurn[] 
     .map((message) => ({ role: message.role, content: message.text }))
 }
 
-/** Network and timeout failures in plain words. */
-export function friendlyError(error: unknown): string {
+/**
+ * A failed request in plain words, in the app language. The server's stable `error code` decides
+ * (rate limit, expired sign-in, the quota); network and timeout failures are told apart by what
+ * fetch throws. Technical messages never reach the person.
+ */
+export function friendlyError(error: unknown, context: { isMember?: boolean } = {}): string {
   const name = error instanceof Error ? error.name : ""
   const message = error instanceof Error ? error.message : ""
-  if (name === "AbortError") return "That took too long. Please try again."
-  if (/network request failed|failed to fetch|offline/i.test(message)) {
-    return "You appear to be offline. Please try again when you are connected."
+  const code = typeof (error as { code?: unknown } | null)?.code === "string" ? (error as { code: string }).code : ""
+  if (name === "AbortError") return t("assistant.error.timeout")
+  if (/network request failed|failed to fetch|offline/i.test(message)) return t("assistant.error.offline")
+  return friendlyCode(code, context) ?? t("assistant.error.unavailable")
+}
+
+/** The words for a server error code, or null when the code has none of its own. */
+export function friendlyCode(code: string, context: { isMember?: boolean } = {}): string | null {
+  switch (code) {
+    case "rate_limited":
+    case "http_429":
+      return t("assistant.error.rateLimited")
+    case "http_401":
+    case "http_403":
+      return t("assistant.error.signedOut")
+    case "quota_exceeded":
+      return t(context.isMember ? "assistant.error.quotaMember" : "assistant.error.quotaGuest")
+    default:
+      return null
   }
-  return message || "The assistant is temporarily unavailable. Please try again."
 }
 
 export type TurnDeps = {
@@ -48,6 +68,8 @@ export type TurnDeps = {
     onChunk: (chunk: string) => void,
     prompt: string,
     history: HistoryTurn[],
+    /** the server's stable code when its reply is a notice (api.streamExplanation's `onNotice`) */
+    onNotice?: (code: string) => void,
   ) => Promise<void>
   /** chatStore.beginExchange bound to the account; returns the assistant message id */
   beginExchange: (displayPrompt: string) => string | null
@@ -62,6 +84,8 @@ export type TurnInput = {
   /** the song the sheet was opened on, if any */
   sheetSong: number | null
   language: AssistantLanguage
+  /** picks the words of the daily-limit notice; a guest is offered to sign in */
+  isMember?: boolean
 }
 
 export type TurnResult =
@@ -96,6 +120,7 @@ export async function runAssistantTurn(deps: TurnDeps, input: TurnInput): Promis
 
   let buffer = ""
   let finalText: string
+  let noticeCode = ""
   try {
     await deps.stream(
       songNumber,
@@ -105,10 +130,15 @@ export async function runAssistantTurn(deps: TurnDeps, input: TurnInput): Promis
       },
       apiPrompt,
       input.history,
+      (code) => {
+        noticeCode = code
+      },
     )
     finalText = buffer.trim() ? formatAssistantMessage(buffer) : NO_ANSWER_COPY
+    // the daily limit is told in the app language, not in the server's English sentence
+    if (noticeCode === "quota_exceeded") finalText = friendlyCode(noticeCode, { isMember: input.isMember }) ?? finalText
   } catch (error) {
-    finalText = friendlyError(error)
+    finalText = friendlyError(error, { isMember: input.isMember })
   }
   if (!finalText.trim()) finalText = NO_ANSWER_COPY
   deps.updateMessage(assistantId, finalText)
