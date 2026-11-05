@@ -30,7 +30,9 @@ import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { deleteAccount } from "@/lib/accountDeletion"
 import { api } from "@/lib/client"
+import { t } from "@/lib/i18n"
 import {
   looksLikeEmail,
   memberProfileName,
@@ -403,14 +405,19 @@ export default function ProfileScreen() {
                         style: "destructive",
                         onPress: () => {
                           void (async () => {
-                            clearAccountMemory(accountId)
-                            if (memberAuthAvailable()) await api.deleteMemberAccount()
-                            await completeMemberSignOut()
+                            // Only a deletion the server confirmed clears this phone and signs out.
+                            const result = await deleteAccount(accountId)
+                            if (!result.ok) {
+                              Alert.alert(
+                                t("profile.delete.failTitle"),
+                                result.reason === "unavailable"
+                                  ? t("profile.delete.unavailableBody")
+                                  : t("profile.delete.failBody"),
+                              )
+                              return
+                            }
                             router.replace(href("/welcome"))
-                            Alert.alert(
-                              "Deleted",
-                              "Your local session and member data request completed.",
-                            )
+                            Alert.alert(t("profile.delete.doneTitle"), t("profile.delete.doneBody"))
                           })()
                         },
                       },

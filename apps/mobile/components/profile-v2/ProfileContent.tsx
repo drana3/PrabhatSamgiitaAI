@@ -18,6 +18,7 @@ import type { AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { protoFor, type AmProto } from "@/constants/tokens/amToday"
 import { useProfileIdentity, type ProfileView } from "@/hooks/useProfileIdentity"
+import { deleteAccount } from "@/lib/accountDeletion"
 import { api } from "@/lib/client"
 import { companionReceivesMemberQuota } from "@/lib/chat"
 import { languageSummary } from "@/lib/languageSheet"
@@ -146,15 +147,17 @@ export function useProfileContent(theme: AmTheme) {
       confirmLabel: t("profile.delete.confirm"),
       onConfirm: () => {
         void (async () => {
-          clearAccountMemory(accountId)
-          try {
-            if (memberAuthAvailable()) await api.deleteMemberAccount()
-          } catch {
-            Alert.alert(t("profile.delete.failTitle"), t("profile.delete.failBody"))
+          // The server decides: only a confirmed deletion clears this phone and signs out.
+          const result = await deleteAccount(accountId)
+          if (!result.ok) {
+            Alert.alert(
+              t("profile.delete.failTitle"),
+              result.reason === "unavailable" ? t("profile.delete.unavailableBody") : t("profile.delete.failBody"),
+            )
             return
           }
-          await completeMemberSignOut()
           router.replace(href("/welcome"))
+          Alert.alert(t("profile.delete.doneTitle"), t("profile.delete.doneBody"))
         })()
       },
     })
