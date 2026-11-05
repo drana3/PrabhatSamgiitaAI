@@ -37,7 +37,7 @@ import { completeMemberSignOut } from "@/lib/session"
 import { APPEARANCE_LABELS, APPEARANCE_PREFERENCES } from "@/lib/appearance"
 import { useAppearanceStore } from "@/stores/appearanceStore"
 import { useLanguageStore } from "@/stores/languageStore"
-import { LANGUAGE_NATIVE_NAMES, useT } from "@/lib/i18n"
+import { LANGUAGE_NATIVE_NAMES, formatNumber, useT } from "@/lib/i18n"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
@@ -50,10 +50,11 @@ import { href } from "@/utils/href"
  * `.muted` 14 / 500. The whole block opens Edit profile.
  */
 function ProfileHeader({ p, identity, onPress }: { p: AmProto; identity: ProfileView; onPress: () => void }) {
+  const t = useT()
   return (
     <TodayPress
       accessibilityRole="button"
-      accessibilityLabel={`${identity.title}. Edit profile`}
+      accessibilityLabel={t("profile.header.a11y", { name: identity.title })}
       onPress={onPress}
       pressedScale={0.98}
       style={s.header}
@@ -118,19 +119,17 @@ export function useProfileContent(theme: AmTheme) {
 
   const requestClearChat = () =>
     setConfirm({
-      title: "Clear chat history?",
-      body: memberAuthAvailable()
-        ? "This clears all AI chat history on this device and on your member account, including song-page conversations."
-        : "This removes saved AI conversations for your account on this device.",
-      confirmLabel: "Clear history",
+      title: t("profile.clearChat.title"),
+      body: memberAuthAvailable() ? t("profile.clearChat.bodyMember") : t("profile.clearChat.bodyLocal"),
+      confirmLabel: t("profile.clearChat.confirm"),
       onConfirm: () => {
         void (async () => {
           clearAccountMemory(accountId)
           try {
             if (memberAuthAvailable()) await api.clearMemberChat()
-            Alert.alert("Cleared", "Your AI chat history was cleared.")
+            Alert.alert(t("profile.clearChat.doneTitle"), t("profile.clearChat.doneBody"))
           } catch {
-            Alert.alert("Not cleared online", "It was cleared on this device. Try again later to clear it on your account.")
+            Alert.alert(t("profile.clearChat.partialTitle"), t("profile.clearChat.partialBody"))
           }
         })()
       },
@@ -138,16 +137,16 @@ export function useProfileContent(theme: AmTheme) {
 
   const requestDelete = () =>
     MOCKUP_DATA ? undefined : setConfirm({
-      title: "Delete account data?",
-      body: "This permanently removes your member profile, saved songs, quiz progress and chat history. This cannot be undone.",
-      confirmLabel: "Delete my data",
+      title: t("profile.delete.title"),
+      body: t("profile.delete.body"),
+      confirmLabel: t("profile.delete.confirm"),
       onConfirm: () => {
         void (async () => {
           clearAccountMemory(accountId)
           try {
             if (memberAuthAvailable()) await api.deleteMemberAccount()
           } catch {
-            Alert.alert("Could not delete online", "Your data is still on the server. Please try again.")
+            Alert.alert(t("profile.delete.failTitle"), t("profile.delete.failBody"))
             return
           }
           await completeMemberSignOut()
@@ -173,21 +172,21 @@ export function useProfileContent(theme: AmTheme) {
 
       {/* "Quiz and certificates" row hidden for now (Dada 2026-11-05), see lib/learn/hub.ts */}
 
-      <SheetTitle p={p} label="Offline" spaced />
+      <SheetTitle p={p} label={t("profile.section.offline")} spaced />
       <Group p={p}>
         <SetRow
           p={p}
-          label="Storage and downloads"
-          value={MOCKUP_DATA ? "16.9 MB" : storageRowValue(storage.bytes, storage.fileCount)}
+          label={t("profile.storage")}
+          value={MOCKUP_DATA ? `${formatNumber(16.9, { maximumFractionDigits: 1 })} ${t("unit.mb")}` : storageRowValue(storage.bytes, storage.fileCount)}
           onPress={() => go(PROFILE_ROUTES.downloads)}
         />
       </Group>
 
-      <SheetTitle p={p} label="Preferences" spaced />
+      <SheetTitle p={p} label={t("profile.section.preferences")} spaced />
       <Group p={p}>
         <SetRow
           p={p}
-          label="Appearance"
+          label={t("profile.appearance")}
           right={
             <ChipRow>
               {APPEARANCE_PREFERENCES.filter((option) => !MOCKUP_DATA || option !== "auto").map((option) => (
@@ -204,49 +203,49 @@ export function useProfileContent(theme: AmTheme) {
         />
         <SetRow
           p={p}
-          label="Language"
+          label={t("profile.language")}
           value={languagePref === "auto" ? t("language.auto") : LANGUAGE_NATIVE_NAMES[languagePref]}
           onPress={() => swapTo(PROFILE_ROUTES.language)}
         />
         <SetRow
           p={p}
-          label="Script and translations"
+          label={t("profile.scriptAndTranslations")}
           value={languageSummary(script, translations)}
           onPress={() => swapTo(PROFILE_ROUTES.scriptAndTranslations)}
         />
         <SetRow
           p={p}
-          label="Word review style"
+          label={t("profile.reviewStyle")}
           value={reviewStyleRowValue(reviewStyle)}
           onPress={() => swapTo(PROFILE_ROUTES.reviewStyle)}
         />
         <SetRow
           p={p}
-          label="Notifications"
-          value={remindersOn ? "On" : "Off"}
+          label={t("profile.notifications")}
+          value={remindersOn ? t("common.on") : t("common.off")}
           chevron
           onPress={() => go("/notification-settings")}
         />
       </Group>
 
-      <SheetTitle p={p} label="Account" spaced />
+      <SheetTitle p={p} label={t("profile.section.account")} spaced />
       <Group p={p}>
         {signedIn ? (
-          <SetRow p={p} label="Sign out" onPress={signOut} />
+          <SetRow p={p} label={t("profile.signOut")} onPress={signOut} />
         ) : (
-          <SetRow p={p} label="Sign in or create an account" chevron onPress={() => go(PROFILE_ROUTES.signIn)} />
+          <SetRow p={p} label={t("profile.signIn")} chevron onPress={() => go(PROFILE_ROUTES.signIn)} />
         )}
-        {signedIn ? <SetRow p={p} label="Delete account data" danger onPress={requestDelete} /> : null}
+        {signedIn ? <SetRow p={p} label={t("profile.deleteData")} danger onPress={requestDelete} /> : null}
       </Group>
 
-      <SheetTitle p={p} label="More" spaced />
+      <SheetTitle p={p} label={t("profile.section.more")} spaced />
       <Group p={p}>
         <SetRow
           p={p}
-          label="Questions to the assistant"
+          label={t("profile.assistant")}
           value={
             MOCKUP_DATA
-              ? "10 a day"
+              ? t("profile.assistant.perDay", { count: 10 })
               : assistantLimitLabel(
                   memberQuota,
                   AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
@@ -254,18 +253,18 @@ export function useProfileContent(theme: AmTheme) {
                 )
           }
         />
-        {signedIn ? <SetRow p={p} label="Clear chat history" onPress={requestClearChat} /> : null}
-        <SetRow p={p} label="Send feedback" chevron onPress={() => go(PROFILE_ROUTES.feedback)} />
+        {signedIn ? <SetRow p={p} label={t("profile.clearChat")} onPress={requestClearChat} /> : null}
+        <SetRow p={p} label={t("profile.feedback")} chevron onPress={() => go(PROFILE_ROUTES.feedback)} />
         <SetRow
           p={p}
-          label="About Prabhat Samgiita"
+          label={t("profile.about")}
           value={versionLabel(Constants.expoConfig?.version)}
           chevron
           onPress={() => go(PROFILE_ROUTES.about)}
         />
       </Group>
 
-      <Text style={[s.footer, { color: p.ink500 }]}>Prabhat Samgiita · mobile</Text>
+      <Text style={[s.footer, { color: p.ink500 }]}>{t("profile.footer")}</Text>
     </>
   )
 

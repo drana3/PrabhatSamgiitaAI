@@ -10,7 +10,8 @@ import { protoFor } from "@/constants/tokens/amToday"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
-import { REVIEW_STYLE_INTRO, REVIEW_STYLE_NOTE, REVIEW_STYLE_OPTIONS, REVIEW_STYLE_TITLE } from "@/lib/reviewStyleCopy"
+import { useT } from "@/lib/i18n"
+import { REVIEW_STYLE_OPTIONS } from "@/lib/reviewStyleCopy"
 import { useAppearanceStore } from "@/stores/appearanceStore"
 import { href } from "@/utils/href"
 
@@ -20,6 +21,7 @@ import { href } from "@/utils/href"
  */
 export default function ReviewStyleScreen() {
   const router = useRouter()
+  const t = useT()
   const theme = useAmTheme()
   const p = protoFor(theme)
   const resolved = useResolvedAppearance()
@@ -34,12 +36,12 @@ export default function ReviewStyleScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyleFor(resolved)} />
-      <SheetShell p={p} label="Word review style" onClosed={onClosed}>
+      <SheetShell p={p} label={t("reviewStyle.sheet.a11y")} onClosed={onClosed}>
         <View style={styles.head}>
           <Text style={[styles.title, { color: p.ink800 }]} accessibilityRole="header">
-            {REVIEW_STYLE_TITLE}
+            {t("reviewStyle.title")}
           </Text>
-          <Text style={[styles.intro, { color: p.ink800 }]}>{REVIEW_STYLE_INTRO}</Text>
+          <Text style={[styles.intro, { color: p.ink800 }]}>{t("reviewStyle.intro")}</Text>
         </View>
         <Group p={p}>
           {REVIEW_STYLE_OPTIONS.map((option) => (
@@ -52,8 +54,8 @@ export default function ReviewStyleScreen() {
             />
           ))}
         </Group>
-        <SheetNote p={p}>{REVIEW_STYLE_NOTE}</SheetNote>
-        <DoneButton p={p} onPress={onClosed} />
+        <SheetNote p={p}>{t("reviewStyle.note")}</SheetNote>
+        <DoneButton p={p} label={t("common.done")} onPress={onClosed} />
       </SheetShell>
     </View>
   )

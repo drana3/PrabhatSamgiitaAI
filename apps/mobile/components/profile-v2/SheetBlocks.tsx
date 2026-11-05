@@ -5,6 +5,7 @@ import { ChevronGlyph, SearchGlyph } from "@/components/today/protoIcons"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { amProto, type AmProto } from "@/constants/tokens/amToday"
+import { useT } from "@/lib/i18n"
 
 /**
  * The building blocks of the prototype's sheets (`.sh-title`, `.group`, `.setrow`, `.chip`,
@@ -270,17 +271,19 @@ export function SheetNote({ p, children }: P & { children: string }) {
 /* -------------------------------------------------------------------- done */
 
 /** `.pill.brand` at full width: 48dp, orange fill, white 16 / 600; padding 16 20 0 around it. */
-export function DoneButton({ p, label = "Done", onPress }: P & { label?: string; onPress: () => void }) {
+export function DoneButton({ p, label, onPress }: P & { label?: string; onPress: () => void }) {
+  const t = useT()
+  const text = label ?? t("common.done")
   return (
     <View style={s.doneWrap}>
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={text}
         onPress={onPress}
         pressedScale={0.98}
         style={[s.done, { backgroundColor: p.action }]}
       >
-        <Text style={s.doneText}>{label}</Text>
+        <Text style={s.doneText}>{text}</Text>
       </TodayPress>
     </View>
   )

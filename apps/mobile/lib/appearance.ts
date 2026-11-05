@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import { amDark, amLight, type AmTheme } from "@/constants/tokens/amColors"
 
 /** What the user picks in Profile > Appearance. Auto follows the system. */
@@ -12,9 +13,15 @@ export const APPEARANCE_PREFERENCES: readonly AppearancePreference[] = ["light",
 export const DEFAULT_APPEARANCE: AppearancePreference = "light"
 
 export const APPEARANCE_LABELS: Record<AppearancePreference, string> = {
-  light: "Light",
-  dark: "Dark",
-  auto: "Auto",
+  get light() {
+    return t("profile.appearance.light")
+  },
+  get dark() {
+    return t("profile.appearance.dark")
+  },
+  get auto() {
+    return t("profile.appearance.auto")
+  },
 }
 
 export function isAppearancePreference(value: unknown): value is AppearancePreference {
@@ -56,9 +63,15 @@ export const REVIEW_STYLES: readonly ReviewStyle[] = ["simple", "adaptive", "dai
 export const DEFAULT_REVIEW_STYLE: ReviewStyle = "simple"
 
 export const REVIEW_STYLE_LABELS: Record<ReviewStyle, string> = {
-  simple: "Simple steps",
-  adaptive: "Adaptive",
-  daily: "Daily practice",
+  get simple() {
+    return t("reviewStyle.simple")
+  },
+  get adaptive() {
+    return t("reviewStyle.adaptive")
+  },
+  get daily() {
+    return t("reviewStyle.daily")
+  },
 }
 
 export function normalizeReviewStyle(value: unknown): ReviewStyle {

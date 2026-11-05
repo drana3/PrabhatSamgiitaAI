@@ -1,3 +1,4 @@
+import { formatBytes, t } from "@/lib/i18n"
 import { friendlyPersonName } from "@/lib/displayName"
 import {
   REVIEW_STYLE_LABELS,
@@ -57,7 +58,7 @@ export function buildProfileIdentity(input: {
   email: string | null | undefined
 }): ProfileIdentity {
   if (input.mode !== "signed_in") {
-    return { initial: "G", title: "Guest", subtitle: "Sign in to keep your songs on every device", signedIn: false }
+    return { initial: "G", title: t("profile.guest.title"), subtitle: t("profile.guest.subtitle"), signedIn: false }
   }
   const email = (input.email || "").trim() || null
   const title = friendlyPersonName(input.displayName, email)
@@ -67,15 +68,11 @@ export function buildProfileIdentity(input: {
 
 /** Sizes for the Storage row; decimal megabytes like the OS settings pages. */
 export function formatStorage(bytes: number | null | undefined): string {
-  if (bytes == null || !Number.isFinite(bytes) || bytes <= 0) return "0 MB"
-  const mb = bytes / 1_000_000
-  if (mb < 0.1) return "<0.1 MB"
-  if (mb < 1000) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`
-  return `${(mb / 1000).toFixed(1)} GB`
+  return formatBytes(bytes)
 }
 
 export function storageRowValue(bytes: number | null | undefined, fileCount: number): string {
-  if (fileCount <= 0) return "Nothing saved"
+  if (fileCount <= 0) return t("profile.storage.empty")
   return formatStorage(bytes)
 }
 
@@ -89,10 +86,10 @@ export function isRouteReady(route: ProfileRoute): boolean {
 
 /** Assistant row: the daily limit is fixed by the API; the count used is not tracked on the device. */
 export function assistantLimitLabel(memberQuota: boolean, guestLimit: number, memberLimit: number): string {
-  return `${memberQuota ? memberLimit : guestLimit} a day`
+  return t("profile.assistant.perDay", { count: memberQuota ? memberLimit : guestLimit })
 }
 
 /** Version line for the About row. */
 export function versionLabel(version: string | null | undefined): string {
-  return version ? `Version ${version}` : "Version"
+  return version ? t("profile.version", { version }) : t("profile.version.bare")
 }

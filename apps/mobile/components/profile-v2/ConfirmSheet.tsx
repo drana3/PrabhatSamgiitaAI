@@ -14,6 +14,7 @@ import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amControl, amGap, amRadius, amSpace } from "@/constants/tokens/amSpacing"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 
 export type ConfirmRequest = {
   title: string
@@ -41,6 +42,7 @@ export function ConfirmSheet({
   /** distance of the card from the bottom edge: a screen with a floating pill passes the pill's top */
   bottomOffset?: number
 }) {
+  const t = useT()
   const reduce = useReducedMotion()
   const progress = useSharedValue(0)
   const [shown, setShown] = useState<ConfirmRequest | null>(null)
@@ -82,7 +84,7 @@ export function ConfirmSheet({
       <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrim]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Cancel"
+          accessibilityLabel={t("common.cancel")}
           style={StyleSheet.absoluteFill}
           onPress={() => close()}
         />
@@ -102,11 +104,11 @@ export function ConfirmSheet({
         <View style={styles.actions}>
           <PressScale
             accessibilityRole="button"
-            accessibilityLabel="Cancel"
+            accessibilityLabel={t("common.cancel")}
             onPress={() => close()}
             style={[styles.button, { backgroundColor: theme.inner }]}
           >
-            <Text style={[styles.buttonLabel, { color: theme.textHeading }]}>Cancel</Text>
+            <Text style={[styles.buttonLabel, { color: theme.textHeading }]}>{t("common.cancel")}</Text>
           </PressScale>
           <PressScale
             accessibilityRole="button"

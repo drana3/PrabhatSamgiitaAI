@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { amProto, type AmProto } from "@/constants/tokens/amToday"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { scrimOpacity, settleSheet, sheetPositionDuringDrag } from "@/lib/sheetPhysics"
+import { useT } from "@/lib/i18n"
 
 const REDUCED_FADE_MS = 180
 /** `.scrim{background:rgba(30,30,30,0.45)}`: the colour is solid, opacity follows the sheet. */
@@ -43,6 +44,7 @@ type Props = {
  * - When the content is taller than the sheet it scrolls; the sheet only drags down when the list is at its top.
  */
 export function SheetShell({ p, label, onClosed, overlay, children }: Props) {
+  const t = useT()
   const { height: windowHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   const top = insets.top || amProto.statusArea
@@ -142,7 +144,7 @@ export function SheetShell({ p, label, onClosed, overlay, children }: Props) {
   return (
     <View style={s.root} pointerEvents="box-none">
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM }, scrimStyle]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" style={StyleSheet.absoluteFill} onPress={() => dismiss(0)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} style={StyleSheet.absoluteFill} onPress={() => dismiss(0)} />
       </Animated.View>
 
       <GestureDetector gesture={pan}>
