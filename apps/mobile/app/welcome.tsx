@@ -1,25 +1,26 @@
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
-import { Eye } from "lucide-react-native"
-import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
-import { PrimaryButton } from "@/components/common/PrimaryButton"
-import { SecondaryButton } from "@/components/common/SecondaryButton"
+import { Press } from "@/components/songs-v2/Press"
 import { brandAssets } from "@/constants/brand"
-import { colors } from "@/constants/colors"
-import { spacing } from "@/constants/spacing"
-import { typography } from "@/constants/typography"
+import { amColors } from "@/constants/tokens/amColors"
+import { amControl, amGap, amRadius } from "@/constants/tokens/amSpacing"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
-const { height: screenHeight } = Dimensions.get("window")
-/** Standard emblem size — smaller than Home */
-const emblemSize = 112
+/** Standard emblem size */
+const emblemSize = 96
 
+/**
+ * First screen of a new person, in the v2 look: the dawn photo, the heading in the app's own display
+ * type, one way in as a guest and one way to sign in. (Two guest buttons that did the same thing are gone.)
+ */
 export default function WelcomeScreen() {
   const t = useT()
   const router = useRouter()
@@ -36,12 +37,7 @@ export default function WelcomeScreen() {
     <View style={styles.root}>
       <Image source={brandAssets.dawn} style={StyleSheet.absoluteFill} contentFit="cover" />
       <LinearGradient
-        colors={[
-          "rgba(20,14,10,0.35)",
-          "rgba(20,14,10,0.12)",
-          "rgba(20,14,10,0.55)",
-          "rgba(20,14,10,0.92)",
-        ]}
+        colors={["rgba(20,14,10,0.35)", "rgba(20,14,10,0.12)", "rgba(20,14,10,0.55)", "rgba(20,14,10,0.92)"]}
         locations={[0, 0.28, 0.62, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -55,31 +51,33 @@ export default function WelcomeScreen() {
             accessibilityLabel="Prabhat Samgiita AI"
           />
           <Text style={styles.brand}>Prabhat Samgiita AI</Text>
-          <Text style={styles.headline}>
+          <Text accessibilityRole="header" style={styles.headline}>
             {t("welcome.headline.1")}
             {"\n"}
             {t("welcome.headline.2")}
           </Text>
-          <Text style={styles.support}>
-            {t("welcome.support", { count: 5018 })}
-          </Text>
+          <Text style={styles.support}>{t("welcome.support", { count: 5018 })}</Text>
         </View>
 
         <View style={styles.bottom}>
-          <PrimaryButton label={t("welcome.guest")} onPress={enterGuest} />
-          <SecondaryButton
-            label={t("welcome.signIn")}
-            onPress={() => router.push(href("/signin"))}
-          />
-          <Pressable
+          <Press
             accessibilityRole="button"
-            accessibilityLabel={t("welcome.explore.a11y")}
+            accessibilityLabel={t("welcome.guest")}
             onPress={enterGuest}
-            style={styles.tertiary}
+            outerStyle={styles.buttonOuter}
+            style={[styles.button, { backgroundColor: amColors.orange700 }]}
           >
-            <Eye size={16} color="rgba(255,255,255,0.92)" />
-            <Text style={styles.tertiaryLabel}>{t("welcome.explore")}</Text>
-          </Pressable>
+            <Text style={[styles.buttonText, { color: amColors.white }]}>{t("welcome.guest")}</Text>
+          </Press>
+          <Press
+            accessibilityRole="button"
+            accessibilityLabel={t("welcome.signIn")}
+            onPress={() => router.push(href("/signin"))}
+            outerStyle={styles.buttonOuter}
+            style={[styles.button, styles.outlined]}
+          >
+            <Text style={[styles.buttonText, { color: amColors.white }]}>{t("welcome.signIn")}</Text>
+          </Press>
         </View>
       </SafeAreaView>
     </View>
@@ -87,61 +85,41 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  safe: {
-    flex: 1,
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-  upper: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: spacing.xxl,
-    maxHeight: screenHeight * 0.58,
-  },
+  root: { flex: 1, backgroundColor: "#140e0a" },
+  safe: { flex: 1, justifyContent: "space-between", paddingHorizontal: amGap.gutter + 14, paddingBottom: 24 },
+  upper: { flex: 1, alignItems: "flex-start", justifyContent: "flex-end", paddingBottom: 32, gap: 12 },
   brand: {
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: amFonts.semi,
     fontSize: 13,
     letterSpacing: 1.4,
     textTransform: "uppercase",
     color: "rgba(255,255,255,0.82)",
-    marginTop: spacing.lg,
+    marginTop: 12,
   },
   headline: {
-    fontFamily: "Lora_700Bold",
-    fontSize: 38,
+    fontFamily: amFonts.display,
+    fontSize: 45,
     lineHeight: 44,
-    letterSpacing: -0.7,
-    color: colors.white,
-    textAlign: "center",
-    marginTop: spacing.md,
+    letterSpacing: -0.9,
+    textTransform: "uppercase",
+    color: amColors.white,
   },
   support: {
-    ...typography.body,
+    fontFamily: amFonts.medium,
     fontSize: 16,
     lineHeight: 24,
     color: "rgba(255,255,255,0.88)",
-    textAlign: "center",
-    marginTop: spacing.md,
-    maxWidth: 300,
+    maxWidth: 320,
   },
-  bottom: {
-    gap: spacing.md,
-  },
-  tertiary: {
-    minHeight: 44,
-    flexDirection: "row",
+  bottom: { gap: 12 },
+  buttonOuter: { alignSelf: "stretch", minHeight: 48 },
+  button: {
+    height: amControl.pillHeight,
+    borderRadius: amRadius.pill,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.sm,
+    paddingHorizontal: 24,
   },
-  tertiaryLabel: {
-    ...typography.label,
-    color: "rgba(255,255,255,0.92)",
-  },
+  outlined: { borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)" },
+  buttonText: { fontFamily: amFonts.semi, fontSize: 16 },
 })
