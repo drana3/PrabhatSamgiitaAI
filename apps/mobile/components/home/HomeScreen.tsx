@@ -8,10 +8,12 @@ import type { TodayRecommendationItem, TodayRecommendations } from "@prabhat/cor
 import {
   HOME_INSET,
   HomeEmpty,
+  HomeOffline,
   HomePagedRows,
   HomeRow,
   HomeSectionHead,
   HomeShelf,
+  HomeSkeleton,
   HomeTodayCard,
   HomeTopRow,
   SquareCard,
@@ -126,6 +128,9 @@ export function HomeScreen() {
   const { unread } = useNotificationItems()
 
   const [today, setToday] = useState<TodayRecommendations | null>(null)
+  /** the first load of the day's songs: running, done, or failed with nothing saved to show */
+  const [phase, setPhase] = useState<"loading" | "ready" | "failed">(MOCKUP_DATA ? "ready" : "loading")
+  const [attempt, setAttempt] = useState(0)
   const [recommended, setRecommended] = useState<MockSong[]>([])
   const [stories, setStories] = useState<StorySummary[]>([])
   const [menu, setMenu] = useState<{ number: number; title: string } | null>(null)
@@ -138,6 +143,7 @@ export function HomeScreen() {
   useEffect(() => {
     if (MOCKUP_DATA) return
     let active = true
+    setPhase((current) => (current === "ready" ? current : "loading"))
     const apply = (value: TodayRecommendations) => {
       const songs = (value.recommendations ?? []).slice(0, 8).map((item: TodayRecommendationItem, i: number) => todayItemToMockSong(item, i))
       if (!active) return
@@ -146,15 +152,21 @@ export function HomeScreen() {
     }
     void (async () => {
       const cached = await readTodayCache()
-      if (cached) apply(cached)
+      if (cached) {
+        apply(cached)
+        if (active) setPhase("ready")
+      }
       const result = await refreshTodayRecommendations()
       if (result.today) {
         apply(result.today)
+        if (active) setPhase("ready")
         return
       }
       await ensureCatalog()
       const rows = useCatalogStore.getState().rows
       if (active && rows.length) setRecommended(rows.slice(0, 8).map((row, i) => songSummaryToMockSong(row, i)))
+      // nothing from the server, nothing saved: say so instead of leaving a hole
+      if (active) setPhase(rows.length || cached ? "ready" : "failed")
     })()
     void api.fetchStories({ limit: 12 }).then((rows) => {
       if (active) setStories(rows.map(mapApiStory))
@@ -162,7 +174,7 @@ export function HomeScreen() {
     return () => {
       active = false
     }
-  }, [])
+  }, [attempt])
 
   const initials = useProfileInitial()
   const view = useMemo(() => buildTodayView({ recommended, recentPlays, now }), [recommended, recentPlays, now])
@@ -454,8 +466,10 @@ export function HomeScreen() {
 
         <View style={styles.shelves}>
           {liveNowItem ? <LiveNowStrip item={liveNowItem} onOpen={(i) => router.push(href(`/kiirtan-live?id=${encodeURIComponent(i.id)}`))} /> : null}
+          {!MOCKUP_DATA && !hero && phase === "loading" ? <HomeSkeleton p={p} /> : null}
+          {!MOCKUP_DATA && !hero && phase === "failed" ? <HomeOffline p={p} onRetry={() => setAttempt((n) => n + 1)} /> : null}
           {visible.map((id) => section(id))}
-          {visible.length === 0 ? <HomeEmpty p={p} text={t("home.empty")} /> : null}
+          {visible.length === 0 && (MOCKUP_DATA || phase === "ready") ? <HomeEmpty p={p} text={t("home.empty")} /> : null}
         </View>
       </Animated.ScrollView>
 

@@ -1,8 +1,9 @@
-import { useRef, type ReactNode } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { Bell, MoreHorizontal, Search } from "lucide-react-native"
+import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated"
 
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
@@ -348,6 +349,17 @@ export function HomeEmpty({ p, text }: P & { text: string }) {
 }
 
 const s = StyleSheet.create({
+  skeleton: { gap: 16, paddingHorizontal: HOME_INSET },
+  skelCard: { height: 232, borderRadius: 30 },
+  skelRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64 },
+  skelCover: { width: 56, height: 56, borderRadius: 14 },
+  skelLines: { flex: 1, gap: 8 },
+  skelLine: { height: 14, borderRadius: 7 },
+  offline: { marginHorizontal: HOME_INSET, padding: 20, borderRadius: 24, borderWidth: 1, gap: 8 },
+  offlineTitle: { fontFamily: amFonts.display, fontSize: 22, lineHeight: 24, textTransform: "uppercase" },
+  offlineBody: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21 },
+  offlineButton: { alignSelf: "flex-start", marginTop: 8, minHeight: 44, paddingHorizontal: 20, borderRadius: 70, justifyContent: "center" },
+  offlineButtonText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   topRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: HOME_INSET - 4, paddingRight: HOME_INSET - 4, paddingTop: 6, paddingBottom: 10 },
   spacer: { flex: 1 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
@@ -384,3 +396,58 @@ const s = StyleSheet.create({
   square: { width: 156 },
   empty: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 23, paddingHorizontal: HOME_INSET },
 })
+
+/** Opacity pulse of the loading blocks; still when the phone asks for less motion. */
+function usePulse() {
+  const reduce = useReducedMotion()
+  const opacity = useSharedValue(1)
+  useEffect(() => {
+    if (reduce) {
+      opacity.value = 0.7
+      return
+    }
+    opacity.value = withRepeat(withSequence(withTiming(0.45, { duration: 700 }), withTiming(1, { duration: 700 })), -1)
+    return () => cancelAnimation(opacity)
+  }, [reduce, opacity])
+  return useAnimatedStyle(() => ({ opacity: opacity.value }))
+}
+
+/**
+ * Grey blocks in the shape of the Today card and three rows while the first load runs, so a cold
+ * start is not an empty page. It speaks as one loading status for a screen reader.
+ */
+export function HomeSkeleton({ p }: P) {
+  const t = useT()
+  const pulse = usePulse()
+  const block = { backgroundColor: p.dark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)" }
+  return (
+    <Animated.View style={[s.skeleton, pulse]} accessible accessibilityRole="progressbar" accessibilityLabel={t("home.loading.a11y")}>
+      <View style={[s.skelCard, block]} />
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={s.skelRow}>
+          <View style={[s.skelCover, block]} />
+          <View style={s.skelLines}>
+            <View style={[s.skelLine, block, { width: "62%" }]} />
+            <View style={[s.skelLine, block, { width: "34%", height: 10 }]} />
+          </View>
+        </View>
+      ))}
+    </Animated.View>
+  )
+}
+
+/** The first load failed and nothing is saved: say so plainly, with a way to try again. Downloads still work. */
+export function HomeOffline({ p, onRetry }: P & { onRetry: () => void }) {
+  const t = useT()
+  return (
+    <View style={[s.offline, { backgroundColor: p.white, borderColor: p.sand400 }]}>
+      <Text style={[s.offlineTitle, { color: p.ink800 }]} accessibilityRole="header">
+        {t("home.offline.title")}
+      </Text>
+      <Text style={[s.offlineBody, { color: p.ink500 }]}>{t("home.offline.body")}</Text>
+      <TodayPress accessibilityRole="button" accessibilityLabel={t("common.tryAgain")} onPress={onRetry} pressedScale={PRESS} style={[s.offlineButton, { backgroundColor: p.action }]}>
+        <Text style={[s.offlineButtonText, { color: p.onAction }]}>{t("common.tryAgain")}</Text>
+      </TodayPress>
+    </View>
+  )
+}
