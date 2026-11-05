@@ -11,6 +11,7 @@ import { overStyle } from "@/components/songs-v2/primitives"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
+import { useT } from "@/lib/i18n"
 import {
   DURATION_BUCKETS,
   SCRIPT_LABEL,
@@ -42,8 +43,9 @@ export function SortSheet({
   onPick: (key: SortKey) => void
   onClose: () => void
 }) {
+  const t = useT()
   return (
-    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow="Sort songs by" accessibilityLabel="Sort songs" flush>
+    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={t("songs.menu.sortBy")} accessibilityLabel={t("songs.menu.sort")} flush>
       <View style={[styles.sortGroup, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityRole="radiogroup">
         {options.map((option, index) => {
           const selected = option.key === value
@@ -105,10 +107,11 @@ export function FilterSheet({
   onClose: () => void
   resultCount: number
 }) {
+  const t = useT()
   return (
-    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow="Filters" accessibilityLabel="Filters">
+    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={t("songs.menu.filters")} accessibilityLabel={t("songs.menu.filters")}>
       {languages.length ? (
-        <Group theme={theme} label="Language">
+        <Group theme={theme} label={t("songs.menu.language")}>
           {languages.map(({ language, count }) => (
             <Chip
               key={language}
@@ -120,7 +123,7 @@ export function FilterSheet({
           ))}
         </Group>
       ) : null}
-      <Group theme={theme} label="Script">
+      <Group theme={theme} label={t("songs.menu.script")}>
         {(Object.keys(SCRIPT_LABEL) as ScriptId[]).map((script) => (
           <Chip
             key={script}
@@ -131,10 +134,10 @@ export function FilterSheet({
           />
         ))}
       </Group>
-      <Group theme={theme} label="Audio">
-        <Chip theme={theme} label="Has audio" active={state.hasAudio} onPress={() => onChange(toggleHasAudio(state))} />
+      <Group theme={theme} label={t("songs.menu.audio")}>
+        <Chip theme={theme} label={t("songs.filter.hasAudio")} active={state.hasAudio} onPress={() => onChange(toggleHasAudio(state))} />
       </Group>
-      <Group theme={theme} label="Duration">
+      <Group theme={theme} label={t("songs.lsort.duration.title")}>
         {DURATION_BUCKETS.map((bucket) => (
           <Chip
             key={bucket.id}
@@ -146,10 +149,10 @@ export function FilterSheet({
         ))}
       </Group>
       <View style={styles.footer}>
-        <PillButton theme={theme} tone="sand" label="Clear" onPress={onClear} fill />
+        <PillButton theme={theme} tone="sand" label={t("common.clear")} onPress={onClear} fill />
         <PillButton
           theme={theme}
-          label={`Show ${resultCount} ${resultCount === 1 ? "song" : "songs"}`}
+          label={t("songs.menu.showCount", { count: resultCount })}
           onPress={onClose}
           fill
         />
@@ -178,6 +181,7 @@ export function RowMenuSheet({
   onShare: (entry: CatalogEntry) => void
   onClose: () => void
 }) {
+  const t = useT()
   // keep the last song while the sheet slides out, so its title does not vanish mid-exit
   const last = useRef<CatalogEntry | null>(null)
   if (entry) last.current = entry
@@ -192,18 +196,18 @@ export function RowMenuSheet({
       onClose={onClose}
       theme={theme}
       eyebrow={shown ? `PS ${shown.number}` : ""}
-      accessibilityLabel="Song actions"
+      accessibilityLabel={t("songs.menu.actions")}
     >
       {shown ? <Text style={[styles.menuTitle, { color: theme.textHeading }]}>{shown.title}</Text> : null}
       <View style={styles.stack}>
-        <MenuRow theme={theme} label="Add to queue" icon={<ListPlus size={22} color={theme.textHeading} />} onPress={act(onQueue)} />
+        <MenuRow theme={theme} label={t("songs.menu.addQueue")} icon={<ListPlus size={22} color={theme.textHeading} />} onPress={act(onQueue)} />
         <MenuRow
           theme={theme}
-          label={saved ? "Saved. Change" : "Save to…"}
+          label={saved ? t("songs.menu.savedChange") : t("songs.menu.saveTo")}
           icon={<SaveMark on={saved} size={22} color={theme.textHeading} />}
           onPress={act(onToggleSave)}
         />
-        <MenuRow theme={theme} label="Share" icon={<Share2 size={22} color={theme.textHeading} />} onPress={act(onShare)} />
+        <MenuRow theme={theme} label={t("songs.menu.share")} icon={<Share2 size={22} color={theme.textHeading} />} onPress={act(onShare)} />
       </View>
     </BottomSheet>
   )

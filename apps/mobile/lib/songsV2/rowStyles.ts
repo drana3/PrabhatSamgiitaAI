@@ -1,4 +1,5 @@
 import { CATEGORY_FALLBACK, formatDuration, type CatalogEntry } from "./entry"
+import { t } from "@/lib/i18n"
 import type { RailTick } from "./layout"
 import type { ListRow } from "./sort"
 
@@ -14,9 +15,9 @@ export type RowStyle = "tracklist" | "compact" | "cards"
 export const DEFAULT_ROW_STYLE: RowStyle = "tracklist"
 
 export const ROW_STYLE_OPTIONS: readonly { id: RowStyle; label: string }[] = [
-  { id: "tracklist", label: "Tracklist" },
-  { id: "compact", label: "Compact" },
-  { id: "cards", label: "Cards" },
+  { id: "tracklist", get label() { return t("songs.rows.tracklist") } },
+  { id: "compact", get label() { return t("songs.rows.compact") } },
+  { id: "cards", get label() { return t("songs.rows.cards") } },
 ]
 
 export function isRowStyle(value: unknown): value is RowStyle {
@@ -125,7 +126,7 @@ export function rowMeta(
   const duration = formatDuration(entry.durationSeconds)
   if (duration) parts.push(duration)
   else if (entry.category && entry.category !== CATEGORY_FALLBACK) parts.push(entry.category)
-  if (flags.offline) parts.push("Offline")
-  if (flags.saved) parts.push("Mine")
+  if (flags.offline) parts.push(t("songs.offline"))
+  if (flags.saved) parts.push(t("songs.mine"))
   return parts.join(" \u00b7 ")
 }

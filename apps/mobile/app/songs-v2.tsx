@@ -33,6 +33,7 @@ import { usePreferencesStore } from "@/stores/preferencesStore"
 import { MOCK_OFFLINE, MOCK_PLAYLISTS } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 /** The catalog is 5,018 songs; shown until the list has loaded. */
 const CATALOG_SIZE = 5018
@@ -43,6 +44,7 @@ const CATALOG_SIZE = 5018
  * sort bar, the list and the A-Z rail. Kiirtans have their own tab.
  */
 function PsSongs() {
+  const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
@@ -115,23 +117,23 @@ function PsSongs() {
 
   const createNewPlaylist = async (name: string): Promise<string | null> => {
     if (mode !== "signed_in") {
-      Alert.alert("Sign in", "Playlists need an account, so they follow you to other phones.", [
-        { text: "Not now", style: "cancel" },
-        { text: "Sign in", onPress: () => router.push(href("/signin")) },
+      Alert.alert(t("account.signIn.title"), t("songs.alert.needsAccount"), [
+        { text: t("common.notNow"), style: "cancel" },
+        { text: t("account.signIn.title"), onPress: () => router.push(href("/signin")) },
       ])
-      return "Sign in to make a playlist."
+      return t("songs.alert.signInToMake")
     }
     const result = await createPlaylist(name)
     if (isPlaylist(result)) return null
-    if ("needsAuth" in result) return "Sign in to make a playlist."
-    return result.error || "Could not make the playlist. Try again."
+    if ("needsAuth" in result) return t("songs.alert.signInToMake")
+    return result.error || t("songs.alert.makeFailed")
   }
 
   const { rows, filtered, sort, chip, filterCount } = controller
   const loadingList = catalog.loading && !catalog.entries.length
   const countLabel = loadingList
-    ? "Loading"
-    : `${filtered.length.toLocaleString("en-US")} ${filtered.length === 1 ? "song" : "songs"}${catalog.notice ? " · offline sample" : ""}`
+    ? t("songs.loading")
+    : `${t("songs.count", { count: filtered.length })}${catalog.notice ? ` · ${t("songs.offlineSample")}` : ""}`
 
   const renderRow = useCallback(
     (row: ListRow) =>
@@ -155,16 +157,16 @@ function PsSongs() {
   )
 
   const empty = loadingList ? (
-    <Text style={[styles.message, { color: theme.textBody }]}>Loading songs…</Text>
+    <Text style={[styles.message, { color: theme.textBody }]}>{t("songs.list.loading")}</Text>
   ) : catalog.error && !catalog.entries.length ? (
-    <Press accessibilityRole="button" accessibilityLabel="Try again" onPress={() => void catalog.reload()}>
-      <Text style={[styles.message, { color: theme.textBody }]}>{catalog.error} Tap to try again.</Text>
+    <Press accessibilityRole="button" accessibilityLabel={t("common.tryAgain")} onPress={() => void catalog.reload()}>
+      <Text style={[styles.message, { color: theme.textBody }]}>{catalog.error} {t("songs.tapRetry")}</Text>
     </Press>
   ) : (
     <View>
-      <Text style={[styles.message, { color: theme.textBody }]}>No songs match.</Text>
-      <Press accessibilityRole="button" accessibilityLabel="Clear filters" onPress={controller.clearAll}>
-        <Text style={[styles.clear, { color: theme.accent }]}>Clear filters</Text>
+      <Text style={[styles.message, { color: theme.textBody }]}>{t("songs.noMatch")}</Text>
+      <Press accessibilityRole="button" accessibilityLabel={t("songs.clearFilters")} onPress={controller.clearAll}>
+        <Text style={[styles.clear, { color: theme.accent }]}>{t("songs.clearFilters")}</Text>
       </Press>
     </View>
   )
@@ -176,8 +178,9 @@ function PsSongs() {
   }
 
   const shelfCollections = useMemo(
-    () => tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length).map((t) => ({ id: t.browseId, label: t.label, countLabel: t.countLabel })),
-    [],
+    () => tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length).map((tile) => ({ id: tile.browseId, label: tile.label, countLabel: tile.countLabel })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- labels are read through t at render
+    [t],
   )
 
   return (

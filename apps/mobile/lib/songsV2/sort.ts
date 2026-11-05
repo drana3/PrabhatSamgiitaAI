@@ -1,4 +1,5 @@
 import { groupLetter, plainTitle, formatDuration, type CatalogEntry } from "./entry"
+import { t } from "@/lib/i18n"
 
 /** The nine sort orders of Songs (spec SCR-30). */
 export type SortKey = "num" | "numd" | "az" | "za" | "cat" | "short" | "long" | "new" | "most"
@@ -14,15 +15,15 @@ export type SortOption = {
 }
 
 export const SORT_OPTIONS: readonly SortOption[] = [
-  { key: "num", title: "Number, 1 to 5,018", short: "Number", subtitle: "The order of the book" },
-  { key: "numd", title: "Number, 5,018 to 1", short: "Number, reversed", subtitle: "Newest numbers first" },
-  { key: "az", title: "Title, A to Z", short: "Title A to Z", subtitle: "Grouped by first letter" },
-  { key: "za", title: "Title, Z to A", short: "Title Z to A", subtitle: "Grouped by first letter" },
-  { key: "cat", title: "Category", short: "Category", subtitle: "Devotion, Light, Nature and so on" },
-  { key: "short", title: "Shortest first", short: "Shortest", subtitle: "For a quick listen" },
-  { key: "long", title: "Longest first", short: "Longest", subtitle: "For a long sitting" },
-  { key: "new", title: "Recently added", short: "Recent", subtitle: "New recordings and translations" },
-  { key: "most", title: "Most listened", short: "Popular", subtitle: "What others play most" },
+  { key: "num", get title() { return t("songs.sort.num.title") }, get short() { return t("songs.sort.num.short") }, get subtitle() { return t("songs.sort.num.sub") } },
+  { key: "numd", get title() { return t("songs.sort.numd.title") }, get short() { return t("songs.sort.numd.short") }, get subtitle() { return t("songs.sort.numd.sub") } },
+  { key: "az", get title() { return t("songs.sort.az.title") }, get short() { return t("songs.sort.az.short") }, get subtitle() { return t("songs.sort.az.sub") } },
+  { key: "za", get title() { return t("songs.sort.za.title") }, get short() { return t("songs.sort.za.short") }, get subtitle() { return t("songs.sort.za.sub") } },
+  { key: "cat", get title() { return t("songs.sort.cat.title") }, get short() { return t("songs.sort.cat.short") }, get subtitle() { return t("songs.sort.cat.sub") } },
+  { key: "short", get title() { return t("songs.sort.short.title") }, get short() { return t("songs.sort.short.short") }, get subtitle() { return t("songs.sort.short.sub") } },
+  { key: "long", get title() { return t("songs.sort.long.title") }, get short() { return t("songs.sort.long.short") }, get subtitle() { return t("songs.sort.long.sub") } },
+  { key: "new", get title() { return t("songs.sort.new.title") }, get short() { return t("songs.sort.new.short") }, get subtitle() { return t("songs.sort.new.sub") } },
+  { key: "most", get title() { return t("songs.sort.most.title") }, get short() { return t("songs.sort.most.short") }, get subtitle() { return t("songs.sort.most.sub") } },
 ]
 
 export function isSortKey(value: unknown): value is SortKey {
@@ -109,9 +110,9 @@ function railLabelFor(entry: CatalogEntry, key: SortKey): string {
     case "long":
       return formatDuration(entry.durationSeconds) ?? ""
     case "new":
-      return entry.addedRank == null ? `PS ${entry.number}` : `Added ${1 + (entry.addedRank % 28)} d ago`
+      return entry.addedRank == null ? `PS ${entry.number}` : t("songs.rail.added", { days: 1 + (entry.addedRank % 28) })
     case "most":
-      return entry.plays == null ? `PS ${entry.number}` : `${entry.plays} plays`
+      return entry.plays == null ? `PS ${entry.number}` : t("songs.rail.plays", { count: entry.plays })
     default:
       return `PS ${entry.number}`
   }

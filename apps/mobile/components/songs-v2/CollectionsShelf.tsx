@@ -5,6 +5,7 @@ import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { SONGS_LAYOUT as L } from "@/lib/songsV2/layout"
+import { useT } from "@/lib/i18n"
 
 /** One card of the shelf. `countLabel` is `124 songs`. */
 export type ShelfCollection = { id: string; label: string; countLabel: string }
@@ -24,14 +25,15 @@ export function CollectionsShelf({
   onOpen: (id: string, label: string) => void
   onOpenAll: () => void
 }) {
+  const t = useT()
   return (
     <View style={styles.block}>
       <View style={styles.head}>
         <Text style={[styles.title, { color: theme.textHeading }]} accessibilityRole="header">
-          Collections
+          {t("songs.coll.title")}
         </Text>
-        <Press accessibilityRole="link" accessibilityLabel="All collections" onPress={onOpenAll} pressedScale={0.95} style={styles.all}>
-          <Text style={[styles.allText, { color: theme.accent }]}>All</Text>
+        <Press accessibilityRole="link" accessibilityLabel={t("songs.coll.allA11y")} onPress={onOpenAll} pressedScale={0.95} style={styles.all}>
+          <Text style={[styles.allText, { color: theme.accent }]}>{t("songs.coll.all")}</Text>
         </Press>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cards}>

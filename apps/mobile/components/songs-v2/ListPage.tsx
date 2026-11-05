@@ -30,6 +30,7 @@ import { collageCoverIds } from "@/lib/songsV2/listPage"
 import { listPageRowHeight, ROW_GEOMETRY, slotHeight } from "@/lib/songsV2/rowStyles"
 import { useListViewStore } from "@/stores/listViewStore"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
+import { useT } from "@/lib/i18n"
 
 /** Rows that take part in the one staggered reveal; later rows (scrolled into view) just appear. */
 const REVEALED_ROWS = 8
@@ -45,8 +46,8 @@ export function SongsListPage({
   kind,
   entries,
   loading = false,
-  loadingText = "Loading songs…",
-  emptyText = "No songs in this list yet.",
+  loadingText,
+  emptyText,
 }: {
   listId: string
   title: string
@@ -56,6 +57,7 @@ export function SongsListPage({
   loadingText?: string
   emptyText?: string
 }) {
+  const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
   const sp = useSpTheme()
@@ -170,7 +172,7 @@ export function SongsListPage({
     </View>
   )
 
-  const emptyMessage = loading ? loadingText : list.base.length === 0 ? emptyText : list.empty
+  const emptyMessage = loading ? (loadingText ?? t("songs.list.loading")) : list.base.length === 0 ? (emptyText ?? t("songs.list.empty")) : list.empty
 
   return (
     <RevealClock.Provider value={openedAt}>
@@ -206,7 +208,7 @@ export function SongsListPage({
           showAction={rowsLive}
           playing={list.playingHere}
           highlight={list.playingHere}
-          actionLabel={list.playingHere ? "Pause" : "Play all"}
+          actionLabel={list.playingHere ? t("songs.bar.pause") : t("today.playAll")}
         />
 
         <SongMenuSheet

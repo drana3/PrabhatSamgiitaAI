@@ -18,6 +18,7 @@ import { rowEyebrow, type CatalogEntry } from "@/lib/songsV2/entry"
 import { ROW_GEOMETRY, rowMeta, type RowStyle } from "@/lib/songsV2/rowStyles"
 import { useListViewStore } from "@/stores/listViewStore"
 import { usePlayerStore } from "@/stores/playerStore"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   theme: SongsTheme
@@ -63,6 +64,7 @@ export const SongCardRow = memo(function SongCardRow({
   onQueue,
   onMenu,
 }: Props) {
+  const t = useT()
   const stored = useListViewStore((s) => s.rowStyle)
   const look = variant ?? stored
   const slim = look !== "cards"
@@ -75,9 +77,9 @@ export const SongCardRow = memo(function SongCardRow({
 
   const a11y: A11yActions = {
     accessibilityActions: [
-      { name: "save", label: saved ? "Saved. Change" : "Add to…" },
-      { name: "queue", label: "Add to queue" },
-      { name: "menu", label: "More actions" },
+      { name: "save", label: saved ? t("songs.menu.savedChange") : t("songs.row.addTo") },
+      { name: "queue", label: t("songs.menu.addQueue") },
+      { name: "menu", label: t("songs.menu.moreActions") },
     ],
     onAccessibilityAction: (event) => {
       if (event.nativeEvent.actionName === "save") onToggleSave(entry)
@@ -104,13 +106,13 @@ export const SongCardRow = memo(function SongCardRow({
       renderLeftActions={() => (
         <View style={[styles.action, look === "compact" && styles.actionCompact, { backgroundColor: theme.brand, borderRadius: radius }]} accessibilityElementsHidden>
           <SaveMark on={false} size={look === "compact" ? 20 : 22} color={amColors.white} />
-          <Text style={[overStyle, { color: amColors.white }]}>{saved ? "Saved" : "Save to"}</Text>
+          <Text style={[overStyle, { color: amColors.white }]}>{saved ? t("songs.menu.saved") : t("songs.row.saveOverlay")}</Text>
         </View>
       )}
       renderRightActions={() => (
         <View style={[styles.action, look === "compact" && styles.actionCompact, { backgroundColor: theme.forest, borderRadius: radius }]} accessibilityElementsHidden>
           <ListPlus size={20} color={amColors.white} />
-          <Text style={[overStyle, { color: amColors.white }]}>Queue</Text>
+          <Text style={[overStyle, { color: amColors.white }]}>{t("songs.row.queue")}</Text>
         </View>
       )}
     >
@@ -147,7 +149,7 @@ export const SongCardRow = memo(function SongCardRow({
           <RowPress
             theme={theme}
             tile={look === "compact"}
-            accessibilityLabel={`${eyebrow}, ${entry.title}${meta ? `, ${meta}` : ""}${current ? ", playing now" : ""}`}
+            accessibilityLabel={`${eyebrow}, ${entry.title}${meta ? `, ${meta}` : ""}${current ? `, ${t("songs.a11y.playing")}` : ""}`}
             a11y={a11y}
             onPress={() => onOpen(entry)}
             onLongPress={() => onMenu(entry)}

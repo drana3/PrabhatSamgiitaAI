@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n"
+
 /**
  * What the last row of a song's menu does depends on the kind of list.
  * - A catalogue or system list (All songs, a collection, Mine) is not the listener's to edit, so the row
@@ -20,31 +22,27 @@ export function rowRemoval(listId: string): RowRemoval {
   return { kind: "hide" }
 }
 
-export const HIDE_ROW_LABEL = "Hide from this list"
-export const REMOVE_ROW_LABEL = "Remove from this playlist"
-/** One line under the rows of the sheet of a catalogue list. */
-export const HIDE_FOOTER = "Only you see this. You can bring hidden songs back from the list menu."
 /** How long the Undo of a removal stays on screen. */
 export const UNDO_MS = 5000
 
 export function removeRowLabel(removal: RowRemoval): string {
-  return removal.kind === "playlist" ? REMOVE_ROW_LABEL : HIDE_ROW_LABEL
+  return removal.kind === "playlist" ? t("songs.hide.remove") : t("songs.hide.row")
 }
 
 /** The footer of the sheet: only the hide row needs an explanation. */
 export function removeFooter(removal: RowRemoval): string | null {
-  return removal.kind === "hide" ? HIDE_FOOTER : null
+  return removal.kind === "hide" ? t("songs.hide.footer") : null
 }
 
 export function hiddenToast(listName: string): string {
-  return `Hidden from ${listName}`
+  return t("songs.toast.hidden", { list: listName })
 }
 
 export function removedToast(playlistName: string): string {
-  return `Removed from ${playlistName}`
+  return t("songs.toast.removed", { list: playlistName })
 }
 
 /** Quiet line under a list's header: "3 hidden"; the page draws "Show" next to it. Null when nothing is hidden. */
 export function hiddenLine(count: number): string | null {
-  return count > 0 ? `${count.toLocaleString("en-US")} hidden` : null
+  return count > 0 ? t("songs.hiddenCount", { count }) : null
 }

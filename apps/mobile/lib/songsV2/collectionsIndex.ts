@@ -1,5 +1,6 @@
 import type { CollectionItem } from "@/data/collections"
 import { shortCollectionLabel, songCountLabel } from "@/lib/songsV2/collections"
+import { t } from "@/lib/i18n"
 
 /**
  * "All collections" page: pure logic. Every collection of the app in one list with a kind (festival,
@@ -14,23 +15,25 @@ export type CollectionKindFilter = "all" | CollectionKind
 export const KIND_ORDER: readonly CollectionKind[] = ["festival", "theme", "mood", "occasion", "season", "language"]
 
 const KIND_PLURAL: Record<CollectionKind, string> = {
-  festival: "Festivals",
-  theme: "Themes",
-  mood: "Moods",
-  occasion: "Occasions",
-  season: "Seasons",
-  language: "Languages",
+  get festival() { return t("songs.kinds.festival") },
+  get theme() { return t("songs.kinds.theme") },
+  get mood() { return t("songs.kinds.mood") },
+  get occasion() { return t("songs.kinds.occasion") },
+  get season() { return t("songs.kinds.season") },
+  get language() { return t("songs.kinds.language") },
 }
 const KIND_SINGULAR: Record<CollectionKind, string> = {
-  festival: "Festival",
-  theme: "Theme",
-  mood: "Mood",
-  occasion: "Occasion",
-  season: "Season",
-  language: "Language",
+  get festival() { return t("songs.kind.festival") },
+  get theme() { return t("songs.kind.theme") },
+  get mood() { return t("songs.kind.mood") },
+  get occasion() { return t("songs.kind.occasion") },
+  get season() { return t("songs.kind.season") },
+  get language() { return t("songs.kind.language") },
 }
 
-export const EMPTY_COLLECTIONS_TEXT = "No collection matches. Try another word."
+export function emptyCollectionsText(): string {
+  return t("songs.collections.none")
+}
 
 export type CollectionEntry = {
   /** what songs-v2-collection understands as `id` (a category id or a collection label) */
@@ -124,7 +127,7 @@ export type KindChip = { id: CollectionKindFilter; label: string; count: number 
 
 /** "All" first, then every kind that has at least one collection, in chip order. */
 export function kindChips(entries: readonly CollectionEntry[]): KindChip[] {
-  const chips: KindChip[] = [{ id: "all", label: "All", count: entries.length }]
+  const chips: KindChip[] = [{ id: "all", label: t("home.filter.all"), count: entries.length }]
   for (const kind of KIND_ORDER) {
     const count = entries.filter((e) => e.kind === kind).length
     if (count > 0) chips.push({ id: kind, label: KIND_PLURAL[kind], count })
@@ -134,8 +137,8 @@ export function kindChips(entries: readonly CollectionEntry[]): KindChip[] {
 
 /** "68 collections" / "3 of 68" while a search or a kind narrows the list. */
 export function collectionsCountLabel(shown: number, total: number): string {
-  if (shown === total) return `${total} ${total === 1 ? "collection" : "collections"}`
-  return `${shown} of ${total}`
+  if (shown === total) return t("songs.collections.count", { count: total })
+  return t("songs.shownOf", { shown, total })
 }
 
 /** href of the collection page for an entry. */

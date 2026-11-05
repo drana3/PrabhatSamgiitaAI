@@ -26,6 +26,7 @@ import { songDownloadItem } from "@/lib/offline/downloadItems"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
 import { LIST_SORTS, type ListSortKey } from "@/lib/songsV2/listPage"
 import { removeFooter, removeRowLabel, type RowRemoval } from "@/lib/songsV2/rowMenu"
+import { useT } from "@/lib/i18n"
 
 const ICON = 24
 const STROKE = 1.75
@@ -61,6 +62,7 @@ type SongMenuProps = {
  * (private, on this phone, with a footer line saying so) or, in the listener's own playlist, "Remove from this playlist".
  */
 export function SongMenuSheet(props: SongMenuProps) {
+  const t = useT()
   const { open, theme, entry, listName, saved, playlists } = props
   // keep the last song while the sheet slides out, so its title does not vanish mid-exit
   const last = useRef<CatalogEntry | null>(null)
@@ -87,8 +89,8 @@ export function SongMenuSheet(props: SongMenuProps) {
       open={open && Boolean(entry)}
       onClose={props.onClose}
       theme={theme}
-      eyebrow={view === "playlists" ? "Add to playlist" : "More"}
-      accessibilityLabel="Song actions"
+      eyebrow={view === "playlists" ? t("songs.menu.addTo") : t("songs.menu.more")}
+      accessibilityLabel={t("songs.menu.actions")}
       flush
     >
       {shown ? (
@@ -107,23 +109,23 @@ export function SongMenuSheet(props: SongMenuProps) {
       <View style={[styles.rule, { backgroundColor: theme.line }]} />
       {view === "menu" ? (
         <View>
-          <Row theme={theme} label="Play next" icon={<ListStart size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onPlayNext)} />
-          <Row theme={theme} label="Add to queue" icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onQueue)} />
+          <Row theme={theme} label={t("songs.menu.playNext")} icon={<ListStart size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onPlayNext)} />
+          <Row theme={theme} label={t("songs.menu.addQueue")} icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onQueue)} />
           <Row
             theme={theme}
-            label={saved ? "Saved" : "Save to…"}
-            meta={saved ? "Tap to change where it is saved" : undefined}
+            label={saved ? t("songs.menu.saved") : t("songs.menu.saveTo")}
+            meta={saved ? t("songs.menu.savedHint") : undefined}
             icon={<SaveMark on={saved} size={ICON} color={theme.textHeading} />}
             onPress={act(props.onToggleSave)}
           />
           <Row
             theme={theme}
-            label="Add to playlist"
+            label={t("songs.menu.addTo")}
             icon={<ListPlus size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
             onPress={() => setView("playlists")}
           />
-          <Row theme={theme} label="Share" icon={<Share2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onShare)} />
-          <Row theme={theme} label="Open song page" icon={<Music2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onOpenSong)} />
+          <Row theme={theme} label={t("songs.menu.share")} icon={<Share2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onShare)} />
+          <Row theme={theme} label={t("songs.menu.openSong")} icon={<Music2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onOpenSong)} />
           <DownloadMenuRow item={shown ? songDownloadItem(shown.number, { title: shown.title, seconds: shown.durationSeconds || undefined }) : null} color={theme.textHeading} track={theme.line} ring={theme.accentBright}>
             {(row) => <Row theme={theme} label={row.label} icon={row.icon} onPress={act2(row.onPress)} />}
           </DownloadMenuRow>
@@ -147,7 +149,7 @@ export function SongMenuSheet(props: SongMenuProps) {
         <View>
           <Row
             theme={theme}
-            label="Back"
+            label={t("common.back")}
             icon={<BackGlyph size={ICON} color={theme.textHeading} />}
             onPress={() => setView("menu")}
           />
@@ -167,7 +169,7 @@ export function SongMenuSheet(props: SongMenuProps) {
           ))}
           <Row
             theme={theme}
-            label="New playlist"
+            label={t("songs.mine.newPlaylist")}
             icon={<Plus size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
             onPress={() => shown && props.onNewPlaylist(shown)}
           />
@@ -233,8 +235,9 @@ export function ListSortSheet({
   onPick: (key: ListSortKey) => void
   onClose: () => void
 }) {
+  const t = useT()
   return (
-    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow="Sort songs by" accessibilityLabel="Sort songs" flush>
+    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={t("songs.menu.sortBy")} accessibilityLabel={t("songs.menu.sort")} flush>
       <View style={[styles.group, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityRole="radiogroup">
         {LIST_SORTS.map((option, index) => {
           const selected = option.key === value
@@ -287,21 +290,22 @@ export function ListMenuSheet({
   onShowHidden: () => void
   onClose: () => void
 }) {
+  const t = useT()
   const act = (fn: () => void) => () => {
     fn()
     onClose()
   }
   return (
-    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={name} accessibilityLabel="List options" flush>
+    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={name} accessibilityLabel={t("songs.menu.listOptions")} flush>
       <View style={{ paddingBottom: 8 }}>
         <RowStyleControl theme={theme} />
         <View style={[styles.rule, { backgroundColor: theme.line }]} />
-        <Row theme={theme} label="Add all to queue" icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(onQueueAll)} />
+        <Row theme={theme} label={t("songs.menu.addAll")} icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(onQueueAll)} />
         {downloadedCount > 0 ? (
           <Row
             theme={theme}
-            label="Remove downloads"
-            meta={`${downloadedCount} on this phone`}
+            label={t("songs.menu.removeDownloads")}
+            meta={t("songs.menu.onPhone", { count: downloadedCount })}
             icon={<Trash2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
             onPress={act(onRemoveDownloads)}
           />
@@ -309,7 +313,7 @@ export function ListMenuSheet({
         {hiddenCount > 0 ? (
           <Row
             theme={theme}
-            label={`Show ${hiddenCount} hidden ${hiddenCount === 1 ? "song" : "songs"}`}
+            label={t("songs.menu.showHidden", { count: hiddenCount })}
             icon={<EyeOff size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
             onPress={act(onShowHidden)}
           />

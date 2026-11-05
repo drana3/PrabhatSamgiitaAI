@@ -15,6 +15,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { coverFor, stripColors, type HomeCoverId } from "@/lib/homeShelves"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
 import { accentIndex, splitTitle, type ChipDef, type DownloadAllState } from "@/lib/songsV2/listPage"
+import { useT } from "@/lib/i18n"
 
 /** White glyphs and labels on the action fill (orange700): 5.1:1. Never dark text on orange. */
 export const ON_ACTION = "#FFFFFF"
@@ -92,11 +93,12 @@ function shade(hex: string, amount: number): string {
 /* ------------------------------------------------------------------ header */
 
 export function BackRow({ theme, onBack }: { theme: SongsTheme; onBack: () => void }) {
+  const t = useT()
   return (
     <View style={styles.backRow}>
       <Press
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={t("common.back")}
         onPress={onBack}
         pressedScale={0.9}
         hitSlop={8}
@@ -163,6 +165,7 @@ export function ActionBar({
   onShuffle: () => void
   onPlay: () => void
 }) {
+  const t = useT()
   return (
     <View style={styles.actions}>
       <View style={styles.actionsLeft}>
@@ -171,20 +174,20 @@ export function ActionBar({
             <DownloadMark status={download.status} progress={download.progress} size={24} color={theme.textHeading} track={theme.line} ring={theme.accentBright} />
           </IconButton>
         ) : null}
-        <IconButton label="Sort and filter" onPress={onSort}>
+        <IconButton label={t("songs.bar.sortFilter")} onPress={onSort}>
           <SortGlyph size={24} color={theme.textHeading} />
         </IconButton>
-        <IconButton label="List options" onPress={onMenu}>
+        <IconButton label={t("songs.menu.listOptions")} onPress={onMenu}>
           <DotsIcon color={theme.textHeading} />
         </IconButton>
       </View>
       <View style={styles.actionsRight}>
-        <IconButton label="Shuffle play" onPress={onShuffle} disabled={disabled}>
+        <IconButton label={t("songs.bar.shuffle")} onPress={onShuffle} disabled={disabled}>
           <ShuffleIcon color={disabled ? theme.ink300 : theme.textHeading} />
         </IconButton>
         <Press
           accessibilityRole="button"
-          accessibilityLabel={playing ? "Pause" : "Play"}
+          accessibilityLabel={playing ? t("songs.bar.pause") : t("songs.bar.play")}
           disabled={disabled}
           onPress={onPlay}
           pressedScale={0.92}
@@ -285,15 +288,16 @@ type RowProps = {
  * three dots. Tap plays from here; a 500ms press opens the same menu as the dots.
  */
 export const SongListRow = memo(function SongListRow({ theme, entry, current, saved, download, onPlay, onMenu }: RowProps) {
+  const t = useT()
   const duration = formatDuration(entry.durationSeconds)
   const sub = duration ? `PS ${entry.number} · ${duration}` : `PS ${entry.number}`
-  const state = [saved ? "saved" : null, download === "done" ? "downloaded" : null].filter(Boolean).join(", ")
+  const state = [saved ? t("songs.a11y.saved") : null, download === "done" ? t("songs.a11y.downloaded") : null].filter(Boolean).join(", ")
   return (
     <View style={styles.row}>
       <Press
         accessibilityRole="button"
-        accessibilityLabel={`${entry.title}, ${sub}${state ? `, ${state}` : ""}${current ? ", playing now" : ""}`}
-        accessibilityActions={[{ name: "menu", label: "More actions" }]}
+        accessibilityLabel={`${entry.title}, ${sub}${state ? `, ${state}` : ""}${current ? `, ${t("songs.a11y.playing")}` : ""}`}
+        accessibilityActions={[{ name: "menu", label: t("songs.menu.moreActions") }]}
         onAccessibilityAction={() => onMenu(entry)}
         onPress={() => onPlay(entry)}
         onLongPress={() => onMenu(entry)}
@@ -328,7 +332,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
       </Press>
       <Press
         accessibilityRole="button"
-        accessibilityLabel={`More actions for ${entry.title}`}
+        accessibilityLabel={t("home.moreFor", { title: entry.title })}
         onPress={() => onMenu(entry)}
         pressedScale={0.88}
         style={styles.rowDots}

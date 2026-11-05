@@ -39,12 +39,14 @@ import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 const EMPTY: readonly number[] = []
 
 /** State and actions of a playlist-style page. `entries` is the whole list; hidden songs are dropped here. */
 export function useSongsV2ListPage({ listId, listName, entries }: { listId: string; listName: string; entries: readonly CatalogEntry[] }) {
   const router = useRouter()
+  const t = useT()
   const actions = useSongsV2Actions()
 
   const [chip, setChip] = useState("all")
@@ -119,12 +121,12 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     [],
   )
   const ctx = useMemo<ListContext>(() => ({ saved, downloaded, categories }), [saved, downloaded, categories])
-  const chips = useMemo(() => visibleChips(base, ctx), [base, ctx])
+  const chips = useMemo(() => visibleChips(base, ctx), [base, ctx, t])
   const activeChip = chips.some((c) => c.id === chip) ? chip : "all"
   const shown = useMemo(() => sortList(filterByChip(base, activeChip, ctx), sort, recent), [base, activeChip, ctx, sort, recent])
   const shownNumbers = useMemo(() => shown.map((e) => e.number), [shown])
-  const meta = useMemo(() => metaLine(base), [base])
-  const chipLabel = chips.find((c) => c.id === activeChip)?.label ?? "All"
+  const meta = useMemo(() => metaLine(base), [base, t])
+  const chipLabel = chips.find((c) => c.id === activeChip)?.label ?? t("home.filter.all")
   const empty = base.length === 0 ? "" : emptyMessage(activeChip, chipLabel)
   const downloadedHere = useMemo(() => shownNumbers.filter((n) => downloaded.has(n)), [shownNumbers, downloaded])
   const source = listSourceId(listId)
@@ -172,9 +174,9 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     (entry: CatalogEntry) => {
       const state = usePlayerStore.getState()
       state.setQueue(playNext(state.queue, state.currentSong?.number ?? null, entry.number))
-      flash(state.currentSong ? `PS ${entry.number} plays next` : `Added PS ${entry.number} to the queue`)
+      flash(state.currentSong ? t("songs.toast.playsNext", { number: entry.number }) : t("songs.toast.addedQueue", { number: entry.number }))
     },
-    [flash],
+    [flash, t],
   )
   const queueEntry = useCallback(
     (entry: CatalogEntry) => {
@@ -188,8 +190,8 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     const state = usePlayerStore.getState()
     const next = shownNumbers.reduce((queue, n) => addToQueue(queue, n), state.queue)
     state.setQueue(next)
-    flash(`Added ${shownNumbers.length} ${shownNumbers.length === 1 ? "song" : "songs"} to the queue`)
-  }, [shownNumbers, flash])
+    flash(t("songs.toast.addedMany", { count: shownNumbers.length }))
+  }, [shownNumbers, flash, t])
 
   /** The circle-plus, the swipe and the row menu all open the one "Save to" sheet, which says what happened. */
   const toggleSave = useCallback((entry: CatalogEntry) => actions.toggleSave(entry), [actions])
@@ -197,7 +199,7 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   const playlistRows = useCallback(
     (entry: CatalogEntry | null): MenuPlaylist[] => {
       if (!entry) return []
-      const count = (n: number) => `${n} ${n === 1 ? "song" : "songs"}`
+      const count = (n: number) => t("songs.count", { count: n })
       if (MOCKUP_DATA) {
         return MOCK_PLAYLISTS.map((p) => {
           const songs = mockPlaylistSongs[p.id] ?? []
@@ -211,7 +213,7 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
         has: playlistSongNumbers(p).includes(entry.number),
       }))
     },
-    [playlists, mockPlaylistSongs],
+    [playlists, mockPlaylistSongs, t],
   )
 
   const reportPlaylistFailure = useCallback(
@@ -224,40 +226,40 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
 
   const togglePlaylist = useCallback(
     (entry: CatalogEntry, id: string, has: boolean) => {
-      const name = (MOCKUP_DATA ? MOCK_PLAYLISTS : playlists).find((p) => p.id === id)?.name ?? "playlist"
+      const name = (MOCKUP_DATA ? MOCK_PLAYLISTS : playlists).find((p) => p.id === id)?.name ?? t("songs.playlistFallback")
       if (MOCKUP_DATA) {
         setMockPlaylistSongs((all) => {
           const songs = all[id] ?? []
           return { ...all, [id]: has ? songs.filter((n) => n !== entry.number) : [...songs, entry.number] }
         })
-        flash(has ? `Removed from ${name}` : `Saved to ${name}`)
+        flash(has ? t("songs.toast.removedFrom", { name }) : t("songs.toast.savedTo", { name }))
         return
       }
       const store = usePlaylistStore.getState()
       void (has ? store.removeSong(id, entry.number) : store.addSong(id, entry.number)).then((result) => {
         if (!isPlaylist(result)) return reportPlaylistFailure(result)
-        flash(has ? `Removed from ${name}` : `Saved to ${name}`)
+        flash(has ? t("songs.toast.removedFrom", { name }) : t("songs.toast.savedTo", { name }))
         void store.flushSync()
       })
     },
-    [playlists, flash, reportPlaylistFailure],
+    [playlists, flash, reportPlaylistFailure, t],
   )
 
   const newPlaylist = useCallback(
     (entry: CatalogEntry) => {
-      if (MOCKUP_DATA) return flash("Playlists are not available in the preview")
+      if (MOCKUP_DATA) return flash(t("songs.toast.noPreviewPlaylists"))
       const store = usePlaylistStore.getState()
-      const name = `Playlist ${store.playlists.length + 1}`
+      const name = t("songs.playlistDefault", { n: store.playlists.length + 1 })
       void store.createPlaylist(name).then((created) => {
         if (!isPlaylist(created)) return reportPlaylistFailure(created)
         void store.addSong(created.id, entry.number).then((result) => {
           if (!isPlaylist(result)) return reportPlaylistFailure(result)
-          flash(`Created ${name}`)
+          flash(t("songs.toast.created", { name }))
           void store.flushSync()
         })
       })
     },
-    [flash, reportPlaylistFailure],
+    [flash, reportPlaylistFailure, t],
   )
 
   const removal = useMemo(() => rowRemoval(listId), [listId])
@@ -282,7 +284,7 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
         flash(
           removedToast(listName),
           {
-            label: "Undo",
+            label: t("common.undo"),
             onPress: () => {
               dismissToast()
               void usePlaylistStore
@@ -299,7 +301,7 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
         void usePlaylistStore.getState().flushSync()
       })
     },
-    [removal, listName, flash, dismissToast, reportPlaylistFailure],
+    [removal, listName, flash, dismissToast, reportPlaylistFailure, t],
   )
 
   /** The last row of the song menu: hides or removes, by the kind of list. */
@@ -309,10 +311,10 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   )
   const showHidden = useCallback(() => {
     useSongsListState.getState().unhideAll(listId)
-    flash("Hidden songs are back")
-  }, [listId, flash])
+    flash(t("songs.toast.hiddenBack"))
+  }, [listId, flash, t])
 
-  const sortOptionTitle = LIST_SORTS.find((s) => s.key === sort)?.title ?? "Number"
+  const sortOptionTitle = LIST_SORTS.find((s) => s.key === sort)?.title ?? t("songs.lsort.num.title")
 
   return {
     toast,

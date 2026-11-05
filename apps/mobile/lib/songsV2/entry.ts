@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n"
+
 import type { SongSummary } from "@prabhat/core"
 
 /**
@@ -55,7 +57,7 @@ export function rowEyebrow(entry: Pick<CatalogEntry, "number" | "durationSeconds
   const parts = [`PS ${entry.number}`]
   const duration = formatDuration(entry.durationSeconds)
   if (duration) parts.push(duration)
-  if (offline) parts.push("Offline")
+  if (offline) parts.push(t("songs.offline"))
   return parts.join(" · ")
 }
 

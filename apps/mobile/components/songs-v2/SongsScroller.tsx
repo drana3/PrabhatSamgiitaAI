@@ -24,6 +24,7 @@ import { songsAssets } from "@/constants/songsAssets"
 import { protoFor } from "@/constants/tokens/amToday"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { formatNumber, useT } from "@/lib/i18n"
 import { listPerfProps } from "@/lib/listPerf"
 import {
     railJump,
@@ -97,6 +98,7 @@ export function SongsScroller({
   shelf,
   body,
 }: Props) {
+  const t = useT()
   const openedAt = useRevealClock()
   const isCatalog = chip === "all"
   const theme_proto = protoFor(theme)
@@ -240,9 +242,9 @@ export function SongsScroller({
       </SongsReveal>
       <SongsReveal index={1} style={styles.titleBlock}>
         <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
-          Songs
+          {t("tabs.songs")}
         </Text>
-        <Text style={[styles.h1, { color: theme.ink300 }]}>{total.toLocaleString("en-US")}</Text>
+        <Text style={[styles.h1, { color: theme.ink300 }]}>{formatNumber(total)}</Text>
       </SongsReveal>
       <View style={{ height: L.pillBlock + L.pillGap }} />
       {/* the chips row is drawn on top (sticky); this space is where it sits at rest */}
@@ -252,13 +254,13 @@ export function SongsScroller({
           <SongsReveal index={3}>{shelf}</SongsReveal>
           <SongsReveal index={4} style={styles.allHead}>
             <Text style={[styles.groupTitle, { color: theme.textHeading }]} accessibilityRole="header">
-              All songs
+              {t("songs.allSongs")}
             </Text>
           </SongsReveal>
           <SongsReveal index={5} style={styles.listbar}>
             <Press
               accessibilityRole="button"
-              accessibilityLabel="Sort songs"
+              accessibilityLabel={t("songs.menu.sort")}
               onPress={catalog.onSort}
               pressedScale={0.98}
               style={[styles.sortbtn, { backgroundColor: theme.card, borderColor: theme.line }]}
@@ -280,7 +282,7 @@ export function SongsScroller({
                 {catalog.countLabel}
               </Text>
             </Press>
-            <BrandPill theme={theme} small label="Play all" onPress={catalog.onPlayAll} icon={<PlayGlyph color="#FFFFFF" />} />
+            <BrandPill theme={theme} small label={t("today.playAll")} onPress={catalog.onPlayAll} icon={<PlayGlyph color="#FFFFFF" />} />
           </SongsReveal>
         </>
       ) : null}
@@ -332,14 +334,14 @@ export function SongsScroller({
             <Animated.View style={[styles.pillSlot, pillWidth]}>
               <Press
                 accessibilityRole="search"
-                accessibilityLabel="Search a number, a name or a feeling"
+                accessibilityLabel={t("today.search")}
                 onPress={onOpenSearch}
                 pressedScale={0.98}
                 style={[styles.pillfield, { backgroundColor: theme.card, borderColor: theme.line }]}
               >
                 <SearchGlyph color={theme.textBody} />
                 <Text style={[styles.pillText, { color: theme.textBody }]} numberOfLines={1}>
-                  Search a number, a name or a feeling
+                  {t("today.search")}
                 </Text>
               </Press>
             </Animated.View>
@@ -353,7 +355,7 @@ export function SongsScroller({
         <View style={[styles.avatarSlot, { top: inset + 6 }]} pointerEvents="box-none">
           <Press
             accessibilityRole="button"
-            accessibilityLabel="Profile and settings"
+            accessibilityLabel={t("today.profileA11y")}
             onPress={onOpenProfile}
             pressedScale={0.94}
             style={[styles.avatar, { backgroundColor: theme.peach }]}

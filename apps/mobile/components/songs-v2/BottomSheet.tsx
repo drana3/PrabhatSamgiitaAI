@@ -34,6 +34,7 @@ import {
   scrimOpacity,
   sheetOffsetForDrag,
 } from "@/lib/songsV2/sheetPhysics";
+import { useT } from "@/lib/i18n"
 
 type Props = {
   open: boolean;
@@ -68,11 +69,12 @@ export function BottomSheet({
   theme,
   eyebrow,
   accessibilityLabel,
-  doneLabel = "Done",
+  doneLabel,
   maxHeightRatio = 0.92,
   flush = false,
   children,
 }: Props) {
+  const t = useT()
   const reduce = useReducedMotion();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -185,7 +187,7 @@ export function BottomSheet({
           >
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Close ${accessibilityLabel}`}
+              accessibilityLabel={t("songs.sheet.close", { name: accessibilityLabel })}
               onPress={close}
               style={StyleSheet.absoluteFill}
             />
@@ -222,7 +224,7 @@ export function BottomSheet({
                   </Text>
                   <PressScale
                     accessibilityRole="button"
-                    accessibilityLabel={doneLabel}
+                    accessibilityLabel={doneLabel ?? t("common.done")}
                     onPress={close}
                     pressedScale={0.97}
                     style={styles.done}
@@ -230,7 +232,7 @@ export function BottomSheet({
                     <Text
                       style={[styles.doneText, { color: theme.textHeading }]}
                     >
-                      {doneLabel}
+                      {doneLabel ?? t("common.done")}
                     </Text>
                   </PressScale>
                 </View>

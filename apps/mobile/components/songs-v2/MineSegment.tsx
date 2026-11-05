@@ -13,6 +13,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import { downloadsSummary, MINE_COPY, playlistEyebrow, sectionState, type SavedRow } from "@/lib/songsV2/mine"
+import { useT } from "@/lib/i18n"
 
 export type MinePlaylist = { id: string; name: string; songCount: number }
 
@@ -44,6 +45,7 @@ type Props = {
  * Used by the Songs tab and by /saved-v2.
  */
 export function MineSegment(props: Props) {
+  const t = useT()
   const { theme } = props
   const saved = sectionState({ loading: props.savedLoading, count: props.savedRows.length })
   const lists = sectionState({ loading: props.playlistsLoading, count: props.playlists.length })
@@ -75,11 +77,11 @@ export function MineSegment(props: Props) {
       {show("saved") ? (
       <View style={[styles.sect, { paddingTop: 28 }]}>
         <SongsReveal index={3} style={styles.pad10}>
-          <SectionHeading theme={theme} first="Saved" second={`${props.savedRows.length} ${props.savedRows.length === 1 ? "song" : "songs"}`} />
+          <SectionHeading theme={theme} first={t("songs.chip.saved")} second={t("songs.count", { count: props.savedRows.length })} />
         </SongsReveal>
         {saved === "ready" ? (
           <SongsReveal index={4} style={styles.list}>
-            <ListDownloadRow theme={theme} numbers={savedNumbers} name="Saved" />
+            <ListDownloadRow theme={theme} numbers={savedNumbers} name={t("songs.menu.saved")} />
             {props.savedRows.map((row) => (
               <SongCardRow
                 key={row.number}
@@ -95,7 +97,7 @@ export function MineSegment(props: Props) {
             ))}
           </SongsReveal>
         ) : (
-          <EmptyNote theme={theme}>{saved === "loading" ? "Loading your saved songs…" : MINE_COPY.savedEmpty}</EmptyNote>
+          <EmptyNote theme={theme}>{saved === "loading" ? t("songs.mine.loadingSaved") : MINE_COPY.savedEmpty}</EmptyNote>
         )}
       </View>
       ) : null}
@@ -103,7 +105,7 @@ export function MineSegment(props: Props) {
       {show("playlists") ? (
       <View style={[styles.sect, props.only ? { paddingTop: 28 } : null]}>
         <SongsReveal index={5} style={styles.pad10}>
-          <SectionHeading theme={theme} first="Your" second="playlists" />
+          <SectionHeading theme={theme} first={t("songs.mine.your")} second={t("songs.mine.playlists")} />
         </SongsReveal>
         <SongsReveal index={6}>
           <EmptyNote theme={theme}>{MINE_COPY.playlistCaption}</EmptyNote>
@@ -121,7 +123,7 @@ export function MineSegment(props: Props) {
               ))
             : (
                 <EmptyNote theme={theme} style={{ paddingHorizontal: 10 }}>
-                  {lists === "loading" ? "Loading your playlists…" : MINE_COPY.playlistsEmpty}
+                  {lists === "loading" ? t("songs.mine.loadingLists") : MINE_COPY.playlistsEmpty}
                 </EmptyNote>
               )}
           {naming ? (
@@ -132,9 +134,9 @@ export function MineSegment(props: Props) {
                   setName(value)
                   setFormError(null)
                 }}
-                placeholder="Playlist name"
+                placeholder={t("songs.mine.listName")}
                 placeholderTextColor={theme.textBody}
-                accessibilityLabel="Playlist name"
+                accessibilityLabel={t("songs.mine.listName")}
                 autoFocus
                 returnKeyType="done"
                 onSubmitEditing={() => void create()}
@@ -142,8 +144,8 @@ export function MineSegment(props: Props) {
               />
               {formError ? <Text style={[styles.error, { color: theme.dangerText }]}>{formError}</Text> : null}
               <View style={styles.formActions}>
-                <PillButton theme={theme} tone="sand" label="Cancel" onPress={() => setNaming(false)} fill />
-                <PillButton theme={theme} label="Create" disabled={!name.trim() || busy} onPress={() => void create()} fill />
+                <PillButton theme={theme} tone="sand" label={t("common.cancel")} onPress={() => setNaming(false)} fill />
+                <PillButton theme={theme} label={t("songs.mine.create")} disabled={!name.trim() || busy} onPress={() => void create()} fill />
               </View>
             </View>
           ) : (
@@ -163,17 +165,17 @@ export function MineSegment(props: Props) {
       {show("playlists") ? (
       <View style={styles.sect}>
         <SongsReveal index={8} style={styles.pad10}>
-          <SectionHeading theme={theme} first="Quick" second="start" />
+          <SectionHeading theme={theme} first={t("songs.mine.quick")} second={t("songs.mine.start")} />
         </SongsReveal>
         <SongsReveal index={9} style={styles.list}>
           <Press
             accessibilityRole="button"
-            accessibilityLabel={`Surprise me, ${MINE_COPY.quickStartTitle}`}
+            accessibilityLabel={t("songs.mine.surpriseA11y", { title: MINE_COPY.quickStartTitle })}
             onPress={props.onQuickStart}
             pressedScale={0.98}
             style={[styles.lcard, { backgroundColor: amColors.sage900 }]}
           >
-            <Text style={[overStyle, { color: amColors.gold300 }]}>Surprise me</Text>
+            <Text style={[overStyle, { color: amColors.gold300 }]}>{t("songs.mine.surprise")}</Text>
             <Text style={styles.quickTitle}>{MINE_COPY.quickStartTitle}</Text>
             <Text style={styles.quickBody}>{MINE_COPY.quickStartHint}</Text>
           </Press>
@@ -185,15 +187,15 @@ export function MineSegment(props: Props) {
       {show("downloaded") ? (
       <View style={[styles.sect, props.only ? { paddingTop: 28 } : null]}>
         <SongsReveal index={10} style={styles.pad10}>
-          <SectionHeading theme={theme} first="On this" second="phone" />
+          <SectionHeading theme={theme} first={t("songs.mine.onThis")} second={t("songs.mine.phone")} />
         </SongsReveal>
         <SongsReveal index={11} style={styles.list}>
           <CardButton
             theme={theme}
             eyebrow={props.downloadsTotal ?? downloadsSummary(props.downloadCount)}
-            title="Downloads"
+            title={t("songs.mine.downloads")}
             onPress={props.onOpenDownloads}
-            accessibilityLabel={`Downloads, ${props.downloadsTotal ?? downloadsSummary(props.downloadCount)}`}
+            accessibilityLabel={t("songs.mine.downloadsA11y", { summary: props.downloadsTotal ?? downloadsSummary(props.downloadCount) })}
           />
         </SongsReveal>
       </View>

@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n"
+
 /**
  * Play all and Add to queue for the redesigned Songs lists. Pure: the screen
  * passes in what it knows about playable audio and the player's queue.
@@ -26,5 +28,5 @@ export function appendToQueue(queue: readonly number[], number: number): number[
 
 /** Message for the toast after a queue action. */
 export function queueToast(queue: readonly number[], number: number): string {
-  return queue.includes(number) ? `PS ${number} is already in the queue` : `Added PS ${number} to the queue`
+  return queue.includes(number) ? t("songs.toast.inQueue", { number }) : t("songs.toast.addedQueue", { number })
 }

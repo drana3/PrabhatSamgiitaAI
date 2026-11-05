@@ -16,6 +16,7 @@ import { festivalChips, pickFestival, SPECIAL_TILES, storyEyebrow, tilesWithCoun
 import { storyLoader } from "@/lib/songsV2/storyApi"
 import { MOCK_STORIES } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   theme: SongsTheme
@@ -40,12 +41,13 @@ function tileColors(theme: SongsTheme, tone: TileTone) {
  * collections. A festival chip swaps the green card in place. Blocks reveal with `--i` 3 to 9.
  */
 export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, onOpenFestival, onOpenStory, onOpenTile }: Props) {
-  const chips = useMemo(() => festivalChips(allCollections), [])
+  const t = useT()
+  const chips = useMemo(() => festivalChips(allCollections), [t])
   const [festivalId, setFestivalId] = useState<string | null>(null)
   const festival = pickFestival(chips, festivalId)
   const tiles = useMemo(
     () => tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length),
-    [],
+    [t],
   )
   const [, bump] = useState(0)
 
@@ -66,7 +68,7 @@ export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, 
       {festival ? (
         <View style={[styles.sect, { paddingTop: 28 }]}>
           <SongsReveal index={3} style={styles.pad10}>
-            <SectionHeading theme={theme} first="Festival" second="songs" />
+            <SectionHeading theme={theme} first={t("songs.coll.festival.first")} second={t("songs.coll.festival.second")} />
           </SongsReveal>
           <SongsReveal index={4}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -79,15 +81,15 @@ export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, 
             <View style={[styles.lcard, { backgroundColor: amColors.sage700, paddingTop: 20, paddingBottom: 22 }]}>
               <Text style={[overStyle, { color: amColors.gold300 }]}>{festival.eyebrow}</Text>
               <Text style={styles.festName}>{festival.label}</Text>
-              <Text style={styles.festCount}>{festival.count === 1 ? "1 song" : `${festival.count} songs`}</Text>
+              <Text style={styles.festCount}>{t("songs.count", { count: festival.count })}</Text>
               <View style={styles.festActions}>
                 <PillButton
                   theme={theme}
-                  label="Play all"
+                  label={t("today.playAll")}
                   icon={<PlayGlyph color="#FFFFFF" />}
                   onPress={() => onPlayAll(festival.songNumbers)}
                 />
-                <PillButton theme={theme} tone="sand" label="See songs" onPress={() => onOpenFestival(festival.label)} />
+                <PillButton theme={theme} tone="sand" label={t("songs.coll.seeSongs")} onPress={() => onOpenFestival(festival.label)} />
               </View>
             </View>
           </SongsReveal>
@@ -96,21 +98,21 @@ export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, 
 
       <View style={styles.sect}>
         <SongsReveal index={6} style={styles.pad10}>
-          <SectionHeading theme={theme} first="Stories" second="behind the songs" />
+          <SectionHeading theme={theme} first={t("home.filter.stories")} second={t("home.stories.second")} />
         </SongsReveal>
         <SongsReveal index={7} style={styles.list}>
           {stories.map((story) => (
             <CardButton
               key={story.slug}
               theme={theme}
-              eyebrow={MOCKUP_DATA ? (MOCK_STORIES.find((m) => m.slug === story.slug)?.eyebrow ?? "Story") : storyEyebrow(storyLoader.peekMinutes(story.slug))}
+              eyebrow={MOCKUP_DATA ? (MOCK_STORIES.find((m) => m.slug === story.slug)?.eyebrow ?? t("today.section.story")) : storyEyebrow(storyLoader.peekMinutes(story.slug))}
               title={story.title}
               onPress={() => onOpenStory(story)}
             />
           ))}
           {!stories.length ? (
             <EmptyNote theme={theme} style={{ paddingHorizontal: 10 }}>
-              {storiesLoading ? "Loading stories…" : "No stories to show right now."}
+              {storiesLoading ? t("songs.coll.loadingStories") : t("songs.coll.noStories")}
             </EmptyNote>
           ) : null}
         </SongsReveal>
@@ -118,7 +120,7 @@ export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, 
 
       <View style={styles.sect}>
         <SongsReveal index={8} style={styles.pad10}>
-          <SectionHeading theme={theme} first="Special" second="collections" />
+          <SectionHeading theme={theme} first={t("songs.coll.special.first")} second={t("songs.coll.special.second")} />
         </SongsReveal>
         <SongsReveal index={9} style={styles.tiles}>
           {tiles.map((tile, i) => {

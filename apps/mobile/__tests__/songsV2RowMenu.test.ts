@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  HIDE_FOOTER,
-  HIDE_ROW_LABEL,
-  REMOVE_ROW_LABEL,
   UNDO_MS,
   hiddenLine,
   hiddenToast,
@@ -25,11 +22,10 @@ describe("row menu by list kind", () => {
     expect(rowRemoval("playlist:")).toEqual({ kind: "hide" })
   })
   it("labels and footer follow the kind", () => {
-    expect(removeRowLabel(rowRemoval("all"))).toBe(HIDE_ROW_LABEL)
-    expect(removeRowLabel(rowRemoval("playlist:x"))).toBe(REMOVE_ROW_LABEL)
-    expect(removeFooter(rowRemoval("all"))).toBe(HIDE_FOOTER)
+    expect(removeRowLabel(rowRemoval("all"))).toBe("Hide from this list")
+    expect(removeRowLabel(rowRemoval("playlist:x"))).toBe("Remove from this playlist")
+    expect(removeFooter(rowRemoval("all"))).toBe("Only you see this. You can bring hidden songs back from the list menu.")
     expect(removeFooter(rowRemoval("playlist:x"))).toBeNull()
-    expect(HIDE_FOOTER).toBe("Only you see this. You can bring hidden songs back from the list menu.")
   })
   it("toasts", () => {
     expect(hiddenToast("All songs")).toBe("Hidden from All songs")

@@ -10,6 +10,7 @@ import { mockStoryContent } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { storyLoader } from "@/lib/songsV2/storyApi"
 import { buildStorySheet, type StorySheetContent } from "@/lib/songsV2/storySheet"
+import { useT } from "@/lib/i18n"
 
 type Preview = { slug: string; title: string; teaser?: string; songNumbers?: number[] }
 
@@ -35,6 +36,7 @@ export function StorySheet({
   /** Opens the song page; the parent decides how the sheet leaves. */
   onOpenSong: (href: string) => void
 }) {
+  const t = useT()
   const [content, setContent] = useState<StorySheetContent | null>(null)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -73,8 +75,8 @@ export function StorySheet({
       open={open}
       onClose={onClose}
       theme={theme}
-      eyebrow={content?.eyebrow ?? "Story"}
-      accessibilityLabel="Story"
+      eyebrow={content?.eyebrow ?? t("today.section.story")}
+      accessibilityLabel={t("today.section.story")}
     >
       {content ? <Text style={[styles.title, { color: theme.textHeading }]}>{content.title}</Text> : null}
       {content?.paragraphs.map((paragraph, index) => (
@@ -82,15 +84,15 @@ export function StorySheet({
           {paragraph}
         </Text>
       ))}
-      {!content && !failed ? <Text style={[styles.body, { color: theme.textBody }]}>Loading the story…</Text> : null}
+      {!content && !failed ? <Text style={[styles.body, { color: theme.textBody }]}>{t("songs.story.loading")}</Text> : null}
       {failed && !hasBody ? (
-        <Press accessibilityRole="button" accessibilityLabel="Try again" onPress={retry} style={styles.retry}>
-          <Text style={[styles.body, { color: theme.textBody }]}>Could not load this story. Tap to try again.</Text>
+        <Press accessibilityRole="button" accessibilityLabel={t("common.tryAgain")} onPress={retry} style={styles.retry}>
+          <Text style={[styles.body, { color: theme.textBody }]}>{t("songs.story.failed")}</Text>
         </Press>
       ) : null}
       {content?.songHref ? (
         <View style={styles.cta}>
-          <BrandPill theme={theme} label="Open the song" onPress={() => onOpenSong(content.songHref!)} />
+          <BrandPill theme={theme} label={t("songs.story.openSong")} onPress={() => onOpenSong(content.songHref!)} />
         </View>
       ) : null}
     </BottomSheet>

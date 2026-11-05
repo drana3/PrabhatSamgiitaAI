@@ -16,7 +16,7 @@ import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import {
-  EMPTY_COLLECTIONS_TEXT,
+  emptyCollectionsText,
   buildCollectionEntries,
   collectionHref,
   collectionsCountLabel,
@@ -30,6 +30,7 @@ import { collageCoverIds, songCountText } from "@/lib/songsV2/listPage"
 import { SPECIAL_TILES } from "@/lib/songsV2/collections"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 /** The catalog is 5,018 songs; shown until the list has loaded. */
 const CATALOG_SIZE = 5018
@@ -50,6 +51,7 @@ function moodSources(): MoodSource[] {
  * whole catalogue one tap away. A tile opens the collection page (songs-v2-collection).
  */
 export default function CollectionsV2Screen() {
+  const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
   const sp = useSpTheme()
@@ -64,7 +66,7 @@ export default function CollectionsV2Screen() {
   const [kind, setKind] = useState<CollectionKindFilter>("all")
   const [width, setWidth] = useState(0)
 
-  const entries = useMemo(() => buildCollectionEntries(allCollections, moodSources()), [])
+  const entries = useMemo(() => buildCollectionEntries(allCollections, moodSources()), [t])
   const chips = useMemo(() => kindChips(entries), [entries])
   const shown = useMemo(() => filterCollections(entries, query, kind), [entries, query, kind])
   const searching = query.trim().length > 0
@@ -82,7 +84,7 @@ export default function CollectionsV2Screen() {
   const allSongs = (
     <Press
       accessibilityRole="button"
-      accessibilityLabel={`All songs, ${songCountText(total)}`}
+      accessibilityLabel={t("songs.coll.allSongsA11y", { songs: songCountText(total) })}
       onPress={() => router.push(href("/songs-v2-index"))}
       pressedScale={0.98}
       outerStyle={styles.allOuter}
@@ -93,10 +95,10 @@ export default function CollectionsV2Screen() {
       </View>
       <View style={styles.allText}>
         <Text style={[styles.allTitle, { color: theme.textHeading }]} numberOfLines={1}>
-          All songs
+          {t("songs.allSongs")}
         </Text>
         <Text style={[styles.allSub, { color: theme.textBody }]} numberOfLines={1}>
-          {songCountText(total)} · the whole catalogue
+          {t("songs.coll.wholeCatalog", { songs: songCountText(total) })}
         </Text>
       </View>
       <ChevronRightGlyph color={theme.textBody} />
@@ -118,9 +120,9 @@ export default function CollectionsV2Screen() {
         <View style={[styles.bar, { paddingTop: inset, backgroundColor: theme.page }]}>
           <SongsReveal index={0}>
             <View style={styles.titleRow}>
-              <SpRound t={sp} icon="back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+              <SpRound t={sp} icon="back" label={t("common.back")} onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
               <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1} accessibilityRole="header">
-                Collections
+                {t("songs.coll.title")}
               </Text>
               <Text style={[styles.count, { color: theme.textBody }]} numberOfLines={1}>
                 {collectionsCountLabel(shown.length, entries.length)}
@@ -133,9 +135,9 @@ export default function CollectionsV2Screen() {
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search collections"
+                placeholder={t("songs.coll.search")}
                 placeholderTextColor={theme.textMuted}
-                accessibilityLabel="Search collections"
+                accessibilityLabel={t("songs.coll.search")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="search"
@@ -143,7 +145,7 @@ export default function CollectionsV2Screen() {
                 style={[styles.input, { color: theme.textHeading }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}
               />
               {query ? (
-                <Press accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery("")} pressedScale={0.88} style={styles.clearBtn}>
+                <Press accessibilityRole="button" accessibilityLabel={t("songs.coll.clearSearch")} onPress={() => setQuery("")} pressedScale={0.88} style={styles.clearBtn}>
                   <CloseGlyph size={18} color={theme.textBody} />
                 </Press>
               ) : null}
@@ -163,9 +165,9 @@ export default function CollectionsV2Screen() {
           ListHeaderComponent={!searching && kind === "all" ? <SongsReveal index={3}>{allSongs}</SongsReveal> : null}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
-              <Text style={[styles.empty, { color: theme.textBody }]}>{EMPTY_COLLECTIONS_TEXT}</Text>
-              <Press accessibilityRole="button" accessibilityLabel="Clear search and kinds" onPress={clear} pressedScale={0.96} style={styles.emptyBtn}>
-                <Text style={[styles.emptyLink, { color: theme.accent }]}>Show all collections</Text>
+              <Text style={[styles.empty, { color: theme.textBody }]}>{emptyCollectionsText()}</Text>
+              <Press accessibilityRole="button" accessibilityLabel={t("songs.coll.clearAll")} onPress={clear} pressedScale={0.96} style={styles.emptyBtn}>
+                <Text style={[styles.emptyLink, { color: theme.accent }]}>{t("songs.coll.showAll")}</Text>
               </Press>
             </View>
           }

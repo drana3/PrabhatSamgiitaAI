@@ -7,6 +7,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { RAIL } from "@/lib/songsV2/rail"
 import type { RailTick } from "@/lib/songsV2/layout"
+import { useT } from "@/lib/i18n"
 
 /** Touch area is wider than the 12px drawn rail so a thumb can find it. */
 const TOUCH = 30
@@ -45,6 +46,7 @@ export function FastScrollRail({
   onScrub: (fraction: number) => string
   onHold: (held: boolean) => void
 }) {
+  const t = useT()
   const height = useSharedValue(0)
   const fingerY = useSharedValue(0)
   const [label, setLabel] = useState("")
@@ -101,7 +103,7 @@ export function FastScrollRail({
         style={[styles.touch, { top }, wrap]}
         pointerEvents={interactive ? "auto" : "none"}
         accessibilityRole="adjustable"
-        accessibilityLabel="Fast scroll"
+        accessibilityLabel={t("songs.fastScroll")}
         onLayout={(event) => {
           height.value = event.nativeEvent.layout.height
         }}

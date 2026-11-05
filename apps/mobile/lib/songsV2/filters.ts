@@ -1,4 +1,5 @@
 import type { CatalogEntry } from "./entry"
+import { t } from "@/lib/i18n"
 
 /**
  * Filters of the funnel icon (spec SCR-11 item 6): language, script, has
@@ -21,12 +22,15 @@ export const EMPTY_FILTERS: FilterState = { languages: [], scripts: [], hasAudio
 
 /** Under 3:00, 3:00 to 6:00, over 6:00. */
 export const DURATION_BUCKETS: readonly { id: DurationBucket; label: string; minSeconds: number; maxSeconds: number }[] = [
-  { id: "short", label: "Under 3 min", minSeconds: 0, maxSeconds: 180 },
-  { id: "medium", label: "3 to 6 min", minSeconds: 180, maxSeconds: 360 },
-  { id: "long", label: "Over 6 min", minSeconds: 360, maxSeconds: Number.POSITIVE_INFINITY },
+  { id: "short", get label() { return t("songs.filter.under3") }, minSeconds: 0, maxSeconds: 180 },
+  { id: "medium", get label() { return t("songs.filter.mid") }, minSeconds: 180, maxSeconds: 360 },
+  { id: "long", get label() { return t("songs.filter.over6") }, minSeconds: 360, maxSeconds: Number.POSITIVE_INFINITY },
 ]
 
-export const SCRIPT_LABEL: Record<ScriptId, string> = { roman: "Roman", devanagari: "Devanagari" }
+export const SCRIPT_LABEL: Record<ScriptId, string> = {
+  get roman() { return t("songs.script.roman") },
+  get devanagari() { return t("songs.script.devanagari") },
+}
 
 export function bucketFor(seconds: number): DurationBucket {
   const hit = DURATION_BUCKETS.find((b) => seconds >= b.minSeconds && seconds < b.maxSeconds)
@@ -78,7 +82,7 @@ export function filterTokens(state: FilterState): FilterToken[] {
   const tokens: FilterToken[] = []
   for (const language of state.languages) tokens.push({ id: `lang:${language}`, label: language })
   for (const script of state.scripts) tokens.push({ id: `script:${script}`, label: SCRIPT_LABEL[script] })
-  if (state.hasAudio) tokens.push({ id: "audio", label: "Has audio" })
+  if (state.hasAudio) tokens.push({ id: "audio", label: t("songs.filter.hasAudio") })
   for (const bucket of state.durations) {
     tokens.push({ id: `dur:${bucket}`, label: DURATION_BUCKETS.find((b) => b.id === bucket)!.label })
   }

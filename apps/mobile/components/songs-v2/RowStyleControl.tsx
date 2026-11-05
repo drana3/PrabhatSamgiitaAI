@@ -8,6 +8,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { ROW_STYLE_OPTIONS } from "@/lib/songsV2/rowStyles"
 import { useListViewStore } from "@/stores/listViewStore"
+import { useT } from "@/lib/i18n"
 
 const TRACK = 44
 const INSET = 4
@@ -19,6 +20,7 @@ const INSET = 4
  * Selected = ink900 + onInk (neutral pill, 15:1), the others heading ink on the sheet.
  */
 export function RowStyleControl({ theme }: { theme: SongsTheme }) {
+  const t = useT()
   const value = useListViewStore((s) => s.rowStyle)
   const setValue = useListViewStore((s) => s.setRowStyle)
   const reduce = useReducedMotion()
@@ -38,11 +40,11 @@ export function RowStyleControl({ theme }: { theme: SongsTheme }) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={[overStyle, { color: theme.accent }]}>Rows</Text>
+      <Text style={[overStyle, { color: theme.accent }]}>{t("songs.rows.label")}</Text>
       <View
         style={[styles.track, { backgroundColor: theme.inner, borderColor: theme.line }]}
         accessibilityRole="radiogroup"
-        accessibilityLabel="Rows"
+        accessibilityLabel={t("songs.rows.label")}
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       >
         <Animated.View pointerEvents="none" style={[styles.thumb, { backgroundColor: theme.ink900 }, thumb]} />

@@ -1,9 +1,11 @@
+import { t } from "@/lib/i18n"
+
 /** The chips of Songs (one navigation layer): All, Saved, Downloaded, Playlists. */
 export const SONG_CHIPS = [
-  { id: "all", label: "All" },
-  { id: "saved", label: "Saved" },
-  { id: "downloaded", label: "Downloaded" },
-  { id: "playlists", label: "Playlists" },
+  { id: "all", get label() { return t("home.filter.all") } },
+  { id: "saved", get label() { return t("songs.chip.saved") } },
+  { id: "downloaded", get label() { return t("home.filter.downloaded") } },
+  { id: "playlists", get label() { return t("songs.chip.playlists") } },
 ] as const
 
 export type SongChipId = (typeof SONG_CHIPS)[number]["id"]

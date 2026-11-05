@@ -1,4 +1,5 @@
 import type { CollectionGroup, CollectionItem } from "@/data/collections"
+import { t } from "@/lib/i18n"
 
 /** "Dipavali (Colour Festival) Day Songs" -> "Dipavali (Colour Festival) Day". */
 export function shortCollectionLabel(label: string): string {
@@ -6,7 +7,7 @@ export function shortCollectionLabel(label: string): string {
 }
 
 export function songCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "song" : "songs"}`
+  return t("songs.count", { count })
 }
 
 export type FestivalChip = {
@@ -27,7 +28,7 @@ export function festivalChips(collections: readonly CollectionItem[]): FestivalC
     .map((c) => ({
       id: c.value || c.label,
       label: shortCollectionLabel(c.label),
-      eyebrow: `Festival · ${songCountLabel(c.count)}`,
+      eyebrow: t("songs.kindEyebrow.festival", { songs: songCountLabel(c.count) }),
       count: c.count,
       songNumbers: c.songNumbers,
     }))
@@ -55,12 +56,12 @@ export type SpecialTile = {
  * olive, olive, white), so no tile shares a tone with a neighbour in the two-column grid.
  */
 export const SPECIAL_TILES: readonly SpecialTile[] = [
-  { id: "kiirtan", label: "Kiirtan", tone: "olive", browseId: "devotional" },
+  { id: "kiirtan", get label() { return t("kind.kiirtan") }, tone: "olive", browseId: "devotional" },
   { id: "dhyana", label: "Dhyána", tone: "white", browseId: "meditation" },
-  { id: "morning", label: "Morning", tone: "white", browseId: "morning" },
-  { id: "evening", label: "Evening", tone: "olive", browseId: "evening" },
-  { id: "nature", label: "Nature", tone: "olive", browseId: "nature" },
-  { id: "children", label: "Children", tone: "white", browseId: "children" },
+  { id: "morning", get label() { return t("cat.morning") }, tone: "white", browseId: "morning" },
+  { id: "evening", get label() { return t("cat.evening") }, tone: "olive", browseId: "evening" },
+  { id: "nature", get label() { return t("cat.nature") }, tone: "olive", browseId: "nature" },
+  { id: "children", get label() { return t("cat.children") }, tone: "white", browseId: "children" },
 ]
 
 export type TileWithCount = SpecialTile & { count: number; countLabel: string }
@@ -93,7 +94,7 @@ export function readMinutes(paragraphs: readonly string[], wordsPerMinute = 200)
 
 /** `Story · 4 min read`, or just `Story` while the length is not known. */
 export function storyEyebrow(minutes: number | null | undefined): string {
-  return minutes && minutes > 0 ? `Story · ${minutes} min read` : "Story"
+  return minutes && minutes > 0 ? t("songs.storyEyebrow", { minutes }) : t("today.section.story")
 }
 
 /**
@@ -117,5 +118,5 @@ export function filterCollectionGroups(groups: readonly CollectionGroup[], query
 
 /** Title of the index entry point: `All 68`. */
 export function allCollectionsLabel(total: number): string {
-  return `All ${total}`
+  return t("songs.allN", { total })
 }

@@ -1,5 +1,6 @@
 import { coverFor, type HomeCoverId } from "@/lib/homeShelves"
 import { plainTitle, type CatalogEntry } from "@/lib/songsV2/entry"
+import { t } from "@/lib/i18n"
 
 /**
  * Pure logic of the playlist-style pages (All songs and a collection): chips, sort, totals, the
@@ -12,17 +13,17 @@ export type ChipDef = { id: string; label: string }
 
 /** The three chips every list has. */
 export const BASE_CHIPS: readonly ChipDef[] = [
-  { id: "all", label: "All" },
-  { id: "saved", label: "Saved" },
-  { id: "downloaded", label: "Downloaded" },
+  { id: "all", get label() { return t("home.filter.all") } },
+  { id: "saved", get label() { return t("songs.chip.saved") } },
+  { id: "downloaded", get label() { return t("home.filter.downloaded") } },
 ]
 
 /** Categories the app already has (lib/categorySongs ids); a chip shows only when the list holds a song of it. */
 export const CATEGORY_CHIPS: readonly ChipDef[] = [
-  { id: "morning", label: "Morning" },
-  { id: "evening", label: "Evening" },
-  { id: "festival", label: "Festival" },
-  { id: "meditation", label: "Meditation" },
+  { id: "morning", get label() { return t("cat.morning") } },
+  { id: "evening", get label() { return t("cat.evening") } },
+  { id: "festival", get label() { return t("cat.festival") } },
+  { id: "meditation", get label() { return t("cat.meditation") } },
 ]
 
 export type ListContext = {
@@ -66,9 +67,9 @@ export function withoutHidden(entries: readonly CatalogEntry[], hidden: Readonly
 
 /** Text under the list when a chip has no songs. */
 export function emptyMessage(chip: string, chipLabel: string): string {
-  if (chip === "saved") return "No saved songs here yet. Tap the three dots on a song and choose Save."
-  if (chip === "downloaded") return "Nothing downloaded from this list yet."
-  return `No ${chipLabel.toLowerCase()} songs in this list.`
+  if (chip === "saved") return t("songs.empty.saved")
+  if (chip === "downloaded") return t("songs.empty.downloaded")
+  return t("songs.empty.chip", { chip: chipLabel.toLowerCase() })
 }
 
 /* ------------------------------------------------------------------- sort */
@@ -77,10 +78,10 @@ export type ListSortKey = "num" | "az" | "duration" | "recent"
 export const DEFAULT_LIST_SORT: ListSortKey = "num"
 
 export const LIST_SORTS: readonly { key: ListSortKey; title: string; subtitle: string }[] = [
-  { key: "num", title: "Number", subtitle: "The order of the book" },
-  { key: "az", title: "A to Z", subtitle: "By the title of the song" },
-  { key: "duration", title: "Duration", subtitle: "Shortest first" },
-  { key: "recent", title: "Recently played", subtitle: "What you listened to last" },
+  { key: "num", get title() { return t("songs.lsort.num.title") }, get subtitle() { return t("songs.lsort.num.sub") } },
+  { key: "az", get title() { return t("songs.lsort.az.title") }, get subtitle() { return t("songs.lsort.az.sub") } },
+  { key: "duration", get title() { return t("songs.lsort.duration.title") }, get subtitle() { return t("songs.lsort.duration.sub") } },
+  { key: "recent", get title() { return t("songs.lsort.recent.title") }, get subtitle() { return t("songs.lsort.recent.sub") } },
 ]
 
 export function isListSort(value: unknown): value is ListSortKey {
@@ -146,12 +147,12 @@ export function formatTotal(seconds: number): string | null {
   const minutes = Math.max(1, Math.round(seconds / 60))
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
-  if (h === 0) return `${m} min`
-  return m === 0 ? `${h} h` : `${h} h ${m} min`
+  if (h === 0) return t("songs.total.m", { m })
+  return m === 0 ? t("songs.total.h", { h }) : t("songs.total.hm", { h, m })
 }
 
 export function songCountText(count: number): string {
-  return `${count.toLocaleString("en-US")} ${count === 1 ? "song" : "songs"}`
+  return t("songs.count", { count })
 }
 
 /** "68 songs · 4 h 12 min"; just the count while no length is known. */
