@@ -8,7 +8,7 @@ import { upsertResume, type ResumeEntry, type ResumeMap } from "@/lib/playerV2/r
 
 type ResumeState = OwnedData<{ entries: ResumeMap }> & {
   entries: ResumeMap
-  record: (songNumber: number, position: number, duration: number, now?: number) => void
+  record: (songNumber: number, position: number, duration: number, versionId?: string | null, now?: number) => void
   get: (songNumber: number) => ResumeEntry | undefined
   forget: (songNumber: number) => void
 }
@@ -20,8 +20,8 @@ export const useResumeStore = create<ResumeState>()(
       entries: {},
       owner: null,
       slots: {},
-      record: (songNumber, position, duration, now = Date.now()) =>
-        set({ entries: upsertResume(get().entries, songNumber, position, duration, now) }),
+      record: (songNumber, position, duration, versionId = null, now = Date.now()) =>
+        set({ entries: upsertResume(get().entries, songNumber, position, duration, now, undefined, versionId) }),
       get: (songNumber) => get().entries[String(songNumber)],
       forget: (songNumber) => {
         const next = { ...get().entries }

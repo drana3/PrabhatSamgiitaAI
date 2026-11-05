@@ -25,7 +25,7 @@ describe("resume position", () => {
 
   it("stores, drops finished songs and evicts the oldest", () => {
     let map = upsertResume({}, 1, 60, 200, 100)
-    expect(map["1"]).toEqual({ position: 60, duration: 200, savedAt: 100 })
+    expect(map["1"]).toEqual({ position: 60, duration: 200, savedAt: 100, versionId: null })
     map = upsertResume(map, 1, 199, 200, 200)
     expect(map["1"]).toBeUndefined()
     map = upsertResume({}, 1, 60, 200, 1, 2)
@@ -71,7 +71,7 @@ describe("resume tracker", () => {
     feed(obs({ position: 2 }))
     expect(record).not.toHaveBeenCalled()
     feed(obs({ position: 91 }))
-    expect(record).toHaveBeenCalledWith(5, 91, 200)
+    expect(record).toHaveBeenCalledWith(5, 91, 200, null)
     feed(obs({ position: 93 }))
     expect(record).toHaveBeenCalledTimes(1)
     feed(obs({ position: 94, isPlaying: false }))
@@ -87,7 +87,7 @@ describe("resume tracker", () => {
     feed(obs({ position: 3 }))
     expect(record).not.toHaveBeenCalled()
     feed(obs({ position: 6 }))
-    expect(record).toHaveBeenCalledWith(5, 6, 200)
+    expect(record).toHaveBeenCalledWith(5, 6, 200, null)
     expect(seekTo).not.toHaveBeenCalled()
   })
 
@@ -105,3 +105,46 @@ describe("resume tracker", () => {
     expect(seekTo.mock.calls).toEqual([[50], [70]])
   })
 })
+
+describe("resume per version", () => {
+  const obs = (over: Record<string, unknown>) => ({
+    songNumber: 5,
+    versionId: "ps-5-v1" as string | null,
+    position: 0,
+    duration: 200,
+    isPlaying: true,
+    isBuffering: false,
+    ...over,
+  })
+
+  it("a position saved on one version does not start another", () => {
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0, versionId: "ps-5-v1" }, "ps-5-v2")).toBeNull()
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0, versionId: "ps-5-v1" }, "ps-5-v1")).toBe(90)
+    // entries saved before versions were tracked still resume
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0 }, "ps-5-v2")).toBe(90)
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0, versionId: null }, null)).toBe(90)
+  })
+
+  it("stores the version with the position", () => {
+    const map = upsertResume({}, 5, 60, 200, 1, undefined, "ps-5-v2")
+    expect(map["5"]?.versionId).toBe("ps-5-v2")
+  })
+
+  it("switching version starts the new one from the beginning, then saves under the new version", () => {
+    const record = vi.fn()
+    const seekTo = vi.fn()
+    const entry = { position: 90, duration: 200, savedAt: 0, versionId: "ps-5-v1" }
+    const feed = createResumeTracker({ getEntry: () => entry, record, seekTo })
+    feed(obs({ isBuffering: true }))
+    feed(obs({ position: 0 }))
+    expect(seekTo).toHaveBeenCalledWith(90)
+    seekTo.mockClear()
+
+    feed(obs({ versionId: "ps-5-v2", isBuffering: true }))
+    feed(obs({ versionId: "ps-5-v2", position: 0 }))
+    expect(seekTo).not.toHaveBeenCalled()
+    feed(obs({ versionId: "ps-5-v2", position: 12 }))
+    expect(record).toHaveBeenLastCalledWith(5, 12, 200, "ps-5-v2")
+  })
+})
+

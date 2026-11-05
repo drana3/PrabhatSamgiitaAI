@@ -18,6 +18,7 @@ import { createSleepRuntime } from "@/lib/playerV2/sleepRuntime"
 import { tickSleep } from "@/lib/playerV2/sleepWatcher"
 import { ensureUpcomingRadioTrack } from "@/lib/playback/radioAdvance"
 import { nativeRemoveUpcomingTracks, nativeSetRepeatTrack, nativeSetVolume } from "@/lib/playback/nativeCatalogPlayer"
+import { selectedVersionIndex, versionsFromSong } from "@/lib/playerV2/versions"
 import { setTransportDeps } from "@/lib/playerV2/transport"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
@@ -127,14 +128,24 @@ export function startPlayerV2Services(): void {
 
   const observe = createResumeTracker({
     getEntry: (n) => useResumeStore.getState().get(n),
-    record: (n, position, duration) => useResumeStore.getState().record(n, position, duration),
+    record: (n, position, duration, versionId) => useResumeStore.getState().record(n, position, duration, versionId),
     seekTo: (seconds) => usePlayerStore.getState().seekTo(seconds),
   })
   const feed = () => {
     const s = usePlayerStore.getState()
+    const resumable = s.currentSong && s.currentSong.kind !== "kiirtan" ? s.currentSong : null
+    let versionId: string | null = null
+    if (resumable) {
+      const versions = versionsFromSong(resumable)
+      if (versions.length > 1) {
+        const remembered = usePlayerV2Store.getState().versionByNumber[String(resumable.number)]
+        versionId = versions[selectedVersionIndex(versions, resumable.audioUrl, remembered)]?.id ?? null
+      }
+    }
     observe({
       // resume points are for Prabhat Samgiita songs only
-      songNumber: s.currentSong && s.currentSong.kind !== "kiirtan" ? s.currentSong.number : null,
+      songNumber: resumable ? resumable.number : null,
+      versionId,
       position: s.position,
       duration: s.duration,
       isPlaying: s.isPlaying,

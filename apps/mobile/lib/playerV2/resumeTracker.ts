@@ -7,6 +7,8 @@ import {
 
 export type ResumeObservation = {
   songNumber: number | null
+  /** The version playing; null for a song with one recording. A new version is a new start. */
+  versionId?: string | null
   position: number
   duration: number
   isPlaying: boolean
@@ -15,7 +17,7 @@ export type ResumeObservation = {
 
 export type ResumeTrackerDeps = {
   getEntry: (songNumber: number) => ResumeEntry | undefined
-  record: (songNumber: number, position: number, duration: number) => void
+  record: (songNumber: number, position: number, duration: number, versionId: string | null) => void
   seekTo: (seconds: number) => void
 }
 
@@ -25,15 +27,18 @@ export type ResumeTrackerDeps = {
  */
 export function createResumeTracker(deps: ResumeTrackerDeps) {
   let song: number | null = null
+  let version: string | null = null
   let target: number | null = null
   let applied = false
   let lastSaved: number | null = null
   let wasPlaying = false
 
   return (obs: ResumeObservation): void => {
-    if (obs.songNumber !== song) {
+    const obsVersion = obs.versionId ?? null
+    if (obs.songNumber !== song || obsVersion !== version) {
       song = obs.songNumber
-      target = song == null ? null : resumePositionFor(deps.getEntry(song))
+      version = obsVersion
+      target = song == null ? null : resumePositionFor(deps.getEntry(song), version)
       applied = target == null
       lastSaved = null
       wasPlaying = obs.isPlaying
@@ -61,7 +66,7 @@ export function createResumeTracker(deps: ResumeTrackerDeps) {
     wasPlaying = obs.isPlaying
     if (obs.duration > 1 && (paused ? obs.position >= 5 : shouldSaveResume(obs.position, lastSaved))) {
       lastSaved = obs.position
-      deps.record(song, obs.position, obs.duration)
+      deps.record(song, obs.position, obs.duration, version)
     }
   }
 }
