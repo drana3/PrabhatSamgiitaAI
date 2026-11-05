@@ -54,4 +54,8 @@ describe("app.json native config", () => {
     expect(byType.get("NSPrivacyAccessedAPICategorySystemBootTime")).toEqual(["35F9.1"])
     expect(byType.get("NSPrivacyAccessedAPICategoryDiskSpace")).toEqual(["E174.1"])
   })
+
+  it("is a phone app on iOS (iPad runs it in phone mode until the layout is made for wide screens)", () => {
+    expect(expo.ios.supportsTablet).toBe(false)
+  })
 })
