@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { SongVideo } from "@/data/mock"
+import { withFixtureStats } from "@/lib/fixtures/songs"
 import { sampleGloss, sampleRussianLines, sampleTranslationLines } from "@/lib/fixtures/player"
 import { splitWords } from "@/lib/playerV2/lyricsSync"
 import { creditRows } from "@/lib/songPage/nowPlaying"
@@ -172,5 +173,32 @@ describe("player: sample word meanings and Russian lines only in the demo, only 
       "Not available in Russian yet. Showing English.",
     )
     expect(gapText({ kind: "translation", shown: null, text: "Not available in Russian yet." })).toBe("Not available in Russian yet.")
+  })
+})
+
+describe("Songs list: sample lengths, play counts and added dates stay in the demo", () => {
+  const entry = {
+    number: 42,
+    title: "x",
+    firstLine: null,
+    category: "Other",
+    language: null,
+    durationSeconds: null,
+    hasAudio: null,
+    hasDevanagari: null,
+    addedRank: null,
+    plays: null,
+  }
+
+  it("leaves a real song's unknown numbers unknown", () => {
+    expect(withFixtureStats(entry)).toEqual(entry)
+    expect(withFixtureStats(entry, false)).toEqual(entry)
+  })
+
+  it("fills them only when the demo asks, and never over real values", () => {
+    const sample = withFixtureStats(entry, true)
+    expect(sample.durationSeconds).toBeGreaterThan(0)
+    expect(sample.plays).not.toBeNull()
+    expect(withFixtureStats({ ...entry, durationSeconds: 99 }, true).durationSeconds).toBe(99)
   })
 })

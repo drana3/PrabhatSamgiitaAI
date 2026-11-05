@@ -163,11 +163,16 @@ describe("sample stats fixture", () => {
     expect(fixtureAddedRank(3)).toBe(111)
   })
 
-  it("fills only what the API left empty", () => {
-    const filled = withFixtureStats(entry(3))
+  it("fills nothing outside the demo preview", () => {
+    const bare = entry(3)
+    expect(withFixtureStats(bare)).toEqual(bare)
+  })
+
+  it("fills only what the API left empty (demo preview)", () => {
+    const filled = withFixtureStats(entry(3), true)
     expect(filled.durationSeconds).toBe(271)
     expect(filled.plays).toBe(fixturePlays(3))
-    const real = withFixtureStats(entry(3, { durationSeconds: 99, plays: 5, addedRank: 7 }))
+    const real = withFixtureStats(entry(3, { durationSeconds: 99, plays: 5, addedRank: 7 }), true)
     expect(real.durationSeconds).toBe(99)
     expect(real.plays).toBe(5)
     expect(real.addedRank).toBe(7)

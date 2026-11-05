@@ -26,7 +26,8 @@ const index = JSON.parse(
   readFileSync(path.resolve(__dirname, "../../../data/generated/lyric_search_index.json"), "utf8"),
 ) as Array<{ n: number; t: string; o: string }>
 const summaries: SongSummary[] = index.map((r) => ({ number: r.n, title: r.t, first_line: r.o, is_verified: true }) as SongSummary)
-const entries: CatalogEntry[] = summaries.map((row) => withFixtureStats(summaryToEntry(row, { hasAudio: hasPlayableAudio })))
+// the sample stats (demo preview only) give every sort order something to sort by, so the scale test uses them
+const entries: CatalogEntry[] = summaries.map((row) => withFixtureStats(summaryToEntry(row, { hasAudio: hasPlayableAudio }), true))
 
 const stamp = () => performance.now()
 const timings: Record<string, number> = {}
