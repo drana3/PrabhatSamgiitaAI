@@ -11,7 +11,7 @@ import Animated, {
 
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { scrubRatio, secondsFromRatio } from "@/lib/playerV2/gesture"
+import { scrubRatio, secondsFromRatio, shouldSeekOnRelease } from "@/lib/playerV2/gesture"
 import { formatClock } from "@/lib/playerV2/transportState"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { useT } from "@/lib/i18n"
@@ -39,6 +39,8 @@ function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "dura
   const dragging = useSharedValue(0)
   const grabX = useSharedValue(0)
   const startRatio = useSharedValue(0)
+  const activated = useSharedValue(0)
+  const touchesCancelled = useSharedValue(0)
   const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
 
   const known = duration != null && duration > 1
@@ -60,6 +62,8 @@ function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "dura
     .minDistance(0)
     .onBegin((event) => {
       dragging.value = 1
+      activated.value = 0
+      touchesCancelled.value = 0
       grabX.value = event.x
       startRatio.value = playRatio.value
       dragRatio.value = scrubRatio({
@@ -70,6 +74,12 @@ function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "dura
         thumbRadius: GRAB_RADIUS,
       })
     })
+    .onStart(() => {
+      activated.value = 1
+    })
+    .onTouchesCancelled(() => {
+      touchesCancelled.value = 1
+    })
     .onUpdate((event) => {
       dragRatio.value = scrubRatio({
         touchDownX: grabX.value,
@@ -79,11 +89,14 @@ function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "dura
         thumbRadius: GRAB_RADIUS,
       })
     })
-    .onFinalize(() => {
-      // A tap with no movement ends the pan as "failed"; it still means "go here".
+    .onFinalize((_event, success) => {
+      // A tap with no movement ends the pan as "failed"; it still means "go here". A gesture that was
+      // cancelled (the player swiped closed, a call) leaves the song where it was.
       if (dragging.value) {
-        runOnJS(onSeek)(secondsFromRatio(dragRatio.value, total))
-        playRatio.value = dragRatio.value
+        if (shouldSeekOnRelease({ activated: activated.value === 1, success, touchesCancelled: touchesCancelled.value === 1 })) {
+          runOnJS(onSeek)(secondsFromRatio(dragRatio.value, total))
+          playRatio.value = dragRatio.value
+        }
         dragging.value = 0
       }
     })

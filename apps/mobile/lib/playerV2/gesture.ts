@@ -72,3 +72,15 @@ export function swipeRemoves(offset: number, velocity: number, threshold: number
   "worklet"
   return Math.abs(project(offset, velocity)) >= threshold
 }
+
+/**
+ * Whether letting go of the scrub bar should seek. A tap that never moved ends the pan as "failed" but
+ * still means "go here". A gesture that was interrupted (the player was swiped closed, a call came in,
+ * another gesture took over) must not move the song.
+ */
+export function shouldSeekOnRelease(input: { activated: boolean; success: boolean; touchesCancelled: boolean }): boolean {
+  "worklet"
+  if (input.touchesCancelled) return false
+  if (input.activated && !input.success) return false
+  return true
+}
