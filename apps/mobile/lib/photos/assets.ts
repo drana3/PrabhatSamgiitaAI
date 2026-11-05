@@ -199,4 +199,80 @@ export const PHOTO_ASSETS: Record<number, { cover: number; thumb: number }> = {
     cover: require("../../assets/photos/cover/am-164-pink-dawn-clouds-over-a.jpg"),
     thumb: require("../../assets/photos/thumb/am-164-pink-dawn-clouds-over-a.jpg"),
   },
+  1001: {
+    cover: require("../../assets/photos/cover/am-1001-silhouettes-with-arms-raised-toward.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1001-silhouettes-with-arms-raised-toward.jpg"),
+  },
+  1002: {
+    cover: require("../../assets/photos/cover/am-1002-two-figures-on-a-hill.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1002-two-figures-on-a-hill.jpg"),
+  },
+  143: {
+    cover: require("../../assets/photos/cover/am-143-sun-setting-behind-pines-with.jpg"),
+    thumb: require("../../assets/photos/thumb/am-143-sun-setting-behind-pines-with.jpg"),
+  },
+  145: {
+    cover: require("../../assets/photos/cover/am-145-forest-clearing-in-low-sun.jpg"),
+    thumb: require("../../assets/photos/thumb/am-145-forest-clearing-in-low-sun.jpg"),
+  },
+  139: {
+    cover: require("../../assets/photos/cover/am-139-low-sun-starburst-between-pine.jpg"),
+    thumb: require("../../assets/photos/thumb/am-139-low-sun-starburst-between-pine.jpg"),
+  },
+  141: {
+    cover: require("../../assets/photos/cover/am-141-pines-and-low-sun-over.jpg"),
+    thumb: require("../../assets/photos/thumb/am-141-pines-and-low-sun-over.jpg"),
+  },
+  1007: {
+    cover: require("../../assets/photos/cover/am-1007-meditators-on-lakeside-rocks-in.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1007-meditators-on-lakeside-rocks-in.jpg"),
+  },
+  1008: {
+    cover: require("../../assets/photos/cover/am-1008-meditator-in-orange-on-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1008-meditator-in-orange-on-a.jpg"),
+  },
+  54: {
+    cover: require("../../assets/photos/cover/am-54-meditator-in-orange-beside-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-54-meditator-in-orange-beside-a.jpg"),
+  },
+  70: {
+    cover: require("../../assets/photos/cover/am-70-meditator-in-orange-beside-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-70-meditator-in-orange-beside-a.jpg"),
+  },
+  1019: {
+    cover: require("../../assets/photos/cover/am-1019-tiny-meditator-on-a-granite.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1019-tiny-meditator-on-a-granite.jpg"),
+  },
+  63: {
+    cover: require("../../assets/photos/cover/am-63-group-walking-away-along-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-63-group-walking-away-along-a.jpg"),
+  },
+  142: {
+    cover: require("../../assets/photos/cover/am-142-people-walking-into-a-forest.jpg"),
+    thumb: require("../../assets/photos/thumb/am-142-people-walking-into-a-forest.jpg"),
+  },
+  146: {
+    cover: require("../../assets/photos/cover/am-146-sunset-over-a-pine-forest.jpg"),
+    thumb: require("../../assets/photos/thumb/am-146-sunset-over-a-pine-forest.jpg"),
+  },
+  1043: {
+    cover: require("../../assets/photos/cover/am-1043-person-with-palms-joined-on.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1043-person-with-palms-joined-on.jpg"),
+  },
+  1046: {
+    cover: require("../../assets/photos/cover/am-1046-woman-with-closed-eyes-on.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1046-woman-with-closed-eyes-on.jpg"),
+  },
+  1048: {
+    cover: require("../../assets/photos/cover/am-1048-person-sitting-on-a-green.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1048-person-sitting-on-a-green.jpg"),
+  },
+  1049: {
+    cover: require("../../assets/photos/cover/am-1049-man-sitting-on-a-rocky.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1049-man-sitting-on-a-rocky.jpg"),
+  },
+  1052: {
+    cover: require("../../assets/photos/cover/am-1052-black-and-white-photograph-of.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1052-black-and-white-photograph-of.jpg"),
+  },
 }

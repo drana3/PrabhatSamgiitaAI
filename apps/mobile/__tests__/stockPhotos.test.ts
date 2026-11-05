@@ -12,7 +12,10 @@ const root = path.resolve(__dirname, "..")
 
 const UNSPLASH = STOCK_PHOTO_META.filter((p) => p.source === "unsplash")
 const AM = STOCK_PHOTO_META.filter((p) => p.source === "ananda-marga")
-const AM_CHOSEN = [103, 104, 107, 109, 111, 112, 116, 117, 119, 120, 123, 124, 125, 126, 127, 128, 129, 132, 138, 140, 150, 164]
+const AM_FIRST = [103, 104, 107, 109, 111, 112, 116, 117, 119, 120, 123, 124, 125, 126, 127, 128, 129, 132, 138, 140, 150, 164]
+/** second shortlist (2026-11-05): g-numbers 54..146, and 1000 + shortlist number for photos from other sources */
+const AM_SECOND = [54, 63, 70, 139, 141, 142, 143, 145, 146, 1001, 1002, 1007, 1008, 1019, 1043, 1046, 1048, 1049, 1052]
+const AM_CHOSEN = [...AM_SECOND, ...AM_FIRST].sort((a, b) => a - b)
 const AM_NOT_CHOSEN = [108, 121]
 const SEEDS = Array.from({ length: 300 }, (_, i) => `seed-${i}`)
 
@@ -33,12 +36,12 @@ function jpegSize(file: string): { width: number; height: number } {
 }
 
 describe("stock photo data", () => {
-  it("has 27 Unsplash and 22 Ananda Marga photos with unique ids and numbers", () => {
+  it("has 27 Unsplash and 41 Ananda Marga photos with unique ids and numbers", () => {
     expect(UNSPLASH).toHaveLength(27)
-    expect(AM).toHaveLength(22)
-    expect(STOCK_PHOTO_META).toHaveLength(49)
-    expect(new Set(STOCK_PHOTO_META.map((p) => p.id)).size).toBe(49)
-    expect(new Set(STOCK_PHOTO_META.map((p) => p.n)).size).toBe(49)
+    expect(AM).toHaveLength(41)
+    expect(STOCK_PHOTO_META).toHaveLength(68)
+    expect(new Set(STOCK_PHOTO_META.map((p) => p.id)).size).toBe(68)
+    expect(new Set(STOCK_PHOTO_META.map((p) => p.n)).size).toBe(68)
   })
 
   it("holds exactly the chosen Ananda Marga photos and not the rejected ones", () => {
@@ -47,9 +50,9 @@ describe("stock photo data", () => {
     for (const p of AM) expect(p.id).toBe(`am-${p.n}-${p.slug}`)
   })
 
-  it("marks exactly 17, 19, 22, 23 of the Unsplash photos as cool, and only 150 (blue stage) of Ananda Marga's", () => {
+  it("marks exactly 17, 19, 22, 23 of the Unsplash photos as cool, and only 150 (blue stage), 1019, 1043 (blue sky, dusk) and 1052 (black and white) of Ananda Marga's", () => {
     expect(UNSPLASH.filter((p) => p.tone === "cool").map((p) => p.n)).toEqual(COOL)
-    expect(AM.filter((p) => p.tone === "cool").map((p) => p.n)).toEqual([150])
+    expect(AM.filter((p) => p.tone === "cool").map((p) => p.n).sort((a, b) => a - b)).toEqual([150, 1019, 1043, 1052])
   })
 
   it("has a cover and a thumb on disk for every photo, and a hex tint", () => {
@@ -98,8 +101,16 @@ describe("stock photo data", () => {
     }
   })
 
+  it("marks the source of the second shortlist: confirmed gallery files, sister sites, unconfirmed", () => {
+    const by = (v: string) => AM.filter((p) => p.provenance === v).map((p) => p.n).sort((a, b) => a - b)
+    expect(by("anandamarga.org")).toEqual([54, 63, 70, 139, 141, 142, 143, 145, 146])
+    expect(by("sister-site")).toEqual([1001, 1002, 1007, 1052])
+    expect(by("unconfirmed")).toEqual([1008, 1019, 1043, 1046, 1048, 1049])
+    for (const p of AM.filter((q) => AM_FIRST.includes(q.n))) expect(p.provenance).toBeUndefined()
+  })
+
   it("credits list every photo with a credit line, link and licence", () => {
-    expect(STOCK_PHOTO_CREDITS).toHaveLength(49)
+    expect(STOCK_PHOTO_CREDITS).toHaveLength(68)
     for (const c of STOCK_PHOTO_CREDITS) {
       expect(c.credit.length).toBeGreaterThan(10)
       expect(c.licenseNote.length).toBeGreaterThan(10)
@@ -188,7 +199,7 @@ describe("picking", () => {
     expect(groupByCategory(STOCK_PHOTO_META, "sound").map((p) => p.n)).toEqual([28, 29, 30, 31])
     expect(groupByCategory(STOCK_PHOTO_META, "children").map((p) => p.n)).toEqual([107, 116, 119, 120, 127])
     expect(groupByCategory(STOCK_PHOTO_META, "kiirtan").map((p) => p.n)).toEqual([132])
-    expect(groupByCategory(STOCK_PHOTO_META, "building")).toEqual([])
+    expect(groupByCategory(STOCK_PHOTO_META, "building").map((p) => p.n)).toEqual([1052])
     expect(groupByCategory(STOCK_PHOTO_META, "space")).toEqual([])
   })
 

@@ -30,7 +30,7 @@ export const AM_LICENSE_NOTE = "Ananda Marga's own photograph, used with the org
 export type StockPhotoMeta = {
   /** `<nn>-<slug>` (Unsplash) or `am-<n>-<slug>` (Ananda Marga); also the file name without .jpg */
   id: string
-  /** number in Dada's shortlist; Unsplash 2..36, Ananda Marga 103..164 */
+  /** number in Dada's shortlist; Unsplash 2..36, Ananda Marga: the g-number of the gallery file (54..164) or 1000 + shortlist number for other sources */
   n: number
   slug: string
   category: PhotoCategory
@@ -53,6 +53,12 @@ export type StockPhotoMeta = {
   height: number
   /** long side under 1000 px: only for small covers and thumbnails, never a full-bleed hero */
   lowRes?: boolean
+  /**
+   * Ananda Marga photos only. Where the picture came from, for the permission check: absent or "anandamarga.org" =
+   * the organisation's own gallery file, permission confirmed; "sister-site" = taken from yogamonastery.org or
+   * anandasambhuti.org through the gallery; "unconfirmed" = no stated source or a personal file.
+   */
+  provenance?: "anandamarga.org" | "sister-site" | "unconfirmed"
 }
 
 type UnsplashRaw = Pick<StockPhotoMeta, "id" | "n" | "slug" | "category" | "title" | "photographer" | "pageUrl" | "tint" | "tone" | "moods"> & {
@@ -61,7 +67,7 @@ type UnsplashRaw = Pick<StockPhotoMeta, "id" | "n" | "slug" | "category" | "titl
 /** Ananda Marga entries (amPhotoData.ts) carry only what differs per photo; the rest is filled in below. */
 export type AmPhotoRaw = Pick<
   StockPhotoMeta,
-  "id" | "n" | "slug" | "category" | "title" | "credit" | "pageUrl" | "tint" | "tone" | "moods" | "people" | "width" | "height" | "lowRes"
+  "id" | "n" | "slug" | "category" | "title" | "credit" | "pageUrl" | "tint" | "tone" | "moods" | "people" | "width" | "height" | "lowRes" | "provenance"
 >
 
 const UNSPLASH_RAW: readonly UnsplashRaw[] = [
