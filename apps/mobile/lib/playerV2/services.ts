@@ -13,6 +13,7 @@ import { installDemoPlayer } from "@/lib/playerV2/demoEngine"
 import { createQueueActions } from "@/lib/playerV2/queueActions"
 import { activeQueue } from "@/lib/playerV2/controller"
 import { createResumeTracker } from "@/lib/playerV2/resumeTracker"
+import { createRepeatSync } from "@/lib/playerV2/repeatSync"
 import { createSleepRuntime } from "@/lib/playerV2/sleepRuntime"
 import { tickSleep } from "@/lib/playerV2/sleepWatcher"
 import { ensureUpcomingRadioTrack } from "@/lib/playback/radioAdvance"
@@ -110,6 +111,16 @@ export function startPlayerV2Services(): void {
   usePlayerV2Store.subscribe((state, previous) => {
     if (state.sleep !== previous.sleep) sleepRuntime.onTimerChange(previous.sleep, state.sleep)
   })
+
+  const syncRepeat = createRepeatSync({
+    getRepeatMode: () => usePlayerV2Store.getState().repeatMode,
+    getEngineLoop: () => usePlayerStore.getState().repeat,
+    toggleEngineLoop: () => usePlayerStore.getState().toggleRepeat(),
+  })
+  usePlayerV2Store.subscribe((state, previous) => {
+    if (state.repeatMode !== previous.repeatMode) syncRepeat()
+  })
+  syncRepeat()
 
   const deps = { ...realControllerDeps(), sleep: sleepRuntime.controllerSleep }
   setTrackEndHook(createTrackEndHook(deps))

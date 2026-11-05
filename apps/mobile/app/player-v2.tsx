@@ -176,7 +176,6 @@ export default function PlayerV2Screen() {
   const position = usePlayerStore((s) => s.position)
   const duration = usePlayerStore((s) => s.duration)
   const rate = usePlayerStore((s) => s.rate)
-  const legacyRepeat = usePlayerStore((s) => s.repeat)
   const queue = usePlayerStore((s) => s.queue)
   const playbackMode = usePlayerStore((s) => s.playbackMode)
   const playlistBounds = usePlayerStore((s) => s.playlistBounds)
@@ -185,7 +184,6 @@ export default function PlayerV2Screen() {
   const play = usePlayerStore((s) => s.play)
   const seekTo = usePlayerStore((s) => s.seekTo)
   const setRate = usePlayerStore((s) => s.setRate)
-  const toggleLegacyRepeat = usePlayerStore((s) => s.toggleRepeat)
 
   const v2 = usePlayerV2Store()
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
@@ -281,13 +279,6 @@ export default function PlayerV2Screen() {
   const coverGesture = makeCollapse()
   const titleGesture = makeCollapse()
   const dragStyle = useAnimatedStyle(() => ({ flex: 1, transform: [{ translateY: dragY.value }] }))
-
-  // The legacy repeat flag is the engine's "loop this track". Keep it in step with repeat "one".
-  useEffect(() => {
-    const wantOne = v2.repeatMode === "one"
-    if (legacyRepeat !== wantOne) toggleLegacyRepeat()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [v2.repeatMode])
 
   // Sleep timer countdown label ticks once a second only while a timer runs.
   useEffect(() => {
