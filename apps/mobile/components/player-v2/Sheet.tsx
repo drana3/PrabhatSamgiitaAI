@@ -18,6 +18,7 @@ import { ringColor } from "@/components/player-v2/Rows"
 import { amColors, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
+import { useSheetBackHandler } from "@/hooks/useSheetBackHandler"
 import { rubberBandClamp, settleSnap } from "@/lib/playerV2/gesture"
 import { useT } from "@/lib/i18n"
 
@@ -64,6 +65,9 @@ export function Sheet({ visible, onClose, title, theme, dark, fill, hideDone, ch
   const measured = useSharedValue(0)
   const [mounted, setMounted] = useState(visible)
   const [ready, setReady] = useState(false)
+
+  // Android Back closes this sheet before it leaves the player.
+  useSheetBackHandler(visible, onClose)
 
   // While mounted the sheet covers the tab pill and the mini player.
   useEffect(() => (mounted ? coverSheet() : undefined), [mounted])

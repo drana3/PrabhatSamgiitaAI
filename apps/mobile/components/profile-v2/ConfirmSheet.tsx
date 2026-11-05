@@ -11,6 +11,7 @@ import Animated, {
 
 import { PressScale } from "@/components/today/motion"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
+import { useSheetBackHandler } from "@/hooks/useSheetBackHandler"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amControl, amGap, amRadius, amSpace } from "@/constants/tokens/amSpacing"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
@@ -70,6 +71,9 @@ export function ConfirmSheet({
       })
     }
   }
+
+  // Android Back is the same as Cancel.
+  useSheetBackHandler(request !== null, () => close())
 
   const scrim = useAnimatedStyle(() => ({ opacity: progress.value * 0.5 }))
   const card = useAnimatedStyle(() => ({

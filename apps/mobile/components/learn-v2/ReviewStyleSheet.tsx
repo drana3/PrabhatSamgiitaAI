@@ -21,6 +21,7 @@ import { PressBox } from "@/components/learn-v2/PressBox";
 import { Pill, toneOf } from "@/components/learn-v2/ui";
 import { amColors, type AmTheme } from "@/constants/tokens/amColors";
 import { amSpring } from "@/constants/tokens/amMotion";
+import { useSheetBackHandler } from "@/hooks/useSheetBackHandler";
 import { amFonts } from "@/constants/tokens/amTypography";
 import {
   scrimOpacity,
@@ -49,6 +50,8 @@ export function ReviewStyleSheet({
 }) {
   const tone = toneOf(theme);
   const reduce = useReducedMotion();
+  // Android Back closes the sheet.
+  useSheetBackHandler(visible, onClose);
   const { height: screenHeight } = useWindowDimensions();
   const [mounted, setMounted] = useState(visible);
   const [height, setHeight] = useState(560);
