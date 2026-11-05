@@ -25,7 +25,7 @@ export function ensurePreviewCatalog(force = false): Promise<void> {
         prefetchCategorySongs(cached)
       }
     }
-    const result = await loadCatalog()
+    const result = await loadCatalog({ force })
     const next = resolvePreviewRows(result)
     // A failed refresh must not replace rows that are already on screen with the 7-song sample.
     const keep = next.source === "fallback" && usePreviewCatalog.getState().rows.length > REAL_SONGS_1_TO_7.length

@@ -45,7 +45,7 @@ import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
-import { loadCatalog } from "@/lib/catalog"
+import { ensureCatalog, useCatalogStore } from "@/lib/catalogStore"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { api } from "@/lib/client"
 import { TODAY_FIXTURE_DAYS, TODAY_FIXTURE_RECENT, TODAY_FIXTURE_SONGS } from "@/lib/fixtures/today"
@@ -185,9 +185,10 @@ export default function TodayScreen() {
         apply(result.today)
         return
       }
-      const catalog = await loadCatalog()
-      if (active && catalog.songs.length) {
-        setRecommended(catalog.songs.slice(0, 8).map((row, i) => songSummaryToMockSong(row, i)))
+      await ensureCatalog()
+      const rows = useCatalogStore.getState().rows
+      if (active && rows.length) {
+        setRecommended(rows.slice(0, 8).map((row, i) => songSummaryToMockSong(row, i)))
       }
     })()
     void api.fetchStories({ limit: 12 }).then((rows) => {

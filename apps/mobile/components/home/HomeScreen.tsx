@@ -41,7 +41,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { songNumbersForCategory } from "@/lib/categorySongs"
-import { loadCatalog } from "@/lib/catalog"
+import { ensureCatalog, useCatalogStore } from "@/lib/catalogStore"
 import { useT } from "@/lib/i18n"
 import { api } from "@/lib/client"
 import {
@@ -152,8 +152,9 @@ export function HomeScreen() {
         apply(result.today)
         return
       }
-      const catalogResult = await loadCatalog()
-      if (active && catalogResult.songs.length) setRecommended(catalogResult.songs.slice(0, 8).map((row, i) => songSummaryToMockSong(row, i)))
+      await ensureCatalog()
+      const rows = useCatalogStore.getState().rows
+      if (active && rows.length) setRecommended(rows.slice(0, 8).map((row, i) => songSummaryToMockSong(row, i)))
     })()
     void api.fetchStories({ limit: 12 }).then((rows) => {
       if (active) setStories(rows.map(mapApiStory))

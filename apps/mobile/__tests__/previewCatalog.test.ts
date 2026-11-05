@@ -22,6 +22,7 @@ import { REAL_SONGS_1_TO_7 } from "@/lib/fixtures/realSongs"
 import { FALLBACK_NOTICE, previewSummary, previewTitle, previewTitleOrNumber, resolvePreviewRows, usePreviewCatalog } from "@/lib/previewCatalog"
 import { ensurePreviewCatalog } from "@/lib/previewCatalogLoader"
 import { api } from "@/lib/client"
+import { resetCatalogMemory } from "@/lib/catalog"
 import { displayTitle } from "@/lib/songsV2/entry"
 
 const row = (number: number, title: string): SongSummary => ({ number, title, first_line: title, is_verified: true }) as SongSummary
@@ -29,6 +30,7 @@ const row = (number: number, title: string): SongSummary => ({ number, title, fi
 beforeEach(() => {
   usePreviewCatalog.setState({ rows: [], source: "fallback", notice: null, loading: true, refreshing: false })
   vi.mocked(api.fetchSongs).mockReset()
+  resetCatalogMemory()
 })
 
 describe("fallback fixture", () => {
