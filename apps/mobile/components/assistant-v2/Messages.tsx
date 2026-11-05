@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native"
 import Markdown from "react-native-markdown-display"
 import * as Clipboard from "expo-clipboard"
 import Animated, {
@@ -19,6 +19,7 @@ import { amColors, amLight, type AmTheme } from "@/constants/tokens/amColors"
 import { amGap, amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { type AnswerSource } from "@/lib/assistantAnswer"
+import { isSafeAssistantLink } from "@/lib/assistantLinks"
 import { useT } from "@/lib/i18n"
 
 type ThemeProps = { theme: AmTheme }
@@ -106,6 +107,15 @@ function SourceChip({
  * A real answer. Every answer ends with the songs it can point to and the one
  * line that says it was written by AI. An answer with nothing to cite says so.
  */
+// Images in an answer are never loaded (see lib/assistantLinks.ts); links open only when they are safe.
+const ANSWER_RULES = { image: () => null }
+
+function openAnswerLink(url: string): boolean {
+  // false: the library must not open the link itself
+  if (isSafeAssistantLink(url)) void Linking.openURL(url).catch(() => undefined)
+  return false
+}
+
 export function AnswerCard({
   theme,
   index,
@@ -142,7 +152,9 @@ export function AnswerCard({
   return (
     <Reveal index={index}>
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}>
-        <Markdown style={assistantMarkdownStyles(theme)}>{text}</Markdown>
+        <Markdown style={assistantMarkdownStyles(theme)} rules={ANSWER_RULES} onLinkPress={openAnswerLink}>
+          {text}
+        </Markdown>
 
         {sources.length ? (
           <View style={styles.sources}>
