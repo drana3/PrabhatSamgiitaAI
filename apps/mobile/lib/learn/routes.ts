@@ -10,6 +10,8 @@ export const LEARN_ROUTES = {
   songs: "/songs-v2",
   /** the learner's own song list: All / Due / Learning / Learned (was the "My songs" tab) */
   mySongs: "/learn/songs",
+  /** the picker: every Prabhat Samgiita song, search, tap to add to the Learn list */
+  addSong: "/learn/add",
   stories: "/stories",
   about: "/about",
   liveQuiz: "/quiz",

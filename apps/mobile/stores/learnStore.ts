@@ -10,6 +10,7 @@ import {
   type PathState,
 } from "@/lib/learn/progress"
 import { buildLearnDemoSeed } from "@/lib/fixtures/learn"
+import { planAddSong, planRemoveSong, planRestoreSong, type AddStatus } from "@/lib/learn/learnSongs"
 import { mergeBest, type LearnQuizLevel, type QuizBest, type QuizBestMap } from "@/lib/learn/quiz"
 import {
   DEFAULT_REVIEW_STYLE,
@@ -38,8 +39,11 @@ type LearnState = {
   setReviewStyle: (style: ReviewStyle) => void
   /** grade one word card; the first grade creates the card */
   grade: (wordId: string, grade: Grade, now?: number) => void
-  startLearning: (song: { songId: string; number: number; title: string }, now?: number) => void
+  /** put a song on the list; a song already there is left as it is */
+  startLearning: (song: { songId: string; number: number; title: string }, now?: number) => AddStatus
   stopLearning: (songId: string) => void
+  /** put back a song that was taken off (Undo), with its original start time */
+  restoreLearning: (song: LearningSong) => void
   markPart: (songId: string, part: PathPart) => void
   /** keep the better result for a level */
   recordQuiz: (level: LearnQuizLevel, result: { score: number; total: number; passed: boolean }, now?: number) => void
@@ -80,15 +84,23 @@ export const useLearnStore = create<LearnState>()(
 
       startLearning: (song, now = Date.now()) => {
         const { songs, paths } = get()
-        if (songs.some((entry) => entry.songId === song.songId)) return
-        set({
-          songs: [...songs, { ...song, startedAt: now }],
-          paths: { ...paths, [song.songId]: paths[song.songId] ?? EMPTY_PATH },
-        })
+        const plan = planAddSong(songs, paths, { number: song.number, title: song.title }, now)
+        if (plan.status === "added") set({ songs: plan.songs, paths: plan.paths })
+        return plan.status
       },
 
-      stopLearning: (songId) =>
-        set({ songs: get().songs.filter((entry) => entry.songId !== songId) }),
+      stopLearning: (songId) => {
+        const entry = get().songs.find((song) => song.songId === songId)
+        if (!entry) return
+        // only the list entry goes; the path and the word cards stay, so adding the song again brings them back
+        set({ songs: planRemoveSong(get().songs, entry.number).songs })
+      },
+
+      restoreLearning: (song) => {
+        const { songs, paths } = get()
+        const plan = planRestoreSong(songs, paths, song)
+        if (plan.status === "added") set({ songs: plan.songs, paths: plan.paths })
+      },
 
       markPart: (songId, part) => set({ paths: markPathPart(get().paths, songId, part) }),
 

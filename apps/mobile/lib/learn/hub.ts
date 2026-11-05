@@ -110,11 +110,11 @@ export function pickContinue(songs: readonly LearningSong[], paths: Readonly<Rec
   return songsInProgress(songs, paths)[0] ?? null
 }
 
-/** Songs on the list with no step done yet, in the order they were added. */
+/** Songs on the list with no step done yet, the one added last first (the song you just chose is the one in front). */
 function songsNotStarted(songs: readonly LearningSong[], paths: Readonly<Record<string, PathState>>): HubSong[] {
   return songs
     .filter((song) => !pathStarted(paths[song.songId]))
-    .sort((a, b) => a.startedAt - b.startedAt)
+    .sort((a, b) => b.startedAt - a.startedAt)
     .map((song) => toHubSong(song, paths))
 }
 

@@ -38,6 +38,11 @@ function loadCatalogRows(): LyricSearchRow[] {
   return catalogRows
 }
 
+/** Every catalog row of the bundled index (all 5,018 songs: number, title, first line). Empty if the index is missing. */
+export function catalogLyricRows(): readonly LyricSearchRow[] {
+  return loadCatalogRows()
+}
+
 export function warmLyricSearchIndex() {
   prepareLyricSearch(loadCatalogRows())
 }
