@@ -65,9 +65,6 @@ export type MockupRow = { n: number; title: string; secs: number; tag: string; i
  */
 export const MOCKUP_CONTENT_NUMBERS: readonly number[] = [1, 3]
 
-/** Rows of the "More like this" shelf: the first songs of the catalog, real numbers and titles. */
-const SHELF_SIZE = 12
-
 function rowFor(n: number): MockupRow {
   const summary = previewSummary(n)
   return {
@@ -78,11 +75,6 @@ function rowFor(n: number): MockupRow {
     tag: (summary?.theme ?? summary?.mood ?? "").trim() || CATEGORY_FALLBACK,
     index: n - 1,
   }
-}
-
-/** Real songs for the "More like this" shelf of a sample song page (PS 1 to 12 of the catalog). */
-export function mockupRows(): MockupRow[] {
-  return Array.from({ length: SHELF_SIZE }, (_, i) => rowFor(i + 1))
 }
 
 /** The sample row of PS 1 or PS 3; null for every other number (those use the real song page). */

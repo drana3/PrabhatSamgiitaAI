@@ -5,15 +5,12 @@ import {
   MOCKUP_LANGUAGES,
   mockupFixtureKey,
   mockupRow,
-  mockupRows,
   mockupSizeText,
   mockupSong,
   mockupTranslation,
   mockupVariantFor,
   mockupVersions,
 } from "@/lib/fixtures/songMockup"
-import { REAL_SONGS_1_TO_7 } from "@/lib/fixtures/realSongs"
-import { displayTitle } from "@/lib/songsV2/entry"
 import { layoutChart, type ChordChart } from "@/lib/songPage/chordChart"
 import { versionDetail, type SongVersion } from "@/lib/songPage/versions"
 
@@ -27,13 +24,6 @@ describe("prototype sample songs", () => {
     expect(mockupRow(2)).toBeNull()
     expect(mockupRow(4000)).toBeNull()
     expect(mockupRow(99999)).toBeNull()
-  })
-
-  it("fills the More like this shelf with the first real songs, none invented", () => {
-    const rows = mockupRows()
-    expect(rows.map((r) => r.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
-    expect(rows.slice(0, 7).every((r) => REAL_SONGS_1_TO_7.some((s) => s.number === r.n && displayTitle(s.title) === r.title)) ).toBe(true)
-    expect(rows[1]?.tag).toBe("Song of Liberation")
   })
 
   it("picks the first sample for index 0 and the second for index 2, the rest by parity", () => {

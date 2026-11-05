@@ -1,8 +1,6 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native"
-import { Image as ExpoImage } from "expo-image"
+import { StyleSheet, Text, View } from "react-native"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
-import { coverFor } from "@/components/player-v2/playerCovers"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { CreditRow } from "@/lib/songPage/nowPlaying"
@@ -46,39 +44,6 @@ export function SpCredits({ t, rows }: { t: SpTheme; rows: CreditRow[] }) {
   )
 }
 
-export type SpShelfSong = { number: number; title: string }
-
-/** "More like this": a horizontal shelf of song cards. */
-export function SpMoreShelf({ t, songs, onOpen }: { t: SpTheme; songs: SpShelfSong[]; onOpen: (song: SpShelfSong) => void }) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
-      {songs.map((song) => {
-        const cover = coverFor(song.number)
-        return (
-          <SpPress
-            key={song.number}
-            onPress={() => onOpen(song)}
-            accessibilityLabel={`PS ${song.number}, ${song.title}`}
-            pressedScale={0.97}
-            style={styles.card}
-          >
-            <ExpoImage
-              source={cover.source}
-              contentFit="cover"
-              contentPosition={cover.position}
-              style={[styles.cardCover, { backgroundColor: t.sand400 }]}
-            />
-            <Text style={[styles.cardTitle, { color: t.ink900 }]} numberOfLines={2}>
-              {song.title}
-            </Text>
-            <Text style={[styles.cardNo, { color: t.ink500, fontVariant: ["tabular-nums"] }]}>PS {song.number}</Text>
-          </SpPress>
-        )
-      })}
-    </ScrollView>
-  )
-}
-
 const styles = StyleSheet.create({
   about: { marginHorizontal: 10, borderRadius: 30, borderWidth: 1, paddingLeft: 20, paddingRight: 8, paddingVertical: 16, flexDirection: "row", alignItems: "center" },
   aboutText: { flex: 1, minWidth: 0, gap: 6 },
@@ -88,9 +53,4 @@ const styles = StyleSheet.create({
   creditRow: { gap: 2 },
   role: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 0.52, textTransform: "uppercase" },
   who: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22 },
-  shelf: { paddingHorizontal: 20, gap: 14 },
-  card: { width: 140, gap: 4 },
-  cardCover: { width: 140, height: 140, borderRadius: 16, marginBottom: 4 },
-  cardTitle: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18 },
-  cardNo: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
 })

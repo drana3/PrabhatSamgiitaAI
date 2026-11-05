@@ -20,7 +20,8 @@ import { WatchVideoCard } from "@/components/player/WatchVideoCard"
 import { AboutSheet } from "@/components/player-v2/AboutSong"
 import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
 import { ShareSheet } from "@/components/player-v2/ShareSheet"
-import { SpAboutCard, SpCredits, SpMoreShelf, type SpShelfSong } from "@/components/song-v2/SpFooter"
+import { SpAboutCard, SpCredits } from "@/components/song-v2/SpFooter"
+import { SpDemoTag, SpEmptyNote } from "@/components/song-v2/SpHonest"
 import { SP_HERO_TEXT_TOP, SP_PLAY_SIZE, SP_PLAY_TOP, SpActionRow, SpHeroCover, SpHeroText, SpHeroWash } from "@/components/song-v2/SpHero"
 import { SpLyricsCard } from "@/components/song-v2/SpLyricsCard"
 import { SP_BAR_CONTENT, SpStickyBar } from "@/components/song-v2/SpStickyBar"
@@ -41,14 +42,13 @@ import { useSpTheme } from "@/hooks/useSpTheme"
 import { useDownloadState } from "@/hooks/useDownloadState"
 import { useSaveState } from "@/hooks/useSaveState"
 import { useSongMeaning } from "@/hooks/useSongMeaning"
-import { FIXTURE_CENTRAL_IDEA, FIXTURE_MORE_VIDEOS, FIXTURE_PLAYLISTS, fixtureExtras } from "@/lib/fixtures/songPage"
+import { FIXTURE_MORE_VIDEOS, FIXTURE_PLAYLISTS } from "@/lib/fixtures/songPage"
 import { demoUrl } from "@/lib/fixtures/playerDemo"
 import {
   MOCKUP_LANGUAGES,
   MOCKUP_LEARNING,
   mockupFixtureKey,
   mockupRow,
-  mockupRows,
   mockupSizeText,
   mockupSong,
   mockupTranslation,
@@ -80,7 +80,7 @@ import {
   visibleSections,
   type SectionId,
 } from "@/lib/songPage/sections"
-import { explanationIsUsable, extrasForSong, glossesAreUsable } from "@/lib/songPage/songContent"
+import { NO_EXTRAS, explanationIsUsable, extrasForSong, glossesAreUsable } from "@/lib/songPage/songContent"
 import {
   capoHint,
   capoName,
@@ -98,6 +98,7 @@ import {
   uniqueChords,
 } from "@/lib/songPage/spChords"
 import { buildSpLines, buildWordRows, glossCard } from "@/lib/songPage/spLines"
+import { EMPTY_TEXT, demoCentralIdea, knownSeconds, notationPdfUrl, pageExtras, requestKey, shownPerformer, watchVideos } from "@/lib/songPage/honest"
 import { creditRows, languageParts, metaLine, nowPlaying, previewLines, psLine, versionOrder } from "@/lib/songPage/nowPlaying"
 import { pageBottomInset, stripHairline, stripTop, type BarMarks } from "@/lib/songPage/stickyBar"
 import { alignTranslationLines, translationPill, type Coverage } from "@/lib/songPage/translations"
@@ -213,6 +214,9 @@ export default function SongPageV2() {
     setRequested((list) => (list.includes(code) ? list : [...list, code]))
     showToast(REQUEST_TOAST)
   }, [showToast])
+  // Words and Chords have no data for most songs: "Request" is remembered on this screen like a language request
+  const requestContent = (kind: "words" | "chords") => song && requestLanguage(requestKey(kind, song.number))
+  const askedContent = (kind: "words" | "chords") => (song ? requested.includes(requestKey(kind, song.number)) : false)
 
   // settings (shared with the Player karaoke view)
   const script = useSongPageStore((s) => s.script)
@@ -314,23 +318,19 @@ export default function SongPageV2() {
   const scripts = useMemo(() => availableScripts(sources), [sources])
   const lines = useMemo(() => scriptLines(sources, script), [sources, script])
 
-  // Real extras when the API has them; the prototype's samples otherwise (TODO(api) in lib/fixtures/songPage.ts).
+  // Real extras when the API has them (none yet). The prototype's samples (chords, word meanings, explanation) are
+  // drawn only for the demo preview's PS 1 and PS 3 and carry a "Demo content" tag: never for a real song.
+  const demoKey = mock && song ? mockupFixtureKey(song.number) : null
   const extras = useMemo(() => {
-    if (!song) return { chart: null, glosses: null, explanation: null }
-    const real = mock
-      ? { chart: null, glosses: null, explanation: null }
-      : extrasForSong(song)
-    const sample = fixtureExtras(sources.roman, mock ? mockupFixtureKey(song.number) : song.number)
-    return {
-      chart: real.chart ?? sample.chart,
-      glosses: real.glosses ?? sample.glosses,
-      explanation: real.explanation ?? sample.explanation,
-    }
-  }, [song, sources.roman, mock])
+    if (!song) return pageExtras({ real: NO_EXTRAS, demoKey: null, romanLines: [] })
+    return pageExtras({ real: mock ? NO_EXTRAS : extrasForSong(song), demoKey, romanLines: sources.roman })
+  }, [song, sources.roman, mock, demoKey])
   const chart = chartIsUsable(extras.chart) ? extras.chart : null
   const glosses = glossesAreUsable(extras.glosses) ? extras.glosses : null
   const explanation = explanationIsUsable(extras.explanation) ? extras.explanation : null
-  const hasRealVideo = Boolean(song?.videos.some((video) => video.embedUrl))
+  // the verified YouTube videos the catalog has for this song (none for most songs)
+  const videos = useMemo(() => watchVideos(song?.videos), [song?.videos])
+  const hasRealVideo = videos.length > 0
 
   // Noto only when the song has that script, and only on this screen.
   const needsNoto = scripts.includes("devanagari") || scripts.includes("bengali")
@@ -648,7 +648,8 @@ export default function SongPageV2() {
 
   // ---- more, share, about ----
   const collection = useMemo(() => (song ? collectionForSong(song.number, allCollections) : null), [song])
-  const performerName = selectedVersion?.performer ?? song?.performer ?? ""
+  // the catalog has no performer field (a version is named by its audio title): a performer shows in the demo only
+  const performerName = shownPerformer({ demo: Boolean(mock), versionPerformer: selectedVersion?.performer, songPerformer: song?.performer })
   const actionRows = useMemo(
     () =>
       buildActionRows({
@@ -669,7 +670,7 @@ export default function SongPageV2() {
   const about = useMemo(() => {
     if (!song) return null
     const real = (text: string | null | undefined) => (text && !/^placeholder/i.test(text.trim()) ? text : null)
-    const fallback = real(meaningView.centralIdea) ?? real(FIXTURE_CENTRAL_IDEA[song.number])
+    const fallback = real(meaningView.centralIdea) ?? real(demoCentralIdea(demoKey))
     return aboutContent({ ...song, centralIdea: real(song.centralIdea) }, fallback)
   }, [song, meaningView.centralIdea])
 
@@ -721,10 +722,10 @@ export default function SongPageV2() {
   // ---- long page: hero, collapsing bar, pinned strip, sections ----
   const sectionIds = visibleSections({
     lyrics: true,
-    words: Boolean(glosses),
+    words: true,
     meaning: true,
     explain: Boolean(explanation),
-    chords: Boolean(chart),
+    chords: true,
     watch: true,
   })
   const [active, setActive] = useState<SectionId | null>("lyrics")
@@ -889,7 +890,7 @@ export default function SongPageV2() {
     }
     return [{ label: "", text: meaningUnavailableMessage(meaningLanguage) }]
   })()
-  const central = meaningView.centralIdea ?? FIXTURE_CENTRAL_IDEA[song.number] ?? null
+  const central = meaningView.centralIdea ?? demoCentralIdea(demoKey)
 
   const chordTokens: SpChordToken[] = (() => {
     if (!chart || !columnsAll) return []
@@ -913,6 +914,9 @@ export default function SongPageV2() {
 
   const hint = capoHint(soundingChords, capo)
   const bestCapo = spBestCapo(soundingChords)
+  // a Notation (PDF) link only where the catalog really has the file
+  const notationUrl = notationPdfUrl(song.notationSourceUrl)
+  const notationLink = notationUrl ? { label: "Notation (PDF)", url: notationUrl } : null
   const watchMore = FIXTURE_MORE_VIDEOS.map((video) => ({
     ...video,
     go: () => showToast("Video plays here"),
@@ -922,16 +926,10 @@ export default function SongPageV2() {
   // top colour of the hero wash; the bar's ground is the same colour so the two read as one
   const washTop = mixHex(t.sand200, coverTint, t.dark ? 0.5 : 0.3)
   const metaText = metaLine({
-    seconds: selectedVersion?.length ?? (song.durationSeconds > 0 ? song.durationSeconds : null),
+    seconds: knownSeconds({ versionLength: selectedVersion?.length ?? null, songSeconds: song.durationSeconds, demo: Boolean(mock) }),
     versionCount: versions.length,
     languages: languageParts(song.language, scripts),
   })
-  const shelf: SpShelfSong[] = mock
-    ? mockupRows()
-        .filter((row) => row.n !== song.number)
-        .slice(0, 10)
-        .map((row) => ({ number: row.n, title: row.title }))
-    : related.filter((item) => item.number !== song.number).slice(0, 10).map((item) => ({ number: item.number, title: item.title }))
   const openKaraoke = () => {
     // The Player opens on its word-by-word view. Nothing starts to play here: the song is only put in it.
     if (!isCurrent) {
@@ -1057,9 +1055,18 @@ export default function SongPageV2() {
               />
             </View>
 
-            {glosses ? (
+            {mock ? <SpDemoTag t={t} /> : null}
+
+            <SpSectionTitle t={t} label={SECTION_LABEL.words} onLayoutY={sectionTop("words")} />
+            {!glosses ? (
+              <SpEmptyNote
+                t={t}
+                text={EMPTY_TEXT.words}
+                requested={askedContent("words")}
+                onRequest={() => requestContent("words")}
+              />
+            ) : (
               <>
-                <SpSectionTitle t={t} label={SECTION_LABEL.words} onLayoutY={sectionTop("words")} />
                 <SpWords
                   t={t}
                   rows={wordRows}
@@ -1083,7 +1090,7 @@ export default function SongPageV2() {
                   }
                 />
               </>
-            ) : null}
+            )}
 
             <SpSectionTitle t={t} label={SECTION_LABEL.meaning} onLayoutY={sectionTop("meaning")} />
             <SpMeaning
@@ -1108,9 +1115,17 @@ export default function SongPageV2() {
               </>
             ) : null}
 
-            {chart ? (
+            <SpSectionTitle t={t} label={SECTION_LABEL.chords} onLayoutY={sectionTop("chords")} />
+            {!chart ? (
+              <SpEmptyNote
+                t={t}
+                text={EMPTY_TEXT.chords}
+                requested={askedContent("chords")}
+                onRequest={() => requestContent("chords")}
+                link={notationLink}
+              />
+            ) : (
               <>
-                <SpSectionTitle t={t} label={SECTION_LABEL.chords} onLayoutY={sectionTop("chords")} />
                 <SpChords
                   t={t}
                   instrument={instrument}
@@ -1136,17 +1151,17 @@ export default function SongPageV2() {
                   script={lines.primaryScript}
                 />
               </>
-            ) : null}
+            )}
 
             <SpSectionTitle t={t} label={SECTION_LABEL.watch} onLayoutY={sectionTop("watch")} />
             {hasRealVideo ? (
               <SpCard t={t}>
-                {song.videos
-                  .filter((video) => video.embedUrl)
-                  .map((video) => (
-                    <WatchVideoCard key={video.id} video={video} songNumber={song.number} />
-                  ))}
+                {videos.map((video) => (
+                  <WatchVideoCard key={video.id} video={video} songNumber={song.number} />
+                ))}
               </SpCard>
+            ) : !mock ? (
+              <SpEmptyNote t={t} text={EMPTY_TEXT.video} />
             ) : (
               <SpWatch
                 t={t}
@@ -1199,12 +1214,6 @@ export default function SongPageV2() {
         <SpSectionTitle t={t} label="Credits" />
         <SpCredits t={t} rows={creditRows(performerName)} />
 
-        {shelf.length ? (
-          <>
-            <SpSectionTitle t={t} label="More like this" />
-            <SpMoreShelf t={t} songs={shelf} onOpen={(item) => router.push(href(`/song-v2/ps-${item.number}`))} />
-          </>
-        ) : null}
       </Animated.ScrollView>
 
       {/* pinned tab strip, over the page, under the bar */}
