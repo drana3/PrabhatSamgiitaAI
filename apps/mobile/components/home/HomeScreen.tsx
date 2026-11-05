@@ -41,6 +41,7 @@ import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { loadCatalog } from "@/lib/catalog"
+import { useT } from "@/lib/i18n"
 import { api } from "@/lib/client"
 import {
   HOME_BECAUSE,
@@ -101,6 +102,7 @@ function mockSongOf(row: { number: number; title: string }): MockSong {
  * The Claude prototype's Today stays at /today?layout=prototype.
  */
 export function HomeScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
   const p = protoFor(theme)
@@ -163,7 +165,7 @@ export function HomeScreen() {
   const view = useMemo(() => buildTodayView({ recommended, recentPlays, now }), [recommended, recentPlays, now])
 
   /* --- the day and the song of the day --- */
-  const sample = useMemo(() => (MOCKUP_DATA ? fixtureDay("date", 3) : null), [])
+  const sample = useMemo(() => (MOCKUP_DATA ? fixtureDay("date", 3) : null), [t])
   const day = sample?.day ?? buildTodayDay(today, now)
   const hero = sample ? sample.rows[0] : recommended[0] ? { song: recommended[0], meta: `PS ${recommended[0].number}`, firstLine: "", length: undefined } : null
   const todayRows: StartRow[] = sample
@@ -185,16 +187,16 @@ export function HomeScreen() {
     if (MOCKUP_DATA) return HOME_MIXES.map((m) => ({ id: m.id, label: m.label, tone: m.tone, cover: m.cover, caption: m.caption, browseId: m.browseId, numbers: m.numbers }))
     const made: (StripCardData & { browseId: string; numbers: number[] })[] = []
     if (todayRows.length) {
-      made.push({ id: "today", label: "Songs for today", tone: "orange", cover: todayRows[0].number, caption: todayRows.map((r) => r.title).join(", "), browseId: "today", numbers: todayRows.map((r) => r.number) })
+      made.push({ id: "today", label: t("home.mix.today"), tone: "orange", cover: todayRows[0].number, caption: todayRows.map((r) => r.title).join(", "), browseId: "today", numbers: todayRows.map((r) => r.number) })
     }
     const tones = ["sage", "gold", "forest", "sage"] as const
     ;["morning", "evening", "festival", "meditation"].forEach((id, i) => {
       const count = songNumbersForCategory(id).length
       const label = songCategories.find((c) => c.id === id)?.label
-      if (count > 0 && label) made.push({ id, label: `${label} songs`, tone: tones[i], cover: songNumbersForCategory(id)[0] ?? i, caption: `${count} songs`, browseId: id, numbers: [] })
+      if (count > 0 && label) made.push({ id, label: t("home.mix.category", { label }), tone: tones[i], cover: songNumbersForCategory(id)[0] ?? i, caption: t("home.mix.count", { count }), browseId: id, numbers: [] })
     })
     return made
-  }, [todayRows])
+  }, [todayRows, t])
 
   const downloadedRows: HomeRowData[] = useMemo(() => {
     const numbers = MOCKUP_DATA ? [...HOME_DOWNLOADED_NUMBERS] : Array.from(new Set(Object.values(offlineFiles).map((f) => f.songNumber)))
@@ -207,8 +209,8 @@ export function HomeScreen() {
 
   const storyCards: (StripCardData & { slug: string })[] = useMemo(() => {
     if (MOCKUP_DATA) return HOME_STORIES.map((st) => ({ id: st.slug, slug: st.slug, label: st.eyebrow, tone: "sage" as const, cover: st.cover, title: st.title, caption: st.blurb }))
-    return stories.slice(0, 6).map((st, i) => ({ id: st.slug, slug: st.slug, label: "Story", tone: "sage" as const, cover: i + 1, title: st.title, caption: st.teaser }))
-  }, [stories])
+    return stories.slice(0, 6).map((st, i) => ({ id: st.slug, slug: st.slug, label: t("today.section.story"), tone: "sage" as const, cover: i + 1, title: st.title, caption: st.teaser }))
+  }, [stories, t])
   const storyOfWeek = useMemo(() => storyOfTheWeek(stories, now), [stories, now])
   void storyOfWeek
 
@@ -216,13 +218,13 @@ export function HomeScreen() {
     () =>
       HOME_LEARN.map((c) => ({
         id: c.id,
-        label: c.title,
+        label: t(`home.learn.${c.id as "words" | "quiz" | "paths"}.title`),
         tone: c.tone,
         cover: c.cover,
-        caption: MOCKUP_DATA ? c.caption : c.id === "words" ? "Repeat the words you are learning" : c.id === "quiz" ? "A few questions on the songs" : c.caption,
+        caption: MOCKUP_DATA ? c.caption : t(`home.learn.${c.id as "words" | "quiz" | "paths"}.caption`),
         target: c.target,
       })),
-    [],
+    [t],
   )
 
   /* --- actions --- */
@@ -259,7 +261,7 @@ export function HomeScreen() {
   }, [kirtans, now])
   const playMixCard = (id: string) => {
     const mix = MIX_FIXTURES.find((m) => m.id === id)
-    if (mix) kActions.flash(playMix(mix) ?? `Playing ${mix.title}`)
+    if (mix) kActions.flash(playMix(mix) ?? t("home.playing", { title: mix.title }))
   }
   const onKirtanShare = async (k: Kirtan, target: ShareTargetId) => {
     const message = shareToast(await runShare(target, kirtanSharePayload(k)))
@@ -312,7 +314,7 @@ export function HomeScreen() {
       case "start":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="Jump back in" first="Start" second="listening" />
+            <HomeSectionHead p={p} eyebrow={t("home.start.eyebrow")} first={t("home.start.first")} second={t("home.start.second")} />
             <HomePagedRows p={p} rows={startRows} onOpen={openSong} onMore={(row) => setMenu({ number: row.number, title: row.title })} />
           </Reveal>
         )
@@ -321,10 +323,10 @@ export function HomeScreen() {
           <Reveal key={id} index={next()} style={styles.section}>
             <HomeSectionHead
               p={p}
-              eyebrow="Songs and kiirtans in one order"
-              first="Mixes"
-              second="for you"
-              action={{ label: "Shuffle everything", onPress: () => kActions.flash(playEverything() ?? "Shuffling everything") }}
+              eyebrow={t("home.kmixes.eyebrow")}
+              first={t("home.kmixes.first")}
+              second={t("home.kmixes.second")}
+              action={{ label: t("home.shuffle"), onPress: () => kActions.flash(playEverything() ?? t("home.shuffling")) }}
             />
             <HomeShelf itemWidth={MIX_WIDTH}>
               {mixCards.map((card) => (
@@ -336,7 +338,7 @@ export function HomeScreen() {
       case "kiirtan":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="Sung together, played in the same player" first="Kiirtan" second="for today" />
+            <HomeSectionHead p={p} eyebrow={t("home.kiirtan.eyebrow")} first={t("tabs.kiirtan")} second={t("today.title.second")} />
             <View style={styles.list}>
               {kiirtanToday.map((k) => (
                 <KirtanRow
@@ -354,7 +356,7 @@ export function HomeScreen() {
       case "mixes":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="A session based on your taste" first="To get you" second="started" />
+            <HomeSectionHead p={p} eyebrow={t("home.mixes.eyebrow")} first={t("home.mixes.first")} second={t("home.mixes.second")} />
             <HomeShelf itemWidth={MIX_WIDTH}>
               {mixes.map((mix) => (
                 <StripCard key={mix.id} p={p} card={mix} width={MIX_WIDTH} onPress={() => openMix(mix)} />
@@ -365,7 +367,7 @@ export function HomeScreen() {
       case "because":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="Songs that sit close to it" first="Because you" second={`listened to PS ${HOME_BECAUSE_OF}`} />
+            <HomeSectionHead p={p} eyebrow={t("home.because.eyebrow")} first={t("home.because.first")} second={t("home.because.second", { number: HOME_BECAUSE_OF })} />
             <HomeShelf itemWidth={156}>
               {HOME_BECAUSE.map((row) => (
                 <SquareCard key={row.number} p={p} row={row} onPress={() => openSong(row)} />
@@ -376,7 +378,7 @@ export function HomeScreen() {
       case "trending":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="What others are singing" first="Rising" second="this week" />
+            <HomeSectionHead p={p} eyebrow={t("home.trending.eyebrow")} first={t("home.trending.first")} second={t("home.trending.second")} />
             <View style={styles.list}>
               {HOME_TRENDING.map((row) => (
                 <HomeRow key={row.number} p={p} row={row} rank={row.rank} onOpen={() => openSong(row)} onMore={() => setMenu({ number: row.number, title: row.title })} />
@@ -387,7 +389,7 @@ export function HomeScreen() {
       case "stories":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="Read between songs" first="Stories" second="behind the songs" />
+            <HomeSectionHead p={p} eyebrow={t("home.stories.eyebrow")} first={t("home.filter.stories")} second={t("home.stories.second")} />
             <HomeShelf itemWidth={STORY_WIDTH}>
               {storyCards.map((card) => (
                 <StripCard key={card.id} p={p} card={card} width={STORY_WIDTH} height={150} onPress={() => router.push(href(`/story-sheet/${card.slug}`))} />
@@ -398,7 +400,7 @@ export function HomeScreen() {
       case "learn":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="Practise what you sing" first="Learn" second="something new" />
+            <HomeSectionHead p={p} eyebrow={t("home.learn.eyebrow")} first={t("tabs.learn")} second={t("home.learn.second")} />
             <HomeShelf itemWidth={MIX_WIDTH}>
               {learnCards.map((card) => (
                 <StripCard key={card.id} p={p} card={card} width={MIX_WIDTH} height={170} onPress={() => router.push(href(card.target))} />
@@ -409,7 +411,7 @@ export function HomeScreen() {
       case "downloaded":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow="Play without a connection" first="Downloaded" second="songs" />
+            <HomeSectionHead p={p} eyebrow={t("home.downloaded.eyebrow")} first={t("home.filter.downloaded")} second={t("home.downloaded.second")} />
             {downloadedRows.length ? (
               <View style={styles.list}>
                 {downloadedRows.map((row) => (
@@ -417,7 +419,7 @@ export function HomeScreen() {
                 ))}
               </View>
             ) : (
-              <HomeEmpty p={p} text="Nothing is downloaded yet. Open a song and choose Download to keep it for offline." />
+              <HomeEmpty p={p} text={t("home.downloaded.empty")} />
             )}
           </Reveal>
         )
@@ -450,7 +452,7 @@ export function HomeScreen() {
         <View style={styles.shelves}>
           {liveNowItem ? <LiveNowStrip item={liveNowItem} onOpen={(i) => router.push(href(`/kiirtan-live?id=${encodeURIComponent(i.id)}`))} /> : null}
           {visible.map((id) => section(id))}
-          {visible.length === 0 ? <HomeEmpty p={p} text="Nothing here yet." /> : null}
+          {visible.length === 0 ? <HomeEmpty p={p} text={t("home.empty")} /> : null}
         </View>
       </Animated.ScrollView>
 

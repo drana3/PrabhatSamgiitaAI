@@ -1,5 +1,7 @@
 import type { TodayRecommendations } from "@prabhat/core"
 
+import { formatDate, t } from "@/lib/i18n"
+
 /**
  * What kind of day Today is (prototype `DAYS`, Main.dc.html around line 2950):
  * - date: the songs Bábá gave on this calendar day
@@ -23,25 +25,9 @@ export type TodayDay = {
   alsoLabel: string | null
 }
 
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-]
-
 /** "Sunday · 1 November". */
 export function formatDayLine(now: Date): string {
-  return `${WEEKDAYS[now.getDay()]} · ${now.getDate()} ${MONTHS[now.getMonth()]}`
+  return `${formatDate(now, "weekday")} · ${formatDate(now, "dayMonthLong")}`
 }
 
 function clean(value: string | null | undefined): string {
@@ -59,14 +45,14 @@ export function buildTodayDay(today: TodayRecommendations | null | undefined, no
   const mode = clean(context?.recommendation_mode)
 
   if (festival || mode === "strict_festival") {
-    const name = festival || "Festival"
+    const name = festival || t("today.festivalDefault")
     return {
       kind: "fest",
       dateLabel,
-      kindLabel: `Festival today · ${name}`,
-      note: "These songs belong to this day.",
-      tag: `For ${name}`,
-      alsoLabel: `Also composed on ${now.getDate()} ${MONTHS[now.getMonth()]}`,
+      kindLabel: t("today.kind.festival", { name }),
+      note: t("today.note.festival"),
+      tag: t("today.tag.festival", { name }),
+      alsoLabel: t("today.also", { date: formatDate(now, "dayMonthLong") }),
     }
   }
   const season = clean(context?.season)
@@ -74,18 +60,18 @@ export function buildTodayDay(today: TodayRecommendations | null | undefined, no
     return {
       kind: "season",
       dateLabel,
-      kindLabel: `Season now · ${season}`,
-      note: "These songs belong to this time of the year.",
-      tag: "For this season",
-      alsoLabel: `Also composed on ${now.getDate()} ${MONTHS[now.getMonth()]}`,
+      kindLabel: t("today.kind.season", { season }),
+      note: t("today.note.season"),
+      tag: t("today.tag.season"),
+      alsoLabel: t("today.also", { date: formatDate(now, "dayMonthLong") }),
     }
   }
   return {
     kind: "date",
     dateLabel,
-    kindLabel: "Composed on this day",
+    kindLabel: t("today.kind.date"),
     note: "",
-    tag: "Song of the day",
+    tag: t("today.tag.date"),
     alsoLabel: null,
   }
 }
@@ -98,18 +84,19 @@ export function resumeLine(input: { number: number | string; position: number; d
     const s = Math.max(0, Math.floor(seconds))
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
   }
-  return `${head} · ${clock(input.position)} of ${clock(input.duration)}`
+  return `${head} · ${t("today.resume.of", { position: clock(input.position), duration: clock(input.duration) })}`
 }
 
 /** The three ways to search on Today (prototype `quick`): each opens search with an example. */
 export const TODAY_QUICK_SEARCHES = [
-  { id: "number", label: "Number", example: "3", query: "3" },
-  { id: "words", label: "Words", example: "bandhu he niye calo", query: "bandhu" },
-  { id: "feeling", label: "Feeling", example: "peaceful devotion", query: "peaceful devotion" },
+  { id: "number", get label() { return t("today.quick.number") }, example: "3", query: "3" },
+  { id: "words", get label() { return t("today.quick.words") }, example: "bandhu he niye calo", query: "bandhu" },
+  { id: "feeling", get label() { return t("today.quick.feeling") }, example: "peaceful devotion", query: "peaceful devotion" },
 ] as const
 
-export const TODAY_QUICK_INTRO =
-  "Three ways to search. Tap one to open search with an example: a song number, words from the lyrics, or a feeling."
+export function todayQuickIntro(): string {
+  return t("today.quick.intro")
+}
 
 /** Search route that opens with the query filled in. */
 export function searchHref(query: string): string {

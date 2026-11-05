@@ -13,6 +13,7 @@ import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amGap, amRadius } from "@/constants/tokens/amSpacing"
 import { amProto, type AmProto } from "@/constants/tokens/amToday"
+import { useT } from "@/lib/i18n"
 import type { TodayDayKind } from "@/lib/todayDay"
 
 type P = { p: AmProto }
@@ -64,12 +65,13 @@ export function TodayHeader({ p }: P) {
 
 /** `.avatar`: 44dp circle, top right, stays while the page scrolls. */
 export function TodayAvatar({ p, initial, onPress }: P & { initial: string; onPress: () => void }) {
+  const t = useT()
   // Dawn (light) uses a white disc; the other sets and the dark theme the tinted orange one.
   const bg = useSet(p) === "3" && !p.dark ? p.white : p.orange100
   return (
     <TodayPress
       accessibilityRole="button"
-      accessibilityLabel="Profile and settings"
+      accessibilityLabel={t("today.profileA11y")}
       onPress={onPress}
       pressedScale={PRESS}
       style={[s.avatar, { backgroundColor: bg }]}
@@ -81,17 +83,18 @@ export function TodayAvatar({ p, initial, onPress }: P & { initial: string; onPr
 
 /** `.pillfield`: a search field, not an icon. */
 export function TodaySearchField({ p, onPress, width }: P & { onPress: () => void; width?: number | `${number}%` }) {
+  const t = useT()
   return (
     <TodayPress
       accessibilityRole="search"
-      accessibilityLabel="Search a number, a name or a feeling"
+      accessibilityLabel={t("today.search")}
       onPress={onPress}
       pressedScale={PRESS}
       style={[s.field, { backgroundColor: p.white, borderColor: p.sand300 }, width != null ? { width } : null]}
     >
       <SearchGlyph size={20} color={p.ink500} />
       <Text style={[s.fieldText, { color: p.ink500 }]} numberOfLines={1}>
-        Search a number, a name or a feeling
+        {t("today.search")}
       </Text>
     </TodayPress>
   )
@@ -114,6 +117,7 @@ export function TodayHead({
   kindLabel,
   note,
 }: P & { dateLabel: string; kind: TodayDayKind; kindLabel: string; note: string }) {
+  const t = useT()
   const set = useSet(p)
   const chip = set === "4" ? { bg: p.ink900, fg: "#FFFFFF" } : KIND_COLORS(p, kind)
   // Dawn sets the date and the note in ink; the other sets and the dark theme keep the eyebrow colour.
@@ -126,8 +130,8 @@ export function TodayHead({
         <Text style={[s.kindText, { color: chip.fg }]}>{kindLabel}</Text>
       </View>
       <Text style={[s.h1, { color: p.ink800 }]} accessibilityRole="header">
-        Songs{"\n"}
-        <Text style={{ color: p.ink300 }}>for today</Text>
+        {t("today.title.first")}{"\n"}
+        <Text style={{ color: p.ink300 }}>{t("today.title.second")}</Text>
       </Text>
       {note ? <Text style={[s.note, { color: dawnInk ? p.ink800 : p.ink500 }]}>{note}</Text> : <View style={s.noteGap} />}
     </View>
@@ -147,6 +151,7 @@ type HeroProps = P & {
 
 /** `.hpanel` photograph with a glass tag, and `.herocard`, a frosted card that overlaps its bottom 60dp. */
 export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing }: HeroProps) {
+  const t = useT()
   const ink = useSet(p) === "4"
   return (
     <View>
@@ -185,7 +190,7 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
         )}
         <TodayPress
           accessibilityRole="button"
-          accessibilityLabel={`Read lyrics of ${title}`}
+          accessibilityLabel={t("today.readLyricsOf", { title })}
           onPress={onOpen}
           pressedScale={PRESS}
           style={s.heroMain}
@@ -195,7 +200,7 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
         </TodayPress>
         <TodayPress
           accessibilityRole="button"
-          accessibilityLabel={`${playing ? "Pause" : "Listen to"} ${title}`}
+          accessibilityLabel={playing ? t("today.pauseTitle", { title }) : t("today.listenTo", { title })}
           onPress={onListen}
           pressedScale={PRESS}
           style={[s.playBtn, { backgroundColor: p.action }]}
@@ -229,6 +234,7 @@ export function TodaySongPill({
   onPlay,
   last,
 }: P & { meta: string; title: string; firstLine: string; onOpen: () => void; onPlay: () => void; last?: boolean }) {
+  const t = useT()
   const set = useSet(p)
   const forest = set === "2"
   const rule = set === "4"
@@ -262,7 +268,7 @@ export function TodaySongPill({
       </TodayPress>
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={`Play ${title}`}
+        accessibilityLabel={t("today.playTitle", { title })}
         onPress={onPlay}
         pressedScale={PRESS}
         style={[s.playSm, { backgroundColor: playBg }]}
@@ -275,19 +281,20 @@ export function TodaySongPill({
 
 /** `.pill.ink.tdall`: "Play all 3". */
 export function TodayPlayAll({ p, count, onPress }: P & { count: number; onPress: () => void }) {
+  const t = useT()
   const forest = useSet(p) === "2"
   const bg = forest ? p.sand100 : p.ink900
   const fg = forest ? p.ink900 : p.onInk
   return (
     <TodayPress
       accessibilityRole="button"
-      accessibilityLabel={`Play all ${count}`}
+      accessibilityLabel={t("today.playAllA11y", { count })}
       onPress={onPress}
       pressedScale={PRESS}
       style={[s.playAll, forest && s.playAllForest, { backgroundColor: bg }]}
     >
       <PlayGlyph size={18} color={fg} />
-      <Text style={[s.pillText, { color: fg }]}>Play all</Text>
+      <Text style={[s.pillText, { color: fg }]}>{t("today.playAll")}</Text>
       <Text style={[s.pillText, { color: fg }]}>{count}</Text>
     </TodayPress>
   )
@@ -338,11 +345,12 @@ export function TodayResumeCard({
   progress,
   onPress,
 }: P & { title: string; line: string; progress: number; onPress: () => void }) {
+  const t = useT()
   const ink = useSet(p) === "4"
   return (
     <TodayPress
       accessibilityRole="button"
-      accessibilityLabel={`Resume ${title}`}
+      accessibilityLabel={t("today.resumeA11y", { title })}
       onPress={onPress}
       pressedScale={PRESS}
       style={ink ? [s.resumeRule, { borderTopColor: p.ink900 }] : [s.resume, { backgroundColor: p.white, borderColor: p.sand400 }]}
@@ -365,6 +373,7 @@ export function TodayQuickTiles({
   tiles: ReadonlyArray<{ id: string; label: string; example: string; query: string }>
   onPress: (query: string) => void
 }) {
+  const t = useT()
   const set = useSet(p)
   return (
     <ScrollView
@@ -379,7 +388,7 @@ export function TodayQuickTiles({
           <TodayPress
             key={tile.id}
             accessibilityRole="button"
-            accessibilityLabel={`Search by ${tile.label.toLowerCase()}, for example ${tile.example}`}
+            accessibilityLabel={t("today.quick.a11y", { kind: tile.label.toLowerCase(), example: tile.example })}
             onPress={() => onPress(tile.query)}
             pressedScale={PRESS}
             style={[s.tile, { backgroundColor: look.bg }, look.border]}
@@ -426,6 +435,7 @@ export function TodayStoryCard({
   blurb,
   onPress,
 }: P & { label: string; title: string; blurb: string; onPress: () => void }) {
+  const t = useT()
   const flame = useSet(p) === "4"
   const bg = flame ? p.orange500 : p.dark ? p.sage700 : p.sage200
   const fg = flame ? p.ink900 : p.dark ? "#FFFFFF" : p.sage900
@@ -433,7 +443,7 @@ export function TodayStoryCard({
   return (
     <TodayPress
       accessibilityRole="button"
-      accessibilityLabel={`Story of the week: ${title}`}
+      accessibilityLabel={t("today.storyA11y", { title })}
       onPress={onPress}
       pressedScale={PRESS}
       style={[s.story, { backgroundColor: bg }]}
@@ -771,17 +781,18 @@ const s = StyleSheet.create({
 
 /** A field, not an icon: users did not find the old search icon. */
 export function TodaySearchPill({ theme, onPress }: { theme: AmTheme; onPress: () => void }) {
+  const t = useT()
   return (
     <PressScale
       accessibilityRole="search"
-      accessibilityLabel="Search a number, a name or a feeling"
+      accessibilityLabel={t("today.search")}
       onPress={onPress}
       pressedScale={0.985}
       style={[legacy.search, { backgroundColor: theme.card, borderColor: theme.line }]}
     >
       <Search size={20} color={theme.textBody} />
       <Text style={[amType.body, { color: theme.textMuted }]} numberOfLines={1}>
-        Search a number, a name or a feeling
+        {t("today.search")}
       </Text>
     </PressScale>
   )

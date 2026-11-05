@@ -14,6 +14,7 @@ import { amPhotoChip, amScrimPhoto, amScrimPhotoTop } from "@/constants/tokens/a
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 import { chunk, coverFor, type HomeCoverId, type StripTone } from "@/lib/homeShelves"
+import { useT } from "@/lib/i18n"
 import type { TodayDayKind } from "@/lib/todayDay"
 
 type P = { p: AmProto }
@@ -66,11 +67,12 @@ export function HomeTopRow({
   onBell,
   onSearch,
 }: P & { initial: string; unread: boolean; onAvatar: () => void; onBell: () => void; onSearch: () => void }) {
+  const t = useT()
   return (
     <View style={s.topRow}>
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel="Profile and settings"
+        accessibilityLabel={t("today.profileA11y")}
         onPress={onAvatar}
         pressedScale={PRESS}
         style={[s.avatar, { backgroundColor: p.dark ? p.orange100 : p.white }]}
@@ -78,12 +80,12 @@ export function HomeTopRow({
         <AvatarFace initial={initial} textStyle={[s.avatarText, { color: p.orange700 }]} />
       </TodayPress>
       <View style={s.spacer} />
-      <TodayPress accessibilityRole="search" accessibilityLabel="Search" onPress={onSearch} pressedScale={PRESS} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+      <TodayPress accessibilityRole="search" accessibilityLabel={t("home.search")} onPress={onSearch} pressedScale={PRESS} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
         <Search size={20} color={p.ink800} strokeWidth={1.9} />
       </TodayPress>
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={unread ? "Notifications, unread" : "Notifications"}
+        accessibilityLabel={unread ? t("home.notificationsUnread") : t("home.notifications")}
         onPress={onBell}
         pressedScale={PRESS}
         style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}
@@ -157,6 +159,7 @@ export function HomeTodayCard({
   onOpen: () => void
   onListen: () => void
 }) {
+  const t = useT()
   const chip = KIND(p, kind)
   return (
     <View style={[s.today, { backgroundColor: p.sage900 }]}>
@@ -169,7 +172,7 @@ export function HomeTodayCard({
         </View>
       </View>
       <View style={s.todayBottom}>
-        <TodayPress accessibilityRole="button" accessibilityLabel={`Read lyrics of ${title}`} onPress={onOpen} pressedScale={PRESS} style={s.todayMain}>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("today.readLyricsOf", { title })} onPress={onOpen} pressedScale={PRESS} style={s.todayMain}>
           <Text style={[overStyle, { color: "#FFFFFF" }]} numberOfLines={1}>
             {meta}
           </Text>
@@ -182,7 +185,7 @@ export function HomeTodayCard({
             </Text>
           ) : null}
         </TodayPress>
-        <TodayPress accessibilityRole="button" accessibilityLabel={`${playing ? "Pause" : "Listen to"} ${title}`} onPress={onListen} pressedScale={PRESS} style={[s.play, { backgroundColor: p.action }]}>
+        <TodayPress accessibilityRole="button" accessibilityLabel={playing ? t("today.pauseTitle", { title }) : t("today.listenTo", { title })} onPress={onListen} pressedScale={PRESS} style={[s.play, { backgroundColor: p.action }]}>
           <PlayGlyph size={24} color={p.onAction} />
         </TodayPress>
       </View>
@@ -196,6 +199,7 @@ export type HomeRowData = { number: number; title: string; sub: string }
 
 /** One compact row: 48dp cover, title, `PS 3 · 4:31`, the more button. */
 export function HomeRow({ p, row, rank, onOpen, onMore }: P & { row: HomeRowData; rank?: number; onOpen: () => void; onMore: () => void }) {
+  const t = useT()
   return (
     <View style={[s.row, { backgroundColor: p.white, borderColor: p.sand300 }]}>
       <TodayPress accessibilityRole="button" accessibilityLabel={`${row.sub}, ${row.title}`} onPress={onOpen} pressedScale={0.985} style={s.rowMain}>
@@ -210,7 +214,7 @@ export function HomeRow({ p, row, rank, onOpen, onMore }: P & { row: HomeRowData
           </Text>
         </View>
       </TodayPress>
-      <TodayPress accessibilityRole="button" accessibilityLabel={`More actions for ${row.title}`} onPress={onMore} pressedScale={0.88} style={s.more}>
+      <TodayPress accessibilityRole="button" accessibilityLabel={t("home.moreFor", { title: row.title })} onPress={onMore} pressedScale={0.88} style={s.more}>
         <MoreHorizontal size={22} color={p.ink500} />
       </TodayPress>
     </View>

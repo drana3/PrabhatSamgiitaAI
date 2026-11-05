@@ -48,6 +48,7 @@ import { loadCatalog } from "@/lib/catalog"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { api } from "@/lib/client"
 import { TODAY_FIXTURE_DAYS, TODAY_FIXTURE_RECENT, TODAY_FIXTURE_SONGS } from "@/lib/fixtures/today"
+import { t as tPlain, useT } from "@/lib/i18n"
 import { formatClock } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { readableTitle } from "@/lib/readableTitle"
@@ -57,7 +58,7 @@ import {
   formatDayLine,
   resumeLine,
   searchHref,
-  TODAY_QUICK_INTRO,
+  todayQuickIntro,
   TODAY_QUICK_SEARCHES,
   type TodayDay,
 } from "@/lib/todayDay"
@@ -81,6 +82,8 @@ export type TodayRow = {
   song: MockSong
   /** "PS 1 · composed 1982" */
   meta: string
+  /** the meta line already says when the song was composed, so the length is not added */
+  composed?: boolean
   firstLine: string
   /** a real length, when we have one */
   length?: string
@@ -101,7 +104,8 @@ export function fixtureDay(kind: "date" | "fest" | "season", count: number) {
     const song = songSummaryToMockSong({ number: fix.number, title: fix.title, first_line: fix.firstLine, is_verified: true })
     return {
       song,
-      meta: composed ? `PS ${fix.number} · composed ${composed}` : `PS ${fix.number}`,
+      meta: composed ? `PS ${fix.number} · ${tPlain("today.composed", { year: composed })}` : `PS ${fix.number}`,
+      composed: Boolean(composed),
       // the prototype's sample lyrics are one text for every song (`_content(i).lines[0]`)
       firstLine: "Bandhu he niye calo",
       length: formatClock(fix.seconds),
@@ -116,7 +120,7 @@ export function fixtureDay(kind: "date" | "fest" | "season", count: number) {
         : {}
   const day = buildTodayDay({ context, signals: [], recommendations: [], disclaimer: "" } as unknown as TodayRecommendations, now)
   const alsoRow = def.also != null ? toRow(def.also) : null
-  const tag = kind === "date" && def.composed[0] ? `Composed 1 Nov ${def.composed[0]}` : day.tag
+  const tag = kind === "date" && def.composed[0] ? tPlain("today.tag.composed", { year: def.composed[0] }) : day.tag
   const note = "note" in def ? def.note : day.note
   return { rows, day: { ...day, dateLabel: formatDayLine(now), tag, note }, also: alsoRow }
 }
@@ -127,6 +131,7 @@ export function fixtureDay(kind: "date" | "fest" | "season", count: number) {
  * Colours are the prototype's "Dawn" set (light) and the dark theme.
  */
 export default function TodayScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
   const p = protoFor(theme)
@@ -193,7 +198,9 @@ export default function TodayScreen() {
   const view = useMemo(() => buildTodayView({ recommended, recentPlays, now }), [recommended, recentPlays, now])
   const initials = useProfileInitial()
 
-  const sample = useMemo(() => (sampleKind ? fixtureDay(sampleKind, songCount) : null), [sampleKind, songCount])
+  // `t` changes with the language, so the sample day is rebuilt in the new language
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sample = useMemo(() => (sampleKind ? fixtureDay(sampleKind, songCount) : null), [sampleKind, songCount, t])
   // TODO(api): the prototype's sample story card (Main.dc.html 1085-1090) while a sample day is shown
   const story = useMemo(
     () =>
@@ -327,7 +334,7 @@ export default function TodayScreen() {
               <TodayHeroPanel
                 p={p}
                 tag={day.tag}
-                meta={`PS ${hero.song.number}${hero.length ? ` · ${hero.length}` : ""} · Read lyrics`}
+                meta={`PS ${hero.song.number}${hero.length ? ` · ${hero.length}` : ""} · ${t("today.readLyrics")}`}
                 title={hero.song.title}
                 playing={heroPlaying}
                 onOpen={() => openSong(hero.song)}
@@ -343,7 +350,7 @@ export default function TodayScreen() {
                     key={row.song.id}
                     p={p}
                     last={i === more.length - 1}
-                    meta={`${row.meta}${row.length && !row.meta.includes("composed") ? ` · ${row.length}` : ""}`}
+                    meta={`${row.meta}${row.length && !row.composed ? ` · ${row.length}` : ""}`}
                     title={readableTitle(row.song.title)}
                     firstLine={row.firstLine}
                     onOpen={() => openSong(row.song)}
@@ -366,13 +373,13 @@ export default function TodayScreen() {
             ) : null}
           </>
         ) : (
-          <Text style={[styles.empty, { color: p.ink500 }]}>Loading today's song…</Text>
+          <Text style={[styles.empty, { color: p.ink500 }]}>{t("today.loading")}</Text>
         )}
 
         {resumeSong ? (
           <View style={styles.sect}>
             <Reveal index={2}>
-              <TodaySectionHeading p={p} first="Pick up" second="where you stopped" />
+              <TodaySectionHeading p={p} first={t("today.section.pickUp")} second={t("today.section.pickUp2")} />
             </Reveal>
             <Reveal index={3} style={styles.list}>
               <TodayResumeCard
@@ -388,10 +395,10 @@ export default function TodayScreen() {
 
         <View style={styles.sect}>
           <Reveal index={4}>
-            <TodaySectionHeading p={p} first="Find a song" second="your way" />
+            <TodaySectionHeading p={p} first={t("today.section.find")} second={t("today.section.find2")} />
           </Reveal>
           <Reveal index={4}>
-            <Text style={[styles.intro, { color: p.ink500 }]}>{TODAY_QUICK_INTRO}</Text>
+            <Text style={[styles.intro, { color: p.ink500 }]}>{todayQuickIntro()}</Text>
           </Reveal>
           <Reveal index={5}>
             <TodayQuickTiles p={p} tiles={TODAY_QUICK_SEARCHES} onPress={(query) => router.push(href(searchHref(query)))} />
@@ -401,12 +408,12 @@ export default function TodayScreen() {
         {story ? (
           <View style={styles.sect}>
             <Reveal index={6}>
-              <TodaySectionHeading p={p} first="Story" second="of the week" />
+              <TodaySectionHeading p={p} first={t("today.section.story")} second={t("today.section.story2")} />
             </Reveal>
             <Reveal index={7} style={styles.list}>
               <TodayStoryCard
                 p={p}
-                label={sample ? "Story · 4 min read" : "Story"}
+                label={sample ? `${t("today.section.story")} · 4 min` : t("today.section.story")}
                 title={story.title}
                 blurb={story.teaser}
                 onPress={() => router.push(href(`/story-sheet/${story.slug}`))}
@@ -418,7 +425,7 @@ export default function TodayScreen() {
         {recentRows.length ? (
           <View style={styles.sect}>
             <Reveal index={8}>
-              <TodaySectionHeading p={p} first="Recently" second="played" />
+              <TodaySectionHeading p={p} first={t("today.section.recent")} second={t("today.section.recent2")} />
             </Reveal>
             <Reveal index={9} style={styles.list}>
               {recentRows.map(({ song, length }) => (

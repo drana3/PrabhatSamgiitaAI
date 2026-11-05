@@ -4,13 +4,15 @@
  * cover a song gets (the app has no per-song art yet, so a cover is picked from the photo set).
  */
 
+import { t } from "@/lib/i18n"
+
 export const HOME_FILTERS = [
-  { id: "all", label: "All" },
-  { id: "songs", label: "Songs" },
-  { id: "kiirtan", label: "Kiirtan" },
-  { id: "stories", label: "Stories" },
-  { id: "learn", label: "Learn" },
-  { id: "downloaded", label: "Downloaded" },
+  { id: "all", get label() { return t("home.filter.all") } },
+  { id: "songs", get label() { return t("tabs.songs") } },
+  { id: "kiirtan", get label() { return t("tabs.kiirtan") } },
+  { id: "stories", get label() { return t("home.filter.stories") } },
+  { id: "learn", get label() { return t("tabs.learn") } },
+  { id: "downloaded", get label() { return t("home.filter.downloaded") } },
 ] as const
 export type HomeFilterId = (typeof HOME_FILTERS)[number]["id"]
 
