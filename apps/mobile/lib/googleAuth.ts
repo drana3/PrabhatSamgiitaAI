@@ -50,11 +50,8 @@ function googleSignInErrorMessage(error: unknown) {
 function isDeveloperError(error: unknown) {
   const code = (error as { code?: string })?.code
   const message = error instanceof Error ? error.message : String(error ?? "")
-  return (
-    code === "10" ||
-    code === statusCodes.DEVELOPER_ERROR ||
-    /DEVELOPER_ERROR/i.test(message)
-  )
+  // Android reports DEVELOPER_ERROR as status code 10 (the SDK's statusCodes has no constant for it).
+  return code === "10" || /DEVELOPER_ERROR/i.test(message)
 }
 
 export async function signInWithGoogle(): Promise<OAuthIdentity> {
