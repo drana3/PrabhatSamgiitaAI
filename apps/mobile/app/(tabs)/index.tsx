@@ -239,12 +239,12 @@ export default function HomeScreen() {
         mediaHydrated: false,
       })
     }
-    router.push(href(`/song/ps-${number}`))
+    router.push(href(`/song-v2/ps-${number}`))
   }
 
   const openSong = (song: MockSong) => {
     if (Platform.OS !== "android") usePlayerStore.getState().warmAudio(song)
-    router.push(href(`/song/${song.id}`))
+    router.push(href(`/song-v2/${song.id}`))
   }
 
   const submitHomeSearch = () => {
@@ -348,7 +348,7 @@ export default function HomeScreen() {
             <TodaySongCard
               song={featuredSong}
               onPress={() => openSong(featuredSong)}
-              onWatch={() => router.push(href(`/song/${featuredSong.id}?tab=watch`))}
+              onWatch={() => router.push(href(`/song-v2/${featuredSong.id}?section=watch`))}
               onAskAi={() => router.push(href(`/(tabs)/ai?song=${featuredSong.number}`))}
             />
           ) : (

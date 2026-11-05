@@ -20,7 +20,7 @@ export function useSongsV2Actions() {
     setTimeout(() => setToast((current) => (current === message ? null : current)), 2200)
   }, [])
 
-  const open = useCallback((entry: CatalogEntry) => router.push(href(`/song/ps-${entry.number}`)), [router])
+  const open = useCallback((entry: CatalogEntry) => router.push(href(`/song-v2/ps-${entry.number}`)), [router])
 
   /** Opens the "Save to" sheet (Mine and playlists); the sheet asks to sign in when it has to. */
   const toggleSave = useCallback((entry: CatalogEntry) => openSaveSheet({ kind: "song", number: entry.number }), [])

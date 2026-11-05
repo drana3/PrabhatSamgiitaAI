@@ -186,7 +186,7 @@ export default function SavedScreen() {
           renderItem={({ item }) => (
             <CompactSongRow
               song={item}
-              onPress={() => router.push(href(`/song/${item.id}`))}
+              onPress={() => router.push(href(`/song-v2/${item.id}`))}
             />
           )}
           ListFooterComponent={

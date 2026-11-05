@@ -93,7 +93,7 @@ export default function PlaylistDetailScreen() {
             <CompactSongRow
               song={song}
               showShare
-              onPress={() => router.push(href(`/song/${song.id}`))}
+              onPress={() => router.push(href(`/song-v2/${song.id}`))}
             />
             <Pressable
               accessibilityRole="button"

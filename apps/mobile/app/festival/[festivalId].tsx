@@ -136,7 +136,7 @@ export default function FestivalDetailScreen() {
             key={song.id}
             song={song}
             showShare
-            onPress={() => router.push(href(`/song/${song.id}`))}
+            onPress={() => router.push(href(`/song-v2/${song.id}`))}
           />
         ))}
 

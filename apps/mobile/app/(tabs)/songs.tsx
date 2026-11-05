@@ -177,7 +177,7 @@ export default function SongsScreen() {
         renderItem={({ item }) => (
           <CompactSongRow
             song={item}
-            onPress={() => router.push(href(`/song/${item.id}`))}
+            onPress={() => router.push(href(`/song-v2/${item.id}`))}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.sep} />}

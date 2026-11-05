@@ -244,7 +244,7 @@ export default function PlaylistV2Screen() {
                         title={title}
                         accessibilityLabel={`PS ${number}, ${title}`}
                         menuLabel={`More actions for PS ${number}`}
-                        onOpen={() => router.push(href(`/song/ps-${number}`))}
+                        onOpen={() => router.push(href(`/song-v2/ps-${number}`))}
                         onMenu={() => setMenuEntry(entries.find((e) => e.number === number) ?? null)}
                       />
                     )

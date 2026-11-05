@@ -16,7 +16,7 @@ export default function FullPlayerScreen() {
   const song = usePlayerStore((s) => s.currentSong)
 
   if (song) {
-    return <Redirect href={href(`/song/${song.id}`)} />
+    return <Redirect href={href(`/song-v2/${song.id}`)} />
   }
 
   return (

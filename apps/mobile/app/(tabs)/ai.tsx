@@ -159,7 +159,7 @@ export default function AIScreen() {
       return
     }
     if (action.type === "song") {
-      router.replace(href(`/song/ps-${action.number}`))
+      router.replace(href(`/song-v2/ps-${action.number}`))
       return
     }
     router.replace(href("/(tabs)"))
