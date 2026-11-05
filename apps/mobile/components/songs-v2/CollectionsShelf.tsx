@@ -1,31 +1,13 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 
+import { CollectionCard } from "@/components/songs-v2/CollectionCard"
 import { Press } from "@/components/songs-v2/Press"
-import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { SONGS_LAYOUT as L } from "@/lib/songsV2/layout"
 
 /** One card of the shelf. `countLabel` is `124 songs`. */
 export type ShelfCollection = { id: string; label: string; countLabel: string }
-
-/**
- * Card colours in turn. Light tints (peach, gold300, olive, sage200) carry dark ink; deep fills (sage700,
- * sage900) carry white. No orange fill: orange is for the action, not for decoration.
- */
-const CARD_TONES: readonly { bg: string; fg: string; sub: string }[] = [
-  { bg: amColors.orange100, fg: amColors.ink900, sub: amColors.ink600 },
-  { bg: amColors.sage700, fg: "#FFFFFF", sub: "rgba(255,255,255,0.8)" },
-  { bg: amColors.gold300, fg: amColors.ink900, sub: amColors.ink600 },
-  { bg: amColors.sage900, fg: "#FFFFFF", sub: "rgba(255,255,255,0.8)" },
-  { bg: amColors.olive100, fg: amColors.sage900, sub: amColors.ink600 },
-  { bg: amColors.sage200, fg: amColors.sage900, sub: amColors.ink600 },
-]
-
-/** Pure: the colours of card number `index`. */
-export function shelfTone(index: number) {
-  return CARD_TONES[((index % CARD_TONES.length) + CARD_TONES.length) % CARD_TONES.length]
-}
 
 /**
  * Collections as a shelf of coloured cards (it was the Collections segment). The block is exactly
@@ -53,26 +35,17 @@ export function CollectionsShelf({
         </Press>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cards}>
-        {collections.map((c, i) => {
-          const tone = shelfTone(i)
-          return (
-            <Press
-              key={c.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${c.label}, ${c.countLabel}`}
-              onPress={() => onOpen(c.id, c.label)}
-              pressedScale={0.96}
-              style={[styles.card, { backgroundColor: tone.bg }]}
-            >
-              <Text style={[styles.cardTitle, { color: tone.fg }]} numberOfLines={2}>
-                {c.label}
-              </Text>
-              <Text style={[styles.cardSub, { color: tone.sub }]} numberOfLines={1}>
-                {c.countLabel}
-              </Text>
-            </Press>
-          )
-        })}
+        {collections.map((c, i) => (
+          <CollectionCard
+            key={c.id}
+            kind="mood"
+            toneIndex={i}
+            title={c.label}
+            caption={c.countLabel}
+            label={`${c.label}, ${c.countLabel}`}
+            onPress={() => onOpen(c.id, c.label)}
+          />
+        ))}
       </ScrollView>
     </View>
   )
@@ -84,8 +57,5 @@ const styles = StyleSheet.create({
   title: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: -0.6, textTransform: "uppercase" },
   all: { height: 30, justifyContent: "center", paddingHorizontal: 6 },
   allText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
-  cards: { paddingLeft: 10, paddingRight: 16, gap: 10 },
-  card: { width: 150, height: 112, borderRadius: 24, padding: 14, justifyContent: "space-between" },
-  cardTitle: { fontFamily: amFonts.display, fontSize: 20, lineHeight: 21, letterSpacing: -0.3, textTransform: "uppercase" },
-  cardSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
+  cards: { paddingLeft: 10, paddingRight: 16, gap: 12 },
 })
