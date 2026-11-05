@@ -4,7 +4,7 @@ import Svg, { Path } from "react-native-svg"
 
 import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
 import { KPress } from "@/components/kirtan/KPress"
-import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
+import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { KiirtanDownloadedBadge } from "@/components/offline/DownloadedBadge"
@@ -174,7 +174,7 @@ export function KirtanRow({
 /** The artist name of a Kiirtan: tappable (opens the artist page) when it is a known artist, plain text otherwise. */
 export function ArtistLink({ theme, author, onOpenArtist }: { theme: SongsTheme; author: string; onOpenArtist?: (artistId: string) => void }) {
   const t = useT()
-  const artist = artistForAuthor(ARTIST_FIXTURES, author)
+  const artist = artistForAuthor(sampleArtists(), author)
   if (!author.trim()) return null
   if (!artist || !onOpenArtist) {
     return (

@@ -48,7 +48,7 @@ import { allCollections } from "@/data/collections"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSaveState } from "@/hooks/useSaveState"
-import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
+import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { SAMPLE_GLOSS_LANGUAGES, sampleGloss, sampleTranslationLines } from "@/lib/fixtures/player"
 import { t, useLanguage } from "@/lib/i18n"
 import { storedMeaningForLanguage } from "@/lib/songMap"
@@ -680,8 +680,8 @@ export default function PlayerV2Screen() {
     })
   }
   const coverTint = isK ? kiirtanTone(song?.kiirtan?.type, recKind)[0] : tintForSong(song?.number ?? null)
-  const subtitleText = isK && song ? kindSubtitle(recKind, song.performer, song.kiirtan?.addedBy, ARTIST_FIXTURES) : ""
-  const artist = isK && song ? artistForAuthor(ARTIST_FIXTURES, song.performer) : null
+  const subtitleText = isK && song ? kindSubtitle(recKind, song.performer, song.kiirtan?.addedBy, sampleArtists()) : ""
+  const artist = isK && song ? artistForAuthor(sampleArtists(), song.performer) : null
   const openArtist = () => {
     if (!artist) return
     // Leave the player first, then show the artist; the pill stays above it.

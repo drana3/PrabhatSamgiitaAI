@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react"
 
-import { KIRTAN_FIXTURES } from "@/lib/fixtures/kirtan"
+import { sampleKirtans } from "@/lib/fixtures/kirtanGate"
 import { approvedOnly, newestFirst } from "@/lib/kirtan/list"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
@@ -23,7 +23,7 @@ export function useKirtans() {
   }, [])
 
   return useMemo(() => {
-    const all = [...KIRTAN_FIXTURES, ...submissions]
+    const all = [...sampleKirtans(), ...submissions]
     const playable = newestFirst(approvedOnly(all))
     const byId = new Map<string, Kirtan>(all.map((k) => [k.id, k]))
     return { playable, byId, submissions }

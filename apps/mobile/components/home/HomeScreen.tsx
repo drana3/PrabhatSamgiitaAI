@@ -56,7 +56,7 @@ import {
   homeSong,
 } from "@/lib/fixtures/home"
 import { HOME_FILTERS, mergeStartRows, shelvesFor, songSub, type HomeFilterId, type HomeShelfId, type StartRow } from "@/lib/homeShelves"
-import { MIX_FIXTURES } from "@/lib/fixtures/kirtan"
+import { sampleMixes } from "@/lib/fixtures/kirtanGate"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { mixCaption } from "@/lib/kirtan/mix"
 import { photoForMix } from "@/lib/photos/catalog"
@@ -250,7 +250,7 @@ export function HomeScreen() {
 
   /* --- Kiirtans and mixes: one queue with the songs --- */
   const mixCards: StripCardData[] = useMemo(
-    () => MIX_FIXTURES.map((m) => ({ id: m.id, label: m.title, tone: m.tone, cover: m.cover, photo: photoForMix(m.id).cover, caption: `${mixCaption(m.items)}. ${m.blurb}` })),
+    () => sampleMixes().map((m) => ({ id: m.id, label: m.title, tone: m.tone, cover: m.cover, photo: photoForMix(m.id).cover, caption: `${mixCaption(m.items)}. ${m.blurb}` })),
     [],
   )
   const kiirtanToday = useMemo(() => {
@@ -260,7 +260,7 @@ export function HomeScreen() {
     return [first, ...rest]
   }, [kirtans, now])
   const playMixCard = (id: string) => {
-    const mix = MIX_FIXTURES.find((m) => m.id === id)
+    const mix = sampleMixes().find((m) => m.id === id)
     if (mix) kActions.flash(playMix(mix) ?? t("home.playing", { title: mix.title }))
   }
   const onKirtanShare = async (k: Kirtan, target: ShareTargetId) => {
@@ -279,7 +279,7 @@ export function HomeScreen() {
   const has: Record<HomeShelfId, boolean> = {
     today: Boolean(hero),
     start: startRows.length > 0,
-    kmixes: true,
+    kmixes: mixCards.length > 0,
     kiirtan: kiirtanToday.length > 0,
     mixes: mixes.length > 0,
     because: MOCKUP_DATA,

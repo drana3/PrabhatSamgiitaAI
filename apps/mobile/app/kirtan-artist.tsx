@@ -14,7 +14,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
+import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { artistById, kirtansOfArtist, popularOf } from "@/lib/kirtan/artists"
 import { kindsCountLabel } from "@/lib/kirtan/kind"
 import { playArtist } from "@/lib/kirtan/mixPlayback"
@@ -43,7 +43,7 @@ export default function KirtanArtistScreen() {
   const [menu, setMenu] = useState<Kirtan | null>(null)
   const [share, setShare] = useState<Kirtan | null>(null)
 
-  const artist = useMemo(() => artistById(ARTIST_FIXTURES, params.id), [params.id])
+  const artist = useMemo(() => artistById(sampleArtists(), params.id), [params.id])
   const all = useMemo(() => (artist ? newestFirst(kirtansOfArtist(artist, playable)) : []), [artist, playable])
   const popular = useMemo(() => popularOf(all, 5), [all])
   const top = insets.top || 54

@@ -2,7 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
-import { KIRTAN_FIXTURES, KIRTAN_PENDING_FIXTURE } from "@/lib/fixtures/kirtan"
+import { KIRTAN_PENDING_FIXTURE } from "@/lib/fixtures/kirtan"
+import { sampleSubmissionKeys } from "@/lib/fixtures/kirtanGate"
 import { addSubmission, buildSubmission, decideSubmission, submissionKey, withdrawSubmission, type AddResult, type SubmissionInput } from "@/lib/kirtan/submissions"
 import { KIRTAN_STORE_VERSION, migrateKirtanState } from "@/lib/kirtan/migrate"
 import type { Kirtan } from "@/lib/kirtan/types"
@@ -40,7 +41,7 @@ export const useKirtanStore = create<KirtanState>()(
         set({ submissions: [KIRTAN_PENDING_FIXTURE] })
       },
       submit: (input, now = Date.now()) => {
-        const result = addSubmission(get().submissions, buildSubmission(input, now), KIRTAN_FIXTURES.map((k) => submissionKey(k.title, k.author)))
+        const result = addSubmission(get().submissions, buildSubmission(input, now), sampleSubmissionKeys(submissionKey))
         if (result.added) set({ submissions: result.list })
         return result
       },

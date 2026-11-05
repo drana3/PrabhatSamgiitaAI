@@ -13,7 +13,7 @@ import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
-import { MIX_FIXTURES } from "@/lib/fixtures/kirtan"
+import { sampleMixes } from "@/lib/fixtures/kirtanGate"
 import { formatKirtanLength } from "@/lib/kirtan/list"
 import { mixCaption, playableItems, type MixItem } from "@/lib/kirtan/mix"
 import { playMix } from "@/lib/kirtan/mixPlayback"
@@ -32,7 +32,7 @@ export default function KirtanMixScreen() {
   const actions = useKirtanActions()
   const { byId } = useKirtans()
   const catalog = useSongsV2Catalog()
-  const mix = useMemo(() => MIX_FIXTURES.find((m) => m.id === params.id) ?? null, [params.id])
+  const mix = useMemo(() => sampleMixes().find((m) => m.id === params.id) ?? null, [params.id])
   const items = useMemo(() => (mix ? playableItems(mix.items, byId) : []), [mix, byId])
   const photo = useMemo(() => (mix ? photoForMix(mix.id) : null), [mix])
 

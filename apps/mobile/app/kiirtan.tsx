@@ -28,8 +28,7 @@ import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
-import { KIIRTAN_RESUME_FIXTURES } from "@/lib/fixtures/kirtan"
+import { sampleArtists, sampleResume } from "@/lib/fixtures/kirtanGate"
 import { artistsWithKirtans, kirtansOfArtist } from "@/lib/kirtan/artists"
 import { filterByKind, kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
 import { LENGTH_BUCKETS, longKirtans, type LengthBucketId } from "@/lib/kirtan/length"
@@ -95,9 +94,9 @@ export default function KiirtanTabScreen() {
   const day = useMemo(() => kiirtanOfTheDay(filterByKind(playable, showKiirtan ? "kiirtan" : "bhajan"), dayN), [playable, showKiirtan, dayN])
   const bhajanDay = useMemo(() => (kind === "all" ? kiirtanOfTheDay(filterByKind(playable, "bhajan"), dayN) : null), [playable, kind, dayN])
   const hourly = useMemo(() => bhajansForEveryHour(playable), [playable])
-  const jump = useMemo(() => resumeEntries(KIIRTAN_RESUME_FIXTURES, byId, 2).filter((e) => kind === "all" || e.kirtan.kind === kind), [byId, kind])
+  const jump = useMemo(() => resumeEntries(sampleResume(), byId, 2).filter((e) => kind === "all" || e.kirtan.kind === kind), [byId, kind])
   const cards = useMemo(() => typeCards(playable, kind), [playable, kind, t])
-  const artists = useMemo(() => artistsWithKirtans(ARTIST_FIXTURES, kindList), [kindList])
+  const artists = useMemo(() => artistsWithKirtans(sampleArtists(), kindList), [kindList])
   const list = useMemo(() => newKirtansList(playable, type, length, pick?.kind ?? kind), [playable, type, length, pick, kind])
   const longList = useMemo(() => longKirtans(kindList, 6), [kindList])
   const saved = useMemo(() => savedKirtans(savedIds, byId), [savedIds, byId])

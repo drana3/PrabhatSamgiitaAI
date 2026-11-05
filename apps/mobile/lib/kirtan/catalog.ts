@@ -1,4 +1,4 @@
-import { KIRTAN_FIXTURES } from "@/lib/fixtures/kirtan"
+import { sampleKirtans } from "@/lib/fixtures/kirtanGate"
 import { approvedOnly, newestFirst } from "@/lib/kirtan/list"
 import { kiirtanSongForNumber, registerKiirtans } from "@/lib/kirtan/track"
 import type { Kirtan } from "@/lib/kirtan/types"
@@ -11,7 +11,7 @@ import { useKirtanStore } from "@/stores/kirtanStore"
  * TODO(api): the catalog comes from the backend.
  */
 export function allKirtans(): Kirtan[] {
-  return [...KIRTAN_FIXTURES, ...useKirtanStore.getState().submissions]
+  return [...sampleKirtans(), ...useKirtanStore.getState().submissions]
 }
 
 /** Approved Kiirtans, newest first. */

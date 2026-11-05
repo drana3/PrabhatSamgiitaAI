@@ -22,7 +22,7 @@ import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
+import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchArtists, searchKirtans, type SearchScope } from "@/lib/kirtan/search"
 import { NAV_V2_TABS, contentInsetFor, miniPlayerVisible, tabIdForRouteName, type NavV2TabId } from "@/lib/navV2"
 import { authHeadersFromStore } from "@/lib/memberAuth"
@@ -287,7 +287,7 @@ export default function UnifiedSearchScreen() {
   const scopeItems = useMemo(() => SEARCH_SCOPES.map((item) => ({ id: item.id, label: item.label })), [t])
   const kirtanHits = useMemo(() => searchKirtans(kirtanCatalog, query, scope === "all" ? 5 : 50), [kirtanCatalog, query, scope])
   // TODO(api): artists come from the backend; today they are the preview fixtures.
-  const artistHits = useMemo(() => searchArtists(ARTIST_FIXTURES, kirtanCatalog, query, 6), [kirtanCatalog, query])
+  const artistHits = useMemo(() => searchArtists(sampleArtists(), kirtanCatalog, query, 6), [kirtanCatalog, query])
   const show = scopeShows(scope)
   // The artist row and the Kiirtans: first when the words are an artist's name, after the songs otherwise.
   const kirtanFirst = scope === "kiirtan" || artistHits.length > 0
