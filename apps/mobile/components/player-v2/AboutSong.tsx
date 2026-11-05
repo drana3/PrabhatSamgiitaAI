@@ -48,10 +48,12 @@ type SheetProps = {
   about: AboutContent | null
   onOpenSong: () => void
   onClose: () => void
+  /** false on the song page itself, where "Open song page" would lead nowhere. */
+  showOpenSong?: boolean
 }
 
 /** The story of the song in full, with a button to its page (words, chords, story). */
-export function AboutSheet({ visible, theme, songTitle, about, onOpenSong, onClose }: SheetProps) {
+export function AboutSheet({ visible, theme, songTitle, about, onOpenSong, onClose, showOpenSong = true }: SheetProps) {
   return (
     <Sheet visible={visible} onClose={onClose} title="About this song" theme={theme}>
       <Text style={[styles.songTitle, { color: theme.textHeading }]} accessibilityRole="header">
@@ -63,9 +65,11 @@ export function AboutSheet({ visible, theme, songTitle, about, onOpenSong, onClo
           <Text style={[styles.body, { color: theme.textBody }]}>{section.text}</Text>
         </View>
       ))}
-      <View style={styles.cta}>
-        <SheetPill theme={theme} tone="brand" label="Open song page" onPress={onOpenSong} />
-      </View>
+      {showOpenSong ? (
+        <View style={styles.cta}>
+          <SheetPill theme={theme} tone="brand" label="Open song page" onPress={onOpenSong} />
+        </View>
+      ) : null}
     </Sheet>
   )
 }

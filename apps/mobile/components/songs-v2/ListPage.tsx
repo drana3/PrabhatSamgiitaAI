@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from "react"
-import { FlatList, Platform, StyleSheet, Text, View } from "react-native"
+import { Platform, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
 import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 
 import {
   AccentCover,
   ActionBar,
-  BackRow,
   ChipsRow,
   CollageCover,
   LIST_SIDE,
@@ -16,10 +16,13 @@ import {
 } from "@/components/songs-v2/ListParts"
 import { ListMenuSheet, ListSortSheet, SongMenuSheet } from "@/components/songs-v2/ListSheets"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
+import { SP_BAR_CONTENT, SpStickyBar } from "@/components/song-v2/SpStickyBar"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2ListPage } from "@/hooks/useSongsV2ListPage"
+import { useSpTheme } from "@/hooks/useSpTheme"
+import type { BarMarks } from "@/lib/songPage/stickyBar"
 import { usePlayerStore } from "@/stores/playerStore"
 import { collageCoverIds } from "@/lib/songsV2/listPage"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
@@ -51,6 +54,7 @@ export function SongsListPage({
 }) {
   const router = useRouter()
   const theme = useSongsTheme()
+  const sp = useSpTheme()
   const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
   const inset = Platform.OS === "web" ? 54 : insets.top
@@ -69,6 +73,30 @@ export function SongsListPage({
   const cover =
     kind === "all" ? <CollageCover ids={coverIds} tint={theme.inner} /> : <AccentCover label={title} dark={theme.dark} />
   const bottom = hasSong ? 180 : 130
+
+  // Collapsing top bar (SpStickyBar): back button always, title and a round play-all button fade in as the header leaves.
+  const barHeight = inset + SP_BAR_CONTENT
+  const scrollY = useSharedValue(0)
+  const [headH, setHeadH] = useState(180)
+  const marks = useSharedValue<BarMarks>({ barHeight, coverTop: barHeight, coverBottom: barHeight + 120, titleBottom: barHeight + 180, playTop: barHeight + 190, playBottom: barHeight + 250 })
+  const onHeadLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const h = Math.round(event.nativeEvent.layout.height)
+      setHeadH(h)
+      marks.value = {
+        barHeight,
+        coverTop: barHeight,
+        coverBottom: barHeight + h * 0.6,
+        titleBottom: barHeight + h,
+        playTop: barHeight + h + 8,
+        playBottom: barHeight + h + 60,
+      }
+    },
+    [barHeight, marks],
+  )
+  const onScroll = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y
+  })
   const rowsLive = list.shown.length > 0
 
   const renderItem = useCallback(
@@ -91,11 +119,12 @@ export function SongsListPage({
 
   const header = (
     <View>
-      <SongsReveal index={0}>
-        <BackRow theme={theme} onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
-      </SongsReveal>
+      {/* the bar (drawn over the page) holds the back button; this is its room */}
+      <View style={{ height: SP_BAR_CONTENT }} />
       <SongsReveal index={1}>
-        <ListHeader theme={theme} title={title} meta={list.meta} cover={cover} />
+        <View onLayout={onHeadLayout}>
+          <ListHeader theme={theme} title={title} meta={list.meta} cover={cover} />
+        </View>
       </SongsReveal>
       <SongsReveal index={2}>
         <ActionBar
@@ -120,8 +149,11 @@ export function SongsListPage({
 
   return (
     <RevealClock.Provider value={openedAt}>
-      <View style={[styles.root, { backgroundColor: theme.page, paddingTop: inset }]}>
-        <FlatList
+      <View style={[styles.root, { backgroundColor: theme.page }]}>
+        <Animated.FlatList
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          ListHeaderComponentStyle={{ paddingTop: inset }}
           data={list.shown}
           keyExtractor={(entry) => String(entry.number)}
           renderItem={renderItem}
@@ -136,6 +168,20 @@ export function SongsListPage({
           windowSize={9}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: bottom }}
+        />
+        <SpStickyBar
+          t={sp}
+          title={title}
+          tint={theme.page}
+          scrollY={scrollY}
+          marks={marks}
+          topInset={inset}
+          onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          onAction={list.play}
+          showAction={rowsLive}
+          playing={list.playingHere}
+          highlight={list.playingHere}
+          actionLabel={list.playingHere ? "Pause" : "Play all"}
         />
 
         <SongMenuSheet

@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react"
 import { ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
@@ -56,20 +56,22 @@ function Tab({
 }
 
 /**
- * `.spbar`: the section tabs. Sits under the title, pins under the status bar on scroll, and once pinned gets a
- * 88% sand ground with blur and a hairline below (`.stuck`); that ground fades by opacity only.
+ * `.spbar`: the section tabs. The page draws it as an overlay that follows its place in the content and pins
+ * under the top bar (UI thread, see lib/songPage/stickyBar `stripTop`). It has an opaque page-colour ground
+ * and a hairline below that fades in by `hairline` (0..1) once it is pinned.
  */
 export function SpTabStrip({
   t,
   sections,
   active,
-  stuck,
+  hairline,
   onSelect,
 }: {
   t: SpTheme
   sections: SectionId[]
-  active: SectionId
-  stuck: boolean
+  /** null: the reader is past the last tab (versions, credits ...) */
+  active: SectionId | null
+  hairline: SharedValue<number>
   onSelect: (id: SectionId) => void
 }) {
   const reduce = useReducedMotion()
@@ -77,31 +79,20 @@ export function SpTabStrip({
   const scrollX = useRef(0)
   const width = useRef(0)
   const xs = useRef<Partial<Record<SectionId, { x: number; w: number }>>>({})
-  const ground = useSharedValue(0)
-  useEffect(() => {
-    ground.value = withTiming(stuck ? 1 : 0, { duration: reduce ? 0 : 200, easing: Easing.bezier(0.2, 0.7, 0.2, 1) })
-  }, [stuck, reduce, ground])
-  const groundStyle = useAnimatedStyle(() => ({ opacity: ground.value }))
+  const lineStyle = useAnimatedStyle(() => ({ opacity: hairline.value }))
 
   useEffect(() => {
-    const at = xs.current[active]
+    const at = active ? xs.current[active] : null
     if (!at || !width.current) return
     const target = tabScrollTarget(at.x, at.w, width.current, scrollX.current)
     if (target !== scrollX.current) scroll.current?.scrollTo({ x: target, animated: !reduce })
   }, [active, reduce])
 
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { backgroundColor: t.sand200 }]}>
       <Animated.View
         pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          styles.ground,
-          { backgroundColor: t.dark ? "rgba(18,17,16,0.88)" : "rgba(238,233,229,0.88)", borderBottomColor: t.sand300 },
-          // blur of the pinned bar: the web build has backdrop-filter, native keeps the 88% ground
-          { backdropFilter: "blur(22px) saturate(1.4)" } as object,
-          groundStyle,
-        ]}
+        style={[styles.line, { backgroundColor: t.sand400 }, lineStyle]}
       />
       <ScrollView
         ref={scroll}
@@ -136,7 +127,7 @@ export function SpTabStrip({
 
 const styles = StyleSheet.create({
   bar: { height: SP_TAB_HEIGHT },
-  ground: { borderBottomWidth: StyleSheet.hairlineWidth },
+  line: { position: "absolute", left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
   row: { paddingHorizontal: 6 },
   tab: { height: SP_TAB_HEIGHT, paddingHorizontal: 10, justifyContent: "center" },
   tabInner: { height: SP_TAB_HEIGHT, justifyContent: "center" },

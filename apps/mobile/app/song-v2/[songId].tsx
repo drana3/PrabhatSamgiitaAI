@@ -1,37 +1,46 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native"
+import { ActivityIndicator, Alert, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from "react-native"
 import { Image as ExpoImage } from "expo-image"
 import { useFonts } from "expo-font"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useReducedMotion } from "react-native-reanimated"
+import Animated, {
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useDerivedValue,
+  useReducedMotion,
+  useSharedValue,
+} from "react-native-reanimated"
 import { NotoSansBengali_400Regular, NotoSansBengali_700Bold } from "@expo-google-fonts/noto-sans-bengali"
 import { NotoSansDevanagari_400Regular, NotoSansDevanagari_700Bold } from "@expo-google-fonts/noto-sans-devanagari"
 
 import { WatchVideoCard } from "@/components/player/WatchVideoCard"
-import { SpActions, SpTitleBlock, SpTopBar } from "@/components/song-v2/SpHeader"
+import { AboutSheet } from "@/components/player-v2/AboutSong"
+import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
+import { ShareSheet } from "@/components/player-v2/ShareSheet"
+import { SpAboutCard, SpCredits, SpMoreShelf, type SpShelfSong } from "@/components/song-v2/SpFooter"
+import { SP_HERO_TEXT_TOP, SP_PLAY_SIZE, SP_PLAY_TOP, SpActionRow, SpHeroCover, SpHeroText, SpHeroWash } from "@/components/song-v2/SpHero"
+import { SpLyricsCard } from "@/components/song-v2/SpLyricsCard"
+import { SP_BAR_CONTENT, SpStickyBar } from "@/components/song-v2/SpStickyBar"
+import { SpVersionRow } from "@/components/song-v2/SpVersions"
 import { SpChordChip, SpLyrics, SpTools } from "@/components/song-v2/SpLyrics"
 import { SpChords, SpExplain, SpMeaning, SpWatch, SpWords, type SpChordToken } from "@/components/song-v2/SpSections"
 import { SpLanguageSheet, SpPlaylistSheet, SpRecordingsSheet, type SpPlaylistRow } from "@/components/song-v2/SpSheets"
 import { SP_TAB_HEIGHT, SpTabStrip } from "@/components/song-v2/SpTabStrip"
 import { SpCard, SpPill, SpSectionTitle, SpToast } from "@/components/song-v2/SpUi"
 import { Reveal } from "@/components/today/motion"
-import { SP_STATUS_BAR } from "@/constants/tokens/amSong"
+import { SP_STATUS_BAR, spRadius } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { localeLabel, localeOptions, type LocaleOption } from "@/constants/languages"
+import { allCollections } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
+import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useSongMeaning } from "@/hooks/useSongMeaning"
 import { FIXTURE_CENTRAL_IDEA, FIXTURE_MORE_VIDEOS, FIXTURE_PLAYLISTS, fixtureExtras } from "@/lib/fixtures/songPage"
+import { demoUrl } from "@/lib/fixtures/playerDemo"
 import {
   MOCKUP_DOWNLOADED,
   MOCKUP_LANGUAGES,
@@ -39,6 +48,7 @@ import {
   MOCKUP_SAVED,
   mockupFixtureKey,
   mockupRow,
+  mockupRows,
   mockupSizeText,
   mockupSong,
   mockupTranslation,
@@ -51,16 +61,22 @@ import {
   reconcileOfflineProgress,
   useOfflineAudioStore,
 } from "@/lib/offlineAudio"
+import { NAV_V2_PLAYER_ROUTE, miniPlayerVisible } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { listenQueueForSong } from "@/lib/playbackQueue"
+import { mixHex, tintForSong } from "@/lib/playerV2/coverTint"
+import { aboutContent, buildActionRows, collectionForSong, queueAddMessage, REPORT_THANKS, type ActionId } from "@/lib/playerV2/playerActions"
+import { runShare } from "@/lib/playerV2/playerActionsIO"
+import { buildSharePayload, shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
+import { realQueueActions } from "@/lib/playerV2/services"
 import { chartIsUsable, columnsInScript, layoutChart, splitWords, type WordColumn } from "@/lib/songPage/chordChart"
 import { coverageForSong } from "@/lib/songPage/meaning"
 import { askAboutSongRoute, learnSongRoute } from "@/lib/songPage/routes"
 import { availableScripts, buildLyricSources, scriptLines } from "@/lib/songPage/scripts"
 import {
   activeSection,
-  isAtBottom,
   scrollTargetFor,
+  SECTION_GAP,
   SECTION_LABEL,
   visibleSections,
   type SectionId,
@@ -83,6 +99,8 @@ import {
   uniqueChords,
 } from "@/lib/songPage/spChords"
 import { buildSpLines, buildWordRows, glossCard, wordNote } from "@/lib/songPage/spLines"
+import { creditRows, languageParts, metaLine, nowPlaying, previewLines, psLine, versionOrder } from "@/lib/songPage/nowPlaying"
+import { pageBottomInset, stripHairline, stripTop, type BarMarks } from "@/lib/songPage/stickyBar"
 import { alignTranslationLines, translationPill } from "@/lib/songPage/translations"
 import {
   buildVersions,
@@ -90,7 +108,6 @@ import {
   downloadLabel,
   downloadPhase,
   INSTRUMENT_LABEL,
-  versionLine,
   type SongVersion,
 } from "@/lib/songPage/versions"
 import { peekResolvedSong, resolveSongBundle } from "@/lib/songs"
@@ -111,6 +128,12 @@ const NOTO_FONTS = {
 }
 
 const PILL_SCRIPT = { roman: "Roman", devanagari: "देवनागरी", bengali: "বাংলা", both: "Both" } as const
+
+/** Rows of the Player's More sheet that make sense on the song page (the rest are about the Player itself). */
+const SONG_PAGE_ACTIONS: ActionId[] = ["share", "save", "playlist", "queue", "collection", "report"]
+
+/** Space between the bar and the cover. */
+const HERO_GAP = 8
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const POSTER = require("../../assets/song-v2-poster.jpg")
@@ -133,7 +156,10 @@ export default function SongPageV2() {
   const demo = __DEV__ && routeString(params.demo) === "1"
   const router = useRouter()
   const t = useSpTheme()
+  const am = useAmTheme()
   const insets = useSafeAreaInsets()
+  const { width: windowWidth } = useWindowDimensions()
+  const pathname = usePathname()
   const reduce = useReducedMotion()
 
   const [song, setSong] = useState<MockSong | null>(null)
@@ -142,6 +168,7 @@ export default function SongPageV2() {
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
   const [plOpen, setPlOpen] = useState(false)
+  const [sheet, setSheet] = useState<null | "actions" | "share" | "about">(null)
   const [selectedWord, setSelectedWord] = useState<string | null>(() => {
     if (!MOCKUP_DATA) return null
     // preview only: `?sel=none` or `?sel=0-1` starts with another word picked, like the prototype's boards
@@ -160,7 +187,6 @@ export default function SongPageV2() {
   const mock = MOCKUP_DATA && mockRow ? mockRow : null
   const [mockSaved, setMockSaved] = useState<number[]>(MOCKUP_SAVED)
   const [mockVer, setMockVer] = useState(() => Number.parseInt(routeString(params.ver) || "0", 10) || 0)
-  const [mockPlaying, setMockPlaying] = useState(false)
   const [mockDl, setMockDl] = useState<string[]>(MOCKUP_DOWNLOADED)
   const [mockProg, setMockProg] = useState<Record<string, number>>(() => {
     const frozen = Number.parseFloat(routeString(params.dlprog) || "")
@@ -210,8 +236,10 @@ export default function SongPageV2() {
   const activeQueue = usePlayerStore((s) => s.queue)
   const playlistBounds = usePlayerStore((s) => s.playlistBounds)
   const duration = usePlayerStore((s) => s.duration)
-  const livePause = usePlayerStore((s) => (song ? songPlayback(s, song).showPause : false))
-  const showPause = mock ? mockPlaying : livePause
+  const currentSong = usePlayerStore((s) => s.currentSong)
+  const playerPlaying = usePlayerStore((s) => s.isPlaying)
+  const playerBuffering = usePlayerStore((s) => s.isBuffering)
+  const hasSong = Boolean(currentSong)
   const isCurrent = usePlayerStore((s) => (song ? songPlayback(s, song).isCurrent : false))
   const playlists = usePlaylistStore((s) => s.playlists)
 
@@ -422,29 +450,54 @@ export default function SongPageV2() {
       )
     : []
 
+  // what the unified player says about this song: current, playing, which version
+  const playing = song
+    ? nowPlaying({ currentSong, isPlaying: playerPlaying, isBuffering: playerBuffering }, song, versions)
+    : null
+  const showPause = playing?.showPause ?? false
+  const playingIndex = playing?.versionIndex ?? -1
+  // the preview's sample song follows the version the player is on
+  useEffect(() => {
+    if (mock && playingIndex >= 0) setMockVer(playingIndex)
+  }, [mock, playingIndex])
+
+  // The song as the player loads it. The web preview's demo player reads the version from a demo:// url.
+  const playable = (version: SongVersion | null): MockSong => {
+    if (!song) throw new Error("no song")
+    if (!version) return song
+    const url = mock ? demoUrl(song.number, Math.max(0, versions.findIndex((v) => v.id === version.id)) + 1) : version.url
+    return { ...song, audioUrl: url, mediaHydrated: true as const }
+  }
+
   const lastPlayAt = useRef(0)
   const handlePlay = () => {
     if (!song) return
     const now = Date.now()
     if (now - lastPlayAt.current < 350) return
     lastPlayAt.current = now
-    if (mock) {
-      setMockPlaying((on) => !on)
-      return
-    }
     if (showPause) {
       pause()
       return
     }
-    playOrToggle(song, queue)
+    // Real catalog: the song as it is; the preview's demo player needs the version's demo url.
+    if (mock) usePlayerStore.getState().playOrToggle(playable(selectedVersion), queue)
+    else playOrToggle(song, queue)
   }
 
   const pickVersion = (version: SongVersion) => {
     if (!song) return
     setVersionsOpen(false)
+    const index = Math.max(0, versions.findIndex((v) => v.id === version.id))
+    if (playing?.isCurrent && playing.versionIndex === index) {
+      // the version that is loaded: a tap toggles it, like a track row
+      if (showPause) pause()
+      else if (mock) usePlayerStore.getState().playOrToggle(playable(version), queue)
+      else playOrToggle(song, queue)
+      return
+    }
     if (mock) {
-      setMockVer(Math.max(0, versions.findIndex((v) => v.id === version.id)))
-      setMockPlaying(true)
+      setMockVer(index)
+      usePlayerStore.getState().loadSong(playable(version), queue, "default")
     } else {
       const next = { ...song, audioUrl: version.url, mediaHydrated: true as const }
       setSong(next)
@@ -638,7 +691,78 @@ export default function SongPageV2() {
     })()
   }
 
-  // ---- long page: sections, pinned strip, scroll sync ----
+  // ---- more, share, about ----
+  const collection = useMemo(() => (song ? collectionForSong(song.number, allCollections) : null), [song])
+  const performerName = selectedVersion?.performer ?? song?.performer ?? ""
+  const actionRows = useMemo(
+    () =>
+      buildActionRows({
+        saved: isSaved,
+        inQueue: song ? activeQueue.includes(song.number) : false,
+        collectionName: collection?.label ?? null,
+        sourceName: "All songs",
+        speedText: "1×",
+        sleepText: "Off",
+      }).filter((row) => SONG_PAGE_ACTIONS.includes(row.id)),
+    [isSaved, song, activeQueue, collection],
+  )
+  const sharePayload = useMemo(
+    () => (song ? buildSharePayload({ number: song.number, title: song.title, performer: performerName }) : null),
+    [song, performerName],
+  )
+  // the prototype's "Placeholder." story lines are not shown as the story
+  const about = useMemo(() => {
+    if (!song) return null
+    const real = (text: string | null | undefined) => (text && !/^placeholder/i.test(text.trim()) ? text : null)
+    const fallback = real(meaningView.centralIdea) ?? real(FIXTURE_CENTRAL_IDEA[song.number])
+    return aboutContent({ ...song, centralIdea: real(song.centralIdea) }, fallback)
+  }, [song, meaningView.centralIdea])
+
+  const onAction = (id: ActionId) => {
+    if (!song) return
+    switch (id) {
+      case "share":
+        return setSheet("share")
+      case "save":
+        setSheet(null)
+        return handleHeart()
+      case "playlist":
+        setSheet(null)
+        return openPlaylist()
+      case "queue": {
+        const there = activeQueue.includes(song.number)
+        if (!there) realQueueActions().add(song.number)
+        setSheet(null)
+        return showToast(queueAddMessage(there))
+      }
+      case "collection": {
+        setSheet(null)
+        const label = collection?.label
+        return router.push(
+          href(label ? `/songs-v2-collection?id=${encodeURIComponent(label)}&title=${encodeURIComponent(label)}` : "/songs-v2-index"),
+        )
+      }
+      case "report":
+        // TODO(api): send the report (song number, version, text) to the catalog team. Nothing leaves the phone yet.
+        setSheet(null)
+        return showToast(REPORT_THANKS)
+      default:
+        return setSheet(null)
+    }
+  }
+  const onShareTarget = (target: ShareTargetId) => {
+    if (!sharePayload) return
+    void runShare(target, sharePayload).then((outcome) => {
+      const message = shareToast(outcome)
+      // a copied link closes the sheet, so the toast shows over the page and not over the buttons
+      if (message) {
+        setSheet(null)
+        showToast(message)
+      }
+    })
+  }
+
+  // ---- long page: hero, collapsing bar, pinned strip, sections ----
   const sectionIds = visibleSections({
     lyrics: true,
     words: Boolean(glosses),
@@ -647,28 +771,95 @@ export default function SongPageV2() {
     chords: Boolean(chart),
     watch: true,
   })
-  const [active, setActive] = useState<SectionId>("lyrics")
-  const [stuck, setStuck] = useState(false)
-  const scrollRef = useRef<ScrollView>(null)
-  const stripY = useRef(0)
+  const [active, setActive] = useState<SectionId | null>("lyrics")
+  const scrollRef = useRef<Animated.ScrollView>(null)
   const contentY = useRef(0)
   const topsRef = useRef<Partial<Record<SectionId, number>>>({})
-  const viewport = useRef(0)
-  const contentHeight = useRef(0)
+  const versionsTop = useRef(0)
   const lockRef = useRef<{ target: number; until: number } | null>(null)
-  const stuckRef = useRef(false)
 
+  const topInset = insets.top || SP_STATUS_BAR
+  const barHeight = topInset + SP_BAR_CONTENT
+  const coverSize = Math.round(Math.min(windowWidth, 480) * 0.58)
+  const coverTop = barHeight + HERO_GAP
+  const coverBottom = coverTop + coverSize
+
+  const scrollY = useSharedValue(0)
+  const stripY = useSharedValue(0)
+  const [titleH, setTitleH] = useState(36)
+  const [textH, setTextH] = useState(150)
+  const marks = useSharedValue<BarMarks>({
+    barHeight,
+    coverTop,
+    coverBottom,
+    titleBottom: coverBottom + SP_HERO_TEXT_TOP + 36,
+    playTop: coverBottom + 150 + SP_PLAY_TOP,
+    playBottom: coverBottom + 150 + SP_PLAY_TOP + SP_PLAY_SIZE,
+  })
+  useEffect(() => {
+    marks.value = {
+      barHeight,
+      coverTop,
+      coverBottom,
+      titleBottom: coverBottom + SP_HERO_TEXT_TOP + titleH,
+      playTop: coverBottom + textH + SP_PLAY_TOP,
+      playBottom: coverBottom + textH + SP_PLAY_TOP + SP_PLAY_SIZE,
+    }
+  }, [marks, barHeight, coverTop, coverBottom, titleH, textH])
+
+  const onScroll = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y
+  })
+  // the pinned strip: its place in the content, never higher than under the bar (UI thread)
+  const stripStyle = useAnimatedStyle(() => ({
+    opacity: stripY.value > 0 ? 1 : 0,
+    transform: [{ translateY: stripTop(stripY.value, scrollY.value, barHeight) }],
+  }))
+  const hairline = useDerivedValue(() => stripHairline(stripY.value, scrollY.value, barHeight))
+
+  // which tab follows the reader: JS side, only when the offset moved 8px
+  const syncSections = (y: number) => {
+    const lock = lockRef.current
+    if (lock) {
+      if (Date.now() > lock.until || Math.abs(y - lock.target) < 2) lockRef.current = null
+      else return
+    }
+    const stripHeight = SP_TAB_HEIGHT + barHeight
+    // past the last section (Versions and what follows): no tab is lit
+    const beyond = versionsTop.current > 0 && y + stripHeight + SECTION_GAP >= versionsTop.current
+    const next = beyond
+      ? null
+      : activeSection({ order: sectionIds, tops: topsRef.current, scrollY: y, stripHeight, atBottom: false })
+    setActive(next)
+  }
+  const syncRef = useRef(syncSections)
+  syncRef.current = syncSections
+  const syncStable = useCallback((y: number) => syncRef.current(y), [])
+  useAnimatedReaction(
+    () => Math.round(scrollY.value / 8),
+    (bucket, previous) => {
+      if (bucket !== previous) runOnJS(syncStable)(scrollY.value)
+    },
+  )
+
+  const scrollToY = useCallback(
+    (target: number) => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, target), animated: !reduce })
+    },
+    [reduce],
+  )
   const goTo = useCallback(
     (id: SectionId) => {
       const top = topsRef.current[id]
       setActive(id)
       if (top == null) return
-      const target = scrollTargetFor(top, SP_TAB_HEIGHT)
+      const target = scrollTargetFor(top, SP_TAB_HEIGHT + barHeight)
       lockRef.current = { target, until: Date.now() + 900 }
-      scrollRef.current?.scrollTo({ y: target, animated: !reduce })
+      scrollToY(target)
     },
-    [reduce],
+    [barHeight, scrollToY],
   )
+  const goToVersions = useCallback(() => scrollToY(versionsTop.current - barHeight - 12), [barHeight, scrollToY])
 
   // `?section=chords` (from the harmonium screens) opens the page scrolled to that section, once it is laid out
   const sectionParam = routeString(params.section)
@@ -689,31 +880,12 @@ export default function SongPageV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionParam, song, sectionIds.join(","), goTo])
 
-  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = event.nativeEvent.contentOffset.y
-    const nowStuck = stripY.current > 0 && y >= stripY.current - 0.5
-    if (nowStuck !== stuckRef.current) {
-      stuckRef.current = nowStuck
-      setStuck(nowStuck)
-    }
-    const lock = lockRef.current
-    if (lock) {
-      if (Date.now() > lock.until || Math.abs(y - lock.target) < 2) lockRef.current = null
-      else return
-    }
-    const next = activeSection({
-      order: sectionIds,
-      tops: topsRef.current,
-      scrollY: y,
-      stripHeight: SP_TAB_HEIGHT,
-      atBottom: isAtBottom(y, viewport.current, contentHeight.current),
-    })
-    if (next) setActive((current) => (current === next ? current : next))
-  }
-
   const sectionTop = (id: SectionId) => (y: number) => {
     topsRef.current[id] = contentY.current + y
   }
+
+  // room under the last row for the floating mini-player (and the tab bar's place, none on a pushed screen)
+  const bottomInset = pageBottomInset({ safeBottom: insets.bottom, miniVisible: miniPlayerVisible({ pathname, hasSong }) })
 
   if (loading && !song) {
     return (
@@ -732,7 +904,6 @@ export default function SongPageV2() {
   }
 
   // ---- derived values for the sections ----
-  const eyebrow = [`PS ${song.number}`, song.themes?.[0]].filter(Boolean).join(" · ")
   const soundingChords = chart ? uniqueChords(chart.lines.flatMap((line) => line.placements.map((p) => p.chord))) : []
 
   const glossLanguages = glosses
@@ -791,67 +962,113 @@ export default function SongPageV2() {
     go: () => showToast("Video plays here"),
   }))
 
+  const coverTint = tintForSong(song.number)
+  // top colour of the hero wash; the bar's ground is the same colour so the two read as one
+  const washTop = mixHex(t.sand200, coverTint, t.dark ? 0.5 : 0.3)
+  const metaText = metaLine({
+    seconds: selectedVersion?.length ?? (song.durationSeconds > 0 ? song.durationSeconds : null),
+    versionCount: versions.length,
+    languages: languageParts(song.language, scripts),
+  })
+  const shelf: SpShelfSong[] = mock
+    ? mockupRows()
+        .filter((row) => row.n !== song.number)
+        .slice(0, 10)
+        .map((row) => ({ number: row.n, title: row.title }))
+    : related.filter((item) => item.number !== song.number).slice(0, 10).map((item) => ({ number: item.number, title: item.title }))
+  const openKaraoke = () => {
+    // The Player opens on its word-by-word view. Nothing starts to play here: the song is only put in it.
+    if (!isCurrent) {
+      if (mock) {
+        usePlayerStore.getState().loadSong(playable(selectedVersion), queue, "default")
+        pause()
+      } else {
+        syncCurrentSong(song, queue)
+      }
+    }
+    router.push(href(NAV_V2_PLAYER_ROUTE))
+  }
+  const listed = versionOrder(versions)
+
   return (
-    <View style={[styles.root, { backgroundColor: t.sand200, paddingTop: insets.top || SP_STATUS_BAR }]}>
-      <ScrollView
+    <View style={[styles.root, { backgroundColor: t.sand200 }]}>
+      <Animated.ScrollView
         ref={scrollRef}
-        stickyHeaderIndices={[1]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={onScroll}
-        onLayout={(event) => {
-          viewport.current = event.nativeEvent.layout.height
-        }}
-        onContentSizeChange={(_, height) => {
-          contentHeight.current = height
-        }}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={{ paddingBottom: bottomInset }}
       >
-        <View
-          style={styles.head}
-          onLayout={(event) => {
-            // the strip follows the header; its own layout.y is 0 inside the sticky cell
-            stripY.current = event.nativeEvent.layout.height
-          }}
-        >
+        <View style={{ paddingTop: coverTop }}>
+          <SpHeroWash top={washTop} page={t.sand200} />
           <Reveal index={0}>
-            <SpTopBar
+            <SpHeroCover songNumber={song.number} size={coverSize} scrollY={scrollY} radius={spRadius.lg} onLayout={() => undefined} />
+          </Reveal>
+          <Reveal index={1}>
+            <View onLayout={(event: LayoutChangeEvent) => setTextH(Math.round(event.nativeEvent.layout.height))}>
+              <SpHeroText
+                t={t}
+                title={song.title}
+                collectionLine={psLine(song.number)}
+                performer={performerName}
+                meta={metaText}
+                onPerformer={goToVersions}
+                onMeta={goToVersions}
+                onTitleLayout={(event) => setTitleH(Math.round(event.nativeEvent.layout.height))}
+              />
+            </View>
+          </Reveal>
+          <Reveal index={2}>
+            <SpActionRow
               t={t}
               saved={isSaved}
-              onBack={() => router.back()}
-              onPlaylist={openPlaylist}
               onHeart={handleHeart}
+              showDownload={canDownload}
               phase={phase}
               progress={shownProgress}
               downloadLabel={dlLabel}
-              showDownload={canDownload}
               onDownload={handleDownload}
+              onPlaylist={openPlaylist}
+              onShare={() => setSheet("share")}
+              onMore={() => setSheet("actions")}
+              playing={showPause}
+              onPlay={handlePlay}
             />
+            <View style={styles.learn}>
+              <SpPill
+                t={t}
+                label={learning ? "Learning this song" : "Learn this song"}
+                variant={learning ? "peach" : "sand"}
+                icon={learning ? "check" : "plusThin"}
+                onPress={handleLearn}
+              />
+            </View>
           </Reveal>
-          <Reveal index={1}>
-            <SpTitleBlock
+          <Reveal index={3}>
+            <SpLyricsCard
               t={t}
-              eyebrow={eyebrow}
-              title={song.title}
-              versionText={versionLine(selectedVersion)}
-              onVersions={() => setVersionsOpen(true)}
+              tint={coverTint}
+              lines={previewLines(lines.primary)}
+              script={lines.primaryScript}
+              onPress={openKaraoke}
             />
-          </Reveal>
-          <Reveal index={2}>
-            <SpActions t={t} playing={showPause} onPlay={handlePlay} learning={learning} onLearn={handleLearn} />
           </Reveal>
         </View>
 
-        <View>
-          <SpTabStrip t={t} sections={sectionIds} active={active} stuck={stuck} onSelect={goTo} />
-        </View>
+        {/* where the tab strip rests; the strip itself is drawn over the page (it pins under the bar) */}
+        <View
+          style={{ height: SP_TAB_HEIGHT, marginTop: 16 }}
+          onLayout={(event) => {
+            stripY.value = event.nativeEvent.layout.y
+          }}
+        />
 
         <View
           onLayout={(event) => {
             contentY.current = event.nativeEvent.layout.y
           }}
         >
-          <Reveal index={3}>
+          <Reveal index={4}>
             <SpSectionTitle t={t} first label={SECTION_LABEL.lyrics} onLayoutY={sectionTop("lyrics")} />
             <SpTools
               t={t}
@@ -962,7 +1179,65 @@ export default function SongPageV2() {
             )}
           </Reveal>
         </View>
-      </ScrollView>
+
+        {/* Versions: the other recordings of this song; the one in the player is orange with the equalizer */}
+        <View onLayout={(event) => (versionsTop.current = event.nativeEvent.layout.y)}>
+          <SpSectionTitle t={t} label="Versions" />
+          {listed.map((index) => {
+            const version = versions[index]!
+            const here = playingIndex === index
+            return (
+              <SpVersionRow
+                key={version.id}
+                t={t}
+                songNumber={song.number}
+                version={version}
+                current={here}
+                playing={here && showPause}
+                onPlay={() => pickVersion(version)}
+                onMore={() => setVersionsOpen(true)}
+              />
+            )
+          })}
+          {!versions.length ? (
+            <Text style={[styles.quiet, { color: t.ink500 }]}>No recordings of this song yet.</Text>
+          ) : null}
+        </View>
+
+        {about ? (
+          <View style={styles.block}>
+            <SpAboutCard t={t} preview={about.preview} onOpen={() => setSheet("about")} />
+          </View>
+        ) : null}
+
+        <SpSectionTitle t={t} label="Credits" />
+        <SpCredits t={t} rows={creditRows(performerName)} />
+
+        {shelf.length ? (
+          <>
+            <SpSectionTitle t={t} label="More like this" />
+            <SpMoreShelf t={t} songs={shelf} onOpen={(item) => router.push(href(`/song-v2/ps-${item.number}`))} />
+          </>
+        ) : null}
+      </Animated.ScrollView>
+
+      {/* pinned tab strip, over the page, under the bar */}
+      <Animated.View style={[styles.strip, stripStyle]}>
+        <SpTabStrip t={t} sections={sectionIds} active={active} hairline={hairline} onSelect={goTo} />
+      </Animated.View>
+
+      <SpStickyBar
+        t={t}
+        title={song.title}
+        tint={washTop}
+        scrollY={scrollY}
+        marks={marks}
+        topInset={topInset}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace(href("/v2/today")))}
+        onAction={handlePlay}
+        playing={showPause}
+        highlight={Boolean(playing?.isCurrent)}
+      />
 
       <SpToast t={t} message={toast} />
 
@@ -999,6 +1274,34 @@ export default function SongPageV2() {
           showToast("Requested. We will tell you when it is added.")
         }}
       />
+      <ActionsSheet
+        visible={sheet === "actions"}
+        theme={am}
+        songNumber={song.number}
+        title={song.title}
+        subtitle={[collection?.label, performerName].filter(Boolean).join(" · ") || `PS ${song.number}`}
+        rows={actionRows}
+        onAction={onAction}
+        onClose={() => setSheet(null)}
+      />
+      <ShareSheet
+        visible={sheet === "share"}
+        theme={am}
+        songNumber={song.number}
+        title={song.title}
+        performer={performerName}
+        onShare={onShareTarget}
+        onClose={() => setSheet(null)}
+      />
+      <AboutSheet
+        visible={sheet === "about"}
+        theme={am}
+        songTitle={song.title}
+        about={about}
+        onOpenSong={() => setSheet(null)}
+        showOpenSong={false}
+        onClose={() => setSheet(null)}
+      />
       <SpPlaylistSheet
         t={t}
         visible={plOpen}
@@ -1016,7 +1319,9 @@ const styles = StyleSheet.create({
   // web: the prototype sets -webkit-font-smoothing: antialiased on the whole app (thinner light-on-dark text)
   root: { flex: 1, ...({ WebkitFontSmoothing: "antialiased" } as object) },
   centered: { alignItems: "center", justifyContent: "center", gap: 16 },
-  content: { paddingBottom: 190 },
-  head: { paddingBottom: 12 },
+  strip: { position: "absolute", top: 0, left: 0, right: 0, height: SP_TAB_HEIGHT, zIndex: 30 },
+  learn: { marginHorizontal: 10, marginTop: 14 },
+  block: { marginTop: 36 },
+  quiet: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22, paddingHorizontal: 20 },
   cardGap: { marginTop: 10 },
 })
