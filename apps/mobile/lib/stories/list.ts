@@ -1,3 +1,5 @@
+import { getActiveLanguage, translatorFor, type TranslateFn } from "@/lib/i18n"
+
 import { isRead, type ReadMap } from "./readState"
 import { primarySong, type Story } from "./types"
 
@@ -75,8 +77,14 @@ export function nextStory(sorted: readonly Story[], slug: string, read: ReadMap)
   return order.find((s) => !isRead(read, s.slug)) ?? order[0] ?? null
 }
 
-export function storiesCountLabel(shown: number, total: number, filter: StoryFilter, unread: number): string {
+export function storiesCountLabel(
+  shown: number,
+  total: number,
+  filter: StoryFilter,
+  unread: number,
+  t: TranslateFn = translatorFor(getActiveLanguage()),
+): string {
   if (total === 0) return ""
-  if (filter === "unread") return `${unread} unread`
-  return shown === total ? `${total} ${total === 1 ? "story" : "stories"}` : `${shown} of ${total}`
+  if (filter === "unread") return t("stories.unreadCount", { count: unread })
+  return shown === total ? t("stories.count", { count: total }) : t("stories.shownOf", { shown, total })
 }

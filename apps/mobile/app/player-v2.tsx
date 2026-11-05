@@ -534,7 +534,7 @@ export default function PlayerV2Screen() {
   const playlistRows: PlaylistSheetRow[] = playlists.map((p) => ({
     id: p.id,
     name: p.name,
-    meta: `${p.songs.length} ${p.songs.length === 1 ? "song" : "songs"}`,
+    meta: t("songs.count", { count: p.songs.length }),
     has: song ? playlistSongNumbers(p).includes(song.number) : false,
   }))
   const reportPlaylistFailure = (result: unknown) => {

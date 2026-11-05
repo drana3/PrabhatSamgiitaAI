@@ -1,3 +1,4 @@
+import { getActiveLanguage, translatorFor, type TranslateFn } from "@/lib/i18n"
 import type { Kirtan } from "@/lib/kirtan/types"
 
 /**
@@ -24,13 +25,13 @@ export function itemKey(item: MixItem): string {
 }
 
 /** `3 songs + 2 kiirtans`, `4 kiirtans`, `1 song`. */
-export function mixCaption(items: readonly MixItem[]): string {
+export function mixCaption(items: readonly MixItem[], t: TranslateFn = translatorFor(getActiveLanguage())): string {
   const songs = items.filter((i) => i.kind === "ps").length
   const kirtans = items.length - songs
   const parts: string[] = []
-  if (songs) parts.push(`${songs} ${songs === 1 ? "song" : "songs"}`)
-  if (kirtans) parts.push(`${kirtans} ${kirtans === 1 ? "kiirtan" : "kiirtans"}`)
-  return parts.length ? parts.join(" + ") : "Empty"
+  if (songs) parts.push(t("songs.count", { count: songs }))
+  if (kirtans) parts.push(t("kind.kiirtan.count", { count: kirtans }))
+  return parts.length ? parts.join(" + ") : t("mix.empty")
 }
 
 /**

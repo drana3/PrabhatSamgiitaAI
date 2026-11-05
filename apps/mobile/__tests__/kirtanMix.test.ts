@@ -65,3 +65,13 @@ describe("mix ordering", () => {
   })
 })
 
+
+describe("counted captions follow the language", () => {
+  it("uses Russian plural forms", async () => {
+    const { translatorFor } = await import("@/lib/i18n")
+    const ru = translatorFor("ru")
+    expect(mixCaption([ps(1), ps(2), ps(3), ps(4), ps(5)], ru)).toBe("5 песен")
+    expect(mixCaption([ps(1), k("a")], ru)).toBe(`${ru("songs.count", { count: 1 })} + ${ru("kind.kiirtan.count", { count: 1 })}`)
+    expect(mixCaption([], ru)).toBe("Пусто")
+  })
+})

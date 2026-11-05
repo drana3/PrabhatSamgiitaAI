@@ -265,8 +265,8 @@ export function HomeScreen() {
 
   /* --- Kiirtans and mixes: one queue with the songs --- */
   const mixCards: StripCardData[] = useMemo(
-    () => sampleMixes().map((m) => ({ id: m.id, label: m.title, tone: m.tone, cover: m.cover, photo: photoForMix(m.id).cover, caption: `${mixCaption(m.items)}. ${m.blurb}` })),
-    [],
+    () => sampleMixes().map((m) => ({ id: m.id, label: m.title, tone: m.tone, cover: m.cover, photo: photoForMix(m.id).cover, caption: `${mixCaption(m.items, t)}. ${m.blurb}` })),
+    [t],
   )
   const kiirtanToday = useMemo(() => {
     const first = kiirtanOfTheDay(kirtans, dayNumberOf(now.getTime()))

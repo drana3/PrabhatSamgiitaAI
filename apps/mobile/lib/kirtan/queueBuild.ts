@@ -1,3 +1,4 @@
+import { getActiveLanguage, translatorFor, type TranslateFn } from "@/lib/i18n"
 import type { MixItem } from "@/lib/kirtan/mix"
 import { kiirtanNumber } from "@/lib/kirtan/track"
 import type { KindFilter, Kirtan } from "@/lib/kirtan/types"
@@ -81,11 +82,15 @@ export function startOf(queue: readonly number[], wanted?: number | null): numbe
 }
 
 /** `3 songs + 2 kiirtans` for an already built queue of numbers. */
-export function queueCaption(queue: readonly number[], isKiirtan: (n: number) => boolean): string {
+export function queueCaption(
+  queue: readonly number[],
+  isKiirtan: (n: number) => boolean,
+  t: TranslateFn = translatorFor(getActiveLanguage()),
+): string {
   const kiirtans = queue.filter(isKiirtan).length
   const songs = queue.length - kiirtans
   const parts: string[] = []
-  if (songs) parts.push(`${songs} ${songs === 1 ? "song" : "songs"}`)
-  if (kiirtans) parts.push(`${kiirtans} ${kiirtans === 1 ? "kiirtan" : "kiirtans"}`)
-  return parts.length ? parts.join(" + ") : "Empty"
+  if (songs) parts.push(t("songs.count", { count: songs }))
+  if (kiirtans) parts.push(t("kind.kiirtan.count", { count: kiirtans }))
+  return parts.length ? parts.join(" + ") : t("mix.empty")
 }
