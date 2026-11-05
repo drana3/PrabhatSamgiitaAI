@@ -1151,4 +1151,18 @@ export const en = {
   "playlist.delete.confirm": "Delete",
   "playlist.signInRename": "Sign in to rename a playlist.",
   "playlist.moreActions": "More actions for PS {number}",
+
+  // Save to sheet
+  "save.toast.added": "Added to {target}",
+  "save.toast.removed": "Removed from {target}",
+  "save.mine.songs": "Saved songs",
+  "save.mine.all": "Saved songs, Kiirtans and Bhajans",
+  "save.button.saved": "Saved. Change",
+  "save.button.add": "Add to…",
+  "save.err.generic": "Could not change the playlist. Try again.",
+  "save.err.kiirtan": "Kiirtans in playlists are coming soon.",
+  "save.err.notFound": "Playlist not found.",
+  "save.title": "Save to",
+  "save.alert.body": "Saving needs an account, so your songs follow you to other phones.",
+  "save.note": "Kiirtans and Bhajans can go into Mine. Playlists hold songs for now.",
 } as const

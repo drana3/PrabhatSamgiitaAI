@@ -1151,7 +1151,19 @@
     "playlist.delete.body": false,
     "playlist.delete.confirm": false,
     "playlist.signInRename": false,
-    "playlist.moreActions": false
+    "playlist.moreActions": false,
+    "save.toast.added": false,
+    "save.toast.removed": false,
+    "save.mine.songs": false,
+    "save.mine.all": false,
+    "save.button.saved": false,
+    "save.button.add": false,
+    "save.err.generic": false,
+    "save.err.kiirtan": false,
+    "save.err.notFound": false,
+    "save.title": false,
+    "save.alert.body": false,
+    "save.note": false
   },
   "es": {
     "unit.kb": false,
@@ -2223,6 +2235,18 @@
     "playlist.delete.body": false,
     "playlist.delete.confirm": false,
     "playlist.signInRename": false,
-    "playlist.moreActions": false
+    "playlist.moreActions": false,
+    "save.toast.added": false,
+    "save.toast.removed": false,
+    "save.mine.songs": false,
+    "save.mine.all": false,
+    "save.button.saved": false,
+    "save.button.add": false,
+    "save.err.generic": false,
+    "save.err.kiirtan": false,
+    "save.err.notFound": false,
+    "save.title": false,
+    "save.alert.body": false,
+    "save.note": false
   }
 }

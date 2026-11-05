@@ -1146,4 +1146,18 @@ export const es: Dictionary = {
   "playlist.delete.confirm": "Eliminar",
   "playlist.signInRename": "Inicia sesión para renombrar una lista.",
   "playlist.moreActions": "Más acciones para PS {number}",
+
+  // Save to sheet
+  "save.toast.added": "Añadida a {target}",
+  "save.toast.removed": "Quitada de {target}",
+  "save.mine.songs": "Canciones guardadas",
+  "save.mine.all": "Canciones, Kiirtans y Bhajans guardados",
+  "save.button.saved": "Guardada. Cambiar",
+  "save.button.add": "Añadir a…",
+  "save.err.generic": "No se pudo cambiar la lista. Inténtalo de nuevo.",
+  "save.err.kiirtan": "Los Kiirtans en listas llegarán pronto.",
+  "save.err.notFound": "No se encontró la lista.",
+  "save.title": "Guardar en",
+  "save.alert.body": "Guardar necesita una cuenta para que tus canciones te sigan a otros teléfonos.",
+  "save.note": "Los Kiirtans y Bhajans pueden ir a Mío. Las listas por ahora solo guardan canciones.",
 }

@@ -20,6 +20,7 @@ import { buildSaveRows, type SaveItem, type SaveRow } from "@/lib/save/saveToShe
 import { usePlaylistStore } from "@/stores/playlistStore"
 import { useSaveSheetStore } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   visible: boolean
@@ -36,6 +37,7 @@ const TILE_RADIUS = 8
  * a toast says what happened. The Done pill closes it, and so does dragging it down.
  */
 export function SaveToSheet({ visible, item, onClose }: Props) {
+  const t = useT()
   const theme = useAmTheme()
   const router = useRouter()
   const last = useRef<SaveItem | null>(null)
@@ -46,14 +48,14 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
   const showToast = useSaveSheetStore((s) => s.showToast)
   const pending = useRef(new Set<string>())
 
-  const rows = useMemo(() => (shown ? buildSaveRows(shown, state, playlists) : []), [shown, state, playlists])
+  const rows = useMemo(() => (shown ? buildSaveRows(shown, state, playlists) : []), [shown, state, playlists, t])
   const firstSong = (id: string) => playlists.find((p) => p.id === id)?.songs[0]?.song_number
 
   const askSignIn = () => {
-    Alert.alert("Sign in", "Saving needs an account, so your songs follow you to other phones.", [
-      { text: "Not now", style: "cancel" },
+    Alert.alert(t("library.signIn"), t("save.alert.body"), [
+      { text: t("library.alert.notNow"), style: "cancel" },
       {
-        text: "Sign in",
+        text: t("library.signIn"),
         onPress: () => {
           onClose()
           router.push(href("/signin"))
@@ -64,7 +66,7 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
   const settle = (outcome: SaveOutcome | undefined) => {
     if (!outcome || outcome.ok) return
     if ("needsAuth" in outcome) askSignIn()
-    else Alert.alert("Playlist", outcome.error)
+    else Alert.alert(t("player.playlist"), outcome.error)
   }
 
   const run = async (key: string, task: () => Promise<SaveOutcome>, predicted: string | null) => {
@@ -89,8 +91,8 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
 
   const onTick = (row: SaveRow) => {
     if (!shown) return
-    if (row.kind === "mine") void run("mine", () => toggleMine(shown), row.on ? "Removed from Mine" : "Added to Mine")
-    else void run(row.id, () => togglePlaylist(shown, row.id), row.on ? `Removed from ${row.name}` : `Added to ${row.name}`)
+    if (row.kind === "mine") void run("mine", () => toggleMine(shown), row.on ? t("save.toast.removed", { target: t("songs.mine") }) : t("save.toast.added", { target: t("songs.mine") }))
+    else void run(row.id, () => togglePlaylist(shown, row.id), row.on ? t("save.toast.removed", { target: row.name }) : t("save.toast.added", { target: row.name }))
   }
   const onNew = () => {
     if (!shown) return
@@ -101,7 +103,7 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
   const mineTile: [string, string] = dark ? [amDarkSurface.tile, amDarkSurface.inner] : [amColors.ink500, amColors.ink800]
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Save to" theme={theme} hideDone>
+    <Sheet visible={visible} onClose={onClose} title={t("save.title")} theme={theme} hideDone>
       <View style={styles.list}>
         {rows.map((row) => {
           const key = row.kind === "mine" ? "mine" : row.id
@@ -148,7 +150,7 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
         {shown?.kind === "song" ? (
           <PressScale
             accessibilityRole="button"
-            accessibilityLabel="New playlist"
+            accessibilityLabel={t("songs.mine.newPlaylist")}
             onPress={onNew}
             pressedScale={0.98}
             style={styles.row}
@@ -158,16 +160,16 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
             </View>
             <View style={styles.text}>
               <Text style={[styles.name, { color: theme.textHeading }]} numberOfLines={1}>
-                New playlist
+                {t("songs.mine.newPlaylist")}
               </Text>
             </View>
           </PressScale>
         ) : (
-          <Text style={[styles.note, { color: theme.textBody }]}>Kiirtans and Bhajans can go into Mine. Playlists hold songs for now.</Text>
+          <Text style={[styles.note, { color: theme.textBody }]}>{t("save.note")}</Text>
         )}
       </View>
       <View style={styles.done}>
-        <SheetPill theme={theme} tone="brand" label="Done" onPress={onClose} />
+        <SheetPill theme={theme} tone="brand" label={t("common.done")} onPress={onClose} />
       </View>
     </Sheet>
   )

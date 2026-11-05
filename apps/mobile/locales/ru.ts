@@ -1228,4 +1228,18 @@ export const ru: Dictionary = {
   "playlist.delete.confirm": "Удалить",
   "playlist.signInRename": "Войдите, чтобы переименовать плейлист.",
   "playlist.moreActions": "Другие действия для PS {number}",
+
+  // Save to sheet
+  "save.toast.added": "Добавлено: {target}",
+  "save.toast.removed": "Удалено: {target}",
+  "save.mine.songs": "Сохранённые песни",
+  "save.mine.all": "Сохранённые песни, киртаны и бхаджаны",
+  "save.button.saved": "Сохранено. Изменить",
+  "save.button.add": "Добавить в…",
+  "save.err.generic": "Не удалось изменить плейлист. Попробуйте ещё раз.",
+  "save.err.kiirtan": "Киртаны в плейлистах скоро появятся.",
+  "save.err.notFound": "Плейлист не найден.",
+  "save.title": "Сохранить в",
+  "save.alert.body": "Для сохранения нужен аккаунт, чтобы ваши песни были и на других телефонах.",
+  "save.note": "Киртаны и бхаджаны можно сохранять в «Моё». Плейлисты пока хранят только песни.",
 }

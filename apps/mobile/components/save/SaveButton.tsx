@@ -6,6 +6,7 @@ import { amSpring } from "@/constants/tokens/amMotion"
 import { useSaveState } from "@/hooks/useSaveState"
 import { saveButtonLabel, type SaveButtonSize, type SaveItem } from "@/lib/save/saveToSheet"
 import { openSaveSheet } from "@/stores/saveSheetStore"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   item: SaveItem
@@ -26,6 +27,7 @@ type Props = {
  * touch-down; the sheet opens on release so a scroll that starts on the button does not open it.
  */
 export function SaveButton({ item, size = 24, color, title, hit = 44, style }: Props) {
+  useT() // re-render when the language changes: the label is built by saveButtonLabel
   const { saved } = useSaveState(item)
   const scale = useSharedValue(1)
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))

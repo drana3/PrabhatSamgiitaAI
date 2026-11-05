@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /**
  * "Save to" as plain data (no React), so what the sheet lists and says is unit tested.
  * Spotify's model in the app's own words: one circle-plus button per song or Kiirtan opens a sheet
@@ -93,7 +94,7 @@ export function orderPlaylists<T extends PlaylistLike>(playlists: readonly T[]):
 
 /** `1 song`, `12 songs`. */
 export function trackCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "song" : "songs"}`
+  return t("songs.count", { count })
 }
 
 export const MINE_NAME = "Mine"
@@ -113,8 +114,8 @@ export function buildSaveRows(
   const rows: SaveRow[] = [
     {
       kind: "mine",
-      name: MINE_NAME,
-      subtitle: item.kind === "kiirtan" ? MINE_SUBTITLE_KIIRTAN : MINE_SUBTITLE,
+      name: t("songs.mine"),
+      subtitle: item.kind === "kiirtan" ? t("save.mine.all") : t("save.mine.songs"),
       on: state.inMine,
     },
   ]
@@ -133,17 +134,17 @@ export function buildSaveRows(
 
 /** Toast after a tick or untick. `target` is "Mine" or the playlist name. */
 export function saveToast(target: string, added: boolean): string {
-  return added ? `Added to ${target}` : `Removed from ${target}`
+  return added ? t("save.toast.added", { target }) : t("save.toast.removed", { target })
 }
 
 /** Toast after "New playlist" made a list and put the song in it. */
 export function createdToast(playlistName: string): string {
-  return `Added to ${playlistName}`
+  return t("save.toast.added", { target: playlistName })
 }
 
 /** Screen-reader label of the circle button. */
 export function saveButtonLabel(saved: boolean): string {
-  return saved ? "Saved. Change" : "Add to…"
+  return saved ? t("save.button.saved") : t("save.button.add")
 }
 
 /** A name for the next new playlist: `Playlist 3` when two exist and `Playlist 3` is free. */
