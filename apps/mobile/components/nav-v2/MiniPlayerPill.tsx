@@ -172,7 +172,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
             intensity={amNav.miniBlurIntensity}
             tint={blurTint}
             experimentalBlurMethod="dimezisBlurView"
-            style={StyleSheet.absoluteFill}
+            style={[StyleSheet.absoluteFill, styles.blur]}
           />
           <View pointerEvents="none" style={[styles.highlight, { backgroundColor: palette.highlight }]} />
           <View style={styles.mainSlot}>
@@ -290,6 +290,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  /**
+   * The blur layer carries the pill's own radius. A backdrop blur is not always clipped by the rounded
+   * overflow of its parent (the browser preview drew a square frosted rectangle around the pill), so it is
+   * rounded itself and nothing square can show.
+   */
+  blur: { borderRadius: amNav.radius, overflow: "hidden" },
   highlight: { position: "absolute", left: 0, right: 0, top: 0, height: 1 },
   track: {
     position: "absolute",

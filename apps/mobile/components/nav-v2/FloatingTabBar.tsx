@@ -184,9 +184,9 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
             intensity={amNav.tabBlurIntensity}
             tint={blurTint}
             experimentalBlurMethod="dimezisBlurView"
-            style={StyleSheet.absoluteFill}
+            style={[StyleSheet.absoluteFill, styles.round]}
           />
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: lightPalette.background }]} />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.round, { backgroundColor: lightPalette.background }]} />
           <View pointerEvents="none" style={[styles.edge, { borderColor: lightPalette.edge }]} />
 
           <View style={styles.tray} onLayout={onTrayLayout}>
@@ -260,6 +260,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: amNav.tabPad,
   },
+  /** every layer under the pill carries its radius, so no square fill or blur can show around it */
+  round: { borderRadius: amNav.radius, overflow: "hidden" },
   edge: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: amNav.radius,

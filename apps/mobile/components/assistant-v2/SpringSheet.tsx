@@ -118,7 +118,7 @@ export function SpringSheet({ visible, onClose, title, theme, children }: Props)
   if (!mounted) return null
 
   return (
-    <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent>
+    <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
       <GestureHandlerRootView style={styles.fill}>
         <Animated.View style={[styles.backdrop, { backgroundColor: theme.textHeading }, backdropStyle]} />
         <Pressable

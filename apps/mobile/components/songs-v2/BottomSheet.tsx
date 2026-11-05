@@ -174,6 +174,7 @@ export function BottomSheet({
       visible
       animationType="none"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={close}
     >
       <GestureHandlerRootView style={styles.fill}>

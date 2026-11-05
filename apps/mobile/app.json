@@ -37,6 +37,7 @@
       "versionCode": 110,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",

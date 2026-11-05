@@ -4,7 +4,6 @@ import { ActivityIndicator, AppState, InteractionManager, Platform, StyleSheet, 
 import { Stack } from "expo-router"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
-import { StatusBar } from "expo-status-bar"
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -33,6 +32,7 @@ import { startPlaylistBackgroundSync } from "@/lib/playlistBackgroundSync"
 import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
+import { AppStatusBar, FrameSafeArea } from "@/components/common/EdgeToEdge"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
 import { NotificationsHost } from "@/components/notifications/NotificationsHost"
@@ -145,100 +145,103 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <PlaybackLifecycle />
-        <MemberSessionSync />
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-            animation: "slide_from_right",
-            animationDuration: 220,
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="welcome" />
-          <Stack.Screen name="auth" options={{ animation: "none" }} />
-          <Stack.Screen name="auth/google" options={{ animation: "none" }} />
-          <Stack.Screen name="complete-profile" />
-          <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
-          <Stack.Screen
-            name="song/[songId]"
-            options={{
-              presentation: "card",
-              // Slide + Reanimated + expo-av in the same frame crashes Android.
-              animation: Platform.OS === "ios" ? "slide_from_right" : "none",
-            }}
-          />
-          <Stack.Screen
-            name="player/index"
-            options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
-          />
-          <Stack.Screen
-            name="search/index"
-            options={{
-              // Same fade as iOS. Android stays a card so dismiss+push cannot
-              // crash native navigation; iOS can keep the modal presentation.
-              presentation: Platform.OS === "ios" ? "modal" : "card",
-              animation: "fade",
+        <FrameSafeArea>
+          <PlaybackLifecycle />
+          <MemberSessionSync />
+          {/* Edge to edge: the app draws under the status bar; its content colour follows Light / Dark. */}
+          <AppStatusBar />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+              animation: "slide_from_right",
               animationDuration: 220,
             }}
-          />
-          <Stack.Screen name="collections/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="festivals/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="drive/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="playlist/[playlistId]" options={{ presentation: "card" }} />
-          <Stack.Screen name="playlist/add" options={{ presentation: "card" }} />
-          <Stack.Screen name="festival/[festivalId]" options={{ presentation: "card" }} />
-          <Stack.Screen name="quiz/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="quiz/scan" options={{ presentation: "card" }} />
-          <Stack.Screen name="quiz/event/[slug]" options={{ presentation: "card" }} />
-          <Stack.Screen name="feedback/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="admin/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="admin/devanagari" options={{ presentation: "card" }} />
-          <Stack.Screen name="admin/sargam/[number]" options={{ presentation: "card" }} />
-          <Stack.Screen name="stories/index" options={{ presentation: "card" }} />
-          <Stack.Screen name="stories/[slug]" options={{ presentation: "card" }} />
-          <Stack.Screen name="signin/index" options={{ presentation: "modal" }} />
-          <Stack.Screen name="about/index" options={{ presentation: "card" }} />
-          {/* Redesign profile sheet: it animates itself, so the navigator adds no motion. */}
-          <Stack.Screen
-            name="profile-sheet"
-            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
-          />
-          {/* Sheets that replace the profile sheet; they animate themselves too. */}
-          <Stack.Screen
-            name="script-translations"
-            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
-          />
-          <Stack.Screen
-            name="language"
-            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
-          />
-          <Stack.Screen
-            name="review-style"
-            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
-          />
-          <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
-          {/* Kiirtans: audio files uploaded by their authors, played in the one player. */}
-          <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
-          <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
-          <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />
-          <Stack.Screen name="kiirtan-live" options={{ presentation: "card" }} />
-          <Stack.Screen name="kiirtan" options={{ presentation: "card" }} />
-          {/* All collections: search and kinds, opened from the Songs tab. */}
-          <Stack.Screen name="collections-v2" options={{ presentation: "card" }} />
-          {/* Your library: the person's own songs, Kiirtans, playlists, downloads and uploads; opened from the profile sheet. */}
-          <Stack.Screen name="library-v2" options={{ presentation: "card" }} />
-          {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
-          <Stack.Screen name="player-v2" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
-        </Stack>
-        {/* The one mini-player, above every screen (tabs and pushed). */}
-        <MiniPlayerHost />
-        {/* The one "Save to" sheet (circle-plus buttons everywhere open it). */}
-        <SaveHost />
-        {/* Reminders and the inbox: schedules local notifications, fills the bell. Draws nothing. */}
-        <NotificationsHost />
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="welcome" />
+            <Stack.Screen name="auth" options={{ animation: "none" }} />
+            <Stack.Screen name="auth/google" options={{ animation: "none" }} />
+            <Stack.Screen name="complete-profile" />
+            <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
+            <Stack.Screen
+              name="song/[songId]"
+              options={{
+                presentation: "card",
+                // Slide + Reanimated + expo-av in the same frame crashes Android.
+                animation: Platform.OS === "ios" ? "slide_from_right" : "none",
+              }}
+            />
+            <Stack.Screen
+              name="player/index"
+              options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
+            />
+            <Stack.Screen
+              name="search/index"
+              options={{
+                // Same fade as iOS. Android stays a card so dismiss+push cannot
+                // crash native navigation; iOS can keep the modal presentation.
+                presentation: Platform.OS === "ios" ? "modal" : "card",
+                animation: "fade",
+                animationDuration: 220,
+              }}
+            />
+            <Stack.Screen name="collections/index" options={{ presentation: "card" }} />
+            <Stack.Screen name="festivals/index" options={{ presentation: "card" }} />
+            <Stack.Screen name="drive/index" options={{ presentation: "card" }} />
+            <Stack.Screen name="playlist/[playlistId]" options={{ presentation: "card" }} />
+            <Stack.Screen name="playlist/add" options={{ presentation: "card" }} />
+            <Stack.Screen name="festival/[festivalId]" options={{ presentation: "card" }} />
+            <Stack.Screen name="quiz/index" options={{ presentation: "card" }} />
+            <Stack.Screen name="quiz/scan" options={{ presentation: "card" }} />
+            <Stack.Screen name="quiz/event/[slug]" options={{ presentation: "card" }} />
+            <Stack.Screen name="feedback/index" options={{ presentation: "card" }} />
+            <Stack.Screen name="admin/index" options={{ presentation: "card" }} />
+            <Stack.Screen name="admin/devanagari" options={{ presentation: "card" }} />
+            <Stack.Screen name="admin/sargam/[number]" options={{ presentation: "card" }} />
+            <Stack.Screen name="stories/index" options={{ presentation: "card" }} />
+            <Stack.Screen name="stories/[slug]" options={{ presentation: "card" }} />
+            <Stack.Screen name="signin/index" options={{ presentation: "modal" }} />
+            <Stack.Screen name="about/index" options={{ presentation: "card" }} />
+            {/* Redesign profile sheet: it animates itself, so the navigator adds no motion. */}
+            <Stack.Screen
+              name="profile-sheet"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
+            {/* Sheets that replace the profile sheet; they animate themselves too. */}
+            <Stack.Screen
+              name="script-translations"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
+            <Stack.Screen
+              name="language"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
+            <Stack.Screen
+              name="review-style"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
+            <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
+            {/* Kiirtans: audio files uploaded by their authors, played in the one player. */}
+            <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
+            <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
+            <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />
+            <Stack.Screen name="kiirtan-live" options={{ presentation: "card" }} />
+            <Stack.Screen name="kiirtan" options={{ presentation: "card" }} />
+            {/* All collections: search and kinds, opened from the Songs tab. */}
+            <Stack.Screen name="collections-v2" options={{ presentation: "card" }} />
+            {/* Your library: the person's own songs, Kiirtans, playlists, downloads and uploads; opened from the profile sheet. */}
+            <Stack.Screen name="library-v2" options={{ presentation: "card" }} />
+            {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
+            <Stack.Screen name="player-v2" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
+          </Stack>
+          {/* The one mini-player, above every screen (tabs and pushed). */}
+          <MiniPlayerHost />
+          {/* The one "Save to" sheet (circle-plus buttons everywhere open it). */}
+          <SaveHost />
+          {/* Reminders and the inbox: schedules local notifications, fills the bell. Draws nothing. */}
+          <NotificationsHost />
+        </FrameSafeArea>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )

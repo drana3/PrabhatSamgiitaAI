@@ -19,7 +19,7 @@ type Props = {
 
 export function LanguagePickerModal({ visible, selectedCode, onClose, onSelect }: Props) {
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Dismiss" />
         <SafeAreaView edges={["bottom"]} style={styles.sheet} pointerEvents="box-none">
