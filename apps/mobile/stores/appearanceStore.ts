@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
+import { applyNativeColorScheme } from "@/lib/applyColorScheme"
 import {
   APPEARANCE_STORE_VERSION,
   DEFAULT_APPEARANCE,
@@ -30,7 +31,11 @@ export const useAppearanceStore = create<AppearanceStoreState>()(
     (set) => ({
       appearance: DEFAULT_APPEARANCE,
       reviewStyle: DEFAULT_REVIEW_STYLE,
-      setAppearance: (value) => set({ appearance: normalizeAppearance(value) }),
+      setAppearance: (value) => {
+        const appearance = normalizeAppearance(value)
+        set({ appearance })
+        applyNativeColorScheme(appearance)
+      },
       setReviewStyle: (value) => set({ reviewStyle: normalizeReviewStyle(value) }),
     }),
     {
@@ -38,6 +43,9 @@ export const useAppearanceStore = create<AppearanceStoreState>()(
       storage: createJSONStorage(() => AsyncStorage),
       version: APPEARANCE_STORE_VERSION,
       migrate: (persisted, version) => migrateAppearanceState(persisted, version),
+      onRehydrateStorage: () => (state) => {
+        if (state) applyNativeColorScheme(state.appearance)
+      },
       partialize: (state) => ({
         appearance: state.appearance,
         reviewStyle: state.reviewStyle,

@@ -43,6 +43,16 @@ export function resolveAppearance(
   return system === "dark" ? "dark" : "light"
 }
 
+/**
+ * What to tell the operating system, so its own pieces (Alerts, keyboard, photo picker, the Apple
+ * button) match the app theme. Auto hands control back to the system (null).
+ */
+export function nativeColorSchemeFor(preference: AppearancePreference): "light" | "dark" | null {
+  if (preference === "light") return "light"
+  if (preference === "dark") return "dark"
+  return null
+}
+
 export function themeFor(resolved: ResolvedAppearance): AmTheme {
   return resolved === "dark" ? amDark : amLight
 }

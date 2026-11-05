@@ -140,3 +140,13 @@ describe("appearance: store persistence", () => {
     expect(useAppearanceStore.getState().appearance).toBe("light")
   })
 })
+
+import { nativeColorSchemeFor } from "@/lib/appearance"
+
+describe("nativeColorSchemeFor", () => {
+  it("pins the OS for Light and Dark, and hands control back for Auto", () => {
+    expect(nativeColorSchemeFor("light")).toBe("light")
+    expect(nativeColorSchemeFor("dark")).toBe("dark")
+    expect(nativeColorSchemeFor("auto")).toBeNull()
+  })
+})
