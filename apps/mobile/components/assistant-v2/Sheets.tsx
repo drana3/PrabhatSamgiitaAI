@@ -10,6 +10,7 @@ import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { groupThreadsByDay, questionCountLabel } from "@/lib/assistantHistory"
 import { ASSISTANT_LANGUAGES, type AssistantLanguage } from "@/lib/assistantLanguage"
 import type { ChatThread } from "@/stores/chatStore"
+import { useT } from "@/lib/i18n"
 
 type ThemeProps = { theme: AmTheme }
 
@@ -26,8 +27,9 @@ export function LanguageSheet({
   onSelect: (language: AssistantLanguage) => void
   onClose: () => void
 }) {
+  const t = useT()
   return (
-    <SpringSheet visible={visible} onClose={onClose} title="Answer language" theme={theme}>
+    <SpringSheet visible={visible} onClose={onClose} title={t("assistant.sheet.language")} theme={theme}>
       <View style={styles.list}>
         {ASSISTANT_LANGUAGES.map((item) => {
           const selected = item.id === value
@@ -56,7 +58,7 @@ export function LanguageSheet({
           )
         })}
         <Text style={[styles.footnote, { color: theme.textBody }]}>
-          Asking in the question itself, for example “explain in Hindi”, always wins.
+          {t("assistant.sheet.footnote")}
         </Text>
       </View>
     </SpringSheet>
@@ -90,14 +92,15 @@ export function ChatsSheet({
   onClose: () => void
   now: number
 }) {
+  const t = useT()
   const groups = groupThreadsByDay(threads, now)
   return (
-    <SpringSheet visible={visible} onClose={onClose} title="Past chats" theme={theme}>
+    <SpringSheet visible={visible} onClose={onClose} title={t("assistant.pastChats")} theme={theme}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
         <Text style={[amType.label, { color: theme.eyebrow }]}>{scopeLabel}</Text>
         <PressScale
           accessibilityRole="button"
-          accessibilityLabel="Start a new chat"
+          accessibilityLabel={t("assistant.chats.start")}
           onPress={() => {
             onNew()
             onClose()
@@ -105,11 +108,11 @@ export function ChatsSheet({
           style={[styles.newChat, { backgroundColor: theme.brand }]}
         >
           <Plus size={20} color={theme.onBrand} />
-          <Text style={[styles.newChatText, { color: theme.onBrand }]}>New chat</Text>
+          <Text style={[styles.newChatText, { color: theme.onBrand }]}>{t("assistant.newChat")}</Text>
         </PressScale>
 
         {groups.length === 0 ? (
-          <Text style={[styles.empty, { color: theme.textBody }]}>No saved chats here yet.</Text>
+          <Text style={[styles.empty, { color: theme.textBody }]}>{t("assistant.chats.empty")}</Text>
         ) : (
           groups.map((group) => (
             <View key={group.key} style={styles.group}>
@@ -152,11 +155,12 @@ export function ChatsSheet({
 
 /** Destructive, so it takes two taps: the first arms it, the second clears. */
 export function ClearHistoryButton({ theme, onConfirm }: ThemeProps & { onConfirm: () => void }) {
+  const t = useT()
   const [armed, setArmed] = useState(false)
   return (
     <PressScale
       accessibilityRole="button"
-      accessibilityLabel={armed ? "Confirm: clear all chat history" : "Clear chat history"}
+      accessibilityLabel={armed ? t("assistant.chats.clearConfirm") : t("assistant.chats.clear")}
       onPress={() => {
         if (armed) {
           setArmed(false)
@@ -168,7 +172,7 @@ export function ClearHistoryButton({ theme, onConfirm }: ThemeProps & { onConfir
       style={[styles.clear, { borderColor: armed ? theme.brandPress : theme.line }]}
     >
       <Text style={[styles.clearText, { color: armed ? theme.brandPress : theme.textBody }]}>
-        {armed ? "Tap again to clear all chats" : "Clear chat history"}
+        {armed ? t("assistant.chats.clearArmed") : t("assistant.chats.clear")}
       </Text>
     </PressScale>
   )

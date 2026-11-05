@@ -1,4 +1,5 @@
 import type { ChatThread } from "@/stores/chatStore"
+import { formatDate, t } from "@/lib/i18n"
 
 /** Threads that belong to one scope (a song, or null for the catalogue) and have messages. */
 export function threadsForScope(threads: ChatThread[], songNumber: number | null): ChatThread[] {
@@ -23,13 +24,9 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 export function dayLabel(ms: number, now: number): string {
   const diff = Math.round((startOfLocalDay(now) - startOfLocalDay(ms)) / DAY_MS)
-  if (diff <= 0) return "Today"
-  if (diff === 1) return "Yesterday"
-  return new Date(ms).toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  })
+  if (diff <= 0) return t("tabs.today")
+  if (diff === 1) return t("notif.yesterday")
+  return `${formatDate(ms, "weekdayShort")}, ${formatDate(ms, "dayMonth")}`
 }
 
 /** Newest first, grouped by local calendar day. */
@@ -54,5 +51,5 @@ export function questionCount(thread: ChatThread): number {
 
 export function questionCountLabel(thread: ChatThread): string {
   const count = questionCount(thread)
-  return count === 1 ? "1 question" : `${count} questions`
+  return t("assistant.chats.questions", { count })
 }

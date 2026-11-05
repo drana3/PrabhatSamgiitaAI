@@ -2,6 +2,7 @@ import {
   AI_COMPANION_GUEST_DAILY_LIMIT,
   AI_COMPANION_MEMBER_DAILY_LIMIT,
 } from "@/lib/chat"
+import { t } from "@/lib/i18n"
 
 /**
  * "N questions left today" (spec SCR-13/SCR-14).
@@ -53,14 +54,11 @@ export function questionsLeft(state: QuotaState | undefined, limit: number, now:
 }
 
 export function quotaLabel(left: number): string {
-  if (left <= 0) return "No questions left today"
-  if (left === 1) return "1 question left today"
-  return `${left} questions left today`
+  if (left <= 0) return t("assistant.quota.none")
+  return t("assistant.quota.left", { count: left })
 }
 
 /** Plain next step once the limit is reached. */
 export function quotaHelp(isMember: boolean): string {
-  return isMember
-    ? "Come back tomorrow. Lyrics, meanings and recordings are still here."
-    : "Sign in for more questions each day, or come back tomorrow."
+  return isMember ? t("assistant.quota.helpMember") : t("assistant.quota.helpGuest")
 }

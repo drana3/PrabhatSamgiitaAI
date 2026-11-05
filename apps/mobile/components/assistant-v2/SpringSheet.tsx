@@ -19,6 +19,7 @@ import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amType, amFonts } from "@/constants/tokens/amTypography"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import { backdropOpacity, settleSheet, sheetOffset } from "@/lib/assistantSheetPhysics"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   visible: boolean
@@ -37,6 +38,7 @@ type Props = {
  * - Only transform and opacity move. With Reduce Motion the sheet cross-fades.
  */
 export function SpringSheet({ visible, onClose, title, theme, children }: Props) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
   const screenHeight = Dimensions.get("window").height
@@ -123,7 +125,7 @@ export function SpringSheet({ visible, onClose, title, theme, children }: Props)
           style={styles.fill}
           onPress={dismiss}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common.close")}
         />
         <Animated.View
           onLayout={onLayout}
@@ -142,7 +144,7 @@ export function SpringSheet({ visible, onClose, title, theme, children }: Props)
                 </Text>
                 <PressScale
                   accessibilityRole="button"
-                  accessibilityLabel="Close"
+                  accessibilityLabel={t("common.close")}
                   onPress={dismiss}
                   pressedScale={0.92}
                   style={[styles.close, { backgroundColor: theme.card, borderColor: theme.line }]}

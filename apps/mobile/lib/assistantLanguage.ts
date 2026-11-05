@@ -1,4 +1,5 @@
 import { explicitResponseLanguage } from "@prabhat/core"
+import { t } from "@/lib/i18n"
 
 /**
  * Answer language (spec 2.2 "language"). The backend reads an explicit request
@@ -13,10 +14,36 @@ export const ASSISTANT_LANGUAGES: Array<{
   /** Shown under the label in the picker. */
   note: string
 }> = [
-  { id: "auto", label: "Same as my question", note: "Follows the language you type in" },
-  { id: "english", label: "English", note: "" },
-  { id: "hindi", label: "Hindi", note: "हिन्दी" },
-  { id: "bengali", label: "Bengali", note: "বাংলা" },
+  {
+    id: "auto",
+    get label() {
+      return t("assistant.lang.auto")
+    },
+    get note() {
+      return t("assistant.lang.autoNote")
+    },
+  },
+  {
+    id: "english",
+    get label() {
+      return t("language.name.en")
+    },
+    note: "",
+  },
+  {
+    id: "hindi",
+    get label() {
+      return t("assistant.lang.hindi")
+    },
+    note: "हिन्दी",
+  },
+  {
+    id: "bengali",
+    get label() {
+      return t("assistant.lang.bengali")
+    },
+    note: "বাংলা",
+  },
 ]
 
 const SUFFIX: Record<Exclude<AssistantLanguage, "auto">, string> = {
@@ -30,12 +57,12 @@ export function isAssistantLanguage(value: unknown): value is AssistantLanguage 
 }
 
 export function languageLabel(language: AssistantLanguage): string {
-  return ASSISTANT_LANGUAGES.find((item) => item.id === language)?.label ?? "Same as my question"
+  return ASSISTANT_LANGUAGES.find((item) => item.id === language)?.label ?? t("assistant.lang.auto")
 }
 
 /** Short form for the pill beside the grounding chip. */
 export function languagePillLabel(language: AssistantLanguage): string {
-  return language === "auto" ? "Auto" : languageLabel(language)
+  return language === "auto" ? t("profile.appearance.auto") : languageLabel(language)
 }
 
 /** The prompt that goes to the API. The chat keeps showing what the reader typed. */

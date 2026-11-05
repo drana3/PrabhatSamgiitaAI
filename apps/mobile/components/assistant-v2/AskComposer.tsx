@@ -5,6 +5,7 @@ import { PressScale } from "@/components/today/motion"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 
 /**
  * Pill field with a send disc. It sits in the flow under the thread, inside the
@@ -31,6 +32,7 @@ export function AskComposer({
   hint?: string
   placeholder: string
 }) {
+  const t = useT()
   const canSend = value.trim().length > 0 && !sending
   return (
     <View style={styles.wrap}>
@@ -44,14 +46,14 @@ export function AskComposer({
             placeholderTextColor={theme.textMuted}
             multiline
             style={[styles.input, { color: theme.textHeading }]}
-            accessibilityLabel="Your question"
+            accessibilityLabel={t("assistant.composer.label")}
             returnKeyType="send"
             blurOnSubmit
             onSubmitEditing={() => canSend && onSend()}
           />
           <PressScale
             accessibilityRole="button"
-            accessibilityLabel={voiceListening ? "Stop voice input" : "Ask by voice"}
+            accessibilityLabel={voiceListening ? t("assistant.composer.voiceStop") : t("assistant.composer.voice")}
             onPress={onVoicePress}
             pressedScale={0.92}
             style={styles.mic}
@@ -65,7 +67,7 @@ export function AskComposer({
         </View>
         <PressScale
           accessibilityRole="button"
-          accessibilityLabel="Send question"
+          accessibilityLabel={t("assistant.composer.send")}
           accessibilityState={{ disabled: !canSend }}
           disabled={!canSend}
           onPress={onSend}

@@ -27,13 +27,13 @@ import { amGap } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useAssistantChat } from "@/hooks/useAssistantChat"
-import { NO_ANSWER_COPY } from "@/lib/assistantAnswer"
 import { languagePillLabel } from "@/lib/assistantLanguage"
 import { quotaHelp } from "@/lib/assistantQuota"
 import { openSongScreen } from "@/lib/openSong"
 import { isNearBottom } from "@/lib/assistantSheetPhysics"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 function songParam(value: string | string[] | undefined): number | null {
   const raw = Array.isArray(value) ? value[0] : value
@@ -49,6 +49,7 @@ function songParam(value: string | string[] | undefined): number | null {
  * Redesign route; the existing AI tab is untouched.
  */
 export default function AssistantScreen() {
+  const t = useT()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const theme = useAmTheme()
@@ -130,14 +131,16 @@ export default function AssistantScreen() {
   const exhausted = chat.quota.left <= 0
 
   const hint = useMemo(() => {
-    if (voice.listening) return "Listening. Speak your question."
+    if (voice.listening) return t("assistant.hint.listening")
     if (voice.error) return voice.error
     if (blocked) return blocked
-    if (chat.sending) return "Finding the answer in the songs"
+    if (chat.sending) return t("assistant.hint.finding")
     return undefined
-  }, [voice.listening, voice.error, blocked, chat.sending])
+  }, [voice.listening, voice.error, blocked, chat.sending, t])
 
-  const scopeLabel = grounded ? `Chats about PS ${chat.groundedNumber}` : "Chats about all songs"
+  const scopeLabel = grounded
+    ? t("assistant.scope.song", { number: String(chat.groundedNumber) })
+    : t("assistant.scope.all")
 
   return (
     <View style={[styles.root, { backgroundColor: theme.page, paddingTop: insets.top }]}>
@@ -194,8 +197,8 @@ export default function AssistantScreen() {
               <Reveal index={2}>
                 <Text style={[styles.lead, { color: theme.textBody }]}>
                   {grounded
-                    ? `Ask about PS ${chat.groundedNumber}. Answers come from the song text and the discourse notes.`
-                    : "Ask about a song, a theme or a feeling. Answers name the songs they come from."}
+                    ? t("assistant.lead.song", { number: String(chat.groundedNumber) })
+                    : t("assistant.lead.all")}
                 </Text>
               </Reveal>
               {chat.suggestions.map((item, i) => (
@@ -232,9 +235,15 @@ export default function AssistantScreen() {
                     key={message.id}
                     theme={theme}
                     index={index}
-                    text={message.kind === "empty" ? NO_ANSWER_COPY : message.text}
+                    text={
+                      message.kind === "empty"
+                        ? t("assistant.noAnswer")
+                        : message.kind === "quota"
+                          ? t("assistant.quota.reached")
+                          : message.text
+                    }
                     help={isQuota ? quotaHelp(chat.quota.isMember) : undefined}
-                    actionLabel={isQuota && !chat.quota.isMember ? "Sign in" : undefined}
+                    actionLabel={isQuota && !chat.quota.isMember ? t("account.signIn.title") : undefined}
                     onAction={isQuota && !chat.quota.isMember ? () => router.push(href("/signin")) : undefined}
                   />
                 )
@@ -265,7 +274,11 @@ export default function AssistantScreen() {
             voiceListening={voice.listening}
             sending={chat.sending}
             hint={hint}
-            placeholder={grounded ? `Ask about PS ${chat.groundedNumber}` : "Ask about any song"}
+            placeholder={
+              grounded
+                ? t("assistant.placeholder.song", { number: String(chat.groundedNumber) })
+                : t("assistant.placeholder.all")
+            }
           />
         </View>
       </KeyboardAvoidingView>

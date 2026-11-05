@@ -18,7 +18,8 @@ import { PressScale, Reveal } from "@/components/today/motion"
 import { amColors, amLight, type AmTheme } from "@/constants/tokens/amColors"
 import { amGap, amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
-import { ASSISTANT_DISCLOSURE, type AnswerSource } from "@/lib/assistantAnswer"
+import { type AnswerSource } from "@/lib/assistantAnswer"
+import { useT } from "@/lib/i18n"
 
 type ThemeProps = { theme: AmTheme }
 
@@ -42,9 +43,10 @@ export function QuestionPill({ theme, text, index }: ThemeProps & { text: string
 
 /** Three dots that breathe while the first words are on their way. */
 export function TypingDots({ theme }: ThemeProps) {
+  const t = useT()
   const reduce = useReducedMotion()
   return (
-    <View style={styles.dots} accessibilityRole="progressbar" accessibilityLabel="The answer is on its way">
+    <View style={styles.dots} accessibilityRole="progressbar" accessibilityLabel={t("assistant.typing")}>
       {[0, 1, 2].map((i) => (
         <Dot key={i} color={theme.textMuted} index={i} still={Boolean(reduce)} />
       ))}
@@ -75,11 +77,12 @@ function SourceChip({
   title,
   onPress,
 }: ThemeProps & { source: AnswerSource; title: string | null; onPress: () => void }) {
+  const t = useT()
   const grounded = source.role === "grounded"
   return (
     <PressScale
       accessibilityRole="button"
-      accessibilityLabel={`${grounded ? "Source" : "Also mentioned"}: PS ${source.number}${title ? `, ${title}` : ""}`}
+      accessibilityLabel={`${grounded ? t("assistant.source.grounded") : t("assistant.source.mentioned")}: PS ${source.number}${title ? `, ${title}` : ""}`}
       onPress={onPress}
       pressedScale={0.96}
       style={[
@@ -119,6 +122,7 @@ export function AnswerCard({
   groundedTitle: string | null
   onOpenSong: (number: number) => void
 }) {
+  const t = useT()
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     if (!copied) return
@@ -142,7 +146,7 @@ export function AnswerCard({
 
         {sources.length ? (
           <View style={styles.sources}>
-            <Text style={[amType.label, { color: theme.eyebrow }]}>Sources</Text>
+            <Text style={[amType.label, { color: theme.eyebrow }]}>{t("assistant.sources")}</Text>
             <View style={styles.chips}>
               {sources.map((source) => (
                 <SourceChip
@@ -159,16 +163,16 @@ export function AnswerCard({
           <View style={[styles.caution, { backgroundColor: noticeSurface(theme) }]}>
             <Info size={18} color={theme.eyebrow} />
             <Text style={[styles.cautionText, { color: theme.textHeading }]}>
-              No song is cited for this answer. Check it against the lyrics before relying on it.
+              {t("assistant.noSource")}
             </Text>
           </View>
         ) : null}
 
         <View style={[styles.footer, { borderTopColor: theme.line }]}>
-          <Text style={[styles.disclosure, { color: theme.textBody }]}>{ASSISTANT_DISCLOSURE}</Text>
+          <Text style={[styles.disclosure, { color: theme.textBody }]}>{t("assistant.disclosure")}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={copied ? "Copied" : "Copy answer"}
+            accessibilityLabel={copied ? t("assistant.copied") : t("assistant.copy")}
             onPress={copy}
             hitSlop={8}
             style={styles.copy}
@@ -230,10 +234,11 @@ export function SuggestionRow({
   label,
   onPress,
 }: ThemeProps & { label: string; onPress: () => void }) {
+  const t = useT()
   return (
     <PressScale
       accessibilityRole="button"
-      accessibilityLabel={`Ask: ${label}`}
+      accessibilityLabel={t("assistant.suggestion", { label })}
       onPress={onPress}
       pressedScale={0.985}
       style={[styles.suggestion, { backgroundColor: theme.card, borderColor: theme.line }]}

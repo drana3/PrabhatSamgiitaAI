@@ -5,6 +5,7 @@ import { PressScale } from "@/components/today/motion"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amGap, amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 
 type ThemeProps = { theme: AmTheme }
 
@@ -35,18 +36,19 @@ export function AskTopBar({
   onChats,
   canStartNew,
 }: ThemeProps & { onClose: () => void; onNewChat: () => void; onChats: () => void; canStartNew: boolean }) {
+  const t = useT()
   return (
     <View style={styles.topBar}>
-      <RoundButton theme={theme} label="Close" onPress={onClose}>
+      <RoundButton theme={theme} label={t("common.close")} onPress={onClose}>
         <X size={20} color={theme.textHeading} />
       </RoundButton>
       <View style={styles.topRight}>
         {canStartNew ? (
-          <RoundButton theme={theme} label="New chat" onPress={onNewChat}>
+          <RoundButton theme={theme} label={t("assistant.newChat")} onPress={onNewChat}>
             <Plus size={20} color={theme.textHeading} />
           </RoundButton>
         ) : null}
-        <RoundButton theme={theme} label="Past chats" onPress={onChats}>
+        <RoundButton theme={theme} label={t("assistant.pastChats")} onPress={onChats}>
           <Clock size={20} color={theme.textHeading} />
         </RoundButton>
       </View>
@@ -56,11 +58,12 @@ export function AskTopBar({
 
 /** Two-tone display heading, as on the other screens. */
 export function AskHeading({ theme, grounded }: ThemeProps & { grounded: boolean }) {
+  const t = useT()
   return (
     <Text style={[amType.title, styles.heading]} accessibilityRole="header">
-      <Text style={{ color: theme.textHeading }}>Ask</Text>
+      <Text style={{ color: theme.textHeading }}>{t("assistant.heading.ask")}</Text>
       {"\n"}
-      <Text style={{ color: theme.headingSecond }}>{grounded ? "about this song" : "about the songs"}</Text>
+      <Text style={{ color: theme.headingSecond }}>{grounded ? t("assistant.heading.song") : t("assistant.heading.songs")}</Text>
     </Text>
   )
 }
@@ -87,6 +90,7 @@ export function GroundingStrip({
   onLanguage: () => void
   quotaLabel: string
 }) {
+  const t = useT()
   return (
     <View style={styles.strip}>
       <View style={styles.stripRow}>
@@ -95,7 +99,11 @@ export function GroundingStrip({
             <View style={styles.groundPress}>
               <PressScale
                 accessibilityRole="button"
-                accessibilityLabel={`Open PS ${songNumber}${title ? `, ${title}` : ""}`}
+                accessibilityLabel={
+                  title
+                    ? t("assistant.openSongTitled", { number: String(songNumber), title })
+                    : t("assistant.openSong", { number: String(songNumber) })
+                }
                 onPress={onOpenSong}
                 pressedScale={0.97}
                 style={styles.groundBody}
@@ -109,7 +117,7 @@ export function GroundingStrip({
             </View>
             <PressScale
               accessibilityRole="button"
-              accessibilityLabel="Ask about all songs instead"
+              accessibilityLabel={t("assistant.detach")}
               onPress={onDetach}
               pressedScale={0.92}
               style={styles.detach}
@@ -121,13 +129,13 @@ export function GroundingStrip({
           <View style={[styles.ground, styles.groundBody, { backgroundColor: theme.card, borderColor: theme.line, paddingRight: 16 }]}>
             <BookOpen size={18} color={theme.eyebrow} />
             <Text numberOfLines={1} style={[styles.groundText, { color: theme.textHeading }]}>
-              All songs
+              {t("songs.allSongs")}
             </Text>
           </View>
         )}
         <PressScale
           accessibilityRole="button"
-          accessibilityLabel={`Answer language: ${language}`}
+          accessibilityLabel={t("assistant.languagePill", { language })}
           onPress={onLanguage}
           pressedScale={0.96}
           style={[styles.langPill, { backgroundColor: theme.card, borderColor: theme.line }]}
