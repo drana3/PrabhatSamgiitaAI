@@ -169,9 +169,9 @@ export default function KiirtanTabScreen() {
                 compact
                 onOpen={(k) => play(k, kindList)}
                 onMore={setMenu}
-                trailing={
+                footer={
                   <View style={styles.resume}>
-                    <Text style={[styles.resumeText, { color: theme.accent }]} numberOfLines={1}>
+                    <Text style={[styles.resumeText, { color: theme.accent }]} numberOfLines={2}>
                       {resumeLabel(positionSec, kirtan.durationSec)}
                     </Text>
                     <View style={[styles.bar, { backgroundColor: theme.line }]}>
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   lengths: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: HOME_INSET },
   lengthChip: { height: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1, justifyContent: "center" },
   lengthText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
-  resume: { width: 108, paddingRight: 12, gap: 6, alignItems: "flex-end" },
+  resume: { gap: 6, paddingTop: 4, alignSelf: "stretch" },
   resumeText: { fontFamily: amFonts.semi, fontSize: 11.5, lineHeight: 15 },
   bar: { height: 4, borderRadius: 2, alignSelf: "stretch", overflow: "hidden" },
   barFill: { height: 4, borderRadius: 2 },

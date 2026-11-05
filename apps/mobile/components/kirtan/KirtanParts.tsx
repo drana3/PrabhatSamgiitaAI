@@ -121,6 +121,7 @@ export function KirtanRow({
   onMore,
   onOpenArtist,
   trailing,
+  footer,
   compact,
 }: {
   theme: SongsTheme
@@ -130,6 +131,8 @@ export function KirtanRow({
   /** gets the artist id when the artist name is tapped */
   onOpenArtist?: (artistId: string) => void
   trailing?: ReactNode
+  /** under the title and the line below it, across the whole text column (for example a resume position) */
+  footer?: ReactNode
   compact?: boolean
 }) {
   const t = useT()
@@ -159,6 +162,7 @@ export function KirtanRow({
               {onOpenArtist && kirtan.author.trim() ? `· ${kirtanSubline(kirtan)}` : kirtanSubline(kirtan)}
             </Text>
           </View>
+          {footer}
         </View>
       </KPress>
       {trailing ??
