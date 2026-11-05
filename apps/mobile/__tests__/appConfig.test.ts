@@ -58,4 +58,21 @@ describe("app.json native config", () => {
   it("is a phone app on iOS (iPad runs it in phone mode until the layout is made for wide screens)", () => {
     expect(expo.ios.supportsTablet).toBe(false)
   })
+
+  it("keeps Android in left-to-right layout (the interface is not translated for RTL languages)", () => {
+    const entry = plugin("expo-localization") as [string, { supportsRTL?: boolean }]
+    expect(entry[1].supportsRTL).toBe(false)
+  })
+
+  it("blocks legacy storage permissions and gives the microphone one honest explanation", () => {
+    const android = (expo as unknown as { android: { blockedPermissions?: string[] } }).android
+    expect(android.blockedPermissions).toEqual(
+      expect.arrayContaining(["android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE"]),
+    )
+    const av = plugin("expo-av") as [string, { microphonePermission?: string }]
+    const speech = plugin("expo-speech-recognition") as [string, { microphonePermission?: string }]
+    // expo-av would otherwise write its generic "access your microphone" string over the voice-search one
+    expect(av[1].microphonePermission).toBe(speech[1].microphonePermission)
+    expect(speech[1].microphonePermission).toMatch(/voice search/)
+  })
 })
