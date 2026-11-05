@@ -144,7 +144,7 @@ export default function StoriesScreen() {
             <View style={styles.titleRow}>
               <SpRound t={sp} icon="back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE)))} />
               <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={2} accessibilityRole="header" accessibilityLabel="Stories behind the songs">
-                <Text style={styles.titleLight}>Stories behind{"\n"}</Text>
+                <Text style={[styles.titleLight, { color: theme.textMuted }]}>Stories behind{"\n"}</Text>
                 the songs
               </Text>
               <Text style={[styles.count, { color: theme.textBody }]} numberOfLines={1}>
@@ -209,7 +209,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.48,
     textTransform: "uppercase",
   },
-  titleLight: { fontFamily: amFonts.regular },
+  // same extra-bold caps as every other v2 heading; the first line is just quieter
+  titleLight: { fontFamily: amFonts.display },
   count: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17, fontVariant: ["tabular-nums"] },
   search: {
     height: 48,
