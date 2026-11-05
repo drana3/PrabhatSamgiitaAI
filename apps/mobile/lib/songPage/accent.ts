@@ -9,9 +9,9 @@ import type { SpTheme } from "@/constants/tokens/amSong"
 export function songAccents(t: SpTheme): { fill: string; onFill: string; text: string; bright: string } {
   const roles = t as Partial<Pick<SpTheme, "action" | "onAction" | "accentText" | "accentBright">> & SpTheme
   return {
-    fill: roles.action ?? t.orange500,
+    fill: roles.action ?? "#B94D0C",
     onFill: roles.onAction ?? "#FFFFFF",
-    text: roles.accentText ?? (t.dark ? t.orange500 : t.orange700),
+    text: roles.accentText ?? (t.dark ? t.orange500 : "#8F3B08"),
     bright: roles.accentBright ?? t.orange500,
   }
 }

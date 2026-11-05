@@ -114,7 +114,7 @@ export function SpPill({
 function pillColors(t: SpTheme, variant: SpPillVariant) {
   switch (variant) {
     case "brand":
-      return { bg: t.orange500, fg: "#FFFFFF", border: "transparent" }
+      return { bg: t.action, fg: t.onAction, border: "transparent" }
     case "ink":
       return { bg: t.ink900, fg: t.onInk, border: "transparent" }
     case "danger":
@@ -192,7 +192,7 @@ export function SpChip({
   const height = size === "md" ? 44 : size === "sm" ? 36 : 36
   const padding = size === "md" ? 20 : 14
   const fontSize = size === "md" ? 15 : 14
-  const fg = on ? t.onInk : t.ink800
+  const fg = on ? (t.dark ? t.onAction : t.onInk) : t.ink800
   return (
     <SpPress
       onPress={onPress}
@@ -203,8 +203,8 @@ export function SpChip({
         {
           height,
           paddingHorizontal: padding,
-          backgroundColor: on ? (t.dark ? t.orange500 : t.ink900) : t.white,
-          borderColor: on ? (t.dark ? t.orange500 : t.ink900) : t.sand300,
+          backgroundColor: on ? (t.dark ? t.action : t.ink900) : t.white,
+          borderColor: on ? (t.dark ? t.action : t.ink900) : t.sand300,
         },
         style,
       ]}
@@ -249,7 +249,7 @@ export function SpMark({ t, on, kind }: { t: SpTheme; on: boolean; kind: "check"
     <View
       style={[
         styles.mark,
-        { borderColor: on ? t.orange500 : t.ink300, backgroundColor: on ? t.orange500 : "transparent" },
+        { borderColor: on ? t.action : t.ink300, backgroundColor: on ? t.action : "transparent" },
       ]}
     >
       {on && kind === "check" ? <SpIcon name="check" size={16} color="#FFFFFF" strokeWidth={2.6} /> : null}

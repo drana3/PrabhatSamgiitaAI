@@ -230,7 +230,7 @@ export function SpKeyboard({
             accessibilityState={{ selected: on }}
             pointerEvents={interactive && native ? "none" : "auto"}
             {...webPress(key)}
-            style={[styles.wk, { width: rects[i]?.w, backgroundColor: on ? t.orange500 : "#FBF8F4" }]}
+            style={[styles.wk, { width: rects[i]?.w, backgroundColor: on ? t.action : "#FBF8F4" }]}
           >
             <Text style={[styles.wkB, { color: on ? "#FFFFFF" : "#68635F" }]}>{key.swara}</Text>
             <Text style={[styles.wkS, { color: on ? "#FFFFFF" : "#68635F" }]}>{key.note}</Text>
@@ -251,7 +251,7 @@ export function SpKeyboard({
               {...webPress(key)}
               style={[
                 styles.bk,
-                { left: `${key.leftPct}%`, backgroundColor: on ? t.orange500 : "#1E1E1E" },
+                { left: `${key.leftPct}%`, backgroundColor: on ? t.action : "#1E1E1E" },
               ]}
             >
               <Text style={styles.bkT}>{key.note}</Text>

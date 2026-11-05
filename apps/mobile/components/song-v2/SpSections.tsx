@@ -50,7 +50,7 @@ export function SpWords({
               accessibilityLabel={language.label}
               style={[
                 styles.wchip,
-                { backgroundColor: on ? (t.dark ? t.orange500 : t.sage700) : t.white, borderColor: on ? (t.dark ? t.orange500 : t.sage700) : t.sand300 },
+                { backgroundColor: on ? (t.dark ? t.action : t.sage700) : t.white, borderColor: on ? (t.dark ? t.action : t.sage700) : t.sand300 },
               ]}
             >
               <Text style={[styles.wchipText, { color: on ? "#FFFFFF" : t.ink800 }]}>{language.label}</Text>
@@ -433,7 +433,7 @@ export function SpWatch({
     <SpCard t={t}>
       <SpPress onPress={onPlay} accessibilityLabel="Play video" style={[styles.vid, { backgroundColor: t.sage900 }]}>
         {poster}
-        <View style={[styles.vp, { backgroundColor: t.orange500 }]}>
+        <View style={[styles.vp, { backgroundColor: t.action }]}>
           <SpIcon name="play" size={28} color="#FFFFFF" />
         </View>
         <Text style={styles.vt} numberOfLines={2}>

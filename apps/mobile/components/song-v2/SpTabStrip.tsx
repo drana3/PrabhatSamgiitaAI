@@ -48,7 +48,7 @@ function Tab({
       >
         <View style={styles.tabInner}>
           <Text style={[styles.tabText, { color: on ? t.ink900 : t.ink500 }]}>{label}</Text>
-          <Animated.View style={[styles.underline, { backgroundColor: t.orange500 }, underline]} />
+          <Animated.View style={[styles.underline, { backgroundColor: t.action }, underline]} />
         </View>
       </SpPress>
     </View>

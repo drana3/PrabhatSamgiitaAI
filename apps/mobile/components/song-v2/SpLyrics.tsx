@@ -50,10 +50,10 @@ export function SpTools({
           accessibilityLabel="Chords"
           style={[
             styles.tpill,
-            { backgroundColor: chordsOn ? (t.dark ? t.orange500 : t.ink900) : t.white, borderColor: chordsOn ? (t.dark ? t.orange500 : t.ink900) : t.sand300 },
+            { backgroundColor: chordsOn ? (t.dark ? t.action : t.ink900) : t.white, borderColor: chordsOn ? (t.dark ? t.action : t.ink900) : t.sand300 },
           ]}
         >
-          <Text style={[styles.tpillText, { color: chordsOn ? t.onInk : t.ink800 }]}>Chords</Text>
+          <Text style={[styles.tpillText, { color: chordsOn ? (t.dark ? t.onAction : t.onInk) : t.ink800 }]}>Chords</Text>
         </SpPress>
       ) : null}
     </View>
@@ -138,7 +138,7 @@ export function SpLyrics({
                       style={[
                         styles.wd,
                         chordsOn && styles.wdWithCh,
-                        on && { backgroundColor: t.orange500 },
+                        on && { backgroundColor: t.action },
                       ]}
                     >
                       {chordsOn ? (
