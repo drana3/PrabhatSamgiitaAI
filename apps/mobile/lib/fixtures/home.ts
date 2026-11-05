@@ -1,4 +1,3 @@
-import type { AppNotification } from "@/lib/notifications"
 import { buildLibraryItems, type LibraryItem } from "@/lib/libraryProposal"
 import { MOCK_SONGS, MOCK_STORIES } from "@/lib/fixtures/songsMock"
 import { formatClock } from "@/lib/navV2"
@@ -56,14 +55,6 @@ export const HOME_LEARN: readonly HomeLearnCard[] = [
 ]
 
 export const HOME_DOWNLOADED_NUMBERS = [1, 3, 6] as const
-
-export const HOME_NOTIFICATIONS: readonly AppNotification[] = [
-  { id: "n-song", kind: "song", group: "today", title: "Song of the day", text: "Ándhára Sheśe Álora Deshe was composed on this day in 1983.", time: "8:00", target: "/song-v2/ps-3", coverNumber: 3 },
-  { id: "n-festival", kind: "festival", group: "today", title: "Festival tomorrow", text: "Díipávalii, the festival of light. Its songs are ready.", time: "7:30", target: "/songs-v2-collection?id=festival&title=Festivals" },
-  { id: "n-words", kind: "words", group: "today", title: "Words to repeat", text: "3 words are due. It takes a minute.", time: "6:15", target: "/learn/words" },
-  { id: "n-story", kind: "story", group: "earlier", title: "New story", text: "The story behind PS 1 is ready to read.", time: "Yesterday", target: "/story-sheet/mock-story-0" },
-  { id: "n-streak", kind: "streak", group: "earlier", title: "Learning streak", text: "5 days in a row. Keep it going.", time: "Mon", target: "/v2/learn" },
-]
 
 /** The library proposal in the preview: the same shape the real counts produce. */
 export const HOME_LIBRARY: readonly LibraryItem[] = buildLibraryItems({

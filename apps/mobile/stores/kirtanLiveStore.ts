@@ -3,9 +3,10 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 /**
- * "Remind me" for live Kiirtan broadcasts, kept on this phone.
- * TODO(api): a reminder should become a real push notification from the backend; today it only
- * remembers the choice and shows the bell as on.
+ * "Remind me" for live Kiirtan broadcasts, kept on this phone. The notifications host
+ * (components/notifications) turns each id into a local notification 15 minutes before the start
+ * (lib/notifications/schedule.ts) and asks for permission when the first one is set.
+ * TODO(api): the broadcast list itself comes from the backend; until then the preview has fixtures.
  */
 type LiveState = {
   remindIds: string[]

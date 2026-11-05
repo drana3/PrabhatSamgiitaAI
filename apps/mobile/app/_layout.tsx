@@ -35,6 +35,7 @@ import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
+import { NotificationsHost } from "@/components/notifications/NotificationsHost"
 import { SaveHost } from "@/components/save/SaveHost"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
@@ -214,6 +215,8 @@ export default function RootLayout() {
         <MiniPlayerHost />
         {/* The one "Save to" sheet (circle-plus buttons everywhere open it). */}
         <SaveHost />
+        {/* Reminders and the inbox: schedules local notifications, fills the bell. Draws nothing. */}
+        <NotificationsHost />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )

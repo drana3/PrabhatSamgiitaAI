@@ -29,11 +29,13 @@ import {
   versionLabel,
   type ProfileRoute,
 } from "@/lib/profileSheet"
+import { anyEnabled } from "@/lib/notifications/settings"
 import { completeMemberSignOut } from "@/lib/session"
 import { APPEARANCE_LABELS, APPEARANCE_PREFERENCES } from "@/lib/appearance"
 import { useAppearanceStore } from "@/stores/appearanceStore"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
@@ -81,6 +83,7 @@ export function useProfileContent(theme: AmTheme) {
   const script = useSongPageStore((st) => st.script)
   const translations = useSongPageStore((st) => st.translations)
   const storage = useDownloadsStorage()
+  const remindersOn = useNotificationSettingsStore((st) => anyEnabled(st))
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
   // MOCKUP_DATA: the prototype's signed-in member, so the sheet matches its boards.
@@ -203,6 +206,13 @@ export function useProfileContent(theme: AmTheme) {
           label="Word review style"
           value={reviewStyleRowValue(reviewStyle)}
           onPress={() => swapTo(PROFILE_ROUTES.reviewStyle)}
+        />
+        <SetRow
+          p={p}
+          label="Notifications"
+          value={remindersOn ? "On" : "Off"}
+          chevron
+          onPress={() => go("/notification-settings")}
         />
       </Group>
 
