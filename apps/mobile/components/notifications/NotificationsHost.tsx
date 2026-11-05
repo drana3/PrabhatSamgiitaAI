@@ -19,7 +19,7 @@ import {
 import { refreshPermission } from "@/lib/notifications/permission"
 import {
   firedSince,
-  scheduleNext7Days,
+  scheduleAhead,
   startOfDay,
   toInboxItem,
   type PlanInput,
@@ -58,7 +58,7 @@ const STORES: readonly Persisted[] = [useNotificationSettingsStore, useNotificat
  * nothing. It runs on start, when the app comes to the front, and when a setting, the
  * word cards or the song list change:
  * - the inbox takes in what has fired (lib/notifications/schedule.ts `firedSince`),
- * - the phone's scheduled notifications are made equal to the next 7 days (`scheduleNext7Days`), only
+ * - the phone's scheduled notifications are made equal to the plan ahead (`scheduleAhead`: songs and festivals up to 30 days, the rest 7), only
  *   when the OS permission is granted (it never asks here),
  * - the badge becomes the unread count,
  * - a tap on a notification opens its screen.
@@ -111,7 +111,7 @@ export function NotificationsHost() {
     const now = nowMs()
     const granted = (await refreshPermission()) === "granted"
     const st = useNotificationSettingsStore.getState()
-    if (granted && st.master) await applySchedule(scheduleNext7Days(input(now)))
+    if (granted && st.master) await applySchedule(scheduleAhead(input(now)))
     else await cancelAll()
     const inbox = useNotificationsStore.getState()
     await setBadge(unreadCount(inbox.items, inbox.read))

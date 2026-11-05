@@ -20,8 +20,14 @@ import { FESTIVAL_EVE_AT, STREAK_AT, kindEnabled, type NotificationSettings } fr
 
 const DAY_MS = 86_400_000
 
-/** How far ahead notifications are scheduled. */
+/** How far ahead reminders that depend on what the person does (words due, streak) are planned. */
 export const WINDOW_DAYS = 7
+/**
+ * How far ahead the reminders that do not depend on it (the song of the day, festivals) are planned.
+ * The phone's own limit (MAX_PENDING) is what really stops the plan, so a person who does not open the
+ * app for a week or two still gets their reminders.
+ */
+export const HORIZON_DAYS = 30
 /** iOS keeps at most 64 pending local notifications; stay below it. The app refills the rest when it runs. */
 export const MAX_PENDING = 60
 
@@ -226,6 +232,22 @@ export function capForPlatform(planned: readonly PlannedNotification[], limit = 
 /** What to schedule on the phone: the next 7 days after `now`. */
 export function scheduleNext7Days(input: PlanInput): PlannedNotification[] {
   return plan(input, input.now, input.now + WINDOW_DAYS * DAY_MS)
+}
+
+/**
+ * What to schedule on the phone: everything in the next 7 days, and beyond that only the reminders
+ * that stay true without the app (songs, festivals). Words due and the streak depend on what the person
+ * does in between, so they are planned again each time the app runs.
+ */
+export function scheduleAhead(input: PlanInput): PlannedNotification[] {
+  const near = plan(input, input.now, input.now + WINDOW_DAYS * DAY_MS)
+  const settings: NotificationSettings = {
+    ...input.settings,
+    words: { ...input.settings.words, on: false },
+    streak: { on: false },
+  }
+  const far = plan({ ...input, settings }, input.now + WINDOW_DAYS * DAY_MS, input.now + HORIZON_DAYS * DAY_MS)
+  return [...near, ...far].sort(byTime)
 }
 
 /** What has fired since `since` (and is due now): the inbox fills from this. */

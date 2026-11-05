@@ -7,7 +7,8 @@ import {
   diffSchedule,
   firedSince,
   plan,
-  scheduleNext7Days,
+  scheduleAhead,
+scheduleNext7Days,
   toInboxItem,
   type PlanInput,
   type SongPick,
@@ -317,3 +318,32 @@ describe("scheduler: what has fired", () => {
     expect(item).toMatchObject({ id: planned.id, kind: "song", title: planned.title, text: planned.text, target: planned.target, firedAt: planned.fireAt })
   })
 })
+
+describe("scheduler: plan ahead (checkup U3)", () => {
+  it("keeps the song of the day coming for weeks, so a week away does not end the reminders", () => {
+    const out = scheduleAhead(input())
+    expect(out.length).toBeGreaterThan(20)
+    expect(out.every((n) => n.kind === "song")).toBe(true)
+    expect(Math.max(...out.map((n) => n.fireAt))).toBeGreaterThan(NOW + 20 * DAY)
+    expect(Math.max(...out.map((n) => n.fireAt))).toBeLessThanOrEqual(NOW + 30 * DAY)
+    expect(new Set(ids(out)).size).toBe(out.length)
+  })
+
+  it("plans words and the streak only for the next 7 days, they depend on what happens in between", () => {
+    const card = { status: "review", dueAt: NOW - DAY } as never
+    const out = scheduleAhead(
+      input({ cards: { a: card }, streak: { days: 5, reviewedToday: false } }, { streak: { on: true } }),
+    )
+    const late = out.filter((n) => n.fireAt > NOW + 7 * DAY)
+    expect(late.length).toBeGreaterThan(0)
+    expect(late.every((n) => n.kind === "song" || n.kind === "festival")).toBe(true)
+    expect(out.some((n) => n.kind === "words" && n.fireAt <= NOW + 7 * DAY)).toBe(true)
+  })
+
+  it("the phone cap keeps the soonest, so near reminders are never dropped for far ones", () => {
+    const capped = capForPlatform(scheduleAhead(input({}, { song: { on: true, times: [8 * 60, 12 * 60, 18 * 60] } })))
+    expect(capped).toHaveLength(MAX_PENDING)
+    expect(capped[0]?.fireAt).toBeLessThan(NOW + DAY)
+  })
+})
+
