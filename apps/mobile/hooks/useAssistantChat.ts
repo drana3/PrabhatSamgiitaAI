@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   answerSources,
@@ -189,16 +189,22 @@ export function useAssistantChat(input: { songParam: number | null }) {
   const left = questionsLeft(quotaByAccount[accountId], dailyLimit(isMember), now)
   const quota = { left, label: quotaLabel(left), isMember }
 
+  // leaving the screen cancels the answer in flight: no waiting stream, no quota spent on a reply nobody reads
+  const inFlight = useRef<AbortController | null>(null)
+  useEffect(() => () => inFlight.current?.abort(), [])
+
   const send = useCallback(
     async (text: string): Promise<TurnResult> => {
       if (sending) return { status: "ignored" }
       if (mode === "signed_in") await hydrateLocalMemberEmail()
       setSending(true)
+      const controller = new AbortController()
+      inFlight.current = controller
       try {
         const result = await runAssistantTurn(
           {
             stream: (songNumber, onChunk, prompt, history) =>
-              api.streamExplanation(songNumber, onChunk, prompt, history),
+              api.streamExplanation(songNumber, onChunk, prompt, history, controller.signal),
             beginExchange: (display) => beginExchange(accountId, display),
             updateMessage: (id, value) => updateAssistantMessage(accountId, id, value),
             saveMemory:
@@ -220,6 +226,7 @@ export function useAssistantChat(input: { songParam: number | null }) {
         }
         return result
       } finally {
+        if (inFlight.current === controller) inFlight.current = null
         setSending(false)
       }
     },
