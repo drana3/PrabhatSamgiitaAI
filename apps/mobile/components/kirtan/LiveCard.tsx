@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { StyleSheet, Text, View } from "react-native"
+import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { Bell, Radio, Users } from "lucide-react-native"
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated"
@@ -9,6 +10,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { hostLine, liveBadge, liveStatus, type LiveItem } from "@/lib/kirtan/live"
+import { moodForText, photoForSeed } from "@/lib/photos/catalog"
 
 export const LIVE_CARD = { w: 220, h: 124 } as const
 
@@ -48,6 +50,17 @@ export function liveTone(item: LiveItem, now: number): readonly [string, string]
   return liveStatus(item, now) === "live" ? ["#6B2E0E", "#1F120A"] : [amColors.sage700, amColors.sage900]
 }
 
+/** The stock photo of a broadcast (stable per id) with a scrim, so the glyph and badges read on any picture. */
+export function LivePhoto({ item, big }: { item: LiveItem; big?: boolean }) {
+  const photo = photoForSeed(item.id, moodForText(item.title) ?? "live")
+  return (
+    <>
+      <Image source={big ? photo.cover : photo.thumb} contentFit="cover" accessibilityIgnoresInvertColors style={StyleSheet.absoluteFill} />
+      <LinearGradient pointerEvents="none" colors={["rgba(10,14,8,0.28)", "rgba(10,14,8,0.62)"]} style={StyleSheet.absoluteFill} />
+    </>
+  )
+}
+
 /**
  * A card of the "Live and long kiirtans" shelf: 220 x 124 (16:9), the badge, the title in capitals,
  * the host and platform. Upcoming ones carry a "Remind me" bell. It opens the live screen, never the player.
@@ -80,6 +93,7 @@ export function LiveCard({
       >
         <View style={styles.thumb}>
           <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <LivePhoto item={item} />
           <View style={styles.glyph}>
             <LiveGlyph platform={item.platform} />
           </View>

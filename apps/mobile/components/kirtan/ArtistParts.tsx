@@ -6,6 +6,7 @@ import { KIIRTAN_TYPE_TONES } from "@/components/kirtan/KiirtanCover"
 import { KPress } from "@/components/kirtan/KPress"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { artistInitials, artistToneIndex, type Artist } from "@/lib/kirtan/artists"
+import { photoForSeed } from "@/lib/photos/catalog"
 
 const TONE_ORDER = ["bnk", "lila", "festival", "other"] as const
 
@@ -19,6 +20,12 @@ export function ArtistAvatar({ artist, size }: { artist: Pick<Artist, "id" | "na
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden" }}>
       <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      {artist.photoUrl ? null : (
+        <>
+          <Image source={photoForSeed(artist.id, "calm").thumb} contentFit="cover" accessibilityIgnoresInvertColors style={StyleSheet.absoluteFill} />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,14,8,0.5)" }]} />
+        </>
+      )}
       <View style={styles.center}>
         <Text style={[styles.initials, { fontSize: Math.round(size * 0.34), lineHeight: Math.round(size * 0.4) }]}>{artistInitials(artist.name)}</Text>
       </View>

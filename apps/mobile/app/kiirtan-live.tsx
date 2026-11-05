@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bell, Copy, ExternalLink, Share2 } from "lucide-react-native"
 
-import { LiveBadge, LiveGlyph, liveTone } from "@/components/kirtan/LiveCard"
+import { LiveBadge, LiveGlyph, LivePhoto, liveTone } from "@/components/kirtan/LiveCard"
 import { LiveEmbed } from "@/components/kirtan/LiveEmbed"
 import { ChevronGlyph } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
@@ -114,6 +114,7 @@ export default function KiirtanLiveScreen() {
           ) : (
             <View style={[styles.zoomHero, { width: boxW, height: boxH }]}>
               <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <LivePhoto item={item} big />
               <View style={styles.zoomGlyph}>
                 <LiveGlyph platform={item.platform} size={44} />
               </View>

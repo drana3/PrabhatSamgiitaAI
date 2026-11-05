@@ -195,7 +195,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
           >
             <View style={styles.cover}>
               {isKiirtan ? (
-                <KiirtanCover type={currentSong.kiirtan?.type} coverUrl={currentSong.thumbnailUrl || null} width={COVER} height={COVER} radius={12} glyph={22} />
+                <KiirtanCover type={currentSong.kiirtan?.type} coverUrl={currentSong.thumbnailUrl || null} width={COVER} height={COVER} radius={12} glyph={22} photoSeed={currentSong.kiirtan?.id ?? String(currentSong.id)} title={currentSong.title} durationSec={currentSong.durationSeconds || null} />
               ) : (
                 <HomeCover number={currentSong.number} size={COVER} radius={12} />
               )}

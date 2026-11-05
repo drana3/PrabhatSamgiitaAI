@@ -361,7 +361,7 @@ export default function KiirtanTabScreen() {
         outerStyle={styles.dayOuter}
         style={styles.day}
       >
-        <KiirtanCover type={kirtan.type} coverUrl={kirtan.thumbnailUrl} width="100%" height={220} radius={30} glyph={96} />
+        <KiirtanCover type={kirtan.type} coverUrl={kirtan.thumbnailUrl} width="100%" height={220} radius={30} glyph={96} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
         <LinearGradient pointerEvents="none" colors={["rgba(10,14,8,0)", "rgba(10,14,8,0.62)"]} style={[StyleSheet.absoluteFill, styles.dayShade]} />
         <View style={styles.dayText} pointerEvents="none">
           <Text style={styles.dayEyebrow}>KIIRTAN OF THE DAY</Text>
@@ -413,7 +413,7 @@ function LongCard({ kirtan, onPress }: { kirtan: Kirtan; onPress: () => void }) 
   return (
     <KPress accessibilityRole="button" accessibilityLabel={`${kirtan.title}, ${formatKirtanLength(kirtan.durationSec ?? 0)}. Play`} onPress={onPress} pressedScale={0.97} style={styles.longCard}>
       <View>
-        <KiirtanCover type={kirtan.type} coverUrl={kirtan.thumbnailUrl} width={200} height={120} radius={22} />
+        <KiirtanCover type={kirtan.type} coverUrl={kirtan.thumbnailUrl} width={200} height={120} radius={22} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
         <View style={styles.longLength}>
           <Text style={styles.longLengthText}>{formatKirtanLength(kirtan.durationSec ?? 0)}</Text>
         </View>

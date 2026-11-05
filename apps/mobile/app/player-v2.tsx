@@ -758,7 +758,7 @@ export default function PlayerV2Screen() {
                 <View collapsable={false} style={styles.coverArea}>
                   <Reveal index={1}>
                     <View style={[styles.coverShadow, { width: coverSize, height: coverSize }]}>
-                      <KiirtanCover type={song.kiirtan?.type} coverUrl={song.thumbnailUrl || null} width={coverSize} height={coverSize} radius={28} />
+                      <KiirtanCover type={song.kiirtan?.type} coverUrl={song.thumbnailUrl || null} width={coverSize} height={coverSize} radius={28} photoSeed={song.kiirtan?.id ?? String(song.id)} title={song.title} durationSec={song.durationSeconds || null} />
                     </View>
                   </Reveal>
                 </View>

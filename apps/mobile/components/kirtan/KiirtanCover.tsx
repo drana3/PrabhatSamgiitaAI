@@ -5,6 +5,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import Svg, { Path } from "react-native-svg"
 
 import { amColors } from "@/constants/tokens/amColors"
+import { moodForText, photoForSeed, type PhotoMood } from "@/lib/photos/catalog"
 
 /**
  * The picture of a Kiirtan: the author's cover when there is one, otherwise a gradient that belongs to
@@ -40,20 +41,34 @@ type Props = {
   radius: number
   /** pixel size of the glyph; derived from the width when it is a number */
   glyph?: number
+  /**
+   * Without an author cover: a stock photo that is the same every time for this seed (the Kiirtan's id),
+   * instead of the gradient. Keep passing `title` / `durationSec` so the mood (morning, night, long...) fits.
+   */
+  photoSeed?: string
+  title?: string
+  durationSec?: number | null
+  photoMood?: PhotoMood
 }
 
-export function KiirtanCover({ type, coverUrl, width, height, aspectRatio, radius, glyph }: Props) {
+export function KiirtanCover({ type, coverUrl, width, height, aspectRatio, radius, glyph, photoSeed, title, durationSec, photoMood }: Props) {
   const [failed, setFailed] = useState(false)
   const [from, to] = kiirtanTone(type)
   const basis = typeof width === "number" ? Math.min(width, height ?? width) : 120
   const size = glyph ?? Math.max(16, Math.round(basis * 0.42))
   const showImage = Boolean(coverUrl) && !failed
+  const photo = photoSeed && !showImage ? photoForSeed(photoSeed, photoMood ?? (title ? moodForText(title, durationSec) : undefined)) : null
+  const photoSource = photo ? (basis <= 240 ? photo.thumb : photo.cover) : null
   return (
     <View style={{ width, height, aspectRatio, borderRadius: radius, overflow: "hidden" }}>
       <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <View style={styles.center}>
-        <WaveGlyph size={size} color="rgba(255,255,255,0.86)" strokeWidth={size > 40 ? 1.6 : 2} />
-      </View>
+      {photoSource ? (
+        <Image source={photoSource} contentFit="cover" accessibilityIgnoresInvertColors style={StyleSheet.absoluteFill} />
+      ) : (
+        <View style={styles.center}>
+          <WaveGlyph size={size} color="rgba(255,255,255,0.86)" strokeWidth={size > 40 ? 1.6 : 2} />
+        </View>
+      )}
       {showImage ? (
         <Image source={{ uri: coverUrl as string }} contentFit="cover" accessibilityIgnoresInvertColors onError={() => setFailed(true)} style={StyleSheet.absoluteFill} />
       ) : null}

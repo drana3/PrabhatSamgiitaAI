@@ -80,14 +80,26 @@ export function KirtanThumb({
   aspectRatio,
   radius,
 }: {
-  kirtan: Pick<Kirtan, "type" | "thumbnailUrl">
+  kirtan: Pick<Kirtan, "id" | "type" | "thumbnailUrl" | "title" | "durationSec">
   width: DimensionValue
   /** give a height or an aspect ratio */
   height?: number
   aspectRatio?: number
   radius: number
 }) {
-  return <KiirtanCover type={kirtan.type} coverUrl={kirtan.thumbnailUrl} width={width} height={height} aspectRatio={aspectRatio} radius={radius} />
+  return (
+    <KiirtanCover
+      type={kirtan.type}
+      coverUrl={kirtan.thumbnailUrl}
+      width={width}
+      height={height}
+      aspectRatio={aspectRatio}
+      radius={radius}
+      photoSeed={kirtan.id}
+      title={kirtan.title}
+      durationSec={kirtan.durationSec}
+    />
+  )
 }
 
 /* --------------------------------------------------------------------- rows */
