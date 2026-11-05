@@ -91,13 +91,14 @@ export default function UnifiedSearchScreen() {
   const top = insets.top || amProto.statusArea
   const navigation = useNavigation()
   const hasSong = usePlayerStore((st) => Boolean(st.currentSong))
-  // Search is a page of the tab it was opened from: the bar stays under it with that tab marked.
-  const underTab = useMemo<NavV2TabId>(() => {
+  // Search is a page of the tab it was opened from: the bar stays under it with that tab marked (none if opened directly).
+  const underTab = useMemo<NavV2TabId | null>(() => {
     const state = navigation.getState()
     const below = state?.routes?.[(state.index ?? 0) - 1]
     const nested = below?.state
     const inner = nested?.routes?.[nested.index ?? 0]?.name
-    return tabIdForRouteName(inner ?? below?.name)
+    // opened directly (a link, a notification) there is no tab below: the bar marks none
+    return tabIdForRouteName(inner ?? below?.name, null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const bottomInset = contentInsetFor(insets.bottom, miniPlayerVisible({ pathname: "/search-v2", hasSong }))

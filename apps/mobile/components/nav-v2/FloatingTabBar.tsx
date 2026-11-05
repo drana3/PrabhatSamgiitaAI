@@ -39,8 +39,8 @@ import { MAX_FONT_SCALE } from "@/constants/fontScale"
 const DRAG_SLOP = 4
 
 type Props = {
-  /** tab that is currently shown */
-  activeId: NavV2TabId
+  /** tab that is currently shown; `null` marks none (a page that belongs to no tab, such as Search opened by a link) */
+  activeId: NavV2TabId | null
   /** called once, on release, with the tab the indicator settled on */
   onSelect: (id: NavV2TabId) => void
   /** optional: the tab that is already active was tapped (a screen that sits on top of a tab uses it to close) */
@@ -64,7 +64,7 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
   const count = tabs.length
-  const activeIndex = tabIndexForId(activeId, tabs)
+  const activeIndex = activeId ? tabIndexForId(activeId, tabs) : 0
   const lightPalette = tabPillPalette(theme, "light")
   const { tabBottom } = navV2Layout(insets.bottom)
 
@@ -75,6 +75,9 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
   const pressed = useSharedValue(0)
   const dragging = useSharedValue(0)
   const grab = useSharedValue(0)
+  /** 1 while a tab is marked: the orange indicator fades out when no tab is active, and in under a touch */
+  const hasActive = useSharedValue(activeId ? 1 : 0)
+  const shown = useSharedValue(activeId ? 1 : 0)
 
   const tabWidth = count > 0 ? trayWidth / count : 0
 
@@ -89,6 +92,11 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
     },
     [count, targetIndex, trayW, x],
   )
+
+  useEffect(() => {
+    hasActive.value = activeId ? 1 : 0
+    shown.value = reduce ? hasActive.value : withSpring(hasActive.value, amSpring.default)
+  }, [activeId, reduce, hasActive, shown])
 
   // The route changed from somewhere else (deep link, back, a button): follow it.
   // A change we caused ourselves on release is already in flight with its velocity.
@@ -117,6 +125,7 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
       if (tw <= 0) return
       const px = event.x - amNav.tabPad
       dragging.value = 0
+      shown.value = reduce ? 1 : withSpring(1, amSpring.default)
       pressed.value = reduce ? 1 : withSpring(1, amSpring.default)
       // touch-down feedback: unless the finger landed on the indicator, head for the touched tab now
       if (px < x.value || px > x.value + tw) {
@@ -164,11 +173,13 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
       // cancelled by the system: put the indicator back where the route says it is
       const tw = trayW.value / count
       dragging.value = 0
+      shown.value = reduce ? hasActive.value : withSpring(hasActive.value, amSpring.default)
       pressed.value = reduce ? 0 : withSpring(0, amSpring.default)
       x.value = reduce ? targetIndex.value * tw : withSpring(targetIndex.value * tw, amSpring.default)
     })
 
   const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: shown.value,
     transform: [{ translateX: x.value }, { scale: 1 - (1 - amNav.pressedScale) * pressed.value }],
   }))
   const insideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -x.value }] }))
@@ -209,7 +220,7 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
                   accessible
                   accessibilityRole="tab"
                   accessibilityLabel={tab.label}
-                  accessibilityState={{ selected: index === activeIndex }}
+                  accessibilityState={{ selected: activeId != null && index === activeIndex }}
                   accessibilityActions={[{ name: "activate" }]}
                   onAccessibilityAction={() => commit(index)}
                 />

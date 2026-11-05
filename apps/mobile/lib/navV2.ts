@@ -156,8 +156,15 @@ export function tabBarVisible(pathname: string, tabs: readonly NavV2Tab[] = NAV_
   return tabs.some((tab) => path === tab.href) || NAV_V2_TAB_BAR_OVERLAY_PATHS.includes(path)
 }
 
-/** The tab a screen that sits on top of the tabs should show as active, from the name of the route under it. */
-export function tabIdForRouteName(name: string | null | undefined, fallback: NavV2TabId = "songs", tabs: readonly NavV2Tab[] = NAV_V2_TABS): NavV2TabId {
+/**
+ * The tab a screen that sits on top of the tabs should show as active, from the name of the route under it.
+ * Pass `null` as the fallback to get `null` when there is no route under it (opened by a link): no tab is marked.
+ */
+export function tabIdForRouteName<F extends NavV2TabId | null = "songs">(
+  name: string | null | undefined,
+  fallback: F = "songs" as F,
+  tabs: readonly NavV2Tab[] = NAV_V2_TABS,
+): NavV2TabId | F {
   if (!name) return fallback
   const bare = name.replace(/\/index$/, "")
   const byScreen = tabs.find((tab) => tab.screen === bare)

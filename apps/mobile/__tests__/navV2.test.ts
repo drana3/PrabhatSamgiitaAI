@@ -155,6 +155,10 @@ describe("nav v2: tab bar and pill position", () => {
     expect(tabIdForRouteName("today")).toBe("today")
     expect(tabIdForRouteName("songs-v2")).toBe("songs")
     expect(tabIdForRouteName(undefined, "today")).toBe("today")
+    // Search opened by a link has no tab under it: with a null fallback no tab is marked
+    expect(tabIdForRouteName(undefined, null)).toBeNull()
+    expect(tabIdForRouteName("something-else", null)).toBeNull()
+    expect(tabIdForRouteName("learn", null)).toBe("learn")
   })
 
   it("content inset clears the tab pill, and the pill above it when one shows", () => {
