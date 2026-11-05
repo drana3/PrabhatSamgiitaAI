@@ -1,10 +1,11 @@
-import { useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, StyleSheet, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { Guitar, Layers, CircleQuestionMark, Piano } from "lucide-react-native"
 
 import {
+  AddSongPill,
   ContinueCard,
   ExploreRow,
   HUB_INSET,
@@ -19,12 +20,15 @@ import {
   WordOfDayRow,
 } from "@/components/learn-v2/LearnHub"
 import { useLearnTopInset } from "@/components/learn-v2/ui"
+import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
 import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { protoFor } from "@/constants/tokens/amToday"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
+import { useLearnSongs } from "@/hooks/useLearnSongs"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useOpenProfileSheet } from "@/components/nav-v2/useOpenProfileSheet"
 import { INDEX_SUMMARY, LEARN_SUGGESTED_NUMBERS, MOCKUP_LEARN, learnSongTitle } from "@/lib/fixtures/learn"
@@ -39,8 +43,8 @@ import {
   wordCardsSubtitle,
 } from "@/lib/learn/hub"
 import { buildLibraryRows, libraryCounts } from "@/lib/learn/library"
-import { nextOpenQuizLevel } from "@/lib/learn/progress"
-import { indexHref, wordsHref } from "@/lib/learn/routes"
+import { nextOpenQuizLevel, type LearningSong } from "@/lib/learn/progress"
+import { LEARN_ROUTES, indexHref, wordsHref } from "@/lib/learn/routes"
 import { dueCardCount, wordsLearnedCount } from "@/lib/learn/srs"
 import { sessionDeck, songNumbersFromIds, wordOfTheDay } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
@@ -73,6 +77,30 @@ export default function LearnScreen() {
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
 
   const go = (path: string) => router.push(href(path))
+
+  // taking a song off the list (the small x on its card): Undo for a few seconds, progress stays saved
+  const songsTheme = useSongsTheme()
+  const learn = useLearnSongs()
+  const [removedNote, setRemovedNote] = useState<{ message: string; song: LearningSong } | null>(null)
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (noteTimer.current) clearTimeout(noteTimer.current)
+  }, [])
+  const removeSong = useCallback(
+    (number: number) => {
+      const song = learn.remove(number)
+      if (!song) return
+      if (noteTimer.current) clearTimeout(noteTimer.current)
+      setRemovedNote({ message: t("learn.add.toast.removed", { number }), song })
+      noteTimer.current = setTimeout(() => setRemovedNote(null), 4000)
+    },
+    [learn, t],
+  )
+  const undoRemove = useCallback(() => {
+    if (!removedNote) return
+    learn.restore(removedNote.song)
+    setRemovedNote(null)
+  }, [learn, removedNote])
 
   const counts = useMemo(
     () => libraryCounts(buildLibraryRows({ songs, paths, cards, words: SAMPLE_LEARN_WORDS, now, mockup: MOCKUP_DATA })),
@@ -151,11 +179,23 @@ export default function LearnScreen() {
             ) : null}
 
             <Reveal index={3} style={styles.section}>
-              <HubSectionHead p={p} eyebrow={t("learn.sect.steps")} first={t("learn.sect.steps.first")} second={t("learn.sect.steps.second")} />
+              <HubSectionHead
+                p={p}
+                eyebrow={t("learn.sect.steps")}
+                first={t("learn.sect.steps.first")}
+                second={t("learn.sect.steps.second")}
+                right={<AddSongPill p={p} onPress={() => go(LEARN_ROUTES.addSong)} />}
+              />
               {shelf.length > 0 || counts.total > 0 ? (
                 <HubShelf>
                   {shelf.map((entry) => (
-                    <SongShelfCard key={entry.songId} p={p} entry={entry} onPress={() => go(`/learn/song/${entry.songId}`)} />
+                    <SongShelfCard
+                      key={entry.songId}
+                      p={p}
+                      entry={entry}
+                      onPress={() => go(`/learn/song/${entry.songId}`)}
+                      onRemove={entry.listed ? () => removeSong(entry.number) : undefined}
+                    />
                   ))}
                   <SeeAllCard p={p} count={counts.total} onPress={() => go(HUB_LINKS.allSongs)} />
                 </HubShelf>
@@ -235,6 +275,11 @@ export default function LearnScreen() {
           </>
         )}
       </ScrollView>
+      <Toast
+        message={removedNote?.message ?? null}
+        theme={songsTheme}
+        action={removedNote ? { label: t("learn.add.undo"), onPress: undoRemove } : null}
+      />
     </View>
   )
 }

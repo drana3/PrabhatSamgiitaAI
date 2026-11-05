@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
-import { ArrowRight, Bell, ChevronRight, Search } from "lucide-react-native"
+import { ArrowRight, Bell, ChevronRight, Plus, Search, X } from "lucide-react-native"
 
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
@@ -120,10 +120,25 @@ export function HubHeading({
 
 /* ----------------------------------------------------------- section head */
 
-/** Eyebrow (gold in dark, orange in light), then the two-tone capitals title. */
-export function HubSectionHead({ p, eyebrow, first, second }: { p: AmProto; eyebrow: string; first: string; second: string }) {
-  return (
-    <View style={s.sectionHead}>
+/**
+ * Eyebrow (gold in dark, orange in light), then the two-tone capitals title. `right` is an optional
+ * control (the "Add a song" pill) at the right end of the head.
+ */
+export function HubSectionHead({
+  p,
+  eyebrow,
+  first,
+  second,
+  right,
+}: {
+  p: AmProto
+  eyebrow: string
+  first: string
+  second: string
+  right?: ReactNode
+}) {
+  const head = (
+    <View style={right ? s.sectionHeadText : s.sectionHead}>
       <Text style={[s.over, { color: p.orange700 }]} numberOfLines={1}>
         {eyebrow}
       </Text>
@@ -133,6 +148,30 @@ export function HubSectionHead({ p, eyebrow, first, second }: { p: AmProto; eyeb
         <Text style={{ color: p.ink300 }}>{second}</Text>
       </Text>
     </View>
+  )
+  if (!right) return head
+  return (
+    <View style={s.sectionHeadRow}>
+      {head}
+      {right}
+    </View>
+  )
+}
+
+/** "+ Add a song": opens the picker. orange700 fill, white text and icon, 44pt high. */
+export function AddSongPill({ p, onPress }: { p: AmProto; onPress: () => void }) {
+  const t = useT()
+  return (
+    <PressBox
+      accessibilityRole="button"
+      accessibilityLabel={t("learn.add.cta.a11y")}
+      onPress={onPress}
+      pressedScale={0.95}
+      style={[s.addPill, { backgroundColor: p.action }]}
+    >
+      <Plus size={20} color={p.onAction} strokeWidth={2.4} />
+      <Text style={[s.addPillText, { color: p.onAction }]}>{t("learn.add.cta")}</Text>
+    </PressBox>
   )
 }
 
@@ -202,43 +241,74 @@ export function ContinueCard({ model, onGo }: { model: Exclude<ContinueModel, { 
 export const SHELF_CARD = 148
 const SHELF_GAP = 12
 
-export function SongShelfCard({ p, entry, onPress }: { p: AmProto; entry: ShelfEntry; onPress: () => void }) {
+export function SongShelfCard({
+  p,
+  entry,
+  onPress,
+  onRemove,
+}: {
+  p: AmProto
+  entry: ShelfEntry
+  onPress: () => void
+  /** only for songs on the learner's list; draws the small "x" and the "Remove" screen-reader action */
+  onRemove?: () => void
+}) {
+  const t = useT()
   useLanguage() // re-render when the language changes: the step line comes from lib/learn/hub
   const bars = songStepBars(entry.path)
   const cover = coverFor(entry.number)
   const line = stepLine(entry.path)
+  const removable = Boolean(onRemove) && entry.listed
   return (
-    <PressBox
-      accessibilityRole="button"
-      accessibilityLabel={`PS ${entry.number}, ${entry.title}. ${line}`}
-      onPress={onPress}
-      pressedScale={PRESS}
-      outerStyle={{ width: SHELF_CARD }}
-    >
-      <View style={[s.pic, { backgroundColor: p.sage900 }]}>
-        <Image
-          source={HOME_COVERS[cover]}
-          contentFit="cover"
-          contentPosition={HOME_COVER_FOCUS[cover]}
-          accessibilityIgnoresInvertColors
-          style={s.picImg}
-        />
-        <View style={s.psChip}>
-          <Text style={s.psChipText}>{`PS ${entry.number}`}</Text>
+    <View style={{ width: SHELF_CARD }}>
+      <PressBox
+        accessibilityRole="button"
+        accessibilityLabel={`PS ${entry.number}, ${entry.title}. ${line}`}
+        accessibilityActions={removable ? [{ name: "remove", label: t("learn.remove.action") }] : undefined}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "remove") onRemove?.()
+        }}
+        onPress={onPress}
+        pressedScale={PRESS}
+        outerStyle={{ width: SHELF_CARD }}
+      >
+        <View style={[s.pic, { backgroundColor: p.sage900 }]}>
+          <Image
+            source={HOME_COVERS[cover]}
+            contentFit="cover"
+            contentPosition={HOME_COVER_FOCUS[cover]}
+            accessibilityIgnoresInvertColors
+            style={s.picImg}
+          />
+          <View style={s.psChip}>
+            <Text style={s.psChipText}>{`PS ${entry.number}`}</Text>
+          </View>
         </View>
-      </View>
-      <Text style={[s.songTitle, { color: p.ink800 }]} numberOfLines={2}>
-        {entry.title}
-      </Text>
-      <View style={s.sBars}>
-        {bars.map((bar) => (
-          <View key={bar.step} style={[s.sBar, { backgroundColor: bar.done ? p.orange500 : p.sand400 }]} />
-        ))}
-      </View>
-      <Text style={[s.songLine, { color: p.ink500 }]} numberOfLines={1}>
-        {line}
-      </Text>
-    </PressBox>
+        <Text style={[s.songTitle, { color: p.ink800 }]} numberOfLines={2}>
+          {entry.title}
+        </Text>
+        <View style={s.sBars}>
+          {bars.map((bar) => (
+            <View key={bar.step} style={[s.sBar, { backgroundColor: bar.done ? p.orange500 : p.sand400 }]} />
+          ))}
+        </View>
+        <Text style={[s.songLine, { color: p.ink500 }]} numberOfLines={1}>
+          {line}
+        </Text>
+      </PressBox>
+      {removable ? (
+        <PressBox
+          accessibilityRole="button"
+          accessibilityLabel={t("learn.remove.a11y", { number: entry.number })}
+          onPress={onRemove}
+          pressedScale={0.88}
+          outerStyle={s.removeHit}
+          style={s.removeDot}
+        >
+          <X size={16} color={amPhotoChip.glass.fg} strokeWidth={2.4} />
+        </PressBox>
+      ) : null}
+    </View>
   )
 }
 
@@ -396,6 +466,12 @@ const s = StyleSheet.create({
   stats: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] },
   statsNum: { fontFamily: amFonts.bold },
   sectionHead: { paddingHorizontal: HUB_INSET, gap: 6 },
+  sectionHeadRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, paddingHorizontal: HUB_INSET },
+  sectionHeadText: { flex: 1, minWidth: 0, gap: 6 },
+  addPill: { height: 44, paddingLeft: 14, paddingRight: 18, borderRadius: 70, flexDirection: "row", alignItems: "center", gap: 6 },
+  addPillText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
+  removeHit: { position: "absolute", right: 0, top: 0, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  removeDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: amPhotoChip.glass.bg, alignItems: "center", justifyContent: "center" },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: em(13, 0.08), textTransform: "uppercase" },
   h2: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: em(30, -0.02), textTransform: "uppercase" },
   cCard: { marginHorizontal: HUB_INSET, backgroundColor: amColors.sage800, borderRadius: 14, padding: 20, gap: 16 },
