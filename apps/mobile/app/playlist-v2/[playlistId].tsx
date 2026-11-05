@@ -77,9 +77,19 @@ export default function PlaylistV2Screen() {
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(playlist?.name ?? "")
 
+  // "looked": the list was asked for and answered, so a missing playlist is "not found", not "still loading"
+  const [looked, setLooked] = useState(false)
+  const [lookAttempt, setLookAttempt] = useState(0)
   useEffect(() => {
-    if (!playlist && !MOCKUP_DATA) void refresh()
-  }, [playlist, refresh])
+    if (playlist || MOCKUP_DATA) return
+    let alive = true
+    void refresh()
+      .catch(() => undefined)
+      .finally(() => alive && setLooked(true))
+    return () => {
+      alive = false
+    }
+  }, [playlist, refresh, lookAttempt])
 
   useEffect(() => {
     if (playlist?.name && !renaming) setName(playlist.name)
@@ -141,7 +151,15 @@ export default function PlaylistV2Screen() {
         text: t("playlist.delete.confirm"),
         style: "destructive",
         onPress: () => {
-          void deletePlaylist(playlistId).then(() => router.back())
+          void deletePlaylist(playlistId).then((result) => {
+            // the screen closes only when the playlist is really gone
+            if ("ok" in result) {
+              if (router.canGoBack()) router.back()
+              else router.replace(href(NAV_V2_HOME_ROUTE))
+              return
+            }
+            Alert.alert(t("playlist.delete"), "error" in result ? result.error : t("playlist.signInDelete"))
+          })
         },
       },
     ])
@@ -171,7 +189,23 @@ export default function PlaylistV2Screen() {
         >
           {!playlist ? (
             <SongsReveal index={next()}>
-              <EmptyNote theme={theme}>{t("playlist.loading")}</EmptyNote>
+              {looked && !syncing ? (
+                <View style={styles.sync}>
+                  <EmptyNote theme={theme}>{t("playlist.missing")}</EmptyNote>
+                  <PillButton
+                    theme={theme}
+                    tone="sand"
+                    label={t("common.tryAgain")}
+                    onPress={() => {
+                      setLooked(false)
+                      setLookAttempt((n) => n + 1)
+                    }}
+                    style={styles.start}
+                  />
+                </View>
+              ) : (
+                <EmptyNote theme={theme}>{t("playlist.loading")}</EmptyNote>
+              )}
             </SongsReveal>
           ) : (
             <>
