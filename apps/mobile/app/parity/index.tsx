@@ -1,5 +1,6 @@
 import { FlatList, StyleSheet, Text, View } from "react-native"
 
+import { DevOnly } from "@/components/admin/AdminGate"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { colors } from "@/constants/colors"
 import { featureParity } from "@/constants/featureParity"
@@ -14,6 +15,14 @@ const statusColor = {
 } as const
 
 export default function ParityScreen() {
+  return (
+    <DevOnly>
+      <ParityList />
+    </DevOnly>
+  )
+}
+
+function ParityList() {
   return (
     <ScreenContainer edges={["top"]} padded={false} title="Website parity">
       <FlatList

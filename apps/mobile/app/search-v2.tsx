@@ -24,7 +24,7 @@ import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchArtists, searchKirtans, type SearchScope } from "@/lib/kirtan/search"
-import { NAV_V2_TABS, contentInsetFor, miniPlayerVisible, tabIdForRouteName, type NavV2TabId } from "@/lib/navV2"
+import { NAV_V2_HOME_ROUTE, NAV_V2_TABS, contentInsetFor, miniPlayerVisible, tabIdForRouteName, type NavV2TabId } from "@/lib/navV2"
 import { authHeadersFromStore } from "@/lib/memberAuth"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useSharedValue as useSharedValueRN } from "react-native-reanimated"
@@ -83,6 +83,8 @@ function canSearchByMeaning(): boolean {
 export default function UnifiedSearchScreen() {
   const t = useT()
   const router = useRouter()
+  // opened by a link or a notification there is nothing to go back to: land on Today
+  const leave = useCallback(() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE))), [router])
   const theme = useAmTheme()
   const p = protoFor(theme)
   const insets = useSafeAreaInsets()
@@ -342,7 +344,7 @@ export default function UnifiedSearchScreen() {
         placeholder={t("search.placeholder")}
       />
       {typing ? (
-        <TodayPress accessibilityRole="button" accessibilityLabel={t("search.close")} onPress={() => router.back()} pressedScale={0.94} style={styles.cancel}>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("search.close")} onPress={leave} pressedScale={0.94} style={styles.cancel}>
           <Text style={[styles.cancelText, { color: p.ink800 }]}>{t("common.cancel")}</Text>
         </TodayPress>
       ) : null}
@@ -369,7 +371,7 @@ export default function UnifiedSearchScreen() {
             listening={listening}
             onAvatar={() => router.push(href("/profile-sheet"))}
             onMic={() => void toggle()}
-            onClose={() => router.back()}
+            onClose={leave}
           />
         )}
         {field}
@@ -427,7 +429,7 @@ export default function UnifiedSearchScreen() {
           const tab = NAV_V2_TABS.find((t) => t.id === id)
           if (tab) router.dismissTo(href(tab.href))
         }}
-        onReselect={() => router.back()}
+        onReselect={leave}
       />
     </Animated.View>
   )

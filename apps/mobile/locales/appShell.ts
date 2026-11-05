@@ -43,6 +43,8 @@ export const appShellEn = {
   "fest.search.text": "No collection is set for this day yet. Search looks for songs by the name of the observance.",
   "fest.search.open": "Search songs",
   "fest.browse": "Browse all collections",
+  "admin.only.title": "Admin only",
+  "admin.only.body": "These tools are for team members with admin access.",
 } as const
 
 /** Plural keys carry the forms of each language (ru has four), so ru and es are checked by the parity test. */
@@ -89,6 +91,8 @@ export const appShellRu: Record<string, string> = {
   "fest.search.text": "Для этого дня подборки пока нет. Поиск ищет песни по названию праздника.",
   "fest.search.open": "Искать песни",
   "fest.browse": "Все подборки",
+  "admin.only.title": "Только для админов",
+  "admin.only.body": "Эти инструменты доступны участникам команды с правами админа.",
 }
 
 export const appShellEs: Record<string, string> = {
@@ -130,4 +134,6 @@ export const appShellEs: Record<string, string> = {
   "fest.search.text": "Aún no hay una colección para este día. La búsqueda encuentra canciones por el nombre de la celebración.",
   "fest.search.open": "Buscar canciones",
   "fest.browse": "Ver todas las colecciones",
+  "admin.only.title": "Solo administradores",
+  "admin.only.body": "Estas herramientas son para miembros del equipo con acceso de administrador.",
 }
