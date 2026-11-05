@@ -7,6 +7,7 @@ import { playerColors } from "@/components/player-v2/playerTokens"
 import { amRadius, amSpace, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFontSize, amFonts, amType } from "@/constants/tokens/amTypography"
 import { formatClock } from "@/lib/playerV2/transportState"
+import { useT } from "@/lib/i18n"
 
 export type EmptyAction = { id: string; title: string; hint?: string; onPress: () => void; disabled?: boolean }
 
@@ -24,6 +25,7 @@ type Props = {
  * random, and the last playlists. Rows are large and answer on touch-down.
  */
 export function EmptyPlayer({ title, continueCard, today, random, playlists }: Props) {
+  const t = useT()
   return (
     <View style={styles.wrap}>
       <Text style={styles.title} accessibilityRole="header">
@@ -32,7 +34,7 @@ export function EmptyPlayer({ title, continueCard, today, random, playlists }: P
       {continueCard ? (
         <TouchButton
           accessibilityRole="button"
-          accessibilityLabel={`Continue: ${continueCard.title}`}
+          accessibilityLabel={t("player.continue.a11y", { title: continueCard.title })}
           onAction={continueCard.onPress}
           containerStyle={styles.hit}
           style={[styles.card, styles.continue]}
@@ -41,12 +43,12 @@ export function EmptyPlayer({ title, continueCard, today, random, playlists }: P
             <Play size={22} color={playerColors.onBrand} fill={playerColors.onBrand} />
           </View>
           <View style={styles.text}>
-            <Text style={styles.eyebrow}>Continue</Text>
+            <Text style={styles.eyebrow}>{t("common.continue")}</Text>
             <Text style={styles.rowTitle} numberOfLines={2}>
               {continueCard.title}
             </Text>
             {continueCard.resumeSeconds != null ? (
-              <Text style={styles.hint}>From {formatClock(continueCard.resumeSeconds)}</Text>
+              <Text style={styles.hint}>{t("player.from", { time: formatClock(continueCard.resumeSeconds) })}</Text>
             ) : null}
           </View>
         </TouchButton>
@@ -57,7 +59,7 @@ export function EmptyPlayer({ title, continueCard, today, random, playlists }: P
 
       {playlists.length ? (
         <View style={styles.playlists}>
-          <Text style={styles.eyebrow}>Your playlists</Text>
+          <Text style={styles.eyebrow}>{t("player.playlists")}</Text>
           {playlists.map((p) => (
             <ActionRow key={p.id} action={p} icon={<ListMusic size={20} color={playerColors.gold} />} />
           ))}

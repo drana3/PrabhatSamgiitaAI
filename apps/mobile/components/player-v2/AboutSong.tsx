@@ -8,6 +8,7 @@ import { playerColors } from "@/components/player-v2/playerTokens"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AboutContent } from "@/lib/playerV2/playerActions"
+import { useT } from "@/lib/i18n"
 
 /** Height of the peek card; the Player keeps this much room for it above the tab pill. */
 export const ABOUT_CARD_HEIGHT = 56
@@ -17,17 +18,18 @@ export const ABOUT_CARD_HEIGHT = 56
  * with the first lines of the story. Tap it and the full text rises as a sheet.
  */
 export function AboutCard({ preview, onOpen }: { preview: string; onOpen: () => void }) {
+  const t = useT()
   return (
     <TouchButton
       accessibilityRole="button"
-      accessibilityLabel={`About this song. ${preview}. Read more`}
+      accessibilityLabel={t("player.about.a11y", { preview })}
       onAction={onOpen}
       pressedScale={0.98}
       containerStyle={styles.hit}
       style={styles.card}
     >
       <View style={styles.text}>
-        <Text style={styles.over}>About this song</Text>
+        <Text style={styles.over}>{t("player.about.title")}</Text>
         <Text style={styles.preview} numberOfLines={1}>
           {preview}
         </Text>
@@ -54,8 +56,9 @@ type SheetProps = {
 
 /** The story of the song in full, with a button to its page (words, chords, story). */
 export function AboutSheet({ visible, theme, songTitle, about, onOpenSong, onClose, showOpenSong = true }: SheetProps) {
+  const t = useT()
   return (
-    <Sheet visible={visible} onClose={onClose} title="About this song" theme={theme}>
+    <Sheet visible={visible} onClose={onClose} title={t("player.about.title")} theme={theme}>
       <Text style={[styles.songTitle, { color: theme.textHeading }]} accessibilityRole="header">
         {songTitle}
       </Text>
@@ -67,7 +70,7 @@ export function AboutSheet({ visible, theme, songTitle, about, onOpenSong, onClo
       ))}
       {showOpenSong ? (
         <View style={styles.cta}>
-          <SheetPill theme={theme} tone="brand" label="Open song page" onPress={onOpenSong} />
+          <SheetPill theme={theme} tone="brand" label={t("player.openSong")} onPress={onOpenSong} />
         </View>
       ) : null}
     </Sheet>

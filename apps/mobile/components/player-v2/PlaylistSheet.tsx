@@ -4,6 +4,7 @@ import { CheckRing, SheetGroup, SheetPill, SheetRow } from "@/components/player-
 import { Sheet } from "@/components/player-v2/Sheet"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 
 export type PlaylistSheetRow = { id: string; name: string; meta: string; has: boolean }
 
@@ -19,8 +20,9 @@ type Props = {
 
 /** "Add to playlist" (prototype PLAYLIST): tick or untick the song in place, or start a new list. */
 export function PlaylistSheet({ visible, theme, songTitle, rows, onToggle, onNew, onClose }: Props) {
+  const t = useT()
   return (
-    <Sheet visible={visible} onClose={onClose} title="Add to playlist" theme={theme}>
+    <Sheet visible={visible} onClose={onClose} title={t("songs.menu.addTo")} theme={theme}>
       <Text style={[styles.song, { color: theme.textBody }]} numberOfLines={2}>
         {songTitle}
       </Text>
@@ -42,7 +44,7 @@ export function PlaylistSheet({ visible, theme, songTitle, rows, onToggle, onNew
         </SheetGroup>
       ) : null}
       <View style={styles.pad}>
-        <SheetPill theme={theme} tone="sand" icon label="New playlist" onPress={onNew} />
+        <SheetPill theme={theme} tone="sand" icon label={t("songs.mine.newPlaylist")} onPress={onNew} />
       </View>
     </Sheet>
   )

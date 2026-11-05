@@ -9,6 +9,7 @@ import { TouchButton } from "@/components/player-v2/TouchButton"
 import { karaokeColors, playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { autoScrollReduce, lineState, wordState, type LineState, type LyricLine } from "@/lib/playerV2/lyricsSync"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   lines: LyricLine[]
@@ -60,6 +61,7 @@ export function LyricsPanel({
   notice,
   demoTag,
 }: Props) {
+  const t = useT()
   const reduce = useReducedMotion()
   const scroll = useRef<ScrollView>(null)
   const tops = useRef<number[]>([])
@@ -137,7 +139,7 @@ export function LyricsPanel({
       {demoTag ? (
         <View style={styles.demoRow}>
           <View style={styles.demoTag}>
-            <Text style={styles.demoTagText}>Demo content</Text>
+            <Text style={styles.demoTagText}>{t("player.demo")}</Text>
           </View>
         </View>
       ) : null}
@@ -164,7 +166,7 @@ export function LyricsPanel({
       {onOptions ? (
         <TouchButton
           accessibilityRole="button"
-          accessibilityLabel="Lyrics display: script, translation, word meanings"
+          accessibilityLabel={t("player.lyrics.a11y")}
           onAction={onOptions}
           containerStyle={styles.optionsHit}
           style={styles.options}

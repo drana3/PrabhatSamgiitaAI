@@ -8,6 +8,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { RepeatMode } from "@/lib/playerV2/controller"
 import type { PlayButtonState } from "@/lib/playerV2/transportState"
+import { t, useT } from "@/lib/i18n"
 
 type Props = {
   playState: PlayButtonState
@@ -22,9 +23,9 @@ type Props = {
 }
 
 const REPEAT_NAME: Record<RepeatMode, string> = {
-  off: "Repeat off",
-  all: "Repeat all in this list",
-  one: "Repeat this song",
+  get off() { return t("player.repeat.off") },
+  get all() { return t("player.repeat.allList") },
+  get one() { return t("player.repeat.thisSong") },
 }
 
 export function PlayGlyph({ state, size }: { state: PlayButtonState; size: number }) {
@@ -34,10 +35,10 @@ export function PlayGlyph({ state, size }: { state: PlayButtonState; size: numbe
 }
 
 export const playButtonLabel: Record<PlayButtonState, string> = {
-  play: "Play",
-  pause: "Pause",
-  spinner: "Loading",
-  error: "Try again",
+  get play() { return t("player.play") },
+  get pause() { return t("player.pause") },
+  get spinner() { return t("player.loading") },
+  get error() { return t("player.tryAgain") },
 }
 
 /**
@@ -46,12 +47,13 @@ export const playButtonLabel: Record<PlayButtonState, string> = {
  * buffers, never a pause icon. Repeat one song carries a small gold "1".
  */
 export function TransportRow(props: Props) {
+  const t = useT()
   const { playState, shuffleOn, repeatMode, canNext } = props
   return (
     <View style={styles.row}>
       <TouchButton
         accessibilityRole="button"
-        accessibilityLabel={shuffleOn ? "Shuffle on" : "Shuffle off"}
+        accessibilityLabel={shuffleOn ? t("player.shuffle.on") : t("player.shuffle.off")}
         accessibilityState={{ selected: shuffleOn }}
         onAction={props.onShuffle}
         style={styles.small}
@@ -59,7 +61,7 @@ export function TransportRow(props: Props) {
         <PlayerIcon name="shuffle" size={playerSize.smallGlyph} color={shuffleOn ? playerColors.gold : playerColors.textSoft} />
       </TouchButton>
 
-      <TouchButton accessibilityRole="button" accessibilityLabel="Previous song" onAction={props.onPrevious} style={styles.skip}>
+      <TouchButton accessibilityRole="button" accessibilityLabel={t("player.prev")} onAction={props.onPrevious} style={styles.skip}>
         <PlayerIcon name="prev" size={playerSize.smallGlyph} color={amColors.white} />
       </TouchButton>
 
@@ -76,7 +78,7 @@ export function TransportRow(props: Props) {
 
       <TouchButton
         accessibilityRole="button"
-        accessibilityLabel="Next song"
+        accessibilityLabel={t("player.next")}
         accessibilityState={{ disabled: !canNext }}
         onAction={canNext ? props.onNext : undefined}
         style={[styles.skip, !canNext && styles.disabled]}

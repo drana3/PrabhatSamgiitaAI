@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /** Sleep timer (PLR-09): 5, 15, 30, 60 minutes, or the end of the song. */
 export const SLEEP_PRESET_MINUTES = [5, 15, 30, 60] as const
 
@@ -51,8 +52,8 @@ export function formatSleepRemaining(ms: number): string {
 }
 
 export function sleepLabel(timer: SleepTimer, now: number): string {
-  if (timer.kind === "off") return "Off"
-  if (timer.kind === "endOfSong") return "End of song"
+  if (timer.kind === "off") return t("common.off")
+  if (timer.kind === "endOfSong") return t("player.sleep.endOfSong")
   return formatSleepRemaining(sleepRemainingMs(timer, now) ?? 0)
 }
 
@@ -65,7 +66,7 @@ export function nextSleepStep(timer: SleepTimer, songNumber: number, now: number
 
 /** Toast text after a step of {@link nextSleepStep}. */
 export function sleepToast(timer: SleepTimer): string {
-  if (timer.kind === "off") return "Sleep timer off"
-  if (timer.kind === "endOfSong") return "Sleep timer: end of song"
-  return `Sleep timer: ${timer.minutes} min`
+  if (timer.kind === "off") return t("player.sleep.toastOff")
+  if (timer.kind === "endOfSong") return t("player.sleep.toastEnd")
+  return t("player.sleep.toastMin", { minutes: timer.minutes })
 }

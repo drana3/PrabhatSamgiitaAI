@@ -9,6 +9,7 @@ import { PressScale } from "@/components/today/motion"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { ActionId, ActionRow } from "@/lib/playerV2/playerActions"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   visible: boolean
@@ -41,9 +42,10 @@ const ICON: Record<Exclude<ActionRow["icon"], "save">, PlayerIconName> = {
  * the app's own Sheet, so it drags down with momentum and a rubber band and lands with a spring.
  */
 export function ActionsSheet({ visible, theme, songNumber, title, subtitle, rows, onAction, onClose }: Props) {
+  const t = useT()
   const cover = coverFor(songNumber)
   return (
-    <Sheet visible={visible} onClose={onClose} title="More" theme={theme}>
+    <Sheet visible={visible} onClose={onClose} title={t("songs.menu.more")} theme={theme}>
       <View style={styles.head}>
         <Image source={cover.source} contentFit="cover" contentPosition={cover.position} style={[styles.cover, { backgroundColor: theme.inner }]} />
         <View style={styles.headText}>

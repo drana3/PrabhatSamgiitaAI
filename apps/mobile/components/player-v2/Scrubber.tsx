@@ -14,6 +14,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { scrubRatio, secondsFromRatio } from "@/lib/playerV2/gesture"
 import { formatClock } from "@/lib/playerV2/transportState"
 import { amSpring } from "@/constants/tokens/amMotion"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   position: number
@@ -31,6 +32,7 @@ const GRAB_RADIUS = 22
  * sent on release, so the audio never stutters under a moving finger.
  */
 function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "duration" | "onSeek">) {
+  const t = useT()
   const width = useSharedValue(0)
   const playRatio = useSharedValue(0)
   const dragRatio = useSharedValue(0)
@@ -98,7 +100,7 @@ function useScrub({ position, duration, onSeek }: Pick<Props, "position" | "dura
   const accessibility = {
     accessible: true,
     accessibilityRole: "adjustable" as const,
-    accessibilityLabel: "Position",
+    accessibilityLabel: t("player.position"),
     accessibilityValue: known ? { min: 0, max: Math.floor(total), now: Math.floor(position) } : undefined,
     accessibilityActions: [{ name: "increment" }, { name: "decrement" }],
     onAccessibilityAction: (e: { nativeEvent: { actionName: string } }) => {

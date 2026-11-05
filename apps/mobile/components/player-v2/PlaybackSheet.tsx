@@ -2,6 +2,7 @@ import { Sheet } from "@/components/player-v2/Sheet"
 import { SheetGroup, SheetRow } from "@/components/player-v2/Rows"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import { clampRate } from "@/lib/playerV2/playbackSpeed"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   visible: boolean
@@ -17,29 +18,30 @@ type Props = {
 
 /** The "more" sheet (prototype MORE): speed, sleep timer and Drive mode; the first two step through their options on each tap. */
 export function PlaybackSheet(props: Props) {
+  const t = useT()
   const { theme } = props
   return (
-    <Sheet visible={props.visible} onClose={props.onClose} title="Playback" theme={theme}>
+    <Sheet visible={props.visible} onClose={props.onClose} title={t("player.act.playback")} theme={theme}>
       <SheetGroup theme={theme}>
         <SheetRow
           theme={theme}
-          title="Speed"
-          meta="Tap to step from 0.5× to 1.5×"
+          title={t("player.speed")}
+          meta={t("player.speed.meta")}
           value={`${clampRate(props.rate).toFixed(2).replace(/0$/, "")}×`}
           onPress={props.onCycleSpeed}
         />
         <SheetRow
           theme={theme}
-          title="Sleep timer"
-          meta="Stops playback after a while"
+          title={t("player.sleep.title")}
+          meta={t("player.sleep.meta")}
           value={props.sleepValue}
           onPress={props.onCycleSleep}
         />
         <SheetRow
           theme={theme}
-          title="Drive mode"
-          meta="Big buttons, lyrics hidden, screen stays on"
-          value="Start"
+          title={t("player.act.drive")}
+          meta={t("player.act.driveMeta")}
+          value={t("player.start")}
           onPress={props.onDrive}
           last
         />

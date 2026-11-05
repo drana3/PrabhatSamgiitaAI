@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /** Pure queue operations (spec SCR-12 item 8, PLR-04). Queues are lists of catalog numbers. */
 
 export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
@@ -102,7 +103,7 @@ export type SourceInput = {
 /** `Playing from <source>` chip text. */
 export function sourceLabel(input: SourceInput): string {
   if (input.override?.trim()) return input.override.trim()
-  if (input.playbackMode === "playlist") return input.playlistName?.trim() || "Playlist"
-  if (input.playbackMode === "random") return "Random"
-  return "All songs"
+  if (input.playbackMode === "playlist") return input.playlistName?.trim() || t("player.playlist")
+  if (input.playbackMode === "random") return t("player.source.random")
+  return t("songs.allSongs")
 }

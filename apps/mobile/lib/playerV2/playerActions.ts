@@ -1,4 +1,5 @@
 import { nextRepeatMode, type RepeatMode } from "@/lib/playerV2/controller"
+import { t } from "@/lib/i18n"
 
 /**
  * The Player's "More" actions sheet, the queue footer and the "About this song" card as plain data
@@ -58,47 +59,52 @@ export type ActionInput = {
 /** The rows of the More sheet, in the order they are drawn. */
 export function buildActionRows(input: ActionInput): ActionRow[] {
   return [
-    { id: "share", label: "Share", icon: "share" },
+    { id: "share", label: t("songs.menu.share"), icon: "share" },
     {
       id: "save",
-      label: input.saved ? "Saved" : "Save to…",
-      meta: input.saved ? "Tap to change where it is saved" : undefined,
+      label: input.saved ? t("songs.menu.saved") : t("songs.menu.saveTo"),
+      meta: input.saved ? t("player.act.savedMeta") : undefined,
       icon: "save",
       active: input.saved,
     },
-    { id: "playlist", label: "Add to playlist", icon: "playlistAdd" },
+    { id: "playlist", label: t("songs.menu.addTo"), icon: "playlistAdd" },
     {
       id: "queue",
-      label: "Add to queue",
-      meta: input.inQueue ? "Already in this queue" : undefined,
+      label: t("songs.menu.addQueue"),
+      meta: input.inQueue ? t("player.act.inQueue") : undefined,
       icon: "queueAdd",
     },
-    { id: "goQueue", label: "Go to queue", icon: "queue" },
-    { id: "source", label: "Play songs from", meta: input.sourceName, icon: "layers" },
-    { id: "songPage", label: "Open song page", meta: "Words, chords and story", icon: "music" },
+    { id: "goQueue", label: t("player.act.goQueue"), icon: "queue" },
+    { id: "source", label: t("player.act.source"), meta: input.sourceName, icon: "layers" },
+    { id: "songPage", label: t("songs.menu.openSong"), meta: t("player.act.songPageMeta"), icon: "music" },
     {
       id: "collection",
-      label: "Go to collection",
-      meta: input.collectionName ?? "All collections",
+      label: t("player.act.collection"),
+      meta: input.collectionName ?? t("player.act.allCollections"),
       icon: "library",
     },
     {
       id: "playback",
-      label: "Playback",
-      meta: `Speed ${input.speedText} · Sleep timer ${input.sleepText}`,
+      label: t("player.act.playback"),
+      meta: t("player.act.playbackMeta", { speed: input.speedText, sleep: input.sleepText }),
       icon: "timer",
     },
-    { id: "drive", label: "Drive mode", meta: "Big buttons, lyrics hidden, screen stays on", icon: "drive" },
-    { id: "report", label: "Report a mistake", icon: "flag" },
+    { id: "drive", label: t("player.act.drive"), meta: t("player.act.driveMeta"), icon: "drive" },
+    { id: "report", label: t("player.act.report"), icon: "flag" },
   ]
 }
 
 /** Toast after "Report a mistake". TODO(api): send the report to the catalog team; nothing leaves the phone yet. */
 export const REPORT_THANKS = "Thanks, we will check it"
 
+/** The same toast in the screen language. */
+export function reportThanks(): string {
+  return t("player.toast.reportThanks")
+}
+
 /** Toast after "Add to queue". */
 export function queueAddMessage(alreadyThere: boolean): string {
-  return alreadyThere ? "Already in the queue" : "Added to the queue"
+  return alreadyThere ? t("player.toast.queueAlready") : t("player.toast.queueAdded")
 }
 
 /** The collection a song belongs to; with several, the smallest (the most specific). */
@@ -124,12 +130,12 @@ export type FooterButton = {
 
 /** "Repeat", and "Repeat One" when one song repeats. */
 export function repeatLabel(mode: RepeatMode): string {
-  return mode === "one" ? "Repeat One" : "Repeat"
+  return mode === "one" ? t("player.repeat.one") : t("player.repeat")
 }
 
 /** Toast and screen-reader text for a repeat mode. */
 export function repeatMessage(mode: RepeatMode, source: string): string {
-  return mode === "off" ? "Repeat off" : mode === "all" ? `Repeat all in ${source}` : "Repeat this song"
+  return mode === "off" ? t("player.repeat.off") : mode === "all" ? t("player.repeat.all", { source }) : t("player.repeat.thisSong")
 }
 
 /** Off, all, one, off (the same cycle as the transport button). */
@@ -140,15 +146,15 @@ export function cycleRepeat(mode: RepeatMode): RepeatMode {
 /** The three buttons under the queue: Shuffle, Repeat, Timer. Orange when on. */
 export function buildQueueFooter(input: { shuffleOn: boolean; repeat: RepeatMode; timerOn: boolean }): FooterButton[] {
   return [
-    { id: "shuffle", label: "Shuffle", active: input.shuffleOn },
+    { id: "shuffle", label: t("player.shuffle"), active: input.shuffleOn },
     { id: "repeat", label: repeatLabel(input.repeat), active: input.repeat !== "off" },
-    { id: "timer", label: "Timer", active: input.timerOn },
+    { id: "timer", label: t("player.timer"), active: input.timerOn },
   ]
 }
 
 /** The line under the playing song while shuffle is on, or null. */
 export function shufflingFromLine(shuffleOn: boolean, source: string): string | null {
-  return shuffleOn ? `Shuffling from: ${source}` : null
+  return shuffleOn ? t("player.shufflingFrom", { source }) : null
 }
 
 /* ---------- About this song ---------- */
@@ -189,8 +195,8 @@ export function aboutContent(song: AboutSource, fallbackCentral?: string | null)
   const central = clean(song.centralIdea) || clean(fallbackCentral)
   const meaning = clean(song.meaning) || clean(song.shortDescription)
   const sections: AboutContent["sections"] = []
-  if (central) sections.push({ heading: "Central idea", text: central })
-  if (meaning && meaning !== central) sections.push({ heading: "Meaning", text: meaning })
+  if (central) sections.push({ heading: t("player.about.central"), text: central })
+  if (meaning && meaning !== central) sections.push({ heading: t("player.about.meaning"), text: meaning })
   if (!sections.length) return null
   return { preview: previewOf(sections[0]!.text), sections }
 }

@@ -2,6 +2,7 @@ import { Radio, SheetGroup, SheetNote, SheetRow } from "@/components/player-v2/R
 import { Sheet } from "@/components/player-v2/Sheet"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import type { SourceKey, SourceRow } from "@/lib/playerV2/sources"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   visible: boolean
@@ -14,8 +15,9 @@ type Props = {
 
 /** "Play songs from" (prototype PLAY FROM): choose the list the player walks through. */
 export function SourceSheet({ visible, theme, rows, activeKey, onPick, onClose }: Props) {
+  const t = useT()
   return (
-    <Sheet visible={visible} onClose={onClose} title="Play songs from" theme={theme}>
+    <Sheet visible={visible} onClose={onClose} title={t("player.src.title")} theme={theme}>
       <SheetGroup theme={theme}>
         {rows.map((row, index) => (
           <SheetRow
@@ -32,7 +34,7 @@ export function SourceSheet({ visible, theme, rows, activeKey, onPick, onClose }
         ))}
       </SheetGroup>
       <SheetNote theme={theme}>
-        The player goes through this list, then repeats it if Repeat is on. Tap Repeat once for the whole list, twice for one song.
+        {t("player.src.note")}
       </SheetNote>
     </Sheet>
   )

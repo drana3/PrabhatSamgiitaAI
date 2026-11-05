@@ -27,6 +27,7 @@ import { queueOrigin } from "@/lib/playerV2/queueOps"
 import { kindLabel } from "@/lib/kirtan/kind"
 import { recordingKindOfNumber, trackLabel, trackTag } from "@/lib/kirtan/track"
 import { formatClock } from "@/lib/playerV2/transportState"
+import { useT } from "@/lib/i18n"
 
 /** `seconds` (when known) replaces the "from Catalog" origin with the song length, as the prototype shows it. */
 export type QueueRow = {
@@ -125,15 +126,16 @@ function EqBar({ delay, playing }: { delay: number; playing: boolean }) {
  * audio are marked and skipped by next/previous.
  */
 export function QueueSheet(props: Props) {
+  const t = useT()
   const { theme, rows, currentNumber } = props
   const { head, upcoming, tail } = useMemo(() => splitQueue(rows, currentNumber), [rows, currentNumber])
   const total = upcoming.length + tail.length
   const shuffleLine = shufflingFromLine(props.footer?.shuffleOn ?? false, props.sourceTitle)
 
   const subLine = (item: QueueRow, playable: boolean) => {
-    const tail = playable ? "" : " · no audio yet"
+    const tail = playable ? "" : ` · ${t("player.queue.noAudio")}`
     if (trackTag(item.number) !== "PS") return `${item.sub ?? (item.seconds ? formatClock(item.seconds) : kindLabel(recordingKindOfNumber(item.number)))}${tail}`
-    return `PS ${item.number} · ${item.seconds != null ? formatClock(item.seconds) : `from ${queueOrigin(item.number, props.savedNumbers)}`}${tail}`
+    return `PS ${item.number} · ${item.seconds != null ? formatClock(item.seconds) : t("player.queue.from", { origin: queueOrigin(item.number, props.savedNumbers) === "Mine" ? t("songs.mine") : t("player.queue.catalog") })}${tail}`
   }
 
   const renderRow = (item: QueueRow, drag: (() => void) | null, isActive: boolean) => {
@@ -152,7 +154,7 @@ export function QueueSheet(props: Props) {
           <View style={[styles.row, isActive && styles.rowActive, !playable && styles.dim]}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${item.title}, ${trackTag(item.number) !== "PS" ? kindLabel(recordingKindOfNumber(item.number)) : `PS ${item.number}`}${playable ? "" : ", no audio yet"}`}
+              accessibilityLabel={`${item.title}, ${trackTag(item.number) !== "PS" ? kindLabel(recordingKindOfNumber(item.number)) : `PS ${item.number}`}${playable ? "" : `, ${t("player.queue.noAudio")}`}`}
               onPress={() => props.onPlay(item.number)}
               style={styles.main}
             >
@@ -166,7 +168,7 @@ export function QueueSheet(props: Props) {
                 {subLine(item, playable)}
               </Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Reorder ${item.title}`} onPressIn={drag ?? undefined} style={styles.handle}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("player.queue.reorder", { title: item.title })} onPressIn={drag ?? undefined} style={styles.handle}>
               <PlayerIcon name="handle" size={20} color={queueColors.handle} />
             </Pressable>
           </View>
@@ -179,7 +181,7 @@ export function QueueSheet(props: Props) {
   )
 
   return (
-    <Sheet visible={props.visible} onClose={props.onClose} title={`Playing from ${props.sourceTitle}`} theme={theme} dark fill={!props.compact}>
+    <Sheet visible={props.visible} onClose={props.onClose} title={t("player.queue.playingFrom", { source: props.sourceTitle })} theme={theme} dark fill={!props.compact}>
       {props.currentNumber != null ? (
         <View style={[styles.row, styles.now]}>
           <Equalizer playing={props.playing} />
@@ -191,7 +193,7 @@ export function QueueSheet(props: Props) {
               <TrackTag number={props.currentNumber} />
             </View>
             <Text style={styles.sub} numberOfLines={1}>
-              {trackLabel(props.currentNumber)} · Now playing
+              {trackLabel(props.currentNumber)} · {t("player.nowPlaying")}
             </Text>
           </View>
         </View>
@@ -208,15 +210,15 @@ export function QueueSheet(props: Props) {
       <View style={styles.headingRow}>
         <View>
           <Text style={styles.heading} accessibilityRole="header">
-            Up next
+            {t("player.queue.upNext")}
           </Text>
           <Text style={[styles.heading, styles.accent]}>
-            {total} {total === 1 ? "track" : "tracks"} in this list
+            {t("player.queue.tracks", { count: total })}
           </Text>
         </View>
         {total > 0 && !props.compact ? (
           <Pressable accessibilityRole="button" onPress={props.onClearUpcoming} style={styles.clear}>
-            <Text style={styles.clearText}>Clear</Text>
+            <Text style={styles.clearText}>{t("common.clear")}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -233,7 +235,7 @@ export function QueueSheet(props: Props) {
           showsVerticalScrollIndicator={false}
         />
       ) : (
-        <Text style={styles.empty}>Nothing is queued after this one.</Text>
+        <Text style={styles.empty}>{t("player.queue.empty")}</Text>
       )}
       {props.footer ? <QueueFooter {...props.footer} /> : null}
     </Sheet>
@@ -253,6 +255,7 @@ function TrackTag({ number }: { number: number }) {
 
 /** Shuffle, Repeat (off, all, one) and Timer: three equal buttons, orange when on. Each answers on touch-down. */
 function QueueFooter({ shuffleOn, repeat, timerOn, onShuffle, onRepeat, onTimer, onShuffleEverything }: NonNullable<Props["footer"]>) {
+  const t = useT()
   const buttons = buildQueueFooter({ shuffleOn, repeat, timerOn })
   const act = { shuffle: onShuffle, repeat: onRepeat, timer: onTimer }
   const icon = { shuffle: "shuffle", repeat: "repeat", timer: "timer" } as const
@@ -261,13 +264,13 @@ function QueueFooter({ shuffleOn, repeat, timerOn, onShuffle, onRepeat, onTimer,
       {onShuffleEverything ? (
         <TouchButton
           accessibilityRole="button"
-          accessibilityLabel="Shuffle everything: all songs and all Kiirtans"
+          accessibilityLabel={t("player.queue.shuffleAll.a11y")}
           onAction={onShuffleEverything}
           containerStyle={styles.everythingHit}
           style={styles.everything}
         >
           <PlayerIcon name="shuffle" size={20} color={amColors.white} />
-          <Text style={styles.footerText}>Shuffle everything</Text>
+          <Text style={styles.footerText}>{t("player.queue.shuffleAll")}</Text>
         </TouchButton>
       ) : null}
     <View style={styles.footer}>

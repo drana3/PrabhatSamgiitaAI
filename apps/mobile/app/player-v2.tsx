@@ -50,7 +50,7 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSaveState } from "@/hooks/useSaveState"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { SAMPLE_GLOSS_LANGUAGES, sampleGloss, sampleTranslationLines } from "@/lib/fixtures/player"
-import { useLanguage } from "@/lib/i18n"
+import { t, useLanguage } from "@/lib/i18n"
 import { storedMeaningForLanguage } from "@/lib/songMap"
 import {
   LYRIC_LANGUAGE_CODES,
@@ -516,18 +516,18 @@ export default function PlayerV2Screen() {
     if (key === "all") {
       const numbers = [...playableNumbersList()]
       const first = startNumber(numbers, current, hasPlayableAudio)
-      if (first == null) return toast.show(sourcePickedMessage("All songs", 0))
+      if (first == null) return toast.show(sourcePickedMessage(t("songs.allSongs"), 0))
       usePlayerStore.setState({ activePlaylist: null })
       usePlayerStore.getState().loadSong(starterSongForNumber(first), numbers, "default")
-      return toast.show(sourcePickedMessage("All songs", numbers.length))
+      return toast.show(sourcePickedMessage(t("songs.allSongs"), numbers.length))
     }
     if (key === "mine") {
       const numbers = [...savedNumbers].sort((a, b) => a - b)
       const first = startNumber(numbers, current, hasPlayableAudio)
-      if (first == null) return toast.show(sourcePickedMessage("Mine", 0))
-      usePlayerStore.setState({ activePlaylist: { id: MINE_SOURCE_ID, name: "Mine" } })
+      if (first == null) return toast.show(sourcePickedMessage(t("songs.mine"), 0))
+      usePlayerStore.setState({ activePlaylist: { id: MINE_SOURCE_ID, name: t("songs.mine") } })
       usePlayerStore.getState().loadSong(starterSongForNumber(first), numbers, "playlist")
-      return toast.show(sourcePickedMessage("Mine", numbers.length))
+      return toast.show(sourcePickedMessage(t("songs.mine"), numbers.length))
     }
     const playlist = playlists.find((p) => `pl:${p.id}` === key)
     if (!playlist) return
@@ -548,7 +548,7 @@ export default function PlayerV2Screen() {
       setSheet(null)
       router.push(href("/signin"))
     } else if (result && typeof result === "object" && "error" in result) {
-      Alert.alert("Playlist", String((result as { error: string }).error))
+      Alert.alert(t("player.playlist"), String((result as { error: string }).error))
     }
   }
   const onTogglePlaylist = (id: string, has: boolean) => {
@@ -573,7 +573,7 @@ export default function PlayerV2Screen() {
     })
   }
 
-  const sleepValue = v2.sleep.kind === "off" ? "Off" : sleepLabel(v2.sleep, now)
+  const sleepValue = v2.sleep.kind === "off" ? t("common.off") : sleepLabel(v2.sleep, now)
 
   // More actions, Share and About this song
   const songTitle = sentenceCaseLine(song?.title ?? "")
@@ -730,7 +730,7 @@ export default function PlayerV2Screen() {
               <View style={styles.topBar}>
                 <TouchButton
                   accessibilityRole="button"
-                  accessibilityLabel="Close the player"
+                  accessibilityLabel={t("player.close")}
                   onAction={closePlayer}
                   style={styles.topButton}
                 >
@@ -893,10 +893,10 @@ export default function PlayerV2Screen() {
                       ring={amColors.orange500}
                       onDark
                     />
-                    <UtilButton label="Queue" onPress={() => setSheet("queue")}>
+                    <UtilButton label={t("player.queue.title")} onPress={() => setSheet("queue")}>
                       <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
-                    <UtilButton label="Share" onPress={() => setSheet("share")}>
+                    <UtilButton label={t("songs.menu.share")} onPress={() => setSheet("share")}>
                       <PlayerIcon name="share" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
                   </View>

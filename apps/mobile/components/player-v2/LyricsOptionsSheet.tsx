@@ -15,6 +15,7 @@ import {
   lyricLanguageName,
 } from "@/lib/songPage/lyricLanguages"
 import type { LyricScript } from "@/stores/playerV2Store"
+import { t, useT } from "@/lib/i18n"
 
 type Props = {
   visible: boolean
@@ -40,7 +41,7 @@ type Page = "main" | "translation" | "words"
 
 /** What a row of the main page shows on the right: the language in its own script, or Off. */
 function valueOf(choice: string): string {
-  return choice === OFF ? "Off" : (lyricLanguage(choice)?.native ?? choice)
+  return choice === OFF ? t("common.off") : (lyricLanguage(choice)?.native ?? choice)
 }
 
 /**
@@ -51,6 +52,7 @@ function valueOf(choice: string): string {
  * that it shows English instead (and offers Request), never another language under the wrong name.
  */
 export function LyricsOptionsSheet(props: Props) {
+  const t = useT()
   const { theme } = props
   const [page, setPage] = useState<Page>("main")
   useEffect(() => {
@@ -74,13 +76,13 @@ export function LyricsOptionsSheet(props: Props) {
       setPage("main")
     }
     return (
-      <Sheet visible={props.visible} onClose={props.onClose} title={isTranslation ? "Translation" : "Word meanings"} theme={theme}>
+      <Sheet visible={props.visible} onClose={props.onClose} title={isTranslation ? t("player.lyrics.translation") : t("player.lyrics.words")} theme={theme}>
         <SheetGroup theme={theme}>
-          <SheetRow theme={theme} title="Back to lyrics display" onPress={() => setPage("main")} />
+          <SheetRow theme={theme} title={t("player.lyrics.back")} onPress={() => setPage("main")} />
           {LYRIC_LANGUAGES.map((language) => {
             const missing = !has(language.code)
             const english = language.native === language.name ? "" : language.name
-            const meta = [english, missing ? "Not available for this song yet" : ""].filter(Boolean).join(" · ")
+            const meta = [english, missing ? t("player.lyrics.missing") : ""].filter(Boolean).join(" · ")
             return (
               <SheetRow
                 key={language.code}
@@ -96,8 +98,8 @@ export function LyricsOptionsSheet(props: Props) {
           })}
           <SheetRow
             theme={theme}
-            title="Off"
-            meta={isTranslation ? "No translation under the lines" : "No gloss under the words"}
+            title={t("common.off")}
+            meta={isTranslation ? t("player.lyrics.noTranslation") : t("player.lyrics.noGloss")}
             accessibilityRole="radio"
             selected={current === OFF}
             trailing={<Radio theme={theme} on={current === OFF} />}
@@ -106,35 +108,35 @@ export function LyricsOptionsSheet(props: Props) {
           />
         </SheetGroup>
         <SheetNote theme={theme}>
-          Your choice is kept for every song. If a song does not have the language yet, it shows English and says so.
+          {t("player.lyrics.kept")}
         </SheetNote>
       </Sheet>
     )
   }
 
   const note: string[] = []
-  if (props.script === "devanagari" && !props.hasDevanagari) note.push("Devanagari is not available for this song yet, so it shows in Roman letters.")
+  if (props.script === "devanagari" && !props.hasDevanagari) note.push(t("player.lyrics.noDeva"))
   return (
-    <Sheet visible={props.visible} onClose={props.onClose} title="Lyrics display" theme={theme}>
+    <Sheet visible={props.visible} onClose={props.onClose} title={t("player.lyrics.title")} theme={theme}>
       <SheetGroup theme={theme}>
         <SheetRow
           theme={theme}
-          title="Script"
-          meta="Roman letters or Devanagari"
-          value={props.script === "devanagari" ? "देवनागरी" : "Roman"}
+          title={t("player.lyrics.script")}
+          meta={t("player.lyrics.scriptMeta")}
+          value={props.script === "devanagari" ? "देवनागरी" : t("songs.script.roman")}
           onPress={props.onCycleScript}
         />
         <SheetRow
           theme={theme}
-          title="Translation"
-          meta="The language shown under each line"
+          title={t("player.lyrics.translation")}
+          meta={t("player.lyrics.translationMeta")}
           value={valueOf(props.translation)}
           onPress={() => setPage("translation")}
         />
         <SheetRow
           theme={theme}
-          title="Word meanings"
-          meta="A short gloss under every word"
+          title={t("player.lyrics.words")}
+          meta={t("player.lyrics.wordsMeta")}
           value={valueOf(props.wordLanguage)}
           onPress={() => setPage("words")}
           last
@@ -145,7 +147,7 @@ export function LyricsOptionsSheet(props: Props) {
         return (
           <View key={gap.kind} style={styles.gap}>
             <Text style={[styles.gapText, { color: theme.textBody }]}>
-              {gap.kind === "translation" ? "Translation" : "Word meanings"}: {gap.text}
+              {gap.kind === "translation" ? t("player.lyrics.translation") : t("player.lyrics.words")}: {gap.text}
             </Text>
             {asked ? (
               <Text style={[styles.requested, { color: theme.textMuted }]}>{REQUESTED_LABEL}</Text>
@@ -161,7 +163,7 @@ export function LyricsOptionsSheet(props: Props) {
         )
       })}
       <SheetNote theme={theme}>
-        These change only what you see in the lyrics panel. The recording does not change.
+        {t("player.lyrics.only")}
         {note.length ? `\n${note.join(" ")}` : ""}
       </SheetNote>
     </Sheet>

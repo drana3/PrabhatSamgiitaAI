@@ -19,6 +19,7 @@ import { amColors, amDarkSurface, type AmTheme } from "@/constants/tokens/amColo
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { rubberBandClamp, settleSnap } from "@/lib/playerV2/gesture"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   visible: boolean
@@ -54,6 +55,7 @@ const PEEK = 64
  * Reduce Motion it cross-fades.
  */
 export function Sheet({ visible, onClose, title, theme, dark, fill, hideDone, children }: Props) {
+  const t = useT()
   const reduce = useReducedMotion()
   const { height: windowHeight } = useWindowDimensions()
   const maxHeight = Math.min(MAX_HEIGHT, windowHeight - PEEK)
@@ -148,7 +150,7 @@ export function Sheet({ visible, onClose, title, theme, dark, fill, hideDone, ch
         <Pressable
           style={StyleSheet.absoluteFill}
           accessibilityRole="button"
-          accessibilityLabel={`Close ${title}`}
+          accessibilityLabel={t("player.sheet.close", { title })}
           onPressIn={onClose}
         />
       </Animated.View>
@@ -177,12 +179,12 @@ export function Sheet({ visible, onClose, title, theme, dark, fill, hideDone, ch
               {hideDone ? null : (
                 <PressScale
                   accessibilityRole="button"
-                  accessibilityLabel="Done"
+                  accessibilityLabel={t("common.done")}
                   onPress={onClose}
                   pressedScale={0.96}
                   style={styles.done}
                 >
-                  <Text style={[styles.doneText, { color: ink }]}>Done</Text>
+                  <Text style={[styles.doneText, { color: ink }]}>{t("common.done")}</Text>
                 </PressScale>
               )}
             </View>

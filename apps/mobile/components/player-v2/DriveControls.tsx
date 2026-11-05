@@ -8,6 +8,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import { amRadius } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { PlayButtonState } from "@/lib/playerV2/transportState"
+import { useT } from "@/lib/i18n"
 
 type Props = {
   playState: PlayButtonState
@@ -24,12 +25,13 @@ type Props = {
  * play/pause is a full-width 96px pill under them, and one pill leaves the mode.
  */
 export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onNext, onExit }: Props) {
+  const t = useT()
   return (
     <View>
       <View style={styles.pair}>
         <TouchButton
           accessibilityRole="button"
-          accessibilityLabel="Previous song"
+          accessibilityLabel={t("player.prev")}
           onAction={onPrevious}
           containerStyle={styles.skipHit}
           style={styles.skip}
@@ -39,7 +41,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
         </TouchButton>
         <TouchButton
           accessibilityRole="button"
-          accessibilityLabel="Next song"
+          accessibilityLabel={t("player.next")}
           accessibilityState={{ disabled: !canNext }}
           onAction={canNext ? onNext : undefined}
           containerStyle={styles.skipHit}
@@ -52,7 +54,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
 
       <TouchButton
         accessibilityRole="button"
-        accessibilityLabel={playState === "pause" ? "Pause" : playState === "spinner" ? "Loading" : "Play"}
+        accessibilityLabel={playState === "pause" ? t("player.pause") : playState === "spinner" ? t("player.loading") : t("player.play")}
         onAction={onPlayPause}
         pressedScale={0.985}
         containerStyle={styles.playHit}
@@ -67,14 +69,14 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
 
       <TouchButton
         accessibilityRole="button"
-        accessibilityLabel="Drive mode on. Leave Drive mode"
+        accessibilityLabel={t("player.drive.exit.a11y")}
         onAction={onExit}
         containerStyle={styles.exitHit}
         style={styles.exit}
       >
         <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
         <PlayerIcon name="drive" size={18} color={playerColors.gold} />
-        <Text style={styles.exitText}>Drive mode on. Tap to leave</Text>
+        <Text style={styles.exitText}>{t("player.drive.exit")}</Text>
       </TouchButton>
     </View>
   )
