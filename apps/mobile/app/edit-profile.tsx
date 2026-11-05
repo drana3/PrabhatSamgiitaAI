@@ -3,6 +3,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleShe
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, topInset } from "@/components/account/AccountUi"
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { ConfirmSheet, type ConfirmRequest } from "@/components/profile-v2/ConfirmSheet"
@@ -133,7 +134,7 @@ export default function EditProfileScreen() {
     <RevealClock.Provider value={openedAt}>
       <View style={[styles.root, { backgroundColor: theme.page }]}>
         <AccountBar theme={theme} title={t("account.edit.title")} onBack={back} inset={inset} />
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior={keyboardBehavior(Platform.OS)}>
           <ScrollView
             style={styles.flex}
             contentContainerStyle={styles.content}

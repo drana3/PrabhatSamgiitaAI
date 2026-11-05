@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, 
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
 import { AppleMark, FacebookMark, GoogleMark, MicrosoftMark } from "@/components/account/BrandMarks"
 import { PhoneField } from "@/components/account/PhoneField"
@@ -193,7 +194,7 @@ export default function SignInScreen() {
     <RevealClock.Provider value={openedAt}>
       <View style={[styles.root, { backgroundColor: theme.page }]}>
         <AccountBar theme={theme} title={t("account.signIn.title")} onBack={goBack} inset={inset} />
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior={keyboardBehavior(Platform.OS)}>
           <ScrollView
             ref={scrollRef}
             style={styles.flex}

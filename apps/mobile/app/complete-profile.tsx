@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
 import { PhoneField, phoneError } from "@/components/account/PhoneField"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
@@ -93,7 +94,7 @@ export default function CompleteProfileScreen() {
     <RevealClock.Provider value={openedAt}>
       <View style={[styles.root, { backgroundColor: theme.page }]}>
         <AccountBar theme={theme} title={title} onBack={() => (router.canGoBack() ? router.back() : leave())} inset={inset} />
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior={keyboardBehavior(Platform.OS)}>
           <ScrollView
             style={styles.flex}
             contentContainerStyle={styles.content}

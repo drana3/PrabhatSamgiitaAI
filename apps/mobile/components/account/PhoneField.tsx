@@ -116,7 +116,7 @@ function CountrySheet({
 }) {
   const t = useT()
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" transparent statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
       <View style={s.backdrop}>
         <Press accessibilityLabel={t("account.phone.closeList")} onPress={onClose} outerStyle={StyleSheet.absoluteFill} pressedScale={1} style={StyleSheet.absoluteFill} />
         <SafeAreaView edges={["bottom"]} style={[s.sheet, { backgroundColor: theme.page }]}>

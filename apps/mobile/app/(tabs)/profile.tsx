@@ -489,6 +489,8 @@ export default function ProfileScreen() {
       <Modal
         visible={editingName}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="fade"
         onRequestClose={() => setEditingName(false)}
       >

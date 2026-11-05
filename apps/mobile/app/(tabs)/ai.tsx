@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import * as Clipboard from "expo-clipboard"
 import Markdown from "react-native-markdown-display"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AIComposer } from "@/components/ai/AIComposer"
 import { AIWelcomeCard, SuggestionRow } from "@/components/ai/AIWelcomeCard"
 import { IconButton } from "@/components/common/IconButton"
@@ -303,7 +304,7 @@ export default function AIScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={keyboardBehavior(Platform.OS)}
         keyboardVerticalOffset={8}
       >
         <View style={styles.header}>
@@ -459,6 +460,8 @@ export default function AIScreen() {
         visible={historyOpen}
         animationType="slide"
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setHistoryOpen(false)}
       >
         <Pressable style={styles.sheetBackdrop} onPress={() => setHistoryOpen(false)}>

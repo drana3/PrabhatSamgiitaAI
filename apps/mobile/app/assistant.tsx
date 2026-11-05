@@ -12,6 +12,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AskComposer } from "@/components/assistant-v2/AskComposer"
 import { AskHeading, AskTopBar, GroundingStrip } from "@/components/assistant-v2/AskHeader"
 import {
@@ -153,7 +154,7 @@ export default function AssistantScreen() {
       />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={keyboardBehavior(Platform.OS)}
       >
         <View style={styles.pad}>
           <AskTopBar

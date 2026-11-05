@@ -12,6 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { FieldLabel, KindPicker, SongPicker, TextBox } from "@/components/feedback/FeedbackParts"
 import { SpIcon } from "@/components/song-v2/SpIcon"
 import { SpRound } from "@/components/song-v2/SpUi"
@@ -262,7 +263,7 @@ export default function FeedbackScreen() {
 
   return (
     <RevealClock.Provider value={openedAt}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.root, { backgroundColor: theme.page }]}>
+      <KeyboardAvoidingView behavior={keyboardBehavior(Platform.OS)} style={[styles.root, { backgroundColor: theme.page }]}>
         <View style={{ paddingTop: inset }}>
           <SongsReveal index={0}>
             <View style={styles.titleRow}>
