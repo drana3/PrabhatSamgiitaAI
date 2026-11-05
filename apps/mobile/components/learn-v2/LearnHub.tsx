@@ -160,7 +160,7 @@ export function ContinueCard({ model, onGo }: { model: Exclude<ContinueModel, { 
   const bars = songStepBars(path)
   const next = isContinue ? model.step : null
   const eyebrow = isContinue ? "Continue" : model.first ? "Start your first song" : "Start your next song"
-  const line = isContinue ? stepLine(path) : "Hear it, learn its words, play it"
+  const line = isContinue ? stepLine(path) : "3 steps: hear, words, play"
   const label = isContinue ? "Go" : "Start"
   return (
     <View style={s.cCard}>
