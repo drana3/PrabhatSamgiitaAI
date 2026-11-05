@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react"
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
-import { BlurView } from "expo-blur"
+import { Frost } from "@/components/common/Frost"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   cancelAnimation,
@@ -168,12 +169,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
     >
       <GestureDetector gesture={drag}>
         <View style={[styles.pill, { backgroundColor: palette.background, borderColor: palette.edge }]} collapsable={false}>
-          <BlurView
-            intensity={amNav.miniBlurIntensity}
-            tint={blurTint}
-            experimentalBlurMethod="dimezisBlurView"
-            style={[StyleSheet.absoluteFill, styles.blur]}
-          />
+          <Frost intensity={amNav.miniBlurIntensity} tint={blurTint} style={[StyleSheet.absoluteFill, styles.blur]} />
           <View pointerEvents="none" style={[styles.highlight, { backgroundColor: palette.highlight }]} />
           <View style={styles.mainSlot}>
           <PressScale
@@ -191,10 +187,10 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
               )}
             </View>
             <View style={styles.text}>
-              <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
                 {currentSong.title}
               </Text>
-              <Text style={[styles.sub, { color: theme.textBody }]} numberOfLines={1}>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.sub, { color: theme.textBody }]} numberOfLines={1}>
                 {withKindWord(miniSubtitle({ number: currentSong.number, position, duration, kind: isKiirtan ? "kiirtan" : "song" }), currentSong.kiirtan?.recording)}
               </Text>
             </View>

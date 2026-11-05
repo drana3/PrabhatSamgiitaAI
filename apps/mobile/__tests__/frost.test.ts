@@ -27,6 +27,8 @@ describe("frost fallback (Android has no cheap backdrop blur)", () => {
       "components/player-v2/VersionControls.tsx",
       "components/player-v2/DriveControls.tsx",
       "components/nav-v2/FloatingTabBar.tsx",
+      "components/nav-v2/MiniPlayerPill.tsx",
+      "components/today/TodayPrototypeScreen.tsx",
     ]) {
       const source = readFileSync(path.resolve(__dirname, "..", file), "utf8")
       expect(source, file).toContain("<Frost")

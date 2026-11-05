@@ -14,6 +14,7 @@ const FIXED_HEIGHT_SURFACES = [
   "components/songs-v2/FastScrollRail.tsx",
   "components/nav-v2/FloatingTabBar.tsx",
   "components/nav-v2/StickyChips.tsx",
+  "components/nav-v2/MiniPlayerPill.tsx",
 ]
 
 describe("font scale cap on fixed-height surfaces", () => {

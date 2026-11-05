@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Platform, StyleSheet, Text, View, useWindowDimensions } from "react-native"
-import { BlurView } from "expo-blur"
+import { Frost } from "@/components/common/Frost"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -317,7 +317,7 @@ export default function TodayScreen() {
 
         <View style={styles.sticky}>
           <Animated.View pointerEvents="none" style={[styles.stickyBack, stuckStyle]}>
-            <BlurView intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+            <Frost intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
             <View style={[StyleSheet.absoluteFill, { backgroundColor: p.dark ? "rgba(18, 17, 16, 0.95)" : "rgba(238, 233, 229, 0.95)" }]} />
           </Animated.View>
           <Reveal index={1}>
