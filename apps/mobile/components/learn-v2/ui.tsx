@@ -170,6 +170,7 @@ export function Pill({
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       onPress={onPress}
+      hitSlop={small ? { top: 4, bottom: 4 } : undefined}
       pressedScale={0.98}
       outerStyle={[go && styles.go, full && styles.full, style]}
       style={[
@@ -213,6 +214,7 @@ export function Chip({
       accessibilityLabel={label}
       accessibilityState={{ checked: on, selected: on }}
       onPress={onPress}
+      hitSlop={small ? { top: 4, bottom: 4 } : undefined}
       pressedScale={0.97}
       style={[
         styles.chip,

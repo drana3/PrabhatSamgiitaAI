@@ -153,6 +153,7 @@ export function Chip({ p, label, on, onPress, compact = true }: ChipProps) {
       accessibilityState={{ selected: on }}
       accessibilityLabel={label}
       onPress={onPress}
+      hitSlop={compact ? { top: 4, bottom: 4 } : undefined}
       pressedScale={0.97}
       style={[
         s.chip,

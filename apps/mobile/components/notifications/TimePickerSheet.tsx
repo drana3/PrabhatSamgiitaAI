@@ -188,13 +188,13 @@ const s = StyleSheet.create({
   band: { position: "absolute", left: 10, right: 10, top: (WHEEL_HEIGHT - WHEEL_ITEM) / 2, height: WHEEL_ITEM, borderRadius: 14, opacity: 0.7 },
   colon: { fontFamily: amFonts.semi, fontSize: 30, lineHeight: 36, marginBottom: 4 },
   ampm: { gap: 8, marginLeft: 12 },
-  ampmChip: { width: 64, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  ampmChip: { width: 64, minHeight: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   ampmText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   warn: { paddingHorizontal: 20, paddingTop: 12, fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19 },
   remove: {
     marginHorizontal: 20,
     marginTop: 16,
-    height: 48,
+    minHeight: 48,
     borderRadius: 24,
     borderWidth: 1,
     flexDirection: "row",
@@ -204,6 +204,6 @@ const s = StyleSheet.create({
   },
   removeText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   buttons: { flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingTop: 16 },
-  button: { flex: 1, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  button: { flex: 1, minHeight: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   buttonText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
 })

@@ -791,6 +791,7 @@ export default function PlayerV2Screen() {
                             accessibilityRole="link"
                             accessibilityLabel={`Open the artist page of ${artist.name}`}
                             onAction={openArtist}
+                            hitSlop={{ top: 8, bottom: 8 }}
                             pressedScale={0.97}
                             style={styles.artistLink}
                           >

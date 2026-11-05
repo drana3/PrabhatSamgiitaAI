@@ -175,6 +175,7 @@ export function LyricsPanel({
           accessibilityRole="button"
           accessibilityLabel={t("player.lyrics.a11y")}
           onAction={onOptions}
+          hitSlop={4}
           containerStyle={styles.optionsHit}
           style={styles.options}
         >

@@ -58,17 +58,18 @@ type PressScaleProps = Omit<PressableProps, "style"> & {
  */
 export function PressScale({ style, pressedScale = 0.97, children, ...rest }: PressScaleProps) {
   const scale = useSharedValue(1)
+  const reduce = useReducedMotion()
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
   return (
     <Pressable
       {...rest}
       onPressIn={(event) => {
-        scale.value = withSpring(pressedScale, amSpring.default)
+        scale.value = reduce ? 1 : withSpring(pressedScale, amSpring.default)
         rest.onPressIn?.(event)
       }}
       onPressOut={(event) => {
-        scale.value = withSpring(1, amSpring.default)
+        scale.value = reduce ? 1 : withSpring(1, amSpring.default)
         rest.onPressOut?.(event)
       }}
     >

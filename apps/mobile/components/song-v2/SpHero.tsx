@@ -119,6 +119,7 @@ export function SpHeroText({
           onPress={onPerformer}
           accessibilityLabel={`Performer ${performer}. Show the versions`}
           style={styles.perfHit}
+          hitSlop={{ top: 8, bottom: 8 }}
         >
           <Text style={[styles.performer, { color: t.ink900 }]} numberOfLines={1}>
             {performer}
@@ -126,7 +127,7 @@ export function SpHeroText({
         </SpPress>
       ) : null}
       {meta ? (
-        <SpPress onPress={onMeta} accessibilityLabel={`${meta}. Show the versions`} style={styles.metaHit}>
+        <SpPress onPress={onMeta} accessibilityLabel={`${meta}. Show the versions`} style={styles.metaHit} hitSlop={{ top: 10, bottom: 10 }}>
           <Text style={[styles.meta, { color: t.ink500, fontVariant: ["tabular-nums"] }]} numberOfLines={1}>
             {meta}
           </Text>

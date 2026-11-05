@@ -368,7 +368,7 @@ const s = StyleSheet.create({
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   cardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   cardText: { flex: 1, minWidth: 0, gap: 2 },
-  cardButton: { height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  cardButton: { minHeight: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   cardButtonText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   footer: { gap: 6, paddingHorizontal: 10 },
 })

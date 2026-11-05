@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react"
 import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from "react-native"
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated"
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, useReducedMotion } from "react-native-reanimated"
 
 import { amSpring } from "@/constants/tokens/amMotion"
 
@@ -34,6 +34,7 @@ export function TouchButton({
   const action = useRef(onAction)
   action.current = onAction
   const scale = useSharedValue(1)
+  const reduce = useReducedMotion()
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
   return (
@@ -41,12 +42,12 @@ export function TouchButton({
       {...rest}
       style={containerStyle}
       onPressIn={() => {
-        scale.value = withSpring(pressedScale, amSpring.default)
+        scale.value = reduce ? 1 : withSpring(pressedScale, amSpring.default)
         firedByTouch.current = true
         action.current?.()
       }}
       onPressOut={() => {
-        scale.value = withSpring(1, amSpring.default)
+        scale.value = reduce ? 1 : withSpring(1, amSpring.default)
       }}
       onPress={() => {
         if (firedByTouch.current) {

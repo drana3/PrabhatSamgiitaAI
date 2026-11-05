@@ -32,6 +32,7 @@ export function SpPress({
   accessibilityLabel,
   accessibilityState,
   accessibilityRole = "button",
+  hitSlop,
   testID,
 }: {
   style?: StyleProp<ViewStyle>
@@ -43,6 +44,7 @@ export function SpPress({
   accessibilityLabel?: string
   accessibilityState?: { selected?: boolean; checked?: boolean; disabled?: boolean }
   accessibilityRole?: "button" | "tab" | "radio" | "checkbox" | "link"
+  hitSlop?: number | { top?: number; bottom?: number; left?: number; right?: number }
   testID?: string
 }) {
   const scale = useSharedValue(1)
@@ -55,6 +57,7 @@ export function SpPress({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
       disabled={disabled}
+      hitSlop={hitSlop}
       onPress={onPress}
       onLongPress={onLongPress}
       onPressIn={() => {

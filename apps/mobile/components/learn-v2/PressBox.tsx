@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from "react-native"
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated"
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, useReducedMotion } from "react-native-reanimated"
 
 import { amSpring } from "@/constants/tokens/amMotion"
 
@@ -20,17 +20,18 @@ type Props = Omit<PressableProps, "style" | "children"> & {
  */
 export function PressBox({ outerStyle, style, pressedScale = 0.97, children, ...rest }: Props) {
   const scale = useSharedValue(1)
+  const reduce = useReducedMotion()
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
   return (
     <Pressable
       {...rest}
       style={outerStyle}
       onPressIn={(event) => {
-        scale.value = withSpring(pressedScale, amSpring.default)
+        scale.value = reduce ? 1 : withSpring(pressedScale, amSpring.default)
         rest.onPressIn?.(event)
       }}
       onPressOut={(event) => {
-        scale.value = withSpring(1, amSpring.default)
+        scale.value = reduce ? 1 : withSpring(1, amSpring.default)
         rest.onPressOut?.(event)
       }}
     >
