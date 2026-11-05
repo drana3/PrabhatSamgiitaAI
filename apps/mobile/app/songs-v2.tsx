@@ -214,7 +214,7 @@ function PsSongs() {
           empty,
           resetKey: `${sort}|${chip}`,
         }}
-        shelf={<CollectionsShelf theme={theme} collections={shelfCollections} onOpen={openCollection} onOpenAll={() => router.push(href("/songs-v2-index"))} />}
+        shelf={<CollectionsShelf theme={theme} collections={shelfCollections} onOpen={openCollection} onOpenAll={() => router.push(href("/collections-v2"))} />}
         body={
           <MineSegment
             theme={theme}

@@ -5,6 +5,7 @@ import {
   Download,
   EyeOff,
   ListEnd,
+  ListMinus,
   ListPlus,
   ListStart,
   Music2,
@@ -22,6 +23,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
 import { LIST_SORTS, type DownloadAllState, type ListSortKey } from "@/lib/songsV2/listPage"
+import { removeFooter, removeRowLabel, type RowRemoval } from "@/lib/songsV2/rowMenu"
 
 const ICON = 24
 const STROKE = 1.75
@@ -38,6 +40,8 @@ type SongMenuProps = {
   saved: boolean
   download: DownloadAllState
   playlists: readonly MenuPlaylist[]
+  /** what the last row does: hide from a catalogue list, or remove from the listener's own playlist */
+  removal: RowRemoval
   onPlayNext: (entry: CatalogEntry) => void
   onQueue: (entry: CatalogEntry) => void
   onToggleSave: (entry: CatalogEntry) => void
@@ -46,14 +50,15 @@ type SongMenuProps = {
   onShare: (entry: CatalogEntry) => void
   onOpenSong: (entry: CatalogEntry) => void
   onToggleDownload: (entry: CatalogEntry) => void
-  onHide: (entry: CatalogEntry) => void
+  onRemove: (entry: CatalogEntry) => void
   onClose: () => void
 }
 
 /**
  * The menu of a song row (the three dots, or a 500ms press): the song on top, then one 52px row
  * per action, in the look of the Player's More sheet. "Add to playlist" opens a second view in the
- * same sheet; every other row acts and closes.
+ * same sheet; every other row acts and closes. The last row depends on the list: "Hide from this list"
+ * (private, on this phone, with a footer line saying so) or, in the listener's own playlist, "Remove from this playlist".
  */
 export function SongMenuSheet(props: SongMenuProps) {
   const { open, theme, entry, listName, saved, download, playlists } = props
@@ -128,7 +133,21 @@ export function SongMenuSheet(props: SongMenuProps) {
             disabled={download === "downloading"}
             onPress={act(props.onToggleDownload)}
           />
-          <Row theme={theme} label="Hide from this list" icon={<EyeOff size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onHide)} />
+          <Row
+            theme={theme}
+            label={removeRowLabel(props.removal)}
+            icon={
+              props.removal.kind === "playlist" ? (
+                <ListMinus size={ICON} strokeWidth={STROKE} color={theme.textHeading} />
+              ) : (
+                <EyeOff size={ICON} strokeWidth={STROKE} color={theme.textHeading} />
+              )
+            }
+            onPress={act(props.onRemove)}
+          />
+          {removeFooter(props.removal) ? (
+            <Text style={[styles.footer, { color: theme.textBody }]}>{removeFooter(props.removal)}</Text>
+          ) : null}
         </View>
       ) : (
         <View>
@@ -309,6 +328,7 @@ const styles = StyleSheet.create({
   headText: { flex: 1, minWidth: 0, gap: 2 },
   headTitle: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22 },
   headSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  footer: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
   rule: { height: StyleSheet.hairlineWidth, marginHorizontal: 20, marginBottom: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 16, minHeight: 52, paddingVertical: 8, paddingHorizontal: 20 },
   rowIcon: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },

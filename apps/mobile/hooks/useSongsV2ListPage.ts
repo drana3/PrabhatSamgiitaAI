@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { useRouter } from "expo-router"
 
 import type { MenuPlaylist } from "@/components/songs-v2/ListSheets"
+import type { ToastAction } from "@/components/songs-v2/Toast"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { MOCK_PLAYLISTS, MOCK_RECENT, mockCategoryNumbers } from "@/lib/fixtures/songsMock"
@@ -35,6 +36,7 @@ import {
 } from "@/lib/songsV2/listPage"
 import { useSongsListState } from "@/lib/songsV2/listState"
 import { queueToast } from "@/lib/songsV2/playAll"
+import { UNDO_MS, hiddenToast, removedToast, rowRemoval } from "@/lib/songsV2/rowMenu"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -51,9 +53,22 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   const [chip, setChip] = useState("all")
   const [sort, setSort] = useState<ListSortKey>(DEFAULT_LIST_SORT)
   const [toast, setToast] = useState<string | null>(null)
-  const flash = useCallback((message: string) => {
+  const [toastAction, setToastAction] = useState<ToastAction | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** A short message; with `action` (Undo) it stays `ms` (5 s) and shows the action. A newer message replaces it. */
+  const flash = useCallback((message: string, action?: ToastAction, ms = 2200) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
     setToast(message)
-    setTimeout(() => setToast((current) => (current === message ? null : current)), 2200)
+    setToastAction(action ?? null)
+    toastTimer.current = setTimeout(() => {
+      setToast(null)
+      setToastAction(null)
+    }, ms)
+  }, [])
+  const dismissToast = useCallback(() => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToast(null)
+    setToastAction(null)
   }, [])
 
   /* ---- what the listener has */
@@ -312,12 +327,52 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     [flash, reportPlaylistFailure],
   )
 
+  const removal = useMemo(() => rowRemoval(listId), [listId])
+
+  /** Catalogue and system lists: hide the song from this list on this phone only (nothing is deleted). */
   const hide = useCallback(
     (entry: CatalogEntry) => {
       useSongsListState.getState().hide(listId, entry.number)
-      flash(`Hidden from ${listName}`)
+      flash(hiddenToast(listName))
     },
     [listId, listName, flash],
+  )
+
+  /** Own playlist: really remove the song through the playlist store; Undo puts it back for 5 s. */
+  const removeFromPlaylist = useCallback(
+    (entry: CatalogEntry) => {
+      if (removal.kind !== "playlist") return
+      const { playlistId } = removal
+      const store = usePlaylistStore.getState()
+      void store.removeSong(playlistId, entry.number).then((result) => {
+        if (!isPlaylist(result)) return reportPlaylistFailure(result)
+        flash(
+          removedToast(listName),
+          {
+            label: "Undo",
+            onPress: () => {
+              dismissToast()
+              void usePlaylistStore
+                .getState()
+                .addSong(playlistId, entry.number)
+                .then((back) => {
+                  if (!isPlaylist(back)) return reportPlaylistFailure(back)
+                  void usePlaylistStore.getState().flushSync()
+                })
+            },
+          },
+          UNDO_MS,
+        )
+        void usePlaylistStore.getState().flushSync()
+      })
+    },
+    [removal, listName, flash, dismissToast, reportPlaylistFailure],
+  )
+
+  /** The last row of the song menu: hides or removes, by the kind of list. */
+  const removeRow = useCallback(
+    (entry: CatalogEntry) => (removal.kind === "playlist" ? removeFromPlaylist(entry) : hide(entry)),
+    [removal, removeFromPlaylist, hide],
   )
   const showHidden = useCallback(() => {
     useSongsListState.getState().unhideAll(listId)
@@ -328,6 +383,8 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
 
   return {
     toast,
+    toastAction,
+    removal,
     chips,
     chip: activeChip,
     setChip,
@@ -362,6 +419,8 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     togglePlaylist,
     newPlaylist,
     hide,
+    removeFromPlaylist,
+    removeRow,
     showHidden,
   }
 }

@@ -14,6 +14,7 @@ import {
   ROW_HEIGHT,
   SongListRow,
 } from "@/components/songs-v2/ListParts"
+import { HiddenLine } from "@/components/songs-v2/HiddenLine"
 import { ListMenuSheet, ListSortSheet, SongMenuSheet } from "@/components/songs-v2/ListSheets"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { SP_BAR_CONTENT, SpStickyBar } from "@/components/song-v2/SpStickyBar"
@@ -126,6 +127,7 @@ export function SongsListPage({
           <ListHeader theme={theme} title={title} meta={list.meta} cover={cover} />
         </View>
       </SongsReveal>
+      <HiddenLine theme={theme} count={list.hiddenCount} onShow={list.showHidden} />
       <SongsReveal index={2}>
         <ActionBar
           theme={theme}
@@ -208,7 +210,8 @@ export function SongsListPage({
           onShare={list.share}
           onOpenSong={list.open}
           onToggleDownload={list.toggleDownload}
-          onHide={list.hide}
+          removal={list.removal}
+          onRemove={list.removeRow}
           onClose={closeMenu}
         />
         <ListSortSheet
@@ -232,7 +235,7 @@ export function SongsListPage({
           onShowHidden={list.showHidden}
           onClose={() => setListMenuOpen(false)}
         />
-        <Toast message={list.toast} theme={theme} />
+        <Toast message={list.toast} action={list.toastAction} theme={theme} />
       </View>
     </RevealClock.Provider>
   )

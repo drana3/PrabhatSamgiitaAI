@@ -4,15 +4,19 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PlayGlyph } from "@/components/songs-v2/Glyphs"
+import { SongMenuSheet } from "@/components/songs-v2/ListSheets"
 import { PillButton } from "@/components/songs-v2/Pill"
 import { PlaylistSongRow } from "@/components/songs-v2/PlaylistSongRow"
 import { Press } from "@/components/songs-v2/Press"
 import { EmptyNote, overStyle } from "@/components/songs-v2/primitives"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { BackHeader } from "@/components/songs-v2/StorageParts"
+import { Toast } from "@/components/songs-v2/Toast"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useFlushPlaylistsOnBlur } from "@/hooks/useFlushPlaylistsOnBlur"
+import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
+import { useSongsV2ListPage } from "@/hooks/useSongsV2ListPage"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongTitles } from "@/hooks/useSongTitles"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
@@ -22,7 +26,9 @@ import { playPlaylist } from "@/lib/playPlaylist"
 import { routeString } from "@/lib/songMap"
 import { MOCK_PLAYLISTS, MOCK_SONGS } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { displayTitle } from "@/lib/songsV2/entry"
+import { displayTitle, placeholderEntry, type CatalogEntry } from "@/lib/songsV2/entry"
+import { withFixtureStats } from "@/lib/fixtures/songs"
+import { playlistListId } from "@/lib/songsV2/rowMenu"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { href } from "@/utils/href"
@@ -58,7 +64,6 @@ export default function PlaylistV2Screen() {
   const refresh = usePlaylistStore((s) => s.refresh)
   const renamePlaylist = usePlaylistStore((s) => s.renamePlaylist)
   const deletePlaylist = usePlaylistStore((s) => s.deletePlaylist)
-  const removeSong = usePlaylistStore((s) => s.removeSong)
   const flushSync = usePlaylistStore((s) => s.flushSync)
   const offlineFiles = useOfflineAudioStore((s) => s.files)
 
@@ -85,6 +90,18 @@ export default function PlaylistV2Screen() {
     () => (MOCKUP_DATA ? new Map(MOCK_SONGS.map((s) => [s.n, s.title] as const)) : realTitles),
     [realTitles],
   )
+  // The song menu of a row is the one of the catalogue lists; in an own playlist its last row really removes the song.
+  const catalog = useSongsV2Catalog()
+  const entries = useMemo<CatalogEntry[]>(
+    () => numbers.map((n) => catalog.byNumber.get(n) ?? withFixtureStats(placeholderEntry(n))),
+    [numbers, catalog.byNumber],
+  )
+  const list = useSongsV2ListPage({
+    listId: playlistListId(playlistId ?? ""),
+    listName: playlist?.name ?? "this playlist",
+    entries,
+  })
+  const [menuEntry, setMenuEntry] = useState<CatalogEntry | null>(null)
   const offlineNumbers = useMemo(
     () => new Set(Object.values(offlineFiles).map((entry) => entry.songNumber)),
     [offlineFiles],
@@ -223,11 +240,9 @@ export default function PlaylistV2Screen() {
                         eyebrow={songEyebrow(number, offlineNumbers.has(number))}
                         title={title}
                         accessibilityLabel={`PS ${number}, ${title}`}
-                        removeLabel={`Remove PS ${number} from this playlist`}
+                        menuLabel={`More actions for PS ${number}`}
                         onOpen={() => router.push(href(`/song/ps-${number}`))}
-                        onRemove={() => {
-                          if (playlistId) void removeSong(playlistId, number)
-                        }}
+                        onMenu={() => setMenuEntry(entries.find((e) => e.number === number) ?? null)}
                       />
                     )
                   })
@@ -248,6 +263,36 @@ export default function PlaylistV2Screen() {
             </>
           )}
         </ScrollView>
+
+        <SongMenuSheet
+          open={menuEntry != null}
+          theme={theme}
+          entry={menuEntry}
+          listName={playlist?.name ?? "Playlist"}
+          saved={menuEntry ? list.saved.has(menuEntry.number) : false}
+          download={
+            menuEntry
+              ? list.downloaded.has(menuEntry.number)
+                ? "done"
+                : list.downloading.has(menuEntry.number)
+                  ? "downloading"
+                  : "idle"
+              : "idle"
+          }
+          playlists={list.playlistRows(menuEntry)}
+          removal={list.removal}
+          onPlayNext={list.playNextEntry}
+          onQueue={list.queueEntry}
+          onToggleSave={list.toggleSave}
+          onTogglePlaylist={list.togglePlaylist}
+          onNewPlaylist={list.newPlaylist}
+          onShare={list.share}
+          onOpenSong={list.open}
+          onToggleDownload={list.toggleDownload}
+          onRemove={list.removeRow}
+          onClose={() => setMenuEntry(null)}
+        />
+        <Toast message={list.toast} action={list.toastAction} theme={theme} />
       </View>
     </RevealClock.Provider>
   )
