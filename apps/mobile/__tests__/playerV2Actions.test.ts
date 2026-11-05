@@ -14,7 +14,24 @@ import {
   repeatMessage,
   shufflingFromLine,
 } from "@/lib/playerV2/playerActions"
-import { buildSharePayload, SHARE_BACKGROUNDS, SHARE_TARGETS, sharePalette, shareTargetUrl, shareToast, telegramShareUrl } from "@/lib/playerV2/playerShare"
+import {
+  buildSharePayload,
+  facebookShareUrl,
+  legibleTint,
+  pickWordsLines,
+  PHOTO_SCRIM_ALPHA,
+  SHARE_BACKGROUNDS,
+  SHARE_TARGETS,
+  shareBackgrounds,
+  shareModes,
+  sharePalette,
+  shareRoute,
+  shareTargetUrl,
+  shareToast,
+  telegramShareUrl,
+  whatsappShareUrl,
+  withWordsPayload,
+} from "@/lib/playerV2/playerShare"
 import { COVER_IDS, COVER_TINTS, contrastRatio, coverIdFor, FOREST, hexAlpha, mixHex, tintForSong } from "@/lib/playerV2/coverTint"
 
 const base = { sourceName: "All songs", saved: false, inQueue: false, collectionName: null, speedText: "1×", sleepText: "Off" }
@@ -135,12 +152,26 @@ describe("share payload", () => {
   it("builds direct links only where a channel has one", () => {
     const p = buildSharePayload({ number: 3, title: "T" })
     expect(shareTargetUrl("whatsapp", p, "web")).toMatch(/^https:\/\/wa\.me\/\?text=Prabhat%20Samgiita%20AI/)
-    expect(shareTargetUrl("messages", p, "ios")).toMatch(/^sms:&body=/)
-    expect(shareTargetUrl("messages", p, "android")).toMatch(/^sms:\?body=/)
-    expect(shareTargetUrl("messages", p, "web")).toBeNull()
+    expect(shareTargetUrl("whatsapp", p, "ios")).toBe(whatsappShareUrl(p))
+    expect(shareTargetUrl("facebook", p, "android")).toBe(facebookShareUrl(p))
+    expect(new URL(facebookShareUrl(p)).searchParams.get("u")).toBe(p.url)
+    expect(facebookShareUrl(p).startsWith("https://www.facebook.com/sharer/sharer.php?")).toBe(true)
     expect(shareTargetUrl("copy", p, "ios")).toBeNull()
     expect(shareTargetUrl("instagram", p, "ios")).toBeNull()
+    expect(shareTargetUrl("instagramStories", p, "ios")).toBeNull()
     expect(shareTargetUrl("more", p, "android")).toBeNull()
+  })
+
+  it("says how each target is really sent", () => {
+    expect(SHARE_TARGETS.map((t) => [t.id, shareRoute(t.id)])).toEqual([
+      ["copy", "clipboard"],
+      ["whatsapp", "link"],
+      ["telegram", "link"],
+      ["instagramStories", "system-sheet"],
+      ["instagram", "system-sheet"],
+      ["facebook", "link"],
+      ["more", "system-sheet"],
+    ])
   })
 
   it("builds the Telegram personal-share link with the song link in url and the message in text", () => {
@@ -164,12 +195,54 @@ describe("share payload", () => {
     expect(shareToast("dismissed")).toBeNull()
   })
 
-  it("lists the six channels and four backgrounds", () => {
-    expect(SHARE_TARGETS.map((t) => t.id)).toEqual(["copy", "whatsapp", "telegram", "instagram", "messages", "more"])
-    expect(SHARE_BACKGROUNDS.map((b) => b.id)).toEqual(["forest", "sand", "ink", "cover"])
+  it("lists the seven targets in order, without LinkedIn, Snapchat, SMS or other networks", () => {
+    expect(SHARE_TARGETS.map((t) => t.id)).toEqual(["copy", "whatsapp", "telegram", "instagramStories", "instagram", "facebook", "more"])
+    const labels = SHARE_TARGETS.map((t) => t.label.toLowerCase()).join("|")
+    for (const banned of ["linkedin", "snapchat", "messages", "sms", "twitter", "tiktok", "threads"]) expect(labels).not.toContain(banned)
+    expect(SHARE_TARGETS.find((t) => t.id === "instagram")?.label).toBe("Instagram")
+    expect(SHARE_TARGETS.filter((t) => t.needsImage).map((t) => t.id)).toEqual(["instagramStories"])
+  })
+
+  it("offers four card grounds in dot order, the photo only when there is one", () => {
+    expect(SHARE_BACKGROUNDS.map((b) => b.id)).toEqual(["cover", "forest", "ink", "photo"])
+    expect(shareBackgrounds(true).map((b) => b.id)).toEqual(["cover", "forest", "ink", "photo"])
+    expect(shareBackgrounds(false).map((b) => b.id)).toEqual(["cover", "forest", "ink"])
+  })
+
+  it("hides Words for Kiirtan items and for songs without lyrics", () => {
+    expect(shareModes({ kiirtan: false, lyricLines: 8 }).map((m) => m.id)).toEqual(["song", "words"])
+    expect(shareModes({ kiirtan: true, lyricLines: 8 }).map((m) => m.id)).toEqual(["song"])
+    expect(shareModes({ kiirtan: false, lyricLines: 0 }).map((m) => m.id)).toEqual(["song"])
+  })
+
+  it("picks three or four lyric lines for the Words card and sends them ahead of the message", () => {
+    const lines = ["Line one of the song", "Line two of the song", "Line three", "Line four", "Line five", "Line six"]
+    expect(pickWordsLines(lines)).toEqual(lines.slice(0, 4))
+    expect(pickWordsLines(["", "  a  ", "b"])).toEqual(["a", "b"])
+    expect(pickWordsLines([])).toEqual([])
+    const long = "x".repeat(90)
+    expect(pickWordsLines([long, long, long, long])).toEqual([long, long])
+    const p = buildSharePayload({ number: 3, title: "T" })
+    const w = withWordsPayload(p, ["a", "b"])
+    expect(w.message.startsWith("a\nb\n\n")).toBe(true)
+    expect(w.message.endsWith(p.url)).toBe(true)
+    expect(w.url).toBe(p.url)
+    expect(withWordsPayload(p, [])).toBe(p)
+  })
+
+  it("darkens a bright tone (a Kiirtan's orange) until the card text passes, and leaves the song tones alone", () => {
+    for (const tint of Object.values(COVER_TINTS)) expect(legibleTint(tint)).toBe(tint)
+    for (const bright of ["#D2692F", "#F2A33A", "#4FB0C6", "#E0E0E0"]) {
+      const pal = sharePalette("cover", bright)
+      for (const ground of [pal.from, pal.to]) {
+        expect(contrastRatio(pal.sub, ground), `${bright} sub`).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(pal.accent, ground), `${bright} accent`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
 
   it("keeps card text readable (WCAG AA 4.5:1) on every background and every cover tone", () => {
+    expect(PHOTO_SCRIM_ALPHA).toBeGreaterThanOrEqual(0.6)
     for (const { id } of SHARE_BACKGROUNDS) {
       for (const tint of Object.values(COVER_TINTS)) {
         const pal = sharePalette(id, tint)

@@ -2,7 +2,8 @@ import { useRef, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { KPress } from "@/components/kirtan/KPress"
-import { PlayerIcon, type PlayerIconName } from "@/components/player-v2/PlayerIcons"
+import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { ShareTargetIcon } from "@/components/player-v2/ShareTargetIcon"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -71,15 +72,6 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
   )
 }
 
-const TARGET_ICON: Record<ShareTargetId, PlayerIconName> = {
-  copy: "link",
-  whatsapp: "whatsapp",
-  telegram: "telegram",
-  instagram: "instagram",
-  messages: "messages",
-  more: "more",
-}
-
 /** Share targets of the player's share sheet, for a link to the Kiirtan. */
 export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { open: boolean; theme: SongsTheme; kirtan: Kirtan | null; onShare: (k: Kirtan, target: ShareTargetId) => void; onClose: () => void }) {
   const last = useRef<Kirtan | null>(null)
@@ -94,7 +86,7 @@ export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { op
       ) : null}
       <Text style={[styles.note, { color: theme.textBody }]}>Your friends get a link to this Kiirtan.</Text>
       <View style={styles.grid}>
-        {SHARE_TARGETS.filter((t) => t.id !== "instagram").map((target) => (
+        {SHARE_TARGETS.filter((t) => !t.needsImage).map((target) => (
           <KPress
             key={target.id}
             accessibilityRole="button"
@@ -107,9 +99,7 @@ export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { op
             outerStyle={styles.gridCell}
             style={styles.gridItem}
           >
-            <View style={[styles.disc, { backgroundColor: theme.card, borderColor: theme.line }]}>
-              <PlayerIcon name={TARGET_ICON[target.id]} size={24} color={theme.textHeading} />
-            </View>
+            <ShareTargetIcon id={target.id} size={52} theme={theme} />
             <Text style={[styles.gridLabel, { color: theme.textBody }]} numberOfLines={1}>
               {target.label}
             </Text>
@@ -129,6 +119,5 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 14 },
   gridCell: { width: "25%" },
   gridItem: { alignItems: "center", gap: 8 },
-  disc: { width: 56, height: 56, borderRadius: 28, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   gridLabel: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, textAlign: "center" },
 })

@@ -47,6 +47,7 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
 import { artistForAuthor, kiirtanSubtitle } from "@/lib/kirtan/artists"
+import { moodForText } from "@/lib/photos/catalog"
 import { ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
@@ -90,7 +91,7 @@ import {
   type ActionId,
 } from "@/lib/playerV2/playerActions"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
-import { buildSharePayload, shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
+import { buildSharePayload, shareToast, type SharePayload, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { formatRate, nextRate } from "@/lib/playerV2/playbackSpeed"
 import { sourceLabel } from "@/lib/playerV2/queueOps"
 import { realControllerDeps, realQueueActions, startPlayerV2Services } from "@/lib/playerV2/services"
@@ -655,9 +656,9 @@ export default function PlayerV2Screen() {
         return toast.show(REPORT_THANKS)
     }
   }
-  const onShareTarget = (target: ShareTargetId) => {
+  const onShareTarget = (target: ShareTargetId, override?: SharePayload) => {
     if (!sharePayload) return
-    void runShare(target, sharePayload).then((outcome) => {
+    void runShare(target, override ?? sharePayload).then((outcome) => {
       const message = shareToast(outcome)
       // A copied link closes the sheet, so the toast rises over the Player and not over the buttons.
       if (message) {
@@ -1015,6 +1016,12 @@ export default function PlayerV2Screen() {
             songNumber={song.number}
             title={songTitle}
             performer={performer}
+            kiirtan={isK}
+            tint={coverTint}
+            photoSeed={isK ? (song.kiirtan?.id ?? String(song.id)) : undefined}
+            photoMood={isK ? moodForText(song.title, song.durationSeconds || null) : undefined}
+            lyrics={song.lyrics}
+            lyricsDevanagari={song.lyricsDevanagari}
             onShare={onShareTarget}
             onClose={() => setSheet(null)}
           />

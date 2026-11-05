@@ -32,9 +32,13 @@ function platform(): SharePlatform {
 }
 
 /**
- * Sends a share. "Copy link" copies the link. WhatsApp, Telegram and Messages open their own link when the
- * platform has one; every other channel opens the system share sheet (navigator.share on the web),
+ * Sends a share. "Copy link" copies the link. WhatsApp, Telegram and Facebook open their own https share
+ * link (the app when installed, the website otherwise) and fall back to the system share sheet if the link
+ * cannot be opened. Instagram and Instagram Stories use the system share sheet (navigator.share on the web),
  * and when that is not available the link is copied instead.
+ * TODO(native): Instagram Stories needs the card as a picture on the pasteboard plus the Facebook App ID
+ * (instagram-stories://share); that takes a native module (react-native-view-shot for the picture and a
+ * pasteboard module), which the app does not have. Until then Stories shares the link text.
  */
 export async function runShare(target: ShareTargetId, payload: SharePayload): Promise<ShareOutcome> {
   if (target === "copy") return (await copyText(payload.url)) ? "copied" : "copy-failed"
