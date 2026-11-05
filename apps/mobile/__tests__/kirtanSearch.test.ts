@@ -72,9 +72,9 @@ describe("searchKirtans", () => {
     expect(ids(searchKirtans(both, "meera"))).toEqual(["au"])
   })
 
-  it("empty query matches nothing; the word kiirtan alone matches all, with a limit", () => {
+  it("empty query matches nothing; the word kiirtan alone matches all Kiirtans, with a limit", () => {
     expect(searchKirtans(approved, "   ")).toEqual([])
-    expect(searchKirtans(approved, "kiirtan")).toHaveLength(approved.length)
+    expect(searchKirtans(approved, "kiirtan")).toHaveLength(approved.filter((x) => x.kind === "kiirtan").length)
     expect(searchKirtans(approved, "Kiirtans", 3)).toHaveLength(3)
   })
 })

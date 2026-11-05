@@ -49,12 +49,13 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSaveState } from "@/hooks/useSaveState"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
-import { artistForAuthor, kiirtanSubtitle } from "@/lib/kirtan/artists"
+import { artistForAuthor } from "@/lib/kirtan/artists"
 import { moodForText } from "@/lib/photos/catalog"
 import { ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
-import { isKiirtanNumber, isKiirtanSong } from "@/lib/kirtan/track"
+import { kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/kind"
+import { isKiirtanNumber, isKiirtanSong, recordingKindOfSong } from "@/lib/kirtan/track"
 import { rubberBand } from "@/lib/navV2"
 import { formatClock } from "@/lib/playerV2/transportState"
 import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
@@ -132,7 +133,7 @@ const PLAYER_PHOTO = require("../assets/player-baba.jpg")
  * the lyrics and transport for big controls. One audio engine: this screen only
  * renders playerStore state and sends commands to it.
  * A Prabhat Samgiita song shows the karaoke card, versions, Aa and About. A Kiirtan (an uploaded audio
- * file in the same queue) shows a large cover, its title and "Kiirtan · artist", the same scrubber and
+ * file in the same queue) shows a large cover, its title and "Kiirtan · artist" (or "Bhajan · artist"), the same scrubber and
  * transport, and none of those. Dragging the header or the cover down closes the player.
  */
 export default function PlayerV2Screen() {
@@ -187,6 +188,8 @@ export default function PlayerV2Screen() {
   const [now, setNow] = useState(() => Date.now())
   const reduce = useReducedMotion()
   const isK = isKiirtanSong(song)
+  /** a Kiirtan or a Bhajan: same screen, the words differ */
+  const recKind = recordingKindOfSong(song)
   const kiirtanId = song?.kiirtan?.id ?? null
 
   // Queue numbers of Kiirtans can be turned back into tracks (next, previous, the queue sheet).
@@ -400,9 +403,9 @@ export default function PlayerV2Screen() {
         return {
           key: `k-${number}`,
           number,
-          title: k?.title ?? "Kiirtan",
+          title: k?.title ?? kindLabel(recordingKindOfSong(k)),
           seconds: k?.durationSeconds || undefined,
-          sub: parts.length ? `KIIRTAN · ${parts.join(" · ")}` : "KIIRTAN",
+          sub: parts.length ? `${kindTag(recordingKindOfSong(k))} · ${parts.join(" · ")}` : kindTag(recordingKindOfSong(k)),
         }
       }
       return {
@@ -592,9 +595,9 @@ export default function PlayerV2Screen() {
       !song
         ? null
         : isK
-          ? kirtanSharePayload({ title: song.title, author: song.performer ?? "" })
+          ? kirtanSharePayload({ title: song.title, author: song.performer ?? "", kind: recKind })
           : buildSharePayload({ number: song.number, title: songTitle, performer }),
-    [song, isK, songTitle, performer],
+    [song, isK, recKind, songTitle, performer],
   )
   // TODO(api): the story text comes from the song's central idea; the prototype's sample text stands in
   // while MOCKUP_DATA is on (its "Placeholder." lines are skipped).
@@ -661,8 +664,8 @@ export default function PlayerV2Screen() {
       }
     })
   }
-  const coverTint = isK ? kiirtanTone(song?.kiirtan?.type)[0] : tintForSong(song?.number ?? null)
-  const subtitleText = isK && song ? kiirtanSubtitle(song.performer, song.kiirtan?.addedBy, ARTIST_FIXTURES) : ""
+  const coverTint = isK ? kiirtanTone(song?.kiirtan?.type, recKind)[0] : tintForSong(song?.number ?? null)
+  const subtitleText = isK && song ? kindSubtitle(recKind, song.performer, song.kiirtan?.addedBy, ARTIST_FIXTURES) : ""
   const artist = isK && song ? artistForAuthor(ARTIST_FIXTURES, song.performer) : null
   const openArtist = () => {
     if (!artist) return
@@ -753,7 +756,7 @@ export default function PlayerV2Screen() {
                 <View collapsable={false} style={styles.coverArea}>
                   <Reveal index={1}>
                     <View style={[styles.coverShadow, { width: coverSize, height: coverSize }]}>
-                      <KiirtanCover type={song.kiirtan?.type} coverUrl={song.thumbnailUrl || null} width={coverSize} height={coverSize} radius={28} photoSeed={song.kiirtan?.id ?? String(song.id)} title={song.title} durationSec={song.durationSeconds || null} />
+                      <KiirtanCover type={song.kiirtan?.type} kind={recKind} coverUrl={song.thumbnailUrl || null} width={coverSize} height={coverSize} radius={28} photoSeed={song.kiirtan?.id ?? String(song.id)} title={song.title} durationSec={song.durationSeconds || null} />
                     </View>
                   </Reveal>
                 </View>
@@ -770,7 +773,7 @@ export default function PlayerV2Screen() {
                     {isK ? (
                       artist ? (
                         <View style={styles.subtitleRow}>
-                          <Text style={styles.subtitle}>Kiirtan · </Text>
+                          <Text style={styles.subtitle}>{kindLabel(recKind)} · </Text>
                           <TouchButton
                             accessibilityRole="link"
                             accessibilityLabel={`Open the artist page of ${artist.name}`}

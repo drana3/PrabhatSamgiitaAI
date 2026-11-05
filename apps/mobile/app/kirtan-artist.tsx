@@ -15,7 +15,8 @@ import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
-import { artistById, artistCountLabel, kirtansOfArtist, popularOf } from "@/lib/kirtan/artists"
+import { artistById, kirtansOfArtist, popularOf } from "@/lib/kirtan/artists"
+import { kindsCountLabel } from "@/lib/kirtan/kind"
 import { playArtist } from "@/lib/kirtan/mixPlayback"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { newestFirst } from "@/lib/kirtan/list"
@@ -26,9 +27,9 @@ import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
 
 /**
- * An artist: a big hero with the name in capitals over the gradient (or the photo), "N kiirtans",
- * Play and Shuffle for all of the artist's Kiirtans (one queue in the one player), Popular (up to 5),
- * All kiirtans, and a short About. No prices, no albums, no follow.
+ * An artist: a big hero with the name in capitals over the gradient (or the photo), "N kiirtans · N bhajans",
+ * Play and Shuffle for all of the artist's Kiirtans and Bhajans (one queue in the one player), Popular (up to 5),
+ * All recordings (each row carries its KIIRTAN or BHAJAN tag), and a short About. No prices, no albums, no follow.
  * TODO(api): artists, photos and texts come from the backend.
  */
 export default function KirtanArtistScreen() {
@@ -94,7 +95,7 @@ export default function KirtanArtistScreen() {
           <Text style={styles.heroName} accessibilityRole="header">
             {artist.name}
           </Text>
-          <Text style={styles.heroMeta}>{artistCountLabel(all.length)}</Text>
+          <Text style={styles.heroMeta}>{kindsCountLabel(all)}</Text>
         </View>
       </View>
 
@@ -134,7 +135,7 @@ export default function KirtanArtistScreen() {
 
       <View style={styles.block}>
         <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">
-          All kiirtans
+          All recordings
         </Text>
       </View>
     </View>
@@ -148,7 +149,7 @@ export default function KirtanArtistScreen() {
         ListHeaderComponent={header}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         renderItem={({ item }) => <View style={styles.rowSlot}>{row(item, all)}</View>}
-        ListEmptyComponent={<Text style={[styles.body, styles.pad, { color: theme.textBody }]}>No Kiirtans by this artist yet.</Text>}
+        ListEmptyComponent={<Text style={[styles.body, styles.pad, { color: theme.textBody }]}>No Kiirtans or Bhajans by this artist yet.</Text>}
         ListFooterComponent={
           <View style={styles.block}>
             <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">

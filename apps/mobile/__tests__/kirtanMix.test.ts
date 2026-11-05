@@ -9,7 +9,7 @@ const k = (id: string): MixItem => ({ kind: "kirtan", id })
 
 describe("fixtures", () => {
   it("have valid ids, unique ids, and mixes that point at known kirtans", () => {
-    expect(KIRTAN_FIXTURES.every((x) => x.title.trim() && x.author.trim() && x.addedBy.trim())).toBe(true)
+    expect(KIRTAN_FIXTURES.every((x) => x.title.trim() && (x.author.trim() || x.kind === "bhajan") && x.addedBy.trim())).toBe(true)
     expect(new Set(KIRTAN_FIXTURES.map((x) => x.id)).size).toBe(KIRTAN_FIXTURES.length)
     const known = new Set(KIRTAN_FIXTURES.map((x) => x.id))
     for (const mix of MIX_FIXTURES) {

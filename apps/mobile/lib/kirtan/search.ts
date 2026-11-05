@@ -1,19 +1,21 @@
 import { artistKey, kirtansOfArtist, splitAuthors, type Artist } from "@/lib/kirtan/artists"
-import { KIRTAN_TYPES, type Kirtan } from "@/lib/kirtan/types"
+import { filterByKind } from "@/lib/kirtan/kind"
+import { kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * Search over Kiirtans and artists, and the result chips of the search screen. Pure, no React.
- * A Kiirtan matches when every word of the query is found in its title, author(s) or type name (case,
+ * Search over Kiirtans, Bhajans and artists, and the result chips of the search screen. Pure, no React.
+ * A recording matches when every word of the query is found in its title, author(s) or type name (case,
  * accents and extra spaces do not matter; a word of three letters or more matches inside a word, one or
- * two letters only the start of a word). Who uploaded it counts only when no Kiirtan matches otherwise. The
- * word "kiirtan" alone matches all. Author matches come first, then title, then type.
+ * two letters only the start of a word). Who uploaded it counts only when no recording matches otherwise. The
+ * kind is a word too: "bhajan" keeps only Bhajans, "kiirtan" only Kiirtans, alone or with other words ("bhajan
+ * morning"). Author matches come first, then title, then type.
  * TODO(api): the server searches the real catalog; this searches the list the app already holds.
  */
 
 export const SEARCH_SCOPES = [
   { id: "all", label: "All" },
   { id: "songs", label: "Songs" },
-  { id: "kiirtan", label: "Kiirtans" },
+  { id: "kiirtan", label: "Kiirtans & Bhajans" },
   { id: "stories", label: "Stories" },
 ] as const
 export type SearchScope = (typeof SEARCH_SCOPES)[number]["id"]
@@ -29,13 +31,22 @@ export function foldText(text: string): string {
   return artistKey(text.normalize("NFD").replace(/[̀-ͯ]/g, ""))
 }
 
-const FILLER_WORDS = new Set(["kiirtan", "kiirtans", "kirtan", "kirtans"])
+const KIIRTAN_WORDS = new Set(["kiirtan", "kiirtans", "kirtan", "kirtans"])
+const BHAJAN_WORDS = new Set(["bhajan", "bhajans"])
 
-/** The words of a query that carry meaning: folded, without the word "kiirtan". */
+/** The words of a query that carry meaning: folded, without the kind words ("kiirtan", "bhajan"). */
 export function queryWords(query: string): string[] {
   return foldText(query)
     .split(" ")
-    .filter((w) => w && !FILLER_WORDS.has(w))
+    .filter((w) => w && !KIIRTAN_WORDS.has(w) && !BHAJAN_WORDS.has(w))
+}
+
+/** The kind the query asks for: "bhajan" gives Bhajans, "kiirtan" Kiirtans, both words or none give null (both kinds). */
+export function queryKind(query: string): RecordingKind | null {
+  const tokens = foldText(query).split(" ")
+  const kiirtan = tokens.some((w) => KIIRTAN_WORDS.has(w))
+  const bhajan = tokens.some((w) => BHAJAN_WORDS.has(w))
+  return kiirtan === bhajan ? null : bhajan ? "bhajan" : "kiirtan"
 }
 
 function hasWord(hay: string, word: string): boolean {
@@ -47,18 +58,17 @@ function hasAll(hay: string, words: readonly string[]): boolean {
   return words.every((w) => hasWord(hay, w))
 }
 
-const typeName = (id: string) => KIRTAN_TYPES.find((t) => t.id === id)?.label ?? id
-
-/** Matching Kiirtans, best match first (author, title, type, uploader), then in the given order. */
-export function searchKirtans<T extends Pick<Kirtan, "title" | "author" | "type" | "addedBy">>(list: readonly T[], query: string, limit = 50): T[] {
+/** Matching Kiirtans and Bhajans, best match first (author, title, type, uploader), then in the given order. */
+export function searchKirtans<T extends Pick<Kirtan, "title" | "author" | "type" | "addedBy"> & { kind?: RecordingKind }>(source: readonly T[], query: string, limit = 50): T[] {
   if (!foldText(query)) return []
+  const list = filterByKind(source, queryKind(query) ?? "all")
   const words = queryWords(query)
   if (!words.length) return list.slice(0, limit)
   const ranked: { item: T; tier: number; index: number }[] = []
   list.forEach((k, index) => {
     const author = foldText(splitAuthors(k.author).join(" ") || k.author)
     const title = foldText(k.title)
-    const type = foldText(typeName(k.type))
+    const type = foldText(kirtanTypeLabel(k.type, k.kind))
     let tier = -1
     if (hasAll(author, words)) tier = 0
     else if (hasAll(title, words)) tier = 1

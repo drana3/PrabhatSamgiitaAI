@@ -9,8 +9,9 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { artistForAuthor } from "@/lib/kirtan/artists"
+import { kindTag } from "@/lib/kirtan/kind"
 import { kirtanRowLabel, kirtanSubline } from "@/lib/kirtan/list"
-import { STATUS_LABEL, type Kirtan, type KirtanStatus } from "@/lib/kirtan/types"
+import { STATUS_LABEL, type Kirtan, type KirtanStatus, type RecordingKind } from "@/lib/kirtan/types"
 
 /* ------------------------------------------------------------------ glyphs */
 
@@ -37,12 +38,12 @@ export const PlayFilled = ({ size = 18, color }: G) => (
 
 /* ------------------------------------------------------------------ labels */
 
-/** Small outlined neutral label (orange is for actions, not for labels). */
-export function KirtanTag({ theme, color }: { theme: SongsTheme; color?: string }) {
+/** Small outlined neutral label: KIIRTAN or BHAJAN (orange is for actions, not for labels). */
+export function KirtanTag({ theme, color, kind }: { theme: SongsTheme; color?: string; kind?: RecordingKind | null }) {
   const tone = color ?? theme.textBody
   return (
     <View style={[styles.tag, { borderColor: tone }]}>
-      <Text style={[styles.tagText, { color: tone }]}>KIIRTAN</Text>
+      <Text style={[styles.tagText, { color: tone }]}>{kindTag(kind)}</Text>
     </View>
   )
 }
@@ -72,7 +73,7 @@ export function StatusBadge({ theme, status }: { theme: SongsTheme; status: Kirt
 
 /* ---------------------------------------------------------------- thumbnail */
 
-/** The author's cover when there is one, the gradient of the Kiirtan's type otherwise. */
+/** The author's cover when there is one, the gradient of the recording's type (and kind) otherwise. */
 export function KirtanThumb({
   kirtan,
   width,
@@ -80,7 +81,7 @@ export function KirtanThumb({
   aspectRatio,
   radius,
 }: {
-  kirtan: Pick<Kirtan, "id" | "type" | "thumbnailUrl" | "title" | "durationSec">
+  kirtan: Pick<Kirtan, "id" | "type" | "thumbnailUrl" | "title" | "durationSec"> & { kind?: RecordingKind }
   width: DimensionValue
   /** give a height or an aspect ratio */
   height?: number
@@ -90,6 +91,7 @@ export function KirtanThumb({
   return (
     <KiirtanCover
       type={kirtan.type}
+      kind={kirtan.kind}
       coverUrl={kirtan.thumbnailUrl}
       width={width}
       height={height}
@@ -105,7 +107,7 @@ export function KirtanThumb({
 /* --------------------------------------------------------------------- rows */
 
 /**
- * A Kiirtan: thumbnail, title, the `KIIRTAN` tag with length and who added it, and the more button.
+ * A Kiirtan or Bhajan: thumbnail, title, the `KIIRTAN` / `BHAJAN` tag with length and who added it, and the more button.
  * `compact` is the 36px thumbnail of the Kiirtan tab list. With `onOpenArtist`, the artist's name sits
  * on its own line under the title and opens the artist page.
  */
@@ -146,7 +148,7 @@ export function KirtanRow({
             {kirtan.title}
           </Text>
           <View style={styles.subRow}>
-            <KirtanTag theme={theme} />
+            <KirtanTag theme={theme} kind={kirtan.kind} />
             {onOpenArtist ? <ArtistLink theme={theme} author={kirtan.author} onOpenArtist={onOpenArtist} /> : null}
             <Text style={[styles.subText, { color: theme.textBody }]} numberOfLines={1}>
               {onOpenArtist && kirtan.author.trim() ? `· ${kirtanSubline(kirtan)}` : kirtanSubline(kirtan)}

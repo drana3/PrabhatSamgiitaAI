@@ -163,7 +163,7 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
             </View>
           </PressScale>
         ) : (
-          <Text style={[styles.note, { color: theme.textBody }]}>Kiirtans can go into Mine. Playlists hold songs for now.</Text>
+          <Text style={[styles.note, { color: theme.textBody }]}>Kiirtans and Bhajans can go into Mine. Playlists hold songs for now.</Text>
         )}
       </View>
       <View style={styles.done}>

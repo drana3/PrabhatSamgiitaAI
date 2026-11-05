@@ -13,6 +13,7 @@ import {
   startOf,
 } from "@/lib/kirtan/queueBuild"
 import { artistSourceName } from "@/lib/kirtan/artists"
+import { listKindOf } from "@/lib/kirtan/kind"
 import { isKiirtanNumber } from "@/lib/kirtan/track"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { hasPlayableAudio, playableNumbersList } from "@/lib/playableAudio"
@@ -67,7 +68,7 @@ export function playKiirtans(list: readonly Kirtan[], startId?: string | null, l
   ensureKirtansRegistered()
   const target = startId ? list.find((k) => k.id === startId) : null
   const wanted = target ? kiirtanQueue([target])[0] : null
-  const name = kiirtanListSourceName(label)
+  const name = kiirtanListSourceName(label, listKindOf(list))
   return playQueue(numbers, { id: `kiirtans:${name}`, name }, wanted)
 }
 

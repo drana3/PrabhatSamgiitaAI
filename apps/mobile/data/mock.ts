@@ -55,8 +55,11 @@ export type MockSong = {
    * track of the same player (lib/kirtan/track.ts) with a synthetic `number`, no lyrics and no versions.
    */
   kind?: "song" | "kiirtan"
-  /** Set when kind is "kiirtan": the Kiirtan's catalog id, its type id and who added it. */
-  kiirtan?: { id: string; type: string; addedBy: string }
+  /**
+   * Set when kind is "kiirtan" (a recording of the Kiirtan system): its catalog id, type id and who added it.
+   * `recording` says whether it is a Kiirtan or a Bhajan; absent means a Kiirtan.
+   */
+  kiirtan?: { id: string; type: string; addedBy: string; recording?: "kiirtan" | "bhajan" }
 }
 
 export {

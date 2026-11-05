@@ -2,6 +2,7 @@ import { useCallback, useState } from "react"
 import { useRouter } from "expo-router"
 
 import { ensureKirtansRegistered } from "@/lib/kirtan/catalog"
+import { kindLabelPlural } from "@/lib/kirtan/kind"
 import { playArtist, playKiirtans } from "@/lib/kirtan/mixPlayback"
 import { realQueueActions } from "@/lib/playerV2/services"
 import { kiirtanNumber } from "@/lib/kirtan/track"
@@ -68,7 +69,7 @@ export function useKirtanActions() {
   )
 
   // TODO(api): Kiirtans in playlists need the backend; playlists hold songs only today.
-  const addToPlaylist = useCallback(() => flash("Kiirtans in playlists are coming soon"), [flash])
+  const addToPlaylist = useCallback((k?: Kirtan) => flash(`${kindLabelPlural(k?.kind)} in playlists are coming soon`), [flash])
 
   /** Opens the "Save to" sheet for the Kiirtan (Mine only); the sheet says what happened. */
   const toggleSaved = useCallback((k: Kirtan) => openSaveSheet({ kind: "kiirtan", id: k.id }), [])

@@ -1,6 +1,6 @@
 import type { MixItem } from "@/lib/kirtan/mix"
 import { kiirtanNumber } from "@/lib/kirtan/track"
-import type { Kirtan } from "@/lib/kirtan/types"
+import type { KindFilter, Kirtan } from "@/lib/kirtan/types"
 
 /**
  * Building the ONE queue of the player from Prabhat Samgiita songs and Kiirtans.
@@ -10,6 +10,8 @@ import type { Kirtan } from "@/lib/kirtan/types"
 
 /** Names shown after "Playing from" for the sources that only Kiirtans and mixes have. */
 export const SOURCE_ALL_KIIRTANS = "All Kiirtans"
+export const SOURCE_ALL_BHAJANS = "All Bhajans"
+export const SOURCE_ALL_RECORDINGS = "All Kiirtans and Bhajans"
 export const SOURCE_EVERYTHING = "Everything"
 
 /** `Mix · Morning`. */
@@ -17,10 +19,16 @@ export function mixSourceName(title: string): string {
   return `Mix · ${title}`
 }
 
-/** Source name of a Kiirtan list: the type filter's label, or "All Kiirtans". */
-export function kiirtanListSourceName(label: string | null | undefined): string {
+/**
+ * Source name of a Kiirtan or Bhajan list: the type filter's label plus the kind's noun ("Lila Kiirtans",
+ * "Morning Bhajans"), or "All Kiirtans" / "All Bhajans" / "All Kiirtans and Bhajans". `kind` is what the
+ * list holds ("all" for a mix of both); it defaults to Kiirtans.
+ */
+export function kiirtanListSourceName(label: string | null | undefined, kind: KindFilter = "kiirtan"): string {
   const text = (label ?? "").trim()
-  return text && text.toLowerCase() !== "all" ? `${text} Kiirtans` : SOURCE_ALL_KIIRTANS
+  const noun = kind === "bhajan" ? "Bhajans" : kind === "all" ? "Kiirtans and Bhajans" : "Kiirtans"
+  if (text && text.toLowerCase() !== "all") return `${text} ${noun}`
+  return kind === "bhajan" ? SOURCE_ALL_BHAJANS : kind === "all" ? SOURCE_ALL_RECORDINGS : SOURCE_ALL_KIIRTANS
 }
 
 /** The queue number of one mix item. */

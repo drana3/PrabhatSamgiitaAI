@@ -13,6 +13,7 @@ import {
 } from "@/lib/kirtan/submissions"
 
 const input: SubmissionInput = {
+  kind: "kiirtan",
   fileName: "morning.mp3",
   fileUri: "blob:morning",
   title: "  Baba   Nam Kevalam ",

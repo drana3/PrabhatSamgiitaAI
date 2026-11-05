@@ -1,7 +1,8 @@
-import { isKirtanType, type Kirtan, type KirtanStatus, type KirtanTypeId } from "@/lib/kirtan/types"
+import { isTypeOfKind, normalizeKind } from "@/lib/kirtan/kind"
+import type { Kirtan, KirtanStatus, KirtanTypeId, RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * Submissions: an author uploads an audio file of a Kiirtan; it waits for review.
+ * Submissions: an author uploads an audio file of a Kiirtan or a Bhajan (the `kind`); it waits for review.
  * Pure transitions on a list, used by stores/kirtanStore.
  * TODO(api): upload the file to the backend (multipart or a signed URL), POST the metadata; an admin
  * approves or rejects there. Until then the file stays on the phone and only the record is kept.
@@ -10,6 +11,8 @@ import { isKirtanType, type Kirtan, type KirtanStatus, type KirtanTypeId } from 
 export const CONFIRM_TEXT = "This is my recording, or I have the rights holder's permission."
 
 export type SubmissionInput = {
+  /** "What is it?": a Kiirtan or a Bhajan. The type choices depend on it. */
+  kind: RecordingKind
   /** name of the picked audio file, e.g. `morning-round.mp3`; null until a file is chosen */
   fileName: string | null
   /** where the picked file is (a local uri, or a blob url in the browser) */
@@ -29,7 +32,7 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   if (!input.fileName || !input.fileUri) return "file"
   if (!input.title.trim()) return "title"
   if (!input.author.trim()) return "author"
-  if (!input.type || !isKirtanType(input.type)) return "type"
+  if (!input.type || !isTypeOfKind(normalizeKind(input.kind), input.type)) return "type"
   if (!input.confirmed) return "confirm"
   return null
 }
@@ -46,19 +49,21 @@ function tidy(text: string): string {
   return text.trim().replace(/\s+/g, " ")
 }
 
-/** Same title by the same author counts as the same Kiirtan. */
+/** Same title by the same author counts as the same recording. */
 export function submissionKey(title: string, author: string): string {
   return `${tidy(title).toLowerCase()}|${tidy(author).toLowerCase()}`
 }
 
-function slug(text: string): string {
-  return tidy(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "kiirtan"
+function slug(text: string, fallback: string): string {
+  return tidy(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || fallback
 }
 
-/** A new pending Kiirtan. The id is stable per title and time. */
+/** A new pending Kiirtan or Bhajan. The id is stable per title and time. */
 export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
+  const kind = normalizeKind(input.kind)
   return {
-    id: `sub-${slug(input.title)}-${now}`,
+    id: `sub-${slug(input.title, kind)}-${now}`,
+    kind,
     title: tidy(input.title),
     author: tidy(input.author),
     durationSec: null,

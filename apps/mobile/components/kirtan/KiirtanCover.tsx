@@ -4,24 +4,11 @@ import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import Svg, { Path } from "react-native-svg"
 
-import { amColors } from "@/constants/tokens/amColors"
+import { BHAJAN_OTHER_TONE, KIIRTAN_TYPE_TONES, kiirtanTone, kindTone } from "@/lib/kirtan/tone"
 import { moodForText, photoForSeed, type PhotoMood } from "@/lib/photos/catalog"
 
-/**
- * The picture of a Kiirtan: the author's cover when there is one, otherwise a gradient that belongs to
- * the Kiirtan's TYPE (so the same four colours run through the tab, the rows, the pill and the player).
- * A sound-wave glyph sits on it.
- */
-export const KIIRTAN_TYPE_TONES: Record<string, readonly [string, string]> = {
-  bnk: [amColors.orange500, amColors.orange700],
-  lila: [amColors.sage700, amColors.sage900],
-  festival: [amColors.gold500, amColors.orange600],
-  other: [amColors.sage500, amColors.sage800],
-}
-
-export function kiirtanTone(type: string | null | undefined): readonly [string, string] {
-  return KIIRTAN_TYPE_TONES[type ?? "other"] ?? KIIRTAN_TYPE_TONES.other
-}
+// The gradients per type and kind live in lib/kirtan/tone.ts (pure, tested); re-exported so callers keep their import.
+export { BHAJAN_OTHER_TONE, KIIRTAN_TYPE_TONES, kiirtanTone, kindTone }
 
 /** Five vertical bars of different height: a sound wave. */
 export function WaveGlyph({ size = 24, color = "#FFFFFF", strokeWidth = 2 }: { size?: number; color?: string; strokeWidth?: number }) {
@@ -32,8 +19,15 @@ export function WaveGlyph({ size = 24, color = "#FFFFFF", strokeWidth = 2 }: { s
   )
 }
 
+/**
+ * The picture of a Kiirtan or Bhajan: the author's cover when there is one, otherwise a gradient that
+ * belongs to its TYPE and kind (so the same colours run through the tab, the rows, the pill and the
+ * player), or a stock photo. A sound-wave glyph sits on the gradient.
+ */
 type Props = {
   type: string | null | undefined
+  /** "bhajan" picks the Bhajan gradients; anything else is a Kiirtan */
+  kind?: string | null
   coverUrl?: string | null
   width: DimensionValue
   height?: number
@@ -51,9 +45,9 @@ type Props = {
   photoMood?: PhotoMood
 }
 
-export function KiirtanCover({ type, coverUrl, width, height, aspectRatio, radius, glyph, photoSeed, title, durationSec, photoMood }: Props) {
+export function KiirtanCover({ type, kind, coverUrl, width, height, aspectRatio, radius, glyph, photoSeed, title, durationSec, photoMood }: Props) {
   const [failed, setFailed] = useState(false)
-  const [from, to] = kiirtanTone(type)
+  const [from, to] = kiirtanTone(type, kind)
   const basis = typeof width === "number" ? Math.min(width, height ?? width) : 120
   const size = glyph ?? Math.max(16, Math.round(basis * 0.42))
   const showImage = Boolean(coverUrl) && !failed

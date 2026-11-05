@@ -1,3 +1,5 @@
+import { kindLabel } from "@/lib/kirtan/kind"
+import type { RecordingKind } from "@/lib/kirtan/types"
 import type { AppNotification } from "@/lib/notifications"
 
 /**
@@ -8,19 +10,21 @@ import type { AppNotification } from "@/lib/notifications"
 
 export type UploadDecision = "approved" | "rejected"
 
-/** An uploaded Kiirtan was approved or rejected. `title` is the Kiirtan's title. */
+/** An uploaded Kiirtan or Bhajan was approved or rejected. `title` is its title; `kind` picks the word (a Kiirtan when missing). */
 export function uploadDecisionNotification(input: {
   uploadId: string
+  kind?: RecordingKind
   title: string
   decision: UploadDecision
   firedAt: number
 }): AppNotification {
-  const title = input.title.trim() || "Your Kiirtan"
+  const label = kindLabel(input.kind)
+  const title = input.title.trim() || `Your ${label}`
   const approved = input.decision === "approved"
   return {
     id: `upload:${input.uploadId}:${input.decision}`,
     kind: "upload",
-    title: approved ? "Kiirtan approved" : "Kiirtan not approved",
+    title: approved ? `${label} approved` : `${label} not approved`,
     text: approved ? `${title} is now in the library.` : `${title} did not pass review. See why.`,
     target: "/v2/kiirtan",
     firedAt: input.firedAt,

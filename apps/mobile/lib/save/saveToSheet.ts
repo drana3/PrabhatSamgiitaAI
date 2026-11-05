@@ -98,7 +98,7 @@ export function trackCountLabel(count: number): string {
 
 export const MINE_NAME = "Mine"
 export const MINE_SUBTITLE = "Saved songs"
-export const MINE_SUBTITLE_KIIRTAN = "Saved songs and Kiirtans"
+export const MINE_SUBTITLE_KIIRTAN = "Saved songs, Kiirtans and Bhajans"
 
 export type SaveRow =
   | { kind: "mine"; name: string; subtitle: string; on: boolean }

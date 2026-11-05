@@ -176,7 +176,7 @@ describe("artists", () => {
   it("has about six artists and every fixture Kiirtan belongs to one", () => {
     expect(ARTIST_FIXTURES.length).toBeGreaterThanOrEqual(6)
     expect(new Set(ARTIST_FIXTURES.map((a) => a.id)).size).toBe(ARTIST_FIXTURES.length)
-    for (const x of KIRTAN_FIXTURES) expect(artistForAuthor(ARTIST_FIXTURES, x.author)).not.toBeNull()
+    for (const x of KIRTAN_FIXTURES.filter((f) => f.author.trim())) expect(artistForAuthor(ARTIST_FIXTURES, x.author)).not.toBeNull()
   })
 
   it("matches an author by name, ignoring case and extra spaces", () => {
@@ -297,8 +297,8 @@ describe("jump back in and Kiirtan of the day", () => {
 })
 
 describe("Kiirtan tab", () => {
-  it("has the four sticky chips and falls back to All", () => {
-    expect(KIRTAN_TAB_CHIPS.map((c) => c.label)).toEqual(["All", "Saved", "Downloaded", "My uploads"])
+  it("has the six sticky chips (three kind chips, then the lists) and falls back to All", () => {
+    expect(KIRTAN_TAB_CHIPS.map((c) => c.label)).toEqual(["All", "Kiirtan", "Bhajan", "Saved", "Downloaded", "My uploads"])
     expect(parseKirtanTabChip("mine")).toBe("mine")
     expect(parseKirtanTabChip(["saved"])).toBe("saved")
     expect(parseKirtanTabChip("zzz")).toBe("all")
@@ -321,7 +321,7 @@ describe("Kiirtan tab", () => {
   it("counts the type cards and lists saved ones that are approved", () => {
     const cards = typeCards(approved)
     expect(cards.map((c) => c.label)).toEqual(["Baba Nam Kevalam", "Lila kiirtan", "Festival", "Other"])
-    expect(cards.reduce((n, c) => n + c.count, 0)).toBe(approved.length)
+    expect(cards.reduce((n, c) => n + c.count, 0)).toBe(approved.filter((x) => x.kind === "kiirtan").length)
     const byId = new Map<string, Kirtan>([
       ["a", k({ id: "a" })],
       ["p", k({ id: "p", status: "pending" })],
@@ -332,7 +332,7 @@ describe("Kiirtan tab", () => {
 
 describe("search and library", () => {
   it("has the four result chips and reads the scope parameter", () => {
-    expect(SEARCH_SCOPES.map((c) => c.label)).toEqual(["All", "Songs", "Kiirtans", "Stories"])
+    expect(SEARCH_SCOPES.map((c) => c.label)).toEqual(["All", "Songs", "Kiirtans & Bhajans", "Stories"])
     expect(parseSearchScope("kiirtan")).toBe("kiirtan")
     expect(parseSearchScope(["kiirtans"])).toBe("kiirtan")
     expect(parseSearchScope("zzz")).toBe("all")
@@ -349,7 +349,7 @@ describe("search and library", () => {
     expect(searchKirtans(approved, "  LILA  ").every((x) => x.type === "lila" || /lila/i.test(x.title + x.author))).toBe(true)
     expect(searchKirtans(approved, "priya morning").map((x) => x.id)).toContain("k-bnk-morning")
     expect(searchKirtans(approved, "priya dipavali")).toEqual([])
-    expect(searchKirtans(approved, "kiirtan")).toHaveLength(approved.length)
+    expect(searchKirtans(approved, "kiirtan")).toHaveLength(approved.filter((x) => x.kind === "kiirtan").length)
     expect(searchKirtans(approved, "kiirtan", 3)).toHaveLength(3)
     expect(searchKirtans(approved, "zzzz")).toEqual([])
   })

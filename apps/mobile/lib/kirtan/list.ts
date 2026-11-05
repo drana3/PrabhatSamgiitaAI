@@ -1,3 +1,4 @@
+import { kindLabel } from "@/lib/kirtan/kind"
 import { KIRTAN_TYPES, type Kirtan, type KirtanTypeFilter } from "@/lib/kirtan/types"
 
 /** `12:40`, or `1:02:05` past an hour. */
@@ -10,7 +11,7 @@ export function formatKirtanLength(seconds: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
 }
 
-/** `12:40 · added by Priya`. The KIIRTAN tag is drawn beside it; length and person are left out when unknown. */
+/** `12:40 · added by Priya`. The KIIRTAN or BHAJAN tag is drawn beside it; length and person are left out when unknown. */
 export function kirtanSubline(k: Pick<Kirtan, "durationSec" | "addedBy">): string {
   const parts: string[] = []
   if (k.durationSec) parts.push(formatKirtanLength(k.durationSec))
@@ -41,5 +42,5 @@ export function typesInUse(list: readonly Pick<Kirtan, "type">[]): KirtanTypeFil
 
 /** Spoken label of a row for screen readers. */
 export function kirtanRowLabel(k: Kirtan): string {
-  return `Kiirtan, ${k.title}. ${kirtanSubline(k)}`
+  return `${kindLabel(k.kind)}, ${k.title}. ${kirtanSubline(k)}`
 }

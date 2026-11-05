@@ -8,6 +8,7 @@ import { SaveMark } from "@/components/save/SaveMark"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { kindLabel } from "@/lib/kirtan/kind"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { SHARE_TARGETS, type ShareTargetId } from "@/lib/playerV2/playerShare"
 
@@ -51,7 +52,7 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
   }
   const ink = theme.textHeading
   return (
-    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Kiirtan" accessibilityLabel="Kiirtan actions">
+    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow={kindLabel(shown?.kind)} accessibilityLabel={`${kindLabel(shown?.kind)} actions`}>
       {shown ? (
         <Text style={[styles.menuTitle, { color: theme.textHeading }]} numberOfLines={3}>
           {shown.title}
@@ -79,13 +80,13 @@ export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { op
   if (kirtan) last.current = kirtan
   const shown = kirtan ?? last.current
   return (
-    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Share" accessibilityLabel="Share kiirtan">
+    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Share" accessibilityLabel={`Share ${kindLabel(shown?.kind).toLowerCase()}`}>
       {shown ? (
         <Text style={[styles.menuTitle, { color: theme.textHeading }]} numberOfLines={3}>
           {shown.title}
         </Text>
       ) : null}
-      <Text style={[styles.note, { color: theme.textBody }]}>Your friends get a link to this Kiirtan.</Text>
+      <Text style={[styles.note, { color: theme.textBody }]}>Your friends get a link to this {kindLabel(shown?.kind)}.</Text>
       <View style={styles.grid}>
         {SHARE_TARGETS.filter((t) => !t.needsImage).map((target) => (
           <KPress

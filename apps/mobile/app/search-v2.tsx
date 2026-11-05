@@ -306,13 +306,13 @@ export default function UnifiedSearchScreen() {
       ) : null}
       {kirtanHits.length ? (
         <View style={styles.kirtanList}>
-          <Text style={[styles.groupLabel, { color: p.orange700 }]}>KIIRTANS</Text>
+          <Text style={[styles.groupLabel, { color: p.orange700 }]}>KIIRTANS AND BHAJANS</Text>
           {kirtanHits.map((k) => (
             <KirtanRow key={k.id} theme={songsTheme} kirtan={k} onOpen={(row) => { remember(query); kActions.open(row, kirtanHits, "Search") }} onOpenArtist={kActions.openArtist} />
           ))}
         </View>
       ) : scope === "kiirtan" ? (
-        <Text style={[styles.waitingText, styles.pad, { color: p.ink500, paddingHorizontal: 20 }]}>No Kiirtans match “{query.trim()}”.</Text>
+        <Text style={[styles.waitingText, styles.pad, { color: p.ink500, paddingHorizontal: 20 }]}>No Kiirtans or Bhajans match “{query.trim()}”.</Text>
       ) : null}
     </>
   )

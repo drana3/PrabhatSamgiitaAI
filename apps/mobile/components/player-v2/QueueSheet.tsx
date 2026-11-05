@@ -24,7 +24,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { buildQueueFooter, shufflingFromLine } from "@/lib/playerV2/playerActions"
 import type { RepeatMode } from "@/lib/playerV2/controller"
 import { queueOrigin } from "@/lib/playerV2/queueOps"
-import { trackLabel, trackTag } from "@/lib/kirtan/track"
+import { kindLabel } from "@/lib/kirtan/kind"
+import { recordingKindOfNumber, trackLabel, trackTag } from "@/lib/kirtan/track"
 import { formatClock } from "@/lib/playerV2/transportState"
 
 /** `seconds` (when known) replaces the "from Catalog" origin with the song length, as the prototype shows it. */
@@ -131,7 +132,7 @@ export function QueueSheet(props: Props) {
 
   const subLine = (item: QueueRow, playable: boolean) => {
     const tail = playable ? "" : " · no audio yet"
-    if (trackTag(item.number) === "KIIRTAN") return `${item.sub ?? (item.seconds ? formatClock(item.seconds) : "Kiirtan")}${tail}`
+    if (trackTag(item.number) !== "PS") return `${item.sub ?? (item.seconds ? formatClock(item.seconds) : kindLabel(recordingKindOfNumber(item.number)))}${tail}`
     return `PS ${item.number} · ${item.seconds != null ? formatClock(item.seconds) : `from ${queueOrigin(item.number, props.savedNumbers)}`}${tail}`
   }
 
@@ -151,7 +152,7 @@ export function QueueSheet(props: Props) {
           <View style={[styles.row, isActive && styles.rowActive, !playable && styles.dim]}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${item.title}, ${trackTag(item.number) === "KIIRTAN" ? "Kiirtan" : `PS ${item.number}`}${playable ? "" : ", no audio yet"}`}
+              accessibilityLabel={`${item.title}, ${trackTag(item.number) !== "PS" ? kindLabel(recordingKindOfNumber(item.number)) : `PS ${item.number}`}${playable ? "" : ", no audio yet"}`}
               onPress={() => props.onPlay(item.number)}
               style={styles.main}
             >
@@ -239,12 +240,13 @@ export function QueueSheet(props: Props) {
   )
 }
 
-/** PS or KIIRTAN: a small tag so both kinds read apart in one queue. */
+/** PS, KIIRTAN or BHAJAN: a small tag so the kinds read apart in one queue. */
 function TrackTag({ number }: { number: number }) {
-  const kiirtan = trackTag(number) === "KIIRTAN"
+  const tag = trackTag(number)
+  const kiirtan = tag !== "PS"
   return (
     <View style={[styles.tag, kiirtan ? styles.tagKiirtan : styles.tagPs]} aria-hidden>
-      <Text style={[styles.tagText, kiirtan ? styles.tagTextKiirtan : styles.tagTextPs]}>{kiirtan ? "KIIRTAN" : "PS"}</Text>
+      <Text style={[styles.tagText, kiirtan ? styles.tagTextKiirtan : styles.tagTextPs]}>{tag}</Text>
     </View>
   )
 }

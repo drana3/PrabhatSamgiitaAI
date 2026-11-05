@@ -4,11 +4,12 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import { KIRTAN_FIXTURES, KIRTAN_PENDING_FIXTURE } from "@/lib/fixtures/kirtan"
 import { addSubmission, buildSubmission, decideSubmission, submissionKey, withdrawSubmission, type AddResult, type SubmissionInput } from "@/lib/kirtan/submissions"
+import { KIRTAN_STORE_VERSION, migrateKirtanState } from "@/lib/kirtan/migrate"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 /**
- * Kiirtans on this phone: what the person submitted (with its review status), the kirtans they
+ * Kiirtans and Bhajans (one list, a `kind` each) on this phone: what the person submitted (with its review status), the kirtans they
  * saved and the ones they reported. Stored locally first.
  * TODO(api): submissions are POSTed to the backend and their status comes back from there; an
  * admin approves or rejects them (`decide` below stands in for that). Saved ids and reports sync.
@@ -58,7 +59,9 @@ export const useKirtanStore = create<KirtanState>()(
     {
       name: "prabhat-kirtan",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: KIRTAN_STORE_VERSION,
+      // v1 had no `kind`: old submissions are Kiirtans.
+      migrate: (persisted, version) => migrateKirtanState(persisted, version) as unknown as KirtanState,
       partialize: (state) => ({ submissions: state.submissions, savedIds: state.savedIds, reportedIds: state.reportedIds }),
     },
   ),

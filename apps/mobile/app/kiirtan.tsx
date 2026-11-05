@@ -29,13 +29,14 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { KIIRTAN_RESUME_FIXTURES } from "@/lib/fixtures/kirtan"
 import { artistsWithKirtans, kirtansOfArtist } from "@/lib/kirtan/artists"
+import { filterByKind, kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
 import { LENGTH_BUCKETS, longKirtans, type LengthBucketId } from "@/lib/kirtan/length"
 import { formatKirtanLength } from "@/lib/kirtan/list"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { dayNumberOf, kiirtanOfTheDay, resumeEntries, resumeLabel, resumeProgress } from "@/lib/kirtan/resume"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
-import { emptyListText, KIRTAN_TAB_CHIPS, newKirtansList, parseKirtanTabChip, savedKirtans, typeCards, type KirtanTabChip } from "@/lib/kirtan/tab"
-import type { Kirtan, KirtanTypeId } from "@/lib/kirtan/types"
+import { bhajansForEveryHour, emptyListText, isShelfChip, kindOfTabChip, KIRTAN_TAB_CHIPS, newKirtansList, parseKirtanTabChip, savedKirtans, typeCardCount, typeCards, type KirtanTabChip, type TypeCard as TypeCardData } from "@/lib/kirtan/tab"
+import { kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { useKirtanLiveStore } from "@/stores/kirtanLiveStore"
@@ -48,10 +49,11 @@ const SECTION_GAP = 36
 const TYPE_CARD = { w: 152, h: 112 }
 
 /**
- * The Kiirtan tab. Row 1 (avatar, search, "+" for Add Kiirtan) and the chips row (All, Saved, Downloaded,
- * My uploads) are ONE pinned header block; the big heading scrolls away. Under All: the heading,
- * Kiirtan of the day, Jump back in, By type, By length, Artists, New kiirtans and Long kiirtans.
- * Every row plays in the one player (the pill appears by itself).
+ * The Kiirtan tab (Kiirtans and Bhajans: two kinds of one recordings list). Row 1 (avatar, search, "+"
+ * for Add) and the chips row (All, Kiirtan, Bhajan, Saved, Downloaded, My uploads) are ONE pinned header
+ * block; the big heading scrolls away. The first three chips are the KIND filter and narrow every shelf
+ * below: the heading, Kiirtan / Bhajan of the day, Jump back in, By type, Bhajans for every hour, By length,
+ * Artists, New recordings and Long kiirtans. Every row plays in the one player (the pill appears by itself).
  * TODO(api): the catalog, the artists, the day's pick and the resume positions come from the backend.
  */
 export default function KiirtanTabScreen() {
@@ -72,20 +74,35 @@ export default function KiirtanTabScreen() {
   const toggleRemind = useKirtanLiveStore((s) => s.toggleRemind)
 
   const [chip, setChip] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
-  const [type, setType] = useState<KirtanTypeId | null>(null)
+  const [typePick, setTypePick] = useState<{ kind: RecordingKind; id: TypeCardData["id"] } | null>(null)
   const [length, setLength] = useState<LengthBucketId | null>(null)
   const [menu, setMenu] = useState<Kirtan | null>(null)
   const [share, setShare] = useState<Kirtan | null>(null)
 
+  /** the kind filter of the first three chips; the list chips (Saved...) show both kinds */
+  const kind = kindOfTabChip(chip)
+  const shelves = isShelfChip(chip)
+  const showKiirtan = kind !== "bhajan"
+  const showBhajan = kind !== "kiirtan"
+  // a chosen type card belongs to one kind; it only counts while that kind is shown
+  const pick = typePick && (kind === "all" || typePick.kind === kind) ? typePick : null
+  const type = pick?.id ?? null
+
   const now = useMemo(() => Date.now(), [])
-  const day = useMemo(() => kiirtanOfTheDay(playable, dayNumberOf(now)), [playable, now])
-  const jump = useMemo(() => resumeEntries(KIIRTAN_RESUME_FIXTURES, byId, 2), [byId])
-  const cards = useMemo(() => typeCards(playable), [playable])
-  const artists = useMemo(() => artistsWithKirtans(ARTIST_FIXTURES, playable), [playable])
-  const list = useMemo(() => newKirtansList(playable, type, length), [playable, type, length])
-  const longList = useMemo(() => longKirtans(playable, 6), [playable])
+  const dayN = useMemo(() => dayNumberOf(now), [now])
+  const kindList = useMemo(() => filterByKind(playable, kind), [playable, kind])
+  const day = useMemo(() => kiirtanOfTheDay(filterByKind(playable, showKiirtan ? "kiirtan" : "bhajan"), dayN), [playable, showKiirtan, dayN])
+  const bhajanDay = useMemo(() => (kind === "all" ? kiirtanOfTheDay(filterByKind(playable, "bhajan"), dayN) : null), [playable, kind, dayN])
+  const hourly = useMemo(() => bhajansForEveryHour(playable), [playable])
+  const jump = useMemo(() => resumeEntries(KIIRTAN_RESUME_FIXTURES, byId, 2).filter((e) => kind === "all" || e.kirtan.kind === kind), [byId, kind])
+  const cards = useMemo(() => typeCards(playable, kind), [playable, kind])
+  const artists = useMemo(() => artistsWithKirtans(ARTIST_FIXTURES, kindList), [kindList])
+  const list = useMemo(() => newKirtansList(playable, type, length, pick?.kind ?? kind), [playable, type, length, pick, kind])
+  const longList = useMemo(() => longKirtans(kindList, 6), [kindList])
   const saved = useMemo(() => savedKirtans(savedIds, byId), [savedIds, byId])
-  const typeLabel = type ? (cards.find((c) => c.id === type)?.label ?? null) : null
+  const typeLabel = pick ? (cards.find((c) => c.id === pick.id && c.kind === pick.kind)?.label ?? null) : null
+  const headFirst = kind === "bhajan" ? "BHAJAN" : "KIIRTAN"
+  const headSecond = kind === "all" ? "and bhajan" : kind === "bhajan" ? "of devotion" : "for every hour"
 
   const scrollY = useSharedValue(0)
   const onScroll = useAnimatedScrollHandler((event) => {
@@ -109,15 +126,15 @@ export default function KiirtanTabScreen() {
     <>
       <Reveal index={next()} style={styles.titleBlock}>
         <Text style={styles.h1} accessibilityRole="header">
-          <Text style={{ color: p.ink800 }}>KIIRTAN</Text>
+          <Text style={{ color: p.ink800 }}>{headFirst}</Text>
           {"\n"}
-          <Text style={{ color: p.ink300 }}>for every hour</Text>
+          <Text style={{ color: p.ink300 }}>{headSecond}</Text>
         </Text>
       </Reveal>
 
       {day ? (
         <Reveal index={next()}>
-          <DayCard kirtan={day} onPlay={() => play(day, playable)} />
+          <DayCard kirtan={day} onPlay={() => play(day, kindList)} />
         </Reveal>
       ) : null}
 
@@ -131,7 +148,7 @@ export default function KiirtanTabScreen() {
                 theme={theme}
                 kirtan={kirtan}
                 compact
-                onOpen={(k) => play(k, playable)}
+                onOpen={(k) => play(k, kindList)}
                 onMore={setMenu}
                 trailing={
                   <View style={styles.resume}>
@@ -150,20 +167,20 @@ export default function KiirtanTabScreen() {
       ) : null}
 
       <Reveal index={next()} style={styles.section}>
-        <HomeSectionHead p={p} eyebrow="Four kinds of kiirtan" first="By" second="type" />
+        <HomeSectionHead p={p} eyebrow={kind === "all" ? "Kiirtan and bhajan types" : `Four kinds of ${kindLabel(kind).toLowerCase()}`} first="By" second="type" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
           {cards.map((card) => (
             <TypeCard
-              key={card.id}
-              id={card.id}
-              label={card.label}
-              count={card.count}
-              on={type === card.id}
-              onPress={() => setType((cur) => (cur === card.id ? null : card.id))}
+              key={`${card.kind}-${card.id}`}
+              card={card}
+              on={pick?.id === card.id && pick.kind === card.kind}
+              onPress={() => setTypePick((cur) => (cur?.id === card.id && cur.kind === card.kind ? null : { kind: card.kind, id: card.id }))}
             />
           ))}
         </ScrollView>
       </Reveal>
+
+      {kind === "bhajan" ? hourShelf() : null}
 
       <Reveal index={next()} style={styles.section}>
         <HomeSectionHead p={p} eyebrow="How much time you have" first="By" second="length" />
@@ -198,28 +215,36 @@ export default function KiirtanTabScreen() {
         </Reveal>
       ) : null}
 
+      {kind === "all" && bhajanDay ? (
+        <Reveal index={next()}>
+          <DayCard kirtan={bhajanDay} onPlay={() => play(bhajanDay, filterByKind(playable, "bhajan"))} />
+        </Reveal>
+      ) : null}
+
+      {kind === "all" ? hourShelf() : null}
+
       <Reveal index={next()} style={styles.section}>
         <HomeSectionHead
           p={p}
           eyebrow={[typeLabel, length ? LENGTH_BUCKETS.find((b) => b.id === length)?.label : null].filter(Boolean).join(" · ") || "Newest first"}
           first="New"
-          second="kiirtans"
+          second={kind === "all" ? "recordings" : kindLabelPlural(kind).toLowerCase()}
           action={{ label: "Shuffle everything", onPress: () => actions.flash(playEverything() ?? "") }}
         />
         <View style={styles.list}>
           {list.length ? (
             list.map((k) => <KirtanRow key={k.id} theme={theme} kirtan={k} compact onOpen={(row) => play(row, list, typeLabel)} onMore={setMenu} onOpenArtist={actions.openArtist} />)
           ) : (
-            <HomeEmpty p={p} text={emptyListText(type, length)} />
+            <HomeEmpty p={p} text={emptyListText(type, length, pick?.kind ?? kind)} />
           )}
         </View>
       </Reveal>
 
-      {longList.length || live.items.length ? (
+      {longList.length || (showKiirtan && live.items.length) ? (
         <Reveal index={next()} style={styles.section}>
-          <HomeSectionHead p={p} eyebrow="For meditation and sleep" first="Live and long" second="kiirtans" />
+          <HomeSectionHead p={p} eyebrow="For meditation and sleep" first="Live and long" second={kind === "bhajan" ? "bhajans" : "kiirtans"} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
-            {live.items.map((item) => (
+            {(showKiirtan ? live.items : []).map((item) => (
               <LiveCard
                 key={item.id}
                 item={item}
@@ -239,12 +264,27 @@ export default function KiirtanTabScreen() {
     </>
   )
 
+  /** "Bhajans for every hour": one card per Bhajan, ordered Morning, Evening, Devotional, Other. Same card as the long Kiirtans. */
+  function hourShelf() {
+    if (!hourly.length) return null
+    return (
+      <Reveal index={next()} style={styles.section}>
+        <HomeSectionHead p={p} eyebrow="Morning, evening, devotion" first="Bhajans" second="for every hour" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
+          {hourly.map((k) => (
+            <LongCard key={k.id} kirtan={k} caption={kirtanTypeLabel(k.type, k.kind)} onPress={() => play(k, hourly)} />
+          ))}
+        </ScrollView>
+      </Reveal>
+    )
+  }
+
   const renderSaved = () => (
     <View style={styles.list}>
       {saved.length ? (
         saved.map((k) => <KirtanRow key={k.id} theme={theme} kirtan={k} compact onOpen={(row) => play(row, saved, "Saved")} onMore={setMenu} onOpenArtist={actions.openArtist} />)
       ) : (
-        <HomeEmpty p={p} text="Nothing saved yet. Open the menu of a Kiirtan and choose Save." />
+        <HomeEmpty p={p} text="Nothing saved yet. Open the menu of a Kiirtan or Bhajan and choose Save." />
       )}
     </View>
   )
@@ -252,7 +292,7 @@ export default function KiirtanTabScreen() {
   // TODO(api): Kiirtan downloads need the audio files from the backend; there is nothing to keep offline yet.
   const renderDownloaded = () => (
     <View style={styles.list}>
-      <HomeEmpty p={p} text="Downloads for Kiirtans are coming soon. Songs you downloaded stay under Songs." />
+      <HomeEmpty p={p} text="Downloads for Kiirtans and Bhajans are coming soon. Songs you downloaded stay under Songs." />
     </View>
   )
 
@@ -260,7 +300,7 @@ export default function KiirtanTabScreen() {
     <View style={styles.list}>
       <KPress
         accessibilityRole="button"
-        accessibilityLabel="Add Kiirtan. Upload an audio file for review."
+        accessibilityLabel="Add a Kiirtan or Bhajan. Upload an audio file for review."
         onPress={() => router.push(href("/add-kirtan"))}
         pressedScale={0.98}
         style={[styles.addCard, { borderColor: theme.accent }]}
@@ -269,7 +309,7 @@ export default function KiirtanTabScreen() {
           <Plus size={22} color={theme.accent} strokeWidth={2.2} />
         </View>
         <View style={styles.addText}>
-          <Text style={[styles.addTitle, { color: theme.textHeading }]}>Add Kiirtan</Text>
+          <Text style={[styles.addTitle, { color: theme.textHeading }]}>Add Kiirtan or Bhajan</Text>
           <Text style={[styles.addSub, { color: theme.textBody }]}>Upload an audio file for review</Text>
         </View>
       </KPress>
@@ -294,7 +334,7 @@ export default function KiirtanTabScreen() {
           />
         ))
       ) : (
-        <HomeEmpty p={p} text="You have not uploaded a Kiirtan yet." />
+        <HomeEmpty p={p} text="You have not uploaded a Kiirtan or Bhajan yet." />
       )}
     </View>
   )
@@ -324,13 +364,13 @@ export default function KiirtanTabScreen() {
           <TodayPress accessibilityRole="search" accessibilityLabel="Search" onPress={() => router.push(href("/search-v2?focus=1&scope=kiirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
             <Search size={20} color={p.ink800} strokeWidth={1.9} />
           </TodayPress>
-          <TodayPress accessibilityRole="button" accessibilityLabel="Add Kiirtan" onPress={() => router.push(href("/add-kirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.action, borderColor: p.action }]}>
+          <TodayPress accessibilityRole="button" accessibilityLabel="Add Kiirtan or Bhajan" onPress={() => router.push(href("/add-kirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.action, borderColor: p.action }]}>
             <Plus size={22} color={p.onAction} strokeWidth={2.2} />
           </TodayPress>
         </View>
         <StickyChipsRow items={KIRTAN_TAB_CHIPS} value={chip} onChange={setChip} colors={chipColors} scrollY={scrollY} stickAt={0} />
         </StickyTopBlock>
-        <View style={styles.shelves}>{chip === "all" ? renderAll() : chip === "saved" ? renderSaved() : chip === "downloaded" ? renderDownloaded() : renderMine()}</View>
+        <View style={styles.shelves}>{shelves ? renderAll() : chip === "saved" ? renderSaved() : chip === "downloaded" ? renderDownloaded() : renderMine()}</View>
       </Animated.ScrollView>
 
       <KirtanMenuSheet
@@ -350,26 +390,26 @@ export default function KiirtanTabScreen() {
     </View>
   )
 
-  /** "Kiirtan of the day": the cover fills the card; eyebrow and title in capitals; a round orange play button. */
+  /** "Kiirtan of the day" / "Bhajan of the day": the cover fills the card; eyebrow and title in capitals; a round orange play button. */
   function DayCard({ kirtan, onPlay }: { kirtan: Kirtan; onPlay: () => void }) {
     return (
       <KPress
         accessibilityRole="button"
-        accessibilityLabel={`Kiirtan of the day, ${kirtan.title}. Play`}
+        accessibilityLabel={`${kindLabel(kirtan.kind)} of the day, ${kirtan.title}. Play`}
         onPress={onPlay}
         pressedScale={0.985}
         outerStyle={styles.dayOuter}
         style={styles.day}
       >
-        <KiirtanCover type={kirtan.type} coverUrl={kirtan.thumbnailUrl} width="100%" height={220} radius={30} glyph={96} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
+        <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={kirtan.thumbnailUrl} width="100%" height={220} radius={30} glyph={96} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
         <LinearGradient pointerEvents="none" colors={["rgba(10,14,8,0)", "rgba(10,14,8,0.62)"]} style={[StyleSheet.absoluteFill, styles.dayShade]} />
         <View style={styles.dayText} pointerEvents="none">
-          <Text style={styles.dayEyebrow}>KIIRTAN OF THE DAY</Text>
+          <Text style={styles.dayEyebrow}>{`${kindLabel(kirtan.kind).toUpperCase()} OF THE DAY`}</Text>
           <Text style={styles.dayTitle} numberOfLines={3}>
             {kirtan.title}
           </Text>
           <Text style={styles.daySub} numberOfLines={1}>
-            {kirtan.author}
+            {kirtan.author.trim() ? kirtan.author : kirtan.addedBy}
             {kirtan.durationSec ? ` · ${formatKirtanLength(kirtan.durationSec)}` : ""}
           </Text>
         </View>
@@ -382,13 +422,13 @@ export default function KiirtanTabScreen() {
 }
 
 /** A coloured card of the "By type" shelf. The chosen one carries a ring and narrows the list. */
-function TypeCard({ id, label, count, on, onPress }: { id: KirtanTypeId; label: string; count: number; on: boolean; onPress: () => void }) {
-  const [from, to] = kiirtanTone(id)
+function TypeCard({ card, on, onPress }: { card: TypeCardData; on: boolean; onPress: () => void }) {
+  const [from, to] = kiirtanTone(card.id, card.kind)
   return (
     <KPress
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
-      accessibilityLabel={`${label}, ${count} ${count === 1 ? "kiirtan" : "kiirtans"}`}
+      accessibilityLabel={`${card.label}, ${typeCardCount(card)}`}
       onPress={onPress}
       pressedScale={0.96}
       style={[styles.typeCard, { borderColor: on ? "#1E1E1E" : "transparent" }]}
@@ -399,27 +439,28 @@ function TypeCard({ id, label, count, on, onPress }: { id: KirtanTypeId; label: 
       </View>
       <View>
         <Text style={styles.typeLabel} numberOfLines={2}>
-          {label}
+          {card.label}
         </Text>
-        <Text style={styles.typeCount}>{count} {count === 1 ? "kiirtan" : "kiirtans"}</Text>
+        <Text style={styles.typeCount}>{typeCardCount(card)}</Text>
       </View>
     </KPress>
   )
 }
 
-/** A card of the "Live and long kiirtans" shelf: the cover with its length, then the title. */
-function LongCard({ kirtan, onPress }: { kirtan: Kirtan; onPress: () => void }) {
+/** A card of the "Live and long kiirtans" and "Bhajans for every hour" shelves: the cover with its length, then the title. */
+function LongCard({ kirtan, onPress, caption }: { kirtan: Kirtan; onPress: () => void; caption?: string }) {
   const theme = useSongsTheme()
   return (
     <KPress accessibilityRole="button" accessibilityLabel={`${kirtan.title}, ${formatKirtanLength(kirtan.durationSec ?? 0)}. Play`} onPress={onPress} pressedScale={0.97} style={styles.longCard}>
       <View>
-        <KiirtanCover type={kirtan.type} coverUrl={kirtan.thumbnailUrl} width={200} height={120} radius={22} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
+        <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={kirtan.thumbnailUrl} width={200} height={120} radius={22} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
         <View style={styles.longLength}>
           <Text style={styles.longLengthText}>{formatKirtanLength(kirtan.durationSec ?? 0)}</Text>
         </View>
       </View>
       <View style={styles.longMeta}>
-        <KirtanTag theme={theme} />
+        <KirtanTag theme={theme} kind={kirtan.kind} />
+        {caption ? <Text style={[styles.longCaption, { color: theme.textBody }]}>{caption}</Text> : null}
       </View>
       <Text style={[styles.longTitle, { color: theme.textHeading }]} numberOfLines={2}>
         {kirtan.title}
@@ -465,7 +506,8 @@ const styles = StyleSheet.create({
   longCard: { width: 200, gap: 6 },
   longLength: { position: "absolute", right: 8, bottom: 8, height: 22, paddingHorizontal: 8, borderRadius: 11, backgroundColor: "rgba(10,14,8,0.62)", justifyContent: "center" },
   longLengthText: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 15, color: "#FFFFFF", fontVariant: ["tabular-nums"] },
-  longMeta: { flexDirection: "row", marginTop: 4 },
+  longMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  longCaption: { fontFamily: amFonts.medium, fontSize: 12.5, lineHeight: 17 },
   longTitle: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   addCard: { minHeight: 68, borderRadius: 20, borderWidth: 1.5, borderStyle: "dashed", flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 14, paddingVertical: 10 },
   addDisc: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },

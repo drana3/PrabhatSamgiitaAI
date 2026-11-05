@@ -14,6 +14,7 @@ import { scheduleOnRN } from "react-native-worklets"
 
 import { HomeCover } from "@/components/home/HomeBlocks"
 import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
+import { withKindWord } from "@/lib/kirtan/kind"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { SaveButton } from "@/components/save/SaveButton"
 import { useSheetCover } from "@/components/nav-v2/sheetCover"
@@ -182,7 +183,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
           >
             <View style={styles.cover}>
               {isKiirtan ? (
-                <KiirtanCover type={currentSong.kiirtan?.type} coverUrl={currentSong.thumbnailUrl || null} width={COVER} height={COVER} radius={12} glyph={22} photoSeed={currentSong.kiirtan?.id ?? String(currentSong.id)} title={currentSong.title} durationSec={currentSong.durationSeconds || null} />
+                <KiirtanCover type={currentSong.kiirtan?.type} kind={currentSong.kiirtan?.recording} coverUrl={currentSong.thumbnailUrl || null} width={COVER} height={COVER} radius={12} glyph={22} photoSeed={currentSong.kiirtan?.id ?? String(currentSong.id)} title={currentSong.title} durationSec={currentSong.durationSeconds || null} />
               ) : (
                 <HomeCover number={currentSong.number} size={COVER} radius={12} />
               )}
@@ -192,7 +193,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
                 {currentSong.title}
               </Text>
               <Text style={[styles.sub, { color: theme.textBody }]} numberOfLines={1}>
-                {miniSubtitle({ number: currentSong.number, position, duration, kind: isKiirtan ? "kiirtan" : "song" })}
+                {withKindWord(miniSubtitle({ number: currentSong.number, position, duration, kind: isKiirtan ? "kiirtan" : "song" }), currentSong.kiirtan?.recording)}
               </Text>
             </View>
           </PressScale>

@@ -1,4 +1,6 @@
 import type { MockSong } from "@/data/mock"
+import { kindLabel, kindTag, normalizeKind } from "@/lib/kirtan/kind"
+import type { RecordingKind } from "@/lib/kirtan/types"
 
 /**
  * A Kiirtan as a normal track of the one player.
@@ -25,6 +27,8 @@ export type KiirtanSource = {
   author: string
   durationSec: number | null
   type: string
+  /** Kiirtan or Bhajan; missing means a Kiirtan */
+  kind?: RecordingKind
   thumbnailUrl: string | null
   /** the audio file the author uploaded; null while the upload API does not exist (preview data) */
   audioUrl: string | null
@@ -108,7 +112,7 @@ function buildKiirtanSong(k: KiirtanSource, number: number): MockSong {
     // The uploaded file is the only recording; a missing file stays missing (the engine reports it).
     mediaHydrated: true,
     kind: "kiirtan",
-    kiirtan: { id: k.id, type: k.type, addedBy: k.addedBy },
+    kiirtan: { id: k.id, type: k.type, addedBy: k.addedBy, recording: normalizeKind(k.kind) },
   }
 }
 
@@ -122,18 +126,29 @@ export function kiirtanHasAudio(n: number): boolean {
   return Boolean(songByNumber.get(n)?.audioUrl?.trim())
 }
 
-/** `Kiirtan · added by Priya`, or just `Kiirtan` when nobody is named. */
-export function kiirtanByline(addedBy: string | null | undefined): string {
+/** The kind (Kiirtan or Bhajan) of a Kiirtan track record; a Kiirtan when unknown. */
+export function recordingKindOfSong(song: Pick<MockSong, "kiirtan"> | null | undefined): RecordingKind {
+  return normalizeKind(song?.kiirtan?.recording)
+}
+
+/** The kind behind a queue number; a Kiirtan for numbers not handed out in this session. */
+export function recordingKindOfNumber(n: number): RecordingKind {
+  return recordingKindOfSong(songByNumber.get(n))
+}
+
+/** `Kiirtan · added by Priya`, or just `Kiirtan` when nobody is named. `Bhajan` for a Bhajan. */
+export function kiirtanByline(addedBy: string | null | undefined, kind?: RecordingKind | null): string {
   const who = (addedBy ?? "").trim()
-  return who ? `Kiirtan · added by ${who}` : "Kiirtan"
+  const label = kindLabel(kind)
+  return who ? `${label} · added by ${who}` : label
 }
 
-/** Tag text of a queue or list row. */
-export function trackTag(n: number): "PS" | "KIIRTAN" {
-  return isKiirtanNumber(n) ? "KIIRTAN" : "PS"
+/** Tag text of a queue or list row: `PS`, `KIIRTAN` or `BHAJAN`. */
+export function trackTag(n: number): "PS" | "KIIRTAN" | "BHAJAN" {
+  return isKiirtanNumber(n) ? kindTag(recordingKindOfNumber(n)) : "PS"
 }
 
-/** `PS 12` or `KIIRTAN`: the label of a queue row. */
+/** `PS 12`, `KIIRTAN` or `BHAJAN`: the label of a queue row. */
 export function trackLabel(n: number): string {
-  return isKiirtanNumber(n) ? "KIIRTAN" : `PS ${n}`
+  return isKiirtanNumber(n) ? kindTag(recordingKindOfNumber(n)) : `PS ${n}`
 }

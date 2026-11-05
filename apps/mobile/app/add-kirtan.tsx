@@ -12,8 +12,9 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { kindLabel, typeAfterKindChange, typesOfKind } from "@/lib/kirtan/kind"
 import { CONFIRM_TEXT, SUBMISSION_ERROR_TEXT, validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
-import { KIRTAN_TYPES, type Kirtan, type KirtanTypeId } from "@/lib/kirtan/types"
+import { RECORDING_KINDS, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
 
@@ -26,7 +27,7 @@ const CloseGlyph = ({ color }: { color: string }) => (
 type PickedFile = { name: string; uri: string }
 
 /**
- * Add Kiirtan: the author uploads an audio file, names it, says who sings, chooses a type, confirms the
+ * Add Kiirtan or Bhajan: the author says what it is (Kiirtan or Bhajan), uploads an audio file, names it, says who sings, chooses a type (the choices depend on the kind), confirms the
  * rights and sends it for review. It then waits under "My uploads" with the status in review.
  * The file picker works in the web preview (an `<input type=file accept="audio/*">`). On a phone the
  * native picker needs expo-document-picker, which is not installed yet, so "Choose file" is off there.
@@ -40,6 +41,7 @@ export default function AddKirtanScreen() {
   const top = Platform.OS === "web" ? 24 : Math.max(insets.top, 16)
   const isWeb = Platform.OS === "web"
 
+  const [kind, setKind] = useState<RecordingKind>("kiirtan")
   const [file, setFile] = useState<PickedFile | null>(null)
   const [title, setTitle] = useState("")
   const [author, setAuthor] = useState("")
@@ -64,7 +66,7 @@ export default function AddKirtanScreen() {
   }
 
   const send = () => {
-    const input = { fileName: file?.name ?? null, fileUri: file?.uri ?? null, title, author, type, confirmed, addedBy: "You" }
+    const input = { kind, fileName: file?.name ?? null, fileUri: file?.uri ?? null, title, author, type, confirmed, addedBy: "You" }
     const problem = validateSubmission(input)
     if (problem) {
       setError(problem)
@@ -78,6 +80,13 @@ export default function AddKirtanScreen() {
       setDuplicate(result.duplicate)
       setError("duplicate")
     }
+  }
+
+  const chooseKind = (next: RecordingKind) => {
+    setKind(next)
+    // the same type id stays when both kinds have it ("Other"); otherwise the person picks again
+    setType((cur) => typeAfterKindChange(next, cur))
+    setError(null)
   }
 
   const close = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
@@ -109,11 +118,35 @@ export default function AddKirtanScreen() {
               <Text style={[styles.over, { color: theme.accent }]}>Share a recording</Text>
               <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
                 Add{"\n"}
-                <Text style={{ color: theme.ink300 }}>Kiirtan</Text>
+                <Text style={{ color: theme.ink300 }}>{kindLabel(kind)}</Text>
               </Text>
             </Reveal>
 
             <Reveal index={1} style={styles.field}>
+              <Text style={[styles.label, { color: theme.textHeading }]}>What is it?</Text>
+              <View style={styles.kinds} accessibilityRole="radiogroup">
+                {RECORDING_KINDS.map((k) => {
+                  const on = k === kind
+                  return (
+                    <KPress
+                      key={k}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={`${kindLabel(k)}. ${KIND_BLURB[k]}`}
+                      onActivate={() => chooseKind(k)}
+                      pressedScale={0.97}
+                      outerStyle={styles.kindOuter}
+                      style={[styles.kindCard, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
+                    >
+                      <Text style={[styles.kindName, { color: on ? theme.onInk : theme.textHeading }]}>{kindLabel(k)}</Text>
+                      <Text style={[styles.kindBlurb, { color: on ? theme.onInk : theme.textBody }]}>{KIND_BLURB[k]}</Text>
+                    </KPress>
+                  )
+                })}
+              </View>
+            </Reveal>
+
+            <Reveal index={2} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>Audio file</Text>
               <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: error === "file" ? amColors.danger : theme.line }]}>
                 <PlayerIcon name="link" size={20} color={theme.textBody} />
@@ -150,7 +183,7 @@ export default function AddKirtanScreen() {
               <Text style={[styles.hint, { color: theme.textBody }]}>MP3, M4A, WAV or another audio file that you recorded.</Text>
             </Reveal>
 
-            <Reveal index={2} style={styles.field}>
+            <Reveal index={3} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>Title</Text>
               <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: focus === "title" ? theme.brand : error === "title" ? amColors.danger : theme.line }]}>
                 <TextInput
@@ -158,7 +191,7 @@ export default function AddKirtanScreen() {
                   onChangeText={setTitle}
                   onFocus={() => setFocus("title")}
                   onBlur={() => setFocus(null)}
-                  placeholder="Name of the Kiirtan"
+                  placeholder={`Name of the ${kindLabel(kind)}`}
                   placeholderTextColor={theme.textMuted}
                   accessibilityLabel="Title"
                   maxLength={120}
@@ -181,10 +214,10 @@ export default function AddKirtanScreen() {
               </View>
             </Reveal>
 
-            <Reveal index={3} style={styles.field}>
+            <Reveal index={4} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>Type</Text>
               <View style={styles.chips}>
-                {KIRTAN_TYPES.map((t) => {
+                {typesOfKind(kind).map((t) => {
                   const on = t.id === type
                   return (
                     <KPress
@@ -220,7 +253,7 @@ export default function AddKirtanScreen() {
               <Text style={[styles.hint, { color: theme.dangerText }]} accessibilityLiveRegion="polite">
                 {error === "duplicate"
                   ? duplicate?.status === "approved"
-                    ? "This Kiirtan is already in the list."
+                    ? `This ${kindLabel(kind)} is already in the list.`
                     : "You already sent this one. It is waiting for review."
                   : SUBMISSION_ERROR_TEXT[error]}
               </Text>
@@ -229,13 +262,16 @@ export default function AddKirtanScreen() {
             <KPress accessibilityRole="button" accessibilityLabel="Send for review" onPress={send} pressedScale={0.98} style={[styles.send, { backgroundColor: theme.brand }]}>
               <Text style={styles.sendText}>Send for review</Text>
             </KPress>
-            <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>A reviewer listens to every Kiirtan before it appears for everyone.</Text>
+            <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>A reviewer listens to every {kindLabel(kind)} before it appears for everyone.</Text>
           </>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
   )
 }
+
+/** One line under each choice of "What is it?". */
+const KIND_BLURB: Record<RecordingKind, string> = { kiirtan: "Group chanting", bhajan: "A devotional song" }
 
 function Sent({ theme, kirtan, onView, onAnother }: { theme: SongsTheme; kirtan: Kirtan; onView: () => void; onAnother: () => void }) {
   return (
@@ -249,7 +285,7 @@ function Sent({ theme, kirtan, onView, onAnother }: { theme: SongsTheme; kirtan:
       </Text>
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line, padding: 14, gap: 8 }]}>
         <View style={styles.tagLine}>
-          <KirtanTag theme={theme} />
+          <KirtanTag theme={theme} kind={kirtan.kind} />
           <Text style={[styles.pasteText, { color: theme.accent }]}>IN REVIEW</Text>
         </View>
         <Text style={[styles.cardTitle, { color: theme.textHeading }]} numberOfLines={3}>
@@ -293,6 +329,11 @@ const styles = StyleSheet.create({
   cardBody: { padding: 14, gap: 8, minHeight: 74 },
   tagLine: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardTitle: { fontFamily: amFonts.semi, fontSize: 18, lineHeight: 22, letterSpacing: -0.1 },
+  kinds: { flexDirection: "row", gap: 10 },
+  kindOuter: { flex: 1 },
+  kindCard: { minHeight: 76, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, paddingVertical: 12, justifyContent: "center", gap: 2 },
+  kindName: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.4, textTransform: "uppercase" },
+  kindBlurb: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { height: 44, paddingHorizontal: 18, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   chipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
