@@ -175,13 +175,12 @@ describe("hero text", () => {
     expect(languageParts("Roman", ["roman", "devanagari"])).toEqual(["Roman", "Devanagari"])
     expect(languageParts(null, ["roman"])).toEqual(["Roman"])
   })
-  it("lists credits with the performer last", () => {
+  it("lists the author once, then a performer only when one is given", () => {
     expect(creditRows("Performer A")).toEqual([
-      { role: "Words", name: "Shrii P. R. Sarkar" },
-      { role: "Music", name: "Shrii P. R. Sarkar" },
+      { role: "Words and music", name: "Shrii P. R. Sarkar (Prabhat Samgiita)" },
       { role: "Performer", name: "Performer A" },
     ])
-    expect(creditRows("  ")).toHaveLength(2)
+    expect(creditRows("  ")).toHaveLength(1)
   })
   it("takes the first four lines that have text", () => {
     expect(previewLines(["a", " ", "b", "c", "d", "e"])).toEqual(["a", "b", "c", "d"])

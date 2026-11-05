@@ -99,14 +99,13 @@ export function metaLine(input: { seconds: number | null; versionCount: number; 
 export type CreditRow = { role: string; name: string }
 
 /**
- * Words, music and performer. Every Prabhat Samgiita song is words and music by Shrii P. R. Sarkar
- * (Shrii Shrii Anandamurti), so those two lines are the same for all; the performer is the version's.
+ * The credit rows. Every Prabhat Samgiita song is words and music by Shrii P. R. Sarkar (Shrii Shrii
+ * Anandamurti), a fact for all 5,018 songs, so it is one line, once. A performer row appears only when
+ * the caller has a performer that really is one (the catalog has no such field today, and an audio
+ * file title is not a performer).
  */
-export function creditRows(performer: string | null | undefined): CreditRow[] {
-  const rows: CreditRow[] = [
-    { role: "Words", name: "Shrii P. R. Sarkar" },
-    { role: "Music", name: "Shrii P. R. Sarkar" },
-  ]
+export function creditRows(performer?: string | null): CreditRow[] {
+  const rows: CreditRow[] = [{ role: "Words and music", name: "Shrii P. R. Sarkar (Prabhat Samgiita)" }]
   const who = (performer ?? "").trim()
   if (who) rows.push({ role: "Performer", name: who })
   return rows
