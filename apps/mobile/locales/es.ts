@@ -1,5 +1,6 @@
 import type { Dictionary } from "@/locales"
 import { songPageEs } from "./songPage"
+import { appShellEs } from "./appShell"
 
 /** Español. Trato de «tú». Kiirtan y Bhajan se escriben como en inglés; Prabhat Samgiita no se traduce. */
 export const es: Dictionary = {
@@ -1251,4 +1252,5 @@ export const es: Dictionary = {
   "assistant.consent.notNow": "Ahora no",
   "assistant.consent.privacy": "Leer la política de privacidad",
   ...songPageEs,
+  ...appShellEs,
 }

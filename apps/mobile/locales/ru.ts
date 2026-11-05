@@ -1,5 +1,6 @@
 import type { Dictionary } from "@/locales"
 import { songPageRu } from "./songPage"
+import { appShellRu } from "./appShell"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
 export const ru: Dictionary = {
@@ -1337,4 +1338,5 @@ export const ru: Dictionary = {
   "assistant.consent.notNow": "Не сейчас",
   "assistant.consent.privacy": "Политика конфиденциальности",
   ...songPageRu,
+  ...appShellRu,
 }
