@@ -24,16 +24,34 @@ export function artistById(artists: readonly Artist[], id: string | null | undef
   return artists.find((a) => a.id === id) ?? null
 }
 
-/** The artist whose name is the Kiirtan's author, if any. */
-export function artistForAuthor(artists: readonly Artist[], author: string | null | undefined): Artist | null {
-  const key = artistKey(author ?? "")
-  return key ? (artists.find((a) => artistKey(a.name) === key) ?? null) : null
+/**
+ * The names inside an `author` field: "Priya Devi & Arun Deva" gives both. Splits on commas, "&", "+",
+ * semicolons, " and ", " with ", " feat. " and " ft. ". One name stays one name.
+ */
+export function splitAuthors(author: string | null | undefined): string[] {
+  return (author ?? "")
+    .split(/\s*(?:,|;|&|\+|\band\b|\bwith\b|\bfeat\.?|\bft\.?)\s*/i)
+    .map((name) => name.trim().replace(/\s+/g, " "))
+    .filter(Boolean)
 }
 
-/** All Kiirtans of an artist, in the given order. */
+/** The artist whose name is the Kiirtan's author, if any (the first matching name of a joint author). */
+export function artistForAuthor(artists: readonly Artist[], author: string | null | undefined): Artist | null {
+  const whole = artistKey(author ?? "")
+  if (!whole) return null
+  const exact = artists.find((a) => artistKey(a.name) === whole)
+  if (exact) return exact
+  for (const name of splitAuthors(author)) {
+    const hit = artists.find((a) => artistKey(a.name) === artistKey(name))
+    if (hit) return hit
+  }
+  return null
+}
+
+/** All Kiirtans of an artist, in the given order. A joint author ("A & B") counts for both. */
 export function kirtansOfArtist<T extends Pick<Kirtan, "author">>(artist: Pick<Artist, "name">, list: readonly T[]): T[] {
   const key = artistKey(artist.name)
-  return list.filter((k) => artistKey(k.author) === key)
+  return list.filter((k) => artistKey(k.author) === key || splitAuthors(k.author).some((name) => artistKey(name) === key))
 }
 
 /** "Popular": most played first, newest first on a tie, at most `limit`. */

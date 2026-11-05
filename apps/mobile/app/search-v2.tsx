@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated"
 import { queryIsUseful, type SongSummary } from "@prabhat/core"
@@ -13,13 +13,19 @@ import {
   ResultList,
 } from "@/components/search-v2/SearchBlocks"
 import { BrowseView, SearchHeader } from "@/components/search-v2/BrowseBlocks"
+import { ArtistChip } from "@/components/kirtan/ArtistParts"
 import { KirtanRow } from "@/components/kirtan/KirtanParts"
+import { FloatingTabBar } from "@/components/nav-v2/FloatingTabBar"
 import { chipColorsOf, StickyChipsRow } from "@/components/nav-v2/StickyChips"
 import { Toast } from "@/components/songs-v2/Toast"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchKirtans, type SearchScope } from "@/lib/kirtan/search"
+import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
+import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchArtists, searchKirtans, type SearchScope } from "@/lib/kirtan/search"
+import { NAV_V2_TABS, contentInsetFor, miniPlayerVisible, tabIdForRouteName, type NavV2TabId } from "@/lib/navV2"
+import { authHeadersFromStore } from "@/lib/memberAuth"
+import { usePlayerStore } from "@/stores/playerStore"
 import { useSharedValue as useSharedValueRN } from "react-native-reanimated"
 import { SearchField } from "@/components/search-v2/SearchField"
 import { TodayPress } from "@/components/today/TodayPress"
@@ -54,7 +60,18 @@ const FOCUS_DELAY_MS = 120
 const LISTEN_DELAY_MS = 180
 const IDLE_WARM_MS = 400
 
-type MeaningState = { query: string; rows: SongSummary[]; pending: boolean }
+type MeaningState = {
+  query: string
+  rows: SongSummary[]
+  pending: boolean
+  /** the server only searches by meaning for signed-in members; a guest gets a quiet note instead */
+  guest?: boolean
+}
+
+/** True when the app can sign a request as a member (signed in, and this build carries the member key). */
+function canSearchByMeaning(): boolean {
+  return Object.keys(authHeadersFromStore()).length > 0
+}
 
 /**
  * Unified search (spec SCR-13). One field takes a number, a name, a line of
@@ -68,6 +85,18 @@ export default function UnifiedSearchScreen() {
   const p = protoFor(theme)
   const insets = useSafeAreaInsets()
   const top = insets.top || amProto.statusArea
+  const navigation = useNavigation()
+  const hasSong = usePlayerStore((st) => Boolean(st.currentSong))
+  // Search is a page of the tab it was opened from: the bar stays under it with that tab marked.
+  const underTab = useMemo<NavV2TabId>(() => {
+    const state = navigation.getState()
+    const below = state?.routes?.[(state.index ?? 0) - 1]
+    const nested = below?.state
+    const inner = nested?.routes?.[nested.index ?? 0]?.name
+    return tabIdForRouteName(inner ?? below?.name)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const bottomInset = contentInsetFor(insets.bottom, miniPlayerVisible({ pathname: "/search-v2", hasSong }))
   const reduce = useReducedMotion()
   const params = useLocalSearchParams<{ q?: string; hint?: string; focus?: string; listen?: string; scope?: string }>()
   const parsed = useMemo(
@@ -137,7 +166,12 @@ export default function UnifiedSearchScreen() {
   useEffect(() => {
     const trimmed = local.query
     if (MOCKUP_DATA || !local.wantsMeaning || trimmed.length < MIN_MEANING_CHARS || !queryIsUseful(trimmed, 200)) {
-      setMeaning((prev) => (prev.pending ? { ...prev, pending: false } : prev))
+      setMeaning((prev) => (prev.pending || prev.guest ? { ...prev, pending: false, guest: false } : prev))
+      return
+    }
+    if (!canSearchByMeaning()) {
+      // The server answers 401 to guests: do not wait for it, say so quietly.
+      setMeaning({ query: trimmed, rows: [], pending: false, guest: true })
       return
     }
     const abort = new AbortController()
@@ -162,6 +196,7 @@ export default function UnifiedSearchScreen() {
     [local, meaning],
   )
   const waitingForMeaning = !MOCKUP_DATA && meaning.pending && meaning.query === local.query
+  const guestMeaning = !MOCKUP_DATA && Boolean(meaning.guest) && meaning.query === local.query
 
   const remember = useCallback((value: string) => addSearchRecent(value), [addSearchRecent])
 
@@ -252,7 +287,35 @@ export default function UnifiedSearchScreen() {
   const dropStyle = useAnimatedStyle(() => ({ opacity: drop.value, transform: [{ translateY: (1 - drop.value) * -8 }] }))
 
   const kirtanHits = useMemo(() => searchKirtans(kirtanCatalog, query, scope === "all" ? 5 : 50), [kirtanCatalog, query, scope])
+  // TODO(api): artists come from the backend; today they are the preview fixtures.
+  const artistHits = useMemo(() => searchArtists(ARTIST_FIXTURES, kirtanCatalog, query, 6), [kirtanCatalog, query])
   const show = scopeShows(scope)
+  // The artist row and the Kiirtans: first when the words are an artist's name, after the songs otherwise.
+  const kirtanFirst = scope === "kiirtan" || artistHits.length > 0
+  const kirtanSection = !show.kiirtans ? null : (
+    <>
+      {artistHits.length ? (
+        <View style={styles.kirtanList}>
+          <Text style={[styles.groupLabel, { color: p.orange700 }]}>ARTISTS</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={styles.artistScroll} contentContainerStyle={styles.artists}>
+            {artistHits.map((a) => (
+              <ArtistChip key={a.id} artist={a} color={p.ink800} onPress={(id) => { remember(query); kActions.openArtist(id) }} />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+      {kirtanHits.length ? (
+        <View style={styles.kirtanList}>
+          <Text style={[styles.groupLabel, { color: p.orange700 }]}>KIIRTANS</Text>
+          {kirtanHits.map((k) => (
+            <KirtanRow key={k.id} theme={songsTheme} kirtan={k} onOpen={(row) => { remember(query); kActions.open(row, kirtanHits, "Search") }} onOpenArtist={kActions.openArtist} />
+          ))}
+        </View>
+      ) : scope === "kiirtan" ? (
+        <Text style={[styles.waitingText, styles.pad, { color: p.ink500, paddingHorizontal: 20 }]}>No Kiirtans match “{query.trim()}”.</Text>
+      ) : null}
+    </>
+  )
   const typing = !empty
   const showHint = typing || Boolean(voiceError) || Boolean(parsed.hint)
   const field = (
@@ -292,11 +355,14 @@ export default function UnifiedSearchScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[typing ? 0 : 1]}
+        stickyHeaderIndices={[1]}
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 24 }]}
       >
-        {typing ? null : (
+        {/* The field is always child 1 (the sticky one): moving it would remount it and drop the keyboard after the first letter. */}
+        {typing ? (
+          <View />
+        ) : (
           <SearchHeader
             p={p}
             initial={initials}
@@ -324,17 +390,7 @@ export default function UnifiedSearchScreen() {
         ) : (
           <View style={styles.results}>
             <StickyChipsRow items={SEARCH_SCOPES} value={scope} onChange={setScope} colors={chipColorsOf(p)} scrollY={chipScroll} stickAt={99999} />
-            {show.kiirtans && scope === "kiirtan" ? (
-              <View style={styles.kirtanList}>
-                {kirtanHits.length ? (
-                  kirtanHits.map((k) => (
-                    <KirtanRow key={k.id} theme={songsTheme} kirtan={k} onOpen={(row) => { remember(query); kActions.open(row, kirtanHits, "Search") }} onOpenArtist={kActions.openArtist} />
-                  ))
-                ) : (
-                  <Text style={[styles.waitingText, styles.pad, { color: p.ink500 }]}>No Kiirtans match “{query.trim()}”.</Text>
-                )}
-              </View>
-            ) : null}
+            {kirtanFirst ? kirtanSection : null}
             {show.stories ? (
               // TODO(api): stories are not searchable yet; this points to the list.
               <TodayPress accessibilityRole="button" accessibilityLabel="Browse stories" onPress={() => router.push(href("/stories"))} pressedScale={0.98} style={[styles.storyNote, { backgroundColor: p.white, borderColor: p.sand300 }]}>
@@ -346,25 +402,33 @@ export default function UnifiedSearchScreen() {
             ) : null}
             {show.songs && rows.length ? <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} /> : null}
             {show.songs && collections.length ? <CollectionChips p={p} names={collections} onPick={pick} /> : null}
-            {scope === "all" && kirtanHits.length ? (
-              <View style={styles.kirtanList}>
-                <Text style={[styles.groupLabel, { color: p.orange700 }]}>KIIRTANS</Text>
-                {kirtanHits.map((k) => (
-                  <KirtanRow key={k.id} theme={songsTheme} kirtan={k} onOpen={(row) => { remember(query); kActions.open(row, kirtanHits, "Search") }} onOpenArtist={kActions.openArtist} />
-                ))}
-              </View>
-            ) : null}
+            {kirtanFirst ? null : kirtanSection}
             {show.songs && waitingForMeaning ? (
               <View style={styles.waiting} accessibilityLiveRegion="polite">
                 <ActivityIndicator color={p.orange500} />
-                <Text style={[styles.waitingText, { color: p.ink500 }]}>Looking for songs by meaning…</Text>
+                <Text style={[styles.waitingText, { color: p.ink500 }]}>Searching by meaning…</Text>
               </View>
             ) : null}
-            {show.songs && !(scope === "all" && kirtanHits.length) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={!MOCKUP_DATA && result.message === outOfRangeMessage() ? result.message : null} /> : null}
+            {show.songs && guestMeaning ? (
+              <Text style={[styles.waitingText, styles.quiet, { color: p.ink500 }]} accessibilityLiveRegion="polite">
+                Sign in to also search songs by meaning.
+              </Text>
+            ) : null}
+            {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={!MOCKUP_DATA && result.message === outOfRangeMessage() ? result.message : null} /> : null}
           </View>
         )}
       </ScrollView>
       <Toast message={kActions.toast} theme={songsTheme} />
+      {/* The bar stays under Search, as in Spotify; the mini-player (root layout) sits above it. */}
+      <FloatingTabBar
+        activeId={underTab}
+        onSelect={(id) => {
+          Keyboard.dismiss()
+          const tab = NAV_V2_TABS.find((t) => t.id === id)
+          if (tab) router.dismissTo(href(tab.href))
+        }}
+        onReselect={() => router.back()}
+      />
     </Animated.View>
   )
 }
@@ -376,6 +440,9 @@ const styles = StyleSheet.create({
   cancelText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 18 },
   scroll: { flex: 1 },
   content: { paddingBottom: 48 },
+  artistScroll: { marginHorizontal: -16 },
+  artists: { paddingHorizontal: 16, gap: 8 },
+  quiet: { paddingHorizontal: 20, fontSize: 14 },
   results: { gap: 24 },
   kirtanList: { gap: 10, paddingHorizontal: 16 },
   groupLabel: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2 },

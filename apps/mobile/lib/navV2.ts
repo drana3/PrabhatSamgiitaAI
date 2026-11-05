@@ -128,10 +128,25 @@ export function miniPlayerVisible(input: { pathname: string; hasSong: boolean })
   return !NAV_V2_MINI_HIDDEN_PREFIXES.some((prefix) => pathHasPrefix(path, prefix))
 }
 
-/** Is the floating tab bar on screen? Only the four tab screens of the v2 shell carry it. */
+/**
+ * Screens outside the tab navigator that draw the floating tab bar themselves, so the mini-player
+ * sits above it there too. Search is one: it is a tab-like page (as in Spotify), the bar stays under it.
+ */
+export const NAV_V2_TAB_BAR_OVERLAY_PATHS: readonly string[] = ["/search-v2"]
+
+/** Is the floating tab bar on screen? The four tab screens of the v2 shell carry it, and the overlay screens. */
 export function tabBarVisible(pathname: string, tabs: readonly NavV2Tab[] = NAV_V2_TABS): boolean {
   const path = normalisePath(pathname)
-  return tabs.some((tab) => path === tab.href)
+  return tabs.some((tab) => path === tab.href) || NAV_V2_TAB_BAR_OVERLAY_PATHS.includes(path)
+}
+
+/** The tab a screen that sits on top of the tabs should show as active, from the name of the route under it. */
+export function tabIdForRouteName(name: string | null | undefined, fallback: NavV2TabId = "songs", tabs: readonly NavV2Tab[] = NAV_V2_TABS): NavV2TabId {
+  if (!name) return fallback
+  const bare = name.replace(/\/index$/, "")
+  const byScreen = tabs.find((tab) => tab.screen === bare)
+  if (byScreen) return byScreen.id
+  return tabIdForPath(`/${bare}`, tabs) ?? fallback
 }
 
 /** The tab pill is one light pill on every tab. */
@@ -219,6 +234,15 @@ export function releaseSpringKind(velocity: number): "default" | "fling" {
 export function miniBottomFor(safeBottom: number, withTabBar: boolean): number {
   const { tabBottom, miniBottom } = navV2Layout(safeBottom)
   return withTabBar ? miniBottom : tabBottom
+}
+
+/**
+ * Bottom padding for a scrolling screen that carries the tab bar: clears the tab pill, and the
+ * mini-player above it when one is showing.
+ */
+export function contentInsetFor(safeBottom: number, withMini: boolean): number {
+  const { tabBottom, contentInset } = navV2Layout(safeBottom)
+  return withMini ? contentInset : tabBottom + amNav.tabHeight + amNav.gap
 }
 
 /** Vertical layout of the two pills for a given bottom safe-area inset. */

@@ -22,6 +22,8 @@ import {
   rubberBand,
   settleTabIndex,
   tabIdForPath,
+  tabIdForRouteName,
+  contentInsetFor,
   tabIndexAtX,
   tabBarVisible,
   tabIndexForId,
@@ -124,6 +126,28 @@ describe("nav v2: tab bar and pill position", () => {
     expect(tabBarVisible("/v2/kiirtan")).toBe(true)
     expect(tabBarVisible("/song/42")).toBe(false)
     expect(tabBarVisible("/kirtan-artist")).toBe(false)
+  })
+
+  it("search draws the bar itself, so the pill sits above it there", () => {
+    expect(tabBarVisible("/search-v2")).toBe(true)
+    expect(tabBarVisible("/search-v2?focus=1")).toBe(true)
+    expect(miniPlayerVisible({ pathname: "/search-v2", hasSong: true })).toBe(true)
+    expect(miniBottomFor(34, tabBarVisible("/search-v2"))).toBe(navV2Layout(34).miniBottom)
+  })
+
+  it("the tab under a screen on top of the tabs comes from the route name", () => {
+    expect(tabIdForRouteName("v2")).toBe("songs")
+    expect(tabIdForRouteName("kiirtan")).toBe("kiirtan")
+    expect(tabIdForRouteName("learn")).toBe("learn")
+    expect(tabIdForRouteName("today")).toBe("today")
+    expect(tabIdForRouteName("songs-v2")).toBe("songs")
+    expect(tabIdForRouteName(undefined, "today")).toBe("today")
+  })
+
+  it("content inset clears the tab pill, and the pill above it when one shows", () => {
+    expect(contentInsetFor(34, true)).toBe(navV2Layout(34).contentInset)
+    expect(contentInsetFor(34, false)).toBe(34 + 68 + 12)
+    expect(contentInsetFor(0, false)).toBe(12 + 68 + 12)
   })
 
   it("the pill sits above the tab bar, or above the safe area when there is none", () => {

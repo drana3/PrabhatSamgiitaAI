@@ -41,6 +41,8 @@ type Props = {
   activeId: NavV2TabId
   /** called once, on release, with the tab the indicator settled on */
   onSelect: (id: NavV2TabId) => void
+  /** optional: the tab that is already active was tapped (a screen that sits on top of a tab uses it to close) */
+  onReselect?: (id: NavV2TabId) => void
   tabs?: readonly NavV2Tab[]
 }
 
@@ -54,7 +56,7 @@ type Props = {
  *   on-screen value, so every motion can be interrupted. Only transform and opacity animate.
  * - With Reduce Motion the indicator jumps and the fill cross-fades; no springs.
  */
-export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props) {
+export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_TABS }: Props) {
   const theme = useAmTheme()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
@@ -97,9 +99,11 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
   const commit = useCallback(
     (index: number) => {
       const tab = tabs[index]
-      if (tab && tab.id !== activeId) onSelect(tab.id)
+      if (!tab) return
+      if (tab.id !== activeId) onSelect(tab.id)
+      else onReselect?.(tab.id)
     },
-    [tabs, activeId, onSelect],
+    [tabs, activeId, onSelect, onReselect],
   )
 
   const pan = Gesture.Pan()
