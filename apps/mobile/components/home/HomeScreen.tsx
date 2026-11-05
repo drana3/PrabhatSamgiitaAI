@@ -76,7 +76,7 @@ import { songPlayback } from "@/lib/playback"
 import { readableTitle } from "@/lib/readableTitle"
 import { songSummaryToMockSong } from "@/lib/songMap"
 import { placeholderEntry } from "@/lib/songsV2/entry"
-import { buildTodayDay } from "@/lib/todayDay"
+import { buildTodayDay, formatDayLineShort } from "@/lib/todayDay"
 import { todayItemToMockSong } from "@/lib/today"
 import { readTodayCache, refreshTodayRecommendations } from "@/lib/todayCache"
 import { buildTodayView, storyOfTheWeek } from "@/lib/todayView"
@@ -314,7 +314,7 @@ export function HomeScreen() {
           <Reveal key={id} index={next()}>
             <HomeTodayCard
               p={p}
-              dateLabel={day.dateLabel}
+              dateLabel={width < 400 ? formatDayLineShort(now) : day.dateLabel}
               kind={day.kind}
               kindLabel={day.kindLabel}
               note={day.note || day.tag}

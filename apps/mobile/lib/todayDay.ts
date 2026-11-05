@@ -30,6 +30,11 @@ export function formatDayLine(now: Date): string {
   return `${formatDate(now, "weekday")} · ${formatDate(now, "dayMonthLong")}`
 }
 
+/** "Sun · 1 November" / "вс · 1 ноября": for a narrow phone, where the full weekday would crowd the chip beside it. */
+export function formatDayLineShort(now: Date): string {
+  return `${formatDate(now, "weekdayShort")} · ${formatDate(now, "dayMonthLong")}`
+}
+
 function clean(value: string | null | undefined): string {
   return (value ?? "").trim()
 }

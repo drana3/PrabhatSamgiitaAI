@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { TodayRecommendations } from "@prabhat/core"
 
-import { buildTodayDay, formatDayLine, resumeLine, searchHref, TODAY_QUICK_SEARCHES } from "@/lib/todayDay"
+import { buildTodayDay, formatDayLine, formatDayLineShort, resumeLine, searchHref, TODAY_QUICK_SEARCHES } from "@/lib/todayDay"
 
 const day = new Date(2026, 10, 1) // Sunday 1 November 2026
 
@@ -10,6 +10,10 @@ const withContext = (context: Record<string, unknown>) => ({ context }) as unkno
 describe("formatDayLine", () => {
   it("prints weekday and date", () => {
     expect(formatDayLine(day)).toBe("Sunday · 1 November")
+  })
+
+  it("has a short form for a narrow phone", () => {
+    expect(formatDayLineShort(day)).toBe("Sun · 1 November")
   })
 })
 

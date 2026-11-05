@@ -167,9 +167,14 @@ export function HomeTodayCard({
       <Image source={todayAssets.hero} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition={{ top: 0, left: "50%" }} accessibilityIgnoresInvertColors />
       <LinearGradient pointerEvents="none" colors={[amScrimPhotoTop[0], amScrimPhotoTop[1], amScrimPhoto[1]]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
       <View style={s.todayTop}>
-        <Text style={[overStyle, { color: "#FFFFFF" }]}>{dateLabel}</Text>
+        {/* the date gives way to the chip: one line, shrinking a little before it would wrap ("ВОСКРЕСЕНЬЕ · 1 / НОЯБРЯ") */}
+        <Text style={[overStyle, s.todayDate, { color: "#FFFFFF" }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+          {dateLabel}
+        </Text>
         <View style={[s.kindChip, { backgroundColor: chip.bg }]}>
-          <Text style={[s.kindText, { color: chip.fg }]}>{kindLabel}</Text>
+          <Text style={[s.kindText, { color: chip.fg }]} numberOfLines={1}>
+            {kindLabel}
+          </Text>
         </View>
       </View>
       <View style={s.todayBottom}>
@@ -373,7 +378,8 @@ const s = StyleSheet.create({
   h2: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: em(30, -0.02), textTransform: "uppercase" },
   today: { marginHorizontal: HOME_INSET - 10, height: 232, borderRadius: 30, overflow: "hidden", padding: 16, justifyContent: "space-between" },
   todayTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  kindChip: { height: 32, paddingHorizontal: 14, borderRadius: 70, justifyContent: "center" },
+  todayDate: { flex: 1, minWidth: 0 },
+  kindChip: { flexShrink: 0, maxWidth: "62%", height: 32, paddingHorizontal: 14, borderRadius: 70, justifyContent: "center" },
   kindText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
   todayBottom: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
   todayMain: { flex: 1, minWidth: 0, gap: 3 },
