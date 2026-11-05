@@ -4,18 +4,24 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import { nextRepeatMode, type RepeatMode } from "@/lib/playerV2/controller"
 import type { PlayMode } from "@/lib/playerV2/versionMode"
+import { FOLLOW_APP, migratePlayerLanguages, normalizeLyricChoice } from "@/lib/songPage/lyricLanguages"
 import { SLEEP_OFF, startSleepEndOfSong, startSleepMinutes, type SleepTimer } from "@/lib/playerV2/sleepTimer"
 
 export type LyricScript = "roman" | "devanagari"
-export type TranslationLang = "en" | "ru" | "off"
+/**
+ * "auto" follows the language of the app, "off" shows nothing, otherwise a language code of
+ * lib/songPage/lyricLanguages.ts. The two settings are separate on purpose: the language of the
+ * lines under the lyrics and the language of the word meanings do not change each other.
+ */
+export type LyricChoice = string
 
 type PlayerV2State = {
   /** Persisted: "This version" or "All N versions". */
   playMode: PlayMode
   repeatMode: RepeatMode
   script: LyricScript
-  translation: TranslationLang
-  wordMeanings: boolean
+  translation: LyricChoice
+  wordLanguage: LyricChoice
   /** Version chosen per song (by version id), because the playing URL can be a local copy. */
   versionByNumber: Record<string, string>
   /** Not persisted. */
@@ -24,8 +30,8 @@ type PlayerV2State = {
   setPlayMode: (mode: PlayMode) => void
   cycleRepeat: () => RepeatMode
   setScript: (script: LyricScript) => void
-  setTranslation: (lang: TranslationLang) => void
-  setWordMeanings: (on: boolean) => void
+  setTranslation: (choice: LyricChoice) => void
+  setWordLanguage: (choice: LyricChoice) => void
   rememberVersion: (songNumber: number, versionId: string) => void
   setShuffleOriginal: (queue: number[] | null) => void
   startSleepMinutes: (minutes: number, now?: number) => void
@@ -39,9 +45,9 @@ export const usePlayerV2Store = create<PlayerV2State>()(
       playMode: "this",
       repeatMode: "off",
       script: "roman",
-      translation: "en",
+      translation: FOLLOW_APP,
       // The prototype opens with the word meanings on.
-      wordMeanings: true,
+      wordLanguage: FOLLOW_APP,
       versionByNumber: {},
       shuffleOriginal: null,
       sleep: SLEEP_OFF,
@@ -52,8 +58,8 @@ export const usePlayerV2Store = create<PlayerV2State>()(
         return next
       },
       setScript: (script) => set({ script }),
-      setTranslation: (translation) => set({ translation }),
-      setWordMeanings: (wordMeanings) => set({ wordMeanings }),
+      setTranslation: (translation) => set({ translation: normalizeLyricChoice(translation) }),
+      setWordLanguage: (wordLanguage) => set({ wordLanguage: normalizeLyricChoice(wordLanguage) }),
       rememberVersion: (songNumber, versionId) =>
         set({ versionByNumber: { ...get().versionByNumber, [String(songNumber)]: versionId } }),
       setShuffleOriginal: (shuffleOriginal) => set({ shuffleOriginal }),
@@ -69,9 +75,13 @@ export const usePlayerV2Store = create<PlayerV2State>()(
         repeatMode: s.repeatMode,
         script: s.script,
         translation: s.translation,
-        wordMeanings: s.wordMeanings,
+        wordLanguage: s.wordLanguage,
         versionByNumber: s.versionByNumber,
       }),
+      version: 2,
+      // v1 stored translation "en" | "ru" | "off" and wordMeanings true | false. The old default "en"
+      // and the old default "On" mean "follow the app"; an explicit Russian or Off stays.
+      migrate: (persisted) => migratePlayerLanguages(persisted),
     },
   ),
 )

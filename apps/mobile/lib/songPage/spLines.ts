@@ -86,9 +86,3 @@ export function buildWordRows(
     }),
   }))
 }
-
-/** `No Bengali or Hindi word meanings yet: English shown` when a chosen language has no glosses. */
-export function wordNote(languages: string[], glossLanguages: string[], label: (code: string) => string): string {
-  const missing = languages.filter((code) => !glossLanguages.includes(code)).map(label)
-  return missing.length ? `No ${missing.join(" or ")} word meanings yet: English shown` : ""
-}

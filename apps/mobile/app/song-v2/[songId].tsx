@@ -29,11 +29,11 @@ import { SpChordChip, SpLyrics, SpTools } from "@/components/song-v2/SpLyrics"
 import { SpChords, SpExplain, SpMeaning, SpWatch, SpWords, type SpChordToken } from "@/components/song-v2/SpSections"
 import { SpLanguageSheet, SpPlaylistSheet, SpRecordingsSheet, type SpPlaylistRow } from "@/components/song-v2/SpSheets"
 import { SP_TAB_HEIGHT, SpTabStrip } from "@/components/song-v2/SpTabStrip"
-import { SpCard, SpPill, SpSectionTitle, SpToast } from "@/components/song-v2/SpUi"
+import { SpCard, SpGapNote, SpPill, SpSectionTitle, SpToast } from "@/components/song-v2/SpUi"
 import { Reveal } from "@/components/today/motion"
 import { SP_STATUS_BAR, spRadius } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { localeLabel, localeOptions, type LocaleOption } from "@/constants/languages"
+import { localeLabel } from "@/constants/languages"
 import { allCollections } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
 import { useAmTheme } from "@/hooks/useAmTheme"
@@ -97,10 +97,22 @@ import {
   swaraRow,
   uniqueChords,
 } from "@/lib/songPage/spChords"
-import { buildSpLines, buildWordRows, glossCard, wordNote } from "@/lib/songPage/spLines"
+import { buildSpLines, buildWordRows, glossCard } from "@/lib/songPage/spLines"
 import { creditRows, languageParts, metaLine, nowPlaying, previewLines, psLine, versionOrder } from "@/lib/songPage/nowPlaying"
 import { pageBottomInset, stripHairline, stripTop, type BarMarks } from "@/lib/songPage/stickyBar"
-import { alignTranslationLines, translationPill } from "@/lib/songPage/translations"
+import { alignTranslationLines, translationPill, type Coverage } from "@/lib/songPage/translations"
+import {
+  LYRIC_LANGUAGES,
+  LYRIC_LANGUAGE_CODES,
+  REQUEST_TOAST,
+  effectiveTranslations,
+  gapNotice,
+  lyricLanguageTitle,
+  lyricShortCode,
+  pickShown,
+  resolveLyricLanguage,
+} from "@/lib/songPage/lyricLanguages"
+import { useLanguage } from "@/lib/i18n"
 import {
   buildVersions,
   chordsForVersion,
@@ -196,10 +208,20 @@ export default function SongPageV2() {
     },
     [],
   )
+  const requestLanguage = useCallback((code: string) => {
+    // TODO(api): send the request to the catalog; for now it is remembered on this screen only
+    setRequested((list) => (list.includes(code) ? list : [...list, code]))
+    showToast(REQUEST_TOAST)
+  }, [showToast])
 
   // settings (shared with the Player karaoke view)
   const script = useSongPageStore((s) => s.script)
-  const translations = useSongPageStore((s) => s.translations)
+  const storedTranslations = useSongPageStore((s) => s.translations)
+  const storedWordLanguage = useSongPageStore((s) => s.wordLanguage)
+  const appLanguage = useLanguage()
+  // nothing chosen yet means the language of the app; "fr" and the like are no longer offered
+  const translations = useMemo(() => effectiveTranslations(storedTranslations, appLanguage), [storedTranslations, appLanguage])
+  const wordLanguage = resolveLyricLanguage(storedWordLanguage, appLanguage)
   const chordsOn = useSongPageStore((s) => s.chordsOn)
   const instrument = useSongPageStore((s) => s.instrument)
   const capo = useSongPageStore((s) => s.capo)
@@ -335,16 +357,36 @@ export default function SongPageV2() {
   }, [chart, sources.roman, showChord, lines, mock])
   const chordsVisible = Boolean(chart && chordsOn)
 
-  const translationsUnder = useMemo(() => {
-    if (!song) return []
-    return translations
-      .map((code) => {
-        if (mock) return { code, lines: mockupTranslation(song.number, code) ?? [] }
+  // The translated lines the song really has, per offered language (null when it has none).
+  const linesByLanguage = useMemo(() => {
+    const out: Record<string, string[] | null> = {}
+    for (const code of LYRIC_LANGUAGE_CODES) {
+      if (!song) {
+        out[code] = null
+      } else if (mock) {
+        out[code] = mockupTranslation(song.number, code)
+      } else {
         const text = storedMeaningForLanguage(song, code)
-        return { code, lines: alignTranslationLines(sources.roman.length ? sources.roman : lines.primary, text) ?? [] }
-      })
-      .filter((item) => item.lines.length > 0)
-  }, [song, translations, sources.roman, lines.primary, mock])
+        out[code] = alignTranslationLines(sources.roman.length ? sources.roman : lines.primary, text)
+      }
+    }
+    return out
+  }, [song, sources.roman, lines.primary, mock])
+  const hasLinesIn = useCallback((code: string) => Boolean(linesByLanguage[code]?.length), [linesByLanguage])
+  // A language the song lacks falls back to English, and the page says so: never another language
+  // under the wrong name, never made-up text.
+  const translationPicks = useMemo(() => translations.map((code) => pickShown(code, hasLinesIn)), [translations, hasLinesIn])
+  const translationsUnder = useMemo(() => {
+    const seen = new Set<string>()
+    const out: Array<{ code: string; lines: string[] }> = []
+    for (const pick of translationPicks) {
+      if (!pick.shown || seen.has(pick.shown)) continue
+      seen.add(pick.shown)
+      out.push({ code: pick.shown, lines: linesByLanguage[pick.shown] ?? [] })
+    }
+    return out
+  }, [translationPicks, linesByLanguage])
+  const translationGap = translationPicks.find((pick) => pick.gap) ?? null
 
   const spLines = useMemo(
     () =>
@@ -366,32 +408,31 @@ export default function SongPageV2() {
       ),
     [lines, sources.roman],
   )
-  const gloss = glossCard(selectedWord, spLines, glosses, translations, wordCountsMatch)
+  // Word meanings have their own language: picking one on the Words card never changes the Meaning section.
+  const glossLanguages = useMemo(
+    () =>
+      glosses
+        ? Object.entries(glosses.byLanguage)
+            .filter(([, map]) => Object.keys(map).length > 0)
+            .map(([code]) => code)
+        : [],
+    [glosses],
+  )
+  const wordPick = useMemo(() => pickShown(wordLanguage, (code) => glossLanguages.includes(code)), [wordLanguage, glossLanguages])
+  const wordShown = wordPick.shown ? [wordPick.shown] : []
+  const gloss = glossCard(selectedWord, spLines, glosses, wordShown, wordCountsMatch)
 
+  // what the song has per offered language, for the sheet
   const coverage = useMemo(
     () =>
       mock
-        ? Object.fromEntries(MOCKUP_LANGUAGES.map((l) => [l.code, l.coverage]))
-        : song
-        ? coverageForSong(
-            song,
-            sources.roman.length ? sources.roman : lines.primary,
-            localeOptions.map((o) => o.code),
+        ? Object.fromEntries(
+            LYRIC_LANGUAGE_CODES.map((code) => [code, (MOCKUP_LANGUAGES.find((l) => l.code === code)?.coverage ?? "none") as Coverage]),
           )
+        : song
+        ? coverageForSong(song, sources.roman.length ? sources.roman : lines.primary, [...LYRIC_LANGUAGE_CODES])
         : {},
     [song, sources.roman, lines.primary, mock],
-  )
-  const languageOptions = useMemo<LocaleOption[] | undefined>(
-    () =>
-      mock
-        ? MOCKUP_LANGUAGES.map((l) => ({
-            code: l.code,
-            label: l.label,
-            nativeLabel: l.nativeLabel,
-            group: l.code === "bn" || l.code === "hi" ? ("Indian languages" as const) : ("World languages" as const),
-          }))
-        : undefined,
-    [mock],
   )
 
   const meaningLanguage = translations[0] ?? "en"
@@ -821,14 +862,14 @@ export default function SongPageV2() {
   // ---- derived values for the sections ----
   const soundingChords = chart ? uniqueChords(chart.lines.flatMap((line) => line.placements.map((p) => p.chord))) : []
 
-  const glossLanguages = glosses
-    ? Object.entries(glosses.byLanguage)
-        .filter(([, map]) => Object.keys(map).length > 0)
-        .map(([code]) => code)
-    : []
-  const wordRows = buildWordRows(spLines, glosses, translations, wordCountsMatch)
+  const wordRows = buildWordRows(spLines, glosses, wordShown, wordCountsMatch)
 
+  // Prose in the chosen language counts as having it even when it does not line up with the lyric lines.
+  const meaningText = meaningView.meaning.status === "ready" ? meaningView.meaning.text : null
+  const meaningProse = meaningText !== null && !hasLinesIn(meaningLanguage)
+  const meaningGap = translationGap && !(meaningProse && translationGap.wanted === meaningLanguage) ? translationGap : null
   const meaningRows: Array<{ label: string; text: string }> = (() => {
+    if (meaningProse && meaningText) return [{ label: "", text: meaningText }]
     if (translationsUnder.length) {
       const rows: Array<{ label: string; text: string }> = []
       const count = Math.max(...translationsUnder.map((item) => item.lines.length))
@@ -836,7 +877,7 @@ export default function SongPageV2() {
         for (const item of translationsUnder) {
           const text = item.lines[li]
           if (!text) continue
-          const code = item.code.split("-")[0].toUpperCase()
+          const code = lyricShortCode(item.code)
           rows.push({ label: translationsUnder.length > 1 ? `Line ${li + 1} · ${code}` : `Line ${li + 1}`, text })
         }
       }
@@ -988,6 +1029,16 @@ export default function SongPageV2() {
               onLang={() => setLangOpen(true)}
               onChords={() => settings().setChordsOn(!chordsOn)}
             />
+            {meaningGap ? (
+              <View style={styles.lyricGap}>
+                <SpGapNote
+                  t={t}
+                  text={gapNotice(meaningGap)}
+                  requested={requested.includes(meaningGap.wanted)}
+                  onRequest={() => requestLanguage(meaningGap.wanted)}
+                />
+              </View>
+            ) : null}
             {chordsVisible ? (
               <SpChordChip t={t} text={chordChipText(instrument, capo, harmoniumKey)} onPress={() => goTo("chords")} />
             ) : null}
@@ -1013,17 +1064,42 @@ export default function SongPageV2() {
                   t={t}
                   rows={wordRows}
                   script={lines.primaryScript}
-                  note={wordNote(translations, glossLanguages, localeLabel)}
-                  languages={glossLanguages.map((code) => ({ code, label: localeLabel(code) }))}
-                  activeLanguages={translations}
-                  onLanguage={(code) => settings().setTranslations([code])}
-                  onMore={() => setLangOpen(true)}
+                  note=""
+                  languages={LYRIC_LANGUAGES.map((language) => ({
+                    code: language.code,
+                    label: language.native,
+                    accessibilityLabel: lyricLanguageTitle(language.code),
+                  }))}
+                  activeLanguages={[wordLanguage]}
+                  onLanguage={(code) => settings().setWordLanguage(code)}
+                  gap={
+                    wordPick.gap
+                      ? {
+                          text: gapNotice(wordPick),
+                          requested: requested.includes(wordLanguage),
+                          onRequest: () => requestLanguage(wordLanguage),
+                        }
+                      : null
+                  }
                 />
               </>
             ) : null}
 
             <SpSectionTitle t={t} label={SECTION_LABEL.meaning} onLayoutY={sectionTop("meaning")} />
-            <SpMeaning t={t} central={central} rows={meaningRows} />
+            <SpMeaning
+              t={t}
+              central={central}
+              rows={meaningRows}
+              gap={
+                meaningGap
+                  ? {
+                      text: gapNotice(meaningGap),
+                      requested: requested.includes(meaningGap.wanted),
+                      onRequest: () => requestLanguage(meaningGap.wanted),
+                    }
+                  : null
+              }
+            />
 
             {explanation ? (
               <>
@@ -1172,14 +1248,8 @@ export default function SongPageV2() {
         coverage={coverage}
         onToggleLanguage={(code) => settings().toggleTranslation(code)}
         onMissingScript={(name) => showToast(`${name} script is not added yet`)}
-        options={languageOptions}
-        searchCount={mock ? 191 : undefined}
         requested={requested}
-        onRequest={(code) => {
-          // TODO(api): send the request to the catalog; for now it is remembered on this screen only
-          setRequested((list) => (list.includes(code) ? list : [...list, code]))
-          showToast("Requested. We will tell you when it is added.")
-        }}
+        onRequest={requestLanguage}
       />
       <ActionsSheet
         visible={sheet === "actions"}
@@ -1233,4 +1303,5 @@ const styles = StyleSheet.create({
   block: { marginTop: 36 },
   quiet: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22, paddingHorizontal: 20 },
   cardGap: { marginTop: 10 },
+  lyricGap: { paddingHorizontal: 20 },
 })

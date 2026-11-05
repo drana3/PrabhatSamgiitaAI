@@ -1,25 +1,26 @@
 import { describe, expect, it } from "vitest"
 
-import { languageRows, languageSummary, SCRIPT_ROWS } from "@/lib/languageSheet"
+import { languageSummary, lyricLanguageRows, SCRIPT_ROWS } from "@/lib/languageSheet"
 import { REVIEW_STYLE_OPTIONS } from "@/lib/reviewStyleCopy"
 import { REVIEW_STYLES } from "@/lib/appearance"
 
-describe("languageRows", () => {
-  it("lists the covered languages first, in the prototype's order", () => {
-    const codes = languageRows("").map((row) => row.code)
-    expect(codes.slice(0, 5)).toEqual(["en", "ru", "fr", "hi", "es"])
-    expect(codes.length).toBeGreaterThan(150)
+describe("lyricLanguageRows", () => {
+  it("lists exactly the offered languages, each in its own script with the English name under it", () => {
+    const rows = lyricLanguageRows()
+    expect(rows.map((row) => row.code)).toEqual(["en", "ru", "es", "zh-CN", "zh-TW", "hi"])
+    expect(rows.map((row) => row.name)).toEqual(["English", "Русский", "Español", "简体中文", "繁體中文 (台灣)", "हिन्दी"])
+    expect(rows[1].sub).toBe("Russian")
+    expect(rows[4].sub).toBe("Chinese (Traditional, Taiwan)")
   })
-  it("says what each language offers", () => {
-    const rows = languageRows("")
-    expect(rows[0].native).toBe("English · Lines and word meanings")
-    expect(rows[3].native).toContain("Lines only")
-    expect(rows[10].native).toContain("Machine translation")
+  it("claims nothing about coverage without the preview's sample coverage", () => {
+    for (const row of lyricLanguageRows()) expect(row.pending).toBe(false)
   })
-  it("filters by name, native name and code", () => {
-    expect(languageRows("russ").map((row) => row.code)).toEqual(["ru"])
-    expect(languageRows("Français").map((row) => row.code)[0]).toBe("fr")
-    expect(languageRows("zzzz")).toEqual([])
+  it("adds the preview's sample coverage and marks what is not added yet", () => {
+    const rows = lyricLanguageRows({ en: "full", ru: "full", es: "lines", hi: "lines" })
+    expect(rows[0].sub).toBe("Lines and word meanings")
+    expect(rows[2].sub).toBe("Spanish · Lines only")
+    expect(rows[3].sub).toBe("Chinese (Simplified) · Not added yet")
+    expect(rows[3].pending).toBe(true)
   })
 })
 
@@ -28,6 +29,7 @@ describe("languageSummary", () => {
     expect(languageSummary("roman", ["en"])).toBe("Roman + EN")
     expect(languageSummary("devanagari", ["en", "ru"])).toBe("Devanagari + EN + RU")
     expect(languageSummary("roman", [])).toBe("Roman")
+    expect(languageSummary("roman", ["zh-CN", "zh-TW"])).toBe("Roman + ZH-CN + ZH-TW")
   })
   it("offers the three prototype scripts and Both", () => {
     expect(SCRIPT_ROWS.map((row) => row.id)).toEqual(["roman", "devanagari", "bengali", "both"])

@@ -234,12 +234,12 @@ describe("extras and settings", () => {
     expect(normalizeSettings(undefined)).toEqual(DEFAULT_SONG_PAGE_SETTINGS)
     const s = normalizeSettings({
       capo: 40,
-      translations: ["en", "ru", "fr"],
+      translations: ["en", "ru", "es"],
       script: "klingon" as never,
       harmoniumKey: "Z",
     })
     expect(s.capo).toBe(7)
-    expect(s.translations).toEqual(["ru", "fr"])
+    expect(s.translations).toEqual(["ru", "es"])
     expect(s.script).toBe("roman")
     expect(s.harmoniumKey).toBe("D")
   })

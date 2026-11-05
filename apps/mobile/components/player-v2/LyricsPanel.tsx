@@ -22,6 +22,8 @@ type Props = {
   emptyText: string
   /** The Aa button in the top-right corner of the card. Left out, no button. */
   onOptions?: () => void
+  /** A language the person chose and this song lacks: one plain line at the foot of the card, and an action (Request). */
+  notice?: { text: string; action: string; onAction?: () => void } | null
 }
 
 /** The prototype puts the sung line at 24% of the panel height (`_syncLyr`). */
@@ -53,6 +55,7 @@ export function LyricsPanel({
   onSeekToLine,
   emptyText,
   onOptions,
+  notice,
 }: Props) {
   const reduce = useReducedMotion()
   const scroll = useRef<ScrollView>(null)
@@ -128,6 +131,26 @@ export function LyricsPanel({
           <Text style={styles.emptyText}>{emptyText}</Text>
         </View>
       )}
+      {notice ? (
+        <View style={styles.notice}>
+          <Text style={styles.noticeText} numberOfLines={3}>
+            {notice.text}
+          </Text>
+          {notice.onAction ? (
+            <TouchButton
+              accessibilityRole="button"
+              accessibilityLabel={notice.action}
+              onAction={notice.onAction}
+              containerStyle={styles.noticeHit}
+              style={styles.noticeAction}
+            >
+              <Text style={styles.noticeActionText}>{notice.action}</Text>
+            </TouchButton>
+          ) : (
+            <Text style={styles.noticeDone}>{notice.action}</Text>
+          )}
+        </View>
+      ) : null}
       {onOptions ? (
         <TouchButton
           accessibilityRole="button"
@@ -242,6 +265,21 @@ const styles = StyleSheet.create({
   // The prototype's line box is 23px tall (16px parent strut) with the 18px text near its top: 35px in all.
   translation: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingTop: 4.5, paddingBottom: 12.5 },
   noTranslation: { height: 8 },
+  notice: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 8, paddingBottom: 8 },
+  noticeText: { flex: 1, fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, color: playerColors.textSoft },
+  noticeHit: { flexShrink: 0 },
+  noticeAction: {
+    minHeight: 32,
+    paddingHorizontal: 12,
+    borderRadius: 9999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: playerColors.chipFill,
+    borderWidth: 1,
+    borderColor: playerColors.chipEdge,
+  },
+  noticeActionText: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, color: playerColors.text },
+  noticeDone: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, color: playerColors.textSoft },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   emptyText: { fontFamily: amFonts.regular, fontSize: 16, lineHeight: 23, color: playerColors.textSoft, textAlign: "center" },
 })

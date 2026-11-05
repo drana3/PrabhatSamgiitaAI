@@ -291,6 +291,9 @@ const styles = StyleSheet.create({
   },
   card: { marginHorizontal: 10, padding: 20, borderRadius: 30, borderWidth: 1, gap: 16 },
   tcHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 },
+  gap: { flexDirection: "row", alignItems: "center", columnGap: 12, paddingVertical: 8 },
+  gapBtn: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  gapAction: { fontFamily: amFonts.semi, fontSize: 15 },
   mark: { width: 24, height: 24, borderRadius: 9999, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   radioDot: { width: 10, height: 10, borderRadius: 9999, backgroundColor: "#FFFFFF" },
 })
@@ -326,6 +329,35 @@ export function SpSectionTitle({
 }
 
 /** `.tc-head`: an eyebrow on the left and a quiet note on the right. */
+/**
+ * The honest line when a song lacks the chosen language: "Not available in Russian yet. Showing
+ * English." and a Request action (the existing request flow). Nothing else is shown in its place.
+ */
+export function SpGapNote({
+  t,
+  text,
+  requested,
+  onRequest,
+}: {
+  t: SpTheme
+  text: string
+  requested: boolean
+  onRequest: () => void
+}) {
+  return (
+    <View style={styles.gap} accessibilityRole="alert">
+      <Text style={[noteStyle(t), { flex: 1 }]}>{text}</Text>
+      {requested ? (
+        <Text style={[styles.gapAction, { color: t.ink500 }]}>Requested</Text>
+      ) : (
+        <SpPress onPress={onRequest} accessibilityLabel="Request this language" style={styles.gapBtn}>
+          <Text style={[styles.gapAction, { color: t.orange700 }]}>Request</Text>
+        </SpPress>
+      )}
+    </View>
+  )
+}
+
 export function SpTcHead({ t, label, note }: { t: SpTheme; label: string; note?: string }) {
   return (
     <View style={styles.tcHead}>

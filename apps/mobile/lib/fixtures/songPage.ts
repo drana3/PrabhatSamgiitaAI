@@ -84,13 +84,15 @@ function wordKey(word: string): string {
 
 const GLOSSARY: Record<string, string> = Object.fromEntries(PROTO_WORDS.map(([r, , g]) => [wordKey(r), g]))
 
-/** The glossary gloss of a Roman word in a language, or null. English and the two sample languages only. */
+/** The glossary gloss of a Roman word in a language, or null. English, Russian and French only; null for any other language. */
 export function glossaryGloss(roman: string, language: string): string | null {
   const en = GLOSSARY[wordKey(roman)]
   if (!en) return null
-  if (language === "ru") return GLOSS_TR[en]?.[0] ?? en
-  if (language === "fr") return GLOSS_TR[en]?.[1] ?? en
-  return en
+  if (language === "en") return en
+  // another language: its own word, never the English one under its name
+  if (language === "ru") return GLOSS_TR[en]?.[0] ?? null
+  if (language === "fr") return GLOSS_TR[en]?.[1] ?? null
+  return null
 }
 
 /** Languages the sample word meanings cover; the prototype calls them "full". */

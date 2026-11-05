@@ -6,7 +6,10 @@ import { clampCapo, stepHarmoniumKey } from "@/lib/songPage/chords"
 import type { ChordInstrument, ChordMode } from "@/lib/songPage/chordChart"
 import { DEFAULT_SONG_PAGE_SETTINGS, normalizeSettings, type SongPageSettings } from "@/lib/songPage/settings"
 import type { ScriptChoice } from "@/lib/songPage/scripts"
-import { setPrimaryTranslation, toggleTranslation } from "@/lib/songPage/translations"
+import { FOLLOW_APP, migrateSongPageLanguages, normalizeLyricChoice } from "@/lib/songPage/lyricLanguages"
+import { getActiveLanguage } from "@/lib/i18n/core"
+import { effectiveTranslations, normalizeStoredTranslations } from "@/lib/songPage/lyricLanguages"
+import { MAX_TRANSLATIONS, setPrimaryTranslation, toggleTranslation } from "@/lib/songPage/translations"
 
 type SongPageState = SongPageSettings & {
   /** songs the reader started to learn; the Learn branch will own the full path state */
@@ -14,8 +17,10 @@ type SongPageState = SongPageSettings & {
   setScript: (script: ScriptChoice) => void
   toggleTranslation: (code: string) => void
   setPrimaryTranslation: (code: string) => void
-  /** Replace the chosen translation languages (the Words chips pick exactly one). */
+  /** Replace the chosen translation languages (under each line and the Meaning section). */
   setTranslations: (codes: string[]) => void
+  /** The language of the word meanings on the Words card. Separate from the translations on purpose. */
+  setWordLanguage: (code: string) => void
   setChordsOn: (on: boolean) => void
   setInstrument: (instrument: ChordInstrument) => void
   setCapo: (capo: number) => void
@@ -34,9 +39,13 @@ export const useSongPageStore = create<SongPageState>()(
       ...DEFAULT_SONG_PAGE_SETTINGS,
       learning: {},
       setScript: (script) => set({ script }),
-      toggleTranslation: (code) => set((s) => ({ translations: toggleTranslation(s.translations, code) })),
-      setPrimaryTranslation: (code) => set((s) => ({ translations: setPrimaryTranslation(s.translations, code) })),
-      setTranslations: (codes) => set({ translations: codes.length ? codes.slice(0, 2) : ["en"] }),
+      // the base of a change is what the person sees now (the app language when nothing was chosen)
+      toggleTranslation: (code) =>
+        set((s) => ({ translations: toggleTranslation(effectiveTranslations(s.translations, getActiveLanguage()), code) })),
+      setPrimaryTranslation: (code) =>
+        set((s) => ({ translations: setPrimaryTranslation(effectiveTranslations(s.translations, getActiveLanguage()), code) })),
+      setTranslations: (codes) => set({ translations: normalizeStoredTranslations(codes, MAX_TRANSLATIONS) }),
+      setWordLanguage: (code) => set({ wordLanguage: normalizeLyricChoice(code) === "off" ? FOLLOW_APP : normalizeLyricChoice(code) }),
       setChordsOn: (chordsOn) => set({ chordsOn }),
       setInstrument: (instrument) => set({ instrument }),
       setCapo: (capo) => set({ capo: clampCapo(capo) }),
@@ -47,10 +56,12 @@ export const useSongPageStore = create<SongPageState>()(
     {
       name: "prabhat-song-page-v2",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: 2,
+      migrate: (persisted) => migrateSongPageLanguages(persisted) as SongPageState,
       partialize: (s) => ({
         script: s.script,
         translations: s.translations,
+        wordLanguage: s.wordLanguage,
         chordsOn: s.chordsOn,
         instrument: s.instrument,
         capo: s.capo,

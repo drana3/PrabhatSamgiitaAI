@@ -141,6 +141,17 @@ export function mockupTranslation(number: number, code: string): string[] | null
   return Array.isArray(lines) && code !== "words" ? (lines as string[]) : null
 }
 
+/**
+ * The preview plays every sample song with one of the two sample texts, so the Player matches a
+ * translation by the number of lyric lines (3 lines = PS 3 text, 4 lines = PS 1 text). Null for a
+ * language the sample does not have (Chinese): nothing is invented.
+ */
+export function mockupTranslationByLineCount(code: string, lineCount: number): string[] | null {
+  const v = lineCount === B.words.length ? B : lineCount === A.words.length ? A : null
+  const lines = v ? (v as unknown as Record<string, unknown>)[code] : null
+  return Array.isArray(lines) && code !== "words" && lines.length === lineCount ? (lines as string[]) : null
+}
+
 type Rec = { inst: SongVersion["instrument"]; label: string; who: string; tag: SongVersion["tag"]; d: number }
 
 const RECS: Rec[] = [

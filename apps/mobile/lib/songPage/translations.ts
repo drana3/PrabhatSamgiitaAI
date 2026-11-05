@@ -17,6 +17,8 @@ export function setPrimaryTranslation(selected: string[], code: string): string[
 }
 
 export function shortCode(code: string): string {
+  // Simplified and Traditional Chinese must stay apart in a pill: ZH-CN, ZH-TW
+  if (code.startsWith("zh-")) return code.toUpperCase()
   return code.split("-")[0].toUpperCase()
 }
 

@@ -1,15 +1,17 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { StyleSheet, View } from "react-native"
 import { useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 
-import { DoneButton, Group, LangRow, LanguageSearch, SheetNote, SheetTitle } from "@/components/profile-v2/SheetBlocks"
+import { DoneButton, Group, LangRow, SheetNote, SheetTitle } from "@/components/profile-v2/SheetBlocks"
 import { SheetShell } from "@/components/profile-v2/SheetShell"
 import { protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
-import { SCRIPT_ROWS, languageRows, languageSearchPlaceholder, sampleLanguageRows } from "@/lib/languageSheet"
-import { SAMPLE_LANGUAGE_COUNT } from "@/lib/fixtures/translations"
+import { SCRIPT_ROWS, lyricLanguageRows } from "@/lib/languageSheet"
+import { TRANSLATION_COVERAGE_FIXTURE } from "@/lib/fixtures/translations"
+import { useLanguage } from "@/lib/i18n"
+import { effectiveTranslations } from "@/lib/songPage/lyricLanguages"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { MAX_TRANSLATIONS } from "@/lib/songPage/translations"
 import { useSongPageStore } from "@/stores/songPageStore"
@@ -27,18 +29,14 @@ export default function ScriptTranslationsScreen() {
   const resolved = useResolvedAppearance()
   const script = useSongPageStore((st) => st.script)
   const setScript = useSongPageStore((st) => st.setScript)
-  const translations = useSongPageStore((st) => st.translations)
+  const savedTranslations = useSongPageStore((st) => st.translations)
   const toggleTranslation = useSongPageStore((st) => st.toggleTranslation)
-  const [query, setQuery] = useState("")
-
-  const [requested, setRequested] = useState<ReadonlySet<string>>(new Set())
-  const rows = useMemo(
-    () =>
-      MOCKUP_DATA
-        ? sampleLanguageRows(query, requested)
-        : languageRows(query).map((row) => ({ code: row.code, name: row.name, native: row.native, pending: false, action: "" })),
-    [query, requested],
-  )
+  const appLanguage = useLanguage()
+  // nothing chosen yet means the language of the app, and that is what the check shows
+  const translations = useMemo(() => effectiveTranslations(savedTranslations, appLanguage), [savedTranslations, appLanguage])
+  // The list is the one list of the player and the song page. What a language covers is per song, so the
+  // sheet claims nothing about it (the preview shows its sample coverage).
+  const rows = useMemo(() => lyricLanguageRows(MOCKUP_DATA ? TRANSLATION_COVERAGE_FIXTURE : undefined), [])
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
@@ -70,30 +68,23 @@ export default function ScriptTranslationsScreen() {
         </Group>
 
         <SheetTitle p={p} label="Translation under each line" note={`Up to ${MAX_TRANSLATIONS}`} spaced baseline />
-        <LanguageSearch p={p} value={query} onChangeText={setQuery} placeholder={MOCKUP_DATA ? languageSearchPlaceholder(SAMPLE_LANGUAGE_COUNT) : languageSearchPlaceholder()} />
-        {rows.length > 0 ? (
-          <Group p={p}>
-            {rows.map((row) => (
-              <LangRow
-                key={row.code}
-                p={p}
-                name={row.name}
-                sub={row.native}
-                control="check"
-                on={translations.includes(row.code)}
-                action={row.action || undefined}
-                dim={row.pending}
-                onPress={() =>
-                  row.pending ? setRequested((prev) => new Set(prev).add(row.code)) : toggleTranslation(row.code)
-                }
-              />
-            ))}
-          </Group>
-        ) : (
-          <SheetNote p={p}>No language matches your search.</SheetNote>
-        )}
+        <Group p={p}>
+          {rows.map((row, i) => (
+            <LangRow
+              key={row.code}
+              last={i === rows.length - 1}
+              p={p}
+              name={row.name}
+              sub={row.sub}
+              control="check"
+              on={translations.includes(row.code)}
+              dim={row.pending}
+              onPress={() => toggleTranslation(row.code)}
+            />
+          ))}
+        </Group>
         <SheetNote p={p}>
-          Word meanings can be shown in the same languages. Where a language has lines only, word meanings stay in English.
+          A song that does not have the language yet shows English and says so. Word meanings have their own language: pick it on the Words card of a song or in the player.
         </SheetNote>
         <DoneButton p={p} onPress={onClosed} />
       </SheetShell>

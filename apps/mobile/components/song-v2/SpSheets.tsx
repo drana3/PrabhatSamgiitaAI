@@ -1,12 +1,12 @@
-import { useMemo, useState, type ReactNode } from "react"
-import { StyleSheet, Text, TextInput, View } from "react-native"
+import type { ReactNode } from "react"
+import { StyleSheet, Text, View } from "react-native"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { localeOptions, type LocaleOption } from "@/constants/languages"
 import { SCRIPT_LABEL, type ScriptChoice, type ScriptId } from "@/lib/songPage/scripts"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { groupLanguages, type Coverage } from "@/lib/songPage/translations"
+import { LYRIC_LANGUAGES } from "@/lib/songPage/lyricLanguages"
+import type { Coverage } from "@/lib/songPage/translations"
 import { versionDetail, type SongVersion } from "@/lib/songPage/versions"
 import { useDownloadState } from "@/hooks/useDownloadState"
 import { downloadPillLabel, type DownloadItem } from "@/lib/offline/downloadModel"
@@ -56,6 +56,7 @@ function Row({
   kind,
   muted,
   action,
+  onAction,
   last,
   onPress,
 }: {
@@ -67,9 +68,35 @@ function Row({
   muted?: boolean
   /** `.rq`: the orange word before the mark, e.g. "Request" */
   action?: string
+  /** Makes the action word its own button, apart from the row (the row itself still selects) */
+  onAction?: () => void
   last?: boolean
   onPress: () => void
 }) {
+  if (onAction && action) {
+    return (
+      <View style={[styles.lrow, !last && { borderBottomWidth: 1, borderBottomColor: t.sand300 }]}>
+        <SpPress
+          onPress={onPress}
+          accessibilityLabel={`${name}. ${sub}`}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: on }}
+          style={styles.lmPress}
+        >
+          <View style={styles.lm}>
+            <Text style={[styles.lmB, { color: muted ? t.ink500 : t.ink800 }]}>{name}</Text>
+            <Text style={[styles.lmS, { color: t.ink500 }]}>{sub}</Text>
+          </View>
+        </SpPress>
+        <SpPress onPress={onAction} accessibilityLabel={`${action} ${name}`} style={styles.rqBtn}>
+          <Text style={[styles.rq, { color: t.orange700 }]}>{action}</Text>
+        </SpPress>
+        <SpPress onPress={onPress} accessibilityLabel={`${name}. ${sub}`} accessibilityRole="checkbox" accessibilityState={{ checked: on }} style={styles.markPress}>
+          <SpMark t={t} on={on} kind={kind} />
+        </SpPress>
+      </View>
+    )
+  }
   return (
     <SpPress
       onPress={onPress}
@@ -95,7 +122,7 @@ const STATE_TEXT: Record<Coverage, string> = {
   none: "Not added yet",
 }
 
-/** Language sheet: script rows (radio), translation search and rows (check, up to two), the note, Done. */
+/** Language sheet: script rows (radio), then the one list of lyric languages (check, up to two), the note, Done. */
 export function SpLanguageSheet({
   t,
   visible,
@@ -107,8 +134,6 @@ export function SpLanguageSheet({
   coverage,
   onToggleLanguage,
   onMissingScript,
-  options,
-  searchCount,
   requested,
   onRequest,
 }: {
@@ -119,24 +144,15 @@ export function SpLanguageSheet({
   script: ScriptChoice
   onScript: (choice: ScriptChoice) => void
   selected: string[]
+  /** what this song has per language; a language that is not in it counts as not added */
   coverage: Record<string, Coverage>
   onToggleLanguage: (code: string) => void
   onMissingScript: (name: string) => void
-  /** Languages to list; all of them when left out */
-  options?: LocaleOption[]
-  /** Number in the search placeholder; the length of `options` when left out */
-  searchCount?: number
-  /** Languages the reader asked for, which have no translation yet */
+  /** Languages the reader asked for, which this song does not have yet */
   requested: string[]
-  /** Ask for a language that has no translation yet (`Request`) */
+  /** Ask for a language this song does not have yet (`Request`) */
   onRequest: (code: string) => void
 }) {
-  const [query, setQuery] = useState("")
-  const pool = options ?? localeOptions
-  const rows = useMemo(
-    () => groupLanguages(coverage, query, pool).flatMap((group) => group.rows),
-    [coverage, query, pool],
-  )
   const scriptRows: Array<{ id: ScriptChoice; name: string; sub: string; missing?: boolean }> = [
     { id: "roman", name: "Roman", sub: "Latin letters, for example Bandhu, Álo" },
     { id: "devanagari", name: "देवनागरी", sub: "Devanagari" },
@@ -183,42 +199,31 @@ export function SpLanguageSheet({
         label="Translation under each line"
         right={<Text style={[note(t), { textAlign: "right" }]}>Up to 2</Text>}
       />
-      <View style={[styles.search, { backgroundColor: t.white, borderColor: t.sand300 }]}>
-        <SpIcon name="search" size={20} color={t.ink500} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={`Search ${searchCount ?? pool.length} languages`}
-          placeholderTextColor={t.ink500}
-          accessibilityLabel="Search languages"
-          autoCorrect={false}
-          autoCapitalize="none"
-          spellCheck={false}
-          style={[styles.searchInput, { color: t.ink800 }]}
-        />
-      </View>
       <Group t={t}>
-        {rows.map((row, i) => (
-          <Row
-            key={row.option.code}
-            t={t}
-            name={row.option.label}
-            sub={`${row.option.nativeLabel} · ${
-              row.coverage === "none" && requested.includes(row.option.code) ? "Requested" : STATE_TEXT[row.coverage]
-            }`}
-            on={selected.includes(row.option.code)}
-            kind="check"
-            muted={row.coverage === "none"}
-            action={row.coverage === "none" && !requested.includes(row.option.code) ? "Request" : ""}
-            last={i === rows.length - 1}
-            onPress={() =>
-              row.coverage === "none" ? onRequest(row.option.code) : onToggleLanguage(row.option.code)
-            }
-          />
-        ))}
+        {LYRIC_LANGUAGES.map((language, i) => {
+          const state = coverage[language.code] ?? "none"
+          const missing = state === "none"
+          const asked = requested.includes(language.code)
+          return (
+            <Row
+              key={language.code}
+              t={t}
+              name={language.name}
+              sub={`${language.native} · ${missing ? (asked ? "Requested" : "Not available for this song yet") : STATE_TEXT[state]}`}
+              on={selected.includes(language.code)}
+              kind="check"
+              muted={missing}
+              action={missing && !asked ? "Request" : undefined}
+              onAction={missing && !asked ? () => onRequest(language.code) : undefined}
+              last={i === LYRIC_LANGUAGES.length - 1}
+              onPress={() => onToggleLanguage(language.code)}
+            />
+          )
+        })}
       </Group>
       <Text style={[note(t), { paddingHorizontal: 20, paddingTop: 12 }]}>
-        Word meanings can be shown in the same languages. Where a language has lines only, word meanings stay in English.
+        Word meanings use the same languages, chosen on the Words card. A language this song does not have yet is
+        shown in English, with a note.
       </Text>
       <View style={styles.pad}>
         <SpPill t={t} label="Done" onPress={onClose} style={{ width: "100%" }} />
@@ -374,26 +379,9 @@ const styles = StyleSheet.create({
   lmB: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
   lmS: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
   rq: { fontFamily: amFonts.semi, fontSize: 13 },
-  search: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-    height: 48,
-    borderRadius: 70,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-  },
-  searchInput: {
-    flex: 1,
-    minWidth: 0,
-    height: 44,
-    fontFamily: amFonts.medium,
-    fontSize: 16,
-    // web: no focus ring box inside the pill
-    ...({ outlineStyle: "none" } as object),
-  },
+  lmPress: { flex: 1, minWidth: 0, minHeight: 56, justifyContent: "center" },
+  rqBtn: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  markPress: { minHeight: 44, minWidth: 24, alignItems: "center", justifyContent: "center" },
   pad: { paddingHorizontal: 20, paddingTop: 16 },
   shPad: { paddingHorizontal: 20, paddingBottom: 24 },
   vlist: { paddingHorizontal: 10, paddingBottom: 4 },

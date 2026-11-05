@@ -5,6 +5,7 @@
  * and songs that match, and nothing for the rest. Replace with API data, then delete.
  */
 
+import { mockupTranslationByLineCount } from "@/lib/fixtures/songMockup"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 /** Roman lyric word, lower case and without diacritics, to its short English gloss. */
@@ -56,3 +57,17 @@ export function sampleRussianLines(songNumber: number, lineCount: number): strin
   const lines = RU_LINES[songNumber] ?? (MOCKUP_DATA ? (lineCount === 3 ? RU_LINES[3] : RU_LINES[1]) : undefined)
   return lines && lines.length === lineCount ? lines : null
 }
+
+/**
+ * TODO(api): sample line translations of the two sample songs in the languages the prototype has
+ * (Russian, Spanish, Hindi). Other languages (Chinese) return null: the Player says so and shows
+ * English instead of inventing a text.
+ */
+export function sampleTranslationLines(songNumber: number, code: string, lineCount: number): string[] | null {
+  if (code === "ru") return sampleRussianLines(songNumber, lineCount)
+  if (!MOCKUP_DATA) return null
+  return mockupTranslationByLineCount(code, lineCount)
+}
+
+/** TODO(api): which languages the sample word meanings cover (English and Russian). */
+export const SAMPLE_GLOSS_LANGUAGES: readonly string[] = ["en", "ru"]

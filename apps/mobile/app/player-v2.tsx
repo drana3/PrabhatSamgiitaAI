@@ -49,7 +49,21 @@ import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSaveState } from "@/hooks/useSaveState"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
-import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
+import { SAMPLE_GLOSS_LANGUAGES, sampleGloss, sampleTranslationLines } from "@/lib/fixtures/player"
+import { glossaryGloss } from "@/lib/fixtures/songPage"
+import { useLanguage } from "@/lib/i18n"
+import { storedMeaningForLanguage } from "@/lib/songMap"
+import {
+  LYRIC_LANGUAGE_CODES,
+  OFF,
+  REQUESTED_LABEL,
+  REQUEST_LABEL,
+  REQUEST_TOAST,
+  lyricGaps,
+  lyricLanguageName,
+  pickShown,
+  resolveLyricChoice,
+} from "@/lib/songPage/lyricLanguages"
 import { artistForAuthor } from "@/lib/kirtan/artists"
 import { moodForText } from "@/lib/photos/catalog"
 import { ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
@@ -309,27 +323,71 @@ export default function PlayerV2Screen() {
   const useDevanagari = v2.script === "devanagari" && devanagariLines.length > 0
   const scriptLines = useDevanagari ? devanagariLines : romanLines
 
-  const englishLines = useMemo(() => alignTranslation(scriptLines, song?.translation), [scriptLines, song?.translation])
-  // TODO(api): Russian translations and word glosses come from lib/fixtures/player.ts until the catalog has them.
-  const russianLines = useMemo(
-    () => (song ? sampleRussianLines(song.number, scriptLines.length) : null),
-    [song, scriptLines.length],
-  )
-  const translationLines = v2.translation === "en" ? englishLines : v2.translation === "ru" ? russianLines : null
-  const showTranslation = translationLines != null
-  const hasTranslation = v2.translation === "en" ? englishLines != null : russianLines != null
+  // The two settings are separate: the language of the lines under the lyrics and the language of the
+  // word meanings. A saved "follow the app" resolves to the app language here, at the point of use.
+  const appLanguage = useLanguage()
+  const translationChoice = resolveLyricChoice(v2.translation, appLanguage)
+  const wordChoice = resolveLyricChoice(v2.wordLanguage, appLanguage)
 
-  const glosses = useMemo(() => {
-    const rows = scriptLines.map((line, i) => {
-      const roman = splitWords(romanLines[i] ?? "")
-      const words = splitWords(line)
-      // Devanagari shows the gloss of the Roman word in the same position.
-      const source = useDevanagari && roman.length === words.length ? roman : words
-      return source.map((word) => sampleGloss(word))
-    })
-    return rows.some((row) => row.some(Boolean)) ? rows : null
+  // TODO(api): sample translations and word glosses come from lib/fixtures/player.ts until the catalog has them.
+  const translationByLanguage = useMemo(() => {
+    const map: Record<string, string[] | null> = {}
+    for (const code of LYRIC_LANGUAGE_CODES) {
+      if (code === "en") map[code] = alignTranslation(scriptLines, song?.translation)
+      else {
+        const sample = song ? sampleTranslationLines(song.number, code, scriptLines.length) : null
+        map[code] = sample ?? alignTranslation(scriptLines, song ? storedMeaningForLanguage(song, code) : null)
+      }
+    }
+    return map
+  }, [scriptLines, song])
+  const hasTranslationIn = useCallback((code: string) => translationByLanguage[code] != null, [translationByLanguage])
+  const translationPick = translationChoice === OFF ? null : pickShown(translationChoice, hasTranslationIn)
+  const translationLines = translationPick?.shown ? (translationByLanguage[translationPick.shown] ?? null) : null
+  const showTranslation = translationLines != null
+
+  const glossesByLanguage = useMemo(() => {
+    const out: Record<string, Array<Array<string | undefined>> | null> = {}
+    for (const code of SAMPLE_GLOSS_LANGUAGES) {
+      const rows = scriptLines.map((line, i) => {
+        const roman = splitWords(romanLines[i] ?? "")
+        const words = splitWords(line)
+        // Devanagari shows the gloss of the Roman word in the same position.
+        const source = useDevanagari && roman.length === words.length ? roman : words
+        return source.map((word) => (code === "en" ? sampleGloss(word) : (glossaryGloss(word, code) ?? undefined)))
+      })
+      out[code] = rows.some((row) => row.some(Boolean)) ? rows : null
+    }
+    return out
   }, [scriptLines, romanLines, useDevanagari])
-  const showGloss = v2.wordMeanings && glosses != null
+  const hasWordMeaningsIn = useCallback((code: string) => glossesByLanguage[code] != null, [glossesByLanguage])
+  const wordPick = wordChoice === OFF ? null : pickShown(wordChoice, hasWordMeaningsIn)
+  const glosses = wordPick?.shown ? (glossesByLanguage[wordPick.shown] ?? null) : null
+  const showGloss = glosses != null
+
+  // Asked-for languages the song lacks: the sheet and the panel say so and offer Request.
+  const [requestedLanguages, setRequestedLanguages] = useState<string[]>([])
+  const gaps = lyricGaps({ translation: translationChoice, wordLanguage: wordChoice, hasTranslationIn, hasWordMeaningsIn })
+  const requestLanguage = (code: string) => {
+    // TODO(api): send the request to the catalogue; for now it is remembered on this screen only (as on the song page)
+    setRequestedLanguages((list) => (list.includes(code) ? list : [...list, code]))
+    toast.show(REQUEST_TOAST)
+  }
+  const panelNotice = gaps.length
+    ? (() => {
+        const wanted = [...new Set(gaps.map((gap) => gap.wanted))]
+        const text = gaps.length > 1 && wanted.length > 1
+          ? gaps.map((gap) => `${gap.kind === "translation" ? "Translation" : "Word meanings"}: ${gap.text}`).join(" ")
+          : gaps[0]!.text
+        const single = wanted.length === 1 ? wanted[0]! : null
+        const asked = single != null && requestedLanguages.includes(single)
+        return {
+          text,
+          action: asked ? REQUESTED_LABEL : single ? `${REQUEST_LABEL} ${lyricLanguageName(single)}` : "Options",
+          onAction: asked ? undefined : single ? () => requestLanguage(single) : () => setSheet("lyrics"),
+        }
+      })()
+    : null
 
   const lyricLines = useMemo(
     () => buildLyricLines(scriptLines, translationLines, showGloss ? glosses : null),
@@ -439,7 +497,6 @@ export default function PlayerV2Screen() {
 
   // Lyrics display: each row steps through its options.
   const onCycleScript = () => v2.setScript(v2.script === "roman" ? "devanagari" : "roman")
-  const onCycleTranslation = () => v2.setTranslation(v2.translation === "en" ? "ru" : v2.translation === "ru" ? "off" : "en")
 
   // Play songs from
   const sourceChoices = useMemo(
@@ -793,6 +850,7 @@ export default function PlayerV2Screen() {
                       activeWord={activeWord}
                       showGloss={showGloss}
                       showTranslation={showTranslation}
+                      notice={panelNotice}
                       onSeekToLine={onSeekLine}
                       emptyText="Lyrics are not available for this song yet."
                       onOptions={() => setSheet("lyrics")}
@@ -913,14 +971,16 @@ export default function PlayerV2Screen() {
         visible={sheet === "lyrics"}
         theme={theme}
         script={v2.script}
-        translation={v2.translation}
-        wordMeanings={v2.wordMeanings}
+        translation={translationChoice}
+        wordLanguage={wordChoice}
         hasDevanagari={devanagariLines.length > 0}
-        hasTranslation={hasTranslation}
-        hasWordMeanings={glosses != null}
+        hasTranslationIn={hasTranslationIn}
+        hasWordMeaningsIn={hasWordMeaningsIn}
+        requested={requestedLanguages}
         onCycleScript={onCycleScript}
-        onCycleTranslation={onCycleTranslation}
-        onToggleWordMeanings={() => v2.setWordMeanings(!v2.wordMeanings)}
+        onPickTranslation={v2.setTranslation}
+        onPickWordLanguage={v2.setWordLanguage}
+        onRequest={requestLanguage}
         onClose={() => setSheet(null)}
       />
       ) : null}

@@ -2,6 +2,7 @@ import { clampCapo } from "./chords"
 import type { ChordInstrument, ChordMode } from "./chordChart"
 import { HARMONIUM_KEYS } from "./chords"
 import type { ScriptChoice } from "./scripts"
+import { FOLLOW_APP, normalizeLyricChoice, normalizeStoredTranslations } from "./lyricLanguages"
 import { MAX_TRANSLATIONS } from "./translations"
 
 /**
@@ -11,7 +12,16 @@ import { MAX_TRANSLATIONS } from "./translations"
  */
 export type SongPageSettings = {
   script: ScriptChoice
+  /**
+   * Languages under each line and in the Meaning section (up to two). Empty means nobody chose yet:
+   * follow the language of the app (see effectiveTranslations in lyricLanguages.ts).
+   */
   translations: string[]
+  /**
+   * The language of the word meanings on the Words card: "auto" follows the app language. It is NOT
+   * the translation setting: picking a word language never changes the Meaning section.
+   */
+  wordLanguage: string
   chordsOn: boolean
   instrument: ChordInstrument
   capo: number
@@ -21,7 +31,8 @@ export type SongPageSettings = {
 
 export const DEFAULT_SONG_PAGE_SETTINGS: SongPageSettings = {
   script: "roman",
-  translations: ["en"],
+  translations: [],
+  wordLanguage: FOLLOW_APP,
   chordsOn: false,
   instrument: "guitar",
   capo: 0,
@@ -35,13 +46,13 @@ const SCRIPTS: ScriptChoice[] = ["roman", "devanagari", "bengali", "both"]
 export function normalizeSettings(input: Partial<SongPageSettings> | null | undefined): SongPageSettings {
   const d = DEFAULT_SONG_PAGE_SETTINGS
   const raw = input ?? {}
-  const translations = Array.isArray(raw.translations)
-    ? raw.translations.filter((c): c is string => typeof c === "string" && c.length > 0)
-    : []
-  const unique = translations.filter((c, i) => translations.indexOf(c) === i).slice(-MAX_TRANSLATIONS)
+  // `fr` and the like (offered before the list was fixed) are dropped; nothing left means "follow the app"
+  const translations = normalizeStoredTranslations(raw.translations, MAX_TRANSLATIONS)
   return {
     script: SCRIPTS.includes(raw.script as ScriptChoice) ? (raw.script as ScriptChoice) : d.script,
-    translations: unique.length ? unique : d.translations,
+    translations,
+    // a word language is one language (or "auto"); "off" is a player-only value
+    wordLanguage: raw.wordLanguage === "off" ? FOLLOW_APP : normalizeLyricChoice(raw.wordLanguage),
     chordsOn: typeof raw.chordsOn === "boolean" ? raw.chordsOn : d.chordsOn,
     instrument: raw.instrument === "harmonium" ? "harmonium" : "guitar",
     capo: clampCapo(typeof raw.capo === "number" ? raw.capo : d.capo),

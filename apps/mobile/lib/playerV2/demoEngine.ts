@@ -265,8 +265,8 @@ function installPreferences(): void {
       playMode: "this",
       repeatMode: "off",
       script: "roman",
-      translation: "en",
-      wordMeanings: true,
+      translation: "auto",
+      wordLanguage: "auto",
       versionByNumber: {},
       shuffleOriginal: null,
     })

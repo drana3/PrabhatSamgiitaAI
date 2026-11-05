@@ -11,7 +11,7 @@ import type { SongExplanation } from "@/lib/songPage/songContent"
 
 import { SpIcon } from "./SpIcon"
 import { bodyT, note, over } from "./spType"
-import { SpCard, SpChip, SpPill, SpPress, SpRound, SpTcHead } from "./SpUi"
+import { SpCard, SpChip, SpGapNote, SpPill, SpPress, SpRound, SpTcHead } from "./SpUi"
 
 /* ---------------- Words ---------------- */
 
@@ -23,17 +23,19 @@ export function SpWords({
   languages,
   activeLanguages,
   onLanguage,
-  onMore,
+  gap,
 }: {
   t: SpTheme
   rows: SpWordRow[]
   script: ScriptId
   note: string
-  languages: Array<{ code: string; label: string }>
-  /** every chosen translation language that has word meanings */
+  /** the one list of lyric languages; `label` is the chip text, `accessibilityLabel` the full name */
+  languages: Array<{ code: string; label: string; accessibilityLabel?: string }>
+  /** the language of the word meanings (one) */
   activeLanguages: string[]
   onLanguage: (code: string) => void
-  onMore: () => void
+  /** shown when the song has no word meanings in the chosen language */
+  gap?: { text: string; requested: boolean; onRequest: () => void } | null
 }) {
   const rmFont = script === "devanagari" ? amFonts.devanagariBold : script === "bengali" ? amFonts.bengaliBold : amFonts.bold
   return (
@@ -47,7 +49,7 @@ export function SpWords({
               key={language.code}
               onPress={() => onLanguage(language.code)}
               accessibilityState={{ selected: on }}
-              accessibilityLabel={language.label}
+              accessibilityLabel={language.accessibilityLabel ?? language.label}
               style={[
                 styles.wchip,
                 { backgroundColor: on ? (t.dark ? t.action : t.sage700) : t.white, borderColor: on ? (t.dark ? t.action : t.sage700) : t.sand300 },
@@ -57,15 +59,8 @@ export function SpWords({
             </SpPress>
           )
         })}
-        <SpPress
-          onPress={onMore}
-          accessibilityLabel="More languages and two translations"
-          style={[styles.wchip, styles.wchipMore, { backgroundColor: t.white, borderColor: t.sand300 }]}
-        >
-          <Text style={[styles.wchipText, { color: t.ink500 }]}>More</Text>
-          <SpIcon name="chevRight" size={16} color={t.ink500} strokeWidth={2} />
-        </SpPress>
       </View>
+      {gap ? <SpGapNote t={t} text={gap.text} requested={gap.requested} onRequest={gap.onRequest} /> : null}
       <View style={styles.wtoks}>
         {rows.map((row, ri) => (
           <View key={ri}>
@@ -92,14 +87,18 @@ export function SpMeaning({
   t,
   central,
   rows,
+  gap,
 }: {
   t: SpTheme
   central: string | null
+  /** shown when the song has no meaning in the chosen language */
+  gap?: { text: string; requested: boolean; onRequest: () => void } | null
   /** `Line 1 · EN` and its text; one unlabelled row when the meaning is prose */
   rows: Array<{ label: string; text: string }>
 }) {
   return (
     <SpCard t={t}>
+      {gap ? <SpGapNote t={t} text={gap.text} requested={gap.requested} onRequest={gap.onRequest} /> : null}
       {central ? (
         <View style={[styles.central, { backgroundColor: t.dark ? t.sand100 : t.sage200 }]}>
           <Text style={[over(t), { color: t.dark ? t.orange700 : t.sage700 }]}>Central idea</Text>
@@ -479,7 +478,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  wchipMore: { paddingLeft: 13, paddingRight: 8, gap: 2 },
   wchipText: { fontFamily: amFonts.semi, fontSize: 14 },
   wtoks: { flexDirection: "column" },
   wtok: { flexDirection: "row", alignItems: "center", columnGap: 16, paddingVertical: 13, borderBottomWidth: 1 },
