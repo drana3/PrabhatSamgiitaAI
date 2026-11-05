@@ -3,7 +3,7 @@ import { Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Bell, Copy, ExternalLink, Share2 } from "lucide-react-native"
+import { Copy, ExternalLink, Share2 } from "lucide-react-native"
 
 import { LiveBadge, LiveGlyph, LivePhoto, liveTone } from "@/components/kirtan/LiveCard"
 import { LiveEmbed } from "@/components/kirtan/LiveEmbed"
@@ -18,7 +18,6 @@ import { hostLine, liveShareMessage, liveStatus, youtubeWatchUrl } from "@/lib/k
 import { copyText, runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast } from "@/lib/playerV2/playerShare"
 import { webBaseUrl } from "@/lib/webLinks"
-import { useKirtanLiveStore } from "@/stores/kirtanLiveStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
 
@@ -26,9 +25,9 @@ import { href } from "@/utils/href"
  * A live Kiirtan broadcast. It is NOT a track: it never enters the player's queue or the mini-player.
  *  - YouTube: the official IFrame embed only (nothing is downloaded or extracted), plus "Watch on YouTube".
  *  - Zoom: title, time, host, "Join in Zoom" (opens the Zoom app), meeting ID and passcode with copy buttons.
- * Under both: Remind me (upcoming ones), Share, and a note that live audio stops when the app is left.
+ * Under both: Share, and a note that live audio stops when the app is left.
  * If the queue was playing when the screen opened, it is paused and a toast says so, with Resume.
- * TODO(api): the schedule, YouTube ids and Zoom rooms come from the backend; reminders become real pushes.
+ * TODO(api): the schedule, YouTube ids and Zoom rooms come from the backend. Live broadcasts have no reminder of their own; a server push can announce them (docs/notifications.md).
  */
 export default function KiirtanLiveScreen() {
   const router = useRouter()
@@ -38,8 +37,6 @@ export default function KiirtanLiveScreen() {
   const params = useLocalSearchParams<{ id?: string }>()
   const { now, byId } = useKirtanLive()
   const item = params.id ? byId.get(params.id) : undefined
-  const reminded = useKirtanLiveStore((s) => (item ? s.remindIds.includes(item.id) : false))
-  const toggleRemind = useKirtanLiveStore((s) => s.toggleRemind)
   const [toast, setToast] = useState<string | null>(null)
   const [pausedQueue, setPausedQueue] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -85,7 +82,6 @@ export default function KiirtanLiveScreen() {
   const boxW = width - gutter * 2
   const boxH = Math.round((boxW * 9) / 16)
 
-  const onRemind = () => flash(toggleRemind(item.id) ? "We will remind you" : "Reminder removed")
   const onShare = async () => {
     const url = webBaseUrl()
     const message = shareToast(await runShare("more", { title: `Kiirtan live · ${item.title}`, message: liveShareMessage(item, now, url), url }))
@@ -160,20 +156,6 @@ export default function KiirtanLiveScreen() {
           ) : null}
 
           <View style={styles.actions}>
-            {live ? null : (
-              <KPress
-                accessibilityRole="button"
-                accessibilityState={{ selected: reminded }}
-                accessibilityLabel={reminded ? "Remove the reminder" : "Remind me"}
-                onPress={onRemind}
-                pressedScale={0.96}
-                outerStyle={styles.actionOuter}
-                style={[styles.outline, { borderColor: reminded ? theme.brand : theme.line, backgroundColor: reminded ? theme.brand : theme.card }]}
-              >
-                <Bell size={18} color={reminded ? theme.onBrand : theme.textHeading} fill={reminded ? theme.onBrand : "none"} strokeWidth={2} />
-                <Text style={[styles.outlineText, { color: reminded ? theme.onBrand : theme.textHeading }]}>{reminded ? "Reminder on" : "Remind me"}</Text>
-              </KPress>
-            )}
             <KPress
               accessibilityRole="button"
               accessibilityLabel="Share"

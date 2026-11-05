@@ -44,7 +44,7 @@ The hub (`app/learn.tsx`) is a scroll of five sections: Continue card, "Learn a 
 | **Lyrics sync** | Player karaoke lights lines and words. | Timing is **interpolated from line length** (`lib/playerV2/lyricsSync.ts`: "the catalog has no line or word timestamps yet (API-11)"). Fine for reading along; weak for looping a line or a wait mode. |
 | **Raga and Tala index** | Browse list with song counts (fixtures). | I found no song-to-raga/tala field in app code. Raga questions depend on that data; unverified. |
 | **Certificates** | Live-quiz certificates (`/quiz`). | Separate system; leave alone. |
-| **Notifications** | `words` reminder 18:00 only when words are due; `streak` off by default (`docs/notifications.md`). | Should point at the daily plan, not only words. |
+| **Notifications** | `words` reminder (18:00 by default, up to 5 times a day) only when words are due; `streak` off by default (`docs/notifications.md`). | Should point at the daily plan, not only words. |
 
 ### 1.3 The data today (`stores/learnStore.ts`, key `prabhat-learn`, version 1)
 

@@ -5,10 +5,11 @@ import { createJSONStorage, persist } from "zustand/middleware"
 import {
   DEFAULT_SETTINGS,
   SETTINGS_VERSION,
+  addKindTime,
   migrateSettings,
+  removeKindTime,
   setKindOn,
   setKindTime,
-  setQuiet,
   type NotificationSettings,
   type TimedKind,
   type ToggleKind,
@@ -23,16 +24,20 @@ type SettingsState = NotificationSettings & {
   setPermission: (permission: PermissionState) => void
   setMaster: (on: boolean) => void
   setKind: (kind: ToggleKind, on: boolean) => void
-  setTime: (kind: TimedKind, at: number) => void
-  setQuietHours: (patch: Partial<NotificationSettings["quiet"]>) => void
+  /** change the time at `index` (ignored when it equals another time of the kind) */
+  setTime: (kind: TimedKind, index: number, minutes: number) => void
+  /** add a time (ignored at the limit or for a time already there) */
+  addTime: (kind: TimedKind, minutes: number) => void
+  /** remove the time at `index` (the last one stays) */
+  removeTime: (kind: TimedKind, index: number) => void
   reset: () => void
 }
 
 function pick(s: SettingsState): NotificationSettings {
-  return { master: s.master, song: s.song, festival: s.festival, words: s.words, streak: s.streak, live: s.live, quiet: s.quiet }
+  return { master: s.master, song: s.song, festival: s.festival, words: s.words, streak: s.streak }
 }
 
-/** What the person chose to be reminded about. Defaults: song of the day 8:00, festivals, words 18:00, live; streak off. */
+/** What the person chose to be reminded about. Defaults: song of the day 8:00, festivals, words 18:00; streak off. Each timed kind holds a list of times. */
 export const useNotificationSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -41,8 +46,9 @@ export const useNotificationSettingsStore = create<SettingsState>()(
       setPermission: (permission) => set({ permission }),
       setMaster: (master) => set({ master }),
       setKind: (kind, on) => set((s) => setKindOn(pick(s), kind, on)),
-      setTime: (kind, at) => set((s) => setKindTime(pick(s), kind, at)),
-      setQuietHours: (patch) => set((s) => setQuiet(pick(s), patch)),
+      setTime: (kind, index, minutes) => set((s) => setKindTime(pick(s), kind, index, minutes)),
+      addTime: (kind, minutes) => set((s) => addKindTime(pick(s), kind, minutes)),
+      removeTime: (kind, index) => set((s) => removeKindTime(pick(s), kind, index)),
       reset: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {

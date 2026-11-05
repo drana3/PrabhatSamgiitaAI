@@ -40,7 +40,6 @@ import { bhajansForEveryHour, emptyListText, isShelfChip, kindOfTabChip, KIRTAN_
 import { kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
-import { useKirtanLiveStore } from "@/stores/kirtanLiveStore"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
 
@@ -71,8 +70,6 @@ export default function KiirtanTabScreen() {
   const savedIds = useKirtanStore((s) => s.savedIds)
   const withdraw = useKirtanStore((s) => s.withdraw)
   const live = useKirtanLive()
-  const remindIds = useKirtanLiveStore((s) => s.remindIds)
-  const toggleRemind = useKirtanLiveStore((s) => s.toggleRemind)
 
   const [chip, setChip] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
   const [typePick, setTypePick] = useState<{ kind: RecordingKind; id: TypeCardData["id"] } | null>(null)
@@ -251,9 +248,7 @@ export default function KiirtanTabScreen() {
                 item={item}
                 now={live.now}
                 theme={theme}
-                reminded={remindIds.includes(item.id)}
                 onOpen={(i) => router.push(href(`/kiirtan-live?id=${encodeURIComponent(i.id)}`))}
-                onRemind={(i) => actions.flash(toggleRemind(i.id) ? "We will remind you" : "Reminder removed")}
               />
             ))}
             {longList.map((k) => (

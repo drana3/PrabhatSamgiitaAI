@@ -1,12 +1,13 @@
-import { useEffect, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { BellOff, BellRing, ChevronLeft } from "lucide-react-native"
+import { BellOff, BellRing, ChevronLeft, Plus } from "lucide-react-native"
 
 import { HOME_INSET } from "@/components/home/HomeBlocks"
 import { Toggle } from "@/components/notifications/Toggle"
-import { Chip, Group, SheetNote, SheetTitle } from "@/components/profile-v2/SheetBlocks"
+import { TimePickerSheet, type PickerTarget } from "@/components/notifications/TimePickerSheet"
+import { Group, SheetNote, SheetTitle } from "@/components/profile-v2/SheetBlocks"
 import { Reveal } from "@/components/today/motion"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -15,16 +16,8 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { nativeNotificationsAvailable, openSystemSettings } from "@/lib/notifications/native"
 import { ensurePermission, refreshPermission } from "@/lib/notifications/permission"
-import {
-  MAX_PER_DAY,
-  QUIET_FROM_TIMES,
-  QUIET_TO_TIMES,
-  SONG_TIMES,
-  WORDS_TIMES,
-  formatMinutes,
-  type TimedKind,
-  type ToggleKind,
-} from "@/lib/notifications/settings"
+import { uses12Hour } from "@/lib/notifications/hourCycle"
+import { FESTIVAL_EVE_AT, MAX_TIMES, STREAK_AT, formatMinutes, suggestTime, type TimedKind, type ToggleKind } from "@/lib/notifications/settings"
 import { useNotificationSettingsStore, type PermissionState } from "@/stores/notificationSettingsStore"
 import { href } from "@/utils/href"
 
@@ -68,30 +61,75 @@ function ToggleRow({
   )
 }
 
-/** A row of time choices (30-minute or hourly steps) that scrolls sideways. */
-function TimeRow({
+/**
+ * A switch row for a reminder that has times of the day: the switch, and under it one chip per time
+ * (tap one to change or remove it) and "Add time". Any minute can be chosen, in the picker sheet.
+ */
+function TimedRow({
   p,
   label,
-  options,
-  value,
-  onPick,
+  sub,
+  kind,
+  on,
+  times,
+  hour12,
+  disabled,
+  onChange,
+  onEdit,
+  onAdd,
   last,
 }: {
   p: AmProto
   label: string
-  options: readonly number[]
-  value: number
-  onPick: (minutes: number) => void
+  sub: string
+  kind: TimedKind
+  on: boolean
+  times: readonly number[]
+  hour12: boolean
+  disabled?: boolean
+  onChange: (on: boolean) => void
+  onEdit: (index: number) => void
+  onAdd: () => void
   last?: boolean
 }) {
+  const max = MAX_TIMES[kind]
+  const full = times.length >= max
   return (
-    <View style={[s.timeRow, { borderBottomWidth: last ? 0 : 1, borderBottomColor: p.sand300 }]}>
-      <Text style={[s.timeLabel, { color: p.ink500 }]}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-        {options.map((minutes) => (
-          <Chip key={minutes} p={p} label={formatMinutes(minutes)} on={value === minutes} onPress={() => onPick(minutes)} />
-        ))}
-      </ScrollView>
+    <View style={{ borderBottomWidth: last ? 0 : 1, borderBottomColor: p.sand300 }}>
+      <ToggleRow p={p} label={label} sub={sub} on={on} disabled={disabled} onChange={onChange} last />
+      {on ? (
+        <View style={s.timesBlock}>
+          <View style={s.chips}>
+            {times.map((minutes, index) => (
+              <TodayPress
+                key={minutes}
+                accessibilityRole="button"
+                accessibilityLabel={`${label} at ${formatMinutes(minutes, hour12)}`}
+                accessibilityHint="Opens the time picker"
+                disabled={disabled}
+                onPress={() => onEdit(index)}
+                pressedScale={0.96}
+                style={[s.timeChip, { backgroundColor: p.sand200, borderColor: p.sand300 }]}
+              >
+                <Text style={[s.timeChipText, { color: p.ink800 }]}>{formatMinutes(minutes, hour12)}</Text>
+              </TodayPress>
+            ))}
+            <TodayPress
+              accessibilityRole="button"
+              accessibilityLabel="Add time"
+              accessibilityState={{ disabled: full || !!disabled }}
+              disabled={full || disabled}
+              onPress={onAdd}
+              pressedScale={0.96}
+              style={[s.timeChip, s.addChip, { borderColor: p.orange700, opacity: full ? 0.45 : 1 }]}
+            >
+              <Plus size={16} color={p.orange700} strokeWidth={2.2} />
+              <Text style={[s.timeChipText, { color: p.orange700 }]}>Add time</Text>
+            </TodayPress>
+          </View>
+          {full ? <Text style={[s.limitNote, { color: p.ink500 }]}>{`Up to ${max} times a day.`}</Text> : null}
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -131,10 +169,11 @@ function PermissionCard({ p, state, onAllow }: { p: AmProto; state: "undetermine
 /* ---------------------------------------------------------------- screen */
 
 /**
- * Notification settings (card route, from the bell screen and the profile sheet). A master switch, one
- * switch per kind with a time where it has one, quiet hours, and the daily limit. The OS permission is
- * asked only when the person turns something on; when it is off in system settings the screen says so
- * and offers "Open settings".
+ * Notification settings (card route, from the bell screen and the profile sheet). A master switch and one
+ * switch per kind. Song of the day and Words to repeat carry their own times of the day: any minute, up to
+ * 3 and 5 a day, chosen in a bottom sheet with an hour and a minute wheel. The OS permission is asked
+ * only when the person turns something on; when it is off in system settings the screen says so and
+ * offers "Open settings".
  */
 export default function NotificationSettingsScreen() {
   const router = useRouter()
@@ -164,7 +203,50 @@ export default function NotificationSettingsScreen() {
     st.setKind(k, on)
     asking(on)
   }
-  const time = (k: TimedKind) => (minutes: number) => st.setTime(k, minutes)
+  const hour12 = useMemo(uses12Hour, [])
+
+  /** the picker: which time of which kind is being changed, or a new one (index null) */
+  const [editing, setEditing] = useState<{ kind: TimedKind; index: number | null; opened: number } | null>(null)
+  const opened = useRef(0)
+  const edit = useCallback((kind: TimedKind, index: number | null) => {
+    opened.current += 1
+    setEditing({ kind, index, opened: opened.current })
+  }, [])
+  const closePicker = useCallback(() => setEditing(null), [])
+
+  const target = useMemo<PickerTarget | null>(() => {
+    if (!editing) return null
+    const { kind, index, opened: n } = editing
+    const times = kind === "song" ? st.song.times : st.words.times
+    const title = kind === "song" ? "Song of the day" : "Words to repeat"
+    if (index == null) {
+      return { key: `${kind}:new:${n}`, title, minutes: suggestTime(times), others: times, onRemove: null }
+    }
+    const minutes = times[index]
+    if (minutes == null) return null
+    return {
+      key: `${kind}:${index}:${n}`,
+      title,
+      minutes,
+      others: times.filter((_, i) => i !== index),
+      onRemove:
+        times.length > 1
+          ? () => {
+              st.removeTime(kind, index)
+              setEditing(null)
+            }
+          : null,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing])
+
+  const done = (minutes: number) => {
+    if (editing) {
+      if (editing.index == null) st.addTime(editing.kind, minutes)
+      else st.setTime(editing.kind, editing.index, minutes)
+    }
+    setEditing(null)
+  }
   const off = !st.master
   let reveal = 1
 
@@ -210,42 +292,47 @@ export default function NotificationSettingsScreen() {
           <View style={off ? s.dim : undefined} pointerEvents={off ? "none" : "auto"}>
           <SheetTitle p={p} label="Reminders" />
           <Group p={p}>
-            <ToggleRow p={p} label="Song of the day" sub="Composed on this day, or a daily pick." on={st.song.on} disabled={off} onChange={kind("song")} />
-            {st.song.on ? <TimeRow p={p} label="Time" options={SONG_TIMES} value={st.song.at} onPick={time("song")} /> : null}
-            <ToggleRow p={p} label="Festivals" sub="The evening before, with its songs." on={st.festival.on} disabled={off} onChange={kind("festival")} />
-            <ToggleRow p={p} label="Words to repeat" sub="Only when words are due." on={st.words.on} disabled={off} onChange={kind("words")} />
-            {st.words.on ? <TimeRow p={p} label="Time" options={WORDS_TIMES} value={st.words.at} onPick={time("words")} /> : null}
-            <ToggleRow p={p} label="Learning streak" sub="When a streak could end today." on={st.streak.on} disabled={off} onChange={kind("streak")} />
-            <ToggleRow p={p} label="Live Kiirtans" sub="15 minutes before a broadcast you set a reminder for." on={st.live.on} disabled={off} onChange={kind("live")} />
-          </Group>
-          </View>
-        </Reveal>
-
-        <Reveal index={reveal++}>
-          <View style={off ? s.dim : undefined} pointerEvents={off ? "none" : "auto"}>
-          <SheetTitle p={p} label="Quiet hours" />
-          <Group p={p}>
-            <ToggleRow
+            <TimedRow
               p={p}
-              label="Quiet hours"
-              sub={st.quiet.on ? `Nothing from ${formatMinutes(st.quiet.from)} to ${formatMinutes(st.quiet.to)}.` : "Off."}
-              on={st.quiet.on}
+              label="Song of the day"
+              sub="Composed on this day, or a daily pick."
+              kind="song"
+              on={st.song.on}
+              times={st.song.times}
+              hour12={hour12}
               disabled={off}
-              onChange={(on) => st.setQuietHours({ on })}
+              onChange={kind("song")}
+              onEdit={(i) => edit("song", i)}
+              onAdd={() => edit("song", null)}
             />
-            {st.quiet.on ? <TimeRow p={p} label="From" options={QUIET_FROM_TIMES} value={st.quiet.from} onPick={(from) => st.setQuietHours({ from })} /> : null}
-            {st.quiet.on ? <TimeRow p={p} label="To" options={QUIET_TO_TIMES} value={st.quiet.to} onPick={(to) => st.setQuietHours({ to })} /> : null}
+            <ToggleRow p={p} label="Festivals" sub="The evening before, with its songs." on={st.festival.on} disabled={off} onChange={kind("festival")} />
+            <TimedRow
+              p={p}
+              label="Words to repeat"
+              sub="Only when words are due."
+              kind="words"
+              on={st.words.on}
+              times={st.words.times}
+              hour12={hour12}
+              disabled={off}
+              onChange={kind("words")}
+              onEdit={(i) => edit("words", i)}
+              onAdd={() => edit("words", null)}
+            />
+            <ToggleRow p={p} label="Learning streak" sub="When a streak could end today." on={st.streak.on} disabled={off} onChange={kind("streak")} />
           </Group>
           </View>
         </Reveal>
 
         <Reveal index={reveal++}>
           <Footer>
-            <SheetNote p={p}>{`We send at most ${MAX_PER_DAY} a day.`}</SheetNote>
-            <SheetNote p={p}>A reminder you set for a live Kiirtan always arrives on time, even in quiet hours.</SheetNote>
+            <SheetNote p={p}>Song and word reminders arrive at the times you pick.</SheetNote>
+            <SheetNote p={p}>{`Festivals arrive at ${formatMinutes(FESTIVAL_EVE_AT, hour12)}, the streak reminder at ${formatMinutes(STREAK_AT, hour12)}.`}</SheetNote>
           </Footer>
         </Reveal>
       </ScrollView>
+
+      <TimePickerSheet visible={editing != null} target={target} theme={theme} p={p} hour12={hour12} onCancel={closePicker} onDone={done} />
     </View>
   )
 }
@@ -265,9 +352,12 @@ const s = StyleSheet.create({
   rowText: { flex: 1, minWidth: 0, gap: 2 },
   rowLabel: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 21 },
   rowSub: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19 },
-  timeRow: { gap: 8, paddingTop: 2, paddingBottom: 14 },
-  timeLabel: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, paddingLeft: 20 },
-  chips: { flexDirection: "row", gap: 6, paddingHorizontal: 20 },
+  timesBlock: { gap: 8, paddingTop: 2, paddingBottom: 16, paddingHorizontal: 20 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  timeChip: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  timeChipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
+  addChip: { backgroundColor: "transparent", borderStyle: "dashed", paddingHorizontal: 14 },
+  limitNote: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   card: { marginHorizontal: 10, borderRadius: 20, borderWidth: 1, padding: 16, gap: 16 },
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   cardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },

@@ -2,8 +2,8 @@ import { askPermission, nativeNotificationsAvailable, readPermission, type OsPer
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 
 /**
- * Ask the OS for permission and remember the answer. Called when the person turns a reminder on and
- * when they set their first live reminder; never at launch. A no-op on the web preview.
+ * Ask the OS for permission and remember the answer. Called when the person turns a reminder on;
+ * never at launch. A no-op on the web preview.
  */
 export async function ensurePermission(): Promise<OsPermission> {
   if (!nativeNotificationsAvailable) return "denied"

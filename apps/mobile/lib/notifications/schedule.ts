@@ -1,36 +1,28 @@
-import { liveStatus, type LiveItem } from "@/lib/kirtan/live"
 import type { WordCard } from "@/lib/learn/srs"
 import type { LearningStreak } from "@/lib/learn/streak"
 import type { AppNotification, NotificationKind } from "@/lib/notifications"
-import {
-  FESTIVAL_EVE_AT,
-  MAX_PER_DAY,
-  STREAK_AT,
-  kindEnabled,
-  type NotificationSettings,
-} from "@/lib/notifications/settings"
+import { FESTIVAL_EVE_AT, STREAK_AT, kindEnabled, type NotificationSettings } from "@/lib/notifications/settings"
 
 /**
  * The scheduler. Pure: from the settings, the state of the app and `now` it returns the notifications
  * that should reach the person, each with a deterministic id so scheduling again replaces instead of
  * duplicating. Native scheduling (native.ts) and the inbox (what has fired) both read this one output.
  *
- * Rules, in the order they are applied:
+ * Rules:
  * 1. A kind that is off, or the master switch off, produces nothing.
- * 2. Quiet hours: a time inside them moves to the end of the quiet hours. Live Kiirtan reminders are
- *    exempt: the person asked for that exact moment, a shifted one would arrive after the start.
- * 3. At most 2 per local day. When there are more, the higher priority stays:
- *    live > festival > words > song > streak.
- * 4. Words are planned only when words are due at that time.
+ * 2. Every time the person chose is its own notification, at exactly that minute. There is no quiet
+ *    window and no daily limit: the person's own times are the limit (at most 3 song times and 5 word
+ *    times a day, see settings.ts).
+ * 3. Words are planned only when words are due at that time.
+ * 4. The phone holds only so many pending notifications (iOS 64): `capForPlatform` keeps the soonest.
  */
 
-const MIN = 60_000
 const DAY_MS = 86_400_000
 
 /** How far ahead notifications are scheduled. */
 export const WINDOW_DAYS = 7
-/** A live reminder arrives this long before the broadcast. */
-export const LIVE_LEAD_MIN = 15
+/** iOS keeps at most 64 pending local notifications; stay below it. The app refills the rest when it runs. */
+export const MAX_PENDING = 60
 
 export type SongPick = {
   number: number
@@ -42,20 +34,20 @@ export type SongPick = {
 export type FestivalEntry = { id: string; title: string; month: number; day: number; year: number }
 
 export type PlanInput = {
-  /** the clock, ms since epoch: what is already past counts as sent */
+  /** the clock, ms since epoch (the streak reminder depends on whether today is still ahead) */
   now: number
   settings: NotificationSettings
   songs: readonly SongPick[]
   festivals: readonly FestivalEntry[]
   cards: Readonly<Record<string, WordCard>>
   streak: LearningStreak
-  live: readonly LiveItem[]
-  /** ids of the broadcasts the person asked to be reminded about */
-  remindIds: readonly string[]
 }
 
 export type PlannedNotification = {
-  /** "song:2026-11-05": kind and the day (or the thing) it is about. Never contains the time. */
+  /**
+   * "song:2026-11-05@0745": kind, the day and (for a time the person chose) that time. Stable: the same
+   * time on the same day always has the same id, so scheduling again replaces instead of duplicating.
+   */
   id: string
   kind: NotificationKind
   /** when it should arrive, ms since epoch */
@@ -67,7 +59,7 @@ export type PlannedNotification = {
   coverNumber?: number
 }
 
-/** Lower number wins a place on a crowded day. */
+/** Order of notifications that fire at the same minute (lower number first). `live` is only an inbox kind now. */
 export const PRIORITY: Record<NotificationKind, number> = {
   live: 0,
   festival: 1,
@@ -107,52 +99,36 @@ function dayNumber(ms: number): number {
   return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS)
 }
 
-/** Move a time that falls inside quiet hours to the end of them; any other time stays. */
-export function shiftOutOfQuiet(fireAt: number, quiet: NotificationSettings["quiet"]): number {
-  if (!quiet.on || quiet.from === quiet.to) return fireAt
-  const d = new Date(fireAt)
-  const m = d.getHours() * 60 + d.getMinutes()
-  const wraps = quiet.from > quiet.to
-  const inside = wraps ? m >= quiet.from || m < quiet.to : m >= quiet.from && m < quiet.to
-  if (!inside) return fireAt
-  const day = startOfDay(fireAt)
-  return atMinutes(m < quiet.to ? day : addDays(day, 1), quiet.to)
+/** "0745": the time in an id. */
+function hhmm(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}${String(minutes % 60).padStart(2, "0")}`
 }
 
 /* --------------------------------------------------------------- the kinds */
 
-type Candidate = PlannedNotification & { exemptFromQuiet?: boolean }
-
-function songCandidate(input: PlanInput, day: number): Candidate {
+function songCandidates(input: PlanInput, day: number): PlannedNotification[] {
   const { songs, settings } = input
   const d = new Date(day)
-  const fireAt = atMinutes(day, settings.song.at)
-  const id = `song:${dateKey(day)}`
   const composed = songs.find((s) => s.composed && s.composed.month === d.getMonth() + 1 && s.composed.day === d.getDate())
-  if (composed?.composed) {
-    return {
-      id,
-      kind: "song",
-      fireAt,
-      title: "Song of the day",
-      text: `${composed.title} was composed on this day in ${composed.composed.year}.`,
-      target: `/song-v2/ps-${composed.number}`,
-      coverNumber: composed.number,
-    }
-  }
   const pick = songs.length ? songs[dayNumber(day) % songs.length] : undefined
-  if (pick) {
-    return {
-      id,
-      kind: "song",
-      fireAt,
-      title: "Song of the day",
-      text: `Start the day with ${pick.title}.`,
-      target: `/song-v2/ps-${pick.number}`,
-      coverNumber: pick.number,
-    }
-  }
-  return { id, kind: "song", fireAt, title: "Song of the day", text: "Open today's song.", target: "/v2/today" }
+  const base: Pick<PlannedNotification, "kind" | "title" | "text" | "target" | "coverNumber"> = composed?.composed
+    ? {
+        kind: "song",
+        title: "Song of the day",
+        text: `${composed.title} was composed on this day in ${composed.composed.year}.`,
+        target: `/song-v2/ps-${composed.number}`,
+        coverNumber: composed.number,
+      }
+    : pick
+      ? {
+          kind: "song",
+          title: "Song of the day",
+          text: `Start the day with ${pick.title}.`,
+          target: `/song-v2/ps-${pick.number}`,
+          coverNumber: pick.number,
+        }
+      : { kind: "song", title: "Song of the day", text: "Open today's song.", target: "/v2/today" }
+  return settings.song.times.map((at) => ({ ...base, id: `song:${dateKey(day)}@${hhmm(at)}`, fireAt: atMinutes(day, at) }))
 }
 
 function dueCount(cards: PlanInput["cards"], at: number): number {
@@ -161,22 +137,26 @@ function dueCount(cards: PlanInput["cards"], at: number): number {
   return n
 }
 
-function wordsCandidate(input: PlanInput, day: number): Candidate | null {
-  const fireAt = atMinutes(day, input.settings.words.at)
-  const n = dueCount(input.cards, fireAt)
-  if (n === 0) return null
-  return {
-    id: `words:${dateKey(day)}`,
-    kind: "words",
-    fireAt,
-    title: "Words to repeat",
-    text: `${n === 1 ? "1 word is due." : `${n} words are due.`} It takes a minute.`,
-    target: "/learn/words",
+function wordsCandidates(input: PlanInput, day: number): PlannedNotification[] {
+  const out: PlannedNotification[] = []
+  for (const at of input.settings.words.times) {
+    const fireAt = atMinutes(day, at)
+    const n = dueCount(input.cards, fireAt)
+    if (n === 0) continue
+    out.push({
+      id: `words:${dateKey(day)}@${hhmm(at)}`,
+      kind: "words",
+      fireAt,
+      title: "Words to repeat",
+      text: `${n === 1 ? "1 word is due." : `${n} words are due.`} It takes a minute.`,
+      target: "/learn/words",
+    })
   }
+  return out
 }
 
-function festivalCandidates(input: PlanInput, day: number): Candidate[] {
-  const out: Candidate[] = []
+function festivalCandidates(input: PlanInput, day: number): PlannedNotification[] {
+  const out: PlannedNotification[] = []
   for (const f of input.festivals) {
     const eve = addDays(new Date(f.year, f.month - 1, f.day).getTime(), -1)
     if (eve !== day) continue
@@ -196,7 +176,7 @@ function festivalCandidates(input: PlanInput, day: number): Candidate[] {
  * The streak reminder is planned only for the evening when it can still help: today when no word has
  * been reviewed yet, tomorrow when today is already safe. A streak shorter than 2 days is not a streak.
  */
-function streakCandidate(input: PlanInput, day: number): Candidate | null {
+function streakCandidate(input: PlanInput, day: number): PlannedNotification | null {
   const { streak } = input
   if (streak.days < 2) return null
   const today = startOfDay(input.now)
@@ -212,78 +192,34 @@ function streakCandidate(input: PlanInput, day: number): Candidate | null {
   }
 }
 
-function liveCandidates(input: PlanInput): Candidate[] {
-  const out: Candidate[] = []
-  for (const id of new Set(input.remindIds)) {
-    const item = input.live.find((l) => l.id === id)
-    if (!item || liveStatus(item, input.now) === "ended") continue
-    out.push({
-      id: `live:${item.id}`,
-      kind: "live",
-      fireAt: item.startsAt - LIVE_LEAD_MIN * MIN,
-      title: "Live Kiirtan",
-      text: `Starts in ${LIVE_LEAD_MIN} minutes. ${item.title.trim().replace(/\.$/, "")}.`,
-      target: `/kiirtan-live?id=${encodeURIComponent(item.id)}`,
-      exemptFromQuiet: true,
-    })
-  }
-  return out
-}
-
 /* ------------------------------------------------------------------- plan */
 
-function byPriority(a: PlannedNotification, b: PlannedNotification): number {
-  return PRIORITY[a.kind] - PRIORITY[b.kind] || a.fireAt - b.fireAt || a.id.localeCompare(b.id)
+function byTime(a: PlannedNotification, b: PlannedNotification): number {
+  return a.fireAt - b.fireAt || PRIORITY[a.kind] - PRIORITY[b.kind] || a.id.localeCompare(b.id)
 }
 
-/**
- * Everything that falls in `(from, to]`, after quiet hours and the daily limit.
- *
- * The limit is judged per local day over the whole day: what is already past `input.now` counts as
- * sent and is judged among itself first, the rest of the day fills the places that are left.
- */
+/** Everything that falls in `(from, to]`, in the order it fires. */
 export function plan(input: PlanInput, from: number, to: number): PlannedNotification[] {
   const { settings } = input
   if (!settings.master || to <= from) return []
 
-  const found: Candidate[] = []
-  // one day before the window too: an evening time can be moved into the window by quiet hours
-  for (let day = addDays(startOfDay(from), -1); day <= startOfDay(to); day = addDays(day, 1)) {
-    if (kindEnabled(settings, "song")) found.push(songCandidate(input, day))
+  const found: PlannedNotification[] = []
+  for (let day = startOfDay(from); day <= startOfDay(to); day = addDays(day, 1)) {
+    if (kindEnabled(settings, "song")) found.push(...songCandidates(input, day))
     if (kindEnabled(settings, "festival")) found.push(...festivalCandidates(input, day))
-    if (kindEnabled(settings, "words")) {
-      const words = wordsCandidate(input, day)
-      if (words) found.push(words)
-    }
+    if (kindEnabled(settings, "words")) found.push(...wordsCandidates(input, day))
     if (kindEnabled(settings, "streak")) {
       const streak = streakCandidate(input, day)
       if (streak) found.push(streak)
     }
   }
-  if (kindEnabled(settings, "live")) found.push(...liveCandidates(input))
 
-  const moved = found.map<PlannedNotification>(({ exemptFromQuiet, ...n }) => ({
-    ...n,
-    fireAt: exemptFromQuiet ? n.fireAt : shiftOutOfQuiet(n.fireAt, settings.quiet),
-  }))
+  return found.filter((n) => n.fireAt > from && n.fireAt <= to).sort(byTime)
+}
 
-  const days = new Map<string, PlannedNotification[]>()
-  for (const n of moved) {
-    const key = dateKey(n.fireAt)
-    days.set(key, [...(days.get(key) ?? []), n])
-  }
-
-  const kept: PlannedNotification[] = []
-  for (const list of days.values()) {
-    const past = list.filter((n) => n.fireAt <= input.now).sort(byPriority).slice(0, MAX_PER_DAY)
-    const future = list
-      .filter((n) => n.fireAt > input.now)
-      .sort(byPriority)
-      .slice(0, Math.max(0, MAX_PER_DAY - past.length))
-    kept.push(...past, ...future)
-  }
-
-  return kept.filter((n) => n.fireAt > from && n.fireAt <= to).sort((a, b) => a.fireAt - b.fireAt || byPriority(a, b))
+/** The soonest `limit` of a plan: what the phone can hold. The rest is planned again when the app runs. */
+export function capForPlatform(planned: readonly PlannedNotification[], limit = MAX_PENDING): PlannedNotification[] {
+  return [...planned].sort(byTime).slice(0, Math.max(0, limit))
 }
 
 /** What to schedule on the phone: the next 7 days after `now`. */

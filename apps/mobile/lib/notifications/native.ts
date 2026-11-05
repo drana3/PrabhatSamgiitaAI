@@ -1,6 +1,6 @@
 import { Linking, Platform } from "react-native"
 
-import { diffSchedule, type PlannedNotification } from "@/lib/notifications/schedule"
+import { capForPlatform, diffSchedule, type PlannedNotification } from "@/lib/notifications/schedule"
 
 /**
  * The only file that talks to `expo-notifications`. On the web preview (react-native-web) and wherever
@@ -72,7 +72,7 @@ export async function readPermission(): Promise<OsPermission> {
   }
 }
 
-/** Ask the OS. Call it only when the person turns a reminder on (or sets the first live reminder). */
+/** Ask the OS. Call it only when the person turns a reminder on. */
 export async function askPermission(): Promise<OsPermission> {
   const N = expo()
   if (!N) return "denied"
@@ -93,15 +93,17 @@ export function openSystemSettings(): void {
 }
 
 /**
- * Make the phone's scheduled notifications equal the plan: cancel what is no longer planned, schedule the
- * rest under their deterministic ids (an existing id is replaced). Returns how many are scheduled.
+ * Make the phone's scheduled notifications equal the plan: cancel what is no longer planned (a time the
+ * person moved or removed has another id, so its old notification is cancelled), schedule the rest under
+ * their deterministic ids (an existing id is replaced). Only the soonest `MAX_PENDING` are scheduled: iOS
+ * holds 64 at most. Returns how many are scheduled.
  */
 export async function applySchedule(planned: readonly PlannedNotification[]): Promise<number> {
   const N = expo()
   if (!N) return 0
   try {
     const existing = await N.getAllScheduledNotificationsAsync()
-    const { cancel, schedule } = diffSchedule(existing.map((e) => e.identifier), planned)
+    const { cancel, schedule } = diffSchedule(existing.map((e) => e.identifier), capForPlatform(planned))
     await Promise.all(cancel.map((id) => N.cancelScheduledNotificationAsync(id)))
     for (const n of schedule) {
       await N.scheduleNotificationAsync({

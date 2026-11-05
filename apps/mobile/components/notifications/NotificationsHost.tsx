@@ -3,7 +3,6 @@ import { AppState } from "react-native"
 import { useRouter } from "expo-router"
 
 import { PREVIEW_SONG_PICKS } from "@/lib/fixtures/notifications"
-import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { learningStreak } from "@/lib/learn/streak"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { unreadCount } from "@/lib/notifications"
@@ -16,7 +15,7 @@ import {
   nativeNotificationsAvailable,
   setBadge,
 } from "@/lib/notifications/native"
-import { ensurePermission, refreshPermission } from "@/lib/notifications/permission"
+import { refreshPermission } from "@/lib/notifications/permission"
 import {
   firedSince,
   scheduleNext7Days,
@@ -26,7 +25,6 @@ import {
   type SongPick,
 } from "@/lib/notifications/schedule"
 import { FESTIVAL_ENTRIES, readSongPicks } from "@/lib/notifications/sources"
-import { useKirtanLiveStore } from "@/stores/kirtanLiveStore"
 import { useLearnStore } from "@/stores/learnStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
@@ -51,11 +49,11 @@ function useHydrated(stores: readonly Persisted[]): boolean {
   return ready
 }
 
-const STORES: readonly Persisted[] = [useNotificationSettingsStore, useNotificationsStore, useLearnStore, useKirtanLiveStore]
+const STORES: readonly Persisted[] = [useNotificationSettingsStore, useNotificationsStore, useLearnStore]
 
 /**
  * Keeps the reminders and the inbox in step with the app. Mount it once in the root layout; it draws
- * nothing. It runs on start, when the app comes to the front, and when a setting, a live reminder, the
+ * nothing. It runs on start, when the app comes to the front, and when a setting, the
  * word cards or the song list change:
  * - the inbox takes in what has fired (lib/notifications/schedule.ts `firedSince`),
  * - the phone's scheduled notifications are made equal to the next 7 days (`scheduleNext7Days`), only
@@ -67,7 +65,6 @@ const STORES: readonly Persisted[] = [useNotificationSettingsStore, useNotificat
 export function NotificationsHost() {
   const router = useRouter()
   const hydrated = useHydrated(STORES)
-  const { all: live } = useKirtanLive()
   const [songs, setSongs] = useState<readonly SongPick[]>(MOCKUP_DATA ? PREVIEW_SONG_PICKS : [])
 
   const master = useNotificationSettingsStore((s) => s.master)
@@ -75,27 +72,22 @@ export function NotificationsHost() {
   const festival = useNotificationSettingsStore((s) => s.festival)
   const words = useNotificationSettingsStore((s) => s.words)
   const streakOn = useNotificationSettingsStore((s) => s.streak)
-  const liveOn = useNotificationSettingsStore((s) => s.live)
-  const quiet = useNotificationSettingsStore((s) => s.quiet)
   const permission = useNotificationSettingsStore((s) => s.permission)
   const cards = useLearnStore((s) => s.cards)
-  const remindIds = useKirtanLiveStore((s) => s.remindIds)
 
-  const sources = useRef({ live, songs })
-  sources.current = { live, songs }
+  const sources = useRef({ songs })
+  sources.current = { songs }
 
   const input = useCallback((now: number): PlanInput => {
     const st = useNotificationSettingsStore.getState()
     const learn = useLearnStore.getState()
     return {
       now,
-      settings: { master: st.master, song: st.song, festival: st.festival, words: st.words, streak: st.streak, live: st.live, quiet: st.quiet },
+      settings: { master: st.master, song: st.song, festival: st.festival, words: st.words, streak: st.streak },
       songs: sources.current.songs,
       festivals: FESTIVAL_ENTRIES,
       cards: learn.cards,
       streak: learningStreak(learn.cards, now),
-      live: sources.current.live,
-      remindIds: useKirtanLiveStore.getState().remindIds,
     }
   }, [])
 
@@ -140,7 +132,7 @@ export function NotificationsHost() {
     if (!hydrated) return
     const timer = setTimeout(() => void reschedule(), 400)
     return () => clearTimeout(timer)
-  }, [hydrated, reschedule, master, song, festival, words, streakOn, liveOn, quiet, permission, cards, remindIds, live, songs])
+  }, [hydrated, reschedule, master, song, festival, words, streakOn, permission, cards, songs])
 
   // back to the front: look again; while it is in front, keep the inbox current
   useEffect(() => {
@@ -154,15 +146,6 @@ export function NotificationsHost() {
       clearInterval(tick)
     }
   }, [hydrated, reschedule, syncInbox])
-
-  // the first reminder for a live Kiirtan is the moment to ask for permission (never at launch)
-  const knownReminders = useRef<readonly string[] | null>(null)
-  useEffect(() => {
-    if (!hydrated) return
-    const before = knownReminders.current
-    knownReminders.current = remindIds
-    if (before && remindIds.some((id) => !before.includes(id))) void ensurePermission()
-  }, [hydrated, remindIds])
 
   // a tap opens the notification's screen and marks it read
   useEffect(() => {

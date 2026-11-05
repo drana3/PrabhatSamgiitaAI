@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
-import { Bell, Radio, Users } from "lucide-react-native"
+import { Radio, Users } from "lucide-react-native"
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated"
 
 import { KPress } from "@/components/kirtan/KPress"
@@ -63,22 +63,18 @@ export function LivePhoto({ item, big }: { item: LiveItem; big?: boolean }) {
 
 /**
  * A card of the "Live and long kiirtans" shelf: 220 x 124 (16:9), the badge, the title in capitals,
- * the host and platform. Upcoming ones carry a "Remind me" bell. It opens the live screen, never the player.
+ * the host and platform. It opens the live screen, never the player.
  */
 export function LiveCard({
   item,
   now,
   theme,
-  reminded,
   onOpen,
-  onRemind,
 }: {
   item: LiveItem
   now: number
   theme: SongsTheme
-  reminded: boolean
   onOpen: (item: LiveItem) => void
-  onRemind: (item: LiveItem) => void
 }) {
   const live = liveStatus(item, now) === "live"
   const [from, to] = liveTone(item, now)
@@ -108,19 +104,6 @@ export function LiveCard({
           {hostLine(item)}
         </Text>
       </KPress>
-      {live ? null : (
-        <KPress
-          accessibilityRole="button"
-          accessibilityLabel={reminded ? `Remove the reminder for ${item.title}` : `Remind me about ${item.title}`}
-          accessibilityState={{ selected: reminded }}
-          onPress={() => onRemind(item)}
-          pressedScale={0.88}
-          outerStyle={styles.bellSlot}
-          style={[styles.bell, reminded ? { backgroundColor: amColors.orange700 } : { backgroundColor: amPhotoChip.glass.bg }]}
-        >
-          <Bell size={17} color="#FFFFFF" fill={reminded ? "#FFFFFF" : "none"} strokeWidth={1.9} />
-        </KPress>
-      )}
     </View>
   )
 }
@@ -136,8 +119,6 @@ const styles = StyleSheet.create({
   badgeSoon: { backgroundColor: amPhotoChip.glass.bg },
   badgeText: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 15, letterSpacing: 0.6, fontVariant: ["tabular-nums"] },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  bellSlot: { position: "absolute", right: 6, top: 6, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  bell: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: amFonts.display, fontSize: 15, lineHeight: 18, letterSpacing: -0.2, textTransform: "uppercase", marginTop: 4 },
   host: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
 })

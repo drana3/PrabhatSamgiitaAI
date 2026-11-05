@@ -1,66 +1,129 @@
 /**
  * What the person chose to be reminded about. Pure: the store (stores/notificationSettingsStore.ts)
  * only persists this shape and `migrateSettings` makes any saved value safe to use.
- * Times are minutes after local midnight.
+ * Times are minutes after local midnight, any minute of the day (0 to 1439).
  */
 export type TimedKind = "song" | "words"
-export type ToggleKind = "song" | "festival" | "words" | "streak" | "live"
+export type ToggleKind = "song" | "festival" | "words" | "streak"
 
 export type NotificationSettings = {
   /** one switch for everything */
   master: boolean
-  song: { on: boolean; at: number }
+  /** every time is its own notification; sorted, no duplicates, 1 to MAX_TIMES.song entries */
+  song: { on: boolean; times: number[] }
   festival: { on: boolean }
-  words: { on: boolean; at: number }
+  words: { on: boolean; times: number[] }
   streak: { on: boolean }
-  live: { on: boolean }
-  quiet: { on: boolean; from: number; to: number }
 }
 
-/** Version of the saved shape (the persist `version` of the settings store). */
-export const SETTINGS_VERSION = 1
+/**
+ * Version of the saved shape (the persist `version` of the settings store).
+ * 1: one `at` per kind, `live`, `quiet`. 2: `times[]` per kind, no `live`, no `quiet`.
+ */
+export const SETTINGS_VERSION = 2
 
-/** No more than this many notifications on one local day. */
-export const MAX_PER_DAY = 2
-
-export const SONG_TIMES: readonly number[] = range(6 * 60, 10 * 60, 30)
-export const WORDS_TIMES: readonly number[] = range(7 * 60, 20 * 60, 60)
-export const QUIET_FROM_TIMES: readonly number[] = range(20 * 60, 23 * 60, 60)
-export const QUIET_TO_TIMES: readonly number[] = range(5 * 60, 9 * 60, 60)
+/** How many times a day the person can add for each kind. */
+export const MAX_TIMES: Record<TimedKind, number> = { song: 3, words: 5 }
 
 /** The time a kind fires when the person has no say: eve of a festival, learning streak. */
 export const FESTIVAL_EVE_AT = 17 * 60
 export const STREAK_AT = 20 * 60
 
+export const DAY_MINUTES = 1440
+
 export const DEFAULT_SETTINGS: NotificationSettings = {
   master: true,
-  song: { on: true, at: 8 * 60 },
+  song: { on: true, times: [8 * 60] },
   festival: { on: true },
-  words: { on: true, at: 18 * 60 },
+  words: { on: true, times: [18 * 60] },
   streak: { on: false },
-  live: { on: true },
-  quiet: { on: true, from: 21 * 60, to: 7 * 60 },
 }
 
-function range(from: number, to: number, step: number): number[] {
-  const out: number[] = []
-  for (let m = from; m <= to; m += step) out.push(m)
-  return out
+/* ------------------------------------------------------------------ times */
+
+/** A whole minute of the day: rounds, then wraps into 0 to 1439. */
+export function wrapMinutes(minutes: number): number {
+  return ((Math.round(minutes) % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES
 }
 
-/** "8:00", "18:30": 24-hour clock, no zero before the hour. */
-export function formatMinutes(minutes: number): string {
-  const m = ((Math.round(minutes) % 1440) + 1440) % 1440
-  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`
+/** Hour (0 to 23), minute (0 to 59) to minutes after midnight. Out-of-range values are clamped. */
+export function toMinutes(hour: number, minute: number): number {
+  const h = Math.min(23, Math.max(0, Math.round(hour)))
+  const m = Math.min(59, Math.max(0, Math.round(minute)))
+  return h * 60 + m
 }
 
-/** The choice nearest to `value`; `fallback` when value is not a number. */
-function snap(value: unknown, options: readonly number[], fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback
-  let best = options[0] ?? fallback
-  for (const option of options) if (Math.abs(option - value) < Math.abs(best - value)) best = option
-  return best
+export type TimeParts = { hour24: number; minute: number; pm: boolean; hour12: number }
+
+/** The pieces a picker shows: 24-hour hour, minute, and the 12-hour hour (1 to 12) with AM or PM. */
+export function timeParts(minutes: number): TimeParts {
+  const m = wrapMinutes(minutes)
+  const hour24 = Math.floor(m / 60)
+  return { hour24, minute: m % 60, pm: hour24 >= 12, hour12: hour24 % 12 === 0 ? 12 : hour24 % 12 }
 }
+
+/** 12-hour pieces back to minutes: 12 AM is midnight, 12 PM is noon. */
+export function fromParts12(hour12: number, minute: number, pm: boolean): number {
+  const h = Math.min(12, Math.max(1, Math.round(hour12)))
+  return toMinutes((h % 12) + (pm ? 12 : 0), minute)
+}
+
+/** "7:45 AM" (12-hour clock, `hour12` true) or "7:45" (24-hour). 0:00 is "12:00 AM", noon "12:00 PM". */
+export function formatMinutes(minutes: number, hour12 = true): string {
+  const { hour24, minute, pm, hour12: h12 } = timeParts(minutes)
+  const mm = String(minute).padStart(2, "0")
+  return hour12 ? `${h12}:${mm} ${pm ? "PM" : "AM"}` : `${hour24}:${mm}`
+}
+
+/** The live line of the picker: "Every day at 7:45 AM". */
+export function everyDayAt(minutes: number, hour12 = true): string {
+  return `Every day at ${formatMinutes(minutes, hour12)}`
+}
+
+/**
+ * Anything that may be a list of times -> a valid one: whole minutes, wrapped into the day, sorted,
+ * without duplicates, at most `max`. Non-numbers are dropped. May be empty (the caller decides what then).
+ */
+export function normalizeTimes(value: unknown, max: number): number[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<number>()
+  for (const item of value) {
+    if (typeof item === "number" && Number.isFinite(item)) seen.add(wrapMinutes(item))
+  }
+  return Array.from(seen)
+    .sort((a, b) => a - b)
+    .slice(0, max)
+}
+
+/** True when `minutes` is already one of `times`, ignoring the entry at `exceptIndex` (the one being edited). */
+export function hasTime(times: readonly number[], minutes: number, exceptIndex?: number): boolean {
+  const m = wrapMinutes(minutes)
+  return times.some((t, i) => i !== exceptIndex && t === m)
+}
+
+/**
+ * A free time to start a new entry on: the middle of the longest gap between the existing times,
+ * counted between 6:00 and 22:00, rounded to a quarter of an hour. Never a time already in `times`
+ * (unless all 1440 minutes are taken).
+ */
+export function suggestTime(times: readonly number[]): number {
+  const from = 6 * 60
+  const to = 22 * 60
+  const inside = Array.from(new Set(times.map(wrapMinutes)))
+    .filter((t) => t > from && t < to)
+    .sort((a, b) => a - b)
+  const points = [from, ...inside, to]
+  let best = { gap: -1, start: from }
+  for (let i = 0; i + 1 < points.length; i += 1) {
+    const gap = points[i + 1]! - points[i]!
+    if (gap > best.gap) best = { gap, start: points[i]! }
+  }
+  let candidate = wrapMinutes(Math.round((best.start + best.gap / 2) / 15) * 15)
+  for (let i = 0; i < DAY_MINUTES && hasTime(times, candidate); i += 1) candidate = wrapMinutes(candidate + 15)
+  return candidate
+}
+
+/* -------------------------------------------------------------- migration */
 
 function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback
@@ -70,10 +133,20 @@ function obj(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
 }
 
+/** Version 2 `times`, or a version 1 `at` (any number, kept as that minute), else the default. */
+function readTimes(saved: Record<string, unknown>, max: number, fallback: readonly number[]): number[] {
+  const fromList = normalizeTimes(saved.times, max)
+  if (fromList.length) return fromList
+  const fromAt = normalizeTimes(typeof saved.at === "number" ? [saved.at] : [], max)
+  return fromAt.length ? fromAt : [...fallback]
+}
+
 /**
  * Turn anything that was saved (nothing, an older shape, a damaged value) into valid settings: unknown
- * keys are dropped, wrong types fall back to the default, a time outside its choices snaps to the nearest.
- * `version` is the version the value was saved with; every version up to SETTINGS_VERSION is read the same way.
+ * keys are dropped (the old `live` and `quiet` among them), wrong types fall back to the default, a
+ * version 1 `at` becomes `times: [at]`, a list of times is sorted, de-duplicated and cut to its limit,
+ * and an empty list falls back to the default time. `version` is the version the value was saved with;
+ * every version up to SETTINGS_VERSION is read the same way.
  */
 export function migrateSettings(saved: unknown, _version = 0): NotificationSettings {
   const d = DEFAULT_SETTINGS
@@ -82,22 +155,16 @@ export function migrateSettings(saved: unknown, _version = 0): NotificationSetti
   const festival = obj(s.festival)
   const words = obj(s.words)
   const streak = obj(s.streak)
-  const live = obj(s.live)
-  const quiet = obj(s.quiet)
   return {
     master: bool(s.master, d.master),
-    song: { on: bool(song.on, d.song.on), at: snap(song.at, SONG_TIMES, d.song.at) },
+    song: { on: bool(song.on, d.song.on), times: readTimes(song, MAX_TIMES.song, d.song.times) },
     festival: { on: bool(festival.on, d.festival.on) },
-    words: { on: bool(words.on, d.words.on), at: snap(words.at, WORDS_TIMES, d.words.at) },
+    words: { on: bool(words.on, d.words.on), times: readTimes(words, MAX_TIMES.words, d.words.times) },
     streak: { on: bool(streak.on, d.streak.on) },
-    live: { on: bool(live.on, d.live.on) },
-    quiet: {
-      on: bool(quiet.on, d.quiet.on),
-      from: snap(quiet.from, QUIET_FROM_TIMES, d.quiet.from),
-      to: snap(quiet.to, QUIET_TO_TIMES, d.quiet.to),
-    },
   }
 }
+
+/* ---------------------------------------------------------------- queries */
 
 /** True when `kind` can send: the master switch and the kind's own switch are both on. */
 export function kindEnabled(settings: NotificationSettings, kind: ToggleKind): boolean {
@@ -106,26 +173,42 @@ export function kindEnabled(settings: NotificationSettings, kind: ToggleKind): b
 
 /** True when at least one reminder is on (what the profile row says). */
 export function anyEnabled(settings: NotificationSettings): boolean {
-  return (["song", "festival", "words", "streak", "live"] as const).some((kind) => kindEnabled(settings, kind))
+  return (["song", "festival", "words", "streak"] as const).some((kind) => kindEnabled(settings, kind))
 }
+
+export function canAddTime(settings: NotificationSettings, kind: TimedKind): boolean {
+  return settings[kind].times.length < MAX_TIMES[kind]
+}
+
+/* ---------------------------------------------------------------- changes */
 
 export function setKindOn(settings: NotificationSettings, kind: ToggleKind, on: boolean): NotificationSettings {
   return { ...settings, [kind]: { ...settings[kind], on } }
 }
 
-export function setKindTime(settings: NotificationSettings, kind: TimedKind, at: number): NotificationSettings {
-  const options = kind === "song" ? SONG_TIMES : WORDS_TIMES
-  return { ...settings, [kind]: { ...settings[kind], at: snap(at, options, settings[kind].at) } }
+/**
+ * Change the time at `index` to `minutes`. Ignored when `index` is not an entry, or when `minutes` is
+ * already another entry (two notifications at one moment are one too many).
+ */
+export function setKindTime(settings: NotificationSettings, kind: TimedKind, index: number, minutes: number): NotificationSettings {
+  const current = settings[kind].times
+  if (!Number.isInteger(index) || index < 0 || index >= current.length) return settings
+  if (typeof minutes !== "number" || !Number.isFinite(minutes) || hasTime(current, minutes, index)) return settings
+  const times = normalizeTimes(current.map((t, i) => (i === index ? minutes : t)), MAX_TIMES[kind])
+  return { ...settings, [kind]: { ...settings[kind], times } }
 }
 
-export function setQuiet(settings: NotificationSettings, patch: Partial<NotificationSettings["quiet"]>): NotificationSettings {
-  const next = { ...settings.quiet, ...patch }
-  return {
-    ...settings,
-    quiet: {
-      on: next.on,
-      from: snap(next.from, QUIET_FROM_TIMES, settings.quiet.from),
-      to: snap(next.to, QUIET_TO_TIMES, settings.quiet.to),
-    },
-  }
+/** Add a time. Ignored at the limit, or when `minutes` is already there. */
+export function addKindTime(settings: NotificationSettings, kind: TimedKind, minutes: number): NotificationSettings {
+  const current = settings[kind].times
+  if (current.length >= MAX_TIMES[kind]) return settings
+  if (typeof minutes !== "number" || !Number.isFinite(minutes) || hasTime(current, minutes)) return settings
+  return { ...settings, [kind]: { ...settings[kind], times: normalizeTimes([...current, minutes], MAX_TIMES[kind]) } }
+}
+
+/** Remove the time at `index`. Never removes the last one: a kind that is on keeps at least one time. */
+export function removeKindTime(settings: NotificationSettings, kind: TimedKind, index: number): NotificationSettings {
+  const current = settings[kind].times
+  if (current.length <= 1 || !Number.isInteger(index) || index < 0 || index >= current.length) return settings
+  return { ...settings, [kind]: { ...settings[kind], times: current.filter((_, i) => i !== index) } }
 }
