@@ -12,8 +12,9 @@ import { LiveCard } from "@/components/kirtan/LiveCard"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
 import { KiirtanCover, WaveGlyph, kiirtanTone } from "@/components/kirtan/KiirtanCover"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
-import { KirtanRow, KirtanTag, PlayFilled, StatusBadge } from "@/components/kirtan/KirtanParts"
+import { KirtanRow, KirtanTag, PlayFilled } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
+import { RemovedCard, UploadRow } from "@/components/kirtan/MyUploads"
 import { chipColorsOf, StickyChipsRow, StickyTopBlock } from "@/components/nav-v2/StickyChips"
 import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
@@ -72,7 +73,6 @@ export default function KiirtanTabScreen() {
   const actions = useKirtanActions()
   const { playable, byId, submissions } = useKirtans()
   const savedIds = useKirtanStore((s) => s.savedIds)
-  const withdraw = useKirtanStore((s) => s.withdraw)
   const live = useKirtanLive()
 
   const [chip, setChip] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
@@ -340,26 +340,13 @@ export default function KiirtanTabScreen() {
     <View style={styles.list}>
       {addEntry()}
       {submissions.length ? (
-        submissions.map((k) => (
-          <KirtanRow
-            key={k.id}
-            theme={theme}
-            kirtan={k}
-            compact
-            onOpen={(row) => play(row, playable)}
-            trailing={
-              <View style={styles.status}>
-                <StatusBadge theme={theme} status={k.status} />
-                {k.byAuthor ? <Text style={[styles.byAuthor, { color: theme.textMuted }]}>{t("kt.byAuthor")}</Text> : null}
-                {k.status !== "approved" ? (
-                  <KPress accessibilityRole="button" accessibilityLabel={t("kt.takeBackA11y", { title: k.title })} onPress={() => withdraw(k.id)} pressedScale={0.94}>
-                    <Text style={[styles.take, { color: theme.textBody }]}>{t("kt.takeBack")}</Text>
-                  </KPress>
-                ) : null}
-              </View>
-            }
-          />
-        ))
+        submissions.map((k) =>
+          k.status === "removed" ? (
+            <RemovedCard key={k.id} theme={theme} kirtan={k} />
+          ) : (
+            <UploadRow key={k.id} theme={theme} kirtan={k} onOpen={(row) => play(row, playable)} onMore={setMenu} onOpenArtist={actions.openArtist} />
+          ),
+        )
       ) : (
         <HomeEmpty p={p} text={t("kt.empty.mine")} />
       )}
@@ -409,7 +396,6 @@ export default function KiirtanTabScreen() {
         onAddToPlaylist={actions.addToPlaylist}
         onToggleSave={actions.toggleSaved}
         onShare={(k) => setShare(k)}
-        onReport={actions.report}
         onClose={() => setMenu(null)}
       />
       <KirtanShareSheet open={Boolean(share)} theme={theme} kirtan={share} onShare={onShare} onClose={() => setShare(null)} />
@@ -543,7 +529,4 @@ const styles = StyleSheet.create({
   addText: { flex: 1, gap: 2 },
   addTitle: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22 },
   addSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
-  status: { alignItems: "flex-end", gap: 4, paddingRight: 12 },
-  byAuthor: { fontFamily: amFonts.regular, fontSize: 12, lineHeight: 16 },
-  take: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, textDecorationLine: "underline" },
 })

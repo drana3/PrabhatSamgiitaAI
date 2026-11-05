@@ -1,5 +1,5 @@
 import type { MockSong } from "@/data/mock"
-import { approvedKirtans, ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
+import { publishedKirtans, ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
 import type { Mix } from "@/lib/kirtan/mix"
 import {
   SOURCE_EVERYTHING,
@@ -55,11 +55,11 @@ export function playQueue(
 }
 
 /** Play a mix: all its items, PS and Kiirtan, in order, from `index`. */
-export function playMix(mix: Pick<Mix, "id" | "title" | "items">, index = 0, kirtans: readonly Kirtan[] = approvedKirtans()): string | null {
+export function playMix(mix: Pick<Mix, "id" | "title" | "items">, index = 0, kirtans: readonly Kirtan[] = publishedKirtans()): string | null {
   const byId = new Map(kirtans.map((k) => [k.id, k]))
   const numbers = mixQueue(mix.items, byId)
   const item = mix.items[index]
-  const wanted = item && (item.kind === "ps" || byId.get(item.id)?.status === "approved") ? mixItemNumber(item) : null
+  const wanted = item && (item.kind === "ps" || byId.get(item.id)?.status === "published") ? mixItemNumber(item) : null
   return playQueue(numbers, { id: `mix:${mix.id}`, name: mixSourceName(mix.title) }, wanted)
 }
 
@@ -73,9 +73,9 @@ export function playKiirtans(list: readonly Kirtan[], startId?: string | null, l
   return playQueue(numbers, { id: `kiirtans:${name}`, name }, wanted)
 }
 
-/** "Shuffle everything": every Prabhat Samgiita song with audio and every approved Kiirtan, shuffled into one queue. */
+/** "Shuffle everything": every Prabhat Samgiita song with audio and every published Kiirtan, shuffled into one queue. */
 export function playEverything(rng: () => number = Math.random): string | null {
-  const kirtans = approvedKirtans()
+  const kirtans = publishedKirtans()
   ensureKirtansRegistered()
   const ps = [...playableNumbersList()]
   const queue = everythingQueue(ps, kirtans, rng)

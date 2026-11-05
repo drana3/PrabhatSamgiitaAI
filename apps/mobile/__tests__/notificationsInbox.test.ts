@@ -96,11 +96,13 @@ describe("inbox: migration of the saved value", () => {
 
 describe("server kinds (copy only, no trigger yet)", () => {
   it("writes the upload decision in short sentences", () => {
-    const ok = uploadDecisionNotification({ uploadId: "u1", title: "Sunrise Kiirtan", decision: "approved", firedAt: NOW })
-    expect(ok).toMatchObject({ id: "upload:u1:approved", kind: "upload", title: "Kiirtan approved", text: "Sunrise Kiirtan is now in the library." })
-    const no = uploadDecisionNotification({ uploadId: "u2", title: "", decision: "rejected", firedAt: NOW })
-    expect(no.title).toBe("Kiirtan not approved")
-    expect(no.text).toBe("Your Kiirtan did not pass review. See why.")
+    const ok = uploadDecisionNotification({ uploadId: "u1", title: "Sunrise Kiirtan", decision: "published", firedAt: NOW })
+    expect(ok).toMatchObject({ id: "upload:u1:published", kind: "upload", title: "Kiirtan published", text: "Sunrise Kiirtan is live in the library." })
+    const no = uploadDecisionNotification({ uploadId: "u2", title: "", decision: "removed", reason: "It is not yours to share.", firedAt: NOW })
+    expect(no.title).toBe("Kiirtan removed")
+    expect(no.text).toBe("Your Kiirtan was removed: It is not yours to share.")
+    const none = uploadDecisionNotification({ uploadId: "u3", title: "Dawn", decision: "removed", firedAt: NOW })
+    expect(none.text).toBe("Dawn was removed by the team. Open it to see how to answer.")
     expect(no.text.includes("!")).toBe(false)
   })
 

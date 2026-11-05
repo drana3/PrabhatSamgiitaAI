@@ -38,8 +38,39 @@ export function newestFirst<T extends Pick<Kirtan, "addedAt">>(list: readonly T[
     .map((x) => x.item)
 }
 
-export function approvedOnly<T extends Pick<Kirtan, "status">>(list: readonly T[]): T[] {
-  return list.filter((k) => k.status === "approved")
+export function publishedOnly<T extends Pick<Kirtan, "status">>(list: readonly T[]): T[] {
+  return list.filter((k) => k.status === "published")
+}
+
+/**
+ * What "Block this author" stores for a recording: the uploader's account id. A recording without one (the team's
+ * bulk-loaded library, the demo samples) can be blocked by the author's name on this device only when `byName` is true
+ * (the demo preview); a real build does not offer it, because the server cannot block a name.
+ */
+export function authorBlockKey(k: Pick<Kirtan, "authorId" | "author">, byName = false): string | null {
+  if (k.authorId) return k.authorId
+  const name = k.author.trim().toLowerCase()
+  return byName && name ? `name:${name}` : null
+}
+
+/** Leaves out every recording of an author the person blocked. */
+export function withoutBlocked<T extends Pick<Kirtan, "authorId" | "author">>(list: readonly T[], blockedAuthorIds: readonly string[]): T[] {
+  if (!blockedAuthorIds.length) return [...list]
+  const blocked = new Set(blockedAuthorIds)
+  return list.filter((k) => {
+    const key = authorBlockKey(k, true)
+    return !key || !blocked.has(key)
+  })
+}
+
+/**
+ * Everything the app can play: the person's own uploads, then what the server publishes (minus blocked authors and
+ * minus what is already among the person's own), then the demo samples (empty outside the preview).
+ */
+export function mergeCatalog(own: readonly Kirtan[], remote: readonly Kirtan[], samples: readonly Kirtan[], blockedAuthorIds: readonly string[]): Kirtan[] {
+  const ownServerIds = new Set(own.map((k) => k.serverId).filter((id): id is string => Boolean(id)))
+  const others = remote.filter((k) => !(k.serverId && ownServerIds.has(k.serverId)))
+  return [...own, ...withoutBlocked([...others, ...samples], blockedAuthorIds)]
 }
 
 /** The type filters that have at least one kirtan, plus All. Used to hide empty chips if wanted. */

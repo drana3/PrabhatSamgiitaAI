@@ -34,11 +34,11 @@ export function mixCaption(items: readonly MixItem[]): string {
 }
 
 /**
- * Drops Kiirtans that are not approved or no longer exist, keeping the order of everything else.
+ * Drops Kiirtans that are not published or no longer exist, keeping the order of everything else.
  * (A mix must never play a Kiirtan that review turned down.)
  */
 export function playableItems(items: readonly MixItem[], kirtans: ReadonlyMap<string, Pick<Kirtan, "status">>): MixItem[] {
-  return items.filter((item) => item.kind === "ps" || kirtans.get(item.id)?.status === "approved")
+  return items.filter((item) => item.kind === "ps" || kirtans.get(item.id)?.status === "published")
 }
 
 /** The Mixes shelf of Today and the mix page. */

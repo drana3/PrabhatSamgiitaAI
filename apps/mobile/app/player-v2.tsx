@@ -66,7 +66,8 @@ import {
 import { gapText, playerGlossRows, playerSampleKey } from "@/lib/songPage/honest"
 import { artistForAuthor } from "@/lib/kirtan/artists"
 import { moodForText } from "@/lib/photos/catalog"
-import { ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
+import { ensureKirtansRegistered, kirtanById, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
+import { openReportSheet } from "@/stores/safetySheetStore"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/kind"
@@ -655,10 +656,14 @@ export default function PlayerV2Screen() {
       case "drive":
         setSheet(null)
         return setDrive(true)
-      case "report":
-        // Opens Send feedback with this song picked ("A mistake in a song or lyrics").
+      case "report": {
         setSheet(null)
+        // A Kiirtan or a Bhajan: the report sheet (reason, then it is sent to the team).
+        const recording = isK && kiirtanId ? kirtanById(kiirtanId) : null
+        if (recording) return openReportSheet(recording)
+        // A song: Send feedback with this song picked ("A mistake in a song or lyrics").
         return router.push(href(`/feedback?song=${song.number}`))
+      }
     }
   }
   const onShareTarget = (target: ShareTargetId, override?: SharePayload) => {

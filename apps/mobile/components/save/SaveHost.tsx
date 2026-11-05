@@ -1,6 +1,7 @@
 import { useEffect, useId } from "react"
 import { StyleSheet, View } from "react-native"
 
+import { KirtanSafetyHost } from "@/components/kirtan/KirtanSafetyHost"
 import { DownloadHost } from "@/components/offline/DownloadHost"
 import { SaveToast } from "@/components/save/SaveToast"
 import { SaveToSheet } from "@/components/save/SaveToSheet"
@@ -26,6 +27,8 @@ export function SaveHost() {
       {toast ? <SaveToast message={toast.message} id={toast.id} /> : null}
       {/* the download controls' sign-in prompt, confirm sheet and toast */}
       <DownloadHost />
+      {/* Report and Block this author of a Kiirtan or Bhajan */}
+      <KirtanSafetyHost />
     </View>
   )
 }

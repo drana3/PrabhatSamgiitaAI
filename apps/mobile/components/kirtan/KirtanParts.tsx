@@ -59,16 +59,16 @@ export function PsTag({ theme, number }: { theme: SongsTheme; number: number }) 
   )
 }
 
+/** Where one of the person's own recordings stands: Uploading, Published, Not uploaded or Removed. */
 export function StatusBadge({ theme, status }: { theme: SongsTheme; status: KirtanStatus }) {
-  const t = useT()
   const tone =
-    status === "approved"
+    status === "published"
       ? { bg: theme.oliveBg, fg: theme.oliveText }
-      : status === "rejected"
+      : status === "removed" || status === "failed"
         ? { bg: "transparent", fg: theme.dangerText }
         : { bg: theme.peach, fg: theme.accent }
   return (
-    <View style={[styles.badge, { backgroundColor: tone.bg, borderColor: status === "rejected" ? amColors.danger : "transparent" }]}>
+    <View style={[styles.badge, { backgroundColor: tone.bg, borderColor: status === "removed" || status === "failed" ? amColors.danger : "transparent" }]}>
       <Text style={[styles.badgeText, { color: tone.fg }]}>{STATUS_LABEL[status]}</Text>
     </View>
   )

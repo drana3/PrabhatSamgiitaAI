@@ -172,7 +172,6 @@ export default function KirtanArtistScreen() {
         onAddToPlaylist={actions.addToPlaylist}
         onToggleSave={actions.toggleSaved}
         onShare={(k) => setShare(k)}
-        onReport={actions.report}
         onClose={() => setMenu(null)}
       />
       <KirtanShareSheet open={Boolean(share)} theme={theme} kirtan={share} onShare={onShare} onClose={() => setShare(null)} />

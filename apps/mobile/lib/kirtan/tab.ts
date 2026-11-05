@@ -65,11 +65,11 @@ export function typeCardCount(card: Pick<TypeCard, "kind" | "count">): string {
   return kindCountLabel(card.kind, card.count)
 }
 
-/** Saved Kiirtans in the order they were saved. Unknown or unapproved ids are left out. */
+/** Saved Kiirtans in the order they were saved. Unknown or unpublished ids are left out. */
 export function savedKirtans<T extends Pick<Kirtan, "id" | "status">>(savedIds: readonly string[], byId: ReadonlyMap<string, T>): T[] {
   return savedIds.flatMap((id) => {
     const k = byId.get(id)
-    return k && k.status === "approved" ? [k] : []
+    return k && k.status === "published" ? [k] : []
   })
 }
 
@@ -98,7 +98,7 @@ export function isEmptyCatalog(type: KirtanTypeId | null, length: LengthBucketId
 
 /**
  * "Bhajans for every hour": the Bhajans ordered by the hour they belong to (Morning, Evening, Devotional,
- * Other), newest first inside a type. Only approved ones are expected in `list`.
+ * Other), newest first inside a type. Only published ones are expected in `list`.
  */
 export function bhajansForEveryHour<T extends Pick<Kirtan, "type" | "addedAt"> & { kind?: RecordingKind }>(list: readonly T[], limit = 12): T[] {
   const order = typesOfKind("bhajan").map((t) => t.id)

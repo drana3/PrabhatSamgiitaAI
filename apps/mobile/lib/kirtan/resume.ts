@@ -16,7 +16,7 @@ export function resumeProgress(positionSec: number, durationSec: number | null):
 
 export type ResumeEntry<T> = { kirtan: T; positionSec: number }
 
-/** "Jump back in": the entries that point at a known, approved Kiirtan and are neither at the start nor at the end. */
+/** "Jump back in": the entries that point at a known, published Kiirtan and are neither at the start nor at the end. */
 export function resumeEntries<T extends Pick<Kirtan, "id" | "status" | "durationSec">>(
   positions: readonly { id: string; positionSec: number }[],
   byId: ReadonlyMap<string, T>,
@@ -25,7 +25,7 @@ export function resumeEntries<T extends Pick<Kirtan, "id" | "status" | "duration
   const out: ResumeEntry<T>[] = []
   for (const pos of positions) {
     const kirtan = byId.get(pos.id)
-    if (!kirtan || kirtan.status !== "approved" || pos.positionSec <= 0) continue
+    if (!kirtan || kirtan.status !== "published" || pos.positionSec <= 0) continue
     if (kirtan.durationSec && pos.positionSec >= kirtan.durationSec - 5) continue
     out.push({ kirtan, positionSec: pos.positionSec })
     if (out.length >= limit) break

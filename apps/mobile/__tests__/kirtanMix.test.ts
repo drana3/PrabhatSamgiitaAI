@@ -56,10 +56,10 @@ describe("mix ordering", () => {
     expect(itemKey(k("3"))).toBe("k-3")
   })
 
-  it("drops kirtans that are not approved, keeping the order", () => {
+  it("drops kirtans that are not published, keeping the order", () => {
     const status = new Map([
-      ["a", { status: "approved" as const }],
-      ["b", { status: "pending" as const }],
+      ["a", { status: "published" as const }],
+      ["b", { status: "failed" as const }],
     ])
     expect(playableItems(items, status)).toEqual([ps(2), ps(3), k("a"), ps(1)])
   })

@@ -2,7 +2,7 @@
 
 A Bhajan is not a second system. Kiirtans and Bhajans are ONE list of audio recordings; each has a `kind`:
 `"kiirtan"` (group chanting) or `"bhajan"` (a devotional song). Same player, same queue, same save, share,
-report and review flow. Songs of Prabhat Samgiita stay separate (they have lyrics, versions and a catalog
+report and moderation flow (published at once, checked after: `kiirtan-publishing.md`). Songs of Prabhat Samgiita stay separate (they have lyrics, versions and a catalog
 number). Bhajans have no lyrics for now. Visible spelling: "Kiirtan" with two i's, plural "Kiirtans";
 "Bhajan", plural "Bhajans". Code identifiers and routes keep `kirtan` (`kirtan-player`, `kirtanStore`).
 
@@ -19,8 +19,10 @@ number). Bhajans have no lyrics for now. Visible spelling: "Kiirtan" with two i'
 (types), `lib/kirtan/kind.ts` (every visible word of a kind: `kindLabel`, `kindTag`, `kindSubtitle`, filters),
 `lib/kirtan/tone.ts` (gradients per type; palette colours only, see `ui-colour-system.md`).
 
-Old stored data: the persisted store `prabhat-kirtan` went from version 1 to 2. `lib/kirtan/migrate.ts` gives
-every stored submission `kind: "kiirtan"` and repairs a type that does not belong to its kind.
+Old stored data: the persisted store `prabhat-kirtan` is at version 3. `lib/kirtan/migrate.ts` gives every stored
+submission `kind: "kiirtan"`, repairs a type that does not belong to its kind, and maps the old statuses:
+`approved` becomes `published`, `pending` becomes `failed` (it never reached the server, the person can send it
+again), `rejected` becomes `removed`. `blockedAuthorIds` and `blockedNames` start empty.
 
 ## Where the kind shows
 
@@ -33,7 +35,8 @@ every stored submission `kind: "kiirtan"` and repairs a type that does not belon
   carries `kind`. My uploads rows carry a neutral `KIIRTAN` / `BHAJAN` tag.
 - Artist page: lists both kinds of the author, each row tagged. Search: group "Kiirtans and bhajans";
   "bhajan" and "kiirtan" are searchable words that filter by kind (`bhajan morning`, `kiirtan priya`).
-- Upload decision notifications say "Bhajan approved" / "Kiirtan approved" (`lib/notifications/serverKinds.ts`).
+- Upload notifications say "Bhajan published" / "Kiirtan removed" with the team's reason (`lib/notifications/serverKinds.ts`).
+  A removal notice reaches the phone when the list of the person's uploads (`GET /recordings/mine`) is refreshed.
 
 ## Bulk loader (library on disk)
 
@@ -42,25 +45,35 @@ kind from the folder name: a folder named `bhajan` (any case) gives `kind = bhaj
 `kind = kiirtan`. The type comes from the file name or a sidecar CSV; when unknown it is `other`. Author is
 left empty when unknown, and `addedBy` is `Ananda Marga team`.
 
-## What the server needs (TODO(api))
+## Publishing policy (publish first, check after)
 
-1. One `recordings` table with a `kind` column (`kiirtan` | `bhajan`, default `kiirtan`), `type`, `author`,
-   `title`, `duration_sec` (read from the file after upload), `audio_url`, `thumbnail_url`, `added_by`,
-   `status` (`pending` | `approved` | `rejected`), `added_at`, `plays`. A check keeps `type` valid for `kind`.
-2. Upload endpoint: signed URL or multipart; takes the metadata including `kind`; returns the stream URL.
-   Team members and authors both upload (see the uploads policy); no automatic YouTube downloading.
-3. Admin review queue: lists pending recordings with kind, plays the file, approves or rejects with a reason;
-   the decision triggers the `upload` notification.
-4. Catalog, search (`kind` filter and word), artists, play counts and the report endpoint take the same field.
+Nobody waits for a review. A team member or an author who uploads gets the recording published at once; the team
+checks after publication and removes what breaks the content rules, with a notice to the author (reason, how to
+answer, how to upload a corrected version). Status on the phone: `uploading`, `published`, `failed`, `removed`.
+The add form asks for sign-in, the box "I am the author or I perform this", and (once, again after a change of the
+rules) "I agree to the content rules". Every recording has Report (copyright, offensive, wrong info, other) and
+"Block this author"; the page `/content-rules` is reachable from the form, from Report and from a removal notice.
+Full operating guide, store requirements and what still needs real infrastructure: `kiirtan-publishing.md`.
+
+## Server (built, `apps/api`, not deployed)
+
+1. `recordings` table with `kind`, `type`, `author`, `title`, `duration_sec`, `audio_url`, `thumbnail_url`,
+   `added_by`, `author_id`, `status` (`published` | `flagged` | `removed`), `removed_reason`, `plays`, plus
+   `reports`, `author blocks` and member `notices` (Alembic 0027).
+2. Upload in three steps: signed target, bytes to R2 (or local disk in development), publish. Exact SHA-256 copies
+   are refused, similar fingerprints only warn. No automatic YouTube downloading.
+3. Admin queue (`new`, `flagged`, `removed`) with remove (reason is required), restore and reviewed.
+4. Catalog, artists, play counts and the report endpoint take the same field.
 
 ## Built vs fixture
 
 - Built and tested (vitest, `__tests__/kirtanKind.test.ts`): the kind model, labels, filters, migration, tones,
-  submissions with kind, queue tags, share and notification copy, search by kind, tab chips and type cards.
+  submissions with kind and the publish-first life, queue tags, share and notification copy, search by kind, tab chips and type cards.
 - Fixture only (`lib/fixtures/kirtan.ts`, `TODO(api)`): the catalog. Four real sample Bhajans from the team's
   folder ("The sweetest word" 4:43, "Soon the day will dawn" 3:12, "Once there was a day" 4:20, "Many Thousand
   Years Ago" 9:52) with their real lengths, empty author, added by "Ananda Marga team"; their types are a preview
   guess. Three more Bhajans by the sample artists are made up so the shelves and the artist page show both kinds.
 - No audio plays for the samples: the web preview's demo engine only simulates playback (a clock), so
   `audioUrl` stays `null` until the upload API serves the files. The mp3 files are not in git.
-- Still missing: sign-in before sending, duplicate check on the server, takedown path, Bhajan lyrics, downloads.
+- Built on the phone and the API: sign-in before sending, duplicate check, report, block, takedown with a notice.
+- Still missing: a real bucket and deploy (`kiirtan-publishing.md`), the native file picker, Bhajan lyrics, downloads.

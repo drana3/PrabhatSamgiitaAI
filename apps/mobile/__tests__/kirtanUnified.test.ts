@@ -53,7 +53,7 @@ function seeded(seed = 7): () => number {
   }
 }
 
-const approved = KIRTAN_FIXTURES.filter((k) => k.status === "approved")
+const approved = KIRTAN_FIXTURES.filter((k) => k.status === "published")
 const k = (over: Partial<Kirtan> & { id: string }): Kirtan => ({ ...KIRTAN_FIXTURES[0], ...over })
 
 describe("one queue: track numbers", () => {
@@ -114,8 +114,8 @@ describe("one queue: building", () => {
       { kind: "kirtan" as const, id: "ghost" },
     ]
     const status = new Map([
-      ["a", { status: "approved" as const }],
-      ["b", { status: "pending" as const }],
+      ["a", { status: "published" as const }],
+      ["b", { status: "failed" as const }],
     ])
     expect(mixQueue(items, status)).toEqual([3, kiirtanNumber("a")])
   })
@@ -133,9 +133,9 @@ describe("one queue: building", () => {
     expect(shuffled(list, seeded())).toEqual(out)
   })
 
-  it("shuffle everything holds every song and every approved Kiirtan once", () => {
+  it("shuffle everything holds every song and every published Kiirtan once", () => {
     const songs = [10, 20, 30, 40]
-    const withPending = [...approved, k({ id: "pending-x", status: "pending" })]
+    const withPending = [...approved, k({ id: "pending-x", status: "failed" })]
     const queue = everythingQueue(songs, withPending, seeded())
     expect(queue).toHaveLength(songs.length + approved.length)
     expect(new Set(queue).size).toBe(queue.length)
@@ -265,7 +265,7 @@ describe("jump back in and Kiirtan of the day", () => {
   it("keeps only approved, started and unfinished Kiirtans", () => {
     const byId = new Map<string, Kirtan>([
       ["a", k({ id: "a", durationSec: 600 })],
-      ["b", k({ id: "b", durationSec: 600, status: "pending" })],
+      ["b", k({ id: "b", durationSec: 600, status: "failed" })],
       ["c", k({ id: "c", durationSec: 600 })],
       ["d", k({ id: "d", durationSec: 600 })],
       ["e", k({ id: "e", durationSec: 600 })],
@@ -323,7 +323,7 @@ describe("Kiirtan tab", () => {
     expect(cards.reduce((n, c) => n + c.count, 0)).toBe(approved.filter((x) => x.kind === "kiirtan").length)
     const byId = new Map<string, Kirtan>([
       ["a", k({ id: "a" })],
-      ["p", k({ id: "p", status: "pending" })],
+      ["p", k({ id: "p", status: "failed" })],
     ])
     expect(savedKirtans(["p", "a", "gone"], byId).map((x) => x.id)).toEqual(["a"])
   })

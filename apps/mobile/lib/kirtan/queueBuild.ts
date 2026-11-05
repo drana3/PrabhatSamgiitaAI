@@ -37,12 +37,12 @@ export function mixItemNumber(item: MixItem): number {
 }
 
 /**
- * The queue of a mix: every item in order, PS and Kiirtan together. Kiirtans that are not approved
+ * The queue of a mix: every item in order, PS and Kiirtan together. Kiirtans that are not published
  * (or unknown) are left out, the order of the rest is kept.
  */
 export function mixQueue(items: readonly MixItem[], kirtans: ReadonlyMap<string, Pick<Kirtan, "status">>): number[] {
   return items
-    .filter((item) => item.kind === "ps" || kirtans.get(item.id)?.status === "approved")
+    .filter((item) => item.kind === "ps" || kirtans.get(item.id)?.status === "published")
     .map(mixItemNumber)
 }
 
@@ -62,15 +62,15 @@ export function shuffled<T>(list: readonly T[], rng: () => number = Math.random)
 }
 
 /**
- * "Shuffle everything": all Prabhat Samgiita songs with audio plus all approved Kiirtans, shuffled
+ * "Shuffle everything": all Prabhat Samgiita songs with audio plus all published Kiirtans, shuffled
  * together into one queue. Each number appears once.
  */
 export function everythingQueue(
   psNumbers: readonly number[],
-  approvedKiirtans: readonly Pick<Kirtan, "id" | "status">[],
+  publishedKiirtans: readonly Pick<Kirtan, "id" | "status">[],
   rng: () => number = Math.random,
 ): number[] {
-  const kiirtans = approvedKiirtans.filter((k) => k.status === "approved").map((k) => kiirtanNumber(k.id))
+  const kiirtans = publishedKiirtans.filter((k) => k.status === "published").map((k) => kiirtanNumber(k.id))
   return shuffled([...new Set([...psNumbers, ...kiirtans])], rng)
 }
 

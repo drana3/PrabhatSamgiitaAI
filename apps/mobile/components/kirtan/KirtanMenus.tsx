@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
+import Svg, { Circle, Path } from "react-native-svg"
 
 import { KPress } from "@/components/kirtan/KPress"
 import { DownloadMenuRow } from "@/components/offline/DownloadMenuRow"
@@ -11,12 +12,14 @@ import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { kindLabel } from "@/lib/kirtan/kind"
+import { canBlockAuthor } from "@/lib/kirtan/safety"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { kiirtanDownloadItem } from "@/lib/offline/downloadItems"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { SHARE_TARGETS, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { useShareCardT } from "@/lib/share/cardCopy"
 import { useT } from "@/lib/i18n"
+import { openBlockSheet, openReportSheet } from "@/stores/safetySheetStore"
 
 type MenuProps = {
   open: boolean
@@ -27,8 +30,17 @@ type MenuProps = {
   onAddToPlaylist: (k: Kirtan) => void
   onToggleSave: (k: Kirtan) => void
   onShare: (k: Kirtan) => void
-  onReport: (k: Kirtan) => void
   onClose: () => void
+}
+
+/** A circle with a slash: "block". */
+function BlockGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={8.5} stroke={color} strokeWidth={1.75} />
+      <Path d="M6 6l12 12" stroke={color} strokeWidth={1.75} strokeLinecap="round" />
+    </Svg>
+  )
 }
 
 function MenuRow({ theme, label, icon, onPress }: { theme: SongsTheme; label: string; icon: ReactNode; onPress: () => void }) {
@@ -46,8 +58,11 @@ function MenuRow({ theme, label, icon, onPress }: { theme: SongsTheme; label: st
   )
 }
 
-/** The row menu of a kirtan: Play next, Add to playlist, Save, Download, Share, Report. */
-export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddToPlaylist, onToggleSave, onShare, onReport, onClose }: MenuProps) {
+/**
+ * The row menu of a kirtan: Play next, Add to playlist, Save, Download, Share, Report, and Block this author.
+ * Report and Block open their own sheets (components/kirtan/KirtanSafetyHost), the same ones the player uses.
+ */
+export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddToPlaylist, onToggleSave, onShare, onClose }: MenuProps) {
   const t = useT()
   // keep the last kirtan while the sheet slides out, so its title does not vanish mid-exit
   const last = useRef<Kirtan | null>(null)
@@ -79,7 +94,10 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
           {(row) => <MenuRow theme={theme} label={row.label} icon={row.icon} onPress={() => { row.onPress(); onClose() }} />}
         </DownloadMenuRow>
         <MenuRow theme={theme} label={t("songs.menu.share")} icon={<PlayerIcon name="share" size={22} color={ink} />} onPress={act(onShare)} />
-        <MenuRow theme={theme} label={t("kt.menu.report")} icon={<PlayerIcon name="flag" size={22} color={ink} />} onPress={act(onReport)} />
+        <MenuRow theme={theme} label={t("kt.menu.report")} icon={<PlayerIcon name="flag" size={22} color={ink} />} onPress={act(openReportSheet)} />
+        {shown && canBlockAuthor(shown) ? (
+          <MenuRow theme={theme} label={t("ugc.block.row")} icon={<BlockGlyph color={ink} />} onPress={act(openBlockSheet)} />
+        ) : null}
       </View>
     </BottomSheet>
   )

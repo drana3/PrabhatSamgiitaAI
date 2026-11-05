@@ -1,22 +1,23 @@
 import { sampleKirtans } from "@/lib/fixtures/kirtanGate"
-import { approvedOnly, newestFirst } from "@/lib/kirtan/list"
+import { mergeCatalog, publishedOnly, newestFirst } from "@/lib/kirtan/list"
 import { kiirtanSongForNumber, registerKiirtans } from "@/lib/kirtan/track"
 import type { Kirtan } from "@/lib/kirtan/types"
 import type { MockSong } from "@/data/mock"
 import { useKirtanStore } from "@/stores/kirtanStore"
 
 /**
- * The Kiirtans the app can play, outside React: the sample catalog plus the person's own submissions.
+ * The Kiirtans the app can play, outside React: the person's own uploads, what the server publishes (minus the authors
+ * they blocked) and the demo samples (empty outside the preview).
  * (The hook `useKirtans` gives the same data to screens.)
- * TODO(api): the catalog comes from the backend.
  */
 export function allKirtans(): Kirtan[] {
-  return [...sampleKirtans(), ...useKirtanStore.getState().submissions]
+  const { submissions, catalog, blockedAuthorIds } = useKirtanStore.getState()
+  return mergeCatalog(submissions, catalog, sampleKirtans(), blockedAuthorIds)
 }
 
-/** Approved Kiirtans, newest first. */
-export function approvedKirtans(): Kirtan[] {
-  return newestFirst(approvedOnly(allKirtans()))
+/** Published Kiirtans, newest first. */
+export function publishedKirtans(): Kirtan[] {
+  return newestFirst(publishedOnly(allKirtans()))
 }
 
 export function kirtanById(id: string): Kirtan | null {

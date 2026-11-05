@@ -5,28 +5,38 @@ import type { AppNotification } from "@/lib/notifications"
 
 /**
  * The two kinds that only the server can trigger (phase 2, docs/notifications.md). The copy and the
- * shape are fixed here so the screens already know them; nothing calls these yet.
- * TODO(api): the backend sends an upload decision and a team announcement; map its payload with these.
+ * shape are fixed here so the screens already know them.
+ * A Kiirtan or Bhajan is published the moment it is uploaded (docs/kiirtan-publishing.md), so there is no
+ * "approved" message. The one upload message is the takedown: the team removed a recording after looking at it,
+ * with the reason and the way to answer. stores/kirtanStore builds it when the server's list of "my uploads"
+ * says a recording that was live has been removed.
  */
 
-export type UploadDecision = "approved" | "rejected"
+export type UploadDecision = "published" | "removed"
 
-/** An uploaded Kiirtan or Bhajan was approved or rejected. `title` is its title; `kind` picks the word (a Kiirtan when missing). */
+/** A recording the person uploaded went live (`published`) or was taken down by the team (`removed`, with the reason). */
 export function uploadDecisionNotification(input: {
   uploadId: string
   kind?: RecordingKind
   title: string
   decision: UploadDecision
+  /** why it was removed (the team's words); only for `removed` */
+  reason?: string
   firedAt: number
 }): AppNotification {
   const label = kindLabel(input.kind)
   const title = input.title.trim() || t("notif.upload.yourItem", { kind: label })
-  const approved = input.decision === "approved"
+  const removed = input.decision === "removed"
+  const reason = input.reason?.trim()
   return {
     id: `upload:${input.uploadId}:${input.decision}`,
     kind: "upload",
-    title: approved ? t("notif.upload.approved", { kind: label }) : t("notif.upload.rejected", { kind: label }),
-    text: approved ? t("notif.upload.approvedText", { title }) : t("notif.upload.rejectedText", { title }),
+    title: removed ? t("notif.upload.removed", { kind: label }) : t("notif.upload.published", { kind: label }),
+    text: removed
+      ? reason
+        ? t("notif.upload.removedText", { title, reason })
+        : t("notif.upload.removedNoReason", { title })
+      : t("notif.upload.publishedText", { title }),
     target: "/v2/kiirtan",
     firedAt: input.firedAt,
   }

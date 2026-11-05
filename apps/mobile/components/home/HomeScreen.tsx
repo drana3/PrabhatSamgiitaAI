@@ -477,7 +477,6 @@ export function HomeScreen() {
         onAddToPlaylist={kActions.addToPlaylist}
         onToggleSave={kActions.toggleSaved}
         onShare={(k) => void onKirtanShare(k, "copy")}
-        onReport={kActions.report}
         onClose={() => setKMenu(null)}
       />
       <Toast message={kActions.toast ?? actions.toast} theme={songsTheme} />

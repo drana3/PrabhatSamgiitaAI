@@ -6,7 +6,7 @@ import { artistForAuthor, kirtansOfArtist, splitAuthors } from "@/lib/kirtan/art
 import { foldText, queryWords, searchArtists, searchKirtans } from "@/lib/kirtan/search"
 import type { Kirtan } from "@/lib/kirtan/types"
 
-const approved = KIRTAN_FIXTURES.filter((k) => k.status === "approved")
+const approved = KIRTAN_FIXTURES.filter((k) => k.status === "published")
 const make = (over: Partial<Kirtan> & { id: string }): Kirtan => ({ ...KIRTAN_FIXTURES[0], addedBy: "x", ...over })
 const ids = (list: readonly { id: string }[]) => list.map((x) => x.id)
 

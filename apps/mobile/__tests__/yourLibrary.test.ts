@@ -18,7 +18,7 @@ const input: LibraryInput = {
   savedSongCount: 7,
   savedKiirtanCount: 3,
   downloads: { count: 4, bytes: 540 * 1024 * 1024 },
-  uploads: { total: 3, pending: 2 },
+  uploads: { total: 3, removed: 2 },
   playlists: [
     { id: "a", name: "Morning meditation", songNumbers: [1, 3, 5] },
     { id: "b", name: "Evening kiirtan", songNumbers: [2, 4, 6, 7, 8] },
@@ -37,11 +37,11 @@ describe("buildLibraryRows", () => {
     expect(meta["kiirtans-saved"]).toBe("Kiirtans · 3 saved")
     expect(meta["pl-b"]).toBe("Playlist · 5 songs")
     expect(meta.downloads).toBe("On this phone · 4 songs · 540 MB")
-    expect(meta.uploads).toBe("Your recordings · 2 in review")
+    expect(meta.uploads).toBe("Your recordings · 2 removed")
   })
 
   it("keeps the fixed rows with a quiet line when they are empty", () => {
-    const rows = buildLibraryRows({ ...input, savedSongCount: 0, savedKiirtanCount: 0, downloads: { count: 0, bytes: 0 }, uploads: { total: 0, pending: 0 }, playlists: [] })
+    const rows = buildLibraryRows({ ...input, savedSongCount: 0, savedKiirtanCount: 0, downloads: { count: 0, bytes: 0 }, uploads: { total: 0, removed: 0 }, playlists: [] })
     expect(rows.map((r) => r.id)).toEqual(["mine", "kiirtans-saved", "downloads", "uploads"])
     expect(rows.map((r) => r.meta)).toEqual([
       "Saved songs · none yet",
@@ -81,7 +81,7 @@ describe("downloadsMeta and uploadsMeta", () => {
     expect(downloadsMeta(2, null)).toBe("On this phone · 2 songs")
     expect(downloadsMeta(1, null)).toBe("On this phone · 1 song")
   })
-  it("shows approved uploads when nothing waits for review", () => {
+  it("shows the count of uploads when none was removed", () => {
     expect(uploadsMeta(3, 0)).toBe("Your recordings · 3")
   })
 })

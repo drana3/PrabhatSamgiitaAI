@@ -25,7 +25,7 @@ export function inboxFixtures(now: number): AppNotification[] {
       target: "/story-sheet/mock-story-0",
       firedAt: at(now, 1, 16, 10),
     },
-    uploadDecisionNotification({ uploadId: "k-sunrise", title: "Sunrise Kiirtan", decision: "approved", firedAt: at(now, 2, 11, 40) }),
+    uploadDecisionNotification({ uploadId: "k-sunrise", title: "Sunrise Kiirtan", decision: "removed", reason: "It is a commercial recording we cannot share without the label's permission.", firedAt: at(now, 2, 11, 40) }),
     announcementNotification({
       announcementId: "a-festival-songs",
       title: "From the team",

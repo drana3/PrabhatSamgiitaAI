@@ -29,7 +29,7 @@ export function useYourLibrary(forceGuest = false): { rows: LibraryRow[]; signed
   const playlists = usePlaylistStore((s) => s.playlists)
   const storage = useDownloadsStorage()
 
-  // The preview starts with one Kiirtan waiting for review, put there once the stored state is read.
+  // The preview starts with two uploads of the person (one live, one removed), put there once the stored state is read.
   useEffect(() => {
     if (!MOCKUP_DATA) return
     const seed = () => useKirtanStore.getState().seedDemo()
@@ -43,14 +43,14 @@ export function useYourLibrary(forceGuest = false): { rows: LibraryRow[]; signed
           savedSongCount: MOCK_SAVED.length,
           savedKiirtanCount: Math.max(savedKiirtanIds.length, MOCK_SAVED_KIIRTANS),
           downloads: { count: MOCK_STORAGE.length, bytes: totalBytes(MOCK_STORAGE) },
-          uploads: { total: submissions.length, pending: submissions.filter((k) => k.status === "pending").length },
+          uploads: { total: submissions.length, removed: submissions.filter((k) => k.status === "removed").length },
           playlists: MOCK_PLAYLISTS.map((p) => ({ id: p.id, name: p.name, songNumbers: p.songs })),
         }
       : {
           savedSongCount: savedSongIds.length,
           savedKiirtanCount: savedKiirtanIds.length,
           downloads: { count: storage.fileCount, bytes: storage.bytes },
-          uploads: { total: submissions.length, pending: submissions.filter((k) => k.status === "pending").length },
+          uploads: { total: submissions.length, removed: submissions.filter((k) => k.status === "removed").length },
           playlists: playlists.map((p) => ({ id: p.id, name: p.name, songNumbers: p.songs.map((song: { song_number: number }) => song.song_number) })),
         }
     return buildLibraryRows(input)

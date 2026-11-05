@@ -12,7 +12,7 @@ Phase 1 runs on the phone only. Phase 2 adds a server. The bell, the inbox and t
 | `streak` | 20:00, only when a streak of 2+ days could end today (off by default) | scheduler, from card review history (`lib/learn/streak.ts`) | `/v2/learn` |
 | `live` | not scheduled on the phone any more, and not a setting. The kind stays so that a server push (phase 2) or an old inbox item can still show | server only (TODO(api)) | `/kiirtan-live?id=<id>` |
 | `story` | a new story | fixture in the preview only (TODO(api)) | `/story-sheet/<slug>` |
-| `upload` | an uploaded Kiirtan was approved or rejected | copy and shape in `lib/notifications/serverKinds.ts`; no trigger yet (TODO(api)) | `/v2/kiirtan` |
+| `upload` | an uploaded Kiirtan or Bhajan was removed by the team (a published one needs no notice: the author sees it live) | copy and shape in `lib/notifications/serverKinds.ts`; no trigger yet (TODO(api)) | `/v2/kiirtan` |
 | `announcement` | a message from the team | same file; no trigger yet (TODO(api)) | `/v2/today` or the given route |
 
 Copy is short, sentence case, no exclamation marks, verb first where there is an action ("Starts in 15 minutes.", "3 words are due. It takes a minute.").
@@ -58,7 +58,7 @@ device_tokens(user_id, token, platform, locale, tz)
 - `audience`: `all`, a group, or one user id. `payload` is the title and text per locale. `target` is an app route, the same routes the local kinds use.
 - Scheduler job: every minute, pick notifications that are due, resolve the audience to device tokens, send through Expo push (APNs and FCM), write nothing twice (idempotent by notification id and token).
 - Admin broadcast: an admin screen creates an `announcement` with audience, text, target and expiry; it goes through the same job.
-- Uploader-status triggers: when a Kiirtan changes to approved or rejected, create a `notifications` row with `kind = upload` for the uploader, with the copy from `serverKinds.ts`.
+- Uploader-status triggers: when the team removes a Kiirtan or Bhajan, create a `notifications` row with `kind = upload` for the uploader, with the copy and the reason from `serverKinds.ts` (the API also stores a member notice, `GET /recordings/notices`).
 - The app lists unread items from `GET /notifications` (not expired, minus `notification_reads`) and merges them into the inbox by id, next to the local ones. Read state syncs through `notification_reads`.
 - `device_tokens` is written only after the person has allowed notifications. Sign-out deletes the row.
 

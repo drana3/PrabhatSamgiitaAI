@@ -1,6 +1,6 @@
-import { createElement, useRef, useState } from "react"
+import { createElement, useEffect, useMemo, useRef, useState } from "react"
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path } from "react-native-svg"
 
@@ -12,9 +12,16 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { kindLabel } from "@/lib/kirtan/kind"
-import { BY_AUTHOR_TEXT, SUBMISSION_ERROR_TEXT, validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
-import { RECORDING_KINDS, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
+import { formatDate, useT } from "@/lib/i18n"
+import { kindLabel, normalizeKind } from "@/lib/kirtan/kind"
+import type { RemoteBrief } from "@/lib/kirtan/remote"
+import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES, uploadErrorText } from "@/lib/kirtan/rules"
+import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
+import { RECORDING_KINDS, type Kirtan, type RecordingKind, type UploadFailure } from "@/lib/kirtan/types"
+import { runUpload } from "@/lib/kirtan/uploadRunner"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { useAuthStore } from "@/stores/authStore"
+import { useContentRulesStore } from "@/stores/contentRulesStore"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
 
@@ -24,119 +31,205 @@ const CloseGlyph = ({ color }: { color: string }) => (
   </Svg>
 )
 
-type PickedFile = { name: string; uri: string }
+type PickedFile = { name: string; uri: string; size: number | null; type: string | null }
+
+const LIMIT_MB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))
+
+/** What the person sees under the form when something is wrong. */
+type Problem = { form: SubmissionError } | { upload: UploadFailure } | "running"
+
+/** The server said a similar recording exists; the author decides whether theirs is different. */
+type SimilarAsk = { id: string; key: string; similar: RemoteBrief[] }
 
 /**
  * Add Kiirtan or Bhajan: the author says what it is (Kiirtan or Bhajan), uploads an audio file, names it, says who sings,
- * ticks whether they are the author or perform it themselves, and sends it for review. There is no type row and no rights
- * checkbox (Dada decided both away; the type is derived, see lib/kirtan/submissions). It then waits under "My uploads" with the status in review.
+ * ticks whether they are the author or perform it themselves, agrees to the content rules (the first time, and again when
+ * the rules change) and PUBLISHES. Nothing waits for a reviewer: the recording is live in the app the moment the upload
+ * succeeds, the team looks afterwards and may remove it with a notice that says why (docs/kiirtan-publishing.md).
+ * Only a signed-in person can upload. The same file twice is refused by the server, a similar one only asks first.
  * The file picker works in the web preview (an `<input type=file accept="audio/*">`). On a phone the
  * native picker needs expo-document-picker, which is not installed yet, so "Choose file" is off there.
- * TODO(api): upload the file (multipart or a signed URL) and POST the metadata; an admin approves it there.
  * TODO(native): add expo-document-picker and call getDocumentAsync({ type: "audio/*" }) in `choose`.
  */
 export default function AddKirtanScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
   const top = Platform.OS === "web" ? 24 : Math.max(insets.top, 16)
   const isWeb = Platform.OS === "web"
+  // "Upload a corrected version" opens this screen with the removed recording's words already in.
+  const params = useLocalSearchParams<{ kind?: string; title?: string; author?: string }>()
 
-  const [kind, setKind] = useState<RecordingKind>("kiirtan")
+  const signedIn = useAuthStore((s) => s.mode === "signed_in") || MOCKUP_DATA
+  const acceptedAt = useContentRulesStore((s) => s.acceptedAt)
+  const acceptedVersion = useContentRulesStore((s) => s.version)
+  const rules = useMemo(() => ({ acceptedAt, version: acceptedVersion }), [acceptedAt, acceptedVersion])
+  const rulesOk = isRulesAccepted(rules)
+
+  const [kind, setKind] = useState<RecordingKind>(normalizeKind(params.kind))
   const [file, setFile] = useState<PickedFile | null>(null)
-  const [title, setTitle] = useState("")
-  const [author, setAuthor] = useState("")
+  const [title, setTitle] = useState(typeof params.title === "string" ? params.title : "")
+  const [author, setAuthor] = useState(typeof params.author === "string" ? params.author : "")
   const [byAuthor, setByAuthor] = useState(false)
-  const [error, setError] = useState<SubmissionError | "duplicate" | null>(null)
-  const [duplicate, setDuplicate] = useState<Kirtan | null>(null)
-  const [sent, setSent] = useState<Kirtan | null>(null)
+  const [agree, setAgree] = useState(false)
+  const [problem, setProblem] = useState<Problem | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [similar, setSimilar] = useState<SimilarAsk | null>(null)
+  const [sent, setSent] = useState<{ kirtan: Kirtan; local: boolean } | null>(null)
   const [focus, setFocus] = useState<"title" | "author" | null>(null)
   const inputRef = useRef<{ click: () => void } | null>(null)
+  const alive = useRef(true)
+  useEffect(() => () => {
+    alive.current = false
+  }, [])
 
   const choose = () => {
     if (isWeb) inputRef.current?.click()
   }
-  const onPicked = (picked: { name: string; type?: string } & Blob | null) => {
+  const onPicked = (picked: ({ name: string; type?: string; size?: number } & Blob) | null) => {
     if (!picked) return
     const uri = typeof URL !== "undefined" && URL.createObjectURL ? URL.createObjectURL(picked) : ""
-    setFile({ name: picked.name, uri })
-    setError(null)
+    setFile({ name: picked.name, uri, size: typeof picked.size === "number" ? picked.size : null, type: picked.type || null })
+    setProblem(null)
     // A good first title: the file name without its extension.
     if (!title.trim()) setTitle(picked.name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[-_]+/g, " ").trim())
   }
 
-  const send = () => {
-    const input = { kind, fileName: file?.name ?? null, fileUri: file?.uri ?? null, title, author, byAuthor, addedBy: "You" }
-    const problem = validateSubmission(input)
-    if (problem) {
-      setError(problem)
+  /** Sends the stored submission to the server and shows what came of it. */
+  const finish = async (item: Kirtan, options: { confirmSimilar?: boolean; key?: string } = {}) => {
+    setBusy(true)
+    setProblem(null)
+    setSimilar(null)
+    const outcome = await runUpload(item.id, options)
+    if (!alive.current) return
+    setBusy(false)
+    const store = useKirtanStore.getState()
+    if (outcome.status === "published" || outcome.status === "local") {
+      const live = useKirtanStore.getState().submissions.find((k) => k.id === item.id) ?? item
+      setSent({ kirtan: live, local: outcome.status === "local" })
+    } else if (outcome.status === "similar") {
+      setSimilar({ id: item.id, key: outcome.key, similar: outcome.similar })
+    } else {
+      // The form keeps what was typed; the failed attempt does not stay in the list. A person can send again.
+      store.withdraw(item.id)
+      setProblem({ upload: outcome.failure })
+    }
+  }
+
+  const send = async () => {
+    if (busy) return
+    const input = {
+      kind,
+      fileName: file?.name ?? null,
+      fileUri: file?.uri ?? null,
+      fileSize: file?.size ?? null,
+      fileType: file?.type ?? null,
+      title,
+      author,
+      byAuthor,
+      addedBy: "You",
+      termsAccepted: rulesOk || agree,
+    }
+    const found = validateSubmission(input)
+    if (found) {
+      setProblem({ form: found })
       return
     }
+    if (!rulesOk) useContentRulesStore.getState().accept()
     const result = useKirtanStore.getState().submit(input)
-    if (result.added) {
-      setSent(result.added)
-      setError(null)
-    } else {
-      setDuplicate(result.duplicate)
-      setError("duplicate")
+    if (!result.added) {
+      setProblem("running")
+      return
     }
+    await finish(result.added)
+  }
+
+  const answerSimilar = (different: boolean) => {
+    if (!similar) return
+    const item = useKirtanStore.getState().submissions.find((k) => k.id === similar.id)
+    if (different && item) {
+      void finish(item, { confirmSimilar: true, key: similar.key })
+      return
+    }
+    useKirtanStore.getState().withdraw(similar.id)
+    setSimilar(null)
   }
 
   const chooseKind = (next: RecordingKind) => {
     setKind(next)
-    setError(null)
+    setProblem(null)
   }
 
   const close = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
   const viewSubmissions = () => router.replace(href("/v2/kiirtan?filter=mine"))
+  const openRules = () => router.push(href("/content-rules"))
   const another = () => {
     setSent(null)
     setFile(null)
     setTitle("")
     setAuthor("")
     setByAuthor(false)
+    setProblem(null)
   }
+
+  const formProblem = problem && typeof problem === "object" && "form" in problem ? problem.form : null
+  const problemText =
+    problem === "running"
+      ? t("ugc.form.error.running")
+      : problem && "upload" in problem
+        ? uploadErrorText(problem.upload)
+        : formProblem === "format" || formProblem === "size"
+          ? fileProblemText(formProblem)
+          : formProblem
+            ? t(`ugc.form.error.${formProblem}`)
+            : null
+  const fileBad = formProblem === "file" || formProblem === "format" || formProblem === "size"
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.root, { backgroundColor: theme.page }]}>
       <View style={[styles.bar, { paddingTop: top }]}>
         <View style={[styles.handle, { backgroundColor: theme.dark ? "rgba(255,255,255,0.22)" : amColors.sand400 }]} />
-        <KPress accessibilityRole="button" accessibilityLabel="Close" onPress={close} pressedScale={0.9} outerStyle={styles.close} style={[styles.closeDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
+        <KPress accessibilityRole="button" accessibilityLabel={t("ugc.add.close")} onPress={close} pressedScale={0.9} outerStyle={styles.close} style={[styles.closeDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
           <CloseGlyph color={theme.textHeading} />
         </KPress>
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
         {sent ? (
-          <Sent theme={theme} kirtan={sent} onView={viewSubmissions} onAnother={another} />
+          <Sent theme={theme} kirtan={sent.kirtan} local={sent.local} onView={viewSubmissions} onAnother={another} />
+        ) : !signedIn ? (
+          <SignInGate theme={theme} onSignIn={() => router.push(href("/signin"))} />
         ) : (
           <>
             <Reveal index={0}>
-              <Text style={[styles.over, { color: theme.accent }]}>Share a recording</Text>
+              <Text style={[styles.over, { color: theme.accent }]}>{t("ugc.add.over")}</Text>
               <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
-                Add{"\n"}
+                {t("ugc.add.heading")}
+                {"\n"}
                 <Text style={{ color: theme.ink300 }}>{kindLabel(kind)}</Text>
               </Text>
             </Reveal>
 
             <Reveal index={1} style={styles.field}>
-              <Text style={[styles.label, { color: theme.textHeading }]}>What is it?</Text>
+              <Text style={[styles.label, { color: theme.textHeading }]}>{t("ugc.add.what")}</Text>
               <View style={styles.kinds} accessibilityRole="radiogroup">
                 {RECORDING_KINDS.map((k) => {
                   const on = k === kind
+                  const blurb = t(`ugc.add.blurb.${k}`)
                   return (
                     <KPress
                       key={k}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: on }}
-                      accessibilityLabel={`${kindLabel(k)}. ${KIND_BLURB[k]}`}
+                      accessibilityLabel={`${kindLabel(k)}. ${blurb}`}
                       onActivate={() => chooseKind(k)}
                       pressedScale={0.97}
                       outerStyle={styles.kindOuter}
                       style={[styles.kindCard, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
                     >
                       <Text style={[styles.kindName, { color: on ? theme.onInk : theme.textHeading }]}>{kindLabel(k)}</Text>
-                      <Text style={[styles.kindBlurb, { color: on ? theme.onInk : theme.textBody }]}>{KIND_BLURB[k]}</Text>
+                      <Text style={[styles.kindBlurb, { color: on ? theme.onInk : theme.textBody }]}>{blurb}</Text>
                     </KPress>
                   )
                 })}
@@ -144,22 +237,22 @@ export default function AddKirtanScreen() {
             </Reveal>
 
             <Reveal index={2} style={styles.field}>
-              <Text style={[styles.label, { color: theme.textHeading }]}>Audio file</Text>
-              <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: error === "file" ? amColors.danger : theme.line }]}>
+              <Text style={[styles.label, { color: theme.textHeading }]}>{t("ugc.add.file")}</Text>
+              <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: fileBad ? amColors.danger : theme.line }]}>
                 <PlayerIcon name="link" size={20} color={theme.textBody} />
                 <Text style={[styles.fileName, { color: file ? theme.textHeading : theme.textBody }]} numberOfLines={1}>
-                  {file ? file.name : isWeb ? "No file chosen yet" : "Choosing a file is not available on the phone yet"}
+                  {file ? file.name : isWeb ? t("ugc.add.noFile") : t("ugc.add.noPicker")}
                 </Text>
                 <KPress
                   accessibilityRole="button"
-                  accessibilityLabel="Choose file"
+                  accessibilityLabel={t("ugc.add.choose")}
                   accessibilityState={{ disabled: !isWeb }}
                   onPress={choose}
                   disabled={!isWeb}
                   pressedScale={0.94}
                   style={[styles.pasteBtn, { backgroundColor: theme.peach, opacity: isWeb ? 1 : 0.45 }]}
                 >
-                  <Text style={[styles.pasteText, { color: theme.accent }]}>{file ? "Change" : "Choose file"}</Text>
+                  <Text style={[styles.pasteText, { color: theme.accent }]}>{file ? t("ugc.add.change") : t("ugc.add.choose")}</Text>
                 </KPress>
               </View>
               {isWeb
@@ -169,7 +262,7 @@ export default function AddKirtanScreen() {
                     },
                     type: "file",
                     accept: "audio/*",
-                    "aria-label": "Audio file",
+                    "aria-label": t("ugc.add.file"),
                     style: { display: "none" },
                     onChange: (event: { target: { files?: ArrayLike<File> | null; value: string } }) => {
                       onPicked(event.target.files?.[0] ?? null)
@@ -177,68 +270,70 @@ export default function AddKirtanScreen() {
                     },
                   })
                 : null}
-              <Text style={[styles.hint, { color: theme.textBody }]}>MP3, M4A, WAV or another audio file that you recorded.</Text>
+              <Text style={[styles.hint, { color: theme.textBody }]}>{t("ugc.add.fileHint", { mb: LIMIT_MB })}</Text>
             </Reveal>
 
             <Reveal index={3} style={styles.field}>
-              <Text style={[styles.label, { color: theme.textHeading }]}>Title</Text>
-              <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: focus === "title" ? theme.brand : error === "title" ? amColors.danger : theme.line }]}>
+              <Text style={[styles.label, { color: theme.textHeading }]}>{t("ugc.add.titleLabel")}</Text>
+              <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: focus === "title" ? theme.brand : formProblem === "title" ? amColors.danger : theme.line }]}>
                 <TextInput
                   value={title}
                   onChangeText={setTitle}
                   onFocus={() => setFocus("title")}
                   onBlur={() => setFocus(null)}
-                  placeholder={`Name of the ${kindLabel(kind)}`}
+                  placeholder={t("ugc.add.titlePlaceholder", { kind: kindLabel(kind) })}
                   placeholderTextColor={theme.textMuted}
-                  accessibilityLabel="Title"
+                  accessibilityLabel={t("ugc.add.titleLabel")}
                   maxLength={120}
                   style={[styles.input, { color: theme.textHeading }]}
                 />
               </View>
-              <Text style={[styles.label, { color: theme.textHeading, marginTop: 6 }]}>Performer or author</Text>
-              <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: focus === "author" ? theme.brand : error === "author" ? amColors.danger : theme.line }]}>
+              <Text style={[styles.label, { color: theme.textHeading, marginTop: 6 }]}>{t("ugc.add.authorLabel")}</Text>
+              <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: focus === "author" ? theme.brand : formProblem === "author" ? amColors.danger : theme.line }]}>
                 <TextInput
                   value={author}
                   onChangeText={setAuthor}
                   onFocus={() => setFocus("author")}
                   onBlur={() => setFocus(null)}
-                  placeholder="Who sings it, a person or a group"
+                  placeholder={t("ugc.add.authorPlaceholder")}
                   placeholderTextColor={theme.textMuted}
-                  accessibilityLabel="Performer or author"
+                  accessibilityLabel={t("ugc.add.authorLabel")}
                   maxLength={80}
                   style={[styles.input, { color: theme.textHeading }]}
                 />
               </View>
             </Reveal>
 
-            <KPress
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: byAuthor }}
-              accessibilityLabel={BY_AUTHOR_TEXT}
-              onActivate={() => setByAuthor((c) => !c)}
-              pressedScale={0.99}
-              style={styles.confirm}
-            >
-              <View style={[styles.box, { borderColor: byAuthor ? theme.brand : theme.textBody, backgroundColor: byAuthor ? theme.brand : "transparent" }]}>
-                {byAuthor ? <PlayerIcon name="check" size={16} color="#FFFFFF" strokeWidth={2.5} /> : null}
-              </View>
-              <Text style={[styles.confirmText, { color: theme.textHeading }]}>{BY_AUTHOR_TEXT}</Text>
+            <Check theme={theme} on={byAuthor} label={t("ugc.add.byAuthor")} onToggle={() => setByAuthor((c) => !c)} />
+            {rulesOk ? (
+              <Text style={[styles.hint, { color: theme.textBody }]}>{t("ugc.add.termsAgreed", { date: formatDate(rules.acceptedAt ?? "", "medium") })}</Text>
+            ) : (
+              <Check theme={theme} on={agree} label={t("ugc.add.terms")} onToggle={() => setAgree((c) => !c)} invalid={formProblem === "terms"} />
+            )}
+            <KPress accessibilityRole="link" accessibilityLabel={t("ugc.add.readRules")} onPress={openRules} pressedScale={0.98} style={styles.linkRow}>
+              <Text style={[styles.linkText, { color: theme.accent }]}>{t("ugc.add.readRules")}</Text>
             </KPress>
 
-            {error ? (
+            {similar ? <SimilarCard theme={theme} similar={similar.similar} onYes={() => answerSimilar(true)} onNo={() => answerSimilar(false)} /> : null}
+
+            {problemText ? (
               <Text style={[styles.hint, { color: theme.dangerText }]} accessibilityLiveRegion="polite">
-                {error === "duplicate"
-                  ? duplicate?.status === "approved"
-                    ? `This ${kindLabel(kind)} is already in the list.`
-                    : "You already sent this one. It is waiting for review."
-                  : SUBMISSION_ERROR_TEXT[error]}
+                {problemText}
               </Text>
             ) : null}
 
-            <KPress accessibilityRole="button" accessibilityLabel="Send for review" onPress={send} pressedScale={0.98} style={[styles.send, { backgroundColor: theme.brand }]}>
-              <Text style={styles.sendText}>Send for review</Text>
+            <KPress
+              accessibilityRole="button"
+              accessibilityLabel={t("ugc.add.publish")}
+              accessibilityState={{ disabled: busy || similar != null, busy }}
+              onPress={() => void send()}
+              disabled={busy || similar != null}
+              pressedScale={0.98}
+              style={[styles.send, { backgroundColor: amColors.orange700, opacity: busy || similar ? 0.6 : 1 }]}
+            >
+              <Text style={styles.sendText}>{busy ? t("ugc.add.publishing") : t("ugc.add.publish")}</Text>
             </KPress>
-            <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>A reviewer listens to every {kindLabel(kind)} before it goes live.</Text>
+            <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>{t("ugc.add.footer")}</Text>
           </>
         )}
       </ScrollView>
@@ -246,37 +341,83 @@ export default function AddKirtanScreen() {
   )
 }
 
-/** One line under each choice of "What is it?". */
-const KIND_BLURB: Record<RecordingKind, string> = { kiirtan: "Group chanting", bhajan: "A devotional song" }
+function Check({ theme, on, label, onToggle, invalid }: { theme: SongsTheme; on: boolean; label: string; onToggle: () => void; invalid?: boolean }) {
+  return (
+    <KPress accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={label} onActivate={onToggle} pressedScale={0.99} style={styles.confirm}>
+      <View style={[styles.box, { borderColor: on ? amColors.orange700 : invalid ? amColors.danger : theme.textBody, backgroundColor: on ? amColors.orange700 : "transparent" }]}>
+        {on ? <PlayerIcon name="check" size={16} color="#FFFFFF" strokeWidth={2.5} /> : null}
+      </View>
+      <Text style={[styles.confirmText, { color: theme.textHeading }]}>{label}</Text>
+    </KPress>
+  )
+}
 
-function Sent({ theme, kirtan, onView, onAnother }: { theme: SongsTheme; kirtan: Kirtan; onView: () => void; onAnother: () => void }) {
+function SignInGate({ theme, onSignIn }: { theme: SongsTheme; onSignIn: () => void }) {
+  const t = useT()
+  return (
+    <Reveal index={0} style={styles.sent}>
+      <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
+        {t("ugc.signin.title")}
+      </Text>
+      <Text style={[styles.hint, { color: theme.textBody, fontSize: 15, lineHeight: 21 }]}>{t("ugc.signin.body")}</Text>
+      <KPress accessibilityRole="button" accessibilityLabel={t("ugc.signin.action")} onPress={onSignIn} pressedScale={0.98} outerStyle={styles.full} style={[styles.send, { backgroundColor: amColors.orange700 }]}>
+        <Text style={styles.sendText}>{t("ugc.signin.action")}</Text>
+      </KPress>
+    </Reveal>
+  )
+}
+
+function SimilarCard({ theme, similar, onYes, onNo }: { theme: SongsTheme; similar: RemoteBrief[]; onYes: () => void; onNo: () => void }) {
+  const t = useT()
+  return (
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line, padding: 16, gap: 10 }]} accessibilityLiveRegion="polite">
+      <Text style={[styles.cardTitle, { color: theme.textHeading }]}>{t("ugc.similar.title")}</Text>
+      <Text style={[styles.hint, { color: theme.textBody, fontSize: 14, lineHeight: 20 }]}>{t("ugc.similar.body")}</Text>
+      {similar.slice(0, 3).map((s) => (
+        <Text key={s.id} style={[styles.hint, { color: theme.textHeading }]} numberOfLines={2}>
+          {t("ugc.similar.listed", { title: s.title })}
+        </Text>
+      ))}
+      <KPress accessibilityRole="button" accessibilityLabel={t("ugc.similar.yes")} onPress={onYes} pressedScale={0.98} style={[styles.send, { backgroundColor: amColors.orange700 }]}>
+        <Text style={styles.sendText}>{t("ugc.similar.yes")}</Text>
+      </KPress>
+      <KPress accessibilityRole="button" accessibilityLabel={t("ugc.similar.no")} onPress={onNo} pressedScale={0.98} style={[styles.send, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line }]}>
+        <Text style={[styles.sendText, { color: theme.textHeading }]}>{t("ugc.similar.no")}</Text>
+      </KPress>
+    </View>
+  )
+}
+
+function Sent({ theme, kirtan, local, onView, onAnother }: { theme: SongsTheme; kirtan: Kirtan; local: boolean; onView: () => void; onAnother: () => void }) {
+  const t = useT()
   return (
     <Reveal index={0} style={styles.sent}>
       <View style={[styles.sentDisc, { backgroundColor: theme.peach }]}>
         <PlayerIcon name="check" size={34} color={theme.accent} strokeWidth={2.5} />
       </View>
       <Text style={[styles.h1, { color: theme.textHeading, textAlign: "center" }]} accessibilityRole="header">
-        Sent{"\n"}
-        <Text style={{ color: theme.ink300 }}>for review</Text>
+        {t("ugc.sent.line1")}
+        {"\n"}
+        <Text style={{ color: theme.ink300 }}>{t("ugc.sent.line2")}</Text>
       </Text>
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line, padding: 14, gap: 8 }]}>
         <View style={styles.tagLine}>
           <KirtanTag theme={theme} kind={kirtan.kind} />
-          <Text style={[styles.pasteText, { color: theme.accent }]}>IN REVIEW</Text>
+          <Text style={[styles.pasteText, { color: theme.accent }]}>{t("ugc.sent.tag")}</Text>
         </View>
         <Text style={[styles.cardTitle, { color: theme.textHeading }]} numberOfLines={3}>
           {kirtan.title}
         </Text>
       </View>
-      <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>
-        Thank you. You can follow it under Kiirtan, My uploads. It plays for everyone once it is approved.
-      </Text>
-      <KPress accessibilityRole="button" accessibilityLabel="See my uploads" onPress={onView} pressedScale={0.98} outerStyle={styles.full} style={[styles.send, { backgroundColor: theme.brand }]}>
-        <Text style={styles.sendText}>See my uploads</Text>
+      <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>{t("ugc.sent.body")}</Text>
+      <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>{t("ugc.sent.after")}</Text>
+      {local ? <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>{t("ugc.sent.demo")}</Text> : null}
+      <KPress accessibilityRole="button" accessibilityLabel={t("ugc.sent.view")} onPress={onView} pressedScale={0.98} outerStyle={styles.full} style={[styles.send, { backgroundColor: amColors.orange700 }]}>
+        <Text style={styles.sendText}>{t("ugc.sent.view")}</Text>
       </KPress>
-      <KPress accessibilityRole="button" accessibilityLabel="Add another" onPress={onAnother} pressedScale={0.98} outerStyle={styles.full} style={[styles.send, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line }]}>
+      <KPress accessibilityRole="button" accessibilityLabel={t("ugc.sent.another")} onPress={onAnother} pressedScale={0.98} outerStyle={styles.full} style={[styles.send, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line }]}>
         <PlusGlyph color={theme.textHeading} />
-        <Text style={[styles.sendText, { color: theme.textHeading }]}>Add another</Text>
+        <Text style={[styles.sendText, { color: theme.textHeading }]}>{t("ugc.sent.another")}</Text>
       </KPress>
     </Reveal>
   )
@@ -292,17 +433,14 @@ const styles = StyleSheet.create({
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
   field: { gap: 10 },
-  sub: { gap: 8, marginTop: 6 },
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   inputBox: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingLeft: 16, paddingRight: 8, flexDirection: "row", alignItems: "center", gap: 10 },
   fileName: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20 },
   input: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, outlineStyle: "none" as never },
-  inputBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   card: { borderRadius: 24, borderWidth: 1, overflow: "hidden" },
-  cardBody: { padding: 14, gap: 8, minHeight: 74 },
   tagLine: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardTitle: { fontFamily: amFonts.semi, fontSize: 18, lineHeight: 22, letterSpacing: -0.1 },
   kinds: { flexDirection: "row", gap: 10 },
@@ -313,6 +451,8 @@ const styles = StyleSheet.create({
   confirm: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingVertical: 4 },
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 1 },
   confirmText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21 },
+  linkRow: { alignSelf: "flex-start", paddingVertical: 2 },
+  linkText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20, textDecorationLine: "underline" },
   send: { height: 56, borderRadius: 70, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   sendText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
   sent: { alignItems: "stretch", gap: 20, paddingTop: 12 },

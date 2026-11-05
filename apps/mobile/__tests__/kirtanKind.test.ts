@@ -34,7 +34,7 @@ import { kiirtanByline, kiirtanToSong, recordingKindOfNumber, recordingKindOfSon
 import { BHAJAN_TYPES, KIRTAN_TYPES, isKirtanType, kirtanTypeLabel, type Kirtan } from "@/lib/kirtan/types"
 import { BHAJAN_OTHER_TONE, kiirtanTone, kindTone } from "@/lib/kirtan/tone"
 
-const approved = KIRTAN_FIXTURES.filter((k) => k.status === "approved")
+const approved = KIRTAN_FIXTURES.filter((k) => k.status === "published")
 const bhajans = approved.filter((k) => k.kind === "bhajan")
 const kiirtans = approved.filter((k) => k.kind === "kiirtan")
 const ids = (list: readonly { id: string }[]) => list.map((x) => x.id)
@@ -208,16 +208,16 @@ describe("filtering by kind", () => {
   })
 })
 
-describe("old stored data (migration v1 to v2)", () => {
+describe("old stored data (migration v1 to v3)", () => {
   it("gives stored submissions the kind Kiirtan and keeps the rest", () => {
-    expect(KIRTAN_STORE_VERSION).toBe(2)
+    expect(KIRTAN_STORE_VERSION).toBe(3)
     const old = {
       submissions: [{ id: "sub-a-1", title: "A", author: "X", durationSec: null, type: "bnk", audioUrl: null, thumbnailUrl: null, addedBy: "You", status: "pending", addedAt: 1 }],
       savedIds: ["k-bnk-morning", 7],
       reportedIds: ["k-x"],
     }
     const next = migrateKirtanState(old, 1)
-    expect(next.submissions[0]).toMatchObject({ id: "sub-a-1", kind: "kiirtan", type: "bnk", status: "pending" })
+    expect(next.submissions[0]).toMatchObject({ id: "sub-a-1", kind: "kiirtan", type: "bnk", status: "failed" })
     expect(next.savedIds).toEqual(["k-bnk-morning"])
     expect(next.reportedIds).toEqual(["k-x"])
   })
@@ -232,18 +232,18 @@ describe("old stored data (migration v1 to v2)", () => {
   })
 
   it("survives empty or odd stored values", () => {
-    expect(migrateKirtanState(undefined, 0)).toEqual({ submissions: [], savedIds: [], reportedIds: [] })
-    expect(migrateKirtanState("junk", 1)).toEqual({ submissions: [], savedIds: [], reportedIds: [] })
+    expect(migrateKirtanState(undefined, 0)).toEqual({ submissions: [], savedIds: [], reportedIds: [], blockedAuthorIds: [], blockedNames: {} })
+    expect(migrateKirtanState("junk", 1)).toEqual({ submissions: [], savedIds: [], reportedIds: [], blockedAuthorIds: [], blockedNames: {} })
     expect(migrateKirtanState({ submissions: "no" }, 1).submissions).toEqual([])
   })
 })
 
 describe("submissions carry the kind", () => {
-  const base: SubmissionInput = { kind: "bhajan", fileName: "dawn.mp3", fileUri: "blob:dawn", title: "Soon the day will dawn", author: "Group", byAuthor: false, addedBy: "Dada" }
+  const base: SubmissionInput = { kind: "bhajan", fileName: "dawn.mp3", fileUri: "blob:dawn", title: "Soon the day will dawn", author: "Group", byAuthor: false, addedBy: "Dada", termsAccepted: true }
 
-  it("builds a pending Bhajan and a pending Kiirtan", () => {
+  it("builds an uploading Bhajan and an uploading Kiirtan", () => {
     const b = buildSubmission(base, 5)
-    expect(b).toMatchObject({ kind: "bhajan", type: "other", status: "pending", id: "sub-soon-the-day-will-dawn-5" })
+    expect(b).toMatchObject({ kind: "bhajan", type: "other", status: "uploading", id: "sub-soon-the-day-will-dawn-5" })
     const k = buildSubmission({ ...base, kind: "kiirtan" }, 5)
     expect(k.kind).toBe("kiirtan")
     expect(buildSubmission({ ...base, title: "!!!" }, 5).id).toBe("sub-bhajan-5")
@@ -310,12 +310,14 @@ describe("playing from", () => {
 })
 
 describe("notification copy", () => {
-  it("says Bhajan for a Bhajan and Kiirtan otherwise", () => {
-    const b = uploadDecisionNotification({ uploadId: "u", kind: "bhajan", title: "", decision: "approved", firedAt: 1 })
-    expect(b.title).toBe("Bhajan approved")
-    expect(b.text).toBe("Your Bhajan is now in the library.")
-    expect(uploadDecisionNotification({ uploadId: "u", kind: "bhajan", title: "Dawn", decision: "rejected", firedAt: 1 }).title).toBe("Bhajan not approved")
-    expect(uploadDecisionNotification({ uploadId: "u", title: "Dawn", decision: "approved", firedAt: 1 }).title).toBe("Kiirtan approved")
+  it("says Bhajan for a Bhajan and Kiirtan otherwise, and gives the reason of a removal", () => {
+    const b = uploadDecisionNotification({ uploadId: "u", kind: "bhajan", title: "", decision: "published", firedAt: 1 })
+    expect(b.title).toBe("Bhajan published")
+    expect(b.text).toBe("Your Bhajan is live in the library.")
+    const removed = uploadDecisionNotification({ uploadId: "u", kind: "bhajan", title: "Dawn", decision: "removed", reason: "Not yours to share.", firedAt: 1 })
+    expect(removed.title).toBe("Bhajan removed")
+    expect(removed.text).toBe("Dawn was removed: Not yours to share.")
+    expect(uploadDecisionNotification({ uploadId: "u", title: "Dawn", decision: "published", firedAt: 1 }).title).toBe("Kiirtan published")
   })
 })
 

@@ -8,11 +8,15 @@ import { realQueueActions } from "@/lib/playerV2/services"
 import { kiirtanNumber } from "@/lib/kirtan/track"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { usePlayerStore } from "@/stores/playerStore"
-import { useKirtanStore } from "@/stores/kirtanStore"
 import { openSaveSheet } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
 
-/** Actions shared by the Kiirtan lists, the artist page and the mix screen: play, queue, save, report. */
+/** What a tap on a recording that is not live says. */
+function notLiveToast(status: Kirtan["status"]): string {
+  return status === "removed" ? t("ugc.toast.removed") : status === "failed" ? t("ugc.toast.failed") : t("ugc.toast.uploading")
+}
+
+/** Actions shared by the Kiirtan lists, the artist page and the mix screen: play, queue, save. (Report and Block live in the row menu, see components/kirtan/KirtanMenus.) */
 export function useKirtanActions() {
   const router = useRouter()
   const [toast, setToast] = useState<string | null>(null)
@@ -29,8 +33,8 @@ export function useKirtanActions() {
    */
   const open = useCallback(
     (k: Kirtan, context: readonly Kirtan[], label?: string | null) => {
-      if (k.status !== "approved") {
-        flash(k.status === "pending" ? t("kt.toast.pending") : t("kt.toast.rejected"))
+      if (k.status !== "published") {
+        flash(notLiveToast(k.status))
         return
       }
       const message = playKiirtans(context, k.id, label)
@@ -42,8 +46,8 @@ export function useKirtanActions() {
   /** Play from an artist page: the queue is the artist's list and "Playing from" shows the artist's name. */
   const openIn = useCallback(
     (k: Kirtan, context: readonly Kirtan[], artist: { id: string; name: string }) => {
-      if (k.status !== "approved") {
-        flash(t("kt.toast.notApproved"))
+      if (k.status !== "published") {
+        flash(notLiveToast(k.status))
         return
       }
       const message = playArtist(artist, context, { startId: k.id })
@@ -74,14 +78,5 @@ export function useKirtanActions() {
   /** Opens the "Save to" sheet for the Kiirtan (Mine only); the sheet says what happened. */
   const toggleSaved = useCallback((k: Kirtan) => openSaveSheet({ kind: "kiirtan", id: k.id }), [])
 
-  // TODO(api): send the report to the moderators.
-  const report = useCallback(
-    (k: Kirtan) => {
-      useKirtanStore.getState().report(k.id)
-      flash(t("kt.toast.reported"))
-    },
-    [flash],
-  )
-
-  return { toast, flash, open, openIn, openArtist, playNext, addToPlaylist, toggleSaved, report }
+  return { toast, flash, open, openIn, openArtist, playNext, addToPlaylist, toggleSaved }
 }

@@ -53,7 +53,7 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
     icon: "kiirtan",
     screen: "kiirtan",
     href: "/v2/kiirtan",
-    owns: ["/v2/kiirtan", "/kiirtan", "/kirtan-mix", "/kirtan-artist", "/kiirtan-live", "/add-kirtan"],
+    owns: ["/v2/kiirtan", "/kiirtan", "/kirtan-mix", "/kirtan-artist", "/kiirtan-live", "/add-kirtan", "/content-rules"],
   },
   {
     id: "learn",

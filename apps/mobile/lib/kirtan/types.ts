@@ -39,7 +39,26 @@ export const KIRTAN_CHIPS: readonly { id: KirtanTypeFilter; label: string }[] = 
   ...KIRTAN_TYPES.map((type) => ({ id: type.id as KirtanTypeFilter, get label() { return type.label } })),
 ]
 
-export type KirtanStatus = "pending" | "approved" | "rejected"
+/**
+ * Where a recording is in its life. There is NO waiting for review: a person who uploads gets the recording
+ * `published` the moment the upload succeeds. The team looks afterwards and may mark it `removed` (with a reason).
+ * `uploading` and `failed` only describe the transport on this phone.
+ */
+export type KirtanStatus = "uploading" | "published" | "failed" | "removed"
+
+/** Why an upload did not finish; the person sees a plain sentence for each (lib/kirtan/rules.ts `uploadErrorText`). */
+export type UploadFailureCode =
+  | "network"
+  | "signin"
+  | "format"
+  | "size"
+  | "duplicate"
+  | "removedDuplicate"
+  | "rules"
+  | "gone"
+  | "server"
+
+export type UploadFailure = { code: UploadFailureCode; message?: string }
 
 export type Kirtan = {
   id: string
@@ -65,6 +84,20 @@ export type Kirtan = {
   status: KirtanStatus
   /** ms since epoch */
   addedAt: number
+  /** name of the picked audio file, kept so a failed upload can be sent again */
+  fileName?: string
+  /** the picker's content type, kept for the same reason */
+  fileType?: string
+  /** the server's id once the upload succeeded (a UUID); absent for the sample catalog and for uploads that never finished */
+  serverId?: string
+  /** the uploader's account id on the server; "Block this author" uses it. Absent for the sample catalog. */
+  authorId?: string | null
+  /** why the team removed it (status `removed`); empty when the reason is not known */
+  removedReason?: string
+  /** when it was removed, ms since epoch */
+  removedAt?: number
+  /** why the upload failed (status `failed`) */
+  failure?: UploadFailure
   /** how often it was played; orders the artist page's "Popular" list. TODO(api): comes from the server. */
   plays?: number
 }
@@ -80,7 +113,8 @@ export function kirtanTypeLabel(id: KirtanTypeId, kind: RecordingKind = "kiirtan
 }
 
 export const STATUS_LABEL: Record<KirtanStatus, string> = {
-  get pending() { return t("kt.status.pending") },
-  get approved() { return t("kt.status.approved") },
-  get rejected() { return t("kt.status.rejected") },
+  get uploading() { return t("ugc.status.uploading") },
+  get published() { return t("ugc.status.published") },
+  get failed() { return t("ugc.status.failed") },
+  get removed() { return t("ugc.status.removed") },
 }

@@ -55,8 +55,8 @@ export type LibraryInput = {
   savedKiirtanCount: number
   /** downloaded songs; `bytes` is null while the sizes are still being read */
   downloads: { count: number; bytes: number | null }
-  /** the person's own Kiirtan uploads, `pending` of them in review */
-  uploads: { total: number; pending: number }
+  /** the person's own Kiirtan uploads, `removed` of them taken down by the team */
+  uploads: { total: number; removed: number }
   /** the person's playlists in store order (oldest first) */
   playlists: readonly { id: string; name: string; songNumbers: readonly number[] }[]
   /** last-use times where the app has them */
@@ -82,8 +82,8 @@ export function downloadsMeta(count: number, bytes: number | null): string {
   return t("library.meta.phoneSize", { songs: songCountLabel(count), size: formatBytes(bytes) })
 }
 
-export function uploadsMeta(total: number, pending: number): string {
-  if (pending > 0) return t("library.meta.uploadsReview", { count: pending })
+export function uploadsMeta(total: number, removed: number): string {
+  if (removed > 0) return t("library.meta.uploadsRemoved", { count: removed })
   if (total > 0) return t("library.meta.uploads", { count: total })
   return t("library.meta.uploadsNone")
 }
@@ -147,7 +147,7 @@ export function buildLibraryRows(input: LibraryInput): LibraryRow[] {
     {
       id: "uploads",
       title: t("library.row.uploads"),
-      meta: uploadsMeta(input.uploads.total, input.uploads.pending),
+      meta: uploadsMeta(input.uploads.total, input.uploads.removed),
       target: LIBRARY_TARGETS.uploads,
       cover: { kind: "uploads" },
       chips: ["kiirtans", "uploads"],
