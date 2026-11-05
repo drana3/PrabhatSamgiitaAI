@@ -5,6 +5,7 @@ import { DownloadMark } from "@/components/offline/DownloadMark"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { useDownloadState } from "@/hooks/useDownloadState"
 import { downloadLabel, type DownloadItem } from "@/lib/offline/downloadModel"
+import { useLanguage } from "@/lib/i18n"
 
 type Props = {
   item: DownloadItem | null
@@ -27,6 +28,7 @@ type Props = {
  * audio. Press feedback starts on touch-down; the action runs on release.
  */
 export function DownloadButton({ item, size = 24, color, track, ring, onDark, hit = 44, style }: Props) {
+  useLanguage() // re-render when the language changes: the labels come from lib/offline/downloadModel
   const { view, press } = useDownloadState(item)
   const scale = useSharedValue(1)
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))

@@ -7,8 +7,9 @@ import {
   useOfflineAudioStore,
   type OfflineAudioEntry,
 } from "@/lib/offlineAudio"
-import { demoDownloadBytes, DOWNLOAD_ERROR_TOAST, DOWNLOAD_REMOVED_TOAST, DOWNLOAD_RETRY_LABEL, listRemoveConfirmCopy, listStoppedToast, nextToStart, removeConfirmCopy, type DownloadItem, type DownloadStatus } from "@/lib/offline/downloadModel"
+import { demoDownloadBytes, downloadErrorToast, downloadRemovedToast, downloadRetryLabel, listRemoveConfirmCopy, listStoppedToast, nextToStart, removeConfirmCopy, type DownloadItem, type DownloadStatus } from "@/lib/offline/downloadModel"
 import { demoDownloadFails, demoSignedOut } from "@/lib/offline/demoSwitches"
+import { t } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { hasPlayableAudio } from "@/lib/playableAudio"
 import { demoDownloadKey, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
@@ -64,7 +65,7 @@ const running = new Set<number>()
 let failed: DownloadItem[] = []
 
 function toastFailure(retry: () => void) {
-  useDownloadUiStore.getState().showToast(DOWNLOAD_ERROR_TOAST, { label: DOWNLOAD_RETRY_LABEL, onPress: retry })
+  useDownloadUiStore.getState().showToast(downloadErrorToast(), { label: downloadRetryLabel(), onPress: retry })
 }
 
 /** One download to the end. True when it went well or was cancelled, false when it failed. */
@@ -182,12 +183,12 @@ async function bytesOf(entries: OfflineAudioEntry[]): Promise<number | null> {
 /** The confirm sheet of "Remove download", with the size of the file. */
 export async function confirmRemove(item: DownloadItem): Promise<void> {
   const bytes = MOCKUP_DATA ? demoDownloadBytes(item.seconds ?? 240) : await bytesOf(entriesOf(item))
-  const copy = removeConfirmCopy({ title: item.title ?? (item.kind === "song" ? `PS ${item.number}` : "This recording"), bytes })
+  const copy = removeConfirmCopy({ title: item.title ?? (item.kind === "song" ? `PS ${item.number}` : t("dl.thisRecording")), bytes })
   useDownloadUiStore.getState().openPrompt({
     kind: "remove",
     copy,
     onConfirm: () => {
-      void removeDownload(item).then(() => useDownloadUiStore.getState().showToast(DOWNLOAD_REMOVED_TOAST))
+      void removeDownload(item).then(() => useDownloadUiStore.getState().showToast(downloadRemovedToast()))
     },
   })
 }
@@ -239,7 +240,7 @@ export async function confirmRemoveMany(name: string, items: readonly DownloadIt
     kind: "remove",
     copy,
     onConfirm: () => {
-      void Promise.all(mine.map(removeDownload)).then(() => useDownloadUiStore.getState().showToast(DOWNLOAD_REMOVED_TOAST))
+      void Promise.all(mine.map(removeDownload)).then(() => useDownloadUiStore.getState().showToast(downloadRemovedToast()))
     },
   })
 }

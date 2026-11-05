@@ -12,6 +12,7 @@
  * a menu with an error).
  */
 
+import { t } from "@/lib/i18n"
 import { formatBytes } from "@/lib/storageCache"
 
 export type DownloadStatus = "idle" | "downloading" | "done"
@@ -67,14 +68,14 @@ export function downloadView(input: {
 
 /** Screen-reader label of the icon control. */
 export function downloadLabel(view: Pick<DownloadView, "status" | "percent">): string {
-  if (view.status === "downloading") return `Downloading ${view.percent} percent, tap to cancel`
-  if (view.status === "done") return "Downloaded to this phone, tap to remove"
-  return "Download to this phone"
+  if (view.status === "downloading") return t("dl.label.downloading", { percent: view.percent })
+  if (view.status === "done") return t("dl.label.done")
+  return t("dl.label.idle")
 }
 
 /** The row of a menu: Download, Cancel download, Remove download. */
 export function downloadMenuLabel(status: DownloadStatus): string {
-  return status === "done" ? "Remove download" : status === "downloading" ? "Cancel download" : "Download"
+  return status === "done" ? t("dl.menu.remove") : status === "downloading" ? t("dl.menu.cancel") : t("dl.menu.download")
 }
 
 /** The wide pill of the Versions sheet. `sizeText` is the estimate on the idle pill. */
@@ -82,17 +83,17 @@ export function downloadPillLabel(
   view: Pick<DownloadView, "status" | "percent">,
   options: { signedIn: boolean; sizeText?: string },
 ): string {
-  if (!options.signedIn) return "Sign in to download"
-  if (view.status === "done") return "Downloaded · tap to remove"
-  if (view.status === "downloading") return `Downloading ${view.percent}% · tap to cancel`
-  return options.sizeText ? `Download · ${options.sizeText}` : "Download"
+  if (!options.signedIn) return t("dl.pill.signIn")
+  if (view.status === "done") return t("dl.pill.done")
+  if (view.status === "downloading") return t("dl.pill.downloading", { percent: view.percent })
+  return options.sizeText ? t("dl.pill.sized", { size: options.sizeText }) : t("dl.menu.download")
 }
 
-export const DOWNLOAD_ERROR_TOAST = "Could not download. Try again."
-export const DOWNLOAD_RETRY_LABEL = "Retry"
-export const DOWNLOAD_REMOVED_TOAST = "Removed from this phone"
-export const SIGN_IN_TITLE = "Sign in to download"
-export const SIGN_IN_BODY = "Downloads follow your account. Sign in to keep songs on this phone and play them without internet."
+export const downloadErrorToast = (): string => t("dl.toast.error")
+export const downloadRetryLabel = (): string => t("dl.retry")
+export const downloadRemovedToast = (): string => t("dl.toast.removed")
+export const signInTitle = (): string => t("dl.pill.signIn")
+export const signInBody = (): string => t("dl.signIn.body")
 
 export type ConfirmCopy = {
   /** the small caps line of the sheet */
@@ -105,33 +106,30 @@ export type ConfirmCopy = {
 }
 
 function freeing(sizeText: string | null): string {
-  return sizeText ? `Frees ${sizeText} on this phone. You can download it again any time.` : "Removes the audio from this phone. You can download it again any time."
+  return sizeText ? t("dl.confirm.frees", { size: sizeText }) : t("dl.confirm.removes")
 }
 
 /** The confirm sheet of one song or Kiirtan; `bytes` is the real (or estimated) size, null when unknown. */
 export function removeConfirmCopy(input: { title: string; bytes: number | null }): ConfirmCopy {
   const sizeText = input.bytes != null && input.bytes > 0 ? formatBytes(input.bytes) : null
   return {
-    heading: "Remove download",
+    heading: t("dl.confirm.heading"),
     name: input.title,
     body: freeing(sizeText),
-    confirm: "Remove",
-    keep: "Keep",
+    confirm: t("dl.confirm.remove"),
+    keep: t("dl.confirm.keep"),
   }
 }
 
 /** The confirm sheet of a whole list. */
 export function listRemoveConfirmCopy(input: { name: string; count: number; bytes: number | null }): ConfirmCopy {
   const sizeText = input.bytes != null && input.bytes > 0 ? formatBytes(input.bytes) : null
-  const songs = `${input.count} ${input.count === 1 ? "song" : "songs"}`
   return {
-    heading: "Remove downloads",
+    heading: t("dl.list.heading"),
     name: input.name,
-    body: sizeText
-      ? `Removes ${songs} from this phone and frees ${sizeText}. You can download them again any time.`
-      : `Removes ${songs} from this phone. You can download them again any time.`,
-    confirm: "Remove",
-    keep: "Keep",
+    body: sizeText ? t("dl.list.bodySized", { count: input.count, size: sizeText }) : t("dl.list.body", { count: input.count }),
+    confirm: t("dl.confirm.remove"),
+    keep: t("dl.confirm.keep"),
   }
 }
 
@@ -187,30 +185,29 @@ export function listDownloadView(
 
 /** The big line of the list toggle. */
 export function listDownloadTitle(view: Pick<ListDownloadView, "status" | "done" | "total">): string {
-  if (view.status === "downloading") return `Downloading ${view.done} of ${view.total}`
-  if (view.status === "done") return "Downloaded"
-  return "Download"
+  if (view.status === "downloading") return t("dl.list.title.downloading", { done: view.done, total: view.total })
+  if (view.status === "done") return t("dl.list.title.done")
+  return t("dl.list.title.idle")
 }
 
 /** The small line under it. */
 export function listDownloadSub(view: Pick<ListDownloadView, "status" | "done" | "total" | "pending">, bytesText?: string): string {
-  const songs = `${view.total} ${view.total === 1 ? "song" : "songs"}`
-  if (view.status === "downloading") return "Tap to stop"
-  if (view.status === "done") return bytesText ? `${songs} on this phone · ${bytesText}` : `${songs} on this phone`
-  if (view.done > 0) return `${view.done} of ${view.total} on this phone`
-  return `Plays without internet · ${songs}`
+  if (view.status === "downloading") return t("dl.list.sub.stop")
+  if (view.status === "done") return bytesText ? t("dl.list.sub.doneSized", { count: view.total, size: bytesText }) : t("dl.list.sub.done", { count: view.total })
+  if (view.done > 0) return t("dl.list.sub.partial", { done: view.done, total: view.total })
+  return t("dl.list.sub.idle", { count: view.total })
 }
 
 /** Screen-reader label of the list control (the icon or the whole toggle row). */
 export function listDownloadLabel(view: Pick<ListDownloadView, "status" | "done" | "total">): string {
-  if (view.status === "downloading") return `Downloading ${view.done} of ${view.total}, tap to stop`
-  if (view.status === "done") return `Downloaded, ${view.total} ${view.total === 1 ? "song" : "songs"}, tap to remove`
-  return `Download ${view.total} ${view.total === 1 ? "song" : "songs"}`
+  if (view.status === "downloading") return t("dl.list.label.downloading", { done: view.done, total: view.total })
+  if (view.status === "done") return t("dl.list.label.done", { count: view.total })
+  return t("dl.list.label.idle", { count: view.total })
 }
 
 /** Toast after a list is stopped half way. */
 export function listStoppedToast(done: number, total: number): string {
-  return done > 0 ? `Stopped. ${done} of ${total} stay on this phone` : "Download stopped"
+  return done > 0 ? t("dl.stopped.some", { done, total }) : t("dl.stopped.none")
 }
 
 /* ----------------------------------------------------------------- preview */

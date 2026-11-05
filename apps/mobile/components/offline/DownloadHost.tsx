@@ -8,9 +8,10 @@ import { SheetPill } from "@/components/player-v2/Rows"
 import { Sheet } from "@/components/player-v2/Sheet"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
-import { SIGN_IN_BODY, SIGN_IN_TITLE } from "@/lib/offline/downloadModel"
+import { signInBody, signInTitle } from "@/lib/offline/downloadModel"
 import { useDownloadUiStore, type DownloadPrompt, type DownloadToast } from "@/stores/downloadUiStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 const RISE_MS = 280
 
@@ -59,6 +60,7 @@ function Toast({ toast }: { toast: DownloadToast }) {
 
 /** Sign-in prompt and "Remove download?" confirm, in the player's sheet. */
 function PromptSheet({ prompt, onClose }: { prompt: DownloadPrompt | null; onClose: () => void }) {
+  const t = useT()
   const theme = useAmTheme()
   const router = useRouter()
   const last = useRef<DownloadPrompt | null>(null)
@@ -68,21 +70,21 @@ function PromptSheet({ prompt, onClose }: { prompt: DownloadPrompt | null; onClo
   if (!shown) return null
   const signin = shown.kind === "signin"
   return (
-    <Sheet visible={visible} onClose={onClose} title={signin ? "Download" : shown.copy.heading} theme={theme} hideDone>
+    <Sheet visible={visible} onClose={onClose} title={signin ? t("dl.menu.download") : shown.copy.heading} theme={theme} hideDone>
       <View style={styles.body}>
         <Text style={[styles.name, { color: theme.textHeading }]} numberOfLines={3}>
-          {signin ? SIGN_IN_TITLE : shown.copy.name}
+          {signin ? signInTitle() : shown.copy.name}
         </Text>
-        <Text style={[styles.text, { color: theme.textBody }]}>{signin ? SIGN_IN_BODY : shown.copy.body}</Text>
+        <Text style={[styles.text, { color: theme.textBody }]}>{signin ? signInBody() : shown.copy.body}</Text>
         <View style={styles.pills}>
           <View style={styles.pill}>
-            <SheetPill theme={theme} tone="sand" label={signin ? "Not now" : shown.copy.keep} onPress={onClose} />
+            <SheetPill theme={theme} tone="sand" label={signin ? t("common.notNow") : shown.copy.keep} onPress={onClose} />
           </View>
           <View style={styles.pill}>
             <SheetPill
               theme={theme}
               tone="brand"
-              label={signin ? "Sign in" : shown.copy.confirm}
+              label={signin ? t("account.signIn.title") : shown.copy.confirm}
               onPress={() => {
                 onClose()
                 if (shown.kind === "signin") router.push(href("/signin"))

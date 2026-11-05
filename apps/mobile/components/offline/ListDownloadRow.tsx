@@ -11,6 +11,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useListDownload } from "@/hooks/useListDownload"
 import { listDownloadLabel, listDownloadSub, listDownloadTitle } from "@/lib/offline/downloadModel"
+import { useLanguage } from "@/lib/i18n"
 
 const TRACK_W = 52
 const TRACK_H = 32
@@ -56,6 +57,7 @@ export function ListDownloadRow({
   name: string
   style?: StyleProp<ViewStyle>
 }) {
+  useLanguage() // re-render when the language changes: the labels come from lib/offline/downloadModel
   const { view, press } = useListDownload(numbers, name)
   if (!view.visible) return null
   const on = view.status !== "idle"
