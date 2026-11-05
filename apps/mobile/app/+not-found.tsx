@@ -1,36 +1,38 @@
-import { useRouter } from "expo-router"
-import { StyleSheet, Text, View } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { Redirect, useGlobalSearchParams, usePathname, useRouter } from "expo-router"
 
-import { PrimaryButton } from "@/components/common/PrimaryButton"
-import { colors } from "@/constants/colors"
-import { spacing } from "@/constants/spacing"
-import { typography } from "@/constants/typography"
+import { NoticeScreen } from "@/components/common/NoticeScreen"
+import { legacyRouteTarget } from "@/lib/legacyRoutes"
+import { useT } from "@/lib/i18n"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 import { href } from "@/utils/href"
 
-/** Visible recovery UI — never auto-redirect (avoids blank-screen loops). */
+/**
+ * Anything the router does not know. An old (v1) address is sent to its redesigned screen (deep links,
+ * shared cards and bookmarks keep working, lib/legacyRoutes.ts); anything else gets a visible way home.
+ * Never an automatic redirect to home for unknown paths (that hides loops as a blank screen).
+ */
 export default function NotFound() {
+  const t = useT()
   const router = useRouter()
+  const pathname = usePathname()
+  const params = useGlobalSearchParams() as Record<string, string | string[] | undefined>
+
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    // the router adds the unmatched path segments as "not-found"
+    if (key === "not-found") return
+    if (typeof value === "string") query.append(key, value)
+    else if (Array.isArray(value)) value.forEach((item) => query.append(key, item))
+  })
+  const text = query.toString()
+  const moved = legacyRouteTarget(text ? `${pathname}?${text}` : pathname)
+  if (moved) return <Redirect href={href(moved)} />
 
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.body}>
-        <Text style={styles.title}>Page not found</Text>
-        <Text style={styles.subtitle}>This link is not part of the app. Head home to continue.</Text>
-        <PrimaryButton label="Go home" onPress={() => router.replace(href("/(tabs)"))} />
-      </View>
-    </SafeAreaView>
+    <NoticeScreen
+      title={t("notFound.title")}
+      body={t("notFound.body")}
+      primary={{ label: t("notFound.home"), onPress: () => router.replace(href(NAV_V2_HOME_ROUTE)) }}
+    />
   )
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  body: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textMuted, marginBottom: spacing.md },
-})

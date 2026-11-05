@@ -72,7 +72,7 @@ describe("account deletion is honest", () => {
 describe("the delete screens use it", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { readFileSync } = require("node:fs") as typeof import("node:fs")
-  for (const file of ["components/profile-v2/ProfileContent.tsx", "app/(tabs)/profile.tsx"]) {
+  for (const file of ["components/profile-v2/ProfileContent.tsx"]) {
     it(`${file} never says Deleted without the server`, () => {
       const source = readFileSync(`${__dirname}/../${file}`, "utf8")
       expect(source).toContain("deleteAccount(accountId)")

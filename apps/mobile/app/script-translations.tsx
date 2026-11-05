@@ -16,6 +16,7 @@ import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { MAX_TRANSLATIONS } from "@/lib/songPage/translations"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /**
  * "Script and translations" sheet (prototype LANGUAGE SHEET, Main.dc.html 2289-2313): which script the
@@ -40,7 +41,7 @@ export default function ScriptTranslationsScreen() {
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
-    else router.replace(href("/today"))
+    else router.replace(href(NAV_V2_HOME_ROUTE))
   }, [router])
 
   return (

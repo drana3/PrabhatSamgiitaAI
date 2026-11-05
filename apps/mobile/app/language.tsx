@@ -12,6 +12,7 @@ import { statusBarStyleFor } from "@/lib/appearance"
 import { LANGUAGES, LANGUAGE_NATIVE_NAMES, useT, type LanguagePreference } from "@/lib/i18n"
 import { useLanguageStore } from "@/stores/languageStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /**
  * "Language" sheet: the language of the app's own buttons, menus and messages. Automatic follows the
@@ -30,7 +31,7 @@ export default function LanguageScreen() {
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
-    else router.replace(href("/today"))
+    else router.replace(href(NAV_V2_HOME_ROUTE))
   }, [router])
 
   const options: readonly { id: LanguagePreference; name: string; sub: string }[] = [

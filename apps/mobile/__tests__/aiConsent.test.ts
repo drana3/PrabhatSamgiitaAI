@@ -83,9 +83,8 @@ describe("wiring", () => {
     expect(read("lib/client.ts")).toContain("streamExplanation: requireAiConsent(rawApi.streamExplanation)")
   })
 
-  it("both AI screens ask for consent before they send", () => {
+  it("the AI screen asks for consent before it sends", () => {
     expect(read("app/assistant.tsx")).toContain("askConsent(")
-    expect(read("app/(tabs)/ai.tsx")).toContain("askConsent(() => void sendConsented(trimmed))")
   })
 
   it("Profile can take the consent back", () => {

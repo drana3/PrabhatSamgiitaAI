@@ -36,6 +36,7 @@ import { isNearBottom } from "@/lib/assistantSheetPhysics"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 function songParam(value: string | string[] | undefined): number | null {
   const raw = Array.isArray(value) ? value[0] : value
@@ -134,7 +135,7 @@ export default function AssistantScreen() {
 
   const close = () => {
     if (router.canGoBack()) router.back()
-    else router.replace(href("/today"))
+    else router.replace(href(NAV_V2_HOME_ROUTE))
   }
   const openSong = (number: number) => openSongScreen(router, number)
 

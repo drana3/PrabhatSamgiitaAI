@@ -27,6 +27,7 @@ import type { Story } from "@/lib/stories/types"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useStoriesStore } from "@/stores/storiesStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 const SIDE = 16
 const REVEALED_ROWS = 4
@@ -141,7 +142,7 @@ export default function StoriesScreen() {
         <View style={[styles.bar, { paddingTop: inset, backgroundColor: theme.page }]}>
           <SongsReveal index={0}>
             <View style={styles.titleRow}>
-              <SpRound t={sp} icon="back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+              <SpRound t={sp} icon="back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE)))} />
               <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={2} accessibilityRole="header" accessibilityLabel="Stories behind the songs">
                 <Text style={styles.titleLight}>Stories behind{"\n"}</Text>
                 the songs

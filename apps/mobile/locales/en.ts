@@ -1,5 +1,6 @@
 import { songPageEn } from "./songPage"
 import { appShellEn } from "./appShell"
+import { ugcEn } from "./ugc"
 
 /**
  * English: the source of truth. Every other language mirrors these keys (the parity test enforces it).
@@ -167,10 +168,6 @@ export const en = {
   "notif.item.streak_other": "{count} days in a row. Keep it going.",
   "notif.yesterday": "Yesterday",
   "notif.upload.yourItem": "Your {kind}",
-  "notif.upload.approved": "{kind} approved",
-  "notif.upload.rejected": "{kind} not approved",
-  "notif.upload.approvedText": "{title} is now in the library.",
-  "notif.upload.rejectedText": "{title} did not pass review. See why.",
   "notif.announcement.default": "From the team",
 
   // notifications inbox
@@ -515,7 +512,7 @@ export const en = {
   "songs.mine.playlistCaption": "A playlist is a list of songs you put together yourself, for example for a morning meditation or an evening kiirtan.",
   "songs.mine.newPlaylist": "New playlist",
   "songs.mine.quickTitle": "Random Prabhat Samgiita",
-  "songs.mine.quickHint": "Shuffles the whole catalog and plays hands-free in Drive mode.",
+  "songs.mine.quickHint": "Shuffles every song that has a recording and starts playing.",
   "songs.mine.playlistsEmpty": "No playlists yet.",
   "songs.playlistEyebrow_one": "{count} song · made by you",
   "songs.playlistEyebrow_other": "{count} songs · made by you",
@@ -745,9 +742,9 @@ export const en = {
   "kt.empty.saved": "Nothing saved yet. Open the menu of a Kiirtan or Bhajan and choose Save.",
   "kt.empty.downloaded": "Nothing on this phone yet. Open the menu of a Kiirtan or Bhajan and choose Download. It plays without internet.",
   "kt.empty.mine": "You have not uploaded a Kiirtan or Bhajan yet.",
-  "kt.add.a11y": "Add a Kiirtan or Bhajan. Upload an audio file for review.",
+  "kt.add.a11y": "Add a Kiirtan or Bhajan. Upload an audio file and it goes live at once.",
   "kt.add.title": "Add Kiirtan or Bhajan",
-  "kt.add.sub": "Upload an audio file for review",
+  "kt.add.sub": "Upload an audio file, it goes live at once",
   "kt.byAuthor": "By the author",
   "kt.takeBack": "Take back",
   "kt.takeBackA11y": "Take back {title}",
@@ -766,9 +763,6 @@ export const en = {
   "kt.btype.morning": "Morning",
   "kt.btype.evening": "Evening",
   "kt.btype.devotional": "Devotional",
-  "kt.status.pending": "In review",
-  "kt.status.approved": "Approved",
-  "kt.status.rejected": "Not accepted",
   "kt.resume": "Resume {at} of {total}",
   "kt.resume.at": "Resume {at}",
   "kt.addedBy": "added by {name}",
@@ -796,13 +790,9 @@ export const en = {
   "kt.menu.shareNote": "Your friends get a link to this {kind}.",
   "kt.moreFor": "More actions for {title}",
   "kt.artistA11y": "Artist {name}",
-  "kt.toast.pending": "Waiting for review. It plays once it is approved.",
-  "kt.toast.rejected": "This one was not accepted.",
-  "kt.toast.notApproved": "This one is not approved yet.",
   "kt.toast.playsNext": "Plays next",
   "kt.toast.playlistsSoon.kiirtan": "Kiirtans in playlists are coming soon",
   "kt.toast.playlistsSoon.bhajan": "Bhajans in playlists are coming soon",
-  "kt.toast.reported": "Thank you. We will take a look.",
   "kt.nothingToPlay": "Nothing to play yet.",
   "kt.artistFallback": "Artist",
   "kt.share.line": "{title}, a {kind} on Prabhat Samgiita.",
@@ -1142,7 +1132,6 @@ export const en = {
   "library.meta.phoneNone": "On this phone · nothing yet",
   "library.meta.phone": "On this phone · {songs}",
   "library.meta.phoneSize": "On this phone · {songs} · {size}",
-  "library.meta.uploadsReview": "Your recordings · {count} in review",
   "library.meta.uploads": "Your recordings · {count}",
   "library.meta.uploadsNone": "Your recordings · none yet",
   "library.meta.saved": "Saved songs · {count}",
@@ -1259,4 +1248,5 @@ export const en = {
   "assistant.consent.privacy": "Read the privacy policy",
   ...songPageEn,
   ...appShellEn,
+  ...ugcEn,
 } as const

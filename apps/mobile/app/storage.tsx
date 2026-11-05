@@ -26,6 +26,8 @@ import { miniPlayerVisible, tabBarVisible } from "@/lib/navV2"
 import { storageBarBottom, storageListInset } from "@/lib/storageBar"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useT } from "@/lib/i18n"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
+import { href } from "@/utils/href"
 
 /** While the confirm sheet is open the pill sinks, so the sheet rises where it was. */
 const HIDDEN_ACTION = { visible: false } as const
@@ -77,7 +79,7 @@ export default function StorageScreen() {
           <BackHeader
             theme={theme}
             title={t("profile.storage")}
-            onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+            onBack={() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE)))}
           />
         </SongsReveal>
 

@@ -1,6 +1,7 @@
 import type { Dictionary } from "@/locales"
 import { songPageRu } from "./songPage"
 import { appShellRu } from "./appShell"
+import { ugcRu } from "./ugc"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
 export const ru: Dictionary = {
@@ -171,10 +172,6 @@ export const ru: Dictionary = {
   "notif.item.streak_other": "{count} дня подряд. Не останавливайтесь.",
   "notif.yesterday": "Вчера",
   "notif.upload.yourItem": "Ваш {kind}",
-  "notif.upload.approved": "{kind}: одобрено",
-  "notif.upload.rejected": "{kind}: не одобрено",
-  "notif.upload.approvedText": "{title} теперь в библиотеке.",
-  "notif.upload.rejectedText": "{title} не прошло проверку. Узнайте почему.",
   "notif.announcement.default": "От команды",
 
   // notifications inbox
@@ -545,7 +542,7 @@ export const ru: Dictionary = {
   "songs.mine.playlistCaption": "Плейлист — это список песен, который вы собираете сами, например для утренней медитации или вечернего киртана.",
   "songs.mine.newPlaylist": "Новый плейлист",
   "songs.mine.quickTitle": "Случайная Prabhat Samgiita",
-  "songs.mine.quickHint": "Перемешивает весь каталог и играет без рук в режиме Drive.",
+  "songs.mine.quickHint": "Перемешивает все песни с записью и сразу начинает играть.",
   "songs.mine.playlistsEmpty": "Плейлистов пока нет.",
   "songs.playlistEyebrow_one": "{count} песня · ваш плейлист",
   "songs.playlistEyebrow_few": "{count} песни · ваш плейлист",
@@ -803,9 +800,9 @@ export const ru: Dictionary = {
   "kt.empty.saved": "Пока ничего не сохранено. Откройте меню киртана или бхаджана и выберите «Сохранить».",
   "kt.empty.downloaded": "На телефоне пока ничего нет. Откройте меню киртана или бхаджана и выберите «Скачать». Он играет без интернета.",
   "kt.empty.mine": "Вы ещё не загружали киртан или бхаджан.",
-  "kt.add.a11y": "Добавить киртан или бхаджан. Загрузите аудиофайл на проверку.",
+  "kt.add.a11y": "Добавить киртан или бхаджан. Загрузите аудиофайл, он сразу появится в приложении.",
   "kt.add.title": "Добавить киртан или бхаджан",
-  "kt.add.sub": "Загрузите аудиофайл на проверку",
+  "kt.add.sub": "Загрузите аудиофайл, он сразу станет доступен",
   "kt.byAuthor": "От автора",
   "kt.takeBack": "Отозвать",
   "kt.takeBackA11y": "Отозвать «{title}»",
@@ -824,9 +821,6 @@ export const ru: Dictionary = {
   "kt.btype.morning": "Утро",
   "kt.btype.evening": "Вечер",
   "kt.btype.devotional": "Преданность",
-  "kt.status.pending": "На проверке",
-  "kt.status.approved": "Одобрено",
-  "kt.status.rejected": "Не принято",
   "kt.resume": "С {at} из {total}",
   "kt.resume.at": "С {at}",
   "kt.addedBy": "от {name}",
@@ -854,13 +848,9 @@ export const ru: Dictionary = {
   "kt.menu.shareNote": "Ваши друзья получат ссылку на этот {kind}.",
   "kt.moreFor": "Ещё действия: {title}",
   "kt.artistA11y": "Исполнитель: {name}",
-  "kt.toast.pending": "Ждёт проверки. Заиграет, когда его одобрят.",
-  "kt.toast.rejected": "Эту запись не приняли.",
-  "kt.toast.notApproved": "Эту запись ещё не одобрили.",
   "kt.toast.playsNext": "Сыграет следующим",
   "kt.toast.playlistsSoon.kiirtan": "Киртаны в плейлистах появятся позже",
   "kt.toast.playlistsSoon.bhajan": "Бхаджаны в плейлистах появятся позже",
-  "kt.toast.reported": "Спасибо. Мы посмотрим.",
   "kt.nothingToPlay": "Пока нечего играть.",
   "kt.artistFallback": "Исполнитель",
   "kt.share.line": "{title} — {kind} на Prabhat Samgiita.",
@@ -1216,7 +1206,6 @@ export const ru: Dictionary = {
   "library.meta.phoneNone": "На этом телефоне · пока ничего",
   "library.meta.phone": "На этом телефоне · {songs}",
   "library.meta.phoneSize": "На этом телефоне · {songs} · {size}",
-  "library.meta.uploadsReview": "Ваши записи · на проверке: {count}",
   "library.meta.uploads": "Ваши записи · {count}",
   "library.meta.uploadsNone": "Ваши записи · пока нет",
   "library.meta.saved": "Сохранённые песни · {count}",
@@ -1339,4 +1328,5 @@ export const ru: Dictionary = {
   "assistant.consent.privacy": "Политика конфиденциальности",
   ...songPageRu,
   ...appShellRu,
+  ...ugcRu,
 }

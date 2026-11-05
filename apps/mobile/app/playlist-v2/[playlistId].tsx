@@ -36,6 +36,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /**
  * One playlist. The prototype has no page for it (a playlist row in Mine just plays), so this page
@@ -160,7 +161,7 @@ export default function PlaylistV2Screen() {
     <RevealClock.Provider value={openedAt}>
       <View style={[styles.root, { backgroundColor: theme.page, paddingTop: inset }]}>
         <SongsReveal index={0}>
-          <BackHeader theme={theme} onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+          <BackHeader theme={theme} onBack={() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE)))} />
         </SongsReveal>
 
         <ScrollView

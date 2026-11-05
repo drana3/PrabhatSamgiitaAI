@@ -4,14 +4,14 @@ import { songAppDeepLink, webUrlToAppPath } from "@/lib/deepLinks"
 
 describe("webUrlToAppPath", () => {
   it("maps public song URLs to in-app song routes", () => {
-    expect(webUrlToAppPath("https://www.prabhatasamgiita.org/songs/662")).toBe("/song/ps-662")
+    expect(webUrlToAppPath("https://www.prabhatasamgiita.org/songs/662")).toBe("/song-v2/ps-662")
     expect(webUrlToAppPath("https://www.prabhatasamgiita.org/songs/662?lang=en")).toBe(
-      "/song/ps-662?lang=en",
+      "/song-v2/ps-662?lang=en",
     )
   })
 
   it("maps bare /songs paths", () => {
-    expect(webUrlToAppPath("/songs/12")).toBe("/song/ps-12")
+    expect(webUrlToAppPath("/songs/12")).toBe("/song-v2/ps-12")
   })
 })
 

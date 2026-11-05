@@ -20,7 +20,6 @@ describe("forms keep their field above the Android keyboard", () => {
     "app/complete-profile.tsx",
     "app/feedback/index.tsx",
     "app/assistant.tsx",
-    "app/(tabs)/ai.tsx",
   ]) {
     it(`${file} uses the shared behavior, never "undefined" on Android`, () => {
       const source = readFileSync(path.join(root, file), "utf8")
@@ -30,8 +29,6 @@ describe("forms keep their field above the Android keyboard", () => {
   }
 
   for (const file of [
-    "app/(tabs)/profile.tsx",
-    "app/(tabs)/ai.tsx",
     "components/common/PhoneInput.tsx",
     "components/account/PhoneField.tsx",
   ]) {

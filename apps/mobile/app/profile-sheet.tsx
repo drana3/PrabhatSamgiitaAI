@@ -8,6 +8,7 @@ import { useProfileContent } from "@/components/profile-v2/ProfileContent"
 import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /**
  * Profile sheet (prototype PROFILE SHEET). Opened by the avatar button on Today and Songs; presented as
@@ -22,7 +23,7 @@ export default function ProfileSheetScreen() {
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
-    else router.replace(href("/today"))
+    else router.replace(href(NAV_V2_HOME_ROUTE))
   }, [router])
 
   return (

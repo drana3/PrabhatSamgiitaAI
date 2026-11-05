@@ -14,6 +14,7 @@ import { useT } from "@/lib/i18n"
 import { REVIEW_STYLE_OPTIONS } from "@/lib/reviewStyleCopy"
 import { useAppearanceStore } from "@/stores/appearanceStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /**
  * "Word review style" sheet (prototype REVIEW STYLE SHEET, Main.dc.html 2314-2331): the three rhythms at
@@ -30,7 +31,7 @@ export default function ReviewStyleScreen() {
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
-    else router.replace(href("/today"))
+    else router.replace(href(NAV_V2_HOME_ROUTE))
   }, [router])
 
   return (

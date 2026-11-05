@@ -163,34 +163,9 @@ export default function RootLayout() {
             <Stack.Screen name="auth" options={{ animation: "none" }} />
             <Stack.Screen name="auth/google" options={{ animation: "none" }} />
             <Stack.Screen name="complete-profile" />
-            <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
-            <Stack.Screen
-              name="song/[songId]"
-              options={{
-                presentation: "card",
-                // Slide + Reanimated + expo-av in the same frame crashes Android.
-                animation: Platform.OS === "ios" ? "slide_from_right" : "none",
-              }}
-            />
-            <Stack.Screen
-              name="player/index"
-              options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
-            />
-            <Stack.Screen
-              name="search/index"
-              options={{
-                // Same fade as iOS. Android stays a card so dismiss+push cannot
-                // crash native navigation; iOS can keep the modal presentation.
-                presentation: Platform.OS === "ios" ? "modal" : "card",
-                animation: "fade",
-                animationDuration: 220,
-              }}
-            />
-            <Stack.Screen name="collections/index" options={{ presentation: "card" }} />
+            {/* The redesigned shell: the four tabs live in app/v2 (lib/navV2.ts). Old v1 addresses are mapped by lib/legacyRoutes.ts. */}
+            <Stack.Screen name="v2" options={{ animation: "none" }} />
             <Stack.Screen name="festivals/index" options={{ presentation: "card" }} />
-            <Stack.Screen name="drive/index" options={{ presentation: "card" }} />
-            <Stack.Screen name="playlist/[playlistId]" options={{ presentation: "card" }} />
-            <Stack.Screen name="playlist/add" options={{ presentation: "card" }} />
             <Stack.Screen name="festival/[festivalId]" options={{ presentation: "card" }} />
             <Stack.Screen name="quiz/index" options={{ presentation: "card" }} />
             <Stack.Screen name="quiz/scan" options={{ presentation: "card" }} />

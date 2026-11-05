@@ -39,6 +39,7 @@ import {
 import { forgotPasswordUrl, privacyUrl, termsUrl } from "@/lib/webLinks"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 type Busy = "apple" | "google" | "microsoft" | "facebook" | "email" | null
 type FieldKey = "email" | "password" | "name" | "phone"
@@ -108,13 +109,13 @@ export default function SignInScreen() {
     }
   }, [])
 
-  const goBack = useCallback(() => (router.canGoBack() ? router.back() : router.replace(href("/(tabs)"))), [router])
+  const goBack = useCallback(() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE))), [router])
 
   const continueGuest = useCallback(() => {
     signOut()
     completeWelcome()
     if (router.canGoBack()) router.back()
-    else router.replace(href("/(tabs)"))
+    else router.replace(href(NAV_V2_HOME_ROUTE))
   }, [completeWelcome, router, signOut])
 
   const run = useCallback(
@@ -136,7 +137,7 @@ export default function SignInScreen() {
         completeWelcome()
         const next = afterSignIn(result, cameFromWelcome)
         if (next.to === "complete-profile") router.replace(href(next.path))
-        else if (next.to === "tabs") router.replace(href("/(tabs)"))
+        else if (next.to === "tabs") router.replace(href(NAV_V2_HOME_ROUTE))
         else goBack()
       } catch (failure) {
         if (!alive.current) return

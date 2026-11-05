@@ -31,6 +31,8 @@ import { listPageRowHeight, ROW_GEOMETRY, slotHeight } from "@/lib/songsV2/rowSt
 import { useListViewStore } from "@/stores/listViewStore"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import { useT } from "@/lib/i18n"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
+import { href } from "@/utils/href"
 
 /** Rows that take part in the one staggered reveal; later rows (scrolled into view) just appear. */
 const REVEALED_ROWS = 8
@@ -203,7 +205,7 @@ export function SongsListPage({
           scrollY={scrollY}
           marks={marks}
           topInset={inset}
-          onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          onBack={() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE)))}
           onAction={list.play}
           showAction={rowsLive}
           playing={list.playingHere}

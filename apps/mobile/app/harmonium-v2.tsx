@@ -34,7 +34,7 @@ export default function HarmoniumV2Screen() {
 
   const back = useCallback(() => {
     if (router.canGoBack()) router.back()
-    else router.replace(href("/learn"))
+    else router.replace(href("/v2/learn"))
   }, [router])
 
   const practise = (number: number) => {

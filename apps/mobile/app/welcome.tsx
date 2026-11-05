@@ -14,6 +14,7 @@ import { typography } from "@/constants/typography"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 const { height: screenHeight } = Dimensions.get("window")
 /** Standard emblem size — smaller than Home */
@@ -28,7 +29,7 @@ export default function WelcomeScreen() {
   const enterGuest = () => {
     setMode("guest")
     completeWelcome()
-    router.replace(href("/(tabs)"))
+    router.replace(href(NAV_V2_HOME_ROUTE))
   }
 
   return (

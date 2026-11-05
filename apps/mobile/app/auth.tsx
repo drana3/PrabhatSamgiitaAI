@@ -5,6 +5,7 @@ import { useRouter } from "expo-router"
 import { colors } from "@/constants/colors"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /**
  * Sink for Microsoft auth deep links (`prabhatai://auth`).
@@ -25,7 +26,7 @@ export default function AuthCallbackRoute() {
         if (!hasCompletedWelcome) {
           useAuthStore.getState().completeWelcome()
         }
-        router.replace(href("/(tabs)"))
+        router.replace(href(NAV_V2_HOME_ROUTE))
         return
       }
       if (Date.now() - started < maxWaitMs) {

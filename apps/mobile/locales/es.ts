@@ -1,6 +1,7 @@
 import type { Dictionary } from "@/locales"
 import { songPageEs } from "./songPage"
 import { appShellEs } from "./appShell"
+import { ugcEs } from "./ugc"
 
 /** Español. Trato de «tú». Kiirtan y Bhajan se escriben como en inglés; Prabhat Samgiita no se traduce. */
 export const es: Dictionary = {
@@ -161,10 +162,6 @@ export const es: Dictionary = {
   "notif.item.streak_other": "{count} días seguidos. ¡Sigue así!",
   "notif.yesterday": "Ayer",
   "notif.upload.yourItem": "Tu {kind}",
-  "notif.upload.approved": "{kind} aprobado",
-  "notif.upload.rejected": "{kind} no aprobado",
-  "notif.upload.approvedText": "{title} ya está en la biblioteca.",
-  "notif.upload.rejectedText": "{title} no pasó la revisión. Mira por qué.",
   "notif.announcement.default": "Del equipo",
 
   // notifications inbox
@@ -509,7 +506,7 @@ export const es: Dictionary = {
   "songs.mine.playlistCaption": "Una lista de reproducción es una lista de canciones que armas tú, por ejemplo para una meditación matutina o un kiirtan vespertino.",
   "songs.mine.newPlaylist": "Nueva lista",
   "songs.mine.quickTitle": "Prabhat Samgiita aleatoria",
-  "songs.mine.quickHint": "Mezcla todo el catálogo y suena sin manos en el modo Drive.",
+  "songs.mine.quickHint": "Mezcla todas las canciones con grabación y empieza a sonar.",
   "songs.mine.playlistsEmpty": "Aún no hay listas.",
   "songs.playlistEyebrow_one": "{count} canción · hecha por ti",
   "songs.playlistEyebrow_other": "{count} canciones · hecha por ti",
@@ -739,9 +736,9 @@ export const es: Dictionary = {
   "kt.empty.saved": "Todavía no has guardado nada. Abre el menú de un Kiirtan o Bhajan y elige Guardar.",
   "kt.empty.downloaded": "Aún no hay nada en este teléfono. Abre el menú de un Kiirtan o Bhajan y elige Descargar. Suena sin internet.",
   "kt.empty.mine": "Aún no has subido ningún Kiirtan ni Bhajan.",
-  "kt.add.a11y": "Añadir un Kiirtan o Bhajan. Sube un archivo de audio para revisión.",
+  "kt.add.a11y": "Añadir un Kiirtan o Bhajan. Sube un archivo de audio y se publica al instante.",
   "kt.add.title": "Añadir Kiirtan o Bhajan",
-  "kt.add.sub": "Sube un archivo de audio para revisión",
+  "kt.add.sub": "Sube un archivo de audio, se publica al instante",
   "kt.byAuthor": "Del autor",
   "kt.takeBack": "Retirar",
   "kt.takeBackA11y": "Retirar {title}",
@@ -760,9 +757,6 @@ export const es: Dictionary = {
   "kt.btype.morning": "Mañana",
   "kt.btype.evening": "Tarde",
   "kt.btype.devotional": "Devocional",
-  "kt.status.pending": "En revisión",
-  "kt.status.approved": "Aprobado",
-  "kt.status.rejected": "No aceptado",
   "kt.resume": "Desde {at} de {total}",
   "kt.resume.at": "Desde {at}",
   "kt.addedBy": "añadido por {name}",
@@ -790,13 +784,9 @@ export const es: Dictionary = {
   "kt.menu.shareNote": "Tus amigos reciben un enlace a este {kind}.",
   "kt.moreFor": "Más acciones para {title}",
   "kt.artistA11y": "Artista: {name}",
-  "kt.toast.pending": "Esperando revisión. Sonará cuando lo aprueben.",
-  "kt.toast.rejected": "Esta no fue aceptada.",
-  "kt.toast.notApproved": "Esta aún no está aprobada.",
   "kt.toast.playsNext": "Suena a continuación",
   "kt.toast.playlistsSoon.kiirtan": "Los Kiirtans en listas llegarán pronto",
   "kt.toast.playlistsSoon.bhajan": "Los Bhajans en listas llegarán pronto",
-  "kt.toast.reported": "Gracias. Le echaremos un vistazo.",
   "kt.nothingToPlay": "Aún no hay nada que reproducir.",
   "kt.artistFallback": "Artista",
   "kt.share.line": "{title}, un {kind} en Prabhat Samgiita.",
@@ -1136,7 +1126,6 @@ export const es: Dictionary = {
   "library.meta.phoneNone": "En este teléfono · todavía nada",
   "library.meta.phone": "En este teléfono · {songs}",
   "library.meta.phoneSize": "En este teléfono · {songs} · {size}",
-  "library.meta.uploadsReview": "Tus grabaciones · en revisión: {count}",
   "library.meta.uploads": "Tus grabaciones · {count}",
   "library.meta.uploadsNone": "Tus grabaciones · aún ninguna",
   "library.meta.saved": "Canciones guardadas · {count}",
@@ -1253,4 +1242,5 @@ export const es: Dictionary = {
   "assistant.consent.privacy": "Leer la política de privacidad",
   ...songPageEs,
   ...appShellEs,
+  ...ugcEs,
 }

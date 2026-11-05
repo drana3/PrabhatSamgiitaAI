@@ -44,6 +44,8 @@ import { songTitleFromHit } from "@/lib/mineView"
 import { displayTitle } from "@/lib/songsV2/entry"
 import { useT } from "@/lib/i18n"
 import { useAuthStore } from "@/stores/authStore"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
+import { href } from "@/utils/href"
 
 type Status = "idle" | "sending" | "sent" | "error"
 
@@ -97,7 +99,7 @@ export default function FeedbackScreen() {
   const helper = messageHelper(message)
   const emailError = touchedEmail ? emailProblem(email) : null
 
-  const close = useCallback(() => (router.canGoBack() ? router.back() : router.replace("/")), [router])
+  const close = useCallback(() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE))), [router])
 
   const send = useCallback(async () => {
     const request = buildRequest({ ...form, appDetails: readAppDetails() })

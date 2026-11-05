@@ -31,6 +31,7 @@ import { SPECIAL_TILES } from "@/lib/songsV2/collections"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /** The catalog is 5,018 songs; shown until the list has loaded. */
 const CATALOG_SIZE = 5018
@@ -120,7 +121,7 @@ export default function CollectionsV2Screen() {
         <View style={[styles.bar, { paddingTop: inset, backgroundColor: theme.page }]}>
           <SongsReveal index={0}>
             <View style={styles.titleRow}>
-              <SpRound t={sp} icon="back" label={t("common.back")} onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+              <SpRound t={sp} icon="back" label={t("common.back")} onPress={() => (router.canGoBack() ? router.back() : router.replace(href(NAV_V2_HOME_ROUTE)))} />
               <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1} accessibilityRole="header">
                 {t("songs.coll.title")}
               </Text>

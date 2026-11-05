@@ -25,6 +25,10 @@ import { formatBytes, totalBytes } from "@/lib/storageCache"
 import { SPECIAL_TILES, tilesWithCounts } from "@/lib/songsV2/collections"
 import { EMPTY_FILTERS } from "@/lib/songsV2/filters"
 import { buildSavedRows, downloadsSummary } from "@/lib/songsV2/mine"
+import { buildQuickStartPlan } from "@/lib/songsV2/quickStart"
+import { starterSongForNumber } from "@/lib/playPlaylist"
+import { usePlayerStore } from "@/stores/playerStore"
+import { NAV_V2_PLAYER_ROUTE } from "@/lib/navV2"
 import { legacySourceRedirect, parseSongChip, type SongChipId } from "@/lib/songsV2/segments"
 import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
@@ -111,6 +115,15 @@ function PsSongs() {
   const downloadsTotal = MOCKUP_DATA
     ? "16.9 MB"
     : downloadsScanned && downloadItems.length ? formatBytes(totalBytes(downloadItems)) : downloadsSummary(Object.keys(offlineFiles).length)
+
+  /** "Random Prabhat Samgiita": shuffles every song that has a recording, plays it and opens the player. */
+  const quickStart = () => {
+    const plan = buildQuickStartPlan()
+    if (!plan) return
+    usePlayerStore.setState({ activePlaylist: { id: "songs-v2:quick-start", name: t("songs.mine.quickTitle") } })
+    usePlayerStore.getState().loadSong(starterSongForNumber(plan.start), plan.queue, "playlist")
+    router.push(href(NAV_V2_PLAYER_ROUTE))
+  }
 
   const openCollection = (id: string, title: string) =>
     router.push(href(`/songs-v2-collection?id=${encodeURIComponent(id)}&title=${encodeURIComponent(title)}`))
@@ -226,7 +239,7 @@ function PsSongs() {
             onMenu={controller.setMenuEntry}
             onOpenPlaylist={(id) => router.push(href(`/playlist-v2/${id}`))}
             onCreatePlaylist={createNewPlaylist}
-            onQuickStart={() => router.push(href("/drive"))}
+            onQuickStart={quickStart}
             onOpenDownloads={() => router.push(href("/storage"))}
           />
         }

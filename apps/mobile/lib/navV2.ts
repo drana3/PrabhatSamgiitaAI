@@ -67,6 +67,12 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
   },
 ]
 
+/**
+ * Where the app starts and where every "home" lands: start route, welcome, after sign-in and sign-out,
+ * "go home" on the not-found screen, back fallbacks. The Today tab of the v2 shell, with the tab bar.
+ */
+export const NAV_V2_HOME_ROUTE = "/v2/today"
+
 /** Name of the route that other branches build for the profile sheet (avatar button, top right of Today and Songs). */
 export const NAV_V2_PROFILE_SHEET_ROUTE = "/profile-sheet"
 
@@ -102,8 +108,8 @@ export function tabIndexForId(id: NavV2TabId, tabs: readonly NavV2Tab[] = NAV_V2
 
 /**
  * Routes on which the mini-player never shows: the full player itself, the welcome and sign-in flow,
- * sheets that draw over the whole screen, forms with a keyboard, and the old (tabs) app that still
- * carries its own mini player.
+ * sheets that draw over the whole screen, forms with a keyboard, and the assistant, whose message
+ * box sits at the bottom where the pill would cover it.
  */
 export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = [
   "/player-v2",
@@ -120,20 +126,21 @@ export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = [
   "/add-kirtan",
   "/kiirtan-live",
   "/feedback",
+  "/assistant",
 ]
 
-/** Paths of the old (tabs) navigator, which draws its own mini player. */
-export const NAV_V2_LEGACY_PATHS: readonly string[] = ["/", "/songs", "/ai", "/saved", "/profile"]
+/** The start route only shows a spinner while the app decides where to go: no pill there. */
+const NAV_V2_BOOT_PATHS: readonly string[] = ["/"]
 
 /**
  * Mini-player rule: one pill above the tab bar on EVERY screen (tabs and pushed screens) while
  * something is loaded; nothing loaded, no pill. Hidden on the full player, auth/welcome, full-screen
- * sheets and the old (tabs) app.
+ * sheets and the assistant.
  */
 export function miniPlayerVisible(input: { pathname: string; hasSong: boolean }): boolean {
   if (!input.hasSong) return false
   const path = normalisePath(input.pathname)
-  if (NAV_V2_LEGACY_PATHS.includes(path)) return false
+  if (NAV_V2_BOOT_PATHS.includes(path)) return false
   return !NAV_V2_MINI_HIDDEN_PREFIXES.some((prefix) => pathHasPrefix(path, prefix))
 }
 

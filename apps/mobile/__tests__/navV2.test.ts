@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { amDark, amLight } from "@/constants/tokens/amColors"
 import { amNav } from "@/constants/tokens/amNav"
 import {
+  NAV_V2_HOME_ROUTE,
   NAV_V2_MINI_HIDDEN_PREFIXES,
   NAV_V2_PROFILE_SHEET_ROUTE,
   NAV_V2_TABS,
@@ -112,11 +113,23 @@ describe("nav v2: mini-player visibility", () => {
     expect(visible("/song/42", false)).toBe(false)
   })
 
-  it("is hidden on auth and welcome screens and the old tabs app", () => {
+  it("is hidden on the assistant, whose message box sits at the bottom", () => {
+    expect(visible("/assistant")).toBe(false)
+    expect(visible("/assistant?song=5")).toBe(false)
+  })
+
+  it("is hidden on auth and welcome screens and the start spinner", () => {
     expect(visible("/auth")).toBe(false)
     expect(visible("/welcome")).toBe(false)
     expect(visible("/signin")).toBe(false)
     expect(visible("/")).toBe(false)
+  })
+})
+
+describe("nav v2: home route", () => {
+  it("the app starts on the Today tab of the v2 shell", () => {
+    expect(NAV_V2_HOME_ROUTE).toBe("/v2/today")
+    expect(NAV_V2_TABS[0].href).toBe(NAV_V2_HOME_ROUTE)
   })
 })
 

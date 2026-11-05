@@ -5,9 +5,10 @@ const WEB_HOSTS = new Set([
 ])
 
 export function songAppPath(songNumber: number): string {
-  return `/song/ps-${songNumber}`
+  return `/song-v2/ps-${songNumber}`
 }
 
+/** The link a shared card carries. The address stays /song/ps-N (old shares keep working); the app maps it to the song page. */
 export function songAppDeepLink(songNumber: number): string {
   return `prabhatai:///song/ps-${songNumber}`
 }

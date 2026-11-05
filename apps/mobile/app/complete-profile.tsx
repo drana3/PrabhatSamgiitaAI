@@ -21,6 +21,7 @@ import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
 import { t as tPlain, useT } from "@/lib/i18n"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /**
  * One-time page after sign-in for what the provider did not give: the name (Apple only sends it the
@@ -54,7 +55,7 @@ export default function CompleteProfileScreen() {
   const nameError = needsName && touched && !nameCheck.ok ? nameCheck.error : null
   const phoneProblem = needsPhone && touched ? phoneError(countryCode, phone) : null
 
-  const leave = () => router.replace(href("/(tabs)"))
+  const leave = () => router.replace(href(NAV_V2_HOME_ROUTE))
 
   const submit = async () => {
     setTouched(true)
