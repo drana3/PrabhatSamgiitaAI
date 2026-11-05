@@ -47,6 +47,7 @@ export const appShellEn = {
   "admin.only.body": "These tools are for team members with admin access.",
   "playlist.missing": "This playlist was not found. It may have been deleted, or it has not loaded yet.",
   "playlist.signInDelete": "Sign in to delete a playlist.",
+  "songs.list.error": "Could not load the songs. Check your connection and try again.",
 } as const
 
 /** Plural keys carry the forms of each language (ru has four), so ru and es are checked by the parity test. */
@@ -97,6 +98,7 @@ export const appShellRu: Record<string, string> = {
   "admin.only.body": "Эти инструменты доступны участникам команды с правами админа.",
   "playlist.missing": "Этот плейлист не найден. Возможно, он удалён или ещё не загрузился.",
   "playlist.signInDelete": "Войдите, чтобы удалить плейлист.",
+  "songs.list.error": "Не удалось загрузить песни. Проверьте соединение и попробуйте снова.",
 }
 
 export const appShellEs: Record<string, string> = {
@@ -142,4 +144,5 @@ export const appShellEs: Record<string, string> = {
   "admin.only.body": "Estas herramientas son para miembros del equipo con acceso de administrador.",
   "playlist.missing": "No se encontró esta lista. Puede que se haya eliminado o que aún no haya cargado.",
   "playlist.signInDelete": "Inicia sesión para eliminar una lista.",
+  "songs.list.error": "No se pudieron cargar las canciones. Revisa tu conexión e inténtalo de nuevo.",
 }

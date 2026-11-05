@@ -33,6 +33,8 @@ export default function SongsV2CollectionScreen() {
       kind="collection"
       entries={entries}
       loading={catalog.loading && !entries.length}
+      error={Boolean(catalog.error)}
+      onRetry={() => void catalog.reload()}
       emptyText={t("songs.coll.noSongs")}
     />
   )

@@ -14,6 +14,7 @@ import {
   SongListRow,
 } from "@/components/songs-v2/ListParts"
 import { HiddenLine } from "@/components/songs-v2/HiddenLine"
+import { PillButton } from "@/components/songs-v2/Pill"
 import { ListMenuSheet, ListSortSheet, SongMenuSheet } from "@/components/songs-v2/ListSheets"
 import { SongCardRow } from "@/components/songs-v2/SongCardRow"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
@@ -50,6 +51,8 @@ export function SongsListPage({
   loading = false,
   loadingText,
   emptyText,
+  error = false,
+  onRetry,
 }: {
   listId: string
   title: string
@@ -58,6 +61,9 @@ export function SongsListPage({
   loading?: boolean
   loadingText?: string
   emptyText?: string
+  /** The catalog could not be loaded: say so, with a retry, instead of an empty page. */
+  error?: boolean
+  onRetry?: () => void
 }) {
   const t = useT()
   const router = useRouter()
@@ -174,7 +180,8 @@ export function SongsListPage({
     </View>
   )
 
-  const emptyMessage = loading ? (loadingText ?? t("songs.list.loading")) : list.base.length === 0 ? (emptyText ?? t("songs.list.empty")) : list.empty
+  const loadFailed = error && !loading && list.base.length === 0
+  const emptyMessage = loadFailed ? t("songs.list.error") : loading ? (loadingText ?? t("songs.list.loading")) : list.base.length === 0 ? (emptyText ?? t("songs.list.empty")) : list.empty
 
   return (
     <RevealClock.Provider value={openedAt}>
@@ -189,7 +196,14 @@ export function SongsListPage({
           extraData={list}
           ListHeaderComponent={header}
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: theme.textBody }]}>{emptyMessage}</Text>
+            <View>
+              <Text style={[styles.empty, { color: theme.textBody }]} accessibilityRole={loadFailed ? "alert" : undefined}>
+                {emptyMessage}
+              </Text>
+              {loadFailed && onRetry ? (
+                <PillButton theme={theme} tone="sand" label={t("common.tryAgain")} onPress={onRetry} style={styles.retry} />
+              ) : null}
+            </View>
           }
           getItemLayout={(_data, index) => ({ length: rowHeight, offset: rowHeight * index, index })}
           initialNumToRender={14}
@@ -260,6 +274,7 @@ export function SongsListPage({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  retry: { alignSelf: "flex-start", marginHorizontal: 20, marginTop: 4 },
   empty: {
     fontFamily: amFonts.medium,
     fontSize: 15,
