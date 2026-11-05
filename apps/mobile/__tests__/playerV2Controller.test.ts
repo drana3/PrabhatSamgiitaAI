@@ -78,7 +78,7 @@ describe("play all versions", () => {
     expect(mode).toBe("default")
   })
 
-  it("follows the remembered version, not the url (offline copies have local urls)", () => {
+  it("follows the remembered version when the url names none (offline copies have local urls)", () => {
     const current = { ...song(1), audioUrl: "file:///local.mp3" } as MockSong
     const { deps, loadSong } = makeDeps({
       current,
@@ -92,14 +92,17 @@ describe("play all versions", () => {
   it("holds the upcoming song while versions remain, and not after the last", () => {
     const first = makeDeps({ playMode: "all" })
     expect(createTrackEndHook(first.deps).shouldHoldUpcoming()).toBe(true)
-    const last = makeDeps({ playMode: "all", versionByNumber: { "1": "ps-1-v3" } })
+    // the third version is the one playing: its url is on the song, as playVersion sets it
+    const onThird = { ...song(1), audioUrl: "https://a/1-3.mp3" } as MockSong
+    const last = makeDeps({ current: onThird, playMode: "all", versionByNumber: { "1": "ps-1-v3" } })
     expect(createTrackEndHook(last.deps).shouldHoldUpcoming()).toBe(false)
     const single = makeDeps({ playMode: "this" })
     expect(createTrackEndHook(single.deps).shouldHoldUpcoming()).toBe(false)
   })
 
   it("after the last version a casual queue moves to the next song", async () => {
-    const { deps, loadSong } = makeDeps({ playMode: "all", versionByNumber: { "1": "ps-1-v3" } })
+    const onThird = { ...song(1), audioUrl: "https://a/1-3.mp3" } as MockSong
+    const { deps, loadSong } = makeDeps({ current: onThird, playMode: "all", versionByNumber: { "1": "ps-1-v3" } })
     expect(createTrackEndHook(deps).onTrackEnded()).toBe(true)
     await flush()
     expect(loadSong.mock.calls[0]![0].number).toBe(2)

@@ -96,8 +96,10 @@ export function versionsFromSong(song: SongVersionSource): PlayerVersion[] {
 }
 
 /**
- * Index of the version that is playing. `audioUrl` can be a local file when the
- * song is offline, so a remembered choice (by version id) wins over URL matching.
+ * Index of the version that is playing. The playing URL decides when it names one of the versions:
+ * a remembered choice must not label version 3 while the player is on version 1. A remembered
+ * choice (by version id) only stands in when the URL names none of them, for instance when `audioUrl`
+ * is a local file because the song is offline.
  */
 export function selectedVersionIndex(
   versions: PlayerVersion[],
@@ -105,13 +107,14 @@ export function selectedVersionIndex(
   rememberedId?: string | null,
 ): number {
   if (!versions.length) return -1
+  const url = (audioUrl ?? "").trim()
+  const byUrl = url ? versions.findIndex((v) => v.url === url) : -1
+  if (byUrl >= 0) return byUrl
   if (rememberedId) {
     const byId = versions.findIndex((v) => v.id === rememberedId)
     if (byId >= 0) return byId
   }
-  const url = (audioUrl ?? "").trim()
-  const byUrl = url ? versions.findIndex((v) => v.url === url) : -1
-  return byUrl >= 0 ? byUrl : 0
+  return 0
 }
 
 /** `Voice · Performer A` (the chip text after the PS number). */

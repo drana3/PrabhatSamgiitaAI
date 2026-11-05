@@ -62,9 +62,12 @@ describe("versions", () => {
     expect(versionsFromSong({ number: 8, audioUrl: null })).toEqual([])
   })
 
-  it("finds the selected version by remembered id first, then by url, then the first", () => {
+  it("finds the selected version by the playing url, then the remembered id, then the first", () => {
     const versions = versionsFromSong(song)
+    // an offline copy names no version: the remembered one stands in
     expect(selectedVersionIndex(versions, "file:///offline.mp3", "ps-1-v3")).toBe(2)
+    // the playing url wins over a stale remembered choice (chip said "3" while version 1 played)
+    expect(selectedVersionIndex(versions, "https://a/2.mp3", "ps-1-v3")).toBe(1)
     expect(selectedVersionIndex(versions, "https://a/2.mp3")).toBe(1)
     expect(selectedVersionIndex(versions, "file:///offline.mp3")).toBe(0)
     expect(selectedVersionIndex([], "x")).toBe(-1)
