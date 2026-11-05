@@ -34,4 +34,12 @@ describe("app.json native config", () => {
     expect(png.readUInt32BE(20)).toBe(96)
     expect(png[25]).toBe(6) // colour type 6 = RGBA, so the transparent background is real
   })
+
+  it("does not declare false photo-library permission strings in app.config.js", () => {
+    const source = readFileSync(path.resolve(__dirname, "../app.config.js"), "utf8")
+    expect(source).not.toMatch(/does not access your photo library/)
+    expect(source).not.toMatch(/NSPhotoLibraryAddUsageDescription:/)
+    const picker = plugin("expo-image-picker") as [string, { photosPermission?: string }]
+    expect(picker[1].photosPermission).toMatch(/profile picture/)
+  })
 })

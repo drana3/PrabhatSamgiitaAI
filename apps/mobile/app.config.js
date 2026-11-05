@@ -43,10 +43,8 @@ module.exports = ({ config }) => {
       ].filter((domain, index, all) => all.indexOf(domain) === index),
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
-        NSPhotoLibraryUsageDescription:
-          "Prabhat Samgiita AI does not access your photo library. This notice is required by an included sign-in component.",
-        NSPhotoLibraryAddUsageDescription:
-          "Prabhat Samgiita AI does not save images to your photo library. This notice is required by an included sign-in component.",
+        // Photo access strings come from the expo-image-picker plugin in app.json (profile picture).
+        // The app never saves to the library, so there is no NSPhotoLibraryAddUsageDescription.
         ...(config.ios?.infoPlist ?? {}),
         UIBackgroundModes: ["audio"],
         CFBundleURLTypes: mergeUrlSchemes(config.ios?.infoPlist?.CFBundleURLTypes, [
