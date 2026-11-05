@@ -6,6 +6,7 @@
 import { newCard, type WordCard } from "@/lib/learn/srs"
 import { EMPTY_PATH, type LearningSong, type PathState } from "@/lib/learn/progress"
 import { wordId } from "@/lib/learn/words"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import type { LearnQuizQuestion } from "@/lib/learn/quiz"
 
 /** PS 1 to 7: the catalog's own titles, as in the prototype. */
@@ -111,7 +112,10 @@ export const TALAS: ReadonlyArray<readonly [string, string]> = [
 
 export type IndexKind = "raga" | "tala"
 
-export function indexRows(kind: IndexKind): Array<{ name: string; meta: string }> {
+export function indexRows(kind: IndexKind, demo: boolean = MOCKUP_DATA): Array<{ name: string; meta: string }> {
+  // The per-raga and per-tala song counts and times of day are the prototype's invention (the catalog
+  // has no raga or tala data yet), so a real build shows no rows.
+  if (!demo) return []
   if (kind === "raga") return RAGAS.map(([name, time, songs]) => ({ name, meta: `${time} · ${songs} songs` }))
   return TALAS.map(([name, beats], i) => ({ name, meta: `${beats} · ${14 - i * 2} songs` }))
 }

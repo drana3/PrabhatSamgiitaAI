@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { StyleSheet, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { Chip, NavRow, OverlayScreen, useToast } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
+import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { indexRows, type IndexKind } from "@/lib/fixtures/learn"
 import { LEARN_ROUTES } from "@/lib/learn/routes"
@@ -25,6 +26,7 @@ export default function RagaTalaIndexScreen() {
   const params = useLocalSearchParams<{ tab?: string }>()
   const [kind, setKind] = useState<IndexKind>(params.tab === "tala" ? "tala" : "raga")
   const toast = useToast()
+  const rows = indexRows(kind)
 
   const back = () => {
     if (router.canGoBack()) router.back()
@@ -41,7 +43,12 @@ export default function RagaTalaIndexScreen() {
         </View>
       </Reveal>
       <Reveal key={kind} index={1} style={styles.list}>
-        {indexRows(kind).map((row) => (
+        {rows.length === 0 ? (
+          <Text style={[styles.empty, { color: theme.textBody }]}>
+            The raga and tala index is not ready yet. The catalog does not list ragas and talas song by song.
+          </Text>
+        ) : null}
+        {rows.map((row) => (
           <NavRow
             key={row.name}
             theme={theme}
@@ -59,4 +66,5 @@ export default function RagaTalaIndexScreen() {
 const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   list: { gap: 10 },
+  empty: { fontFamily: amFonts.regular, fontSize: 15, lineHeight: 22, paddingVertical: 24 },
 })

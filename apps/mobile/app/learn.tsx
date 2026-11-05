@@ -220,12 +220,15 @@ export default function LearnScreen() {
               <HubSectionHead p={p} eyebrow={t("learn.sect.deeper")} first={t("learn.sect.deeper.first")} second={t("learn.sect.deeper.second")} />
               <View style={[styles.pad, styles.rows]}>
                 <ExploreRow p={p} title={t("learn.stories")} onPress={() => go(HUB_LINKS.stories)} />
-                <ExploreRow
-                  p={p}
-                  title={t("learn.index")}
-                  subtitle={t("learn.index.summary", { ragas: INDEX_SUMMARY.ragas, talas: INDEX_SUMMARY.talas })}
-                  onPress={() => go(indexHref("tala"))}
-                />
+                {/* The raga and tala index is prototype content (invented song counts); the catalog has no raga data yet. */}
+                {MOCKUP_DATA ? (
+                  <ExploreRow
+                    p={p}
+                    title={t("learn.index")}
+                    subtitle={t("learn.index.summary", { ragas: INDEX_SUMMARY.ragas, talas: INDEX_SUMMARY.talas })}
+                    onPress={() => go(indexHref("tala"))}
+                  />
+                ) : null}
                 {/* hidden for now, Dada 2026-11-05: <ExploreRow p={p} title="Certificates" subtitle="Live quiz · none yet" onPress={() => go(HUB_LINKS.certificates)} /> */}
               </View>
             </Reveal>
