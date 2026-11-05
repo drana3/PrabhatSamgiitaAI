@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import type { SongSummary } from "@prabhat/core"
 
-import { festivalCalendar2026 } from "@/data/festivals"
+import { festivalCalendar } from "@/data/festivals"
 import type { FestivalEntry, SongPick } from "@/lib/notifications/schedule"
 
 /** The festival calendar the app already has (data/festivals.ts), in the scheduler's shape. */
-export const FESTIVAL_ENTRIES: readonly FestivalEntry[] = festivalCalendar2026.map((f) => ({
+export const FESTIVAL_ENTRIES: readonly FestivalEntry[] = festivalCalendar.map((f) => ({
   id: f.id,
   title: f.title,
   month: f.month,

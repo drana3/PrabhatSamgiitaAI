@@ -1,3 +1,5 @@
+import { formatDate } from "@/lib/i18n/format"
+
 export type UpcomingFestival = {
   id: string
   title: string
@@ -9,6 +11,16 @@ export type UpcomingFestival = {
   relatedCollectionLabel?: string
   mood?: string
 }
+
+/**
+ * The calendar lists dates only when they are known:
+ * - 2026: reviewed observance by observance (the same list as the website).
+ * - 2027 and 2028: only observances that fall on the same civil date every year. Lunar and
+ *   festival dates are never guessed (same policy as apps/api domain_catalog.py), so those are
+ *   not listed at all until Dada confirms them. FESTIVAL_DATES_TO_CONFIRM names them; the
+ *   screens never show it. docs/festival-calendar.md is the hand-off list.
+ */
+export const FESTIVAL_CALENDAR_LAST_YEAR = 2028
 
 /** Reviewed calendar year — lunar dates are not auto-rolled (same policy as website). */
 export const REVIEWED_FESTIVAL_YEAR = 2026
@@ -194,6 +206,59 @@ export const festivalCalendar2026: UpcomingFestival[] = [
   },
 ]
 
+/** Observances held on the same civil date every year, so their 2027 and 2028 dates are computed, not guessed. */
+const FIXED_DATE_OBSERVANCES: ReadonlyArray<Omit<UpcomingFestival, "id" | "year"> & { idBase: string }> = [
+  {
+    idBase: "ru-day",
+    title: "R.U. Day",
+    subtitle: "A service-minded set of songs for collective action and uplift.",
+    month: 1,
+    day: 25,
+    mood: "courageous",
+  },
+  {
+    idBase: "baba-birthday",
+    title: "Bábá’s Birthday",
+    subtitle: "Songs of gratitude and remembrance for the day Bábá was born.",
+    month: 5,
+    day: 21,
+    relatedCollectionLabel: "Bábá Birthday Songs",
+    mood: "devotional",
+  },
+  {
+    idBase: "ps-divasa",
+    title: "Prabháta Saḿgiita Divasa",
+    subtitle: "Honoring the songs themselves and their breadth.",
+    month: 9,
+    day: 14,
+    mood: "devotional",
+  },
+]
+
+function fixedDateYear(year: number): UpcomingFestival[] {
+  return FIXED_DATE_OBSERVANCES.map(({ idBase, ...rest }) => ({ ...rest, id: `${idBase}-${year}`, year }))
+}
+
+/**
+ * Observances whose 2027 and 2028 dates are not known yet (lunar or festival dates). They are NOT
+ * in the calendar and never shown. The list exists so the gap is explicit and testable.
+ */
+export const FESTIVAL_DATES_TO_CONFIRM: ReadonlyArray<{ idBase: string; title: string; years: readonly number[] }> =
+  festivalCalendar2026
+    .filter((item) => !FIXED_DATE_OBSERVANCES.some((fixed) => item.id === `${fixed.idBase}-2026`))
+    .map((item) => ({ idBase: item.id.replace(/-2026$/, ""), title: item.title, years: [2027, 2028] }))
+
+function byDate(a: UpcomingFestival, b: UpcomingFestival) {
+  return a.year - b.year || a.month - b.month || a.day - b.day
+}
+
+/** Everything the app can show, oldest first: the reviewed 2026 list plus the computed fixed dates through 2028. */
+export const festivalCalendar: UpcomingFestival[] = [
+  ...festivalCalendar2026,
+  ...fixedDateYear(2027),
+  ...fixedDateYear(2028),
+].sort(byDate)
+
 function daysUntil(now: Date, month: number, day: number, year: number) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const target = new Date(year, month - 1, day)
@@ -206,19 +271,15 @@ export type FestivalListItem = UpcomingFestival & {
 }
 
 export function getFestivalById(festivalId: string): UpcomingFestival | null {
-  return festivalCalendar2026.find((item) => item.id === festivalId) ?? null
+  return festivalCalendar.find((item) => item.id === festivalId) ?? null
 }
 
 export function getUpcomingFestivals(now = new Date(), limit = 4): FestivalListItem[] {
-  return festivalCalendar2026
+  return festivalCalendar
     .map((item) => ({
       ...item,
       daysUntil: daysUntil(now, item.month, item.day, item.year),
-      dateLabel: new Intl.DateTimeFormat("en", {
-        day: "numeric",
-        month: "short",
-        year: item.year !== now.getFullYear() ? "numeric" : undefined,
-      }).format(new Date(item.year, item.month - 1, item.day)),
+      dateLabel: formatDate(new Date(item.year, item.month - 1, item.day), item.year !== now.getFullYear() ? "medium" : "dayMonth"),
     }))
     .filter((item) => item.daysUntil >= 0)
     .sort((a, b) => a.daysUntil - b.daysUntil)
@@ -226,7 +287,7 @@ export function getUpcomingFestivals(now = new Date(), limit = 4): FestivalListI
 }
 
 export function festivalCalendarExhausted(now = new Date()) {
-  return getUpcomingFestivals(now, festivalCalendar2026.length).length === 0
+  return getUpcomingFestivals(now, festivalCalendar.length).length === 0
 }
 
 export const todayContext = {
