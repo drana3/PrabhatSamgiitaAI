@@ -67,7 +67,7 @@ export function songPlaceholder(
     meaning: "",
     lyrics: "",
     translation: "",
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos: [],
     audioUrl: null,
@@ -323,7 +323,7 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     meaning: summary.theme || "A song from the Prabhat Samgiita collection.",
     lyrics: summary.first_line || summary.title,
     translation: summary.first_line || summary.title,
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos: [],
     audioUrl: null,
@@ -393,7 +393,7 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     lyricsDevanagari,
     devanagariStatus: englishSong ? "none" : detail.devanagari_status || "none",
     translation: detail.english_meaning || detail.hindi_meaning || detail.first_line || detail.title,
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos,
     audioUrl: pickPreferredAudioUrl(detail.media),

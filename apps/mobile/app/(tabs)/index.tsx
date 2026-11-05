@@ -73,7 +73,7 @@ function recentPlayToMockSong(play: {
     meaning: "",
     lyrics: "",
     translation: "",
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos: [],
   }
@@ -232,7 +232,7 @@ export default function HomeScreen() {
         meaning: "",
         lyrics: "",
         translation: "",
-        durationSeconds: 300,
+        durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
         performer: "",
         videos: [],
         audioUrl: null,

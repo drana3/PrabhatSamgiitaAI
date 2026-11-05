@@ -37,7 +37,7 @@ export function recentPlayToSong(play: RecentPlay): MockSong {
     meaning: "",
     lyrics: "",
     translation: "",
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos: [],
   }

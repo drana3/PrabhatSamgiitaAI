@@ -33,7 +33,8 @@ export function songToTrack(song: MockSong, url: string): CatalogTrack {
     title: lockScreenTitle(song.title),
     artist: lockScreenArtist(song, url),
     artwork: song.imageUrl || song.thumbnailUrl || undefined,
-    duration: song.durationSeconds,
+    // 0 means the length is not known: leave it out so the lock screen shows none until the file reports it
+    duration: song.durationSeconds > 0 ? song.durationSeconds : undefined,
   }
 }
 
