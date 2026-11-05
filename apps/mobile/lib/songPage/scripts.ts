@@ -50,6 +50,24 @@ export function buildLyricSources(input: {
   return out
 }
 
+/**
+ * The stored text of each script, as the catalogue has it (blank lines and indentation kept), sorted the same way
+ * as `buildLyricSources`: the first text of a script wins.
+ */
+export function lyricTextsByScript(input: {
+  lyrics?: string | null
+  transliteration?: string | null
+  lyricsDevanagari?: string | null
+}): Record<ScriptId, string | null> {
+  const out: Record<ScriptId, string | null> = { roman: null, devanagari: null, bengali: null }
+  for (const text of [input.lyrics, input.transliteration, input.lyricsDevanagari]) {
+    if (!text?.trim()) continue
+    const script = detectScript(text)
+    if (out[script] === null) out[script] = text
+  }
+  return out
+}
+
 export function availableScripts(sources: LyricSources): ScriptId[] {
   return (["roman", "devanagari", "bengali"] as const).filter((id) => sources[id].length > 0)
 }

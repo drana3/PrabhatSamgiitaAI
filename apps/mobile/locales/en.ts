@@ -1,3 +1,5 @@
+import { songPageEn } from "./songPage"
+
 /**
  * English: the source of truth. Every other language mirrors these keys (the parity test enforces it).
  * Flat keys, `area.screen.element`, camelCase segments. Counted strings use `_one` / `_other`.
@@ -1242,4 +1244,5 @@ export const en = {
   "assistant.quota.helpGuest": "Sign in for more questions each day, or come back tomorrow.",
   "assistant.disclosure": "Written by AI from the song text and the discourse notes. It can be wrong.",
   "assistant.noAnswer": "There is no grounded answer for that. Try naming a song number, or open a song first.",
+  ...songPageEn,
 } as const

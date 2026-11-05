@@ -2,21 +2,21 @@ import { useMemo } from "react"
 
 import { pluralForm, type Language } from "@/lib/i18n/core"
 import { useLanguage } from "@/lib/i18n"
-import { songVariantsEn, songVariantsEs, songVariantsRu } from "@/locales/songVariants"
+import { songPageEn, songPageEs, songPageRu } from "@/locales/songPage"
 
 /**
- * The song page variants' own strings (locales/songVariants.ts) behind the same shape as `useT()`:
- * `const t = useVariantT(); t("songVariant.tab.lyrics")`. English is the source and the fallback.
- * Once these dictionaries are spread into locales/en.ts, ru.ts and es.ts this file can switch to `useT()`.
+ * The song page's own strings (locales/songPage.ts, also spread into locales/en.ts, ru.ts and es.ts, so the parity
+ * test covers them) behind the same shape as `useT()`: `const t = usePageT(); t("songPage.tab.lyrics")`. English is
+ * the source and the fallback. The page asks for keys by a union or a conditional, which this loose key type allows.
  */
-type EnKey = keyof typeof songVariantsEn
+type EnKey = keyof typeof songPageEn
 type PluralBase<K extends string> = K extends `${infer B}_${"one" | "other"}` ? B : K
-export type VariantKey = PluralBase<EnKey>
+export type PageKey = PluralBase<EnKey>
 
 const DICTIONARIES: Record<Language, Readonly<Record<string, string>>> = {
-  en: songVariantsEn,
-  ru: songVariantsRu,
-  es: songVariantsEs,
+  en: songPageEn,
+  ru: songPageRu,
+  es: songPageEs,
 }
 
 function fill(text: string, params?: Record<string, string | number>): string {
@@ -24,9 +24,9 @@ function fill(text: string, params?: Record<string, string | number>): string {
   return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in params ? String(params[name]) : whole))
 }
 
-export type VariantT = (key: VariantKey, params?: Record<string, string | number>) => string
+export type PageT = (key: PageKey, params?: Record<string, string | number>) => string
 
-export function translateVariant(language: Language, key: VariantKey, params?: Record<string, string | number>): string {
+export function translatePage(language: Language, key: PageKey, params?: Record<string, string | number>): string {
   const count = typeof params?.count === "number" ? params.count : undefined
   const pick = (lang: Language): string | undefined => {
     const dict = DICTIONARIES[lang]
@@ -39,7 +39,7 @@ export function translateVariant(language: Language, key: VariantKey, params?: R
   return fallback !== undefined ? fill(fallback, params) : key
 }
 
-export function useVariantT(): VariantT {
+export function usePageT(): PageT {
   const language = useLanguage()
-  return useMemo(() => (key, params) => translateVariant(language, key, params), [language])
+  return useMemo(() => (key, params) => translatePage(language, key, params), [language])
 }

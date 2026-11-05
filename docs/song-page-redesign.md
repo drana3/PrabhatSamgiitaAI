@@ -364,3 +364,21 @@ Phase 4, music:
 - This document: `docs/song-page-redesign.md`.
 - Mockup screenshots: `docs/assets/song-page/` (14 PNGs, 1.4 MB).
 - Mockup sources (not committed): the scratchpad `mock/gen.py` that generates the HTML.
+
+## 12. Decision: one page (combination of A, B and C)
+
+Dada reviewed the three variants and chose a combination. It is now the only song page (`apps/mobile/components/song-page`,
+route `app/song-v2/[songId].tsx`); the switcher, the old "Current" page and the variant code are gone (history stays in git).
+
+- Header and action row as B (photo fading into the page, PS number, title, words-and-music line, Play / Download / Save /
+  Add), plus a "Learn this song" button (adds to the Learn list through `addSongToLearn`) and a top Menu button that lists the
+  sections the song has and scrolls to them.
+- Pinned tab strip as A, acting as jump and scroll-spy links over one scrolling page: Lyrics, Meaning, Recordings, Chords,
+  Video, Story, then About this song. A section appears only when the song has it; Lyrics, Meaning and Chords always keep a place
+  and say honestly when they are empty.
+- Lyrics keep the stored structure through `parseLyricStructure` (`lib/songPage/lyricStructure.ts`). The catalogue stores flat
+  lines only (no blank lines, markers or indentation in any of the 5,017 songs with lyrics), so stanza breaks are derived where the
+  song returns to its first line, a repeated line is one that matches an earlier line word for word, and "Refrain" is written only
+  when a whole stanza is such a repeat (or when a stored text labels it, which no current song does).
+- One translation-language chooser (a pill in the lyrics toolbar). The old "Change" button of the Meaning header opened the same
+  language sheet, so it is removed.

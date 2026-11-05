@@ -2,12 +2,12 @@ import { StyleSheet, Text, View } from "react-native"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import type { AboutRow } from "@/lib/songPageVariants/aboutFacts"
+import type { AboutRow } from "@/lib/songPage/aboutFacts"
 import { formatDate, useLanguage } from "@/lib/i18n"
-import { useVariantT } from "@/lib/songPageVariants/copy"
+import { usePageT } from "@/lib/songPage/pageCopy"
 
-import { Eyebrow } from "./ui"
-import type { SongVariantModel } from "./useSongVariantModel"
+import { Eyebrow, SectionTitle } from "./ui"
+import type { SongPageModel } from "./useSongPageModel"
 
 /** `17 September 1982`, in the app language. */
 function dateText(date: { year: number; month: number; day: number }): string {
@@ -19,23 +19,34 @@ function dateText(date: { year: number; month: number; day: number }): string {
  * source category, whether there is an official recording, the source), then the photo credit. A row the data
  * does not have is not drawn.
  */
-export function AboutBody({ t, model }: { t: SpTheme; model: SongVariantModel }) {
-  const tr = useVariantT()
+export function AboutSection({ t, model }: { t: SpTheme; model: SongPageModel }) {
+  const tr = usePageT()
+  if (!model.about.length && !model.photo) return null
+  return (
+    <View>
+      <SectionTitle t={t}>{tr("songPage.about.title")}</SectionTitle>
+      <AboutBody t={t} model={model} />
+    </View>
+  )
+}
+
+export function AboutBody({ t, model }: { t: SpTheme; model: SongPageModel }) {
+  const tr = usePageT()
   useLanguage()
   const rows: Array<{ label: string; value: string }> = model.about.map((row: AboutRow) => {
     switch (row.id) {
       case "words":
-        return { label: tr("songVariant.about.words"), value: row.value }
+        return { label: tr("songPage.about.words"), value: row.value }
       case "composed":
-        return { label: tr("songVariant.about.composed"), value: dateText(row.date) }
+        return { label: tr("songPage.about.composed"), value: dateText(row.date) }
       case "theme":
-        return { label: tr("songVariant.about.theme"), value: row.value }
+        return { label: tr("songPage.about.theme"), value: row.value }
       case "category":
-        return { label: tr("songVariant.about.category"), value: row.value }
+        return { label: tr("songPage.about.category"), value: row.value }
       case "recording":
-        return { label: tr("songVariant.about.recording"), value: tr(row.kind === "official" ? "songVariant.about.recording.official" : "songVariant.about.recording.other") }
+        return { label: tr("songPage.about.recording"), value: tr(row.kind === "official" ? "songPage.about.recording.official" : "songPage.about.recording.other") }
       case "source":
-        return { label: tr("songVariant.about.source"), value: tr("songVariant.about.source.value") }
+        return { label: tr("songPage.about.source"), value: tr("songPage.about.source.value") }
     }
   })
   return (
@@ -48,7 +59,7 @@ export function AboutBody({ t, model }: { t: SpTheme; model: SongVariantModel })
       ))}
       {model.photo ? (
         <Text style={[styles.photo, { color: t.ink500 }]}>
-          {`${tr("songVariant.about.photo")}: ${tr("songVariant.about.photo.note", { credit: model.photo.credit.replace(/^Photo:\s*/i, "") })}`}
+          {`${tr("songPage.about.photo")}: ${tr("songPage.about.photo.note", { credit: model.photo.credit.replace(/^Photo:\s*/i, "") })}`}
         </Text>
       ) : null}
     </View>

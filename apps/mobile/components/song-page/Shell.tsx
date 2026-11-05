@@ -1,6 +1,7 @@
-import { useState, type ReactNode, type RefObject } from "react"
-import { ActivityIndicator, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
-import { usePathname, useRouter } from "expo-router"
+import { useEffect, useState, type ReactNode, type RefObject } from "react"
+import { ActivityIndicator, Platform, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
+import { useRouter } from "expo-router"
+import { StatusBar } from "expo-status-bar"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated, {
   runOnJS,
@@ -13,14 +14,15 @@ import Animated, {
 import { SpPill, SpToast } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { miniPlayerVisible } from "@/lib/navV2"
-import { pageBottomInset, ramp, stripHairline, stripTop } from "@/lib/songPage/stickyBar"
-import { useVariantT } from "@/lib/songPageVariants/copy"
-import { usePlayerStore } from "@/stores/playerStore"
+import { useResolvedAppearance } from "@/hooks/useAmTheme"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
+import { statusBarStyleFor } from "@/lib/appearance"
+import { postFrameStatusBar } from "@/lib/framePreview"
+import { ramp, stripHairline, stripTop } from "@/lib/songPage/stickyBar"
+import { usePageT } from "@/lib/songPage/pageCopy"
 
 import { BarButton, PhotoButton } from "./ui"
-import type { SongVariantModel } from "./useSongVariantModel"
+import type { SongPageModel } from "./useSongPageModel"
 
 /** The status-bar room the web preview does not report. */
 const WEB_TOP = 12
@@ -33,7 +35,7 @@ export function useBarHeight(): number {
 
 export type ShellProps = {
   t: SpTheme
-  model: SongVariantModel
+  model: SongPageModel
   /** the title shown in the compact bar */
   title: string
   /** how tall the hero is; the compact bar appears as it scrolls away */
@@ -45,13 +47,15 @@ export type ShellProps = {
   strip?: ReactNode
   stripHeight?: number
   onMore: () => void
+  /** opens the sections menu */
+  onMenu: () => void
   onBack?: () => void
   scrollRef?: RefObject<Animated.ScrollView | null>
   /** JS-side scroll offset, in steps of 8px */
   onScrollJS?: (y: number) => void
   /** the hero block's height, as it changes */
   onHeroHeight?: (height: number) => void
-  /** drawn over the page, under the bar (the word tray) */
+  /** drawn over the page, under the bar (for example a floating tray) */
   overlay?: ReactNode
   /** a fixed overlay for sheets */
   sheets?: ReactNode
@@ -59,17 +63,16 @@ export type ShellProps = {
 }
 
 /**
- * The frame the three variants share: the scroll view, the buttons over the photo, the compact bar that takes over
+ * The frame of the song page: the scroll view, the buttons over the photo, the compact bar that takes over
  * when the hero is gone, a strip that pins under it, the toast. Only transform and opacity animate.
  */
-export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeight = 0, onMore, onBack, scrollRef, onScrollJS, onHeroHeight, overlay, sheets, children }: ShellProps) {
-  const tr = useVariantT()
+export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeight = 0, onMore, onMenu, onBack, scrollRef, onScrollJS, onHeroHeight, overlay, sheets, children }: ShellProps) {
+  const tr = usePageT()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const pathname = usePathname()
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const barHeight = useBarHeight()
-  const bottom = pageBottomInset({ safeBottom: insets.bottom, miniVisible: miniPlayerVisible({ pathname, hasSong }) })
+  const bottom = useScrollBottomInset(24)
+  const resolved = useResolvedAppearance()
 
   const scrollY = useSharedValue(0)
   const stripY = useSharedValue(0)
@@ -102,10 +105,16 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
   }))
   const hairStyle = useAnimatedStyle(() => ({ opacity: stripHairline(stripY.value, scrollY.value, barHeight) }))
 
+  // the photo sits under the status bar: while it shows, the status bar is light (over the dark scrim), then it follows the theme
+  const heroOn = top === "photo" && !barOn
+  useEffect(() => {
+    if (Platform.OS !== "web") return
+    postFrameStatusBar(heroOn ? "light" : statusBarStyleFor(resolved))
+    return () => postFrameStatusBar(statusBarStyleFor(resolved))
+  }, [heroOn, resolved])
+
   const back = onBack ?? (() => (router.canGoBack() ? router.back() : router.replace("/")))
   const topPad = Math.max(insets.top, WEB_TOP)
-  // in the preview the variant switcher sits in the middle of the bar, so the title steps aside
-  const showTitle = !MOCKUP_DATA
 
   return (
     <View style={[styles.root, { backgroundColor: t.sand200 }]}>
@@ -114,7 +123,7 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
         onScroll={onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: bottom + 24, paddingTop: top === "plain" ? barHeight : 0 }}
+        contentContainerStyle={{ paddingBottom: bottom, paddingTop: top === "plain" ? barHeight : 0 }}
       >
         <View
           onLayout={(event: LayoutChangeEvent) => {
@@ -139,8 +148,11 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
 
       {top === "photo" && !barOn ? (
         <View style={[styles.floating, { paddingTop: topPad + 4 }]} pointerEvents="box-none">
-          <PhotoButton t={t} icon="back" label={tr("songVariant.back")} onPress={back} />
-          <PhotoButton t={t} icon="more" label={tr("songVariant.more")} onPress={onMore} />
+          <PhotoButton t={t} icon="back" label={tr("songPage.back")} onPress={back} />
+          <View style={styles.right}>
+            <PhotoButton t={t} icon="menu" label={tr("songPage.menu.a11y")} onPress={onMenu} />
+            <PhotoButton t={t} icon="more" label={tr("songPage.more")} onPress={onMore} />
+          </View>
         </View>
       ) : null}
 
@@ -148,17 +160,15 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
         pointerEvents={barOn ? "auto" : "none"}
         style={[styles.bar, { height: barHeight, paddingTop: topPad, backgroundColor: t.sand200, borderBottomColor: t.sand400 }, barStyle]}
       >
-        <BarButton t={t} icon="back" label={tr("songVariant.back")} onPress={back} />
-        {showTitle ? (
-          <Animated.Text style={[styles.barTitle, { color: t.ink900 }, titleStyle]} numberOfLines={1}>
-            {title}
-          </Animated.Text>
-        ) : (
-          <View style={{ flex: 1 }} />
-        )}
-        <BarButton t={t} icon="more" label={tr("songVariant.more")} onPress={onMore} />
+        <BarButton t={t} icon="back" label={tr("songPage.back")} onPress={back} />
+        <Animated.Text style={[styles.barTitle, { color: t.ink900 }, titleStyle]} numberOfLines={1}>
+          {title}
+        </Animated.Text>
+        <BarButton t={t} icon="menu" label={tr("songPage.menu.a11y")} onPress={onMenu} />
+        <BarButton t={t} icon="more" label={tr("songPage.more")} onPress={onMore} />
       </Animated.View>
 
+      {heroOn ? <StatusBar style="light" /> : null}
       {overlay}
       {sheets}
       <SpToast t={t} message={model.toast} />
@@ -168,15 +178,15 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
 
 /** Loading and not-found screens. */
 export function ShellMessage({ t, loading, onBack }: { t: SpTheme; loading: boolean; onBack: () => void }) {
-  const tr = useVariantT()
+  const tr = usePageT()
   return (
     <View style={[styles.root, styles.centered, { backgroundColor: t.sand200 }]}>
       {loading ? (
         <ActivityIndicator color={t.orange500} />
       ) : (
         <>
-          <Text style={{ fontFamily: amFonts.medium, fontSize: 17, color: t.ink800 }}>{tr("songVariant.notFound")}</Text>
-          <SpPill t={t} label={tr("songVariant.goBack")} onPress={onBack} />
+          <Text style={{ fontFamily: amFonts.medium, fontSize: 17, color: t.ink800 }}>{tr("songPage.notFound")}</Text>
+          <SpPill t={t} label={tr("songPage.goBack")} onPress={onBack} />
         </>
       )}
     </View>
@@ -188,6 +198,7 @@ const styles = StyleSheet.create({
   centered: { alignItems: "center", justifyContent: "center", gap: 16 },
   strip: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 8, justifyContent: "center" },
   hair: { position: "absolute", left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
+  right: { flexDirection: "row", gap: 8 },
   floating: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 12 },
   bar: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   barTitle: { flex: 1, textAlign: "center", fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, paddingHorizontal: 8 },

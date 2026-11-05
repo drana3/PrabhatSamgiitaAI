@@ -1,4 +1,5 @@
 import type { Dictionary } from "@/locales"
+import { songPageRu } from "./songPage"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
 export const ru: Dictionary = {
@@ -1323,4 +1324,5 @@ export const ru: Dictionary = {
   "assistant.quota.helpGuest": "Войдите, чтобы задавать больше вопросов в день, или возвращайтесь завтра.",
   "assistant.disclosure": "Написано ИИ по тексту песни и заметкам к беседам. Возможны ошибки.",
   "assistant.noAnswer": "Для этого нет ответа, основанного на песнях. Назовите номер песни или сначала откройте песню.",
+  ...songPageRu,
 }

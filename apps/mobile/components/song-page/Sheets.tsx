@@ -2,35 +2,34 @@ import { StyleSheet, Text, View } from "react-native"
 
 import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
 import { ShareSheet } from "@/components/player-v2/ShareSheet"
-import { AboutBody } from "./About"
 import { SpIcon } from "@/components/song-v2/SpIcon"
 import { SpSheet } from "@/components/song-v2/SpSheet"
 import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { useVariantT } from "@/lib/songPageVariants/copy"
+import type { PageSection } from "@/lib/songPage/pageSections"
+import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import type { ScriptId } from "@/lib/songPage/scripts"
 
-import { MeaningLanguageSheet } from "./Meaning"
-import { PlayPanel } from "./Play"
 import { songTitle } from "./Hero"
+import { MeaningLanguageSheet } from "./Meaning"
 import type { PageUi } from "./state"
-import type { SongVariantModel } from "./useSongVariantModel"
-import { WatchPanel } from "./Watch"
+import { ChevronRow } from "./ui"
+import type { SongPageModel } from "./useSongPageModel"
 
 const SCRIPT_IDS: ScriptId[] = ["roman", "devanagari", "bengali"]
 
-export function scriptName(tr: ReturnType<typeof useVariantT>, id: ScriptId): string {
-  return tr(`songVariant.script.${id}`)
+export function scriptName(tr: PageT, id: ScriptId): string {
+  return tr(`songPage.script.${id}`)
 }
 
 /** Which script the lyrics are shown in: only the scripts this song has can be picked. */
-export function ScriptSheet({ t, model, ui }: { t: SpTheme; model: SongVariantModel; ui: PageUi }) {
-  const tr = useVariantT()
+function ScriptSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
+  const tr = usePageT()
   const current = model.lines.primaryScript
   return (
-    <SpSheet t={t} visible={ui.sheet === "script"} onClose={() => ui.setSheet(null)} label={tr("songVariant.script.title")}>
-      <Text style={[styles.title, { color: t.ink900 }]}>{tr("songVariant.script.title")}</Text>
+    <SpSheet t={t} visible={ui.sheet === "script"} onClose={() => ui.setSheet(null)} label={tr("songPage.script.title")}>
+      <Text style={[styles.title, { color: t.ink900 }]}>{tr("songPage.script.title")}</Text>
       {SCRIPT_IDS.map((id) => {
         const has = model.scripts.includes(id)
         const on = has && current === id
@@ -42,13 +41,13 @@ export function ScriptSheet({ t, model, ui }: { t: SpTheme; model: SongVariantMo
               model.setScript(id)
               ui.setSheet(null)
             }}
-            accessibilityLabel={`${scriptName(tr, id)}${has ? "" : `. ${tr("songVariant.script.missing")}`}`}
+            accessibilityLabel={`${scriptName(tr, id)}${has ? "" : `. ${tr("songPage.script.missing")}`}`}
             accessibilityState={{ selected: on, disabled: !has }}
             style={styles.row}
           >
             <View style={styles.rowText}>
               <Text style={[styles.rowName, { color: has ? t.ink900 : t.ink500 }]}>{scriptName(tr, id)}</Text>
-              {has ? null : <Text style={[styles.rowSub, { color: t.ink500 }]}>{tr("songVariant.script.missing")}</Text>}
+              {has ? null : <Text style={[styles.rowSub, { color: t.ink500 }]}>{tr("songPage.script.missing")}</Text>}
             </View>
             {on ? <SpIcon name="check" size={22} color={t.orange500} strokeWidth={2.4} /> : null}
           </SpPress>
@@ -59,22 +58,33 @@ export function ScriptSheet({ t, model, ui }: { t: SpTheme; model: SongVariantMo
   )
 }
 
-function ContentSheet({ t, visible, onClose, title, children }: { t: SpTheme; visible: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+/** The top Menu: only the sections this song has, each one a row that scrolls the page to it. */
+function MenuSheet({ t, ui, sections, onPick }: { t: SpTheme; ui: PageUi; sections: readonly PageSection[]; onPick: (id: PageSection) => void }) {
+  const tr = usePageT()
   return (
-    <SpSheet t={t} visible={visible} onClose={onClose} label={title}>
-      <Text style={[styles.title, { color: t.ink900 }]}>{title}</Text>
-      {children}
-      <View style={{ height: 16 }} />
+    <SpSheet t={t} visible={ui.sheet === "menu"} onClose={() => ui.setSheet(null)} label={tr("songPage.menu.title")}>
+      <Text style={[styles.title, { color: t.ink900 }]}>{tr("songPage.menu.title")}</Text>
+      {sections.map((id, i) => (
+        <ChevronRow
+          key={id}
+          t={t}
+          title={tr(`songPage.tab.${id}`)}
+          last={i === sections.length - 1}
+          onPress={() => {
+            ui.setSheet(null)
+            onPick(id)
+          }}
+        />
+      ))}
+      <View style={{ height: 8 }} />
     </SpSheet>
   )
 }
 
-/** Every sheet of the page. Which of them can open depends on the variant (A and B open only More, Share, Script, Meaning language). */
-export function PageSheets({ t, model, ui }: { t: SpTheme; model: SongVariantModel; ui: PageUi }) {
-  const tr = useVariantT()
+/** Every sheet of the page: More, Share, Script, Translation language, the sections Menu. */
+export function PageSheets({ t, model, ui, sections, onJump }: { t: SpTheme; model: SongPageModel; ui: PageUi; sections: readonly PageSection[]; onJump: (id: PageSection) => void }) {
   const song = model.song
   if (!song) return null
-  const close = () => ui.setSheet(null)
   return (
     <>
       <ActionsSheet
@@ -101,21 +111,13 @@ export function PageSheets({ t, model, ui }: { t: SpTheme; model: SongVariantMod
       <ScriptSheet t={t} model={model} ui={ui} />
       <MeaningLanguageSheet
         t={t}
-        visible={ui.sheet === "meaning"}
-        onClose={close}
+        visible={ui.sheet === "language"}
+        onClose={() => ui.setSheet(null)}
         rows={model.meaningRows}
         selected={model.meaning.wanted}
         onPick={(code) => model.setMeaningLanguage(code)}
       />
-      <ContentSheet t={t} visible={ui.sheet === "about"} onClose={close} title={tr("songVariant.about.title")}>
-        <AboutBody t={t} model={model} />
-      </ContentSheet>
-      <ContentSheet t={t} visible={ui.sheet === "play"} onClose={close} title={tr("songVariant.play.title")}>
-        <PlayPanel t={t} model={model} />
-      </ContentSheet>
-      <ContentSheet t={t} visible={ui.sheet === "watch"} onClose={close} title={tr("songVariant.watch.title")}>
-        <WatchPanel t={t} model={model} />
-      </ContentSheet>
+      <MenuSheet t={t} ui={ui} sections={sections} onPick={onJump} />
     </>
   )
 }

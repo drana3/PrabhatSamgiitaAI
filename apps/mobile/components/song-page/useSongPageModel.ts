@@ -22,10 +22,12 @@ import { NAV_V2_PLAYER_ROUTE } from "@/lib/navV2"
 import { routeString } from "@/lib/songMap"
 import { peekSongDetail, fetchSongDetailCached } from "@/lib/songCache"
 import { peekResolvedSong, resolveSongBundle } from "@/lib/songs"
-import { alignLines, type AlignResult } from "@/lib/songPageVariants/alignLines"
-import { aboutRows, type AboutRow } from "@/lib/songPageVariants/aboutFacts"
-import { type SongFacts } from "@/lib/songPageVariants/layout"
-import { meaningSourceFor, officialEnglishMeaning, storedMeaningRaw, type MeaningSource } from "@/lib/songPageVariants/meaningInfo"
+import { alignLines, type AlignResult } from "@/lib/songPage/alignLines"
+import { aboutRows, type AboutRow } from "@/lib/songPage/aboutFacts"
+import { type SongFacts } from "@/lib/songPage/pageSections"
+import { parseLyricStructure, type LyricStructure } from "@/lib/songPage/lyricStructure"
+import { useSongStory } from "@/hooks/useSongStory"
+import { meaningSourceFor, officialEnglishMeaning, storedMeaningRaw, type MeaningSource } from "@/lib/songPage/meaningInfo"
 import { demoCentralIdea, notationPdfUrl, pageExtras, watchVideos } from "@/lib/songPage/honest"
 import { chartIsUsable } from "@/lib/songPage/chordChart"
 import {
@@ -35,7 +37,7 @@ import {
   resolveLyricLanguage,
   type LyricLanguage,
 } from "@/lib/songPage/lyricLanguages"
-import { availableScripts, buildLyricSources, scriptLines, type ScriptChoice, type ScriptId, type ScriptLines } from "@/lib/songPage/scripts"
+import { availableScripts, buildLyricSources, lyricTextsByScript, scriptLines, toSentenceCase, type ScriptChoice, type ScriptId, type ScriptLines } from "@/lib/songPage/scripts"
 import { explanationIsUsable, extrasForSong, glossesAreUsable, glossFor, type SongExtras } from "@/lib/songPage/songContent"
 import { buildVersions, type SongVersion } from "@/lib/songPage/versions"
 import { nowPlaying } from "@/lib/songPage/nowPlaying"
@@ -70,12 +72,13 @@ export type MeaningLanguageRow = { language: LyricLanguage; source: MeaningSourc
 export type RecordingRow = { id: string; url: string; title: string; subtitle: string; version: SongVersion | null }
 
 /**
- * Everything the three song page variants draw, from the real data hooks: the song, its lyrics in the chosen
- * script, the meaning in one language with where it comes from, real videos, recordings, About facts, the
- * photo, and the actions (play, share, more, karaoke). One hook, so A, B and C can not disagree about a fact.
+ * Everything the song page draws, from the real data hooks: the song, its lyrics in the chosen script with their
+ * stanza structure, the meaning in one language with where it comes from, real videos, the story, recordings,
+ * About facts, the photo, and the actions (play, share, more, karaoke). One hook, so the sections can not
+ * disagree about a fact.
  * Sample content (word meanings, chords) is returned only for the preview's demo songs (`demo`).
  */
-export function useSongVariantModel(songId: string | undefined) {
+export function useSongPageModel(songId: string | undefined) {
   const router = useRouter()
   const am = useAmTheme()
   const appLanguage = useLanguage()
@@ -160,6 +163,13 @@ export function useSongVariantModel(songId: string | undefined) {
   )
   const scripts = useMemo(() => availableScripts(sources), [sources])
   const lines: ScriptLines = useMemo(() => scriptLines(sources, script), [sources, script])
+  // the stanza structure of the stored text of the script on screen; the flat lines are the fallback when the two disagree
+  const structure: LyricStructure = useMemo(() => {
+    const texts = lyricTextsByScript({ lyrics: song?.lyrics, transliteration: song?.transliteration, lyricsDevanagari: song?.lyricsDevanagari })
+    const parsed = parseLyricStructure(texts[lines.primaryScript], lines.primaryScript === "roman" ? toSentenceCase : undefined)
+    const same = parsed.lines.length === lines.primary.length && parsed.lines.every((line, i) => line === lines.primary[i])
+    return same ? parsed : parseLyricStructure(lines.primary.join("\n"))
+  }, [song?.lyrics, song?.transliteration, song?.lyricsDevanagari, lines])
 
   // ---- real extras: nothing today; the demo songs get the prototype's samples ----
   const demoKey = demo && song ? mockupFixtureKey(song.number) : null
@@ -263,6 +273,7 @@ export function useSongVariantModel(songId: string | undefined) {
 
   // ---- watch, recordings ----
   const videos: SongVideo[] = useMemo(() => watchVideos(song?.videos), [song?.videos])
+  const story = useSongStory(song?.number)
 
   const recordings = useMemo(() => {
     if (!song) return []
@@ -438,7 +449,9 @@ export function useSongVariantModel(songId: string | undefined) {
     hasMeaning: meaning.status !== "none",
     hasWords: Boolean(glosses),
     hasChords: Boolean(chart),
+    hasRecordings: recordingRows.length > 0,
     hasVideo: videos.length > 0,
+    hasStory: Boolean(story),
     hasNotationPdf: Boolean(notationUrl),
     align,
   }
@@ -447,12 +460,12 @@ export function useSongVariantModel(songId: string | undefined) {
     // state of the load
     song, loading, demo, detail, related,
     // lyrics
-    sources, scripts, lines, script: script as ScriptChoice, setScript: setScript as (script: ScriptChoice) => void, glosses, glossOf,
+    sources, scripts, lines, structure, script: script as ScriptChoice, setScript: setScript as (script: ScriptChoice) => void, glosses, glossOf,
     chart, explanation, wordCountsMatch,
     // meaning
     meaning, meaningRows, setMeaningLanguage: setPrimaryTranslation, align,
     // watch and listen
-    videos, notationUrl, recordingRows, versions, selectedVersion, showPause, handlePlay, playRecording, openKaraoke, playing,
+    videos, story, notationUrl, recordingRows, versions, selectedVersion, showPause, handlePlay, playRecording, openKaraoke, playing,
     // actions
     saveItem, downloadItem, sheet, setSheet, actionRows, onAction, onShareTarget, sharePayload, sendNote, am, toast, showToast,
     // about
@@ -460,5 +473,5 @@ export function useSongVariantModel(songId: string | undefined) {
   }
 }
 
-export type SongVariantModel = ReturnType<typeof useSongVariantModel>
+export type SongPageModel = ReturnType<typeof useSongPageModel>
 export type { ScriptId }

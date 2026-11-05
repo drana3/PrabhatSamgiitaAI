@@ -160,7 +160,7 @@ export function SpExplain({ t, explanation, onAsk }: { t: SpTheme; explanation: 
 /* ---------------- Chords ---------------- */
 
 /** One chord box: 66 x 68 drawing from the prototype's path data, name and what it sounds like. */
-function ChordBox({ t, card }: { t: SpTheme; card: ChordCard }) {
+export function ChordBox({ t, card }: { t: SpTheme; card: ChordCard }) {
   const d = diagramFor(card.name, card.frets)
   return (
     <View style={[styles.ccard, { backgroundColor: t.sand100 }]}>
