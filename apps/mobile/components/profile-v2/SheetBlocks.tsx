@@ -88,18 +88,30 @@ type SetRowProps = P &
     onPress?: () => void
     /** replaces the value: chips, switches */
     right?: ReactNode
+    /** a glyph before the label (rows that lead to a page of their own) */
+    icon?: ReactNode
   }
 
 /** `.setrow`: 56dp, padding 0 16 0 20, 16 / 500 label, 14 value in ink500, 20dp chevron. */
-export function SetRow({ p, label, value, chevron, danger, onPress, right, last }: SetRowProps) {
+export function SetRow({ p, label, value, chevron, danger, onPress, right, icon, last }: SetRowProps) {
+  const labelText = (
+    <Text
+      style={[s.setLabel, { color: danger ? p.danger : p.ink800, fontFamily: danger ? amFonts.semi : amFonts.medium }]}
+      numberOfLines={2}
+    >
+      {label}
+    </Text>
+  )
   const body = (
     <>
-      <Text
-        style={[s.setLabel, { color: danger ? p.danger : p.ink800, fontFamily: danger ? amFonts.semi : amFonts.medium }]}
-        numberOfLines={2}
-      >
-        {label}
-      </Text>
+      {icon ? (
+        <View style={s.setLead}>
+          <View style={s.setIcon}>{icon}</View>
+          {labelText}
+        </View>
+      ) : (
+        labelText
+      )}
       {right ??
         (value || chevron ? (
           <View style={s.setRight}>
@@ -286,6 +298,8 @@ const s = StyleSheet.create({
     paddingRight: 16,
   },
   setLabel: { flexShrink: 1, fontSize: 16, lineHeight: 23.2 },
+  setLead: { flexDirection: "row", alignItems: "center", gap: 14, flexShrink: 1 },
+  setIcon: { width: 24, alignItems: "center", justifyContent: "center" },
   setRight: { flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 0 },
   setValue: { fontFamily: amFonts.regular, fontSize: 14, lineHeight: 20.3 },
   chip: {

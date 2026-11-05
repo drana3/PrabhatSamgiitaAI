@@ -8,6 +8,7 @@ import {
 } from "@prabhat/core"
 
 import { ConfirmSheet, type ConfirmRequest } from "@/components/profile-v2/ConfirmSheet"
+import { LibraryEntryRow } from "@/components/profile-v2/LibraryEntryRow"
 import { Chip, ChipRow, Group, SetRow, SheetTitle } from "@/components/profile-v2/SheetBlocks"
 import { useDownloadsStorage } from "@/components/profile-v2/useDownloadsStorage"
 import type { AmTheme } from "@/constants/tokens/amColors"
@@ -154,7 +155,12 @@ export function useProfileContent(theme: AmTheme) {
     <>
       <ProfileHeader p={p} initial={identity.initial} title={identity.title} subtitle={identity.subtitle} />
 
-      <SheetTitle p={p} label="Member" />
+      {/* Your library: closes this sheet and opens the page, so Back returns to the screen under it */}
+      <Group p={p}>
+        <LibraryEntryRow p={p} onPress={() => swapTo(PROFILE_ROUTES.library)} />
+      </Group>
+
+      <SheetTitle p={p} label="Member" spaced />
       <Group p={p}>
         <SetRow p={p} label="Quiz and certificates" value="None yet" onPress={() => router.navigate(href(LEARN_HREF))} />
         <SetRow

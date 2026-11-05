@@ -208,6 +208,8 @@ export default function RootLayout() {
           <Stack.Screen name="kiirtan" options={{ presentation: "card" }} />
           {/* All collections: search and kinds, opened from the Songs tab. */}
           <Stack.Screen name="collections-v2" options={{ presentation: "card" }} />
+          {/* Your library: the person's own songs, Kiirtans, playlists, downloads and uploads; opened from the profile sheet. */}
+          <Stack.Screen name="library-v2" options={{ presentation: "card" }} />
           {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
           <Stack.Screen name="player-v2" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
         </Stack>
