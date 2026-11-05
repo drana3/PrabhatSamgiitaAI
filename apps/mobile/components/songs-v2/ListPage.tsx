@@ -11,11 +11,11 @@ import {
   CollageCover,
   LIST_SIDE,
   ListHeader,
-  ROW_HEIGHT,
   SongListRow,
 } from "@/components/songs-v2/ListParts"
 import { HiddenLine } from "@/components/songs-v2/HiddenLine"
 import { ListMenuSheet, ListSortSheet, SongMenuSheet } from "@/components/songs-v2/ListSheets"
+import { SongCardRow } from "@/components/songs-v2/SongCardRow"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { SP_BAR_CONTENT, SpStickyBar } from "@/components/song-v2/SpStickyBar"
 import { Toast } from "@/components/songs-v2/Toast"
@@ -26,6 +26,8 @@ import { useSpTheme } from "@/hooks/useSpTheme"
 import type { BarMarks } from "@/lib/songPage/stickyBar"
 import { usePlayerStore } from "@/stores/playerStore"
 import { collageCoverIds } from "@/lib/songsV2/listPage"
+import { listPageRowHeight, ROW_GEOMETRY, slotHeight } from "@/lib/songsV2/rowStyles"
+import { useListViewStore } from "@/stores/listViewStore"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 
 /** Rows that take part in the one staggered reveal; later rows (scrolled into view) just appear. */
@@ -62,6 +64,9 @@ export function SongsListPage({
   const openedAt = useRevealClock()
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const list = useSongsV2ListPage({ listId, listName: title, entries })
+  // "Rows" setting: Tracklist and Compact rows, or Cards (this page's 64px picture row)
+  const rowStyle = useListViewStore((s) => s.rowStyle)
+  const rowHeight = listPageRowHeight(rowStyle)
 
   const [menuEntry, setMenuEntry] = useState<CatalogEntry | null>(null)
   const [sortOpen, setSortOpen] = useState(false)
@@ -102,20 +107,35 @@ export function SongsListPage({
 
   const renderItem = useCallback(
     ({ item, index }: { item: CatalogEntry; index: number }) => {
-      const row = (
-        <SongListRow
-          theme={theme}
-          entry={item}
-          current={list.currentNumber === item.number}
-          saved={list.saved.has(item.number)}
-          download={list.downloaded.has(item.number) ? "done" : list.downloading.has(item.number) ? "downloading" : "idle"}
-          onPlay={list.playRow}
-          onMenu={openMenu}
-        />
-      )
+      const row =
+        rowStyle === "cards" ? (
+          <SongListRow
+            theme={theme}
+            entry={item}
+            current={list.currentNumber === item.number}
+            saved={list.saved.has(item.number)}
+            download={list.downloaded.has(item.number) ? "done" : list.downloading.has(item.number) ? "downloading" : "idle"}
+            onPlay={list.playRow}
+            onMenu={openMenu}
+          />
+        ) : (
+          <View style={{ height: slotHeight(rowStyle, "song"), paddingLeft: ROW_GEOMETRY[rowStyle].padLeft, paddingRight: 10 }}>
+            <SongCardRow
+              theme={theme}
+              entry={item}
+              variant={rowStyle}
+              saved={list.saved.has(item.number)}
+              offline={list.downloaded.has(item.number)}
+              onOpen={list.playRow}
+              onToggleSave={list.toggleSave}
+              onQueue={list.queueEntry}
+              onMenu={openMenu}
+            />
+          </View>
+        )
       return index < REVEALED_ROWS ? <SongsReveal index={4 + index}>{row}</SongsReveal> : row
     },
-    [theme, list.currentNumber, list.saved, list.downloaded, list.downloading, list.playRow, openMenu],
+    [theme, rowStyle, list.currentNumber, list.saved, list.downloaded, list.downloading, list.playRow, list.toggleSave, list.queueEntry, openMenu],
   )
 
   const header = (
@@ -164,7 +184,7 @@ export function SongsListPage({
           ListEmptyComponent={
             <Text style={[styles.empty, { color: theme.textBody }]}>{emptyMessage}</Text>
           }
-          getItemLayout={(_data, index) => ({ length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index })}
+          getItemLayout={(_data, index) => ({ length: rowHeight, offset: rowHeight * index, index })}
           initialNumToRender={14}
           maxToRenderPerBatch={16}
           windowSize={9}

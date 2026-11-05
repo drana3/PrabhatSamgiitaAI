@@ -6,6 +6,7 @@ import { SaveMark } from "@/components/save/SaveMark"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import { Chip, PillButton } from "@/components/songs-v2/Pill"
 import { Press } from "@/components/songs-v2/Press"
+import { RowStyleControl } from "@/components/songs-v2/RowStyleControl"
 import { overStyle } from "@/components/songs-v2/primitives"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -70,6 +71,7 @@ export function SortSheet({
           )
         })}
       </View>
+      <RowStyleControl theme={theme} />
     </BottomSheet>
   )
 }

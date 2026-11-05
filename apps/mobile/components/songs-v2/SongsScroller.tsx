@@ -34,8 +34,10 @@ import {
   stickyY,
 } from "@/lib/songsV2/layout"
 import { RAIL, railVisible } from "@/lib/songsV2/rail"
+import { groupedForStyle, numberRailMarks, ROW_GEOMETRY, rowsForStyle, slotHeight } from "@/lib/songsV2/rowStyles"
 import { SONG_CHIPS, type SongChipId } from "@/lib/songsV2/segments"
 import type { ListRow, RailGroup } from "@/lib/songsV2/sort"
+import { useListViewStore } from "@/stores/listViewStore"
 
 export type CatalogPart = {
   rows: readonly ListRow[]
@@ -167,7 +169,13 @@ export function SongsScroller({
     },
   )
 
-  const showRail = catalog.rows.length > 0 && railVisible(catalog.rows.length, 20) && isCatalog
+  // "Rows" setting: Compact draws no group headers, so its rows are one run and the rail spreads over all of them
+  const rowStyle = useListViewStore((s) => s.rowStyle)
+  const rows = useMemo(() => rowsForStyle(catalog.rows, rowStyle) as ListRow[], [catalog.rows, rowStyle])
+  const grouped = groupedForStyle(catalog.grouped, rowStyle)
+  const geometry = ROW_GEOMETRY[rowStyle]
+
+  const showRail = rows.length > 0 && railVisible(rows.length, 20) && isCatalog
   useEffect(() => {
     railEnabled.value = showRail ? 1 : 0
     if (!showRail) {
@@ -179,9 +187,9 @@ export function SongsScroller({
 
   const scrollFraction = useDerivedValue(() => Math.min(1, Math.max(0, scrollY.value / Math.max(1, contentH.value - viewH.value))))
 
-  const metrics = useMemo(() => rowMetrics(catalog.rows, spots.listTop), [catalog.rows, spots.listTop])
-  const latest = useRef({ rows: catalog.rows, groups: catalog.groups, grouped: catalog.grouped, metrics, inset })
-  latest.current = { rows: catalog.rows, groups: catalog.groups, grouped: catalog.grouped, metrics, inset }
+  const metrics = useMemo(() => rowMetrics(rows, spots.listTop, rowStyle), [rows, spots.listTop, rowStyle])
+  const latest = useRef({ rows, groups: catalog.groups, grouped, metrics, inset })
+  latest.current = { rows, groups: catalog.groups, grouped, metrics, inset }
 
   const onScrub = useCallback((fraction: number) => {
     const cur = latest.current
@@ -210,7 +218,11 @@ export function SongsScroller({
     listRef.current?.scrollToOffset({ offset: 0, animated: false })
   }, [catalog.resetKey])
 
-  const ticks = useMemo(() => railTicks(catalog.groups, catalog.grouped, catalog.category), [catalog.groups, catalog.grouped, catalog.category])
+  // Tracklist and Compact in the book's order: quiet number marks (1, 1k, 2k ...) instead of dots
+  const ticks = useMemo(
+    () => (!grouped && rowStyle !== "cards" ? numberRailMarks(rows) : null) ?? railTicks(catalog.groups, grouped, catalog.category),
+    [rows, rowStyle, catalog.groups, grouped, catalog.category],
+  )
 
   const pillSticky = useAnimatedStyle(() => ({ transform: [{ translateY: stickyY(spots.pillTop, scrollY.value, pillPin) }] }))
   const stripSticky = useAnimatedStyle(() => ({ transform: [{ translateY: stickyY(spots.chipsTop, scrollY.value, stripPin) }] }))
@@ -281,10 +293,12 @@ export function SongsScroller({
       <View style={[styles.fill, { backgroundColor: theme.page }]} onLayout={onLayout}>
         <Animated.FlatList
           ref={listRef as never}
-          data={isCatalog ? (catalog.rows as ListRow[]) : []}
+          data={isCatalog ? rows : []}
           keyExtractor={(row: ListRow) => row.id}
           renderItem={({ item }: { item: ListRow }) => (
-            <View style={[styles.rowSlot, { height: (item.kind === "header" ? L.header : L.row) + L.gap }]}>{catalog.renderRow(item)}</View>
+            <View style={[styles.rowSlot, { height: slotHeight(rowStyle, item.kind), paddingLeft: geometry.padLeft, paddingRight: geometry.padRight }]}>
+              {catalog.renderRow(item)}
+            </View>
           )}
           getItemLayout={
             metricsFor

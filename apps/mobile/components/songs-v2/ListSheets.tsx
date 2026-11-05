@@ -19,6 +19,7 @@ import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import { BackGlyph } from "@/components/songs-v2/Glyphs"
 import { SongCover } from "@/components/songs-v2/ListParts"
 import { Press } from "@/components/songs-v2/Press"
+import { RowStyleControl } from "@/components/songs-v2/RowStyleControl"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
@@ -300,6 +301,8 @@ export function ListMenuSheet({
   return (
     <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={name} accessibilityLabel="List options" flush>
       <View style={{ paddingBottom: 8 }}>
+        <RowStyleControl theme={theme} />
+        <View style={[styles.rule, { backgroundColor: theme.line }]} />
         <Row theme={theme} label="Add all to queue" icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(onQueueAll)} />
         {downloadedCount > 0 ? (
           <Row

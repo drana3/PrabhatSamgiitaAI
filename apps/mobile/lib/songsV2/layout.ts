@@ -1,3 +1,4 @@
+import { slotHeight, type RowStyle } from "./rowStyles"
 import type { ListRow, RailGroup } from "./sort"
 
 /**
@@ -81,13 +82,16 @@ export type RowMetrics = {
   total: number
 }
 
-/** Offsets of every row; song cards are 76 high, letter headers 52, each followed by the 10px gap. */
-export function rowMetrics(rows: readonly ListRow[], offset = 0): RowMetrics {
+/**
+ * Offsets of every row. Default (Cards): song cards are 76 high, letter headers 52, each followed by the
+ * 10px gap. Other row styles use their own slot heights (lib/songsV2/rowStyles.ts).
+ */
+export function rowMetrics(rows: readonly ListRow[], offset = 0, style: RowStyle = "cards"): RowMetrics {
   const heights: number[] = new Array(rows.length)
   const offsets: number[] = new Array(rows.length)
   let y = offset
   for (let i = 0; i < rows.length; i++) {
-    const h = (rows[i].kind === "header" ? SONGS_LAYOUT.header : SONGS_LAYOUT.row) + SONGS_LAYOUT.gap
+    const h = style === "cards" ? (rows[i].kind === "header" ? SONGS_LAYOUT.header : SONGS_LAYOUT.row) + SONGS_LAYOUT.gap : slotHeight(style, rows[i].kind)
     heights[i] = h
     offsets[i] = y
     y += h
