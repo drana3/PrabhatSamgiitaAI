@@ -43,7 +43,8 @@ async function hydrateFromSession() {
       displayName: auth.displayName,
       email: auth.email,
       memberId: auth.memberId,
-      isAdmin: auth.isAdmin,
+      // the server did not confirm this member, so never keep an admin flag from before
+      isAdmin: false,
       memberBackend: false,
       identityProvider: auth.identityProvider,
     })

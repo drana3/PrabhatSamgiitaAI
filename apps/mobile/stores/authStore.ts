@@ -121,7 +121,8 @@ export const useAuthStore = create<AuthState>()(
         displayNameOverridden: state.displayNameOverridden,
         email: state.email,
         memberId: state.memberId,
-        isAdmin: state.isAdmin,
+        // isAdmin is a UI flag only. It is never written to storage (a backup or an edited file could
+        // flip it); the member sync sets it from the server on every launch.
         memberBackend: state.memberBackend,
         identityProvider: state.identityProvider,
         hasCompletedWelcome: state.hasCompletedWelcome,
