@@ -56,6 +56,8 @@ export type PlayableAudio = {
   title: string
   url: string
   provider: string
+  /** The API marks exactly one audio file per song as the best (`is_latest`). Absent when it does not. */
+  isLatest?: boolean
 }
 
 function audioStreamUrl(item: MediaLike): string | null {
@@ -82,6 +84,7 @@ export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
       title: item.title?.trim() || "Recording",
       url,
       provider: item.provider,
+      ...(item.is_latest ? { isLatest: true } : {}),
     })
   }
   return items

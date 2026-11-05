@@ -14,7 +14,7 @@ export type SongVersion = {
   tag: "Best" | "Verified" | "Community" | "Instrumental" | null
 }
 
-type Recording = { title: string; url: string; provider: string }
+type Recording = { title: string; url: string; provider: string; isLatest?: boolean }
 
 export function inferInstrument(title: string): VersionInstrument {
   const t = title.toLowerCase()
@@ -33,8 +33,9 @@ export const INSTRUMENT_LABEL: Record<VersionInstrument, string> = {
   instrumental: "Instrumental",
 }
 
-function tagFor(provider: string, index: number): SongVersion["tag"] {
-  if (index === 0) return "Best"
+/** "Best" only when the API says so (`is_latest`); the first recording is not "best" just for being first. */
+export function tagFor(provider: string, isLatest = false): SongVersion["tag"] {
+  if (isLatest) return "Best"
   const p = provider.toLowerCase()
   if (p === "official" || p.includes("verified")) return "Verified"
   if (p.includes("community")) return "Community"
@@ -60,7 +61,7 @@ export function buildVersions(
       instrument,
       performer,
       length: currentUrl === recording.url && currentLength > 0 ? currentLength : null,
-      tag: tagFor(recording.provider, index),
+      tag: tagFor(recording.provider, recording.isLatest),
     }
   })
 }
