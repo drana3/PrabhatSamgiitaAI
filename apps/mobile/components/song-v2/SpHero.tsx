@@ -5,9 +5,11 @@ import Animated, { useAnimatedStyle, useReducedMotion, type SharedValue } from "
 import Svg, { Circle } from "react-native-svg"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { SaveButton } from "@/components/save/SaveButton"
 import { coverFor } from "@/components/player-v2/playerCovers"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
+import type { SaveItem } from "@/lib/save/saveToSheet"
 import { songAccents } from "@/lib/songPage/accent"
 import { coverTransform } from "@/lib/songPage/stickyBar"
 import type { DownloadPhase } from "@/lib/songPage/versions"
@@ -189,8 +191,7 @@ function Tool({ label, onPress, children }: { label: string; onPress: () => void
  */
 export function SpActionRow({
   t,
-  saved,
-  onHeart,
+  saveItem,
   showDownload,
   phase,
   progress,
@@ -204,8 +205,8 @@ export function SpActionRow({
   onLayout,
 }: {
   t: SpTheme
-  saved: boolean
-  onHeart: () => void
+  /** The song, for the circle-plus that opens the "Save to" sheet. */
+  saveItem: SaveItem | null
   showDownload: boolean
   phase: DownloadPhase
   progress: number
@@ -223,9 +224,7 @@ export function SpActionRow({
   return (
     <View style={styles.actions} onLayout={onLayout}>
       <View style={styles.tools}>
-        <Tool label={saved ? "Remove from Mine" : "Save to Mine"} onPress={onHeart}>
-          <SpIcon name="heart" size={26} filled={saved} color={saved ? accent.bright : t.ink800} />
-        </Tool>
+        {saveItem ? <SaveButton item={saveItem} size={28} color={t.ink800} /> : null}
         {showDownload ? (
           <Tool label={downloadLabel} onPress={onDownload}>
             <DownloadGlyph t={t} phase={phase} progress={progress} />

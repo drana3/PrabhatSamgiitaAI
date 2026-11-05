@@ -1,8 +1,6 @@
 import { useCallback, useEffect } from "react"
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 import { BlurView } from "expo-blur"
-import { useRouter } from "expo-router"
-import { CirclePlus } from "lucide-react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   cancelAnimation,
@@ -17,6 +15,7 @@ import { scheduleOnRN } from "react-native-worklets"
 import { HomeCover } from "@/components/home/HomeBlocks"
 import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { SaveButton } from "@/components/save/SaveButton"
 import { useSheetCover } from "@/components/nav-v2/sheetCover"
 import { PressScale } from "@/components/today/motion"
 import { amReveal, amSpring, projectMomentum } from "@/constants/tokens/amMotion"
@@ -26,9 +25,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { miniProgress, miniSubtitle, isDarkTheme, rubberBand } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
-import { useKirtanStore } from "@/stores/kirtanStore"
+import type { SaveItem } from "@/lib/save/saveToSheet"
 import { usePlayerStore } from "@/stores/playerStore"
-import { href } from "@/utils/href"
 
 /**
  * Pill colours from the prototype (.mini): white 38% with a 60% edge in Light, neutral
@@ -69,7 +67,6 @@ type Props = {
  */
 export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   const theme = useAmTheme()
-  const router = useRouter()
   const reduce = useReducedMotion()
   const palette = MINI_PALETTE[isDarkTheme(theme) ? "dark" : "light"]
 
@@ -84,7 +81,6 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   const previous = usePlayerStore((s) => s.previous)
   const isKiirtan = currentSong?.kind === "kiirtan"
   const kiirtanId = currentSong?.kiirtan?.id ?? null
-  const kiirtanSaved = useKirtanStore((s) => (kiirtanId ? s.savedIds.includes(kiirtanId) : false))
 
   // A bottom sheet covers the mini player, as in the prototype.
   const covered = useSheetCover((s) => s.count > 0)
@@ -159,17 +155,8 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   if (!currentSong) return null
 
   const progress = miniProgress(position, duration)
+  const saveItem: SaveItem = isKiirtan && kiirtanId ? { kind: "kiirtan", id: kiirtanId } : { kind: "song", number: currentSong.number }
   const blurTint = isDarkTheme(theme) ? "dark" : "light"
-  const onSave = () => {
-    if (isKiirtan && kiirtanId) useKirtanStore.getState().toggleSaved(kiirtanId)
-    else router.push(href(`/playlist/add?song=${currentSong.number}`))
-  }
-  const saveLabel = isKiirtan
-    ? kiirtanSaved
-      ? `Remove ${currentSong.title} from saved`
-      : `Save ${currentSong.title}`
-    : `Save ${currentSong.title} to a playlist`
-
   return (
     <Animated.View
       pointerEvents={visible && !covered ? "box-none" : "none"}
@@ -211,13 +198,13 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
           </PressScale>
           </View>
 
-          <PressScale accessibilityRole="button" accessibilityLabel={saveLabel} onPress={onSave} style={styles.control}>
-            {isKiirtan && kiirtanSaved ? (
-              <PlayerIcon name="check" size={22} color={theme.brand} />
-            ) : (
-              <CirclePlus size={24} color={theme.textHeading} strokeWidth={1.8} />
-            )}
-          </PressScale>
+          <SaveButton
+            item={saveItem}
+            size={24}
+            color={theme.textHeading}
+            title={currentSong.title}
+            style={styles.control}
+          />
           <PressScale
             accessibilityRole="button"
             accessibilityLabel={showPause ? `Pause ${currentSong.title}` : `Play ${currentSong.title}`}

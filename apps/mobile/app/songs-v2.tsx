@@ -30,7 +30,7 @@ import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
-import { MOCK_OFFLINE, MOCK_PLAYLISTS, MOCK_SAVED, MOCK_TILES, MOCK_TOTAL, mockCountLabel } from "@/lib/fixtures/songsMock"
+import { MOCK_OFFLINE, MOCK_PLAYLISTS, MOCK_TILES, MOCK_TOTAL, mockCountLabel } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { href } from "@/utils/href"
 
@@ -70,8 +70,6 @@ function PsSongs() {
   const offlineFiles = useOfflineAudioStore((s) => s.files)
   const { items: downloadItems, scanned: downloadsScanned } = useOfflineStorageItems()
 
-  // Preview (MOCKUP_DATA): hearts, playlists and downloads of the prototype sample.
-  const [mockSaved, setMockSaved] = useState<number[]>([...MOCK_SAVED])
   useEffect(() => {
     if (params.chip || params.segment) setChipId(parseSongChip(params.chip ?? params.segment))
   }, [params.chip, params.segment])
@@ -88,22 +86,16 @@ function PsSongs() {
   const initial = MOCKUP_DATA ? "D" : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
 
   const savedNumbers = useMemo(
+    // The preview seeds the same store (lib/playerV2/demoEngine.ts), so Mine is one list everywhere.
     () =>
-      MOCKUP_DATA
-        ? mockSaved
-        : savedSongIds.flatMap((id) => {
-            const match = /^ps-(\d+)$/i.exec(id)
-            return match ? [Number(match[1])] : []
-          }),
-    [savedSongIds, mockSaved],
+      savedSongIds.flatMap((id) => {
+        const match = /^ps-(\d+)$/i.exec(id)
+        return match ? [Number(match[1])] : []
+      }),
+    [savedSongIds],
   )
-  const toggleSave = useCallback(
-    (entry: CatalogEntry) => {
-      if (MOCKUP_DATA) setMockSaved((cur) => (cur.includes(entry.number) ? cur.filter((n) => n !== entry.number) : [...cur, entry.number]))
-      else void actions.toggleSave(entry)
-    },
-    [actions],
-  )
+  /** The circle-plus, the swipe and the row menu all open the one "Save to" sheet. */
+  const toggleSave = actions.toggleSave
   const savedSet = useMemo(() => new Set(savedNumbers), [savedNumbers])
   const offlineNumbers = useMemo(() => (MOCKUP_DATA ? new Set(MOCK_OFFLINE) : new Set(Object.values(offlineFiles).map((f) => f.songNumber))), [offlineFiles])
   const savedRows = useMemo(

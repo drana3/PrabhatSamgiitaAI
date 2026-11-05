@@ -38,6 +38,7 @@ import { allCollections } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
+import { useSaveState } from "@/hooks/useSaveState"
 import { useSongMeaning } from "@/hooks/useSongMeaning"
 import { FIXTURE_CENTRAL_IDEA, FIXTURE_MORE_VIDEOS, FIXTURE_PLAYLISTS, fixtureExtras } from "@/lib/fixtures/songPage"
 import { demoUrl } from "@/lib/fixtures/playerDemo"
@@ -45,7 +46,6 @@ import {
   MOCKUP_DOWNLOADED,
   MOCKUP_LANGUAGES,
   MOCKUP_LEARNING,
-  MOCKUP_SAVED,
   mockupFixtureKey,
   mockupRow,
   mockupRows,
@@ -67,6 +67,7 @@ import { listenQueueForSong } from "@/lib/playbackQueue"
 import { mixHex, tintForSong } from "@/lib/playerV2/coverTint"
 import { aboutContent, buildActionRows, collectionForSong, queueAddMessage, REPORT_THANKS, type ActionId } from "@/lib/playerV2/playerActions"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
+import type { SaveItem } from "@/lib/save/saveToSheet"
 import { buildSharePayload, shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { realQueueActions } from "@/lib/playerV2/services"
 import { chartIsUsable, columnsInScript, layoutChart, splitWords, type WordColumn } from "@/lib/songPage/chordChart"
@@ -116,7 +117,7 @@ import { meaningUnavailableMessage } from "@/lib/songMeanings"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlaylistStore } from "@/stores/playlistStore"
-import { usePreferencesStore } from "@/stores/preferencesStore"
+import { openSaveSheet } from "@/stores/saveSheetStore"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
@@ -185,7 +186,6 @@ export default function SongPageV2() {
   const mockNumber = MOCKUP_DATA ? Number.parseInt((songId ?? "").replace(/\D/g, ""), 10) : Number.NaN
   const mockRow = Number.isFinite(mockNumber) ? mockupRow(mockNumber) : null
   const mock = MOCKUP_DATA && mockRow ? mockRow : null
-  const [mockSaved, setMockSaved] = useState<number[]>(MOCKUP_SAVED)
   const [mockVer, setMockVer] = useState(() => Number.parseInt(routeString(params.ver) || "0", 10) || 0)
   const [mockDl, setMockDl] = useState<string[]>(MOCKUP_DOWNLOADED)
   const [mockProg, setMockProg] = useState<Record<string, number>>(() => {
@@ -226,8 +226,6 @@ export default function SongPageV2() {
 
   // playback and library
   const authMode = useAuthStore((s) => s.mode)
-  const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
-  const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
   const pause = usePlayerStore((s) => s.pause)
   const syncCurrentSong = usePlayerStore((s) => s.syncCurrentSong)
@@ -596,22 +594,12 @@ export default function SongPageV2() {
     void download(remote, song.number, { userInitiated: true }).catch(() => undefined)
   }
 
-  const isSaved = mock
-    ? Boolean(song && mockSaved.includes(song.number))
-    : Boolean(song && authMode === "signed_in" && savedSongIds.includes(song.id))
+  // Saved = in Mine or in any playlist; the circle-plus opens the "Save to" sheet. The preview seeds
+  // the same stores (lib/playerV2/demoEngine.ts), so no separate mock state is needed here.
+  const saveItem: SaveItem | null = song ? { kind: "song", number: song.number } : null
+  const isSaved = useSaveState(saveItem).saved
   const handleHeart = () => {
-    if (!song) return
-    if (mock) {
-      setMockSaved((list) => (isSaved ? list.filter((n) => n !== song.number) : [...list, song.number]))
-      showToast(isSaved ? "Removed from Mine" : "Saved to Mine")
-      return
-    }
-    if (authMode !== "signed_in") {
-      router.push(href("/signin"))
-      return
-    }
-    void toggleSaved(song.id)
-    showToast(isSaved ? "Removed from Mine" : "Saved to Mine")
+    if (saveItem) openSaveSheet(saveItem)
   }
 
   const learning = Boolean(song && (learningMap[song.id] || (mock && MOCKUP_LEARNING.includes(song.number))))
@@ -1021,8 +1009,7 @@ export default function SongPageV2() {
           <Reveal index={2}>
             <SpActionRow
               t={t}
-              saved={isSaved}
-              onHeart={handleHeart}
+              saveItem={saveItem}
               showDownload={canDownload}
               phase={phase}
               progress={shownProgress}

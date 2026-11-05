@@ -12,11 +12,12 @@ import {
 } from "react-native"
 import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { ChevronLeft, Heart, ListPlus, Pause, Play, Share2, Sparkles } from "lucide-react-native"
+import { ChevronLeft, ListPlus, Pause, Play, Share2, Sparkles } from "lucide-react-native"
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 import { IconButton } from "@/components/common/IconButton"
+import { SaveButton } from "@/components/save/SaveButton"
 import { SongListenControls } from "@/components/player/SongListenControls"
 import { PlaylistPlaybackBar } from "@/components/playlists/PlaylistPlaybackBar"
 import { WatchVideoCard } from "@/components/player/WatchVideoCard"
@@ -57,7 +58,6 @@ import {
 import { shareSong as shareSongSheet } from "@/lib/shareSong"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
-import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
 export default function SongDetailScreen() {
@@ -87,8 +87,6 @@ export default function SongDetailScreen() {
     song ? songPlayback(s, song).isCurrent : false,
   )
   const authMode = useAuthStore((s) => s.mode)
-  const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
-  const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
   const [language, setLanguage] = useState("en")
   const [localizedMeaning, setLocalizedMeaning] = useState<string | null>(null)
   const [localizedTitle, setLocalizedTitle] = useState<string | null>(null)
@@ -625,7 +623,6 @@ export default function SongDetailScreen() {
     )
   }
 
-  const isSaved = authMode === "signed_in" && savedSongIds.includes(song.id)
   const playQueue = listenQueueForSong(
     song.number,
     related.map((item) => item.number),
@@ -702,23 +699,7 @@ export default function SongDetailScreen() {
             PS {song.number}
           </Text>
           <View style={styles.navActions}>
-            <IconButton
-              soft
-              accessibilityLabel={isSaved ? "Remove favorite" : "Save favorite"}
-              onPress={() => {
-                if (authMode !== "signed_in") {
-                  router.push(href("/signin"))
-                  return
-                }
-                void toggleSaved(song.id)
-              }}
-            >
-              <Heart
-                size={20}
-                color={isSaved ? colors.primary : colors.textPrimary}
-                fill={isSaved ? colors.primary : "transparent"}
-              />
-            </IconButton>
+            <SaveButton item={{ kind: "song", number: song.number }} size={24} color={colors.textPrimary} title={`PS ${song.number}`} />
             <IconButton
               soft
               accessibilityLabel="Add to playlist"

@@ -35,6 +35,7 @@ import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
+import { SaveHost } from "@/components/save/SaveHost"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
 import { useAppearanceStore } from "@/stores/appearanceStore"
@@ -209,6 +210,8 @@ export default function RootLayout() {
         </Stack>
         {/* The one mini-player, above every screen (tabs and pushed). */}
         <MiniPlayerHost />
+        {/* The one "Save to" sheet (circle-plus buttons everywhere open it). */}
+        <SaveHost />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )

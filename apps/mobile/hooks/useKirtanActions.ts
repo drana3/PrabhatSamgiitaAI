@@ -8,6 +8,7 @@ import { kiirtanNumber } from "@/lib/kirtan/track"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useKirtanStore } from "@/stores/kirtanStore"
+import { openSaveSheet } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
 
 /** Actions shared by the Kiirtan lists, the artist page and the mix screen: play, queue, save, report. */
@@ -69,13 +70,8 @@ export function useKirtanActions() {
   // TODO(api): Kiirtans in playlists need the backend; playlists hold songs only today.
   const addToPlaylist = useCallback(() => flash("Kiirtans in playlists are coming soon"), [flash])
 
-  const toggleSaved = useCallback(
-    (k: Kirtan) => {
-      const nowSaved = useKirtanStore.getState().toggleSaved(k.id)
-      flash(nowSaved ? "Saved" : "Removed from saved")
-    },
-    [flash],
-  )
+  /** Opens the "Save to" sheet for the Kiirtan (Mine only); the sheet says what happened. */
+  const toggleSaved = useCallback((k: Kirtan) => openSaveSheet({ kind: "kiirtan", id: k.id }), [])
 
   // TODO(api): send the report to the moderators.
   const report = useCallback(

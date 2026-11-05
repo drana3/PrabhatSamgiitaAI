@@ -2,10 +2,11 @@ import { StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
 
 import { PlayerIcon, type PlayerIconName } from "@/components/player-v2/PlayerIcons"
+import { SaveMark } from "@/components/save/SaveMark"
 import { coverFor } from "@/components/player-v2/playerCovers"
 import { Sheet } from "@/components/player-v2/Sheet"
 import { PressScale } from "@/components/today/motion"
-import { amColors, type AmTheme } from "@/constants/tokens/amColors"
+import type { AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { ActionId, ActionRow } from "@/lib/playerV2/playerActions"
 
@@ -21,9 +22,8 @@ type Props = {
   onClose: () => void
 }
 
-const ICON: Record<ActionRow["icon"], PlayerIconName> = {
+const ICON: Record<Exclude<ActionRow["icon"], "save">, PlayerIconName> = {
   share: "share",
-  heart: "heart",
   playlistAdd: "playlistAdd",
   queueAdd: "queueAdd",
   queue: "queue",
@@ -67,12 +67,11 @@ export function ActionsSheet({ visible, theme, songNumber, title, subtitle, rows
           style={styles.row}
         >
           <View style={styles.icon}>
-            <PlayerIcon
-              name={ICON[row.icon]}
-              size={24}
-              color={row.active ? amColors.orange500 : theme.textHeading}
-              filled={row.icon === "heart" && row.active}
-            />
+            {row.icon === "save" ? (
+              <SaveMark on={Boolean(row.active)} size={24} color={theme.textHeading} />
+            ) : (
+              <PlayerIcon name={ICON[row.icon]} size={24} color={theme.textHeading} />
+            )}
           </View>
           <View style={styles.rowText}>
             <Text style={[styles.label, { color: theme.textHeading }]} numberOfLines={1}>

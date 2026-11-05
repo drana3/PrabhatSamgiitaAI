@@ -30,6 +30,8 @@ type Props = {
   dark?: boolean
   /** Fill the available height (lists that scroll by themselves) instead of fitting the content. */
   fill?: boolean
+  /** No Done button in the header: the sheet carries its own (the Save to sheet). */
+  hideDone?: boolean
   children: ReactNode
 }
 
@@ -51,7 +53,7 @@ const PEEK = 64
  * projects to. Grabbing it mid-flight continues from its live position. With
  * Reduce Motion it cross-fades.
  */
-export function Sheet({ visible, onClose, title, theme, dark, fill, children }: Props) {
+export function Sheet({ visible, onClose, title, theme, dark, fill, hideDone, children }: Props) {
   const reduce = useReducedMotion()
   const { height: windowHeight } = useWindowDimensions()
   const maxHeight = Math.min(MAX_HEIGHT, windowHeight - PEEK)
@@ -172,15 +174,17 @@ export function Sheet({ visible, onClose, title, theme, dark, fill, children }: 
               <Text style={[styles.over, { color: over }]} accessibilityRole="header" numberOfLines={1}>
                 {title}
               </Text>
-              <PressScale
-                accessibilityRole="button"
-                accessibilityLabel="Done"
-                onPress={onClose}
-                pressedScale={0.96}
-                style={styles.done}
-              >
-                <Text style={[styles.doneText, { color: ink }]}>Done</Text>
-              </PressScale>
+              {hideDone ? null : (
+                <PressScale
+                  accessibilityRole="button"
+                  accessibilityLabel="Done"
+                  onPress={onClose}
+                  pressedScale={0.96}
+                  style={styles.done}
+                >
+                  <Text style={[styles.doneText, { color: ink }]}>Done</Text>
+                </PressScale>
+              )}
             </View>
           </View>
         </GestureDetector>

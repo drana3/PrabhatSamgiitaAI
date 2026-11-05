@@ -1,7 +1,8 @@
 import { useRef, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
-import { Check, Heart, ListPlus, Share2 } from "lucide-react-native"
+import { Check, ListPlus, Share2 } from "lucide-react-native"
 
+import { SaveMark } from "@/components/save/SaveMark"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import { Chip, PillButton } from "@/components/songs-v2/Pill"
 import { Press } from "@/components/songs-v2/Press"
@@ -196,8 +197,8 @@ export function RowMenuSheet({
         <MenuRow theme={theme} label="Add to queue" icon={<ListPlus size={22} color={theme.textHeading} />} onPress={act(onQueue)} />
         <MenuRow
           theme={theme}
-          label={saved ? "Remove from saved" : "Save"}
-          icon={<Heart size={22} color={theme.textHeading} fill={saved ? theme.brand : "none"} />}
+          label={saved ? "Saved. Change" : "Save to…"}
+          icon={<SaveMark on={saved} size={22} color={theme.textHeading} />}
           onPress={act(onToggleSave)}
         />
         <MenuRow theme={theme} label="Share" icon={<Share2 size={22} color={theme.textHeading} />} onPress={act(onShare)} />

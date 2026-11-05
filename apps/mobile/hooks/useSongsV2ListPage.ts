@@ -59,7 +59,6 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   /* ---- what the listener has */
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const recentPlays = usePreferencesStore((s) => s.recentPlays)
-  const mockSaved = useSongsListState((s) => s.mockSaved)
   const hiddenMap = useSongsListState((s) => s.hidden)
   const offlineFiles = useOfflineAudioStore((s) => s.files)
   const activeBySong = useOfflineAudioStore((s) => s.activeBySong)
@@ -74,12 +73,10 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     Object.fromEntries(MOCK_PLAYLISTS.map((p) => [p.id, [...p.songs]])),
   )
 
+  // The preview seeds the same store (lib/playerV2/demoEngine.ts), so Mine is one list everywhere.
   const saved = useMemo(
-    () =>
-      MOCKUP_DATA
-        ? new Set(mockSaved)
-        : new Set(savedSongIds.map((id) => Number(id.replace(/^ps-/i, ""))).filter(Number.isFinite)),
-    [mockSaved, savedSongIds],
+    () => new Set(savedSongIds.map((id) => Number(id.replace(/^ps-/i, ""))).filter(Number.isFinite)),
+    [savedSongIds],
   )
   const downloaded = useMemo(
     () =>
@@ -246,15 +243,8 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     flash(`Added ${shownNumbers.length} ${shownNumbers.length === 1 ? "song" : "songs"} to the queue`)
   }, [shownNumbers, flash])
 
-  const toggleSave = useCallback(
-    (entry: CatalogEntry) => {
-      const wasSaved = saved.has(entry.number)
-      if (MOCKUP_DATA) useSongsListState.getState().toggleMockSaved(entry.number)
-      else void actions.toggleSave(entry)
-      flash(wasSaved ? "Removed from my songs" : "Saved to my songs")
-    },
-    [saved, actions, flash],
-  )
+  /** The circle-plus, the swipe and the row menu all open the one "Save to" sheet, which says what happened. */
+  const toggleSave = useCallback((entry: CatalogEntry) => actions.toggleSave(entry), [actions])
 
   const playlistRows = useCallback(
     (entry: CatalogEntry | null): MenuPlaylist[] => {

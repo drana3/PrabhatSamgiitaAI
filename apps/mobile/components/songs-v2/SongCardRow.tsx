@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from "react-native"
 import ReanimatedSwipeable, { SwipeDirection, type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable"
 import { ListPlus } from "lucide-react-native"
 
-import { HeartGlyph } from "@/components/songs-v2/Glyphs"
+import { SaveButton } from "@/components/save/SaveButton"
+import { SaveMark } from "@/components/save/SaveMark"
 
 import { overStyle } from "@/components/songs-v2/primitives"
 import { Press } from "@/components/songs-v2/Press"
@@ -27,7 +28,7 @@ const ACTION_WIDTH = 96
 
 /**
  * Prototype `.card.song`: white 20px card, min height 76, `PS 1 · 3:58 · OFFLINE` over a one-line
- * 19px title, a 44px heart on the right (orange and filled when saved).
+ * 19px title, a 44px circle-plus on the right (a filled check once saved) that opens the "Save to" sheet.
  * Kept from the first build: swipe right saves, swipe left queues, long press opens the menu.
  * The swipe uses the gesture-handler swipeable with its own friction (see the branch notes).
  */
@@ -61,8 +62,8 @@ export const SongCardRow = memo(function SongCardRow({
       }}
       renderLeftActions={() => (
         <View style={[styles.action, { backgroundColor: theme.brand }]} accessibilityElementsHidden>
-          <HeartGlyph size={20} color={amColors.white} filled={saved} />
-          <Text style={[overStyle, { color: amColors.white }]}>{saved ? "Unsave" : "Save"}</Text>
+          <SaveMark on={false} size={22} color={amColors.white} />
+          <Text style={[overStyle, { color: amColors.white }]}>{saved ? "Saved" : "Save to"}</Text>
         </View>
       )}
       renderRightActions={() => (
@@ -77,7 +78,7 @@ export const SongCardRow = memo(function SongCardRow({
           accessibilityRole="button"
           accessibilityLabel={`${eyebrow}, ${entry.title}`}
           accessibilityActions={[
-            { name: "save", label: saved ? "Remove from saved" : "Save" },
+            { name: "save", label: saved ? "Saved. Change" : "Add to…" },
             { name: "queue", label: "Add to queue" },
             { name: "menu", label: "More actions" },
           ]}
@@ -100,16 +101,7 @@ export const SongCardRow = memo(function SongCardRow({
             {entry.title}
           </Text>
         </Press>
-        <Press
-          accessibilityRole="button"
-          accessibilityLabel={saved ? `Remove PS ${entry.number} from Mine` : `Save PS ${entry.number} to Mine`}
-          accessibilityState={{ selected: saved }}
-          onPress={() => onToggleSave(entry)}
-          pressedScale={0.88}
-          style={styles.heart}
-        >
-          <HeartGlyph color={saved ? theme.accent : theme.textBody} filled={saved} />
-        </Press>
+        <SaveButton item={{ kind: "song", number: entry.number }} size={24} color={theme.textBody} title={`PS ${entry.number}, ${entry.title}`} />
       </View>
     </ReanimatedSwipeable>
   )
@@ -132,7 +124,6 @@ const styles = StyleSheet.create({
   mainOuter: { flex: 1, minWidth: 0 },
   main: { gap: 4 },
   title: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 22, letterSpacing: -0.19 },
-  heart: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   action: {
     width: ACTION_WIDTH,
     borderRadius: 20,

@@ -20,7 +20,7 @@ export type ActionId =
 
 export type ActionIcon =
   | "share"
-  | "heart"
+  | "save"
   | "playlistAdd"
   | "queueAdd"
   | "queue"
@@ -62,8 +62,8 @@ export function buildActionRows(input: ActionInput): ActionRow[] {
     {
       id: "save",
       label: input.saved ? "Saved" : "Save to my songs",
-      meta: input.saved ? "Tap to remove from my songs" : undefined,
-      icon: "heart",
+      meta: input.saved ? "Tap to change where it is saved" : undefined,
+      icon: "save",
       active: input.saved,
     },
     { id: "playlist", label: "Add to playlist", icon: "playlistAdd" },
