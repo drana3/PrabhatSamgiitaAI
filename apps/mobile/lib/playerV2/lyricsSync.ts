@@ -5,6 +5,18 @@
  * timestamps: feed them to `activeLineIndex` through `LineTiming`.
  */
 export type LineTiming = { start: number; end: number }
+
+/**
+ * True once the catalog supplies real line timestamps. Until then the timing below is a guess from
+ * line length, and a highlight that runs ahead of or behind the singer, or a tap on a line that seeks
+ * to the wrong second, would be invented. So the panel shows the lyrics as plain text: no sung-word
+ * highlight, no auto-scroll, no seek by line. The web preview with prototype data keeps its demo.
+ */
+export const LYRICS_HAVE_TIMESTAMPS = false
+
+export function lyricsAreSynced(prototypeData: boolean, haveTimestamps: boolean = LYRICS_HAVE_TIMESTAMPS): boolean {
+  return prototypeData || haveTimestamps
+}
 export type LyricWord = { text: string; gloss?: string }
 export type LyricLine = { text: string; words: LyricWord[]; translation?: string }
 
@@ -95,7 +107,8 @@ export function activeWordIndex(words: string[], timing: LineTiming, position: n
 
 export type LineState = "current" | "done" | "coming"
 
-export function lineState(index: number, active: number): LineState {
+export function lineState(index: number, active: number, synced = true): LineState {
+  if (!synced) return "current"
   if (index === active) return "current"
   return index < active ? "done" : "coming"
 }

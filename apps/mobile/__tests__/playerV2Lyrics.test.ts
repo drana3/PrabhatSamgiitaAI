@@ -7,6 +7,8 @@ import {
   autoScrollReduce,
   buildLyricLines,
   lineState,
+  LYRICS_HAVE_TIMESTAMPS,
+  lyricsAreSynced,
   lineTimings,
   scrollOffsetForLine,
   seekTargetForLine,
@@ -113,3 +115,18 @@ describe("sentenceCaseLine", () => {
     expect(sentenceCaseLine("बन्धु हे")).toBe("बन्धु हे")
   })
 })
+
+describe("lyrics without real timestamps (checkup P9)", () => {
+  it("are plain text: only the prototype preview, or real timestamps, switch the highlight on", () => {
+    expect(LYRICS_HAVE_TIMESTAMPS).toBe(false)
+    expect(lyricsAreSynced(false)).toBe(false)
+    expect(lyricsAreSynced(true)).toBe(true)
+    expect(lyricsAreSynced(false, true)).toBe(true)
+  })
+
+  it("every line reads the same when not synced, whatever the guessed line is", () => {
+    expect([0, 1, 2].map((i) => lineState(i, 1, false))).toEqual(["current", "current", "current"])
+    expect([0, 1, 2].map((i) => lineState(i, 1))).toEqual(["done", "current", "coming"])
+  })
+})
+

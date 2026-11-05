@@ -25,6 +25,8 @@ type Props = {
   onOptions?: () => void
   /** A language the person chose and this song lacks: one plain line at the foot of the card, and an action (Request). */
   notice?: { text: string; action: string; onAction?: () => void } | null
+  /** False while the lyrics have no real timestamps: plain text, no highlight, no auto-scroll, no seek by line. Default true. */
+  synced?: boolean
   /** Marks the translation and word meanings as sample material of the demo preview ("Demo content"). */
   demoTag?: boolean
 }
@@ -47,6 +49,7 @@ const PANEL_FADE_COLOR = "rgba(22, 21, 19, 1)"
  * sung line are white, the word being sung is gold, finished lines dim and coming
  * lines are faint. It follows the song by itself; touching it pauses that until
  * the line changes. Tapping a word seeks to the start of its line.
+ * Without real timestamps (`synced` false) none of that happens: the lyrics are plain text.
  */
 export function LyricsPanel({
   lines,
@@ -60,6 +63,7 @@ export function LyricsPanel({
   onOptions,
   notice,
   demoTag,
+  synced = true,
 }: Props) {
   const t = useT()
   const reduce = useReducedMotion()
@@ -74,13 +78,13 @@ export function LyricsPanel({
   }, [activeLine])
 
   useEffect(() => {
-    if (auto.paused || activeLine < 0 || viewport <= 0) return
+    if (!synced || auto.paused || activeLine < 0 || viewport <= 0) return
     const top = tops.current[activeLine]
     if (top == null) return
     const y = Math.max(0, top - viewport * SUNG_LINE_SHARE)
     scroll.current?.scrollTo({ y, animated: !reduce && !firstScroll.current })
     firstScroll.current = false
-  }, [activeLine, auto.paused, reduce, viewport, lines])
+  }, [synced, activeLine, auto.paused, reduce, viewport, lines])
 
   return (
     <View style={styles.panel}>
@@ -104,15 +108,18 @@ export function LyricsPanel({
               <LyricRow
                 key={`${index}-${line.text}`}
                 line={line}
-                state={lineState(index, activeLine)}
-                activeWord={index === activeLine ? activeWord : -1}
+                state={lineState(index, activeLine, synced)}
+                activeWord={synced && index === activeLine ? activeWord : -1}
+                seekable={synced}
                 devanagari={devanagari}
                 showGloss={showGloss}
                 showTranslation={showTranslation}
                 onLayoutTop={(y) => {
                   tops.current[index] = y
                 }}
-                onPress={() => onSeekToLine(index)}
+                onPress={() => {
+                  if (synced) onSeekToLine(index)
+                }}
               />
             ))}
           </ScrollView>
@@ -185,6 +192,7 @@ type RowProps = {
   devanagari: boolean
   showGloss: boolean
   showTranslation: boolean
+  seekable: boolean
   onLayoutTop: (y: number) => void
   onPress: () => void
 }
@@ -196,6 +204,7 @@ const LyricRow = memo(function LyricRow({
   devanagari,
   showGloss,
   showTranslation,
+  seekable,
   onLayoutTop,
   onPress,
 }: RowProps) {
@@ -209,8 +218,9 @@ const LyricRow = memo(function LyricRow({
           return (
             <Pressable
               key={`${w}-${word.text}`}
-              accessibilityRole="button"
-              accessibilityLabel={`${word.text}${word.gloss && showGloss ? `, ${word.gloss}` : ""}. Go to this line`}
+              accessibilityRole={seekable ? "button" : "text"}
+              accessibilityLabel={`${word.text}${word.gloss && showGloss ? `, ${word.gloss}` : ""}${seekable ? ". Go to this line" : ""}`}
+              disabled={!seekable}
               onPress={onPress}
               style={styles.word}
             >

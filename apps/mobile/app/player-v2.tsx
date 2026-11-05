@@ -91,6 +91,7 @@ import {
 import {
   activeLineIndex,
   activeWordIndex,
+  lyricsAreSynced,
   alignTranslation,
   buildLyricLines,
   lineTimings,
@@ -847,6 +848,7 @@ export default function PlayerV2Screen() {
                       devanagari={useDevanagari}
                       activeLine={activeLine}
                       activeWord={activeWord}
+                      synced={lyricsAreSynced(MOCKUP_DATA)}
                       showGloss={showGloss}
                       showTranslation={showTranslation}
                       notice={panelNotice}
