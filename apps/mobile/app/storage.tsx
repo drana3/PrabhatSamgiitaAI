@@ -19,6 +19,8 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongTitles } from "@/hooks/useSongTitles"
 import { useStorageScreen } from "@/hooks/useStorageScreen"
 import { displayTitle } from "@/lib/songsV2/entry"
+import { kiirtanSongByNumber } from "@/lib/kirtan/catalog"
+import { isKiirtanNumber } from "@/lib/kirtan/track"
 import { MOCK_STORAGE } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { listViewState } from "@/lib/mineView"
@@ -110,7 +112,9 @@ export default function StorageScreen() {
                     title={
                       MOCKUP_DATA
                         ? (MOCK_STORAGE.find((m) => m.key === item.key)?.title ?? `Prabhat Samgiita ${item.songNumber}`)
-                        : displayTitle(titles.get(item.songNumber) ?? `Prabhat Samgiita ${item.songNumber}`)
+                        : isKiirtanNumber(item.songNumber)
+                          ? (kiirtanSongByNumber(item.songNumber)?.title ?? t("storage.row.kiirtan"))
+                          : displayTitle(titles.get(item.songNumber) ?? `Prabhat Samgiita ${item.songNumber}`)
                     }
                     sub={MOCKUP_DATA ? MOCK_STORAGE.find((m) => m.key === item.key)?.sub : undefined}
                     selected={state.selected.includes(item.key)}

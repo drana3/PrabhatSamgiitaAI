@@ -1,4 +1,5 @@
 import { formatNumber, t } from "@/lib/i18n"
+import { isKiirtanNumber } from "@/lib/kirtan/track"
 
 /**
  * Pure logic for Storage and downloads (spec SCR-20): sizes, totals, limit,
@@ -93,6 +94,8 @@ export function storageLegend(count: number, limit: CacheLimit): string {
 
 /** Eyebrow of a storage row: `PS 3`, or `PS 3 · Version 2` when a song has several files. */
 export function storageRowEyebrow(items: readonly StorageItem[], item: StorageItem): string {
+  // A Kiirtan has a long internal number, not a catalog one.
+  if (isKiirtanNumber(item.songNumber)) return t("storage.row.kiirtan")
   const sameSong = sortStorageItems(items.filter((other) => other.songNumber === item.songNumber))
   if (sameSong.length < 2) return `PS ${item.songNumber}`
   const index = sameSong.findIndex((other) => other.key === item.key)

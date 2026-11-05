@@ -96,6 +96,9 @@ describe("sorting and eyebrows", () => {
     expect(storageRowEyebrow(sample, sample[1])).toBe("PS 1")
     expect(storageRowEyebrow(sample, sample[0])).toBe("PS 3 · Version 1")
     expect(storageRowEyebrow(sample, sample[2])).toBe("PS 3 · Version 2")
+    // a Kiirtan is never labelled with its long internal number
+    const kiirtan: StorageItem = { key: "k", songNumber: 1_000_123_456, bytes: 1, modifiedMs: 0 }
+    expect(storageRowEyebrow([kiirtan], kiirtan)).toBe("Kiirtan")
   })
 })
 
