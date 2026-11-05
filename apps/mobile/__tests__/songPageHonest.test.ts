@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest"
 
 import type { SongVideo } from "@/data/mock"
+import { sampleGloss, sampleRussianLines, sampleTranslationLines } from "@/lib/fixtures/player"
+import { splitWords } from "@/lib/playerV2/lyricsSync"
 import { creditRows } from "@/lib/songPage/nowPlaying"
 import {
   DEMO_FIXTURE_SONGS,
   EMPTY_TEXT,
   demoCentralIdea,
+  gapText,
   knownSeconds,
   notationPdfUrl,
   pageExtras,
+  playerGloss,
+  playerGlossRows,
+  playerRussianLines,
+  playerSampleKey,
   requestKey,
   shownPerformer,
   watchVideos,
@@ -110,5 +117,60 @@ describe("empty states and notation", () => {
     expect(notationPdfUrl(null)).toBeNull()
     expect(notationPdfUrl("  ")).toBeNull()
     expect(notationPdfUrl("javascript:alert(1)")).toBeNull()
+  })
+})
+
+describe("player: sample word meanings and Russian lines only in the demo, only for PS 1 and 3", () => {
+  const LANGS = ["en", "ru"]
+  const rows = (sampleKey: number | null, lines: string[]) =>
+    playerGlossRows({ sampleKey, languages: LANGS, scriptLines: lines, romanLines: lines, useDevanagari: false, splitWords, englishGloss: sampleGloss })
+
+  it("gives no sample key outside the demo or for any other song", () => {
+    expect(playerSampleKey({ demo: false, songNumber: 1 })).toBeNull()
+    expect(playerSampleKey({ demo: false, songNumber: 3 })).toBeNull()
+    expect(playerSampleKey({ demo: true, songNumber: 2 })).toBeNull()
+    expect(playerSampleKey({ demo: true, songNumber: 5018 })).toBeNull()
+    expect(playerSampleKey({ demo: true, songNumber: undefined })).toBeNull()
+    expect(playerSampleKey({ demo: true, songNumber: 1 })).toBe(1)
+    expect(playerSampleKey({ demo: true, songNumber: 3 })).toBe(3)
+  })
+
+  it("a real song with the sample words (Tumi, álo, calo, kole) gets no meanings", () => {
+    const lines = ["Tumi eso álo jválo", "Bandhu he niye calo", "Tomár kole ámáy tule náo"]
+    const real = rows(playerSampleKey({ demo: false, songNumber: 1234 }), lines)
+    expect(real).toEqual({ en: null, ru: null })
+    // the same lines in the demo's own song do get the sample meanings
+    const demo = rows(playerSampleKey({ demo: true, songNumber: 1 }), lines)
+    expect(demo.en?.[0]?.[0]).toBe("You")
+    expect(demo.ru).not.toBeNull()
+    // and the real PS 1 outside the demo still gets nothing
+    expect(rows(playerSampleKey({ demo: false, songNumber: 1 }), lines)).toEqual({ en: null, ru: null })
+  })
+
+  it("playerGloss needs a sample key", () => {
+    expect(playerGloss({ sampleKey: null, word: "Tumi", code: "en", englishGloss: sampleGloss })).toBeUndefined()
+    expect(playerGloss({ sampleKey: 3, word: "Tumi", code: "en", englishGloss: sampleGloss })).toBe("You")
+  })
+
+  it("Russian sample lines only for a sample key and a matching line count", () => {
+    expect(playerRussianLines({ sampleKey: null, lineCount: 4 })).toBeNull()
+    expect(playerRussianLines({ sampleKey: 1, lineCount: 4 })).toHaveLength(4)
+    expect(playerRussianLines({ sampleKey: 1, lineCount: 3 })).toBeNull()
+    expect(playerRussianLines({ sampleKey: 3, lineCount: 3 })).toHaveLength(3)
+  })
+
+  it("the fixture functions give nothing outside the demo preview (the test run is not the demo)", () => {
+    expect(sampleRussianLines(1, 4)).toBeNull()
+    expect(sampleRussianLines(2, 4)).toBeNull()
+    expect(sampleTranslationLines(1, "ru", 4)).toBeNull()
+    expect(sampleTranslationLines(2, "es", 4)).toBeNull()
+  })
+
+  it("a song with no word meanings at all says so; other gaps keep their line", () => {
+    expect(gapText({ kind: "words", shown: null, text: "Not available in English yet." })).toBe("No word meanings yet.")
+    expect(gapText({ kind: "words", shown: "en", text: "Not available in Russian yet. Showing English." })).toBe(
+      "Not available in Russian yet. Showing English.",
+    )
+    expect(gapText({ kind: "translation", shown: null, text: "Not available in Russian yet." })).toBe("Not available in Russian yet.")
   })
 })

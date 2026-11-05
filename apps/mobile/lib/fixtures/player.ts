@@ -51,21 +51,31 @@ const RU_LINES: Record<number, string[]> = {
   ],
 }
 
-/** Russian translation lines for a song, only when they line up with the lyric lines. */
-export function sampleRussianLines(songNumber: number, lineCount: number): string[] | null {
-  // The web preview plays every sample song with one of the two sample texts, so match by line count.
-  const lines = RU_LINES[songNumber] ?? (MOCKUP_DATA ? (lineCount === 3 ? RU_LINES[3] : RU_LINES[1]) : undefined)
+/** The songs the sample translations and word meanings were written for (PS 1 and PS 3). */
+export const SAMPLE_SONG_NUMBERS: readonly number[] = Object.keys(RU_LINES).map(Number)
+
+/**
+ * Russian sample lines of PS 1 / PS 3, only when they line up with the lyric lines. No demo check
+ * here: callers decide (see `lib/songPage/honest.ts`). Any other song gets null, never a guess.
+ */
+export function fixtureRussianLines(songNumber: number, lineCount: number): string[] | null {
+  const lines = RU_LINES[songNumber]
   return lines && lines.length === lineCount ? lines : null
+}
+
+/** Russian translation lines for a song: only in the demo preview and only for the two sample songs. */
+export function sampleRussianLines(songNumber: number, lineCount: number): string[] | null {
+  return MOCKUP_DATA ? fixtureRussianLines(songNumber, lineCount) : null
 }
 
 /**
  * TODO(api): sample line translations of the two sample songs in the languages the prototype has
- * (Russian, Spanish, Hindi). Other languages (Chinese) return null: the Player says so and shows
- * English instead of inventing a text.
+ * (Russian, Spanish, Hindi). Demo preview and PS 1 / PS 3 only; every other song, and a language the
+ * sample does not have (Chinese), returns null: the Player says so and shows English instead of inventing a text.
  */
 export function sampleTranslationLines(songNumber: number, code: string, lineCount: number): string[] | null {
-  if (code === "ru") return sampleRussianLines(songNumber, lineCount)
-  if (!MOCKUP_DATA) return null
+  if (!MOCKUP_DATA || !SAMPLE_SONG_NUMBERS.includes(songNumber)) return null
+  if (code === "ru") return fixtureRussianLines(songNumber, lineCount)
   return mockupTranslationByLineCount(code, lineCount)
 }
 

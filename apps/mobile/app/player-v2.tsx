@@ -50,7 +50,6 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSaveState } from "@/hooks/useSaveState"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { SAMPLE_GLOSS_LANGUAGES, sampleGloss, sampleTranslationLines } from "@/lib/fixtures/player"
-import { glossaryGloss } from "@/lib/fixtures/songPage"
 import { useLanguage } from "@/lib/i18n"
 import { storedMeaningForLanguage } from "@/lib/songMap"
 import {
@@ -64,6 +63,7 @@ import {
   pickShown,
   resolveLyricChoice,
 } from "@/lib/songPage/lyricLanguages"
+import { gapText, playerGlossRows, playerSampleKey } from "@/lib/songPage/honest"
 import { artistForAuthor } from "@/lib/kirtan/artists"
 import { moodForText } from "@/lib/photos/catalog"
 import { ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
@@ -329,37 +329,39 @@ export default function PlayerV2Screen() {
   const translationChoice = resolveLyricChoice(v2.translation, appLanguage)
   const wordChoice = resolveLyricChoice(v2.wordLanguage, appLanguage)
 
+  // Invented sample content (PS 1 / PS 3 word meanings, Russian lines) exists only in the demo preview
+  // and only for those two songs. A real song has none of it and says so.
+  const sampleKey = playerSampleKey({ demo: MOCKUP_DATA, songNumber: song?.number })
   // TODO(api): sample translations and word glosses come from lib/fixtures/player.ts until the catalog has them.
   const translationByLanguage = useMemo(() => {
     const map: Record<string, string[] | null> = {}
     for (const code of LYRIC_LANGUAGE_CODES) {
       if (code === "en") map[code] = alignTranslation(scriptLines, song?.translation)
       else {
-        const sample = song ? sampleTranslationLines(song.number, code, scriptLines.length) : null
+        const sample = sampleKey !== null && song ? sampleTranslationLines(song.number, code, scriptLines.length) : null
         map[code] = sample ?? alignTranslation(scriptLines, song ? storedMeaningForLanguage(song, code) : null)
       }
     }
     return map
-  }, [scriptLines, song])
+  }, [scriptLines, song, sampleKey])
   const hasTranslationIn = useCallback((code: string) => translationByLanguage[code] != null, [translationByLanguage])
   const translationPick = translationChoice === OFF ? null : pickShown(translationChoice, hasTranslationIn)
   const translationLines = translationPick?.shown ? (translationByLanguage[translationPick.shown] ?? null) : null
   const showTranslation = translationLines != null
 
-  const glossesByLanguage = useMemo(() => {
-    const out: Record<string, Array<Array<string | undefined>> | null> = {}
-    for (const code of SAMPLE_GLOSS_LANGUAGES) {
-      const rows = scriptLines.map((line, i) => {
-        const roman = splitWords(romanLines[i] ?? "")
-        const words = splitWords(line)
-        // Devanagari shows the gloss of the Roman word in the same position.
-        const source = useDevanagari && roman.length === words.length ? roman : words
-        return source.map((word) => (code === "en" ? sampleGloss(word) : (glossaryGloss(word, code) ?? undefined)))
-      })
-      out[code] = rows.some((row) => row.some(Boolean)) ? rows : null
-    }
-    return out
-  }, [scriptLines, romanLines, useDevanagari])
+  const glossesByLanguage = useMemo(
+    () =>
+      playerGlossRows({
+        sampleKey,
+        languages: SAMPLE_GLOSS_LANGUAGES,
+        scriptLines,
+        romanLines,
+        useDevanagari,
+        splitWords,
+        englishGloss: sampleGloss,
+      }),
+    [sampleKey, scriptLines, romanLines, useDevanagari],
+  )
   const hasWordMeaningsIn = useCallback((code: string) => glossesByLanguage[code] != null, [glossesByLanguage])
   const wordPick = wordChoice === OFF ? null : pickShown(wordChoice, hasWordMeaningsIn)
   const glosses = wordPick?.shown ? (glossesByLanguage[wordPick.shown] ?? null) : null
@@ -377,8 +379,8 @@ export default function PlayerV2Screen() {
     ? (() => {
         const wanted = [...new Set(gaps.map((gap) => gap.wanted))]
         const text = gaps.length > 1 && wanted.length > 1
-          ? gaps.map((gap) => `${gap.kind === "translation" ? "Translation" : "Word meanings"}: ${gap.text}`).join(" ")
-          : gaps[0]!.text
+          ? gaps.map((gap) => `${gap.kind === "translation" ? "Translation" : "Word meanings"}: ${gapText(gap)}`).join(" ")
+          : gapText(gaps[0]!)
         const single = wanted.length === 1 ? wanted[0]! : null
         const asked = single != null && requestedLanguages.includes(single)
         return {
@@ -851,6 +853,7 @@ export default function PlayerV2Screen() {
                       showGloss={showGloss}
                       showTranslation={showTranslation}
                       notice={panelNotice}
+                      demoTag={sampleKey !== null}
                       onSeekToLine={onSeekLine}
                       emptyText="Lyrics are not available for this song yet."
                       onOptions={() => setSheet("lyrics")}

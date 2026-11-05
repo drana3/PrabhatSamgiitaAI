@@ -24,6 +24,8 @@ type Props = {
   onOptions?: () => void
   /** A language the person chose and this song lacks: one plain line at the foot of the card, and an action (Request). */
   notice?: { text: string; action: string; onAction?: () => void } | null
+  /** Marks the translation and word meanings as sample material of the demo preview ("Demo content"). */
+  demoTag?: boolean
 }
 
 /** The prototype puts the sung line at 24% of the panel height (`_syncLyr`). */
@@ -56,6 +58,7 @@ export function LyricsPanel({
   emptyText,
   onOptions,
   notice,
+  demoTag,
 }: Props) {
   const reduce = useReducedMotion()
   const scroll = useRef<ScrollView>(null)
@@ -131,6 +134,13 @@ export function LyricsPanel({
           <Text style={styles.emptyText}>{emptyText}</Text>
         </View>
       )}
+      {demoTag ? (
+        <View style={styles.demoRow}>
+          <View style={styles.demoTag}>
+            <Text style={styles.demoTagText}>Demo content</Text>
+          </View>
+        </View>
+      ) : null}
       {notice ? (
         <View style={styles.notice}>
           <Text style={styles.noticeText} numberOfLines={3}>
@@ -267,6 +277,9 @@ const styles = StyleSheet.create({
   noTranslation: { height: 8 },
   notice: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 8, paddingBottom: 8 },
   noticeText: { flex: 1, fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, color: playerColors.textSoft },
+  demoRow: { flexDirection: "row", paddingTop: 6 },
+  demoTag: { borderWidth: 1, borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 3, borderColor: playerColors.chipEdge },
+  demoTagText: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.4, color: playerColors.textSoft },
   noticeHit: { flexShrink: 0 },
   noticeAction: {
     minHeight: 32,

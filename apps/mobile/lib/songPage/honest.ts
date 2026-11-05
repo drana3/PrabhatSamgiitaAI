@@ -1,5 +1,7 @@
 import type { SongVideo } from "@/data/mock"
-import { FIXTURE_CENTRAL_IDEA, fixtureExtras } from "@/lib/fixtures/songPage"
+import { fixtureRussianLines } from "@/lib/fixtures/player"
+import { FIXTURE_CENTRAL_IDEA, fixtureExtras, glossaryGloss } from "@/lib/fixtures/songPage"
+import type { LyricGap } from "@/lib/songPage/lyricLanguages"
 
 import { NO_EXTRAS, type SongExtras } from "./songContent"
 
@@ -30,6 +32,71 @@ export function pageExtras(input: { real: SongExtras; demoKey: number | null; ro
 /** The prototype's sample "central idea" of a demo song; nothing for a real one. */
 export function demoCentralIdea(demoKey: number | null): string | null {
   return demoKey !== null && DEMO_FIXTURE_SONGS.includes(demoKey) ? (FIXTURE_CENTRAL_IDEA[demoKey] ?? null) : null
+}
+
+/**
+ * The sample song whose invented word meanings and Russian lines the Player may show: only while the
+ * demo preview (MOCKUP_DATA) is on and only for the songs that content was written for. Any real
+ * song gets null, and null means "show nothing invented".
+ */
+export function playerSampleKey(input: { demo: boolean; songNumber: number | null | undefined }): number | null {
+  const { demo, songNumber } = input
+  return demo && songNumber != null && DEMO_FIXTURE_SONGS.includes(songNumber) ? songNumber : null
+}
+
+/** The sample gloss of one lyric word in a language, or undefined (always undefined without a sample key). */
+export function playerGloss(input: {
+  sampleKey: number | null
+  word: string
+  code: string
+  englishGloss: (word: string) => string | undefined
+}): string | undefined {
+  if (input.sampleKey === null) return undefined
+  return input.code === "en" ? input.englishGloss(input.word) : (glossaryGloss(input.word, input.code) ?? undefined)
+}
+
+/**
+ * Word meanings per language for the Player's lyrics, row per line, cell per word. A language with no
+ * meaning at all is null. Without a sample key (every real song) every language is null.
+ */
+export function playerGlossRows(input: {
+  sampleKey: number | null
+  languages: readonly string[]
+  scriptLines: readonly string[]
+  romanLines: readonly string[]
+  useDevanagari: boolean
+  splitWords: (line: string) => string[]
+  englishGloss: (word: string) => string | undefined
+}): Record<string, Array<Array<string | undefined>> | null> {
+  const out: Record<string, Array<Array<string | undefined>> | null> = {}
+  for (const code of input.languages) {
+    if (input.sampleKey === null) {
+      out[code] = null
+      continue
+    }
+    const rows = input.scriptLines.map((line, i) => {
+      const roman = input.splitWords(input.romanLines[i] ?? "")
+      const words = input.splitWords(line)
+      // Devanagari shows the gloss of the Roman word in the same position.
+      const source = input.useDevanagari && roman.length === words.length ? roman : words
+      return source.map((word) => playerGloss({ sampleKey: input.sampleKey, word, code, englishGloss: input.englishGloss }))
+    })
+    out[code] = rows.some((row) => row.some(Boolean)) ? rows : null
+  }
+  return out
+}
+
+/** Russian sample lines, only for a sample key and only when they line up with the lyric lines. */
+export function playerRussianLines(input: { sampleKey: number | null; lineCount: number }): string[] | null {
+  return input.sampleKey === null ? null : fixtureRussianLines(input.sampleKey, input.lineCount)
+}
+
+/**
+ * The line a language gap shows. A word-meanings gap with nothing to fall back on (not even English)
+ * says the song has no word meanings at all; every other gap keeps `Not available in X yet.`.
+ */
+export function gapText(gap: Pick<LyricGap, "kind" | "shown" | "text">): string {
+  return gap.kind === "words" && gap.shown === null ? EMPTY_TEXT.words : gap.text
 }
 
 /** The real videos to embed: only rows with an embed address, each embed once. */
