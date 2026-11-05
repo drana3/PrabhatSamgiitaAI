@@ -1,7 +1,8 @@
-import { useRef, type ReactNode } from "react"
+import { useMemo, useRef, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { KPress } from "@/components/kirtan/KPress"
+import { DownloadMenuRow } from "@/components/offline/DownloadMenuRow"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { ShareTargetIcon } from "@/components/player-v2/ShareTargetIcon"
 import { SaveMark } from "@/components/save/SaveMark"
@@ -9,6 +10,7 @@ import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { kindLabel } from "@/lib/kirtan/kind"
+import { kiirtanDownloadItem } from "@/lib/offline/downloadItems"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { SHARE_TARGETS, type ShareTargetId } from "@/lib/playerV2/playerShare"
 
@@ -40,7 +42,7 @@ function MenuRow({ theme, label, icon, onPress }: { theme: SongsTheme; label: st
   )
 }
 
-/** The row menu of a kirtan: Play next, Add to playlist, Save, Share, Report. */
+/** The row menu of a kirtan: Play next, Add to playlist, Save, Download, Share, Report. */
 export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddToPlaylist, onToggleSave, onShare, onReport, onClose }: MenuProps) {
   // keep the last kirtan while the sheet slides out, so its title does not vanish mid-exit
   const last = useRef<Kirtan | null>(null)
@@ -51,6 +53,7 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
     onClose()
   }
   const ink = theme.textHeading
+  const downloadItem = useMemo(() => (shown ? kiirtanDownloadItem(shown) : null), [shown])
   return (
     <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow={kindLabel(shown?.kind)} accessibilityLabel={`${kindLabel(shown?.kind)} actions`}>
       {shown ? (
@@ -67,6 +70,9 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
           icon={<SaveMark on={saved} size={22} color={ink} />}
           onPress={act(onToggleSave)}
         />
+        <DownloadMenuRow item={downloadItem} size={22} color={ink} track={theme.line} ring={theme.accentBright} fill={theme.brand} onFill="#FFFFFF">
+          {(row) => <MenuRow theme={theme} label={row.label} icon={row.icon} onPress={() => { row.onPress(); onClose() }} />}
+        </DownloadMenuRow>
         <MenuRow theme={theme} label="Share" icon={<PlayerIcon name="share" size={22} color={ink} />} onPress={act(onShare)} />
         <MenuRow theme={theme} label="Report" icon={<PlayerIcon name="flag" size={22} color={ink} />} onPress={act(onReport)} />
       </View>

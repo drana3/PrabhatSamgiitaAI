@@ -22,6 +22,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useDownloadedKirtans } from "@/hooks/useDownloadedKirtans"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
@@ -98,6 +99,7 @@ export default function KiirtanTabScreen() {
   const list = useMemo(() => newKirtansList(playable, type, length, pick?.kind ?? kind), [playable, type, length, pick, kind])
   const longList = useMemo(() => longKirtans(kindList, 6), [kindList])
   const saved = useMemo(() => savedKirtans(savedIds, byId), [savedIds, byId])
+  const downloadedKirtans = useDownloadedKirtans(playable)
   const typeLabel = pick ? (cards.find((c) => c.id === pick.id && c.kind === pick.kind)?.label ?? null) : null
   const headFirst = kind === "bhajan" ? "BHAJAN" : "KIIRTAN"
   const headSecond = kind === "all" ? "and bhajan" : kind === "bhajan" ? "of devotion" : "for every hour"
@@ -285,10 +287,15 @@ export default function KiirtanTabScreen() {
     </View>
   )
 
-  // TODO(api): Kiirtan downloads need the audio files from the backend; there is nothing to keep offline yet.
   const renderDownloaded = () => (
     <View style={styles.list}>
-      <HomeEmpty p={p} text="Downloads for Kiirtans and Bhajans are coming soon. Songs you downloaded stay under Songs." />
+      {downloadedKirtans.length ? (
+        downloadedKirtans.map((k) => (
+          <KirtanRow key={k.id} theme={theme} kirtan={k} compact onOpen={(row) => play(row, downloadedKirtans, "Downloaded")} onMore={setMenu} onOpenArtist={actions.openArtist} />
+        ))
+      ) : (
+        <HomeEmpty p={p} text="Nothing on this phone yet. Open the menu of a Kiirtan or Bhajan and choose Download. It plays without internet." />
+      )}
     </View>
   )
 

@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { StyleSheet, Text, TextInput, View } from "react-native"
 import { PlusGlyph } from "@/components/songs-v2/Glyphs"
 
+import { ListDownloadRow } from "@/components/offline/ListDownloadRow"
 import { PillButton } from "@/components/songs-v2/Pill"
 import { Press } from "@/components/songs-v2/Press"
 import { CardButton, EmptyNote, overStyle, SectionHeading } from "@/components/songs-v2/primitives"
@@ -51,6 +52,8 @@ export function MineSegment(props: Props) {
   const [formError, setFormError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  const savedNumbers = useMemo(() => props.savedRows.map((row) => row.number), [props.savedRows])
+
   const show = (block: NonNullable<Props["only"]>) => !props.only || props.only === block
 
   const create = async () => {
@@ -76,6 +79,7 @@ export function MineSegment(props: Props) {
         </SongsReveal>
         {saved === "ready" ? (
           <SongsReveal index={4} style={styles.list}>
+            <ListDownloadRow theme={theme} numbers={savedNumbers} name="Saved" />
             {props.savedRows.map((row) => (
               <SongCardRow
                 key={row.number}

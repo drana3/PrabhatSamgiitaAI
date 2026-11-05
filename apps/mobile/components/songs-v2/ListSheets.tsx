@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import {
   Check,
-  Download,
   EyeOff,
   ListEnd,
   ListMinus,
@@ -14,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react-native"
 
+import { DownloadMenuRow } from "@/components/offline/DownloadMenuRow"
 import { SaveMark } from "@/components/save/SaveMark"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import { BackGlyph } from "@/components/songs-v2/Glyphs"
@@ -22,8 +22,9 @@ import { Press } from "@/components/songs-v2/Press"
 import { RowStyleControl } from "@/components/songs-v2/RowStyleControl"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { songDownloadItem } from "@/lib/offline/downloadItems"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
-import { LIST_SORTS, type DownloadAllState, type ListSortKey } from "@/lib/songsV2/listPage"
+import { LIST_SORTS, type ListSortKey } from "@/lib/songsV2/listPage"
 import { removeFooter, removeRowLabel, type RowRemoval } from "@/lib/songsV2/rowMenu"
 
 const ICON = 24
@@ -39,7 +40,6 @@ type SongMenuProps = {
   entry: CatalogEntry | null
   listName: string
   saved: boolean
-  download: DownloadAllState
   playlists: readonly MenuPlaylist[]
   /** what the last row does: hide from a catalogue list, or remove from the listener's own playlist */
   removal: RowRemoval
@@ -50,7 +50,6 @@ type SongMenuProps = {
   onNewPlaylist: (entry: CatalogEntry) => void
   onShare: (entry: CatalogEntry) => void
   onOpenSong: (entry: CatalogEntry) => void
-  onToggleDownload: (entry: CatalogEntry) => void
   onRemove: (entry: CatalogEntry) => void
   onClose: () => void
 }
@@ -62,7 +61,7 @@ type SongMenuProps = {
  * (private, on this phone, with a footer line saying so) or, in the listener's own playlist, "Remove from this playlist".
  */
 export function SongMenuSheet(props: SongMenuProps) {
-  const { open, theme, entry, listName, saved, download, playlists } = props
+  const { open, theme, entry, listName, saved, playlists } = props
   // keep the last song while the sheet slides out, so its title does not vanish mid-exit
   const last = useRef<CatalogEntry | null>(null)
   if (entry) last.current = entry
@@ -74,6 +73,10 @@ export function SongMenuSheet(props: SongMenuProps) {
 
   const act = (fn: (e: CatalogEntry) => void) => () => {
     if (shown) fn(shown)
+    props.onClose()
+  }
+  const act2 = (fn: () => void) => () => {
+    fn()
     props.onClose()
   }
   const duration = shown ? formatDuration(shown.durationSeconds) : null
@@ -121,19 +124,9 @@ export function SongMenuSheet(props: SongMenuProps) {
           />
           <Row theme={theme} label="Share" icon={<Share2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onShare)} />
           <Row theme={theme} label="Open song page" icon={<Music2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onOpenSong)} />
-          <Row
-            theme={theme}
-            label={download === "done" ? "Remove download" : download === "downloading" ? "Downloading" : "Download"}
-            icon={
-              download === "done" ? (
-                <Trash2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />
-              ) : (
-                <Download size={ICON} strokeWidth={STROKE} color={download === "downloading" ? theme.textMuted : theme.textHeading} />
-              )
-            }
-            disabled={download === "downloading"}
-            onPress={act(props.onToggleDownload)}
-          />
+          <DownloadMenuRow item={shown ? songDownloadItem(shown.number, { title: shown.title, seconds: shown.durationSeconds || undefined }) : null} color={theme.textHeading} track={theme.line} ring={theme.accentBright} fill={theme.brand} onFill="#FFFFFF">
+            {(row) => <Row theme={theme} label={row.label} icon={row.icon} onPress={act2(row.onPress)} />}
+          </DownloadMenuRow>
           <Row
             theme={theme}
             label={removeRowLabel(props.removal)}

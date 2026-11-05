@@ -7,6 +7,7 @@ import { KPress } from "@/components/kirtan/KPress"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
+import { KiirtanDownloadedBadge } from "@/components/offline/DownloadedBadge"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { artistForAuthor } from "@/lib/kirtan/artists"
 import { kindTag } from "@/lib/kirtan/kind"
@@ -149,6 +150,7 @@ export function KirtanRow({
           </Text>
           <View style={styles.subRow}>
             <KirtanTag theme={theme} kind={kirtan.kind} />
+            <KiirtanDownloadedBadge kirtan={kirtan} fill={theme.brand} onFill="#FFFFFF" />
             {onOpenArtist ? <ArtistLink theme={theme} author={kirtan.author} onOpenArtist={onOpenArtist} /> : null}
             <Text style={[styles.subText, { color: theme.textBody }]} numberOfLines={1}>
               {onOpenArtist && kirtan.author.trim() ? `· ${kirtanSubline(kirtan)}` : kirtanSubline(kirtan)}

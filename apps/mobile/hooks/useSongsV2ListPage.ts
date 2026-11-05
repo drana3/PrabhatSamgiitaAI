@@ -8,28 +8,26 @@ import { songNumbersForCategory } from "@/lib/categorySongs"
 import { MOCK_PLAYLISTS, MOCK_RECENT } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
+import { confirmRemoveMany } from "@/lib/offline/downloadActions"
+import { songDownloadItem } from "@/lib/offline/downloadItems"
 import { hasPlayableAudio } from "@/lib/playableAudio"
 import { playlistSongNumbers, starterSongForNumber } from "@/lib/playPlaylist"
-import { demoDownloadKey, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
+import { useDemoDownloads } from "@/lib/playerV2/demoDownloads"
 import { addToQueue, playNext } from "@/lib/playerV2/queueOps"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import {
   CATEGORY_CHIPS,
   DEFAULT_LIST_SORT,
-  DOWNLOAD_ALL_LIMIT,
   LIST_SORTS,
   buildPlayPlan,
   buildShufflePlan,
-  downloadAllState,
   emptyMessage,
   filterByChip,
   listSourceId,
   metaLine,
-  pendingDownloads,
   sortList,
   visibleChips,
   withoutHidden,
-  type DownloadAllState,
   type ListContext,
   type ListSortKey,
   type PlayPlan,
@@ -37,7 +35,6 @@ import {
 import { useSongsListState } from "@/lib/songsV2/listState"
 import { queueToast } from "@/lib/songsV2/playAll"
 import { UNDO_MS, hiddenToast, removedToast, rowRemoval } from "@/lib/songsV2/rowMenu"
-import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -79,7 +76,6 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   const activeBySong = useOfflineAudioStore((s) => s.activeBySong)
   const demoDone = useDemoDownloads((d) => d.done)
   const demoProgress = useDemoDownloads((d) => d.progress)
-  const authMode = useAuthStore((s) => s.mode)
   const playlists = usePlaylistStore((s) => s.playlists)
   const currentNumber = usePlayerStore((s) => s.currentSong?.number ?? null)
   const playingFrom = usePlayerStore((s) => s.activePlaylist?.id ?? null)
@@ -130,7 +126,6 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   const meta = useMemo(() => metaLine(base), [base])
   const chipLabel = chips.find((c) => c.id === activeChip)?.label ?? "All"
   const empty = base.length === 0 ? "" : emptyMessage(activeChip, chipLabel)
-  const download = downloadAllState(shownNumbers, downloaded, downloading)
   const downloadedHere = useMemo(() => shownNumbers.filter((n) => downloaded.has(n)), [shownNumbers, downloaded])
   const source = listSourceId(listId)
   const playingHere = playingFrom === source && isPlaying
@@ -164,75 +159,13 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     [actions, currentNumber, playingFrom, source, shownNumbers, start],
   )
 
-  /* ---- downloads */
-  const needSignIn = useCallback(() => {
-    flash("Sign in to download songs")
-    router.push(href("/signin"))
-  }, [flash, router])
-
-  const removeDownload = useCallback((number: number) => {
-    if (MOCKUP_DATA) {
-      const demo = useDemoDownloads.getState()
-      Object.keys(demo.done)
-        .filter((key) => Number(key.split("-")[0]) === number)
-        .forEach((key) => demo.toggle(key))
-      return
-    }
-    const store = useOfflineAudioStore.getState()
-    Object.values(store.files)
-      .filter((f) => f.songNumber === number)
-      .forEach((f) => {
-        void store.remove(f.remoteUrl).then(() => usePlayerStore.getState().stopIfPlayingLocalUri(f.fileUri))
-      })
-  }, [])
-
-  const startDownload = useCallback(
-    (number: number) => {
-      if (MOCKUP_DATA) {
-        useDemoDownloads.getState().toggle(demoDownloadKey(number, 0))
-        return
-      }
-      void useOfflineAudioStore
-        .getState()
-        .download("", number, { userInitiated: true })
-        .catch((error: unknown) => flash(error instanceof Error ? error.message : "Could not download this song"))
-    },
-    [flash],
-  )
-
-  const toggleDownload = useCallback(
-    (entry: CatalogEntry) => {
-      if (downloaded.has(entry.number)) {
-        removeDownload(entry.number)
-        flash("Removed from this phone")
-        return
-      }
-      if (downloading.has(entry.number)) return
-      if (!MOCKUP_DATA && authMode !== "signed_in") return needSignIn()
-      if (!hasPlayableAudio(entry.number)) return flash("No audio to download for this song yet")
-      startDownload(entry.number)
-      flash(`Downloading PS ${entry.number}`)
-    },
-    [downloaded, downloading, authMode, needSignIn, removeDownload, startDownload, flash],
-  )
-
-  const downloadAll = useCallback(() => {
-    if (download === "done") return flash("Downloaded. Remove them from the three dots.")
-    if (download === "downloading") return flash("Still downloading")
-    const pending = pendingDownloads(shownNumbers, downloaded, downloading, hasPlayableAudio)
-    if (!pending.length) return flash("No audio to download in this list yet")
-    if (pending.length > DOWNLOAD_ALL_LIMIT) {
-      return flash(`Up to ${DOWNLOAD_ALL_LIMIT} songs at a time. Narrow the list with a chip first.`)
-    }
-    if (!MOCKUP_DATA && authMode !== "signed_in") return needSignIn()
-    pending.forEach(startDownload)
-    flash(`Downloading ${pending.length} ${pending.length === 1 ? "song" : "songs"}`)
-  }, [download, shownNumbers, downloaded, downloading, authMode, needSignIn, startDownload, flash])
-
+  /* ---- downloads: the one shared flow (lib/offline/downloadActions.ts) asks first, then removes */
   const removeAllDownloads = useCallback(() => {
-    downloadedHere.forEach(removeDownload)
-    flash("Removed from this phone")
-  }, [downloadedHere, removeDownload, flash])
+    void confirmRemoveMany(
+      listName,
+      downloadedHere.map((n) => songDownloadItem(n)),
+    )
+  }, [listName, downloadedHere])
 
   /* ---- row menu */
   const playNextEntry = useCallback(
@@ -399,7 +332,6 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     downloaded,
     downloading,
     currentNumber,
-    download: download as DownloadAllState,
     downloadedCount: downloadedHere.length,
     hiddenCount: hidden.size,
     playingHere,
@@ -408,8 +340,6 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     play,
     shuffle,
     playRow,
-    toggleDownload,
-    downloadAll,
     removeAllDownloads,
     playNextEntry,
     queueEntry,

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PlayGlyph } from "@/components/songs-v2/Glyphs"
+import { ListDownloadRow } from "@/components/offline/ListDownloadRow"
 import { SongMenuSheet } from "@/components/songs-v2/ListSheets"
 import { PillButton } from "@/components/songs-v2/Pill"
 import { PlaylistSongRow } from "@/components/songs-v2/PlaylistSongRow"
@@ -207,6 +208,7 @@ export default function PlaylistV2Screen() {
                     onPress={() => (renaming ? void commitRename() : setRenaming(true))}
                   />
                 </View>
+                <ListDownloadRow theme={theme} numbers={numbers} name={playlist.name} style={styles.download} />
                 {sync.kind !== "hidden" ? (
                   <View style={styles.sync}>
                     <Text
@@ -271,15 +273,6 @@ export default function PlaylistV2Screen() {
           entry={menuEntry}
           listName={playlist?.name ?? "Playlist"}
           saved={menuEntry ? list.saved.has(menuEntry.number) : false}
-          download={
-            menuEntry
-              ? list.downloaded.has(menuEntry.number)
-                ? "done"
-                : list.downloading.has(menuEntry.number)
-                  ? "downloading"
-                  : "idle"
-              : "idle"
-          }
           playlists={list.playlistRows(menuEntry)}
           removal={list.removal}
           onPlayNext={list.playNextEntry}
@@ -289,7 +282,6 @@ export default function PlaylistV2Screen() {
           onNewPlaylist={list.newPlaylist}
           onShare={list.share}
           onOpenSong={list.open}
-          onToggleDownload={list.toggleDownload}
           onRemove={list.removeRow}
           onClose={() => setMenuEntry(null)}
         />
@@ -319,6 +311,7 @@ const styles = StyleSheet.create({
     fontSize: 19,
   },
   actions: { flexDirection: "row", gap: 8 },
+  download: { marginTop: 12 },
   sync: { marginTop: 12, gap: 10, paddingHorizontal: 10 },
   syncText: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   start: { alignSelf: "flex-start" },

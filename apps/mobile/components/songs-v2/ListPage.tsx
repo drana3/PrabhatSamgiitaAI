@@ -20,6 +20,7 @@ import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/
 import { SP_BAR_CONTENT, SpStickyBar } from "@/components/song-v2/SpStickyBar"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useListDownload } from "@/hooks/useListDownload"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2ListPage } from "@/hooks/useSongsV2ListPage"
 import { useSpTheme } from "@/hooks/useSpTheme"
@@ -64,6 +65,8 @@ export function SongsListPage({
   const openedAt = useRevealClock()
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const list = useSongsV2ListPage({ listId, listName: title, entries })
+  const shownNumbers = useMemo(() => list.shown.map((e) => e.number), [list.shown])
+  const listDownload = useListDownload(shownNumbers, title)
   // "Rows" setting: Tracklist and Compact rows, or Cards (this page's 64px picture row)
   const rowStyle = useListViewStore((s) => s.rowStyle)
   const rowHeight = listPageRowHeight(rowStyle)
@@ -151,10 +154,10 @@ export function SongsListPage({
       <SongsReveal index={2}>
         <ActionBar
           theme={theme}
-          download={list.download}
+          download={listDownload.view}
           playing={list.playingHere}
           disabled={!rowsLive}
-          onDownload={list.downloadAll}
+          onDownload={listDownload.press}
           onSort={() => setSortOpen(true)}
           onMenu={() => setListMenuOpen(true)}
           onShuffle={list.shuffle}
@@ -212,15 +215,6 @@ export function SongsListPage({
           entry={menuEntry}
           listName={title}
           saved={menuEntry ? list.saved.has(menuEntry.number) : false}
-          download={
-            menuEntry
-              ? list.downloaded.has(menuEntry.number)
-                ? "done"
-                : list.downloading.has(menuEntry.number)
-                  ? "downloading"
-                  : "idle"
-              : "idle"
-          }
           playlists={list.playlistRows(menuEntry)}
           onPlayNext={list.playNextEntry}
           onQueue={list.queueEntry}
@@ -229,7 +223,6 @@ export function SongsListPage({
           onNewPlaylist={list.newPlaylist}
           onShare={list.share}
           onOpenSong={list.open}
-          onToggleDownload={list.toggleDownload}
           removal={list.removal}
           onRemove={list.removeRow}
           onClose={closeMenu}

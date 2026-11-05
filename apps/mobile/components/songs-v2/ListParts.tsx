@@ -6,7 +6,9 @@ import { LinearGradient } from "expo-linear-gradient"
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
 import { BackGlyph, PlayGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
 import { SaveMark } from "@/components/save/SaveMark"
-import { DotsIcon, DownloadIcon, PauseIcon, ShuffleIcon } from "@/components/songs-v2/ListIcons"
+import { DownloadMark } from "@/components/offline/DownloadMark"
+import { DotsIcon, PauseIcon, ShuffleIcon } from "@/components/songs-v2/ListIcons"
+import { listDownloadLabel, type ListDownloadView } from "@/lib/offline/downloadModel"
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -149,7 +151,8 @@ export function ActionBar({
   onPlay,
 }: {
   theme: SongsTheme
-  download: DownloadAllState
+  /** the list's download state (components/offline: the same mark as every download control) */
+  download: ListDownloadView
   /** the player is playing from this list: the big button pauses */
   playing: boolean
   /** nothing to play */
@@ -160,14 +163,14 @@ export function ActionBar({
   onShuffle: () => void
   onPlay: () => void
 }) {
-  const label =
-    download === "done" ? "Downloaded" : download === "downloading" ? "Downloading" : "Download this list"
   return (
     <View style={styles.actions}>
       <View style={styles.actionsLeft}>
-        <IconButton label={label} onPress={onDownload}>
-          <DownloadIcon state={download} color={theme.textHeading} fill={theme.brand} onFill={ON_ACTION} />
-        </IconButton>
+        {download.visible ? (
+          <IconButton label={listDownloadLabel(download)} onPress={onDownload}>
+            <DownloadMark status={download.status} progress={download.progress} size={24} color={theme.textHeading} track={theme.line} ring={theme.accentBright} fill={theme.brand} onFill={ON_ACTION} />
+          </IconButton>
+        ) : null}
         <IconButton label="Sort and filter" onPress={onSort}>
           <SortGlyph size={24} color={theme.textHeading} />
         </IconButton>
@@ -318,7 +321,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
             </Text>
             {saved ? <SaveMark on size={14} /> : null}
             {download === "done" ? (
-              <DownloadIcon state="done" size={14} color={theme.textBody} fill={theme.brand} onFill={ON_ACTION} />
+              <DownloadMark status="done" size={14} fill={theme.brand} onFill={ON_ACTION} />
             ) : null}
           </View>
         </View>
