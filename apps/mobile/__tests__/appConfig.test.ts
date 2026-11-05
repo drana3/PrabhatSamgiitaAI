@@ -80,7 +80,7 @@ describe("app.json native config", () => {
     const root = path.resolve(__dirname, "..")
     const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
     expect(pkg.dependencies).not.toHaveProperty("@gorhom/bottom-sheet")
-    expect(existsSync(path.join(root, "plugins/withTrackPlayerAndroid.js"))).toBe(false)
+    expect(JSON.stringify(expo.plugins)).not.toContain("withTrackPlayerAndroid")
   })
 
   it("ships a themed (monochrome) Android icon inside the adaptive safe zone", () => {
