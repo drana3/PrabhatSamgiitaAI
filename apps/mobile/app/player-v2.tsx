@@ -27,6 +27,7 @@ import { LyricsPanel } from "@/components/player-v2/LyricsPanel"
 import { PlaybackSheet } from "@/components/player-v2/PlaybackSheet"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { PlayerToast, usePlayerToast } from "@/components/player-v2/PlayerToast"
+import { DownloadButton } from "@/components/offline/DownloadButton"
 import { SaveButton } from "@/components/save/SaveButton"
 import { SaveHost } from "@/components/save/SaveHost"
 import { PlaylistSheet, type PlaylistSheetRow } from "@/components/player-v2/PlaylistSheet"
@@ -38,7 +39,7 @@ import { SourceSheet } from "@/components/player-v2/SourceSheet"
 import { TouchButton } from "@/components/player-v2/TouchButton"
 import { TransportRow } from "@/components/player-v2/TransportRow"
 import { VersionChip } from "@/components/player-v2/VersionControls"
-import { demoDownloadKey, demoDownloadSize, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
+import { demoDownloadSize } from "@/lib/playerV2/demoDownloads"
 import { VersionsSheet } from "@/components/player-v2/VersionsSheet"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
@@ -110,8 +111,8 @@ import {
 import { knownDuration, playButtonState } from "@/lib/playerV2/transportState"
 import { effectivePlayMode, versionChipText } from "@/lib/playerV2/versionMode"
 import { selectedVersionIndex, versionsFromSong, versionSummary } from "@/lib/playerV2/versions"
-import { offlineRecordingState, useOfflineAudioStore } from "@/lib/offlineAudio"
-import { useAuthStore } from "@/stores/authStore"
+import { songDownloadItem } from "@/lib/offline/downloadItems"
+import type { DownloadItem } from "@/lib/offline/downloadModel"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
@@ -173,14 +174,6 @@ export default function PlayerV2Screen() {
   const addSong = usePlaylistStore((s) => s.addSong)
   const removeSong = usePlaylistStore((s) => s.removeSong)
   const flushPlaylists = usePlaylistStore((s) => s.flushSync)
-  const authMode = useAuthStore((s) => s.mode)
-  const offlineFiles = useOfflineAudioStore((s) => s.files)
-  const offlineProgress = useOfflineAudioStore((s) => s.progress)
-  const offlineErrors = useOfflineAudioStore((s) => s.errors)
-  const offlineActive = useOfflineAudioStore((s) => s.activeBySong)
-  const downloadAudio = useOfflineAudioStore((s) => s.download)
-  const removeAudio = useOfflineAudioStore((s) => s.remove)
-  const stopIfPlayingLocalUri = usePlayerStore((s) => s.stopIfPlayingLocalUri)
 
   const [sheet, setSheet] = useState<SheetName>(null)
   const [drive, setDrive] = useState(false)
@@ -417,56 +410,6 @@ export default function PlayerV2Screen() {
   }, [sheet, list, song?.number])
   const source = sourceLabel({ playbackMode, playlistName: activePlaylist?.name ?? null })
 
-  // Offline state of the selected version, for the Download pill in the Versions sheet.
-  const offline = offlineRecordingState(
-    selectedVersion?.url,
-    { files: offlineFiles, progress: offlineProgress, errors: offlineErrors, activeBySong: offlineActive },
-    { songNumber: song?.number },
-  )
-  const demoKey = song ? demoDownloadKey(song.number, versionIndex) : ""
-  const demoDone = useDemoDownloads((d) => d.done[demoKey] === true)
-  const demoProgress = useDemoDownloads((d) => d.progress[demoKey])
-  const downloadPill = !song || !selectedVersion
-    ? null
-    : MOCKUP_DATA
-      ? {
-          label: demoDone
-            ? "Downloaded"
-            : demoProgress !== undefined
-              ? `Downloading ${Math.round(demoProgress * 100)}%`
-              : `Download · ${demoDownloadSize(selectedVersion.lengthSeconds ?? 0)}`,
-          done: demoDone,
-          tone: demoDone ? ("brand" as const) : ("ink" as const),
-          disabled: demoProgress !== undefined,
-          onPress: () => {
-            if (useDemoDownloads.getState().toggle(demoKey) === "removed") toast.show("Removed from this phone")
-          },
-        }
-    : authMode !== "signed_in"
-      ? { label: "Sign in to download", disabled: false, onPress: () => router.push(href("/signin")) }
-      : offline.downloading
-        ? {
-            label: `Downloading ${Math.round((offline.progress ?? 0) * 100)}%`,
-            disabled: true,
-            onPress: () => undefined,
-          }
-        : offline.downloaded
-          ? {
-              label: "Downloaded · tap to remove",
-              done: true,
-              disabled: false,
-              onPress: () => {
-                void removeAudio(offline.key).then(() => stopIfPlayingLocalUri(offline.fileUri))
-              },
-            }
-          : {
-              label: "Download",
-              disabled: false,
-              onPress: () => {
-                void downloadAudio(selectedVersion.url, song.number, { userInitiated: true }).catch(() => undefined)
-              },
-            }
-
   // Actions
   const onPlayPause = () => {
     if (playState === "error") play()
@@ -575,6 +518,20 @@ export default function PlayerV2Screen() {
 
   // More actions, Share and About this song
   const songTitle = sentenceCaseLine(song?.title ?? "")
+
+  // The one download control: the icon in the action row and the pill in the Versions sheet act on the same item.
+  const downloadItem: DownloadItem | null = !song
+    ? null
+    : isK
+      ? { kind: "kiirtan", number: song.number, url: song.audioUrl, title: songTitle, seconds: song.durationSeconds || undefined }
+      : selectedVersion
+        ? songDownloadItem(song.number, {
+            url: selectedVersion.url,
+            versionIndex: MOCKUP_DATA ? versionIndex : undefined,
+            title: songTitle,
+            seconds: selectedVersion.lengthSeconds ?? undefined,
+          })
+        : null
   const collection = useMemo(() => (song ? collectionForSong(song.number, allCollections) : null), [song])
   const performer = selectedVersion?.performer ?? song?.performer ?? ""
   const actionRows = useMemo(() => {
@@ -866,6 +823,16 @@ export default function PlayerV2Screen() {
                         <SaveButton item={saveItem} size={28} color={playerColors.utilIcon} title={songTitle} hit={playerSize.util} />
                       ) : null}
                     </View>
+                    <DownloadButton
+                      item={downloadItem}
+                      size={26}
+                      hit={playerSize.util}
+                      color={playerColors.utilIcon}
+                      track="rgba(255, 255, 255, 0.28)"
+                      ring={amColors.orange500}
+                      fill={amColors.orange700}
+                      onFill={amColors.white}
+                    />
                     <UtilButton label="Queue" onPress={() => setSheet("queue")}>
                       <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
@@ -898,7 +865,8 @@ export default function PlayerV2Screen() {
         theme={theme}
         versions={versions}
         selectedIndex={versionIndex}
-        download={downloadPill}
+        downloadItem={downloadItem}
+        sizeText={MOCKUP_DATA && selectedVersion ? demoDownloadSize(selectedVersion.lengthSeconds ?? 0) : undefined}
         playMode={mode}
         onPlayMode={onPlayMode}
         onSelect={(index) => {

@@ -7,7 +7,9 @@ import { localeOptions, type LocaleOption } from "@/constants/languages"
 import { SCRIPT_LABEL, type ScriptChoice, type ScriptId } from "@/lib/songPage/scripts"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { groupLanguages, type Coverage } from "@/lib/songPage/translations"
-import { versionDetail, type DownloadPhase, type SongVersion } from "@/lib/songPage/versions"
+import { versionDetail, type SongVersion } from "@/lib/songPage/versions"
+import { useDownloadState } from "@/hooks/useDownloadState"
+import { downloadPillLabel, type DownloadItem } from "@/lib/offline/downloadModel"
 
 import { SpIcon } from "./SpIcon"
 import { SpSheet } from "./SpSheet"
@@ -233,10 +235,7 @@ export function SpRecordingsSheet({
   versions,
   selectedUrl,
   onPick,
-  phase,
-  progress,
-  showDownload,
-  onDownload,
+  downloadItem,
   sizeText,
 }: {
   t: SpTheme
@@ -245,21 +244,13 @@ export function SpRecordingsSheet({
   versions: SongVersion[]
   selectedUrl: string | null
   onPick: (version: SongVersion) => void
-  phase: DownloadPhase
-  progress: number
-  showDownload: boolean
-  onDownload: () => void
+  /** The recording the Download pill acts on (the shared control); no pill without audio. */
+  downloadItem: DownloadItem | null
   /** File size shown on the idle pill: `Download · 3.7 MB` */
   sizeText?: string
 }) {
-  const dlText =
-    phase === "saved"
-      ? "Downloaded"
-      : phase === "downloading"
-        ? `Downloading ${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`
-        : sizeText
-          ? `Download · ${sizeText}`
-          : "Download"
+  const dl = useDownloadState(downloadItem)
+  const dlText = downloadPillLabel(dl.view, { signedIn: dl.signedIn, sizeText })
   return (
     <SpSheet t={t} visible={visible} onClose={onClose} label="Recordings" testID="sp-recordings-sheet">
       <ShTitle t={t} label="Versions" right={<DoneLink t={t} onPress={onClose} />} />
@@ -293,13 +284,13 @@ export function SpRecordingsSheet({
           })
         )}
       </View>
-      {showDownload && versions.length ? (
+      {dl.view.visible && versions.length ? (
         <View style={styles.shPad}>
           <SpPill
             t={t}
             label={dlText}
-            variant={phase === "saved" ? "brand" : "ink"}
-            onPress={onDownload}
+            variant={dl.view.status === "done" ? "brand" : "ink"}
+            onPress={dl.press}
             style={{ width: "100%" }}
           />
         </View>

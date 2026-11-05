@@ -2,9 +2,9 @@ import { Platform, StyleSheet, Text, View, type LayoutChangeEvent } from "react-
 import { Image as ExpoImage } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import Animated, { useAnimatedStyle, useReducedMotion, type SharedValue } from "react-native-reanimated"
-import Svg, { Circle } from "react-native-svg"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { DownloadButton } from "@/components/offline/DownloadButton"
 import { SaveButton } from "@/components/save/SaveButton"
 import { coverFor } from "@/components/player-v2/playerCovers"
 import type { SpTheme } from "@/constants/tokens/amSong"
@@ -12,7 +12,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import type { SaveItem } from "@/lib/save/saveToSheet"
 import { songAccents } from "@/lib/songPage/accent"
 import { coverTransform } from "@/lib/songPage/stickyBar"
-import type { DownloadPhase } from "@/lib/songPage/versions"
+import type { DownloadItem } from "@/lib/offline/downloadModel"
 
 import { SpIcon } from "./SpIcon"
 import { SpPress } from "./SpUi"
@@ -139,44 +139,6 @@ export function SpHeroText({
 /** expo-image's blurRadius is native only; the web build blurs the glow with a CSS filter. */
 const GLOW_WEB = (Platform.OS === "web" ? { filter: "blur(30px)" } : null) as object | null
 
-const RING = 30
-const RING_R = 12.5
-const RING_C = 2 * Math.PI * RING_R
-
-/** Download glyph with a progress ring and the percent inside while it saves; a check in orange when saved. */
-function DownloadGlyph({ t, phase, progress }: { t: SpTheme; phase: DownloadPhase; progress: number }) {
-  const pct = Math.round(Math.max(0, Math.min(1, progress)) * 100)
-  if (phase === "idle") return <SpIcon name="download" size={24} color={t.ink800} />
-  const accent = songAccents(t)
-  if (phase === "saved") {
-    return (
-      <View style={[styles.savedDot, { backgroundColor: accent.fill }]}>
-        <SpIcon name="check" size={16} color={accent.onFill} strokeWidth={2.6} />
-      </View>
-    )
-  }
-  return (
-    <View style={styles.ring}>
-      <Svg width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`} style={StyleSheet.absoluteFill}>
-        <Circle cx={RING / 2} cy={RING / 2} r={RING_R} stroke={t.sand400} strokeWidth={2.5} fill="none" />
-        <Circle
-          cx={RING / 2}
-          cy={RING / 2}
-          r={RING_R}
-          stroke={accent.bright}
-          strokeWidth={2.5}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={`${RING_C} ${RING_C}`}
-          strokeDashoffset={RING_C * (1 - Math.max(0.04, Math.min(1, progress)))}
-          transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
-        />
-      </Svg>
-      <Text style={[styles.pct, { color: t.ink900 }]}>{pct}</Text>
-    </View>
-  )
-}
-
 function Tool({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
   return (
     <SpPress onPress={onPress} accessibilityLabel={label} style={styles.tool} pressedScale={0.9}>
@@ -192,11 +154,7 @@ function Tool({ label, onPress, children }: { label: string; onPress: () => void
 export function SpActionRow({
   t,
   saveItem,
-  showDownload,
-  phase,
-  progress,
-  downloadLabel,
-  onDownload,
+  downloadItem,
   onPlaylist,
   onShare,
   onMore,
@@ -207,11 +165,8 @@ export function SpActionRow({
   t: SpTheme
   /** The song, for the circle-plus that opens the "Save to" sheet. */
   saveItem: SaveItem | null
-  showDownload: boolean
-  phase: DownloadPhase
-  progress: number
-  downloadLabel: string
-  onDownload: () => void
+  /** The recording the download control acts on; null or without audio draws no control. */
+  downloadItem: DownloadItem | null
   onPlaylist: () => void
   onShare: () => void
   onMore: () => void
@@ -225,11 +180,16 @@ export function SpActionRow({
     <View style={styles.actions} onLayout={onLayout}>
       <View style={styles.tools}>
         {saveItem ? <SaveButton item={saveItem} size={28} color={t.ink800} /> : null}
-        {showDownload ? (
-          <Tool label={downloadLabel} onPress={onDownload}>
-            <DownloadGlyph t={t} phase={phase} progress={progress} />
-          </Tool>
-        ) : null}
+        <DownloadButton
+          item={downloadItem}
+          size={24}
+          hit={46}
+          color={t.ink800}
+          track={t.sand400}
+          ring={accent.bright}
+          fill={accent.fill}
+          onFill={accent.onFill}
+        />
         <Tool label="Add to playlist" onPress={onPlaylist}>
           <SpIcon name="listPlus" size={25} color={t.ink800} />
         </Tool>
@@ -273,7 +233,4 @@ const styles = StyleSheet.create({
   tools: { flexDirection: "row", alignItems: "center" },
   tool: { width: 46, height: 48, alignItems: "center", justifyContent: "center" },
   play: { width: SP_PLAY_SIZE, height: SP_PLAY_SIZE, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
-  ring: { width: RING, height: RING, alignItems: "center", justifyContent: "center" },
-  pct: { fontFamily: amFonts.bold, fontSize: 10, lineHeight: 12, fontVariant: ["tabular-nums"] },
-  savedDot: { width: 26, height: 26, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
 })

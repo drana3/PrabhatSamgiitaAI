@@ -8,6 +8,8 @@ import { PressScale } from "@/components/today/motion"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amRadius } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useDownloadState } from "@/hooks/useDownloadState"
+import { downloadPillLabel, type DownloadItem } from "@/lib/offline/downloadModel"
 import { PLAY_SCOPE_OPTIONS, type PlayMode } from "@/lib/playerV2/versionMode"
 import { formatClock } from "@/lib/playerV2/transportState"
 import { versionRowMeta, type PlayerVersion } from "@/lib/playerV2/versions"
@@ -17,8 +19,10 @@ type Props = {
   theme: AmTheme
   versions: PlayerVersion[]
   selectedIndex: number
-  /** Label and action of the single Download pill at the bottom (selected version). */
-  download: { label: string; disabled: boolean; onPress: () => void; done?: boolean; tone?: "brand" | "sand" | "ink" } | null
+  /** What the single Download pill at the bottom acts on (the selected version): the shared control, no pill without audio. */
+  downloadItem: DownloadItem | null
+  /** The idle pill's size text: `Download · 3.7 MB`. */
+  sizeText?: string
   onSelect: (index: number) => void
   /** "Play only this version" or "Play all versions"; the toggle is drawn when there is more than one version. */
   playMode: PlayMode
@@ -31,7 +35,8 @@ type Props = {
  * then `Instrument · length · tag`, a check on the selected row. Tapping a row plays
  * that version and closes the sheet. Download sits once at the bottom.
  */
-export function VersionsSheet({ visible, theme, versions, selectedIndex, download, onSelect, playMode, onPlayMode, onClose }: Props) {
+export function VersionsSheet({ visible, theme, versions, selectedIndex, downloadItem, sizeText, onSelect, playMode, onPlayMode, onClose }: Props) {
+  const dl = useDownloadState(downloadItem)
   return (
     <Sheet visible={visible} onClose={onClose} title="Versions" theme={theme}>
       {versions.length > 1 ? (
@@ -86,14 +91,13 @@ export function VersionsSheet({ visible, theme, versions, selectedIndex, downloa
           )
         })}
       </View>
-      {download ? (
+      {dl.view.visible ? (
         <View style={styles.pad}>
           <SheetPill
             theme={theme}
-            label={download.label}
-            tone={download.tone ?? (download.done ? "sand" : "brand")}
-            disabled={download.disabled}
-            onPress={download.onPress}
+            label={downloadPillLabel(dl.view, { signedIn: dl.signedIn, sizeText })}
+            tone={dl.view.status === "done" ? "sand" : "brand"}
+            onPress={dl.press}
           />
         </View>
       ) : null}

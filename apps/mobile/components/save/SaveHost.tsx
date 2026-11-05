@@ -1,12 +1,13 @@
 import { useEffect, useId } from "react"
 import { StyleSheet, View } from "react-native"
 
+import { DownloadHost } from "@/components/offline/DownloadHost"
 import { SaveToast } from "@/components/save/SaveToast"
 import { SaveToSheet } from "@/components/save/SaveToSheet"
 import { useSaveSheetStore } from "@/stores/saveSheetStore"
 
 /**
- * Draws the one "Save to" sheet and its toast. Mount it once in the root layout. A native modal on
+ * Draws the one "Save to" sheet and its toast, and the download controls' prompt sheet and toast. Mount it once in the root layout. A native modal on
  * iOS (the full player) hides the root, so the player mounts its own: the host that mounted last
  * is the one that draws, and the root takes over again when the player closes.
  */
@@ -23,6 +24,8 @@ export function SaveHost() {
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <SaveToSheet visible={item != null} item={item} onClose={close} />
       {toast ? <SaveToast message={toast.message} id={toast.id} /> : null}
+      {/* the download controls' sign-in prompt, confirm sheet and toast */}
+      <DownloadHost />
     </View>
   )
 }

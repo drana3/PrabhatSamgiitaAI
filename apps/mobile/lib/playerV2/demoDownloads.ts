@@ -11,6 +11,8 @@ type DemoDownloads = {
   progress: Record<string, number>
   /** Start a download, or remove one that is on the phone. Returns what happened. */
   toggle: (key: string) => "removed" | "started" | "busy"
+  /** Stop a running download (a tap on the ring). The unfinished file is dropped. */
+  cancel: (key: string) => void
 }
 
 const STEP_MS = 200
@@ -50,6 +52,13 @@ export const useDemoDownloads = create<DemoDownloads>((set, get) => ({
       }, STEP_MS)
     }
     return "started"
+  },
+  cancel: (key) => {
+    const { progress } = get()
+    if (progress[key] === undefined) return
+    const next = { ...progress }
+    delete next[key]
+    set({ progress: next })
   },
 }))
 

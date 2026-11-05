@@ -38,12 +38,12 @@ import { allCollections } from "@/data/collections"
 import type { MockSong } from "@/data/mock"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
+import { useDownloadState } from "@/hooks/useDownloadState"
 import { useSaveState } from "@/hooks/useSaveState"
 import { useSongMeaning } from "@/hooks/useSongMeaning"
 import { FIXTURE_CENTRAL_IDEA, FIXTURE_MORE_VIDEOS, FIXTURE_PLAYLISTS, fixtureExtras } from "@/lib/fixtures/songPage"
 import { demoUrl } from "@/lib/fixtures/playerDemo"
 import {
-  MOCKUP_DOWNLOADED,
   MOCKUP_LANGUAGES,
   MOCKUP_LEARNING,
   mockupFixtureKey,
@@ -55,12 +55,10 @@ import {
   mockupVersions,
 } from "@/lib/fixtures/songMockup"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import {
-  offlineRecordingState,
-  offlineSaveControls,
-  reconcileOfflineProgress,
-  useOfflineAudioStore,
-} from "@/lib/offlineAudio"
+import { reconcileOfflineProgress, useOfflineAudioStore } from "@/lib/offlineAudio"
+import { songDownloadItem } from "@/lib/offline/downloadItems"
+import type { DownloadItem } from "@/lib/offline/downloadModel"
+import { demoDownloadKey, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
 import { NAV_V2_PLAYER_ROUTE, miniPlayerVisible } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { listenQueueForSong } from "@/lib/playbackQueue"
@@ -106,8 +104,6 @@ import { alignTranslationLines, translationPill } from "@/lib/songPage/translati
 import {
   buildVersions,
   chordsForVersion,
-  downloadLabel,
-  downloadPhase,
   INSTRUMENT_LABEL,
   type SongVersion,
 } from "@/lib/songPage/versions"
@@ -187,19 +183,7 @@ export default function SongPageV2() {
   const mockRow = Number.isFinite(mockNumber) ? mockupRow(mockNumber) : null
   const mock = MOCKUP_DATA && mockRow ? mockRow : null
   const [mockVer, setMockVer] = useState(() => Number.parseInt(routeString(params.ver) || "0", 10) || 0)
-  const [mockDl, setMockDl] = useState<string[]>(MOCKUP_DOWNLOADED)
-  const [mockProg, setMockProg] = useState<Record<string, number>>(() => {
-    const frozen = Number.parseFloat(routeString(params.dlprog) || "")
-    return Number.isFinite(frozen) ? { [`${mockRow?.index ?? 0}-${Number.parseInt(routeString(params.ver) || "0", 10) || 0}`]: frozen } : {}
-  })
-  const mockTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const [requested, setRequested] = useState<string[]>([])
-  useEffect(
-    () => () => {
-      if (mockTimer.current) clearInterval(mockTimer.current)
-    },
-    [],
-  )
 
   const showToast = useCallback((message: string) => {
     setToast(message)
@@ -244,11 +228,6 @@ export default function SongPageV2() {
   // offline files
   const files = useOfflineAudioStore((s) => s.files)
   const progressMap = useOfflineAudioStore((s) => s.progress)
-  const errorsMap = useOfflineAudioStore((s) => s.errors)
-  const activeBySong = useOfflineAudioStore((s) => s.activeBySong)
-  const offlineReady = useOfflineAudioStore((s) => s.ready)
-  const download = useOfflineAudioStore((s) => s.download)
-  const removeDownload = useOfflineAudioStore((s) => s.remove)
   useEffect(() => {
     reconcileOfflineProgress()
   }, [files, progressMap])
@@ -511,88 +490,35 @@ export default function SongPageV2() {
     showToast(`Playing ${(version.label ?? INSTRUMENT_LABEL[version.instrument]).toLowerCase()}, ${version.performer}`)
   }
 
-  const offlineSnapshot = { files, progress: progressMap, errors: errorsMap, activeBySong }
-  const offline = offlineRecordingState(selectedUrl, offlineSnapshot, { songNumber: song?.number })
-  const saveUi = offlineSaveControls({
-    mode: authMode === "signed_in" ? "signed_in" : "guest",
-    downloaded: offline.downloaded,
-    downloading: offline.downloading,
-    indexPending: authMode === "signed_in" && !offlineReady,
-    progress: offline.progress,
-    error: offline.error,
-  })
-  const mockKey = mock ? `${mock.index}-${mockVer}` : ""
-  const mockDownloaded = mock ? mockDl.includes(mockKey) : false
-  const mockProgress = mock ? mockProg[mockKey] : undefined
-  const phase = mock
-    ? downloadPhase({ downloaded: mockDownloaded, downloading: mockProgress !== undefined && !mockDownloaded })
-    : downloadPhase({ downloaded: offline.downloaded, downloading: saveUi.downloading })
-  const shownProgress = mock ? (mockProgress ?? 0) : (offline.progress ?? 0)
-  const dlLabel = downloadLabel(phase, mock ? mockProgress : offline.progress)
-  const canDownload = Boolean(selectedUrl)
-  const lastPhase = useRef(phase)
+  // ---- download: the one shared control (components/offline/DownloadButton.tsx) ----
+  const downloadItem: DownloadItem | null =
+    song && selectedUrl
+      ? songDownloadItem(song.number, {
+          url: selectedUrl,
+          versionIndex: mock ? mockVer : undefined,
+          title: song.title,
+          seconds: selectedVersion?.length ?? undefined,
+        })
+      : null
+  const downloadStatus = useDownloadState(downloadItem).view.status
+  const lastStatus = useRef(downloadStatus)
   useEffect(() => {
-    if (!mock && lastPhase.current === "downloading" && phase === "saved") showToast("Saved. Plays without internet")
-    lastPhase.current = phase
-  }, [phase, showToast, mock])
+    if (lastStatus.current === "downloading" && downloadStatus === "done") showToast("Saved. Plays without internet")
+    lastStatus.current = downloadStatus
+  }, [downloadStatus, showToast])
+  // The boards of the design freeze a download at some percent: /song-v2/ps-3?dlprog=0.42
+  const frozenProgress = Number.parseFloat(routeString(params.dlprog) || "")
+  useEffect(() => {
+    if (!mock || !Number.isFinite(frozenProgress)) return
+    useDemoDownloads.setState((d) => ({ progress: { ...d.progress, [demoDownloadKey(mock.n, mockVer)]: frozenProgress } }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const signInFirst = (message: string) =>
     Alert.alert("Sign in", message, [
       { text: "Not now", style: "cancel" },
       { text: "Sign in", onPress: () => router.push(href("/signin")) },
     ])
-
-  const startMockDownload = (key: string) => {
-    setMockProg((p) => ({ ...p, [key]: 0 }))
-    if (mockTimer.current) return
-    mockTimer.current = setInterval(() => {
-      setMockProg((current) => {
-        const next: Record<string, number> = {}
-        const done: string[] = []
-        for (const [k, v] of Object.entries(current)) {
-          if (v + 0.12 >= 1) done.push(k)
-          else next[k] = v + 0.12
-        }
-        if (done.length) {
-          setMockDl((list) => [...list, ...done])
-          showToast("Saved. Plays without internet")
-        }
-        if (!Object.keys(next).length && mockTimer.current) {
-          clearInterval(mockTimer.current)
-          mockTimer.current = null
-        }
-        return next
-      })
-    }, 150)
-  }
-
-  const handleDownload = () => {
-    if (!song || !selectedUrl) return
-    if (mock) {
-      if (mockDownloaded) {
-        setMockDl((list) => list.filter((k) => k !== mockKey))
-        showToast("Removed from this phone")
-      } else if (mockProgress === undefined) {
-        startMockDownload(mockKey)
-      }
-      return
-    }
-    if (authMode !== "signed_in") {
-      signInFirst("Downloading songs requires you to sign in.")
-      return
-    }
-    if (phase === "downloading") return
-    if (phase === "saved") {
-      void (async () => {
-        await removeDownload(offline.key)
-        stopIfPlayingLocalUri(offline.fileUri)
-        showToast("Removed from this phone")
-      })()
-      return
-    }
-    const remote = /^https?:\/\//i.test(selectedUrl) ? selectedUrl : offline.key
-    void download(remote, song.number, { userInitiated: true }).catch(() => undefined)
-  }
 
   // Saved = in Mine or in any playlist; the circle-plus opens the "Save to" sheet. The preview seeds
   // the same stores (lib/playerV2/demoEngine.ts), so no separate mock state is needed here.
@@ -1011,11 +937,7 @@ export default function SongPageV2() {
             <SpActionRow
               t={t}
               saveItem={saveItem}
-              showDownload={canDownload}
-              phase={phase}
-              progress={shownProgress}
-              downloadLabel={dlLabel}
-              onDownload={handleDownload}
+              downloadItem={downloadItem}
               onPlaylist={openPlaylist}
               onShare={() => setSheet("share")}
               onMore={() => setSheet("actions")}
@@ -1236,10 +1158,7 @@ export default function SongPageV2() {
         versions={versions}
         selectedUrl={selectedUrl}
         onPick={pickVersion}
-        phase={phase}
-        progress={shownProgress}
-        showDownload={canDownload}
-        onDownload={handleDownload}
+        downloadItem={downloadItem}
         sizeText={mock ? mockupSizeText(selectedVersion?.length ?? null) : undefined}
       />
       <SpLanguageSheet
