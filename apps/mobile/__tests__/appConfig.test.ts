@@ -82,4 +82,14 @@ describe("app.json native config", () => {
     expect(pkg.dependencies).not.toHaveProperty("@gorhom/bottom-sheet")
     expect(existsSync(path.join(root, "plugins/withTrackPlayerAndroid.js"))).toBe(false)
   })
+
+  it("ships a themed (monochrome) Android icon inside the adaptive safe zone", () => {
+    const android = (expo as unknown as { android: { adaptiveIcon: { monochromeImage?: string } } }).android
+    const file = android.adaptiveIcon.monochromeImage
+    expect(file).toBe("./assets/adaptive-icon-monochrome.png")
+    const png = readFileSync(path.resolve(__dirname, "..", file!))
+    expect(png.readUInt32BE(16)).toBe(1024)
+    expect(png.readUInt32BE(20)).toBe(1024)
+    expect(png[25]).toBe(6) // RGBA: the background is transparent, Android tints the shape
+  })
 })

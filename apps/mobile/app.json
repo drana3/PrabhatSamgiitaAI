@@ -60,7 +60,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FAF7F2"
+        "backgroundColor": "#FAF7F2",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
       },
       "package": "net.prabhatasamgiita.ai",
       "versionCode": 110,
