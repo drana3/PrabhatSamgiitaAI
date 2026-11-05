@@ -22,7 +22,6 @@ import {
 import { useLearnTopInset } from "@/components/learn-v2/ui"
 import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
-import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { protoFor } from "@/constants/tokens/amToday"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
@@ -33,6 +32,7 @@ import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useOpenProfileSheet } from "@/components/nav-v2/useOpenProfileSheet"
 import { INDEX_SUMMARY, LEARN_SUGGESTED_NUMBERS, MOCKUP_LEARN, learnSongTitle } from "@/lib/fixtures/learn"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
 import {
   HUB_LINKS,
   buildContinue,
@@ -67,6 +67,9 @@ export default function LearnScreen() {
   const openProfile = useOpenProfileSheet()
   const { unread } = useNotificationItems()
   const now = useMemo(() => Date.now(), [])
+  // word meanings and quiz questions are unchecked prototype content: a real build shows an honest state instead
+  const wordsReady = learnWordsAvailable()
+  const wordList = learnWordList()
 
   const initial = useProfileInitial()
 
@@ -103,27 +106,27 @@ export default function LearnScreen() {
   }, [learn, removedNote])
 
   const counts = useMemo(
-    () => libraryCounts(buildLibraryRows({ songs, paths, cards, words: SAMPLE_LEARN_WORDS, now, mockup: MOCKUP_DATA })),
-    [songs, paths, cards, now],
+    () => libraryCounts(buildLibraryRows({ songs, paths, cards, words: wordList, now, mockup: MOCKUP_DATA })),
+    [songs, paths, cards, now, wordList],
   )
-  const words = wordsLearnedCount(cards)
-  const due = dueCardCount(cards, now)
-  const hasCards = Object.keys(cards).length > 0
+  const words = wordsReady ? wordsLearnedCount(cards) : 0
+  const due = wordsReady ? dueCardCount(cards, now) : 0
+  const hasCards = wordsReady && Object.keys(cards).length > 0
   const quizLevel = nextOpenQuizLevel(quizBest)
 
   const continueModel = useMemo(() => buildContinue(songs, paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle), [songs, paths])
   const shelf = useMemo(() => buildShelf(songs, paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle), [songs, paths])
 
   const deck = useMemo(
-    () => sessionDeck(SAMPLE_LEARN_WORDS, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
-    [songs, savedSongIds],
+    () => sessionDeck(wordList, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
+    [wordList, songs, savedSongIds],
   )
   const wordOfDay = useMemo(
     () =>
       MOCKUP_DATA
-        ? (SAMPLE_LEARN_WORDS.find((word) => word.roman === MOCKUP_LEARN.wordOfDay) ?? null)
+        ? (wordList.find((word) => word.roman === MOCKUP_LEARN.wordOfDay) ?? null)
         : wordOfTheDay(deck.filter((word) => word.roman.length > 3), new Date(now)),
-    [deck, now],
+    [deck, now, wordList],
   )
 
   const nothingYet = counts.total === 0 && words === 0
@@ -207,32 +210,38 @@ export default function LearnScreen() {
             <Reveal index={4} style={styles.section}>
               <HubSectionHead p={p} eyebrow={t("learn.sect.fresh")} first={t("learn.sect.fresh.first")} second={t("learn.sect.fresh.second")} />
               <View style={styles.pad}>
-                <View style={styles.tiles}>
-                  <HubTile
-                    p={p}
-                    icon={<Layers size={22} color={iconColor} strokeWidth={1.9} />}
-                    title={t("learn.wordCards")}
-                    subtitle={wordCardsSubtitle(due, hasCards)}
-                    emphasis={due > 0}
-                    onPress={() => go(HUB_LINKS.wordCards)}
-                  />
-                  <HubTile
-                    p={p}
-                    icon={<CircleQuestionMark size={22} color={iconColor} strokeWidth={1.9} />}
-                    title={t("learn.quiz")}
-                    subtitle={quizSubtitle(quizLevel)}
-                    onPress={() => go(quizTarget(quizLevel))}
-                  />
-                </View>
-                {wordOfDay ? (
-                  <WordOfDayRow
-                    p={p}
-                    word={wordOfDay.roman}
-                    meaning={wordOfDay.meaning}
-                    songNumber={wordOfDay.songNumber}
-                    onPress={() => go(wordsHref({ song: wordOfDay.songNumber }))}
-                  />
-                ) : null}
+                {wordsReady ? (
+                  <>
+                    <View style={styles.tiles}>
+                      <HubTile
+                        p={p}
+                        icon={<Layers size={22} color={iconColor} strokeWidth={1.9} />}
+                        title={t("learn.wordCards")}
+                        subtitle={wordCardsSubtitle(due, hasCards)}
+                        emphasis={due > 0}
+                        onPress={() => go(HUB_LINKS.wordCards)}
+                      />
+                      <HubTile
+                        p={p}
+                        icon={<CircleQuestionMark size={22} color={iconColor} strokeWidth={1.9} />}
+                        title={t("learn.quiz")}
+                        subtitle={quizSubtitle(quizLevel)}
+                        onPress={() => go(quizTarget(quizLevel))}
+                      />
+                    </View>
+                    {wordOfDay ? (
+                      <WordOfDayRow
+                        p={p}
+                        word={wordOfDay.roman}
+                        meaning={wordOfDay.meaning}
+                        songNumber={wordOfDay.songNumber}
+                        onPress={() => go(wordsHref({ song: wordOfDay.songNumber }))}
+                      />
+                    ) : null}
+                  </>
+                ) : (
+                  <HubEmpty p={p} text={t("learn.gate.hub")} />
+                )}
               </View>
             </Reveal>
 

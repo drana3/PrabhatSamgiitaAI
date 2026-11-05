@@ -4,12 +4,13 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { DoneCard, FlashCard, GradeButtons, QueueCounters, ReviewStyleBar } from "@/components/learn-v2/CardsParts"
 import { ReviewStyleSheet } from "@/components/learn-v2/ReviewStyleSheet"
+import { LearnGate } from "@/components/learn-v2/LearnGate"
 import { OverlayScreen, Over, Pill, Track } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
-import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
 import { mockCounts, mockIntervals, mockIsReview, mockKind, type MockGrades } from "@/lib/learn/mockupCards"
 import { songWordsComplete } from "@/lib/learn/progress"
 import { LEARN_ROUTES, parseNumberParam } from "@/lib/learn/routes"
@@ -36,6 +37,10 @@ const KIND_LABEL = { new: "New card", learning: "Learning card", due: "Review ca
  * once marks the words step of that song's path done.
  */
 export default function WordCardsScreen() {
+  return learnWordsAvailable() ? <WordCards /> : <LearnGate kind="words" />
+}
+
+function WordCards() {
   const router = useRouter()
   const theme = useAmTheme()
   const params = useLocalSearchParams<{ song?: string }>()
@@ -53,8 +58,8 @@ export default function WordCardsScreen() {
   const deck = useMemo(
     () =>
       songNumber !== undefined
-        ? wordsForSong(SAMPLE_LEARN_WORDS, songNumber).slice(0, MOCKUP_DATA ? 10 : undefined)
-        : sessionDeck(SAMPLE_LEARN_WORDS, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
+        ? wordsForSong(learnWordList(), songNumber).slice(0, MOCKUP_DATA ? 10 : undefined)
+        : sessionDeck(learnWordList(), [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
     [songNumber, songs, savedSongIds],
   )
   const wordById = useMemo(() => new Map(deck.map((word) => [word.id, word])), [deck])

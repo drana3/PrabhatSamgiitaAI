@@ -4,6 +4,7 @@ import { useRouter } from "expo-router"
 
 import { PREVIEW_SONG_PICKS } from "@/lib/fixtures/notifications"
 import { learningStreak } from "@/lib/learn/streak"
+import { learnWordsAvailable } from "@/lib/learn/verified"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { unreadCount } from "@/lib/notifications"
 import { nowMs } from "@/lib/notifications/clock"
@@ -89,8 +90,9 @@ export function NotificationsHost() {
       settings: { master: st.master, song: st.song, festival: st.festival, words: st.words, streak: st.streak },
       songs: sources.current.songs,
       festivals: FESTIVAL_ENTRIES,
-      cards: learn.cards,
-      streak: learningStreak(learn.cards, now),
+      // word cards are unchecked prototype content in a real build: no "words are due" or streak reminders from them
+      cards: learnWordsAvailable() ? learn.cards : {},
+      streak: learningStreak(learnWordsAvailable() ? learn.cards : {}, now),
     }
   }, [])
 

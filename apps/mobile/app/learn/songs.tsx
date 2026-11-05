@@ -5,10 +5,10 @@ import { useRouter } from "expo-router"
 import { LibraryRow, type LibraryRowData } from "@/components/learn-v2/LearnBlocks"
 import { Chip, OverlayScreen } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
-import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
 import {
   LIBRARY_FILTERS,
   buildLibraryRows,
@@ -43,7 +43,7 @@ export default function LearnSongsScreen() {
   }
 
   const rows = useMemo(
-    () => buildLibraryRows({ songs, paths, cards, words: SAMPLE_LEARN_WORDS, now, mockup: MOCKUP_DATA }),
+    () => buildLibraryRows({ songs, paths, cards, words: learnWordList(), now, mockup: MOCKUP_DATA }),
     [songs, paths, cards, now],
   )
   const shown = useMemo(() => filterLibraryRows(rows, filter), [rows, filter])
@@ -62,7 +62,7 @@ export default function LearnSongsScreen() {
           </View>
           <View style={styles.list}>
             {shown.map((row) => (
-              <LibraryRow key={row.number} theme={theme} row={row} onOpen={() => openRow(row)} onCta={() => rowCta(row)} />
+              <LibraryRow key={row.number} theme={theme} row={row} onOpen={() => openRow(row)} onCta={row.learned && !learnWordsAvailable() ? undefined : () => rowCta(row)} />
             ))}
             {shown.length === 0 ? (
               <Text style={[styles.empty, { color: theme.textBody }]}>{libraryEmptyText(rows.length, filter)}</Text>

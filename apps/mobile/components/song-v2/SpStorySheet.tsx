@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { fixtureStory } from "@/lib/fixtures/story"
+import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { storyLoader } from "@/lib/songsV2/storyApi"
 import type { StorySheetContent } from "@/lib/songsV2/storySheet"
@@ -16,7 +17,8 @@ import { SpPill, SpPress } from "./SpUi"
 /**
  * `STORY SHEET` of the prototype: sand sheet, `Story · N min read` with Done, the title in 28px caps, the
  * paragraphs at 17/1.55 and the brand pill "Open the song". Text comes from the stories API; when that cannot be
- * reached the prototype's sample story (`lib/fixtures/story.ts`) stands in and a retry link stays.
+ * reached the sheet says so and offers a retry. The prototype's sample story (`lib/fixtures/story.ts`) is
+ * shown only under MOCKUP_DATA, never as a stand-in for a story that failed to load.
  */
 export function SpStorySheet({
   t,
@@ -31,6 +33,7 @@ export function SpStorySheet({
   onClose: () => void
   onOpenSong: (href: string) => void
 }) {
+  const tr = useT()
   const [content, setContent] = useState<StorySheetContent | null>(null)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -57,13 +60,14 @@ export function SpStorySheet({
 
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
   // MOCKUP_DATA: always the prototype's sample story, never the API
-  const shown = MOCKUP_DATA ? fixtureStory(slug) : (content ?? (failed ? fixtureStory(slug) : null))
+  const shown = MOCKUP_DATA ? fixtureStory(slug) : content
+  const failedToLoad = !MOCKUP_DATA && failed && !content
 
   return (
-    <SpSheet t={t} visible={visible} onClose={onClose} label="Story" testID="sp-story-sheet">
+    <SpSheet t={t} visible={visible} onClose={onClose} label={tr("story.sheet.label")} testID="sp-story-sheet">
       <ShTitle
         t={t}
-        label={shown?.eyebrow ?? "Story"}
+        label={shown?.eyebrow ?? tr("story.sheet.label")}
         right={<DoneLink t={t} onPress={onClose} />}
       />
       <View style={styles.body}>
@@ -77,24 +81,28 @@ export function SpStorySheet({
                 {paragraph}
               </Text>
             ))}
-            {failed ? (
-              <SpPress onPress={retry} accessibilityLabel="Try loading the story again" style={styles.retry}>
-                <Text style={{ fontFamily: amFonts.semi, fontSize: 14, color: t.orange700 }}>
-                  Showing a sample story. Tap to try again.
-                </Text>
-              </SpPress>
-            ) : null}
             {shown.songHref ? (
               <SpPill
                 t={t}
-                label="Open the song"
+                label={tr("story.sheet.openSong")}
                 onPress={() => onOpenSong(shown.songHref!)}
                 style={styles.cta}
               />
             ) : null}
           </>
+        ) : failedToLoad ? (
+          <>
+            <Text accessibilityRole="alert" style={bodyT(t)}>
+              {tr("story.sheet.failed")}
+            </Text>
+            <SpPress onPress={retry} accessibilityLabel={tr("story.sheet.retryLabel")} style={styles.retry}>
+              <Text style={{ fontFamily: amFonts.semi, fontSize: 14, color: t.orange700 }}>
+                {tr("notice.retry")}
+              </Text>
+            </SpPress>
+          </>
         ) : (
-          <Text style={bodyT(t)}>Loading the story…</Text>
+          <Text style={bodyT(t)}>{tr("story.sheet.loading")}</Text>
         )}
       </View>
     </SpSheet>

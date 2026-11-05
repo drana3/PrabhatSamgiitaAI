@@ -3,10 +3,10 @@ import { StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { EmptyCard } from "@/components/learn-v2/LearnBlocks"
+import { LearnGate } from "@/components/learn-v2/LearnGate"
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { OverlayScreen, Over, Pill, Track, toneOf, useToast } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
-import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
@@ -20,6 +20,7 @@ import {
   type LearnQuizQuestion,
 } from "@/lib/learn/quiz"
 import { quizFeedback } from "@/lib/learn/quizFeedback"
+import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
 import { LEARN_ROUTES, parseNumberParam } from "@/lib/learn/routes"
 import { wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
@@ -32,6 +33,10 @@ import { href } from "@/utils/href"
  * yet (API-12) and say so.
  */
 export default function LearnQuizScreen() {
+  return learnWordsAvailable() ? <LearnQuiz /> : <LearnGate kind="quiz" />
+}
+
+function LearnQuiz() {
   const router = useRouter()
   const theme = useAmTheme()
   const params = useLocalSearchParams<{ level?: string; song?: string }>()
@@ -51,7 +56,7 @@ export default function LearnQuizScreen() {
   const questions = useMemo<LearnQuizQuestion[]>(() => {
     if (level !== 1) return []
     if (songNumber !== undefined) {
-      const own = buildWordQuiz(wordsForSong(SAMPLE_LEARN_WORDS, songNumber), { count: 3, seed: attempt * 7919 + songNumber })
+      const own = buildWordQuiz(wordsForSong(learnWordList(), songNumber), { count: 3, seed: attempt * 7919 + songNumber })
       if (own.length > 0) return own
     }
     return SAMPLE_QUIZ

@@ -35,3 +35,11 @@ describe("songs list (old My songs tab)", () => {
     expect(buildLibraryRows({ songs: [], paths: {}, cards: {}, words: SAMPLE_LEARN_WORDS, now: NOW, mockup: false })).toEqual([])
   })
 })
+
+describe("unverified learn content", () => {
+  it("never shows the prototype's demo due or strength in a real build", () => {
+    const real = buildLibraryRows({ songs: seed.songs, paths: seed.paths, cards: {}, words: [], now: NOW, mockup: false })
+    expect(real.every((row) => row.strength === undefined)).toBe(true)
+    expect(real.some((row) => row.due)).toBe(false)
+  })
+})

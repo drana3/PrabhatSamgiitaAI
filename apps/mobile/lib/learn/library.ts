@@ -19,7 +19,8 @@ export const LIBRARY_FILTERS: ReadonlyArray<{ key: LibraryFilter; label: string 
 /**
  * One row per song on the learner's list (the old "My songs" tab, now the "See all" screen).
  * `mockup` fills the memory strength and the "next review" line from the prototype's
- * sample library, because song-level review does not exist in the logic yet.
+ * sample library, because song-level review does not exist in the logic yet. Without it a learned
+ * song has no strength (the row shows its three steps instead) and is "due" only from real cards.
  */
 export function buildLibraryRows(input: {
   songs: readonly LearningSong[]
@@ -34,11 +35,12 @@ export function buildLibraryRows(input: {
   return songs.map((song): LibraryRowData => {
     const path = paths[song.songId]
     const learned = pathDoneCount(path) === 3
-    const demo = demoLibraryEntry(song.number)
+    // the prototype's sample "due today" and memory strength exist only in the preview
+    const demo = mockup ? demoLibraryEntry(song.number) : undefined
     const due = learned && Boolean(demo?.due || (!mockup && dueBySong.has(song.number)))
     let note: string
     if (!learned) note = nextStepNote(path)
-    else if (mockup && demo?.next) note = demo.next
+    else if (demo?.next) note = demo.next
     else if (due) note = t("learn.note.reviewDue")
     else {
       const nextWord = nextDueAt(
@@ -52,7 +54,7 @@ export function buildLibraryRows(input: {
       title: song.title,
       learned,
       due,
-      strength: (mockup ? demo?.strength : undefined) ?? 3,
+      strength: demo?.strength,
       steps: pathDots(path),
       note,
     }

@@ -81,7 +81,7 @@ export function LibraryRow({
   theme: AmTheme
   row: LibraryRowData
   onOpen: () => void
-  onCta: () => void
+  onCta?: () => void
 }) {
   const t = useT()
   const state = row.learned ? (row.due ? t("learn.state.dueToday") : t("learn.state.learned")) : t("learn.state.learning")
@@ -99,11 +99,13 @@ export function LibraryRow({
             {`PS ${row.number} · ${state}`}
           </Over>
           <Text style={[styles.title, { color: theme.textHeading }]}>{row.title}</Text>
-          {row.learned ? <Meter theme={theme} strength={row.strength ?? 1} /> : <StepBars theme={theme} done={row.steps} />}
+          {row.learned && row.strength !== undefined ? <Meter theme={theme} strength={row.strength} /> : <StepBars theme={theme} done={row.steps} />}
           {row.note ? <Text style={[styles.note, { color: theme.textBody }]}>{row.note}</Text> : null}
         </View>
       </PressBox>
-      <Pill theme={theme} small variant={row.due ? "brand" : "sand"} label={row.learned ? t("learn.row.repeat") : t("learn.row.continue")} onPress={onCta} />
+      {onCta ? (
+        <Pill theme={theme} small variant={row.due ? "brand" : "sand"} label={row.learned ? t("learn.row.repeat") : t("learn.row.continue")} onPress={onCta} />
+      ) : null}
     </View>
   )
 }
