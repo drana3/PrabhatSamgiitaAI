@@ -65,7 +65,7 @@ import { NAV_V2_PLAYER_ROUTE, miniPlayerVisible } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { listenQueueForSong } from "@/lib/playbackQueue"
 import { mixHex, tintForSong } from "@/lib/playerV2/coverTint"
-import { aboutContent, buildActionRows, collectionForSong, queueAddMessage, REPORT_THANKS, type ActionId } from "@/lib/playerV2/playerActions"
+import { aboutContent, buildActionRows, collectionForSong, queueAddMessage, type ActionId } from "@/lib/playerV2/playerActions"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import type { SaveItem } from "@/lib/save/saveToSheet"
 import { buildSharePayload, shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
@@ -731,9 +731,9 @@ export default function SongPageV2() {
         )
       }
       case "report":
-        // TODO(api): send the report (song number, version, text) to the catalog team. Nothing leaves the phone yet.
+        // Opens Send feedback with this song picked ("A mistake in a song or lyrics").
         setSheet(null)
-        return showToast(REPORT_THANKS)
+        return router.push(href(`/feedback?song=${song.number}`))
       default:
         return setSheet(null)
     }

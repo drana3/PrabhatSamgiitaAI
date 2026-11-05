@@ -177,7 +177,7 @@ export default function RootLayout() {
           <Stack.Screen name="quiz/index" options={{ presentation: "card" }} />
           <Stack.Screen name="quiz/scan" options={{ presentation: "card" }} />
           <Stack.Screen name="quiz/event/[slug]" options={{ presentation: "card" }} />
-          <Stack.Screen name="feedback/index" options={{ presentation: "modal" }} />
+          <Stack.Screen name="feedback/index" options={{ presentation: "card" }} />
           <Stack.Screen name="admin/index" options={{ presentation: "card" }} />
           <Stack.Screen name="admin/devanagari" options={{ presentation: "card" }} />
           <Stack.Screen name="admin/sargam/[number]" options={{ presentation: "card" }} />

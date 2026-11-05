@@ -90,7 +90,6 @@ import {
   collectionForSong,
   queueAddMessage,
   repeatMessage,
-  REPORT_THANKS,
   type ActionId,
 } from "@/lib/playerV2/playerActions"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
@@ -648,9 +647,9 @@ export default function PlayerV2Screen() {
         setSheet(null)
         return setDrive(true)
       case "report":
-        // TODO(api): send the report (song number, version, text) to the catalog team. Nothing leaves the phone yet.
+        // Opens Send feedback with this song picked ("A mistake in a song or lyrics").
         setSheet(null)
-        return toast.show(REPORT_THANKS)
+        return router.push(href(`/feedback?song=${song.number}`))
     }
   }
   const onShareTarget = (target: ShareTargetId, override?: SharePayload) => {
