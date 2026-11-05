@@ -30,9 +30,9 @@ const DEVANAGARI = /[ऀ-ॿ]/
  * The song as a portrait poster, 9:16: a colour or photo ground, the cover as a smaller card, title,
  * performer and the "Prabhat Samgiita" wordmark at the bottom. "Words" swaps the cover for three or four
  * lyric lines. Text is white and sits on a ground (or a dark scrim over the photo) that keeps 4.5:1.
- * The poster is shown, not rendered to a picture: react-native-view-shot is not a dependency of the app,
- * so what leaves the phone is the song link and a message (the lyric lines, for Words).
- * TODO(native): render this view to a PNG once a capture library is added, and attach it to the share.
+ * This carousel is a preview of grounds: what leaves the phone from the targets is the song link and a message (the
+ * lyric lines, for Words). The picture that is really sent is the "Image card" (components/share/SharePosterCard,
+ * captured by lib/share/cardIO), 1080 x 1350 or 1080 x 1080, from the share sheet's "Image card" tile.
  */
 export function ShareCard({ songNumber, title, performer, background, mode, photo, kiirtanCover, tint, words = [], width }: Props) {
   const s = width / 200

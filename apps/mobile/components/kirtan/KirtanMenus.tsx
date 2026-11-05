@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode } from "react"
+import { useMemo, useRef, useState, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { KPress } from "@/components/kirtan/KPress"
@@ -6,13 +6,16 @@ import { DownloadMenuRow } from "@/components/offline/DownloadMenuRow"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { ShareTargetIcon } from "@/components/player-v2/ShareTargetIcon"
 import { SaveMark } from "@/components/save/SaveMark"
+import { ShareCardSheet } from "@/components/share/ShareCardSheet"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { kindLabel } from "@/lib/kirtan/kind"
+import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { kiirtanDownloadItem } from "@/lib/offline/downloadItems"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { SHARE_TARGETS, type ShareTargetId } from "@/lib/playerV2/playerShare"
+import { useShareCardT } from "@/lib/share/cardCopy"
 import { useT } from "@/lib/i18n"
 
 type MenuProps = {
@@ -85,10 +88,15 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
 /** Share targets of the player's share sheet, for a link to the Kiirtan. */
 export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { open: boolean; theme: SongsTheme; kirtan: Kirtan | null; onShare: (k: Kirtan, target: ShareTargetId) => void; onClose: () => void }) {
   const t = useT()
+  const tCard = useShareCardT()
   const last = useRef<Kirtan | null>(null)
   if (kirtan) last.current = kirtan
   const shown = kirtan ?? last.current
+  // the picture card is its own full-screen step; it keeps its Kiirtan after this sheet has closed
+  const [cardFor, setCardFor] = useState<Kirtan | null>(null)
+  const cardPayload = useMemo(() => (cardFor ? kirtanSharePayload(cardFor) : null), [cardFor])
   return (
+    <>
     <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow={t("songs.menu.share")} accessibilityLabel={t("kt.menu.shareA11y", { kind: kindLabel(shown?.kind) })}>
       {shown ? (
         <Text style={[styles.menuTitle, { color: theme.textHeading }]} numberOfLines={3}>
@@ -116,8 +124,44 @@ export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { op
             </Text>
           </KPress>
         ))}
+        <KPress
+          accessibilityRole="button"
+          accessibilityLabel={tCard("shareCard.entry")}
+          onPress={() => {
+            if (shown) setCardFor(shown)
+            onClose()
+          }}
+          pressedScale={0.94}
+          outerStyle={styles.gridCell}
+          style={styles.gridItem}
+        >
+          <View style={[styles.cardDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
+            <PlayerIcon name="layers" size={24} color={theme.textHeading} />
+          </View>
+          <Text style={[styles.gridLabel, { color: theme.textBody }]} numberOfLines={1}>
+            {tCard("shareCard.entry")}
+          </Text>
+        </KPress>
       </View>
     </BottomSheet>
+    {cardFor && cardPayload ? (
+      <ShareCardSheet
+        subject={{
+          kind: "kiirtan",
+          id: cardFor.id,
+          title: cardFor.title,
+          author: cardFor.author,
+          recordingKind: cardFor.kind,
+          durationSec: cardFor.durationSec,
+          coverUrl: cardFor.thumbnailUrl,
+          type: cardFor.type,
+        }}
+        link={cardPayload.url}
+        message={cardPayload.message}
+        onClose={() => setCardFor(null)}
+      />
+    ) : null}
+    </>
   )
 }
 
@@ -130,5 +174,6 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 14 },
   gridCell: { width: "25%" },
   gridItem: { alignItems: "center", gap: 8 },
+  cardDisc: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   gridLabel: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, textAlign: "center" },
 })

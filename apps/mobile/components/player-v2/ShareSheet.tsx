@@ -14,14 +14,17 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated"
 
+import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { ShareCard } from "@/components/player-v2/ShareCard"
 import { ShareTargetIcon } from "@/components/player-v2/ShareTargetIcon"
 import { Sheet } from "@/components/player-v2/Sheet"
+import { ShareCardSheet } from "@/components/share/ShareCardSheet"
 import { TouchButton } from "@/components/player-v2/TouchButton"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { isKiirtanNumber } from "@/lib/kirtan/track"
+import { kirtanSharePayload } from "@/lib/kirtan/share"
+import { isKiirtanNumber, recordingKindOfNumber, kiirtanIdForNumber } from "@/lib/kirtan/track"
 import { isDarkTheme } from "@/lib/navV2"
 import { tintForSong } from "@/lib/playerV2/coverTint"
 import { photoForSeed, type PhotoMood } from "@/lib/photos/catalog"
@@ -39,6 +42,8 @@ import {
   type ShareMode,
   type ShareTargetId,
 } from "@/lib/playerV2/playerShare"
+import { useShareCardT } from "@/lib/share/cardCopy"
+import type { CardSubject } from "@/lib/share/card"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
 
@@ -141,12 +146,36 @@ export function ShareSheet({ visible, theme, songNumber, title, performer, onSha
     }
   }, [visible, lastIndex, scrollX])
 
+  // ---- the picture card (components/share): its own full-screen step above this sheet
+  const tCard = useShareCardT()
+  const [cardOpen, setCardOpen] = useState(false)
+  useEffect(() => {
+    if (!visible) setCardOpen(false)
+  }, [visible])
+  const cardSubject = useMemo<CardSubject>(
+    () =>
+      isK
+        ? { kind: "kiirtan", id: kiirtanIdForNumber(songNumber) ?? seed, title, author: performer, recordingKind: recordingKindOfNumber(songNumber) }
+        : { kind: "song", number: songNumber, title, performer },
+    [isK, songNumber, seed, title, performer],
+  )
+  const cardPayload = useMemo(
+    () => (isK ? kirtanSharePayload({ title, author: performer, kind: recordingKindOfNumber(songNumber) }) : buildSharePayload({ number: songNumber, title, performer })),
+    [isK, songNumber, title, performer],
+  )
+
   const send = (target: ShareTargetId) => {
+    // Instagram Stories is about a picture: it opens the card, whose system sheet lists Instagram
+    if (target === "instagramStories") {
+      setCardOpen(true)
+      return
+    }
     const override = activeMode === "words" && words.length > 0 ? withWordsPayload(buildSharePayload({ number: songNumber, title, performer }), words) : undefined
     onShare(target, override)
   }
 
   return (
+    <>
     <Sheet visible={visible} onClose={onClose} title="Share" theme={theme}>
       <Animated.ScrollView
         ref={scrollRef}
@@ -225,8 +254,18 @@ export function ShareSheet({ visible, theme, songNumber, title, performer, onSha
             </Text>
           </TouchButton>
         ))}
+        <TouchButton accessibilityRole="button" accessibilityLabel={tCard("shareCard.entry")} onAction={() => setCardOpen(true)} containerStyle={styles.targetHit} style={styles.target}>
+          <View style={[styles.cardDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
+            <PlayerIcon name="layers" size={26} color={theme.textHeading} />
+          </View>
+          <Text style={[styles.targetLabel, { color: theme.textBody }]} numberOfLines={2}>
+            {tCard("shareCard.entry")}
+          </Text>
+        </TouchButton>
       </ScrollView>
     </Sheet>
+    {cardOpen ? <ShareCardSheet subject={cardSubject} link={cardPayload.url} message={cardPayload.message} onClose={() => setCardOpen(false)} /> : null}
+    </>
   )
 }
 
@@ -350,4 +389,5 @@ const styles = StyleSheet.create({
   targetHit: { width: 84 },
   target: { alignItems: "center", gap: 8, paddingVertical: 4 },
   targetLabel: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 15, textAlign: "center" },
+  cardDisc: { width: 56, height: 56, borderRadius: 28, borderWidth: 1, alignItems: "center", justifyContent: "center" },
 })

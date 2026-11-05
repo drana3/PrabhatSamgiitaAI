@@ -36,9 +36,10 @@ function platform(): SharePlatform {
  * link (the app when installed, the website otherwise) and fall back to the system share sheet if the link
  * cannot be opened. Instagram and Instagram Stories use the system share sheet (navigator.share on the web),
  * and when that is not available the link is copied instead.
- * TODO(native): Instagram Stories needs the card as a picture on the pasteboard plus the Facebook App ID
- * (instagram-stories://share); that takes a native module (react-native-view-shot for the picture and a
- * pasteboard module), which the app does not have. Until then Stories shares the link text.
+ * The picture card (components/share/ShareCardSheet, lib/share/cardIO) is a separate step: the share sheet opens it
+ * from its "Image card" tile and from Instagram Stories, and it shares the PNG file itself. A direct hand-off to
+ * Instagram Stories (instagram-stories://share with the Facebook App ID and the picture on the pasteboard) still
+ * needs a native pasteboard module; the system sheet of the card lists Instagram instead.
  */
 export async function runShare(target: ShareTargetId, payload: SharePayload): Promise<ShareOutcome> {
   if (target === "copy") return (await copyText(payload.url)) ? "copied" : "copy-failed"

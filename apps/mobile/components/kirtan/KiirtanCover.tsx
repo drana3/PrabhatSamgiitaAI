@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { StyleSheet, View, type DimensionValue } from "react-native"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
@@ -43,9 +43,14 @@ type Props = {
   title?: string
   durationSec?: number | null
   photoMood?: PhotoMood
+  /**
+   * Called once when the picture that shows (the cover, or the stock photo) has loaded or failed, or at once when
+   * only the gradient shows. The share card waits for it before it takes its picture.
+   */
+  onSettled?: () => void
 }
 
-export function KiirtanCover({ type, kind, coverUrl, width, height, aspectRatio, radius, glyph, photoSeed, title, durationSec, photoMood }: Props) {
+export function KiirtanCover({ type, kind, coverUrl, width, height, aspectRatio, radius, glyph, photoSeed, title, durationSec, photoMood, onSettled }: Props) {
   const [failed, setFailed] = useState(false)
   const [from, to] = kiirtanTone(type, kind)
   const basis = typeof width === "number" ? Math.min(width, height ?? width) : 120
@@ -53,18 +58,22 @@ export function KiirtanCover({ type, kind, coverUrl, width, height, aspectRatio,
   const showImage = Boolean(coverUrl) && !failed
   const photo = photoSeed && !showImage ? photoForSeed(photoSeed, photoMood ?? (title ? moodForText(title, durationSec) : undefined)) : null
   const photoSource = photo ? (basis <= 240 ? photo.thumb : photo.cover) : null
+  // nothing to wait for when only the gradient shows
+  useEffect(() => {
+    if (!photoSource && !showImage) onSettled?.()
+  }, [photoSource, showImage, onSettled])
   return (
     <View style={{ width, height, aspectRatio, borderRadius: radius, overflow: "hidden" }}>
       <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       {photoSource ? (
-        <Image source={photoSource} contentFit="cover" accessibilityIgnoresInvertColors style={StyleSheet.absoluteFill} />
+        <Image source={photoSource} contentFit="cover" accessibilityIgnoresInvertColors onLoad={onSettled} onError={onSettled} style={StyleSheet.absoluteFill} />
       ) : (
         <View style={styles.center}>
           <WaveGlyph size={size} color="rgba(255,255,255,0.86)" strokeWidth={size > 40 ? 1.6 : 2} />
         </View>
       )}
       {showImage ? (
-        <Image source={{ uri: coverUrl as string }} contentFit="cover" accessibilityIgnoresInvertColors onError={() => setFailed(true)} style={StyleSheet.absoluteFill} />
+        <Image source={{ uri: coverUrl as string }} contentFit="cover" accessibilityIgnoresInvertColors onLoad={onSettled} onError={() => { setFailed(true); onSettled?.() }} style={StyleSheet.absoluteFill} />
       ) : null}
     </View>
   )
