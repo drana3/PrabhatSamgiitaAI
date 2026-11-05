@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import { kindLabel } from "@/lib/kirtan/kind"
 import type { RecordingKind } from "@/lib/kirtan/types"
 import type { AppNotification } from "@/lib/notifications"
@@ -19,13 +20,13 @@ export function uploadDecisionNotification(input: {
   firedAt: number
 }): AppNotification {
   const label = kindLabel(input.kind)
-  const title = input.title.trim() || `Your ${label}`
+  const title = input.title.trim() || t("notif.upload.yourItem", { kind: label })
   const approved = input.decision === "approved"
   return {
     id: `upload:${input.uploadId}:${input.decision}`,
     kind: "upload",
-    title: approved ? `${label} approved` : `${label} not approved`,
-    text: approved ? `${title} is now in the library.` : `${title} did not pass review. See why.`,
+    title: approved ? t("notif.upload.approved", { kind: label }) : t("notif.upload.rejected", { kind: label }),
+    text: approved ? t("notif.upload.approvedText", { title }) : t("notif.upload.rejectedText", { title }),
     target: "/v2/kiirtan",
     firedAt: input.firedAt,
   }
@@ -42,7 +43,7 @@ export function announcementNotification(input: {
   return {
     id: `announcement:${input.announcementId}`,
     kind: "announcement",
-    title: input.title.trim() || "From the team",
+    title: input.title.trim() || t("notif.announcement.default"),
     text: input.text.trim(),
     target: input.target ?? "/v2/today",
     firedAt: input.firedAt,

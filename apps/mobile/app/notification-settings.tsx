@@ -20,6 +20,7 @@ import { uses12Hour } from "@/lib/notifications/hourCycle"
 import { FESTIVAL_EVE_AT, MAX_TIMES, STREAK_AT, formatMinutes, suggestTime, type TimedKind, type ToggleKind } from "@/lib/notifications/settings"
 import { useNotificationSettingsStore, type PermissionState } from "@/stores/notificationSettingsStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 /* ------------------------------------------------------------------ rows */
 
@@ -92,6 +93,7 @@ function TimedRow({
   onAdd: () => void
   last?: boolean
 }) {
+  const t = useT()
   const max = MAX_TIMES[kind]
   const full = times.length >= max
   return (
@@ -104,8 +106,8 @@ function TimedRow({
               <TodayPress
                 key={minutes}
                 accessibilityRole="button"
-                accessibilityLabel={`${label} at ${formatMinutes(minutes, hour12)}`}
-                accessibilityHint="Opens the time picker"
+                accessibilityLabel={t("notif.time.a11y", { label, time: formatMinutes(minutes, hour12) })}
+                accessibilityHint={t("notif.time.hint")}
                 disabled={disabled}
                 onPress={() => onEdit(index)}
                 pressedScale={0.96}
@@ -116,7 +118,7 @@ function TimedRow({
             ))}
             <TodayPress
               accessibilityRole="button"
-              accessibilityLabel="Add time"
+              accessibilityLabel={t("notif.time.add")}
               accessibilityState={{ disabled: full || !!disabled }}
               disabled={full || disabled}
               onPress={onAdd}
@@ -124,10 +126,10 @@ function TimedRow({
               style={[s.timeChip, s.addChip, { borderColor: p.orange700, opacity: full ? 0.45 : 1 }]}
             >
               <Plus size={16} color={p.orange700} strokeWidth={2.2} />
-              <Text style={[s.timeChipText, { color: p.orange700 }]}>Add time</Text>
+              <Text style={[s.timeChipText, { color: p.orange700 }]}>{t("notif.time.add")}</Text>
             </TodayPress>
           </View>
-          {full ? <Text style={[s.limitNote, { color: p.ink500 }]}>{`Up to ${max} times a day.`}</Text> : null}
+          {full ? <Text style={[s.limitNote, { color: p.ink500 }]}>{t("notif.time.limit", { count: max })}</Text> : null}
         </View>
       ) : null}
     </View>
@@ -136,6 +138,7 @@ function TimedRow({
 
 /** The permission card: asks once, or explains that the system switch is off and how to reach it. */
 function PermissionCard({ p, state, onAllow }: { p: AmProto; state: "undetermined" | "denied"; onAllow: () => void }) {
+  const t = useT()
   const denied = state === "denied"
   const Icon = denied ? BellOff : BellRing
   return (
@@ -146,21 +149,21 @@ function PermissionCard({ p, state, onAllow }: { p: AmProto; state: "undetermine
         </View>
         <View style={s.cardText}>
           <Text style={[s.rowLabel, { color: p.ink800 }]} accessibilityRole="header">
-            {denied ? "Notifications are off in system settings" : "Allow notifications"}
+            {denied ? t("notif.permission.denied.title") : t("notif.permission.ask.title")}
           </Text>
           <Text style={[s.rowSub, { color: p.ink500 }]}>
-            {denied ? "Turn them on there to get your reminders." : "Your phone asks once. You can change it later."}
+            {denied ? t("notif.permission.denied.body") : t("notif.permission.ask.body")}
           </Text>
         </View>
       </View>
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={denied ? "Open settings" : "Allow notifications"}
+        accessibilityLabel={denied ? t("notif.permission.openSettings") : t("notif.permission.ask.title")}
         onPress={denied ? openSystemSettings : onAllow}
         pressedScale={0.98}
         style={[s.cardButton, { backgroundColor: p.action }]}
       >
-        <Text style={[s.cardButtonText, { color: p.onAction }]}>{denied ? "Open settings" : "Allow notifications"}</Text>
+        <Text style={[s.cardButtonText, { color: p.onAction }]}>{denied ? t("notif.permission.openSettings") : t("notif.permission.ask.title")}</Text>
       </TodayPress>
     </View>
   )
@@ -177,6 +180,7 @@ function PermissionCard({ p, state, onAllow }: { p: AmProto; state: "undetermine
  */
 export default function NotificationSettingsScreen() {
   const router = useRouter()
+  const t = useT()
   const theme = useAmTheme()
   const p = protoFor(theme)
   const insets = useSafeAreaInsets()
@@ -218,7 +222,7 @@ export default function NotificationSettingsScreen() {
     if (!editing) return null
     const { kind, index, opened: n } = editing
     const times = kind === "song" ? st.song.times : st.words.times
-    const title = kind === "song" ? "Song of the day" : "Words to repeat"
+    const title = kind === "song" ? t("notif.song") : t("notif.words")
     if (index == null) {
       return { key: `${kind}:new:${n}`, title, minutes: suggestTime(times), others: times, onRemove: null }
     }
@@ -238,7 +242,7 @@ export default function NotificationSettingsScreen() {
           : null,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing])
+  }, [editing, t])
 
   const done = (minutes: number) => {
     if (editing) {
@@ -253,7 +257,7 @@ export default function NotificationSettingsScreen() {
   return (
     <View style={[s.root, { backgroundColor: p.sand200, paddingTop: top }]}>
       <View style={s.bar}>
-        <TodayPress accessibilityRole="button" accessibilityLabel="Back" onPress={back} pressedScale={0.92} style={[s.back, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={back} pressedScale={0.92} style={[s.back, { backgroundColor: p.white, borderColor: p.sand300 }]}>
           <ChevronLeft size={22} color={p.ink800} strokeWidth={1.9} />
         </TodayPress>
       </View>
@@ -261,9 +265,9 @@ export default function NotificationSettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         <Reveal index={0}>
           <Text style={s.h1} accessibilityRole="header">
-            <Text style={{ color: p.ink800 }}>Notification</Text>
+            <Text style={{ color: p.ink800 }}>{t("notif.settings.h1a")}</Text>
             {"\n"}
-            <Text style={{ color: p.ink300 }}>settings</Text>
+            <Text style={{ color: p.ink300 }}>{t("notif.settings.h1b")}</Text>
           </Text>
         </Reveal>
 
@@ -277,8 +281,8 @@ export default function NotificationSettingsScreen() {
           <Group p={p}>
             <ToggleRow
               p={p}
-              label="Notifications"
-              sub={st.master ? "Reminders are on." : "All reminders are paused."}
+              label={t("profile.notifications")}
+              sub={st.master ? t("notif.master.on") : t("notif.master.off")}
               on={st.master}
               onChange={(on) => {
                 st.setMaster(on)
@@ -290,12 +294,12 @@ export default function NotificationSettingsScreen() {
 
         <Reveal index={reveal++}>
           <View style={off ? s.dim : undefined} pointerEvents={off ? "none" : "auto"}>
-          <SheetTitle p={p} label="Reminders" />
+          <SheetTitle p={p} label={t("notif.section.reminders")} />
           <Group p={p}>
             <TimedRow
               p={p}
-              label="Song of the day"
-              sub="Composed on this day, or a daily pick."
+              label={t("notif.song")}
+              sub={t("notif.song.sub")}
               kind="song"
               on={st.song.on}
               times={st.song.times}
@@ -305,11 +309,11 @@ export default function NotificationSettingsScreen() {
               onEdit={(i) => edit("song", i)}
               onAdd={() => edit("song", null)}
             />
-            <ToggleRow p={p} label="Festivals" sub="The evening before, with its songs." on={st.festival.on} disabled={off} onChange={kind("festival")} />
+            <ToggleRow p={p} label={t("notif.festivals")} sub={t("notif.festivals.sub")} on={st.festival.on} disabled={off} onChange={kind("festival")} />
             <TimedRow
               p={p}
-              label="Words to repeat"
-              sub="Only when words are due."
+              label={t("notif.words")}
+              sub={t("notif.words.sub")}
               kind="words"
               on={st.words.on}
               times={st.words.times}
@@ -319,15 +323,15 @@ export default function NotificationSettingsScreen() {
               onEdit={(i) => edit("words", i)}
               onAdd={() => edit("words", null)}
             />
-            <ToggleRow p={p} label="Learning streak" sub="When a streak could end today." on={st.streak.on} disabled={off} onChange={kind("streak")} />
+            <ToggleRow p={p} label={t("notif.streak")} sub={t("notif.streak.sub")} on={st.streak.on} disabled={off} onChange={kind("streak")} />
           </Group>
           </View>
         </Reveal>
 
         <Reveal index={reveal++}>
           <Footer>
-            <SheetNote p={p}>Song and word reminders arrive at the times you pick.</SheetNote>
-            <SheetNote p={p}>{`Festivals arrive at ${formatMinutes(FESTIVAL_EVE_AT, hour12)}, the streak reminder at ${formatMinutes(STREAK_AT, hour12)}.`}</SheetNote>
+            <SheetNote p={p}>{t("notif.note.times")}</SheetNote>
+            <SheetNote p={p}>{t("notif.note.fixed", { festival: formatMinutes(FESTIVAL_EVE_AT, hour12), streak: formatMinutes(STREAK_AT, hour12) })}</SheetNote>
           </Footer>
         </Reveal>
       </ScrollView>

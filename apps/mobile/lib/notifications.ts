@@ -1,3 +1,4 @@
+import { formatDate, t } from "@/lib/i18n"
 /**
  * Notifications: the inbox model and the pure reducers behind the bell.
  *
@@ -46,17 +47,14 @@ function daysBetween(a: number, b: number): number {
   return Math.round((dayStart(b) - dayStart(a)) / DAY_MS)
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const
-
 /** The short time on a row: "8:00" today, "Yesterday", "Mon" within a week, "12 Oct" later. */
 export function timeLabel(firedAt: number, now: number): string {
   const days = daysBetween(firedAt, now)
   const d = new Date(firedAt)
   if (days <= 0) return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
-  if (days === 1) return "Yesterday"
-  if (days < 7) return WEEKDAYS[d.getDay()] ?? ""
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`
+  if (days === 1) return t("notif.yesterday")
+  if (days < 7) return formatDate(d, "weekdayShort")
+  return formatDate(d, "dayMonth")
 }
 
 /* --------------------------------------------------------------- reducers */
@@ -91,8 +89,8 @@ export function sectionsOf(items: readonly AppNotification[], now: number): Noti
   const today = newest.filter((n) => daysBetween(n.firedAt, now) <= 0)
   const earlier = newest.filter((n) => daysBetween(n.firedAt, now) > 0)
   const out: NotificationSection[] = []
-  if (today.length) out.push({ id: "today", label: "Today", items: today })
-  if (earlier.length) out.push({ id: "earlier", label: "Earlier", items: earlier })
+  if (today.length) out.push({ id: "today", label: t("notif.inbox.section.today"), items: today })
+  if (earlier.length) out.push({ id: "earlier", label: t("notif.inbox.section.earlier"), items: earlier })
   return out
 }
 

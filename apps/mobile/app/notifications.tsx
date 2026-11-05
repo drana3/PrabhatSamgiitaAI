@@ -16,6 +16,7 @@ import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { timeLabel, type AppNotification, type NotificationKind } from "@/lib/notifications"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 const ICONS: Record<Exclude<NotificationKind, "song">, typeof Flame> = {
   festival: PartyPopper,
@@ -61,18 +62,19 @@ function Row({
   onPress: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const Icon = item.kind === "song" ? Newspaper : ICONS[item.kind]
-  const t = tile(p, item.kind)
+  const tint = tile(p, item.kind)
   const time = timeLabel(item.firedAt, now)
   return (
     <View
       style={[s.row, { backgroundColor: p.white, borderColor: p.sand300 }]}
-      accessibilityActions={[{ name: "delete", label: "Delete" }]}
+      accessibilityActions={[{ name: "delete", label: t("common.delete") }]}
       onAccessibilityAction={(e) => e.nativeEvent.actionName === "delete" && onDelete()}
     >
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={`${item.title}. ${item.text}. ${time}${unread ? ". Unread" : ""}`}
+        accessibilityLabel={t(unread ? "notif.inbox.row.unreadA11y" : "notif.inbox.row.a11y", { title: item.title, text: item.text, time })}
         onPress={onPress}
         pressedScale={0.98}
         style={s.main}
@@ -80,8 +82,8 @@ function Row({
         {item.kind === "song" && item.coverNumber != null ? (
           <HomeCover number={item.coverNumber} size={48} radius={12} />
         ) : (
-          <View style={[s.tile, { backgroundColor: t.bg }]}>
-            <Icon size={22} color={t.fg} strokeWidth={1.9} />
+          <View style={[s.tile, { backgroundColor: tint.bg }]}>
+            <Icon size={22} color={tint.fg} strokeWidth={1.9} />
           </View>
         )}
         <View style={s.text}>
@@ -99,7 +101,7 @@ function Row({
       </TodayPress>
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={`Delete ${item.title}`}
+        accessibilityLabel={t("notif.inbox.delete.a11y", { title: item.title })}
         onPress={onDelete}
         pressedScale={0.9}
         style={s.delete}
@@ -117,6 +119,7 @@ function Row({
  */
 export default function NotificationsScreen() {
   const router = useRouter()
+  const t = useT()
   const theme = useAmTheme()
   const p = protoFor(theme)
   const insets = useSafeAreaInsets()
@@ -133,17 +136,17 @@ export default function NotificationsScreen() {
   return (
     <View style={[s.root, { backgroundColor: p.sand200, paddingTop: top }]}>
       <View style={s.bar}>
-        <TodayPress accessibilityRole="button" accessibilityLabel="Back" onPress={back} pressedScale={0.92} style={[s.back, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={back} pressedScale={0.92} style={[s.back, { backgroundColor: p.white, borderColor: p.sand300 }]}>
           <ChevronLeft size={22} color={p.ink800} strokeWidth={1.9} />
         </TodayPress>
         <View style={s.barRight}>
           {unread > 0 ? (
-            <TodayPress accessibilityRole="button" accessibilityLabel="Mark all read" onPress={() => markAll(items)} pressedScale={0.95} style={s.barText}>
-              <Text style={[s.markText, { color: p.orange700 }]}>Mark all read</Text>
+            <TodayPress accessibilityRole="button" accessibilityLabel={t("notif.inbox.markAll")} onPress={() => markAll(items)} pressedScale={0.95} style={s.barText}>
+              <Text style={[s.markText, { color: p.orange700 }]}>{t("notif.inbox.markAll")}</Text>
             </TodayPress>
           ) : null}
-          <TodayPress accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push(href("/notification-settings"))} pressedScale={0.95} style={s.barText}>
-            <Text style={[s.markText, { color: p.orange700 }]}>Settings</Text>
+          <TodayPress accessibilityRole="button" accessibilityLabel={t("common.settings")} onPress={() => router.push(href("/notification-settings"))} pressedScale={0.95} style={s.barText}>
+            <Text style={[s.markText, { color: p.orange700 }]}>{t("common.settings")}</Text>
           </TodayPress>
         </View>
       </View>
@@ -151,17 +154,17 @@ export default function NotificationsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         <Reveal index={0}>
           <Text style={s.h1} accessibilityRole="header">
-            <Text style={{ color: p.ink800 }}>Notifications</Text>
+            <Text style={{ color: p.ink800 }}>{t("profile.notifications")}</Text>
             {"\n"}
-            <Text style={{ color: p.ink300 }}>{items.length === 0 ? "None yet" : unread > 0 ? `${unread} new` : "All read"}</Text>
+            <Text style={{ color: p.ink300 }}>{items.length === 0 ? t("notif.inbox.none") : unread > 0 ? t("notif.inbox.new", { count: unread }) : t("notif.inbox.allRead")}</Text>
           </Text>
         </Reveal>
 
         {sections.length === 0 ? (
           <Reveal index={1} style={s.empty}>
             <Image source={todayAssets.logo} style={s.emptyLogo} contentFit="contain" accessibilityIgnoresInvertColors />
-            <Text style={[s.emptyTitle, { color: p.ink800 }]}>{"You're all caught up."}</Text>
-            <Text style={[s.emptyText, { color: p.ink500 }]}>The song of the day, festivals and words to repeat will show here when they arrive.</Text>
+            <Text style={[s.emptyTitle, { color: p.ink800 }]}>{t("notif.inbox.empty.title")}</Text>
+            <Text style={[s.emptyText, { color: p.ink500 }]}>{t("notif.inbox.empty.text")}</Text>
           </Reveal>
         ) : (
           sections.map((section) => (

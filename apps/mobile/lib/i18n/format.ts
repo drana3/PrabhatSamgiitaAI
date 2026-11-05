@@ -22,7 +22,8 @@ export function formatNumber(
 }
 
 export type DateStyle =
-  | "short" // 5 Nov
+  | "short" // Nov 5 (en), 5 нояб. (ru)
+  | "dayMonth" // 5 Nov: day first in every language
   | "medium" // 5 Nov 2026
   | "long" // 5 November 2026
   | "weekday" // Thursday
@@ -31,6 +32,7 @@ export type DateStyle =
 
 const DATE_OPTIONS: Record<DateStyle, Intl.DateTimeFormatOptions> = {
   short: { day: "numeric", month: "short" },
+  dayMonth: { day: "numeric", month: "short" },
   medium: { day: "numeric", month: "short", year: "numeric" },
   long: { day: "numeric", month: "long", year: "numeric" },
   weekday: { weekday: "long" },
@@ -47,10 +49,11 @@ function intlFormat(
   language: Language,
   date: Date,
   options: Intl.DateTimeFormatOptions,
+  tag?: string,
 ): string | null {
   try {
     if (typeof Intl === "undefined" || typeof Intl.DateTimeFormat !== "function") return null
-    return new Intl.DateTimeFormat(LOCALE_TAGS[language], options).format(date)
+    return new Intl.DateTimeFormat(tag ?? LOCALE_TAGS[language], options).format(date)
   } catch {
     return null
   }
@@ -63,7 +66,9 @@ export function formatDate(
 ): string {
   const date = toDate(input)
   if (!date) return ""
-  return intlFormat(language, date, DATE_OPTIONS[style]) ?? isoFallback(date)
+  // English puts the month first by default; "dayMonth" asks for the day-first order ("12 Oct")
+  const tag = style === "dayMonth" && language === "en" ? "en-GB" : undefined
+  return intlFormat(language, date, DATE_OPTIONS[style], tag) ?? isoFallback(date)
 }
 
 /** Clock time in the language's own convention (12 or 24 hour). */

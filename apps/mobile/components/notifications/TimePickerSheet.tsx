@@ -9,6 +9,7 @@ import type { AmTheme } from "@/constants/tokens/amColors"
 import type { AmProto } from "@/constants/tokens/amToday"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { everyDayAt, formatMinutes, fromParts12, hasTime, timeParts, toMinutes } from "@/lib/notifications/settings"
+import { useT } from "@/lib/i18n"
 
 const HOURS_12 = Array.from({ length: 12 }, (_, i) => String(i + 1))
 const HOURS_24 = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"))
@@ -67,6 +68,7 @@ function PickerBody({
   onCancel: () => void
   onDone: (minutes: number) => void
 }) {
+  const t = useT()
   const [minutes, setMinutes] = useState(target.minutes)
   const parts = timeParts(minutes)
   const taken = hasTime(target.others, minutes)
@@ -85,7 +87,7 @@ function PickerBody({
         <View pointerEvents="none" style={[s.band, { backgroundColor: p.sand300 }]} />
         <TimeWheel
           p={p}
-          label="Hour"
+          label={t("notif.picker.hour")}
           labels={hour12 ? HOURS_12 : HOURS_24}
           index={hour12 ? parts.hour12 - 1 : parts.hour24}
           onIndex={setHourIndex}
@@ -94,7 +96,7 @@ function PickerBody({
         <Text style={[s.colon, { color: p.ink800 }]} accessibilityElementsHidden importantForAccessibility="no">
           :
         </Text>
-        <TimeWheel p={p} label="Minute" labels={MINUTES} index={parts.minute} onIndex={setMinute} width={88} />
+        <TimeWheel p={p} label={t("notif.picker.minute")} labels={MINUTES} index={parts.minute} onIndex={setMinute} width={88} />
         {hour12 ? (
           <View style={s.ampm}>
             {(["AM", "PM"] as const).map((label) => {
@@ -104,12 +106,12 @@ function PickerBody({
                   key={label}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: on }}
-                  accessibilityLabel={label}
+                  accessibilityLabel={label === "PM" ? t("unit.pm") : t("unit.am")}
                   onPress={() => setPm(label === "PM")}
                   pressedScale={0.95}
                   style={[s.ampmChip, on ? { backgroundColor: p.action, borderColor: p.action } : { backgroundColor: p.white, borderColor: p.sand300 }]}
                 >
-                  <Text style={[s.ampmText, { color: on ? p.onAction : p.ink800 }]}>{label}</Text>
+                  <Text style={[s.ampmText, { color: on ? p.onAction : p.ink800 }]}>{label === "PM" ? t("unit.pm") : t("unit.am")}</Text>
                 </TodayPress>
               )
             })}
@@ -119,43 +121,43 @@ function PickerBody({
 
       {taken ? (
         <Text style={[s.warn, { color: p.dangerText }]} accessibilityLiveRegion="polite">
-          {`${formatMinutes(minutes, hour12)} is already one of your times.`}
+          {t("notif.picker.taken", { time: formatMinutes(minutes, hour12) })}
         </Text>
       ) : null}
 
       {target.onRemove ? (
         <TodayPress
           accessibilityRole="button"
-          accessibilityLabel="Remove this time"
+          accessibilityLabel={t("notif.picker.remove")}
           onPress={target.onRemove}
           pressedScale={0.97}
           style={[s.remove, { borderColor: p.sand300, backgroundColor: p.white }]}
         >
           <Minus size={18} color={p.ink800} strokeWidth={2} />
-          <Text style={[s.removeText, { color: p.ink800 }]}>Remove this time</Text>
+          <Text style={[s.removeText, { color: p.ink800 }]}>{t("notif.picker.remove")}</Text>
         </TodayPress>
       ) : null}
 
       <View style={s.buttons}>
         <TodayPress
           accessibilityRole="button"
-          accessibilityLabel="Cancel"
+          accessibilityLabel={t("common.cancel")}
           onPress={onCancel}
           pressedScale={0.98}
           style={[s.button, { backgroundColor: p.white, borderColor: p.sand300, borderWidth: 1 }]}
         >
-          <Text style={[s.buttonText, { color: p.ink800 }]}>Cancel</Text>
+          <Text style={[s.buttonText, { color: p.ink800 }]}>{t("common.cancel")}</Text>
         </TodayPress>
         <TodayPress
           accessibilityRole="button"
-          accessibilityLabel="Done"
+          accessibilityLabel={t("common.done")}
           accessibilityState={{ disabled: taken }}
           disabled={taken}
           onPress={() => onDone(minutes)}
           pressedScale={0.98}
           style={[s.button, { backgroundColor: p.action, opacity: taken ? 0.45 : 1 }]}
         >
-          <Text style={[s.buttonText, { color: p.onAction }]}>Done</Text>
+          <Text style={[s.buttonText, { color: p.onAction }]}>{t("common.done")}</Text>
         </TodayPress>
       </View>
     </View>

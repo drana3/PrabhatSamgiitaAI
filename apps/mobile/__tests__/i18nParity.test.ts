@@ -91,7 +91,10 @@ describe("i18n dictionaries", () => {
         if (language === "ru") expect(value, `${language}:${key}`).not.toMatch(/Ki?irtan/i)
         if (language === "ru") expect(value, `${language}:${key}`).not.toMatch(/\bBhajan\b/)
         // the app name stays in Latin letters, spelled one way
-        expect(value, `${language}:${key}`).not.toMatch(/Prabhat Sa[mn]g[ei]+t(?!\b)|Prabhat Sangeet|Prabhat Sangiit|Прабхат/i)
+        for (const name of value.matchAll(/Prabhat\s+\p{L}+/giu)) {
+          expect(name[0], `${language}:${key}`).toBe("Prabhat Samgiita")
+        }
+        expect(value, `${language}:${key}`).not.toMatch(/Прабхат/i)
       }
     }
   })

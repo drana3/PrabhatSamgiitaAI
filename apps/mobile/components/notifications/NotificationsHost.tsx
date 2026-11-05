@@ -29,6 +29,7 @@ import { useLearnStore } from "@/stores/learnStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { href } from "@/utils/href"
+import { useLanguage } from "@/lib/i18n"
 
 const DAY_MS = 86_400_000
 /** In the preview the inbox looks this far back, so Today and Earlier both have something to show. */
@@ -74,6 +75,8 @@ export function NotificationsHost() {
   const streakOn = useNotificationSettingsStore((s) => s.streak)
   const permission = useNotificationSettingsStore((s) => s.permission)
   const cards = useLearnStore((s) => s.cards)
+  // reminders carry text: when the language changes, the pending ones are planned again in the new one
+  const language = useLanguage()
 
   const sources = useRef({ songs })
   sources.current = { songs }
@@ -132,7 +135,7 @@ export function NotificationsHost() {
     if (!hydrated) return
     const timer = setTimeout(() => void reschedule(), 400)
     return () => clearTimeout(timer)
-  }, [hydrated, reschedule, master, song, festival, words, streakOn, permission, cards, songs])
+  }, [hydrated, reschedule, master, song, festival, words, streakOn, permission, cards, songs, language])
 
   // back to the front: look again; while it is in front, keep the inbox current
   useEffect(() => {

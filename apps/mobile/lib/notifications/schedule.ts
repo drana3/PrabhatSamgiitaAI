@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import type { WordCard } from "@/lib/learn/srs"
 import type { LearningStreak } from "@/lib/learn/streak"
 import type { AppNotification, NotificationKind } from "@/lib/notifications"
@@ -114,20 +115,20 @@ function songCandidates(input: PlanInput, day: number): PlannedNotification[] {
   const base: Pick<PlannedNotification, "kind" | "title" | "text" | "target" | "coverNumber"> = composed?.composed
     ? {
         kind: "song",
-        title: "Song of the day",
-        text: `${composed.title} was composed on this day in ${composed.composed.year}.`,
+        title: t("notif.song"),
+        text: t("notif.item.song.composed", { title: composed.title, year: String(composed.composed.year) }),
         target: `/song-v2/ps-${composed.number}`,
         coverNumber: composed.number,
       }
     : pick
       ? {
           kind: "song",
-          title: "Song of the day",
-          text: `Start the day with ${pick.title}.`,
+          title: t("notif.song"),
+          text: t("notif.item.song.pick", { title: pick.title }),
           target: `/song-v2/ps-${pick.number}`,
           coverNumber: pick.number,
         }
-      : { kind: "song", title: "Song of the day", text: "Open today's song.", target: "/v2/today" }
+      : { kind: "song", title: t("notif.song"), text: t("notif.item.song.open"), target: "/v2/today" }
   return settings.song.times.map((at) => ({ ...base, id: `song:${dateKey(day)}@${hhmm(at)}`, fireAt: atMinutes(day, at) }))
 }
 
@@ -147,8 +148,8 @@ function wordsCandidates(input: PlanInput, day: number): PlannedNotification[] {
       id: `words:${dateKey(day)}@${hhmm(at)}`,
       kind: "words",
       fireAt,
-      title: "Words to repeat",
-      text: `${n === 1 ? "1 word is due." : `${n} words are due.`} It takes a minute.`,
+      title: t("notif.words"),
+      text: t("notif.item.words", { count: n }),
       target: "/learn/words",
     })
   }
@@ -164,8 +165,8 @@ function festivalCandidates(input: PlanInput, day: number): PlannedNotification[
       id: `festival:${f.id}`,
       kind: "festival",
       fireAt: atMinutes(day, FESTIVAL_EVE_AT),
-      title: "Festival tomorrow",
-      text: `${f.title} is tomorrow. Its songs are ready.`,
+      title: t("notif.item.festival.title"),
+      text: t("notif.item.festival.text", { title: f.title }),
       target: `/festival/${f.id}`,
     })
   }
@@ -186,8 +187,8 @@ function streakCandidate(input: PlanInput, day: number): PlannedNotification | n
     id: `streak:${dateKey(day)}`,
     kind: "streak",
     fireAt: atMinutes(day, STREAK_AT),
-    title: "Learning streak",
-    text: `${streak.days} days in a row. Keep it going.`,
+    title: t("notif.streak"),
+    text: t("notif.item.streak", { count: streak.days }),
     target: "/v2/learn",
   }
 }

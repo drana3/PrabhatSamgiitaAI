@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /**
  * What the person chose to be reminded about. Pure: the store (stores/notificationSettingsStore.ts)
  * only persists this shape and `migrateSettings` makes any saved value safe to use.
@@ -72,12 +73,12 @@ export function fromParts12(hour12: number, minute: number, pm: boolean): number
 export function formatMinutes(minutes: number, hour12 = true): string {
   const { hour24, minute, pm, hour12: h12 } = timeParts(minutes)
   const mm = String(minute).padStart(2, "0")
-  return hour12 ? `${h12}:${mm} ${pm ? "PM" : "AM"}` : `${hour24}:${mm}`
+  return hour12 ? `${h12}:${mm} ${pm ? t("unit.pm") : t("unit.am")}` : `${hour24}:${mm}`
 }
 
 /** The live line of the picker: "Every day at 7:45 AM". */
 export function everyDayAt(minutes: number, hour12 = true): string {
-  return `Every day at ${formatMinutes(minutes, hour12)}`
+  return t("notif.picker.preview", { time: formatMinutes(minutes, hour12) })
 }
 
 /**
