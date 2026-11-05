@@ -40,6 +40,8 @@ export type ControllerDeps = {
   isPlayable: (number: number) => boolean
   remember: (songNumber: number, versionId: string) => void
   seekTo: (seconds: number) => void
+  /** The "end of song" sleep timer: while it is on nothing follows the song, and at its end playback stops. */
+  sleep?: { endOfSongActive: () => boolean; fireAtSongEnd: () => void }
 }
 
 /** The list that auto-advance walks: the saved playlist if there is one, otherwise the queue. */
@@ -186,11 +188,16 @@ export function goPrevious(deps: ControllerDeps): boolean {
 export function createTrackEndHook(deps: ControllerDeps): TrackEndHook {
   return {
     shouldHoldUpcoming: () => {
+      if (deps.sleep?.endOfSongActive()) return true
       const state = currentVersionState(deps)
       if (!state) return false
       return shouldHoldUpcoming(state.mode, state.index, state.versions.length)
     },
     onTrackEnded: () => {
+      if (deps.sleep?.endOfSongActive()) {
+        deps.sleep.fireAtSongEnd()
+        return true
+      }
       const state = currentVersionState(deps)
       const player = deps.getPlayer()
       if (!state || player.playbackMode === "random") return false

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   formatSleepRemaining,
+  sleepFade,
   sleepLabel,
   sleepRemainingMs,
   sleepVerdict,
@@ -23,11 +24,45 @@ describe("sleep timer", () => {
     expect(sleepVerdict(timer, { ...snap, now: t0 + 5 * 60_000 })).toBe("pause")
   })
 
-  it("end of song pauses in the last second", () => {
+  it("end of song: the clock only backs up the player's own track-end event", () => {
     const timer = startSleepEndOfSong(7)
     const snap = { now: 0, songNumber: 7, position: 100, duration: 200 }
     expect(sleepVerdict(timer, snap)).toBe("keep-going")
-    expect(sleepVerdict(timer, { ...snap, position: 199.5 })).toBe("pause")
+    // a second before the end is left to the track-end event, so the song is never cut short
+    expect(sleepVerdict(timer, { ...snap, position: 199 })).toBe("keep-going")
+    expect(sleepVerdict(timer, { ...snap, position: 199.9 })).toBe("pause")
+  })
+
+  it("fades the sound over the last 15 s of a minutes timer", () => {
+    const timer = startSleepMinutes(5, 0)
+    const snap = { now: 0, songNumber: 1, position: 10, duration: 200 }
+    expect(sleepFade(timer, { ...snap, now: 60_000 })).toBe(1)
+    expect(sleepFade(timer, { ...snap, now: 5 * 60_000 - 15_000 })).toBe(1)
+    expect(sleepFade(timer, { ...snap, now: 5 * 60_000 - 7_500 })).toBeCloseTo(0.5, 5)
+    expect(sleepFade(timer, { ...snap, now: 5 * 60_000 })).toBe(0)
+  })
+
+  it("fades the last 10 s of the song for end of song, never for another song or unknown length", () => {
+    const timer = startSleepEndOfSong(7)
+    const snap = { now: 0, songNumber: 7, position: 100, duration: 200 }
+    expect(sleepFade(timer, snap)).toBe(1)
+    expect(sleepFade(timer, { ...snap, position: 195 })).toBeCloseTo(0.5, 5)
+    expect(sleepFade(timer, { ...snap, songNumber: 8, position: 195 })).toBe(1)
+    expect(sleepFade(timer, { ...snap, duration: 0, position: 195 })).toBe(1)
+    expect(sleepFade(SLEEP_OFF, snap)).toBe(1)
+  })
+
+  it("the watcher passes the fade factor on while the timer runs", () => {
+    const setFade = vi.fn()
+    tickSleep({
+      getTimer: () => startSleepMinutes(5, 0),
+      snapshot: () => ({ now: 5 * 60_000 - 7_500, songNumber: 1, position: 5, duration: 100 }),
+      pause: vi.fn(),
+      rewind: vi.fn(),
+      cancel: vi.fn(),
+      setFade,
+    })
+    expect(setFade).toHaveBeenCalledWith(expect.closeTo(0.5, 5))
   })
 
   it("end of song pauses and rewinds the next song if the engine already moved on", () => {

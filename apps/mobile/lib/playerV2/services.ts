@@ -13,7 +13,10 @@ import { installDemoPlayer } from "@/lib/playerV2/demoEngine"
 import { createQueueActions } from "@/lib/playerV2/queueActions"
 import { activeQueue } from "@/lib/playerV2/controller"
 import { createResumeTracker } from "@/lib/playerV2/resumeTracker"
+import { createSleepRuntime } from "@/lib/playerV2/sleepRuntime"
 import { tickSleep } from "@/lib/playerV2/sleepWatcher"
+import { ensureUpcomingRadioTrack } from "@/lib/playback/radioAdvance"
+import { nativeRemoveUpcomingTracks, nativeSetRepeatTrack, nativeSetVolume } from "@/lib/playback/nativeCatalogPlayer"
 import { setTransportDeps } from "@/lib/playerV2/transport"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
@@ -86,7 +89,29 @@ let started = false
 export function startPlayerV2Services(): void {
   if (started) return
   started = true
-  const deps = realControllerDeps()
+  const sleepRuntime = createSleepRuntime({
+    getTimer: () => usePlayerV2Store.getState().sleep,
+    currentSongNumber: () => usePlayerStore.getState().currentSong?.number ?? null,
+    holdNative: () => {
+      void nativeSetRepeatTrack(false).catch(() => undefined)
+      void nativeRemoveUpcomingTracks().catch(() => undefined)
+    },
+    releaseNative: () => {
+      const s = usePlayerStore.getState()
+      void nativeSetRepeatTrack((s.driveAutoAdvance && s.driveRepeat) || s.repeat).catch(() => undefined)
+      void ensureUpcomingRadioTrack()
+    },
+    pause: () => usePlayerStore.getState().pause(),
+    rewind: () => usePlayerStore.getState().seekTo(0),
+    cancel: () => usePlayerV2Store.getState().cancelSleep(),
+    getVolume: () => usePlayerStore.getState().volume,
+    setNativeVolume: (volume) => void nativeSetVolume(volume).catch(() => undefined),
+  })
+  usePlayerV2Store.subscribe((state, previous) => {
+    if (state.sleep !== previous.sleep) sleepRuntime.onTimerChange(previous.sleep, state.sleep)
+  })
+
+  const deps = { ...realControllerDeps(), sleep: sleepRuntime.controllerSleep }
   setTrackEndHook(createTrackEndHook(deps))
 
   const observe = createResumeTracker({
@@ -123,6 +148,7 @@ export function startPlayerV2Services(): void {
       pause: () => usePlayerStore.getState().pause(),
       rewind: () => usePlayerStore.getState().seekTo(0),
       cancel: () => usePlayerV2Store.getState().cancelSleep(),
+      setFade: sleepRuntime.setFade,
     })
   }, 1000)
 }
