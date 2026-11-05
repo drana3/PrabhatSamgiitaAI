@@ -34,12 +34,24 @@ function isRemoteStreamUrl(url: string | null | undefined): boolean {
  * rows often have no audioUrl until a detail fetch — that must not block offline).
  */
 export async function hydratePlayableSong(number: number, seed?: MockSong | null): Promise<MockSong | null> {
+  return (await hydratePlayableSongOutcome(number, seed)).song
+}
+
+/**
+ * The same, and when there is no song it says whether the connection was the reason
+ * (the catalog request failed) or the song simply has no audio.
+ */
+export async function hydratePlayableSongOutcome(
+  number: number,
+  seed?: MockSong | null,
+): Promise<{ song: MockSong | null; fetchFailed: boolean }> {
   // A Kiirtan is a plain audio file: no catalog fetch, no offline copy lookup.
   if (isKiirtanNumber(number)) {
     const kiirtan = seed ?? kiirtanSongForNumber(number)
-    return kiirtan?.audioUrl?.trim() ? kiirtan : null
+    return { song: kiirtan?.audioUrl?.trim() ? kiirtan : null, fetchFailed: false }
   }
   let song = seed ?? null
+  let fetchFailed = false
 
   const offline = await resolvePlaybackUri(number, song?.audioUrl)
   if (offline?.local) {
@@ -50,7 +62,7 @@ export async function hydratePlayableSong(number: number, seed?: MockSong | null
         title: `Prabhat Samgiita ${number}`,
         is_verified: false,
       })
-    return { ...base, audioUrl: offline.uri, mediaHydrated: true }
+    return { song: { ...base, audioUrl: offline.uri, mediaHydrated: true }, fetchFailed }
   }
 
   if (!isRemoteStreamUrl(song?.audioUrl)) {
@@ -62,18 +74,19 @@ export async function hydratePlayableSong(number: number, seed?: MockSong | null
           : songDetailToMockSong(detail)
       }
     } catch {
-      /* offline / timeout — may still stream if seed already had https */
+      /* offline / timeout: may still stream if the seed already had https */
+      fetchFailed = true
     }
   }
 
-  if (!song) return null
+  if (!song) return { song: null, fetchFailed }
 
   const resolved = await resolvePlaybackUri(number, song.audioUrl)
   const uri =
     resolved?.uri ||
     (isRemoteStreamUrl(song.audioUrl) ? song.audioUrl!.trim() : null)
-  if (!uri) return null
-  return { ...song, audioUrl: uri, mediaHydrated: true }
+  if (!uri) return { song: null, fetchFailed }
+  return { song: { ...song, audioUrl: uri, mediaHydrated: true }, fetchFailed }
 }
 
 /**

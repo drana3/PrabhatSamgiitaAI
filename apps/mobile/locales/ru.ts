@@ -4,6 +4,7 @@ import { appShellRu } from "./appShell"
 import { ugcRu } from "./ugc"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
+import { playerErrorsRu } from "./playerErrors"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
 export const ru: Dictionary = {
@@ -1333,4 +1334,5 @@ export const ru: Dictionary = {
   ...ugcRu,
   ...offlineRu,
   ...accountRu,
+  ...playerErrorsRu,
 }

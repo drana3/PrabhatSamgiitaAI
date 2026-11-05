@@ -3,6 +3,7 @@ import { appShellEn } from "./appShell"
 import { ugcEn } from "./ugc"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
+import { playerErrorsEn } from "./playerErrors"
 
 /**
  * English: the source of truth. Every other language mirrors these keys (the parity test enforces it).
@@ -1253,4 +1254,5 @@ export const en = {
   ...ugcEn,
   ...offlineEn,
   ...accountEn,
+  ...playerErrorsEn,
 } as const

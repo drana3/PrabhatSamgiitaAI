@@ -47,7 +47,14 @@ import {
   trackIdToSongNumber,
 } from "@/lib/playback/nativeCatalogPlayer"
 import { cacheCatalogSong, getCachedCatalogSong } from "@/lib/playback/catalogSongCache"
-import { ensureUpcomingRadioTrack, hydratePlayableSong } from "@/lib/playback/radioAdvance"
+import {
+  afterPlaybackError,
+  LOAD_TIMEOUT_MS,
+  noStreamReason,
+  type PlayerErrorCode,
+} from "@/lib/playback/playerError"
+import { cancelPendingNumber } from "@/lib/playerV2/controller"
+import { ensureUpcomingRadioTrack, hydratePlayableSong, hydratePlayableSongOutcome } from "@/lib/playback/radioAdvance"
 import {
   getTrackPlayer,
   isTrackPlayerLinked,
@@ -74,7 +81,8 @@ type PlayerState = {
   /** Playback speed, 0.5 to 1.5 (redesigned player). */
   rate: number
   hasAudio: boolean
-  audioError: string | null
+  /** Why the song did not play, as a code (lib/playback/playerError.ts); null when nothing is wrong. */
+  audioError: PlayerErrorCode | null
   isBuffering: boolean
   repeat: boolean
   playbackMode: PlaybackMode
@@ -183,6 +191,8 @@ function mergeSong(current: MockSong | null, song: MockSong): MockSong {
   }
 }
 
+let lastHydrateFetchFailed = false
+
 async function hydrate(song: MockSong): Promise<MockSong> {
   const cached = playerExtras.__psMediaCache.get(song.number)
   const base =
@@ -199,7 +209,10 @@ async function hydrate(song: MockSong): Promise<MockSong> {
             mediaHydrated: true,
           }
         : null
-  const ready = await hydratePlayableSong(song.number, base ?? song)
+  const outcome = await hydratePlayableSongOutcome(song.number, base ?? song)
+  // Remembered for the one place that words the failure right after this call (no connection, or no audio).
+  lastHydrateFetchFailed = outcome.fetchFailed
+  const ready = outcome.song
   if (!ready) return { ...song, mediaHydrated: true }
   cacheSong(ready)
   return ready
@@ -234,7 +247,37 @@ function loopCurrentTrackForSession(
   )
 }
 
+/**
+ * A song that is still buffering long after it was handed over (no connection, a dead link) is given up on:
+ * the spinner ends with a message and the play button tries again. Only the first start is timed, a stall
+ * in the middle of a song is the network's business.
+ */
+function armLoadTimeout(generation: number): void {
+  setTimeout(() => {
+    if (generation !== playerExtras.__psLoadGeneration) return
+    const state = usePlayerStore.getState()
+    if (!state.isBuffering || !playerExtras.__psWantPlaying || state.position > 0) return
+    playerExtras.__psWantPlaying = false
+    setPlaybackIntent(null)
+    markTransition()
+    void nativePause().catch(() => undefined)
+    usePlayerStore.setState({ isPlaying: false, isBuffering: false, audioError: "timeout" })
+  }, LOAD_TIMEOUT_MS)
+}
+
+/** The load that has not yet handed its song to the native player (hydrating, preparing). Pause cancels it. */
+let pendingStartGeneration: number | null = null
+
 async function startNativeSong(song: MockSong, generation: number) {
+  pendingStartGeneration = generation
+  try {
+    await startNativeSongInner(song, generation)
+  } finally {
+    if (pendingStartGeneration === generation) pendingStartGeneration = null
+  }
+}
+
+async function startNativeSongInner(song: MockSong, generation: number) {
   // Buffer immediately — after Remove offline, hydrate may fetch a remote URL
   // before the player can start (felt like a hang with no progress).
   playerExtras.__psWantPlaying = true
@@ -261,7 +304,7 @@ async function startNativeSong(song: MockSong, generation: number) {
       hasAudio: false,
       isPlaying: false,
       isBuffering: false,
-      audioError: "No in-app audio stream is available for this song yet.",
+      audioError: noStreamReason(lastHydrateFetchFailed),
     })
     return
   }
@@ -284,7 +327,14 @@ async function startNativeSong(song: MockSong, generation: number) {
   if (generation !== playerExtras.__psLoadGeneration) return
   markTransition()
   await playTrackNow(songToTrack(ready, ready.audioUrl))
-  if (generation !== playerExtras.__psLoadGeneration) return
+  // The song is with the native player now: a pause from here on pauses it instead of cancelling the load.
+  if (pendingStartGeneration === generation) pendingStartGeneration = null
+  armLoadTimeout(generation)
+  if (generation !== playerExtras.__psLoadGeneration) {
+    // Paused while it was being handed over: it must not keep playing. (A newer load wants to play and handles itself.)
+    if (!playerExtras.__psWantPlaying) void nativePause().catch(() => undefined)
+    return
+  }
   const rate = usePlayerStore.getState().rate
   if (rate !== 1) void nativeSetRate(rate).catch(() => undefined)
   await ensureUpcomingRadioTrack()
@@ -296,25 +346,25 @@ async function startNativeSong(song: MockSong, generation: number) {
  * loading spinner stuck when the song has no stream or hydration throws.
  */
 async function startSongByNumber(number: number, generation: number): Promise<void> {
-  const failStep = () => {
+  const failStep = (code: PlayerErrorCode) => {
     if (generation !== playerExtras.__psLoadGeneration) return
     playerExtras.__psWantPlaying = false
     usePlayerStore.setState({
       isPlaying: false,
       isBuffering: false,
-      audioError: "No in-app audio stream is available for this song yet.",
+      audioError: code,
     })
   }
   try {
-    const song = await hydratePlayableSong(number)
+    const { song, fetchFailed } = await hydratePlayableSongOutcome(number)
     if (generation !== playerExtras.__psLoadGeneration) return
     if (!song) {
-      failStep()
+      failStep(noStreamReason(fetchFailed))
       return
     }
     await startNativeSong(song, generation)
   } catch {
-    failStep()
+    failStep("failed")
   }
 }
 
@@ -379,6 +429,9 @@ function handleCatalogQueueEnded(): void {
   usePlayerStore.setState({ isPlaying: false, isBuffering: false })
 }
 
+/** Failures in a row without a song playing in between. */
+let errorStreak = 0
+
 function handleCatalogPlaybackError(): void {
   const state = usePlayerStore.getState()
   if (listeningSessionFromStore(state).kind === "casual") {
@@ -386,8 +439,20 @@ function handleCatalogPlaybackError(): void {
     usePlayerStore.setState({
       isPlaying: false,
       isBuffering: false,
-      audioError: "Audio could not be played.",
+      audioError: "failed",
     })
+    return
+  }
+  // In a list a bad song is skipped, but never forever: after a few failures in a row the list stops
+  // (otherwise a list with no connection flips through songs and burns data).
+  const verdict = afterPlaybackError(errorStreak)
+  errorStreak = verdict.next
+  if (verdict.stop) {
+    errorStreak = 0
+    playerExtras.__psWantPlaying = false
+    markTransition()
+    void nativePause().catch(() => undefined)
+    usePlayerStore.setState({ isPlaying: false, isBuffering: false, audioError: "failed" })
     return
   }
   if (isTrackPlayerLinked()) {
@@ -412,6 +477,7 @@ export function applyNativeSignal(signal: NativeSignal): void {
   if (patch.isPlaying !== undefined) next.isPlaying = patch.isPlaying
   if (patch.isBuffering !== undefined) next.isBuffering = patch.isBuffering
   if (patch.clearError) next.audioError = null
+  if (signal === "playing") errorStreak = 0
   usePlayerStore.setState(next)
   if (signal === "paused" || signal === "stopped" || signal === "wants-pause") {
     setPlaybackIntent(null)
@@ -675,6 +741,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   loadSong: (song, queue, playbackMode) => {
+    // Chosen by the person (or the controller): a song still loading from an earlier tap is dropped, the failure streak starts over.
+    cancelPendingNumber()
+    errorStreak = 0
     const existing = get()
     const stopAfterCurrent =
       existing.stopQueueAfterCurrentTrack
@@ -763,7 +832,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       usePlayerStore.setState({
         isPlaying: false,
         isBuffering: false,
-        audioError: "Could not start audio.",
+        audioError: "failed",
       })
     })
   },
@@ -811,7 +880,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (!song) return
     playerExtras.__psWantPlaying = true
     setPlaybackIntent(song.number)
-    if (!get().hasAudio) {
+    errorStreak = 0
+    // After an error the native player holds nothing useful: play is a retry, so load the song again.
+    if (!get().hasAudio || get().audioError) {
       playerExtras.__psLoadGeneration += 1
       void startNativeSong(song, playerExtras.__psLoadGeneration)
       return
@@ -837,7 +908,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   pause: () => {
     playerExtras.__psWantPlaying = false
     setPlaybackIntent(null)
-    set({ isPlaying: false, isBuffering: false })
+    if (pendingStartGeneration === playerExtras.__psLoadGeneration) {
+      // Paused on the spinner: the song is not with the native player yet. Cancel the load, or it would
+      // start anyway when the network answers. Play starts it again from the beginning.
+      playerExtras.__psLoadGeneration += 1
+      pendingStartGeneration = null
+      set({ isPlaying: false, isBuffering: false, hasAudio: false })
+    } else {
+      set({ isPlaying: false, isBuffering: false })
+    }
     void nativePause()
   },
 
@@ -857,8 +936,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       hasAudio: false,
       position: 0,
       currentSong: { ...current, audioUrl: null, mediaHydrated: false },
-      audioError:
-        "Saved copy removed. Connect to the internet to stream, or save again for offline play.",
+      audioError: "removed",
     })
     publishRadioSession()
   },

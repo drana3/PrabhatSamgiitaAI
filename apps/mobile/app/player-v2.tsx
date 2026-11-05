@@ -51,6 +51,7 @@ import { useSaveState } from "@/hooks/useSaveState"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { SAMPLE_GLOSS_LANGUAGES, sampleGloss, sampleTranslationLines } from "@/lib/fixtures/player"
 import { t, useLanguage } from "@/lib/i18n"
+import { playerErrorKey } from "@/lib/playback/playerError"
 import { storedMeaningForLanguage } from "@/lib/songMap"
 import {
   LYRIC_LANGUAGE_CODES,
@@ -165,6 +166,13 @@ export default function PlayerV2Screen() {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const isBuffering = usePlayerStore((s) => s.isBuffering)
   const audioError = usePlayerStore((s) => s.audioError)
+
+  // Say why the song did not play (the play button then shows "try again"); each new reason once.
+  useEffect(() => {
+    const key = playerErrorKey(audioError)
+    if (key) toast.show(t(key))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioError])
   const position = usePlayerStore((s) => s.position)
   const duration = usePlayerStore((s) => s.duration)
   const rate = usePlayerStore((s) => s.rate)

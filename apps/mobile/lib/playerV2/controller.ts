@@ -49,6 +49,25 @@ export function activeQueue(player: ReturnType<ControllerDeps["getPlayer"]>): nu
     : player.queue
 }
 
+/**
+ * The newest "play this number" request, and the number it is loading. A slow answer for an older request
+ * is dropped (two quick Next taps, or Next then a chosen song, must end on the last one asked for), and a
+ * second Next steps on from the song being loaded, not from the one still playing.
+ */
+let latestRequest = 0
+let loadingNumber: number | null = null
+
+/** Forget a request in flight: something else started playback itself (a chosen version, a new list). */
+export function cancelPendingNumber(): void {
+  latestRequest += 1
+  loadingNumber = null
+}
+
+/** The song the next step starts from: the one being loaded, else the one playing. */
+function stepFrom(current: MockSong): number {
+  return loadingNumber ?? current.number
+}
+
 function loadMode(mode: PlaybackMode): PlaybackMode {
   return mode === "playlist" || mode === "random" ? mode : "default"
 }
@@ -73,6 +92,7 @@ export function currentVersionState(deps: ControllerDeps) {
 
 /** Play one version of a song, keeping the queue and the session as they are. */
 export function playVersion(deps: ControllerDeps, song: MockSong, version: PlayerVersion): void {
+  cancelPendingNumber()
   const player = deps.getPlayer()
   deps.remember(song.number, version.id)
   deps.loadSong(
@@ -83,9 +103,18 @@ export function playVersion(deps: ControllerDeps, song: MockSong, version: Playe
 }
 
 export async function playNumber(deps: ControllerDeps, number: number): Promise<void> {
+  const mine = ++latestRequest
+  loadingNumber = number
   const player = deps.getPlayer()
-  const song = await deps.loadNumber(number)
-  if (!song) return
+  let song: MockSong | null = null
+  try {
+    song = await deps.loadNumber(number)
+  } finally {
+    // Only the newest request may clear the marker or start playback.
+    if (mine === latestRequest && !song) loadingNumber = null
+  }
+  if (mine !== latestRequest || !song) return
+  loadingNumber = null
   deps.loadSong(song, activeQueue(player), loadMode(player.playbackMode))
 }
 
@@ -96,7 +125,7 @@ export function canGoNext(deps: ControllerDeps): boolean {
   return (
     stepPlayable(
       activeQueue(player),
-      player.currentSong.number,
+      stepFrom(player.currentSong),
       1,
       deps.isPlayable,
       deps.getPrefs().repeatMode === "all",
@@ -116,7 +145,7 @@ export function goNext(deps: ControllerDeps): boolean {
   if (!current || player.playbackMode === "random") return false
   const target = stepPlayable(
     activeQueue(player),
-    current.number,
+    stepFrom(current),
     1,
     deps.isPlayable,
     deps.getPrefs().repeatMode === "all",
@@ -131,13 +160,13 @@ export function goPrevious(deps: ControllerDeps): boolean {
   const player = deps.getPlayer()
   const current = player.currentSong
   if (!current || player.playbackMode === "random") return false
-  if (player.position > 3) {
+  if (player.position > 3 && loadingNumber == null) {
     deps.seekTo(0)
     return true
   }
   const target = stepPlayable(
     activeQueue(player),
-    current.number,
+    stepFrom(current),
     -1,
     deps.isPlayable,
     deps.getPrefs().repeatMode === "all",
