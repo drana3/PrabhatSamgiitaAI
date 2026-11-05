@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import { FlatList, Platform, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { SpRound } from "@/components/song-v2/SpUi"
@@ -21,6 +21,7 @@ import {
   collectionHref,
   collectionsCountLabel,
   filterCollections,
+  KIND_ORDER,
   kindChips,
   type CollectionEntry,
   type CollectionKindFilter,
@@ -64,7 +65,9 @@ export default function CollectionsV2Screen() {
   const catalog = useSongsV2Catalog()
 
   const [query, setQuery] = useState("")
-  const [kind, setKind] = useState<CollectionKindFilter>("all")
+  // ?kind=mood opens with that chip chosen (the Moods, Languages and Festivals tiles of Search)
+  const { kind: kindParam } = useLocalSearchParams<{ kind?: string }>()
+  const [kind, setKind] = useState<CollectionKindFilter>(() => (KIND_ORDER as readonly string[]).includes(String(kindParam)) ? (kindParam as CollectionKindFilter) : "all")
   const [width, setWidth] = useState(0)
 
   const entries = useMemo(() => buildCollectionEntries(allCollections, moodSources()), [t])

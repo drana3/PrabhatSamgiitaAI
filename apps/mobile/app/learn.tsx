@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, StyleSheet, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import { useRouter } from "expo-router"
+import { useFocusEffect, useRouter } from "expo-router"
 import { Guitar, Layers, CircleQuestionMark, Piano } from "lucide-react-native"
 
 import {
@@ -66,7 +66,9 @@ export default function LearnScreen() {
   const hydrated = useLearnHydrated()
   const openProfile = useOpenProfileSheet()
   const { unread } = useNotificationItems()
-  const now = useMemo(() => Date.now(), [])
+  // "now" is read again every time the tab comes into view, so after midnight "due today" is today's
+  const [now, setNow] = useState(() => Date.now())
+  useFocusEffect(useCallback(() => setNow(Date.now()), []))
   // word meanings and quiz questions are unchecked prototype content: a real build shows an honest state instead
   const wordsReady = learnWordsAvailable()
   const wordList = learnWordList()
