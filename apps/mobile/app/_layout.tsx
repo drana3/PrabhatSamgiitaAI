@@ -1,6 +1,6 @@
 import "@/lib/webFontSmoothing"
 import { useEffect, useState } from "react"
-import { ActivityIndicator, InteractionManager, Platform, StyleSheet, View } from "react-native"
+import { ActivityIndicator, AppState, InteractionManager, Platform, StyleSheet, View } from "react-native"
 import { Stack } from "expo-router"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
@@ -40,6 +40,7 @@ import { SaveHost } from "@/components/save/SaveHost"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
 import { useAppearanceStore } from "@/stores/appearanceStore"
+import { applyLanguagePreference, useLanguageStore } from "@/stores/languageStore"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlaylistStore } from "@/stores/playlistStore"
 
@@ -49,6 +50,8 @@ export default function RootLayout() {
   const [authHydrated, setAuthHydrated] = useState(() => useAuthStore.persist.hasHydrated())
   // The saved Light / Dark choice is read before the first frame so redesign screens never flash the wrong theme.
   const [appearanceHydrated, setAppearanceHydrated] = useState(() => useAppearanceStore.persist.hasHydrated())
+  // Same for the interface language: read before the first frame so the app never flashes English first.
+  const [languageHydrated, setLanguageHydrated] = useState(() => useLanguageStore.persist.hasHydrated())
   const [interLoaded] = useInter({
     Inter_400Regular,
     Inter_500Medium,
@@ -68,7 +71,7 @@ export default function RootLayout() {
   useDevanagari({ NotoSansDevanagari_400Regular, NotoSansDevanagari_600SemiBold, NotoSansDevanagari_700Bold })
   const [fontWaitExpired, setFontWaitExpired] = useState(false)
   const fontsReady = (interLoaded && loraLoaded && robotoLoaded) || fontWaitExpired
-  const shellReady = fontsReady && authHydrated && (appearanceHydrated || fontWaitExpired)
+  const shellReady = fontsReady && authHydrated && (appearanceHydrated || fontWaitExpired) && (languageHydrated || fontWaitExpired)
 
   useEffect(() => {
     if (useAuthStore.persist.hasHydrated()) setAuthHydrated(true)
@@ -78,6 +81,19 @@ export default function RootLayout() {
   useEffect(() => {
     if (useAppearanceStore.persist.hasHydrated()) setAppearanceHydrated(true)
     return useAppearanceStore.persist.onFinishHydration(() => setAppearanceHydrated(true))
+  }, [])
+
+  useEffect(() => {
+    if (useLanguageStore.persist.hasHydrated()) setLanguageHydrated(true)
+    return useLanguageStore.persist.onFinishHydration(() => setLanguageHydrated(true))
+  }, [])
+
+  // Under "Automatic" the app follows the device: re-read it when the app comes back to the front.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") applyLanguagePreference(useLanguageStore.getState().language)
+    })
+    return () => sub.remove()
   }, [])
 
   useEffect(() => {

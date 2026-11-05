@@ -58,6 +58,7 @@
       ],
       "expo-router",
       "expo-font",
+      "expo-localization",
       "expo-file-system",
       "expo-web-browser",
       "expo-av",

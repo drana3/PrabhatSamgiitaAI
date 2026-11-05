@@ -1,0 +1,26 @@
+{
+  "ru": {
+    "unit.kb": false,
+    "unit.mb": false,
+    "unit.gb": false,
+    "common.done": false,
+    "common.cancel": false,
+    "language.title": false,
+    "language.intro": false,
+    "language.auto": false,
+    "language.autoSub": false,
+    "language.note": false
+  },
+  "es": {
+    "unit.kb": false,
+    "unit.mb": false,
+    "unit.gb": false,
+    "common.done": false,
+    "common.cancel": false,
+    "language.title": false,
+    "language.intro": false,
+    "language.auto": false,
+    "language.autoSub": false,
+    "language.note": false
+  }
+}
