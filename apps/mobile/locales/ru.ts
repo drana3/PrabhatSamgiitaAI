@@ -13,5 +13,8 @@ export const ru: Dictionary = {
   "language.intro": "Язык кнопок, меню и сообщений. У текстов песен и их смыслов свои настройки языка.",
   "language.auto": "Автоматически",
   "language.autoSub": "Язык этого устройства",
+  "language.name.en": "Английский",
+  "language.name.ru": "Русский",
+  "language.name.es": "Испанский",
   "language.note": "Изменение вступает в силу сразу.",
 }

@@ -109,6 +109,7 @@ export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = [
   "/profile-sheet",
   "/script-translations",
   "/review-style",
+  "/language",
   "/add-kirtan",
   "/kiirtan-live",
   "/feedback",

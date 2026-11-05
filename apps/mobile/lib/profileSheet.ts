@@ -11,6 +11,8 @@ export const PROFILE_ROUTES = {
   about: "/about",
   /** prototype LANGUAGE SHEET: app/script-translations.tsx */
   scriptAndTranslations: "/script-translations",
+  /** the language of the app's own text: app/language.tsx */
+  language: "/language",
   /** prototype REVIEW STYLE SHEET: app/review-style.tsx */
   reviewStyle: "/review-style",
   /** SCR-20, another branch */
@@ -30,6 +32,7 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/about": true,
   "/script-translations": true,
   "/review-style": true,
+  "/language": true,
   "/storage": true,
   "/library-v2": true,
   "/edit-profile": true,

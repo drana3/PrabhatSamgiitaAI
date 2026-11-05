@@ -18,5 +18,8 @@ export const en = {
   "language.intro": "The language of buttons, menus and messages. Song lyrics and meanings keep their own language settings.",
   "language.auto": "Automatic",
   "language.autoSub": "Follow the language of this device",
+  "language.name.en": "English",
+  "language.name.ru": "Russian",
+  "language.name.es": "Spanish",
   "language.note": "The change applies at once.",
 } as const

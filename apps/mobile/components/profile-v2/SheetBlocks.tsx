@@ -213,7 +213,7 @@ export function LangRow({ p, name, sub, control, on, action, dim, onPress, last 
     <TodayPress
       accessibilityRole={control === "radio" ? "radio" : "checkbox"}
       accessibilityState={control === "radio" ? { selected: on } : { checked: on }}
-      accessibilityLabel={`${name}, ${sub}`}
+      accessibilityLabel={sub ? `${name}, ${sub}` : name}
       onPress={onPress}
       pressedScale={0.98}
       style={[s.lrow, rowBorder(p, last)]}
@@ -222,10 +222,12 @@ export function LangRow({ p, name, sub, control, on, action, dim, onPress, last 
         <Text style={[s.lName, { color: dim ? p.ink500 : p.ink800 }]} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={[s.lSub, { color: p.ink500 }]} numberOfLines={1}>
-          {/* a left-to-right mark keeps a right-to-left native name from flipping the whole line */}
-          {"\u200E" + sub}
-        </Text>
+        {sub ? (
+          <Text style={[s.lSub, { color: p.ink500 }]} numberOfLines={1}>
+            {/* a left-to-right mark keeps a right-to-left native name from flipping the whole line */}
+            {"\u200E" + sub}
+          </Text>
+        ) : null}
       </View>
       {action ? <Text style={[s.rq, { color: p.orange700 }]}>{action}</Text> : null}
       {control === "radio" ? <Radio p={p} on={on} /> : <Check p={p} on={on} />}

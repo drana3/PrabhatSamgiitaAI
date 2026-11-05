@@ -9,6 +9,9 @@
     "language.intro": false,
     "language.auto": false,
     "language.autoSub": false,
+    "language.name.en": false,
+    "language.name.ru": false,
+    "language.name.es": false,
     "language.note": false
   },
   "es": {
@@ -21,6 +24,9 @@
     "language.intro": false,
     "language.auto": false,
     "language.autoSub": false,
+    "language.name.en": false,
+    "language.name.ru": false,
+    "language.name.es": false,
     "language.note": false
   }
 }

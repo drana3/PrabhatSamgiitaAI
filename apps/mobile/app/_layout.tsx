@@ -212,6 +212,10 @@ export default function RootLayout() {
             options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
           />
           <Stack.Screen
+            name="language"
+            options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+          />
+          <Stack.Screen
             name="review-style"
             options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
           />

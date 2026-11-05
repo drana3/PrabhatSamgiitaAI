@@ -36,6 +36,8 @@ import { anyEnabled } from "@/lib/notifications/settings"
 import { completeMemberSignOut } from "@/lib/session"
 import { APPEARANCE_LABELS, APPEARANCE_PREFERENCES } from "@/lib/appearance"
 import { useAppearanceStore } from "@/stores/appearanceStore"
+import { useLanguageStore } from "@/stores/languageStore"
+import { LANGUAGE_NATIVE_NAMES, useT } from "@/lib/i18n"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
@@ -91,6 +93,8 @@ export function useProfileContent(theme: AmTheme) {
   const appearance = useAppearanceStore((st) => st.appearance)
   const setAppearance = useAppearanceStore((st) => st.setAppearance)
   const reviewStyle = useAppearanceStore((st) => st.reviewStyle)
+  const t = useT()
+  const languagePref = useLanguageStore((st) => st.language)
   const script = useSongPageStore((st) => st.script)
   const translations = useSongPageStore((st) => st.translations)
   const storage = useDownloadsStorage()
@@ -198,7 +202,12 @@ export function useProfileContent(theme: AmTheme) {
             </ChipRow>
           }
         />
-        <SetRow p={p} label="Language" value="English" />
+        <SetRow
+          p={p}
+          label="Language"
+          value={languagePref === "auto" ? t("language.auto") : LANGUAGE_NATIVE_NAMES[languagePref]}
+          onPress={() => swapTo(PROFILE_ROUTES.language)}
+        />
         <SetRow
           p={p}
           label="Script and translations"
