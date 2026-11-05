@@ -9,8 +9,6 @@ type Props = {
   item: DownloadItem | null
   /** colours of the mark on the menu's ground */
   color: string
-  track?: string
-  ring?: string
   size?: number
   /** draws the menu's own row from the label, the mark and the action */
   children: (row: { label: string; icon: ReactNode; onPress: () => void }) => ReactNode
@@ -21,7 +19,7 @@ type Props = {
  * ring runs, "Remove download" when it is on the phone, with the same mark as the buttons. Draws
  * nothing for a song without playable audio. The menu closes itself around `onPress`.
  */
-export function DownloadMenuRow({ item, color, track, ring, size = 24, children }: Props) {
+export function DownloadMenuRow({ item, color, size = 24, children }: Props) {
   useLanguage() // re-render when the language changes: the labels come from lib/offline/downloadModel
   const { view, press } = useDownloadState(item)
   if (!view.visible) return null
@@ -29,7 +27,7 @@ export function DownloadMenuRow({ item, color, track, ring, size = 24, children 
     <>
       {children({
         label: downloadMenuLabel(view.status),
-        icon: <DownloadMark status={view.status} progress={view.progress} size={size} color={color} track={track} ring={ring} />,
+        icon: <DownloadMark status={view.status} progress={view.progress} size={size} color={color} />,
         onPress: press,
       })}
     </>

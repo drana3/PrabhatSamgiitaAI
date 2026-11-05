@@ -71,7 +71,7 @@ export function ListDownloadRow({
       style={[styles.row, { backgroundColor: theme.card, borderColor: theme.line }, style]}
     >
       <View style={styles.mark}>
-        <DownloadMark status={view.status} progress={view.progress} size={26} color={theme.textHeading} track={theme.line} ring={theme.accentBright} />
+        <DownloadMark status={view.status} progress={view.progress} size={26} color={theme.textHeading} />
       </View>
       <View style={styles.text}>
         <Text style={[overStyle, { color: theme.accent }]} numberOfLines={1}>

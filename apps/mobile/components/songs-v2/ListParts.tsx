@@ -171,7 +171,7 @@ export function ActionBar({
       <View style={styles.actionsLeft}>
         {download.visible ? (
           <IconButton label={listDownloadLabel(download)} onPress={onDownload}>
-            <DownloadMark status={download.status} progress={download.progress} size={24} color={theme.textHeading} track={theme.line} ring={theme.accentBright} />
+            <DownloadMark status={download.status} progress={download.progress} size={24} color={theme.textHeading} />
           </IconButton>
         ) : null}
         <IconButton label={t("songs.bar.sortFilter")} onPress={onSort}>

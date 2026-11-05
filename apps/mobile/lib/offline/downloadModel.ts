@@ -4,9 +4,9 @@
  * model feeds the song page, the full player (songs and Kiirtans), the row menus, the Versions
  * sheet and the list toggles, so they can not drift apart.
  *
- *   idle         arrow-down
- *   downloading  progress ring with the percent inside; a tap cancels
- *   done         green disc with an arrow-down-to-tray (not a check: a check is Save); a tap removes, after a confirm that shows the size
+ *   idle         rounded square with an arrow-down
+ *   downloading  the square outline fills with progress, percent inside; a tap cancels
+ *   done         solid green square with an arrow-down-to-tray (a square, not a circle, and not a check: Save is a circle-check); a tap removes, after a confirm that shows the size
  *
  * A song or Kiirtan WITHOUT playable audio shows no control at all (not disabled, not hidden under
  * a menu with an error).

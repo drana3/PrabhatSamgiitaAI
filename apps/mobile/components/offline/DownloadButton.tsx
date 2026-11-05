@@ -10,10 +10,8 @@ import { useLanguage } from "@/lib/i18n"
 type Props = {
   item: DownloadItem | null
   size?: number
-  /** the arrow and the number inside the ring */
+  /** the square outline, the arrow and the number inside */
   color?: string
-  track?: string
-  ring?: string
   /** true on a dark ground (the full player) */
   onDark?: boolean
   /** size of the touch area; at least 44 */
@@ -23,11 +21,11 @@ type Props = {
 
 /**
  * The download control of the whole app (like components/save/SaveButton.tsx is the save control):
- * arrow in a circle outline, progress ring with the percent, solid green disc with the downloaded glyph (never an orange check: that is Save). A tap starts, cancels (while the ring runs)
+ * arrow in a rounded square, the square outline fills with the percent inside, solid green square with the downloaded glyph (never a circle or an orange check: that is Save). A tap starts, cancels (while the ring runs)
  * or removes (after a confirm that shows the size). Draws nothing for a song without playable
  * audio. Press feedback starts on touch-down; the action runs on release.
  */
-export function DownloadButton({ item, size = 24, color, track, ring, onDark, hit = 44, style }: Props) {
+export function DownloadButton({ item, size = 24, color, onDark, hit = 44, style }: Props) {
   useLanguage() // re-render when the language changes: the labels come from lib/offline/downloadModel
   const { view, press } = useDownloadState(item)
   const scale = useSharedValue(1)
@@ -49,7 +47,7 @@ export function DownloadButton({ item, size = 24, color, track, ring, onDark, hi
       style={[styles.hit, { width: Math.max(44, hit), height: Math.max(44, hit), borderRadius: Math.max(44, hit) / 2 }, style]}
     >
       <Animated.View style={animated}>
-        <DownloadMark status={view.status} progress={view.progress} size={size} color={color} track={track} ring={ring} onDark={onDark} />
+        <DownloadMark status={view.status} progress={view.progress} size={size} color={color} onDark={onDark} />
       </Animated.View>
     </Pressable>
   )

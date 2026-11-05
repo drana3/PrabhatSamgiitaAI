@@ -10,7 +10,7 @@ import Animated, {
 } from "react-native-reanimated"
 import Svg, { Circle, Path, Rect } from "react-native-svg"
 
-import { DOWNLOADED_GLYPH } from "@/lib/offline/downloadLook"
+import { DOWNLOAD_ARROW_PATH, DOWNLOAD_SQUARE_LENGTH, DOWNLOAD_SQUARE_PATH, DOWNLOADED_GLYPH } from "@/lib/offline/downloadLook"
 import type { DownloadAllState } from "@/lib/songsV2/listPage"
 
 /**
@@ -50,12 +50,10 @@ export function PauseIcon({ size = 24, color }: G) {
   )
 }
 
-/** Arrow with a rounded foot, shared by every download state. */
-const ARROW = "M12 7.5v8M8.5 12.2l3.5 3.5 3.5-3.5"
-
 /**
- * Download of a list or a song. idle: ring and arrow. downloading: the ring turns. done: a filled
- * disc with the arrow-down-to-tray glyph (same glyph as components/offline/DownloadMark).
+ * Download of a list or a song, drawn like components/offline/DownloadMark (look: lib/offline/downloadLook.ts).
+ * idle: rounded-square outline and arrow. downloading: the outline's first quarter runs in the progress colour
+ * and the arrow breathes. done: a solid square with the arrow-down-to-tray glyph.
  */
 export function DownloadIcon({
   state,
@@ -66,50 +64,49 @@ export function DownloadIcon({
 }: {
   state: DownloadAllState
   size?: number
-  /** ring and arrow while idle or running */
+  /** square outline and arrow while idle or running */
   color: string
-  /** disc when done */
+  /** square when done */
   fill: string
-  /** arrow on the disc */
+  /** arrow on the square */
   onFill: string
 }) {
   const reduce = useReducedMotion()
-  const turn = useSharedValue(0)
+  const breathe = useSharedValue(1)
   useEffect(() => {
     if (state === "downloading" && !reduce) {
-      turn.value = 0
-      turn.value = withRepeat(withTiming(360, { duration: 1100, easing: Easing.linear }), -1, false)
+      breathe.value = withRepeat(withTiming(0.4, { duration: 700, easing: Easing.inOut(Easing.quad) }), -1, true)
     } else {
-      cancelAnimation(turn)
-      turn.value = 0
+      cancelAnimation(breathe)
+      breathe.value = 1
     }
-    return () => cancelAnimation(turn)
-  }, [state, reduce, turn])
-  const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.value}deg` }] }))
+    return () => cancelAnimation(breathe)
+  }, [state, reduce, breathe])
+  const pulse = useAnimatedStyle(() => ({ opacity: breathe.value }))
 
   if (state === "done") {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Circle cx={12} cy={12} r={10.5} fill={fill} />
+        <Rect x={2.4} y={2.4} width={19.2} height={19.2} rx={5.6} fill={fill} />
         <Path d={DOWNLOADED_GLYPH} stroke={onFill} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       </Svg>
     )
   }
   if (state === "downloading") {
     return (
-      <Animated.View style={[{ width: size, height: size }, spin]}>
+      <Animated.View style={[{ width: size, height: size }, pulse]}>
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Circle cx={12} cy={12} r={9.25} stroke={color} strokeWidth={1.75} opacity={0.28} />
-          <Path d="M12 2.75a9.25 9.25 0 0 1 9.25 9.25" stroke={fill} strokeWidth={2.25} strokeLinecap="round" />
-          <Path d={ARROW} stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d={DOWNLOAD_SQUARE_PATH} stroke={color} strokeWidth={2.25} strokeLinejoin="round" opacity={0.28} />
+          <Path d={DOWNLOAD_SQUARE_PATH} stroke={fill} strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={`${DOWNLOAD_SQUARE_LENGTH / 4} ${DOWNLOAD_SQUARE_LENGTH}`} />
+          <Path d={DOWNLOAD_ARROW_PATH} stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       </Animated.View>
     )
   }
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={9.25} stroke={color} strokeWidth={1.75} />
-      <Path d={ARROW} stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d={DOWNLOAD_SQUARE_PATH} stroke={color} strokeWidth={1.75} strokeLinejoin="round" />
+      <Path d={DOWNLOAD_ARROW_PATH} stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   )
 }

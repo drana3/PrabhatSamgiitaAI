@@ -9,7 +9,7 @@ import type { KiirtanSource } from "@/lib/kirtan/track"
 import { useT } from "@/lib/i18n"
 
 /**
- * The small green downloaded disc of a row that is already on the phone ("Downloaded"). Draws nothing in
+ * The small green downloaded square of a row that is already on the phone ("Downloaded"). Draws nothing in
  * any other state, so a row does not get crowded. Same mark as the buttons.
  */
 export function DownloadedBadge({ item, size = 14 }: { item: DownloadItem | null; size?: number }) {
