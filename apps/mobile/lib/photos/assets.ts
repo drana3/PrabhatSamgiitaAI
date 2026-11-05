@@ -199,4 +199,80 @@ export const PHOTO_ASSETS: Record<number, { cover: number; thumb: number }> = {
     cover: require("../../assets/photos/cover/am-164-pink-dawn-clouds-over-a.jpg"),
     thumb: require("../../assets/photos/thumb/am-164-pink-dawn-clouds-over-a.jpg"),
   },
+  1001: {
+    cover: require("../../assets/photos/cover/am-1001-silhouettes-with-arms-raised-toward.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1001-silhouettes-with-arms-raised-toward.jpg"),
+  },
+  1002: {
+    cover: require("../../assets/photos/cover/am-1002-two-people-sitting-on-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1002-two-people-sitting-on-a.jpg"),
+  },
+  143: {
+    cover: require("../../assets/photos/cover/am-143-sun-setting-behind-pines-silhouettes.jpg"),
+    thumb: require("../../assets/photos/thumb/am-143-sun-setting-behind-pines-silhouettes.jpg"),
+  },
+  145: {
+    cover: require("../../assets/photos/cover/am-145-forest-clearing-in-slanting-rays.jpg"),
+    thumb: require("../../assets/photos/thumb/am-145-forest-clearing-in-slanting-rays.jpg"),
+  },
+  139: {
+    cover: require("../../assets/photos/cover/am-139-sun-star-between-tree-trunks.jpg"),
+    thumb: require("../../assets/photos/thumb/am-139-sun-star-between-tree-trunks.jpg"),
+  },
+  141: {
+    cover: require("../../assets/photos/cover/am-141-pines-and-low-sun-moss.jpg"),
+    thumb: require("../../assets/photos/thumb/am-141-pines-and-low-sun-moss.jpg"),
+  },
+  1007: {
+    cover: require("../../assets/photos/cover/am-1007-four-people-on-rocks-by.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1007-four-people-on-rocks-by.jpg"),
+  },
+  1008: {
+    cover: require("../../assets/photos/cover/am-1008-meditation-on-a-rock-above.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1008-meditation-on-a-rock-above.jpg"),
+  },
+  54: {
+    cover: require("../../assets/photos/cover/am-54-meditator-beside-a-huge-fir.jpg"),
+    thumb: require("../../assets/photos/thumb/am-54-meditator-beside-a-huge-fir.jpg"),
+  },
+  70: {
+    cover: require("../../assets/photos/cover/am-70-person-sitting-by-a-trunk.jpg"),
+    thumb: require("../../assets/photos/thumb/am-70-person-sitting-by-a-trunk.jpg"),
+  },
+  1019: {
+    cover: require("../../assets/photos/cover/am-1019-tiny-figure-on-a-rock.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1019-tiny-figure-on-a-rock.jpg"),
+  },
+  63: {
+    cover: require("../../assets/photos/cover/am-63-group-walking-down-a-forest.jpg"),
+    thumb: require("../../assets/photos/thumb/am-63-group-walking-down-a-forest.jpg"),
+  },
+  142: {
+    cover: require("../../assets/photos/cover/am-142-people-walking-into-the-forest.jpg"),
+    thumb: require("../../assets/photos/thumb/am-142-people-walking-into-the-forest.jpg"),
+  },
+  146: {
+    cover: require("../../assets/photos/cover/am-146-sunset-over-the-forest-two.jpg"),
+    thumb: require("../../assets/photos/thumb/am-146-sunset-over-the-forest-two.jpg"),
+  },
+  1043: {
+    cover: require("../../assets/photos/cover/am-1043-woman-from-behind-with-palms.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1043-woman-from-behind-with-palms.jpg"),
+  },
+  1046: {
+    cover: require("../../assets/photos/cover/am-1046-woman-with-closed-eyes-on.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1046-woman-with-closed-eyes-on.jpg"),
+  },
+  1048: {
+    cover: require("../../assets/photos/cover/am-1048-person-sitting-on-a-green.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1048-person-sitting-on-a-green.jpg"),
+  },
+  1049: {
+    cover: require("../../assets/photos/cover/am-1049-man-on-a-rock-above.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1049-man-on-a-rock-above.jpg"),
+  },
+  1052: {
+    cover: require("../../assets/photos/cover/am-1052-black-and-white-archive-photo-house.jpg"),
+    thumb: require("../../assets/photos/thumb/am-1052-black-and-white-archive-photo-house.jpg"),
+  },
 }

@@ -21,6 +21,14 @@ export type PhotoSource = "unsplash" | "ananda-marga"
  */
 export type PhotoPeople = "none" | "far" | "close" | "children"
 
+/**
+ * Where an Ananda Marga photo really came from. Absent means "anandamarga.org" (its own gallery or news).
+ * "sister-site": gallery file taken from another Ananda Marga site (yogamonastery.org, anandasambhuti.org).
+ * "unconfirmed": uploaded without a known source. For the last two the permission scope is still to be confirmed.
+ * Metadata only; picking rules do not look at it.
+ */
+export type PhotoProvenance = "anandamarga.org" | "sister-site" | "unconfirmed"
+
 export const PHOTO_MOODS: readonly PhotoMood[] = ["morning", "evening", "night", "long", "live", "festival", "calm"]
 
 export const UNSPLASH_LICENSE_NOTE = "Unsplash License: free to use, credit appreciated but not required"
@@ -30,7 +38,7 @@ export const AM_LICENSE_NOTE = "Ananda Marga's own photograph, used with the org
 export type StockPhotoMeta = {
   /** `<nn>-<slug>` (Unsplash) or `am-<n>-<slug>` (Ananda Marga); also the file name without .jpg */
   id: string
-  /** number in Dada's shortlist; Unsplash 2..36, Ananda Marga 103..164 */
+  /** number in Dada's shortlist; Unsplash 2..36, Ananda Marga 54..164 (gallery g-number) or 1001..1052 (1000 + candidate number, see amPhotoData.ts) */
   n: number
   slug: string
   category: PhotoCategory
@@ -53,6 +61,8 @@ export type StockPhotoMeta = {
   height: number
   /** long side under 1000 px: only for small covers and thumbnails, never a full-bleed hero */
   lowRes?: boolean
+  /** Ananda Marga photos only; see PhotoProvenance */
+  provenance?: PhotoProvenance
 }
 
 type UnsplashRaw = Pick<StockPhotoMeta, "id" | "n" | "slug" | "category" | "title" | "photographer" | "pageUrl" | "tint" | "tone" | "moods"> & {
@@ -61,7 +71,7 @@ type UnsplashRaw = Pick<StockPhotoMeta, "id" | "n" | "slug" | "category" | "titl
 /** Ananda Marga entries (amPhotoData.ts) carry only what differs per photo; the rest is filled in below. */
 export type AmPhotoRaw = Pick<
   StockPhotoMeta,
-  "id" | "n" | "slug" | "category" | "title" | "credit" | "pageUrl" | "tint" | "tone" | "moods" | "people" | "width" | "height" | "lowRes"
+  "id" | "n" | "slug" | "category" | "title" | "credit" | "pageUrl" | "tint" | "tone" | "moods" | "people" | "width" | "height" | "lowRes" | "provenance"
 >
 
 const UNSPLASH_RAW: readonly UnsplashRaw[] = [

@@ -12,7 +12,14 @@ const root = path.resolve(__dirname, "..")
 
 const UNSPLASH = STOCK_PHOTO_META.filter((p) => p.source === "unsplash")
 const AM = STOCK_PHOTO_META.filter((p) => p.source === "ananda-marga")
-const AM_CHOSEN = [103, 104, 107, 109, 111, 112, 116, 117, 119, 120, 123, 124, 125, 126, 127, 128, 129, 132, 138, 140, 150, 164]
+/** The first 22 are Dada's earlier gallery choice; 54..146 are 9 more gallery g-numbers, 1001..1052 are 1000 + candidate number (non-gallery sources). */
+const AM_CHOSEN = [
+  54, 63, 70, 103, 104, 107, 109, 111, 112, 116, 117, 119, 120, 123, 124, 125, 126, 127, 128, 129, 132, 138, 139, 140, 141, 142, 143, 145, 146, 150, 164,
+  1001, 1002, 1007, 1008, 1019, 1043, 1046, 1048, 1049, 1052,
+]
+const AM_COOL = [150, 1019, 1043, 1048, 1049]
+const AM_SISTER_SITE = [1001, 1002, 1007, 1052]
+const AM_UNCONFIRMED = [1008, 1019, 1043, 1046, 1048, 1049]
 const AM_NOT_CHOSEN = [108, 121]
 const SEEDS = Array.from({ length: 300 }, (_, i) => `seed-${i}`)
 
@@ -33,12 +40,12 @@ function jpegSize(file: string): { width: number; height: number } {
 }
 
 describe("stock photo data", () => {
-  it("has 27 Unsplash and 22 Ananda Marga photos with unique ids and numbers", () => {
+  it("has 27 Unsplash and 41 Ananda Marga photos with unique ids and numbers", () => {
     expect(UNSPLASH).toHaveLength(27)
-    expect(AM).toHaveLength(22)
-    expect(STOCK_PHOTO_META).toHaveLength(49)
-    expect(new Set(STOCK_PHOTO_META.map((p) => p.id)).size).toBe(49)
-    expect(new Set(STOCK_PHOTO_META.map((p) => p.n)).size).toBe(49)
+    expect(AM).toHaveLength(41)
+    expect(STOCK_PHOTO_META).toHaveLength(68)
+    expect(new Set(STOCK_PHOTO_META.map((p) => p.id)).size).toBe(68)
+    expect(new Set(STOCK_PHOTO_META.map((p) => p.n)).size).toBe(68)
   })
 
   it("holds exactly the chosen Ananda Marga photos and not the rejected ones", () => {
@@ -47,9 +54,19 @@ describe("stock photo data", () => {
     for (const p of AM) expect(p.id).toBe(`am-${p.n}-${p.slug}`)
   })
 
-  it("marks exactly 17, 19, 22, 23 of the Unsplash photos as cool, and only 150 (blue stage) of Ananda Marga's", () => {
+  it("marks exactly 17, 19, 22, 23 of the Unsplash photos as cool, and of Ananda Marga's 150 (blue stage) and the blue sky and mountain photos 1019, 1043, 1048, 1049", () => {
     expect(UNSPLASH.filter((p) => p.tone === "cool").map((p) => p.n)).toEqual(COOL)
-    expect(AM.filter((p) => p.tone === "cool").map((p) => p.n)).toEqual([150])
+    expect(AM.filter((p) => p.tone === "cool").map((p) => p.n)).toEqual(AM_COOL)
+  })
+
+  it("records provenance for the 19 added photos only: gallery ones are anandamarga.org, the rest sister-site or unconfirmed", () => {
+    const added = AM.filter((p) => p.provenance !== undefined)
+    expect(added).toHaveLength(19)
+    expect(added.filter((p) => p.provenance === "sister-site").map((p) => p.n)).toEqual(AM_SISTER_SITE)
+    expect(added.filter((p) => p.provenance === "unconfirmed").map((p) => p.n)).toEqual(AM_UNCONFIRMED)
+    expect(added.filter((p) => p.provenance === "anandamarga.org").map((p) => p.n).sort((a, b) => a - b)).toEqual([54, 63, 70, 139, 141, 142, 143, 145, 146])
+    expect(AM.filter((p) => p.provenance === undefined)).toHaveLength(22)
+    expect(UNSPLASH.every((p) => p.provenance === undefined)).toBe(true)
   })
 
   it("has a cover and a thumb on disk for every photo, and a hex tint", () => {
@@ -82,12 +99,15 @@ describe("stock photo data", () => {
   it("marks lowRes exactly when the long side is under 1000 px (140 and 164)", () => {
     for (const p of STOCK_PHOTO_META) expect(Boolean(p.lowRes), p.id).toBe(Math.max(p.width, p.height) < 1000)
     expect(STOCK_PHOTO_META.filter((p) => p.lowRes).map((p) => p.n)).toEqual([140, 164])
+    expect(STOCK_PHOTO_META.find((p) => p.n === 1001)?.lowRes).toBeUndefined() // 1297 x 684: long side is enough
   })
 
   it("tags every photo with people; every child photo is tagged children, hands and objects none", () => {
     for (const p of STOCK_PHOTO_META) expect(["none", "far", "close", "children"]).toContain(p.people)
     for (const p of STOCK_PHOTO_META.filter((q) => q.category === "children")) expect(p.people).toBe("children")
     for (const n of [107, 116, 119, 120, 127]) expect(STOCK_PHOTO_META.find((p) => p.n === n)?.people).toBe("children")
+    expect(STOCK_PHOTO_META.find((p) => p.n === 1046)?.people).toBe("close") // face close up: never picked by default
+    for (const n of [139, 141, 145]) expect(STOCK_PHOTO_META.find((p) => p.n === n)?.people).toBe("none")
     for (const p of STOCK_PHOTO_META.filter((q) => ["hands", "sound", "light"].includes(q.category))) expect(p.people).toBe("none")
   })
 
@@ -99,7 +119,7 @@ describe("stock photo data", () => {
   })
 
   it("credits list every photo with a credit line, link and licence", () => {
-    expect(STOCK_PHOTO_CREDITS).toHaveLength(49)
+    expect(STOCK_PHOTO_CREDITS).toHaveLength(68)
     for (const c of STOCK_PHOTO_CREDITS) {
       expect(c.credit.length).toBeGreaterThan(10)
       expect(c.licenseNote.length).toBeGreaterThan(10)
@@ -188,7 +208,7 @@ describe("picking", () => {
     expect(groupByCategory(STOCK_PHOTO_META, "sound").map((p) => p.n)).toEqual([28, 29, 30, 31])
     expect(groupByCategory(STOCK_PHOTO_META, "children").map((p) => p.n)).toEqual([107, 116, 119, 120, 127])
     expect(groupByCategory(STOCK_PHOTO_META, "kiirtan").map((p) => p.n)).toEqual([132])
-    expect(groupByCategory(STOCK_PHOTO_META, "building")).toEqual([])
+    expect(groupByCategory(STOCK_PHOTO_META, "building").map((p) => p.n)).toEqual([1052])
     expect(groupByCategory(STOCK_PHOTO_META, "space")).toEqual([])
   })
 
