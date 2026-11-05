@@ -92,4 +92,10 @@ describe("app.json native config", () => {
     expect(png.readUInt32BE(20)).toBe(1024)
     expect(png[25]).toBe(6) // RGBA: the background is transparent, Android tints the shape
   })
+
+  it("numbers store builds on the EAS server, not by hand", () => {
+    const eas = JSON.parse(readFileSync(path.resolve(__dirname, "../eas.json"), "utf8"))
+    expect(eas.cli.appVersionSource).toBe("remote")
+    expect(eas.build.production.autoIncrement).toBe(true)
+  })
 })
