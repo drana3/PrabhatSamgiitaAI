@@ -42,4 +42,16 @@ describe("app.json native config", () => {
     const picker = plugin("expo-image-picker") as [string, { photosPermission?: string }]
     expect(picker[1].photosPermission).toMatch(/profile picture/)
   })
+
+  it("declares iOS required-reason APIs in the privacy manifest with valid reason codes", () => {
+    const manifest = (expo.ios as { privacyManifests?: { NSPrivacyAccessedAPITypes: Array<Record<string, unknown>> } })
+      .privacyManifests
+    const byType = new Map(
+      manifest!.NSPrivacyAccessedAPITypes.map((e) => [e.NSPrivacyAccessedAPIType, e.NSPrivacyAccessedAPITypeReasons]),
+    )
+    expect(byType.get("NSPrivacyAccessedAPICategoryFileTimestamp")).toEqual(["C617.1"])
+    expect(byType.get("NSPrivacyAccessedAPICategoryUserDefaults")).toEqual(["CA92.1"])
+    expect(byType.get("NSPrivacyAccessedAPICategorySystemBootTime")).toEqual(["35F9.1"])
+    expect(byType.get("NSPrivacyAccessedAPICategoryDiskSpace")).toEqual(["E174.1"])
+  })
 })
