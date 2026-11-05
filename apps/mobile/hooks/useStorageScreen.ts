@@ -45,7 +45,7 @@ export function useStorageScreen() {
   const [pending, setPending] = useState<ClearPlan | null>(null)
   const [toast, setToast] = useState<StorageToast | null>(null)
   const toastSeq = useRef(0)
-  const trimming = useRef(false)
+  const askedTrim = useRef("")
 
   const limit = cacheLimitById(limitId)
   const total = useMemo(() => totalBytes(items), [items])
@@ -98,18 +98,23 @@ export function useStorageScreen() {
     }
   }, [])
 
-  // When the limit is full, the oldest downloads go first; songs saved to Mine stay.
+  // Over the limit: the oldest downloads are proposed (songs saved to Mine stay) and the listener
+  // confirms. Nothing is deleted without asking. Cancelling is remembered until the list changes.
   useEffect(() => {
-    if (!scanned || !limitLoaded || trimming.current) return
+    if (!scanned || !limitLoaded) return
     const keys = planTrim(items, limit.bytes, savedNumbers)
-    if (keys.length === 0) return
+    if (keys.length === 0) {
+      askedTrim.current = ""
+      return
+    }
+    const signature = keys.join("|")
+    if (askedTrim.current === signature) return
+    askedTrim.current = signature
     const freed = totalBytes(items.filter((item: StorageItem) => keys.includes(item.key)))
-    trimming.current = true
-    void removeKeys(keys).then(() => {
-      trimming.current = false
-      showToast(t("storage.toast.fit", { cleared: clearedToast(freed), limit: limit.label }))
-    })
-  }, [items, scanned, limitLoaded, limit, savedNumbers, removeKeys, showToast])
+    setSelected(keys)
+    setPending({ mode: "selected", keys, freedBytes: freed })
+    showToast(t("storage.toast.over", { limit: limit.label }))
+  }, [items, scanned, limitLoaded, limit, savedNumbers, showToast])
 
   const chooseLimit = useCallback((id: CacheLimitId) => {
     setLimitId(id)

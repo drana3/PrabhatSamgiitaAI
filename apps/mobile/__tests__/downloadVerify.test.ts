@@ -105,6 +105,7 @@ describe("partial files", () => {
 describe("failureMessageKey", () => {
   it("words each reason", () => {
     expect(failureMessageKey("no-space")).toBe("dl.toast.noSpace")
+    expect(failureMessageKey("limit")).toBe("dl.toast.limit")
     expect(failureMessageKey("offline")).toBe("dl.toast.offline")
     expect(failureMessageKey("stalled")).toBe("dl.toast.offline")
     expect(failureMessageKey("http")).toBe("dl.toast.error")

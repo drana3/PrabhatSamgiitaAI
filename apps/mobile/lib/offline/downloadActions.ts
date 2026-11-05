@@ -14,7 +14,9 @@ import { t } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { hasPlayableAudio } from "@/lib/playableAudio"
 import { demoDownloadKey, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
-import { scanOfflineStorage } from "@/lib/storageScan"
+import { readCacheLimit, scanOfflineStorage } from "@/lib/storageScan"
+import { cacheLimitById, limitAllowsDownload, totalBytes } from "@/lib/storageCache"
+import { DownloadError } from "@/lib/offline/downloadVerify"
 import { useAuthStore } from "@/stores/authStore"
 import { useDownloadUiStore } from "@/stores/downloadUiStore"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -83,6 +85,21 @@ function reasonOf(items: readonly DownloadItem[]): DownloadFailure | null {
   return found
 }
 
+/**
+ * The limit chosen in Storage counts at download time too, not only when that screen is open.
+ * Nothing is deleted here: the listener is told and decides in Storage.
+ */
+async function storageLimitReached(): Promise<boolean> {
+  try {
+    const limit = cacheLimitById(await readCacheLimit()).bytes
+    if (limit == null) return false
+    const items = await scanOfflineStorage(useOfflineAudioStore.getState().files)
+    return !limitAllowsDownload(totalBytes(items), limit)
+  } catch {
+    return false
+  }
+}
+
 /** One download to the end. True when it went well or was cancelled, false when it failed. */
 async function runOne(item: DownloadItem): Promise<boolean> {
   if (MOCKUP_DATA) {
@@ -101,6 +118,7 @@ async function runOne(item: DownloadItem): Promise<boolean> {
   }
   try {
     await ensureOfflineAudioReady()
+    if (await storageLimitReached()) throw new DownloadError("limit")
     await useOfflineAudioStore.getState().download(itemAudioUrl(item), item.number, { userInitiated: true })
     return true
   } catch (error) {

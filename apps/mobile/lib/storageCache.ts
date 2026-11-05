@@ -63,6 +63,12 @@ export function totalBytes(items: readonly StorageItem[]): number {
   return items.reduce((sum, item) => sum + (item.bytes > 0 ? item.bytes : 0), 0)
 }
 
+/** A new download may start only while the downloads on the phone are under the listener's limit. */
+export function limitAllowsDownload(usedBytes: number, limitBytes: number | null): boolean {
+  if (limitBytes == null) return true
+  return usedBytes < limitBytes
+}
+
 /** Fill of the usage bar, 0 to 1. No limit means an empty bar. */
 export function usageRatio(total: number, limitBytes: number | null): number {
   if (limitBytes == null || limitBytes <= 0 || total <= 0) return 0

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   CACHE_LIMITS,
   GB,
+  limitAllowsDownload,
   MB,
   allSelected,
   cacheLimitById,
@@ -180,3 +181,16 @@ describe("planTrim", () => {
     expect(planTrim(items, 1, new Set([1, 2, 3]))).toEqual([])
   })
 })
+
+describe("the limit at download time (checkup D8)", () => {
+  it("lets a download start only while the downloads are under the limit", () => {
+    expect(limitAllowsDownload(0, GB)).toBe(true)
+    expect(limitAllowsDownload(GB - 1, GB)).toBe(true)
+    expect(limitAllowsDownload(GB, GB)).toBe(false)
+    expect(limitAllowsDownload(5 * GB, GB)).toBe(false)
+  })
+  it("has no ceiling without a limit", () => {
+    expect(limitAllowsDownload(50 * GB, null)).toBe(true)
+  })
+})
+
