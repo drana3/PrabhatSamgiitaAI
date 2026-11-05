@@ -705,7 +705,7 @@ export default function PlayerV2Screen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.column, { paddingTop: insets.top || playerSize.topBand, paddingBottom: playerSize.tabBarClearance }]}>
+      <View style={[styles.column, { paddingTop: insets.top || playerSize.topBand, paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
         <GestureDetector gesture={headGesture}>
           <View collapsable={false}>
             <Reveal index={0}>
@@ -763,7 +763,7 @@ export default function PlayerV2Screen() {
             <GestureDetector gesture={titleGesture}>
               <View collapsable={false}>
                 <Reveal index={isK && !drive ? 2 : 1}>
-                  <View style={styles.titleBlock}>
+                  <View style={[styles.titleBlock, isK && !drive ? styles.titleBlockUnderCover : null]}>
                     <Text style={styles.title} accessibilityRole="header">
                       {song.title}
                     </Text>
@@ -1068,6 +1068,8 @@ const styles = StyleSheet.create({
   sourceText: { ...amType.label, color: amColors.white, textAlign: "center" },
   aboutWrap: { marginTop: 10 },
   titleBlock: { paddingHorizontal: 20, gap: 12, marginTop: playerSize.titleLift },
+  // A Kiirtan has a square cover above the title (a song has the photograph): keep a clear gap under it.
+  titleBlockUnderCover: { marginTop: 20 },
   title: {
     fontFamily: amFonts.display,
     fontSize: playerSize.titleFont,
