@@ -94,7 +94,7 @@ describe("Mine", () => {
     expect(rows[1].title).toBe("Prabhat Samgiita 9")
   })
   it("has the fixed copy", () => {
-    expect(MINE_COPY.savedEmpty).toBe("Tap the heart on any song to keep it here.")
+    expect(MINE_COPY.savedEmpty).toBe("Tap the + on any song to keep it here.")
     expect(MINE_COPY.playlistCaption.startsWith("A playlist is a list of songs you put together yourself")).toBe(true)
     expect(playlistEyebrow(9)).toBe("9 songs · made by you")
     expect(playlistEyebrow(1)).toBe("1 song · made by you")

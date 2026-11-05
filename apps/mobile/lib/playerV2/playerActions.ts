@@ -61,7 +61,7 @@ export function buildActionRows(input: ActionInput): ActionRow[] {
     { id: "share", label: "Share", icon: "share" },
     {
       id: "save",
-      label: input.saved ? "Saved" : "Save to my songs",
+      label: input.saved ? "Saved" : "Save to…",
       meta: input.saved ? "Tap to change where it is saved" : undefined,
       icon: "save",
       active: input.saved,

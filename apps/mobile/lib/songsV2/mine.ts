@@ -2,7 +2,7 @@ import { placeholderEntry, rowEyebrow, type CatalogEntry } from "./entry"
 
 /** Copy fixed by spec SCR-11 item 7. */
 export const MINE_COPY = {
-  savedEmpty: "Tap the heart on any song to keep it here.",
+  savedEmpty: "Tap the + on any song to keep it here.",
   playlistCaption:
     "A playlist is a list of songs you put together yourself, for example for a morning meditation or an evening kiirtan.",
   newPlaylist: "New playlist",

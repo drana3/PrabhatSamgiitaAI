@@ -27,6 +27,8 @@ import { LyricsPanel } from "@/components/player-v2/LyricsPanel"
 import { PlaybackSheet } from "@/components/player-v2/PlaybackSheet"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { PlayerToast, usePlayerToast } from "@/components/player-v2/PlayerToast"
+import { SaveButton } from "@/components/save/SaveButton"
+import { SaveHost } from "@/components/save/SaveHost"
 import { PlaylistSheet, type PlaylistSheetRow } from "@/components/player-v2/PlaylistSheet"
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { QueueSheet, splitQueue, type QueueRow } from "@/components/player-v2/QueueSheet"
@@ -44,6 +46,7 @@ import { amSpring, projectMomentum } from "@/constants/tokens/amMotion"
 import { allCollections } from "@/data/collections"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useSaveState } from "@/hooks/useSaveState"
 import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
 import { artistForAuthor, kiirtanSubtitle } from "@/lib/kirtan/artists"
@@ -54,7 +57,6 @@ import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { isKiirtanNumber, isKiirtanSong } from "@/lib/kirtan/track"
 import { rubberBand } from "@/lib/navV2"
 import { formatClock } from "@/lib/playerV2/transportState"
-import { useKirtanStore } from "@/stores/kirtanStore"
 import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
 import { mockupSong } from "@/lib/fixtures/songMockup"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
@@ -91,6 +93,7 @@ import {
   type ActionId,
 } from "@/lib/playerV2/playerActions"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
+import type { SaveItem } from "@/lib/save/saveToSheet"
 import { buildSharePayload, shareToast, type SharePayload, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { formatRate, nextRate } from "@/lib/playerV2/playbackSpeed"
 import { sourceLabel } from "@/lib/playerV2/queueOps"
@@ -113,6 +116,7 @@ import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { openSaveSheet } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
 
 type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "source" | "playlist" | "actions" | "share" | "about"
@@ -164,7 +168,6 @@ export default function PlayerV2Screen() {
 
   const v2 = usePlayerV2Store()
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
-  const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
   const playlists = usePlaylistStore((s) => s.playlists)
   const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
   const addSong = usePlaylistStore((s) => s.addSong)
@@ -185,7 +188,6 @@ export default function PlayerV2Screen() {
   const reduce = useReducedMotion()
   const isK = isKiirtanSong(song)
   const kiirtanId = song?.kiirtan?.id ?? null
-  const kiirtanSaved = useKirtanStore((s) => (kiirtanId ? s.savedIds.includes(kiirtanId) : false))
 
   // Queue numbers of Kiirtans can be turned back into tracks (next, previous, the queue sheet).
   useEffect(() => {
@@ -370,7 +372,13 @@ export default function PlayerV2Screen() {
     }
     return set
   }, [savedSongIds])
-  const isSaved = song ? (isK ? kiirtanSaved : savedSongIds.includes(song.id)) : false
+  /** The song or Kiirtan this screen is playing, for the circle-plus and the "Save to" sheet. */
+  const saveItem: SaveItem | null = song
+    ? isK && kiirtanId
+      ? { kind: "kiirtan", id: kiirtanId }
+      : { kind: "song", number: song.number }
+    : null
+  const isSaved = useSaveState(saveItem).saved
 
   const list = song
     ? activeQueue({ currentSong: song, queue, playbackMode, playlistBounds, position })
@@ -474,22 +482,6 @@ export default function PlayerV2Screen() {
   }
   const onShuffle = () => {
     queueActions.toggleShuffle()
-  }
-  /** `silent`: the row in the More sheet changes its own label, so no toast over the sheet. */
-  const onFavourite = (silent = false) => {
-    if (!song) return
-    const wasSaved = isSaved
-    if (isK && kiirtanId) {
-      const nowSaved = useKirtanStore.getState().toggleSaved(kiirtanId)
-      if (!silent) toast.show(nowSaved ? "Saved" : "Removed from saved")
-      return
-    }
-    void toggleSaved(song.id).then((result) => {
-      if (result.needsAuth) {
-        setSheet(null)
-        router.push(href("/signin"))
-      } else if (!silent) toast.show(wasSaved ? "Removed from Mine" : "Saved to Mine")
-    })
   }
   const onSeekLine = (index: number) => {
     const target = seekTargetForLine(timings, index)
@@ -623,7 +615,9 @@ export default function PlayerV2Screen() {
       case "share":
         return setSheet("share")
       case "save":
-        return onFavourite(true)
+        setSheet(null)
+        if (saveItem) openSaveSheet(saveItem)
+        return
       case "playlist":
         return setSheet("playlist")
       case "queue": {
@@ -865,14 +859,11 @@ export default function PlayerV2Screen() {
                 </Reveal>
                 <Reveal index={5}>
                   <View style={styles.iconRow}>
-                    <UtilButton label={isSaved ? (isK ? "Remove from saved" : "Remove from Mine") : isK ? "Save" : "Save to Mine"} onPress={() => onFavourite()}>
-                      <PlayerIcon
-                        name="heart"
-                        size={playerSize.utilGlyph}
-                        color={isSaved ? playerColors.brand : playerColors.utilIcon}
-                        filled={isSaved}
-                      />
-                    </UtilButton>
+                    <View style={styles.util}>
+                      {saveItem ? (
+                        <SaveButton item={saveItem} size={28} color={playerColors.utilIcon} title={songTitle} hit={playerSize.util} />
+                      ) : null}
+                    </View>
                     <UtilButton label="Queue" onPress={() => setSheet("queue")}>
                       <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
@@ -896,6 +887,8 @@ export default function PlayerV2Screen() {
       </Animated.View>
 
       <PlayerToast message={toast.message} theme={theme} />
+      {/* The full player is a native modal on iOS and hides the root, so it draws the Save to sheet itself. */}
+      <SaveHost />
 
       {!isK ? (
       <VersionsSheet

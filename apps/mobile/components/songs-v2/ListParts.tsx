@@ -4,7 +4,8 @@ import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
-import { BackGlyph, HeartGlyph, PlayGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
+import { BackGlyph, PlayGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
+import { SaveMark } from "@/components/save/SaveMark"
 import { DotsIcon, DownloadIcon, PauseIcon, ShuffleIcon } from "@/components/songs-v2/ListIcons"
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
@@ -315,7 +316,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
             <Text style={[styles.rowSub, { color: theme.textBody }]} numberOfLines={1}>
               {sub}
             </Text>
-            {saved ? <HeartGlyph size={13} color={theme.brand} filled strokeWidth={2} /> : null}
+            {saved ? <SaveMark on size={14} /> : null}
             {download === "done" ? (
               <DownloadIcon state="done" size={14} color={theme.textBody} fill={theme.brand} onFill={ON_ACTION} />
             ) : null}

@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native"
 import { KPress } from "@/components/kirtan/KPress"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { ShareTargetIcon } from "@/components/player-v2/ShareTargetIcon"
+import { SaveMark } from "@/components/save/SaveMark"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -61,8 +62,8 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
         <MenuRow theme={theme} label="Add to playlist" icon={<PlayerIcon name="playlistAdd" size={22} color={ink} />} onPress={act(onAddToPlaylist)} />
         <MenuRow
           theme={theme}
-          label={saved ? "Remove from saved" : "Save"}
-          icon={<PlayerIcon name="heart" size={22} color={saved ? theme.accent : ink} filled={saved} />}
+          label={saved ? "Saved. Change" : "Save to…"}
+          icon={<SaveMark on={saved} size={22} color={ink} />}
           onPress={act(onToggleSave)}
         />
         <MenuRow theme={theme} label="Share" icon={<PlayerIcon name="share" size={22} color={ink} />} onPress={act(onShare)} />

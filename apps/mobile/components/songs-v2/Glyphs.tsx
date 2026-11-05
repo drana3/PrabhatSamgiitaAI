@@ -15,23 +15,6 @@ function Stroke({ d, size = 22, color, strokeWidth = 1.75 }: GlyphProps & { d: s
   )
 }
 
-const HEART = "M12 20s-7-4.4-7-10a4 4 0 017-2.5A4 4 0 0119 10c0 5.6-7 10-7 10z"
-
-export function HeartGlyph({ size = 22, color, filled, strokeWidth = 1.75 }: GlyphProps & { filled?: boolean }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d={HEART}
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={filled ? color : "none"}
-      />
-    </Svg>
-  )
-}
-
 /** `.f` class: filled with currentColor, no stroke. */
 export function PlayGlyph({ size = 18, color }: GlyphProps) {
   return (

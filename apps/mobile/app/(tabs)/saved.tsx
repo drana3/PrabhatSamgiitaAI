@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
-import { Heart, Play } from "lucide-react-native"
+import { CirclePlus, Play } from "lucide-react-native"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
@@ -169,12 +169,12 @@ export default function SavedScreen() {
       {viewState === "loading" ? null : viewState === "empty" ? (
         <EmptyState
           title="No saved songs yet"
-          description="Open a song and tap the heart (♥) at the top. Your list appears here in the Saved tab."
+          description="Open a song and tap the + at the top. Your list appears here in the Saved tab."
           actionLabel={mode === "guest" ? "Login / Sign Up" : undefined}
           onAction={mode === "guest" ? () => router.push(href("/signin")) : undefined}
           illustration={
             <View style={styles.illustration}>
-              <Heart size={36} color={colors.lotusPink} fill={colors.lotusPink} />
+              <CirclePlus size={36} color={colors.lotusPink} />
             </View>
           }
         />

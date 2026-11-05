@@ -4,7 +4,6 @@ import {
   Check,
   Download,
   EyeOff,
-  Heart,
   ListEnd,
   ListPlus,
   ListStart,
@@ -14,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react-native"
 
+import { SaveMark } from "@/components/save/SaveMark"
 import { BottomSheet } from "@/components/songs-v2/BottomSheet"
 import { BackGlyph } from "@/components/songs-v2/Glyphs"
 import { SongCover } from "@/components/songs-v2/ListParts"
@@ -102,9 +102,9 @@ export function SongMenuSheet(props: SongMenuProps) {
           <Row theme={theme} label="Add to queue" icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onQueue)} />
           <Row
             theme={theme}
-            label={saved ? "Saved" : "Save to my songs"}
-            meta={saved ? "Tap to remove" : undefined}
-            icon={<Heart size={ICON} strokeWidth={STROKE} color={saved ? theme.brand : theme.textHeading} fill={saved ? theme.brand : "none"} />}
+            label={saved ? "Saved" : "Save to…"}
+            meta={saved ? "Tap to change where it is saved" : undefined}
+            icon={<SaveMark on={saved} size={ICON} color={theme.textHeading} />}
             onPress={act(props.onToggleSave)}
           />
           <Row

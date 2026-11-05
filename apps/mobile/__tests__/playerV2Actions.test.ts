@@ -46,7 +46,7 @@ describe("More sheet rows", () => {
   it("turns Save into Saved, in orange", () => {
     const off = buildActionRows(base).find((r) => r.id === "save")!
     const on = buildActionRows({ ...base, saved: true }).find((r) => r.id === "save")!
-    expect(off).toMatchObject({ label: "Save to my songs", active: false })
+    expect(off).toMatchObject({ label: "Save to…", active: false })
     expect(on).toMatchObject({ label: "Saved", active: true })
   })
 
