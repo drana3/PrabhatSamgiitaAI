@@ -13,6 +13,7 @@ import { artistForAuthor } from "@/lib/kirtan/artists"
 import { kindTag } from "@/lib/kirtan/kind"
 import { kirtanRowLabel, kirtanSubline } from "@/lib/kirtan/list"
 import { STATUS_LABEL, type Kirtan, type KirtanStatus, type RecordingKind } from "@/lib/kirtan/types"
+import { useT } from "@/lib/i18n"
 
 /* ------------------------------------------------------------------ glyphs */
 
@@ -59,6 +60,7 @@ export function PsTag({ theme, number }: { theme: SongsTheme; number: number }) 
 }
 
 export function StatusBadge({ theme, status }: { theme: SongsTheme; status: KirtanStatus }) {
+  const t = useT()
   const tone =
     status === "approved"
       ? { bg: theme.oliveBg, fg: theme.oliveText }
@@ -130,6 +132,7 @@ export function KirtanRow({
   trailing?: ReactNode
   compact?: boolean
 }) {
+  const t = useT()
   const thumb = compact ? 36 : 60
   return (
     <View style={[styles.row, compact && styles.rowCompact, { backgroundColor: theme.card, borderColor: theme.line }]}>
@@ -160,7 +163,7 @@ export function KirtanRow({
       </KPress>
       {trailing ??
         (onMore ? (
-          <KPress accessibilityRole="button" accessibilityLabel={`More actions for ${kirtan.title}`} onPress={() => onMore(kirtan)} pressedScale={0.88} style={styles.more}>
+          <KPress accessibilityRole="button" accessibilityLabel={t("kt.moreFor", { title: kirtan.title })} onPress={() => onMore(kirtan)} pressedScale={0.88} style={styles.more}>
             <MoreGlyph color={theme.textBody} />
           </KPress>
         ) : null)}
@@ -170,6 +173,7 @@ export function KirtanRow({
 
 /** The artist name of a Kiirtan: tappable (opens the artist page) when it is a known artist, plain text otherwise. */
 export function ArtistLink({ theme, author, onOpenArtist }: { theme: SongsTheme; author: string; onOpenArtist?: (artistId: string) => void }) {
+  const t = useT()
   const artist = artistForAuthor(ARTIST_FIXTURES, author)
   if (!author.trim()) return null
   if (!artist || !onOpenArtist) {
@@ -180,7 +184,7 @@ export function ArtistLink({ theme, author, onOpenArtist }: { theme: SongsTheme;
     )
   }
   return (
-    <KPress accessibilityRole="link" accessibilityLabel={`Artist ${artist.name}`} onPress={() => onOpenArtist(artist.id)} pressedScale={0.96} hitSlop={8}>
+    <KPress accessibilityRole="link" accessibilityLabel={t("kt.artistA11y", { name: artist.name })} onPress={() => onOpenArtist(artist.id)} pressedScale={0.96} hitSlop={8}>
       <Text style={[styles.artistLink, { color: theme.textHeading }]} numberOfLines={1}>
         {artist.name}
       </Text>

@@ -13,6 +13,7 @@ import { kindLabel } from "@/lib/kirtan/kind"
 import { kiirtanDownloadItem } from "@/lib/offline/downloadItems"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { SHARE_TARGETS, type ShareTargetId } from "@/lib/playerV2/playerShare"
+import { useT } from "@/lib/i18n"
 
 type MenuProps = {
   open: boolean
@@ -44,6 +45,7 @@ function MenuRow({ theme, label, icon, onPress }: { theme: SongsTheme; label: st
 
 /** The row menu of a kirtan: Play next, Add to playlist, Save, Download, Share, Report. */
 export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddToPlaylist, onToggleSave, onShare, onReport, onClose }: MenuProps) {
+  const t = useT()
   // keep the last kirtan while the sheet slides out, so its title does not vanish mid-exit
   const last = useRef<Kirtan | null>(null)
   if (kirtan) last.current = kirtan
@@ -55,26 +57,26 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
   const ink = theme.textHeading
   const downloadItem = useMemo(() => (shown ? kiirtanDownloadItem(shown) : null), [shown])
   return (
-    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow={kindLabel(shown?.kind)} accessibilityLabel={`${kindLabel(shown?.kind)} actions`}>
+    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow={kindLabel(shown?.kind)} accessibilityLabel={t("kt.menu.actions", { kind: kindLabel(shown?.kind) })}>
       {shown ? (
         <Text style={[styles.menuTitle, { color: theme.textHeading }]} numberOfLines={3}>
           {shown.title}
         </Text>
       ) : null}
       <View style={styles.stack}>
-        <MenuRow theme={theme} label="Play next" icon={<PlayerIcon name="queueAdd" size={22} color={ink} />} onPress={act(onPlayNext)} />
-        <MenuRow theme={theme} label="Add to playlist" icon={<PlayerIcon name="playlistAdd" size={22} color={ink} />} onPress={act(onAddToPlaylist)} />
+        <MenuRow theme={theme} label={t("songs.menu.playNext")} icon={<PlayerIcon name="queueAdd" size={22} color={ink} />} onPress={act(onPlayNext)} />
+        <MenuRow theme={theme} label={t("songs.menu.addTo")} icon={<PlayerIcon name="playlistAdd" size={22} color={ink} />} onPress={act(onAddToPlaylist)} />
         <MenuRow
           theme={theme}
-          label={saved ? "Saved. Change" : "Save to…"}
+          label={saved ? t("songs.menu.savedChange") : t("songs.menu.saveTo")}
           icon={<SaveMark on={saved} size={22} color={ink} />}
           onPress={act(onToggleSave)}
         />
         <DownloadMenuRow item={downloadItem} size={22} color={ink} track={theme.line} ring={theme.accentBright}>
           {(row) => <MenuRow theme={theme} label={row.label} icon={row.icon} onPress={() => { row.onPress(); onClose() }} />}
         </DownloadMenuRow>
-        <MenuRow theme={theme} label="Share" icon={<PlayerIcon name="share" size={22} color={ink} />} onPress={act(onShare)} />
-        <MenuRow theme={theme} label="Report" icon={<PlayerIcon name="flag" size={22} color={ink} />} onPress={act(onReport)} />
+        <MenuRow theme={theme} label={t("songs.menu.share")} icon={<PlayerIcon name="share" size={22} color={ink} />} onPress={act(onShare)} />
+        <MenuRow theme={theme} label={t("kt.menu.report")} icon={<PlayerIcon name="flag" size={22} color={ink} />} onPress={act(onReport)} />
       </View>
     </BottomSheet>
   )
@@ -82,17 +84,18 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
 
 /** Share targets of the player's share sheet, for a link to the Kiirtan. */
 export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { open: boolean; theme: SongsTheme; kirtan: Kirtan | null; onShare: (k: Kirtan, target: ShareTargetId) => void; onClose: () => void }) {
+  const t = useT()
   const last = useRef<Kirtan | null>(null)
   if (kirtan) last.current = kirtan
   const shown = kirtan ?? last.current
   return (
-    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow="Share" accessibilityLabel={`Share ${kindLabel(shown?.kind).toLowerCase()}`}>
+    <BottomSheet open={open && Boolean(kirtan)} onClose={onClose} theme={theme} eyebrow={t("songs.menu.share")} accessibilityLabel={t("kt.menu.shareA11y", { kind: kindLabel(shown?.kind) })}>
       {shown ? (
         <Text style={[styles.menuTitle, { color: theme.textHeading }]} numberOfLines={3}>
           {shown.title}
         </Text>
       ) : null}
-      <Text style={[styles.note, { color: theme.textBody }]}>Your friends get a link to this {kindLabel(shown?.kind)}.</Text>
+      <Text style={[styles.note, { color: theme.textBody }]}>{t("kt.menu.shareNote", { kind: kindLabel(shown?.kind) })}</Text>
       <View style={styles.grid}>
         {SHARE_TARGETS.filter((t) => !t.needsImage).map((target) => (
           <KPress

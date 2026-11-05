@@ -1,10 +1,11 @@
 import { formatKirtanLength } from "@/lib/kirtan/list"
 import type { Kirtan } from "@/lib/kirtan/types"
+import { t } from "@/lib/i18n"
 
 /** `Resume 4:18 of 12:40`. */
 export function resumeLabel(positionSec: number, durationSec: number | null): string {
   const at = formatKirtanLength(positionSec)
-  return durationSec ? `Resume ${at} of ${formatKirtanLength(durationSec)}` : `Resume ${at}`
+  return durationSec ? t("kt.resume", { at, total: formatKirtanLength(durationSec) }) : t("kt.resume.at", { at })
 }
 
 /** 0 to 1 of the way through; 0 while the length is unknown. */

@@ -5,6 +5,8 @@
  * TODO(api): the schedule comes from the backend; today it is the preview fixtures (lib/fixtures/kirtanLive.ts).
  */
 
+import { formatDate, t } from "@/lib/i18n"
+
 export type LivePlatform = "youtube" | "zoom"
 export type LiveStatus = "live" | "upcoming" | "ended"
 
@@ -48,9 +50,6 @@ export function liveNow<T extends Pick<LiveItem, "startsAt" | "durationMin" | "s
   return visibleLive(items, now).find((item) => liveStatus(item, now) === "live") ?? null
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const
-
 function dayStart(ms: number): number {
   const d = new Date(ms)
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
@@ -66,11 +65,10 @@ export function clockLabel(ms: number): string {
 export function whenLabel(startsAt: number, now: number): string {
   const days = Math.round((dayStart(startsAt) - dayStart(now)) / 86_400_000)
   const clock = clockLabel(startsAt)
-  if (days <= 0) return `Today ${clock}`
-  if (days === 1) return `Tomorrow ${clock}`
-  if (days < 7) return `${WEEKDAYS[new Date(startsAt).getDay()]} ${clock}`
-  const d = new Date(startsAt)
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${clock}`
+  if (days <= 0) return t("kt.live.today", { time: clock })
+  if (days === 1) return t("kt.live.tomorrow", { time: clock })
+  if (days < 7) return `${formatDate(startsAt, "weekdayShort")} ${clock}`
+  return `${formatDate(startsAt, "dayMonth")} ${clock}`
 }
 
 /** `Delhi group · YouTube`. */
@@ -81,7 +79,7 @@ export function hostLine(item: Pick<LiveItem, "host" | "platform">): string {
 
 /** Badge text of a card: `LIVE` or the start time. */
 export function liveBadge(item: Pick<LiveItem, "startsAt" | "durationMin" | "status">, now: number): string {
-  return liveStatus(item, now) === "live" ? "LIVE" : whenLabel(item.startsAt, now)
+  return liveStatus(item, now) === "live" ? t("kt.live.badge") : whenLabel(item.startsAt, now)
 }
 
 /** The official YouTube IFrame embed address. Nothing is downloaded or extracted. */
@@ -95,6 +93,6 @@ export function youtubeWatchUrl(id: string): string {
 
 /** The text a share carries (link text; the site has no page per broadcast yet). */
 export function liveShareMessage(item: Pick<LiveItem, "title" | "host" | "platform" | "startsAt" | "durationMin" | "status">, now: number, url: string): string {
-  const when = liveStatus(item, now) === "live" ? "live now" : whenLabel(item.startsAt, now)
-  return `Kiirtan live: ${item.title}, ${when}, ${hostLine(item)}.\n${url}`
+  const when = liveStatus(item, now) === "live" ? t("kt.live.shareNow") : whenLabel(item.startsAt, now)
+  return `${t("kt.live.share", { title: item.title, when, host: hostLine(item) })}\n${url}`
 }

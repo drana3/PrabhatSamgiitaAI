@@ -11,6 +11,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { hostLine, liveBadge, liveStatus, type LiveItem } from "@/lib/kirtan/live"
 import { moodForText, photoForSeed } from "@/lib/photos/catalog"
+import { useT } from "@/lib/i18n"
 
 export const LIVE_CARD = { w: 220, h: 124 } as const
 
@@ -76,13 +77,14 @@ export function LiveCard({
   theme: SongsTheme
   onOpen: (item: LiveItem) => void
 }) {
+  const t = useT()
   const live = liveStatus(item, now) === "live"
   const [from, to] = liveTone(item, now)
   return (
     <View style={styles.card}>
       <KPress
         accessibilityRole="button"
-        accessibilityLabel={`${live ? "Live now" : `Starts ${liveBadge(item, now)}`}: ${item.title}, ${hostLine(item)}. Open`}
+        accessibilityLabel={t("kt.live.cardA11y", { status: live ? t("kt.live.liveNow") : t("kt.live.starts", { when: liveBadge(item, now) }), title: item.title, host: hostLine(item) })}
         onPress={() => onOpen(item)}
         pressedScale={0.97}
         style={styles.press}

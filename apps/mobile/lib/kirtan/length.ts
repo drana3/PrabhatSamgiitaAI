@@ -1,13 +1,14 @@
 import type { Kirtan } from "@/lib/kirtan/types"
+import { t } from "@/lib/i18n"
 
 /**
  * "By length": the three chips of the Kiirtan tab. The first two are open on the upper side: a
  * Kiirtan of exactly 15 minutes is "15 to 60", exactly 60 minutes is "1 hour +". Pure.
  */
 export const LENGTH_BUCKETS = [
-  { id: "short", label: "Under 15 min", minSec: 0, maxSec: 15 * 60 },
-  { id: "mid", label: "15 to 60", minSec: 15 * 60, maxSec: 60 * 60 },
-  { id: "long", label: "1 hour +", minSec: 60 * 60, maxSec: Infinity },
+  { id: "short", get label() { return t("kt.len.short") }, minSec: 0, maxSec: 15 * 60 },
+  { id: "mid", get label() { return t("kt.len.mid") }, minSec: 15 * 60, maxSec: 60 * 60 },
+  { id: "long", get label() { return t("kt.len.long") }, minSec: 60 * 60, maxSec: Infinity },
 ] as const
 
 export type LengthBucketId = (typeof LENGTH_BUCKETS)[number]["id"]

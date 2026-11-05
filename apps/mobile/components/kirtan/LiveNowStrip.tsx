@@ -7,9 +7,11 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { amColors, amDarkSurface } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { LiveItem } from "@/lib/kirtan/live"
+import { useT } from "@/lib/i18n"
 
 /** Slim neutral strip (ink in Light, raised surface in Dark; bright orange only in the pulsing dot) under the chips of Today while something is live: `LIVE NOW · title`. It opens the live screen. */
 export function LiveNowStrip({ item, onOpen }: { item: LiveItem; onOpen: (item: LiveItem) => void }) {
+  const t = useT()
   const theme = useAmTheme()
   const dark = theme.page === amDarkSurface.page
   const bg = dark ? amDarkSurface.inner : amColors.ink900
@@ -17,7 +19,7 @@ export function LiveNowStrip({ item, onOpen }: { item: LiveItem; onOpen: (item: 
   return (
     <KPress
       accessibilityRole="button"
-      accessibilityLabel={`Live now: ${item.title}. Open`}
+      accessibilityLabel={t("kt.live.nowA11y", { title: item.title })}
       onPress={() => onOpen(item)}
       pressedScale={0.985}
       outerStyle={styles.outer}
@@ -25,7 +27,7 @@ export function LiveNowStrip({ item, onOpen }: { item: LiveItem; onOpen: (item: 
     >
       <LiveDot color={amColors.orange500} />
       <Text style={[styles.text, { color: fg }]} numberOfLines={1}>
-        <Text style={styles.bold}>LIVE NOW</Text>
+        <Text style={styles.bold}>{t("kt.live.strip")}</Text>
         {` · ${item.title}`}
       </Text>
       <View>

@@ -1,5 +1,6 @@
 import { kindLabel } from "@/lib/kirtan/kind"
 import { KIRTAN_TYPES, type Kirtan, type KirtanTypeFilter } from "@/lib/kirtan/types"
+import { t } from "@/lib/i18n"
 
 /** `12:40`, or `1:02:05` past an hour. */
 export function formatKirtanLength(seconds: number): string {
@@ -11,11 +12,17 @@ export function formatKirtanLength(seconds: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
 }
 
+/** A submission made by the listener is stored with the name "You"; show it in the app's language. */
+export function addedByName(raw: string): string {
+  const name = raw.trim()
+  return name === "You" ? t("kt.you") : name
+}
+
 /** `12:40 · added by Priya`. The KIIRTAN or BHAJAN tag is drawn beside it; length and person are left out when unknown. */
 export function kirtanSubline(k: Pick<Kirtan, "durationSec" | "addedBy">): string {
   const parts: string[] = []
   if (k.durationSec) parts.push(formatKirtanLength(k.durationSec))
-  if (k.addedBy.trim()) parts.push(`added by ${k.addedBy.trim()}`)
+  if (k.addedBy.trim()) parts.push(t("kt.addedBy", { name: addedByName(k.addedBy) }))
   return parts.join(" · ")
 }
 

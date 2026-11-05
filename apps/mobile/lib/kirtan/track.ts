@@ -1,6 +1,8 @@
 import type { MockSong } from "@/data/mock"
 import { kindLabel, kindTag, normalizeKind } from "@/lib/kirtan/kind"
+import { addedByName } from "@/lib/kirtan/list"
 import type { RecordingKind } from "@/lib/kirtan/types"
+import { t } from "@/lib/i18n"
 
 /**
  * A Kiirtan as a normal track of the one player.
@@ -140,11 +142,11 @@ export function recordingKindOfNumber(n: number): RecordingKind {
 export function kiirtanByline(addedBy: string | null | undefined, kind?: RecordingKind | null): string {
   const who = (addedBy ?? "").trim()
   const label = kindLabel(kind)
-  return who ? `${label} · added by ${who}` : label
+  return who ? t("kind.subtitle.addedBy", { kind: label, name: addedByName(who) }) : label
 }
 
 /** Tag text of a queue or list row: `PS`, `KIIRTAN` or `BHAJAN`. */
-export function trackTag(n: number): "PS" | "KIIRTAN" | "BHAJAN" {
+export function trackTag(n: number): string {
   return isKiirtanNumber(n) ? kindTag(recordingKindOfNumber(n)) : "PS"
 }
 

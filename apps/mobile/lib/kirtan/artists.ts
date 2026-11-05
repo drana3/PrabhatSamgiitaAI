@@ -1,4 +1,5 @@
 import type { Kirtan } from "@/lib/kirtan/types"
+import { t } from "@/lib/i18n"
 
 /**
  * Artists: the groups and singers behind the Kiirtans. A Kiirtan belongs to an artist when its
@@ -73,7 +74,7 @@ export function artistsWithKirtans<T extends Pick<Kirtan, "author">>(artists: re
 
 /** `1 kiirtan`, `5 kiirtans`. */
 export function artistCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "kiirtan" : "kiirtans"}`
+  return t("kind.kiirtan.count", { count })
 }
 
 /** Up to two capital letters for the gradient avatar: "Priya Devi" gives PD, "Festival Voices" gives FV. */
@@ -94,12 +95,12 @@ export function artistToneIndex(id: string): number {
 /** `Kiirtan · Priya Devi`: the player's subtitle when the artist is known, `Kiirtan · added by X` otherwise. */
 export function kiirtanSubtitle(author: string | null | undefined, addedBy: string | null | undefined, artists: readonly Artist[]): string {
   const artist = artistForAuthor(artists, author)
-  if (artist) return `Kiirtan · ${artist.name}`
+  if (artist) return `${t("kind.kiirtan")} · ${artist.name}`
   const who = (addedBy ?? "").trim()
-  return who ? `Kiirtan · added by ${who}` : "Kiirtan"
+  return who ? t("kind.subtitle.addedBy", { kind: t("kind.kiirtan"), name: who }) : t("kind.kiirtan")
 }
 
 /** The name after "Playing from" for an artist's queue. */
 export function artistSourceName(name: string): string {
-  return name.trim() || "Artist"
+  return name.trim() || t("kt.artistFallback")
 }

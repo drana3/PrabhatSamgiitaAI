@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /**
  * Kiirtans and Bhajans: devotional recordings, uploaded as audio files by their authors (and by the
  * team). They are ONE recordings system with two KINDS (`kind`): a Kiirtan is group chanting, a Bhajan
@@ -12,18 +13,18 @@ export type RecordingKind = (typeof RECORDING_KINDS)[number]
 export type KindFilter = RecordingKind | "all"
 
 export const KIRTAN_TYPES = [
-  { id: "bnk", label: "Baba Nam Kevalam" },
-  { id: "lila", label: "Lila kiirtan" },
-  { id: "festival", label: "Festival" },
-  { id: "other", label: "Other" },
+  { id: "bnk", get label() { return t("kt.type.bnk") } },
+  { id: "lila", get label() { return t("kt.type.lila") } },
+  { id: "festival", get label() { return t("kt.type.festival") } },
+  { id: "other", get label() { return t("kt.type.other") } },
 ] as const
 
 /** Types of a Bhajan: the time it is sung, devotional, or something else. "other" exists in both kinds. */
 export const BHAJAN_TYPES = [
-  { id: "morning", label: "Morning" },
-  { id: "evening", label: "Evening" },
-  { id: "devotional", label: "Devotional" },
-  { id: "other", label: "Other" },
+  { id: "morning", get label() { return t("kt.btype.morning") } },
+  { id: "evening", get label() { return t("kt.btype.evening") } },
+  { id: "devotional", get label() { return t("kt.btype.devotional") } },
+  { id: "other", get label() { return t("kt.type.other") } },
 ] as const
 
 export type KiirtanKindTypeId = (typeof KIRTAN_TYPES)[number]["id"]
@@ -33,7 +34,10 @@ export type KirtanTypeId = KiirtanKindTypeId | BhajanTypeId
 export type KirtanTypeFilter = KirtanTypeId | "all"
 
 /** Chips of the list: All, then the four types. */
-export const KIRTAN_CHIPS: readonly { id: KirtanTypeFilter; label: string }[] = [{ id: "all", label: "All" }, ...KIRTAN_TYPES]
+export const KIRTAN_CHIPS: readonly { id: KirtanTypeFilter; label: string }[] = [
+  { id: "all", get label() { return t("kt.chip.all") } },
+  ...KIRTAN_TYPES.map((type) => ({ id: type.id as KirtanTypeFilter, get label() { return type.label } })),
+]
 
 export type KirtanStatus = "pending" | "approved" | "rejected"
 
@@ -72,11 +76,11 @@ export function isKirtanType(value: unknown): value is KirtanTypeId {
 /** Label of a type; pass the kind so "Other" of a Bhajan and of a Kiirtan stay what they are. */
 export function kirtanTypeLabel(id: KirtanTypeId, kind: RecordingKind = "kiirtan"): string {
   const list: readonly { id: string; label: string }[] = kind === "bhajan" ? BHAJAN_TYPES : KIRTAN_TYPES
-  return list.find((t) => t.id === id)?.label ?? "Other"
+  return list.find((t) => t.id === id)?.label ?? t("kt.type.other")
 }
 
 export const STATUS_LABEL: Record<KirtanStatus, string> = {
-  pending: "In review",
-  approved: "Approved",
-  rejected: "Not accepted",
+  get pending() { return t("kt.status.pending") },
+  get approved() { return t("kt.status.approved") },
+  get rejected() { return t("kt.status.rejected") },
 }

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react"
 import { useRouter } from "expo-router"
 
 import { ensureKirtansRegistered } from "@/lib/kirtan/catalog"
-import { kindLabelPlural } from "@/lib/kirtan/kind"
+import { t } from "@/lib/i18n"
 import { playArtist, playKiirtans } from "@/lib/kirtan/mixPlayback"
 import { realQueueActions } from "@/lib/playerV2/services"
 import { kiirtanNumber } from "@/lib/kirtan/track"
@@ -30,7 +30,7 @@ export function useKirtanActions() {
   const open = useCallback(
     (k: Kirtan, context: readonly Kirtan[], label?: string | null) => {
       if (k.status !== "approved") {
-        flash(k.status === "pending" ? "Waiting for review. It plays once it is approved." : "This one was not accepted.")
+        flash(k.status === "pending" ? t("kt.toast.pending") : t("kt.toast.rejected"))
         return
       }
       const message = playKiirtans(context, k.id, label)
@@ -43,7 +43,7 @@ export function useKirtanActions() {
   const openIn = useCallback(
     (k: Kirtan, context: readonly Kirtan[], artist: { id: string; name: string }) => {
       if (k.status !== "approved") {
-        flash("This one is not approved yet.")
+        flash(t("kt.toast.notApproved"))
         return
       }
       const message = playArtist(artist, context, { startId: k.id })
@@ -63,13 +63,13 @@ export function useKirtanActions() {
         return
       }
       realQueueActions().playNext(kiirtanNumber(k.id))
-      flash("Plays next")
+      flash(t("kt.toast.playsNext"))
     },
     [flash],
   )
 
   // TODO(api): Kiirtans in playlists need the backend; playlists hold songs only today.
-  const addToPlaylist = useCallback((k?: Kirtan) => flash(`${kindLabelPlural(k?.kind)} in playlists are coming soon`), [flash])
+  const addToPlaylist = useCallback((k?: Kirtan) => flash(t(k?.kind === "bhajan" ? "kt.toast.playlistsSoon.bhajan" : "kt.toast.playlistsSoon.kiirtan")), [flash])
 
   /** Opens the "Save to" sheet for the Kiirtan (Mine only); the sheet says what happened. */
   const toggleSaved = useCallback((k: Kirtan) => openSaveSheet({ kind: "kiirtan", id: k.id }), [])
@@ -78,7 +78,7 @@ export function useKirtanActions() {
   const report = useCallback(
     (k: Kirtan) => {
       useKirtanStore.getState().report(k.id)
-      flash("Thank you. We will take a look.")
+      flash(t("kt.toast.reported"))
     },
     [flash],
   )

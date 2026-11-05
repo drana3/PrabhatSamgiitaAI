@@ -21,6 +21,7 @@ import { starterSongForNumber } from "@/lib/playPlaylist"
 import { startNumber } from "@/lib/playerV2/sources"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
+import { t } from "@/lib/i18n"
 
 /**
  * Starting playback of lists that mix Prabhat Samgiita songs and Kiirtans. Everything goes into the
@@ -46,7 +47,7 @@ export function playQueue(
 ): string | null {
   ensureKirtansRegistered()
   const first = startNumber(numbers, startOf(numbers, wanted), hasPlayableAudio)
-  if (first == null) return "Nothing to play yet."
+  if (first == null) return t("kt.nothingToPlay")
   usePlayerV2Store.getState().setShuffleOriginal(original)
   usePlayerStore.setState({ activePlaylist: { id: source.id, name: source.name } })
   usePlayerStore.getState().loadSong(trackForNumber(first), [...numbers], "playlist")
@@ -89,7 +90,7 @@ export function playEverything(rng: () => number = Math.random): string | null {
 export function playArtist(artist: { id: string; name: string }, list: readonly Kirtan[], opts: { shuffle?: boolean; startId?: string | null; rng?: () => number } = {}): string | null {
   const ordered = kiirtanQueue(list)
   ensureKirtansRegistered()
-  if (!ordered.length) return "Nothing to play yet."
+  if (!ordered.length) return t("kt.nothingToPlay")
   const queue = opts.shuffle ? shuffled(ordered, opts.rng) : ordered
   const target = opts.startId ? list.find((k) => k.id === opts.startId) : null
   const wanted = target ? kiirtanQueue([target])[0] : opts.shuffle ? (queue[0] ?? null) : null
