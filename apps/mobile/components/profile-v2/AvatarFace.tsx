@@ -28,6 +28,7 @@ export function AvatarFace({
       source={{ uri }}
       accessibilityIgnoresInvertColors
       contentFit="cover"
+      contentPosition="center"
       style={size ? { width: size, height: size, borderRadius: size / 2 } : styles.fill}
     />
   )

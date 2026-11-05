@@ -6,13 +6,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, topInset } from "@/components/account/AccountUi"
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { ConfirmSheet, type ConfirmRequest } from "@/components/profile-v2/ConfirmSheet"
+import { PhotoCropSheet } from "@/components/profile-v2/PhotoCropSheet"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useProfileIdentity } from "@/hooks/useProfileIdentity"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { cameraOffered, chooseProfilePhoto, openAppSettings, type PhotoSource } from "@/lib/profile/photo"
+import type { CropRect } from "@/lib/profile/crop"
+import { cameraOffered, openAppSettings, pickProfileImage, renderProfilePhoto, type PhotoSource, type PickedImage } from "@/lib/profile/photo"
 import { localProfileSink } from "@/lib/profile/localSink"
 import { saveProfile } from "@/lib/profile/saveProfile"
 import { NAME_MAX, initialOf, isProfileDirty, normalizeName, validateName } from "@/lib/profile/validate"
@@ -26,7 +28,7 @@ type PhotoNote = { text: string; settings: boolean } | null
 /**
  * Edit profile (opened from the avatar and name block of the profile sheet): the round picture with
  * Change photo, Take photo and Remove photo, the name, and Save. The name is 2 to 40 characters and is
- * checked as you type; leaving with changes asks first. The picture is a 512 px square JPEG.
+ * checked as you type; leaving with changes asks first. The picture is chosen, then framed in a round window (pan, pinch, zoom), and saved as a 512 px square JPEG.
  * Saving writes it on this phone (lib/profile/saveProfile.ts is the seam for the upload).
  * Preview only: `?as=guest` shows the guest state, `?state=` is `error`, `photo` or `denied`.
  */
@@ -54,6 +56,8 @@ export default function EditProfileScreen() {
     preview === "denied" ? { text: t("account.photo.photosOff"), settings: true } : null,
   )
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  // the picture just chosen, waiting for the person to frame it in the crop sheet
+  const [cropping, setCropping] = useState<PickedImage | null>(null)
 
   const check = useMemo(() => validateName(name), [name])
   const nameError = touched && !check.ok ? check.error : null
@@ -85,15 +89,26 @@ export default function EditProfileScreen() {
   const pick = useCallback(async (source: PhotoSource) => {
     setPhotoNote(null)
     setBusyPhoto(true)
-    const result = await chooseProfilePhoto(source)
+    const result = await pickProfileImage(source)
     setBusyPhoto(false)
-    if (result.status === "ok") setPhoto(result.uri)
+    if (result.status === "ok") setCropping(result.image)
     else if (result.status === "denied") {
       setPhotoNote({
         text: source === "camera" ? t("account.photo.cameraOff") : t("account.photo.photosOff"),
         settings: true,
       })
     } else if (result.status === "error") setPhotoNote({ text: result.message, settings: false })
+  }, [])
+
+  // Done in the crop sheet: cut the framed square, 512 px, JPEG.
+  const finishCrop = useCallback(async (rect: CropRect, image: PickedImage) => {
+    setCropping(null)
+    setPhotoNote(null)
+    setBusyPhoto(true)
+    const result = await renderProfilePhoto(image.uri, rect)
+    setBusyPhoto(false)
+    if (result.status === "ok") setPhoto(result.uri)
+    else if (result.status === "error") setPhotoNote({ text: result.message, settings: false })
   }, [])
 
   const save = useCallback(async () => {
@@ -216,6 +231,7 @@ export default function EditProfileScreen() {
             />
           </View>
         </KeyboardAvoidingView>
+        {cropping ? <PhotoCropSheet image={cropping} theme={theme} onCancel={() => setCropping(null)} onDone={(rect, image) => void finishCrop(rect, image)} /> : null}
         {confirm ? <ConfirmSheet theme={theme} request={confirm} onDismiss={() => setConfirm(null)} bottomOffset={24} /> : null}
       </View>
     </RevealClock.Provider>
