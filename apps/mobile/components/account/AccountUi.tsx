@@ -17,6 +17,7 @@ import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSpTheme } from "@/hooks/useSpTheme"
+import { useT } from "@/lib/i18n"
 
 /** Side padding of the account pages. */
 export const ACCOUNT_SIDE = LIST_SIDE
@@ -29,10 +30,11 @@ export function topInset(insetTop: number): number {
 /** Back round and the page title in capitals (same bar as Your library). */
 export function AccountBar({ theme, title, onBack, inset }: { theme: SongsTheme; title: string; onBack: () => void; inset: number }) {
   const sp = useSpTheme()
+  const t = useT()
   return (
     <View style={{ paddingTop: inset, backgroundColor: theme.page }}>
       <View style={s.titleRow}>
-        <SpRound t={sp} icon="back" label="Back" onPress={onBack} />
+        <SpRound t={sp} icon="back" label={t("common.back")} onPress={onBack} />
         <Text style={[s.barTitle, { color: theme.textHeading }]} numberOfLines={1} accessibilityRole="header">
           {title}
         </Text>
@@ -42,13 +44,15 @@ export function AccountBar({ theme, title, onBack, inset }: { theme: SongsTheme;
 }
 
 /** Quiet error line: danger text, no box. */
-export function InlineError({ theme, children, onRetry, retryLabel = "Try again" }: { theme: SongsTheme; children: ReactNode; onRetry?: () => void; retryLabel?: string }) {
+export function InlineError({ theme, children, onRetry, retryLabel }: { theme: SongsTheme; children: ReactNode; onRetry?: () => void; retryLabel?: string }) {
+  const t = useT()
+  const retry = retryLabel ?? t("common.tryAgain")
   return (
     <View style={s.errorRow} accessibilityRole="alert" accessibilityLiveRegion="polite">
       <Text style={[s.errorText, { color: theme.dangerText }]}>{children}</Text>
       {onRetry ? (
-        <Press accessibilityRole="button" accessibilityLabel={retryLabel} onPress={onRetry} pressedScale={0.96} style={s.retryBtn}>
-          <Text style={[s.retryText, { color: theme.accent }]}>{retryLabel}</Text>
+        <Press accessibilityRole="button" accessibilityLabel={retry} onPress={onRetry} pressedScale={0.96} style={s.retryBtn}>
+          <Text style={[s.retryText, { color: theme.accent }]}>{retry}</Text>
         </Press>
       ) : null}
     </View>

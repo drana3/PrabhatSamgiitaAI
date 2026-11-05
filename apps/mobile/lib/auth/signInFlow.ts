@@ -1,6 +1,7 @@
 import { validateNationalPhoneNumber } from "@prabhat/core"
 
 import { validateName } from "@/lib/profile/validate"
+import { t } from "@/lib/i18n"
 
 /**
  * Pure rules of the Sign in page: which providers show, how the email steps work, what an error
@@ -60,7 +61,7 @@ export function checkEmailForm(form: EmailForm): EmailFormCheck {
     return {
       ok: false,
       field: "password",
-      error: form.mode === "signup" ? `Use at least ${PASSWORD_MIN} characters.` : "Enter your password.",
+      error: form.mode === "signup" ? t("account.error.passwordShort", { count: PASSWORD_MIN }) : t("account.error.passwordEmpty"),
     }
   }
   if (form.mode === "signup") {
@@ -82,8 +83,8 @@ const SETUP_TEXT = /EXPO_PUBLIC|Google Cloud|OAuth client|SHA-1|Play Console|bun
 export function authErrorMessage(error: unknown): string | null {
   const text = error instanceof Error ? error.message : typeof error === "string" ? error : ""
   if (CANCELLED.test(text)) return null
-  if (OFFLINE.test(text)) return "Can't reach the server. Check your connection and try again."
-  if (!text || SETUP_TEXT.test(text)) return "Sign-in didn't finish. Try again."
+  if (OFFLINE.test(text)) return t("account.error.network")
+  if (!text || SETUP_TEXT.test(text)) return t("account.error.signInUnfinished")
   return text
 }
 

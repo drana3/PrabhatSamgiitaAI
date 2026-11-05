@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 
 /** Mobile number: a country button (code and dial code) beside the number, with a country list sheet. */
 export function PhoneField({
@@ -28,6 +29,7 @@ export function PhoneField({
   disabled?: boolean
   onFocus?: () => void
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [focused, setFocused] = useState(false)
   const country = PHONE_COUNTRIES.find((entry) => entry.code === countryCode) ?? DEFAULT_PHONE_COUNTRY
@@ -35,11 +37,11 @@ export function PhoneField({
 
   return (
     <View style={s.wrap}>
-      <Text style={[s.label, { color: theme.textBody }]}>Mobile number</Text>
+      <Text style={[s.label, { color: theme.textBody }]}>{t("account.phone.a11y")}</Text>
       <View style={s.row}>
         <Press
           accessibilityRole="button"
-          accessibilityLabel={`Country: ${country.name}, ${country.dialCode}`}
+          accessibilityLabel={t("account.phone.country.a11y", { name: country.name, code: country.dialCode })}
           disabled={disabled}
           onPress={() => setOpen(true)}
           pressedScale={0.97}
@@ -49,7 +51,7 @@ export function PhoneField({
           <Text style={[s.dial, { color: theme.textMuted }]}>{country.dialCode}</Text>
         </Press>
         <TextInput
-          accessibilityLabel="Mobile number"
+          accessibilityLabel={t("account.phone.a11y")}
           value={nationalNumber}
           onChangeText={onNationalNumberChange}
           placeholder={country.example}
@@ -112,14 +114,15 @@ function CountrySheet({
   onClose: () => void
   onSelect: (country: PhoneCountry) => void
 }) {
+  const t = useT()
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={s.backdrop}>
-        <Press accessibilityLabel="Close country list" onPress={onClose} outerStyle={StyleSheet.absoluteFill} pressedScale={1} style={StyleSheet.absoluteFill} />
+        <Press accessibilityLabel={t("account.phone.closeList")} onPress={onClose} outerStyle={StyleSheet.absoluteFill} pressedScale={1} style={StyleSheet.absoluteFill} />
         <SafeAreaView edges={["bottom"]} style={[s.sheet, { backgroundColor: theme.page }]}>
           <View style={[s.handle, { backgroundColor: theme.line }]} />
           <Text style={[s.sheetTitle, { color: theme.textHeading }]} accessibilityRole="header">
-            Country
+            {t("account.phone.country.title")}
           </Text>
           <ScrollView contentContainerStyle={s.list} keyboardShouldPersistTaps="handled">
             {PHONE_COUNTRIES.map((entry) => {

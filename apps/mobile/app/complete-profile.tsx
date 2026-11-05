@@ -18,6 +18,7 @@ import { localProfileSink } from "@/lib/profile/localSink"
 import { saveProfile } from "@/lib/profile/saveProfile"
 import { refreshMemberSession } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
+import { t as tPlain, useT } from "@/lib/i18n"
 import { href } from "@/utils/href"
 
 /**
@@ -27,6 +28,7 @@ import { href } from "@/utils/href"
  * not. Preview only: with EXPO_PUBLIC_MOCKUP_DATA=1 nothing is sent anywhere.
  */
 export default function CompleteProfileScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
@@ -43,7 +45,7 @@ export default function CompleteProfileScreen() {
   const [busy, setBusy] = useState(false)
   const [touched, setTouched] = useState(preview === "error")
   const [error, setError] = useState<string | null>(
-    preview === "error" ? "Can't reach the server. Check your connection and try again." : null,
+    preview === "error" ? t("account.error.network") : null,
   )
   const phoneRef = useRef<TextInput>(null)
 
@@ -73,19 +75,19 @@ export default function CompleteProfileScreen() {
       if (needsPhone) await savePhone(countryCode, phone)
       leave()
     } catch (failure) {
-      setError(authErrorMessage(failure) ?? "Could not save. Try again.")
+      setError(authErrorMessage(failure) ?? t("account.error.saveFailed"))
     } finally {
       setBusy(false)
     }
   }
 
-  const title = needsName && needsPhone ? "Almost done" : needsName ? "Your name" : "Your mobile number"
+  const title = needsName && needsPhone ? t("account.complete.title.both") : needsName ? t("account.complete.title.name") : t("account.complete.title.phone")
   const lead =
     needsName && needsPhone
-      ? "Add your name and mobile number to finish your account."
+      ? t("account.complete.lead.both")
       : needsName
-        ? "What should we call you? It shows in your profile."
-        : "Every member account needs a mobile number. Choose your country and enter the number without spaces."
+        ? t("account.complete.lead.name")
+        : t("account.complete.lead.phone")
 
   return (
     <RevealClock.Provider value={openedAt}>
@@ -108,12 +110,12 @@ export default function CompleteProfileScreen() {
               {needsName ? (
                 <AccountField
                   theme={theme}
-                  label="Name"
+                  label={t("common.name")}
                   value={name}
                   onChangeText={setName}
                   onBlur={() => setTouched(true)}
                   error={nameError}
-                  hint="Shown in your profile."
+                  hint={t("account.edit.nameHint")}
                   autoFocus
                   autoCapitalize="words"
                   autoComplete="name"
@@ -144,9 +146,9 @@ export default function CompleteProfileScreen() {
           </ScrollView>
 
           <View style={[styles.footer, { backgroundColor: theme.page, borderTopColor: theme.line, paddingBottom: Platform.OS === "web" ? 20 : Math.max(insets.bottom, 12) + 8 }]}>
-            <AccountButton theme={theme} label="Continue" onPress={() => void submit()} loading={busy} />
+            <AccountButton theme={theme} label={t("common.continue")} onPress={() => void submit()} loading={busy} />
             {needsName && !needsPhone ? (
-              <AccountButton theme={theme} tone="quiet" label="Skip for now" onPress={leave} disabled={busy} />
+              <AccountButton theme={theme} tone="quiet" label={t("account.complete.skip")} onPress={leave} disabled={busy} />
             ) : null}
           </View>
         </KeyboardAvoidingView>
@@ -168,9 +170,9 @@ async function rememberAppleName(name: string) {
 }
 
 async function savePhone(countryCode: string, nationalNumber: string) {
-  if (!memberAuthAvailable()) throw new Error("Member API is not configured on this build.")
+  if (!memberAuthAvailable()) throw new Error(tPlain("account.error.apiMissing"))
   const { email, displayName, memberId, identityProvider } = useAuthStore.getState()
-  if (!email) throw new Error("Sign in again to continue.")
+  if (!email) throw new Error(tPlain("account.error.signInAgain"))
   const response = await fetch(`${apiBaseUrl}/api/v1/members/phone`, {
     method: "PATCH",
     headers: {
@@ -184,7 +186,7 @@ async function savePhone(countryCode: string, nationalNumber: string) {
     throw new Error(
       body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
         ? body.detail
-        : "Could not save your mobile number.",
+        : tPlain("account.complete.phoneFailed"),
     )
   }
   await refreshMemberSession()

@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /**
  * Pure rules for the profile (name and photo). No React, no storage: the Edit profile page, the
  * complete-profile page and the tests all use these.
@@ -20,11 +21,11 @@ export type NameCheck = { ok: true; value: string } | { ok: false; error: string
 export function validateName(raw: string | null | undefined): NameCheck {
   const value = normalizeName(raw)
   const length = Array.from(value).length
-  if (length === 0) return { ok: false, error: "Enter your name." }
-  if (length < NAME_MIN) return { ok: false, error: `Use at least ${NAME_MIN} characters.` }
-  if (length > NAME_MAX) return { ok: false, error: `Use ${NAME_MAX} characters or fewer.` }
-  if (!/\p{L}/u.test(value)) return { ok: false, error: "Use letters in your name." }
-  if (value.includes("@")) return { ok: false, error: "Use your name, not an email address." }
+  if (length === 0) return { ok: false, error: t("account.error.nameEmpty") }
+  if (length < NAME_MIN) return { ok: false, error: t("account.error.nameShort", { count: NAME_MIN }) }
+  if (length > NAME_MAX) return { ok: false, error: t("account.error.nameLong", { count: NAME_MAX }) }
+  if (!/\p{L}/u.test(value)) return { ok: false, error: t("account.error.nameLetters") }
+  if (value.includes("@")) return { ok: false, error: t("account.error.nameEmail") }
   return { ok: true, value }
 }
 

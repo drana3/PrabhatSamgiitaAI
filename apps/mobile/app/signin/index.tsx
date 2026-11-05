@@ -10,6 +10,7 @@ import { PhoneField } from "@/components/account/PhoneField"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { appleSignInOffered } from "@/lib/appleAuth"
 import {
@@ -54,6 +55,8 @@ const PREVIEW_EMAIL = "dada@example.com"
  * sign-in, they end in a quiet error. `?state=` is `typed`, `password`, `signup`, `error` or `loading`.
  */
 export default function SignInScreen() {
+  const t = useT()
+  const legalParts = t("account.legal", { terms: "{terms}", privacy: "{privacy}" }).split(/(\{terms\}|\{privacy\})/)
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
@@ -81,7 +84,7 @@ export default function SignInScreen() {
 
   const [busy, setBusy] = useState<Busy>(preview === "loading" ? "apple" : null)
   const [error, setError] = useState<{ text: string; where: "provider" | "email" } | null>(
-    preview === "error" ? { text: "Can't reach the server. Check your connection and try again.", where: "provider" } : null,
+    preview === "error" ? { text: t("account.error.network"), where: "provider" } : null,
   )
   const [step, setStep] = useState<EmailStep>(preview === "password" || preview === "signup" ? "password" : "email")
   const [mode, setMode] = useState<EmailMode>(preview === "signup" ? "signup" : "signin")
@@ -124,7 +127,7 @@ export default function SignInScreen() {
         if (MOCKUP_DATA) {
           // Preview: never touch the real sign-in or the session.
           await new Promise((resolve) => setTimeout(resolve, 900))
-          throw new Error(action === "email" ? "Incorrect email or password." : "Sign-in isn't connected in the preview.")
+          throw new Error(action === "email" ? t("account.error.badCredentials") : t("account.error.previewOff"))
         } else {
           result = await task()
         }
@@ -153,7 +156,7 @@ export default function SignInScreen() {
 
   const nextToPassword = () => {
     if (!isEmailValid(email)) {
-      setFieldError({ field: "email", error: "Enter a valid email address." })
+      setFieldError({ field: "email", error: t("account.error.email") })
       return
     }
     setFieldError(null)
@@ -189,7 +192,7 @@ export default function SignInScreen() {
   return (
     <RevealClock.Provider value={openedAt}>
       <View style={[styles.root, { backgroundColor: theme.page }]}>
-        <AccountBar theme={theme} title="Sign in" onBack={goBack} inset={inset} />
+        <AccountBar theme={theme} title={t("account.signIn.title")} onBack={goBack} inset={inset} />
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView
             ref={scrollRef}
@@ -201,7 +204,7 @@ export default function SignInScreen() {
             showsVerticalScrollIndicator={false}
           >
             <SongsReveal index={1}>
-              <Text style={[styles.lead, { color: theme.textBody }]}>Keep your songs, playlists and progress on every device.</Text>
+              <Text style={[styles.lead, { color: theme.textBody }]}>{t("account.signIn.lead")}</Text>
             </SongsReveal>
 
             <SongsReveal index={2} style={styles.stack}>
@@ -209,7 +212,7 @@ export default function SignInScreen() {
                 <AccountButton
                   theme={theme}
                   tone="black"
-                  label="Continue with Apple"
+                  label={t("account.continueWith", { provider: "Apple" })}
                   icon={<AppleMark size={20} />}
                   loading={busy === "apple"}
                   disabled={inactive && busy !== "apple"}
@@ -220,7 +223,7 @@ export default function SignInScreen() {
                 <AccountButton
                   theme={theme}
                   tone="white"
-                  label="Continue with Google"
+                  label={t("account.continueWith", { provider: "Google" })}
                   icon={<GoogleMark size={20} />}
                   loading={busy === "google"}
                   disabled={inactive && busy !== "google"}
@@ -231,7 +234,7 @@ export default function SignInScreen() {
                 <AccountButton
                   theme={theme}
                   tone="white"
-                  label="Continue with Microsoft"
+                  label={t("account.continueWith", { provider: "Microsoft" })}
                   icon={<MicrosoftMark size={18} />}
                   loading={busy === "microsoft"}
                   disabled={inactive && busy !== "microsoft"}
@@ -242,7 +245,7 @@ export default function SignInScreen() {
                 <AccountButton
                   theme={theme}
                   tone="white"
-                  label="Continue with Facebook"
+                  label={t("account.continueWith", { provider: "Facebook" })}
                   icon={<FacebookMark size={20} />}
                   loading={busy === "facebook"}
                   disabled={inactive && busy !== "facebook"}
@@ -258,7 +261,7 @@ export default function SignInScreen() {
 
             <SongsReveal index={3} style={styles.divider}>
               <View style={[styles.rule, { backgroundColor: theme.line }]} />
-              <Text style={[styles.dividerText, { color: theme.textMuted }]}>or</Text>
+              <Text style={[styles.dividerText, { color: theme.textMuted }]}>{t("account.or")}</Text>
               <View style={[styles.rule, { backgroundColor: theme.line }]} />
             </SongsReveal>
 
@@ -267,7 +270,7 @@ export default function SignInScreen() {
                 <>
                   <AccountField
                     theme={theme}
-                    label="Email"
+                    label={t("account.email")}
                     value={email}
                     onChangeText={(value) => {
                       setEmail(value)
@@ -287,7 +290,7 @@ export default function SignInScreen() {
                   <AccountButton
                     theme={theme}
                     tone="brand"
-                    label="Continue with email"
+                    label={t("account.continueEmail")}
                     disabled={inactive}
                     onPress={nextToPassword}
                   />
@@ -300,7 +303,7 @@ export default function SignInScreen() {
                     </Text>
                     <Press
                       accessibilityRole="button"
-                      accessibilityLabel="Change email"
+                      accessibilityLabel={t("account.email.changeA11y")}
                       disabled={inactive}
                       onPress={() => {
                         setStep("email")
@@ -310,7 +313,7 @@ export default function SignInScreen() {
                       pressedScale={0.96}
                       style={styles.change}
                     >
-                      <Text style={[styles.linkText, { color: theme.accent }]}>Change</Text>
+                      <Text style={[styles.linkText, { color: theme.accent }]}>{t("account.email.change")}</Text>
                     </Press>
                   </View>
 
@@ -319,7 +322,7 @@ export default function SignInScreen() {
                       <AccountField
                         ref={nameRef}
                         theme={theme}
-                        label="Name"
+                        label={t("common.name")}
                         value={name}
                         onChangeText={(value) => {
                           setName(value)
@@ -351,14 +354,14 @@ export default function SignInScreen() {
                   <AccountField
                     ref={passwordRef}
                     theme={theme}
-                    label="Password"
+                    label={t("account.password")}
                     value={password}
                     onChangeText={(value) => {
                       setPassword(value)
                       clear("password")
                     }}
                     error={errorFor("password")}
-                    hint={mode === "signup" ? `At least ${PASSWORD_MIN} characters.` : null}
+                    hint={mode === "signup" ? t("account.password.hint", { count: PASSWORD_MIN }) : null}
                     secureTextEntry
                     autoCapitalize="none"
                     autoComplete={mode === "signup" ? "new-password" : "password"}
@@ -377,7 +380,7 @@ export default function SignInScreen() {
                   <AccountButton
                     theme={theme}
                     tone="brand"
-                    label={mode === "signup" ? "Create account" : "Sign in"}
+                    label={mode === "signup" ? t("account.createAccount") : t("account.signIn.title")}
                     loading={busy === "email"}
                     disabled={inactive && busy !== "email"}
                     onPress={submitEmail}
@@ -386,25 +389,25 @@ export default function SignInScreen() {
                   <View style={styles.links}>
                     <Press
                       accessibilityRole="button"
-                      accessibilityLabel={mode === "signup" ? "I already have an account" : "Create an account"}
+                      accessibilityLabel={mode === "signup" ? t("account.haveAccount") : t("account.createAnAccount")}
                       disabled={inactive}
                       onPress={() => switchMode(mode === "signup" ? "signin" : "signup")}
                       pressedScale={0.96}
                       style={styles.link}
                     >
                       <Text style={[styles.linkText, { color: theme.accent }]}>
-                        {mode === "signup" ? "I already have an account" : "Create an account"}
+                        {mode === "signup" ? t("account.haveAccount") : t("account.createAnAccount")}
                       </Text>
                     </Press>
                     {mode === "signin" ? (
                       <Press
                         accessibilityRole="link"
-                        accessibilityLabel="Forgot password"
+                        accessibilityLabel={t("account.forgot.a11y")}
                         onPress={() => void Linking.openURL(forgotPasswordUrl())}
                         pressedScale={0.96}
                         style={styles.link}
                       >
-                        <Text style={[styles.linkText, { color: theme.accent }]}>Forgot password?</Text>
+                        <Text style={[styles.linkText, { color: theme.accent }]}>{t("account.forgot")}</Text>
                       </Press>
                     ) : null}
                   </View>
@@ -414,17 +417,21 @@ export default function SignInScreen() {
 
             <SongsReveal index={5} style={styles.foot}>
               <Text style={[styles.legal, { color: theme.textMuted }]}>
-                {"By continuing you agree to the "}
-                <Text accessibilityRole="link" onPress={() => void Linking.openURL(termsUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
-                  Terms
-                </Text>
-                {" and the "}
-                <Text accessibilityRole="link" onPress={() => void Linking.openURL(privacyUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
-                  Privacy Policy
-                </Text>
-                .
+                {legalParts.map((part, index) =>
+                  part === "{terms}" ? (
+                    <Text key={index} accessibilityRole="link" onPress={() => void Linking.openURL(termsUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
+                      {t("account.legal.terms")}
+                    </Text>
+                  ) : part === "{privacy}" ? (
+                    <Text key={index} accessibilityRole="link" onPress={() => void Linking.openURL(privacyUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
+                      {t("account.legal.privacy")}
+                    </Text>
+                  ) : (
+                    part
+                  ),
+                )}
               </Text>
-              <AccountButton theme={theme} tone="quiet" label="Not now" disabled={inactive} onPress={continueGuest} style={styles.notNow} />
+              <AccountButton theme={theme} tone="quiet" label={t("common.notNow")} disabled={inactive} onPress={continueGuest} style={styles.notNow} />
             </SongsReveal>
           </ScrollView>
         </KeyboardAvoidingView>

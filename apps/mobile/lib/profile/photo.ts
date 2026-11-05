@@ -3,6 +3,7 @@ import * as ImagePicker from "expo-image-picker"
 import { Linking, Platform } from "react-native"
 
 import { PHOTO_QUALITY, PHOTO_SIZE, centerSquare } from "@/lib/profile/validate"
+import { t } from "@/lib/i18n"
 
 export type PhotoSource = "library" | "camera"
 
@@ -49,11 +50,11 @@ export async function chooseProfilePhoto(source: PhotoSource): Promise<PhotoResu
       [{ crop }, { resize: { width: PHOTO_SIZE, height: PHOTO_SIZE } }],
       { compress: PHOTO_QUALITY, format: ImageManipulator.SaveFormat.JPEG, base64: true },
     )
-    if (!made.base64) return { status: "error", message: "That picture could not be read. Try another one." }
+    if (!made.base64) return { status: "error", message: t("account.photo.unreadable") }
     return { status: "ok", uri: `data:image/jpeg;base64,${made.base64}` }
   } catch (error) {
     const text = error instanceof Error ? error.message : ""
     if (/permission|denied|authori[sz]/i.test(text)) return { status: "denied", canAskAgain: false }
-    return { status: "error", message: "That picture could not be used. Try another one." }
+    return { status: "error", message: t("account.photo.unusable") }
   }
 }

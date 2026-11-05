@@ -16,6 +16,7 @@ import { cameraOffered, chooseProfilePhoto, openAppSettings, type PhotoSource } 
 import { localProfileSink } from "@/lib/profile/localSink"
 import { saveProfile } from "@/lib/profile/saveProfile"
 import { NAME_MAX, initialOf, isProfileDirty, normalizeName, validateName } from "@/lib/profile/validate"
+import { useT } from "@/lib/i18n"
 import { href } from "@/utils/href"
 
 const AVATAR = 128
@@ -30,6 +31,7 @@ type PhotoNote = { text: string; settings: boolean } | null
  * Preview only: `?as=guest` shows the guest state, `?state=` is `error`, `photo` or `denied`.
  */
 export default function EditProfileScreen() {
+  const t = useT()
   const router = useRouter()
   const navigation = useNavigation()
   const theme = useSongsTheme()
@@ -49,7 +51,7 @@ export default function EditProfileScreen() {
   const [saving, setSaving] = useState(false)
   const [busyPhoto, setBusyPhoto] = useState(false)
   const [photoNote, setPhotoNote] = useState<PhotoNote>(
-    preview === "denied" ? { text: DENIED_TEXT, settings: true } : null,
+    preview === "denied" ? { text: t("account.photo.photosOff"), settings: true } : null,
   )
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
@@ -66,9 +68,9 @@ export default function EditProfileScreen() {
       if (!dirtyRef.current || leaveRef.current) return
       event.preventDefault()
       setConfirm({
-        title: "Discard changes?",
-        body: "Your new name or photo has not been saved.",
-        confirmLabel: "Discard",
+        title: t("account.edit.discard.title"),
+        body: t("account.edit.discard.body"),
+        confirmLabel: t("account.edit.discard.confirm"),
         onConfirm: () => {
           leaveRef.current = true
           navigation.dispatch(event.data.action)
@@ -88,7 +90,7 @@ export default function EditProfileScreen() {
     if (result.status === "ok") setPhoto(result.uri)
     else if (result.status === "denied") {
       setPhotoNote({
-        text: source === "camera" ? "The camera is off for Prabhat Samgiita. Turn it on in Settings to take a photo." : DENIED_TEXT,
+        text: source === "camera" ? t("account.photo.cameraOff") : t("account.photo.photosOff"),
         settings: true,
       })
     } else if (result.status === "error") setPhotoNote({ text: result.message, settings: false })
@@ -115,7 +117,7 @@ export default function EditProfileScreen() {
   return (
     <RevealClock.Provider value={openedAt}>
       <View style={[styles.root, { backgroundColor: theme.page }]}>
-        <AccountBar theme={theme} title="Edit profile" onBack={back} inset={inset} />
+        <AccountBar theme={theme} title={t("account.edit.title")} onBack={back} inset={inset} />
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView
             style={styles.flex}
@@ -127,12 +129,12 @@ export default function EditProfileScreen() {
             {signedIn ? null : (
               <SongsReveal index={1}>
                 <View style={[styles.notice, { backgroundColor: theme.card, borderColor: theme.line }]}>
-                  <Text style={[styles.noticeTitle, { color: theme.textHeading }]}>Sign in to save your profile</Text>
+                  <Text style={[styles.noticeTitle, { color: theme.textHeading }]}>{t("account.edit.guestTitle")}</Text>
                   <Text style={[styles.noticeBody, { color: theme.textBody }]}>
-                    Until then your name and photo stay on this phone only.
+                    {t("account.edit.guestBody")}
                   </Text>
-                  <Press accessibilityRole="button" accessibilityLabel="Sign in" onPress={() => router.push(href("/signin"))} pressedScale={0.97} style={styles.noticeLink}>
-                    <Text style={[styles.noticeLinkText, { color: theme.accent }]}>Sign in</Text>
+                  <Press accessibilityRole="button" accessibilityLabel={t("account.signIn.title")} onPress={() => router.push(href("/signin"))} pressedScale={0.97} style={styles.noticeLink}>
+                    <Text style={[styles.noticeLinkText, { color: theme.accent }]}>{t("account.signIn.title")}</Text>
                   </Press>
                 </View>
               </SongsReveal>
@@ -155,20 +157,20 @@ export default function EditProfileScreen() {
               <AccountButton
                 theme={theme}
                 tone="white"
-                label="Change photo"
+                label={t("account.edit.changePhoto")}
                 onPress={() => void pick("library")}
                 disabled={busyPhoto}
                 style={styles.changeBtn}
               />
               <View style={styles.photoLinks}>
                 {cameraOffered() ? (
-                  <Press accessibilityRole="button" accessibilityLabel="Take photo" onPress={() => void pick("camera")} disabled={busyPhoto} pressedScale={0.96} style={styles.link}>
-                    <Text style={[styles.linkText, { color: theme.accent }]}>Take photo</Text>
+                  <Press accessibilityRole="button" accessibilityLabel={t("account.edit.takePhoto")} onPress={() => void pick("camera")} disabled={busyPhoto} pressedScale={0.96} style={styles.link}>
+                    <Text style={[styles.linkText, { color: theme.accent }]}>{t("account.edit.takePhoto")}</Text>
                   </Press>
                 ) : null}
                 {photo ? (
-                  <Press accessibilityRole="button" accessibilityLabel="Remove photo" onPress={() => setPhoto(null)} disabled={busyPhoto} pressedScale={0.96} style={styles.link}>
-                    <Text style={[styles.linkText, { color: theme.dangerText }]}>Remove photo</Text>
+                  <Press accessibilityRole="button" accessibilityLabel={t("account.edit.removePhoto")} onPress={() => setPhoto(null)} disabled={busyPhoto} pressedScale={0.96} style={styles.link}>
+                    <Text style={[styles.linkText, { color: theme.dangerText }]}>{t("account.edit.removePhoto")}</Text>
                   </Press>
                 ) : null}
               </View>
@@ -176,8 +178,8 @@ export default function EditProfileScreen() {
                 <View style={styles.photoNote} accessibilityRole="alert">
                   <Text style={[styles.noteText, { color: theme.dangerText }]}>{photoNote.text}</Text>
                   {photoNote.settings ? (
-                    <Press accessibilityRole="button" accessibilityLabel="Open settings" onPress={openAppSettings} pressedScale={0.96} style={styles.link}>
-                      <Text style={[styles.linkText, { color: theme.accent }]}>Open settings</Text>
+                    <Press accessibilityRole="button" accessibilityLabel={t("notif.permission.openSettings")} onPress={openAppSettings} pressedScale={0.96} style={styles.link}>
+                      <Text style={[styles.linkText, { color: theme.accent }]}>{t("notif.permission.openSettings")}</Text>
                     </Press>
                   ) : null}
                 </View>
@@ -187,12 +189,12 @@ export default function EditProfileScreen() {
             <SongsReveal index={3}>
               <AccountField
                 theme={theme}
-                label="Name"
+                label={t("common.name")}
                 value={name}
                 onChangeText={setName}
                 onBlur={() => setTouched(true)}
                 error={nameError}
-                hint="Shown in your profile."
+                hint={t("account.edit.nameHint")}
                 aside={Array.from(name).length >= NAME_MAX - 8 ? `${Array.from(name).length}/${NAME_MAX}` : null}
                 autoCapitalize="words"
                 autoComplete="name"
@@ -207,7 +209,7 @@ export default function EditProfileScreen() {
           <View style={[styles.footer, { backgroundColor: theme.page, borderTopColor: theme.line, paddingBottom: Platform.OS === "web" ? 20 : Math.max(insets.bottom, 12) + 8 }]}>
             <AccountButton
               theme={theme}
-              label={saving ? "Saving" : "Save"}
+              label={saving ? t("common.saving") : t("common.save")}
               onPress={() => void save()}
               loading={saving}
               disabled={!dirty}
@@ -219,8 +221,6 @@ export default function EditProfileScreen() {
     </RevealClock.Provider>
   )
 }
-
-const DENIED_TEXT = "Photos are off for Prabhat Samgiita. Turn them on in Settings to choose a picture."
 
 /** Preview only: a small warm gradient JPEG stands in for a chosen picture. */
 const PREVIEW_PHOTO =
