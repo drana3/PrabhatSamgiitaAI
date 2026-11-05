@@ -1,3 +1,4 @@
+import { formatTime } from "@/lib/i18n"
 import { describe, expect, it } from "vitest"
 
 import { migrateInbox } from "@/stores/notificationsStore"
@@ -67,7 +68,10 @@ describe("inbox: age and sections", () => {
   })
 
   it("labels the time on a row", () => {
-    expect(timeLabel(at(5, 8, 0), NOW)).toBe("8:00")
+    // today's rows use the same clock as the settings screen ("8:00 AM" in English)
+    expect(timeLabel(at(5, 8, 0), NOW)).toBe(formatTime(at(5, 8, 0)))
+    expect(timeLabel(at(5, 18, 0), NOW)).toBe(formatTime(at(5, 18, 0)))
+    expect(timeLabel(at(5, 18, 0), NOW)).toMatch(/6:00\s?PM/i)
     expect(timeLabel(at(4, 20), NOW)).toBe("Yesterday")
     expect(timeLabel(at(1, 20), NOW)).toBe("Sun")
     expect(timeLabel(new Date(2026, 9, 12, 8).getTime(), NOW)).toBe("12 Oct")

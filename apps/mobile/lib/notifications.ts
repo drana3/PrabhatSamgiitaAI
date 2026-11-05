@@ -1,4 +1,4 @@
-import { formatDate, t } from "@/lib/i18n"
+import { formatDate, formatTime, t } from "@/lib/i18n"
 /**
  * Notifications: the inbox model and the pure reducers behind the bell.
  *
@@ -51,7 +51,8 @@ function daysBetween(a: number, b: number): number {
 export function timeLabel(firedAt: number, now: number): string {
   const days = daysBetween(firedAt, now)
   const d = new Date(firedAt)
-  if (days <= 0) return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
+  // the same 12 or 24 hour clock as the phone's language shows in Notification settings
+  if (days <= 0) return formatTime(d)
   if (days === 1) return t("notif.yesterday")
   if (days < 7) return formatDate(d, "weekdayShort")
   return formatDate(d, "dayMonth")

@@ -117,6 +117,13 @@ export function NotificationsHost() {
     await setBadge(unreadCount(inbox.items, inbox.read))
   }, [input, syncInbox])
 
+  // the icon badge follows the unread count at once (Read all, opening one), not at the next reschedule
+  const unread = useNotificationsStore((s) => unreadCount(s.items, s.read))
+  useEffect(() => {
+    if (!hydrated || !nativeNotificationsAvailable) return
+    void setBadge(unread)
+  }, [hydrated, unread])
+
   // the Android channel name is in the app language; calling again renames it
   useEffect(() => {
     void configureNotifications(language)
