@@ -555,7 +555,17 @@ function installNativeListeners() {
     if (!number) return
     const cached = getCachedCatalogSong(number) ?? playerExtras.__psMediaCache.get(number)
     if (cached) {
-      usePlayerStore.setState({ currentSong: cached, hasAudio: true, audioError: null, position: 0 })
+      const changed = usePlayerStore.getState().currentSong?.number !== cached.number
+      // The new song's length is unknown until the player reports it; the old song's must not show.
+      usePlayerStore.setState({
+        currentSong: cached,
+        hasAudio: true,
+        audioError: null,
+        position: 0,
+        ...(changed ? { duration: 0 } : {}),
+      })
+      // A song reached by itself (the list moved on) is a play too; Kiirtan stays out of the history.
+      if (changed && cached.kind !== "kiirtan") usePreferencesStore.getState().recordRecentPlay(cached)
     }
     publishRadioSession()
     void nativeSetRepeatTrack(shouldLoopCurrent())
