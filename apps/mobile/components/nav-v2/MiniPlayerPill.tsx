@@ -24,6 +24,7 @@ import { amNav } from "@/constants/tokens/amNav"
 import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useT } from "@/lib/i18n"
 import { miniProgress, miniSubtitle, isDarkTheme, rubberBand } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import type { SaveItem } from "@/lib/save/saveToSheet"
@@ -68,6 +69,7 @@ type Props = {
  */
 export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   const theme = useAmTheme()
+  const t = useT()
   const reduce = useReducedMotion()
   const palette = MINI_PALETTE[isDarkTheme(theme) ? "dark" : "light"]
 
@@ -176,7 +178,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
           <View style={styles.mainSlot}>
           <PressScale
             accessibilityRole="button"
-            accessibilityLabel={`Open the player, ${currentSong.title}`}
+            accessibilityLabel={t("player.mini.open", { title: currentSong.title })}
             onPress={onOpenPlayer}
             pressedScale={0.985}
             style={styles.main}
@@ -208,7 +210,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
           />
           <PressScale
             accessibilityRole="button"
-            accessibilityLabel={showPause ? `Pause ${currentSong.title}` : `Play ${currentSong.title}`}
+            accessibilityLabel={showPause ? t("player.mini.pause", { title: currentSong.title }) : t("player.mini.play", { title: currentSong.title })}
             onPress={() => {
               if (showPause) pause()
               else togglePlay()

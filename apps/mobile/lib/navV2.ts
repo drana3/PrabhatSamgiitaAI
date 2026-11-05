@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { projectMomentum } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
@@ -33,10 +34,12 @@ export type NavV2Tab = {
  * app/v2/today.tsx re-exports the redesigned Today screen that lives at /today.
  */
 export const NAV_V2_TABS: readonly NavV2Tab[] = [
-  { id: "today", label: "Today", icon: "today", screen: "today", href: "/v2/today", owns: ["/v2/today", "/today"] },
+  { id: "today", get label() { return t("tabs.today") }, icon: "today", screen: "today", href: "/v2/today", owns: ["/v2/today", "/today"] },
   {
     id: "songs",
-    label: "Songs",
+    get label() {
+      return t("tabs.songs")
+    },
     icon: "songs",
     screen: "songs",
     href: "/v2/songs",
@@ -44,7 +47,9 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
   },
   {
     id: "kiirtan",
-    label: "Kiirtan",
+    get label() {
+      return t("tabs.kiirtan")
+    },
     icon: "kiirtan",
     screen: "kiirtan",
     href: "/v2/kiirtan",
@@ -52,7 +57,9 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
   },
   {
     id: "learn",
-    label: "Learn",
+    get label() {
+      return t("tabs.learn")
+    },
     icon: "learn",
     screen: "learn",
     href: "/v2/learn",
@@ -316,7 +323,7 @@ export function miniProgress(position: number, duration: number): number {
 
 /** `PS 12 · 1:05 of 4:31`, or `Kiirtan · 1:05 of 12:40`; the total is left out while the duration is unknown. */
 export function miniSubtitle(input: { number: number | string; position: number; duration: number; kind?: "song" | "kiirtan" }): string {
-  const head = input.kind === "kiirtan" ? "Kiirtan" : `PS ${input.number}`
+  const head = input.kind === "kiirtan" ? t("kind.kiirtan") : `PS ${input.number}`
   if (!(input.duration > 0)) return head
-  return `${head} · ${formatClock(input.position)} of ${formatClock(input.duration)}`
+  return t("player.mini.progress", { head, position: formatClock(input.position), duration: formatClock(input.duration) })
 }

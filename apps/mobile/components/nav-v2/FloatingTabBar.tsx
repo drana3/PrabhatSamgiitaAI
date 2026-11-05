@@ -19,6 +19,7 @@ import { amNav } from "@/constants/tokens/amNav"
 import { amRadius } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useLanguage } from "@/lib/i18n"
 import {
   NAV_V2_TABS,
   navV2Layout,
@@ -58,6 +59,7 @@ type Props = {
  */
 export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_TABS }: Props) {
   const theme = useAmTheme()
+  useLanguage() // tab labels are read from the active language
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
   const count = tabs.length

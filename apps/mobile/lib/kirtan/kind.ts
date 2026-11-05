@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import { artistForAuthor, type Artist } from "@/lib/kirtan/artists"
 import { BHAJAN_TYPES, KIRTAN_TYPES, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
 
@@ -17,24 +18,23 @@ export function normalizeKind(value: unknown): RecordingKind {
 }
 
 /** The visible name of a kind: `Kiirtan` or `Bhajan`. */
-export function kindLabel(kind: RecordingKind | null | undefined): "Kiirtan" | "Bhajan" {
-  return kind === "bhajan" ? "Bhajan" : "Kiirtan"
+export function kindLabel(kind: RecordingKind | null | undefined): string {
+  return kind === "bhajan" ? t("kind.bhajan") : t("kind.kiirtan")
 }
 
 /** `Kiirtans` or `Bhajans`. */
-export function kindLabelPlural(kind: RecordingKind | null | undefined): "Kiirtans" | "Bhajans" {
-  return kind === "bhajan" ? "Bhajans" : "Kiirtans"
+export function kindLabelPlural(kind: RecordingKind | null | undefined): string {
+  return kind === "bhajan" ? t("kind.bhajans") : t("kind.kiirtans")
 }
 
 /** Small capitals tag of a row: `KIIRTAN` or `BHAJAN`. */
-export function kindTag(kind: RecordingKind | null | undefined): "KIIRTAN" | "BHAJAN" {
-  return kind === "bhajan" ? "BHAJAN" : "KIIRTAN"
+export function kindTag(kind: RecordingKind | null | undefined): string {
+  return kind === "bhajan" ? t("kind.bhajan.tag") : t("kind.kiirtan.tag")
 }
 
 /** Lower-case noun with a count: `1 kiirtan`, `3 bhajans`. */
 export function kindCountLabel(kind: RecordingKind | null | undefined, count: number): string {
-  const noun = kind === "bhajan" ? "bhajan" : "kiirtan"
-  return `${count} ${count === 1 ? noun : `${noun}s`}`
+  return kind === "bhajan" ? t("kind.bhajan.count", { count }) : t("kind.kiirtan.count", { count })
 }
 
 export function kindOf(item: { kind?: RecordingKind | null } | null | undefined): RecordingKind {
@@ -74,12 +74,12 @@ export function kindSubtitle(kind: RecordingKind | null | undefined, author: str
   const artist = artistForAuthor(artists, author)
   if (artist) return `${label} · ${artist.name}`
   const who = (addedBy ?? "").trim()
-  return who ? `${label} · added by ${who}` : label
+  return who ? t("kind.subtitle.addedBy", { kind: label, name: who }) : label
 }
 
 /** `Kiirtan, Title. 12:40`: the spoken label of a row. */
 export function kindSpokenLabel(kind: RecordingKind | null | undefined, title: string, subline: string): string {
-  return `${kindLabel(kind)}, ${title}. ${subline}`
+  return t("kind.spokenLabel", { kind: kindLabel(kind), title, subline })
 }
 
 /** Gives an item stored before kinds existed its kind. */
@@ -101,5 +101,6 @@ export function kindsCountLabel(list: readonly { kind?: RecordingKind | null }[]
 
 /** Swaps the leading word "Kiirtan" of a ready-made line for the kind's word (`Kiirtan · 1:05 of 12:40` to `Bhajan · 1:05 of 12:40`). Other lines stay. */
 export function withKindWord(text: string, kind: RecordingKind | null | undefined): string {
-  return kind === "bhajan" ? text.replace(/^Kiirtan\b/, "Bhajan") : text
+  const word = t("kind.kiirtan")
+  return kind === "bhajan" && text.startsWith(word) ? `${t("kind.bhajan")}${text.slice(word.length)}` : text
 }
