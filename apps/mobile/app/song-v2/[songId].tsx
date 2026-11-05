@@ -17,6 +17,8 @@ import { NotoSansBengali_400Regular, NotoSansBengali_700Bold } from "@expo-googl
 import { NotoSansDevanagari_400Regular, NotoSansDevanagari_700Bold } from "@expo-google-fonts/noto-sans-devanagari"
 
 import { WatchVideoCard } from "@/components/player/WatchVideoCard"
+import { SongPageVariants } from "@/components/song-page-variants/SongPageVariants"
+import { VariantSwitcher, useResolvedVariant } from "@/components/song-page-variants/Switcher"
 import { AboutSheet } from "@/components/player-v2/AboutSong"
 import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
 import { ShareSheet } from "@/components/player-v2/ShareSheet"
@@ -153,7 +155,7 @@ const POSTER = require("../../assets/song-v2-poster.jpg")
  * sections on one long page (Lyrics, Words, Meaning, Explain, Chords, Watch). Reachable at /song-v2/<id>.
  * Word glosses, chord charts and the explanation come from `lib/fixtures/songPage.ts` until the API has them.
  */
-export default function SongPageV2() {
+function CurrentSongPage() {
   const params = useLocalSearchParams<{
     songId: string | string[]
     demo?: string | string[]
@@ -1314,3 +1316,20 @@ const styles = StyleSheet.create({
   cardGap: { marginTop: 10 },
   lyricGap: { paddingHorizontal: 20 },
 })
+
+/**
+ * The route. Real builds show variant B ("Pages"). In the preview (MOCKUP_DATA) a small switcher picks A, B, C or the
+ * current page; the choice is saved (store key `song-page-variant`) and `?variant=a|b|c|current` sets it.
+ */
+export default function SongPageV2() {
+  const { variant, pick } = useResolvedVariant()
+  if (variant === "current") {
+    return (
+      <>
+        <CurrentSongPage />
+        <VariantSwitcher variant={variant} onPick={pick} />
+      </>
+    )
+  }
+  return <SongPageVariants variant={variant} onPick={pick} />
+}
