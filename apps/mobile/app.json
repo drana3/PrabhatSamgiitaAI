@@ -86,6 +86,7 @@
         }
       ],
       "./plugins/withIosProjectRootFix",
+      "./plugins/withOfflineBackupExclusion",
       [
         "expo-speech-recognition",
         {

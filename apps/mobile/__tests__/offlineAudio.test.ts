@@ -59,7 +59,12 @@ vi.mock("@/stores/authStore", () => ({
 }))
 
 import {
+  absoluteOfflineUri,
+  hydrateOfflineAudio,
   offlineAudioScopeKey,
+  parseOfflineIndex,
+  relativeOfflinePath,
+  serializeOfflineIndex,
   offlineRecordingState,
   offlineSaveControls,
   reconcileOfflineProgress,
@@ -583,5 +588,109 @@ describe("offline audio", () => {
 
     resolveDownload?.({ status: 200, uri: dest })
     await pending
+  })
+})
+
+
+describe("offline index stores relative paths", () => {
+  const docs = "file:///docs/"
+  const newDocs = "file:///var/mobile/Containers/Data/Application/NEW-UUID/Documents/"
+  const oldAbsolute = "file:///var/mobile/Containers/Data/Application/OLD-UUID/Documents/offline-audio/member%3Aa/12-abc.mp3"
+
+  beforeEach(() => {
+    store.clear()
+    applyAuth(memberA)
+  })
+
+  it("cuts the document directory off an address", () => {
+    expect(relativeOfflinePath(`${docs}offline-audio/s/12-x.mp3`, docs)).toBe("offline-audio/s/12-x.mp3")
+    expect(relativeOfflinePath(oldAbsolute, newDocs)).toBe("offline-audio/member%3Aa/12-abc.mp3")
+    expect(relativeOfflinePath("file:///elsewhere/song.mp3", docs)).toBeNull()
+    expect(absoluteOfflineUri("offline-audio/s/12-x.mp3", docs)).toBe(`${docs}offline-audio/s/12-x.mp3`)
+  })
+
+  it("writes only relative paths, never the container", () => {
+    const raw = serializeOfflineIndex(
+      { "https://cdn.test/12.mp3": { remoteUrl: "https://cdn.test/12.mp3", fileUri: `${docs}offline-audio/s/12-x.mp3`, songNumber: 12 } },
+      docs,
+    )
+    const saved = JSON.parse(raw)["https://cdn.test/12.mp3"]
+    expect(saved.path).toBe("offline-audio/s/12-x.mp3")
+    expect(saved.fileUri).toBeUndefined()
+    expect(raw).not.toContain("file:")
+  })
+
+  it("moves an old absolute entry onto the current container and reads the new format", () => {
+    const raw = JSON.stringify({
+      "https://cdn.test/old.mp3": { remoteUrl: "https://cdn.test/old.mp3", fileUri: oldAbsolute, songNumber: 12 },
+      "https://cdn.test/new.mp3": { remoteUrl: "https://cdn.test/new.mp3", path: "offline-audio/member%3Aa/13-def.mp3", songNumber: 13 },
+    })
+    const files = parseOfflineIndex(raw, newDocs)
+    expect(files["https://cdn.test/old.mp3"]?.fileUri).toBe(`${newDocs}offline-audio/member%3Aa/12-abc.mp3`)
+    expect(files["https://cdn.test/new.mp3"]?.fileUri).toBe(`${newDocs}offline-audio/member%3Aa/13-def.mp3`)
+  })
+
+  it("hydrate migrates an old absolute index and saves it back as relative paths", async () => {
+    const scope = offlineAudioScopeKey(memberA)
+    const encoded = encodeURIComponent(scope)
+    const url = "https://cdn.test/12.mp3"
+    store.set(
+      `ps.offline.audio.v2.${scope}`,
+      JSON.stringify({
+        [url]: {
+          remoteUrl: url,
+          fileUri: `file:///var/mobile/Containers/Data/Application/OLD-UUID/Documents/offline-audio/${encoded}/12-abc.mp3`,
+          songNumber: 12,
+        },
+      }),
+    )
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
+    await hydrateOfflineAudio()
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(`file:///docs/offline-audio/${encoded}/12-abc.mp3`)
+    const saved = JSON.parse(store.get(`ps.offline.audio.v2.${scope}`) as string)[url]
+    expect(saved.path).toBe(`offline-audio/${encoded}/12-abc.mp3`)
+    expect(saved.fileUri).toBeUndefined()
+  })
+})
+
+describe("offline folder is kept out of backups (config plugin)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const plugin = require("../plugins/withOfflineBackupExclusion.js") as {
+    injectIosBackupExclusion: (contents: string) => string | null
+    FULL_BACKUP_XML: string
+    DATA_EXTRACTION_XML: string
+  }
+  const appDelegate = [
+    "public class AppDelegate: ExpoAppDelegate {",
+    "  public override func application(",
+    "    _ application: UIApplication,",
+    "    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil",
+    "  ) -> Bool {",
+    "    let delegate = ReactNativeDelegate()",
+    "    return super.application(application, didFinishLaunchingWithOptions: launchOptions)",
+    "  }",
+    "}",
+  ].join("\n")
+
+  it("flags Documents/offline-audio before the app finishes launching, once", () => {
+    const patched = plugin.injectIosBackupExclusion(appDelegate) as string
+    expect(patched).toContain("isExcludedFromBackup = true")
+    expect(patched).toContain('"offline-audio"')
+    expect(patched.indexOf("isExcludedFromBackup")).toBeLessThan(patched.indexOf("return super.application"))
+    expect(plugin.injectIosBackupExclusion(patched)).toBe(patched)
+  })
+
+  it("does not guess when the AppDelegate has another shape", () => {
+    expect(plugin.injectIosBackupExclusion("class AppDelegate {}")).toBeNull()
+  })
+
+  it("excludes the folder from Android Auto Backup and device transfer", () => {
+    expect(plugin.FULL_BACKUP_XML).toContain('<exclude domain="file" path="offline-audio" />')
+    expect(plugin.DATA_EXTRACTION_XML.match(/path="offline-audio"/g)).toHaveLength(2)
+  })
+
+  it("is registered in app.json", () => {
+    const app = JSON.parse(require("node:fs").readFileSync(require("node:path").resolve(__dirname, "../app.json"), "utf8"))
+    expect(app.expo.plugins).toContain("./plugins/withOfflineBackupExclusion")
   })
 })

@@ -319,17 +319,72 @@ function urlHash(url: string): string {
   return Math.abs(hash).toString(36)
 }
 
-function parseIndex(raw: string | null): Record<string, OfflineAudioEntry> {
+const OFFLINE_FOLDER = "offline-audio"
+
+/**
+ * The part of a saved file's address that survives an update or a restore: `offline-audio/<scope>/<file>.mp3`.
+ * iOS can change the app container (the long UUID in the Documents path) after an update, so the index stores
+ * only this relative path and the full address is built from the current document directory every time.
+ * Old entries hold an absolute address from some earlier container; the part from `offline-audio/` is kept.
+ */
+export function relativeOfflinePath(uri: string, documentDirectory?: string | null): string | null {
+  const trimmed = uri.trim()
+  if (!trimmed) return null
+  if (documentDirectory && trimmed.startsWith(documentDirectory)) {
+    const rest = trimmed.slice(documentDirectory.length).replace(/^\/+/, "")
+    return rest || null
+  }
+  const marker = `/${OFFLINE_FOLDER}/`
+  const at = trimmed.indexOf(marker)
+  if (at >= 0) return trimmed.slice(at + 1)
+  if (!trimmed.startsWith("file:") && !trimmed.startsWith("/")) return trimmed
+  return null
+}
+
+export function absoluteOfflineUri(path: string, documentDirectory: string): string {
+  const base = documentDirectory.endsWith("/") ? documentDirectory : `${documentDirectory}/`
+  return `${base}${path.replace(/^\/+/, "")}`
+}
+
+/** What goes to AsyncStorage: relative paths only (an address with no known folder is kept as it was). */
+export function serializeOfflineIndex(
+  files: Record<string, OfflineAudioEntry>,
+  documentDirectory: string | null | undefined,
+): string {
+  const out: Record<string, { remoteUrl: string; path?: string; fileUri?: string; songNumber: number }> = {}
+  for (const [key, entry] of Object.entries(files)) {
+    const path = relativeOfflinePath(entry.fileUri, documentDirectory)
+    out[key] = path
+      ? { remoteUrl: entry.remoteUrl, path, songNumber: entry.songNumber }
+      : { remoteUrl: entry.remoteUrl, fileUri: entry.fileUri, songNumber: entry.songNumber }
+  }
+  return JSON.stringify(out)
+}
+
+/** Reads both formats: `path` (new, relative) and `fileUri` (old, absolute, moved onto the current container). */
+export function parseOfflineIndex(
+  raw: string | null,
+  documentDirectory: string | null | undefined,
+): Record<string, OfflineAudioEntry> {
   if (!raw) return {}
   try {
-    const parsed = JSON.parse(raw) as Record<string, Partial<OfflineAudioEntry>>
+    const parsed = JSON.parse(raw) as Record<string, { remoteUrl?: string; path?: string; fileUri?: string; songNumber?: number }>
     const files: Record<string, OfflineAudioEntry> = {}
     for (const [key, value] of Object.entries(parsed)) {
       const remoteUrl = normalizeUrl(value?.remoteUrl) || normalizeUrl(key)
-      if (!remoteUrl || !value?.fileUri) continue
+      if (!remoteUrl) continue
+      let fileUri: string | null = null
+      const relative = value?.path
+        ? value.path
+        : value?.fileUri
+          ? relativeOfflinePath(value.fileUri, documentDirectory)
+          : null
+      if (relative && documentDirectory) fileUri = absoluteOfflineUri(relative, documentDirectory)
+      else if (value?.fileUri) fileUri = value.fileUri
+      if (!fileUri) continue
       files[remoteUrl] = {
         remoteUrl,
-        fileUri: value.fileUri,
+        fileUri,
         songNumber: Number(value.songNumber) || 0,
       }
     }
@@ -354,7 +409,7 @@ let persistChain = Promise.resolve()
 function persistCurrent(scope: string) {
   persistChain = persistChain.then(async () => {
     const files = useOfflineAudioStore.getState().files
-    await AsyncStorage.setItem(indexKey(scope), JSON.stringify(files))
+    await AsyncStorage.setItem(indexKey(scope), serializeOfflineIndex(files, FileSystem.documentDirectory))
   })
   return persistChain
 }
@@ -465,7 +520,8 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
 
   hydrate: async () => {
     const scope = offlineAudioScopeKey(currentAuth())
-    const stored = parseIndex(await AsyncStorage.getItem(indexKey(scope)))
+    // Old absolute addresses are moved onto the current container here, then saved back as relative paths.
+    const stored = parseOfflineIndex(await AsyncStorage.getItem(indexKey(scope)), FileSystem.documentDirectory)
     const files: Record<string, OfflineAudioEntry> = {}
     await Promise.all(
       Object.entries(stored).map(async ([key, entry]) => {
