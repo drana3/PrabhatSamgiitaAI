@@ -5,7 +5,7 @@ import type { MenuPlaylist } from "@/components/songs-v2/ListSheets"
 import type { ToastAction } from "@/components/songs-v2/Toast"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { songNumbersForCategory } from "@/lib/categorySongs"
-import { MOCK_PLAYLISTS, MOCK_RECENT, mockCategoryNumbers } from "@/lib/fixtures/songsMock"
+import { MOCK_PLAYLISTS, MOCK_RECENT } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { hasPlayableAudio } from "@/lib/playableAudio"
@@ -118,7 +118,7 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   const categories = useMemo<ListContext["categories"]>(
     () =>
       Object.fromEntries(
-        CATEGORY_CHIPS.map((c) => [c.id, MOCKUP_DATA ? mockCategoryNumbers(c.id) : new Set(songNumbersForCategory(c.id))]),
+        CATEGORY_CHIPS.map((c) => [c.id, new Set(songNumbersForCategory(c.id))]),
       ),
     [],
   )

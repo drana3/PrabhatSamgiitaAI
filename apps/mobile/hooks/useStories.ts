@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { FIXTURE_STORIES, fixtureStoryBySlug } from "@/lib/fixtures/stories"
-import { MOCK_SONGS } from "@/lib/fixtures/songsMock"
+import { previewTitle } from "@/lib/previewCatalog"
 import { api } from "@/lib/client"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { storyFromApi } from "@/lib/stories/fromApi"
@@ -117,13 +117,13 @@ export function usePrefetchMinutes(stories: readonly Story[]): number {
   return version
 }
 
-/** Song titles for a list of PS numbers: the sample catalog under MOCKUP_DATA, the real catalog otherwise. */
+/** Song titles for a list of PS numbers: the loaded catalog (the web preview loads the same real catalog). */
 export function useStorySongTitles(stories: readonly Story[]): (n: number) => string | undefined {
   const numbers = useMemo(() => [...new Set(stories.flatMap((s) => s.songNumbers))], [stories])
   const catalog = useSongTitles(numbers)
   return useCallback(
     (n: number) => {
-      if (MOCKUP_DATA) return MOCK_SONGS.find((s) => s.n === n)?.title
+      if (MOCKUP_DATA) return previewTitle(n)
       return catalog.get(n)
     },
     [catalog],

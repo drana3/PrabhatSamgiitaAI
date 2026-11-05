@@ -4,8 +4,6 @@ import { useLocalSearchParams } from "expo-router"
 import { SongsListPage } from "@/components/songs-v2/ListPage"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { withFixtureStats } from "@/lib/fixtures/songs"
-import { mockCollectionNumbers } from "@/lib/fixtures/songsMock"
-import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { placeholderEntry } from "@/lib/songsV2/entry"
 
@@ -20,7 +18,7 @@ export default function SongsV2CollectionScreen() {
   const key = String(id ?? "")
   const heading = String(title ?? id ?? "Collection")
 
-  const numbers = useMemo(() => (!key ? [] : MOCKUP_DATA ? mockCollectionNumbers(key) : songNumbersForCategory(key)), [key])
+  const numbers = useMemo(() => (!key ? [] : songNumbersForCategory(key)), [key])
   const entries = useMemo(
     () => numbers.map((n) => catalog.byNumber.get(n) ?? withFixtureStats(placeholderEntry(n))),
     [numbers, catalog.byNumber],

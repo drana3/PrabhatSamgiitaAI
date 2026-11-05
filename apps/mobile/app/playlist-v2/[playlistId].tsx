@@ -24,7 +24,8 @@ import { mineSyncStatus, playlistMeta, songEyebrow } from "@/lib/mineView"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { playPlaylist } from "@/lib/playPlaylist"
 import { routeString } from "@/lib/songMap"
-import { MOCK_PLAYLISTS, MOCK_SONGS } from "@/lib/fixtures/songsMock"
+import { MOCK_PLAYLISTS } from "@/lib/fixtures/songsMock"
+import { previewTitle } from "@/lib/previewCatalog"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { displayTitle, placeholderEntry, type CatalogEntry } from "@/lib/songsV2/entry"
 import { withFixtureStats } from "@/lib/fixtures/songs"
@@ -87,8 +88,8 @@ export default function PlaylistV2Screen() {
   )
   const realTitles = useSongTitles(numbers)
   const titles = useMemo(
-    () => (MOCKUP_DATA ? new Map(MOCK_SONGS.map((s) => [s.n, s.title] as const)) : realTitles),
-    [realTitles],
+    () => (MOCKUP_DATA ? new Map(numbers.flatMap((n) => { const t = previewTitle(n); return t ? [[n, t] as const] : [] })) : realTitles),
+    [realTitles, numbers],
   )
   // The song menu of a row is the one of the catalogue lists; in an own playlist its last row really removes the song.
   const catalog = useSongsV2Catalog()

@@ -1,5 +1,3 @@
-import type { MockSong } from "@/data/mock"
-import { sampleDuration, searchSample } from "@/lib/fixtures/search"
 import type { SearchGroup, SearchResultItem } from "@/lib/unifiedSearch"
 import { reasonLabel } from "@/lib/unifiedSearchQuery"
 
@@ -36,7 +34,7 @@ export type FlatResult = {
   item: SearchResultItem
   /** "Number match", "First line match", "Word match", "Feeling: peaceful" ... */
   why: string
-  /** "4:31", shown after "PS 3". Only the preview sample data has lengths. */
+  /** "4:31", shown after "PS 3". The search index has no lengths, so it is empty for now. */
   durationLabel?: string
 }
 
@@ -61,17 +59,4 @@ export function flattenResults(groups: readonly SearchGroup[]): FlatResult[] {
     }
   }
   return out
-}
-
-/** Preview rows (MOCKUP_DATA): the prototype's sample songs and matching rules. */
-export function sampleFlatResults(query: string): FlatResult[] {
-  return searchSample(query).map(({ song, why }) => ({
-    item: {
-      song: { id: `ps-${song.number}`, number: song.number, title: song.title } as unknown as MockSong,
-      reason: { kind: "first_line" },
-      line: song.title,
-    },
-    why,
-    durationLabel: sampleDuration(song.seconds),
-  }))
 }

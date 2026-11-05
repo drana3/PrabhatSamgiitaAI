@@ -15,8 +15,6 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { songNumbersForCategory } from "@/lib/categorySongs"
-import { MOCK_TILES, MOCK_TOTAL } from "@/lib/fixtures/songsMock"
-import { MOCKUP_DATA } from "@/lib/mockupMode"
 import {
   EMPTY_COLLECTIONS_TEXT,
   buildCollectionEntries,
@@ -42,9 +40,7 @@ const REVEALED_TILES = 6
 /** The six special tiles of the Songs shelf, counted the way the shelf counts them. */
 function moodSources(): MoodSource[] {
   return SPECIAL_TILES.map((tile) => {
-    const mock = MOCKUP_DATA ? MOCK_TILES.find((t) => t.id === tile.id) : undefined
-    const count = mock ? Number.parseInt(mock.countLabel, 10) || 0 : songNumbersForCategory(tile.browseId).length
-    return { id: mock?.id ?? tile.browseId, label: tile.label, count }
+    return { id: tile.browseId, label: tile.label, count: songNumbersForCategory(tile.browseId).length }
   })
 }
 
@@ -72,7 +68,7 @@ export default function CollectionsV2Screen() {
   const chips = useMemo(() => kindChips(entries), [entries])
   const shown = useMemo(() => filterCollections(entries, query, kind), [entries, query, kind])
   const searching = query.trim().length > 0
-  const total = MOCKUP_DATA ? MOCK_TOTAL : catalog.entries.length || CATALOG_SIZE
+  const total = catalog.entries.length || CATALOG_SIZE
   const coverIds = useMemo(() => collageCoverIds(Array.from({ length: 48 }, (_, i) => i + 1)), [])
 
   const tileWidth = Math.floor(((width || 390) - SIDE * 2 - GAP) / 2)

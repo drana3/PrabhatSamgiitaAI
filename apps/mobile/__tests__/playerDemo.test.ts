@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   DEMO_CATALOG_COUNT,
   demoNumbers,
+  demoRow,
   demoRows,
   demoSong,
   demoTitle,
@@ -15,16 +16,22 @@ import {
 import { demoDownloadKey, demoDownloadSize, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
 
 describe("demo player fixtures", () => {
-  it("has the prototype's 64 songs with PS 1 to 7 first", () => {
+  it("opens on a queue of the first 64 real songs, titled from the catalog", () => {
     const rows = demoRows()
     expect(rows).toHaveLength(64)
-    expect(rows.slice(0, 3).map((r) => r.title)).toEqual([
+    expect(rows.map((r) => r.number)).toEqual(Array.from({ length: 64 }, (_, i) => i + 1))
+    expect(rows.slice(0, 3).map((r) => r.title.normalize("NFC"))).toEqual([
       "Bandhu He Niye Calo",
       "E Gán Ámár, Álor Jharańá Dhárá",
       "Ándhára Sheśe Álora Deshe",
     ])
+    // not loaded yet: a plain number, never an invented name
+    expect(rows[40]?.title).toBe("Prabhat Samgiita 41")
     expect(demoNumbers().every((n) => n >= 1 && n <= DEMO_CATALOG_COUNT)).toBe(true)
-    expect(demoTitle(3)).toBe("Ándhára Sheśe Álora Deshe")
+    expect(demoTitle(3)?.normalize("NFC")).toBe("Ándhára Sheśe Álora Deshe")
+    expect(demoRow(0)).toBeUndefined()
+    expect(demoRow(5019)).toBeUndefined()
+    expect(demoRow(4999)?.number).toBe(4999)
   })
 
   it("round-trips the version index through the demo url", () => {

@@ -11,6 +11,7 @@ import {
   demoVersionIndex,
   demoVersionSeconds,
 } from "@/lib/fixtures/playerDemo"
+import { MOCKUP_CONTENT_NUMBERS } from "@/lib/fixtures/songMockup"
 import { isSameSong } from "@/lib/playback"
 import type { PlaybackMode } from "@/lib/playbackQueue"
 import {
@@ -20,6 +21,7 @@ import {
   type ControllerDeps,
 } from "@/lib/playerV2/controller"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { resolveSong } from "@/lib/songs"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
 import { usePlaylistStore } from "@/stores/playlistStore"
@@ -60,7 +62,41 @@ function prepare(song: MockSong): MockSong {
     const match = /-v(\d+)$/.exec(remembered ?? "")
     index = match ? Number(match[1]) - 1 : 0
   }
-  return demoSong(song.number, song.title, index)
+  const demo = demoSong(song.number, song.title, index)
+  // The sample words (lib/fixtures/playerDemo.ts) are those of PS 1 and PS 3 only. Any other song keeps
+  // its own words; they are loaded from the API right after the song starts (hydrateWords).
+  return MOCKUP_CONTENT_NUMBERS.includes(song.number) ? demo : withRealWords(demo, song)
+}
+
+/** The demo song (versions, clock) with the words, meaning and title of the real song. */
+function withRealWords(demo: MockSong, real: MockSong): MockSong {
+  return {
+    ...demo,
+    title: real.title || demo.title,
+    originalTitle: real.originalTitle,
+    shortDescription: real.shortDescription,
+    themes: real.themes?.length ? real.themes : demo.themes,
+    meaning: real.meaning,
+    centralIdea: real.centralIdea,
+    hindiMeaning: real.hindiMeaning,
+    localizedMeanings: real.localizedMeanings,
+    lyrics: real.lyrics,
+    transliteration: real.transliteration,
+    lyricsDevanagari: real.lyricsDevanagari,
+    translation: real.translation,
+  }
+}
+
+/** Swaps in the real words once the API has answered, if that song is still the one playing. */
+function hydrateWords(number: number): void {
+  if (MOCKUP_CONTENT_NUMBERS.includes(number)) return
+  void resolveSong(`ps-${number}`)
+    .then((real) => {
+      const current = player.getState().currentSong
+      if (!real || !current || current.number !== number || current.kind === "kiirtan") return
+      player.setState({ currentSong: withRealWords(current, real) })
+    })
+    .catch(() => undefined)
 }
 
 function startClock(): void {
@@ -117,6 +153,7 @@ function loadSong(song: MockSong, queue?: number[], mode?: PlaybackMode): void {
     position: 0,
     duration: demoDuration(prepared),
   })
+  if (prepared.kind !== "kiirtan") hydrateWords(number)
   startClock()
 }
 

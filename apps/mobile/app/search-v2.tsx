@@ -34,8 +34,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { api } from "@/lib/client"
-import { flattenResults, sampleFlatResults } from "@/lib/searchProto"
-import { SAMPLE_OFFLINE_NUMBERS } from "@/lib/fixtures/search"
+import { flattenResults } from "@/lib/searchProto"
+import { MOCK_OFFLINE } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { SEARCH_BROWSE_ALL, SEARCH_DISCOVER, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
@@ -259,16 +259,17 @@ export default function UnifiedSearchScreen() {
 
   const offlineFiles = useOfflineAudioStore((state) => state.files)
   const offlineNumbers = useMemo(
-    () => (MOCKUP_DATA ? SAMPLE_OFFLINE_NUMBERS : new Set(Object.values(offlineFiles).map((entry) => entry.songNumber))),
+    () => (MOCKUP_DATA ? new Set(MOCK_OFFLINE) : new Set(Object.values(offlineFiles).map((entry) => entry.songNumber))),
     [offlineFiles],
   )
   const empty = query.trim().length === 0
   const rows = useMemo(
-    () => (MOCKUP_DATA ? sampleFlatResults(query) : flattenResults(result.groups)),
-    [query, result.groups],
+    // The preview searches the same bundled index as the real build: all 5,018 songs by number, title, first line and words.
+    () => flattenResults(result.groups),
+    [result.groups],
   )
   const collections = useMemo(
-    () => (MOCKUP_DATA ? [] : result.groups.flatMap((group) => group.collections ?? [])),
+    () => result.groups.flatMap((group) => group.collections ?? []),
     [result.groups],
   )
 
@@ -407,7 +408,7 @@ export default function UnifiedSearchScreen() {
                 Sign in to also search songs by meaning.
               </Text>
             ) : null}
-            {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={!MOCKUP_DATA && result.message === outOfRangeMessage() ? result.message : null} /> : null}
+            {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={result.message === outOfRangeMessage() ? result.message : null} /> : null}
           </View>
         )}
       </ScrollView>

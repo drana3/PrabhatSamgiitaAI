@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  MOCKUP_CONTENT_NUMBERS,
   MOCKUP_LANGUAGES,
   mockupFixtureKey,
   mockupRow,
@@ -11,16 +12,28 @@ import {
   mockupVariantFor,
   mockupVersions,
 } from "@/lib/fixtures/songMockup"
+import { REAL_SONGS_1_TO_7 } from "@/lib/fixtures/realSongs"
+import { displayTitle } from "@/lib/songsV2/entry"
 import { layoutChart, type ChordChart } from "@/lib/songPage/chordChart"
 import { versionDetail, type SongVersion } from "@/lib/songPage/versions"
 
 describe("prototype sample songs", () => {
-  it("lists the 64 songs with the catalog titles first", () => {
-    const rows = mockupRows()
-    expect(rows).toHaveLength(64)
-    expect(rows[0]).toMatchObject({ n: 1, title: "Bandhu He Niye Calo", tag: "Guidance", secs: 238 })
-    expect(mockupRow(3)?.title).toBe("Ándhára Sheśe Álora Deshe")
+  it("draws the sample page for PS 1 and PS 3 only, with the catalog's titles", () => {
+    expect(MOCKUP_CONTENT_NUMBERS).toEqual([1, 3])
+    expect(mockupRow(1)).toMatchObject({ n: 1, secs: 238, index: 0 })
+    expect(mockupRow(1)?.title.normalize("NFC")).toBe("Bandhu He Niye Calo")
+    expect(mockupRow(3)?.title.normalize("NFC")).toBe("Ándhára Sheśe Álora Deshe")
+    // every other number, real or not, opens the real song page: the sample words are not its lyrics
+    expect(mockupRow(2)).toBeNull()
+    expect(mockupRow(4000)).toBeNull()
     expect(mockupRow(99999)).toBeNull()
+  })
+
+  it("fills the More like this shelf with the first real songs, none invented", () => {
+    const rows = mockupRows()
+    expect(rows.map((r) => r.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+    expect(rows.slice(0, 7).every((r) => REAL_SONGS_1_TO_7.some((s) => s.number === r.n && displayTitle(s.title) === r.title)) ).toBe(true)
+    expect(rows[1]?.tag).toBe("Song of Liberation")
   })
 
   it("picks the first sample for index 0 and the second for index 2, the rest by parity", () => {
@@ -34,8 +47,8 @@ describe("prototype sample songs", () => {
 
   it("builds the song with Roman and Devanagari lines of equal length", () => {
     const song = mockupSong(1)!
-    expect(song.title).toBe("Bandhu He Niye Calo")
-    expect(song.themes).toEqual(["Guidance"])
+    expect(song.title.normalize("NFC")).toBe("Bandhu He Niye Calo")
+    expect(song.themes).toEqual(["hopeful"])
     expect(song.performer).toBe("Performer A")
     const roman = song.lyrics.split("\n")
     const deva = (song.lyricsDevanagari ?? "").split("\n")
@@ -43,6 +56,7 @@ describe("prototype sample songs", () => {
     expect(deva).toHaveLength(roman.length)
     expect(roman[0]).toBe("Bandhu he niye calo")
     expect(mockupSong(424242)).toBeNull()
+    expect(mockupSong(4)).toBeNull()
   })
 
   it("gives one translation line per lyric line and null for unknown languages", () => {

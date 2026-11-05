@@ -1,11 +1,11 @@
 import playableNumbers from "@/assets/playable-audio-numbers.json"
-import { DEMO_CATALOG_COUNT, demoNumbers } from "@/lib/fixtures/playerDemo"
 import { isKiirtanNumber, kiirtanHasAudio } from "@/lib/kirtan/track"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 const PLAYABLE = new Set(playableNumbers as number[])
-// Web preview with prototype data: every song of the design plays (simulated), the list is the design's 64.
-const PLAYABLE_LIST = MOCKUP_DATA ? demoNumbers() : (playableNumbers as number[])
+// The web preview uses the same list as the real build: a song "has audio" only if the catalog says so.
+// (The preview simulates playback with a clock, but it never offers play on a song without a recording.)
+const PLAYABLE_LIST = playableNumbers as number[]
 
 function fallbackRandom(exclude: number, total = 5018): number {
   if (total <= 1) return 1
@@ -17,12 +17,11 @@ function fallbackRandom(exclude: number, total = 5018): number {
 export function hasPlayableAudio(number: number): boolean {
   // A Kiirtan plays its uploaded file; the preview simulates playback, so every Kiirtan "has audio" there.
   if (isKiirtanNumber(number)) return MOCKUP_DATA || kiirtanHasAudio(number)
-  if (MOCKUP_DATA) return number >= 1 && number <= DEMO_CATALOG_COUNT
   return PLAYABLE.has(number)
 }
 
 export function playableAudioCount(): number {
-  return MOCKUP_DATA ? DEMO_CATALOG_COUNT : PLAYABLE_LIST.length
+  return PLAYABLE_LIST.length
 }
 
 /** Random PS with a known official audio file in corpus (~3.7k of 5018). */

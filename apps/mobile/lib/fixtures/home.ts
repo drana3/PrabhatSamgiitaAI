@@ -1,19 +1,21 @@
-import { MOCK_SONGS, MOCK_STORIES } from "@/lib/fixtures/songsMock"
+import { fixtureSeconds } from "@/lib/fixtures/songs"
+import { MOCK_STORIES } from "@/lib/fixtures/songsMock"
+import { previewTitleOrNumber } from "@/lib/previewCatalog"
 import { formatClock } from "@/lib/navV2"
 import { songSub, type HomeCoverId, type StartRow, type StripTone } from "@/lib/homeShelves"
 
 /**
  * Preview only (MOCKUP_DATA, see lib/mockupMode.ts). Sample content for the shelf-style Home, the
  * Search browse view and Notifications. There is no design board for these
- * screens; the songs are the prototype's own sample catalog (lib/fixtures/songsMock.ts).
+ * screens; the songs are real ones (PS 1 to 7 of the catalog, titles from lib/previewCatalog.ts).
  * TODO(api): every list here is replaced by real data (taste, trends, notifications, playlists).
  */
 
 export type HomeSong = { number: number; title: string; sub: string }
 
 function song(number: number): HomeSong {
-  const row = MOCK_SONGS.find((s) => s.n === number) ?? MOCK_SONGS[0]
-  return { number: row.n, title: row.title, sub: songSub(row.n, formatClock(row.secs)) }
+  // TODO(api): the length is a fixture value until the API sends one (lib/fixtures/songs.ts).
+  return { number, title: previewTitleOrNumber(number), sub: songSub(number, formatClock(fixtureSeconds(number))) }
 }
 export const homeSong = song
 

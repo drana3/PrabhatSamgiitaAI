@@ -30,7 +30,7 @@ import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
-import { MOCK_OFFLINE, MOCK_PLAYLISTS, MOCK_TILES, MOCK_TOTAL, mockCountLabel } from "@/lib/fixtures/songsMock"
+import { MOCK_OFFLINE, MOCK_PLAYLISTS } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { href } from "@/utils/href"
 
@@ -129,11 +129,9 @@ function PsSongs() {
 
   const { rows, filtered, sort, chip, filterCount } = controller
   const loadingList = catalog.loading && !catalog.entries.length
-  const countLabel = MOCKUP_DATA
-    ? mockCountLabel(chip, filtered.length)
-    : loadingList
-      ? "Loading"
-      : `${filtered.length.toLocaleString("en-US")} ${filtered.length === 1 ? "song" : "songs"}`
+  const countLabel = loadingList
+    ? "Loading"
+    : `${filtered.length.toLocaleString("en-US")} ${filtered.length === 1 ? "song" : "songs"}${catalog.notice ? " · offline sample" : ""}`
 
   const renderRow = useCallback(
     (row: ListRow) =>
@@ -178,10 +176,7 @@ function PsSongs() {
   }
 
   const shelfCollections = useMemo(
-    () =>
-      MOCKUP_DATA
-        ? MOCK_TILES.map((t) => ({ id: t.id, label: t.label, countLabel: t.countLabel }))
-        : tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length).map((t) => ({ id: t.browseId, label: t.label, countLabel: t.countLabel })),
+    () => tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length).map((t) => ({ id: t.browseId, label: t.label, countLabel: t.countLabel })),
     [],
   )
 
@@ -190,7 +185,7 @@ function PsSongs() {
       <SongsScroller
         theme={theme}
         inset={inset}
-        total={MOCKUP_DATA ? MOCK_TOTAL : catalog.entries.length || CATALOG_SIZE}
+        total={catalog.entries.length || CATALOG_SIZE}
         chip={chipId}
         onChip={setChipId}
         initial={initial}

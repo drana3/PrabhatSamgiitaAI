@@ -14,7 +14,7 @@ import type { StorySummary } from "@/data/stories"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { festivalChips, pickFestival, SPECIAL_TILES, storyEyebrow, tilesWithCounts, type TileTone } from "@/lib/songsV2/collections"
 import { storyLoader } from "@/lib/songsV2/storyApi"
-import { MOCK_FESTIVALS, MOCK_STORIES, MOCK_TILES } from "@/lib/fixtures/songsMock"
+import { MOCK_STORIES } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 type Props = {
@@ -40,14 +40,11 @@ function tileColors(theme: SongsTheme, tone: TileTone) {
  * collections. A festival chip swaps the green card in place. Blocks reveal with `--i` 3 to 9.
  */
 export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, onOpenFestival, onOpenStory, onOpenTile }: Props) {
-  const chips = useMemo(() => (MOCKUP_DATA ? [...MOCK_FESTIVALS] : festivalChips(allCollections)), [])
+  const chips = useMemo(() => festivalChips(allCollections), [])
   const [festivalId, setFestivalId] = useState<string | null>(null)
   const festival = pickFestival(chips, festivalId)
   const tiles = useMemo(
-    () =>
-      MOCKUP_DATA
-        ? MOCK_TILES.map((t) => ({ ...t, browseId: t.id }))
-        : tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length),
+    () => tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length),
     [],
   )
   const [, bump] = useState(0)
@@ -90,9 +87,7 @@ export function CollectionsSegment({ theme, stories, storiesLoading, onPlayAll, 
                   icon={<PlayGlyph color="#FFFFFF" />}
                   onPress={() => onPlayAll(festival.songNumbers)}
                 />
-                {MOCKUP_DATA ? null : (
-                  <PillButton theme={theme} tone="sand" label="See songs" onPress={() => onOpenFestival(festival.label)} />
-                )}
+                <PillButton theme={theme} tone="sand" label="See songs" onPress={() => onOpenFestival(festival.label)} />
               </View>
             </View>
           </SongsReveal>

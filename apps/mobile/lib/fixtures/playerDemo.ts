@@ -1,5 +1,6 @@
 import type { MockSong } from "@/data/mock"
 import { fixtureSeconds } from "@/lib/fixtures/songs"
+import { previewTitle, previewTitleOrNumber } from "@/lib/previewCatalog"
 import type { Instrument, PlayerVersion } from "@/lib/playerV2/versions"
 
 /**
@@ -23,49 +24,33 @@ export const DEMO_PLAYLISTS: Array<{ id: string; name: string; songs: number[] }
 
 export type DemoRow = { number: number; title: string; seconds: number }
 
-const REAL_TITLES: Array<[string, number]> = [
-  ["Bandhu He Niye Calo", 238],
-  ["E Gán Ámár, Álor Jharańá Dhárá", 252],
-  ["Ándhára Sheśe Álora Deshe", 271],
-  ["Sakal Maner Viińá Ek Sure Báje Áj", 305],
-  ["Elo, Anek Juger Sei Ajáná Pathik", 226],
-  ["Bandhu Ámár", 300],
-  ["Niiravatá Májhe Ke Go Tumi Ele", 284],
-]
-const A1 = ["Ánanda", "Madhur", "Prem", "Áloke", "Sándhya", "Prabháte", "Sháran", "Bhakti", "Niilá", "Sudhá", "Manera", "Dhyáner", "Karuńá", "Jyotir", "Sargam", "Támasii"]
-const A2 = ["Dháráy", "Gán", "Sure", "Pathe", "Vináy", "Tarańge", "Nikuñje", "Smaran", "Mantre", "Amiyá", "Sparshe", "Bandaná"]
+/** The opening queue of the demo player: PS 1 to 64, real songs. The catalog has 5,018. */
+export const DEMO_QUEUE_SIZE = 64
 
-let rows: DemoRow[] | null = null
-
-/** The prototype's 64 songs: PS 1 to 7 are the catalog's, the other 57 are its invented sample titles. */
+/**
+ * The opening queue as rows. Numbers are the catalog's own, titles come from the loaded catalog
+ * (lib/previewCatalog.ts; "Prabhat Samgiita N" until it has loaded), lengths are the fixture
+ * values of lib/fixtures/songs.ts. TODO(api): real lengths.
+ */
 export function demoRows(): DemoRow[] {
-  if (rows) return rows
-  const out: DemoRow[] = REAL_TITLES.map(([title, seconds], i) => ({ number: i + 1, title, seconds }))
-  for (let i = 7; i < 64; i += 1) {
-    out.push({
-      number: Math.round(7 + (i - 6) * (5011 / 57)),
-      title: `${A1[i % 16]} ${A2[(i * 5) % 12]}${i % 3 === 0 ? " Áj" : ""}`,
-      seconds: 180 + ((i * 53) % 170),
-    })
-  }
-  rows = out
-  return out
+  return Array.from({ length: DEMO_QUEUE_SIZE }, (_, i) => demoRow(i + 1)!)
 }
 
 export function demoNumbers(): number[] {
-  return demoRows().map((row) => row.number)
+  return Array.from({ length: DEMO_QUEUE_SIZE }, (_, i) => i + 1)
 }
 
 export function demoRow(number: number): DemoRow | undefined {
-  return demoRows().find((row) => row.number === number)
+  if (!Number.isInteger(number) || number < 1 || number > DEMO_CATALOG_COUNT) return undefined
+  return { number, title: previewTitleOrNumber(number), seconds: fixtureSeconds(number) }
 }
 
 export function demoTitle(number: number): string | undefined {
-  return demoRow(number)?.title
+  return previewTitle(number)
 }
 
 export function demoSeconds(number: number): number {
-  return demoRow(number)?.seconds ?? fixtureSeconds(number)
+  return fixtureSeconds(number)
 }
 
 type Word = [roman: string, devanagari: string]
@@ -91,8 +76,7 @@ const CONTENT_B: Content = {
 
 /** The prototype's `_content(i)` by row index: row 0 is sample A, row 2 is sample B, then odd rows B and even rows A. */
 function contentFor(number: number): Content {
-  const found = demoRows().findIndex((row) => row.number === number)
-  const index = found >= 0 ? found : Math.max(0, number - 1)
+  const index = Math.max(0, number - 1)
   if (index === 0) return CONTENT_A
   if (index === 2) return CONTENT_B
   return index % 2 ? CONTENT_B : CONTENT_A

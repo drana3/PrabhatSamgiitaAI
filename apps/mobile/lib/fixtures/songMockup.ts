@@ -3,8 +3,13 @@
  * `_recs()` and the base state), used only when MOCKUP_DATA is on (`npm run web`), so the page can be compared
  * 1:1 with the boards. With the flag off the page uses the live catalog. Nothing here is reviewed content: the
  * word glosses, translations, explanations, chords, performers and sizes are the prototype's placeholders.
+ * Only PS 1 and PS 3 use it (MOCKUP_CONTENT_NUMBERS); every other song opens the real page. Titles and
+ * numbers are the catalog's (lib/previewCatalog.ts), none are invented.
  */
 import type { MockSong } from "@/data/mock"
+import { fixtureSeconds } from "@/lib/fixtures/songs"
+import { previewSummary, previewTitleOrNumber } from "@/lib/previewCatalog"
+import { CATEGORY_FALLBACK } from "@/lib/songsV2/entry"
 import type { SongVersion } from "@/lib/songPage/versions"
 import type { Coverage } from "@/lib/songPage/translations"
 
@@ -50,45 +55,39 @@ const B: Variant = {
   central: "Placeholder. The central idea comes from the song database.",
 }
 
-export type MockupRow = { n: number; title: string; secs: number; tag: string; tags: string[]; index: number }
+export type MockupRow = { n: number; title: string; secs: number; tag: string; index: number }
 
-const FIRST: Array<[number, string, number, string, string[]]> = [
-  [1, "Bandhu He Niye Calo", 238, "Guidance", ["guidance", "devotion", "longing"]],
-  [2, "E Gán Ámár, Álor Jharańá Dhárá", 252, "Light", ["dawn", "joy", "peaceful"]],
-  [3, "Ándhára Sheśe Álora Deshe", 271, "Light", ["guidance", "dawn", "peaceful"]],
-  [4, "Sakal Maner Viińá Ek Sure Báje Áj", 305, "Devotion", ["devotion", "joy"]],
-  [5, "Elo, Anek Juger Sei Ajáná Pathik", 226, "Longing", ["longing", "guidance"]],
-  [6, "Bandhu Ámár", 300, "Devotion", ["devotion", "longing", "surrender"]],
-  [7, "Niiravatá Májhe Ke Go Tumi Ele", 284, "Silence", ["peaceful", "nature", "surrender"]],
-]
+/**
+ * The songs whose page is drawn from the prototype's sample content (words, translations, chords).
+ * The sample words are those of PS 1 ("Bandhu he niye calo") and PS 3 ("Ándhára sheśe álora deshe"),
+ * so only these two use them. Every other song of the catalog opens the real song page, with the
+ * real lyrics from the API: putting the sample words under another song's title would be an error.
+ */
+export const MOCKUP_CONTENT_NUMBERS: readonly number[] = [1, 3]
 
-const A1 = ["Ánanda", "Madhur", "Prem", "Áloke", "Sándhya", "Prabháte", "Sháran", "Bhakti", "Niilá", "Sudhá", "Manera", "Dhyáner", "Karuńá", "Jyotir", "Sargam", "Támasii"]
-const A2 = ["Dháráy", "Gán", "Sure", "Pathe", "Vináy", "Tarańge", "Nikuñje", "Smaran", "Mantre", "Amiyá", "Sparshe", "Bandaná"]
-const TG = ["devotion", "dawn", "nature", "longing", "surrender", "peaceful", "joy", "guidance"]
-const TL = ["Devotion", "Light", "Nature", "Longing", "Surrender", "Silence", "Joy", "Guidance"]
+/** Rows of the "More like this" shelf: the first songs of the catalog, real numbers and titles. */
+const SHELF_SIZE = 12
 
-let rowsCache: MockupRow[] | null = null
-
-/** The prototype's 64 sample songs (PS 1 to 7 are the catalog's titles, the rest are invented). */
-export function mockupRows(): MockupRow[] {
-  if (rowsCache) return rowsCache
-  const rows: MockupRow[] = FIRST.map(([n, title, secs, tag, tags], index) => ({ n, title, secs, tag, tags, index }))
-  for (let i = 7; i < 64; i += 1) {
-    rows.push({
-      n: Math.round(7 + (i - 6) * (5011 / 57)),
-      title: A1[i % 16] + " " + A2[(i * 5) % 12] + (i % 3 === 0 ? " Áj" : ""),
-      secs: 180 + ((i * 53) % 170),
-      tag: TL[i % 8]!,
-      tags: [TG[i % 8]!, TG[(i + 3) % 8]!],
-      index: i,
-    })
+function rowFor(n: number): MockupRow {
+  const summary = previewSummary(n)
+  return {
+    n,
+    title: previewTitleOrNumber(n),
+    // TODO(api): the length is a fixture value (lib/fixtures/songs.ts) until the API sends one.
+    secs: fixtureSeconds(n),
+    tag: (summary?.theme ?? summary?.mood ?? "").trim() || CATEGORY_FALLBACK,
+    index: n - 1,
   }
-  rowsCache = rows
-  return rows
 }
 
+/** Real songs for the "More like this" shelf of a sample song page (PS 1 to 12 of the catalog). */
+export function mockupRows(): MockupRow[] {
+  return Array.from({ length: SHELF_SIZE }, (_, i) => rowFor(i + 1))
+}
+
+/** The sample row of PS 1 or PS 3; null for every other number (those use the real song page). */
 export function mockupRow(number: number): MockupRow | null {
-  return mockupRows().find((row) => row.n === number) ?? null
+  return MOCKUP_CONTENT_NUMBERS.includes(number) ? rowFor(number) : null
 }
 
 /** The prototype keeps content for index 0 and 2; every other index takes one by parity. */
@@ -156,7 +155,7 @@ const RECS: Rec[] = [
 /** The six sample versions of a song: performer names, lengths and tags are placeholders. */
 export function mockupVersions(number: number): SongVersion[] {
   const row = mockupRow(number)
-  const base = row?.secs ?? 240
+  const base = row?.secs ?? fixtureSeconds(number)
   return RECS.map((rec, ri) => ({
     id: `mockup-${number}-${ri}`,
     url: `mockup://ps${number}/${ri}`,
