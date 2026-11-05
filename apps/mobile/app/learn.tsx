@@ -228,7 +228,7 @@ export default function LearnScreen() {
                   subtitle={`${INDEX_SUMMARY.ragas} ragas · ${INDEX_SUMMARY.talas} talas`}
                   onPress={() => go(indexHref("tala"))}
                 />
-                <ExploreRow p={p} title="Certificates" subtitle="Live quiz · none yet" onPress={() => go(HUB_LINKS.certificates)} />
+                {/* hidden for now, Dada 2026-11-05: <ExploreRow p={p} title="Certificates" subtitle="Live quiz · none yet" onPress={() => go(HUB_LINKS.certificates)} /> */}
               </View>
             </Reveal>
           </>

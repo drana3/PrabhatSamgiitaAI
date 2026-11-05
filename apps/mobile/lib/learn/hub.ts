@@ -31,7 +31,7 @@ export const HUB_LINKS = {
   chords: LEARN_ROUTES.harmoniumChords,
   stories: LEARN_ROUTES.stories,
   index: LEARN_ROUTES.ragaTalaIndex,
-  certificates: LEARN_ROUTES.liveQuiz,
+  // certificates: LEARN_ROUTES.liveQuiz, // hidden for now, Dada 2026-11-05 (routes /quiz stay in place)
 } as const
 
 /**

@@ -340,12 +340,14 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>Member</Text>
         <View style={styles.section}>
+          {/* Quiz & certificates row hidden for now, Dada 2026-11-05 (the /quiz routes stay in place)
           <Row
             icon={<Award size={18} color={colors.primary} />}
             label="Quiz & certificates"
             value={quizValue}
             onPress={() => router.push(href(mode === "guest" ? "/signin" : "/quiz"))}
           />
+          */}
           <Row
             icon={<MessageSquareHeart size={18} color={colors.primary} />}
             label="Send feedback"

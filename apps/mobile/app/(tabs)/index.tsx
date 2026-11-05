@@ -427,6 +427,7 @@ export default function HomeScreen() {
           <QuizWinnersRow />
         </View>
 
+        {/* Live quiz banner hidden for now, Dada 2026-11-05 (the /quiz routes stay in place)
         <View style={styles.block}>
           <QuizBanner
             isGuest={mode === "guest"}
@@ -434,6 +435,7 @@ export default function HomeScreen() {
             onScanPress={() => router.push(href(mode === "guest" ? "/signin" : "/quiz/scan"))}
           />
         </View>
+        */}
 
         <View style={styles.block}>
           <FeedbackEntryCard
