@@ -41,6 +41,7 @@ vi.mock("@/lib/playback/nativeCatalogPlayer", () => ({
 import playable from "@/assets/playable-audio-numbers.json"
 import { ensureUpcomingRadioTrack, resetRadioAdvance } from "@/lib/playback/radioAdvance"
 import { resetRadioSession, setRadioSession } from "@/lib/playback/radioSession"
+import { setTrackEndHook } from "@/lib/playback/trackEndHook"
 
 const [A, B] = (playable as number[]).slice(0, 2) as [number, number]
 
@@ -77,3 +78,39 @@ describe("ensureUpcomingRadioTrack", () => {
     expect(native.enqueueTrack).toHaveBeenCalledTimes(2)
   })
 })
+
+describe("a plain list on a locked phone (checkup P10)", () => {
+  beforeEach(() => {
+    native.queued = 0
+    native.enqueueTrack.mockClear()
+    resetRadioAdvance()
+    resetRadioSession()
+    setRadioSession({ kind: "casual", currentNumber: A, playlistBounds: null, driveRepeat: false, repeat: false } as never)
+  })
+
+  it("lines the next song up natively when the player screen names one", async () => {
+    setTrackEndHook({ shouldHoldUpcoming: () => false, onTrackEnded: () => false, upcomingSong: () => B })
+    await ensureUpcomingRadioTrack()
+    expect(native.enqueueTrack).toHaveBeenCalledTimes(1)
+    expect(native.enqueueTrack).toHaveBeenCalledWith(expect.objectContaining({ id: `ps-${B}` }))
+  })
+
+  it("adds nothing when nothing follows (single song, repeat one, versions still to play)", async () => {
+    setTrackEndHook({ shouldHoldUpcoming: () => false, onTrackEnded: () => false, upcomingSong: () => null })
+    await ensureUpcomingRadioTrack()
+    expect(native.enqueueTrack).not.toHaveBeenCalled()
+  })
+
+  it("adds nothing without a hook, as before", async () => {
+    setTrackEndHook(null)
+    await ensureUpcomingRadioTrack()
+    expect(native.enqueueTrack).not.toHaveBeenCalled()
+  })
+
+  it("holds back while the sleep timer or all-versions mode asks the engine to wait", async () => {
+    setTrackEndHook({ shouldHoldUpcoming: () => true, onTrackEnded: () => false, upcomingSong: () => B })
+    await ensureUpcomingRadioTrack()
+    expect(native.enqueueTrack).not.toHaveBeenCalled()
+  })
+})
+

@@ -197,3 +197,32 @@ describe("next and previous", () => {
     expect(nextRepeatMode("one")).toBe("off")
   })
 })
+
+describe("the song lined up natively behind this one (checkup P10)", () => {
+  it("is the next playable song of a plain list", () => {
+    const { deps } = makeDeps({ queue: [1, 2, 3] })
+    expect(createTrackEndHook(deps).upcomingSong?.()).toBe(2)
+  })
+  it("skips an unplayable song", () => {
+    const { deps } = makeDeps({ queue: [1, 2, 3], unplayable: [2] })
+    expect(createTrackEndHook(deps).upcomingSong?.()).toBe(3)
+  })
+  it("is nothing at the end of the list unless the list repeats", () => {
+    const end = makeDeps({ current: song(3), queue: [1, 2, 3] })
+    expect(createTrackEndHook(end.deps).upcomingSong?.()).toBeNull()
+    const wrap = makeDeps({ current: song(3), queue: [1, 2, 3], repeatMode: "all" })
+    expect(createTrackEndHook(wrap.deps).upcomingSong?.()).toBe(1)
+  })
+  it("is nothing for repeat one, a saved playlist, random, or while more versions play first", () => {
+    expect(createTrackEndHook(makeDeps({ repeatMode: "one" }).deps).upcomingSong?.()).toBeNull()
+    expect(createTrackEndHook(makeDeps({ playbackMode: "playlist" }).deps).upcomingSong?.()).toBeNull()
+    expect(createTrackEndHook(makeDeps({ playbackMode: "random" }).deps).upcomingSong?.()).toBeNull()
+    expect(createTrackEndHook(makeDeps({ playMode: "all" }).deps).upcomingSong?.()).toBeNull()
+  })
+  it("is the next song once the last version plays in all-versions mode", () => {
+    const onThird = { ...song(1), audioUrl: "https://a/1-3.mp3" } as MockSong
+    const { deps } = makeDeps({ current: onThird, playMode: "all", versionByNumber: { "1": "ps-1-v3" } })
+    expect(createTrackEndHook(deps).upcomingSong?.()).toBe(2)
+  })
+})
+

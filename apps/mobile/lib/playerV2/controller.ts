@@ -193,6 +193,25 @@ export function createTrackEndHook(deps: ControllerDeps): TrackEndHook {
       if (!state) return false
       return shouldHoldUpcoming(state.mode, state.index, state.versions.length)
     },
+    upcomingSong: () => {
+      if (deps.sleep?.endOfSongActive()) return null
+      const state = currentVersionState(deps)
+      const player = deps.getPlayer()
+      // A saved playlist and Drive advance inside the engine; random is stepped by the store.
+      if (!state || player.playbackMode !== "default") return null
+      const prefs = deps.getPrefs()
+      const queue = activeQueue(player)
+      const action = afterVersionEnd({
+        mode: state.mode,
+        versionIndex: state.index,
+        versionCount: state.versions.length,
+        repeatOne: prefs.repeatMode === "one",
+        repeatAll: prefs.repeatMode === "all",
+        hasNextSong: stepPlayable(queue, state.song.number, 1, deps.isPlayable) != null,
+      })
+      if (action.kind !== "next-song") return null
+      return stepPlayable(queue, state.song.number, 1, deps.isPlayable, action.wrap)
+    },
     onTrackEnded: () => {
       if (deps.sleep?.endOfSongActive()) {
         deps.sleep.fireAtSongEnd()

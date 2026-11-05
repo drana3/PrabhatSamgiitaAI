@@ -1,4 +1,4 @@
-import { holdUpcomingTrack } from "@/lib/playback/trackEndHook"
+import { holdUpcomingTrack, upcomingNativeSong } from "@/lib/playback/trackEndHook"
 import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
@@ -99,7 +99,7 @@ export async function ensureUpcomingRadioTrack(): Promise<void> {
   if (advancing) return
   if (holdUpcomingTrack()) return
   const session = getRadioSession()
-  if (session.kind === "casual") return
+  if (session.kind === "casual" && upcomingNativeSong() == null) return
   if (session.driveRepeat || session.repeat) return
 
   advancing = true
@@ -124,7 +124,10 @@ async function enqueueNextRadioTrack(session: ReturnType<typeof getRadioSession>
   if (!current) return
 
   let nextNumber: number | null = null
-  if (session.kind === "drive-random") {
+  if (session.kind === "casual") {
+    // A plain list: the player screen decides what follows (next song, wrap, repeat, all versions).
+    nextNumber = upcomingNativeSong()
+  } else if (session.kind === "drive-random") {
     nextNumber = randomPlayableSongNumber(current)
   } else if (session.kind === "playlist" || session.kind === "drive-playlist") {
     const bounds = session.playlistBounds

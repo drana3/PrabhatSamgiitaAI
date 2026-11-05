@@ -8,6 +8,11 @@ export type TrackEndHook = {
   shouldHoldUpcoming: () => boolean
   /** Return true when the hook started something and the engine should do nothing. */
   onTrackEnded: () => boolean
+  /**
+   * The song to line up natively behind the current one in a plain list, or null. With it queued, the
+   * list keeps going on a locked phone without the app having to wake up and fetch the next song.
+   */
+  upcomingSong?: () => number | null
 }
 
 let hook: TrackEndHook | null = null
@@ -29,5 +34,13 @@ export function runTrackEndHook(): boolean {
     return hook?.onTrackEnded() ?? false
   } catch {
     return false
+  }
+}
+
+export function upcomingNativeSong(): number | null {
+  try {
+    return hook?.upcomingSong?.() ?? null
+  } catch {
+    return null
   }
 }
