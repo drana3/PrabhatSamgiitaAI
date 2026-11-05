@@ -1,0 +1,275 @@
+{
+ "songs": 5018,
+ "fill_rate": {
+  "number": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "title": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "first_line": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "language": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "canonical_source_url": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "canonical_source_status": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "is_verified": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "metadata_json.source": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "metadata_json.anchor": {
+   "count": 5018,
+   "pct": 100.0
+  },
+  "lyrics_original": {
+   "count": 5017,
+   "pct": 100.0
+  },
+  "lyrics_devanagari": {
+   "count": 5017,
+   "pct": 100.0
+  },
+  "devanagari_status": {
+   "count": 5017,
+   "pct": 100.0
+  },
+  "metadata_json.devanagari": {
+   "count": 5017,
+   "pct": 100.0
+  },
+  "english_meaning": {
+   "count": 5015,
+   "pct": 99.9
+  },
+  "metadata_json.date": {
+   "count": 5007,
+   "pct": 99.8
+  },
+  "metadata_json.category": {
+   "count": 4725,
+   "pct": 94.2
+  },
+  "central_idea": {
+   "count": 40,
+   "pct": 0.8
+  },
+  "metadata_json.purport": {
+   "count": 40,
+   "pct": 0.8
+  },
+  "theme": {
+   "count": 7,
+   "pct": 0.1
+  },
+  "metadata_json.official_theme_label": {
+   "count": 7,
+   "pct": 0.1
+  },
+  "metadata_json.source_page": {
+   "count": 2,
+   "pct": 0.0
+  }
+ },
+ "fields_never_filled": [
+  "transliteration",
+  "hindi_meaning",
+  "occasion",
+  "festival",
+  "season",
+  "mood",
+  "difficulty",
+  "meditation_context",
+  "raga",
+  "tala",
+  "harmonium_notation"
+ ],
+ "english_meaning": {
+  "missing": [
+   4681,
+   5008,
+   5009
+  ],
+  "words_min": 35,
+  "words_p5": 64.0,
+  "words_p25": 76.0,
+  "words_median": 86.0,
+  "words_p75": 97.0,
+  "words_p95": 132.3,
+  "words_max": 320,
+  "under_40_words": 1,
+  "under_60_words": 107,
+  "over_150_words": 195,
+  "equals_title_or_first_line": 0,
+  "with_translation_variants_separated_by_dashes": 153,
+  "contains_non_latin_script": 0,
+  "with_editor_note_markers": 4,
+  "histogram_words": {
+   "20": 1,
+   "40": 106,
+   "60": 1590,
+   "80": 2261,
+   "100": 714,
+   "120": 113,
+   "140": 65,
+   "160": 68,
+   "180": 53,
+   "200": 44
+  }
+ },
+ "central_idea": {
+  "count": 40,
+  "purport_in_metadata": 40
+ },
+ "duplicates": {
+  "title": {
+   "groups": 140,
+   "songs_in_groups": 378,
+   "largest_group": 14,
+   "examples": [
+    [
+     33,
+     2223
+    ],
+    [
+     42,
+     2658
+    ],
+    [
+     73,
+     2927
+    ],
+    [
+     115,
+     2465
+    ],
+    [
+     151,
+     4144
+    ]
+   ]
+  },
+  "english_meaning": {
+   "groups": 0,
+   "songs_in_groups": 0,
+   "largest_group": 0,
+   "examples": []
+  },
+  "lyrics_original": {
+   "groups": 0,
+   "songs_in_groups": 0,
+   "largest_group": 0,
+   "examples": []
+  }
+ },
+ "near_duplicate_meanings_jaccard_ge_0.5": [
+  [
+   544,
+   545,
+   0.98
+  ]
+ ],
+ "curated_collections": {
+  "collections": 69,
+  "collections_by_kind": {
+   "language": 7,
+   "theme": 32,
+   "festival": 8,
+   "occasion": 15,
+   "season": 7
+  },
+  "songs_in_any": 235,
+  "songs_in_none": 4783,
+  "pct_in_any": 4.7,
+  "songs_by_kind": {
+   "language": 62,
+   "theme": 119,
+   "festival": 17,
+   "occasion": 21,
+   "season": 39
+  },
+  "collections_with_one_song": 37,
+  "sizes_top": [
+   [
+    "Women Songs",
+    28
+   ],
+   [
+    "Bengali Dialect Songs",
+    25
+   ],
+   [
+    "Urdu Songs",
+    16
+   ],
+   [
+    "Shiva Songs",
+    15
+   ],
+   [
+    "Krśńa Songs",
+    15
+   ],
+   [
+    "Hindi Songs",
+    12
+   ],
+   [
+    "Neo-Humanism Songs",
+    11
+   ],
+   [
+    "Sanskrit Songs",
+    9
+   ]
+  ],
+  "songs_in_2plus_collections": 36
+ },
+ "mobile_category_songs": {
+  "entries": 10,
+  "songs_in_any": 767,
+  "pct": 15.3,
+  "union_with_curated": 831,
+  "sizes": {
+   "devotional": 129,
+   "nature": 132,
+   "love": 110,
+   "meditation": 95,
+   "morning": 92,
+   "evening": 99,
+   "rain": 87,
+   "festival": 97,
+   "guru": 33,
+   "peace": 95
+  },
+  "note": "mobile_category_songs.json is itself a keyword/lexical search result (see scripts/build_mobile_category_songs.py), not human curation."
+ },
+ "source_category_codes": {
+  "D": 2319,
+  "K": 2019,
+  "": 293,
+  "D (Krsna)": 47,
+  "K+D": 41,
+  "K (Krsna)": 35,
+  "D+K": 31,
+  "Df": 13
+ },
+ "language_field": {
+  "Roman": 5018
+ }
+}
