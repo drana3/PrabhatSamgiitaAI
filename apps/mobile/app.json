@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
+      "usesAppleSignIn": true,
       "buildNumber": "140",
       "associatedDomains": [
         "applinks:www.prabhatasamgiita.org"
@@ -63,6 +64,7 @@
       "expo-file-system",
       "expo-web-browser",
       "expo-av",
+      "expo-apple-authentication",
       [
         "expo-image-picker",
         {

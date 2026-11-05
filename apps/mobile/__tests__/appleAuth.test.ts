@@ -93,6 +93,11 @@ describe("appleAuth", () => {
     await expect(signInWithApple()).rejects.toThrow("Sign-in was cancelled.")
   })
 
+  it("explains a missing capability instead of a raw native error", async () => {
+    signInAsync.mockRejectedValue({ code: "ERR_REQUEST_UNKNOWN", message: "AuthorizationError 1000" })
+    await expect(signInWithApple()).rejects.toThrow(/isn’t available in this build/)
+  })
+
   it("rejects on non-iOS platforms", async () => {
     platformState.os = "android"
     await expect(signInWithApple()).rejects.toThrow(/only available on iOS/)
