@@ -104,6 +104,33 @@ ELLIPSIS_SONG_NUMBER_RE = re.compile(
     re.M,
 )
 CATALOG_SIZE_RE = re.compile(r"(?:treasure\s+of\s+)?5018\s+spiritual\s+songs", re.I)
+# A number in this range is read as a year ("Prabhata Samgiita Divas 2025") unless a direct marker
+# ("#2025", "No. 2025", "PS 2025") stands in front of it. Songs 1900-2099 exist, so a marker is
+# the only thing that makes them songs.
+YEAR_LIKE_LOW = 1900
+YEAR_LIKE_HIGH = 2099
+MARKER_BEFORE_NUMBER_RE = re.compile(r"(?:number|no\.?|#|p\.?\s?s\.?)\s*$", re.I)
+MONTH_RE = r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*"
+NOT_A_SONG_AFTER_RE = re.compile(
+    rf"\s*(?:st|nd|rd|th|mins?|minutes?|hours?|hrs?|secs?|seconds?|songs?|tunes?|days?|years?|"
+    rf"parts?|episodes?|{MONTH_RE})\b",
+    re.I,
+)
+NOT_A_SONG_BEFORE_RE = re.compile(
+    rf"(?:part|pt|episode|ep|vol|volume|day|chapter|{MONTH_RE})\.?\s*$",
+    re.I,
+)
+# Titles of a different kind of video than the plain recording of one song: a dance staging, a
+# compilation, an interview, a live programme, Kiirtan or the Mahamantra. They are never
+# auto-verified unless the channel or the video is flagged (`allow_programme` / `programme_ok`).
+PROGRAMME_RE = re.compile(
+    r"\b(dance|dancing|dancer|dancers|compilation|medley|programme|program|non[- ]?stop|collection|"
+    r"interview|podcast|discourse|lecture|speech|highlights|glimpses|celebrations?|conference|"
+    r"mahamantra|kiirtan|kirtan|live|anchoring)\b",
+    re.I,
+)
+TITLE_AGREEMENT_MIN = 0.75
+VERIFIED_STATUSES = frozenset({"verified", "verified_external"})
 PRABHAT_HINT_RE = re.compile(r"prab?h?a?t", re.I)
 SAMGIITA_HINT_RE = re.compile(
     r"sam?g+i+[et]{1,2}a?|sange+e?t+a?|samgita|samgiit|sangiita",
@@ -185,6 +212,9 @@ def persist_youtube_inventory(
                     )
                     inserted_media += 1
                     inserted_song_numbers.append(int(row["song_number"]))
+                if str(row.get("verification_status") or "") not in VERIFIED_STATUSES:
+                    # needs_review rows are stored but never close their queue entry
+                    continue
                 cur.execute(
                     """
                     UPDATE youtube_review_queue
@@ -1073,8 +1103,25 @@ def explicit_song_number(title: str) -> int | None:
                 continue
             if _number_is_catalog_size_or_year(title, match.start(1), match.end(1), number):
                 continue
+            if not _marker_before(title, match.start(1)):
+                # No "#", "No." or "PS" in front: a year, a date, a length or a part is not a song.
+                if YEAR_LIKE_LOW <= number <= YEAR_LIKE_HIGH:
+                    continue
+                if _number_is_date_length_or_part(title, match.start(1), match.end(1)):
+                    continue
             return number
     return None
+
+
+def _marker_before(text: str, start: int) -> bool:
+    return bool(MARKER_BEFORE_NUMBER_RE.search(text[max(0, start - 8) : start]))
+
+
+def _number_is_date_length_or_part(text: str, start: int, end: int) -> bool:
+    return bool(
+        NOT_A_SONG_AFTER_RE.match(text[end : end + 14])
+        or NOT_A_SONG_BEFORE_RE.search(text[max(0, start - 12) : start])
+    )
 
 
 def title_similarity(video_title: str, song: dict[str, Any]) -> float:
@@ -1089,6 +1136,123 @@ def title_similarity(video_title: str, song: dict[str, Any]) -> float:
         else:
             scores.append(SequenceMatcher(None, value, candidate).ratio())
     return max(scores, default=0.0)
+
+
+_PHONETIC_DROP = str.maketrans({"v": "b", "w": "b", "z": "j", "q": "k", "y": "i"})
+
+
+def _squash(token: str) -> str:
+    """Spelling-insensitive form of a transliterated word: "Jiivan" and "Jivan" meet."""
+    token = token.replace("h", "").replace("x", "ks").translate(_PHONETIC_DROP)
+    return re.sub(r"(.)\1+", r"\1", token)
+
+
+_TITLE_NOISE = frozenset(
+    "prabhat prabhata samgiita samgita sangeet sangeeta samgeeta sangit song songs number no ps "
+    "bengali hindi urdu english translation dms singer shrii anandamurti".split()
+)
+_TITLE_CUT_RE = re.compile(
+    r"\b(singer|sung|sing|singing|voice|by|during|referred|presented|presenting)\b"
+)
+_TITLE_SPLIT_RE = re.compile(r"[|\-\u2013\u2014#:/()\"\u201c\u201d]+|\s\.\s|\.\s")
+
+
+def _fold(value: str) -> str:
+    value = unicodedata.normalize("NFKD", value)
+    return "".join(ch for ch in value if not unicodedata.combining(ch)).lower()
+
+
+def _compact(value: str) -> str:
+    return "".join(_squash(token) for token in re.findall(r"[a-z]+", _fold(value)))
+
+
+def _song_references(song: dict[str, Any]) -> list[str]:
+    """Title, first line and the first lyric lines of a song, as compact spelling-folded strings."""
+    lines = [str(song.get("title") or ""), str(song.get("first_line") or "")]
+    lines.extend(str(song.get("lyrics_original") or "").split("\n")[:8])
+    references: list[str] = []
+    for line in lines:
+        compact = _compact(line)
+        if len(compact) >= 3 and compact not in references:
+            references.append(compact)
+    return references
+
+
+def _best_window_ratio(needle: str, reference: str) -> float:
+    if needle in reference or reference in needle:
+        return 1.0
+    best = 0.0
+    length = len(needle)
+    for start in range(max(1, len(reference) - length + 4)):
+        for size in (length - 2, length - 1, length, length + 1, length + 2):
+            window = reference[start : start + size]
+            if size > 0 and len(window) >= 3:
+                best = max(best, SequenceMatcher(None, needle, window).ratio())
+    return best
+
+
+def title_agreement(video_title: str, song: dict[str, Any]) -> float:
+    """How well a video title names this song (0..1), ignoring accents and spelling variants.
+
+    The title is split at "|", "-", "#" and the like; each part (without "Prabhat Samgiita", "song",
+    singer credits) is compared with the song's title, first line and first lyric lines. The best
+    part wins, so "Tumi Jadi Jagatjora | Prabhat Samgiita #830 | Acarya ..." is judged by the
+    song name.
+    """
+    references = _song_references(song)
+    best = 0.0
+    for part in _TITLE_SPLIT_RE.split(video_title):
+        folded = _TITLE_CUT_RE.split(_fold(part))[0]
+        tokens = [t for t in re.findall(r"[a-z]+", folded) if t not in _TITLE_NOISE]
+        needle = "".join(_squash(token) for token in tokens)
+        if len(needle) < 4:
+            continue
+        for reference in references:
+            best = max(best, _best_window_ratio(needle, reference))
+    return round(best, 3)
+
+
+def programme_word(text: str, song: dict[str, Any] | None = None) -> str | None:
+    """The word that marks a dance, compilation, interview, live programme or Kiirtan title.
+
+    A word that is part of the song's own title or first line does not count.
+    """
+    own = _fold(f"{(song or {}).get('title') or ''} {(song or {}).get('first_line') or ''}")
+    for match in PROGRAMME_RE.finditer(text):
+        word = match.group(1).lower()
+        if not re.search(rf"\b{re.escape(word)}\b", own):
+            return word
+    return None
+
+
+def verification_problems(
+    text: str,
+    number: int,
+    song: dict[str, Any] | None,
+    *,
+    programme_ok: bool = False,
+    number_from_title: bool = True,
+) -> list[str]:
+    """Reasons a title must not be auto-verified for this song number. Empty means it may be.
+
+    * number_out_of_range      not 1..5018
+    * number_not_in_title      the title carries no usable song number, or another one (a year
+                               such as 2025, a date, a length or a part number is not one)
+    * programme_title:<word>   dance, compilation, interview, live, Kiirtan, Mahamantra ...
+    * title_mismatch           neither the song's title, first line nor opening lines match
+    """
+    problems: list[str] = []
+    if not MIN_SONG_NUMBER <= number <= MAX_SONG_NUMBER:
+        problems.append("number_out_of_range")
+    if number_from_title and explicit_song_number(text) != number:
+        problems.append("number_not_in_title")
+    if not programme_ok:
+        word = programme_word(text, song)
+        if word:
+            problems.append(f"programme_title:{word}")
+    if song is None or title_agreement(text, song) < TITLE_AGREEMENT_MIN:
+        problems.append("title_mismatch")
+    return problems
 
 
 def media_row(
@@ -1109,6 +1273,16 @@ def media_row(
         )
     ) or ellipsis_catalog_song_number(text) == number
     trusted = bool(channel.get("trusted", True))
+    problems = verification_problems(
+        text,
+        number,
+        songs[number],
+        programme_ok=bool(channel.get("allow_programme") or video.get("programme_ok")),
+        number_from_title=channel_number_source(channel) == "title"
+        and not video.get("_use_description"),
+    )
+    if problems and not trusted:
+        return None
     if trusted:
         score = round(
             0.9 + 0.1 * similarity
@@ -1124,7 +1298,9 @@ def media_row(
         score = round(0.65 + 0.35 * similarity, 3)
     video_id = video["video_id"]
     verification = (
-        "verified"
+        "needs_review"
+        if problems
+        else "verified"
         if trusted and (has_explicit_marker or score >= 0.9)
         else "verified_external"
         if not trusted
@@ -1153,6 +1329,7 @@ def media_row(
                 if has_explicit_marker
                 else "explicit_song_number_then_canonical_title"
             ),
+            **({"needs_review_reasons": problems} if problems else {}),
         },
     }
 
@@ -1170,6 +1347,16 @@ def review_row(
     reason = "missing_explicit_song_number"
     if number is not None:
         reason = "canonical_title_match_below_threshold"
+        if number in songs:
+            problems = verification_problems(
+                text,
+                number,
+                songs[number],
+                programme_ok=bool(channel.get("allow_programme") or video.get("programme_ok")),
+                number_from_title=False,
+            )
+            if problems:
+                reason = problems[0]
     return {
         "external_id": video["video_id"],
         "title": video["title"],
@@ -1293,6 +1480,9 @@ def main() -> None:
             if not youtube_video_in_scope(video_match_text(video, channel)):
                 continue
             row = media_row(video, songs, channel)
+            if row is not None and row["verification_status"] not in VERIFIED_STATUSES:
+                # failed the checks (year, programme, title): a person decides, nothing is linked
+                row = None
             if row is None:
                 if video["video_id"] in pending_ids:
                     continue
@@ -1351,6 +1541,8 @@ def main() -> None:
             except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
                 continue
             for row in discovered_rows:
+                if row["verification_status"] not in VERIFIED_STATUSES:
+                    continue
                 rows_by_id[row["metadata_json"]["external_id"]] = row
                 existing_song_numbers.add(number)
                 general_discovered += 1
