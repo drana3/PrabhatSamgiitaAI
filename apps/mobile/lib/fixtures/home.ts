@@ -74,18 +74,20 @@ export const HOME_LIBRARY: readonly LibraryItem[] = buildLibraryItems({
   savedCount: 3,
   downloadCount: 3,
   wordsDue: 3,
+  savedKiirtanCount: 2,
+  uploadCount: 1,
 })
 
 /* ---------------------------------------------------------------------- Search browse */
 
 export type BrowseTile = { id: string; label: string; tone: StripTone; cover: number; target: string; art?: "rotate" }
 
-/** Top 2 x 2 tiles. TODO(api): Performers has no screen yet and opens the collections. */
+/** Top 2 x 2 tiles. The Kiirtans tile opens the Kiirtan tab. */
 export const SEARCH_TOP_TILES: readonly BrowseTile[] = [
   { id: "songs", label: "Songs", tone: "orange", cover: 3, target: "/songs-v2" },
   { id: "stories", label: "Stories", tone: "sage", cover: 1, target: "/stories" },
   { id: "learn", label: "Learn", tone: "gold", cover: 6, target: "/v2/learn" },
-  { id: "performers", label: "Performers", tone: "forest", cover: 2, target: "/songs-v2?segment=collections" },
+  { id: "kiirtans", label: "Kiirtans", tone: "forest", cover: 2, target: "/v2/kiirtan" },
 ]
 
 export type DiscoverTag = { id: string; tag: string; cover: number; query: string }

@@ -48,7 +48,7 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
     icon: "kiirtan",
     screen: "kiirtan",
     href: "/v2/kiirtan",
-    owns: ["/v2/kiirtan", "/kiirtan", "/kirtan-mix", "/kirtan-artist", "/add-kirtan"],
+    owns: ["/v2/kiirtan", "/kiirtan", "/kirtan-mix", "/kirtan-artist", "/kiirtan-live", "/add-kirtan"],
   },
   {
     id: "learn",
@@ -109,6 +109,7 @@ export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = [
   "/script-translations",
   "/review-style",
   "/add-kirtan",
+  "/kiirtan-live",
   "/feedback",
 ]
 

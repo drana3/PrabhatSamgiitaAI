@@ -22,6 +22,7 @@ import {
   type LibraryLayout,
 } from "@/lib/libraryProposal"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { useKirtanStore } from "@/stores/kirtanStore"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlaylistStore } from "@/stores/playlistStore"
@@ -75,6 +76,8 @@ export default function LibraryProposalScreen() {
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const top = insets.top || amProto.statusArea
+  const kirtanSavedIds = useKirtanStore((st) => st.savedIds)
+  const kirtanSubmissions = useKirtanStore((st) => st.submissions)
   const [filter, setFilter] = useState<LibraryFilterId | null>(null)
   const [layout, setLayout] = useState<LibraryLayout>("list")
 
@@ -97,8 +100,10 @@ export default function LibraryProposalScreen() {
             savedCount: savedSongIds.length,
             downloadCount: Object.keys(offlineFiles).length,
             wordsDue: 0,
+            savedKiirtanCount: kirtanSavedIds.length,
+            uploadCount: kirtanSubmissions.length,
           }),
-    [playlists, savedSongIds, offlineFiles],
+    [playlists, savedSongIds, offlineFiles, kirtanSavedIds, kirtanSubmissions],
   )
   const shown = filterLibrary(items, filter)
   const toggleFilter = (id: LibraryFilterId) => setFilter((cur) => (cur === id ? null : id))

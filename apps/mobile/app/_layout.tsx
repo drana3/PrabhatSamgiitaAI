@@ -202,9 +202,10 @@ export default function RootLayout() {
           <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
           <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
           <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />
+          <Stack.Screen name="kiirtan-live" options={{ presentation: "card" }} />
           <Stack.Screen name="kiirtan" options={{ presentation: "card" }} />
           {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
-          <Stack.Screen name="player-v2" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+          <Stack.Screen name="player-v2" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
         </Stack>
         {/* The one mini-player, above every screen (tabs and pushed). */}
         <MiniPlayerHost />

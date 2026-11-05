@@ -69,7 +69,7 @@ type Props = {
 }
 
 /** Rows the prototype's queue lists. */
-const COMPACT_ROWS = 6
+const COMPACT_ROWS = 5
 
 /** The prototype shows a short list; a long catalog list is cut here so the sheet stays quick. */
 export const QUEUE_ROW_LIMIT = 100

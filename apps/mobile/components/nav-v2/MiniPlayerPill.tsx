@@ -185,6 +185,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
             style={StyleSheet.absoluteFill}
           />
           <View pointerEvents="none" style={[styles.highlight, { backgroundColor: palette.highlight }]} />
+          <View style={styles.mainSlot}>
           <PressScale
             accessibilityRole="button"
             accessibilityLabel={`Open the player, ${currentSong.title}`}
@@ -208,6 +209,7 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
               </Text>
             </View>
           </PressScale>
+          </View>
 
           <PressScale accessibilityRole="button" accessibilityLabel={saveLabel} onPress={onSave} style={styles.control}>
             {isKiirtan && kiirtanSaved ? (
@@ -265,8 +267,9 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     paddingRight: 8,
   },
+  /** the touch wrapper: takes the free width so a long title truncates instead of pushing the buttons out */
+  mainSlot: { flex: 1, minWidth: 0 },
   main: {
-    flex: 1,
     minWidth: 0,
     minHeight: amTouchTarget,
     flexDirection: "row",
@@ -290,6 +293,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   control: {
+    flexShrink: 0,
     width: amTouchTarget,
     height: amTouchTarget,
     borderRadius: amRadius.full,

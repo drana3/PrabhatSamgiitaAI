@@ -1,8 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 import { useRouter } from "expo-router"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated"
+import { scheduleOnRN } from "react-native-worklets"
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -10,7 +21,7 @@ import { AboutCard, AboutSheet } from "@/components/player-v2/AboutSong"
 import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
 import { CrossfadeGradient } from "@/components/player-v2/CrossfadeGradient"
 import { DriveControls } from "@/components/player-v2/DriveControls"
-import { EmptyPlayer, type EmptyAction } from "@/components/player-v2/EmptyPlayer"
+import { KiirtanCover, kiirtanTone } from "@/components/kirtan/KiirtanCover"
 import { LyricsOptionsSheet } from "@/components/player-v2/LyricsOptionsSheet"
 import { LyricsPanel } from "@/components/player-v2/LyricsPanel"
 import { PlaybackSheet } from "@/components/player-v2/PlaybackSheet"
@@ -29,16 +40,25 @@ import { demoDownloadKey, demoDownloadSize, useDemoDownloads } from "@/lib/playe
 import { VersionsSheet } from "@/components/player-v2/VersionsSheet"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
+import { amSpring, projectMomentum } from "@/constants/tokens/amMotion"
 import { allCollections } from "@/data/collections"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { ARTIST_FIXTURES } from "@/lib/fixtures/artists"
 import { sampleGloss, sampleRussianLines } from "@/lib/fixtures/player"
+import { artistForAuthor, kiirtanSubtitle } from "@/lib/kirtan/artists"
+import { ensureKirtansRegistered, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
+import { playEverything } from "@/lib/kirtan/mixPlayback"
+import { kirtanSharePayload } from "@/lib/kirtan/share"
+import { isKiirtanNumber, isKiirtanSong } from "@/lib/kirtan/track"
+import { rubberBand } from "@/lib/navV2"
+import { formatClock } from "@/lib/playerV2/transportState"
+import { useKirtanStore } from "@/stores/kirtanStore"
 import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
 import { mockupSong } from "@/lib/fixtures/songMockup"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
-import { hasPlayableAudio, playableAudioCount, playableNumbersList, randomPlayableSongNumber } from "@/lib/playableAudio"
-import { hydratePlayableSong } from "@/lib/playback/radioAdvance"
+import { hasPlayableAudio, playableAudioCount, playableNumbersList } from "@/lib/playableAudio"
 import { playlistSongNumbers, playPlaylist, starterSongForNumber } from "@/lib/playPlaylist"
 import {
   activeQueue,
@@ -86,18 +106,12 @@ import {
 import { knownDuration, playButtonState } from "@/lib/playerV2/transportState"
 import { effectivePlayMode, versionChipText } from "@/lib/playerV2/versionMode"
 import { selectedVersionIndex, versionsFromSong, versionSummary } from "@/lib/playerV2/versions"
-import { readTodayCache } from "@/lib/todayCache"
-import { todayItemToMockSong } from "@/lib/today"
-import { recentPlayToSong } from "@/lib/todayView"
 import { offlineRecordingState, useOfflineAudioStore } from "@/lib/offlineAudio"
 import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
-import { useResumeStore } from "@/stores/resumeStore"
-import { resumePositionFor } from "@/lib/playerV2/resume"
-import type { MockSong } from "@/data/mock"
 import { href } from "@/utils/href"
 
 type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "source" | "playlist" | "actions" | "share" | "about"
@@ -112,12 +126,15 @@ const PLAYER_PHOTO = require("../assets/player-baba.jpg")
  * karaoke card, the waveform, the transport and the utility bar; Drive mode swaps
  * the lyrics and transport for big controls. One audio engine: this screen only
  * renders playerStore state and sends commands to it.
+ * A Prabhat Samgiita song shows the karaoke card, versions, Aa and About. A Kiirtan (an uploaded audio
+ * file in the same queue) shows a large cover, its title and "Kiirtan · artist", the same scrubber and
+ * transport, and none of those. Dragging the header or the cover down closes the player.
  */
 export default function PlayerV2Screen() {
   const router = useRouter()
   const theme = useAmTheme()
   const insets = useSafeAreaInsets()
-  const { height: windowHeight } = useWindowDimensions()
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions()
   const toast = usePlayerToast()
 
   useEffect(() => {
@@ -147,8 +164,6 @@ export default function PlayerV2Screen() {
   const v2 = usePlayerV2Store()
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const toggleSaved = usePreferencesStore((s) => s.toggleSaved)
-  const recentPlays = usePreferencesStore((s) => s.recentPlays)
-  const resumeEntries = useResumeStore((s) => s.entries)
   const playlists = usePlaylistStore((s) => s.playlists)
   const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
   const addSong = usePlaylistStore((s) => s.addSong)
@@ -166,7 +181,88 @@ export default function PlayerV2Screen() {
   const [sheet, setSheet] = useState<SheetName>(null)
   const [drive, setDrive] = useState(false)
   const [now, setNow] = useState(() => Date.now())
-  const [todaySong, setTodaySong] = useState<MockSong | null>(null)
+  const reduce = useReducedMotion()
+  const isK = isKiirtanSong(song)
+  const kiirtanId = song?.kiirtan?.id ?? null
+  const kiirtanSaved = useKirtanStore((s) => (kiirtanId ? s.savedIds.includes(kiirtanId) : false))
+
+  // Queue numbers of Kiirtans can be turned back into tracks (next, previous, the queue sheet).
+  useEffect(() => {
+    ensureKirtansRegistered()
+  }, [])
+
+  // Opened with nothing loaded (an old link): there is no empty player, so go back.
+  useEffect(() => {
+    if (song) return
+    const id = setTimeout(() => {
+      if (router.canGoBack()) router.back()
+      else router.replace(href("/v2/today"))
+    }, 700)
+    return () => clearTimeout(id)
+  }, [song, router])
+
+  // Song <-> Kiirtan: the photo fades, the body fades and rises in (opacity and transform only).
+  const swap = useSharedValue(1)
+  const photoShown = useSharedValue(isK ? 0 : 1)
+  const prevKind = useRef(isK)
+  useEffect(() => {
+    photoShown.value = reduce ? (isK ? 0 : 1) : withTiming(isK ? 0 : 1, { duration: 320, easing: Easing.out(Easing.cubic) })
+    if (prevKind.current === isK) return
+    prevKind.current = isK
+    cancelAnimation(swap)
+    swap.value = reduce ? 1 : 0
+    if (!reduce) swap.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) })
+  }, [isK, reduce, swap, photoShown])
+  const bodyStyle = useAnimatedStyle(() => ({
+    flex: 1,
+    opacity: swap.value,
+    transform: [{ translateY: reduce ? 0 : (1 - swap.value) * 14 }],
+  }))
+  const photoStyle = useAnimatedStyle(() => ({ opacity: photoShown.value }))
+
+  // Drag down to collapse: 1:1 with the finger, the release carries its velocity into a spring.
+  const dragY = useSharedValue(0)
+  const closeNow = useCallback(() => {
+    if (router.canGoBack()) router.back()
+    else router.replace(href("/v2/today"))
+  }, [router])
+  const makeCollapse = () =>
+    Gesture.Pan()
+      .activeOffsetY([10, 9999])
+      .failOffsetX([-24, 24])
+      .onStart(() => {
+        "worklet"
+        cancelAnimation(dragY)
+      })
+      .onUpdate((event) => {
+        "worklet"
+        dragY.value = rubberBand(event.translationY, 0, windowHeight, 160)
+      })
+      .onEnd((event) => {
+        "worklet"
+        const landing = projectMomentum(event.translationY, event.velocityY)
+        if (landing > 180) {
+          dragY.value = reduce
+            ? withTiming(windowHeight, { duration: 180 }, (done) => {
+                if (done) scheduleOnRN(closeNow)
+              })
+            : withSpring(windowHeight, { ...amSpring.fling, velocity: event.velocityY }, (done) => {
+                if (done) scheduleOnRN(closeNow)
+              })
+        } else {
+          dragY.value = reduce
+            ? withTiming(0, { duration: 150 })
+            : withSpring(0, { ...(Math.abs(event.velocityY) > 500 ? amSpring.fling : amSpring.default), velocity: event.velocityY })
+        }
+      })
+      .onFinalize((_event, success) => {
+        "worklet"
+        if (!success) dragY.value = reduce ? withTiming(0, { duration: 150 }) : withSpring(0, amSpring.default)
+      })
+  const headGesture = makeCollapse()
+  const coverGesture = makeCollapse()
+  const titleGesture = makeCollapse()
+  const dragStyle = useAnimatedStyle(() => ({ flex: 1, transform: [{ translateY: dragY.value }] }))
 
   // The legacy repeat flag is the engine's "loop this track". Keep it in step with repeat "one".
   useEffect(() => {
@@ -190,17 +286,6 @@ export default function PlayerV2Screen() {
       void deactivateKeepAwake("player-v2-drive").catch(() => undefined)
     }
   }, [drive])
-
-  useEffect(() => {
-    let alive = true
-    void readTodayCache().then((cache) => {
-      const first = cache?.recommendations?.[0]
-      if (alive && first) setTodaySong(todayItemToMockSong(first, 0))
-    })
-    return () => {
-      alive = false
-    }
-  }, [])
 
   const deps = useMemo(() => realControllerDeps(), [])
   const queueActions = useMemo(() => realQueueActions(), [])
@@ -284,7 +369,7 @@ export default function PlayerV2Screen() {
     }
     return set
   }, [savedSongIds])
-  const isSaved = song ? savedSongIds.includes(song.id) : false
+  const isSaved = song ? (isK ? kiirtanSaved : savedSongIds.includes(song.id)) : false
 
   const list = song
     ? activeQueue({ currentSong: song, queue, playbackMode, playlistBounds, position })
@@ -293,18 +378,31 @@ export default function PlayerV2Screen() {
     if (sheet !== "queue") return []
     // Only the rows the sheet will draw look up a title; a long catalog list keeps cheap placeholders after them.
     const { head, upcoming } = splitQueue(list.map((number) => ({ number })), song?.number ?? null)
-    const shown = [...head, ...upcoming].map((r) => r.number)
+    const shown = [...head, ...upcoming].map((r) => r.number).filter((n) => !isKiirtanNumber(n))
     const titles = new Map(
       MOCKUP_DATA
         ? shown.flatMap((n) => (demoTitle(n) ? ([[n, demoTitle(n)!]] as Array<[number, string]>) : []))
         : catalogSongsByNumbers(shown, shown.length).map((hit) => [hit.number, hit.firstLine || hit.title] as [number, string]),
     )
-    return list.map((number) => ({
-      key: `ps-${number}`,
-      number,
-      title: sentenceCaseLine(titles.get(number) ?? `Prabhat Samgiita ${number}`),
-      seconds: MOCKUP_DATA ? demoSeconds(number) : undefined,
-    }))
+    return list.map((number) => {
+      if (isKiirtanNumber(number)) {
+        const k = kiirtanSongByNumber(number)
+        const parts = [k?.durationSeconds ? formatClock(k.durationSeconds) : null, k?.performer || null].filter(Boolean)
+        return {
+          key: `k-${number}`,
+          number,
+          title: k?.title ?? "Kiirtan",
+          seconds: k?.durationSeconds || undefined,
+          sub: parts.length ? `KIIRTAN · ${parts.join(" · ")}` : "KIIRTAN",
+        }
+      }
+      return {
+        key: `ps-${number}`,
+        number,
+        title: sentenceCaseLine(titles.get(number) ?? `Prabhat Samgiita ${number}`),
+        seconds: MOCKUP_DATA ? demoSeconds(number) : undefined,
+      }
+    })
   }, [sheet, list, song?.number])
   const source = sourceLabel({ playbackMode, playlistName: activePlaylist?.name ?? null })
 
@@ -380,6 +478,11 @@ export default function PlayerV2Screen() {
   const onFavourite = (silent = false) => {
     if (!song) return
     const wasSaved = isSaved
+    if (isK && kiirtanId) {
+      const nowSaved = useKirtanStore.getState().toggleSaved(kiirtanId)
+      if (!silent) toast.show(nowSaved ? "Saved" : "Removed from saved")
+      return
+    }
     void toggleSaved(song.id).then((result) => {
       if (result.needsAuth) {
         setSheet(null)
@@ -473,72 +576,41 @@ export default function PlayerV2Screen() {
     })
   }
 
-  // Empty state data
-  const continuePlay = recentPlays[0]
-  const continueSong = continuePlay ? recentPlayToSong(continuePlay) : null
-  const emptyContinue = continueSong
-    ? {
-        id: "continue",
-        title: continueSong.title,
-        resumeSeconds: resumePositionFor(resumeEntries[String(continueSong.number)]),
-        onPress: () => usePlayerStore.getState().playOrToggle(continueSong, [continueSong.number]),
-      }
-    : null
-  const emptyToday: EmptyAction = {
-    id: "today",
-    title: "Play today's song",
-    hint: todaySong ? todaySong.title : "Waiting for today's song",
-    disabled: !todaySong,
-    onPress: () => todaySong && usePlayerStore.getState().playOrToggle(todaySong, [todaySong.number]),
-  }
-  const emptyRandom: EmptyAction = {
-    id: "random",
-    title: "Play random",
-    hint: "A song with audio, chosen for you",
-    onPress: () => {
-      const number = randomPlayableSongNumber(0)
-      void hydratePlayableSong(number).then((picked) => {
-        if (picked) usePlayerStore.getState().loadSong(picked, [number], "default")
-      })
-    },
-  }
-  const emptyPlaylists: EmptyAction[] = playlists.slice(0, 3).map((p) => ({
-    id: p.id,
-    title: p.name,
-    hint: `${playlistSongNumbers(p).length} songs`,
-    onPress: () => void playPlaylist(p),
-  }))
-
   const sleepValue = v2.sleep.kind === "off" ? "Off" : sleepLabel(v2.sleep, now)
 
   // More actions, Share and About this song
   const songTitle = sentenceCaseLine(song?.title ?? "")
   const collection = useMemo(() => (song ? collectionForSong(song.number, allCollections) : null), [song])
   const performer = selectedVersion?.performer ?? song?.performer ?? ""
-  const actionRows = useMemo(
-    () =>
-      buildActionRows({
+  const actionRows = useMemo(() => {
+    const rows = buildActionRows({
         saved: isSaved,
         inQueue: song ? list.includes(song.number) : false,
         collectionName: collection?.label ?? null,
         sourceName: source,
         speedText: formatRate(rate).replace("x", "×"),
         sleepText: sleepValue,
-      }),
-    [isSaved, song, list, collection, source, rate, sleepValue],
-  )
+      })
+    // A Kiirtan has no song page, collection, playlist or song sources.
+    return isK ? rows.filter((r) => ["share", "save", "queue", "goQueue", "playback", "drive", "report"].includes(r.id)) : rows
+  }, [isSaved, isK, song, list, collection, source, rate, sleepValue])
   const sharePayload = useMemo(
-    () => (song ? buildSharePayload({ number: song.number, title: songTitle, performer }) : null),
-    [song, songTitle, performer],
+    () =>
+      !song
+        ? null
+        : isK
+          ? kirtanSharePayload({ title: song.title, author: song.performer ?? "" })
+          : buildSharePayload({ number: song.number, title: songTitle, performer }),
+    [song, isK, songTitle, performer],
   )
   // TODO(api): the story text comes from the song's central idea; the prototype's sample text stands in
   // while MOCKUP_DATA is on (its "Placeholder." lines are skipped).
   const about = useMemo(() => {
-    if (!song) return null
+    if (!song || isK) return null
     const sample = MOCKUP_DATA ? mockupSong(song.number)?.centralIdea : null
     return aboutContent(song, sample && !/^placeholder/i.test(sample) ? sample : null)
-  }, [song])
-  const showAbout = about != null && !drive && windowHeight >= 740
+  }, [song, isK])
+  const showAbout = about != null && !isK && !drive && windowHeight >= 740
   const openSongPage = () => {
     if (!song) return
     setSheet(null)
@@ -594,105 +666,148 @@ export default function PlayerV2Screen() {
       }
     })
   }
-  const coverTint = tintForSong(song?.number ?? null)
-  const chip = versionChipText(selectedVersion ? versionSummary(selectedVersion) : "", versions.length, mode, versionIndex)
-  const closePlayer = () => {
-    if (router.canGoBack()) router.back()
-    else router.replace(href("/v2/today"))
+  const coverTint = isK ? kiirtanTone(song?.kiirtan?.type)[0] : tintForSong(song?.number ?? null)
+  const subtitleText = isK && song ? kiirtanSubtitle(song.performer, song.kiirtan?.addedBy, ARTIST_FIXTURES) : ""
+  const artist = isK && song ? artistForAuthor(ARTIST_FIXTURES, song.performer) : null
+  const openArtist = () => {
+    if (!artist) return
+    // Leave the player first, then show the artist; the pill stays above it.
+    closePlayer()
+    router.push(href(`/kirtan-artist?id=${encodeURIComponent(artist.id)}`))
   }
+  const coverSize = Math.max(180, Math.min(windowWidth - 56, windowHeight * 0.36, 340))
+  const chip = versionChipText(selectedVersion ? versionSummary(selectedVersion) : "", versions.length, mode, versionIndex)
+  const closePlayer = closeNow
   const canAdvance = canGoNext(deps) || playbackMode === "random"
   const sourceKey = activeSourceKey(playbackMode, activePlaylist?.id)
 
   return (
-    <View style={[styles.root, { backgroundColor: playerColors.ground }]}>
-      <Image
-        source={PLAYER_PHOTO}
-        style={styles.photo}
-        contentFit="cover"
-        contentPosition="top"
-        accessibilityLabel="Shrii Shrii Anandamurti"
-      />
-      <LinearGradient
-        pointerEvents="none"
-        colors={[playerColors.fadeTop, playerColors.fadeMid, playerColors.ground]}
-        locations={[0, 0.46, 0.82]}
-        style={styles.photo}
-      />
+    <View style={styles.root}>
+      <Animated.View style={[styles.flex, dragStyle, { backgroundColor: playerColors.ground }]}>
+      <Animated.View pointerEvents="none" style={[styles.photo, photoStyle]}>
+        <Image
+          source={PLAYER_PHOTO}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          contentPosition="top"
+          accessibilityLabel="Shrii Shrii Anandamurti"
+        />
+        <LinearGradient
+          colors={[playerColors.fadeTop, playerColors.fadeMid, playerColors.ground]}
+          locations={[0, 0.46, 0.82]}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
 
       <CrossfadeGradient
-        colors={[hexAlpha(coverTint, 0.42), hexAlpha(coverTint, 0.3), hexAlpha(coverTint, 0.26)]}
+        colors={
+          isK
+            ? [hexAlpha(coverTint, 0.5), hexAlpha(coverTint, 0.32), hexAlpha(coverTint, 0.22)]
+            : [hexAlpha(coverTint, 0.42), hexAlpha(coverTint, 0.3), hexAlpha(coverTint, 0.26)]
+        }
         locations={[0, 0.5, 1]}
         duration={400}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={[styles.column, { paddingTop: insets.top || playerSize.topBand, paddingBottom: playerSize.tabBarClearance }]}>
-        <Reveal index={0}>
-          <View style={styles.topBar}>
-            <TouchButton
-              accessibilityRole="button"
-              accessibilityLabel="Close the player"
-              onAction={closePlayer}
-              style={styles.topButton}
-            >
-              <PlayerIcon name="chevronDown" size={30} color={amColors.white} />
-            </TouchButton>
-            <TouchButton
-              accessibilityRole="button"
-              accessibilityLabel={`${drive ? "Drive mode" : `Playing from ${source}`}. Open the queue`}
-              onAction={() => setSheet("queue")}
-              containerStyle={styles.sourceHit}
-              style={styles.sourceChip}
-            >
-              <Text style={styles.sourceText} numberOfLines={1}>
-                {drive ? "Drive mode" : source}
-              </Text>
-            </TouchButton>
-            {song ? (
-              <TouchButton
-                accessibilityRole="button"
-                accessibilityLabel="More actions: share, save, add to playlist, queue, song page"
-                onAction={() => setSheet("actions")}
-                style={styles.topButton}
-              >
-                <PlayerIcon name="more" size={playerSize.topIcon} color={amColors.white} />
-              </TouchButton>
-            ) : (
-              <View style={styles.topButton} />
-            )}
-          </View>
-        </Reveal>
-
-        {!song ? (
-          <Reveal index={1} style={[styles.flex, styles.emptyPad]}>
-            <EmptyPlayer
-              title={"Nothing\nplaying"}
-              continueCard={emptyContinue}
-              today={emptyToday}
-              random={emptyRandom}
-              playlists={emptyPlaylists}
-            />
-          </Reveal>
-        ) : (
-          <>
-            <Reveal index={1}>
-              <View style={styles.titleBlock}>
-                <Text style={styles.title} accessibilityRole="header">
-                  {song.title}
-                </Text>
-                {selectedVersion ? (
-                  <VersionChip
-                    text={chip.text}
-                    position={chip.position}
-                    pickable={chip.pickable}
-                    instrument={selectedVersion.instrument === "voice" ? "voice" : "other"}
-                    onPress={() => setSheet("versions")}
-                  />
+        <GestureDetector gesture={headGesture}>
+          <View collapsable={false}>
+            <Reveal index={0}>
+              <View style={styles.topBar}>
+                <TouchButton
+                  accessibilityRole="button"
+                  accessibilityLabel="Close the player"
+                  onAction={closePlayer}
+                  style={styles.topButton}
+                >
+                  <PlayerIcon name="chevronDown" size={30} color={amColors.white} />
+                </TouchButton>
+                <TouchButton
+                  accessibilityRole="button"
+                  accessibilityLabel={`${drive ? "Drive mode" : `Playing from ${source}`}. Open the queue`}
+                  onAction={() => setSheet("queue")}
+                  containerStyle={styles.sourceHit}
+                  style={styles.sourceChip}
+                >
+                  <Text style={styles.sourceText} numberOfLines={1}>
+                    {drive ? "Drive mode" : source}
+                  </Text>
+                </TouchButton>
+                {song ? (
+                  <TouchButton
+                    accessibilityRole="button"
+                    accessibilityLabel={isK ? "More actions: share, save, queue" : "More actions: share, save, add to playlist, queue, song page"}
+                    onAction={() => setSheet("actions")}
+                    style={styles.topButton}
+                  >
+                    <PlayerIcon name="more" size={playerSize.topIcon} color={amColors.white} />
+                  </TouchButton>
                 ) : (
-                  <Text style={styles.noAudio}>PS {song.number} · No recording available yet</Text>
+                  <View style={styles.topButton} />
                 )}
               </View>
             </Reveal>
+          </View>
+        </GestureDetector>
+
+        {song ? (
+          <Animated.View style={bodyStyle}>
+            {isK && !drive ? (
+              <GestureDetector gesture={coverGesture}>
+                <View collapsable={false} style={styles.coverArea}>
+                  <Reveal index={1}>
+                    <View style={[styles.coverShadow, { width: coverSize, height: coverSize }]}>
+                      <KiirtanCover type={song.kiirtan?.type} coverUrl={song.thumbnailUrl || null} width={coverSize} height={coverSize} radius={28} />
+                    </View>
+                  </Reveal>
+                </View>
+              </GestureDetector>
+            ) : null}
+
+            <GestureDetector gesture={titleGesture}>
+              <View collapsable={false}>
+                <Reveal index={isK && !drive ? 2 : 1}>
+                  <View style={styles.titleBlock}>
+                    <Text style={styles.title} accessibilityRole="header">
+                      {song.title}
+                    </Text>
+                    {isK ? (
+                      artist ? (
+                        <View style={styles.subtitleRow}>
+                          <Text style={styles.subtitle}>Kiirtan · </Text>
+                          <TouchButton
+                            accessibilityRole="link"
+                            accessibilityLabel={`Open the artist page of ${artist.name}`}
+                            onAction={openArtist}
+                            pressedScale={0.97}
+                            style={styles.artistLink}
+                          >
+                            <Text style={styles.artistText} numberOfLines={1}>
+                              {artist.name}
+                            </Text>
+                          </TouchButton>
+                        </View>
+                      ) : (
+                        <Text style={styles.subtitle} numberOfLines={1}>
+                          {subtitleText}
+                        </Text>
+                      )
+                    ) : selectedVersion ? (
+                      <VersionChip
+                        text={chip.text}
+                        position={chip.position}
+                        pickable={chip.pickable}
+                        instrument={selectedVersion.instrument === "voice" ? "voice" : "other"}
+                        onPress={() => setSheet("versions")}
+                      />
+                    ) : (
+                      <Text style={styles.noAudio}>PS {song.number} · No recording available yet</Text>
+                    )}
+                  </View>
+                </Reveal>
+              </View>
+            </GestureDetector>
 
             {drive ? (
               <>
@@ -715,19 +830,21 @@ export default function PlayerV2Screen() {
               </>
             ) : (
               <>
-                <Reveal index={2} style={styles.flex}>
-                  <LyricsPanel
-                    lines={lyricLines}
-                    devanagari={useDevanagari}
-                    activeLine={activeLine}
-                    activeWord={activeWord}
-                    showGloss={showGloss}
-                    showTranslation={showTranslation}
-                    onSeekToLine={onSeekLine}
-                    emptyText="Lyrics are not available for this song yet."
-                    onOptions={() => setSheet("lyrics")}
-                  />
-                </Reveal>
+                {isK ? null : (
+                  <Reveal index={2} style={styles.flex}>
+                    <LyricsPanel
+                      lines={lyricLines}
+                      devanagari={useDevanagari}
+                      activeLine={activeLine}
+                      activeWord={activeWord}
+                      showGloss={showGloss}
+                      showTranslation={showTranslation}
+                      onSeekToLine={onSeekLine}
+                      emptyText="Lyrics are not available for this song yet."
+                      onOptions={() => setSheet("lyrics")}
+                    />
+                  </Reveal>
+                )}
                 <View style={styles.gap} />
                 <Reveal index={3}>
                   <ThinScrubber position={position} duration={knownLength} onSeek={seekTo} />
@@ -747,7 +864,7 @@ export default function PlayerV2Screen() {
                 </Reveal>
                 <Reveal index={5}>
                   <View style={styles.iconRow}>
-                    <UtilButton label={isSaved ? "Remove from Mine" : "Save to Mine"} onPress={() => onFavourite()}>
+                    <UtilButton label={isSaved ? (isK ? "Remove from saved" : "Remove from Mine") : isK ? "Save" : "Save to Mine"} onPress={() => onFavourite()}>
                       <PlayerIcon
                         name="heart"
                         size={playerSize.utilGlyph}
@@ -772,12 +889,14 @@ export default function PlayerV2Screen() {
                 ) : null}
               </>
             )}
-          </>
-        )}
+          </Animated.View>
+        ) : null}
       </View>
+      </Animated.View>
 
       <PlayerToast message={toast.message} theme={theme} />
 
+      {!isK ? (
       <VersionsSheet
         visible={sheet === "versions"}
         theme={theme}
@@ -792,6 +911,7 @@ export default function PlayerV2Screen() {
         }}
         onClose={() => setSheet(null)}
       />
+      ) : null}
       <QueueSheet
         visible={sheet === "queue"}
         theme={theme}
@@ -817,9 +937,15 @@ export default function PlayerV2Screen() {
           onShuffle,
           onRepeat,
           onTimer: () => setSheet("playback"),
+          onShuffleEverything: () => {
+            setSheet(null)
+            const message = playEverything()
+            if (message) toast.show(message)
+          },
         }}
         onClose={() => setSheet(null)}
       />
+      {!isK ? (
       <LyricsOptionsSheet
         visible={sheet === "lyrics"}
         theme={theme}
@@ -834,6 +960,7 @@ export default function PlayerV2Screen() {
         onToggleWordMeanings={() => v2.setWordMeanings(!v2.wordMeanings)}
         onClose={() => setSheet(null)}
       />
+      ) : null}
       <PlaybackSheet
         visible={sheet === "playback"}
         theme={theme}
@@ -877,7 +1004,7 @@ export default function PlayerV2Screen() {
             theme={theme}
             songNumber={song.number}
             title={songTitle}
-            subtitle={[collection?.label, performer].filter(Boolean).join(" · ") || `PS ${song.number}`}
+            subtitle={isK ? subtitleText : [collection?.label, performer].filter(Boolean).join(" · ") || `PS ${song.number}`}
             rows={actionRows}
             onAction={onAction}
             onClose={() => setSheet(null)}
@@ -891,6 +1018,7 @@ export default function PlayerV2Screen() {
             onShare={onShareTarget}
             onClose={() => setSheet(null)}
           />
+          {!isK ? (
           <AboutSheet
             visible={sheet === "about"}
             theme={theme}
@@ -899,6 +1027,7 @@ export default function PlayerV2Screen() {
             onOpenSong={openSongPage}
             onClose={() => setSheet(null)}
           />
+          ) : null}
         </>
       ) : null}
     </View>
@@ -916,10 +1045,15 @@ function UtilButton({ label, onPress, children }: { label: string; onPress: () =
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFillObject },
   photo: { position: "absolute", top: 0, left: 0, right: 0, height: playerSize.photoHeight },
+  coverArea: { flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", paddingVertical: 8 },
+  coverShadow: { borderRadius: 28, shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 28, shadowOffset: { width: 0, height: 14 } },
+  subtitleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  subtitle: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20, color: "rgba(255, 255, 255, 0.78)" },
+  artistLink: { minHeight: 32, justifyContent: "center" },
+  artistText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20, color: playerColors.gold, textDecorationLine: "underline" },
   column: { flex: 1 },
   flex: { flex: 1, minHeight: 0 },
   gap: { height: 8 },
-  emptyPad: { paddingHorizontal: 20 },
   topBar: {
     height: playerSize.topBar,
     flexDirection: "row",

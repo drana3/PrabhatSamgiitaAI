@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Image, LayoutChangeEvent, StyleSheet, Text, View, type FlatList } from "react-native"
-import { BlurView } from "expo-blur"
 import { PlayGlyph, SearchGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
 import Animated, {
   runOnJS,
@@ -73,8 +72,6 @@ type Props = {
   /** Saved, Downloaded and Playlists content */
   body: ReactNode
 }
-
-const AnimatedBlur = Animated.createAnimatedComponent(BlurView)
 
 /**
  * The Songs scroll surface (prototype `section.scr[aria-label="Songs"]`). One navigation layer: the chips
@@ -312,8 +309,7 @@ export function SongsScroller({
         <Animated.View pointerEvents="none" style={[styles.pillFrost, { height: inset + L.pillBlock }, pillFrost]}>
           <View style={{ height: inset, backgroundColor: theme.page }} />
           <View style={styles.fill}>
-            <BlurView intensity={40} tint={theme.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.page, opacity: 0.95 }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.page }]} />
           </View>
         </Animated.View>
         <Animated.View style={[styles.pillWrap, pillSticky]}>

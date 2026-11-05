@@ -68,7 +68,7 @@ describe("home fixtures", () => {
     expect(HOME_BECAUSE.every((s) => s.title.length > 0 && s.sub.startsWith("PS "))).toBe(true)
   })
   it("has the search tiles and no two neighbours in Browse all share a tone", () => {
-    expect(SEARCH_TOP_TILES.map((t) => t.label)).toEqual(["Songs", "Stories", "Learn", "Performers"])
+    expect(SEARCH_TOP_TILES.map((t) => t.label)).toEqual(["Songs", "Stories", "Learn", "Kiirtans"])
     expect(SEARCH_BROWSE_ALL).toHaveLength(10)
     SEARCH_BROWSE_ALL.forEach((t, i) => {
       if (i % 2 === 0) expect(SEARCH_BROWSE_ALL[i + 1].tone).not.toBe(t.tone)

@@ -4,15 +4,16 @@ import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus, Search } from "lucide-react-native"
-import Animated, { Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from "react-native-reanimated"
+import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 
 import { HOME_INSET, HomeEmpty, HomeSectionHead } from "@/components/home/HomeBlocks"
+import { LiveCard } from "@/components/kirtan/LiveCard"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
 import { KiirtanCover, WaveGlyph, kiirtanTone } from "@/components/kirtan/KiirtanCover"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
 import { KirtanRow, KirtanTag, PlayFilled, StatusBadge } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
-import { chipColorsOf, StickyChipsRow } from "@/components/nav-v2/StickyChips"
+import { chipColorsOf, StickyChipsRow, StickyTopBlock } from "@/components/nav-v2/StickyChips"
 import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
 import { TodayPress } from "@/components/today/TodayPress"
@@ -21,6 +22,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
+import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -36,17 +38,18 @@ import { emptyListText, KIRTAN_TAB_CHIPS, newKirtansList, parseKirtanTabChip, sa
 import type { Kirtan, KirtanTypeId } from "@/lib/kirtan/types"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
+import { useKirtanLiveStore } from "@/stores/kirtanLiveStore"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
 
-/** Row 1 (avatar, search, add): the part that scrolls away. */
+/** Row 1 (avatar, search, add): height of the icon row inside the pinned block. */
 const TOP_ROW = 60
 const SECTION_GAP = 36
 const TYPE_CARD = { w: 152, h: 112 }
 
 /**
- * The Kiirtan tab. Row 1 scrolls away (avatar, search, "+" for Add Kiirtan); the chips row
- * (All, Saved, Downloaded, My uploads) is the only sticky element. Under All: the heading,
+ * The Kiirtan tab. Row 1 (avatar, search, "+" for Add Kiirtan) and the chips row (All, Saved, Downloaded,
+ * My uploads) are ONE pinned header block; the big heading scrolls away. Under All: the heading,
  * Kiirtan of the day, Jump back in, By type, By length, Artists, New kiirtans and Long kiirtans.
  * Every row plays in the one player (the pill appears by itself).
  * TODO(api): the catalog, the artists, the day's pick and the resume positions come from the backend.
@@ -64,6 +67,9 @@ export default function KiirtanTabScreen() {
   const { playable, byId, submissions } = useKirtans()
   const savedIds = useKirtanStore((s) => s.savedIds)
   const withdraw = useKirtanStore((s) => s.withdraw)
+  const live = useKirtanLive()
+  const remindIds = useKirtanLiveStore((s) => s.remindIds)
+  const toggleRemind = useKirtanLiveStore((s) => s.toggleRemind)
 
   const [chip, setChip] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
   const [type, setType] = useState<KirtanTypeId | null>(null)
@@ -85,7 +91,6 @@ export default function KiirtanTabScreen() {
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y
   })
-  const washStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, TOP_ROW], [1, 0], Extrapolation.CLAMP) }))
   const chipColors = chipColorsOf(p)
 
   const onShare = useCallback(
@@ -210,10 +215,21 @@ export default function KiirtanTabScreen() {
         </View>
       </Reveal>
 
-      {longList.length ? (
+      {longList.length || live.items.length ? (
         <Reveal index={next()} style={styles.section}>
-          <HomeSectionHead p={p} eyebrow="One hour and more, for meditation and sleep" first="Long" second="kiirtans" />
+          <HomeSectionHead p={p} eyebrow="For meditation and sleep" first="Live and long" second="kiirtans" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
+            {live.items.map((item) => (
+              <LiveCard
+                key={item.id}
+                item={item}
+                now={live.now}
+                theme={theme}
+                reminded={remindIds.includes(item.id)}
+                onOpen={(i) => router.push(href(`/kiirtan-live?id=${encodeURIComponent(i.id)}`))}
+                onRemind={(i) => actions.flash(toggleRemind(i.id) ? "We will remind you" : "Reminder removed")}
+              />
+            ))}
             {longList.map((k) => (
               <LongCard key={k.id} kirtan={k} onPress={() => play(k, longList, "Long")} />
             ))}
@@ -285,17 +301,15 @@ export default function KiirtanTabScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: p.sand200 }]}>
-      <Animated.View pointerEvents="none" style={[styles.wash, { height: top + TOP_ROW }, washStyle]}>
-        <LinearGradient colors={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]} style={StyleSheet.absoluteFill} />
-      </Animated.View>
       <Animated.ScrollView
-        style={{ flex: 1, marginTop: top }}
+        style={styles.root}
         onScroll={onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={styles.content}
       >
+        <StickyTopBlock inset={top} rowHeight={TOP_ROW} page={p.sand200} wash={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]} scrollY={scrollY}>
         <View style={styles.topRow}>
           <TodayPress
             accessibilityRole="button"
@@ -314,7 +328,8 @@ export default function KiirtanTabScreen() {
             <Plus size={22} color="#1E1E1E" strokeWidth={2.2} />
           </TodayPress>
         </View>
-        <StickyChipsRow items={KIRTAN_TAB_CHIPS} value={chip} onChange={setChip} colors={chipColors} scrollY={scrollY} stickAt={TOP_ROW} />
+        <StickyChipsRow items={KIRTAN_TAB_CHIPS} value={chip} onChange={setChip} colors={chipColors} scrollY={scrollY} stickAt={0} />
+        </StickyTopBlock>
         <View style={styles.shelves}>{chip === "all" ? renderAll() : chip === "saved" ? renderSaved() : chip === "downloaded" ? renderDownloaded() : renderMine()}</View>
       </Animated.ScrollView>
 
@@ -392,7 +407,7 @@ function TypeCard({ id, label, count, on, onPress }: { id: KirtanTypeId; label: 
   )
 }
 
-/** A card of the "Long kiirtans" shelf: the cover with its length, then the title. */
+/** A card of the "Live and long kiirtans" shelf: the cover with its length, then the title. */
 function LongCard({ kirtan, onPress }: { kirtan: Kirtan; onPress: () => void }) {
   const theme = useSongsTheme()
   return (
@@ -415,7 +430,6 @@ function LongCard({ kirtan, onPress }: { kirtan: Kirtan; onPress: () => void }) 
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  wash: { position: "absolute", left: 0, right: 0, top: 0 },
   content: { paddingBottom: 220 },
   topRow: { height: TOP_ROW, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: HOME_INSET - 4, paddingRight: HOME_INSET - 4, paddingTop: 6, paddingBottom: 10 },
   spacer: { flex: 1 },

@@ -2,12 +2,13 @@
  * Pure logic of the library proposal (/library-proposal): a Spotify-library-style view of what
  * Songs > Mine holds. Items are built from real counts or from the preview fixtures.
  */
-export type LibraryFilterId = "playlists" | "downloads" | "saved" | "learning"
+export type LibraryFilterId = "playlists" | "downloads" | "saved" | "kiirtan" | "learning"
 
 export const LIBRARY_FILTERS: readonly { id: LibraryFilterId; label: string }[] = [
   { id: "playlists", label: "Playlists" },
   { id: "downloads", label: "Downloads" },
   { id: "saved", label: "Saved" },
+  { id: "kiirtan", label: "Kiirtan" },
   { id: "learning", label: "Learning" },
 ]
 
@@ -24,7 +25,7 @@ export type LibraryItem = {
 }
 
 export function typeLabel(kind: LibraryFilterId): string {
-  return kind === "playlists" ? "Playlist" : kind === "downloads" ? "Downloads" : kind === "saved" ? "Saved" : "Learning"
+  return kind === "playlists" ? "Playlist" : kind === "downloads" ? "Downloads" : kind === "saved" ? "Saved" : kind === "kiirtan" ? "Kiirtan" : "Learning"
 }
 
 export function countLabel(count: number, noun = "song"): string {
@@ -48,6 +49,9 @@ export type LibraryInputs = {
   downloadCount: number
   /** words due today, 0 hides the row */
   wordsDue: number
+  /** saved Kiirtans and the person's own uploads; 0 or left out hides the row */
+  savedKiirtanCount?: number
+  uploadCount?: number
 }
 
 /** Real counts to rows. Empty collections with no way in are left out. */
@@ -61,6 +65,12 @@ export function buildLibraryItems(input: LibraryInputs): LibraryItem[] {
   }
   if (input.downloadCount > 0) {
     items.push({ id: "downloads", kind: "downloads", title: "Downloaded songs", sub: `Downloads · ${countLabel(input.downloadCount)}`, coverNumber: 4, target: "/songs-v2?segment=mine" })
+  }
+  if ((input.savedKiirtanCount ?? 0) > 0) {
+    items.push({ id: "kiirtan-saved", kind: "kiirtan", title: "Saved Kiirtans", sub: `Kiirtan · ${countLabel(input.savedKiirtanCount ?? 0, "Kiirtan")}`, coverNumber: 5, target: "/v2/kiirtan?filter=saved" })
+  }
+  if ((input.uploadCount ?? 0) > 0) {
+    items.push({ id: "kiirtan-mine", kind: "kiirtan", title: "My uploads", sub: `Kiirtan · ${countLabel(input.uploadCount ?? 0, "upload")}`, coverNumber: 6, target: "/v2/kiirtan?filter=mine" })
   }
   input.playlists.forEach((pl, i) => {
     items.push({ id: `pl-${pl.id}`, kind: "playlists", title: pl.name, sub: `Playlist · ${countLabel(pl.count)}`, coverNumber: i + 2, target: `/playlist-v2/${pl.id}` })

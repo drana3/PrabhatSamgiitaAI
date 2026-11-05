@@ -13,6 +13,14 @@ import {
   ResultList,
 } from "@/components/search-v2/SearchBlocks"
 import { BrowseView, SearchHeader } from "@/components/search-v2/BrowseBlocks"
+import { KirtanRow } from "@/components/kirtan/KirtanParts"
+import { chipColorsOf, StickyChipsRow } from "@/components/nav-v2/StickyChips"
+import { Toast } from "@/components/songs-v2/Toast"
+import { useKirtanActions } from "@/hooks/useKirtanActions"
+import { useKirtans } from "@/hooks/useKirtans"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchKirtans, type SearchScope } from "@/lib/kirtan/search"
+import { useSharedValue as useSharedValueRN } from "react-native-reanimated"
 import { SearchField } from "@/components/search-v2/SearchField"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -61,7 +69,7 @@ export default function UnifiedSearchScreen() {
   const insets = useSafeAreaInsets()
   const top = insets.top || amProto.statusArea
   const reduce = useReducedMotion()
-  const params = useLocalSearchParams<{ q?: string; hint?: string; focus?: string; listen?: string }>()
+  const params = useLocalSearchParams<{ q?: string; hint?: string; focus?: string; listen?: string; scope?: string }>()
   const parsed = useMemo(
     () => parseSearchParams(params),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,6 +87,11 @@ export default function UnifiedSearchScreen() {
   const addSearchRecent = usePreferencesStore((s) => s.addSearchRecent)
   const clearSearchRecents = usePreferencesStore((s) => s.clearSearchRecents)
 
+  const [scope, setScope] = useState<SearchScope>(parseSearchScope(params.scope))
+  const songsTheme = useSongsTheme()
+  const kActions = useKirtanActions()
+  const { playable: kirtanCatalog } = useKirtans()
+  const chipScroll = useSharedValueRN(0)
   const [query, setQuery] = useState(parsed.query)
   const [selectOnFocus, setSelectOnFocus] = useState(parsed.prefilled)
   const [local, setLocal] = useState<UnifiedResult>(() => searchLocal(parsed.query))
@@ -238,6 +251,8 @@ export default function UnifiedSearchScreen() {
   }, [drop, reduce])
   const dropStyle = useAnimatedStyle(() => ({ opacity: drop.value, transform: [{ translateY: (1 - drop.value) * -8 }] }))
 
+  const kirtanHits = useMemo(() => searchKirtans(kirtanCatalog, query, scope === "all" ? 5 : 50), [kirtanCatalog, query, scope])
+  const show = scopeShows(scope)
   const typing = !empty
   const showHint = typing || Boolean(voiceError) || Boolean(parsed.hint)
   const field = (
@@ -308,21 +323,48 @@ export default function UnifiedSearchScreen() {
           />
         ) : (
           <View style={styles.results}>
-            {!MOCKUP_DATA && result.answer ? (
+            <StickyChipsRow items={SEARCH_SCOPES} value={scope} onChange={setScope} colors={chipColorsOf(p)} scrollY={chipScroll} stickAt={99999} />
+            {show.kiirtans && scope === "kiirtan" ? (
+              <View style={styles.kirtanList}>
+                {kirtanHits.length ? (
+                  kirtanHits.map((k) => (
+                    <KirtanRow key={k.id} theme={songsTheme} kirtan={k} onOpen={(row) => { remember(query); kActions.open(row, kirtanHits, "Search") }} onOpenArtist={kActions.openArtist} />
+                  ))
+                ) : (
+                  <Text style={[styles.waitingText, styles.pad, { color: p.ink500 }]}>No Kiirtans match “{query.trim()}”.</Text>
+                )}
+              </View>
+            ) : null}
+            {show.stories ? (
+              // TODO(api): stories are not searchable yet; this points to the list.
+              <TodayPress accessibilityRole="button" accessibilityLabel="Browse stories" onPress={() => router.push(href("/stories"))} pressedScale={0.98} style={[styles.storyNote, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+                <Text style={[styles.waitingText, { color: p.ink800 }]}>Stories are not searchable here yet. Browse all stories</Text>
+              </TodayPress>
+            ) : null}
+            {!show.songs ? null : !MOCKUP_DATA && result.answer ? (
               <AnswerCard p={p} answer={result.answer} onOpen={openItem} onAsk={() => router.push(href("/assistant"))} />
             ) : null}
-            {rows.length ? <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} /> : null}
-            {collections.length ? <CollectionChips p={p} names={collections} onPick={pick} /> : null}
-            {waitingForMeaning ? (
+            {show.songs && rows.length ? <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} /> : null}
+            {show.songs && collections.length ? <CollectionChips p={p} names={collections} onPick={pick} /> : null}
+            {scope === "all" && kirtanHits.length ? (
+              <View style={styles.kirtanList}>
+                <Text style={[styles.groupLabel, { color: p.orange700 }]}>KIIRTANS</Text>
+                {kirtanHits.map((k) => (
+                  <KirtanRow key={k.id} theme={songsTheme} kirtan={k} onOpen={(row) => { remember(query); kActions.open(row, kirtanHits, "Search") }} onOpenArtist={kActions.openArtist} />
+                ))}
+              </View>
+            ) : null}
+            {show.songs && waitingForMeaning ? (
               <View style={styles.waiting} accessibilityLiveRegion="polite">
                 <ActivityIndicator color={p.orange500} />
                 <Text style={[styles.waitingText, { color: p.ink500 }]}>Looking for songs by meaning…</Text>
               </View>
             ) : null}
-            {rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={!MOCKUP_DATA && result.message === outOfRangeMessage() ? result.message : null} /> : null}
+            {show.songs && !(scope === "all" && kirtanHits.length) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={!MOCKUP_DATA && result.message === outOfRangeMessage() ? result.message : null} /> : null}
           </View>
         )}
       </ScrollView>
+      <Toast message={kActions.toast} theme={songsTheme} />
     </Animated.View>
   )
 }
@@ -335,6 +377,10 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingBottom: 48 },
   results: { gap: 24 },
+  kirtanList: { gap: 10, paddingHorizontal: 16 },
+  groupLabel: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2 },
+  pad: { paddingHorizontal: 4 },
+  storyNote: { marginHorizontal: 16, padding: 18, borderRadius: 20, borderWidth: 1 },
   waiting: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20 },
   waitingText: { fontFamily: amFonts.medium, fontSize: 16 },
 })

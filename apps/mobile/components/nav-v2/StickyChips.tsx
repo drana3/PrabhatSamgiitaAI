@@ -7,7 +7,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 
 /**
- * The chips row of the Today, Songs and Kiirtan tabs, and the ONLY sticky element of those screens.
+ * The chips row of the Today, Songs and Kiirtan tabs. On Today and Kiirtan it is the lower half of ONE sticky
+ * header block (`StickyTopBlock`: the icon row on top, this row under it); on Songs it pins under the search pill.
  *  - Full width, scrolls sideways, 16px side padding, 8px between chips.
  *  - Opaque and exactly the page colour: no grey, no translucency, no blur. The screen's peach wash
  *    ends above this row, so nothing shows through and no band appears.
@@ -46,6 +47,39 @@ export function hexAlpha(hex: string, alpha: number): string {
 export function hairlineOpacity(scroll: number, stickAt: number): number {
   "worklet"
   return interpolate(scroll, [stickAt, stickAt + 12], [0, 1], Extrapolation.CLAMP)
+}
+
+/**
+ * The pinned header of the Today and Kiirtan tabs: status-area inset, row 1 (avatar, search, bell or plus) and the
+ * chips row, as ONE sticky block. Opaque page colour (nothing shows through), pinned at the very top of the scroll
+ * view so there is no gap above it. The peach wash lives inside the block behind row 1 and fades by scroll offset
+ * (opacity only). The chips row draws the hairline under the whole block once content moves beneath it.
+ */
+export function StickyTopBlock({
+  inset,
+  rowHeight,
+  page,
+  wash,
+  scrollY,
+  children,
+}: {
+  inset: number
+  rowHeight: number
+  page: string
+  /** two colours of the wash gradient, top to bottom */
+  wash: readonly [string, string]
+  scrollY: SharedValue<number>
+  children: React.ReactNode
+}) {
+  const washStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, rowHeight], [1, 0], Extrapolation.CLAMP) }))
+  return (
+    <View style={[styles.block, { backgroundColor: page, paddingTop: inset }]}>
+      <Animated.View pointerEvents="none" style={[styles.wash, { height: inset + rowHeight }, washStyle]}>
+        <LinearGradient colors={[wash[0], wash[1]]} style={StyleSheet.absoluteFill} />
+      </Animated.View>
+      {children}
+    </View>
+  )
 }
 
 type Props<T extends string> = {
@@ -96,6 +130,8 @@ export function StickyChipsRow<T extends string>({ items, value, onChange, color
 }
 
 const styles = StyleSheet.create({
+  block: { zIndex: 10 },
+  wash: { position: "absolute", left: 0, right: 0, top: 0 },
   row: { height: STICKY_CHIPS_HEIGHT, justifyContent: "center", zIndex: 9 },
   scroll: { paddingHorizontal: STICKY_CHIPS_PAD, gap: STICKY_CHIPS_GAP, alignItems: "center" },
   chip: { height: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1, justifyContent: "center" },

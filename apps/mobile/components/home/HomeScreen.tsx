@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native"
-import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from "react-native-reanimated"
+import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 import type { TodayRecommendationItem, TodayRecommendations } from "@prabhat/core"
 
 import {
@@ -20,9 +19,10 @@ import {
   type HomeRowData,
   type StripCardData,
 } from "@/components/home/HomeBlocks"
+import { LiveNowStrip } from "@/components/kirtan/LiveNowStrip"
 import { KirtanMenuSheet } from "@/components/kirtan/KirtanMenus"
 import { KirtanRow } from "@/components/kirtan/KirtanParts"
-import { chipColorsOf, StickyChipsRow } from "@/components/nav-v2/StickyChips"
+import { chipColorsOf, StickyChipsRow, StickyTopBlock } from "@/components/nav-v2/StickyChips"
 import { RowMenuSheet } from "@/components/songs-v2/CatalogSheets"
 import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
@@ -32,6 +32,7 @@ import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
+import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -81,7 +82,7 @@ import { useResumeStore } from "@/stores/resumeStore"
 import type { MockSong } from "@/data/mock"
 import { href } from "@/utils/href"
 
-/** Row 1 (avatar, search, bell): the part of the header that scrolls away. */
+/** Row 1 (avatar, search, bell): height of the icon row inside the pinned block. */
 const TOP_ROW = 60
 const SECTION_GAP = 36
 const MIX_WIDTH = 250
@@ -130,6 +131,7 @@ export function HomeScreen() {
   const [menu, setMenu] = useState<{ number: number; title: string } | null>(null)
   const kActions = useKirtanActions()
   const { playable: kirtans } = useKirtans()
+  const liveNowItem = useKirtanLive().current
   const kSavedIds = useKirtanStore((s) => s.savedIds)
   const [kMenu, setKMenu] = useState<Kirtan | null>(null)
 
@@ -268,13 +270,11 @@ export function HomeScreen() {
     if (message) kActions.flash(message)
   }
 
-  /* --- scroll-linked header: row 1 scrolls away, the chips row sticks, its hairline fades in --- */
+  /* --- scroll-linked header: row 1 (avatar, search, bell) and the chips are ONE pinned block; its hairline fades in --- */
   const scrollY = useSharedValue(0)
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y
   })
-  // The peach wash sits behind row 1 only, so it ends above the sticky chips row (no band under it) and fades as you scroll.
-  const washStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, TOP_ROW], [1, 0], Extrapolation.CLAMP) }))
   const chipColors = chipColorsOf(p)
 
   const shelves = shelvesFor(filter)
@@ -430,29 +430,29 @@ export function HomeScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: p.sand200 }]}>
-      <Animated.View pointerEvents="none" style={[styles.wash, { height: top + TOP_ROW }, washStyle]}>
-        <LinearGradient colors={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]} style={StyleSheet.absoluteFill} />
-      </Animated.View>
-      {/* The scroll area starts below the status area, so nothing scrolls under it and the sticky row needs no cap. */}
+      {/* The first child is the pinned block: status inset, row 1 and the chips, opaque in the page colour. */}
       <Animated.ScrollView
-        style={{ flex: 1, marginTop: top }}
+        style={styles.root}
         onScroll={onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
+        stickyHeaderIndices={[0]}
         contentContainerStyle={styles.content}
       >
-        <HomeTopRow
-          p={p}
-          initial={initials}
-          unread={unread > 0}
-          onAvatar={() => router.push(href("/profile-sheet"))}
-          onBell={() => router.push(href("/notifications"))}
-          onSearch={() => router.push(href("/search-v2?focus=1"))}
-        />
-        <StickyChipsRow items={HOME_FILTERS} value={filter} onChange={setFilter} colors={chipColors} scrollY={scrollY} stickAt={TOP_ROW} />
+        <StickyTopBlock inset={top} rowHeight={TOP_ROW} page={p.sand200} wash={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]} scrollY={scrollY}>
+          <HomeTopRow
+            p={p}
+            initial={initials}
+            unread={unread > 0}
+            onAvatar={() => router.push(href("/profile-sheet"))}
+            onBell={() => router.push(href("/notifications"))}
+            onSearch={() => router.push(href("/search-v2?focus=1"))}
+          />
+          <StickyChipsRow items={HOME_FILTERS} value={filter} onChange={setFilter} colors={chipColors} scrollY={scrollY} stickAt={0} />
+        </StickyTopBlock>
 
         <View style={styles.shelves}>
+          {liveNowItem ? <LiveNowStrip item={liveNowItem} onOpen={(i) => router.push(href(`/kiirtan-live?id=${encodeURIComponent(i.id)}`))} /> : null}
           {visible.map((id) => section(id))}
           {visible.length === 0 ? <HomeEmpty p={p} text="Nothing here yet." /> : null}
         </View>
@@ -489,7 +489,6 @@ type ReactNodeOrNull = React.ReactNode
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  wash: { position: "absolute", left: 0, right: 0, top: 0 },
   content: { paddingBottom: 200 },
   shelves: { paddingTop: 12, gap: SECTION_GAP },
   section: { gap: 16 },

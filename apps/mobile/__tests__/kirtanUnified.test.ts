@@ -41,6 +41,8 @@ import {
   trackLabel,
   trackTag,
 } from "@/lib/kirtan/track"
+import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchKirtans } from "@/lib/kirtan/search"
+import { buildLibraryItems, filterLibrary } from "@/lib/libraryProposal"
 import type { Kirtan } from "@/lib/kirtan/types"
 
 /** A fixed random source so shuffles are repeatable. */
@@ -325,5 +327,36 @@ describe("Kiirtan tab", () => {
       ["p", k({ id: "p", status: "pending" })],
     ])
     expect(savedKirtans(["p", "a", "gone"], byId).map((x) => x.id)).toEqual(["a"])
+  })
+})
+
+describe("search and library", () => {
+  it("has the four result chips and reads the scope parameter", () => {
+    expect(SEARCH_SCOPES.map((c) => c.label)).toEqual(["All", "Songs", "Kiirtans", "Stories"])
+    expect(parseSearchScope("kiirtan")).toBe("kiirtan")
+    expect(parseSearchScope(["kiirtans"])).toBe("kiirtan")
+    expect(parseSearchScope("zzz")).toBe("all")
+    expect(scopeShows("all")).toEqual({ songs: true, kiirtans: true, stories: false })
+    expect(scopeShows("songs")).toEqual({ songs: true, kiirtans: false, stories: false })
+    expect(scopeShows("kiirtan")).toEqual({ songs: false, kiirtans: true, stories: false })
+    expect(scopeShows("stories")).toEqual({ songs: false, kiirtans: false, stories: true })
+  })
+
+  it("finds Kiirtans by every word, in title, performer or type", () => {
+    expect(searchKirtans(approved, "")).toEqual([])
+    expect(searchKirtans(approved, "priya").every((x) => /priya/i.test(`${x.author} ${x.addedBy}`))).toBe(true)
+    expect(searchKirtans(approved, "priya").length).toBeGreaterThan(0)
+    expect(searchKirtans(approved, "  LILA  ").every((x) => x.type === "lila" || /lila/i.test(x.title + x.author))).toBe(true)
+    expect(searchKirtans(approved, "priya morning").map((x) => x.id)).toContain("k-bnk-morning")
+    expect(searchKirtans(approved, "priya dipavali")).toEqual([])
+    expect(searchKirtans(approved, "kiirtan")).toHaveLength(approved.length)
+    expect(searchKirtans(approved, "kiirtan", 3)).toHaveLength(3)
+    expect(searchKirtans(approved, "zzzz")).toEqual([])
+  })
+
+  it("adds a Kiirtan chip to the library with saved and uploaded rows", () => {
+    const items = buildLibraryItems({ playlists: [], savedCount: 0, downloadCount: 0, wordsDue: 0, savedKiirtanCount: 2, uploadCount: 1 })
+    expect(filterLibrary(items, "kiirtan").map((i) => i.title)).toEqual(["Saved Kiirtans", "My uploads"])
+    expect(buildLibraryItems({ playlists: [], savedCount: 0, downloadCount: 0, wordsDue: 0 })).toEqual([])
   })
 })
