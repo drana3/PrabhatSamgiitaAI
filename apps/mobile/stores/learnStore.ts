@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
+import { bindOwner } from "@/lib/account/bindOwner"
+import type { OwnedData } from "@/lib/account/owner"
 import {
   EMPTY_PATH,
   markPathPart,
@@ -26,7 +28,16 @@ import {
  * are stored locally first"). The shape follows API-13 so it can sync later:
  * lpath per song, card state per word, review style.
  */
-type LearnState = {
+/** What belongs to one account. The review style is a setting of the phone and stays out of it. */
+export type LearnData = {
+  cards: Record<string, WordCard>
+  songs: LearningSong[]
+  paths: Record<string, PathState>
+  quizBest: QuizBestMap
+  demoSeeded: boolean
+}
+
+type LearnState = OwnedData<LearnData> & {
   reviewStyle: ReviewStyle
   cards: Record<string, WordCard>
   songs: LearningSong[]
@@ -50,13 +61,19 @@ type LearnState = {
   resetAll: () => void
 }
 
+const emptyLearnData = (): LearnData => ({
+  cards: {},
+  songs: [],
+  paths: {},
+  quizBest: {},
+  demoSeeded: false,
+})
+
 const INITIAL = {
   reviewStyle: DEFAULT_REVIEW_STYLE,
-  cards: {} as Record<string, WordCard>,
-  songs: [] as LearningSong[],
-  paths: {} as Record<string, PathState>,
-  quizBest: {} as QuizBestMap,
-  demoSeeded: false,
+  ...emptyLearnData(),
+  owner: null as string | null,
+  slots: {} as Record<string, LearnData>,
 }
 
 export const useLearnStore = create<LearnState>()(
@@ -109,13 +126,18 @@ export const useLearnStore = create<LearnState>()(
         set({ quizBest: { ...get().quizBest, [level]: mergeBest(get().quizBest[level], best) } })
       },
 
-      resetAll: () => set({ ...INITIAL }),
+      // Clears the account in use; the owner stamp and the other accounts' put-aside data stay.
+      resetAll: () => set({ ...emptyLearnData(), reviewStyle: DEFAULT_REVIEW_STYLE }),
     }),
     {
       name: "prabhat-learn",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: 2,
+      // v1 had no owner: the data is taken by whoever is signed in at the first start (lib/account/owner.ts).
+      migrate: (persisted) => ({ ...INITIAL, ...(persisted as object), owner: null, slots: {} }) as unknown as LearnState,
       partialize: (state) => ({
+        owner: state.owner,
+        slots: state.slots,
         reviewStyle: state.reviewStyle,
         cards: state.cards,
         songs: state.songs,
@@ -126,3 +148,10 @@ export const useLearnStore = create<LearnState>()(
     },
   ),
 )
+
+/** Account data follows the signed-in person: signing out puts it aside, another account never sees it. */
+export const reconcileLearnOwner = bindOwner<LearnState, LearnData>(useLearnStore, {
+  pick: (s) => ({ cards: s.cards, songs: s.songs, paths: s.paths, quizBest: s.quizBest, demoSeeded: s.demoSeeded }),
+  empty: emptyLearnData,
+  apply: (data) => data,
+})

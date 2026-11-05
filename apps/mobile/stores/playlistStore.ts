@@ -1,6 +1,7 @@
 import type { MemberPlaylist } from "@prabhat/core"
 import { create } from "zustand"
 
+import { ownerKeyOf } from "@/lib/account/owner"
 import { api } from "@/lib/client"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import {
@@ -34,6 +35,10 @@ type PlaylistState = {
   addSong: (id: string, songNumber: number) => Promise<PlaylistResult>
   removeSong: (id: string, songNumber: number) => Promise<PlaylistResult>
   flushSync: () => Promise<void>
+}
+
+function currentOwner() {
+  return ownerKeyOf(useAuthStore.getState())
 }
 
 function signedIn() {
@@ -98,14 +103,16 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
 
   refresh: async () => {
     if (!signedIn() || !memberAuthAvailable()) {
-      resetPlaylistSyncQueue()
-      await clearPlaylistCache()
-      set({ playlists: [], error: null, loading: false, syncing: false })
+      await clearPlaylistsOnDevice()
       return
     }
+    const owner = currentOwner()
     const cached = peekPlaylistCache() ?? (await readPlaylistCache()) ?? []
+    if (currentOwner() !== owner) return
     set({ playlists: cached, loading: false, error: null })
     const remote = await api.fetchMemberPlaylists()
+    // Signed out or into another account while the list was loading: it is not for whoever is here now.
+    if (currentOwner() !== owner) return
     if (remote === null) {
       set((state) => ({
         loading: false,
@@ -113,7 +120,8 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       }))
       return
     }
-    await writePlaylistCache(remote)
+    await writePlaylistCache(remote, owner)
+    if (currentOwner() !== owner) return
     set({ playlists: remote, loading: false, error: null })
   },
 
@@ -198,6 +206,24 @@ bindPlaylistSyncHandlers({
   onError: (message) => usePlaylistStore.setState({ error: message, syncing: false }),
   readPlaylists: () => usePlaylistStore.getState().playlists,
 })
+
+/** Everything about playlists that the phone holds: the list, the cache on disk and the waiting changes. */
+export async function clearPlaylistsOnDevice(): Promise<void> {
+  resetPlaylistSyncQueue()
+  usePlaylistStore.setState({ playlists: [], error: null, loading: false, syncing: false })
+  await clearPlaylistCache()
+}
+
+// Another account, or none: the playlists on the phone are not for them. (Signing out calls the same.)
+let playlistOwner = currentOwner()
+if (typeof useAuthStore.subscribe === "function") {
+  useAuthStore.subscribe(() => {
+    const next = currentOwner()
+    if (next === playlistOwner) return
+    playlistOwner = next
+    void clearPlaylistsOnDevice()
+  })
+}
 
 export function isPlaylist(value: PlaylistResult): value is MemberPlaylist {
   return "id" in value && "songs" in value

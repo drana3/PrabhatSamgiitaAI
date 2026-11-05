@@ -112,7 +112,7 @@ export function useProfileContent(theme: AmTheme) {
 
   const identity = useProfileIdentity()
   const signedIn = MOCKUP_DATA || mode === "signed_in"
-  const accountId = getAccountId(mode, email)
+  const accountId = getAccountId(mode, email, memberId)
   const memberQuota = companionReceivesMemberQuota({
     signedIn,
     memberAuthReady: memberAuthAvailable(),
@@ -174,10 +174,20 @@ export function useProfileContent(theme: AmTheme) {
       onConfirm: () => useAiConsentStore.getState().revoke(),
     })
 
-  const signOut = () => {
-    if (MOCKUP_DATA) return
+  const doSignOut = () => {
     void completeMemberSignOut()
     router.replace(href("/welcome"))
+  }
+
+  /** Asks first, and says what happens to the downloaded songs: they stay on the phone. */
+  const signOut = () => {
+    if (MOCKUP_DATA) return
+    setConfirm({
+      title: t("profile.signOut.confirm.title"),
+      body: t("profile.signOut.confirm.body"),
+      confirmLabel: t("profile.signOut.confirm.confirm"),
+      onConfirm: doSignOut,
+    })
   }
 
   const body = (

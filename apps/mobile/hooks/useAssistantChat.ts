@@ -71,7 +71,7 @@ export function useAssistantChat(input: { songParam: number | null }) {
   const [sending, setSending] = useState(false)
   const [syncingHistory, setSyncingHistory] = useState(false)
 
-  const accountId = getAccountId(mode, email)
+  const accountId = getAccountId(mode, email, memberId)
   const isMember = companionReceivesMemberQuota({
     signedIn: mode === "signed_in",
     memberAuthReady: memberAuthAvailable(),

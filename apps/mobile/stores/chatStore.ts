@@ -25,7 +25,8 @@ type AccountChat = {
 
 type ChatState = {
   byAccount: Record<string, AccountChat>
-  getAccountId: (mode: "guest" | "signed_in", email: string | null) => string
+  /** `member:<email>` when the account has an email, else `member:<id>` (Apple can hide the email); never "guest" for a signed-in person. */
+  getAccountId: (mode: "guest" | "signed_in", email: string | null, memberId?: string | null) => string
   getAccountChat: (accountId: string) => AccountChat
   getActiveThread: (accountId: string) => ChatThread | null
   ensureActiveThread: (accountId: string) => string
@@ -153,9 +154,12 @@ export const useChatStore = create<ChatState>()(
     (set, get) => ({
       byAccount: {},
 
-      getAccountId: (mode, email) => {
-        if (mode === "signed_in" && email) return `member:${email.toLowerCase()}`
-        return "guest"
+      getAccountId: (mode, email, memberId) => {
+        if (mode !== "signed_in") return "guest"
+        const mail = (email || "").trim().toLowerCase()
+        if (mail) return `member:${mail}`
+        const id = (memberId || "").trim()
+        return id ? `member:${id}` : "member:unknown"
       },
 
       getAccountChat: (accountId) => get().byAccount[accountId] ?? emptyAccount(),

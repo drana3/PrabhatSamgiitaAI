@@ -2,6 +2,7 @@ import { songPageEn } from "./songPage"
 import { appShellEn } from "./appShell"
 import { ugcEn } from "./ugc"
 import { offlineEn } from "./offline"
+import { accountEn } from "./account"
 
 /**
  * English: the source of truth. Every other language mirrors these keys (the parity test enforces it).
@@ -1251,4 +1252,5 @@ export const en = {
   ...appShellEn,
   ...ugcEn,
   ...offlineEn,
+  ...accountEn,
 } as const

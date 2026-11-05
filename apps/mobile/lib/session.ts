@@ -13,10 +13,13 @@ import {
 } from "@/lib/msal"
 import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
+import "@/lib/account/ownership"
+import { wipeLocalUserData } from "@/lib/account/wipeLocalUserData"
 import { hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
 import { memberPhoneRequired } from "@/lib/memberPhone"
 import { nameIsMissing } from "@/lib/profile/validate"
 import { useAuthStore } from "@/stores/authStore"
+import { useChatStore } from "@/stores/chatStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useProfileStore } from "@/stores/profileStore"
 
@@ -161,11 +164,15 @@ export async function refreshMemberSession() {
 
 /** Clears local auth for every login type; provider SSO logout is best-effort and non-blocking. */
 export async function signOutMember() {
-  const provider = useAuthStore.getState().identityProvider
+  const before = useAuthStore.getState()
+  const provider = before.identityProvider
+  const accountId = useChatStore.getState().getAccountId(before.mode, before.email, before.memberId)
   // Always clear local session first (email/password, Google, Microsoft, Facebook).
   // In-flight Profile/AppState member sync must not revive the session after the alert.
   useAuthStore.getState().signOut()
   usePreferencesStore.getState().resetAfterSignOut()
+  // The account's data leaves the phone (see lib/account/wipeLocalUserData.ts); the sign-out itself never waits on it.
+  void wipeLocalUserData(accountId)
 
   // Do not await browser/SSO UI — that delayed the "Signed out" alert and raced sync.
   void (async () => {

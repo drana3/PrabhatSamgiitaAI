@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { AppState, InteractionManager, Platform, type AppStateStatus } from "react-native"
 
+import "@/lib/account/ownership"
 import { hydrateLocalMemberEmail } from "@/lib/memberEmail"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { refreshMemberSession } from "@/lib/session"
