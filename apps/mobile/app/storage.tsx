@@ -25,6 +25,7 @@ import { listViewState } from "@/lib/mineView"
 import { miniPlayerVisible, tabBarVisible } from "@/lib/navV2"
 import { storageBarBottom, storageListInset } from "@/lib/storageBar"
 import { usePlayerStore } from "@/stores/playerStore"
+import { useT } from "@/lib/i18n"
 
 /** While the confirm sheet is open the pill sinks, so the sheet rises where it was. */
 const HIDDEN_ACTION = { visible: false } as const
@@ -37,6 +38,7 @@ const HIDDEN_ACTION = { visible: false } as const
  */
 export default function StorageScreen() {
   const router = useRouter()
+  const t = useT()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
@@ -74,7 +76,7 @@ export default function StorageScreen() {
         <SongsReveal index={0}>
           <BackHeader
             theme={theme}
-            title="Storage and downloads"
+            title={t("profile.storage")}
             onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))}
           />
         </SongsReveal>
@@ -117,8 +119,8 @@ export default function StorageScreen() {
             ) : (
               <Text style={[styles.empty, { color: theme.textBody }]} accessibilityLiveRegion="polite">
                 {view === "empty"
-                  ? "\nNo downloads yet. Tap Download on any song to hear it without internet."
-                  : "\nChecking this phone…"}
+                  ? `\n${t("storage.empty")}`
+                  : `\n${t("storage.checking")}`}
               </Text>
             )}
           </SongsReveal>

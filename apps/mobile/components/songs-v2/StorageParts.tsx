@@ -26,16 +26,18 @@ import {
   type ClearActionModel,
   type StorageItem,
 } from "@/lib/storageCache"
+import { useT } from "@/lib/i18n"
 
 type ThemeProps = { theme: SongsTheme }
 
 /** Prototype `.ovl-h`: 44px round back button and the title, 19/600. Also used by the playlist page. */
 export function BackHeader({ theme, onBack, title }: ThemeProps & { onBack: () => void; title?: string }) {
+  const t = useT()
   return (
     <View style={styles.header}>
       <Press
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={t("common.back")}
         onPress={onBack}
         pressedScale={0.92}
         style={[styles.round, { backgroundColor: theme.card, borderColor: theme.line }]}
@@ -61,6 +63,7 @@ export function StorageTotalCard({
   count,
   limit,
 }: ThemeProps & { totalBytes: number; count: number; limit: CacheLimit }) {
+  const t = useT()
   const reduce = useReducedMotion()
   const ratio = useSharedValue(0)
   const trackWidth = useSharedValue(0)
@@ -76,8 +79,8 @@ export function StorageTotalCard({
 
   return (
     <View style={[styles.total, { backgroundColor: theme.dark ? theme.inner : theme.forest }]}>
-      <Text style={[overStyle, { color: amColors.gold300 }]}>Downloaded songs</Text>
-      <Text style={styles.totalValue} accessibilityLabel={`${formatBytes(totalBytes)} downloaded`} numberOfLines={1}>
+      <Text style={[overStyle, { color: amColors.gold300 }]}>{t("storage.downloadedSongs")}</Text>
+      <Text style={styles.totalValue} accessibilityLabel={t("storage.downloaded.a11y", { size: formatBytes(totalBytes) })} numberOfLines={1}>
         {formatBytes(totalBytes)}
       </Text>
       <View
@@ -101,10 +104,11 @@ export function CacheLimitSection({
   value,
   onChange,
 }: ThemeProps & { value: CacheLimitId; onChange: (id: CacheLimitId) => void }) {
+  const t = useT()
   return (
     <View style={styles.limitBlock}>
       <View style={styles.rowAct}>
-        <Text style={[overStyle, { color: theme.accent }]}>Cache limit</Text>
+        <Text style={[overStyle, { color: theme.accent }]}>{t("storage.limit.title")}</Text>
       </View>
       <ScrollView
         horizontal
@@ -119,13 +123,12 @@ export function CacheLimitSection({
             label={limit.label}
             active={limit.id === value}
             onPress={() => onChange(limit.id)}
-            accessibilityLabel={`Cache limit ${limit.label}`}
+            accessibilityLabel={t("storage.limit.a11y", { limit: limit.label })}
           />
         ))}
       </ScrollView>
       <Text style={[styles.note, { color: theme.textBody }]}>
-        When the limit is full, the oldest downloads are removed first. Songs you saved to Mine stay until you delete
-        them.
+        {t("storage.limit.note")}
       </Text>
     </View>
   )
@@ -138,11 +141,12 @@ export function StorageListHeader({
   allSelected,
   onToggleAll,
 }: ThemeProps & { count: number; allSelected: boolean; onToggleAll: () => void }) {
-  const label = allSelected ? "Deselect all" : "Select all"
+  const t = useT()
+  const label = allSelected ? t("storage.deselectAll") : t("storage.selectAll")
   return (
     <View style={styles.rowAct}>
       <Text style={[overStyle, { color: theme.accent }]}>
-        {count} {count === 1 ? "recording" : "recordings"}
+        {t("storage.recordings", { count })}
       </Text>
       <Press
         accessibilityRole="button"
@@ -175,12 +179,13 @@ export function StorageRow({
   selected: boolean
   onToggle: () => void
 }) {
+  const t = useT()
   const sub = subLine ?? storageRowEyebrow(items, item)
   return (
     <Press
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
-      accessibilityLabel={`${sub}, ${title}, ${formatBytes(item.bytes)}`}
+      accessibilityLabel={t("storage.row.a11y", { sub, title, size: formatBytes(item.bytes) })}
       onPress={onToggle}
       pressedScale={0.98}
       style={[styles.row, { backgroundColor: theme.card, borderColor: theme.line }]}

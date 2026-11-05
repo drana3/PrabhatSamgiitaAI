@@ -26,6 +26,7 @@ import {
 import { readCacheLimit, writeCacheLimit } from "@/lib/storageScan"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useOfflineStorageItems } from "@/hooks/useOfflineStorageItems"
+import { t } from "@/lib/i18n"
 
 export type StorageToast = { id: number; text: string }
 
@@ -106,7 +107,7 @@ export function useStorageScreen() {
     trimming.current = true
     void removeKeys(keys).then(() => {
       trimming.current = false
-      showToast(`${clearedToast(freed)} to fit ${limit.label}`)
+      showToast(t("storage.toast.fit", { cleared: clearedToast(freed), limit: limit.label }))
     })
   }, [items, scanned, limitLoaded, limit, savedNumbers, removeKeys, showToast])
 

@@ -71,9 +71,10 @@ describe("translate", () => {
     withKeys({ en: { "test.hello": "Hello, {name}" } }, () => {
       expect(translate("en", "test.hello", { name: "Dada" })).toBe("Hello, Dada")
     })
-    withKeys({ en: { "test.n": "{n} items" }, ru: { "test.n": "{n} штук" } }, () => {
-      expect(translate("en", "test.n", { n: 12345 })).toBe("12,345 items")
-      expect(translate("ru", "test.n", { n: 12345 })).toBe("12 345 штук")
+    withKeys({ en: { "test.n": "{count} items", "test.y": "in {year}" }, ru: { "test.n": "{count} штук" } }, () => {
+      expect(translate("en", "test.n", { count: 12345 })).toBe("12,345 items")
+      expect(translate("ru", "test.n", { count: 12345 })).toBe("12\u00a0345 штук")
+      expect(translate("en", "test.y", { year: 1983 })).toBe("in 1983")
     })
   })
 

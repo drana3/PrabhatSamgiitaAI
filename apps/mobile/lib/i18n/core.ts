@@ -164,7 +164,9 @@ function interpolate(language: Language, template: string, params: Record<string
   return template.replace(/\{(\w+)\}/g, (whole, name: string) => {
     const value = params[name]
     if (value === undefined) return whole
-    return typeof value === "number" ? formatNumberFor(language, value) : value
+    // only {count} is formatted for the language (12 345); any other number prints as it is (song numbers, years)
+    if (typeof value !== "number") return value
+    return name === "count" ? formatNumberFor(language, value) : String(value)
   })
 }
 

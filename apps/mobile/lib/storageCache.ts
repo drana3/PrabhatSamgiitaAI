@@ -1,3 +1,5 @@
+import { formatNumber, t } from "@/lib/i18n"
+
 /**
  * Pure logic for Storage and downloads (spec SCR-20): sizes, totals, limit,
  * selection, the two-tap clear action and oldest-first trimming.
@@ -27,10 +29,10 @@ export type CacheLimit = {
 }
 
 export const CACHE_LIMITS: readonly CacheLimit[] = [
-  { id: "500mb", label: "500 MB", bytes: 500 * MB },
-  { id: "1gb", label: "1 GB", bytes: GB },
-  { id: "2gb", label: "2 GB", bytes: 2 * GB },
-  { id: "none", label: "No limit", bytes: null },
+  { id: "500mb", get label() { return `${formatNumber(500)} ${t("unit.mb")}` }, bytes: 500 * MB },
+  { id: "1gb", get label() { return `${formatNumber(1)} ${t("unit.gb")}` }, bytes: GB },
+  { id: "2gb", get label() { return `${formatNumber(2)} ${t("unit.gb")}` }, bytes: 2 * GB },
+  { id: "none", get label() { return t("storage.limit.none") }, bytes: null },
 ]
 
 export const DEFAULT_CACHE_LIMIT: CacheLimitId = "1gb"
@@ -47,13 +49,14 @@ export function cacheLimitById(id: CacheLimitId): CacheLimit {
 /** `16.9 MB`, `812 KB`, `1.2 GB`. Binary units, one decimal under 100 MB. */
 export function formatBytes(bytes: number): string {
   const value = Number.isFinite(bytes) && bytes > 0 ? bytes : 0
-  if (value < KB) return `${Math.round(value)} B`
-  if (value < MB) return `${Math.round(value / KB)} KB`
+  const one = { minimumFractionDigits: 1, maximumFractionDigits: 1 }
+  if (value < KB) return `${formatNumber(Math.round(value))} ${t("unit.b")}`
+  if (value < MB) return `${formatNumber(Math.round(value / KB))} ${t("unit.kb")}`
   if (value < GB) {
     const mb = value / MB
-    return mb < 100 ? `${mb.toFixed(1)} MB` : `${Math.round(mb)} MB`
+    return mb < 100 ? `${formatNumber(mb, one)} ${t("unit.mb")}` : `${formatNumber(Math.round(mb))} ${t("unit.mb")}`
   }
-  return `${(value / GB).toFixed(1)} GB`
+  return `${formatNumber(value / GB, one)} ${t("unit.gb")}`
 }
 
 export function totalBytes(items: readonly StorageItem[]): number {
@@ -78,8 +81,8 @@ export function sortStorageItems(items: readonly StorageItem[]): StorageItem[] {
 
 /** `4 recordings · limit 1 GB` */
 export function storageLegend(count: number, limit: CacheLimit): string {
-  const noun = count === 1 ? "recording" : "recordings"
-  return `${count} ${noun} · ${limit.bytes == null ? "no limit" : `limit ${limit.label}`}`
+  const recordings = t("storage.recordings", { count })
+  return limit.bytes == null ? t("storage.legend.noLimit", { recordings }) : t("storage.legend.limit", { recordings, limit: limit.label })
 }
 
 /** Eyebrow of a storage row: `PS 3`, or `PS 3 · Version 2` when a song has several files. */
@@ -87,7 +90,7 @@ export function storageRowEyebrow(items: readonly StorageItem[], item: StorageIt
   const sameSong = sortStorageItems(items.filter((other) => other.songNumber === item.songNumber))
   if (sameSong.length < 2) return `PS ${item.songNumber}`
   const index = sameSong.findIndex((other) => other.key === item.key)
-  return `PS ${item.songNumber} · Version ${index + 1}`
+  return t("storage.row.version", { number: item.songNumber, version: index + 1 })
 }
 
 /* Selection ----------------------------------------------------------- */
@@ -143,14 +146,14 @@ export function clearActionModel(input: {
       visible: true,
       tone: "brand",
       mode: "selected",
-      label: `Delete ${selected.length} selected · ${formatBytes(selectedBytes(items, selected))}`,
+      label: t("storage.clear.selected", { count: selected.length, size: formatBytes(selectedBytes(items, selected)) }),
     }
   }
   return {
     visible: true,
     tone: "danger",
     mode: "all",
-    label: `Clear all downloads · ${formatBytes(totalBytes(items))}`,
+    label: t("storage.clear.all", { size: formatBytes(totalBytes(items)) }),
   }
 }
 
@@ -177,24 +180,23 @@ export type ClearConfirmCopy = { title: string; body: string; confirmLabel: stri
 export function clearConfirmCopy(plan: ClearPlan): ClearConfirmCopy {
   const count = plan.keys.length
   const size = formatBytes(plan.freedBytes)
-  const noun = count === 1 ? "recording" : "recordings"
-  const stay = "Songs you saved to Mine stay in Mine, and you can download them again any time."
+  const stay = t("storage.confirm.stay")
   if (plan.mode === "all") {
     return {
-      title: "Clear all downloads?",
-      body: `This removes ${count} ${noun} from this phone and frees ${size}. ${stay}`,
-      confirmLabel: `Clear ${size}`,
+      title: t("storage.confirm.all.title"),
+      body: t("storage.confirm.all.body", { count, size, stay }),
+      confirmLabel: t("storage.confirm.all.confirm", { size }),
     }
   }
   return {
-    title: `Delete ${count} ${noun}?`,
-    body: `This frees ${size} on this phone. ${stay}`,
-    confirmLabel: `Delete ${size}`,
+    title: t("storage.confirm.some.title", { count }),
+    body: t("storage.confirm.some.body", { size, stay }),
+    confirmLabel: t("storage.confirm.some.confirm", { size }),
   }
 }
 
 export function clearedToast(freedBytes: number): string {
-  return `Cleared ${formatBytes(freedBytes)}`
+  return t("storage.cleared", { size: formatBytes(freedBytes) })
 }
 
 /* Limit enforcement ----------------------------------------------------- */
