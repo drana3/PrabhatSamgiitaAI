@@ -212,6 +212,26 @@ export function StorageRow({
 }
 
 /**
+ * "Clear all downloads" as the last row of the list, not a floating pill: the most destructive button of
+ * the screen should not sit over the songs (and over the mini-player) all the time. Red text on the card colour.
+ */
+export function ClearAllRow({ theme, label, onPress }: ThemeProps & { label: string; onPress: () => void }) {
+  return (
+    <Press
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      pressedScale={0.98}
+      style={[styles.clearAll, { backgroundColor: theme.card, borderColor: theme.line }]}
+    >
+      <Text style={[styles.clearAllText, { color: amColors.dangerText }]} numberOfLines={2}>
+        {label}
+      </Text>
+    </Press>
+  )
+}
+
+/**
  * Prototype `.sbar`: a 56px pill 10px from the sides and 28px from the bottom with a soft shadow.
  * Red for clear-all, orange for the selected rows. Rises and sinks on a spring.
  */
@@ -264,6 +284,8 @@ export function ClearActionPill({
 }
 
 const styles = StyleSheet.create({
+  clearAll: { minHeight: 56, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, marginTop: 6 },
+  clearAllText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 21, textAlign: "center" },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 12 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 21, letterSpacing: -0.19, paddingBottom: 2 },

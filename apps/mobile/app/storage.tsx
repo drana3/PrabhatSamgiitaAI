@@ -8,6 +8,7 @@ import {
   BackHeader,
   CacheLimitSection,
   ClearActionPill,
+  ClearAllRow,
   StorageListHeader,
   StorageRow,
   StorageTotalCard,
@@ -121,6 +122,9 @@ export default function StorageScreen() {
                     onToggle={() => state.toggleRow(item.key)}
                   />
                 ))}
+                {state.action.visible && state.action.mode === "all" ? (
+                  <ClearAllRow theme={theme} label={state.action.label} onPress={state.pressAction} />
+                ) : null}
               </>
             ) : (
               <Text style={[styles.empty, { color: theme.textBody }]} accessibilityLiveRegion="polite">
@@ -133,7 +137,7 @@ export default function StorageScreen() {
         </ScrollView>
 
         <Toast message={toast} theme={theme} />
-        <ClearActionPill theme={theme} action={confirm ? HIDDEN_ACTION : state.action} bottom={barBottom} onPress={state.pressAction} />
+        <ClearActionPill theme={theme} action={confirm || !state.action.visible || state.action.mode !== "selected" ? HIDDEN_ACTION : state.action} bottom={barBottom} onPress={state.pressAction} />
         <ConfirmSheet
           theme={theme}
           bottomOffset={barBottom}
