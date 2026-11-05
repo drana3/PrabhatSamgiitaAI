@@ -480,7 +480,12 @@ function emitSseFrames(raw: string, onChunk: (chunk: string) => void, flushParti
   return remainder
 }
 
-async function readEventStream(response: Response, onChunk: (chunk: string) => void) {
+async function readEventStream(
+  response: Response,
+  onChunk: (chunk: string) => void,
+  /** called each time bytes arrive, so the caller can restart its idle timer */
+  onActivity?: () => void,
+) {
   const body = response.body
 
   // React Native / some Expo fetch builds buffer the body but leave `response.body` null.
@@ -501,6 +506,7 @@ async function readEventStream(response: Response, onChunk: (chunk: string) => v
   while (true) {
     const { value, done } = await reader.read()
     if (done) break
+    onActivity?.()
     buffer += decoder.decode(value, { stream: true })
     buffer = emitSseFrames(buffer, onChunk, false)
   }
@@ -1390,17 +1396,30 @@ export function createApiClient(options: ApiClientOptions) {
       onChunk: (chunk: string) => void,
       prompt?: string,
       history: ConversationTurn[] = [],
+      signal?: AbortSignal,
     ): Promise<void> {
       if (prompt && !queryIsUseful(prompt, 800, { companion: true, allowFollowUp: history.length > 0 })) {
         onChunk(queryGuidanceFor(prompt, { companion: true, allowFollowUp: history.length > 0 }))
         return
       }
+      // One controller for the whole answer: it is aborted when the caller cancels, and when nothing has
+      // arrived for 45 seconds (headers or text), so a dropped connection ends in an error instead of
+      // "typing" forever.
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 60_000)
-      let response: Response
+      const IDLE_MS = 45_000
+      let idle = setTimeout(() => controller.abort(), IDLE_MS)
+      const touch = () => {
+        clearTimeout(idle)
+        idle = setTimeout(() => controller.abort(), IDLE_MS)
+      }
+      const onCallerAbort = () => controller.abort()
+      if (signal) {
+        if (signal.aborted) controller.abort()
+        else signal.addEventListener("abort", onCallerAbort, { once: true })
+      }
       try {
         const extraAuth = await authHeaders()
-        response = await fetchImpl(`${baseUrl}/api/v1/ai/explain`, {
+        const response = await fetchImpl(`${baseUrl}/api/v1/ai/explain`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1414,13 +1433,15 @@ export function createApiClient(options: ApiClientOptions) {
           }),
           signal: controller.signal,
         })
+        touch()
+        if (!response.ok) {
+          throw new Error("The song companion is temporarily unavailable.")
+        }
+        await readEventStream(response, onChunk, touch)
       } finally {
-        clearTimeout(timeout)
+        clearTimeout(idle)
+        signal?.removeEventListener("abort", onCallerAbort)
       }
-      if (!response.ok) {
-        throw new Error("The song companion is temporarily unavailable.")
-      }
-      await readEventStream(response, onChunk)
     },
   }
 }
