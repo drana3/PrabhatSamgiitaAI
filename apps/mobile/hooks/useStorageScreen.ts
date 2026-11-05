@@ -10,22 +10,22 @@ import {
   allSelected as allSelectedOf,
   cacheLimitById,
   clearActionModel,
+  clearConfirmCopy,
   clearedToast,
   formatBytes,
+  planClear,
   planTrim,
-  pressClearAction,
   pruneSelection,
   toggleSelectAll,
   toggleSelection,
   totalBytes,
   type CacheLimitId,
+  type ClearPlan,
   type StorageItem,
 } from "@/lib/storageCache"
 import { readCacheLimit, writeCacheLimit } from "@/lib/storageScan"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useOfflineStorageItems } from "@/hooks/useOfflineStorageItems"
-
-const ARM_TIMEOUT_MS = 4000
 
 export type StorageToast = { id: number; text: string }
 
@@ -40,7 +40,8 @@ export function useStorageScreen() {
   const [limitId, setLimitId] = useState<CacheLimitId>(DEFAULT_CACHE_LIMIT)
   const [limitLoaded, setLimitLoaded] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
-  const [armed, setArmed] = useState(false)
+  // the plan waiting for the person's confirmation (nothing is deleted before it)
+  const [pending, setPending] = useState<ClearPlan | null>(null)
   const [toast, setToast] = useState<StorageToast | null>(null)
   const toastSeq = useRef(0)
   const trimming = useRef(false)
@@ -80,15 +81,10 @@ export function useStorageScreen() {
     })
   }, [items])
 
+  // a sheet that no longer matches the list (a file vanished) closes
   useEffect(() => {
-    setArmed(false)
-  }, [selected, items.length])
-
-  useEffect(() => {
-    if (!armed) return
-    const timer = setTimeout(() => setArmed(false), ARM_TIMEOUT_MS)
-    return () => clearTimeout(timer)
-  }, [armed])
+    setPending((current: ClearPlan | null) => (current && current.keys.every((k) => items.some((i: StorageItem) => i.key === k)) ? current : null))
+  }, [items])
 
   const removeKeys = useCallback(async (keys: string[]) => {
     if (MOCKUP_DATA) {
@@ -127,16 +123,25 @@ export function useStorageScreen() {
     setSelected((current: string[]) => toggleSelectAll(items, current))
   }, [items])
 
-  const pressAction = useCallback(async () => {
-    const press = pressClearAction({ items, selected, armed })
-    setArmed(press.armed)
-    if (press.toDelete === null) return
-    setSelected([])
-    await removeKeys(press.toDelete)
-    showToast(clearedToast(press.freedBytes))
-  }, [items, selected, armed, removeKeys, showToast])
+  /** The pill: opens the confirm sheet with the count and size. */
+  const pressAction = useCallback(() => {
+    setPending(planClear({ items, selected }))
+  }, [items, selected])
 
-  const action = clearActionModel({ items, selected, armed })
+  const cancelClear = useCallback(() => setPending(null), [])
+
+  /** "Delete" in the sheet: removes the files, clears the selection, totals follow the list. */
+  const confirmClear = useCallback(async () => {
+    const plan = pending
+    setPending(null)
+    if (!plan) return
+    setSelected([])
+    await removeKeys(plan.keys)
+    showToast(clearedToast(plan.freedBytes))
+  }, [pending, removeKeys, showToast])
+
+  const action = clearActionModel({ items, selected })
+  const confirm = useMemo(() => (pending ? clearConfirmCopy(pending) : null), [pending])
 
   return {
     items,
@@ -151,6 +156,9 @@ export function useStorageScreen() {
     toggleAll,
     action,
     pressAction,
+    confirm,
+    cancelClear,
+    confirmClear,
     toast,
   }
 }

@@ -127,16 +127,15 @@ export type ClearActionModel =
     }
 
 /**
- * Nothing selected: red `Clear all downloads · 16.9 MB`, then `Tap again to clear all`.
- * Rows selected: orange `Clear selected · 2 · 8.3 MB`.
- * Empty list: hidden.
+ * Nothing selected: red `Clear all downloads · 16.9 MB`.
+ * Rows selected: orange `Delete 2 selected · 8.3 MB`.
+ * Empty list: hidden. Either press opens a confirm sheet; nothing is deleted before it.
  */
 export function clearActionModel(input: {
   items: readonly StorageItem[]
   selected: readonly string[]
-  armed: boolean
 }): ClearActionModel {
-  const { items, armed } = input
+  const { items } = input
   if (items.length === 0) return { visible: false }
   const selected = pruneSelection(input.selected, items)
   if (selected.length > 0) {
@@ -144,40 +143,54 @@ export function clearActionModel(input: {
       visible: true,
       tone: "brand",
       mode: "selected",
-      label: `Clear selected · ${selected.length} · ${formatBytes(selectedBytes(items, selected))}`,
+      label: `Delete ${selected.length} selected · ${formatBytes(selectedBytes(items, selected))}`,
     }
   }
   return {
     visible: true,
     tone: "danger",
     mode: "all",
-    label: armed ? "Tap again to clear all" : `Clear all downloads · ${formatBytes(totalBytes(items))}`,
+    label: `Clear all downloads · ${formatBytes(totalBytes(items))}`,
   }
 }
 
-export type ClearPress = {
-  /** the pill is armed for a second tap */
-  armed: boolean
-  /** keys to delete now, or null when this tap only arms the pill */
-  toDelete: string[] | null
-  /** bytes freed by `toDelete`, for the toast */
+export type ClearPlan = {
+  mode: "all" | "selected"
+  /** keys to delete once the person confirms */
+  keys: string[]
+  /** bytes freed by `keys`, for the sheet and the toast */
   freedBytes: number
 }
 
-/** One tap on the pill. Selected rows delete at once; clear-all needs a second tap, no modal. */
-export function pressClearAction(input: {
-  items: readonly StorageItem[]
-  selected: readonly string[]
-  armed: boolean
-}): ClearPress {
+/** What a press on the pill would delete, or null when there is nothing to delete. */
+export function planClear(input: { items: readonly StorageItem[]; selected: readonly string[] }): ClearPlan | null {
   const { items } = input
-  if (items.length === 0) return { armed: false, toDelete: null, freedBytes: 0 }
+  if (items.length === 0) return null
   const selected = pruneSelection(input.selected, items)
-  if (selected.length > 0) {
-    return { armed: false, toDelete: selected, freedBytes: selectedBytes(items, selected) }
+  if (selected.length > 0) return { mode: "selected", keys: selected, freedBytes: selectedBytes(items, selected) }
+  return { mode: "all", keys: items.map((item) => item.key), freedBytes: totalBytes(items) }
+}
+
+export type ClearConfirmCopy = { title: string; body: string; confirmLabel: string }
+
+/** Words of the confirm sheet: how many files and how much space, and that songs saved to Mine stay. */
+export function clearConfirmCopy(plan: ClearPlan): ClearConfirmCopy {
+  const count = plan.keys.length
+  const size = formatBytes(plan.freedBytes)
+  const noun = count === 1 ? "recording" : "recordings"
+  const stay = "Songs you saved to Mine stay in Mine, and you can download them again any time."
+  if (plan.mode === "all") {
+    return {
+      title: "Clear all downloads?",
+      body: `This removes ${count} ${noun} from this phone and frees ${size}. ${stay}`,
+      confirmLabel: `Clear ${size}`,
+    }
   }
-  if (!input.armed) return { armed: true, toDelete: null, freedBytes: 0 }
-  return { armed: false, toDelete: items.map((item) => item.key), freedBytes: totalBytes(items) }
+  return {
+    title: `Delete ${count} ${noun}?`,
+    body: `This frees ${size} on this phone. ${stay}`,
+    confirmLabel: `Delete ${size}`,
+  }
 }
 
 export function clearedToast(freedBytes: number): string {

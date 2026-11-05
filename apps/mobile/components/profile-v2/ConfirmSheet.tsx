@@ -33,10 +33,13 @@ export function ConfirmSheet({
   theme,
   request,
   onDismiss,
+  bottomOffset = amGap.gutter,
 }: {
   theme: AmTheme
   request: ConfirmRequest | null
   onDismiss: () => void
+  /** distance of the card from the bottom edge: a screen with a floating pill passes the pill's top */
+  bottomOffset?: number
 }) {
   const reduce = useReducedMotion()
   const progress = useSharedValue(0)
@@ -88,7 +91,7 @@ export function ConfirmSheet({
         accessibilityViewIsModal
         style={[
           styles.card,
-          { backgroundColor: theme.card, borderColor: theme.line },
+          { backgroundColor: theme.card, borderColor: theme.line, bottom: bottomOffset },
           card,
         ]}
       >

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native"
+import { ScrollView, StyleSheet, Text, View } from "react-native"
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -7,7 +7,6 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated"
 import { BackGlyph } from "@/components/songs-v2/Glyphs"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Chip } from "@/components/songs-v2/Pill"
 import { Press } from "@/components/songs-v2/Press"
@@ -211,8 +210,11 @@ export function StorageRow({
  * Prototype `.sbar`: a 56px pill 10px from the sides and 28px from the bottom with a soft shadow.
  * Red for clear-all, orange for the selected rows. Rises and sinks on a spring.
  */
-export function ClearActionPill({ action, onPress }: ThemeProps & { action: ClearActionModel; onPress: () => void }) {
-  const insets = useSafeAreaInsets()
+export function ClearActionPill({
+  action,
+  onPress,
+  bottom,
+}: ThemeProps & { action: ClearActionModel; onPress: () => void; bottom: number }) {
   const reduce = useReducedMotion()
   const shown = useSharedValue(0)
   const visible = action.visible
@@ -238,7 +240,7 @@ export function ClearActionPill({ action, onPress }: ThemeProps & { action: Clea
   return (
     <Animated.View
       pointerEvents={visible ? "auto" : "none"}
-      style={[styles.sbar, { bottom: Platform.OS === "web" ? 28 : Math.max(28, insets.bottom + 8) }, animated]}
+      style={[styles.sbar, { bottom }, animated]}
     >
       <Press
         accessibilityRole="button"
@@ -297,7 +299,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22, letterSpacing: -0.17 },
   rowSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   size: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18, fontVariant: ["tabular-nums"] },
-  sbar: { position: "absolute", left: 10, right: 10, flexDirection: "row", zIndex: 3 },
+  sbar: { position: "absolute", left: 10, right: 10, flexDirection: "row", zIndex: 20, elevation: 20 },
   sbarPress: { flex: 1 },
   sbarPill: {
     height: 56,

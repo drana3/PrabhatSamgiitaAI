@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native"
-import { useRouter } from "expo-router"
+import { usePathname, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { ConfirmSheet } from "@/components/profile-v2/ConfirmSheet"
 import {
   BackHeader,
   CacheLimitSection,
@@ -21,11 +22,18 @@ import { displayTitle } from "@/lib/songsV2/entry"
 import { MOCK_STORAGE } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { listViewState } from "@/lib/mineView"
+import { miniPlayerVisible, tabBarVisible } from "@/lib/navV2"
+import { storageBarBottom, storageListInset } from "@/lib/storageBar"
+import { usePlayerStore } from "@/stores/playerStore"
+
+/** While the confirm sheet is open the pill sinks, so the sheet rises where it was. */
+const HIDDEN_ACTION = { visible: false } as const
 
 /**
  * Storage and downloads (prototype lines 1972-2011). How many megabytes the songs take, the cache
- * limit, and a list you can select from. Tap rows to select; the bottom pill clears the selection,
- * or everything after a second tap. Reachable at /storage; Mine > On this phone and Profile open it.
+ * limit, and a list you can select from. Tap rows to select; the bottom pill ("Delete N selected" or
+ * "Clear all downloads") opens a confirm sheet with the size. The pill sits ABOVE the mini-player and the
+ * tab bar, which are drawn above every screen, and the list has matching bottom padding. Reachable at /storage; Mine > On this phone and Profile open it.
  */
 export default function StorageScreen() {
   const router = useRouter()
@@ -37,6 +45,20 @@ export default function StorageScreen() {
   const titles = useSongTitles(state.items.map((item) => item.songNumber))
   const view = listViewState({ loading: !state.scanned, count: state.items.length })
   const openedAt = useRevealClock()
+  const pathname = usePathname()
+  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const barBottom = storageBarBottom({
+    safeBottom: Platform.OS === "web" ? 0 : insets.bottom,
+    miniVisible: miniPlayerVisible({ pathname, hasSong }),
+    tabBarVisible: tabBarVisible(pathname),
+  })
+
+  // one stable object per sheet: a new one on every render would re-open a sheet that is closing
+  const { confirm, confirmClear } = state
+  const request = useMemo(
+    () => (confirm ? { ...confirm, onConfirm: () => void confirmClear() } : null),
+    [confirm, confirmClear],
+  )
 
   const [toast, setToast] = useState<string | null>(null)
   useEffect(() => {
@@ -57,7 +79,7 @@ export default function StorageScreen() {
           />
         </SongsReveal>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.body, { paddingBottom: storageListInset(barBottom) }]}>
           <SongsReveal index={1}>
             <StorageTotalCard theme={theme} totalBytes={state.total} count={state.items.length} limit={state.limit} />
           </SongsReveal>
@@ -103,7 +125,13 @@ export default function StorageScreen() {
         </ScrollView>
 
         <Toast message={toast} theme={theme} />
-        <ClearActionPill theme={theme} action={state.action} onPress={() => void state.pressAction()} />
+        <ClearActionPill theme={theme} action={confirm ? HIDDEN_ACTION : state.action} bottom={barBottom} onPress={state.pressAction} />
+        <ConfirmSheet
+          theme={theme}
+          bottomOffset={barBottom}
+          request={request}
+          onDismiss={state.cancelClear}
+        />
       </View>
     </RevealClock.Provider>
   )
@@ -111,7 +139,7 @@ export default function StorageScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: { paddingHorizontal: 10, paddingBottom: 140, gap: 20 },
+  body: { paddingHorizontal: 10, gap: 20 },
   list: { gap: 10 },
   empty: { paddingHorizontal: 20, maxWidth: 360, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22 },
 })

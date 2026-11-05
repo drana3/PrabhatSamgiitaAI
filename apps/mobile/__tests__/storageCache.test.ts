@@ -7,11 +7,12 @@ import {
   allSelected,
   cacheLimitById,
   clearActionModel,
+  clearConfirmCopy,
   clearedToast,
   formatBytes,
   parseCacheLimitId,
   planTrim,
-  pressClearAction,
+  planClear,
   pruneSelection,
   selectedBytes,
   sortStorageItems,
@@ -118,39 +119,49 @@ describe("selection", () => {
 
 describe("clear action", () => {
   it("is hidden with no downloads", () => {
-    expect(clearActionModel({ items: [], selected: [], armed: false })).toEqual({ visible: false })
+    expect(clearActionModel({ items: [], selected: [] })).toEqual({ visible: false })
   })
   it("is a red clear-all pill with nothing selected", () => {
-    const model = clearActionModel({ items: sample, selected: [], armed: false })
+    const model = clearActionModel({ items: sample, selected: [] })
     expect(model).toMatchObject({ visible: true, tone: "danger", mode: "all" })
-    expect(model.visible && model.label).toMatch(/^Clear all downloads · 16\.9 MB$/)
+    expect(model.visible && model.label).toBe("Clear all downloads · 16.9 MB")
   })
-  it("asks for a second tap, with no modal", () => {
-    const model = clearActionModel({ items: sample, selected: [], armed: true })
-    expect(model.visible && model.label).toBe("Tap again to clear all")
-  })
-  it("is an orange pill with selected rows", () => {
-    const model = clearActionModel({ items: sample, selected: ["a", "c"], armed: true })
+  it("is an orange Delete N selected pill with selected rows", () => {
+    const model = clearActionModel({ items: sample, selected: ["a", "c"] })
     expect(model).toMatchObject({ visible: true, tone: "brand", mode: "selected" })
-    expect(model.visible && model.label).toBe("Clear selected · 2 · 8.3 MB")
+    expect(model.visible && model.label).toBe("Delete 2 selected · 8.3 MB")
+  })
+  it("ignores selected keys that are gone", () => {
+    const model = clearActionModel({ items: sample, selected: ["gone"] })
+    expect(model).toMatchObject({ mode: "all" })
   })
 
-  it("first tap arms, second tap deletes everything", () => {
-    const first = pressClearAction({ items: sample, selected: [], armed: false })
-    expect(first).toEqual({ armed: true, toDelete: null, freedBytes: 0 })
-    const second = pressClearAction({ items: sample, selected: [], armed: true })
-    expect(second.armed).toBe(false)
-    expect(second.toDelete).toEqual(["a", "b", "c", "d"])
-    expect(second.freedBytes).toBe(totalBytes(sample))
+  it("plans to delete everything when nothing is selected", () => {
+    const plan = planClear({ items: sample, selected: [] })
+    expect(plan).toEqual({ mode: "all", keys: ["a", "b", "c", "d"], freedBytes: totalBytes(sample) })
   })
-  it("one tap deletes the selected rows only", () => {
-    const press = pressClearAction({ items: sample, selected: ["a", "c", "gone"], armed: true })
-    expect(press.toDelete).toEqual(["a", "c"])
-    expect(press.armed).toBe(false)
-    expect(clearedToast(press.freedBytes)).toBe("Cleared 8.3 MB")
+  it("plans the selected rows only", () => {
+    const plan = planClear({ items: sample, selected: ["a", "c", "gone"] })
+    expect(plan?.keys).toEqual(["a", "c"])
+    expect(plan?.mode).toBe("selected")
+    expect(clearedToast(plan?.freedBytes ?? 0)).toBe("Cleared 8.3 MB")
   })
-  it("does nothing on an empty list", () => {
-    expect(pressClearAction({ items: [], selected: [], armed: true }).toDelete).toBeNull()
+  it("plans nothing on an empty list", () => {
+    expect(planClear({ items: [], selected: ["a"] })).toBeNull()
+  })
+
+  it("confirm copy names the count and size and says Mine songs stay", () => {
+    const some = clearConfirmCopy(planClear({ items: sample, selected: ["a", "c"] })!)
+    expect(some.title).toBe("Delete 2 recordings?")
+    expect(some.confirmLabel).toBe("Delete 8.3 MB")
+    expect(some.body).toContain("frees 8.3 MB")
+    expect(some.body).toContain("saved to Mine stay")
+    const one = clearConfirmCopy(planClear({ items: sample, selected: ["a"] })!)
+    expect(one.title).toBe("Delete 1 recording?")
+    const all = clearConfirmCopy(planClear({ items: sample, selected: [] })!)
+    expect(all.title).toBe("Clear all downloads?")
+    expect(all.body).toContain("4 recordings")
+    expect(all.body).toContain("16.9 MB")
   })
 })
 
