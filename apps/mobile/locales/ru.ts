@@ -5,6 +5,7 @@ import { ugcRu } from "./ugc"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { playerErrorsRu } from "./playerErrors"
+import { profileRowsRu } from "./profileRows"
 import { assistantErrorsRu } from "./assistantErrors"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
@@ -74,7 +75,7 @@ export const ru: Dictionary = {
   "profile.reviewStyle": "Режим повторения слов",
   "profile.notifications": "Уведомления",
   "profile.signOut": "Выйти",
-  "profile.deleteData": "Удалить данные аккаунта",
+  "profile.deleteData": "Удалить аккаунт",
   "profile.signIn": "Войти или создать аккаунт",
   "profile.assistant": "Вопросы помощнику",
   "profile.assistant.perDay": "{count} в день",
@@ -1336,5 +1337,6 @@ export const ru: Dictionary = {
   ...offlineRu,
   ...accountRu,
   ...playerErrorsRu,
+  ...profileRowsRu,
   ...assistantErrorsRu,
 }

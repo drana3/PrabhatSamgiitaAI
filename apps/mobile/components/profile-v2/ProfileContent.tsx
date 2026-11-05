@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Alert, StyleSheet, Text, View } from "react-native"
+import { Alert, Linking, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { ChevronRight } from "lucide-react-native"
 import Constants from "expo-constants"
@@ -26,6 +26,7 @@ import { languageSummary } from "@/lib/languageSheet"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { getCachedMemberEmail } from "@/lib/memberEmail"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { privacyUrl } from "@/lib/webLinks"
 import {
   PROFILE_ROUTES,
   assistantLimitLabel,
@@ -112,6 +113,8 @@ export function useProfileContent(theme: AmTheme) {
 
   const identity = useProfileIdentity()
   const signedIn = MOCKUP_DATA || mode === "signed_in"
+  // admin tools are for admins only, and the server checks again: this only hides the way in
+  const isAdmin = useAuthStore((st) => st.isAdmin) && mode === "signed_in"
   const accountId = getAccountId(mode, email, memberId)
   const memberQuota = companionReceivesMemberQuota({
     signedIn,
@@ -291,6 +294,9 @@ export function useProfileContent(theme: AmTheme) {
         />
         {signedIn ? <SetRow p={p} label={t("profile.clearChat")} onPress={requestClearChat} /> : null}
         <SetRow p={p} label={t("profile.feedback")} chevron onPress={() => go(PROFILE_ROUTES.feedback)} />
+        <SetRow p={p} label={t("profile.privacy")} chevron onPress={() => Linking.openURL(privacyUrl()).catch(() => undefined)} />
+        <SetRow p={p} label={t("ugc.rules.title")} chevron onPress={() => go(PROFILE_ROUTES.contentRules)} />
+        {isAdmin ? <SetRow p={p} label={t("profile.admin")} chevron onPress={() => go(PROFILE_ROUTES.admin)} /> : null}
         <SetRow
           p={p}
           label={t("profile.about")}

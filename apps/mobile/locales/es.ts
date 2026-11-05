@@ -5,6 +5,7 @@ import { ugcEs } from "./ugc"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { playerErrorsEs } from "./playerErrors"
+import { profileRowsEs } from "./profileRows"
 import { assistantErrorsEs } from "./assistantErrors"
 
 /** Español. Trato de «tú». Kiirtan y Bhajan se escriben como en inglés; Prabhat Samgiita no se traduce. */
@@ -70,7 +71,7 @@ export const es: Dictionary = {
   "profile.reviewStyle": "Estilo de repaso de palabras",
   "profile.notifications": "Notificaciones",
   "profile.signOut": "Cerrar sesión",
-  "profile.deleteData": "Eliminar datos de la cuenta",
+  "profile.deleteData": "Eliminar cuenta",
   "profile.signIn": "Inicia sesión o crea una cuenta",
   "profile.assistant": "Preguntas al asistente",
   "profile.assistant.perDay": "{count} al día",
@@ -1250,5 +1251,6 @@ export const es: Dictionary = {
   ...offlineEs,
   ...accountEs,
   ...playerErrorsEs,
+  ...profileRowsEs,
   ...assistantErrorsEs,
 }

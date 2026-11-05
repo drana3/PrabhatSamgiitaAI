@@ -4,6 +4,7 @@ import { ugcEn } from "./ugc"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { playerErrorsEn } from "./playerErrors"
+import { profileRowsEn } from "./profileRows"
 import { assistantErrorsEn } from "./assistantErrors"
 
 /**
@@ -76,7 +77,7 @@ export const en = {
   "profile.reviewStyle": "Word review style",
   "profile.notifications": "Notifications",
   "profile.signOut": "Sign out",
-  "profile.deleteData": "Delete account data",
+  "profile.deleteData": "Delete account",
   "profile.signIn": "Sign in or create an account",
   "profile.assistant": "Questions to the assistant",
   "profile.assistant.perDay": "{count} a day",
@@ -1256,5 +1257,6 @@ export const en = {
   ...offlineEn,
   ...accountEn,
   ...playerErrorsEn,
+  ...profileRowsEn,
   ...assistantErrorsEn,
 } as const

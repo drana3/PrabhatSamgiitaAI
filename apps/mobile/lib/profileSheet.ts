@@ -22,6 +22,10 @@ export const PROFILE_ROUTES = {
   library: "/library-v2",
   /** the avatar and name block opens this: app/edit-profile.tsx */
   editProfile: "/edit-profile",
+  /** the rules for a Kiirtan or a Bhajan: app/content-rules.tsx */
+  contentRules: "/content-rules",
+  /** admins only: app/admin/index.tsx (it checks the role again) */
+  admin: "/admin",
 } as const
 
 export type ProfileRoute = (typeof PROFILE_ROUTES)[keyof typeof PROFILE_ROUTES]
@@ -37,6 +41,8 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/storage": true,
   "/library-v2": true,
   "/edit-profile": true,
+  "/content-rules": true,
+  "/admin": true,
 }
 
 export type ProfileIdentity = {
