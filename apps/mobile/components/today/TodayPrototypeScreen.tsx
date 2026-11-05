@@ -57,6 +57,7 @@ import {
   buildTodayDay,
   formatDayLine,
   resumeLine,
+  sampleDayStart,
   searchHref,
   todayQuickIntro,
   TODAY_QUICK_SEARCHES,
@@ -139,15 +140,15 @@ export default function TodayScreen() {
   const { width } = useWindowDimensions()
   const reduce = useReducedMotion()
   const params = useLocalSearchParams<{ day?: string; count?: string; tc?: string }>()
-  // MOCKUP_DATA (preview builds): the prototype's own sample day, as on its Today board, and its
-  // "Mockup only" switches for another day and another colour set (`?day=` and `?tc=` start them)
-  const startKind: SampleDayKind | null =
-    params.day === "date" || params.day === "fest" || params.day === "season" ? params.day : MOCKUP_DATA ? "date" : null
+  // MOCKUP_DATA (preview builds only): the prototype's own sample day, as on its Today board, and its
+  // "Mockup only" switches for another day and another colour set (`?day=` and `?tc=` start them).
+  // In a real build `?day=` does nothing: no sample day can be opened by a link.
+  const startKind: SampleDayKind | null = sampleDayStart(MOCKUP_DATA, params.day)
   const [pickedKind, setPickedKind] = useState<SampleDayKind | null>(null)
   const sampleKind = pickedKind ?? startKind
   const startSet = TODAY_SETS.find(([id]) => id === params.tc)?.[0] ?? "3"
   const [pickedSet, setPickedSet] = useState<TodaySet | null>(null)
-  const set: TodaySet = MOCKUP_DATA || params.day ? (pickedSet ?? startSet) : "3"
+  const set: TodaySet = MOCKUP_DATA ? (pickedSet ?? startSet) : "3"
   const songCount = Math.min(3, Math.max(1, Number(params.count) || SONGS_PER_DAY))
   // the prototype's status area is 54dp; a phone reports its own inset, the browser reports 0
   const top = insets.top || amProto.statusArea

@@ -76,6 +76,18 @@ export function buildTodayDay(today: TodayRecommendations | null | undefined, no
   }
 }
 
+/** The prototype's sample Today days. They exist in the demo preview only. */
+export type SampleDay = "date" | "fest" | "season"
+
+/**
+ * Which sample day Today starts on. Real build: none, whatever the link says (`?day=` cannot open
+ * invented content). Demo preview: the requested one, else the plain date.
+ */
+export function sampleDayStart(demo: boolean, param: string | undefined): SampleDay | null {
+  if (!demo) return null
+  return param === "date" || param === "fest" || param === "season" ? param : "date"
+}
+
 /** "1:12 of 5:00" for the resume card; just the number when the length is unknown. */
 export function resumeLine(input: { number: number | string; position: number; duration: number }): string {
   const head = `PS ${input.number}`
