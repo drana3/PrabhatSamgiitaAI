@@ -10,7 +10,7 @@ import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { SongVideo } from "@/data/mock"
-import { toInAppVideoEmbedUrl, YOUTUBE_EMBED_REFERER } from "@/lib/mediaEmbed"
+import { toInAppVideoEmbedUrl, youtubeEmbedWebSource, YOUTUBE_EMBED_REFERER } from "@/lib/mediaEmbed"
 import { usePlayerStore } from "@/stores/playerStore"
 
 type Props = {
@@ -36,20 +36,8 @@ export function WatchVideoCard({ video, songNumber, compact = false, onPlayingCh
     if (!isYoutube) {
       return { uri: embedUrl, headers: { Referer: YOUTUBE_EMBED_REFERER } }
     }
-    // HTML + baseUrl gives WKWebView a trusted HTTPS origin (fixes Error 153).
-    const html = `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<meta name="referrer" content="strict-origin-when-cross-origin"/>
-<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{border:0;width:100%;height:100%}</style>
-</head><body>
-<iframe
-  src="${embedUrl}"
-  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-  allowfullscreen
-  referrerpolicy="strict-origin-when-cross-origin"
-></iframe>
-</body></html>`
-    return { html, baseUrl: YOUTUBE_EMBED_REFERER }
+    // HTML + baseUrl gives the WebView a real HTTPS Referer (fixes Error 153).
+    return youtubeEmbedWebSource(embedUrl)
   }, [embedUrl])
 
   const startInApp = useCallback(() => {
