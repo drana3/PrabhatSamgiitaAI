@@ -5,6 +5,7 @@ import { SpIcon } from "@/components/song-v2/SpIcon"
 import { SpPill, SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { toSentenceCase } from "@/lib/songPage/scripts"
 import { useVariantT } from "@/lib/songPageVariants/copy"
 
 import { DemoTag, Eyebrow } from "./ui"
@@ -55,7 +56,7 @@ export function RecordingList({ t, model }: { t: SpTheme; model: SongVariantMode
       {model.recordingRows.map((row, index) => {
         const playingHere = model.playing?.isCurrent && model.playing.versionIndex === index && model.showPause
         const official = !model.demo && index === 0 && /official/i.test(model.song?.audioRecordings?.[0]?.provider ?? "official")
-        const title = model.demo ? row.title : official ? tr("songVariant.recording.official") : row.title || tr("songVariant.recording.other")
+        const title = model.demo ? row.title : official ? tr("songVariant.recording.official") : toSentenceCase(row.title) || tr("songVariant.recording.other")
         return (
           <SpPress
             key={row.id}

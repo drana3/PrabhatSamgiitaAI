@@ -67,7 +67,7 @@ export function Pills<T extends string>({ t, items, active, onSelect }: { t: SpT
   return (
     <View style={styles.pills} accessibilityRole="tablist">
       {items.map((item) => (
-        <SpChip key={item.id} t={t} label={item.label} on={item.id === active} onPress={() => onSelect(item.id)} />
+        <SpChip key={item.id} t={t} label={item.label} on={item.id === active} onPress={() => onSelect(item.id)} style={styles.pill} />
       ))}
     </View>
   )
@@ -139,7 +139,8 @@ const styles = StyleSheet.create({
   tagText: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.4 },
   eyebrow: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase" },
   quiet: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20, paddingHorizontal: 20, paddingVertical: 8 },
-  pills: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 20 },
+  pills: { flexDirection: "row", gap: 6, paddingHorizontal: 16 },
+  pill: { flex: 1, minWidth: 0, paddingHorizontal: 4 },
   textTabs: { flexDirection: "row", paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   textTab: { minHeight: 48, paddingHorizontal: 8, justifyContent: "center", alignItems: "center" },
   textTabLabel: { fontSize: 16, lineHeight: 22 },

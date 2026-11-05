@@ -61,7 +61,7 @@ function Photo({ model, height }: { model: SongVariantModel; height: number }) {
 /** Variant A: a photo banner with the title on it, over a scrim. */
 export function BannerHero({ t, model }: { t: SpTheme; model: SongVariantModel }) {
   const bar = useBarHeight()
-  const height = bar + 154
+  const height = bar + 176
   const headline = useHeadline(model)
   return (
     <View style={{ height }}>
@@ -76,7 +76,7 @@ export function BannerHero({ t, model }: { t: SpTheme; model: SongVariantModel }
   )
 }
 export function bannerHeight(bar: number): number {
-  return bar + 154
+  return bar + 176
 }
 
 /** Variant B: a tall photo that fades into the page, the title below it. */

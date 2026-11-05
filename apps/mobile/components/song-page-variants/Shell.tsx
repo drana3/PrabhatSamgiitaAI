@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react"
+import { useState, type ReactNode, type RefObject } from "react"
 import { ActivityIndicator, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
 import { usePathname, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -49,6 +49,8 @@ export type ShellProps = {
   scrollRef?: RefObject<Animated.ScrollView | null>
   /** JS-side scroll offset, in steps of 8px */
   onScrollJS?: (y: number) => void
+  /** the hero block's height, as it changes */
+  onHeroHeight?: (height: number) => void
   /** drawn over the page, under the bar (the word tray) */
   overlay?: ReactNode
   /** a fixed overlay for sheets */
@@ -60,7 +62,7 @@ export type ShellProps = {
  * The frame the three variants share: the scroll view, the buttons over the photo, the compact bar that takes over
  * when the hero is gone, a strip that pins under it, the toast. Only transform and opacity animate.
  */
-export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeight = 0, onMore, onBack, scrollRef, onScrollJS, overlay, sheets, children }: ShellProps) {
+export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeight = 0, onMore, onBack, scrollRef, onScrollJS, onHeroHeight, overlay, sheets, children }: ShellProps) {
   const tr = useVariantT()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -114,15 +116,17 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottom + 24, paddingTop: top === "plain" ? barHeight : 0 }}
       >
-        {hero}
-        {strip ? (
-          <View
-            style={{ height: stripHeight }}
-            onLayout={(event: LayoutChangeEvent) => {
-              stripY.value = event.nativeEvent.layout.y + (top === "plain" ? barHeight : 0)
-            }}
-          />
-        ) : null}
+        <View
+          onLayout={(event: LayoutChangeEvent) => {
+            // the web reports a size change but not a move, so the strip's place is the hero's height, not a measured y
+            const h = Math.round(event.nativeEvent.layout.height)
+            stripY.value = h + (top === "plain" ? barHeight : 0)
+            onHeroHeight?.(h)
+          }}
+        >
+          {hero}
+        </View>
+        {strip ? <View style={{ height: stripHeight }} /> : null}
         {children}
       </Animated.ScrollView>
 

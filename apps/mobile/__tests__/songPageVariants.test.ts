@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { aboutRows, parseCompositionDate, WORDS_AND_MUSIC } from "@/lib/songPageVariants/aboutFacts"
-import { alignLines, meaningLines } from "@/lib/songPageVariants/alignLines"
+import { alignLines, meaningLines, standsAlone } from "@/lib/songPageVariants/alignLines"
 import { variantLayout, type SongFacts } from "@/lib/songPageVariants/layout"
 import { meaningSourceFor, officialEnglishMeaning, storedMeaningRaw } from "@/lib/songPageVariants/meaningInfo"
 import { foldLine, repeatsOf, splitStanzas } from "@/lib/songPageVariants/stanzas"
@@ -61,19 +61,33 @@ describe("variant query and choice", () => {
 
 describe("alignLines", () => {
   it("pairs the lines when the counts are equal", () => {
-    const result = alignLines(["Bandhu he", "Niye calo"], "Friend,\nlead me on")
+    const result = alignLines(["Bandhu he", "Niye calo"], "Friend.\nLead me on.")
     expect(result).toEqual({
       kind: "pairs",
       pairs: [
-        { line: "Bandhu he", meaning: "Friend," },
-        { line: "Niye calo", meaning: "lead me on" },
+        { line: "Bandhu he", meaning: "Friend." },
+        { line: "Niye calo", meaning: "Lead me on." },
       ],
     })
   })
 
   it("ignores blank lines and spaces around lines", () => {
-    const result = alignLines(["a", "b"], "  one \n\n two  \n")
+    const result = alignLines(["a", "b"], "  One. \n\n Two.  \n")
     expect(result.kind).toBe("pairs")
+  })
+
+  it("never pairs lines that run on, even when the counts match: PS 33 (real catalogue text)", () => {
+    const lyrics = ["Tomár náme tomár gáne", "Hoyechi ápan hárá", "Ándhár páne calá pathik", "Peyeche álok dhárá"]
+    const meaning = "In Your name,\nin Your song\nI have lost myself.\nThe traveler who was lost in the darkness"
+    expect(alignLines(lyrics, meaning)).toEqual({ kind: "stacked", reason: "runs-on", lyricCount: 4, meaningCount: 4 })
+  })
+
+  it("standsAlone reads the first and the last character of a line", () => {
+    expect(standsAlone("I have lost myself.")).toBe(true)
+    expect(standsAlone('"I have smashed the walls."')).toBe(true)
+    expect(standsAlone("In Your name,")).toBe(false)
+    expect(standsAlone("in Your song.")).toBe(false)
+    expect(standsAlone("has now found the stream of light")).toBe(false)
   })
 
   it("never pairs when the counts differ: PS 2 has 12 lyric lines and 18 meaning lines", () => {

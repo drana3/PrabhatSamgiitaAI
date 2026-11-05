@@ -112,6 +112,8 @@ export const songVariantsEn = {
   "songVariant.about.photo.note": "{credit}. Picked by the song number, not made for this song.",
 
   "songVariant.stanza": "Stanza {n}",
+  "songVariant.row.wordsOff": "Tap to show word meanings",
+  "songVariant.row.wordsOn": "Tap a word to see its meaning",
   "songVariant.row.words": "Words",
   "songVariant.row.watch": "Watch",
   "songVariant.row.about": "About this song",
@@ -229,6 +231,8 @@ export const songVariantsRu: Readonly<Record<string, string>> = {
   "songVariant.about.photo.note": "{credit}. Подобрано по номеру песни, снято не для этой песни.",
 
   "songVariant.stanza": "Куплет {n}",
+  "songVariant.row.wordsOff": "Нажмите, чтобы показать значения слов",
+  "songVariant.row.wordsOn": "Нажмите на слово, чтобы увидеть значение",
   "songVariant.row.words": "Слова",
   "songVariant.row.watch": "Смотреть",
   "songVariant.row.about": "О песне",
@@ -343,6 +347,8 @@ export const songVariantsEs: Record<keyof typeof songVariantsEn, string> = {
   "songVariant.about.photo.note": "{credit}. Elegida por el número de la canción, no hecha para esta canción.",
 
   "songVariant.stanza": "Estrofa {n}",
+  "songVariant.row.wordsOff": "Toca para mostrar el significado de las palabras",
+  "songVariant.row.wordsOn": "Toca una palabra para ver su significado",
   "songVariant.row.words": "Palabras",
   "songVariant.row.watch": "Ver",
   "songVariant.row.about": "Acerca de esta canción",

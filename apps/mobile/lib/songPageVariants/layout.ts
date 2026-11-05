@@ -70,7 +70,7 @@ export function variantLayout(variant: SongPageVariant, facts: SongFacts): Varia
       meaning: mode,
       meaningToggle: facts.hasMeaning,
       wordsNote: !facts.hasWords,
-      stackedNote: mode === "stacked" && facts.align.kind === "stacked" && facts.align.reason === "count-differs",
+      stackedNote: mode === "stacked" && facts.align.kind === "stacked" && (facts.align.reason === "count-differs" || facts.align.reason === "runs-on"),
     }
   }
   if (variant === "c") {

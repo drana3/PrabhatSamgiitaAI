@@ -31,25 +31,41 @@ export function VariantA({ t, model }: { t: SpTheme; model: SongVariantModel }) 
   const layout = useMemo(() => variantLayout("a", model.facts), [model.facts])
   const [withMeaning, setWithMeaning] = useState(true)
   const [active, setActive] = useState<Section>("read")
-  const tops = useRef<Record<string, number>>({})
+  const heights = useRef<Record<string, number>>({})
+  const heroH = useRef(0)
   const scrollRef = useRef<Animated.ScrollView | null>(null)
   const sections = layout.tabs as Section[]
 
+  // a section's place is the hero plus the strip plus the heights above it (the web does not report a move)
+  const topOf = useCallback(
+    (id: Section) => {
+      let y = heroH.current + STRIP
+      for (const s of sections) {
+        if (s === id) break
+        y += heights.current[s] ?? 0
+      }
+      return y
+    },
+    [sections],
+  )
   const place = (id: Section) => (event: LayoutChangeEvent) => {
-    tops.current[id] = event.nativeEvent.layout.y
+    heights.current[id] = event.nativeEvent.layout.height
   }
   const go = (id: Section) => {
     setActive(id)
-    const y = (tops.current[id] ?? 0) - bar - STRIP + 1
+    const y = topOf(id) - bar - STRIP + 1
     ;(scrollRef.current as unknown as { scrollTo: (o: { y: number; animated: boolean }) => void } | null)?.scrollTo({ y: Math.max(0, y), animated: true })
   }
   const follow = useCallback(
     (y: number) => {
       let current: Section = sections[0] ?? "read"
-      for (const id of sections) if ((tops.current[id] ?? 0) - bar - STRIP - 48 <= y) current = id
+      for (const id of sections) {
+        if (heights.current[id] === undefined) break
+        if (topOf(id) - bar - STRIP - 48 <= y) current = id
+      }
       setActive((prev) => (prev === current ? prev : current))
     },
-    [sections, bar],
+    [sections, bar, topOf],
   )
 
   const showMeaning = layout.meaningToggle && withMeaning
@@ -74,6 +90,9 @@ export function VariantA({ t, model }: { t: SpTheme; model: SongVariantModel }) 
       stripHeight={STRIP}
       scrollRef={scrollRef}
       onScrollJS={follow}
+      onHeroHeight={(h) => {
+        heroH.current = h
+      }}
       onMore={() => model.setSheet("actions")}
       overlay={<WordOverlay t={t} model={model} ui={ui} bottom={96} />}
       sheets={<PageSheets t={t} model={model} ui={ui} />}

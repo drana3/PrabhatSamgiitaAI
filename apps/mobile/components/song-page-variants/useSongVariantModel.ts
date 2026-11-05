@@ -209,7 +209,7 @@ export function useSongVariantModel(songId: string | undefined) {
     [song, demo, englishRaw],
   )
 
-  const meaning: MeaningState = useMemo(() => {
+  const meaningBase: MeaningState = useMemo(() => {
     const none = (language: string): MeaningState => ({
       status: "none", language, wanted: wantedLanguage, fellBack: false, text: "", raw: "", source: "official", central: null,
     })
@@ -242,6 +242,11 @@ export function useSongVariantModel(songId: string | undefined) {
     if (view.meaning.status === "loading" || view.loading) return { ...none(wantedLanguage), status: "loading" }
     return english()
   }, [song, wantedLanguage, englishRaw, rawIn, view, demoKey])
+  // a soft line break inside a paragraph is a space; a blank line stays a paragraph break
+  const meaning: MeaningState = useMemo(
+    () => ({ ...meaningBase, text: meaningBase.text.replace(/(?<!\n)\r?\n(?!\r?\n)/g, " ") }),
+    [meaningBase],
+  )
 
   const meaningRows: MeaningLanguageRow[] = useMemo(
     () =>

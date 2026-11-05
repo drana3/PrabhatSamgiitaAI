@@ -35,7 +35,7 @@ export function VariantC({ t, model }: { t: SpTheme; model: SongVariantModel }) 
   const videoCount = model.videos.length
   const playSub = model.chart ? tr("songVariant.play.rowChords") : model.notationUrl ? tr("songVariant.play.rowNonePdf") : tr("songVariant.play.rowNone")
   const watchSub = videoCount ? tr("songVariant.watch.count", { count: videoCount }) : tr("songVariant.watch.none")
-  const wordsSub = model.glosses ? tr("songVariant.lyrics.words") : tr("songVariant.lyrics.noWords")
+  const wordsSub = !model.glosses ? tr("songVariant.lyrics.noWords") : ui.wordsOn ? tr("songVariant.row.wordsOn") : tr("songVariant.row.wordsOff")
 
   return (
     <Shell
