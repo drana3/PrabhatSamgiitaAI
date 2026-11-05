@@ -234,6 +234,16 @@ export function SongsScroller({
 
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)
 
+  const renderRow = catalog.renderRow
+  const renderItem = useCallback(
+    ({ item }: { item: ListRow }) => (
+      <View style={[styles.rowSlot, { height: slotHeight(rowStyle, item.kind), paddingLeft: geometry.padLeft, paddingRight: geometry.padRight }]}>
+        {renderRow(item)}
+      </View>
+    ),
+    [rowStyle, geometry.padLeft, geometry.padRight, renderRow],
+  )
+
   const header = (
     <View>
       <View style={{ height: inset }} />
@@ -298,11 +308,7 @@ export function SongsScroller({
           ref={listRef as never}
           data={isCatalog ? rows : []}
           keyExtractor={(row: ListRow) => row.id}
-          renderItem={({ item }: { item: ListRow }) => (
-            <View style={[styles.rowSlot, { height: slotHeight(rowStyle, item.kind), paddingLeft: geometry.padLeft, paddingRight: geometry.padRight }]}>
-              {catalog.renderRow(item)}
-            </View>
-          )}
+          renderItem={renderItem}
           getItemLayout={
             metricsFor
               ? (_data: unknown, index: number) => ({

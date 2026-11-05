@@ -151,6 +151,13 @@ export function SongsListPage({
     [theme, rowStyle, list.currentNumber, list.saved, list.downloaded, list.downloading, list.playRow, list.toggleSave, list.queueEntry, openMenu],
   )
 
+  // What the rows read from `list`: a stable value, so the list re-draws its rows only when one of these changes
+  // (the whole `list` object is new on every render).
+  const rowsState = useMemo(
+    () => ({ rowStyle, theme, current: list.currentNumber, saved: list.saved, downloaded: list.downloaded, downloading: list.downloading }),
+    [rowStyle, theme, list.currentNumber, list.saved, list.downloaded, list.downloading],
+  )
+
   const header = (
     <View>
       {/* the bar (drawn over the page) holds the back button; this is its room */}
@@ -193,7 +200,7 @@ export function SongsListPage({
           data={list.shown}
           keyExtractor={(entry) => String(entry.number)}
           renderItem={renderItem}
-          extraData={list}
+          extraData={rowsState}
           ListHeaderComponent={header}
           ListEmptyComponent={
             <View>
