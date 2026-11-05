@@ -284,6 +284,8 @@ export type StripCardData = {
   label: string
   tone: StripTone
   cover: number | HomeCoverId
+  /** a stock photo (`StockPhoto.cover`); when set it is shown instead of `cover` */
+  photo?: number
   title?: string
   caption: string
 }
@@ -307,7 +309,11 @@ export function StripCard({
       style={{ width }}
     >
       <View style={[s.stripPic, { width, height: picture, backgroundColor: p.sage900 }]}>
-        <HomeCover id={id} width={width} height={picture} radius={0} />
+        {card.photo != null ? (
+          <Image source={card.photo} contentFit="cover" accessibilityIgnoresInvertColors style={{ width, height: picture }} />
+        ) : (
+          <HomeCover id={id} width={width} height={picture} radius={0} />
+        )}
         <LinearGradient pointerEvents="none" colors={["rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0.28)"]} style={StyleSheet.absoluteFill} />
         <View style={[s.strip, { backgroundColor: amPhotoChip.glass.bg }]}>
           <Text style={[s.stripText, { color: amPhotoChip.glass.fg }]} numberOfLines={1}>

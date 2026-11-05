@@ -58,6 +58,7 @@ import { HOME_FILTERS, mergeStartRows, shelvesFor, songSub, type HomeFilterId, t
 import { MIX_FIXTURES } from "@/lib/fixtures/kirtan"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { mixCaption } from "@/lib/kirtan/mix"
+import { photoForMix } from "@/lib/photos/catalog"
 import { dayNumberOf, kiirtanOfTheDay } from "@/lib/kirtan/resume"
 import { playEverything, playKiirtans, playMix } from "@/lib/kirtan/mixPlayback"
 import type { Kirtan } from "@/lib/kirtan/types"
@@ -252,7 +253,7 @@ export function HomeScreen() {
 
   /* --- Kiirtans and mixes: one queue with the songs --- */
   const mixCards: StripCardData[] = useMemo(
-    () => MIX_FIXTURES.map((m) => ({ id: m.id, label: m.title, tone: m.tone, cover: m.cover, caption: `${mixCaption(m.items)}. ${m.blurb}` })),
+    () => MIX_FIXTURES.map((m) => ({ id: m.id, label: m.title, tone: m.tone, cover: m.cover, photo: photoForMix(m.id).cover, caption: `${mixCaption(m.items)}. ${m.blurb}` })),
     [],
   )
   const kiirtanToday = useMemo(() => {

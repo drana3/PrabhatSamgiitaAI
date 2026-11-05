@@ -1,34 +1,70 @@
 /**
  * Stock photos Dada chose for Kiirtan covers, mixes, live-stream cards and artist placeholders.
  * Metadata only (no image requires), so it can be used in tests and on the server.
- * The images themselves are bound in lib/photos/catalog.ts. All photos: Unsplash License
- * (free to use, credit appreciated but not required). See docs/photo-credits.md.
+ * The images themselves are bound in lib/photos/catalog.ts. Two sources: Unsplash (Unsplash License,
+ * credit appreciated but not required) and Ananda Marga's own photographs (anandamarga.org, used with
+ * the organisation's permission, credit line required). See docs/photo-credits.md.
  */
 
-export type PhotoCategory = "hands" | "group" | "light" | "sky" | "nature" | "sound" | "texture" | "space"
+import { AM_PHOTO_RAW } from "@/lib/photos/amPhotoData"
+
+export type PhotoCategory =
+  | "hands" | "group" | "light" | "sky" | "nature" | "sound" | "texture" | "space"
+  | "meditation" | "kiirtan" | "instrument" | "children" | "portrait" | "building"
 export type PhotoTone = "warm" | "cool"
 export type PhotoMood = "morning" | "evening" | "night" | "long" | "live" | "festival" | "calm"
+export type PhotoSource = "unsplash" | "ananda-marga"
+/**
+ * Who is in the picture. none: nobody or only hands/objects. far: small or seen from behind, no readable
+ * faces (or people at mid distance). close: identifiable adults up close. children: any child or youth.
+ * close and children are never picked for generic covers, only when the caller opts in (allowPeople).
+ */
+export type PhotoPeople = "none" | "far" | "close" | "children"
 
 export const PHOTO_MOODS: readonly PhotoMood[] = ["morning", "evening", "night", "long", "live", "festival", "calm"]
 
+export const UNSPLASH_LICENSE_NOTE = "Unsplash License: free to use, credit appreciated but not required"
+export const AM_LICENSE = "Used with permission"
+export const AM_LICENSE_NOTE = "Ananda Marga's own photograph, used with the organisation's permission"
+
 export type StockPhotoMeta = {
-  /** `<nn>-<slug>`, also the file name without .jpg */
+  /** `<nn>-<slug>` (Unsplash) or `am-<n>-<slug>` (Ananda Marga); also the file name without .jpg */
   id: string
-  /** number in Dada's shortlist */
+  /** number in Dada's shortlist; Unsplash 2..36, Ananda Marga 103..164 */
   n: number
   slug: string
   category: PhotoCategory
   title: string
+  source: PhotoSource
+  /** Unsplash photographer, or "Ananda Marga" */
   photographer: string
+  /** the line to show for the photo on About / Credits */
+  credit: string
   pageUrl: string
-  license: "Unsplash License"
+  license: string
+  licenseNote: string
   /** dominant dark colour of the lower third, for gradients and scrims behind text */
   tint: string
   tone: PhotoTone
   moods: readonly PhotoMood[]
+  people: PhotoPeople
+  /** real pixel size of the cover file (never upscaled) */
+  width: number
+  height: number
+  /** long side under 1000 px: only for small covers and thumbnails, never a full-bleed hero */
+  lowRes?: boolean
 }
 
-export const STOCK_PHOTO_META: readonly StockPhotoMeta[] = [
+type UnsplashRaw = Pick<StockPhotoMeta, "id" | "n" | "slug" | "category" | "title" | "photographer" | "pageUrl" | "tint" | "tone" | "moods"> & {
+  license: "Unsplash License"
+}
+/** Ananda Marga entries (amPhotoData.ts) carry only what differs per photo; the rest is filled in below. */
+export type AmPhotoRaw = Pick<
+  StockPhotoMeta,
+  "id" | "n" | "slug" | "category" | "title" | "credit" | "pageUrl" | "tint" | "tone" | "moods" | "people" | "width" | "height" | "lowRes"
+>
+
+const UNSPLASH_RAW: readonly UnsplashRaw[] = [
   {
     id: "02-hands-holding-a-lit-oil",
     n: 2,
@@ -380,4 +416,61 @@ export const STOCK_PHOTO_META: readonly StockPhotoMeta[] = [
     tone: "warm",
     moods: ["calm", "long"],
   },
+]
+
+/** Real cover size of the Unsplash files. */
+const UNSPLASH_SIZE: Record<number, readonly [number, number]> = {
+  2: [1400, 933],
+  5: [1400, 765],
+  6: [1400, 897],
+  7: [1400, 933],
+  10: [1400, 1869],
+  11: [1400, 1750],
+  12: [1400, 933],
+  14: [1400, 1035],
+  15: [1400, 1867],
+  16: [1400, 935],
+  17: [1400, 933],
+  18: [1400, 1366],
+  19: [1400, 935],
+  20: [1400, 1023],
+  21: [1400, 890],
+  22: [1400, 2100],
+  23: [1400, 1626],
+  24: [1400, 1960],
+  25: [1400, 934],
+  26: [1400, 933],
+  27: [1400, 933],
+  28: [1400, 2099],
+  29: [1400, 933],
+  30: [1400, 2489],
+  31: [1400, 788],
+  35: [1400, 2100],
+  36: [1400, 2102],
+}
+
+/** Photos of Unsplash with people in them, all seen from behind or as silhouettes; the rest show nobody. */
+const UNSPLASH_PEOPLE: Record<number, PhotoPeople> = { 5: "far", 6: "far", 7: "far" }
+
+export const STOCK_PHOTO_META: readonly StockPhotoMeta[] = [
+  ...UNSPLASH_RAW.map(
+    (p): StockPhotoMeta => ({
+      ...p,
+      source: "unsplash",
+      credit: `Photo: ${p.photographer} / Unsplash`,
+      licenseNote: UNSPLASH_LICENSE_NOTE,
+      people: UNSPLASH_PEOPLE[p.n] ?? "none",
+      width: UNSPLASH_SIZE[p.n][0],
+      height: UNSPLASH_SIZE[p.n][1],
+    }),
+  ),
+  ...AM_PHOTO_RAW.map(
+    (p): StockPhotoMeta => ({
+      ...p,
+      source: "ananda-marga",
+      photographer: "Ananda Marga",
+      license: AM_LICENSE,
+      licenseNote: AM_LICENSE_NOTE,
+    }),
+  ),
 ]

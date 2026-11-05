@@ -1,6 +1,6 @@
 /**
  * Metro needs literal require() paths, so every picture is listed here by its shortlist number.
- * cover: 1400 px wide (hero, mix and live cards). thumb: 480 px wide (rows, mini player).
+ * cover: up to 1400 px on the long side, never upscaled (hero, mix and live cards). thumb: up to 480 px wide (rows, mini player).
  */
 export const PHOTO_ASSETS: Record<number, { cover: number; thumb: number }> = {
   2: {
@@ -110,5 +110,93 @@ export const PHOTO_ASSETS: Record<number, { cover: number; thumb: number }> = {
   36: {
     cover: require("../../assets/photos/cover/36-wavy-sand-dune-pattern-warm.jpg"),
     thumb: require("../../assets/photos/thumb/36-wavy-sand-dune-pattern-warm.jpg"),
+  },
+  103: {
+    cover: require("../../assets/photos/cover/am-103-bearded-monk-in-orange-reading.jpg"),
+    thumb: require("../../assets/photos/thumb/am-103-bearded-monk-in-orange-reading.jpg"),
+  },
+  104: {
+    cover: require("../../assets/photos/cover/am-104-huge-spreading-tree-with-small.jpg"),
+    thumb: require("../../assets/photos/thumb/am-104-huge-spreading-tree-with-small.jpg"),
+  },
+  107: {
+    cover: require("../../assets/photos/cover/am-107-smiling-girl-in-orange-shirt.jpg"),
+    thumb: require("../../assets/photos/thumb/am-107-smiling-girl-in-orange-shirt.jpg"),
+  },
+  109: {
+    cover: require("../../assets/photos/cover/am-109-group-meditating-on-rocks-beside.jpg"),
+    thumb: require("../../assets/photos/thumb/am-109-group-meditating-on-rocks-beside.jpg"),
+  },
+  111: {
+    cover: require("../../assets/photos/cover/am-111-monk-with-arms-raised-on.jpg"),
+    thumb: require("../../assets/photos/thumb/am-111-monk-with-arms-raised-on.jpg"),
+  },
+  112: {
+    cover: require("../../assets/photos/cover/am-112-group-meditating-on-mats-under.jpg"),
+    thumb: require("../../assets/photos/thumb/am-112-group-meditating-on-mats-under.jpg"),
+  },
+  116: {
+    cover: require("../../assets/photos/cover/am-116-two-girls-in-dance-poses.jpg"),
+    thumb: require("../../assets/photos/thumb/am-116-two-girls-in-dance-poses.jpg"),
+  },
+  117: {
+    cover: require("../../assets/photos/cover/am-117-monk-and-a-man-standing.jpg"),
+    thumb: require("../../assets/photos/thumb/am-117-monk-and-a-man-standing.jpg"),
+  },
+  119: {
+    cover: require("../../assets/photos/cover/am-119-boy-in-yellow-shirt-crouching.jpg"),
+    thumb: require("../../assets/photos/thumb/am-119-boy-in-yellow-shirt-crouching.jpg"),
+  },
+  120: {
+    cover: require("../../assets/photos/cover/am-120-small-child-standing-in-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-120-small-child-standing-in-a.jpg"),
+  },
+  123: {
+    cover: require("../../assets/photos/cover/am-123-teacher-in-orange-seated-on.jpg"),
+    thumb: require("../../assets/photos/thumb/am-123-teacher-in-orange-seated-on.jpg"),
+  },
+  124: {
+    cover: require("../../assets/photos/cover/am-124-monk-in-prayer-pose-on.jpg"),
+    thumb: require("../../assets/photos/thumb/am-124-monk-in-prayer-pose-on.jpg"),
+  },
+  125: {
+    cover: require("../../assets/photos/cover/am-125-two-smiling-monks-in-orange.jpg"),
+    thumb: require("../../assets/photos/thumb/am-125-two-smiling-monks-in-orange.jpg"),
+  },
+  126: {
+    cover: require("../../assets/photos/cover/am-126-group-posing-with-arms-out.jpg"),
+    thumb: require("../../assets/photos/thumb/am-126-group-posing-with-arms-out.jpg"),
+  },
+  127: {
+    cover: require("../../assets/photos/cover/am-127-laughing-child-seen-from-above.jpg"),
+    thumb: require("../../assets/photos/thumb/am-127-laughing-child-seen-from-above.jpg"),
+  },
+  128: {
+    cover: require("../../assets/photos/cover/am-128-crowd-seated-on-grass-at.jpg"),
+    thumb: require("../../assets/photos/thumb/am-128-crowd-seated-on-grass-at.jpg"),
+  },
+  129: {
+    cover: require("../../assets/photos/cover/am-129-meditator-in-orange-seen-from.jpg"),
+    thumb: require("../../assets/photos/thumb/am-129-meditator-in-orange-seen-from.jpg"),
+  },
+  132: {
+    cover: require("../../assets/photos/cover/am-132-silhouettes-with-arms-raised-at.jpg"),
+    thumb: require("../../assets/photos/thumb/am-132-silhouettes-with-arms-raised-at.jpg"),
+  },
+  138: {
+    cover: require("../../assets/photos/cover/am-138-small-figures-sitting-on-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-138-small-figures-sitting-on-a.jpg"),
+  },
+  140: {
+    cover: require("../../assets/photos/cover/am-140-monk-in-red-turban-sitting.jpg"),
+    thumb: require("../../assets/photos/thumb/am-140-monk-in-red-turban-sitting.jpg"),
+  },
+  150: {
+    cover: require("../../assets/photos/cover/am-150-singer-on-the-grass-with.jpg"),
+    thumb: require("../../assets/photos/thumb/am-150-singer-on-the-grass-with.jpg"),
+  },
+  164: {
+    cover: require("../../assets/photos/cover/am-164-pink-dawn-clouds-over-a.jpg"),
+    thumb: require("../../assets/photos/thumb/am-164-pink-dawn-clouds-over-a.jpg"),
   },
 }

@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import { FlatList, StyleSheet, Text, View } from "react-native"
+import { Image } from "expo-image"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { HomeCover } from "@/components/home/HomeBlocks"
@@ -16,6 +17,7 @@ import { MIX_FIXTURES } from "@/lib/fixtures/kirtan"
 import { formatKirtanLength } from "@/lib/kirtan/list"
 import { mixCaption, playableItems, type MixItem } from "@/lib/kirtan/mix"
 import { playMix } from "@/lib/kirtan/mixPlayback"
+import { photoForMix } from "@/lib/photos/catalog"
 import { href } from "@/utils/href"
 
 /**
@@ -32,6 +34,7 @@ export default function KirtanMixScreen() {
   const catalog = useSongsV2Catalog()
   const mix = useMemo(() => MIX_FIXTURES.find((m) => m.id === params.id) ?? null, [params.id])
   const items = useMemo(() => (mix ? playableItems(mix.items, byId) : []), [mix, byId])
+  const photo = useMemo(() => (mix ? photoForMix(mix.id) : null), [mix])
 
   const play = (index: number) => {
     if (!mix) return
@@ -116,6 +119,11 @@ export default function KirtanMixScreen() {
                 </View>
               </KPress>
             </View>
+            {photo ? (
+              <View style={[styles.photo, { backgroundColor: photo.tint }]}>
+                <Image source={photo.cover} contentFit="cover" accessibilityIgnoresInvertColors style={StyleSheet.absoluteFill} />
+              </View>
+            ) : null}
             <View style={styles.titleBlock}>
               <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
                 {mix.title}
@@ -149,6 +157,7 @@ const styles = StyleSheet.create({
   back: { paddingHorizontal: 10, paddingBottom: 4 },
   backDisc: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   flip: { transform: [{ scaleX: -1 }] },
+  photo: { height: 190, borderRadius: 20, marginHorizontal: 10, marginTop: 8, overflow: "hidden" },
   titleBlock: { paddingTop: 12, paddingHorizontal: 10, paddingBottom: 12 },
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
   meta: { paddingHorizontal: 10, paddingBottom: 18, gap: 10 },
