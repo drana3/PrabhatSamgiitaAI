@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react"
-import { Linking, Platform, Share, StyleSheet, Text, View, useWindowDimensions } from "react-native"
+import { Platform, Share, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { LinearGradient } from "expo-linear-gradient"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -12,6 +12,7 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated"
 
+import { openExternal } from "@/lib/openLink"
 import { SpPill, SpRound } from "@/components/song-v2/SpUi"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
@@ -293,7 +294,7 @@ function StoryView({
               <Press
                 accessibilityRole="link"
                 accessibilityLabel="Read the original text"
-                onPress={() => void Linking.openURL(story.sourceUrl as string)}
+                onPress={() => void openExternal(story.sourceUrl as string)}
                 pressedScale={0.97}
                 style={styles.source}
               >

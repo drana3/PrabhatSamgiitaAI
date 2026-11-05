@@ -1,6 +1,7 @@
-import { Linking, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
+import { openExternal } from "@/lib/openLink"
 import { WatchVideoCard } from "@/components/player/WatchVideoCard"
 import { DownloadButton } from "@/components/offline/DownloadButton"
 import { SpIcon } from "@/components/song-v2/SpIcon"
@@ -80,7 +81,7 @@ export function VideoSection({ t, model }: { t: SpTheme; model: SongPageModel })
           <View key={video.id} style={[styles.card, { backgroundColor: t.white, borderColor: t.sand300 }]}>
             <WatchVideoCard video={video} songNumber={song.number} />
             <View style={styles.actions}>
-              <SpPill t={t} variant="sand" label={tr("songPage.video.open")} onPress={() => void Linking.openURL(video.url)} style={styles.small} textStyle={styles.smallText} />
+              <SpPill t={t} variant="sand" label={tr("songPage.video.open")} onPress={() => void openExternal(video.url)} style={styles.small} textStyle={styles.smallText} />
               <SpPill t={t} variant="sand" label={tr("songPage.video.report")} onPress={model.sendNote} style={styles.small} textStyle={styles.smallText} />
             </View>
           </View>

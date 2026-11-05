@@ -1,5 +1,6 @@
-import { Linking, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
+import { openExternal } from "@/lib/openLink"
 import { SpringSheet } from "@/components/assistant-v2/SpringSheet"
 import { PressScale } from "@/components/today/motion"
 import type { AmTheme } from "@/constants/tokens/amColors"
@@ -32,7 +33,7 @@ export function AiConsentSheet({
         <PressScale
           accessibilityRole="link"
           accessibilityLabel={t("assistant.consent.privacy")}
-          onPress={() => void Linking.openURL(privacyUrl())}
+          onPress={() => void openExternal(privacyUrl())}
           pressedScale={0.98}
           style={styles.link}
         >

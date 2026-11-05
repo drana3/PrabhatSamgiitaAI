@@ -1,5 +1,6 @@
-import { Linking, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
+import { openExternal } from "@/lib/openLink"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 
@@ -41,7 +42,7 @@ export function SpEmptyNote({
         ) : null}
       </View>
       {link ? (
-        <SpPress onPress={() => void Linking.openURL(link.url)} accessibilityLabel={link.label} accessibilityRole="link" style={styles.btn}>
+        <SpPress onPress={() => void openExternal(link.url)} accessibilityLabel={link.label} accessibilityRole="link" style={styles.btn}>
           <Text style={[styles.action, { color: t.orange700 }]}>{link.label}</Text>
         </SpPress>
       ) : null}

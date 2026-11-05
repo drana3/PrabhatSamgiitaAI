@@ -1,9 +1,10 @@
 import { DEFAULT_PHONE_COUNTRY } from "@prabhat/core"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { openExternal } from "@/lib/openLink"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
 import { AppleMark, FacebookMark, GoogleMark, MicrosoftMark } from "@/components/account/BrandMarks"
@@ -405,7 +406,7 @@ export default function SignInScreen() {
                       <Press
                         accessibilityRole="link"
                         accessibilityLabel={t("account.forgot.a11y")}
-                        onPress={() => void Linking.openURL(forgotPasswordUrl())}
+                        onPress={() => void openExternal(forgotPasswordUrl())}
                         pressedScale={0.96}
                         style={styles.link}
                       >
@@ -421,11 +422,11 @@ export default function SignInScreen() {
               <Text style={[styles.legal, { color: theme.textMuted }]}>
                 {legalParts.map((part, index) =>
                   part === "{terms}" ? (
-                    <Text key={index} accessibilityRole="link" onPress={() => void Linking.openURL(termsUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
+                    <Text key={index} accessibilityRole="link" onPress={() => void openExternal(termsUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
                       {t("account.legal.terms")}
                     </Text>
                   ) : part === "{privacy}" ? (
-                    <Text key={index} accessibilityRole="link" onPress={() => void Linking.openURL(privacyUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
+                    <Text key={index} accessibilityRole="link" onPress={() => void openExternal(privacyUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
                       {t("account.legal.privacy")}
                     </Text>
                   ) : (

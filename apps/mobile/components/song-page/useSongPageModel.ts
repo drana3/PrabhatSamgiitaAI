@@ -15,6 +15,7 @@ import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { realQueueActions } from "@/lib/playerV2/services"
 import { listenQueueForSong } from "@/lib/playbackQueue"
 import { songPlayback } from "@/lib/playback"
+import { useSaveState } from "@/hooks/useSaveState"
 import { openSaveSheet } from "@/stores/saveSheetStore"
 import type { SaveItem } from "@/lib/save/saveToSheet"
 import { photoForSeed, type StockPhoto } from "@/lib/photos/catalog"
@@ -375,6 +376,8 @@ export function useSongPageModel(songId: string | undefined) {
 
   // ---- save, download, share, more ----
   const saveItem: SaveItem | null = song ? { kind: "song", number: song.number } : null
+  // the More sheet says "Saved" only when the song really is in Mine or a playlist
+  const { saved: songSaved } = useSaveState(saveItem)
   const downloadItem: DownloadItem | null =
     song && selectedUrl
       ? songDownloadItem(song.number, { url: selectedUrl, versionIndex: demo ? mockVer : undefined, title: song.title, seconds: demo ? (selectedVersion?.length ?? undefined) : undefined })
@@ -384,14 +387,14 @@ export function useSongPageModel(songId: string | undefined) {
   const actionRows = useMemo(
     () =>
       buildActionRows({
-        saved: false,
+        saved: songSaved,
         inQueue: song ? activeQueue.includes(song.number) : false,
         collectionName: collection?.label ?? null,
         sourceName: "All songs",
         speedText: "1×",
         sleepText: "Off",
       }).filter((row) => (["share", "save", "playlist", "queue", "collection", "report"] as ActionId[]).includes(row.id)),
-    [song, activeQueue, collection],
+    [song, activeQueue, collection, songSaved],
   )
   const sharePayload = useMemo(() => (song ? buildSharePayload({ number: song.number, title: song.title, performer: "" }) : null), [song])
   const onAction = (id: ActionId) => {
