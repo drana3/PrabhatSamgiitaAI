@@ -38,6 +38,7 @@ import { flattenResults } from "@/lib/searchProto"
 import { MOCK_OFFLINE } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { SEARCH_BROWSE_ALL, SEARCH_DISCOVER, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
+import { browseAllTiles } from "@/lib/searchBrowse"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
@@ -379,7 +380,7 @@ export default function UnifiedSearchScreen() {
             p={p}
             top={SEARCH_TOP_TILES}
             discover={SEARCH_DISCOVER}
-            all={SEARCH_BROWSE_ALL}
+            all={browseAllTiles(SEARCH_BROWSE_ALL)}
             recents={MOCKUP_DATA ? [] : recents}
             onTile={(tile) => router.push(href(tile.target))}
             onTag={(tag) => pick(tag.query)}
