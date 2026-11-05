@@ -2,6 +2,7 @@ import type { Dictionary } from "@/locales"
 import { songPageEs } from "./songPage"
 import { appShellEs } from "./appShell"
 import { ugcEs } from "./ugc"
+import { offlineEs } from "./offline"
 
 /** Español. Trato de «tú». Kiirtan y Bhajan se escriben como en inglés; Prabhat Samgiita no se traduce. */
 export const es: Dictionary = {
@@ -1243,4 +1244,5 @@ export const es: Dictionary = {
   ...songPageEs,
   ...appShellEs,
   ...ugcEs,
+  ...offlineEs,
 }

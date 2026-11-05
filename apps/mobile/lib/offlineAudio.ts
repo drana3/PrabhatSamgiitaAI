@@ -6,6 +6,18 @@ import { create } from "zustand"
 import { unwrapArchiveAudioUrl } from "@prabhat/core"
 
 import { api } from "@/lib/client"
+import {
+  classifyDownloadError,
+  contentLengthFrom,
+  DownloadError,
+  enoughSpace,
+  isStalePart,
+  keepsPartialFile,
+  PART_SUFFIX,
+  partUriFor,
+  resumeDataFor,
+  verifyFinished,
+} from "@/lib/offline/downloadVerify"
 import { favoritesScopeKey } from "@/lib/favoritesScope"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { useAuthStore } from "@/stores/authStore"
@@ -30,7 +42,8 @@ type OfflineAudioState = {
     songNumber: number,
     options?: { userInitiated?: boolean },
   ) => Promise<void>
-  remove: (remoteUrl: string) => Promise<void>
+  /** True when the saved copy is gone; false when the file is still on the phone (it stays in the list). */
+  remove: (remoteUrl: string) => Promise<boolean>
 }
 
 type AuthSnapshot = {
@@ -156,7 +169,9 @@ const pendingMeta = new Map<
   { fileUri: string; songNumber: number; scope: string; epoch: number }
 >()
 const STUCK_PROGRESS_MS = 20_000
-const FINALIZE_POLL_MS = 400
+const WATCH_POLL_MS = 1000
+/** No byte for this long means the connection is dead, not slow. */
+const STALL_MS = 60_000
 
 /** Canonical offline key — use for every files/progress lookup in UI and store. */
 export function normalizeOfflineUrl(url: string | null | undefined) {
@@ -404,13 +419,38 @@ function destinationUri(scope: string, songNumber: number, remoteUrl: string) {
   return `${offlineDir(scope)}${songNumber}-${urlHash(remoteUrl)}.mp3`
 }
 
-let persistChain = Promise.resolve()
+/** The player registers here so that no path that deletes a saved file leaves it playing. */
+let beforeFileRemoved: ((fileUri: string) => void) | null = null
+export function setBeforeOfflineFileRemoved(hook: ((fileUri: string) => void) | null) {
+  beforeFileRemoved = hook
+}
+
+let persistChain: Promise<void> = Promise.resolve()
+/** The account whose files the store currently holds. A save that finishes for another account must not land here. */
+let activeScope: string | null = null
+let hydrateToken = 0
 
 function persistCurrent(scope: string) {
-  persistChain = persistChain.then(async () => {
-    const files = useOfflineAudioStore.getState().files
-    await AsyncStorage.setItem(indexKey(scope), serializeOfflineIndex(files, FileSystem.documentDirectory))
-  })
+  // A failed write must not poison the chain: every later save would be skipped until restart.
+  persistChain = persistChain
+    .catch(() => undefined)
+    .then(async () => {
+      if (scope !== activeScope) return
+      const files = useOfflineAudioStore.getState().files
+      await AsyncStorage.setItem(indexKey(scope), serializeOfflineIndex(files, FileSystem.documentDirectory))
+    })
+  return persistChain
+}
+
+/** A save finished after the listener switched account: it belongs to the old account's index, not to the store. */
+async function addToStoredIndex(scope: string, entry: OfflineAudioEntry) {
+  persistChain = persistChain
+    .catch(() => undefined)
+    .then(async () => {
+      const stored = parseOfflineIndex(await AsyncStorage.getItem(indexKey(scope)), FileSystem.documentDirectory)
+      stored[entry.remoteUrl] = entry
+      await AsyncStorage.setItem(indexKey(scope), serializeOfflineIndex(stored, FileSystem.documentDirectory))
+    })
   return persistChain
 }
 
@@ -427,27 +467,32 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function fileReady(uri: string, allowEmpty = false) {
+async function fileSize(uri: string): Promise<number | null> {
   try {
     const info = await FileSystem.getInfoAsync(uri)
-    if (!info.exists || info.isDirectory) return false
-    if (!("size" in info)) return allowEmpty
-    return allowEmpty ? info.size >= 0 : info.size > 0
+    if (!info.exists || info.isDirectory) return null
+    return "size" in info && typeof info.size === "number" ? info.size : null
   } catch {
-    return false
+    return null
   }
 }
 
-async function waitForFileReady(fileUri: string, url: string, epoch: number, timeoutMs = 90_000) {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    if (downloadEpoch[url] !== epoch) return null
-    if (await fileReady(fileUri)) {
-      return { status: 200, uri: fileUri }
-    }
-    await sleep(FINALIZE_POLL_MS)
+async function deleteQuietly(uri: string) {
+  try {
+    await FileSystem.deleteAsync(uri, { idempotent: true })
+  } catch {
+    /* nothing to delete */
   }
-  return null
+}
+
+async function freeDiskBytes(): Promise<number | null> {
+  try {
+    if (typeof FileSystem.getFreeDiskStorageAsync !== "function") return null
+    const free = await FileSystem.getFreeDiskStorageAsync()
+    return typeof free === "number" && Number.isFinite(free) ? free : null
+  } catch {
+    return null
+  }
 }
 
 function bumpEpoch(url: string) {
@@ -472,26 +517,6 @@ function setDownloadProgress(url: string, ratio: number) {
   useOfflineAudioStore.setState((state) => ({
     progress: { ...state.progress, [url]: clamped },
   }))
-  if (clamped >= FINALIZING_RATIO) {
-    void attemptEarlyComplete(url)
-  }
-}
-
-async function attemptEarlyComplete(url: string) {
-  const meta = pendingMeta.get(url)
-  if (!meta || downloadEpoch[url] !== meta.epoch) return
-  if (!(await fileReady(meta.fileUri, true))) return
-  if (downloadEpoch[url] !== meta.epoch) return
-  useOfflineAudioStore.setState((state) => ({
-    files: {
-      ...state.files,
-      [url]: { remoteUrl: url, fileUri: meta.fileUri, songNumber: meta.songNumber },
-    },
-  }))
-  clearProgress(url)
-  pendingMeta.delete(url)
-  inflight.delete(url)
-  await persistCurrent(meta.scope)
 }
 
 function clearProgress(url: string) {
@@ -511,6 +536,235 @@ function clearActiveSong(songNumber: number, url?: string) {
   })
 }
 
+const startingLocks = new Set<string>()
+
+type StoreSet = (
+  partial: Partial<OfflineAudioState> | ((state: OfflineAudioState) => Partial<OfflineAudioState>),
+) => void
+
+/** Waits for the partial file to reach the announced size (a downloader that never reports back), or to stall. */
+async function watchPartial(
+  partUri: string,
+  getExpected: () => number | null,
+  isCancelled: () => boolean,
+): Promise<{ done: true } | { done: false; stalled: true } | null> {
+  let last = -1
+  let stableSince = Date.now()
+  let sameSizeReads = 0
+  for (;;) {
+    await sleep(WATCH_POLL_MS)
+    if (isCancelled()) return null
+    const size = await fileSize(partUri)
+    const expected = getExpected()
+    if (size != null && size !== last) {
+      last = size
+      stableSince = Date.now()
+      sameSizeReads = 0
+    } else {
+      sameSizeReads += 1
+    }
+    // Whole means: exactly the announced size, and it stopped growing. A guess never counts.
+    if (size != null && expected != null && expected > 0 && size === expected && sameSizeReads >= 1) {
+      return { done: true }
+    }
+    if (Date.now() - stableSince > STALL_MS) return { done: false, stalled: true }
+  }
+}
+
+async function runDownload(
+  remoteUrl: string | null | undefined,
+  songNumber: number,
+  set: StoreSet,
+  get: () => OfflineAudioState,
+): Promise<void> {
+  const auth = currentAuth()
+  if (auth.mode !== "signed_in") {
+    throw new Error("Sign in to download songs for offline listening.")
+  }
+
+  const scope = offlineAudioScopeKey(auth)
+
+  // After offline play, UI may still pass file:// — ignore and resolve HTTP.
+  let url = canonicalAudioUrl(remoteUrl)
+  if (!isHttpAudioUrl(url)) {
+    url = ""
+  }
+  if (!url) {
+    const detail = await api.fetchSong(songNumber)
+    url = detail ? canonicalAudioUrl(songDetailToMockSong(detail).audioUrl) : ""
+  }
+  if (!isHttpAudioUrl(url)) {
+    throw new Error(
+      url
+        ? "This recording cannot be saved in the app."
+        : "No in-app audio is available to download for this song yet.",
+    )
+  }
+  const inFlightProgress = get().progress[url]
+  if (inFlightProgress != null) {
+    const stuckFor = Date.now() - (lastProgressAt[url] ?? 0)
+    if (stuckFor < STUCK_PROGRESS_MS) return
+    clearProgress(url)
+  }
+
+  const epoch = bumpEpoch(url)
+  const cancelled = () => downloadEpoch[url] !== epoch
+  let partUri: string | null = null
+
+  try {
+    const existing = get().files[url]
+    if (existing && (await fileExists(existing.fileUri))) {
+      if (cancelled()) return
+      clearProgress(url)
+      return
+    }
+
+    const free = await freeDiskBytes()
+    if (!enoughSpace(free, 0)) throw new DownloadError("no-space")
+
+    await FileSystem.makeDirectoryAsync(offlineDir(scope), { intermediates: true })
+    const fileUri = destinationUri(scope, songNumber, url)
+    partUri = partUriFor(fileUri)
+    // Continue a half-written file where the platform can; otherwise start clean.
+    const kept = await fileSize(partUri)
+    const resumeData = resumeDataFor(Platform.OS, kept)
+    if (!resumeData) await deleteQuietly(partUri)
+
+    pendingMeta.set(url, { fileUri, songNumber, scope, epoch })
+    const sessionType = FileSystem.FileSystemSessionType?.BACKGROUND
+    let expected: number | null = null
+    let noSpace = false
+    const task = FileSystem.createDownloadResumable(
+      url,
+      partUri,
+      sessionType != null ? { sessionType } : {},
+      ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+        if (totalBytesExpectedToWrite > 0) {
+          if (expected == null) {
+            expected = totalBytesExpectedToWrite
+            // The size is known now: stop at once if the phone cannot hold it.
+            void freeDiskBytes().then((room) => {
+              if (!enoughSpace(room, Math.max(0, totalBytesExpectedToWrite - totalBytesWritten))) {
+                noSpace = true
+                void inflight.get(url)?.cancelAsync().catch(() => undefined)
+              }
+            })
+          }
+          setDownloadProgress(url, totalBytesWritten / totalBytesExpectedToWrite)
+        } else {
+          setDownloadProgress(url, 0)
+        }
+      },
+      resumeData,
+    )
+    inflight.set(url, task)
+    lastProgressAt[url] = Date.now()
+    set((state) => ({
+      progress: { ...state.progress, [url]: state.progress[url] ?? 0 },
+      errors: { ...state.errors, [url]: "" },
+      activeBySong: { ...state.activeBySong, [songNumber]: url },
+    }))
+
+    // The downloader's own answer is the truth. The watcher only covers a downloader that never
+    // reports back, and it accepts the file only at exactly the announced size.
+    const finished = await Promise.race([
+      (resumeData ? task.resumeAsync() : task.downloadAsync()).then(
+        (response) => ({ kind: "response" as const, response }),
+        (error: unknown) => ({ kind: "error" as const, error }),
+      ),
+      watchPartial(partUri, () => expected, cancelled).then((outcome) => ({ kind: "watch" as const, outcome })),
+    ])
+    inflight.delete(url)
+    if (cancelled()) {
+      await deleteQuietly(partUri)
+      clearActiveSong(songNumber, url)
+      return
+    }
+    if (noSpace) throw new DownloadError("no-space")
+    let status: number | null = 200
+    let headerBytes: number | null = null
+    if (finished.kind === "error") {
+      throw new DownloadError(classifyDownloadError(finished.error), finished.error instanceof Error ? finished.error.message : undefined)
+    }
+    if (finished.kind === "watch") {
+      void task.cancelAsync().catch(() => undefined)
+      if (!finished.outcome) return
+      if (!finished.outcome.done) throw new DownloadError("stalled")
+    } else {
+      const response = finished.response as { status?: number; headers?: Record<string, string> } | undefined
+      if (!response) throw new DownloadError("offline")
+      status = response.status ?? 200
+      headerBytes = contentLengthFrom(response.headers)
+    }
+
+    const size = await fileSize(partUri)
+    const failure = verifyFinished({ status, size, expected: expected ?? headerBytes })
+    if (failure) throw new DownloadError(failure)
+
+    // Whole: move it into place in one step, so a half file never has the final name.
+    await deleteQuietly(fileUri)
+    await FileSystem.moveAsync({ from: partUri, to: fileUri })
+    partUri = null
+
+    // Not hydrated yet (a save finished before the index was read): this account owns the store now.
+    if (activeScope == null) activeScope = scope
+    if (scope === activeScope) {
+      set((state) => {
+        const activeBySong = { ...state.activeBySong }
+        delete activeBySong[songNumber]
+        return {
+          files: { ...state.files, [url]: { remoteUrl: url, fileUri, songNumber } },
+          activeBySong,
+        }
+      })
+      clearProgress(url)
+      pendingMeta.delete(url)
+      await persistCurrent(scope)
+    } else {
+      // The listener switched account during the save: the file belongs to the first account.
+      clearProgress(url)
+      pendingMeta.delete(url)
+      await addToStoredIndex(scope, { remoteUrl: url, fileUri, songNumber })
+    }
+  } catch (error) {
+    inflight.delete(url)
+    pendingMeta.delete(url)
+    clearActiveSong(songNumber, url)
+    const code = classifyDownloadError(error)
+    // A dropped connection keeps what arrived (Android continues from it); every other failure cleans up.
+    if (partUri && !keepsPartialFile(code)) await deleteQuietly(partUri)
+    if (cancelled()) return
+    clearProgress(url)
+    const wrapped = error instanceof DownloadError ? error : new DownloadError(code, error instanceof Error ? error.message : undefined)
+    set((state) => ({
+      errors: { ...state.errors, [url]: wrapped.message },
+    }))
+    throw wrapped
+  } finally {
+    pendingMeta.delete(url)
+    clearActiveSong(songNumber, url)
+    sweepStaleProgress()
+  }
+}
+
+/** Half-written files left by a killed app: dropped when old, never counted as saved. */
+async function removeStalePartials(scope: string) {
+  try {
+    if (typeof FileSystem.readDirectoryAsync !== "function") return
+    const dir = offlineDir(scope)
+    const names = await FileSystem.readDirectoryAsync(dir)
+    const now = Date.now()
+    for (const name of names) {
+      if (!name.endsWith(PART_SUFFIX)) continue
+      const info = await FileSystem.getInfoAsync(`${dir}${name}`)
+      const modified = info.exists && "modificationTime" in info ? info.modificationTime : null
+      if (isStalePart(modified, now)) await deleteQuietly(`${dir}${name}`)
+    }
+  } catch {
+    /* no folder yet */
+  }
+}
+
 export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
   ready: false,
   files: {},
@@ -520,6 +774,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
 
   hydrate: async () => {
     const scope = offlineAudioScopeKey(currentAuth())
+    const token = (hydrateToken += 1)
     // Old absolute addresses are moved onto the current container here, then saved back as relative paths.
     const stored = parseOfflineIndex(await AsyncStorage.getItem(indexKey(scope)), FileSystem.documentDirectory)
     const files: Record<string, OfflineAudioEntry> = {}
@@ -530,130 +785,32 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         }
       }),
     )
+    // Signed in as someone else (or signed out) while the index was loading: this answer is stale.
+    if (token !== hydrateToken || scope !== offlineAudioScopeKey(currentAuth())) return
+    activeScope = scope
     set({ ready: true, files, errors: {}, progress: {}, activeBySong: {} })
     await persistCurrent(scope)
     sweepStaleProgress()
+    void removeStalePartials(scope)
   },
 
   download: async (remoteUrl, songNumber, options) => {
     if (!options?.userInitiated) return
-    const auth = currentAuth()
-    if (auth.mode !== "signed_in") {
-      throw new Error("Sign in to download songs for offline listening.")
-    }
-
-    const scope = offlineAudioScopeKey(auth)
-
-    // After offline play, UI may still pass file:// — ignore and resolve HTTP.
-    let url = canonicalAudioUrl(remoteUrl)
-    if (!isHttpAudioUrl(url)) {
-      url = ""
-    }
-    if (!url) {
-      const detail = await api.fetchSong(songNumber)
-      url = detail ? canonicalAudioUrl(songDetailToMockSong(detail).audioUrl) : ""
-    }
-    if (!isHttpAudioUrl(url)) {
-      throw new Error(
-        url
-          ? "This recording cannot be saved in the app."
-          : "No in-app audio is available to download for this song yet.",
-      )
-    }
-    const inFlightProgress = get().progress[url]
-    if (inFlightProgress != null) {
-      const stuckFor = Date.now() - (lastProgressAt[url] ?? 0)
-      if (stuckFor < STUCK_PROGRESS_MS) return
-      clearProgress(url)
-    }
-
-    const epoch = bumpEpoch(url)
-
+    // Taken before the first await: a double tap must not start two saves of one file.
+    const lockKey = `${songNumber}|${normalizeUrl(remoteUrl)}`
+    if (startingLocks.has(lockKey)) return
+    startingLocks.add(lockKey)
     try {
-      const existing = get().files[url]
-      if (existing && (await fileExists(existing.fileUri))) {
-        if (downloadEpoch[url] !== epoch) return
-        clearProgress(url)
-        return
-      }
-
-      await FileSystem.makeDirectoryAsync(offlineDir(scope), { intermediates: true })
-      const fileUri = destinationUri(scope, songNumber, url)
-      pendingMeta.set(url, { fileUri, songNumber, scope, epoch })
-      const sessionType = FileSystem.FileSystemSessionType?.BACKGROUND
-      const task = FileSystem.createDownloadResumable(
-        url,
-        fileUri,
-        sessionType != null ? { sessionType } : {},
-        ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
-          const ratio =
-            totalBytesExpectedToWrite > 0 ? totalBytesWritten / totalBytesExpectedToWrite : 0
-          setDownloadProgress(url, ratio)
-        },
-      )
-      inflight.set(url, task)
-      lastProgressAt[url] = Date.now()
-      set((state) => ({
-        progress: { ...state.progress, [url]: state.progress[url] ?? 0 },
-        errors: { ...state.errors, [url]: "" },
-        activeBySong: { ...state.activeBySong, [songNumber]: url },
-      }))
-      let result = await Promise.race([
-        task.downloadAsync().catch(() => null),
-        waitForFileReady(fileUri, url, epoch),
-      ])
-      if (!result) {
-        result = await waitForFileReady(fileUri, url, epoch, 15_000)
-      }
-      inflight.delete(url)
-      if (downloadEpoch[url] !== epoch) {
-        try {
-          await FileSystem.deleteAsync(fileUri, { idempotent: true })
-        } catch {
-          /* ignore */
-        }
-        clearActiveSong(songNumber, url)
-        return
-      }
-      if (!result || result.status >= 400) {
-        throw new Error("Save failed. Try again on a stronger connection.")
-      }
-      set((state) => {
-        const activeBySong = { ...state.activeBySong }
-        delete activeBySong[songNumber]
-        return {
-          files: {
-            ...state.files,
-            [url]: { remoteUrl: url, fileUri: result.uri || fileUri, songNumber },
-          },
-          activeBySong,
-        }
-      })
-      clearProgress(url)
-      pendingMeta.delete(url)
-      await persistCurrent(scope)
-    } catch (error) {
-      inflight.delete(url)
-      pendingMeta.delete(url)
-      clearActiveSong(songNumber, url)
-      if (downloadEpoch[url] !== epoch) return
-      clearProgress(url)
-      const message = error instanceof Error ? error.message : "Save failed."
-      set((state) => ({
-        errors: { ...state.errors, [url]: message },
-      }))
-      throw error
+      await runDownload(remoteUrl, songNumber, set, get)
     } finally {
-      pendingMeta.delete(url)
-      clearActiveSong(songNumber, url)
-      sweepStaleProgress()
+      startingLocks.delete(lockKey)
     }
   },
 
   remove: async (remoteUrl) => {
     const keys = offlineIndexKeys(remoteUrl)
     const url = keys[0] || normalizeUrl(remoteUrl)
-    if (!url) return
+    if (!url) return true
     for (const key of keys.length ? keys : [url]) {
       bumpEpoch(key)
       pendingMeta.delete(key)
@@ -670,10 +827,18 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
     const entry = findOfflineEntry(get().files, remoteUrl)
     if (entry) {
       try {
+        beforeFileRemoved?.(entry.fileUri)
+      } catch {
+        /* the player must never block a delete */
+      }
+      try {
         await FileSystem.deleteAsync(entry.fileUri, { idempotent: true })
       } catch {
-        /* ignore missing file */
+        /* the check below decides */
       }
+      await deleteQuietly(partUriFor(entry.fileUri))
+      // A file that is still there was not removed: keep it in the list instead of claiming space was freed.
+      if (await fileExists(entry.fileUri)) return false
     }
     const scope = offlineAudioScopeKey(currentAuth())
     set((state) => {
@@ -695,6 +860,7 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
       return { files, progress, errors }
     })
     await persistCurrent(scope)
+    return true
   },
 }))
 

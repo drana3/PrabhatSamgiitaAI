@@ -7,7 +7,8 @@ import {
   useOfflineAudioStore,
   type OfflineAudioEntry,
 } from "@/lib/offlineAudio"
-import { demoDownloadBytes, downloadErrorToast, downloadRemovedToast, downloadRetryLabel, listRemoveConfirmCopy, listStoppedToast, nextToStart, removeConfirmCopy, type DownloadItem, type DownloadStatus } from "@/lib/offline/downloadModel"
+import { classifyDownloadError, type DownloadFailure } from "@/lib/offline/downloadVerify"
+import { demoDownloadBytes, downloadErrorToast, downloadFailureToast, downloadRemovedToast, downloadRetryLabel, listRemoveConfirmCopy, listStoppedToast, nextToStart, removeConfirmCopy, type DownloadItem, type DownloadStatus } from "@/lib/offline/downloadModel"
 import { demoDownloadFails, demoSignedOut } from "@/lib/offline/demoSwitches"
 import { t } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
@@ -64,8 +65,22 @@ export const useDownloadQueue = create<{ pending: DownloadItem[] }>(() => ({ pen
 const running = new Set<number>()
 let failed: DownloadItem[] = []
 
-function toastFailure(retry: () => void) {
-  useDownloadUiStore.getState().showToast(downloadErrorToast(), { label: downloadRetryLabel(), onPress: retry })
+/** Why the last failed save failed; the toast words it (no connection, phone full, anything else). */
+const failureReason = new Map<number, DownloadFailure>()
+
+function toastFailure(retry: () => void, code?: DownloadFailure | null) {
+  useDownloadUiStore.getState().showToast(downloadFailureToast(code), { label: downloadRetryLabel(), onPress: retry })
+}
+
+/** The reason to show for a group of failed items: the first one that is not a plain "unknown". */
+function reasonOf(items: readonly DownloadItem[]): DownloadFailure | null {
+  let found: DownloadFailure | null = null
+  for (const item of items) {
+    const code = failureReason.get(item.number)
+    failureReason.delete(item.number)
+    if (code && (found == null || found === "unknown")) found = code
+  }
+  return found
 }
 
 /** One download to the end. True when it went well or was cancelled, false when it failed. */
@@ -88,7 +103,8 @@ async function runOne(item: DownloadItem): Promise<boolean> {
     await ensureOfflineAudioReady()
     await useOfflineAudioStore.getState().download(itemAudioUrl(item), item.number, { userInitiated: true })
     return true
-  } catch {
+  } catch (error) {
+    failureReason.set(item.number, classifyDownloadError(error))
     return false
   }
 }
@@ -108,7 +124,7 @@ function pump() {
   if (useDownloadQueue.getState().pending.length === 0 && running.size === 0 && failed.length > 0) {
     const again = failed
     failed = []
-    toastFailure(() => startMany(again))
+    toastFailure(() => startMany(again), reasonOf(again))
   }
 }
 
@@ -119,7 +135,7 @@ export function startDownload(item: DownloadItem): void {
   if (!requireSignIn()) return
   if (!itemHasAudio(item)) return
   void runOne(item).then((ok) => {
-    if (!ok) toastFailure(() => startDownload(item))
+    if (!ok) toastFailure(() => startDownload(item), reasonOf([item]))
   })
 }
 
@@ -153,17 +169,20 @@ export function cancelDownload(item: DownloadItem): void {
 }
 
 /** Remove the copy from the phone, no questions (the confirm comes first, see confirmRemove). */
-export async function removeDownload(item: DownloadItem): Promise<void> {
+export async function removeDownload(item: DownloadItem): Promise<boolean> {
   if (MOCKUP_DATA) {
     const demo = useDemoDownloads.getState()
     demoKeysOf(item, demo.done).forEach((key) => demo.toggle(key))
-    return
+    return true
   }
   const store = useOfflineAudioStore.getState()
+  let allGone = true
   for (const entry of entriesOf(item)) {
-    await store.remove(entry.remoteUrl)
+    // Stop first: a song must not keep playing from a file we are deleting.
     usePlayerStore.getState().stopIfPlayingLocalUri(entry.fileUri)
+    if (!(await store.remove(entry.remoteUrl))) allGone = false
   }
+  return allGone
 }
 
 async function bytesOf(entries: OfflineAudioEntry[]): Promise<number | null> {
@@ -188,7 +207,11 @@ export async function confirmRemove(item: DownloadItem): Promise<void> {
     kind: "remove",
     copy,
     onConfirm: () => {
-      void removeDownload(item).then(() => useDownloadUiStore.getState().showToast(downloadRemovedToast()))
+      void removeDownload(item).then((gone) => {
+        const ui = useDownloadUiStore.getState()
+        // Only say "Removed" when the file is really gone.
+        ui.showToast(gone ? downloadRemovedToast() : downloadErrorToast())
+      })
     },
   })
 }
@@ -210,7 +233,7 @@ export function startMany(items: readonly DownloadItem[]): void {
   if (MOCKUP_DATA) {
     // the preview runs them all at once, like its single downloads
     void Promise.all(audible.map(runOne)).then((results) => {
-      if (results.some((ok) => !ok)) toastFailure(() => startMany(audible))
+      if (results.some((ok) => !ok)) toastFailure(() => startMany(audible), reasonOf(audible))
     })
     return
   }
@@ -240,7 +263,9 @@ export async function confirmRemoveMany(name: string, items: readonly DownloadIt
     kind: "remove",
     copy,
     onConfirm: () => {
-      void Promise.all(mine.map(removeDownload)).then(() => useDownloadUiStore.getState().showToast(downloadRemovedToast()))
+      void Promise.all(mine.map(removeDownload)).then((results) =>
+        useDownloadUiStore.getState().showToast(results.every(Boolean) ? downloadRemovedToast() : downloadErrorToast()),
+      )
     },
   })
 }

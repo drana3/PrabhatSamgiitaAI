@@ -2,6 +2,7 @@ import type { Dictionary } from "@/locales"
 import { songPageRu } from "./songPage"
 import { appShellRu } from "./appShell"
 import { ugcRu } from "./ugc"
+import { offlineRu } from "./offline"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
 export const ru: Dictionary = {
@@ -1329,4 +1330,5 @@ export const ru: Dictionary = {
   ...songPageRu,
   ...appShellRu,
   ...ugcRu,
+  ...offlineRu,
 }

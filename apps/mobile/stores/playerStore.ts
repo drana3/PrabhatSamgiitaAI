@@ -6,7 +6,7 @@ import type { MockSong } from "@/data/mock"
 import { api } from "@/lib/client"
 import { readAudioRepeat, writeAudioRepeat } from "@/lib/audioRepeat"
 import { isSameAudioTrack, isSameSong } from "@/lib/playback"
-import { resolvePlaybackUri } from "@/lib/offlineAudio"
+import { resolvePlaybackUri, setBeforeOfflineFileRemoved } from "@/lib/offlineAudio"
 import {
   nextQueueNumber,
   playbackAdvanceQueue,
@@ -203,6 +203,15 @@ async function hydrate(song: MockSong): Promise<MockSong> {
   if (!ready) return { ...song, mediaHydrated: true }
   cacheSong(ready)
   return ready
+}
+
+function sameLocalPath(a: string, b: string): boolean {
+  if (a === b) return true
+  try {
+    return decodeURIComponent(a) === decodeURIComponent(b)
+  } catch {
+    return false
+  }
 }
 
 function shouldLoopCurrent() {
@@ -836,7 +845,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const uri = fileUri?.trim()
     if (!uri) return
     const current = get().currentSong
-    if (!current?.audioUrl?.trim() || current.audioUrl.trim() !== uri) return
+    // Android plays a decoded address while the index keeps the encoded one: compare both ways.
+    if (!current?.audioUrl?.trim() || !sameLocalPath(current.audioUrl.trim(), uri)) return
     playerExtras.__psWantPlaying = false
     playerExtras.__psLoadGeneration += 1
     setPlaybackIntent(null)
@@ -993,6 +1003,12 @@ function installPlayerAudioFocusBridge(): void {
 
 registerNativePlayerListeners(installNativeListeners)
 installPlayerAudioFocusBridge()
+// Every way of deleting a saved file stops it first when it is the one playing.
+try {
+  setBeforeOfflineFileRemoved((fileUri) => usePlayerStore.getState().stopIfPlayingLocalUri(fileUri))
+} catch {
+  /* a test double of the offline module may not have the hook */
+}
 playerExtras.__psRadioUnsub?.()
 playerExtras.__psRadioUnsub = usePlayerStore.subscribe(() => {
   publishRadioSession()

@@ -12,6 +12,7 @@
  * a menu with an error).
  */
 
+import { failureMessageKey, type DownloadFailure } from "@/lib/offline/downloadVerify"
 import { t } from "@/lib/i18n"
 import { formatBytes } from "@/lib/storageCache"
 
@@ -90,6 +91,9 @@ export function downloadPillLabel(
 }
 
 export const downloadErrorToast = (): string => t("dl.toast.error")
+/** The toast for a failed save, worded by the reason (no connection, phone full, anything else). */
+export const downloadFailureToast = (code: DownloadFailure | null | undefined): string =>
+  t(failureMessageKey(code ?? "unknown"))
 export const downloadRetryLabel = (): string => t("dl.retry")
 export const downloadRemovedToast = (): string => t("dl.toast.removed")
 export const signInTitle = (): string => t("dl.pill.signIn")
