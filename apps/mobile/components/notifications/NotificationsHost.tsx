@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AppState } from "react-native"
-import { useRouter } from "expo-router"
+import { usePathname, useRouter } from "expo-router"
 
 import { PREVIEW_SONG_PICKS } from "@/lib/fixtures/notifications"
 import { learningStreak } from "@/lib/learn/streak"
@@ -156,20 +156,43 @@ export function NotificationsHost() {
     }
   }, [hydrated, reschedule, syncInbox])
 
-  // a tap opens the notification's screen and marks it read
+  // A tap opens the notification's screen and marks it read. When the tap started the app, the start screen
+  // ("/") is still redirecting to Today or Welcome: the target waits in `pendingTarget` and opens once the
+  // app is on a real screen, so the two navigations never race (and the tap never opens twice).
+  const pathname = usePathname()
+  const booted = pathname !== "/" && pathname !== ""
+  const pendingTarget = useRef<string | null>(null)
+  const openTarget = useCallback(
+    (target: string) => {
+      try {
+        router.push(href(target))
+      } catch {
+        /* the navigator was not ready; the inbox still has the item */
+      }
+    },
+    [router],
+  )
+  const bootedRef = useRef(booted)
+  bootedRef.current = booted
+
   useEffect(() => {
     if (!hydrated) return
     return listenForTaps(({ id, target }) => {
       if (id) useNotificationsStore.getState().open(id)
-      setTimeout(() => {
-        try {
-          router.push(href(target))
-        } catch {
-          /* the navigator was not ready; the inbox still has the item */
-        }
-      }, 300)
+      if (bootedRef.current) setTimeout(() => openTarget(target), 150)
+      else pendingTarget.current = target
     })
-  }, [hydrated, router])
+  }, [hydrated, openTarget])
+
+  useEffect(() => {
+    if (!booted || !pendingTarget.current) return
+    const timer = setTimeout(() => {
+      const target = pendingTarget.current
+      pendingTarget.current = null
+      if (target) openTarget(target)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [booted, openTarget])
 
   return null
 }

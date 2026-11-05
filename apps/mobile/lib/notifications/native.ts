@@ -164,7 +164,15 @@ export function listenForTaps(onTap: (tap: Tap) => void): () => void {
     })
     // the tap that started the app
     const start = tapOf(N.getLastNotificationResponse())
-    if (start) onTap(start)
+    if (start) {
+      onTap(start)
+      // handled: a later listener (a re-mount, a hot reload) must not open the same screen again
+      try {
+        N.clearLastNotificationResponse?.()
+      } catch {
+        /* older runtime without it */
+      }
+    }
     return () => sub.remove()
   } catch {
     return () => undefined
