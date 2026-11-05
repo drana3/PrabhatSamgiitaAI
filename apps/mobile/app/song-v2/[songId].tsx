@@ -919,10 +919,13 @@ function CurrentSongPage() {
   // a Notation (PDF) link only where the catalog really has the file
   const notationUrl = notationPdfUrl(song.notationSourceUrl)
   const notationLink = notationUrl ? { label: "Notation (PDF)", url: notationUrl } : null
-  const watchMore = FIXTURE_MORE_VIDEOS.map((video) => ({
-    ...video,
-    go: () => showToast("Video plays here"),
-  }))
+  // sample "more videos" exist only in the demo; a real song never gets them
+  const watchMore = mock
+    ? FIXTURE_MORE_VIDEOS.map((video) => ({
+        ...video,
+        go: () => showToast("Video plays here"),
+      }))
+    : []
 
   const coverTint = tintForSong(song.number)
   // top colour of the hero wash; the bar's ground is the same colour so the two read as one
