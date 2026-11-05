@@ -62,6 +62,14 @@
       "expo-web-browser",
       "expo-av",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Prabhat Samgiita AI to read your photos so you can choose a profile picture.",
+          "cameraPermission": "Allow Prabhat Samgiita AI to use the camera so you can take a profile picture.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#B94D0C"

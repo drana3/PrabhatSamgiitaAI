@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
 import { ArrowRight, Bell, ChevronRight, Search } from "lucide-react-native"
 
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { amColors, amPhotoChip } from "@/constants/tokens/amColors"
@@ -53,7 +54,7 @@ export function HubTopRow({
         pressedScale={PRESS}
         style={[s.round44, { backgroundColor: p.dark ? p.orange100 : p.white }]}
       >
-        <Text style={[s.avatarText, { color: p.orange700 }]}>{initial}</Text>
+        <AvatarFace initial={initial} textStyle={[s.avatarText, { color: p.orange700 }]} />
       </PressBox>
       <View style={s.flex} />
       <PressBox

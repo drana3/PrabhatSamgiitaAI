@@ -4,6 +4,7 @@ import { Search } from "lucide-react-native"
 import { BlurView } from "expo-blur"
 import { Image } from "expo-image"
 
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { ChevronGlyph, PlayGlyph, SearchGlyph } from "@/components/today/protoIcons"
 import { PressScale } from "@/components/today/motion"
 import { TodayPress } from "@/components/today/TodayPress"
@@ -73,7 +74,7 @@ export function TodayAvatar({ p, initial, onPress }: P & { initial: string; onPr
       pressedScale={PRESS}
       style={[s.avatar, { backgroundColor: bg }]}
     >
-      <Text style={[s.avatarText, { color: p.orange700 }]}>{initial}</Text>
+      <AvatarFace initial={initial} textStyle={[s.avatarText, { color: p.orange700 }]} />
     </TodayPress>
   )
 }

@@ -4,6 +4,7 @@ import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { Bell, MoreHorizontal, Search } from "lucide-react-native"
 
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
 import { PlayGlyph } from "@/components/today/protoIcons"
 import { overStyle } from "@/components/today/TodayBlocks"
@@ -74,7 +75,7 @@ export function HomeTopRow({
         pressedScale={PRESS}
         style={[s.avatar, { backgroundColor: p.dark ? p.orange100 : p.white }]}
       >
-        <Text style={[s.avatarText, { color: p.orange700 }]}>{initial}</Text>
+        <AvatarFace initial={initial} textStyle={[s.avatarText, { color: p.orange700 }]} />
       </TodayPress>
       <View style={s.spacer} />
       <TodayPress accessibilityRole="search" accessibilityLabel="Search" onPress={onSearch} pressedScale={PRESS} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Image, LayoutChangeEvent, StyleSheet, Text, View, type FlatList } from "react-native"
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { PlayGlyph, SearchGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
 import Animated, {
   runOnJS,
@@ -357,7 +358,7 @@ export function SongsScroller({
             pressedScale={0.94}
             style={[styles.avatar, { backgroundColor: theme.peach }]}
           >
-            <Text style={[styles.avatarText, { color: theme.accent }]}>{initial}</Text>
+            <AvatarFace initial={initial} textStyle={[styles.avatarText, { color: theme.accent }]} />
           </Press>
         </View>
 

@@ -17,6 +17,8 @@ export const PROFILE_ROUTES = {
   downloads: "/storage",
   /** Your library: everything that is the person's own, app/library-v2.tsx */
   library: "/library-v2",
+  /** the avatar and name block opens this: app/edit-profile.tsx */
+  editProfile: "/edit-profile",
 } as const
 
 export type ProfileRoute = (typeof PROFILE_ROUTES)[keyof typeof PROFILE_ROUTES]
@@ -30,6 +32,7 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/review-style": true,
   "/storage": true,
   "/library-v2": true,
+  "/edit-profile": true,
 }
 
 export type ProfileIdentity = {

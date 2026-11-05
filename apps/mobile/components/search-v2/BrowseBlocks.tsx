@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-n
 import { LinearGradient } from "expo-linear-gradient"
 import { Clock, Mic, X } from "lucide-react-native"
 
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_INSET, HomeCover, HomeSectionHead, HomeShelf } from "@/components/home/HomeBlocks"
 import { overStyle } from "@/components/today/TodayBlocks"
 import { TodayPress } from "@/components/today/TodayPress"
@@ -25,7 +26,7 @@ export function SearchHeader({
   return (
     <View style={s.header}>
       <TodayPress accessibilityRole="button" accessibilityLabel="Profile and settings" onPress={onAvatar} pressedScale={0.97} style={[s.avatar, { backgroundColor: p.dark ? p.orange100 : p.white }]}>
-        <Text style={[s.avatarText, { color: p.orange700 }]}>{initial}</Text>
+        <AvatarFace initial={initial} textStyle={[s.avatarText, { color: p.orange700 }]} />
       </TodayPress>
       <Text style={[s.title, { color: p.ink800 }]} accessibilityRole="header">
         Search

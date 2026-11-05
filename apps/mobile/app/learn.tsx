@@ -22,13 +22,13 @@ import { useLearnTopInset } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
 import { SAMPLE_LEARN_WORDS } from "@/data/learnWords"
 import { protoFor } from "@/constants/tokens/amToday"
+import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useOpenProfileSheet } from "@/components/nav-v2/useOpenProfileSheet"
 import { INDEX_SUMMARY, LEARN_SUGGESTED_NUMBERS, MOCKUP_LEARN, learnSongTitle } from "@/lib/fixtures/learn"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { memberProfileName } from "@/lib/displayName"
 import {
   HUB_LINKS,
   buildContinue,
@@ -43,7 +43,6 @@ import { nextOpenQuizLevel } from "@/lib/learn/progress"
 import { indexHref, wordsHref } from "@/lib/learn/routes"
 import { dueCardCount, wordsLearnedCount } from "@/lib/learn/srs"
 import { sessionDeck, songNumbersFromIds, wordOfTheDay } from "@/lib/learn/words"
-import { useAuthStore } from "@/stores/authStore"
 import { useLearnStore } from "@/stores/learnStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
@@ -65,13 +64,7 @@ export default function LearnScreen() {
   const { unread } = useNotificationItems()
   const now = useMemo(() => Date.now(), [])
 
-  const mode = useAuthStore((s) => s.mode)
-  const email = useAuthStore((s) => s.email)
-  const displayName = useAuthStore((s) => s.displayName)
-  const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
-  const initial = MOCKUP_DATA
-    ? MOCKUP_LEARN.initial
-    : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "D"
+  const initial = useProfileInitial()
 
   const cards = useLearnStore((s) => s.cards)
   const songs = useLearnStore((s) => s.songs)

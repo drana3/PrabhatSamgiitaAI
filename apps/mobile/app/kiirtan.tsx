@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus, Search } from "lucide-react-native"
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_INSET, HomeEmpty, HomeSectionHead } from "@/components/home/HomeBlocks"
 import { LiveCard } from "@/components/kirtan/LiveCard"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
@@ -358,7 +359,7 @@ export default function KiirtanTabScreen() {
             pressedScale={0.97}
             style={[styles.avatar, { backgroundColor: p.dark ? p.orange100 : p.white }]}
           >
-            <Text style={[styles.avatarText, { color: p.orange700 }]}>{initial}</Text>
+            <AvatarFace initial={initial} textStyle={[styles.avatarText, { color: p.orange700 }]} />
           </TodayPress>
           <View style={styles.spacer} />
           <TodayPress accessibilityRole="search" accessibilityLabel="Search" onPress={() => router.push(href("/search-v2?focus=1&scope=kiirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>

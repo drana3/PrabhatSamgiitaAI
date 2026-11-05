@@ -30,6 +30,7 @@ import { fixtureDay } from "@/components/today/TodayPrototypeScreen"
 import { songCategories } from "@/constants/categories"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { mapApiStory, type StorySummary } from "@/data/stories"
+import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
@@ -41,7 +42,6 @@ import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { loadCatalog } from "@/lib/catalog"
 import { api } from "@/lib/client"
-import { memberProfileName } from "@/lib/displayName"
 import {
   HOME_BECAUSE,
   HOME_BECAUSE_OF,
@@ -76,7 +76,6 @@ import { buildTodayDay } from "@/lib/todayDay"
 import { todayItemToMockSong } from "@/lib/today"
 import { readTodayCache, refreshTodayRecommendations } from "@/lib/todayCache"
 import { buildTodayView, storyOfTheWeek } from "@/lib/todayView"
-import { useAuthStore } from "@/stores/authStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useResumeStore } from "@/stores/resumeStore"
@@ -117,10 +116,6 @@ export function HomeScreen() {
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
   const currentSong = usePlayerStore((s) => s.currentSong)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
-  const mode = useAuthStore((s) => s.mode)
-  const displayName = useAuthStore((s) => s.displayName)
-  const email = useAuthStore((s) => s.email)
-  const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
   const offlineFiles = useOfflineAudioStore((s) => s.files)
   const actions = useSongsV2Actions()
   const catalog = useSongsV2Catalog()
@@ -164,7 +159,7 @@ export function HomeScreen() {
     }
   }, [])
 
-  const initials = MOCKUP_DATA ? "D" : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initials = useProfileInitial()
   const view = useMemo(() => buildTodayView({ recommended, recentPlays, now }), [recommended, recentPlays, now])
 
   /* --- the day and the song of the day --- */

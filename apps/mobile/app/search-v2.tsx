@@ -18,6 +18,7 @@ import { KirtanRow } from "@/components/kirtan/KirtanParts"
 import { FloatingTabBar } from "@/components/nav-v2/FloatingTabBar"
 import { chipColorsOf, StickyChipsRow } from "@/components/nav-v2/StickyChips"
 import { Toast } from "@/components/songs-v2/Toast"
+import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -37,8 +38,6 @@ import { flattenResults, sampleFlatResults } from "@/lib/searchProto"
 import { SAMPLE_OFFLINE_NUMBERS } from "@/lib/fixtures/search"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { SEARCH_BROWSE_ALL, SEARCH_DISCOVER, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
-import { memberProfileName } from "@/lib/displayName"
-import { useAuthStore } from "@/stores/authStore"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
@@ -105,13 +104,7 @@ export default function UnifiedSearchScreen() {
     [params.q, params.hint, params.focus, params.listen],
   )
 
-  const authMode = useAuthStore((st) => st.mode)
-  const authName = useAuthStore((st) => st.displayName)
-  const authEmail = useAuthStore((st) => st.email)
-  const authOverridden = useAuthStore((st) => st.displayNameOverridden)
-  const initials = MOCKUP_DATA
-    ? "D"
-    : memberProfileName({ mode: authMode, email: authEmail, displayName: authName, displayNameOverridden: authOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initials = useProfileInitial()
   const recents = usePreferencesStore((s) => s.searchRecents)
   const addSearchRecent = usePreferencesStore((s) => s.addSearchRecent)
   const clearSearchRecents = usePreferencesStore((s) => s.clearSearchRecents)

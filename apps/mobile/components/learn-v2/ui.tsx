@@ -21,6 +21,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path } from "react-native-svg"
 
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { DottedGlow } from "@/components/learn-v2/GreenPanel"
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
@@ -542,7 +543,7 @@ export function LearnHead({
         pressedScale={0.94}
         style={[styles.avatar, { backgroundColor: tone.peach }]}
       >
-        <Text style={[styles.avatarText, { color: theme.eyebrow }]}>{initials}</Text>
+        <AvatarFace initial={initials} textStyle={[styles.avatarText, { color: theme.eyebrow }]} />
       </PressBox>
     </View>
   )

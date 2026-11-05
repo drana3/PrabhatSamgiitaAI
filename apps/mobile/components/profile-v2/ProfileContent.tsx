@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Alert, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
+import { ChevronRight } from "lucide-react-native"
 import Constants from "expo-constants"
 import {
   AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
@@ -11,9 +12,12 @@ import { ConfirmSheet, type ConfirmRequest } from "@/components/profile-v2/Confi
 import { LibraryEntryRow } from "@/components/profile-v2/LibraryEntryRow"
 import { Chip, ChipRow, Group, SetRow, SheetTitle } from "@/components/profile-v2/SheetBlocks"
 import { useDownloadsStorage } from "@/components/profile-v2/useDownloadsStorage"
+import { AvatarFace } from "@/components/profile-v2/AvatarFace"
+import { TodayPress } from "@/components/today/TodayPress"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { protoFor, type AmProto } from "@/constants/tokens/amToday"
+import { useProfileIdentity, type ProfileView } from "@/hooks/useProfileIdentity"
 import { api } from "@/lib/client"
 import { companionReceivesMemberQuota } from "@/lib/chat"
 import { languageSummary } from "@/lib/languageSheet"
@@ -24,7 +28,6 @@ import { NAV_V2_TABS } from "@/lib/navV2"
 import {
   PROFILE_ROUTES,
   assistantLimitLabel,
-  buildProfileIdentity,
   reviewStyleRowValue,
   storageRowValue,
   versionLabel,
@@ -42,24 +45,34 @@ import { href } from "@/utils/href"
 
 const LEARN_HREF = NAV_V2_TABS.find((tab) => tab.id === "learn")?.href ?? "/v2/learn"
 
-/** `.avatar` at 64dp with 28dp initial, the name in `.t-h3` at 28dp capitals, the subtitle `.muted` 14 / 500. */
-function ProfileHeader({ p, initial, title, subtitle }: { p: AmProto; initial: string; title: string; subtitle: string | null }) {
+/**
+ * `.avatar` at 64dp with 28dp initial (or the person's picture), the name in `.t-h3` at 28dp capitals, the subtitle
+ * `.muted` 14 / 500. The whole block opens Edit profile.
+ */
+function ProfileHeader({ p, identity, onPress }: { p: AmProto; identity: ProfileView; onPress: () => void }) {
   return (
-    <View style={s.header}>
+    <TodayPress
+      accessibilityRole="button"
+      accessibilityLabel={`${identity.title}. Edit profile`}
+      onPress={onPress}
+      pressedScale={0.98}
+      style={s.header}
+    >
       <View style={[s.avatar, { backgroundColor: p.orange100 }]}>
-        <Text style={[s.avatarText, { color: p.orange700 }]}>{initial}</Text>
+        <AvatarFace initial={identity.initial} photoUri={identity.photoUri} size={64} textStyle={[s.avatarText, { color: p.orange700 }]} />
       </View>
       <View style={s.who}>
         <Text style={[s.name, { color: p.ink800 }]} numberOfLines={1} accessibilityRole="header">
-          {title}
+          {identity.title}
         </Text>
-        {subtitle ? (
+        {identity.subtitle ? (
           <Text style={[s.subtitle, { color: p.ink500 }]} numberOfLines={1}>
-            {subtitle}
+            {identity.subtitle}
           </Text>
         ) : null}
       </View>
-    </View>
+      <ChevronRight size={20} color={p.ink500} strokeWidth={1.9} />
+    </TodayPress>
   )
 }
 
@@ -73,7 +86,6 @@ export function useProfileContent(theme: AmTheme) {
   const p = protoFor(theme)
   const router = useRouter()
   const mode = useAuthStore((st) => st.mode)
-  const displayName = useAuthStore((st) => st.displayName)
   const email = useAuthStore((st) => st.email)
   const memberId = useAuthStore((st) => st.memberId)
   const getAccountId = useChatStore((st) => st.getAccountId)
@@ -87,10 +99,7 @@ export function useProfileContent(theme: AmTheme) {
   const remindersOn = useNotificationSettingsStore((st) => anyEnabled(st))
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
 
-  // MOCKUP_DATA: the prototype's signed-in member, so the sheet matches its boards.
-  const identity = MOCKUP_DATA
-    ? { initial: "D", title: "I M Dada", subtitle: "Signed in with Apple" }
-    : buildProfileIdentity({ mode, displayName, email })
+  const identity = useProfileIdentity()
   const signedIn = MOCKUP_DATA || mode === "signed_in"
   const accountId = getAccountId(mode, email)
   const memberQuota = companionReceivesMemberQuota({
@@ -153,7 +162,7 @@ export function useProfileContent(theme: AmTheme) {
 
   const body = (
     <>
-      <ProfileHeader p={p} initial={identity.initial} title={identity.title} subtitle={identity.subtitle} />
+      <ProfileHeader p={p} identity={identity} onPress={() => go(PROFILE_ROUTES.editProfile)} />
 
       {/* Your library: closes this sheet and opens the page, so Back returns to the screen under it */}
       <Group p={p}>
@@ -262,7 +271,7 @@ export function useProfileContent(theme: AmTheme) {
 
 const s = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 20, paddingBottom: 24 },
-  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   avatarText: { fontFamily: amFonts.bold, fontSize: 28, lineHeight: 40.6 },
   who: { flex: 1, minWidth: 0, gap: 2 },
   name: {

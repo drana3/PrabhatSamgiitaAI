@@ -42,11 +42,11 @@ import {
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import type { MockSong } from "@/data/mock"
 import { mapApiStory, type StorySummary } from "@/data/stories"
+import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { loadCatalog } from "@/lib/catalog"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { api } from "@/lib/client"
-import { memberProfileName } from "@/lib/displayName"
 import { TODAY_FIXTURE_DAYS, TODAY_FIXTURE_RECENT, TODAY_FIXTURE_SONGS } from "@/lib/fixtures/today"
 import { formatClock } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
@@ -156,9 +156,6 @@ export default function TodayScreen() {
   const duration = usePlayerStore((s) => s.duration)
   const resumeEntries = useResumeStore((s) => s.entries)
   const mode = useAuthStore((s) => s.mode)
-  const displayName = useAuthStore((s) => s.displayName)
-  const email = useAuthStore((s) => s.email)
-  const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
 
   const [today, setToday] = useState<TodayRecommendations | null>(null)
   const [recommended, setRecommended] = useState<MockSong[]>([])
@@ -194,9 +191,7 @@ export default function TodayScreen() {
   }, [])
 
   const view = useMemo(() => buildTodayView({ recommended, recentPlays, now }), [recommended, recentPlays, now])
-  const initials = MOCKUP_DATA
-    ? "D"
-    : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initials = useProfileInitial()
 
   const sample = useMemo(() => (sampleKind ? fixtureDay(sampleKind, songCount) : null), [sampleKind, songCount])
   // TODO(api): the prototype's sample story card (Main.dc.html 1085-1090) while a sample day is shown

@@ -14,12 +14,12 @@ import type { CatalogEntry } from "@/lib/songsV2/entry"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { collectionCount } from "@/data/collections"
 import { songNumbersForCategory } from "@/lib/categorySongs"
+import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useCatalogController } from "@/hooks/useCatalogController"
 import { useOfflineStorageItems } from "@/hooks/useOfflineStorageItems"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
-import { memberProfileName } from "@/lib/displayName"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { formatBytes, totalBytes } from "@/lib/storageCache"
 import { SPECIAL_TILES, tilesWithCounts } from "@/lib/songsV2/collections"
@@ -56,9 +56,6 @@ function PsSongs() {
   const actions = useSongsV2Actions()
 
   const mode = useAuthStore((s) => s.mode)
-  const displayName = useAuthStore((s) => s.displayName)
-  const email = useAuthStore((s) => s.email)
-  const displayNameOverridden = useAuthStore((s) => s.displayNameOverridden)
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const syncingFavorites = usePreferencesStore((s) => s.syncingFavorites)
   const hydrateFavorites = usePreferencesStore((s) => s.hydrateFavoritesFromServer)
@@ -83,7 +80,7 @@ function PsSongs() {
     }, [mode, hydrateFavorites, hydratePlaylists, refreshPlaylists]),
   )
 
-  const initial = MOCKUP_DATA ? "D" : memberProfileName({ mode, email, displayName, displayNameOverridden }).trim().charAt(0).toUpperCase() || "·"
+  const initial = useProfileInitial()
 
   const savedNumbers = useMemo(
     // The preview seeds the same store (lib/playerV2/demoEngine.ts), so Mine is one list everywhere.
