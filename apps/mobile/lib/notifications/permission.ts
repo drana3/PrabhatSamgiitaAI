@@ -19,3 +19,19 @@ export async function refreshPermission(): Promise<OsPermission> {
   useNotificationSettingsStore.getState().setPermission(answer)
   return answer
 }
+
+/**
+ * The moment to ask: right after the person gave the app something to remind them about, their first
+ * saved song or word card, while the OS has never been asked. Settings show "On" by default, so without
+ * this the reminders would never come until someone opened Notification settings.
+ * `previous` is the count of saved songs plus cards before the change (null before the first reading).
+ */
+export function shouldAskInContext(input: {
+  previous: number | null
+  total: number
+  permission: "unknown" | "granted" | "denied" | "undetermined"
+  master: boolean
+}): boolean {
+  if (input.previous == null || !input.master) return false
+  return input.permission === "undetermined" && input.total > input.previous
+}

@@ -16,7 +16,8 @@ import {
   nativeNotificationsAvailable,
   setBadge,
 } from "@/lib/notifications/native"
-import { refreshPermission } from "@/lib/notifications/permission"
+import { ensurePermission, refreshPermission, shouldAskInContext } from "@/lib/notifications/permission"
+import { usePreferencesStore } from "@/stores/preferencesStore"
 import {
   firedSince,
   scheduleAhead,
@@ -116,6 +117,18 @@ export function NotificationsHost() {
     const inbox = useNotificationsStore.getState()
     await setBadge(unreadCount(inbox.items, inbox.read))
   }, [input, syncInbox])
+
+  // ask for the OS permission in context: when the first song or word is saved, not at launch
+  const savedCount = usePreferencesStore((s) => s.savedSongIds.length)
+  const cardCount = useLearnStore((s) => Object.keys(s.cards).length)
+  const previousCount = useRef<number | null>(null)
+  useEffect(() => {
+    if (!hydrated) return
+    const total = savedCount + cardCount
+    const previous = previousCount.current
+    previousCount.current = total
+    if (shouldAskInContext({ previous, total, permission, master })) void ensurePermission()
+  }, [hydrated, savedCount, cardCount, permission, master])
 
   // the icon badge follows the unread count at once (Read all, opening one), not at the next reschedule
   const unread = useNotificationsStore((s) => unreadCount(s.items, s.read))
