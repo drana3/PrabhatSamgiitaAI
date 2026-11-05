@@ -8,6 +8,8 @@ export const LEARN_ROUTES = {
   words: "/learn/words",
   quiz: "/learn/quiz",
   songs: "/songs-v2",
+  /** the learner's own song list: All / Due / Learning / Learned (was the "My songs" tab) */
+  mySongs: "/learn/songs",
   stories: "/stories",
   about: "/about",
   liveQuiz: "/quiz",

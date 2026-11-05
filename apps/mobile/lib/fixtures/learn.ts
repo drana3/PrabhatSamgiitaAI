@@ -185,3 +185,10 @@ export const MOCKUP_LEARN = {
   progress: { studied: 4, wordsLearned: 6 },
   wordOfDay: "Bandhu",
 } as const
+
+/**
+ * Songs the Learn hub suggests when the learner has nothing in progress, in this order.
+ * TODO(api): the catalog has no word glosses beyond PS 1 to 7, so only these are offered.
+ * PS 1 first: it is the song of the starter word deck.
+ */
+export const LEARN_SUGGESTED_NUMBERS: readonly number[] = [1, 3, 2, 4, 5, 6, 7]
