@@ -1,5 +1,5 @@
 import { StyleSheet, Text } from "react-native"
-import { BlurView } from "expo-blur"
+import { Frost } from "@/components/common/Frost"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { TouchButton } from "@/components/player-v2/TouchButton"
@@ -35,7 +35,7 @@ export function VersionChip({
       containerStyle={styles.hit}
       style={styles.chip}
     >
-      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+      <Frost intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
       <PlayerIcon name={instrument === "voice" ? "mic" : "music"} size={16} color={amColors.white} />
       <Text style={styles.text} numberOfLines={1}>
         {text}

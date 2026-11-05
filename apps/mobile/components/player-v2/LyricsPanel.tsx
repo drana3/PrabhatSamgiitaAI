@@ -1,6 +1,6 @@
 import { memo, useEffect, useReducer, useRef, useState } from "react"
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native"
-import { BlurView } from "expo-blur"
+import { Frost } from "@/components/common/Frost"
 import { LinearGradient } from "expo-linear-gradient"
 import { useReducedMotion } from "react-native-reanimated"
 
@@ -84,7 +84,7 @@ export function LyricsPanel({
 
   return (
     <View style={styles.panel}>
-      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+      <Frost intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, styles.tint]} />
       {lines.length ? (
         <View

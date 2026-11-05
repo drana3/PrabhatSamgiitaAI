@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react"
 import { Platform, StyleSheet, Text, View, ScrollView, type TextStyle } from "react-native"
 import { Search } from "lucide-react-native"
-import { BlurView } from "expo-blur"
+import { Frost } from "@/components/common/Frost"
 import { Image } from "expo-image"
 
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
@@ -164,7 +164,7 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
           accessibilityLabel="Shrii Shrii Anandamurti"
         />
         <View style={[s.heroTag, { borderColor: p.glassEdge }]}>
-          <BlurView intensity={40} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+          <Frost intensity={40} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: p.glassStrong }]} />
           <Text style={[overStyle, { color: p.orange700 }]}>{tag}</Text>
         </View>
@@ -179,7 +179,7 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
           ink && { backgroundColor: p.ink900 },
         ]}
       >
-        {ink ? null : <BlurView intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />}
+        {ink ? null : <Frost intensity={60} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />}
         {ink ? null : (
           <View
             style={[

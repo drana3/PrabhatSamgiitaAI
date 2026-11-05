@@ -1,5 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
-import { BlurView } from "expo-blur"
+import { Frost } from "@/components/common/Frost"
 
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { TouchButton } from "@/components/player-v2/TouchButton"
@@ -36,7 +36,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
           containerStyle={styles.skipHit}
           style={styles.skip}
         >
-          <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+          <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
           <PlayerIcon name="prev" size={playerSize.driveGlyph} color={amColors.white} />
         </TouchButton>
         <TouchButton
@@ -47,7 +47,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
           containerStyle={styles.skipHit}
           style={[styles.skip, !canNext && styles.disabled]}
         >
-          <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+          <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
           <PlayerIcon name="next" size={playerSize.driveGlyph} color={amColors.white} />
         </TouchButton>
       </View>
@@ -74,7 +74,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
         containerStyle={styles.exitHit}
         style={styles.exit}
       >
-        <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+        <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
         <PlayerIcon name="drive" size={18} color={playerColors.gold} />
         <Text style={styles.exitText}>{t("player.drive.exit")}</Text>
       </TouchButton>

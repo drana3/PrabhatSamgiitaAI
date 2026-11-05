@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
-import { BlurView } from "expo-blur"
+import { Frost } from "@/components/common/Frost"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
     cancelAnimation,
@@ -181,12 +181,7 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
     <Animated.View pointerEvents={covered ? "none" : "box-none"} style={[styles.slot, { bottom: tabBottom }, coverFade]}>
       <GestureDetector gesture={pan}>
         <View style={styles.pill} collapsable={false}>
-          <BlurView
-            intensity={amNav.tabBlurIntensity}
-            tint={blurTint}
-            experimentalBlurMethod="dimezisBlurView"
-            style={[StyleSheet.absoluteFill, styles.round]}
-          />
+          <Frost intensity={amNav.tabBlurIntensity} tint={blurTint} style={[StyleSheet.absoluteFill, styles.round]} />
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.round, { backgroundColor: lightPalette.background }]} />
           <View pointerEvents="none" style={[styles.edge, { borderColor: lightPalette.edge }]} />
 
