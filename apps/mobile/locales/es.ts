@@ -762,6 +762,7 @@ export const es: Dictionary = {
   "kt.emptyList.type": "Aún no hay {what} de este tipo.",
   "kt.emptyList.length": "Aún no hay {what} de esta duración.",
   "kt.emptyList.none": "Aún no hay {what}.",
+  "kt.emptyCatalog": "Aún no hay {what}. Sé el primero en añadir uno.",
   "kt.live.today": "Hoy {time}",
   "kt.live.tomorrow": "Mañana {time}",
   "kt.live.badge": "EN VIVO",

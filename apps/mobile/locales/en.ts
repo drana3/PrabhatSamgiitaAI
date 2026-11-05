@@ -767,6 +767,7 @@ export const en = {
   "kt.emptyList.type": "No {what} of this type yet.",
   "kt.emptyList.length": "No {what} of this length yet.",
   "kt.emptyList.none": "No {what} yet.",
+  "kt.emptyCatalog": "No {what} yet. Be the first to add one.",
   "kt.live.today": "Today {time}",
   "kt.live.tomorrow": "Tomorrow {time}",
   "kt.live.badge": "LIVE",

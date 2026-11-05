@@ -83,6 +83,20 @@ export function emptyListText(type: KirtanTypeId | null, length: LengthBucketId 
 }
 
 /**
+ * What an empty catalog says (no filter is on and nothing exists yet, as in a real build before the
+ * first upload), with the Add entry shown under it: "No Kiirtans yet. Be the first to add one."
+ */
+export function emptyCatalogText(kind: KindFilter = "kiirtan"): string {
+  const what = t(kind === "all" ? "kt.what.all" : kind === "bhajan" ? "kt.what.bhajan" : "kt.what.kiirtan")
+  return t("kt.emptyCatalog", { what })
+}
+
+/** True when the list is empty because nothing exists, not because a type or length filter hides it. */
+export function isEmptyCatalog(type: KirtanTypeId | null, length: LengthBucketId | null, listLength: number): boolean {
+  return listLength === 0 && !type && !length
+}
+
+/**
  * "Bhajans for every hour": the Bhajans ordered by the hour they belong to (Morning, Evening, Devotional,
  * Other), newest first inside a type. Only approved ones are expected in `list`.
  */

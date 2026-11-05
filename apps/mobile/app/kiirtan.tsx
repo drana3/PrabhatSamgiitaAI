@@ -36,7 +36,7 @@ import { formatKirtanLength } from "@/lib/kirtan/list"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { dayNumberOf, kiirtanOfTheDay, resumeEntries, resumeLabel, resumeProgress } from "@/lib/kirtan/resume"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
-import { bhajansForEveryHour, emptyListText, isShelfChip, kindOfTabChip, KIRTAN_TAB_CHIPS, newKirtansList, parseKirtanTabChip, savedKirtans, typeCardCount, typeCards, type KirtanTabChip, type TypeCard as TypeCardData } from "@/lib/kirtan/tab"
+import { bhajansForEveryHour, emptyCatalogText, emptyListText, isEmptyCatalog, isShelfChip, kindOfTabChip, KIRTAN_TAB_CHIPS, newKirtansList, parseKirtanTabChip, savedKirtans, typeCardCount, typeCards, type KirtanTabChip, type TypeCard as TypeCardData } from "@/lib/kirtan/tab"
 import { kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
@@ -123,15 +123,31 @@ export default function KiirtanTabScreen() {
   let reveal = 0
   const next = () => Math.min(reveal++, 8)
 
-  const renderAll = () => (
+  const titleBlock = () => (
+    <Reveal index={next()} style={styles.titleBlock}>
+      <Text style={styles.h1} accessibilityRole="header">
+        <Text style={{ color: p.ink800 }}>{headFirst}</Text>
+        {"\n"}
+        <Text style={{ color: p.ink300 }}>{headSecond}</Text>
+      </Text>
+    </Reveal>
+  )
+
+  // Nothing exists yet (a real build before the first upload): say so, offer Add, show no empty shelves.
+  const renderEmptyCatalog = () => (
     <>
-      <Reveal index={next()} style={styles.titleBlock}>
-        <Text style={styles.h1} accessibilityRole="header">
-          <Text style={{ color: p.ink800 }}>{headFirst}</Text>
-          {"\n"}
-          <Text style={{ color: p.ink300 }}>{headSecond}</Text>
-        </Text>
+      {titleBlock()}
+      <Reveal index={next()} style={styles.section}>
+        <HomeEmpty p={p} text={emptyCatalogText(kind)} />
+        <View style={styles.list}>{addEntry()}</View>
       </Reveal>
+    </>
+  )
+
+  const renderAll = () =>
+    isEmptyCatalog(null, null, kindList.length) ? renderEmptyCatalog() : (
+    <>
+      {titleBlock()}
 
       {day ? (
         <Reveal index={next()}>
@@ -300,23 +316,27 @@ export default function KiirtanTabScreen() {
     </View>
   )
 
+  const addEntry = () => (
+    <KPress
+      accessibilityRole="button"
+      accessibilityLabel={t("kt.add.a11y")}
+      onPress={() => router.push(href("/add-kirtan"))}
+      pressedScale={0.98}
+      style={[styles.addCard, { borderColor: theme.accent }]}
+    >
+      <View style={[styles.addDisc, { backgroundColor: theme.peach }]}>
+        <Plus size={22} color={theme.accent} strokeWidth={2.2} />
+      </View>
+      <View style={styles.addText}>
+        <Text style={[styles.addTitle, { color: theme.textHeading }]}>{t("kt.add.title")}</Text>
+        <Text style={[styles.addSub, { color: theme.textBody }]}>{t("kt.add.sub")}</Text>
+      </View>
+    </KPress>
+  )
+
   const renderMine = () => (
     <View style={styles.list}>
-      <KPress
-        accessibilityRole="button"
-        accessibilityLabel={t("kt.add.a11y")}
-        onPress={() => router.push(href("/add-kirtan"))}
-        pressedScale={0.98}
-        style={[styles.addCard, { borderColor: theme.accent }]}
-      >
-        <View style={[styles.addDisc, { backgroundColor: theme.peach }]}>
-          <Plus size={22} color={theme.accent} strokeWidth={2.2} />
-        </View>
-        <View style={styles.addText}>
-          <Text style={[styles.addTitle, { color: theme.textHeading }]}>{t("kt.add.title")}</Text>
-          <Text style={[styles.addSub, { color: theme.textBody }]}>{t("kt.add.sub")}</Text>
-        </View>
-      </KPress>
+      {addEntry()}
       {submissions.length ? (
         submissions.map((k) => (
           <KirtanRow

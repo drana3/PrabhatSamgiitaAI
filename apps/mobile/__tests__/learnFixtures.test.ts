@@ -65,13 +65,13 @@ describe("sample quiz", () => {
 
 describe("raga and tala index", () => {
   it("lists ragas with time of day and song count", () => {
-    expect(indexRows("raga")).toHaveLength(INDEX_SUMMARY.ragas)
-    expect(indexRows("raga")[0]).toEqual({ name: "Bhairavii", meta: "Morning · 14 songs" })
+    expect(indexRows("raga", true)).toHaveLength(INDEX_SUMMARY.ragas)
+    expect(indexRows("raga", true)[0]).toEqual({ name: "Bhairavii", meta: "Morning · 14 songs" })
   })
 
   it("lists talas with beats and a falling placeholder count", () => {
-    expect(indexRows("tala")).toHaveLength(INDEX_SUMMARY.talas)
-    expect(indexRows("tala")[0]).toEqual({ name: "Keharva", meta: "8 beats · 14 songs" })
-    expect(indexRows("tala")[5]).toEqual({ name: "Tintál", meta: "16 beats · 4 songs" })
+    expect(indexRows("tala", true)).toHaveLength(INDEX_SUMMARY.talas)
+    expect(indexRows("tala", true)[0]).toEqual({ name: "Keharva", meta: "8 beats · 14 songs" })
+    expect(indexRows("tala", true)[5]).toEqual({ name: "Tintál", meta: "16 beats · 4 songs" })
   })
 })

@@ -122,8 +122,13 @@ describe("versions and download", () => {
     expect(inferInstrument("Original rendition")).toBe("voice")
   })
 
-  it("builds the list with Best on the first and the length only for the loaded one", () => {
-    const list = buildVersions(recordings, "Performer A", "https://a/1.mp3", 238)
+  it("builds the list with Best only where the API says so and the length only for the loaded one", () => {
+    const list = buildVersions(
+      recordings.map((r, i) => ({ ...r, isLatest: i === 0 })),
+      "Performer A",
+      "https://a/1.mp3",
+      238,
+    )
     expect(list).toHaveLength(2)
     expect(list[0].tag).toBe("Best")
     expect(list[0].length).toBe(238)

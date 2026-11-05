@@ -826,6 +826,7 @@ export const ru: Dictionary = {
   "kt.emptyList.type": "Пока нет {what} такого вида.",
   "kt.emptyList.length": "Пока нет {what} такой длины.",
   "kt.emptyList.none": "Пока нет {what}.",
+  "kt.emptyCatalog": "Пока нет {what}. Станьте первым, кто добавит.",
   "kt.live.today": "Сегодня {time}",
   "kt.live.tomorrow": "Завтра {time}",
   "kt.live.badge": "ЭФИР",

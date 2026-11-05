@@ -27,3 +27,16 @@ describe("invented Kiirtan content is demo-only", () => {
     expect(sampleMixes()).toEqual([])
   })
 })
+
+describe("empty Kiirtan catalog (real build)", () => {
+  it("says so honestly and points at Add", async () => {
+    const { emptyCatalogText, isEmptyCatalog } = await import("@/lib/kirtan/tab")
+    expect(emptyCatalogText()).toBe("No Kiirtans yet. Be the first to add one.")
+    expect(emptyCatalogText("bhajan")).toBe("No Bhajans yet. Be the first to add one.")
+    expect(emptyCatalogText("all")).toBe("No Kiirtans or Bhajans yet. Be the first to add one.")
+    expect(isEmptyCatalog(null, null, 0)).toBe(true)
+    expect(isEmptyCatalog("lila", null, 0)).toBe(false)
+    expect(isEmptyCatalog(null, "long", 0)).toBe(false)
+    expect(isEmptyCatalog(null, null, 3)).toBe(false)
+  })
+})
