@@ -50,6 +50,7 @@ import { hintLine, outOfRangeMessage, parseSearchParams, withoutRecent } from "@
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 /** Local results are instant; the meaning lookup waits until typing pauses. */
 const LOCAL_DEBOUNCE_MS = 40
@@ -79,6 +80,7 @@ function canSearchByMeaning(): boolean {
  * parameters `hint` (number | words | feeling), `q`, `focus` and `listen`.
  */
 export default function UnifiedSearchScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
   const p = protoFor(theme)
@@ -266,7 +268,8 @@ export default function UnifiedSearchScreen() {
   const rows = useMemo(
     // The preview searches the same bundled index as the real build: all 5,018 songs by number, title, first line and words.
     () => flattenResults(result.groups),
-    [result.groups],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` makes the "why it matched" labels follow the language
+    [result.groups, t],
   )
   const collections = useMemo(
     () => result.groups.flatMap((group) => group.collections ?? []),
@@ -280,6 +283,8 @@ export default function UnifiedSearchScreen() {
   }, [drop, reduce])
   const dropStyle = useAnimatedStyle(() => ({ opacity: drop.value, transform: [{ translateY: (1 - drop.value) * -8 }] }))
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` re-reads the scope labels when the language changes
+  const scopeItems = useMemo(() => SEARCH_SCOPES.map((item) => ({ id: item.id, label: item.label })), [t])
   const kirtanHits = useMemo(() => searchKirtans(kirtanCatalog, query, scope === "all" ? 5 : 50), [kirtanCatalog, query, scope])
   // TODO(api): artists come from the backend; today they are the preview fixtures.
   const artistHits = useMemo(() => searchArtists(ARTIST_FIXTURES, kirtanCatalog, query, 6), [kirtanCatalog, query])
@@ -290,7 +295,7 @@ export default function UnifiedSearchScreen() {
     <>
       {artistHits.length ? (
         <View style={styles.kirtanList}>
-          <Text style={[styles.groupLabel, { color: p.orange700 }]}>ARTISTS</Text>
+          <Text style={[styles.groupLabel, { color: p.orange700 }]}>{t("search.group.artists")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={styles.artistScroll} contentContainerStyle={styles.artists}>
             {artistHits.map((a) => (
               <ArtistChip key={a.id} artist={a} color={p.ink800} onPress={(id) => { remember(query); kActions.openArtist(id) }} />
@@ -300,13 +305,13 @@ export default function UnifiedSearchScreen() {
       ) : null}
       {kirtanHits.length ? (
         <View style={styles.kirtanList}>
-          <Text style={[styles.groupLabel, { color: p.orange700 }]}>KIIRTANS AND BHAJANS</Text>
+          <Text style={[styles.groupLabel, { color: p.orange700 }]}>{t("search.group.kiirtans")}</Text>
           {kirtanHits.map((k) => (
             <KirtanRow key={k.id} theme={songsTheme} kirtan={k} onOpen={(row) => { remember(query); kActions.open(row, kirtanHits, "Search") }} onOpenArtist={kActions.openArtist} />
           ))}
         </View>
       ) : scope === "kiirtan" ? (
-        <Text style={[styles.waitingText, styles.pad, { color: p.ink500, paddingHorizontal: 20 }]}>No Kiirtans or Bhajans match “{query.trim()}”.</Text>
+        <Text style={[styles.waitingText, styles.pad, { color: p.ink500, paddingHorizontal: 20 }]}>{t("search.kiirtan.none", { query: query.trim() })}</Text>
       ) : null}
     </>
   )
@@ -333,11 +338,11 @@ export default function UnifiedSearchScreen() {
         selectOnFocus={selectOnFocus}
         inputRef={inputRef}
         soft
-        placeholder="What do you want to listen to?"
+        placeholder={t("search.placeholder")}
       />
       {typing ? (
-        <TodayPress accessibilityRole="button" accessibilityLabel="Close search" onPress={() => router.back()} pressedScale={0.94} style={styles.cancel}>
-          <Text style={[styles.cancelText, { color: p.ink800 }]}>Cancel</Text>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("search.close")} onPress={() => router.back()} pressedScale={0.94} style={styles.cancel}>
+          <Text style={[styles.cancelText, { color: p.ink800 }]}>{t("common.cancel")}</Text>
         </TodayPress>
       ) : null}
     </View>
@@ -383,12 +388,12 @@ export default function UnifiedSearchScreen() {
           />
         ) : (
           <View style={styles.results}>
-            <StickyChipsRow items={SEARCH_SCOPES} value={scope} onChange={setScope} colors={chipColorsOf(p)} scrollY={chipScroll} stickAt={99999} />
+            <StickyChipsRow items={scopeItems} value={scope} onChange={setScope} colors={chipColorsOf(p)} scrollY={chipScroll} stickAt={99999} />
             {kirtanFirst ? kirtanSection : null}
             {show.stories ? (
               // TODO(api): stories are not searchable yet; this points to the list.
-              <TodayPress accessibilityRole="button" accessibilityLabel="Browse stories" onPress={() => router.push(href("/stories"))} pressedScale={0.98} style={[styles.storyNote, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-                <Text style={[styles.waitingText, { color: p.ink800 }]}>Stories are not searchable here yet. Browse all stories</Text>
+              <TodayPress accessibilityRole="button" accessibilityLabel={t("search.stories.a11y")} onPress={() => router.push(href("/stories"))} pressedScale={0.98} style={[styles.storyNote, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+                <Text style={[styles.waitingText, { color: p.ink800 }]}>{t("search.stories.note")}</Text>
               </TodayPress>
             ) : null}
             {!show.songs ? null : !MOCKUP_DATA && result.answer ? (
@@ -400,12 +405,12 @@ export default function UnifiedSearchScreen() {
             {show.songs && waitingForMeaning ? (
               <View style={styles.waiting} accessibilityLiveRegion="polite">
                 <ActivityIndicator color={p.orange500} />
-                <Text style={[styles.waitingText, { color: p.ink500 }]}>Searching by meaning…</Text>
+                <Text style={[styles.waitingText, { color: p.ink500 }]}>{t("search.byMeaning")}</Text>
               </View>
             ) : null}
             {show.songs && guestMeaning ? (
               <Text style={[styles.waitingText, styles.quiet, { color: p.ink500 }]} accessibilityLiveRegion="polite">
-                Sign in to also search songs by meaning.
+                {t("search.guest")}
               </Text>
             ) : null}
             {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={result.message === outOfRangeMessage() ? result.message : null} /> : null}

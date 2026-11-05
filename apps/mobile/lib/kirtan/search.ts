@@ -1,6 +1,7 @@
 import { artistKey, kirtansOfArtist, splitAuthors, type Artist } from "@/lib/kirtan/artists"
 import { filterByKind } from "@/lib/kirtan/kind"
 import { kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
+import { t } from "@/lib/i18n"
 
 /**
  * Search over Kiirtans, Bhajans and artists, and the result chips of the search screen. Pure, no React.
@@ -13,10 +14,10 @@ import { kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/t
  */
 
 export const SEARCH_SCOPES = [
-  { id: "all", label: "All" },
-  { id: "songs", label: "Songs" },
-  { id: "kiirtan", label: "Kiirtans & Bhajans" },
-  { id: "stories", label: "Stories" },
+  { id: "all", get label() { return t("home.filter.all") } },
+  { id: "songs", get label() { return t("tabs.songs") } },
+  { id: "kiirtan", get label() { return t("search.scope.kiirtan") } },
+  { id: "stories", get label() { return t("home.filter.stories") } },
 ] as const
 export type SearchScope = (typeof SEARCH_SCOPES)[number]["id"]
 

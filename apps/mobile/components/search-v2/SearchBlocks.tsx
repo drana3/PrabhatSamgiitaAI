@@ -7,15 +7,14 @@ import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { amProto, type AmProto } from "@/constants/tokens/amToday"
 import {
-  resultCountLabel,
   SEARCH_FEELING_CHIPS,
   SEARCH_HINT_ROWS,
   SEARCH_INTRO,
-  SEARCH_NO_MATCH,
   type FlatResult,
 } from "@/lib/searchProto"
 import type { AnswerCard as AnswerCardData, CollectionHit, SearchResultItem } from "@/lib/unifiedSearch"
 import { Clock, X } from "lucide-react-native"
+import { useT } from "@/lib/i18n"
 
 type P = { p: AmProto }
 const PRESS = 0.98
@@ -120,11 +119,12 @@ export function EmptyState({
 
 /** `.cardbtn` result: "PS 3", the title and, in orange, why it matched. */
 export function ResultCard({ p, row, offline, onOpen }: P & { row: FlatResult; offline: boolean; onOpen: (item: SearchResultItem) => void }) {
+  const t = useT()
   const { item, why } = row
   return (
     <TodayPress
       accessibilityRole="button"
-      accessibilityLabel={`PS ${item.song.number}, ${item.song.title}. ${why}`}
+      accessibilityLabel={t("search.result.a11y", { number: String(item.song.number), title: item.song.title, why })}
       onPress={() => onOpen(item)}
       pressedScale={PRESS}
       style={[s.cardBtn, { backgroundColor: p.white, borderColor: p.sand300 }]}
@@ -133,7 +133,7 @@ export function ResultCard({ p, row, offline, onOpen }: P & { row: FlatResult; o
         <Text style={[overStyle, { color: p.orange700 }]}>
           PS {item.song.number}
           {row.durationLabel ? ` · ${row.durationLabel}` : ""}
-          {offline ? " · Offline" : ""}
+          {offline ? ` · ${t("songs.offline")}` : ""}
         </Text>
         <Text style={[s.title, { color: p.ink800 }]} numberOfLines={2}>
           {readableTitle(item.song.title)}
@@ -146,10 +146,11 @@ export function ResultCard({ p, row, offline, onOpen }: P & { row: FlatResult; o
 
 /** "3 songs" heading and the list of results. */
 export function ResultList({ p, rows, offlineNumbers, onOpen }: P & { rows: FlatResult[]; offlineNumbers: ReadonlySet<number>; onOpen: (item: SearchResultItem) => void }) {
+  const t = useT()
   return (
     <View>
       <Text style={[s.count, { color: p.ink800 }]} accessibilityRole="header">
-        {resultCountLabel(rows.length)}
+        {t("search.count", { count: rows.length })}
       </Text>
       <View style={s.list}>
         {rows.map((row) => (
@@ -162,10 +163,11 @@ export function ResultList({ p, rows, offlineNumbers, onOpen }: P & { rows: Flat
 
 /** Collections whose name matches: tapping one fills the field with its name. Extra to the prototype. */
 export function CollectionChips({ p, names, onPick }: P & { names: CollectionHit[]; onPick: (label: string) => void }) {
+  const t = useT()
   return (
     <View style={s.cloud}>
       {names.map((hit) => (
-        <Chip key={hit.label} p={p} label={`${hit.label} · ${hit.count}`} accessibilityLabel={`Collection ${hit.label}, ${hit.count} songs`} onPress={() => onPick(hit.label)} />
+        <Chip key={hit.label} p={p} label={`${hit.label} · ${hit.count}`} accessibilityLabel={t("search.collection.a11y", { label: hit.label, count: hit.count })} onPress={() => onPick(hit.label)} />
       ))}
     </View>
   )
@@ -178,11 +180,12 @@ export function AnswerCard({
   onOpen,
   onAsk,
 }: P & { answer: AnswerCardData; onOpen: (item: SearchResultItem) => void; onAsk: () => void }) {
+  const t = useT()
   return (
     <View style={[s.answer, { backgroundColor: p.sage700 }]}>
-      <Text style={[overStyle, { color: "#F5C253" }]}>Answer</Text>
+      <Text style={[overStyle, { color: "#F5C253" }]}>{t("search.answer.eyebrow")}</Text>
       <Text style={s.answerLead}>
-        {answer.sources.length ? "These songs speak to what you asked." : "Ask the assistant. It answers from the songs."}
+        {answer.sources.length ? t("search.answer.lead") : t("search.answer.ask.lead")}
       </Text>
       {answer.sources.map((item) => (
         <TodayPress key={item.song.number} accessibilityRole="button" accessibilityLabel={`PS ${item.song.number}, ${item.song.title}`} onPress={() => onOpen(item)} pressedScale={PRESS} style={s.source}>
@@ -192,8 +195,8 @@ export function AnswerCard({
           </Text>
         </TodayPress>
       ))}
-      <TodayPress accessibilityRole="button" accessibilityLabel="Ask the assistant" onPress={onAsk} pressedScale={PRESS} style={[s.ask, { backgroundColor: p.action }]}>
-        <Text style={s.askText}>Ask the assistant</Text>
+      <TodayPress accessibilityRole="button" accessibilityLabel={t("search.answer.ask")} onPress={onAsk} pressedScale={PRESS} style={[s.ask, { backgroundColor: p.action }]}>
+        <Text style={s.askText}>{t("search.answer.ask")}</Text>
       </TodayPress>
     </View>
   )
@@ -201,7 +204,8 @@ export function AnswerCard({
 
 /** `.empty`: nothing matched (or a plain message from the engine). */
 export function EmptyMessage({ p, text }: P & { text?: string | null }) {
-  return <Text style={[s.empty, { color: p.ink500 }]}>{text || SEARCH_NO_MATCH}</Text>
+  const t = useT()
+  return <Text style={[s.empty, { color: p.ink500 }]}>{text || t("search.noMatch")}</Text>
 }
 
 const s = StyleSheet.create({

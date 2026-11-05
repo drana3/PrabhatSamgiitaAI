@@ -5,8 +5,8 @@ import { SearchGlyph } from "@/components/today/protoIcons"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
-import { SEARCH_INPUT_PLACEHOLDER } from "@/lib/searchProto"
 import { Mic, X } from "lucide-react-native"
+import { useT } from "@/lib/i18n"
 
 export const SEARCH_FIELD_HEIGHT = 56
 
@@ -46,6 +46,7 @@ export function SearchField({
   soft = false,
   placeholder,
 }: Props) {
+  const t = useT()
   return (
     <View style={[s.field, bare && s.fieldBare, soft && s.fieldSoft, { backgroundColor: p.white, borderColor: soft ? p.sand300 : p.ink900 }]}>
       <SearchGlyph size={20} color={p.ink500} />
@@ -54,9 +55,9 @@ export function SearchField({
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
-        placeholder={placeholder ?? SEARCH_INPUT_PLACEHOLDER}
+        placeholder={placeholder ?? t("search.placeholder.default")}
         placeholderTextColor={p.ink500}
-        accessibilityLabel="Search songs"
+        accessibilityLabel={t("search.field.a11y")}
         returnKeyType="search"
         autoCapitalize="none"
         autoCorrect={false}
@@ -67,13 +68,13 @@ export function SearchField({
         style={[s.input, bare && s.inputBare, { color: p.ink800 }]}
       />
       {value && !bare ? (
-        <TodayPress accessibilityRole="button" accessibilityLabel="Clear search" onPress={onClear} pressedScale={0.88} style={s.icon}>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("search.clear.a11y")} onPress={onClear} pressedScale={0.88} style={s.icon}>
           <X size={18} color={p.ink500} />
         </TodayPress>
       ) : null}
       {bare || (soft && !value) ? null : <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={listening ? "Stop listening" : "Search by voice"}
+        accessibilityLabel={listening ? t("search.mic.stop") : t("search.mic.start")}
         accessibilityState={{ selected: listening }}
         onPress={onMic}
         pressedScale={0.88}

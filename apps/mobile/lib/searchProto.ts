@@ -1,5 +1,6 @@
 import type { SearchGroup, SearchResultItem } from "@/lib/unifiedSearch"
 import { reasonLabel } from "@/lib/unifiedSearchQuery"
+import { t } from "@/lib/i18n"
 
 /**
  * Copy and shape of the prototype's search overlay (Main.dc.html, SEARCH OVERLAY and the
@@ -30,6 +31,11 @@ export const SEARCH_INTRO = "A number, a name or first line, or how you feel. No
 
 export const SEARCH_NO_MATCH = "No song matches that. Try the number, a word from the first line, or a feeling."
 
+/** The no-match line in the screen language. */
+export function searchNoMatch(): string {
+  return t("search.noMatch")
+}
+
 export type FlatResult = {
   item: SearchResultItem
   /** "Number match", "First line match", "Word match", "Feeling: peaceful" ... */
@@ -40,7 +46,7 @@ export type FlatResult = {
 
 /** "1 song" / "3 songs". */
 export function resultCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "song" : "songs"}`
+  return t("search.count", { count })
 }
 
 /**

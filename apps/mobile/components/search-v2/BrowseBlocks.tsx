@@ -10,6 +10,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 import type { BrowseTile, DiscoverTag } from "@/lib/fixtures/home"
 import { coverFor, stripColors } from "@/lib/homeShelves"
+import { useT } from "@/lib/i18n"
 
 type P = { p: AmProto }
 const em = (size: number, value: number) => Math.round(size * value * 100) / 100
@@ -23,17 +24,18 @@ export function SearchHeader({
   onMic,
   onClose,
 }: P & { initial: string; listening: boolean; onAvatar: () => void; onMic: () => void; onClose: () => void }) {
+  const t = useT()
   return (
     <View style={s.header}>
-      <TodayPress accessibilityRole="button" accessibilityLabel="Profile and settings" onPress={onAvatar} pressedScale={0.97} style={[s.avatar, { backgroundColor: p.dark ? p.orange100 : p.white }]}>
+      <TodayPress accessibilityRole="button" accessibilityLabel={t("profile.sheet.a11y")} onPress={onAvatar} pressedScale={0.97} style={[s.avatar, { backgroundColor: p.dark ? p.orange100 : p.white }]}>
         <AvatarFace initial={initial} textStyle={[s.avatarText, { color: p.orange700 }]} />
       </TodayPress>
       <Text style={[s.title, { color: p.ink800 }]} accessibilityRole="header">
-        Search
+        {t("home.search")}
       </Text>
       <TodayPress
         accessibilityRole="button"
-        accessibilityLabel={listening ? "Stop listening" : "Search by voice"}
+        accessibilityLabel={listening ? t("search.mic.stop") : t("search.mic.start")}
         accessibilityState={{ selected: listening }}
         onPress={onMic}
         pressedScale={0.92}
@@ -41,19 +43,63 @@ export function SearchHeader({
       >
         <Mic size={20} color={listening ? p.onAction : p.ink800} strokeWidth={1.9} />
       </TodayPress>
-      <TodayPress accessibilityRole="button" accessibilityLabel="Close search" onPress={onClose} pressedScale={0.92} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+      <TodayPress accessibilityRole="button" accessibilityLabel={t("search.close")} onPress={onClose} pressedScale={0.92} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
         <X size={20} color={p.ink800} strokeWidth={1.9} />
       </TodayPress>
     </View>
   )
 }
 
+type TileKey =
+  | "tabs.songs"
+  | "home.filter.stories"
+  | "tabs.learn"
+  | "kind.kiirtans"
+  | "search.tile.moods"
+  | "search.tile.ragas"
+  | "search.tile.festivals"
+  | "search.tile.languages"
+  | "search.tile.themes"
+  | "search.tile.instruments"
+  | "search.tile.made"
+  | "search.tile.new"
+  | "search.tile.played"
+
+const TILE_KEYS: Record<string, TileKey> = {
+  songs: "tabs.songs",
+  stories: "home.filter.stories",
+  learn: "tabs.learn",
+  kiirtans: "kind.kiirtans",
+  moods: "search.tile.moods",
+  ragas: "search.tile.ragas",
+  festivals: "search.tile.festivals",
+  languages: "search.tile.languages",
+  themes: "search.tile.themes",
+  instruments: "search.tile.instruments",
+  made: "search.tile.made",
+  new: "search.tile.new",
+  played: "search.tile.played",
+}
+
+type TagKey = "search.tag.longing" | "search.tag.devotion" | "search.tag.surrender" | "search.tag.morning" | "search.tag.kirtan"
+
+const TAG_KEYS: Record<string, TagKey> = {
+  longing: "search.tag.longing",
+  devotion: "search.tag.devotion",
+  surrender: "search.tag.surrender",
+  morning: "search.tag.morning",
+  kirtan: "search.tag.kirtan",
+}
+
 function Tile({ p, tile, height, onPress, big }: P & { tile: BrowseTile; height: number; onPress: () => void; big?: boolean }) {
+  const t = useT()
   const { bg, fg } = stripColors(tile.tone, p.dark)
+  const key = TILE_KEYS[tile.id]
+  const label = key ? t(key) : tile.label
   return (
-    <TodayPress accessibilityRole="button" accessibilityLabel={tile.label} onPress={onPress} pressedScale={0.97} style={[s.tile, { height, backgroundColor: bg }]}>
-      <Text style={[big ? s.tileLabelBig : s.tileLabel, { color: fg }]} numberOfLines={big ? 1 : 2}>
-        {tile.label}
+    <TodayPress accessibilityRole="button" accessibilityLabel={label} onPress={onPress} pressedScale={0.97} style={[s.tile, { height, backgroundColor: bg }]}>
+      <Text style={[big ? s.tileLabelBig : s.tileLabel, !big && label.split(" ").some((w) => w.length > 9) && s.tileLabelLong, { color: fg }]} numberOfLines={big ? 1 : 2}>
+        {label}
       </Text>
       <View pointerEvents="none" style={s.art}>
         <HomeCover number={tile.cover} size={big ? 74 : 64} radius={12} />
@@ -77,15 +123,17 @@ export function TileGrid({ p, tiles, big, onPick }: P & { tiles: readonly Browse
 
 /** "Discover something new": tall photo cards with a #tag over a gradient. */
 export function DiscoverShelf({ p, tags, onPick }: P & { tags: readonly DiscoverTag[]; onPick: (tag: DiscoverTag) => void }) {
+  const t = useT()
+  const tagLabel = (tg: DiscoverTag) => (TAG_KEYS[tg.id] ? t(TAG_KEYS[tg.id]) : tg.tag)
   return (
     <View style={s.discover}>
-      <HomeSectionHead p={p} eyebrow="Start from a feeling" first="Discover" second="something new" />
+      <HomeSectionHead p={p} eyebrow={t("search.discover.eyebrow")} first={t("search.discover.first")} second={t("search.discover.second")} />
       <HomeShelf itemWidth={150} gap={10}>
-        {tags.map((t) => (
-          <TodayPress key={t.id} accessibilityRole="button" accessibilityLabel={`Search ${t.tag}`} onPress={() => onPick(t)} pressedScale={0.97} style={s.tall}>
-            <HomeCover id={coverFor(t.cover)} width={150} height={214} radius={0} />
+        {tags.map((tg) => (
+          <TodayPress key={tg.id} accessibilityRole="button" accessibilityLabel={t("search.tag.a11y", { tag: tagLabel(tg) })} onPress={() => onPick(tg)} pressedScale={0.97} style={s.tall}>
+            <HomeCover id={coverFor(tg.cover)} width={150} height={214} radius={0} />
             <LinearGradient pointerEvents="none" colors={["rgba(10, 14, 8, 0.05)", "rgba(10, 14, 8, 0.82)"]} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
-            <Text style={s.tag}>{t.tag}</Text>
+            <Text style={[s.tag, tagLabel(tg).length > 9 && s.tagLong]}>{tagLabel(tg)}</Text>
           </TodayPress>
         ))}
       </HomeShelf>
@@ -95,18 +143,19 @@ export function DiscoverShelf({ p, tags, onPick }: P & { tags: readonly Discover
 
 /** Recent searches as chips (real data only). */
 export function RecentRow({ p, items, onPick, onClear }: P & { items: readonly string[]; onPick: (q: string) => void; onClear: () => void }) {
+  const t = useT()
   if (!items.length) return null
   return (
     <View style={s.recents}>
       <View style={s.recentsHead}>
-        <Text style={[overStyle, { color: p.orange700 }]}>Recent searches</Text>
-        <TodayPress accessibilityRole="button" accessibilityLabel="Clear recent searches" onPress={onClear} pressedScale={0.95} style={s.clear}>
-          <Text style={[s.clearText, { color: p.ink500 }]}>Clear</Text>
+        <Text style={[overStyle, { color: p.orange700 }]}>{t("search.recent")}</Text>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("search.recent.clear.a11y")} onPress={onClear} pressedScale={0.95} style={s.clear}>
+          <Text style={[s.clearText, { color: p.ink500 }]}>{t("common.clear")}</Text>
         </TodayPress>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.recentChips}>
         {items.map((q) => (
-          <TodayPress key={q} accessibilityRole="button" accessibilityLabel={`Search ${q}`} onPress={() => onPick(q)} pressedScale={0.95} style={[s.recent, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+          <TodayPress key={q} accessibilityRole="button" accessibilityLabel={t("search.recent.item.a11y", { query: q })} onPress={() => onPick(q)} pressedScale={0.95} style={[s.recent, { backgroundColor: p.white, borderColor: p.sand300 }]}>
             <Clock size={16} color={p.ink500} />
             <Text style={[s.recentText, { color: p.ink800 }]} numberOfLines={1}>
               {q}
@@ -139,6 +188,7 @@ export function BrowseView({
   onRecent: (q: string) => void
   onClearRecents: () => void
 }) {
+  const t = useT()
   const { width } = useWindowDimensions()
   void width
   return (
@@ -147,7 +197,7 @@ export function BrowseView({
       <TileGrid p={p} tiles={top} big onPick={onTile} />
       {discover.length ? <DiscoverShelf p={p} tags={discover} onPick={onTag} /> : null}
       <View style={s.discover}>
-        <HomeSectionHead p={p} eyebrow="Everything in the library" first="Browse" second="all" />
+        <HomeSectionHead p={p} eyebrow={t("search.browse.eyebrow")} first={t("search.browse.first")} second={t("search.browse.second")} />
         <TileGrid p={p} tiles={all} onPick={onTile} />
       </View>
     </View>
@@ -165,11 +215,15 @@ const s = StyleSheet.create({
   cell: { width: "50%", padding: 5 },
   tile: { borderRadius: 20, overflow: "hidden", padding: 14 },
   tileLabel: { fontFamily: amFonts.display, fontSize: 18, lineHeight: 22, letterSpacing: em(18, -0.01), maxWidth: "70%" },
+  // one long word (Настроения, Инструменты) must not break across lines
+  tileLabelLong: { fontSize: 15, lineHeight: 19, letterSpacing: em(15, -0.01) },
   tileLabelBig: { fontFamily: amFonts.display, fontSize: 20, lineHeight: 24, letterSpacing: em(20, -0.01), textTransform: "uppercase" },
   art: { position: "absolute", right: -10, bottom: -8, transform: [{ rotate: "22deg" }], opacity: 0.96 },
   discover: { gap: 16 },
   tall: { width: 150, height: 214, borderRadius: 22, overflow: "hidden", justifyContent: "flex-end", padding: 14 },
   tag: { fontFamily: amFonts.display, fontSize: 21, lineHeight: 24, letterSpacing: em(21, -0.01), color: "#FFFFFF" },
+  // longer words (Russian, Spanish) must fit the 122dp inside the card on one line
+  tagLong: { fontSize: 16, lineHeight: 20, letterSpacing: em(16, -0.01) },
   recents: { gap: 10 },
   recentsHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: HOME_INSET },
   clear: { height: 32, paddingHorizontal: 8, justifyContent: "center" },

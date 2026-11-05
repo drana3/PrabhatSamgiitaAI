@@ -3,6 +3,7 @@ import {
   normalizeLyricText,
   withinLyricEdits,
 } from "@prabhat/core"
+import { t } from "@/lib/i18n"
 
 /**
  * Pure logic of the unified search (spec SCR-13): what a typed query is,
@@ -211,16 +212,15 @@ export function parseSearchParams(params: SearchParams): ParsedSearchParams {
 export const SEARCH_PLACEHOLDER_V2 = "Search a number, a name or a feeling"
 export const EMPTY_SENTENCE = "A number, a name or first line, or how you feel. No need to choose first."
 
-const HINT_LINES: Record<SearchHint, string> = {
-  number: `Type a song number, ${SONG_NUMBER_MIN} to ${SONG_NUMBER_MAX}`,
-  words: "Type a line you remember, in any spelling",
-  feeling: "Say how you feel: peaceful, longing, joyful",
+function hintLineFor(hint: SearchHint): string {
+  if (hint === "number") return t("search.hint.number", { min: String(SONG_NUMBER_MIN), max: String(SONG_NUMBER_MAX) })
+  return hint === "words" ? t("search.hint.words") : t("search.hint.feeling")
 }
 
 /** The line under the field: it changes once the person types (spec SCR-13). */
 export function hintLine(query: string, hint: SearchHint | null = null): string {
-  if (query.trim()) return "Searching numbers, names, words and feelings"
-  return hint ? HINT_LINES[hint] : "Type a number, a name or how you feel"
+  if (query.trim()) return t("search.hint.searching")
+  return hint ? hintLineFor(hint) : t("search.hint.idle")
 }
 
 /* ---------- why a result matched ---------- */
@@ -233,18 +233,47 @@ export type MatchReason =
   | { kind: "meaning" }
   | { kind: "collection"; label: string }
 
+type FeelingKey =
+  | "search.feel.peaceful"
+  | "search.feel.devoted"
+  | "search.feel.longing"
+  | "search.feel.joyful"
+  | "search.feel.still"
+  | "search.feel.grateful"
+  | "search.feel.hopeful"
+  | "search.feel.sorrowful"
+  | "search.feel.awe"
+
+const FEELING_KEYS: Record<string, FeelingKey> = {
+  peaceful: "search.feel.peaceful",
+  devoted: "search.feel.devoted",
+  longing: "search.feel.longing",
+  joyful: "search.feel.joyful",
+  still: "search.feel.still",
+  grateful: "search.feel.grateful",
+  hopeful: "search.feel.hopeful",
+  sorrowful: "search.feel.sorrowful",
+  "in awe": "search.feel.awe",
+}
+
+/** The feeling's name in the screen language (the search words stay English). */
+function feelingName(label: string): string {
+  const key = FEELING_KEYS[label]
+  return key ? t(key) : label
+}
+
 export function reasonLabel(reason: MatchReason): string {
   switch (reason.kind) {
     case "number":
-      return "Number match"
+      return t("search.why.number")
     case "first_line":
-      return "First line match"
+      return t("search.why.firstLine")
     case "word":
-      return "Word match"
+      return t("search.why.word")
     case "feeling":
-      return `Feeling: ${reason.feeling}`
+      return t("search.why.feeling", { feeling: feelingName(reason.feeling) })
     case "meaning":
-      return "Meaning match"
+      return t("search.why.meaning")
     case "collection":
       return reason.label
   }
@@ -256,7 +285,7 @@ export function reasonFromHit(matchedBy: "opening_line" | "full_text" | "meaning
 }
 
 export function outOfRangeMessage(): string {
-  return `Prabhat Samgiita song numbers run from ${SONG_NUMBER_MIN} to ${SONG_NUMBER_MAX}.`
+  return t("search.outOfRange", { min: String(SONG_NUMBER_MIN), max: String(SONG_NUMBER_MAX) })
 }
 
 /* ---------- recent searches ---------- */
