@@ -208,14 +208,14 @@ export default function FeedbackScreen() {
         <SongsReveal index={5}>
           <View style={[styles.switchRow, { backgroundColor: theme.card, borderColor: theme.line }]}>
             <View style={styles.switchText}>
-              <Text style={[styles.switchTitle, { color: theme.textHeading }]}>Include app details (version, device)</Text>
+              <Text style={[styles.switchTitle, { color: theme.textHeading }]}>Include app details (version, system)</Text>
               <Text style={[styles.switchNote, { color: theme.textBody }]}>{APP_DETAILS_NOTE}</Text>
             </View>
             <Switch
               value={includeApp}
               onValueChange={setIncludeApp}
               disabled={busy}
-              accessibilityLabel="Include app details (version, device)"
+              accessibilityLabel="Include app details (version, system)"
               trackColor={{ false: theme.line, true: theme.brand }}
               thumbColor={amColors.white}
               // react-native-web draws the thumb with activeThumbColor (teal by default)

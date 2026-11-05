@@ -118,7 +118,7 @@ function osName(os: string | null | undefined): string {
 }
 
 /** What the switch explains, in one line. */
-export const APP_DETAILS_NOTE = "Sends the app version, system and phone model. Nothing else."
+export const APP_DETAILS_NOTE = "Sends the app version and the system version. Nothing else."
 
 /* Payload --------------------------------------------------------------- */
 

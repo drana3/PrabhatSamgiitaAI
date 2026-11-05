@@ -4,14 +4,18 @@ import { Platform } from "react-native"
 import { api } from "@/lib/client"
 import type { AppDetails, FeedbackRequest } from "@/lib/feedback/model"
 
-/** Version, system and phone model, for the "Include app details" switch. Read on the phone, sent only if the switch is on. */
+/**
+ * App version and system version, for the "Include app details" switch. Read on the phone, sent only if the
+ * switch is on. `device` stays null on purpose: `Constants.deviceName` is the name the owner gave the phone
+ * ("Dada's iPhone"), which is personal. TODO: send the hardware model (expo-device `Device.modelName`) once
+ * that package is added, and then say "phone model" in APP_DETAILS_NOTE again.
+ */
 export function readAppDetails(): AppDetails {
-  const constants = Constants as unknown as { deviceName?: string | null }
   return {
     appVersion: Constants.expoConfig?.version ?? null,
     os: Platform.OS,
     osVersion: Platform.OS === "web" ? null : Platform.Version,
-    device: Platform.OS === "web" ? null : (constants.deviceName ?? null),
+    device: null,
   }
 }
 
