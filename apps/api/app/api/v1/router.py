@@ -12,6 +12,8 @@ from app.api.v1.members import router as members_router
 from app.api.v1.notation import router as notation_router
 from app.api.v1.quiz_events import router as quiz_events_router
 from app.api.v1.recommendations import router as recommendations_router
+from app.api.v1.recordings import admin_router as recordings_admin_router
+from app.api.v1.recordings import router as recordings_router
 from app.api.v1.search import router as search_router
 from app.api.v1.songs import router as songs_router
 from app.api.v1.transliteration import router as transliteration_router
@@ -32,3 +34,5 @@ router.include_router(ai_router)
 router.include_router(discovery_router)
 router.include_router(admin_router)
 router.include_router(transliteration_router)
+router.include_router(recordings_router)
+router.include_router(recordings_admin_router)

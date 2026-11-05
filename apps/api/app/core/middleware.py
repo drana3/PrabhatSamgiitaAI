@@ -11,6 +11,12 @@ from starlette.types import ASGIApp
 logger = logging.getLogger(__name__)
 
 
+# The development upload endpoint of the local recording storage receives the audio file itself.
+# With R2 the phone uploads straight to the bucket and this path is never used.
+UPLOAD_PATH_PREFIX = "/api/v1/recordings/uploads/"
+UPLOAD_MAX_BYTES = 64 * 1024 * 1024
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, max_request_bytes: int) -> None:
         super().__init__(app)
@@ -19,8 +25,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_id = request.headers.get("X-Request-ID", str(uuid4()))[:128]
         content_length = request.headers.get("content-length")
+        limit = (
+            UPLOAD_MAX_BYTES
+            if request.method == "PUT" and request.url.path.startswith(UPLOAD_PATH_PREFIX)
+            else self.max_request_bytes
+        )
         try:
-            body_too_large = bool(content_length and int(content_length) > self.max_request_bytes)
+            body_too_large = bool(content_length and int(content_length) > limit)
         except ValueError:
             body_too_large = True
         if body_too_large:

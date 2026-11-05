@@ -92,6 +92,29 @@ class Settings(BaseSettings):
         alias="GOOGLE_TRANSLATE_QUOTA_PATH",
     )
 
+    # Kiirtan / Bhajan recordings (docs/kiirtan-publishing.md). No real credentials here.
+    recording_storage_backend: str = Field(default="local", alias="RECORDING_STORAGE_BACKEND")
+    recording_local_dir: str = Field(
+        default="./data/generated/recordings", alias="RECORDING_LOCAL_DIR"
+    )
+    recording_max_bytes: int = Field(default=60 * 1024 * 1024, alias="RECORDING_MAX_BYTES", ge=1024)
+    recording_signing_secret: str | None = Field(default=None, alias="RECORDING_SIGNING_SECRET")
+    recording_upload_ttl_seconds: int = Field(
+        default=900, alias="RECORDING_UPLOAD_TTL_SECONDS", ge=60, le=86_400
+    )
+    recording_terms_version: str = Field(default="2026-11", alias="RECORDING_TERMS_VERSION")
+    recording_flag_threshold: int = Field(default=3, alias="RECORDING_FLAG_THRESHOLD", ge=1)
+    recording_fpcalc_path: str = Field(default="fpcalc", alias="RECORDING_FPCALC_PATH")
+    # S3-compatible storage (Cloudflare R2). All empty until Dada creates the bucket.
+    recording_s3_endpoint: str | None = Field(default=None, alias="RECORDING_S3_ENDPOINT")
+    recording_s3_bucket: str | None = Field(default=None, alias="RECORDING_S3_BUCKET")
+    recording_s3_region: str = Field(default="auto", alias="RECORDING_S3_REGION")
+    recording_s3_access_key_id: str | None = Field(default=None, alias="RECORDING_S3_ACCESS_KEY_ID")
+    recording_s3_secret_access_key: str | None = Field(
+        default=None, alias="RECORDING_S3_SECRET_ACCESS_KEY"
+    )
+    recording_public_base_url: str | None = Field(default=None, alias="RECORDING_PUBLIC_BASE_URL")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
