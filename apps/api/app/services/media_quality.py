@@ -114,6 +114,21 @@ def merge_media(
     return sorted(rows, key=media_quality_key)
 
 
+def accepted_media(items: Iterable[Media]) -> list[Media]:
+    """The rows of a whole snapshot that a client may see, by the same rules as ``merge_media``.
+
+    Rows are grouped by song, each song is merged and status-filtered, so counts and statistics
+    (search filters, direct answers) agree with what ``CatalogService.get_media`` returns.
+    """
+    by_song: dict[int | None, list[Media]] = {}
+    for item in items:
+        by_song.setdefault(item.song_number, []).append(item)
+    rows: list[Media] = []
+    for song_rows in by_song.values():
+        rows.extend(merge_media(song_rows, ()))
+    return rows
+
+
 def is_sarkarverse_audio_url(url: str | None) -> bool:
     if not url:
         return False
