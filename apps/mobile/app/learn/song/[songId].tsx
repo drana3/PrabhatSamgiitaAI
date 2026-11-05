@@ -56,6 +56,14 @@ export default function LearnSongScreen() {
   const listed = songs.find((song) => song.songId === songId)
   const title = listed?.title ?? (number !== null ? learnSongTitle(number) : "")
   const entered = useRef(false)
+  const previousRate = useRef<number | null>(null)
+  useEffect(
+    () => () => {
+      const player = usePlayerStore.getState()
+      if (previousRate.current !== null && player.rate === SING_ALONG_RATE) player.setRate(previousRate.current)
+    },
+    [],
+  )
 
   // opening the path puts the song on the learning list, like the prototype's "Start"
   useEffect(() => {
@@ -91,8 +99,10 @@ export default function LearnSongScreen() {
 
   const listen = () => {
     mark("listen")
-    useSongPageStore.getState().setScript("roman")
+    // sing-along speed belongs to this lesson: it is put back when the lesson screen closes.
+    // (The lyrics script is the person's own setting and is left alone.)
     const player = usePlayerStore.getState()
+    if (previousRate.current === null) previousRate.current = player.rate
     player.setRate(SING_ALONG_RATE)
     void resolveSongBundle(songId)
       .then((bundle) => {

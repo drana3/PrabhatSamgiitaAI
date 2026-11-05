@@ -60,6 +60,9 @@ describe("links", () => {
     expect(songNumberFromId("ps-12")).toBe(12)
     expect(songNumberFromId("PS-7")).toBe(7)
     expect(songNumberFromId("other")).toBeNull()
+    expect(songNumberFromId("ps-99999")).toBeNull()
+    expect(songNumberFromId("ps-0")).toBeNull()
+    expect(songNumberFromId("ps-5018")).toBe(5018)
   })
 })
 

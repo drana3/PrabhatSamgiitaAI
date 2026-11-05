@@ -104,9 +104,15 @@ export function pathLinks(songId: string, songNumber: number) {
 }
 
 /** Song number from an id like "ps-12"; null for anything else. */
+/** The catalog holds PS 1 to PS 5018. */
+export const MAX_SONG_NUMBER = 5018
+
 export function songNumberFromId(songId: string): number | null {
   const match = /^ps-(\d+)$/i.exec(songId)
-  return match ? Number(match[1]) : null
+  if (!match) return null
+  // only real songs: a link such as /learn/song/ps-99999 must not put "Song 99999" on the learner's list
+  const number = Number(match[1])
+  return number >= 1 && number <= MAX_SONG_NUMBER ? number : null
 }
 
 /**
