@@ -3,12 +3,12 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import { KIRTAN_FIXTURES, KIRTAN_PENDING_FIXTURE } from "@/lib/fixtures/kirtan"
-import { addSubmission, buildSubmission, decideSubmission, withdrawSubmission, type AddResult, type SubmissionInput } from "@/lib/kirtan/submissions"
+import { addSubmission, buildSubmission, decideSubmission, submissionKey, withdrawSubmission, type AddResult, type SubmissionInput } from "@/lib/kirtan/submissions"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 /**
- * Kirtans on this phone: what the person submitted (with its review status), the kirtans they
+ * Kiirtans on this phone: what the person submitted (with its review status), the kirtans they
  * saved and the ones they reported. Stored locally first.
  * TODO(api): submissions are POSTed to the backend and their status comes back from there; an
  * admin approves or rejects them (`decide` below stands in for that). Saved ids and reports sync.
@@ -39,7 +39,7 @@ export const useKirtanStore = create<KirtanState>()(
         set({ submissions: [KIRTAN_PENDING_FIXTURE] })
       },
       submit: (input, now = Date.now()) => {
-        const result = addSubmission(get().submissions, buildSubmission(input, now), KIRTAN_FIXTURES.map((k) => k.videoId))
+        const result = addSubmission(get().submissions, buildSubmission(input, now), KIRTAN_FIXTURES.map((k) => submissionKey(k.title, k.author)))
         if (result.added) set({ submissions: result.list })
         return result
       },

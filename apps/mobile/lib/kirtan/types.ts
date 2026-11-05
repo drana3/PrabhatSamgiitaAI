@@ -1,7 +1,7 @@
 /**
- * Kirtans: devotional group chanting, shared as YouTube links and played ONLY in the official
- * YouTube embedded player. Nothing here downloads, extracts or caches YouTube audio or video.
- * Pure types and constants, no React, no I/O.
+ * Kiirtans: devotional group chanting, uploaded as audio files by their authors (and by the team).
+ * A Kiirtan plays in the same player as a Prabhat Samgiita song (lib/kirtan/track.ts), just without
+ * lyrics, words, chords or versions. Pure types and constants, no React, no I/O.
  */
 
 export const KIRTAN_TYPES = [
@@ -21,21 +21,26 @@ export type KirtanStatus = "pending" | "approved" | "rejected"
 
 export type Kirtan = {
   id: string
-  /** the 11-character YouTube video id */
-  videoId: string
   title: string
-  /** YouTube channel name (oEmbed author_name) */
+  /** performer or group, as the author wrote it */
   author: string
-  /** seconds; null while unknown (oEmbed does not give a length) */
+  /** seconds; null while unknown (the server reads it from the file after the upload) */
   durationSec: number | null
   type: KirtanTypeId
-  /** oEmbed thumbnail_url; null makes the gradient show */
+  /**
+   * The audio file the author uploaded. null for the preview samples (no real audio yet) and while a
+   * submission has only been picked on the phone. TODO(api): the upload endpoint returns the stream URL.
+   */
+  audioUrl: string | null
+  /** cover picture; null makes the type gradient show */
   thumbnailUrl: string | null
   /** display name of the person who added it */
   addedBy: string
   status: KirtanStatus
   /** ms since epoch */
   addedAt: number
+  /** how often it was played; orders the artist page's "Popular" list. TODO(api): comes from the server. */
+  plays?: number
 }
 
 export function isKirtanType(value: unknown): value is KirtanTypeId {

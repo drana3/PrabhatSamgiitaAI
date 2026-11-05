@@ -4,6 +4,7 @@ import { api } from "@/lib/client"
 import { resolvePlaybackUri } from "@/lib/offlineAudio"
 import { nextPlayableInQueue, randomPlayableSongNumber } from "@/lib/playableAudio"
 import { playlistStep } from "@/lib/playbackQueue"
+import { isKiirtanNumber, kiirtanSongForNumber } from "@/lib/kirtan/track"
 import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
 import { cacheCatalogSong } from "@/lib/playback/catalogSongCache"
 import {
@@ -33,6 +34,11 @@ function isRemoteStreamUrl(url: string | null | undefined): boolean {
  * rows often have no audioUrl until a detail fetch — that must not block offline).
  */
 export async function hydratePlayableSong(number: number, seed?: MockSong | null): Promise<MockSong | null> {
+  // A Kiirtan is a plain audio file: no catalog fetch, no offline copy lookup.
+  if (isKiirtanNumber(number)) {
+    const kiirtan = seed ?? kiirtanSongForNumber(number)
+    return kiirtan?.audioUrl?.trim() ? kiirtan : null
+  }
   let song = seed ?? null
 
   const offline = await resolvePlaybackUri(number, song?.audioUrl)

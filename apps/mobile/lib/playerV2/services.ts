@@ -1,4 +1,6 @@
 import { demoSong } from "@/lib/fixtures/playerDemo"
+import { kiirtanSongByNumber } from "@/lib/kirtan/catalog"
+import { isKiirtanNumber } from "@/lib/kirtan/track"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { hasPlayableAudio } from "@/lib/playableAudio"
 import { setTrackEndHook } from "@/lib/playback/trackEndHook"
@@ -34,7 +36,11 @@ export function realControllerDeps(): ControllerDeps {
       return { playMode: s.playMode, repeatMode: s.repeatMode, versionByNumber: s.versionByNumber }
     },
     loadSong: (song, queue, mode) => usePlayerStore.getState().loadSong(song, queue, mode),
-    loadNumber: (number) => (MOCKUP_DATA ? Promise.resolve(demoSong(number)) : hydratePlayableSong(number)),
+    loadNumber: (number) => {
+      // A Kiirtan number resolves to its track record; the engine reports a missing file itself.
+      if (isKiirtanNumber(number)) return Promise.resolve(kiirtanSongByNumber(number))
+      return MOCKUP_DATA ? Promise.resolve(demoSong(number)) : hydratePlayableSong(number)
+    },
     isPlayable: (number) => hasPlayableAudio(number),
     remember: (songNumber, versionId) => usePlayerV2Store.getState().rememberVersion(songNumber, versionId),
     seekTo: (seconds) => usePlayerStore.getState().seekTo(seconds),
@@ -87,7 +93,8 @@ export function startPlayerV2Services(): void {
   const feed = () => {
     const s = usePlayerStore.getState()
     observe({
-      songNumber: s.currentSong?.number ?? null,
+      // resume points are for Prabhat Samgiita songs only
+      songNumber: s.currentSong && s.currentSong.kind !== "kiirtan" ? s.currentSong.number : null,
       position: s.position,
       duration: s.duration,
       isPlaying: s.isPlaying,

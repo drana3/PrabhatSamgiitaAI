@@ -33,6 +33,8 @@ type Props = {
   onCreatePlaylist: (name: string) => Promise<string | null>
   onQuickStart: () => void
   onOpenDownloads: () => void
+  /** show one block only (a chip of the Songs screen); omit for all of them (/saved-v2) */
+  only?: "saved" | "playlists" | "downloaded"
 }
 
 /**
@@ -48,6 +50,8 @@ export function MineSegment(props: Props) {
   const [name, setName] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const show = (block: NonNullable<Props["only"]>) => !props.only || props.only === block
 
   const create = async () => {
     if (!name.trim() || busy) return
@@ -65,6 +69,7 @@ export function MineSegment(props: Props) {
 
   return (
     <View>
+      {show("saved") ? (
       <View style={[styles.sect, { paddingTop: 28 }]}>
         <SongsReveal index={3} style={styles.pad10}>
           <SectionHeading theme={theme} first="Saved" second={`${props.savedRows.length} ${props.savedRows.length === 1 ? "song" : "songs"}`} />
@@ -89,8 +94,10 @@ export function MineSegment(props: Props) {
           <EmptyNote theme={theme}>{saved === "loading" ? "Loading your saved songs…" : MINE_COPY.savedEmpty}</EmptyNote>
         )}
       </View>
+      ) : null}
 
-      <View style={styles.sect}>
+      {show("playlists") ? (
+      <View style={[styles.sect, props.only ? { paddingTop: 28 } : null]}>
         <SongsReveal index={5} style={styles.pad10}>
           <SectionHeading theme={theme} first="Your" second="playlists" />
         </SongsReveal>
@@ -147,6 +154,9 @@ export function MineSegment(props: Props) {
         </SongsReveal>
       </View>
 
+      ) : null}
+
+      {show("playlists") ? (
       <View style={styles.sect}>
         <SongsReveal index={8} style={styles.pad10}>
           <SectionHeading theme={theme} first="Quick" second="start" />
@@ -166,7 +176,10 @@ export function MineSegment(props: Props) {
         </SongsReveal>
       </View>
 
-      <View style={styles.sect}>
+      ) : null}
+
+      {show("downloaded") ? (
+      <View style={[styles.sect, props.only ? { paddingTop: 28 } : null]}>
         <SongsReveal index={10} style={styles.pad10}>
           <SectionHeading theme={theme} first="On this" second="phone" />
         </SongsReveal>
@@ -180,6 +193,7 @@ export function MineSegment(props: Props) {
           />
         </SongsReveal>
       </View>
+      ) : null}
     </View>
   )
 }

@@ -8,7 +8,6 @@ import type { TodayRecommendationItem, TodayRecommendations } from "@prabhat/cor
 
 import {
   HOME_INSET,
-  HomeChips,
   HomeEmpty,
   HomePagedRows,
   HomeRow,
@@ -21,6 +20,9 @@ import {
   type HomeRowData,
   type StripCardData,
 } from "@/components/home/HomeBlocks"
+import { KirtanMenuSheet } from "@/components/kirtan/KirtanMenus"
+import { KirtanRow } from "@/components/kirtan/KirtanParts"
+import { chipColorsOf, StickyChipsRow } from "@/components/nav-v2/StickyChips"
 import { RowMenuSheet } from "@/components/songs-v2/CatalogSheets"
 import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
@@ -29,6 +31,8 @@ import { songCategories } from "@/constants/categories"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useKirtanActions } from "@/hooks/useKirtanActions"
+import { useKirtans } from "@/hooks/useKirtans"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
@@ -50,6 +54,15 @@ import {
   homeSong,
 } from "@/lib/fixtures/home"
 import { HOME_FILTERS, mergeStartRows, shelvesFor, songSub, type HomeFilterId, type HomeShelfId, type StartRow } from "@/lib/homeShelves"
+import { MIX_FIXTURES } from "@/lib/fixtures/kirtan"
+import { kirtanSharePayload } from "@/lib/kirtan/share"
+import { mixCaption } from "@/lib/kirtan/mix"
+import { dayNumberOf, kiirtanOfTheDay } from "@/lib/kirtan/resume"
+import { playEverything, playKiirtans, playMix } from "@/lib/kirtan/mixPlayback"
+import type { Kirtan } from "@/lib/kirtan/types"
+import { runShare } from "@/lib/playerV2/playerActionsIO"
+import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
+import { useKirtanStore } from "@/stores/kirtanStore"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { formatClock } from "@/lib/navV2"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
@@ -68,7 +81,8 @@ import { useResumeStore } from "@/stores/resumeStore"
 import type { MockSong } from "@/data/mock"
 import { href } from "@/utils/href"
 
-const STICK = 24
+/** Row 1 (avatar, search, bell): the part of the header that scrolls away. */
+const TOP_ROW = 60
 const SECTION_GAP = 36
 const MIX_WIDTH = 250
 const STORY_WIDTH = 250
@@ -114,6 +128,10 @@ export function HomeScreen() {
   const [recommended, setRecommended] = useState<MockSong[]>([])
   const [stories, setStories] = useState<StorySummary[]>([])
   const [menu, setMenu] = useState<{ number: number; title: string } | null>(null)
+  const kActions = useKirtanActions()
+  const { playable: kirtans } = useKirtans()
+  const kSavedIds = useKirtanStore((s) => s.savedIds)
+  const [kMenu, setKMenu] = useState<Kirtan | null>(null)
 
   useEffect(() => {
     if (MOCKUP_DATA) return
@@ -210,7 +228,7 @@ export function HomeScreen() {
   )
 
   /* --- actions --- */
-  const goPlayer = () => router.navigate(href("/v2/player"))
+  const goPlayer = () => router.navigate(href("/player-v2"))
   const listen = (row: { number: number; title: string }, queue?: number[]) => {
     const song = mockSongOf(row)
     const wasPlaying = songPlayback(usePlayerStore.getState(), song).showPause
@@ -230,17 +248,41 @@ export function HomeScreen() {
     router.push(href(`/songs-v2-collection?id=${encodeURIComponent(mix.browseId)}&title=${encodeURIComponent(mix.label)}`))
   }
 
-  /* --- scroll-linked header: the page colour fades in behind the pinned top row --- */
+  /* --- Kiirtans and mixes: one queue with the songs --- */
+  const mixCards: StripCardData[] = useMemo(
+    () => MIX_FIXTURES.map((m) => ({ id: m.id, label: m.title, tone: m.tone, cover: m.cover, caption: `${mixCaption(m.items)}. ${m.blurb}` })),
+    [],
+  )
+  const kiirtanToday = useMemo(() => {
+    const first = kiirtanOfTheDay(kirtans, dayNumberOf(now.getTime()))
+    if (!first) return []
+    const rest = kirtans.filter((k) => k.id !== first.id).slice(0, 2)
+    return [first, ...rest]
+  }, [kirtans, now])
+  const playMixCard = (id: string) => {
+    const mix = MIX_FIXTURES.find((m) => m.id === id)
+    if (mix) kActions.flash(playMix(mix) ?? `Playing ${mix.title}`)
+  }
+  const onKirtanShare = async (k: Kirtan, target: ShareTargetId) => {
+    const message = shareToast(await runShare(target, kirtanSharePayload(k)))
+    if (message) kActions.flash(message)
+  }
+
+  /* --- scroll-linked header: row 1 scrolls away, the chips row sticks, its hairline fades in --- */
   const scrollY = useSharedValue(0)
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y
   })
-  const stuckStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, STICK], [0, 1], Extrapolation.CLAMP) }))
+  // The peach wash sits behind row 1 only, so it ends above the sticky chips row (no band under it) and fades as you scroll.
+  const washStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, TOP_ROW], [1, 0], Extrapolation.CLAMP) }))
+  const chipColors = chipColorsOf(p)
 
   const shelves = shelvesFor(filter)
   const has: Record<HomeShelfId, boolean> = {
     today: Boolean(hero),
     start: startRows.length > 0,
+    kmixes: true,
+    kiirtan: kiirtanToday.length > 0,
     mixes: mixes.length > 0,
     because: MOCKUP_DATA,
     trending: MOCKUP_DATA,
@@ -276,6 +318,41 @@ export function HomeScreen() {
           <Reveal key={id} index={next()} style={styles.section}>
             <HomeSectionHead p={p} eyebrow="Jump back in" first="Start" second="listening" />
             <HomePagedRows p={p} rows={startRows} onOpen={openSong} onMore={(row) => setMenu({ number: row.number, title: row.title })} />
+          </Reveal>
+        )
+      case "kmixes":
+        return (
+          <Reveal key={id} index={next()} style={styles.section}>
+            <HomeSectionHead
+              p={p}
+              eyebrow="Songs and kiirtans in one order"
+              first="Mixes"
+              second="for you"
+              action={{ label: "Shuffle everything", onPress: () => kActions.flash(playEverything() ?? "Shuffling everything") }}
+            />
+            <HomeShelf itemWidth={MIX_WIDTH}>
+              {mixCards.map((card) => (
+                <StripCard key={card.id} p={p} card={card} width={MIX_WIDTH} height={170} onPress={() => playMixCard(card.id)} />
+              ))}
+            </HomeShelf>
+          </Reveal>
+        )
+      case "kiirtan":
+        return (
+          <Reveal key={id} index={next()} style={styles.section}>
+            <HomeSectionHead p={p} eyebrow="Sung together, played in the same player" first="Kiirtan" second="for today" />
+            <View style={styles.list}>
+              {kiirtanToday.map((k) => (
+                <KirtanRow
+                  key={k.id}
+                  theme={songsTheme}
+                  kirtan={k}
+                  onOpen={(row) => kActions.flash(playKiirtans(kirtans, row.id) ?? "")}
+                  onMore={setKMenu}
+                  onOpenArtist={(a) => router.push(href(`/kirtan-artist?id=${encodeURIComponent(a)}`))}
+                />
+              ))}
+            </View>
           </Reveal>
         )
       case "mixes":
@@ -353,35 +430,32 @@ export function HomeScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: p.sand200 }]}>
-      <LinearGradient
-        pointerEvents="none"
-        colors={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]}
-        style={[styles.wash]}
-      />
+      <Animated.View pointerEvents="none" style={[styles.wash, { height: top + TOP_ROW }, washStyle]}>
+        <LinearGradient colors={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]} style={StyleSheet.absoluteFill} />
+      </Animated.View>
+      {/* The scroll area starts below the status area, so nothing scrolls under it and the sticky row needs no cap. */}
       <Animated.ScrollView
-        style={{ flex: 1, paddingTop: top }}
+        style={{ flex: 1, marginTop: top }}
         onScroll={onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[0]}
+        stickyHeaderIndices={[1]}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.sticky}>
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stuckStyle, { backgroundColor: p.dark ? "rgba(18, 17, 16, 0.96)" : "rgba(238, 233, 229, 0.96)" }]} />
-          <HomeTopRow
-            p={p}
-            initial={initials}
-            unread={unread > 0}
-            onAvatar={() => router.push(href("/profile-sheet"))}
-            onBell={() => router.push(href("/notifications"))}
-            onSearch={() => router.push(href("/search-v2?focus=1"))}
-          >
-            <HomeChips p={p} chips={HOME_FILTERS} value={filter} onChange={setFilter} />
-          </HomeTopRow>
-        </View>
+        <HomeTopRow
+          p={p}
+          initial={initials}
+          unread={unread > 0}
+          onAvatar={() => router.push(href("/profile-sheet"))}
+          onBell={() => router.push(href("/notifications"))}
+          onSearch={() => router.push(href("/search-v2?focus=1"))}
+        />
+        <StickyChipsRow items={HOME_FILTERS} value={filter} onChange={setFilter} colors={chipColors} scrollY={scrollY} stickAt={TOP_ROW} />
 
-        {visible.map((id) => section(id))}
-        {visible.length === 0 ? <HomeEmpty p={p} text="Nothing here yet." /> : null}
+        <View style={styles.shelves}>
+          {visible.map((id) => section(id))}
+          {visible.length === 0 ? <HomeEmpty p={p} text="Nothing here yet." /> : null}
+        </View>
       </Animated.ScrollView>
 
       <RowMenuSheet
@@ -394,7 +468,19 @@ export function HomeScreen() {
         onShare={actions.share}
         onClose={() => setMenu(null)}
       />
-      <Toast message={actions.toast} theme={songsTheme} />
+      <KirtanMenuSheet
+        open={Boolean(kMenu)}
+        theme={songsTheme}
+        kirtan={kMenu}
+        saved={kMenu ? kSavedIds.includes(kMenu.id) : false}
+        onPlayNext={kActions.playNext}
+        onAddToPlaylist={kActions.addToPlaylist}
+        onToggleSave={kActions.toggleSaved}
+        onShare={(k) => void onKirtanShare(k, "copy")}
+        onReport={kActions.report}
+        onClose={() => setKMenu(null)}
+      />
+      <Toast message={kActions.toast ?? actions.toast} theme={songsTheme} />
     </View>
   )
 }
@@ -403,9 +489,9 @@ type ReactNodeOrNull = React.ReactNode
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  wash: { position: "absolute", left: 0, right: 0, top: 0, height: 420 },
-  content: { paddingBottom: 200, gap: SECTION_GAP },
-  sticky: { zIndex: 9 },
+  wash: { position: "absolute", left: 0, right: 0, top: 0 },
+  content: { paddingBottom: 200 },
+  shelves: { paddingTop: 12, gap: SECTION_GAP },
   section: { gap: 16 },
   list: { paddingHorizontal: HOME_INSET, gap: 8 },
 })

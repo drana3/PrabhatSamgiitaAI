@@ -28,7 +28,7 @@ import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
 /** Where "Hear it and sing it" lands: the Player tab of the redesigned shell. */
-const PLAYER_ROUTE = "/v2/player"
+const PLAYER_ROUTE = "/player-v2"
 /** The prototype plays the song at three quarters of its speed. */
 const SING_ALONG_RATE = 0.75
 

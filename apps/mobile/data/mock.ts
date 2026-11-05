@@ -50,6 +50,13 @@ export type MockSong = {
   notationSourceUrl?: string | null
   /** True after GET /songs/{n} media has been applied. */
   mediaHydrated?: boolean
+  /**
+   * What kind of track this is. Absent means a Prabhat Samgiita song. A Kiirtan is a normal audio
+   * track of the same player (lib/kirtan/track.ts) with a synthetic `number`, no lyrics and no versions.
+   */
+  kind?: "song" | "kiirtan"
+  /** Set when kind is "kiirtan": the Kiirtan's catalog id, its type id and who added it. */
+  kiirtan?: { id: string; type: string; addedBy: string }
 }
 
 export {

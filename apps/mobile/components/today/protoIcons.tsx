@@ -52,18 +52,15 @@ export function ChevronGlyph({ size = 22, color, strokeWidth = STROKE }: IconPro
 }
 
 /** Tab bar glyphs (Main.dc.html lines 1917-1920). */
-export function TabGlyph({ name, size = 22, color }: IconProps & { name: "today" | "songs" | "player" | "learn" }) {
+export function TabGlyph({ name, size = 22, color }: IconProps & { name: "today" | "songs" | "kiirtan" | "learn" }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round">
       {name === "today" ? (
         <Path d="M3 18h18M7 18a5 5 0 0110 0M12 6v3M5.6 9.6l1.8 1.8M18.4 9.6l-1.8 1.8" />
       ) : name === "songs" ? (
         <Path d="M4 6h16M4 12h16M4 18h10" />
-      ) : name === "player" ? (
-        <>
-          <Circle cx="12" cy="12" r="9" />
-          <Path d="M10 8.5l5.5 3.5-5.5 3.5z" fill={color} stroke="none" />
-        </>
+      ) : name === "kiirtan" ? (
+        <Path d="M4 10v4M8 6.5v11M12 3.5v17M16 7v10M20 10v4" />
       ) : (
         <Path d="M12 6c-2-1.5-5-2-8-2v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14" />
       )}

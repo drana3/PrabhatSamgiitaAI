@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { amDark, amLight } from "@/constants/tokens/amColors"
 import { amNav } from "@/constants/tokens/amNav"
 import {
-  NAV_V2_MINI_EXTRA_PREFIXES,
+  NAV_V2_MINI_HIDDEN_PREFIXES,
   NAV_V2_PROFILE_SHEET_ROUTE,
   NAV_V2_TABS,
   formatClock,
@@ -11,6 +11,7 @@ import {
   indicatorXFor,
   isDarkTheme,
   miniPillPalette,
+  miniBottomFor,
   miniPlayerVisible,
   miniProgress,
   navV2Layout,
@@ -22,6 +23,7 @@ import {
   settleTabIndex,
   tabIdForPath,
   tabIndexAtX,
+  tabBarVisible,
   tabIndexForId,
   tabPillPalette,
   tabWidthFor,
@@ -29,8 +31,8 @@ import {
 
 describe("nav v2: tab config", () => {
   it("has the four tabs of spec 2.1 in order", () => {
-    expect(NAV_V2_TABS.map((t) => t.id)).toEqual(["today", "songs", "player", "learn"])
-    expect(NAV_V2_TABS.map((t) => t.label)).toEqual(["Today", "Songs", "Player", "Learn"])
+    expect(NAV_V2_TABS.map((t) => t.id)).toEqual(["today", "songs", "kiirtan", "learn"])
+    expect(NAV_V2_TABS.map((t) => t.label)).toEqual(["Today", "Songs", "Kiirtan", "Learn"])
   })
 
   it("keeps ids, screens and hrefs unique and inside the v2 shell", () => {
@@ -69,8 +71,10 @@ describe("nav v2: path matching", () => {
     expect(tabIdForPath("/today")).toBe("today")
     expect(tabIdForPath("/v2/songs")).toBe("songs")
     expect(tabIdForPath("/collections")).toBe("songs")
-    expect(tabIdForPath("/v2/player")).toBe("player")
-    expect(tabIdForPath("/player")).toBe("player")
+    expect(tabIdForPath("/v2/kiirtan")).toBe("kiirtan")
+    expect(tabIdForPath("/kirtan-artist")).toBe("kiirtan")
+    expect(tabIdForPath("/kirtan-mix")).toBe("kiirtan")
+    expect(tabIdForPath("/v2/player")).toBeNull()
     expect(tabIdForPath("/stories/abc")).toBe("learn")
     expect(tabIdForPath("/search")).toBeNull()
     expect(tabIdForPath("/")).toBeNull()
@@ -80,20 +84,24 @@ describe("nav v2: path matching", () => {
 describe("nav v2: mini-player visibility", () => {
   const visible = (pathname: string, hasSong = true) => miniPlayerVisible({ pathname, hasSong })
 
-  it("shows on Today, Songs and Learn when a song is loaded", () => {
+  it("shows on every tab when something is loaded", () => {
     expect(visible("/v2/today")).toBe(true)
     expect(visible("/v2/songs")).toBe(true)
+    expect(visible("/v2/kiirtan")).toBe(true)
     expect(visible("/v2/learn")).toBe(true)
-    expect(visible("/stories/abc")).toBe(true)
   })
 
-  it("shows on the Song page", () => {
-    expect(NAV_V2_MINI_EXTRA_PREFIXES).toContain("/song")
+  it("shows on pushed screens too (song page, stories, search, artist, mix)", () => {
     expect(visible("/song/42")).toBe(true)
+    expect(visible("/stories/abc")).toBe(true)
+    expect(visible("/search")).toBe(true)
+    expect(visible("/kirtan-artist")).toBe(true)
+    expect(visible("/kirtan-mix")).toBe(true)
   })
 
-  it("is hidden on the Player tab", () => {
-    expect(visible("/v2/player")).toBe(false)
+  it("is hidden on the full player", () => {
+    expect(NAV_V2_MINI_HIDDEN_PREFIXES).toContain("/player-v2")
+    expect(visible("/player-v2")).toBe(false)
     expect(visible("/player")).toBe(false)
   })
 
@@ -102,18 +110,32 @@ describe("nav v2: mini-player visibility", () => {
     expect(visible("/song/42", false)).toBe(false)
   })
 
-  it("is hidden on screens outside the tabs and the Song page", () => {
-    expect(visible("/search")).toBe(false)
+  it("is hidden on auth and welcome screens and the old tabs app", () => {
     expect(visible("/auth")).toBe(false)
+    expect(visible("/welcome")).toBe(false)
+    expect(visible("/signin")).toBe(false)
+    expect(visible("/")).toBe(false)
+  })
+})
+
+describe("nav v2: tab bar and pill position", () => {
+  it("the tab bar is on the four tab screens only", () => {
+    expect(tabBarVisible("/v2/today")).toBe(true)
+    expect(tabBarVisible("/v2/kiirtan")).toBe(true)
+    expect(tabBarVisible("/song/42")).toBe(false)
+    expect(tabBarVisible("/kirtan-artist")).toBe(false)
+  })
+
+  it("the pill sits above the tab bar, or above the safe area when there is none", () => {
+    expect(miniBottomFor(34, true)).toBe(navV2Layout(34).miniBottom)
+    expect(miniBottomFor(34, false)).toBe(34)
+    expect(miniBottomFor(0, false)).toBe(12)
   })
 })
 
 describe("nav v2: pill variant", () => {
-  it("turns dark only on the Player tab", () => {
-    expect(pillVariantFor("player")).toBe("dark")
-    expect(pillVariantFor("today")).toBe("light")
-    expect(pillVariantFor("songs")).toBe("light")
-    expect(pillVariantFor("learn")).toBe("light")
+  it("is one light pill on every tab", () => {
+    for (const id of ["today", "songs", "kiirtan", "learn"] as const) expect(pillVariantFor(id)).toBe("light")
   })
 })
 
@@ -238,6 +260,8 @@ describe("nav v2: mini-player text", () => {
     expect(miniProgress(5, 0)).toBe(0)
     expect(miniSubtitle({ number: 12, position: 65, duration: 271 })).toBe("PS 12 · 1:05 of 4:31")
     expect(miniSubtitle({ number: 12, position: 65, duration: 0 })).toBe("PS 12")
+    expect(miniSubtitle({ number: 1_000_000_007, position: 65, duration: 760, kind: "kiirtan" })).toBe("Kiirtan · 1:05 of 12:40")
+    expect(miniSubtitle({ number: 1_000_000_007, position: 0, duration: 0, kind: "kiirtan" })).toBe("Kiirtan")
   })
 })
 

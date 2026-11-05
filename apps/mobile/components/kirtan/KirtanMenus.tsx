@@ -18,7 +18,6 @@ type MenuProps = {
   onAddToPlaylist: (k: Kirtan) => void
   onToggleSave: (k: Kirtan) => void
   onShare: (k: Kirtan) => void
-  onOpenYouTube: (k: Kirtan) => void
   onReport: (k: Kirtan) => void
   onClose: () => void
 }
@@ -38,8 +37,8 @@ function MenuRow({ theme, label, icon, onPress }: { theme: SongsTheme; label: st
   )
 }
 
-/** The row menu of a kirtan: Play next, Add to playlist, Save, Share, Open on YouTube, Report. */
-export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddToPlaylist, onToggleSave, onShare, onOpenYouTube, onReport, onClose }: MenuProps) {
+/** The row menu of a kirtan: Play next, Add to playlist, Save, Share, Report. */
+export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddToPlaylist, onToggleSave, onShare, onReport, onClose }: MenuProps) {
   // keep the last kirtan while the sheet slides out, so its title does not vanish mid-exit
   const last = useRef<Kirtan | null>(null)
   if (kirtan) last.current = kirtan
@@ -66,7 +65,6 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
           onPress={act(onToggleSave)}
         />
         <MenuRow theme={theme} label="Share" icon={<PlayerIcon name="share" size={22} color={ink} />} onPress={act(onShare)} />
-        <MenuRow theme={theme} label="Open on YouTube" icon={<PlayerIcon name="link" size={22} color={ink} />} onPress={act(onOpenYouTube)} />
         <MenuRow theme={theme} label="Report" icon={<PlayerIcon name="flag" size={22} color={ink} />} onPress={act(onReport)} />
       </View>
     </BottomSheet>
@@ -82,7 +80,7 @@ const TARGET_ICON: Record<ShareTargetId, PlayerIconName> = {
   more: "more",
 }
 
-/** Share targets of the player's share sheet, for a link to the video on YouTube. */
+/** Share targets of the player's share sheet, for a link to the Kiirtan. */
 export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { open: boolean; theme: SongsTheme; kirtan: Kirtan | null; onShare: (k: Kirtan, target: ShareTargetId) => void; onClose: () => void }) {
   const last = useRef<Kirtan | null>(null)
   if (kirtan) last.current = kirtan
@@ -94,7 +92,7 @@ export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { op
           {shown.title}
         </Text>
       ) : null}
-      <Text style={[styles.note, { color: theme.textBody }]}>Your friends get the link to the video on YouTube.</Text>
+      <Text style={[styles.note, { color: theme.textBody }]}>Your friends get a link to this Kiirtan.</Text>
       <View style={styles.grid}>
         {SHARE_TARGETS.filter((t) => t.id !== "instagram").map((target) => (
           <KPress

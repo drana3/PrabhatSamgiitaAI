@@ -40,13 +40,13 @@ const song = (number: number, groupIndex: number, railLabel = "A"): ListRow => (
 })
 
 describe("songsSpots", () => {
-  it("places the pill, seg and strip under the 54px status area of the board", () => {
+  it("places the pill, the chips row, the shelf and the list under the 54px status area", () => {
     const s = songsSpots(54)
+    const L = SONGS_LAYOUT
     expect(s.pillTop).toBe(54 + 56 + 122)
-    expect(s.segTop).toBe(s.pillTop + 64 + 4)
-    expect(s.stripTop).toBe(s.segTop + 56 + 12)
-    expect(s.listTop).toBe(s.stripTop + 52 + 64)
-    expect(s.plainTop).toBe(s.segTop + 56)
+    expect(s.chipsTop).toBe(s.pillTop + 64 + 4)
+    expect(s.shelfTop).toBe(s.chipsTop + 56)
+    expect(s.listTop).toBe(s.shelfTop + L.shelf + L.allHead + L.listbar)
   })
 
   it("moves everything by the inset", () => {
@@ -86,7 +86,7 @@ describe("rowMetrics", () => {
 
 describe("scrollOffsetForRow", () => {
   it("lands a row right under the pinned strip and never goes negative", () => {
-    expect(scrollOffsetForRow(1000, 54)).toBe(1000 - (54 + SONGS_LAYOUT.stripPin + SONGS_LAYOUT.strip - 4))
+    expect(scrollOffsetForRow(1000, 54)).toBe(1000 - (54 + SONGS_LAYOUT.stripPin + SONGS_LAYOUT.chips - 4))
     expect(scrollOffsetForRow(20, 54)).toBe(0)
   })
 })

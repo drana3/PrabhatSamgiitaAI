@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { Image, LayoutChangeEvent, ScrollView, StyleSheet, Text, View, type FlatList } from "react-native"
+import { Image, LayoutChangeEvent, StyleSheet, Text, View, type FlatList } from "react-native"
 import { BlurView } from "expo-blur"
-import { ChevronRightGlyph, PlayGlyph, SearchGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
+import { PlayGlyph, SearchGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
 import Animated, {
   runOnJS,
   runOnUI,
@@ -12,23 +12,21 @@ import Animated, {
   useSharedValue,
   withDelay,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated"
 
 import { FastScrollRail } from "@/components/songs-v2/FastScrollRail"
+import { chipColorsOf, StickyChipsRow } from "@/components/nav-v2/StickyChips"
 import { BrandPill } from "@/components/songs-v2/primitives"
 import { Press } from "@/components/songs-v2/Press"
-import { Segmented } from "@/components/songs-v2/Segmented"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { songsAssets } from "@/constants/songsAssets"
-import { amSpring } from "@/constants/tokens/amMotion"
+import { protoFor } from "@/constants/tokens/amToday"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { listPerfProps } from "@/lib/listPerf"
 import {
-  isStripStuck,
-  railJump,
+    railJump,
   railTicks,
   rowMetrics,
   scrollOffsetForRow,
@@ -37,10 +35,8 @@ import {
   stickyY,
 } from "@/lib/songsV2/layout"
 import { RAIL, railVisible } from "@/lib/songsV2/rail"
-import type { SongSegmentId } from "@/lib/songsV2/segments"
+import { SONG_CHIPS, type SongChipId } from "@/lib/songsV2/segments"
 import type { ListRow, RailGroup } from "@/lib/songsV2/sort"
-
-export type StripItem = { id: string; label: string }
 
 export type CatalogPart = {
   rows: readonly ListRow[]
@@ -48,12 +44,6 @@ export type CatalogPart = {
   grouped: boolean
   /** the order is "Category": rail ticks are three-letter category names */
   category: boolean
-  strip: readonly StripItem[]
-  chip: string
-  onChip: (id: string) => void
-  /** the "All 68" link at the end of the strip; the prototype strip has none */
-  indexLabel?: string
-  onOpenIndex?: () => void
   sortShort: string
   onSort: () => void
   countLabel: string
@@ -72,24 +62,25 @@ type Props = {
   /** status area: 54 on the web board, the real safe-area top on a phone */
   inset: number
   total: number
-  segment: SongSegmentId
-  onSegment: (id: SongSegmentId) => void
-  savedCount: number
+  chip: SongChipId
+  onChip: (id: SongChipId) => void
   initial: string
   onOpenSearch: () => void
   onOpenProfile: () => void
   catalog: CatalogPart
-  /** Collections and Mine content */
+  /** the Collections shelf under the chips (the "All" chip) */
+  shelf: ReactNode
+  /** Saved, Downloaded and Playlists content */
   body: ReactNode
 }
 
 const AnimatedBlur = Animated.createAnimatedComponent(BlurView)
 
 /**
- * The Songs scroll surface (prototype `section.scr[aria-label="Songs"]`). One list for the three
- * segments. Above it, driven by the scroll offset and never by a timer:
+ * The Songs scroll surface (prototype `section.scr[aria-label="Songs"]`). One navigation layer: the chips
+ * row. Under "All": the Collections shelf, then "All songs" with the sort bar and the list. Above it, driven by the scroll offset and never by a timer:
  *  - the search pill sticks at the top and narrows to leave room for the avatar,
- *  - the category strip (Catalog only) sticks 64px below it, frosted once it is stuck,
+ *  - the chips row (All, Saved, Downloaded, Playlists) sticks 64px below it: opaque page colour, a hairline once content is under it,
  *  - the avatar stays put at the top right,
  *  - the A-Z rail fades in while the list scrolls.
  */
@@ -97,17 +88,18 @@ export function SongsScroller({
   theme,
   inset,
   total,
-  segment,
-  onSegment,
-  savedCount,
+  chip,
+  onChip,
   initial,
   onOpenSearch,
   onOpenProfile,
   catalog,
+  shelf,
   body,
 }: Props) {
   const openedAt = useRevealClock()
-  const isCatalog = segment === "catalog"
+  const isCatalog = chip === "all"
+  const theme_proto = protoFor(theme)
   const spots = useMemo(() => songsSpots(inset), [inset])
   const listRef = useRef<FlatList<ListRow> | null>(null)
 
@@ -118,7 +110,6 @@ export function SongsScroller({
   const contentH = useSharedValue(1)
   const viewH = useSharedValue(1)
   const stuckPill = useSharedValue(0)
-  const stuckStrip = useSharedValue(0)
   const narrow = useSharedValue(0)
   const railVis = useSharedValue(0)
   const railOn = useSharedValue(0)
@@ -133,18 +124,13 @@ export function SongsScroller({
 
   const pillPin = inset
   const stripPin = inset + L.stripPin
+  const chipColors = { ...chipColorsOf(theme_proto), page: theme.page }
 
   useAnimatedReaction(
     () => spots.pillTop - scrollY.value,
     (y) => {
       stuckPill.value = withTiming(y - pillPin <= 0.5 ? 1 : 0, { duration: 200 })
       narrow.value = withTiming(y - pillPin < L.narrowLead ? 1 : 0, { duration: 200 })
-    },
-  )
-  useAnimatedReaction(
-    () => isStripStuck(scrollY.value, spots.stripTop, L.stripPin + inset),
-    (stuck) => {
-      stuckStrip.value = withTiming(stuck ? 1 : 0, { duration: 200 })
     },
   )
 
@@ -230,9 +216,8 @@ export function SongsScroller({
   const ticks = useMemo(() => railTicks(catalog.groups, catalog.grouped, catalog.category), [catalog.groups, catalog.grouped, catalog.category])
 
   const pillSticky = useAnimatedStyle(() => ({ transform: [{ translateY: stickyY(spots.pillTop, scrollY.value, pillPin) }] }))
-  const stripSticky = useAnimatedStyle(() => ({ transform: [{ translateY: stickyY(spots.stripTop, scrollY.value, stripPin) }] }))
+  const stripSticky = useAnimatedStyle(() => ({ transform: [{ translateY: stickyY(spots.chipsTop, scrollY.value, stripPin) }] }))
   const pillFrost = useAnimatedStyle(() => ({ opacity: stuckPill.value }))
-  const stripFrost = useAnimatedStyle(() => ({ opacity: stuckStrip.value }))
   const pillWidth = useAnimatedStyle(() => ({ width: width - 20 - narrow.value * L.pillNarrow }))
 
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)
@@ -250,13 +235,17 @@ export function SongsScroller({
         <Text style={[styles.h1, { color: theme.ink300 }]}>{total.toLocaleString("en-US")}</Text>
       </SongsReveal>
       <View style={{ height: L.pillBlock + L.pillGap }} />
-      <SongsReveal index={2}>
-        <Segmented theme={theme} value={segment} onChange={onSegment} savedCount={savedCount} />
-      </SongsReveal>
+      {/* the chips row is drawn on top (sticky); this space is where it sits at rest */}
+      <View style={{ height: L.chips }} />
       {isCatalog ? (
         <>
-          <View style={{ height: L.stripGap + L.strip }} />
-          <SongsReveal index={4} style={styles.listbar}>
+          <SongsReveal index={3}>{shelf}</SongsReveal>
+          <SongsReveal index={4} style={styles.allHead}>
+            <Text style={[styles.groupTitle, { color: theme.textHeading }]} accessibilityRole="header">
+              All songs
+            </Text>
+          </SongsReveal>
+          <SongsReveal index={5} style={styles.listbar}>
             <Press
               accessibilityRole="button"
               accessibilityLabel="Sort songs"
@@ -346,23 +335,9 @@ export function SongsScroller({
           </SongsReveal>
         </Animated.View>
 
-        {isCatalog ? (
-          <Animated.View style={[styles.stripWrap, stripSticky]}>
-            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stripFrost]}>
-              <BlurView intensity={40} tint={theme.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.page, opacity: 0.88 }]} />
-              <View style={[styles.hair, { backgroundColor: theme.line }]} />
-            </Animated.View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stripIn}>
-              {catalog.strip.map((item) => (
-                <Stab key={item.id} theme={theme} label={item.label} on={catalog.chip === item.id} onPress={() => catalog.onChip(item.id)} />
-              ))}
-              {catalog.indexLabel && catalog.onOpenIndex ? (
-                <Stab theme={theme} label={catalog.indexLabel} on={false} onPress={catalog.onOpenIndex} trailing />
-              ) : null}
-            </ScrollView>
-          </Animated.View>
-        ) : null}
+        <Animated.View style={[styles.stripWrap, stripSticky]}>
+          <StickyChipsRow items={SONG_CHIPS} value={chip} onChange={onChip} colors={chipColors} scrollY={scrollY} stickAt={spots.chipsTop - stripPin} />
+        </Animated.View>
 
         <View style={[styles.avatarSlot, { top: inset + 6 }]} pointerEvents="box-none">
           <Press
@@ -394,47 +369,14 @@ export function SongsScroller({
   )
 }
 
-/** Prototype `.stab`: 52px, 15.5/700, quiet until chosen, with a 3px orange underline that grows from the middle. */
-function Stab({
-  theme,
-  label,
-  on,
-  onPress,
-  trailing,
-}: {
-  theme: SongsTheme
-  label: string
-  on: boolean
-  onPress: () => void
-  trailing?: boolean
-}) {
-  const grow = useSharedValue(on ? 1 : 0)
-  useEffect(() => {
-    grow.value = withSpring(on ? 1 : 0, amSpring.default)
-  }, [on, grow])
-  const underline = useAnimatedStyle(() => ({ transform: [{ scaleX: grow.value }] }))
-  return (
-    <Press
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected: on }}
-      onPress={onPress}
-      pressedScale={0.97}
-      style={styles.stab}
-    >
-      <Text style={[styles.stabText, { color: on ? theme.ink900 : theme.textBody }]}>{label}</Text>
-      {trailing ? <ChevronRightGlyph size={16} color={theme.textBody} /> : null}
-      <Animated.View style={[styles.stabLine, { backgroundColor: theme.brand }, underline]} />
-    </Press>
-  )
-}
-
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   head: { height: L.head, paddingHorizontal: 10, justifyContent: "center" },
   logo: { height: 36, width: 30 },
   titleBlock: { paddingTop: 12, paddingHorizontal: 10, paddingBottom: 20 },
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase", fontVariant: ["tabular-nums"] },
+  allHead: { height: L.allHead, paddingLeft: 10, justifyContent: "flex-end" },
+  groupTitle: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: -0.6, textTransform: "uppercase" },
   listbar: { height: L.listbar, flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 12, paddingBottom: 12, paddingLeft: 10, paddingRight: 32 },
   sortbtn: { height: 40, paddingLeft: 12, paddingRight: 16, borderRadius: 70, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 8 },
   sortLabel: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
@@ -449,13 +391,7 @@ const styles = StyleSheet.create({
   pillSlot: { height: 56 },
   pillfield: { height: 56, borderRadius: 70, borderWidth: 1, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 12 },
   pillText: { flex: 1, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 20 },
-  stripWrap: { position: "absolute", top: 0, left: 0, right: 0, height: L.strip, zIndex: 8 },
-  stripIn: { paddingHorizontal: 6 },
-  hair: { position: "absolute", left: 0, right: 0, bottom: 0, height: 1 },
-  stab: { height: L.strip, paddingHorizontal: 10, flexDirection: "row", alignItems: "center" },
-  stabText: { fontFamily: amFonts.bold, fontSize: 15.5, lineHeight: 20, letterSpacing: -0.08 },
-  stabChev: { marginLeft: 2 },
-  stabLine: { position: "absolute", left: 10, right: 10, bottom: 6, height: 3, borderRadius: 9999 },
+  stripWrap: { position: "absolute", top: 0, left: 0, right: 0, height: L.chips, zIndex: 8 },
   avatarSlot: { position: "absolute", right: 10, width: 44, height: 44, zIndex: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   avatarText: { fontFamily: amFonts.bold, fontSize: 18, lineHeight: 22 },

@@ -1,52 +1,70 @@
 import { isKirtanType, type Kirtan, type KirtanStatus, type KirtanTypeId } from "@/lib/kirtan/types"
-import { isVideoId } from "@/lib/kirtan/youtube"
 
 /**
- * Submissions: a person sends a public YouTube link; it waits for review.
+ * Submissions: an author uploads an audio file of a Kiirtan; it waits for review.
  * Pure transitions on a list, used by stores/kirtanStore.
- * TODO(api): POST the submission to the backend; an admin approves or rejects there.
+ * TODO(api): upload the file to the backend (multipart or a signed URL), POST the metadata; an admin
+ * approves or rejects there. Until then the file stays on the phone and only the record is kept.
  */
 
-export const CONFIRM_TEXT = "This is a public YouTube video. I am not uploading anyone's private recording."
+export const CONFIRM_TEXT = "This is my recording, or I have the rights holder's permission."
 
 export type SubmissionInput = {
-  videoId: string
+  /** name of the picked audio file, e.g. `morning-round.mp3`; null until a file is chosen */
+  fileName: string | null
+  /** where the picked file is (a local uri, or a blob url in the browser) */
+  fileUri: string | null
   title: string
-  author?: string
-  thumbnailUrl?: string | null
+  /** performer or group */
+  author: string
   type: KirtanTypeId | null
   confirmed: boolean
   addedBy: string
 }
 
-export type SubmissionError = "video" | "title" | "type" | "confirm"
+export type SubmissionError = "file" | "title" | "author" | "type" | "confirm"
 
 /** The first thing missing from the form, or null when it can be sent. Order follows the form from the top. */
 export function validateSubmission(input: SubmissionInput): SubmissionError | null {
-  if (!isVideoId(input.videoId)) return "video"
+  if (!input.fileName || !input.fileUri) return "file"
   if (!input.title.trim()) return "title"
+  if (!input.author.trim()) return "author"
   if (!input.type || !isKirtanType(input.type)) return "type"
   if (!input.confirmed) return "confirm"
   return null
 }
 
 export const SUBMISSION_ERROR_TEXT: Record<SubmissionError, string> = {
-  video: "Paste a link to a YouTube video.",
+  file: "Choose the audio file you recorded.",
   title: "Add a title.",
+  author: "Add the performer or group.",
   type: "Choose a type.",
-  confirm: "Please confirm it is a public YouTube video.",
+  confirm: "Please confirm this is your recording or you have permission.",
 }
 
-/** A new pending kirtan. The id is stable per video and time. */
+function tidy(text: string): string {
+  return text.trim().replace(/\s+/g, " ")
+}
+
+/** Same title by the same author counts as the same Kiirtan. */
+export function submissionKey(title: string, author: string): string {
+  return `${tidy(title).toLowerCase()}|${tidy(author).toLowerCase()}`
+}
+
+function slug(text: string): string {
+  return tidy(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "kiirtan"
+}
+
+/** A new pending Kiirtan. The id is stable per title and time. */
 export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
   return {
-    id: `sub-${input.videoId}-${now}`,
-    videoId: input.videoId,
-    title: input.title.trim().replace(/\s+/g, " "),
-    author: (input.author ?? "").trim(),
+    id: `sub-${slug(input.title)}-${now}`,
+    title: tidy(input.title),
+    author: tidy(input.author),
     durationSec: null,
     type: (input.type as KirtanTypeId) ?? "other",
-    thumbnailUrl: input.thumbnailUrl ?? null,
+    audioUrl: input.fileUri,
+    thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
     status: "pending",
     addedAt: now,
@@ -56,14 +74,15 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
 export type AddResult = { list: Kirtan[]; added: Kirtan | null; duplicate: Kirtan | null }
 
 /**
- * Adds a submission. The same video cannot wait twice: a pending or approved one blocks it
+ * Adds a submission. The same Kiirtan cannot wait twice: a pending or approved one blocks it
  * (a rejected one does not, so a person can try again after fixing the type).
- * `known` holds videos already in the catalog.
+ * `known` holds the submissionKey of Kiirtans already in the catalog.
  */
 export function addSubmission(list: readonly Kirtan[], next: Kirtan, known: readonly string[] = []): AddResult {
-  const duplicate = list.find((k) => k.videoId === next.videoId && k.status !== "rejected") ?? null
+  const key = submissionKey(next.title, next.author)
+  const duplicate = list.find((k) => submissionKey(k.title, k.author) === key && k.status !== "rejected") ?? null
   if (duplicate) return { list: [...list], added: null, duplicate }
-  if (known.includes(next.videoId)) {
+  if (known.includes(key)) {
     return { list: [...list], added: null, duplicate: { ...next, status: "approved" } }
   }
   return { list: [next, ...list], added: next, duplicate: null }

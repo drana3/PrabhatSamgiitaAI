@@ -10,13 +10,13 @@ import { amNav } from "@/constants/tokens/amNav"
  * (and replace the placeholder file named in `screen` under app/v2/).
  */
 
-export type NavV2TabId = "today" | "songs" | "player" | "learn"
+export type NavV2TabId = "today" | "songs" | "kiirtan" | "learn"
 
 export type NavV2Tab = {
   id: NavV2TabId
   label: string
   /** icon key, resolved to a glyph by components/nav-v2/FloatingTabBar */
-  icon: "today" | "songs" | "player" | "learn"
+  icon: "today" | "songs" | "kiirtan" | "learn"
   /** file name (without extension) under app/v2/ that renders this tab */
   screen: string
   /** route that selects this tab inside the v2 shell */
@@ -26,7 +26,9 @@ export type NavV2Tab = {
 }
 
 /**
- * The single tab-to-route mapping. Order is the order in the pill.
+ * The single tab-to-route mapping. Order is the order in the pill: Today, Songs (Prabhat Samgiita),
+ * Kiirtan, Learn. There is no Player tab: the player is the mini-player pill above the bar, which opens
+ * the full player (/player-v2).
  * `href` points inside the v2 shell (/v2/...) so the pill stays mounted;
  * app/v2/today.tsx re-exports the redesigned Today screen that lives at /today.
  */
@@ -40,7 +42,14 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
     href: "/v2/songs",
     owns: ["/v2/songs", "/songs", "/songs-v2", "/collections", "/story-sheet"],
   },
-  { id: "player", label: "Player", icon: "player", screen: "player", href: "/v2/player", owns: ["/v2/player", "/player", "/player-v2"] },
+  {
+    id: "kiirtan",
+    label: "Kiirtan",
+    icon: "kiirtan",
+    screen: "kiirtan",
+    href: "/v2/kiirtan",
+    owns: ["/v2/kiirtan", "/kiirtan", "/kirtan-mix", "/kirtan-artist", "/add-kirtan"],
+  },
   {
     id: "learn",
     label: "Learn",
@@ -54,8 +63,8 @@ export const NAV_V2_TABS: readonly NavV2Tab[] = [
 /** Name of the route that other branches build for the profile sheet (avatar button, top right of Today and Songs). */
 export const NAV_V2_PROFILE_SHEET_ROUTE = "/profile-sheet"
 
-/** Routes outside the tabs on which the mini-player is also shown (spec SCR-12: "and the Song page"). */
-export const NAV_V2_MINI_EXTRA_PREFIXES: readonly string[] = ["/song", "/song-v2"]
+/** The full player. It opens from the mini-player pill or from a Play action, never from a tab. */
+export const NAV_V2_PLAYER_ROUTE = "/player-v2"
 
 function normalisePath(pathname: string): string {
   const withoutQuery = pathname.split(/[?#]/)[0] ?? ""
@@ -85,25 +94,49 @@ export function tabIndexForId(id: NavV2TabId, tabs: readonly NavV2Tab[] = NAV_V2
 }
 
 /**
- * Mini-player rule (SCR-12): visible on Today, Songs, Learn and the Song page while
- * something is loaded; hidden on the Player tab. Anything else (search, auth ...) hides it.
+ * Routes on which the mini-player never shows: the full player itself, the welcome and sign-in flow,
+ * sheets that draw over the whole screen, forms with a keyboard, and the old (tabs) app that still
+ * carries its own mini player.
  */
-export function miniPlayerVisible(
-  input: { pathname: string; hasSong: boolean },
-  tabs: readonly NavV2Tab[] = NAV_V2_TABS,
-  extraPrefixes: readonly string[] = NAV_V2_MINI_EXTRA_PREFIXES,
-): boolean {
+export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = [
+  "/player-v2",
+  "/player",
+  "/welcome",
+  "/auth",
+  "/signin",
+  "/complete-profile",
+  "/profile-sheet",
+  "/script-translations",
+  "/review-style",
+  "/add-kirtan",
+  "/feedback",
+]
+
+/** Paths of the old (tabs) navigator, which draws its own mini player. */
+export const NAV_V2_LEGACY_PATHS: readonly string[] = ["/", "/songs", "/ai", "/saved", "/profile"]
+
+/**
+ * Mini-player rule: one pill above the tab bar on EVERY screen (tabs and pushed screens) while
+ * something is loaded; nothing loaded, no pill. Hidden on the full player, auth/welcome, full-screen
+ * sheets and the old (tabs) app.
+ */
+export function miniPlayerVisible(input: { pathname: string; hasSong: boolean }): boolean {
   if (!input.hasSong) return false
-  const tab = tabIdForPath(input.pathname, tabs)
-  if (tab === "player") return false
-  if (tab) return true
-  return extraPrefixes.some((prefix) => pathHasPrefix(input.pathname, prefix))
+  const path = normalisePath(input.pathname)
+  if (NAV_V2_LEGACY_PATHS.includes(path)) return false
+  return !NAV_V2_MINI_HIDDEN_PREFIXES.some((prefix) => pathHasPrefix(path, prefix))
 }
 
-/** The tab pill turns dark on the Player tab (SCR-12). */
+/** Is the floating tab bar on screen? Only the four tab screens of the v2 shell carry it. */
+export function tabBarVisible(pathname: string, tabs: readonly NavV2Tab[] = NAV_V2_TABS): boolean {
+  const path = normalisePath(pathname)
+  return tabs.some((tab) => path === tab.href)
+}
+
+/** The tab pill is one light pill on every tab. */
 export type PillVariant = "light" | "dark"
-export function pillVariantFor(active: NavV2TabId): PillVariant {
-  return active === "player" ? "dark" : "light"
+export function pillVariantFor(_active: NavV2TabId): PillVariant {
+  return "light"
 }
 
 /* ---------- gesture maths ---------- */
@@ -178,6 +211,15 @@ export function releaseSpringKind(velocity: number): "default" | "fling" {
   return Math.abs(velocity) > NAV_V2_FLING_VELOCITY ? "fling" : "default"
 }
 
+/**
+ * Bottom offset of the mini-player: above the tab pill on a tab screen, above the bottom safe area
+ * on a pushed screen that has no tab bar.
+ */
+export function miniBottomFor(safeBottom: number, withTabBar: boolean): number {
+  const { tabBottom, miniBottom } = navV2Layout(safeBottom)
+  return withTabBar ? miniBottom : tabBottom
+}
+
 /** Vertical layout of the two pills for a given bottom safe-area inset. */
 export function navV2Layout(safeBottom: number): {
   tabBottom: number
@@ -245,9 +287,9 @@ export function miniProgress(position: number, duration: number): number {
   return clamp(position / duration, 0, 1)
 }
 
-/** `PS 12 · 1:05 of 4:31`; the total is left out while the duration is unknown. */
-export function miniSubtitle(input: { number: number | string; position: number; duration: number }): string {
-  const head = `PS ${input.number}`
+/** `PS 12 · 1:05 of 4:31`, or `Kiirtan · 1:05 of 12:40`; the total is left out while the duration is unknown. */
+export function miniSubtitle(input: { number: number | string; position: number; duration: number; kind?: "song" | "kiirtan" }): string {
+  const head = input.kind === "kiirtan" ? "Kiirtan" : `PS ${input.number}`
   if (!(input.duration > 0)) return head
   return `${head} · ${formatClock(input.position)} of ${formatClock(input.duration)}`
 }

@@ -55,7 +55,7 @@ export function HomeCover({
 
 /* ------------------------------------------------------------------ top row */
 
-/** `.avatar`, bell on the right. A small orange dot says something is unread. */
+/** Row 1, scrolls away: avatar on the left, search and bell on the right, nothing between. A small orange dot says something is unread. */
 export function HomeTopRow({
   p,
   initial,
@@ -63,8 +63,7 @@ export function HomeTopRow({
   onAvatar,
   onBell,
   onSearch,
-  children,
-}: P & { initial: string; unread: boolean; onAvatar: () => void; onBell: () => void; onSearch: () => void; children: ReactNode }) {
+}: P & { initial: string; unread: boolean; onAvatar: () => void; onBell: () => void; onSearch: () => void }) {
   return (
     <View style={s.topRow}>
       <TodayPress
@@ -76,7 +75,7 @@ export function HomeTopRow({
       >
         <Text style={[s.avatarText, { color: p.orange700 }]}>{initial}</Text>
       </TodayPress>
-      <View style={s.chipsSlot}>{children}</View>
+      <View style={s.spacer} />
       <TodayPress accessibilityRole="search" accessibilityLabel="Search" onPress={onSearch} pressedScale={PRESS} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
         <Search size={20} color={p.ink800} strokeWidth={1.9} />
       </TodayPress>
@@ -126,17 +125,30 @@ export function HomeChips<T extends string>({
 /* ---------------------------------------------------------------- section head */
 
 /** Eyebrow, then the two-tone capitals heading. */
-export function HomeSectionHead({ p, eyebrow, first, second }: P & { eyebrow: string; first: string; second: string }) {
+export function HomeSectionHead({ p, eyebrow, first, second, action }: P & { eyebrow: string; first: string; second: string; action?: { label: string; onPress: () => void } }) {
   return (
-    <View style={s.head}>
-      <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
-        {eyebrow}
-      </Text>
-      <Text style={s.h2} accessibilityRole="header">
-        <Text style={{ color: p.ink800 }}>{first}</Text>
-        {"\n"}
-        <Text style={{ color: p.ink300 }}>{second}</Text>
-      </Text>
+    <View style={s.headRow}>
+      <View style={s.head}>
+        <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
+          {eyebrow}
+        </Text>
+        <Text style={s.h2} accessibilityRole="header">
+          <Text style={{ color: p.ink800 }}>{first}</Text>
+          {"\n"}
+          <Text style={{ color: p.ink300 }}>{second}</Text>
+        </Text>
+      </View>
+      {action ? (
+        <TodayPress
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
+          onPress={action.onPress}
+          pressedScale={0.95}
+          style={[s.action, { backgroundColor: p.orange500 }]}
+        >
+          <Text style={s.actionText}>{action.label}</Text>
+        </TodayPress>
+      ) : null}
     </View>
   )
 }
@@ -355,7 +367,7 @@ export function HomeEmpty({ p, text }: P & { text: string }) {
 
 const s = StyleSheet.create({
   topRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: HOME_INSET - 4, paddingRight: HOME_INSET - 4, paddingTop: 6, paddingBottom: 10 },
-  chipsSlot: { flex: 1, minWidth: 0 },
+  spacer: { flex: 1 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   avatarText: { fontFamily: amFonts.display, fontSize: 18, lineHeight: 26 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
@@ -363,7 +375,10 @@ const s = StyleSheet.create({
   chips: { gap: 8, paddingHorizontal: 4, alignItems: "center" },
   chip: { height: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1, justifyContent: "center" },
   chipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
-  head: { paddingHorizontal: HOME_INSET, gap: 6 },
+  headRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingRight: HOME_INSET },
+  head: { flex: 1, minWidth: 0, paddingHorizontal: HOME_INSET, gap: 6 },
+  action: { height: 36, paddingHorizontal: 14, borderRadius: 70, justifyContent: "center" },
+  actionText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18, color: "#1E1E1E" },
   h2: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: em(30, -0.02), textTransform: "uppercase" },
   today: { marginHorizontal: HOME_INSET - 10, height: 232, borderRadius: 30, overflow: "hidden", padding: 16, justifyContent: "space-between" },
   todayTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },

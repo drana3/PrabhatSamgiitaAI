@@ -16,7 +16,7 @@ import {
   tilesWithCounts,
 } from "@/lib/songsV2/collections"
 import { buildSavedRows, downloadsSummary, MINE_COPY, playlistEyebrow, sectionState } from "@/lib/songsV2/mine"
-import { indicatorOffset, parseSegment, segmentCellWidth, segmentIndex, SONG_SEGMENTS } from "@/lib/songsV2/segments"
+import { isSongChip, legacySourceRedirect, parseSongChip, SONG_CHIPS } from "@/lib/songsV2/segments"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 
 function item(label: string, category: string, count: number): CollectionItem {
@@ -106,23 +106,25 @@ describe("Mine", () => {
   })
 })
 
-describe("segments", () => {
-  it("has Catalog, Collections, Mine", () => {
-    expect(SONG_SEGMENTS.map((s) => s.label)).toEqual(["Catalog", "Collections", "Mine"])
-    expect(segmentIndex("mine")).toBe(2)
+describe("song chips (one navigation layer)", () => {
+  it("has All, Saved, Downloaded, Playlists", () => {
+    expect(SONG_CHIPS.map((c) => c.label)).toEqual(["All", "Saved", "Downloaded", "Playlists"])
+    expect(isSongChip("saved")).toBe(true)
+    expect(isSongChip("kirtan")).toBe(false)
   })
-  it("places the indicator and clamps while dragging", () => {
-    expect(segmentCellWidth(300, 3)).toBe(98)
-    expect(indicatorOffset(1, 300, 3)).toBe(101)
-    expect(indicatorOffset(-1, 300, 3)).toBe(3)
-    expect(indicatorOffset(9, 300, 3)).toBe(3 + 2 * 98)
-    expect(indicatorOffset(0.5, 300)).toBe(50)
+  it("parses the query parameter and keeps old links working", () => {
+    expect(parseSongChip("downloaded")).toBe("downloaded")
+    expect(parseSongChip(["playlists"])).toBe("playlists")
+    expect(parseSongChip("mine")).toBe("saved")
+    expect(parseSongChip("collections")).toBe("all")
+    expect(parseSongChip("zzz")).toBe("all")
+    expect(parseSongChip(undefined)).toBe("all")
   })
-  it("parses the query parameter", () => {
-    expect(parseSegment("mine")).toBe("mine")
-    expect(parseSegment(["collections"])).toBe("collections")
-    expect(parseSegment("zzz")).toBe("catalog")
-    expect(parseSegment(undefined)).toBe("catalog")
+  it("sends the removed Kirtan and Mixes sources to the Kiirtan tab", () => {
+    expect(legacySourceRedirect("kirtan")).toBe("/v2/kiirtan")
+    expect(legacySourceRedirect(["mixes"])).toBe("/v2/kiirtan")
+    expect(legacySourceRedirect("ps")).toBeNull()
+    expect(legacySourceRedirect(undefined)).toBeNull()
   })
 })
 

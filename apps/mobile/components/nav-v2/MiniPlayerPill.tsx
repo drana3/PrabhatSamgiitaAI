@@ -1,21 +1,32 @@
-import { useEffect } from "react"
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
+import { useCallback, useEffect } from "react"
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 import { BlurView } from "expo-blur"
 import { useRouter } from "expo-router"
 import { CirclePlus } from "lucide-react-native"
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated"
+import { scheduleOnRN } from "react-native-worklets"
 
+import { HomeCover } from "@/components/home/HomeBlocks"
+import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { useSheetCover } from "@/components/nav-v2/sheetCover"
 import { PressScale } from "@/components/today/motion"
-import { amReveal, amSpring } from "@/constants/tokens/amMotion"
+import { amReveal, amSpring, projectMomentum } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
 import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
-import { miniProgress, miniSubtitle, navV2Layout, isDarkTheme } from "@/lib/navV2"
+import { miniProgress, miniSubtitle, isDarkTheme, rubberBand } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
+import { useKirtanStore } from "@/stores/kirtanStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
 
@@ -30,27 +41,37 @@ const MINI_PALETTE = {
 
 /** Distance the pill travels when it appears or leaves. */
 const SLIDE = 16
+/** Finger travel before a drag counts, and how far a drag must carry (after momentum) to act. */
+const DRAG_SLOP = 8
+const OPEN_DISTANCE = 72
+const SWIPE_DISTANCE = 84
+const COVER = 44
 
 type Props = {
-  /** from miniPlayerVisible(): route rule plus "a song is loaded" */
+  /** from miniPlayerVisible(): route rule plus "something is loaded" */
   visible: boolean
-  /** tap on the title area: switch to the Player tab */
+  /** distance of the pill from the bottom of the screen (above the tab bar, or above the safe area) */
+  bottom: number
+  /** tap on the text, or a drag upwards: open the full player */
   onOpenPlayer: () => void
 }
 
 /**
- * Mini-player as a second pill above the tab pill (spec 4a design plan, SCR-12):
- * matte frosted and translucent, white at 38% with a 24px blur (forest at 42% in Dark).
- * It stays mounted and enters and leaves with opacity and a small rise on a spring that
- * starts from the current on-screen value, so a quick tab change never makes it jump.
+ * The persistent mini-player: ONE pill above the tab bar (or above the bottom edge on screens with no tab
+ * bar), on every screen while something is loaded. Cover, title, subtitle, save, play/pause and a thin
+ * orange progress line on its lower edge. Tap the text or drag the pill up to open the full player; drag
+ * it left or right for next / previous.
+ *
+ * Motion: the drag follows the finger 1:1 (rubber band against the direction that does nothing), the
+ * landing point is the momentum projection of the release velocity, and the pill springs from where it is
+ * on screen, so every movement can be interrupted. Only transform and opacity animate. With Reduce
+ * Motion the pill just fades and the drag still works but nothing springs.
  */
-export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
+export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   const theme = useAmTheme()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
   const palette = MINI_PALETTE[isDarkTheme(theme) ? "dark" : "light"]
-  const { miniBottom } = navV2Layout(insets.bottom)
 
   const currentSong = usePlayerStore((s) => s.currentSong)
   const position = usePlayerStore((s) => s.position)
@@ -60,6 +81,10 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
   const togglePlay = usePlayerStore((s) => s.togglePlay)
   const pause = usePlayerStore((s) => s.pause)
   const next = usePlayerStore((s) => s.next)
+  const previous = usePlayerStore((s) => s.previous)
+  const isKiirtan = currentSong?.kind === "kiirtan"
+  const kiirtanId = currentSong?.kiirtan?.id ?? null
+  const kiirtanSaved = useKirtanStore((s) => (kiirtanId ? s.savedIds.includes(kiirtanId) : false))
 
   // A bottom sheet covers the mini player, as in the prototype.
   const covered = useSheetCover((s) => s.count > 0)
@@ -69,87 +94,156 @@ export function MiniPlayerPill({ visible, onOpenPlayer }: Props) {
     shown.value = reduce ? withTiming(target, { duration: amReveal.durationMs / 2 }) : withSpring(target, amSpring.default)
   }, [visible, covered, reduce, shown])
 
+  const dx = useSharedValue(0)
+  const dy = useSharedValue(0)
+  const axis = useSharedValue(0) // 0 undecided, 1 vertical, 2 horizontal
+
+  const goNext = useCallback(() => next(), [next])
+  const goPrevious = useCallback(() => previous(), [previous])
+
+  const settle = (value: { value: number }, velocity: number) => {
+    "worklet"
+    value.value = reduce ? 0 : withSpring(0, { ...(Math.abs(velocity) > 500 ? amSpring.fling : amSpring.default), velocity })
+  }
+
+  const drag = Gesture.Pan()
+    .activeOffsetY([-DRAG_SLOP, DRAG_SLOP])
+    .activeOffsetX([-DRAG_SLOP, DRAG_SLOP])
+    .onStart(() => {
+      "worklet"
+      // take over from wherever the pill is on screen right now (it may still be springing back)
+      cancelAnimation(dx)
+      cancelAnimation(dy)
+      axis.value = 0
+    })
+    .onUpdate((event) => {
+      "worklet"
+      if (axis.value === 0) axis.value = Math.abs(event.translationY) > Math.abs(event.translationX) ? 1 : 2
+      if (axis.value === 1) {
+        // up is 1:1; down meets a rubber band
+        dy.value = rubberBand(event.translationY, -400, 0, 120)
+      } else {
+        dx.value = rubberBand(event.translationX, -140, 140, 160)
+      }
+    })
+    .onEnd((event) => {
+      "worklet"
+      if (axis.value === 1) {
+        const landing = projectMomentum(event.translationY, event.velocityY)
+        const open = landing < -OPEN_DISTANCE
+        settle(dy, event.velocityY)
+        if (open) scheduleOnRN(onOpenPlayer)
+      } else {
+        const landing = projectMomentum(event.translationX, event.velocityX)
+        settle(dx, event.velocityX)
+        if (landing < -SWIPE_DISTANCE) scheduleOnRN(goNext)
+        else if (landing > SWIPE_DISTANCE) scheduleOnRN(goPrevious)
+      }
+      axis.value = 0
+    })
+    .onFinalize((_event, success) => {
+      "worklet"
+      if (success) return
+      settle(dx, 0)
+      settle(dy, 0)
+    })
+
   const animated = useAnimatedStyle(() => ({
     opacity: shown.value,
-    transform: [{ translateY: reduce ? 0 : (1 - shown.value) * SLIDE }],
+    transform: [
+      { translateX: dx.value },
+      { translateY: (reduce ? 0 : (1 - shown.value) * SLIDE) + dy.value },
+    ],
   }))
 
   if (!currentSong) return null
 
   const progress = miniProgress(position, duration)
   const blurTint = isDarkTheme(theme) ? "dark" : "light"
+  const onSave = () => {
+    if (isKiirtan && kiirtanId) useKirtanStore.getState().toggleSaved(kiirtanId)
+    else router.push(href(`/playlist/add?song=${currentSong.number}`))
+  }
+  const saveLabel = isKiirtan
+    ? kiirtanSaved
+      ? `Remove ${currentSong.title} from saved`
+      : `Save ${currentSong.title}`
+    : `Save ${currentSong.title} to a playlist`
 
   return (
     <Animated.View
       pointerEvents={visible && !covered ? "box-none" : "none"}
       aria-hidden={!visible}
-      style={[styles.slot, { bottom: miniBottom }, animated]}
+      style={[styles.slot, { bottom }, animated]}
     >
-      <View style={[styles.pill, { backgroundColor: palette.background, borderColor: palette.edge }]}>
-        <BlurView
-          intensity={amNav.miniBlurIntensity}
-          tint={blurTint}
-          experimentalBlurMethod="dimezisBlurView"
-          style={StyleSheet.absoluteFill}
-        />
-        <View pointerEvents="none" style={[styles.highlight, { backgroundColor: palette.highlight }]} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open the player, ${currentSong.title}`}
-          onPress={onOpenPlayer}
-          style={styles.text}
-        >
-          <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
-            {currentSong.title}
-          </Text>
-          <Text style={[styles.sub, { color: theme.textBody }]} numberOfLines={1}>
-            {miniSubtitle({ number: currentSong.number, position, duration })}
-          </Text>
-        </Pressable>
-
-        <PressScale
-          accessibilityRole="button"
-          accessibilityLabel={`Save ${currentSong.title} to a playlist`}
-          onPress={() => router.push(href(`/playlist/add?song=${currentSong.number}`))}
-          style={styles.control}
-        >
-          <CirclePlus size={24} color={theme.textHeading} strokeWidth={1.8} />
-        </PressScale>
-        <PressScale
-          accessibilityRole="button"
-          accessibilityLabel={showPause ? `Pause ${currentSong.title}` : `Play ${currentSong.title}`}
-          onPress={() => {
-            if (showPause) pause()
-            else togglePlay()
-          }}
-          style={[styles.control, { backgroundColor: theme.brand }]}
-        >
-          {isBuffering ? (
-            <ActivityIndicator color={theme.onBrand} size="small" />
-          ) : showPause ? (
-            <PlayerIcon name="pause" size={22} color={theme.onBrand} />
-          ) : (
-            <PlayerIcon name="play" size={22} color={theme.onBrand} />
-          )}
-        </PressScale>
-        <PressScale
-          accessibilityRole="button"
-          accessibilityLabel="Next song"
-          onPress={() => next()}
-          style={styles.control}
-        >
-          <PlayerIcon name="next" size={22} color={theme.textHeading} />
-        </PressScale>
-
-        <View pointerEvents="none" style={styles.track}>
-          <View
-            style={[
-              styles.bar,
-              { backgroundColor: theme.brand, transform: [{ scaleX: Math.max(progress, 0.0001) }] },
-            ]}
+      <GestureDetector gesture={drag}>
+        <View style={[styles.pill, { backgroundColor: palette.background, borderColor: palette.edge }]} collapsable={false}>
+          <BlurView
+            intensity={amNav.miniBlurIntensity}
+            tint={blurTint}
+            experimentalBlurMethod="dimezisBlurView"
+            style={StyleSheet.absoluteFill}
           />
+          <View pointerEvents="none" style={[styles.highlight, { backgroundColor: palette.highlight }]} />
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={`Open the player, ${currentSong.title}`}
+            onPress={onOpenPlayer}
+            pressedScale={0.985}
+            style={styles.main}
+          >
+            <View style={styles.cover}>
+              {isKiirtan ? (
+                <KiirtanCover type={currentSong.kiirtan?.type} coverUrl={currentSong.thumbnailUrl || null} width={COVER} height={COVER} radius={12} glyph={22} />
+              ) : (
+                <HomeCover number={currentSong.number} size={COVER} radius={12} />
+              )}
+            </View>
+            <View style={styles.text}>
+              <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
+                {currentSong.title}
+              </Text>
+              <Text style={[styles.sub, { color: theme.textBody }]} numberOfLines={1}>
+                {miniSubtitle({ number: currentSong.number, position, duration, kind: isKiirtan ? "kiirtan" : "song" })}
+              </Text>
+            </View>
+          </PressScale>
+
+          <PressScale accessibilityRole="button" accessibilityLabel={saveLabel} onPress={onSave} style={styles.control}>
+            {isKiirtan && kiirtanSaved ? (
+              <PlayerIcon name="check" size={22} color={theme.brand} />
+            ) : (
+              <CirclePlus size={24} color={theme.textHeading} strokeWidth={1.8} />
+            )}
+          </PressScale>
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={showPause ? `Pause ${currentSong.title}` : `Play ${currentSong.title}`}
+            onPress={() => {
+              if (showPause) pause()
+              else togglePlay()
+            }}
+            style={[styles.control, { backgroundColor: theme.brand }]}
+          >
+            {isBuffering ? (
+              <ActivityIndicator color={theme.onBrand} size="small" />
+            ) : showPause ? (
+              <PlayerIcon name="pause" size={22} color={theme.onBrand} />
+            ) : (
+              <PlayerIcon name="play" size={22} color={theme.onBrand} />
+            )}
+          </PressScale>
+
+          <View pointerEvents="none" style={styles.track}>
+            <View
+              style={[
+                styles.bar,
+                { backgroundColor: theme.brand, transform: [{ scaleX: Math.max(progress, 0.0001) }] },
+              ]}
+            />
+          </View>
         </View>
-      </View>
+      </GestureDetector>
     </Animated.View>
   )
 }
@@ -168,13 +262,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingLeft: 24,
+    paddingLeft: 10,
     paddingRight: 8,
   },
-  text: {
+  main: {
     flex: 1,
     minWidth: 0,
     minHeight: amTouchTarget,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  cover: { width: COVER, height: COVER, borderRadius: 12, overflow: "hidden" },
+  text: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: "center",
   },
   title: {

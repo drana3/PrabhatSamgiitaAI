@@ -1,5 +1,6 @@
 import playableNumbers from "@/assets/playable-audio-numbers.json"
 import { DEMO_CATALOG_COUNT, demoNumbers } from "@/lib/fixtures/playerDemo"
+import { isKiirtanNumber, kiirtanHasAudio } from "@/lib/kirtan/track"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 const PLAYABLE = new Set(playableNumbers as number[])
@@ -14,6 +15,8 @@ function fallbackRandom(exclude: number, total = 5018): number {
 }
 
 export function hasPlayableAudio(number: number): boolean {
+  // A Kiirtan plays its uploaded file; the preview simulates playback, so every Kiirtan "has audio" there.
+  if (isKiirtanNumber(number)) return MOCKUP_DATA || kiirtanHasAudio(number)
   if (MOCKUP_DATA) return number >= 1 && number <= DEMO_CATALOG_COUNT
   return PLAYABLE.has(number)
 }

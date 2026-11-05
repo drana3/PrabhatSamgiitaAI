@@ -7,17 +7,19 @@
 export const HOME_FILTERS = [
   { id: "all", label: "All" },
   { id: "songs", label: "Songs" },
+  { id: "kiirtan", label: "Kiirtan" },
   { id: "stories", label: "Stories" },
   { id: "learn", label: "Learn" },
   { id: "downloaded", label: "Downloaded" },
 ] as const
 export type HomeFilterId = (typeof HOME_FILTERS)[number]["id"]
 
-export type HomeShelfId = "today" | "start" | "mixes" | "because" | "trending" | "stories" | "learn" | "downloaded"
+export type HomeShelfId = "today" | "start" | "kmixes" | "kiirtan" | "mixes" | "because" | "trending" | "stories" | "learn" | "downloaded"
 
 const SHELVES: Record<HomeFilterId, readonly HomeShelfId[]> = {
-  all: ["today", "start", "mixes", "because", "trending", "stories", "learn"],
+  all: ["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "learn"],
   songs: ["today", "start", "mixes", "because", "trending"],
+  kiirtan: ["kiirtan", "kmixes"],
   stories: ["stories"],
   learn: ["learn"],
   downloaded: ["downloaded"],

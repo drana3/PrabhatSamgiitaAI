@@ -44,12 +44,16 @@ let lastTick = 0
 const player = usePlayerStore
 
 function demoDuration(song: MockSong): number {
+  // a Kiirtan has one recording: its own length (12 minutes when the sample has none)
+  if (song.kind === "kiirtan") return song.durationSeconds > 0 ? song.durationSeconds : 720
   const index = Math.max(0, demoVersionIndex(song.audioUrl))
   return demoVersionSeconds(song.number, index)
 }
 
 /** The song with the design's content and the version that was asked for (or remembered). */
 function prepare(song: MockSong): MockSong {
+  // A Kiirtan keeps its own record (no lyrics, no versions); the clock simulates the missing audio.
+  if (song.kind === "kiirtan") return song
   let index = demoVersionIndex(song.audioUrl)
   if (index < 0) {
     const remembered = usePlayerV2Store.getState().versionByNumber[String(song.number)]

@@ -1,9 +1,9 @@
-import { useEffect, useMemo } from "react"
+import { useMemo } from "react"
 import { FlatList, StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { HomeCover } from "@/components/home/HomeBlocks"
-import { KirtanRow, KirtanScreenHead, PlayFilled, PsTag, ChevronGlyph } from "@/components/kirtan/KirtanParts"
+import { ChevronGlyph, KirtanRow, PlayFilled, PsTag } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { Toast } from "@/components/songs-v2/Toast"
@@ -14,16 +14,14 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { MIX_FIXTURES } from "@/lib/fixtures/kirtan"
 import { formatKirtanLength } from "@/lib/kirtan/list"
-import { handoffAfter, mixCaption, playableItems, runFrom, songRunFinished, type MixItem } from "@/lib/kirtan/mix"
-import { newSession, startMixItem } from "@/lib/kirtan/mixPlayback"
-import { useKirtanPlayerStore } from "@/stores/kirtanPlayerStore"
-import { usePlayerStore } from "@/stores/playerStore"
+import { mixCaption, playableItems, type MixItem } from "@/lib/kirtan/mix"
+import { playMix } from "@/lib/kirtan/mixPlayback"
 import { href } from "@/utils/href"
 
 /**
- * One mix: songs (muted `PS 3` label) and kirtans (orange `KIRTAN` label) in one order. Play starts
- * at the first item; a tap starts the mix from that row. Songs play in the song player, kirtans in
- * the kirtan player, and when one kind ends the other player opens. That hand-over is not gapless.
+ * One mix: songs (muted `PS 3` label) and Kiirtans (orange `KIIRTAN` label) in one order. Play starts
+ * at the first item and a tap starts from that row. Every item goes into the ONE queue of the ONE
+ * player, so song, Kiirtan, song plays through with no hand-over.
  */
 export default function KirtanMixScreen() {
   const router = useRouter()
@@ -35,32 +33,14 @@ export default function KirtanMixScreen() {
   const mix = useMemo(() => MIX_FIXTURES.find((m) => m.id === params.id) ?? null, [params.id])
   const items = useMemo(() => (mix ? playableItems(mix.items, byId) : []), [mix, byId])
 
-  const navigate = (path: string) => router.push(href(path))
   const play = (index: number) => {
-    if (!mix || !items[index]) return
-    startMixItem(navigate, newSession(mix, items, index), index)
-  }
-
-  // When the last song of a run ends, open the kirtan player for what follows (best effort, see the report).
-  useEffect(() => {
     if (!mix) return
-    let handed = false
-    const check = () => {
-      const session = useKirtanPlayerStore.getState().mix
-      if (handed || !session || session.mixId !== mix.id) return
-      if (!songRunFinished(session, usePlayerStore.getState())) return
-      const run = runFrom(session.items, session.index)
-      if (!run) return
-      const after = handoffAfter(session.items, run.end)
-      handed = true
-      if (after.action === "done") {
-        useKirtanPlayerStore.getState().endMix()
-        return
-      }
-      startMixItem((path) => router.replace(href(path)), session, after.index)
-    }
-    return usePlayerStore.subscribe(check)
-  }, [mix, router])
+    // `index` counts the playable items; map it back to the mix's own order for playMix.
+    const item = items[index]
+    const at = item ? mix.items.indexOf(item) : 0
+    const message = playMix(mix, Math.max(0, at))
+    if (message) actions.flash(message)
+  }
 
   if (!mix) {
     return (
@@ -79,10 +59,13 @@ export default function KirtanMixScreen() {
         <KirtanRow
           theme={theme}
           kirtan={k}
-          onOpen={() => {
-            play(index)
-          }}
-          trailing={<View style={styles.trail}><PlayerIcon name="play" size={18} color={theme.textBody} /></View>}
+          onOpen={() => play(index)}
+          onOpenArtist={actions.openArtist}
+          trailing={
+            <View style={styles.trail}>
+              <PlayerIcon name="play" size={18} color={theme.textBody} />
+            </View>
+          }
         />
       )
     }
@@ -121,13 +104,23 @@ export default function KirtanMixScreen() {
           <View>
             <View style={{ height: top }} />
             <View style={styles.back}>
-              <KPress accessibilityRole="button" accessibilityLabel="Back to Mixes" onPress={() => (router.canGoBack() ? router.back() : router.replace(href("/v2/songs?source=mixes")))} pressedScale={0.9} style={[styles.backDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
+              <KPress
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                onPress={() => (router.canGoBack() ? router.back() : router.replace(href("/v2/today")))}
+                pressedScale={0.9}
+                style={[styles.backDisc, { backgroundColor: theme.card, borderColor: theme.line }]}
+              >
                 <View style={styles.flip}>
                   <ChevronGlyph color={theme.textHeading} />
                 </View>
               </KPress>
             </View>
-            <KirtanScreenHead theme={theme} title={mix.title} logo={false} />
+            <View style={styles.titleBlock}>
+              <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
+                {mix.title}
+              </Text>
+            </View>
             <View style={styles.meta}>
               <Text style={[styles.over, { color: theme.accent }]}>{mixCaption(items)}</Text>
               <Text style={[styles.blurb, { color: theme.textBody }]}>{mix.blurb}</Text>
@@ -135,7 +128,6 @@ export default function KirtanMixScreen() {
                 <PlayFilled size={18} color="#FFFFFF" />
                 <Text style={styles.playText}>Play</Text>
               </KPress>
-              <Text style={[styles.note, { color: theme.textBody }]}>Songs play in the song player, kiirtans in the YouTube player. The other player opens when it is its turn, with a short pause between.</Text>
             </View>
           </View>
         }
@@ -152,17 +144,18 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { alignItems: "center", justifyContent: "center" },
   empty: { fontFamily: amFonts.medium, fontSize: 16 },
-  content: { paddingHorizontal: 10, paddingBottom: 120 },
+  content: { paddingHorizontal: 10, paddingBottom: 190 },
   sep: { height: 10 },
   back: { paddingHorizontal: 10, paddingBottom: 4 },
   backDisc: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   flip: { transform: [{ scaleX: -1 }] },
+  titleBlock: { paddingTop: 12, paddingHorizontal: 10, paddingBottom: 12 },
+  h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
   meta: { paddingHorizontal: 10, paddingBottom: 18, gap: 10 },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase" },
   blurb: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 23 },
   playBtn: { height: 52, borderRadius: 70, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4 },
   playText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
-  note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   row: { minHeight: 84, borderRadius: 20, borderWidth: 1, flexDirection: "row", alignItems: "center", paddingRight: 4 },
   mainOuter: { flex: 1, minWidth: 0 },
   main: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingLeft: 10 },

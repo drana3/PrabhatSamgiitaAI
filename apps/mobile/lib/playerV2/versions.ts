@@ -20,7 +20,7 @@ export type PlayerVersion = {
   offlineAllowed: boolean
 }
 
-type SongVersionSource = Pick<MockSong, "number" | "audioUrl" | "audioRecordings">
+type SongVersionSource = Pick<MockSong, "number" | "audioUrl" | "audioRecordings"> & Partial<Pick<MockSong, "kind">>
 
 const GENERIC_TITLE = /^(?:audio|recording|track)?\s*\d*$/i
 
@@ -63,6 +63,8 @@ function performerFor(title: string | null | undefined, index: number): string {
  * changes; every screen reads `PlayerVersion[]`.
  */
 export function versionsFromSong(song: SongVersionSource): PlayerVersion[] {
+  // A Kiirtan is one uploaded file: no versions, no version chip, no "all versions" mode.
+  if (song.kind === "kiirtan") return []
   // Web preview with prototype data: the six sample versions of the design.
   if (MOCKUP_DATA && isDemoUrl(song.audioUrl)) return demoVersions(song.number)
   const seen = new Set<string>()

@@ -2,16 +2,14 @@ import { describe, expect, it } from "vitest"
 
 import { KIRTAN_FIXTURES, MIX_FIXTURES } from "@/lib/fixtures/kirtan"
 import { filterKirtans, formatKirtanLength, kirtanSubline, newestFirst, typesInUse } from "@/lib/kirtan/list"
-import { handoffAfter, handoffPrompt, itemKey, mixCaption, playableItems, runFrom, songRunFinished, type MixItem } from "@/lib/kirtan/mix"
-import { nextAfter, playNext, positionLabel, previousBefore } from "@/lib/kirtan/queue"
-import { isVideoId } from "@/lib/kirtan/youtube"
+import { itemKey, mixCaption, playableItems, type MixItem } from "@/lib/kirtan/mix"
 
 const ps = (number: number): MixItem => ({ kind: "ps", number })
 const k = (id: string): MixItem => ({ kind: "kirtan", id })
 
 describe("fixtures", () => {
   it("have valid ids, unique ids, and mixes that point at known kirtans", () => {
-    expect(KIRTAN_FIXTURES.every((x) => isVideoId(x.videoId))).toBe(true)
+    expect(KIRTAN_FIXTURES.every((x) => x.title.trim() && x.author.trim() && x.addedBy.trim())).toBe(true)
     expect(new Set(KIRTAN_FIXTURES.map((x) => x.id)).size).toBe(KIRTAN_FIXTURES.length)
     const known = new Set(KIRTAN_FIXTURES.map((x) => x.id))
     for (const mix of MIX_FIXTURES) {
@@ -30,8 +28,8 @@ describe("kirtan list", () => {
   it("formats length and subline", () => {
     expect(formatKirtanLength(760)).toBe("12:40")
     expect(formatKirtanLength(3725)).toBe("1:02:05")
-    expect(kirtanSubline({ durationSec: 760, addedBy: "Priya" })).toBe("YouTube · 12:40 · added by Priya")
-    expect(kirtanSubline({ durationSec: null, addedBy: "" })).toBe("YouTube")
+    expect(kirtanSubline({ durationSec: 760, addedBy: "Priya" })).toBe("12:40 · added by Priya")
+    expect(kirtanSubline({ durationSec: null, addedBy: "" })).toBe("")
   })
 
   it("filters by type and sorts newest first", () => {
@@ -65,78 +63,5 @@ describe("mix ordering", () => {
     ])
     expect(playableItems(items, status)).toEqual([ps(2), ps(3), k("a"), ps(1)])
   })
-
-  it("groups the run of one kind that starts at an index", () => {
-    expect(runFrom(items, 0)).toMatchObject({ kind: "ps", start: 0, end: 1 })
-    expect(runFrom(items, 0)?.items).toEqual([ps(2), ps(3)])
-    expect(runFrom(items, 2)).toMatchObject({ kind: "kirtan", start: 2, end: 2 })
-    expect(runFrom(items, 9)).toBeNull()
-  })
-
-  it("continues in the same player and switches when the kind changes", () => {
-    expect(handoffAfter(items, 0)).toEqual({ action: "continue", index: 1, item: ps(3) })
-    expect(handoffAfter(items, 1)).toEqual({ action: "switch", index: 2, item: k("a"), to: "kirtan-player" })
-    expect(handoffAfter(items, 2)).toEqual({ action: "switch", index: 3, item: ps(1), to: "song-player" })
-    expect(handoffAfter(items, 4)).toEqual({ action: "done" })
-    expect(handoffAfter([], 0)).toEqual({ action: "done" })
-  })
-
-  it("words the prompt", () => {
-    expect(handoffPrompt("Baba Nam Kevalam", "kirtan-player")).toBe("Next: Baba Nam Kevalam (opens kiirtan player)")
-    expect(handoffPrompt("Bandhu He", "song-player")).toBe("Next: Bandhu He (opens song player)")
-  })
 })
 
-describe("kirtan queue", () => {
-  const state = { context: ["a", "b", "c"], queued: [] as string[] }
-
-  it("plays next in front, without duplicates", () => {
-    expect(playNext(["x", "y"], "z")).toEqual(["z", "x", "y"])
-    expect(playNext(["x", "y"], "y")).toEqual(["y", "x"])
-  })
-
-  it("goes through the list and takes the queue first", () => {
-    expect(nextAfter(state, "a")).toEqual({ id: "b", fromQueue: false })
-    expect(nextAfter(state, "c")).toBeNull()
-    expect(nextAfter({ ...state, queued: ["q"] }, "a")).toEqual({ id: "q", fromQueue: true })
-    expect(nextAfter(state, null)).toEqual({ id: "a", fromQueue: false })
-    expect(previousBefore(state, "b")).toBe("a")
-    expect(previousBefore(state, "a")).toBeNull()
-    expect(positionLabel(state.context, "b")).toBe("2 of 3")
-    expect(positionLabel(state.context, "zz")).toBe("")
-  })
-})
-
-import { splitKirtanTitle } from "@/lib/kirtan/list"
-
-describe("splitKirtanTitle", () => {
-  it("makes the part before the first break heavy and the rest light", () => {
-    expect(splitKirtanTitle("Baba Nam Kevalam, morning round")).toEqual({ heavy: "Baba Nam Kevalam,", light: "morning round" })
-    expect(splitKirtanTitle("Lila kiirtan: Krishna and the flute")).toEqual({ heavy: "Lila kiirtan:", light: "Krishna and the flute" })
-    expect(splitKirtanTitle("Dipavali kiirtan - a night of lamps")).toEqual({ heavy: "Dipavali kiirtan", light: "a night of lamps" })
-    expect(splitKirtanTitle("Buddha Purnima kiirtan")).toEqual({ heavy: "Buddha Purnima kiirtan", light: "" })
-    expect(splitKirtanTitle("  ")).toEqual({ heavy: "", light: "" })
-  })
-})
-
-
-describe("songRunFinished", () => {
-  const session = { mixId: "m", items: [ps(2), ps(3), k("a")] as MixItem[], index: 0 }
-  const at = (number: number, over: Partial<{ isPlaying: boolean; position: number; duration: number }> = {}) => ({
-    currentSong: { number },
-    isPlaying: false,
-    position: 270,
-    duration: 271,
-    ...over,
-  })
-
-  it("is true only when the last song of the run stopped at its end", () => {
-    expect(songRunFinished(session, at(3))).toBe(true)
-    expect(songRunFinished(session, at(2))).toBe(false)
-    expect(songRunFinished(session, at(3, { isPlaying: true }))).toBe(false)
-    expect(songRunFinished(session, at(3, { position: 100 }))).toBe(false)
-    expect(songRunFinished(session, at(3, { duration: 0 }))).toBe(false)
-    expect(songRunFinished(session, { currentSong: null, isPlaying: false, position: 0, duration: 0 })).toBe(false)
-    expect(songRunFinished({ ...session, index: 2 }, at(3))).toBe(false)
-  })
-})

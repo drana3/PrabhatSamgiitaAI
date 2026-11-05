@@ -3,20 +3,18 @@ import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
 import { BlurView } from "expo-blur"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
-  Easing,
-  cancelAnimation,
+    cancelAnimation,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
-  withTiming,
 } from "react-native-reanimated"
 import { scheduleOnRN } from "react-native-worklets"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { useCoverFade, useSheetCover } from "@/components/nav-v2/sheetCover"
 import { TabGlyph } from "@/components/today/protoIcons"
-import { amReveal, amSpring } from "@/constants/tokens/amMotion"
+import { amSpring } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
 import { amRadius } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -24,7 +22,6 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import {
   NAV_V2_TABS,
   navV2Layout,
-  pillVariantFor,
   releaseSpringKind,
   rubberBand,
   settleTabIndex,
@@ -38,7 +35,6 @@ import {
 
 /** Finger travel (px) before a touch counts as a drag instead of a tap. */
 const DRAG_SLOP = 4
-const FADE_EASING = Easing.bezier(...amReveal.easing)
 
 type Props = {
   /** tab that is currently shown */
@@ -56,7 +52,6 @@ type Props = {
  * - On release it settles on the tab found by momentum projection of the finger's velocity.
  * - Position and press state are shared values animated by springs from their current
  *   on-screen value, so every motion can be interrupted. Only transform and opacity animate.
- * - The pill turns dark on the Player tab by cross-fading two fills (opacity only).
  * - With Reduce Motion the indicator jumps and the fill cross-fades; no springs.
  */
 export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props) {
@@ -65,9 +60,7 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
   const reduce = useReducedMotion()
   const count = tabs.length
   const activeIndex = tabIndexForId(activeId, tabs)
-  const variant = pillVariantFor(activeId)
   const lightPalette = tabPillPalette(theme, "light")
-  const darkPalette = tabPillPalette(theme, "dark")
   const { tabBottom } = navV2Layout(insets.bottom)
 
   const [trayWidth, setTrayWidth] = useState(0)
@@ -75,7 +68,6 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
   const x = useSharedValue(0)
   const targetIndex = useSharedValue(activeIndex)
   const pressed = useSharedValue(0)
-  const dark = useSharedValue(variant === "dark" ? 1 : 0)
   const dragging = useSharedValue(0)
   const grab = useSharedValue(0)
 
@@ -101,13 +93,6 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
     const target = activeIndex * tabWidth
     x.value = reduce ? target : withSpring(target, amSpring.default)
   }, [activeIndex, reduce, tabWidth, targetIndex, x])
-
-  useEffect(() => {
-    const next = variant === "dark" ? 1 : 0
-    dark.value = reduce
-      ? withTiming(next, { duration: amReveal.durationMs })
-      : withTiming(next, { duration: amReveal.durationMs, easing: FADE_EASING })
-  }, [variant, reduce, dark])
 
   const commit = useCallback(
     (index: number) => {
@@ -180,8 +165,6 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
     transform: [{ translateX: x.value }, { scale: 1 - (1 - amNav.pressedScale) * pressed.value }],
   }))
   const insideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -x.value }] }))
-  const lightFill = useAnimatedStyle(() => ({ opacity: 1 - dark.value }))
-  const darkFill = useAnimatedStyle(() => ({ opacity: dark.value }))
 
   const blurTint = isDarkTheme(theme) ? "dark" : "light"
   const coverFade = useCoverFade()
@@ -191,48 +174,19 @@ export function FloatingTabBar({ activeId, onSelect, tabs = NAV_V2_TABS }: Props
     <Animated.View pointerEvents={covered ? "none" : "box-none"} style={[styles.slot, { bottom: tabBottom }, coverFade]}>
       <GestureDetector gesture={pan}>
         <View style={styles.pill} collapsable={false}>
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, lightFill]}>
-            <BlurView
-              intensity={amNav.tabBlurIntensity}
-              tint={blurTint}
-              experimentalBlurMethod="dimezisBlurView"
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
-          {/* The dark pill (Player tab) blurs with a dark tint, so no light wash shows through. */}
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, darkFill]}>
-            <BlurView
-              intensity={amNav.tabBlurIntensity}
-              tint="dark"
-              experimentalBlurMethod="dimezisBlurView"
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
-          <Animated.View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { backgroundColor: lightPalette.background }, lightFill]}
+          <BlurView
+            intensity={amNav.tabBlurIntensity}
+            tint={blurTint}
+            experimentalBlurMethod="dimezisBlurView"
+            style={StyleSheet.absoluteFill}
           />
-          <Animated.View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { backgroundColor: darkPalette.background }, darkFill]}
-          />
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.edge, { borderColor: lightPalette.edge }, lightFill]}
-          />
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.edge, { borderColor: darkPalette.edge }, darkFill]}
-          />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: lightPalette.background }]} />
+          <View pointerEvents="none" style={[styles.edge, { borderColor: lightPalette.edge }]} />
 
           <View style={styles.tray} onLayout={onTrayLayout}>
-            {/* inactive faces, one set per fill, cross-faded with the fill */}
-            <Animated.View pointerEvents="none" style={[styles.row, lightFill]}>
+            <View pointerEvents="none" style={styles.row}>
               <Faces tabs={tabs} color={lightPalette.inactive} />
-            </Animated.View>
-            <Animated.View pointerEvents="none" style={[styles.row, darkFill]}>
-              <Faces tabs={tabs} color={darkPalette.inactive} />
-            </Animated.View>
+            </View>
 
             {/* orange indicator; the white faces inside it are revealed by its mask */}
             <Animated.View

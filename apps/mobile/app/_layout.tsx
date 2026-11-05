@@ -34,6 +34,7 @@ import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
+import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
 import { useAppearanceStore } from "@/stores/appearanceStore"
@@ -197,11 +198,16 @@ export default function RootLayout() {
             options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
           />
           <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
-          {/* Kirtans: shared YouTube links, played in YouTube's embedded player. */}
+          {/* Kiirtans: audio files uploaded by their authors, played in the one player. */}
           <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
-          <Stack.Screen name="kirtan-player" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
           <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
+          <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />
+          <Stack.Screen name="kiirtan" options={{ presentation: "card" }} />
+          {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
+          <Stack.Screen name="player-v2" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
         </Stack>
+        {/* The one mini-player, above every screen (tabs and pushed). */}
+        <MiniPlayerHost />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )

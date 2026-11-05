@@ -14,15 +14,17 @@ import {
 
 describe("home shelves", () => {
   it("All shows every shelf and each chip has its own", () => {
-    expect(shelvesFor("all")).toEqual(["today", "start", "mixes", "because", "trending", "stories", "learn"])
+    expect(shelvesFor("all")).toEqual(["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "learn"])
+    expect(shelvesFor("kiirtan")).toEqual(["kiirtan", "kmixes"])
     expect(shelvesFor("stories")).toEqual(["stories"])
     expect(shelvesFor("learn")).toEqual(["learn"])
     expect(shelvesFor("downloaded")).toEqual(["downloaded"])
     expect(shelvesFor("songs")).not.toContain("stories")
+    expect(shelvesFor("songs")).not.toContain("kiirtan")
   })
 
-  it("knows the five chips", () => {
-    expect(HOME_FILTERS.map((f) => f.label)).toEqual(["All", "Songs", "Stories", "Learn", "Downloaded"])
+  it("knows the six chips", () => {
+    expect(HOME_FILTERS.map((f) => f.label)).toEqual(["All", "Songs", "Kiirtan", "Stories", "Learn", "Downloaded"])
     expect(isHomeFilter("songs")).toBe(true)
     expect(isHomeFilter("podcasts")).toBe(false)
   })

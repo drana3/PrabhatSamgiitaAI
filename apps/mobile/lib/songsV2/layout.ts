@@ -15,11 +15,12 @@ export const SONGS_LAYOUT = {
   pillBlock: 64,
   /** margin under the pill block */
   pillGap: 4,
-  /** segmented control */
-  seg: 56,
-  /** category strip: margin-top 12, height 52 */
-  stripGap: 12,
-  strip: 52,
+  /** the chips row (All, Saved, Downloaded, Playlists): the only sticky row under the search pill */
+  chips: 56,
+  /** the Collections shelf: 24 top + 30 heading + 14 gap + 112 cards + 20 bottom */
+  shelf: 200,
+  /** the "All songs" heading above the sort bar */
+  allHead: 52,
   /** sort / count / Play all bar: 12 + 40 + 12 */
   listbar: 64,
   /** song card min-height and the gap between list children */
@@ -27,7 +28,7 @@ export const SONGS_LAYOUT = {
   gap: 10,
   /** letter header: 20 top + 30 + 2 bottom */
   header: 52,
-  /** the strip pins this far below the pinned search pill (`.spbar.under{top:64px}`) */
+  /** the chips row pins this far below the pinned search pill (`.spbar.under{top:64px}`) */
   stripPin: 64,
   /** the pill narrows by this much when it sticks (board: 370 wide, 312 stuck) */
   pillNarrow: 58,
@@ -39,25 +40,24 @@ export const SONGS_LAYOUT = {
 
 export type SongsSpots = {
   pillTop: number
-  segTop: number
-  stripTop: number
-  /** bottom of the sticky header block in the list, where rows begin */
+  /** natural top of the chips row */
+  chipsTop: number
+  /** top of the Collections shelf (the "all" chip) or of the Saved / Downloaded / Playlists body */
+  shelfTop: number
+  /** bottom of the header block in the list, where rows begin (the "all" chip) */
   listTop: number
-  /** with no strip (Collections, Mine) the content starts right under the seg */
-  plainTop: number
 }
 
 export function songsSpots(inset: number): SongsSpots {
   const L = SONGS_LAYOUT
   const pillTop = inset + L.head + L.title
-  const segTop = pillTop + L.pillBlock + L.pillGap
-  const stripTop = segTop + L.seg + L.stripGap
+  const chipsTop = pillTop + L.pillBlock + L.pillGap
+  const shelfTop = chipsTop + L.chips
   return {
     pillTop,
-    segTop,
-    stripTop,
-    listTop: stripTop + L.strip + L.listbar,
-    plainTop: segTop + L.seg,
+    chipsTop,
+    shelfTop,
+    listTop: shelfTop + L.shelf + L.allHead + L.listbar,
   }
 }
 
@@ -67,10 +67,10 @@ export function stickyY(natural: number, scroll: number, pin: number): number {
   return Math.max(natural - scroll, pin)
 }
 
-/** The strip is "stuck" once it reached its pin and the list moved at all. */
-export function isStripStuck(scroll: number, stripTop: number, pin: number): boolean {
+/** The chips row is "stuck" once it reached its pin and the list moved at all. */
+export function isStripStuck(scroll: number, chipsTop: number, pin: number): boolean {
   "worklet"
-  return scroll > 4 && stripTop - scroll <= pin + 0.5
+  return scroll > 4 && chipsTop - scroll <= pin + 0.5
 }
 
 export type RowMetrics = {
@@ -96,12 +96,12 @@ export function rowMetrics(rows: readonly ListRow[], offset = 0): RowMetrics {
 }
 
 /**
- * Scroll offset that puts a row right under the pinned header (status area, pill and strip),
+ * Scroll offset that puts a row right under the pinned header (status area, pill and chips row),
  * like the prototype's `scrollTop = target.offsetTop - 54 - 112`.
  */
 export function scrollOffsetForRow(rowTop: number, inset: number): number {
   const L = SONGS_LAYOUT
-  return Math.max(0, rowTop - (inset + L.stripPin + L.strip - 4))
+  return Math.max(0, rowTop - (inset + L.stripPin + L.chips - 4))
 }
 
 /** The rail: one tick per group (letter or category), or five dots when the order has no groups. */

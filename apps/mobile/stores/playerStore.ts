@@ -250,7 +250,8 @@ async function startNativeSong(song: MockSong, generation: number) {
     return
   }
   cacheSong(ready)
-  usePreferencesStore.getState().recordRecentPlay(ready)
+  // Recent plays and resume points are Prabhat Samgiita history; a Kiirtan does not enter them.
+  if (ready.kind !== "kiirtan") usePreferencesStore.getState().recordRecentPlay(ready)
   usePlayerStore.setState({
     currentSong: ready,
     isPlaying: true,

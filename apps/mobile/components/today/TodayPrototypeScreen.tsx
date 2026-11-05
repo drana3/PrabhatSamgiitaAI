@@ -244,7 +244,7 @@ export default function TodayScreen() {
     [sample, view.recent],
   )
 
-  const goPlayer = () => router.navigate(href("/v2/player"))
+  const goPlayer = () => router.navigate(href("/player-v2"))
   /** Play, and show the player, like the prototype's `_play(i); _go('player')`. */
   const listen = (song: MockSong, queue?: number[]) => {
     const state = usePlayerStore.getState()

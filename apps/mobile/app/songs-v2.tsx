@@ -1,44 +1,36 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Alert, Platform, StyleSheet, Text, View } from "react-native"
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated"
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { SOURCE_BAR_BLOCK, SOURCE_BAR_HEIGHT, SourceSwitch, type SourceId } from "@/components/kirtan/KirtanParts"
-import { KirtanSegment } from "@/components/kirtan/KirtanSegment"
-import { MixesSegment } from "@/components/kirtan/MixesSegment"
 import { FilterSheet, RowMenuSheet, SortSheet } from "@/components/songs-v2/CatalogSheets"
-import { CollectionsSegment } from "@/components/songs-v2/CollectionsSegment"
+import { CollectionsShelf } from "@/components/songs-v2/CollectionsShelf"
 import { MineSegment, type MinePlaylist } from "@/components/songs-v2/MineSegment"
 import { Press } from "@/components/songs-v2/Press"
 import { SongCardRow } from "@/components/songs-v2/SongCardRow"
 import { SongsScroller } from "@/components/songs-v2/SongsScroller"
-import { StorySheet } from "@/components/songs-v2/StorySheet"
 import { Toast } from "@/components/songs-v2/Toast"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
-import { songCategories } from "@/constants/categories"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { collectionCount } from "@/data/collections"
-import { mapApiStory, type StorySummary } from "@/data/stories"
+import { songNumbersForCategory } from "@/lib/categorySongs"
 import { useCatalogController } from "@/hooks/useCatalogController"
 import { useOfflineStorageItems } from "@/hooks/useOfflineStorageItems"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
-import { api } from "@/lib/client"
 import { memberProfileName } from "@/lib/displayName"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { formatBytes, totalBytes } from "@/lib/storageCache"
-import { allCollectionsLabel } from "@/lib/songsV2/collections"
+import { SPECIAL_TILES, tilesWithCounts } from "@/lib/songsV2/collections"
 import { EMPTY_FILTERS } from "@/lib/songsV2/filters"
 import { buildSavedRows, downloadsSummary } from "@/lib/songsV2/mine"
-import { parseSegment, type SongSegmentId } from "@/lib/songsV2/segments"
+import { legacySourceRedirect, parseSongChip, type SongChipId } from "@/lib/songsV2/segments"
 import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
-import { useKirtanPlayerStore } from "@/stores/kirtanPlayerStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
-import { MOCK_OFFLINE, MOCK_PLAYLISTS, MOCK_SAVED, MOCK_STORIES, MOCK_STRIP, MOCK_TOTAL, mockCountLabel } from "@/lib/fixtures/songsMock"
+import { MOCK_OFFLINE, MOCK_PLAYLISTS, MOCK_SAVED, MOCK_TILES, MOCK_TOTAL, mockCountLabel } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { href } from "@/utils/href"
 
@@ -46,18 +38,18 @@ import { href } from "@/utils/href"
 const CATALOG_SIZE = 5018
 
 /**
- * Songs, Prabhat Samgiita source: `Catalog | Collections | Mine` (prototype lines 1125-1264). One
- * scroll surface with a pinned search pill, a pinned category strip, the A-Z rail, and the sort sheet.
- * `topExtra` is the height of the source switch above it (Prabhat Samgiita | Kirtan | Mixes).
+ * Songs: Prabhat Samgiita only, with ONE navigation layer. A pinned search pill, a chips row (All,
+ * Saved, Downloaded, Playlists), and under All the Collections shelf, then "All songs" with the
+ * sort bar, the list and the A-Z rail. Kiirtans have their own tab.
  */
-function PsSongs({ topExtra }: { topExtra: number }) {
+function PsSongs() {
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
-  const inset = (Platform.OS === "web" ? 54 : insets.top) + topExtra
-  const params = useLocalSearchParams<{ segment?: string }>()
-  const [segment, setSegment] = useState<SongSegmentId>(parseSegment(params.segment))
+  const inset = Platform.OS === "web" ? 54 : insets.top
+  const params = useLocalSearchParams<{ chip?: string; segment?: string }>()
+  const [chipId, setChipId] = useState<SongChipId>(parseSongChip(params.chip ?? params.segment))
 
   const catalog = useSongsV2Catalog()
   const controller = useCatalogController(catalog.entries)
@@ -78,36 +70,11 @@ function PsSongs({ topExtra }: { topExtra: number }) {
   const offlineFiles = useOfflineAudioStore((s) => s.files)
   const { items: downloadItems, scanned: downloadsScanned } = useOfflineStorageItems()
 
-  // Preview (MOCKUP_DATA): hearts, playlists, stories and downloads of the prototype sample.
+  // Preview (MOCKUP_DATA): hearts, playlists and downloads of the prototype sample.
   const [mockSaved, setMockSaved] = useState<number[]>([...MOCK_SAVED])
-  const [stories, setStories] = useState<StorySummary[]>(() =>
-    MOCKUP_DATA
-      ? MOCK_STORIES.map((s) => ({ slug: s.slug, title: s.title, author: "", url: "", teaser: "", themes: [], songNumbers: [s.song] }))
-      : [],
-  )
-  const [storiesLoading, setStoriesLoading] = useState(!MOCKUP_DATA)
-  const [openStory, setOpenStory] = useState<StorySummary | null>(null)
-  const [storySheetOpen, setStorySheetOpen] = useState(false)
-
   useEffect(() => {
-    if (params.segment) setSegment(parseSegment(params.segment))
-  }, [params.segment])
-
-  useEffect(() => {
-    if (MOCKUP_DATA) return
-    let active = true
-    void api
-      .fetchStories({ limit: 12 })
-      .then((rows) => {
-        if (active) setStories(rows.map(mapApiStory))
-      })
-      .finally(() => {
-        if (active) setStoriesLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [])
+    if (params.chip || params.segment) setChipId(parseSongChip(params.chip ?? params.segment))
+  }, [params.chip, params.segment])
 
   useFocusEffect(
     useCallback(() => {
@@ -221,7 +188,13 @@ function PsSongs({ topExtra }: { topExtra: number }) {
     actions.playAll(numbers)
   }
 
-  const strip = useMemo(() => (MOCKUP_DATA ? [...MOCK_STRIP] : [{ id: "all", label: "All" }, ...songCategories.map((c) => ({ id: c.id as string, label: c.label }))]), [])
+  const shelfCollections = useMemo(
+    () =>
+      MOCKUP_DATA
+        ? MOCK_TILES.map((t) => ({ id: t.id, label: t.label, countLabel: t.countLabel }))
+        : tilesWithCounts(SPECIAL_TILES, (id) => songNumbersForCategory(id).length).map((t) => ({ id: t.browseId, label: t.label, countLabel: t.countLabel })),
+    [],
+  )
 
   return (
     <View style={[styles.root, { backgroundColor: theme.page }]}>
@@ -229,9 +202,8 @@ function PsSongs({ topExtra }: { topExtra: number }) {
         theme={theme}
         inset={inset}
         total={MOCKUP_DATA ? MOCK_TOTAL : catalog.entries.length || CATALOG_SIZE}
-        segment={segment}
-        onSegment={setSegment}
-        savedCount={savedSet.size}
+        chip={chipId}
+        onChip={setChipId}
         initial={initial}
         onOpenSearch={() => router.push(href("/search-v2?focus=1"))}
         onOpenProfile={() => router.push(href("/profile-sheet"))}
@@ -240,11 +212,6 @@ function PsSongs({ topExtra }: { topExtra: number }) {
           groups: controller.groups,
           grouped: controller.grouped,
           category: sort === "cat",
-          strip,
-          chip,
-          onChip: controller.setChip,
-          indexLabel: MOCKUP_DATA ? undefined : allCollectionsLabel(collectionCount),
-          onOpenIndex: MOCKUP_DATA ? undefined : () => router.push(href("/songs-v2-index")),
           sortShort: sortOption(sort).short,
           onSort: () => controller.setSortOpen(true),
           countLabel,
@@ -255,39 +222,26 @@ function PsSongs({ topExtra }: { topExtra: number }) {
           empty,
           resetKey: `${sort}|${chip}`,
         }}
+        shelf={<CollectionsShelf theme={theme} collections={shelfCollections} onOpen={openCollection} onOpenAll={() => router.push(href("/songs-v2-index"))} />}
         body={
-          segment === "collections" ? (
-            <CollectionsSegment
-              theme={theme}
-              stories={stories}
-              storiesLoading={storiesLoading}
-              onPlayAll={actions.playAll}
-              onOpenFestival={(label) => openCollection(label, label)}
-              onOpenStory={(story) => {
-                setOpenStory(story)
-                setStorySheetOpen(true)
-              }}
-              onOpenTile={openCollection}
-            />
-          ) : (
-            <MineSegment
-              theme={theme}
-              savedRows={savedRows}
-              savedLoading={syncingFavorites}
-              playlists={minePlaylists}
-              playlistsLoading={playlistsLoading && mode === "signed_in"}
-              downloadCount={Object.keys(offlineFiles).length}
-              downloadsTotal={downloadsTotal}
-              onOpen={actions.open}
-              onToggleSave={toggleSave}
-              onQueue={actions.queue}
-              onMenu={controller.setMenuEntry}
-              onOpenPlaylist={(id) => router.push(href(`/playlist-v2/${id}`))}
-              onCreatePlaylist={createNewPlaylist}
-              onQuickStart={() => router.push(href("/drive"))}
-              onOpenDownloads={() => router.push(href("/storage"))}
-            />
-          )
+          <MineSegment
+            theme={theme}
+            only={chipId === "saved" ? "saved" : chipId === "downloaded" ? "downloaded" : "playlists"}
+            savedRows={savedRows}
+            savedLoading={syncingFavorites}
+            playlists={minePlaylists}
+            playlistsLoading={playlistsLoading && mode === "signed_in"}
+            downloadCount={Object.keys(offlineFiles).length}
+            downloadsTotal={downloadsTotal}
+            onOpen={actions.open}
+            onToggleSave={toggleSave}
+            onQueue={actions.queue}
+            onMenu={controller.setMenuEntry}
+            onOpenPlaylist={(id) => router.push(href(`/playlist-v2/${id}`))}
+            onCreatePlaylist={createNewPlaylist}
+            onQuickStart={() => router.push(href("/drive"))}
+            onOpenDownloads={() => router.push(href("/storage"))}
+          />
         }
       />
 
@@ -319,89 +273,24 @@ function PsSongs({ topExtra }: { topExtra: number }) {
         onShare={actions.share}
         onClose={() => controller.setMenuEntry(null)}
       />
-      <StorySheet
-        open={storySheetOpen}
-        theme={theme}
-        slug={openStory?.slug ?? null}
-        preview={openStory ? { slug: openStory.slug, title: openStory.title, teaser: openStory.teaser, songNumbers: openStory.songNumbers } : null}
-        onClose={() => setStorySheetOpen(false)}
-        onOpenSong={(target) => {
-          setStorySheetOpen(false)
-          router.push(href(target))
-        }}
-      />
       <Toast message={actions.toast} theme={theme} />
     </View>
   )
 }
 
 /**
- * A layer of the source switch. Only opacity changes (a quick fade, none with reduced motion); the
- * hidden layers stay mounted so the Prabhat Samgiita list keeps its place when you come back.
- */
-function SourceLayer({ active, children }: { active: boolean; children: ReactNode }) {
-  const reduce = useReducedMotion()
-  const opacity = useSharedValue(active ? 1 : 0)
-  useEffect(() => {
-    opacity.value = withTiming(active ? 1 : 0, { duration: reduce ? 0 : 180 })
-  }, [active, reduce, opacity])
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
-  return (
-    <Animated.View style={[StyleSheet.absoluteFill, style]} pointerEvents={active ? "auto" : "none"} accessibilityElementsHidden={!active} importantForAccessibility={active ? "auto" : "no-hide-descendants"}>
-      {children}
-    </Animated.View>
-  )
-}
-
-/**
- * Songs tab. A switch on top picks the source: Prabhat Samgiita (the catalog, collections and Mine),
- * Kirtan (YouTube kirtans people shared) or Mixes (songs and kirtans in one order). The choice is kept
- * in memory for the session. `?source=kirtan|mixes` opens a source directly.
- * Reachable at /songs-v2 and, as the Songs tab, at /v2/songs.
+ * Songs tab: Prabhat Samgiita only. Old links to the removed source switch (`?source=kirtan`,
+ * `?source=mixes`) go to the Kiirtan tab. Reachable at /songs-v2 and, as the Songs tab, at /v2/songs.
  */
 export default function SongsV2Screen() {
-  const theme = useSongsTheme()
-  const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<{ source?: string }>()
-  const source = useKirtanPlayerStore((s) => s.source)
-  const setSource = useKirtanPlayerStore((s) => s.setSource)
-  const top = Platform.OS === "web" ? 54 : insets.top
-  const [seen, setSeen] = useState<Record<SourceId, boolean>>({ ps: true, kirtan: false, mixes: false })
-
-  useEffect(() => {
-    if (params.source === "kirtan" || params.source === "mixes" || params.source === "ps") setSource(params.source)
-  }, [params.source, setSource])
-  useEffect(() => {
-    setSeen((cur) => (cur[source] ? cur : { ...cur, [source]: true }))
-  }, [source])
-
-  const content = top + SOURCE_BAR_BLOCK
-  return (
-    <View style={[styles.root, { backgroundColor: theme.page }]}>
-      <SourceLayer active={source === "ps"}>
-        <PsSongs topExtra={SOURCE_BAR_BLOCK} />
-      </SourceLayer>
-      {seen.kirtan ? (
-        <SourceLayer active={source === "kirtan"}>
-          <KirtanSegment inset={content} avatarTop={content + 6} />
-        </SourceLayer>
-      ) : null}
-      {seen.mixes ? (
-        <SourceLayer active={source === "mixes"}>
-          <MixesSegment inset={content} avatarTop={content + 6} />
-        </SourceLayer>
-      ) : null}
-      {/* the switch sits on the page colour, above whatever scrolls under it */}
-      <View pointerEvents="box-none" style={[styles.sourceBand, { height: top + SOURCE_BAR_HEIGHT + 4, paddingTop: top, backgroundColor: theme.page }]}>
-        <SourceSwitch theme={theme} value={source} onChange={setSource} />
-      </View>
-    </View>
-  )
+  const moved = legacySourceRedirect(params.source)
+  if (moved) return <Redirect href={href(moved)} />
+  return <PsSongs />
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  sourceBand: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 30 },
   groupHeader: {
     paddingTop: 20,
     paddingLeft: 10,
