@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { isTypeOfKind } from "@/lib/kirtan/kind"
 import {
   addSubmission,
   buildSubmission,
@@ -18,8 +19,7 @@ const input: SubmissionInput = {
   fileUri: "blob:morning",
   title: "  Baba   Nam Kevalam ",
   author: "Group",
-  type: "bnk",
-  confirmed: true,
+  byAuthor: true,
   addedBy: "Dada",
 }
 
@@ -30,8 +30,13 @@ describe("validateSubmission", () => {
     expect(validateSubmission({ ...input, fileUri: null })).toBe("file")
     expect(validateSubmission({ ...input, title: "  " })).toBe("title")
     expect(validateSubmission({ ...input, author: " " })).toBe("author")
-    expect(validateSubmission({ ...input, type: null })).toBe("type")
-    expect(validateSubmission({ ...input, confirmed: false })).toBe("confirm")
+  })
+
+  it("asks for no type and no rights confirmation, and the author box is optional", () => {
+    expect(validateSubmission({ ...input, byAuthor: false })).toBeNull()
+    expect(validateSubmission({ ...input, kind: "bhajan" })).toBeNull()
+    expect(Object.keys(input)).not.toContain("type")
+    expect(Object.keys(input)).not.toContain("confirmed")
   })
 })
 
@@ -40,6 +45,19 @@ describe("submission transitions", () => {
     const sub = buildSubmission(input, 1000)
     expect(sub).toMatchObject({ status: "pending", title: "Baba Nam Kevalam", addedBy: "Dada", durationSec: null, addedAt: 1000, audioUrl: "blob:morning" })
     expect(sub.id).toBe("sub-baba-nam-kevalam-1000")
+  })
+
+  it("derives the type itself: Other, valid for both kinds", () => {
+    expect(buildSubmission(input, 1).type).toBe("other")
+    const bhajan = buildSubmission({ ...input, kind: "bhajan" }, 1)
+    expect(bhajan).toMatchObject({ kind: "bhajan", type: "other" })
+    expect(isTypeOfKind("bhajan", bhajan.type)).toBe(true)
+    expect(isTypeOfKind("kiirtan", buildSubmission(input, 1).type)).toBe(true)
+  })
+
+  it("stores whether the author or performer sent it", () => {
+    expect(buildSubmission(input, 1).byAuthor).toBe(true)
+    expect(buildSubmission({ ...input, byAuthor: false }, 1).byAuthor).toBe(false)
   })
 
   it("refuses the same Kiirtan twice while it is pending or approved, but allows a retry after a rejection", () => {

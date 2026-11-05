@@ -12,9 +12,9 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { kindLabel, typeAfterKindChange, typesOfKind } from "@/lib/kirtan/kind"
-import { CONFIRM_TEXT, SUBMISSION_ERROR_TEXT, validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
-import { RECORDING_KINDS, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
+import { kindLabel } from "@/lib/kirtan/kind"
+import { BY_AUTHOR_TEXT, SUBMISSION_ERROR_TEXT, validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
+import { RECORDING_KINDS, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
 
@@ -27,8 +27,9 @@ const CloseGlyph = ({ color }: { color: string }) => (
 type PickedFile = { name: string; uri: string }
 
 /**
- * Add Kiirtan or Bhajan: the author says what it is (Kiirtan or Bhajan), uploads an audio file, names it, says who sings, chooses a type (the choices depend on the kind), confirms the
- * rights and sends it for review. It then waits under "My uploads" with the status in review.
+ * Add Kiirtan or Bhajan: the author says what it is (Kiirtan or Bhajan), uploads an audio file, names it, says who sings,
+ * ticks whether they are the author or perform it themselves, and sends it for review. There is no type row and no rights
+ * checkbox (Dada decided both away; the type is derived, see lib/kirtan/submissions). It then waits under "My uploads" with the status in review.
  * The file picker works in the web preview (an `<input type=file accept="audio/*">`). On a phone the
  * native picker needs expo-document-picker, which is not installed yet, so "Choose file" is off there.
  * TODO(api): upload the file (multipart or a signed URL) and POST the metadata; an admin approves it there.
@@ -45,8 +46,7 @@ export default function AddKirtanScreen() {
   const [file, setFile] = useState<PickedFile | null>(null)
   const [title, setTitle] = useState("")
   const [author, setAuthor] = useState("")
-  const [type, setType] = useState<KirtanTypeId | null>(null)
-  const [confirmed, setConfirmed] = useState(false)
+  const [byAuthor, setByAuthor] = useState(false)
   const [error, setError] = useState<SubmissionError | "duplicate" | null>(null)
   const [duplicate, setDuplicate] = useState<Kirtan | null>(null)
   const [sent, setSent] = useState<Kirtan | null>(null)
@@ -66,7 +66,7 @@ export default function AddKirtanScreen() {
   }
 
   const send = () => {
-    const input = { kind, fileName: file?.name ?? null, fileUri: file?.uri ?? null, title, author, type, confirmed, addedBy: "You" }
+    const input = { kind, fileName: file?.name ?? null, fileUri: file?.uri ?? null, title, author, byAuthor, addedBy: "You" }
     const problem = validateSubmission(input)
     if (problem) {
       setError(problem)
@@ -84,8 +84,6 @@ export default function AddKirtanScreen() {
 
   const chooseKind = (next: RecordingKind) => {
     setKind(next)
-    // the same type id stays when both kinds have it ("Other"); otherwise the person picks again
-    setType((cur) => typeAfterKindChange(next, cur))
     setError(null)
   }
 
@@ -96,8 +94,7 @@ export default function AddKirtanScreen() {
     setFile(null)
     setTitle("")
     setAuthor("")
-    setType(null)
-    setConfirmed(false)
+    setByAuthor(false)
   }
 
   return (
@@ -214,39 +211,18 @@ export default function AddKirtanScreen() {
               </View>
             </Reveal>
 
-            <Reveal index={4} style={styles.field}>
-              <Text style={[styles.label, { color: theme.textHeading }]}>Type</Text>
-              <View style={styles.chips}>
-                {typesOfKind(kind).map((t) => {
-                  const on = t.id === type
-                  return (
-                    <KPress
-                      key={t.id}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: on }}
-                      onActivate={() => setType(t.id)}
-                      pressedScale={0.95}
-                      style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
-                    >
-                      <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{t.label}</Text>
-                    </KPress>
-                  )
-                })}
-              </View>
-            </Reveal>
-
             <KPress
               accessibilityRole="checkbox"
-              accessibilityState={{ checked: confirmed }}
-              accessibilityLabel={CONFIRM_TEXT}
-              onActivate={() => setConfirmed((c) => !c)}
+              accessibilityState={{ checked: byAuthor }}
+              accessibilityLabel={BY_AUTHOR_TEXT}
+              onActivate={() => setByAuthor((c) => !c)}
               pressedScale={0.99}
               style={styles.confirm}
             >
-              <View style={[styles.box, { borderColor: confirmed ? theme.brand : theme.textBody, backgroundColor: confirmed ? theme.brand : "transparent" }]}>
-                {confirmed ? <PlayerIcon name="check" size={16} color="#FFFFFF" strokeWidth={2.5} /> : null}
+              <View style={[styles.box, { borderColor: byAuthor ? theme.brand : theme.textBody, backgroundColor: byAuthor ? theme.brand : "transparent" }]}>
+                {byAuthor ? <PlayerIcon name="check" size={16} color="#FFFFFF" strokeWidth={2.5} /> : null}
               </View>
-              <Text style={[styles.confirmText, { color: theme.textHeading }]}>{CONFIRM_TEXT}</Text>
+              <Text style={[styles.confirmText, { color: theme.textHeading }]}>{BY_AUTHOR_TEXT}</Text>
             </KPress>
 
             {error ? (
@@ -262,7 +238,7 @@ export default function AddKirtanScreen() {
             <KPress accessibilityRole="button" accessibilityLabel="Send for review" onPress={send} pressedScale={0.98} style={[styles.send, { backgroundColor: theme.brand }]}>
               <Text style={styles.sendText}>Send for review</Text>
             </KPress>
-            <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>A reviewer listens to every {kindLabel(kind)} before it appears for everyone.</Text>
+            <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>A reviewer listens to every {kindLabel(kind)} before it goes live.</Text>
           </>
         )}
       </ScrollView>
@@ -334,9 +310,6 @@ const styles = StyleSheet.create({
   kindCard: { minHeight: 76, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, paddingVertical: 12, justifyContent: "center", gap: 2 },
   kindName: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.4, textTransform: "uppercase" },
   kindBlurb: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { height: 44, paddingHorizontal: 18, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  chipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   confirm: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingVertical: 4 },
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 1 },
   confirmText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21 },

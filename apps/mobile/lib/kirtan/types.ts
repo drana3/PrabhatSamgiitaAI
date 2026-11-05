@@ -56,6 +56,8 @@ export type Kirtan = {
   thumbnailUrl: string | null
   /** display name of the person who added it */
   addedBy: string
+  /** the person who added it said they are the author or perform it themselves; absent on older items */
+  byAuthor?: boolean
   status: KirtanStatus
   /** ms since epoch */
   addedAt: number

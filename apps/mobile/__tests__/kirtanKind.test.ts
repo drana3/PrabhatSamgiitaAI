@@ -239,23 +239,21 @@ describe("old stored data (migration v1 to v2)", () => {
 })
 
 describe("submissions carry the kind", () => {
-  const base: SubmissionInput = { kind: "bhajan", fileName: "dawn.mp3", fileUri: "blob:dawn", title: "Soon the day will dawn", author: "Group", type: "morning", confirmed: true, addedBy: "Dada" }
+  const base: SubmissionInput = { kind: "bhajan", fileName: "dawn.mp3", fileUri: "blob:dawn", title: "Soon the day will dawn", author: "Group", byAuthor: false, addedBy: "Dada" }
 
   it("builds a pending Bhajan and a pending Kiirtan", () => {
     const b = buildSubmission(base, 5)
-    expect(b).toMatchObject({ kind: "bhajan", type: "morning", status: "pending", id: "sub-soon-the-day-will-dawn-5" })
-    const k = buildSubmission({ ...base, kind: "kiirtan", type: "bnk" }, 5)
+    expect(b).toMatchObject({ kind: "bhajan", type: "other", status: "pending", id: "sub-soon-the-day-will-dawn-5" })
+    const k = buildSubmission({ ...base, kind: "kiirtan" }, 5)
     expect(k.kind).toBe("kiirtan")
     expect(buildSubmission({ ...base, title: "!!!" }, 5).id).toBe("sub-bhajan-5")
-    expect(buildSubmission({ ...base, kind: "kiirtan", title: "!!!", type: "bnk" }, 5).id).toBe("sub-kiirtan-5")
+    expect(buildSubmission({ ...base, kind: "kiirtan", title: "!!!" }, 5).id).toBe("sub-kiirtan-5")
   })
 
-  it("accepts only the types of the chosen kind", () => {
+  it("needs no type: the derived type is valid for both kinds", () => {
     expect(validateSubmission(base)).toBeNull()
-    expect(validateSubmission({ ...base, type: "bnk" })).toBe("type")
-    expect(validateSubmission({ ...base, kind: "kiirtan", type: "morning" })).toBe("type")
-    expect(validateSubmission({ ...base, kind: "kiirtan", type: "festival" })).toBeNull()
-    expect(validateSubmission({ ...base, type: "other" })).toBeNull()
+    expect(validateSubmission({ ...base, kind: "kiirtan" })).toBeNull()
+    expect(buildSubmission({ ...base, kind: "kiirtan" }, 1).type).toBe("other")
   })
 
   it("lists a Bhajan in the kind filter once approved, and blocks a duplicate", () => {

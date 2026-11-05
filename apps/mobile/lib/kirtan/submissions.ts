@@ -1,5 +1,5 @@
-import { isTypeOfKind, normalizeKind } from "@/lib/kirtan/kind"
-import type { Kirtan, KirtanStatus, KirtanTypeId, RecordingKind } from "@/lib/kirtan/types"
+import { normalizeKind } from "@/lib/kirtan/kind"
+import type { Kirtan, KirtanStatus, RecordingKind } from "@/lib/kirtan/types"
 
 /**
  * Submissions: an author uploads an audio file of a Kiirtan or a Bhajan (the `kind`); it waits for review.
@@ -8,7 +8,15 @@ import type { Kirtan, KirtanStatus, KirtanTypeId, RecordingKind } from "@/lib/ki
  * approves or rejects there. Until then the file stays on the phone and only the record is kept.
  */
 
-export const CONFIRM_TEXT = "This is my recording, or I have the rights holder's permission."
+/** Shown next to the "I am the author or I perform this" checkbox of the add form. */
+export const BY_AUTHOR_TEXT = "I am the author or I perform this"
+
+/**
+ * Every new submission gets this type. The form no longer asks for a type (Dada: "we don't need it"); "other" is
+ * valid for both kinds, so covers and tones (lib/kirtan/tone) keep working. A reviewer or the team can set a better one later.
+ * The rights confirmation was removed from the form by Dada's decision as well; `byAuthor` records whether the person wrote or performs it.
+ */
+export const DEFAULT_SUBMISSION_TYPE = "other" as const
 
 export type SubmissionInput = {
   /** "What is it?": a Kiirtan or a Bhajan. The type choices depend on it. */
@@ -20,20 +28,18 @@ export type SubmissionInput = {
   title: string
   /** performer or group */
   author: string
-  type: KirtanTypeId | null
-  confirmed: boolean
+  /** the person is the author, or performs it themselves */
+  byAuthor: boolean
   addedBy: string
 }
 
-export type SubmissionError = "file" | "title" | "author" | "type" | "confirm"
+export type SubmissionError = "file" | "title" | "author"
 
 /** The first thing missing from the form, or null when it can be sent. Order follows the form from the top. */
 export function validateSubmission(input: SubmissionInput): SubmissionError | null {
   if (!input.fileName || !input.fileUri) return "file"
   if (!input.title.trim()) return "title"
   if (!input.author.trim()) return "author"
-  if (!input.type || !isTypeOfKind(normalizeKind(input.kind), input.type)) return "type"
-  if (!input.confirmed) return "confirm"
   return null
 }
 
@@ -41,8 +47,6 @@ export const SUBMISSION_ERROR_TEXT: Record<SubmissionError, string> = {
   file: "Choose the audio file you recorded.",
   title: "Add a title.",
   author: "Add the performer or group.",
-  type: "Choose a type.",
-  confirm: "Please confirm this is your recording or you have permission.",
 }
 
 function tidy(text: string): string {
@@ -67,7 +71,8 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     title: tidy(input.title),
     author: tidy(input.author),
     durationSec: null,
-    type: (input.type as KirtanTypeId) ?? "other",
+    type: DEFAULT_SUBMISSION_TYPE,
+    byAuthor: Boolean(input.byAuthor),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
@@ -80,7 +85,7 @@ export type AddResult = { list: Kirtan[]; added: Kirtan | null; duplicate: Kirta
 
 /**
  * Adds a submission. The same Kiirtan cannot wait twice: a pending or approved one blocks it
- * (a rejected one does not, so a person can try again after fixing the type).
+ * (a rejected one does not, so a person can try again after fixing it).
  * `known` holds the submissionKey of Kiirtans already in the catalog.
  */
 export function addSubmission(list: readonly Kirtan[], next: Kirtan, known: readonly string[] = []): AddResult {
