@@ -266,7 +266,7 @@ export default function NotificationSettingsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: bottomInset }]}>
         <Reveal index={0}>
-          <Text style={s.h1} accessibilityRole="header">
+          <Text style={s.h1} accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
             <Text style={{ color: p.ink800 }}>{t("notif.settings.h1a")}</Text>
             {"\n"}
             <Text style={{ color: p.ink300 }}>{t("notif.settings.h1b")}</Text>

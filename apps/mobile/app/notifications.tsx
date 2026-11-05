@@ -155,7 +155,7 @@ export default function NotificationsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: bottomInset }]}>
         <Reveal index={0}>
-          <Text style={s.h1} accessibilityRole="header">
+          <Text style={s.h1} accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
             <Text style={{ color: p.ink800 }}>{t("profile.notifications")}</Text>
             {"\n"}
             <Text style={{ color: p.ink300 }}>{items.length === 0 ? t("notif.inbox.none") : unread > 0 ? t("notif.inbox.new", { count: unread }) : t("notif.inbox.allRead")}</Text>
