@@ -24,7 +24,6 @@ import { languageSummary } from "@/lib/languageSheet"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { getCachedMemberEmail } from "@/lib/memberEmail"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { NAV_V2_TABS } from "@/lib/navV2"
 import {
   PROFILE_ROUTES,
   assistantLimitLabel,
@@ -43,7 +42,6 @@ import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
-const LEARN_HREF = NAV_V2_TABS.find((tab) => tab.id === "learn")?.href ?? "/v2/learn"
 
 /**
  * `.avatar` at 64dp with 28dp initial (or the person's picture), the name in `.t-h3` at 28dp capitals, the subtitle
@@ -169,10 +167,7 @@ export function useProfileContent(theme: AmTheme) {
         <LibraryEntryRow p={p} onPress={() => swapTo(PROFILE_ROUTES.library)} />
       </Group>
 
-      <SheetTitle p={p} label="Member" spaced />
-      <Group p={p}>
-        <SetRow p={p} label="Quiz and certificates" value="None yet" onPress={() => router.navigate(href(LEARN_HREF))} />
-      </Group>
+      {/* "Quiz and certificates" row hidden for now (Dada 2026-11-05), see lib/learn/hub.ts */}
 
       <SheetTitle p={p} label="Offline" spaced />
       <Group p={p}>

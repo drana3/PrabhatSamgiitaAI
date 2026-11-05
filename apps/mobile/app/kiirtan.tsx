@@ -327,6 +327,7 @@ export default function KiirtanTabScreen() {
             trailing={
               <View style={styles.status}>
                 <StatusBadge theme={theme} status={k.status} />
+                {k.byAuthor ? <Text style={[styles.byAuthor, { color: theme.textMuted }]}>By the author</Text> : null}
                 {k.status !== "approved" ? (
                   <KPress accessibilityRole="button" accessibilityLabel={`Take back ${k.title}`} onPress={() => withdraw(k.id)} pressedScale={0.94}>
                     <Text style={[styles.take, { color: theme.textBody }]}>Take back</Text>
@@ -518,5 +519,6 @@ const styles = StyleSheet.create({
   addTitle: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22 },
   addSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
   status: { alignItems: "flex-end", gap: 4, paddingRight: 12 },
+  byAuthor: { fontFamily: amFonts.regular, fontSize: 12, lineHeight: 16 },
   take: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, textDecorationLine: "underline" },
 })
