@@ -192,7 +192,7 @@ export function AnswerCard({
           </Text>
         </TodayPress>
       ))}
-      <TodayPress accessibilityRole="button" accessibilityLabel="Ask the assistant" onPress={onAsk} pressedScale={PRESS} style={[s.ask, { backgroundColor: p.orange500 }]}>
+      <TodayPress accessibilityRole="button" accessibilityLabel="Ask the assistant" onPress={onAsk} pressedScale={PRESS} style={[s.ask, { backgroundColor: p.action }]}>
         <Text style={s.askText}>Ask the assistant</Text>
       </TodayPress>
     </View>

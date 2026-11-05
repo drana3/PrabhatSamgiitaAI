@@ -9,9 +9,18 @@ import { isDarkTheme } from "@/lib/navV2"
 export type AmProto = {
   dark: boolean
   orange100: string
+  /** bright orange: graphics only (icons, progress, dots, glows). Never behind text. */
   orange500: string
-  /** eyebrow and "why" colour: orange in Light, gold in Dark */
+  /** eyebrow and "why" TEXT colour: orange800 in Light (6.2:1 on sand), gold300 in Dark. Never a fill. */
   orange700: string
+  /** action fill (primary button, selected chip, play disc): orange700 in both themes, white text */
+  action: string
+  actionPress: string
+  onAction: string
+  accentBright: string
+  /** accent text on the page: orange800 Light, orange500 Dark */
+  accentText: string
+  dangerText: string
   gold300: string
   logoSun: string
   sage200: string
@@ -41,7 +50,13 @@ export const protoLight: AmProto = {
   dark: false,
   orange100: amColors.orange100,
   orange500: amColors.orange500,
-  orange700: amColors.orange700,
+  orange700: amColors.orange800,
+  action: amColors.orange700,
+  actionPress: amColors.orange800,
+  onAction: amColors.white,
+  accentBright: amColors.orange500,
+  accentText: amColors.orange800,
+  dangerText: amColors.dangerText,
   gold300: amColors.gold300,
   logoSun: amColors.logoSun,
   sage200: amColors.sage200,
@@ -58,7 +73,8 @@ export const protoLight: AmProto = {
   ink900: amColors.ink900,
   ink800: amColors.ink800,
   ink500: amColors.ink500,
-  ink300: amColors.ink300,
+  /** second tone of two-tone headings and ring borders (4:1 on sand200); never the raw #B3B3B3 */
+  ink300: amColors.headingSecond,
   onInk: "#FFFFFF",
   glassStrong: "rgba(255, 255, 255, 0.72)",
   glassSolid: "rgba(255, 255, 255, 0.9)",
@@ -71,6 +87,8 @@ export const protoDark: AmProto = {
   dark: true,
   orange100: amDarkSurface.peach,
   orange700: amColors.gold300,
+  accentText: amColors.orange500,
+  dangerText: amDarkSurface.dangerText,
   sand100: amDarkSurface.inner,
   sand200: amDarkSurface.page,
   sand300: amDarkSurface.line,

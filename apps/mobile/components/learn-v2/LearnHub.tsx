@@ -5,14 +5,14 @@ import { ArrowRight, Bell, ChevronRight, Search } from "lucide-react-native"
 
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
 import { PressBox } from "@/components/learn-v2/PressBox"
-import { amColors } from "@/constants/tokens/amColors"
+import { amColors, amPhotoChip } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 import { coverFor } from "@/lib/homeShelves"
 import { songStepBars, stepLine, type ContinueModel, type ShelfEntry } from "@/lib/learn/hub"
 
 /**
- * Pieces of the Learn hub (app/learn.tsx): top row, heading, the orange Continue card, the
+ * Pieces of the Learn hub (app/learn.tsx): top row, heading, the forest Continue card, the
  * song shelf, the tiles and the Explore rows. Colours come from `p` (protoFor(theme)) so
  * light and dark both read from the one theme; the Continue card keeps its orange in both.
  */
@@ -20,9 +20,9 @@ import { songStepBars, stepLine, type ContinueModel, type ShelfEntry } from "@/l
 /** Left and right inset of the whole page, as on Home. */
 export const HUB_INSET = 20
 const PRESS = 0.97
-/** Text on the orange Continue card. */
-export const ON_ORANGE = "#1A0F08"
-const BAR_OFF_ON_ORANGE = "rgba(26, 15, 8, 0.24)"
+/** The Continue card is a deep forest tile (sage800): sand50 / white text, gold300 eyebrow, bright orange only for the done bars. */
+const CARD_TEXT = amColors.white
+const BAR_OFF_ON_FOREST = "rgba(255, 255, 255, 0.24)"
 
 const em = (size: number, value: number) => Math.round(size * value * 100) / 100
 
@@ -98,7 +98,7 @@ export function HubHeading({
       <Text accessibilityRole="header" style={s.h1}>
         <Text style={[s.h1Big, { color: p.ink800 }]}>LEARN</Text>
         {"\n"}
-        <Text style={[s.h1Small, { color: p.dark ? p.ink300 : amColors.ink400 }]}>PRABHAT SAMGIITA</Text>
+        <Text style={[s.h1Small, { color: p.ink300 }]}>PRABHAT SAMGIITA</Text>
       </Text>
       <Text style={[s.explain, { color: p.ink500 }]}>{explanation}</Text>
       <Text accessibilityLabel={stats} style={[s.stats, { color: p.ink500 }]}>
@@ -140,7 +140,7 @@ function ContinueBars({ bars, next }: { bars: ReturnType<typeof songStepBars>; n
     <View style={s.cBars} accessible accessibilityLabel={bars.map((b) => `${b.label} ${b.done ? "done" : "to do"}`).join(", ")}>
       {bars.map((bar) => (
         <View key={bar.step} style={s.cBarCol}>
-          <View style={[s.cBar, { backgroundColor: bar.done ? ON_ORANGE : BAR_OFF_ON_ORANGE }]} />
+          <View style={[s.cBar, { backgroundColor: bar.done ? amColors.orange500 : BAR_OFF_ON_FOREST }]} />
           <Text style={[s.cBarLabel, { fontFamily: bar.step === next ? amFonts.bold : amFonts.medium, opacity: bar.done || bar.step === next ? 1 : 0.72 }]}>
             {bar.label}
           </Text>
@@ -184,7 +184,7 @@ export function ContinueCard({ model, onGo }: { model: Exclude<ContinueModel, { 
           style={s.cGo}
         >
           <Text style={s.cGoText}>{label}</Text>
-          <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.2} />
+          <ArrowRight size={18} color={amColors.ink900} strokeWidth={2.2} />
         </PressBox>
       </View>
     </View>
@@ -246,8 +246,8 @@ export function SeeAllCard({ p, count, onPress }: { p: AmProto; count: number; o
       outerStyle={{ width: SHELF_CARD }}
       style={[s.seeAll, { borderColor: p.sand300, backgroundColor: p.white }]}
     >
-      <View style={[s.seeAllIcon, { backgroundColor: p.orange500 }]}>
-        <ArrowRight size={22} color={ON_ORANGE} strokeWidth={2.2} />
+      <View style={[s.seeAllIcon, { backgroundColor: p.ink900 }]}>
+        <ArrowRight size={22} color={p.onInk} strokeWidth={2.2} />
       </View>
       <Text style={[s.seeAllTitle, { color: p.ink800 }]}>See all</Text>
       <Text style={[s.songLine, { color: p.ink500 }]}>{text}</Text>
@@ -389,22 +389,22 @@ const s = StyleSheet.create({
   sectionHead: { paddingHorizontal: HUB_INSET, gap: 6 },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: em(13, 0.08), textTransform: "uppercase" },
   h2: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: em(30, -0.02), textTransform: "uppercase" },
-  cCard: { marginHorizontal: HUB_INSET, backgroundColor: amColors.orange500, borderRadius: 14, padding: 20, gap: 16 },
+  cCard: { marginHorizontal: HUB_INSET, backgroundColor: amColors.sage800, borderRadius: 14, padding: 20, gap: 16 },
   cTop: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  cOver: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: em(13, 0.08), textTransform: "uppercase", color: ON_ORANGE, fontVariant: ["tabular-nums"] },
-  cTitle: { fontFamily: amFonts.display, fontSize: 32, lineHeight: 32, letterSpacing: em(32, -0.02), textTransform: "uppercase", color: ON_ORANGE },
+  cOver: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: em(13, 0.08), textTransform: "uppercase", color: amColors.gold300, fontVariant: ["tabular-nums"] },
+  cTitle: { fontFamily: amFonts.display, fontSize: 32, lineHeight: 32, letterSpacing: em(32, -0.02), textTransform: "uppercase", color: CARD_TEXT },
   cBars: { flexDirection: "row", gap: 8 },
   cBarCol: { flex: 1, gap: 6 },
   cBar: { height: 6, borderRadius: 3 },
-  cBarLabel: { fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: ON_ORANGE },
+  cBarLabel: { fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: CARD_TEXT },
   cBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  cLine: { flex: 1, fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20, color: ON_ORANGE },
-  cGo: { height: 44, paddingHorizontal: 20, borderRadius: 70, backgroundColor: ON_ORANGE, flexDirection: "row", alignItems: "center", gap: 8 },
-  cGoText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22, color: "#FFFFFF" },
+  cLine: { flex: 1, fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20, color: CARD_TEXT },
+  cGo: { height: 44, paddingHorizontal: 20, borderRadius: 70, backgroundColor: amColors.white, flexDirection: "row", alignItems: "center", gap: 8 },
+  cGoText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22, color: amColors.ink900 },
   pic: { width: SHELF_CARD, height: SHELF_CARD, borderRadius: 14, overflow: "hidden" },
   picImg: { width: SHELF_CARD, height: SHELF_CARD },
-  psChip: { position: "absolute", left: 8, top: 8, paddingHorizontal: 8, height: 22, borderRadius: 11, backgroundColor: "rgba(10, 14, 8, 0.62)", justifyContent: "center" },
-  psChipText: { fontFamily: amFonts.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.4, color: "#FFFFFF", fontVariant: ["tabular-nums"] },
+  psChip: { position: "absolute", left: 8, top: 8, paddingHorizontal: 8, height: 22, borderRadius: 11, backgroundColor: amPhotoChip.glass.bg, justifyContent: "center" },
+  psChipText: { fontFamily: amFonts.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.4, color: amPhotoChip.glass.fg, fontVariant: ["tabular-nums"] },
   songTitle: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 19, letterSpacing: -0.15, marginTop: 10, minHeight: 38 },
   sBars: { flexDirection: "row", gap: 4, marginTop: 8 },
   sBar: { flex: 1, height: 4, borderRadius: 2 },

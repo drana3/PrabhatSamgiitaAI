@@ -12,6 +12,8 @@ export const amColors = {
   orange500: "#F67931",
   orange600: "#E5610F",
   orange700: "#B94D0C",
+  /** pressed action fill, and accent TEXT on light surfaces (6.2:1 on sand200, 7.5:1 on white) */
+  orange800: "#8F3B08",
 
   gold100: "#FEFAD0",
   gold300: "#F5C253",
@@ -50,6 +52,13 @@ export const amColors = {
   tintYellow: "#FEFAD0",
   tintPeach: "#FFDCC5",
   danger: "#EC221F",
+  /** error TEXT on light surfaces (6.9:1 on white, 5.7:1 on sand200); `danger` is for graphics and fills only */
+  dangerText: "#B3150E",
+  /**
+   * Second tone of the big two-tone display headings ("SONGS" + grey count): the lightest grey that
+   * still gives 4:1 on sand200 and the peach page wash. ink400/300/200 are never text colours.
+   */
+  headingSecond: "#77716B",
 } as const
 
 export interface AmTheme {
@@ -66,10 +75,22 @@ export interface AmTheme {
   textMuted: string
   /** small uppercase labels */
   eyebrow: string
-  /** buttons, active tab, progress. Text on it is always white. */
+  /** second tone of two-tone display headings (large text, at least 4:1) */
+  headingSecond: string
+  /**
+   * Action fill: the ONE primary button, the selected chip/tab pill. orange700 in Light and Dark.
+   * Text on it is always `onBrand` (white). Never put text on `accentBright`.
+   */
   brand: string
+  /** pressed action fill (orange800) */
   brandPress: string
   onBrand: string
+  /** bright orange (orange500): icons, progress and scrubber fill, dots, equaliser bars, focus rings, glows. Never behind text. */
+  accentBright: string
+  /** accent TEXT: orange800 on light surfaces, orange500 on dark surfaces (at least 4.5:1) */
+  accentText: string
+  /** error text (4.5:1+ on every surface of the theme) */
+  dangerText: string
   /** Player and quiz card ground */
   forest: string
   glass: string
@@ -84,12 +105,16 @@ export const amLight: AmTheme = {
   inner: amColors.sand100,
   line: amColors.sand300,
   textHeading: amColors.ink800,
-  textBody: amColors.ink500,
-  textMuted: amColors.ink400,
-  eyebrow: amColors.orange700,
-  brand: amColors.orange500,
-  brandPress: amColors.orange700,
+  textBody: amColors.ink600,
+  textMuted: amColors.ink500,
+  eyebrow: amColors.orange800,
+  headingSecond: amColors.headingSecond,
+  brand: amColors.orange700,
+  brandPress: amColors.orange800,
   onBrand: amColors.white,
+  accentBright: amColors.orange500,
+  accentText: amColors.orange800,
+  dangerText: amColors.dangerText,
   forest: amColors.sage900,
   glass: "rgba(255, 255, 255, 0.55)",
   glassStrong: "rgba(255, 255, 255, 0.9)",
@@ -104,7 +129,8 @@ export const amLight: AmTheme = {
  * The ONE place dark surfaces are defined: neutral near-black with a barely warm tint
  * (Spotify structure, orange where Spotify uses green). amDark, protoDark, spDark, the
  * Songs and Learn themes, the mini player and the tab pill all read from here.
- * Contrast (WCAG): heading 15:1+, body 6:1+, muted 4.8:1+ on every surface below.
+ * Contrast (WCAG): heading 15:1+, body 6:1+, muted 4.8:1+ on page/raised/card/inner.
+ * `muted` is NOT allowed on `tile` (4.38:1): use `body` there (5.6:1).
  */
 export const amDarkSurface = {
   page: "#121110",
@@ -125,6 +151,8 @@ export const amDarkSurface = {
   glassEdge: "rgba(255, 255, 255, 0.14)",
   /** text and icons on the light (white/ink) controls in dark */
   onLight: "#121110",
+  /** error text on dark surfaces (6.2:1+ on inner) */
+  dangerText: "#FF7A74",
 } as const
 
 export const amDark: AmTheme = {
@@ -137,15 +165,32 @@ export const amDark: AmTheme = {
   textBody: amDarkSurface.body,
   textMuted: amDarkSurface.muted,
   eyebrow: amColors.gold300,
-  brand: amColors.orange500,
-  brandPress: amColors.orange600,
+  headingSecond: amDarkSurface.muted,
+  brand: amColors.orange700,
+  brandPress: amColors.orange800,
   onBrand: amColors.white,
+  accentBright: amColors.orange500,
+  accentText: amColors.orange500,
+  dangerText: amDarkSurface.dangerText,
   forest: amColors.sage900,
   glass: amDarkSurface.glass,
   glassStrong: "rgba(28, 26, 24, 0.92)",
   glassEdge: amDarkSurface.glassEdge,
 }
 
-/** Scrim for text over photography. */
-export const amScrimPhoto = ["rgba(0,0,0,0)", "rgba(0,0,0,0.58)"] as const
+/**
+ * Scrims for text over photography. Text on a photo ALWAYS sits on a scrim: `bottom` behind the
+ * title block, `top` behind top-left labels. Chips on photos are neutral only (`amPhotoChip`).
+ */
+export const amScrimPhoto = ["rgba(0,0,0,0)", "rgba(0,0,0,0.72)"] as const
+export const amScrimPhotoTop = ["rgba(0,0,0,0.45)", "rgba(0,0,0,0)"] as const
+
+/**
+ * The only two chip looks allowed ON a photograph: dark glass + white text (13.7:1), or a
+ * white chip + ink800 text (12.6:1). No green, orange or gold chips over images.
+ */
+export const amPhotoChip = {
+  glass: { bg: "rgba(18, 17, 16, 0.72)", fg: "#FFFFFF" },
+  white: { bg: "#FFFFFF", fg: "#333333" },
+} as const
 export const amGradientBrand = ["#F67931", "#FB7122"] as const

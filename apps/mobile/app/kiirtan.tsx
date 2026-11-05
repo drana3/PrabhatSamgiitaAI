@@ -178,9 +178,9 @@ export default function KiirtanTabScreen() {
                 accessibilityLabel={b.label}
                 onActivate={() => setLength((cur) => (cur === b.id ? null : b.id))}
                 pressedScale={0.95}
-                style={[styles.lengthChip, { backgroundColor: on ? p.orange500 : p.white, borderColor: on ? p.orange500 : p.sand300 }]}
+                style={[styles.lengthChip, { backgroundColor: on ? p.action : p.white, borderColor: on ? p.action : p.sand300 }]}
               >
-                <Text style={[styles.lengthText, { color: on ? "#1E1E1E" : p.ink800 }]}>{b.label}</Text>
+                <Text style={[styles.lengthText, { color: on ? p.onAction : p.ink800 }]}>{b.label}</Text>
               </KPress>
             )
           })}
@@ -324,8 +324,8 @@ export default function KiirtanTabScreen() {
           <TodayPress accessibilityRole="search" accessibilityLabel="Search" onPress={() => router.push(href("/search-v2?focus=1&scope=kiirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
             <Search size={20} color={p.ink800} strokeWidth={1.9} />
           </TodayPress>
-          <TodayPress accessibilityRole="button" accessibilityLabel="Add Kiirtan" onPress={() => router.push(href("/add-kirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.orange500, borderColor: p.orange500 }]}>
-            <Plus size={22} color="#1E1E1E" strokeWidth={2.2} />
+          <TodayPress accessibilityRole="button" accessibilityLabel="Add Kiirtan" onPress={() => router.push(href("/add-kirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.action, borderColor: p.action }]}>
+            <Plus size={22} color={p.onAction} strokeWidth={2.2} />
           </TodayPress>
         </View>
         <StickyChipsRow items={KIRTAN_TAB_CHIPS} value={chip} onChange={setChip} colors={chipColors} scrollY={scrollY} stickAt={0} />
@@ -373,8 +373,8 @@ export default function KiirtanTabScreen() {
             {kirtan.durationSec ? ` · ${formatKirtanLength(kirtan.durationSec)}` : ""}
           </Text>
         </View>
-        <View style={[styles.dayPlay, { backgroundColor: p.orange500 }]} pointerEvents="none">
-          <PlayFilled size={26} color="#1E1E1E" />
+        <View style={[styles.dayPlay, { backgroundColor: p.action }]} pointerEvents="none">
+          <PlayFilled size={26} color={p.onAction} />
         </View>
       </KPress>
     )

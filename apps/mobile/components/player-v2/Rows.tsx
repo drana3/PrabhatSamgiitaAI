@@ -10,7 +10,7 @@ import { isDarkTheme } from "@/lib/navV2"
 
 /** The inactive ring of a radio or check: --am-ink-300 in Light, #6A7761 in Dark. */
 export function ringColor(theme: AmTheme): string {
-  return isDarkTheme(theme) ? amDarkSurface.muted : amColors.ink300
+  return isDarkTheme(theme) ? amDarkSurface.muted : amColors.headingSecond
 }
 
 /** The selected-row wash (--am-orange-100): #FFDCC5 in Light, #4A2E1C in Dark. */
@@ -115,7 +115,7 @@ export function SheetPill({
   onPress: () => void
   disabled?: boolean
 }) {
-  const fill = tone === "brand" ? amColors.orange500 : tone === "ink" ? theme.textHeading : theme.card
+  const fill = tone === "brand" ? amColors.orange700 : tone === "ink" ? theme.textHeading : theme.card
   const ink = tone === "brand" ? amColors.white : tone === "ink" ? theme.page : theme.textHeading
   return (
     <PressScale

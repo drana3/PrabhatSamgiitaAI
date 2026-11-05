@@ -47,7 +47,7 @@ export function VersionsSheet({ visible, theme, versions, selectedIndex, downloa
                 onAction={() => onPlayMode(option.mode)}
                 pressedScale={0.97}
                 containerStyle={styles.scopeCell}
-                style={[styles.scopeSeg, on && { backgroundColor: amColors.orange500 }]}
+                style={[styles.scopeSeg, on && { backgroundColor: amColors.orange700 }]}
               >
                 <Text style={[styles.scopeText, { color: on ? amColors.white : theme.textHeading }]} numberOfLines={1}>
                   {option.label}

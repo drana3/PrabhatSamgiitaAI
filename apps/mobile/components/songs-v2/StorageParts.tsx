@@ -246,7 +246,7 @@ export function ClearActionPill({ action, onPress }: ThemeProps & { action: Clea
         onPress={onPress}
         pressedScale={0.98}
         outerStyle={styles.sbarPress}
-        style={[styles.sbarPill, { backgroundColor: model.tone === "danger" ? amColors.danger : amColors.orange500 }]}
+        style={[styles.sbarPill, { backgroundColor: model.tone === "danger" ? amColors.dangerText : amColors.orange700 }]}
       >
         <Text style={styles.sbarText} numberOfLines={1}>
           {model.label}

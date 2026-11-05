@@ -60,7 +60,7 @@ export function AskHeading({ theme, grounded }: ThemeProps & { grounded: boolean
     <Text style={[amType.title, styles.heading]} accessibilityRole="header">
       <Text style={{ color: theme.textHeading }}>Ask</Text>
       {"\n"}
-      <Text style={{ color: amColors.ink300 }}>{grounded ? "about this song" : "about the songs"}</Text>
+      <Text style={{ color: theme.headingSecond }}>{grounded ? "about this song" : "about the songs"}</Text>
     </Text>
   )
 }

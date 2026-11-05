@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   play: {
     height: playerSize.drivePlayHeight,
     borderRadius: amRadius.pill,
-    backgroundColor: playerColors.brand,
+    backgroundColor: playerColors.action,
     alignItems: "center",
     justifyContent: "center",
   },

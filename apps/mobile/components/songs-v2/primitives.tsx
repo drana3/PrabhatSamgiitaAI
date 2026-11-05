@@ -107,7 +107,7 @@ export function BrandPill({
       pressedScale={0.98}
       style={[
         small ? styles.pillSm : styles.pill,
-        { backgroundColor: tone === "danger" ? "#EC221F" : theme.brand },
+        { backgroundColor: tone === "danger" ? "#B3150E" : theme.brand },
         style,
       ]}
     >

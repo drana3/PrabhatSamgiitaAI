@@ -217,7 +217,7 @@ export default function AddKirtanScreen() {
             </KPress>
 
             {error ? (
-              <Text style={[styles.hint, { color: amColors.danger }]} accessibilityLiveRegion="polite">
+              <Text style={[styles.hint, { color: theme.dangerText }]} accessibilityLiveRegion="polite">
                 {error === "duplicate"
                   ? duplicate?.status === "approved"
                     ? "This Kiirtan is already in the list."

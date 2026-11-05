@@ -37,9 +37,9 @@ export const PlayFilled = ({ size = 18, color }: G) => (
 
 /* ------------------------------------------------------------------ labels */
 
-/** Small outlined orange label. */
+/** Small outlined neutral label (orange is for actions, not for labels). */
 export function KirtanTag({ theme, color }: { theme: SongsTheme; color?: string }) {
-  const tone = color ?? theme.accent
+  const tone = color ?? theme.textBody
   return (
     <View style={[styles.tag, { borderColor: tone }]}>
       <Text style={[styles.tagText, { color: tone }]}>KIIRTAN</Text>
@@ -61,7 +61,7 @@ export function StatusBadge({ theme, status }: { theme: SongsTheme; status: Kirt
     status === "approved"
       ? { bg: theme.oliveBg, fg: theme.oliveText }
       : status === "rejected"
-        ? { bg: "transparent", fg: amColors.danger }
+        ? { bg: "transparent", fg: theme.dangerText }
         : { bg: theme.peach, fg: theme.accent }
   return (
     <View style={[styles.badge, { backgroundColor: tone.bg, borderColor: status === "rejected" ? amColors.danger : "transparent" }]}>
@@ -177,7 +177,7 @@ export function ArtistLink({ theme, author, onOpenArtist }: { theme: SongsTheme;
   }
   return (
     <KPress accessibilityRole="link" accessibilityLabel={`Artist ${artist.name}`} onPress={() => onOpenArtist(artist.id)} pressedScale={0.96} hitSlop={8}>
-      <Text style={[styles.artistLink, { color: theme.accent }]} numberOfLines={1}>
+      <Text style={[styles.artistLink, { color: theme.textHeading }]} numberOfLines={1}>
         {artist.name}
       </Text>
     </KPress>

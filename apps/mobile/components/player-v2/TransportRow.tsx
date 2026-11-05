@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     width: playerSize.playDisc,
     height: playerSize.playDisc,
     borderRadius: playerSize.playDisc / 2,
-    backgroundColor: playerColors.brand,
+    backgroundColor: playerColors.action,
     alignItems: "center",
     justifyContent: "center",
   },

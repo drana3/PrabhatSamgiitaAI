@@ -107,7 +107,7 @@ export default function KirtanArtistScreen() {
           outerStyle={styles.actionOuter}
           style={[styles.action, { backgroundColor: theme.brand }]}
         >
-          <PlayFilled size={20} color="#1E1E1E" />
+          <PlayFilled size={20} color="#FFFFFF" />
           <Text style={styles.actionText}>Play</Text>
         </KPress>
         <KPress
@@ -116,10 +116,10 @@ export default function KirtanArtistScreen() {
           onPress={() => actions.flash(playArtist(artist, all, { shuffle: true }) ?? "")}
           pressedScale={0.97}
           outerStyle={styles.actionOuter}
-          style={[styles.action, { backgroundColor: theme.brand }]}
+          style={[styles.action, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line }]}
         >
-          <Shuffle size={20} color="#1E1E1E" strokeWidth={2.2} />
-          <Text style={styles.actionText}>Shuffle</Text>
+          <Shuffle size={20} color={theme.textHeading} strokeWidth={2.2} />
+          <Text style={[styles.actionText, { color: theme.textHeading }]}>Shuffle</Text>
         </KPress>
       </View>
 
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingTop: 18 },
   actionOuter: { flex: 1 },
   action: { height: 52, borderRadius: 70, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  actionText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#1E1E1E" },
+  actionText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
   block: { paddingHorizontal: 20, paddingTop: 30, gap: 14 },
   blockHead: { fontFamily: amFonts.display, fontSize: 28, lineHeight: 28, letterSpacing: -0.5, textTransform: "uppercase" },
   rows: { gap: 8 },

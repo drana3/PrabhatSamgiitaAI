@@ -78,11 +78,15 @@ export function songSub(number: number, duration?: string | null): string {
 
 export type StripTone = "orange" | "sage" | "gold" | "forest"
 
-/** Label strip colours: text is always legible on its strip (ink on orange and gold, white on greens). */
+/**
+ * Flat tile colours (Search tiles, collection tiles). Never for a label over a photo: those use the
+ * neutral dark-glass chip. Light tints carry dark ink (peach, gold300), deep fills carry white (sage,
+ * forest). No mid-tone orange fill: "orange" is the peach tint, so no text ever sits on bright orange.
+ */
 export function stripColors(tone: StripTone, dark: boolean): { bg: string; fg: string } {
   switch (tone) {
     case "orange":
-      return { bg: "#F67931", fg: "#1E1E1E" }
+      return dark ? { bg: "#3A2418", fg: "#F4F1EC" } : { bg: "#FFDCC5", fg: "#1E1E1E" }
     case "gold":
       return { bg: "#F5C253", fg: "#1E1E1E" }
     case "sage":

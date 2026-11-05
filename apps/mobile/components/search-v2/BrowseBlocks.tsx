@@ -36,9 +36,9 @@ export function SearchHeader({
         accessibilityState={{ selected: listening }}
         onPress={onMic}
         pressedScale={0.92}
-        style={[s.round, { backgroundColor: listening ? p.orange500 : p.white, borderColor: listening ? p.orange500 : p.sand300 }]}
+        style={[s.round, { backgroundColor: listening ? p.action : p.white, borderColor: listening ? p.action : p.sand300 }]}
       >
-        <Mic size={20} color={listening ? "#1E1E1E" : p.ink800} strokeWidth={1.9} />
+        <Mic size={20} color={listening ? p.onAction : p.ink800} strokeWidth={1.9} />
       </TodayPress>
       <TodayPress accessibilityRole="button" accessibilityLabel="Close search" onPress={onClose} pressedScale={0.92} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
         <X size={20} color={p.ink800} strokeWidth={1.9} />

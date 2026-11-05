@@ -13,8 +13,8 @@ import { coverFor, stripColors, type HomeCoverId } from "@/lib/homeShelves"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
 import { accentIndex, splitTitle, type ChipDef, type DownloadAllState } from "@/lib/songsV2/listPage"
 
-/** Dark glyphs and labels on the orange (#F67931): 6.7:1. */
-export const ON_ORANGE = "#1E1E1E"
+/** White glyphs and labels on the action fill (orange700): 5.1:1. Never dark text on orange. */
+export const ON_ACTION = "#FFFFFF"
 
 export const LIST_SIDE = 20
 export const ROW_HEIGHT = 64
@@ -71,11 +71,11 @@ export function AccentCover({ label, dark }: { label: string; dark: boolean }) {
   const { bg, fg } = stripColors(tone, dark)
   const letter = Array.from(label.trim())[0]?.toUpperCase() ?? "·"
   return (
-    <LinearGradient colors={[bg, shade(bg, 0.62)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover}>
+    <View style={[styles.cover, { backgroundColor: bg }]}>
       <Text style={[styles.letter, { color: fg }]} accessibilityElementsHidden>
         {letter}
       </Text>
-    </LinearGradient>
+    </View>
   )
 }
 
@@ -165,7 +165,7 @@ export function ActionBar({
     <View style={styles.actions}>
       <View style={styles.actionsLeft}>
         <IconButton label={label} onPress={onDownload}>
-          <DownloadIcon state={download} color={theme.textHeading} fill={theme.brand} onFill={ON_ORANGE} />
+          <DownloadIcon state={download} color={theme.textHeading} fill={theme.brand} onFill={ON_ACTION} />
         </IconButton>
         <IconButton label="Sort and filter" onPress={onSort}>
           <SortGlyph size={24} color={theme.textHeading} />
@@ -186,7 +186,7 @@ export function ActionBar({
           pressedScale={0.92}
           style={[styles.play, { backgroundColor: theme.brand, opacity: disabled ? 0.45 : 1 }]}
         >
-          {playing ? <PauseIcon size={26} color={ON_ORANGE} /> : <PlayGlyph size={26} color={ON_ORANGE} />}
+          {playing ? <PauseIcon size={26} color={ON_ACTION} /> : <PlayGlyph size={26} color={ON_ACTION} />}
         </Press>
       </View>
     </View>
@@ -255,7 +255,7 @@ export function ChipsRow({
                 : { backgroundColor: theme.card, borderColor: theme.line },
             ]}
           >
-            <Text style={[styles.chipLabel, { color: on ? ON_ORANGE : theme.textHeading }]}>{chip.label}</Text>
+            <Text style={[styles.chipLabel, { color: on ? ON_ACTION : theme.textHeading }]}>{chip.label}</Text>
           </Press>
         )
       })}
@@ -304,7 +304,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
             style={[
               styles.rowTitle,
               current
-                ? { color: theme.dark ? theme.brand : theme.accent, fontFamily: amFonts.medium }
+                ? { color: theme.accentText, fontFamily: amFonts.medium }
                 : { color: theme.textHeading, fontFamily: amFonts.regular },
             ]}
             numberOfLines={1}
@@ -317,7 +317,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
             </Text>
             {saved ? <HeartGlyph size={13} color={theme.brand} filled strokeWidth={2} /> : null}
             {download === "done" ? (
-              <DownloadIcon state="done" size={14} color={theme.textBody} fill={theme.brand} onFill={ON_ORANGE} />
+              <DownloadIcon state="done" size={14} color={theme.textBody} fill={theme.brand} onFill={ON_ACTION} />
             ) : null}
           </View>
         </View>

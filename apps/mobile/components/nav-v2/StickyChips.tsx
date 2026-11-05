@@ -14,7 +14,7 @@ import type { AmProto } from "@/constants/tokens/amToday"
  *    ends above this row, so nothing shows through and no band appears.
  *  - A hairline (8% ink) fades in under it only after content has scrolled beneath it.
  *  - Chips fade out under a soft mask on the right edge only.
- *  - The active chip is filled orange with dark text; the others are outlined on the card colour.
+ *  - The active chip is filled orange700 with white text; the others are outlined on the card colour.
  */
 export const STICKY_CHIPS_HEIGHT = 56
 export const STICKY_CHIPS_PAD = 16
@@ -27,8 +27,8 @@ export function chipColorsOf(p: AmProto) {
     page: p.sand200,
     card: p.white,
     line: p.sand300,
-    active: p.orange500,
-    onActive: "#1E1E1E",
+    active: p.action,
+    onActive: p.onAction,
     text: p.ink800,
     hairline: p.dark ? "rgba(245, 242, 239, 0.08)" : "rgba(30, 30, 30, 0.08)",
   }

@@ -145,12 +145,12 @@ export function Chip({ p, label, on, onPress, compact = true }: ChipProps) {
         s.chip,
         compact ? s.chipCompact : null,
         {
-          backgroundColor: on ? (p.dark ? p.orange500 : p.ink900) : p.white,
-          borderColor: on ? (p.dark ? p.orange500 : p.ink900) : p.sand300,
+          backgroundColor: on ? (p.dark ? p.action : p.ink900) : p.white,
+          borderColor: on ? (p.dark ? p.action : p.ink900) : p.sand300,
         },
       ]}
     >
-      <Text style={[s.chipText, compact ? s.chipTextCompact : null, { color: on ? p.onInk : p.ink800 }]}>{label}</Text>
+      <Text style={[s.chipText, compact ? s.chipTextCompact : null, { color: on ? (p.dark ? p.onAction : p.onInk) : p.ink800 }]}>{label}</Text>
     </TodayPress>
   )
 }
@@ -164,7 +164,7 @@ export function ChipRow({ children }: { children: ReactNode }) {
 /** `.rdo`: 24dp circle, 2dp ink300 ring; selected = orange fill with a white 10dp dot. */
 export function Radio({ p, on }: P & { on: boolean }) {
   return (
-    <View style={[s.mark, on ? { backgroundColor: p.orange500, borderColor: p.orange500 } : { borderColor: p.ink300 }]}>
+    <View style={[s.mark, on ? { backgroundColor: p.action, borderColor: p.action } : { borderColor: p.ink300 }]}>
       {on ? <View style={s.radioDot} /> : null}
     </View>
   )
@@ -173,7 +173,7 @@ export function Radio({ p, on }: P & { on: boolean }) {
 /** `.chk`: the same circle with a white tick (a 6 x 11 L turned 45 degrees). */
 export function Check({ p, on }: P & { on: boolean }) {
   return (
-    <View style={[s.mark, on ? { backgroundColor: p.orange500, borderColor: p.orange500 } : { borderColor: p.ink300 }]}>
+    <View style={[s.mark, on ? { backgroundColor: p.action, borderColor: p.action } : { borderColor: p.ink300 }]}>
       {on ? <View style={s.tick} /> : null}
     </View>
   )
@@ -264,7 +264,7 @@ export function DoneButton({ p, label = "Done", onPress }: P & { label?: string;
         accessibilityLabel={label}
         onPress={onPress}
         pressedScale={0.98}
-        style={[s.done, { backgroundColor: p.orange500 }]}
+        style={[s.done, { backgroundColor: p.action }]}
       >
         <Text style={s.doneText}>{label}</Text>
       </TodayPress>

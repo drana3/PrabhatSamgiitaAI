@@ -102,9 +102,9 @@ export function GradeButtons({
   const look = (grade: Grade) => {
     switch (grade) {
       case "again":
-        return { bg: tone.peach, fg: amColors.danger, border: "transparent" }
+        return { bg: tone.peach, fg: theme.dangerText, border: "transparent" }
       case "good":
-        return { bg: amColors.orange500, fg: amColors.white, border: "transparent" }
+        return { bg: theme.brand, fg: theme.onBrand, border: "transparent" }
       case "easy":
         return { bg: tone.dark ? "rgba(229,228,212,0.92)" : amColors.sage200, fg: amColors.sage900, border: "transparent" }
       default:

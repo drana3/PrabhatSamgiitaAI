@@ -48,7 +48,7 @@ export function toneOf(theme: AmTheme) {
     /** --on-ink */
     onInk: dark ? amDarkSurface.onLight : amColors.white,
     /** --am-ink-300: second tone of headings, "of 5" */
-    ink300: dark ? amDarkSurface.muted : amColors.ink300,
+    ink300: dark ? amDarkSurface.muted : amColors.headingSecond,
     /** --am-orange-100: peach card, avatar */
     peach: dark ? amDarkSurface.peach : amColors.orange100,
   }
@@ -175,7 +175,7 @@ export function Pill({
         small && styles.pillSmall,
         height ? { height } : null,
         brand
-          ? { backgroundColor: amColors.orange500 }
+          ? { backgroundColor: theme.brand }
           : { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line },
         disabled && { opacity: 0.5 },
       ]}
@@ -203,8 +203,8 @@ export function Chip({
   green?: boolean
 }) {
   const tone = toneOf(theme)
-  const onBg = tone.dark ? amColors.orange500 : green ? amColors.sage700 : tone.ink900
-  const onFg = tone.dark ? tone.onInk : green ? amColors.white : tone.onInk
+  const onBg = tone.dark ? theme.brand : green ? amColors.sage700 : tone.ink900
+  const onFg = tone.dark ? theme.onBrand : green ? amColors.white : tone.onInk
   return (
     <PressBox
       accessibilityRole="radio"
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   meter: { flexDirection: "row", gap: 4, marginTop: 4 },
   meterBar: { width: 22, height: 6, borderRadius: 3 },
   seg: { flexDirection: "row", height: 56, padding: SEG_PAD, borderRadius: 70, borderWidth: 1 },
-  segInd: { position: "absolute", left: SEG_PAD, top: SEG_PAD, height: 46, borderRadius: 70, backgroundColor: amColors.orange500 },
+  segInd: { position: "absolute", left: SEG_PAD, top: SEG_PAD, height: 46, borderRadius: 70, backgroundColor: amColors.orange700 },
   segOuter: { flex: 1 },
   segButton: { height: 46, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   segText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 22 },

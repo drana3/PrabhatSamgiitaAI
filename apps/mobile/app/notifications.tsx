@@ -30,7 +30,7 @@ function tile(p: AmProto, kind: NotificationKind): { bg: string; fg: string } {
     case "festival":
       return { bg: p.gold300, fg: "#1E1E1E" }
     case "words":
-      return { bg: p.orange500, fg: "#1E1E1E" }
+      return { bg: p.action, fg: "#FFFFFF" }
     case "story":
       return { bg: p.sage700, fg: "#FFFFFF" }
     default:
@@ -47,7 +47,7 @@ function Row({ p, item, unread, onPress }: { p: AmProto; item: AppNotification; 
       accessibilityLabel={`${item.title}. ${item.text}. ${item.time}${unread ? ". Unread" : ""}`}
       onPress={onPress}
       pressedScale={0.98}
-      style={[s.row, { backgroundColor: p.white, borderColor: unread ? p.orange500 : p.sand300 }]}
+      style={[s.row, { backgroundColor: p.white, borderColor: p.sand300 }]}
     >
       {item.kind === "song" && item.coverNumber != null ? (
         <HomeCover number={item.coverNumber} size={48} radius={12} />

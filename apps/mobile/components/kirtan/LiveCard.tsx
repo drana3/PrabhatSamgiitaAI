@@ -6,7 +6,7 @@ import { Bell, Radio, Users } from "lucide-react-native"
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated"
 
 import { KPress } from "@/components/kirtan/KPress"
-import { amColors } from "@/constants/tokens/amColors"
+import { amColors, amPhotoChip } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { hostLine, liveBadge, liveStatus, type LiveItem } from "@/lib/kirtan/live"
@@ -15,7 +15,7 @@ import { moodForText, photoForSeed } from "@/lib/photos/catalog"
 export const LIVE_CARD = { w: 220, h: 124 } as const
 
 /** The small dot of the LIVE badge. It pulses through opacity only; with reduced motion it stays still. */
-export function LiveDot({ color = "#1E1E1E" }: { color?: string }) {
+export function LiveDot({ color = amColors.orange500 }: { color?: string }) {
   const reduce = useReducedMotion()
   const o = useSharedValue(1)
   useEffect(() => {
@@ -30,13 +30,13 @@ export function LiveDot({ color = "#1E1E1E" }: { color?: string }) {
   return <Animated.View style={[styles.dot, { backgroundColor: color }, style]} />
 }
 
-/** `LIVE` (orange, dark text, pulsing dot) or the start time on a dark chip. */
+/** `LIVE` (white on dark glass, with a pulsing bright-orange dot) or the start time on the same dark chip. Chips on photos are neutral only. */
 export function LiveBadge({ item, now }: { item: LiveItem; now: number }) {
   const live = liveStatus(item, now) === "live"
   return (
     <View style={[styles.badge, live ? styles.badgeLive : styles.badgeSoon]}>
       {live ? <LiveDot /> : null}
-      <Text style={[styles.badgeText, { color: live ? "#1E1E1E" : "#FFFFFF" }]}>{liveBadge(item, now)}</Text>
+      <Text style={[styles.badgeText, { color: amPhotoChip.glass.fg }]}>{liveBadge(item, now)}</Text>
     </View>
   )
 }
@@ -116,9 +116,9 @@ export function LiveCard({
           onPress={() => onRemind(item)}
           pressedScale={0.88}
           outerStyle={styles.bellSlot}
-          style={[styles.bell, reminded ? { backgroundColor: amColors.orange500 } : { backgroundColor: "rgba(10,14,8,0.55)" }]}
+          style={[styles.bell, reminded ? { backgroundColor: amColors.orange700 } : { backgroundColor: amPhotoChip.glass.bg }]}
         >
-          <Bell size={17} color={reminded ? "#1E1E1E" : "#FFFFFF"} fill={reminded ? "#1E1E1E" : "none"} strokeWidth={1.9} />
+          <Bell size={17} color="#FFFFFF" fill={reminded ? "#FFFFFF" : "none"} strokeWidth={1.9} />
         </KPress>
       )}
     </View>
@@ -132,8 +132,8 @@ const styles = StyleSheet.create({
   glyph: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   badgeSlot: { position: "absolute", left: 10, top: 10 },
   badge: { height: 24, paddingHorizontal: 9, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 6 },
-  badgeLive: { backgroundColor: amColors.orange500 },
-  badgeSoon: { backgroundColor: "rgba(10,14,8,0.62)" },
+  badgeLive: { backgroundColor: amPhotoChip.glass.bg },
+  badgeSoon: { backgroundColor: amPhotoChip.glass.bg },
   badgeText: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 15, letterSpacing: 0.6, fontVariant: ["tabular-nums"] },
   dot: { width: 7, height: 7, borderRadius: 4 },
   bellSlot: { position: "absolute", right: 6, top: 6, width: 44, height: 44, alignItems: "center", justifyContent: "center" },

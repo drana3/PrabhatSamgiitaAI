@@ -9,14 +9,17 @@ import { SONGS_LAYOUT as L } from "@/lib/songsV2/layout"
 /** One card of the shelf. `countLabel` is `124 songs`. */
 export type ShelfCollection = { id: string; label: string; countLabel: string }
 
-/** Card colours in turn: each has a legible text colour (dark on orange and gold, white on greens). */
+/**
+ * Card colours in turn. Light tints (peach, gold300, olive, sage200) carry dark ink; deep fills (sage700,
+ * sage900) carry white. No orange fill: orange is for the action, not for decoration.
+ */
 const CARD_TONES: readonly { bg: string; fg: string; sub: string }[] = [
-  { bg: amColors.orange500, fg: "#1E1E1E", sub: "rgba(30,30,30,0.74)" },
+  { bg: amColors.orange100, fg: amColors.ink900, sub: amColors.ink600 },
   { bg: amColors.sage700, fg: "#FFFFFF", sub: "rgba(255,255,255,0.8)" },
-  { bg: amColors.gold300, fg: "#1E1E1E", sub: "rgba(30,30,30,0.74)" },
+  { bg: amColors.gold300, fg: amColors.ink900, sub: amColors.ink600 },
   { bg: amColors.sage900, fg: "#FFFFFF", sub: "rgba(255,255,255,0.8)" },
-  { bg: amColors.orange700, fg: "#FFFFFF", sub: "rgba(255,255,255,0.84)" },
-  { bg: amColors.olive100, fg: amColors.sage900, sub: "rgba(32,40,26,0.74)" },
+  { bg: amColors.olive100, fg: amColors.sage900, sub: amColors.ink600 },
+  { bg: amColors.sage200, fg: amColors.sage900, sub: amColors.ink600 },
 ]
 
 /** Pure: the colours of card number `index`. */

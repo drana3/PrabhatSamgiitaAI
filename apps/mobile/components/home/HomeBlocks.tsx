@@ -9,9 +9,10 @@ import { PlayGlyph } from "@/components/today/protoIcons"
 import { overStyle } from "@/components/today/TodayBlocks"
 import { TodayPress } from "@/components/today/TodayPress"
 import { todayAssets } from "@/constants/todayAssets"
+import { amPhotoChip, amScrimPhoto, amScrimPhotoTop } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
-import { chunk, coverFor, stripColors, type HomeCoverId, type StripTone } from "@/lib/homeShelves"
+import { chunk, coverFor, type HomeCoverId, type StripTone } from "@/lib/homeShelves"
 import type { TodayDayKind } from "@/lib/todayDay"
 
 type P = { p: AmProto }
@@ -112,9 +113,9 @@ export function HomeChips<T extends string>({
             accessibilityState={{ selected: on }}
             onPress={() => onChange(chip.id)}
             pressedScale={0.94}
-            style={[s.chip, { backgroundColor: on ? p.orange500 : p.white, borderColor: on ? p.orange500 : p.sand300 }]}
+            style={[s.chip, { backgroundColor: on ? p.action : p.white, borderColor: on ? p.action : p.sand300 }]}
           >
-            <Text style={[s.chipText, { color: on ? "#1E1E1E" : p.ink800 }]}>{chip.label}</Text>
+            <Text style={[s.chipText, { color: on ? p.onAction : p.ink800 }]}>{chip.label}</Text>
           </TodayPress>
         )
       })}
@@ -144,9 +145,9 @@ export function HomeSectionHead({ p, eyebrow, first, second, action }: P & { eye
           accessibilityLabel={action.label}
           onPress={action.onPress}
           pressedScale={0.95}
-          style={[s.action, { backgroundColor: p.orange500 }]}
+          style={[s.action, { backgroundColor: p.ink900 }]}
         >
-          <Text style={s.actionText}>{action.label}</Text>
+          <Text style={[s.actionText, { color: p.onInk }]}>{action.label}</Text>
         </TodayPress>
       ) : null}
     </View>
@@ -155,8 +156,8 @@ export function HomeSectionHead({ p, eyebrow, first, second, action }: P & { eye
 
 /* ------------------------------------------------------------- today hero card */
 
-const KIND = (p: AmProto, kind: TodayDayKind) =>
-  kind === "fest" ? { bg: p.gold300, fg: "#1E1E1E" } : kind === "season" ? { bg: p.sage200, fg: p.sage900 } : { bg: p.sage700, fg: "#FFFFFF" }
+/** Chips on a photograph are neutral only: dark glass + white text, whatever kind of day it is. */
+const KIND = (_p: AmProto, _kind: TodayDayKind) => amPhotoChip.glass
 
 /**
  * The song of the day: photo, the date, what kind of day it is ("Composed on this day", a festival,
@@ -188,7 +189,7 @@ export function HomeTodayCard({
   return (
     <View style={[s.today, { backgroundColor: p.sage900 }]}>
       <Image source={todayAssets.hero} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition={{ top: 0, left: "50%" }} accessibilityIgnoresInvertColors />
-      <LinearGradient pointerEvents="none" colors={["rgba(10, 14, 8, 0.55)", "rgba(10, 14, 8, 0)", "rgba(10, 14, 8, 0.86)"]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+      <LinearGradient pointerEvents="none" colors={[amScrimPhotoTop[0], amScrimPhotoTop[1], amScrimPhoto[1]]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
       <View style={s.todayTop}>
         <Text style={[overStyle, { color: "#FFFFFF" }]}>{dateLabel}</Text>
         <View style={[s.kindChip, { backgroundColor: chip.bg }]}>
@@ -197,7 +198,7 @@ export function HomeTodayCard({
       </View>
       <View style={s.todayBottom}>
         <TodayPress accessibilityRole="button" accessibilityLabel={`Read lyrics of ${title}`} onPress={onOpen} pressedScale={PRESS} style={s.todayMain}>
-          <Text style={[overStyle, { color: p.gold300 }]} numberOfLines={1}>
+          <Text style={[overStyle, { color: "#FFFFFF" }]} numberOfLines={1}>
             {meta}
           </Text>
           <Text style={s.todayTitle} numberOfLines={2}>
@@ -209,8 +210,8 @@ export function HomeTodayCard({
             </Text>
           ) : null}
         </TodayPress>
-        <TodayPress accessibilityRole="button" accessibilityLabel={`${playing ? "Pause" : "Listen to"} ${title}`} onPress={onListen} pressedScale={PRESS} style={[s.play, { backgroundColor: p.orange500 }]}>
-          <PlayGlyph size={24} color="#FFFFFF" />
+        <TodayPress accessibilityRole="button" accessibilityLabel={`${playing ? "Pause" : "Listen to"} ${title}`} onPress={onListen} pressedScale={PRESS} style={[s.play, { backgroundColor: p.action }]}>
+          <PlayGlyph size={24} color={p.onAction} />
         </TodayPress>
       </View>
     </View>
@@ -295,7 +296,6 @@ export function StripCard({
   height,
   onPress,
 }: P & { card: StripCardData; width: number; height?: number; onPress: () => void }) {
-  const strip = stripColors(card.tone, p.dark)
   const id = typeof card.cover === "number" ? coverFor(card.cover) : card.cover
   const picture = height ?? width
   return (
@@ -308,9 +308,9 @@ export function StripCard({
     >
       <View style={[s.stripPic, { width, height: picture, backgroundColor: p.sage900 }]}>
         <HomeCover id={id} width={width} height={picture} radius={0} />
-        <LinearGradient pointerEvents="none" colors={["rgba(10, 14, 8, 0)", "rgba(10, 14, 8, 0.28)"]} style={StyleSheet.absoluteFill} />
-        <View style={[s.strip, { backgroundColor: strip.bg }]}>
-          <Text style={[s.stripText, { color: strip.fg }]} numberOfLines={1}>
+        <LinearGradient pointerEvents="none" colors={["rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0.28)"]} style={StyleSheet.absoluteFill} />
+        <View style={[s.strip, { backgroundColor: amPhotoChip.glass.bg }]}>
+          <Text style={[s.stripText, { color: amPhotoChip.glass.fg }]} numberOfLines={1}>
             {card.label}
           </Text>
         </View>
@@ -378,7 +378,7 @@ const s = StyleSheet.create({
   headRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingRight: HOME_INSET },
   head: { flex: 1, minWidth: 0, paddingHorizontal: HOME_INSET, gap: 6 },
   action: { height: 36, paddingHorizontal: 14, borderRadius: 70, justifyContent: "center" },
-  actionText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18, color: "#1E1E1E" },
+  actionText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
   h2: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: em(30, -0.02), textTransform: "uppercase" },
   today: { marginHorizontal: HOME_INSET - 10, height: 232, borderRadius: 30, overflow: "hidden", padding: 16, justifyContent: "space-between" },
   todayTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },

@@ -146,7 +146,7 @@ export function SongMenuSheet(props: SongMenuProps) {
               meta={p.meta}
               icon={
                 <View style={[styles.ring, p.has ? { backgroundColor: theme.brand, borderColor: theme.brand } : { borderColor: theme.ink300 }]}>
-                  {p.has ? <Check size={14} strokeWidth={3} color="#1E1E1E" /> : null}
+                  {p.has ? <Check size={14} strokeWidth={3} color="#FFFFFF" /> : null}
                 </View>
               }
               onPress={() => shown && props.onTogglePlaylist(shown, p.id, p.has)}
@@ -328,5 +328,5 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#1E1E1E" },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" },
 })

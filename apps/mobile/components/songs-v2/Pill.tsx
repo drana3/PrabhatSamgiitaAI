@@ -32,7 +32,7 @@ export function PillButton({
   disabled?: boolean
 }) {
   const bg =
-    tone === "brand" ? theme.brand : tone === "ink" ? theme.ink900 : tone === "danger" ? amColors.danger : theme.card
+    tone === "brand" ? theme.brand : tone === "ink" ? theme.ink900 : tone === "danger" ? amColors.dangerText : theme.card
   const fg = tone === "sand" ? theme.textHeading : tone === "ink" ? theme.onInk : amColors.white
   return (
     <Press
@@ -83,7 +83,7 @@ export function Chip({
           : { backgroundColor: theme.card, borderColor: theme.line },
       ]}
     >
-      <Text style={[styles.chipLabel, { color: active ? theme.onInk : theme.textHeading }]}>{label}</Text>
+      <Text style={[styles.chipLabel, { color: active ? (theme.dark ? theme.onBrand : theme.onInk) : theme.textHeading }]}>{label}</Text>
     </Press>
   )
 }

@@ -137,9 +137,9 @@ export default function KiirtanLiveScreen() {
                 accessibilityLabel="Join in Zoom"
                 onPress={() => void open(item.zoom!.url)}
                 pressedScale={0.97}
-                style={[styles.join, { backgroundColor: amColors.orange500 }]}
+                style={[styles.join, { backgroundColor: theme.brand }]}
               >
-                <ExternalLink size={20} color="#1E1E1E" strokeWidth={2.2} />
+                <ExternalLink size={20} color={theme.onBrand} strokeWidth={2.2} />
                 <Text style={styles.joinText}>Join in Zoom</Text>
               </KPress>
               <Text style={[styles.hint, { color: theme.textMuted }]}>Opens in the Zoom app.</Text>
@@ -168,10 +168,10 @@ export default function KiirtanLiveScreen() {
                 onPress={onRemind}
                 pressedScale={0.96}
                 outerStyle={styles.actionOuter}
-                style={[styles.outline, { borderColor: reminded ? amColors.orange500 : theme.line, backgroundColor: reminded ? amColors.orange500 : theme.card }]}
+                style={[styles.outline, { borderColor: reminded ? theme.brand : theme.line, backgroundColor: reminded ? theme.brand : theme.card }]}
               >
-                <Bell size={18} color={reminded ? "#1E1E1E" : theme.textHeading} fill={reminded ? "#1E1E1E" : "none"} strokeWidth={2} />
-                <Text style={[styles.outlineText, { color: reminded ? "#1E1E1E" : theme.textHeading }]}>{reminded ? "Reminder on" : "Remind me"}</Text>
+                <Bell size={18} color={reminded ? theme.onBrand : theme.textHeading} fill={reminded ? theme.onBrand : "none"} strokeWidth={2} />
+                <Text style={[styles.outlineText, { color: reminded ? theme.onBrand : theme.textHeading }]}>{reminded ? "Reminder on" : "Remind me"}</Text>
               </KPress>
             )}
             <KPress
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   host: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, marginTop: 6 },
   zoomCard: { marginTop: 20, borderRadius: 24, borderWidth: 1, padding: 16, gap: 12 },
   join: { height: 56, borderRadius: 70, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
-  joinText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#1E1E1E" },
+  joinText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17, textAlign: "center" },
   field: { flexDirection: "row", alignItems: "center", gap: 12, borderTopWidth: 1, paddingTop: 12 },
   fieldText: { flex: 1, gap: 2 },
@@ -261,5 +261,5 @@ const styles = StyleSheet.create({
   note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, marginTop: 20 },
   body: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, textAlign: "center" },
   pill: { height: 48, paddingHorizontal: 28, borderRadius: 70, alignItems: "center", justifyContent: "center" },
-  pillText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20, color: "#1E1E1E" },
+  pillText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20, color: "#FFFFFF" },
 })

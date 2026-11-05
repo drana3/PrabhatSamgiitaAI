@@ -15,7 +15,7 @@ export type SongsTheme = AmTheme & {
   onInk: string
   /** orange-100 fill: peach in Light, brown in Dark */
   peach: string
-  /** orange-700 text accent: heart, over-labels */
+  /** accent text: orange800 in Light (6.2:1 on sand), gold300 in Dark */
   accent: string
   /** olive card ground / text / over-label (sage-200, sage-900, sage-700) */
   oliveBg: string
@@ -28,10 +28,10 @@ export function songsTheme(am: AmTheme, dark: boolean): SongsTheme {
     ...am,
     dark,
     ink900: dark ? amDarkSurface.heading : amColors.ink900,
-    ink300: dark ? amDarkSurface.muted : amColors.ink300,
+    ink300: dark ? amDarkSurface.muted : amColors.headingSecond,
     onInk: dark ? amDarkSurface.onLight : amColors.white,
     peach: dark ? amDarkSurface.peach : amColors.orange100,
-    accent: dark ? amColors.gold300 : amColors.orange700,
+    accent: dark ? amColors.gold300 : amColors.orange800,
     oliveBg: amColors.sage200,
     oliveText: amColors.sage900,
     oliveOver: amColors.sage700,

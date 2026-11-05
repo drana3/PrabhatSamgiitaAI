@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.16)",
   },
-  footerBtnOn: { backgroundColor: amColors.orange500, borderColor: amColors.orange500 },
+  footerBtnOn: { backgroundColor: amColors.orange700, borderColor: amColors.orange700 },
   footerText: { fontFamily: amFonts.semi, fontSize: 14, color: amColors.white },
   row: {
     flexDirection: "row",

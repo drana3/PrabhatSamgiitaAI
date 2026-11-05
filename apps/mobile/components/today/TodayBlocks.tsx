@@ -197,7 +197,7 @@ export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing 
           accessibilityLabel={`${playing ? "Pause" : "Listen to"} ${title}`}
           onPress={onListen}
           pressedScale={PRESS}
-          style={[s.playBtn, { backgroundColor: p.orange500 }]}
+          style={[s.playBtn, { backgroundColor: p.action }]}
         >
           <PlayGlyph size={24} color="#FFFFFF" />
         </TodayPress>
@@ -236,7 +236,7 @@ export function TodaySongPill({
     : rule
       ? [s.songRowRule, { borderBottomColor: p.ink900 }]
       : [s.songPill, { backgroundColor: p.white, borderColor: p.sand300 }]
-  const playBg = set === "3" ? (p.dark ? p.orange500 : p.ink900) : p.orange500
+  const playBg = set === "3" ? (p.dark ? p.action : p.ink900) : p.action
   const playFg = set === "3" ? (p.dark ? "#FFFFFF" : p.onInk) : "#FFFFFF"
   return (
     <View style={rowStyle}>
@@ -488,7 +488,7 @@ function PanelChip({ p, label, on, onPress }: P & { label: string; on: boolean; 
       accessibilityState={{ selected: on }}
       onPress={onPress}
       pressedScale={0.96}
-      style={[s.panelChip, { backgroundColor: on ? (p.dark ? p.orange500 : p.sage700) : p.white, borderColor: on ? (p.dark ? p.orange500 : p.sage700) : p.sand300 }]}
+      style={[s.panelChip, { backgroundColor: on ? (p.dark ? p.action : p.sage700) : p.white, borderColor: on ? (p.dark ? p.action : p.sage700) : p.sand300 }]}
     >
       <Text style={[s.panelChipText, { color: on ? "#FFFFFF" : p.ink800 }]}>{label}</Text>
     </TodayPress>
@@ -792,7 +792,7 @@ export function TwoToneHeading({ theme, first, second }: { theme: AmTheme; first
     <Text style={[amType.title, legacy.heading]} accessibilityRole="header">
       <Text style={{ color: theme.textHeading }}>{first}</Text>
       {"\n"}
-      <Text style={{ color: amColors.ink300 }}>{second}</Text>
+      <Text style={{ color: amColors.headingSecond }}>{second}</Text>
     </Text>
   )
 }

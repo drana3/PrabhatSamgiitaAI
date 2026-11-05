@@ -136,7 +136,7 @@ export function MineSegment(props: Props) {
                 onSubmitEditing={() => void create()}
                 style={[styles.input, { color: theme.textHeading, borderColor: theme.line }]}
               />
-              {formError ? <Text style={[styles.error, { color: amColors.danger }]}>{formError}</Text> : null}
+              {formError ? <Text style={[styles.error, { color: theme.dangerText }]}>{formError}</Text> : null}
               <View style={styles.formActions}>
                 <PillButton theme={theme} tone="sand" label="Cancel" onPress={() => setNaming(false)} fill />
                 <PillButton theme={theme} label="Create" disabled={!name.trim() || busy} onPress={() => void create()} fill />

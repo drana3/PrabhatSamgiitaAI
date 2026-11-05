@@ -15,8 +15,14 @@ describe("dark surfaces: neutral near-black, one source", () => {
       expect(contrastRatio(amDarkSurface.body, bg)).toBeGreaterThanOrEqual(4.5)
       expect(contrastRatio(amDarkSurface.muted, bg)).toBeGreaterThanOrEqual(4.5)
       expect(contrastRatio(amDark.eyebrow, bg)).toBeGreaterThanOrEqual(4.5)
-      expect(contrastRatio(amDark.brand, bg)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(amDark.accentText, bg)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(amDark.accentBright, bg)).toBeGreaterThanOrEqual(4.5)
     }
+  })
+
+  it("the action fill reaches 3:1 against every surface a button sits on, and white text reaches 4.5 on it", () => {
+    for (const bg of surfaces) expect(contrastRatio(amDark.brand, bg)).toBeGreaterThanOrEqual(3)
+    expect(contrastRatio(amDark.onBrand, amDark.brand)).toBeGreaterThanOrEqual(4.5)
   })
 
   it("surfaces carry no green: red and blue are within a few steps of green", () => {

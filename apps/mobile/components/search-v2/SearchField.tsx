@@ -77,7 +77,7 @@ export function SearchField({
         accessibilityState={{ selected: listening }}
         onPress={onMic}
         pressedScale={0.88}
-        style={[s.icon, listening && { backgroundColor: p.dark ? p.sage700 : p.orange500 }]}
+        style={[s.icon, listening && { backgroundColor: p.action }]}
       >
         <Mic size={18} color={listening ? "#FFFFFF" : p.ink500} />
       </TodayPress>}

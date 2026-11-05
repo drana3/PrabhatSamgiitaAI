@@ -67,7 +67,10 @@ export const playerColors = {
   textFaint: "rgba(255, 255, 255, 0.7)",
   gold: amColors.gold300,
   sun: amColors.logoSun,
+  /** bright orange: scrubber fill, dots, saved heart. Never behind text. */
   brand: amColors.orange500,
+  /** action fill: play disc, primary buttons. White text/glyph only. */
+  action: amColors.orange700,
   onBrand: amColors.white,
   /** --am-glass-dark */
   glassDark: "rgba(18, 17, 16, 0.35)",

@@ -7,9 +7,19 @@ import { amColors, amDarkSurface } from "./amColors"
 export type SpTheme = {
   dark: boolean
   orange100: string
+  /** bright orange: graphics only (icons, progress, dots, glows). Never behind text. */
   orange500: string
   orange600: string
+  /** ACCENT TEXT role: orange800 in Light, gold300 in Dark (never a fill; fills use `action`) */
   orange700: string
+  /** action fill (primary button, selected chip): orange700 in both themes, white text */
+  action: string
+  actionPress: string
+  onAction: string
+  accentBright: string
+  /** accent text on the page: orange800 Light, orange500 Dark */
+  accentText: string
+  dangerText: string
   gold300: string
   logoSun: string
   sage200: string
@@ -44,7 +54,13 @@ export const spLight: SpTheme = {
   orange100: "#FFDCC5",
   orange500: "#F67931",
   orange600: "#E5610F",
-  orange700: "#B94D0C",
+  orange700: amColors.orange800,
+  action: amColors.orange700,
+  actionPress: amColors.orange800,
+  onAction: amColors.white,
+  accentBright: amColors.orange500,
+  accentText: amColors.orange800,
+  dangerText: amColors.dangerText,
   gold300: "#F5C253",
   logoSun: "#FECC31",
   sage200: "#E5E4D4",
@@ -62,7 +78,8 @@ export const spLight: SpTheme = {
   ink900: "#1E1E1E",
   ink800: "#333333",
   ink500: "#68635F",
-  ink300: "#B3B3B3",
+  /** second tone of two-tone headings and ring borders (4:1 on sand200); never the raw #B3B3B3 */
+  ink300: amColors.headingSecond,
   glass: "rgba(255,255,255,0.55)",
   glassStrong: "rgba(255,255,255,0.72)",
   glassSolid: "rgba(255,255,255,0.9)",
@@ -88,6 +105,8 @@ export const spDark: SpTheme = {
   ink500: amDarkSurface.body,
   ink300: amDarkSurface.muted,
   orange700: amColors.gold300,
+  accentText: amColors.orange500,
+  dangerText: amDarkSurface.dangerText,
   onInk: amDarkSurface.onLight,
   glass: amDarkSurface.glass,
   glassStrong: amDarkSurface.glassStrong,
