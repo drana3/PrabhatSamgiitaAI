@@ -22,7 +22,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import {
-  APP_DETAILS_NOTE,
+  appDetailsNote,
   MAX_EMAIL,
   MAX_MESSAGE,
   buildRequest,
@@ -41,6 +41,7 @@ import { readAppDetails, sendFeedback } from "@/lib/feedback/submit"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { songTitleFromHit } from "@/lib/mineView"
 import { displayTitle } from "@/lib/songsV2/entry"
+import { useT } from "@/lib/i18n"
 import { useAuthStore } from "@/stores/authStore"
 
 type Status = "idle" | "sending" | "sent" | "error"
@@ -59,6 +60,7 @@ function songFromParam(value: string | string[] | undefined): PickedSong | null 
  * details, and Send. Opened from Profile, and from a song's "Report a mistake" with ?song=NUMBER.
  */
 export default function FeedbackScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
   const sp = useSpTheme()
@@ -119,31 +121,31 @@ export default function FeedbackScreen() {
             <SpIcon name="check" size={30} strokeWidth={2.4} color={amColors.white} />
           </View>
           <Text style={[styles.doneTitle, { color: theme.textHeading }]} accessibilityRole="header">
-            Thank you.
+            {t("feedback.done.title")}
           </Text>
-          <Text style={[styles.doneBody, { color: theme.textBody }]}>We read every message.</Text>
-          <Press accessibilityRole="button" accessibilityLabel="Close" onPress={close} pressedScale={0.97} outerStyle={styles.fullWidth} style={[styles.send, { backgroundColor: theme.brand }]}>
-            <Text style={styles.sendText}>Close</Text>
+          <Text style={[styles.doneBody, { color: theme.textBody }]}>{t("feedback.done.body")}</Text>
+          <Press accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={close} pressedScale={0.97} outerStyle={styles.fullWidth} style={[styles.send, { backgroundColor: theme.brand }]}>
+            <Text style={styles.sendText}>{t("common.close")}</Text>
           </Press>
         </View>
       </SongsReveal>
     ) : (
       <>
         <SongsReveal index={1} style={styles.block}>
-          <FieldLabel theme={theme}>What is it?</FieldLabel>
+          <FieldLabel theme={theme}>{t("feedback.whatIsIt")}</FieldLabel>
           <KindPicker theme={theme} value={kind} onChange={setKind} />
         </SongsReveal>
 
         {kind === "song" ? (
           <SongsReveal index={2} style={styles.block}>
-            <FieldLabel theme={theme}>Which song?</FieldLabel>
+            <FieldLabel theme={theme}>{t("feedback.whichSong")}</FieldLabel>
             <SongPicker theme={theme} value={song} onChange={setSong} />
           </SongsReveal>
         ) : null}
 
         <SongsReveal index={3} style={styles.block}>
           <FieldLabel theme={theme} note={counterText(message)}>
-            Your message
+            {t("feedback.yourMessage")}
           </FieldLabel>
           <TextBox
             theme={theme}
@@ -151,12 +153,12 @@ export default function FeedbackScreen() {
             onChangeText={(text) => setMessage(clampMessage(text))}
             placeholder={
               kind === "song"
-                ? "What is wrong, and where in the song?"
+                ? t("feedback.ph.song")
                 : kind === "idea"
-                  ? "What would make the app better for you?"
-                  : "Tell us what happened"
+                  ? t("feedback.ph.idea")
+                  : t("feedback.ph.default")
             }
-            accessibilityLabel="Your message"
+            accessibilityLabel={t("feedback.yourMessage")}
             multiline
             maxLength={MAX_MESSAGE}
             textAlignVertical="top"
@@ -173,21 +175,21 @@ export default function FeedbackScreen() {
         <SongsReveal index={4} style={styles.block}>
           {accountEmail ? (
             <>
-              <FieldLabel theme={theme}>Reply</FieldLabel>
-              <Text style={[styles.account, { color: theme.textBody }]}>We will reply to your account email.</Text>
+              <FieldLabel theme={theme}>{t("feedback.reply")}</FieldLabel>
+              <Text style={[styles.account, { color: theme.textBody }]}>{t("feedback.replyToAccount")}</Text>
             </>
           ) : (
             <>
-              <FieldLabel theme={theme} note="Optional">
-                Your email
+              <FieldLabel theme={theme} note={t("feedback.optional")}>
+                {t("feedback.yourEmail")}
               </FieldLabel>
               <TextBox
                 theme={theme}
                 value={email}
                 onChangeText={setEmail}
                 onBlur={() => setTouchedEmail(true)}
-                placeholder="Only if you want a reply"
-                accessibilityLabel="Your email, optional"
+                placeholder={t("feedback.email.ph")}
+                accessibilityLabel={t("feedback.email.a11y")}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -208,14 +210,14 @@ export default function FeedbackScreen() {
         <SongsReveal index={5}>
           <View style={[styles.switchRow, { backgroundColor: theme.card, borderColor: theme.line }]}>
             <View style={styles.switchText}>
-              <Text style={[styles.switchTitle, { color: theme.textHeading }]}>Include app details (version, system)</Text>
-              <Text style={[styles.switchNote, { color: theme.textBody }]}>{APP_DETAILS_NOTE}</Text>
+              <Text style={[styles.switchTitle, { color: theme.textHeading }]}>{t("feedback.includeApp")}</Text>
+              <Text style={[styles.switchNote, { color: theme.textBody }]}>{appDetailsNote()}</Text>
             </View>
             <Switch
               value={includeApp}
               onValueChange={setIncludeApp}
               disabled={busy}
-              accessibilityLabel="Include app details (version, system)"
+              accessibilityLabel={t("feedback.includeApp")}
               trackColor={{ false: theme.line, true: theme.brand }}
               thumbColor={amColors.white}
               // react-native-web draws the thumb with activeThumbColor (teal by default)
@@ -230,14 +232,14 @@ export default function FeedbackScreen() {
             <View style={[styles.errorBox, { backgroundColor: theme.card, borderColor: theme.dangerText }]} accessibilityLiveRegion="assertive">
               <SpIcon name="close" size={20} strokeWidth={2.4} color={theme.dangerText} />
               <View style={styles.switchText}>
-                <Text style={[styles.errorTitle, { color: theme.dangerText }]}>Could not send</Text>
+                <Text style={[styles.errorTitle, { color: theme.dangerText }]}>{t("feedback.error.title")}</Text>
                 <Text style={[styles.switchNote, { color: theme.textBody }]}>{error}</Text>
               </View>
             </View>
           ) : null}
           <Press
             accessibilityRole="button"
-            accessibilityLabel={status === "error" ? "Retry" : busy ? "Sending" : "Send"}
+            accessibilityLabel={status === "error" ? t("feedback.retry") : busy ? t("feedback.sendingA11y") : t("feedback.send")}
             accessibilityState={{ disabled: !ready || busy, busy }}
             disabled={!ready || busy}
             onPress={() => void send()}
@@ -248,10 +250,10 @@ export default function FeedbackScreen() {
             {busy ? (
               <>
                 <ActivityIndicator color={amColors.white} />
-                <Text style={styles.sendText}>Sending…</Text>
+                <Text style={styles.sendText}>{t("feedback.sending")}</Text>
               </>
             ) : (
-              <Text style={[styles.sendText, !ready && { color: theme.textMuted }]}>{status === "error" ? "Retry" : "Send"}</Text>
+              <Text style={[styles.sendText, !ready && { color: theme.textMuted }]}>{status === "error" ? t("feedback.retry") : t("feedback.send")}</Text>
             )}
           </Press>
         </SongsReveal>
@@ -264,9 +266,9 @@ export default function FeedbackScreen() {
         <View style={{ paddingTop: inset }}>
           <SongsReveal index={0}>
             <View style={styles.titleRow}>
-              <SpRound t={sp} icon="back" label="Back" onPress={close} />
+              <SpRound t={sp} icon="back" label={t("common.back")} onPress={close} />
               <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1} accessibilityRole="header">
-                Send feedback
+                {t("feedback.title")}
               </Text>
             </View>
           </SongsReveal>
@@ -279,7 +281,7 @@ export default function FeedbackScreen() {
         >
           {status === "sent" ? null : (
             <Text style={[styles.lead, { color: theme.textBody }]}>
-              {mode === "signed_in" ? "Tell us what happened or what you wish for." : "No account needed. Tell us what happened or what you wish for."}
+              {mode === "signed_in" ? t("feedback.lead.member") : t("feedback.lead.guest")}
             </Text>
           )}
           {body}

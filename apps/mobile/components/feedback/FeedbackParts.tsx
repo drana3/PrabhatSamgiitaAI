@@ -9,6 +9,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { FEEDBACK_KINDS, songLabel, type FeedbackKind, type PickedSong } from "@/lib/feedback/model"
+import { useT } from "@/lib/i18n"
 import { catalogSongByNumber, isCatalogNumberQuery, searchCatalogLyrics } from "@/lib/lyricSearch"
 import { songTitleFromHit } from "@/lib/mineView"
 import { displayTitle } from "@/lib/songsV2/entry"
@@ -32,8 +33,9 @@ export function FieldLabel({ theme, children, note }: ThemeProps & { children: s
  * check, the others are outlined, so the state never relies on colour alone.
  */
 export function KindPicker({ theme, value, onChange }: ThemeProps & { value: FeedbackKind; onChange: (kind: FeedbackKind) => void }) {
+  const t = useT()
   return (
-    <View style={styles.kinds} accessibilityRole="radiogroup" accessibilityLabel="What is it?">
+    <View style={styles.kinds} accessibilityRole="radiogroup" accessibilityLabel={t("feedback.whatIsIt")}>
       {FEEDBACK_KINDS.map((option) => {
         const on = option.id === value
         return (
@@ -124,6 +126,7 @@ export function SongPicker({
   value,
   onChange,
 }: ThemeProps & { value: PickedSong | null; onChange: (song: PickedSong | null) => void }) {
+  const t = useT()
   const [query, setQuery] = useState("")
   const hits = useMemo(() => hitsFor(query), [query])
   const searching = query.trim().length > 0
@@ -136,7 +139,7 @@ export function SongPicker({
         </Text>
         <Press
           accessibilityRole="button"
-          accessibilityLabel="Remove the chosen song"
+          accessibilityLabel={t("feedback.song.remove")}
           onPress={() => {
             onChange(null)
             setQuery("")
@@ -157,16 +160,16 @@ export function SongPicker({
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Song number or title"
+          placeholder={t("feedback.song.ph")}
           placeholderTextColor={theme.textMuted}
-          accessibilityLabel="Find the song by number or title"
+          accessibilityLabel={t("feedback.song.find.a11y")}
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
           style={[styles.searchInput, { color: theme.textHeading }, NO_OUTLINE]}
         />
         {query ? (
-          <Press accessibilityRole="button" accessibilityLabel="Clear" onPress={() => setQuery("")} pressedScale={0.88} style={styles.remove}>
+          <Press accessibilityRole="button" accessibilityLabel={t("feedback.song.clear")} onPress={() => setQuery("")} pressedScale={0.88} style={styles.remove}>
             <CloseGlyph size={18} color={theme.textBody} />
           </Press>
         ) : null}
@@ -191,10 +194,10 @@ export function SongPicker({
             ))}
           </View>
         ) : (
-          <Text style={[styles.note, { color: theme.textBody }]}>No song found. You can skip this and say which one in your message.</Text>
+          <Text style={[styles.note, { color: theme.textBody }]}>{t("feedback.song.none")}</Text>
         )
       ) : (
-        <Text style={[styles.note, { color: theme.textBody }]}>Optional. It helps us find the right page.</Text>
+        <Text style={[styles.note, { color: theme.textBody }]}>{t("feedback.song.hint")}</Text>
       )}
     </View>
   )

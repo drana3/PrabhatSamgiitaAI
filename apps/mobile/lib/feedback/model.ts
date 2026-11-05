@@ -4,17 +4,27 @@
  * No React Native or network imports, so every rule is unit tested.
  */
 
+import { t } from "@/lib/i18n"
+
 export type FeedbackKind = "broken" | "idea" | "song" | "other"
 
 export type FeedbackKindOption = { id: FeedbackKind; label: string }
 
 /** The four choices, in the order of the segmented control. */
 export const FEEDBACK_KINDS: readonly FeedbackKindOption[] = [
-  { id: "broken", label: "Something is broken" },
-  { id: "idea", label: "An idea" },
-  { id: "song", label: "A mistake in a song or lyrics" },
-  { id: "other", label: "Something else" },
+  { id: "broken", get label() { return t("feedback.kind.broken") } },
+  { id: "idea", get label() { return t("feedback.kind.idea") } },
+  { id: "song", get label() { return t("feedback.kind.song") } },
+  { id: "other", get label() { return t("feedback.kind.other") } },
 ]
+
+/** The team reads the message in English, so the kind line of the payload never follows the app language. */
+const KIND_LABEL_EN: Record<FeedbackKind, string> = {
+  broken: "Something is broken",
+  idea: "An idea",
+  song: "A mistake in a song or lyrics",
+  other: "Something else",
+}
 
 export const MIN_MESSAGE = 10
 /** The API keeps 2000 characters of comment; the rest is for the kind, song and app lines we add. */
@@ -22,7 +32,7 @@ export const MAX_MESSAGE = 1500
 export const MAX_EMAIL = 320
 
 export function kindLabel(kind: FeedbackKind): string {
-  return FEEDBACK_KINDS.find((option) => option.id === kind)?.label ?? "Something else"
+  return FEEDBACK_KINDS.find((option) => option.id === kind)?.label ?? t("feedback.kind.other")
 }
 
 /* Message ---------------------------------------------------------------- */
@@ -44,9 +54,8 @@ export function counterText(message: string): string {
 export function messageHelper(message: string): string | null {
   const have = trimmedLength(message)
   if (have >= MIN_MESSAGE) return null
-  if (have === 0) return `Write at least ${MIN_MESSAGE} characters so we can understand it.`
-  const left = MIN_MESSAGE - have
-  return `${left} more ${left === 1 ? "character" : "characters"} to go.`
+  if (have === 0) return t("feedback.helper.empty", { count: MIN_MESSAGE })
+  return t("feedback.helper.left", { count: MIN_MESSAGE - have })
 }
 
 /** Cut a pasted message at the limit. */
@@ -62,7 +71,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 export function emailProblem(email: string): string | null {
   const text = email.trim()
   if (!text) return null
-  if (text.length > MAX_EMAIL || !EMAIL.test(text)) return "That does not look like an email address."
+  if (text.length > MAX_EMAIL || !EMAIL.test(text)) return t("feedback.error.email")
   return null
 }
 
@@ -118,7 +127,9 @@ function osName(os: string | null | undefined): string {
 }
 
 /** What the switch explains, in one line. */
-export const APP_DETAILS_NOTE = "Sends the app version and the system version. Nothing else."
+export function appDetailsNote(): string {
+  return t("feedback.includeApp.note")
+}
 
 /* Payload --------------------------------------------------------------- */
 
@@ -160,7 +171,7 @@ export type FeedbackRequest = {
 
 /** The comment with the kind, song and app lines under the person's own words. */
 export function buildComment(form: FeedbackForm): string {
-  const lines = [form.message.trim(), "", `Kind: ${kindLabel(form.kind)}`]
+  const lines = [form.message.trim(), "", `Kind: ${KIND_LABEL_EN[form.kind]}`]
   if (form.kind === "song" && form.song) lines.push(`Song: ${songLabel(form.song)}`)
   if (form.includeAppDetails) {
     const app = formatAppDetails(form.appDetails)
@@ -200,7 +211,7 @@ export function canSend(form: Pick<FeedbackForm, "message" | "email" | "accountE
 export function friendlyError(error: unknown): string {
   const text = error instanceof Error ? error.message : ""
   if (!text || /network|fetch|timed? ?out|failed to load|offline/i.test(text)) {
-    return "No connection. Check the internet and try again."
+    return t("feedback.error.noConnection")
   }
   return text
 }
