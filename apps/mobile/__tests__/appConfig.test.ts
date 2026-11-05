@@ -21,4 +21,17 @@ describe("app.json native config", () => {
   it("lets the system theme through (Auto must be able to go dark on iOS)", () => {
     expect(expo.userInterfaceStyle).toBe("automatic")
   })
+
+  it("gives Android a monochrome notification icon (96x96 RGBA png) and an accent colour", () => {
+    const entry = plugin("expo-notifications") as [string, { icon?: string; color?: string }]
+    expect(Array.isArray(entry)).toBe(true)
+    const { icon, color } = entry[1]
+    expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/)
+    expect(icon).toBe("./assets/notification-icon.png")
+    const png = readFileSync(path.resolve(__dirname, "..", icon!))
+    expect(png.subarray(1, 4).toString("ascii")).toBe("PNG")
+    expect(png.readUInt32BE(16)).toBe(96)
+    expect(png.readUInt32BE(20)).toBe(96)
+    expect(png[25]).toBe(6) // colour type 6 = RGBA, so the transparent background is real
+  })
 })

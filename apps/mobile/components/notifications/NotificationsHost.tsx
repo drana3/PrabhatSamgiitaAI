@@ -115,8 +115,12 @@ export function NotificationsHost() {
     await setBadge(unreadCount(inbox.items, inbox.read))
   }, [input, syncInbox])
 
+  // the Android channel name is in the app language; calling again renames it
   useEffect(() => {
-    void configureNotifications()
+    void configureNotifications(language)
+  }, [language])
+
+  useEffect(() => {
     if (MOCKUP_DATA) return
     let alive = true
     void readSongPicks().then((picks) => alive && setSongs(picks))

@@ -1,5 +1,7 @@
 import { Linking, Platform } from "react-native"
 
+import { getActiveLanguage, type Language } from "@/lib/i18n/core"
+import { remindersChannelName } from "@/lib/notifications/channelNames"
 import { capForPlatform, diffSchedule, type PlannedNotification } from "@/lib/notifications/schedule"
 
 /**
@@ -36,8 +38,8 @@ function toPermission(res: { granted: boolean; canAskAgain: boolean; status: str
   return res.status === "undetermined" ? "undetermined" : "denied"
 }
 
-/** Foreground banner and the Android channel. Safe to call more than once. */
-export async function configureNotifications(): Promise<void> {
+/** Foreground banner and the Android channel, named in the app language (calling again renames it). Safe to call more than once. */
+export async function configureNotifications(language: Language = getActiveLanguage()): Promise<void> {
   const N = expo()
   if (!N) return
   try {
@@ -51,7 +53,7 @@ export async function configureNotifications(): Promise<void> {
     })
     if (Platform.OS === "android") {
       await N.setNotificationChannelAsync(REMINDERS_CHANNEL, {
-        name: "Reminders",
+        name: remindersChannelName(language),
         importance: N.AndroidImportance.DEFAULT,
         showBadge: true,
       })
