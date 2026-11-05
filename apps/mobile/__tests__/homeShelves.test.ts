@@ -59,7 +59,7 @@ describe("home shelves", () => {
   })
 })
 
-import { HOME_BECAUSE, HOME_LIBRARY, HOME_MIXES, SEARCH_BROWSE_ALL, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
+import { HOME_BECAUSE, HOME_MIXES, SEARCH_BROWSE_ALL, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
 import { inboxFixtures } from "@/lib/fixtures/notifications"
 import { sectionsOf } from "@/lib/notifications"
 
@@ -76,9 +76,8 @@ describe("home fixtures", () => {
       if (i + 2 < SEARCH_BROWSE_ALL.length) expect(SEARCH_BROWSE_ALL[i + 2].tone).not.toBe(t.tone)
     })
   })
-  it("fills the Earlier notifications and the library", () => {
+  it("fills the Earlier notifications", () => {
     const now = new Date(2026, 10, 5, 12).getTime()
     expect(sectionsOf(inboxFixtures(now), now).map((s) => s.label)).toEqual(["Earlier"])
-    expect(HOME_LIBRARY.length).toBeGreaterThan(4)
   })
 })

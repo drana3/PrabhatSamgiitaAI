@@ -94,35 +94,6 @@ export function HomeTopRow({
   )
 }
 
-/** Filter chips; the active one is filled orange. */
-export function HomeChips<T extends string>({
-  p,
-  chips,
-  value,
-  onChange,
-  inset = 4,
-}: P & { chips: readonly { id: T; label: string }[]; value: T | null; onChange: (id: T) => void; inset?: number }) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.chips, { paddingHorizontal: inset }]} accessibilityRole="tablist">
-      {chips.map((chip) => {
-        const on = chip.id === value
-        return (
-          <TodayPress
-            key={chip.id}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            onPress={() => onChange(chip.id)}
-            pressedScale={0.94}
-            style={[s.chip, { backgroundColor: on ? p.action : p.white, borderColor: on ? p.action : p.sand300 }]}
-          >
-            <Text style={[s.chipText, { color: on ? p.onAction : p.ink800 }]}>{chip.label}</Text>
-          </TodayPress>
-        )
-      })}
-    </ScrollView>
-  )
-}
-
 /* ---------------------------------------------------------------- section head */
 
 /** Eyebrow, then the two-tone capitals heading. */
@@ -378,9 +349,6 @@ const s = StyleSheet.create({
   avatarText: { fontFamily: amFonts.display, fontSize: 18, lineHeight: 26 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   dot: { position: "absolute", top: 9, right: 10, width: 11, height: 11, borderRadius: 6, borderWidth: 2 },
-  chips: { gap: 8, paddingHorizontal: 4, alignItems: "center" },
-  chip: { height: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1, justifyContent: "center" },
-  chipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   headRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingRight: HOME_INSET },
   head: { flex: 1, minWidth: 0, paddingHorizontal: HOME_INSET, gap: 6 },
   action: { height: 36, paddingHorizontal: 14, borderRadius: 70, justifyContent: "center" },

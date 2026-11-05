@@ -66,8 +66,8 @@ function ProfileHeader({ p, initial, title, subtitle }: { p: AmProto; initial: s
 /**
  * Body of the profile sheet (prototype PROFILE SHEET, Main.dc.html 2247-2288): the account header, then
  * Member, Offline, Preferences and Account groups and the footer line. Rows the prototype does not
- * have but the app needs (assistant limit, clear chat history, About, Auto appearance) sit in a
- * quiet "More" group under Account so nothing the app can do is lost.
+ * have but the app needs (assistant limit, clear chat history, Send feedback, About) sit in a
+ * quiet "More" group under Account, the same in the preview and in real builds.
  */
 export function useProfileContent(theme: AmTheme) {
   const p = protoFor(theme)
@@ -163,12 +163,6 @@ export function useProfileContent(theme: AmTheme) {
       <SheetTitle p={p} label="Member" spaced />
       <Group p={p}>
         <SetRow p={p} label="Quiz and certificates" value="None yet" onPress={() => router.navigate(href(LEARN_HREF))} />
-        <SetRow
-          p={p}
-          label="Send feedback"
-          chevron
-          onPress={() => go(signedIn ? PROFILE_ROUTES.feedback : PROFILE_ROUTES.signIn)}
-        />
       </Group>
 
       <SheetTitle p={p} label="Offline" spaced />
@@ -232,28 +226,23 @@ export function useProfileContent(theme: AmTheme) {
         {signedIn ? <SetRow p={p} label="Delete account data" danger onPress={requestDelete} /> : null}
       </Group>
 
-      {MOCKUP_DATA ? (
-        <>
-          <SheetTitle p={p} label="More" spaced />
-          <Group p={p}>
-            {/* preview only: a design proposal, not part of the prototype boards */}
-            <SetRow p={p} label="Library (proposal)" chevron onPress={() => go("/library-proposal")} />
-          </Group>
-        </>
-      ) : (
-        <SheetTitle p={p} label="More" spaced />
-      )}
-      {MOCKUP_DATA ? null : <Group p={p}>
+      <SheetTitle p={p} label="More" spaced />
+      <Group p={p}>
         <SetRow
           p={p}
           label="Questions to the assistant"
-          value={assistantLimitLabel(
-            memberQuota,
-            AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
-            AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
-          )}
+          value={
+            MOCKUP_DATA
+              ? "10 a day"
+              : assistantLimitLabel(
+                  memberQuota,
+                  AI_COMPANION_GUEST_DAILY_DEEP_AI_LIMIT,
+                  AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
+                )
+          }
         />
         {signedIn ? <SetRow p={p} label="Clear chat history" onPress={requestClearChat} /> : null}
+        <SetRow p={p} label="Send feedback" chevron onPress={() => go(PROFILE_ROUTES.feedback)} />
         <SetRow
           p={p}
           label="About Prabhat Samgiita"
@@ -261,7 +250,7 @@ export function useProfileContent(theme: AmTheme) {
           chevron
           onPress={() => go(PROFILE_ROUTES.about)}
         />
-      </Group>}
+      </Group>
 
       <Text style={[s.footer, { color: p.ink500 }]}>Prabhat Samgiita · mobile</Text>
     </>

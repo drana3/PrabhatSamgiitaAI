@@ -1,11 +1,10 @@
-import { buildLibraryItems, type LibraryItem } from "@/lib/libraryProposal"
 import { MOCK_SONGS, MOCK_STORIES } from "@/lib/fixtures/songsMock"
 import { formatClock } from "@/lib/navV2"
 import { songSub, type HomeCoverId, type StartRow, type StripTone } from "@/lib/homeShelves"
 
 /**
  * Preview only (MOCKUP_DATA, see lib/mockupMode.ts). Sample content for the shelf-style Home, the
- * Search browse view, Notifications and the library proposal. There is no design board for these
+ * Search browse view and Notifications. There is no design board for these
  * screens; the songs are the prototype's own sample catalog (lib/fixtures/songsMock.ts).
  * TODO(api): every list here is replaced by real data (taste, trends, notifications, playlists).
  */
@@ -55,19 +54,6 @@ export const HOME_LEARN: readonly HomeLearnCard[] = [
 ]
 
 export const HOME_DOWNLOADED_NUMBERS = [1, 3, 6] as const
-
-/** The library proposal in the preview: the same shape the real counts produce. */
-export const HOME_LIBRARY: readonly LibraryItem[] = buildLibraryItems({
-  playlists: [
-    { id: "mock-0", name: "Morning meditation", count: 3 },
-    { id: "mock-1", name: "Evening kiirtan", count: 4 },
-  ],
-  savedCount: 3,
-  downloadCount: 3,
-  wordsDue: 3,
-  savedKiirtanCount: 2,
-  uploadCount: 1,
-})
 
 /* ---------------------------------------------------------------------- Search browse */
 

@@ -42,7 +42,6 @@ import {
   trackTag,
 } from "@/lib/kirtan/track"
 import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchKirtans } from "@/lib/kirtan/search"
-import { buildLibraryItems, filterLibrary } from "@/lib/libraryProposal"
 import type { Kirtan } from "@/lib/kirtan/types"
 
 /** A fixed random source so shuffles are repeatable. */
@@ -352,11 +351,5 @@ describe("search and library", () => {
     expect(searchKirtans(approved, "kiirtan")).toHaveLength(approved.filter((x) => x.kind === "kiirtan").length)
     expect(searchKirtans(approved, "kiirtan", 3)).toHaveLength(3)
     expect(searchKirtans(approved, "zzzz")).toEqual([])
-  })
-
-  it("adds a Kiirtan chip to the library with saved and uploaded rows", () => {
-    const items = buildLibraryItems({ playlists: [], savedCount: 0, downloadCount: 0, wordsDue: 0, savedKiirtanCount: 2, uploadCount: 1 })
-    expect(filterLibrary(items, "kiirtan").map((i) => i.title)).toEqual(["Saved Kiirtans", "My uploads"])
-    expect(buildLibraryItems({ playlists: [], savedCount: 0, downloadCount: 0, wordsDue: 0 })).toEqual([])
   })
 })
