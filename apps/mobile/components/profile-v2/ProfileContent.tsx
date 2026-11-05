@@ -19,6 +19,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { protoFor, type AmProto } from "@/constants/tokens/amToday"
 import { useProfileIdentity, type ProfileView } from "@/hooks/useProfileIdentity"
 import { deleteAccount } from "@/lib/accountDeletion"
+import { isConsentValid } from "@/lib/aiConsent"
 import { api } from "@/lib/client"
 import { companionReceivesMemberQuota } from "@/lib/chat"
 import { languageSummary } from "@/lib/languageSheet"
@@ -40,6 +41,7 @@ import { useAppearanceStore } from "@/stores/appearanceStore"
 import { useLanguageStore } from "@/stores/languageStore"
 import { LANGUAGE_NATIVE_NAMES, formatNumber, useLanguage, useT } from "@/lib/i18n"
 import { effectiveTranslations } from "@/lib/songPage/lyricLanguages"
+import { useAiConsentStore } from "@/stores/aiConsentStore"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
@@ -106,6 +108,7 @@ export function useProfileContent(theme: AmTheme) {
   const storage = useDownloadsStorage()
   const remindersOn = useNotificationSettingsStore((st) => anyEnabled(st))
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  const aiAllowed = useAiConsentStore((st) => isConsentValid(st))
 
   const identity = useProfileIdentity()
   const signedIn = MOCKUP_DATA || mode === "signed_in"
@@ -160,6 +163,15 @@ export function useProfileContent(theme: AmTheme) {
           Alert.alert(t("profile.delete.doneTitle"), t("profile.delete.doneBody"))
         })()
       },
+    })
+
+  /** The person can take the AI consent back; the next question asks again. */
+  const requestRevokeAi = () =>
+    setConfirm({
+      title: t("profile.aiConsent.revoke.title"),
+      body: t("profile.aiConsent.revoke.body"),
+      confirmLabel: t("profile.aiConsent.revoke.confirm"),
+      onConfirm: () => useAiConsentStore.getState().revoke(),
     })
 
   const signOut = () => {
@@ -259,6 +271,13 @@ export function useProfileContent(theme: AmTheme) {
                   AI_COMPANION_MEMBER_DAILY_DEEP_AI_LIMIT,
                 )
           }
+        />
+        <SetRow
+          p={p}
+          label={t("profile.aiConsent")}
+          value={aiAllowed ? t("profile.aiConsent.on") : t("profile.aiConsent.off")}
+          chevron={aiAllowed}
+          onPress={aiAllowed ? requestRevokeAi : undefined}
         />
         {signedIn ? <SetRow p={p} label={t("profile.clearChat")} onPress={requestClearChat} /> : null}
         <SetRow p={p} label={t("profile.feedback")} chevron onPress={() => go(PROFILE_ROUTES.feedback)} />

@@ -68,6 +68,24 @@ export function SpringSheet({ visible, onClose, title, theme, children }: Props)
     }
   }, [visible, reduce, screenHeight, translateY, fade])
 
+  // The parent closed it (visible went false: a row was picked, Agree was tapped). Leave by the same path as a
+  // drag or the X, but do not call onClose again: the parent already knows.
+  useEffect(() => {
+    if (visible || !mounted) return
+    const unmount = () => setMounted(false)
+    if (reduce) {
+      fade.value = withTiming(0, { duration: 150 }, (done) => {
+        if (done) runOnJS(unmount)()
+      })
+      return
+    }
+    cancelAnimation(translateY)
+    translateY.value = withSpring(height.value, amSpring.default, (done) => {
+      if (done) runOnJS(unmount)()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+
   const dismiss = useCallback(() => {
     if (reduce) {
       fade.value = withTiming(0, { duration: 150 }, (done) => {

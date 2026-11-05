@@ -2,6 +2,7 @@ import Constants from "expo-constants"
 import { Platform } from "react-native"
 import { createApiClient } from "@prabhat/core"
 
+import { requireAiConsent } from "@/lib/aiConsent"
 import { authHeadersFromStore } from "@/lib/memberAuth"
 
 const productionApi =
@@ -22,9 +23,18 @@ export const apiBaseUrl =
     ? productionApi
     : configured
 
-export const api = createApiClient({
+const rawApi = createApiClient({
   baseUrl: apiBaseUrl,
   getAuthHeaders: (): Record<string, string> => authHeadersFromStore(),
 })
+
+/**
+ * The only request that sends the person's own words to a third-party AI (Azure OpenAI) is
+ * streamExplanation. It cannot run until the person agreed (see lib/aiConsent.ts), whichever screen calls it.
+ */
+export const api = {
+  ...rawApi,
+  streamExplanation: requireAiConsent(rawApi.streamExplanation),
+}
 
 export { colors, spacing, radii, typography } from "@prabhat/core"

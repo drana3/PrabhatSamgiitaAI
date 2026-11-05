@@ -19,6 +19,8 @@ import Markdown from "react-native-markdown-display"
 
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AIComposer } from "@/components/ai/AIComposer"
+import { useAmTheme } from "@/hooks/useAmTheme"
+import { useAiConsentGate } from "@/hooks/useAiConsentGate"
 import { AIWelcomeCard, SuggestionRow } from "@/components/ai/AIWelcomeCard"
 import { IconButton } from "@/components/common/IconButton"
 import { colors } from "@/constants/colors"
@@ -57,6 +59,8 @@ export default function AIScreen() {
       ? paramSongNumber
       : null
 
+  const consentTheme = useAmTheme()
+  const { guard: askConsent, sheet: consentSheet } = useAiConsentGate(consentTheme)
   const [draft, setDraft] = useState("")
   const voice = useVoiceSearch({
     onPartial: (text) => setDraft(text),
@@ -241,7 +245,11 @@ export default function AIScreen() {
       Alert.alert("Try a clearer question", blocked)
       return
     }
+    // No question leaves the phone before the person agreed to send it to the AI service.
+    await askConsent(() => void sendConsented(trimmed))
+  }
 
+  const sendConsented = async (trimmed: string) => {
     const assistantId = beginExchange(accountId, trimmed)
     if (!assistantId) return
     setDraft("")
@@ -456,6 +464,7 @@ export default function AIScreen() {
         </View>
       </KeyboardAvoidingView>
 
+      {consentSheet}
       <Modal
         visible={historyOpen}
         animationType="slide"

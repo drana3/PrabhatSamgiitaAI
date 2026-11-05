@@ -27,6 +27,7 @@ import { Reveal } from "@/components/today/motion"
 import { amGap } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useAiConsentGate } from "@/hooks/useAiConsentGate"
 import { useAssistantChat } from "@/hooks/useAssistantChat"
 import { languagePillLabel } from "@/lib/assistantLanguage"
 import { quotaHelp } from "@/lib/assistantQuota"
@@ -87,20 +88,31 @@ export default function AssistantScreen() {
     if (following.current && chat.messages.length > 0) scroll.current?.scrollToEnd({ animated: true })
   }
 
+  // No question leaves the phone before the person agreed to send it to the AI service.
+  const { guard: askConsent, sheet: consentSheet } = useAiConsentGate(theme)
+
   /** Ask a question. A question the guard rejects goes back into the field to be fixed. */
   const ask = useCallback(
     async (text: string) => {
       const value = text.trim()
       if (!value) return
-      setBlocked(null)
-      following.current = true
-      const result = await chat.send(value)
-      if (result.status === "blocked") {
-        setBlocked(result.guidance)
-        setDraft(value)
-      }
+      await askConsent(
+        () => {
+          void (async () => {
+            setBlocked(null)
+            following.current = true
+            const result = await chat.send(value)
+            if (result.status === "blocked") {
+              setBlocked(result.guidance)
+              setDraft(value)
+            }
+          })()
+        },
+        // Not now: the question stays in the field, nothing is sent.
+        () => setDraft(value),
+      )
     },
-    [chat],
+    [chat, askConsent],
   )
 
   const onSend = () => {
@@ -294,6 +306,7 @@ export default function AssistantScreen() {
         }}
         onClose={() => setLanguageOpen(false)}
       />
+      {consentSheet}
       <ChatsSheet
         theme={theme}
         visible={chatsOpen}
