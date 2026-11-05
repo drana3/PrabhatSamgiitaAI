@@ -25,7 +25,7 @@ import {
 } from "@/lib/library/yourLibrary"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { nextPlaylistName } from "@/lib/save/saveToSheet"
-import { usePlayerStore } from "@/stores/playerStore"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { useSaveSheetStore } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
@@ -51,7 +51,7 @@ export default function LibraryV2Screen() {
   // The phone-frame preview on the web draws the 54px status area of the board.
   const inset = Platform.OS === "web" ? 54 : insets.top
   const openedAt = useRevealClock()
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const bottomInset = useScrollBottomInset()
   const params = useLocalSearchParams<{ chip?: string; as?: string }>()
 
   const [query, setQuery] = useState("")
@@ -177,7 +177,7 @@ export default function LibraryV2Screen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           // room for the mini-player above the bottom edge, like the other pushed pages
-          contentContainerStyle={{ paddingTop: 4, paddingBottom: (hasSong ? 180 : 130) + (Platform.OS === "web" ? 0 : insets.bottom) }}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: bottomInset }}
           initialNumToRender={12}
           windowSize={7}
         />

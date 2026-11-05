@@ -16,6 +16,7 @@ import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { timeLabel, type AppNotification, type NotificationKind } from "@/lib/notifications"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { href } from "@/utils/href"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useT } from "@/lib/i18n"
 
 const ICONS: Record<Exclude<NotificationKind, "song">, typeof Flame> = {
@@ -118,6 +119,7 @@ function Row({
  * the dots and "Settings" chooses what is sent. Items older than 30 days are gone.
  */
 export default function NotificationsScreen() {
+  const bottomInset = useScrollBottomInset()
   const router = useRouter()
   const t = useT()
   const theme = useAmTheme()
@@ -151,7 +153,7 @@ export default function NotificationsScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: bottomInset }]}>
         <Reveal index={0}>
           <Text style={s.h1} accessibilityRole="header">
             <Text style={{ color: p.ink800 }}>{t("profile.notifications")}</Text>

@@ -35,6 +35,7 @@ import {
   sheetOffsetForDrag,
 } from "@/lib/songsV2/sheetPhysics";
 import { useT } from "@/lib/i18n"
+import { useCoverWhile } from "@/lib/sheetCover"
 
 type Props = {
   open: boolean;
@@ -79,6 +80,7 @@ export function BottomSheet({
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const [mounted, setMounted] = useState(open);
+  useCoverWhile(mounted);
   const offset = useSharedValue(window.height);
   const sheetHeight = useSharedValue(window.height);
   const fade = useSharedValue(0);

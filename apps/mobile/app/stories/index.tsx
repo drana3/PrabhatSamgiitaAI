@@ -24,7 +24,7 @@ import {
 } from "@/lib/stories/list"
 import { unreadCount } from "@/lib/stories/readState"
 import type { Story } from "@/lib/stories/types"
-import { usePlayerStore } from "@/stores/playerStore"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useStoriesStore } from "@/stores/storiesStore"
 import { href } from "@/utils/href"
 
@@ -45,7 +45,7 @@ export default function StoriesScreen() {
   // The phone-frame preview on the web draws the 54px status area of the board.
   const inset = Platform.OS === "web" ? 54 : insets.top
   const openedAt = useRevealClock()
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const bottomInset = useScrollBottomInset()
   const read = useStoriesStore((s) => s.read)
 
   const { stories, loading, failed, reload } = useStories()
@@ -187,7 +187,7 @@ export default function StoriesScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 4, paddingBottom: hasSong ? 180 : 130 }}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: bottomInset }}
           initialNumToRender={8}
           windowSize={7}
         />

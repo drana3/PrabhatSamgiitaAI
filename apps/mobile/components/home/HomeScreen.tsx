@@ -32,6 +32,7 @@ import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
@@ -102,6 +103,7 @@ function mockSongOf(row: { number: number; title: string }): MockSong {
  * The Claude prototype's Today stays at /today?layout=prototype.
  */
 export function HomeScreen() {
+  const bottomInset = useScrollBottomInset()
   const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
@@ -435,7 +437,7 @@ export function HomeScreen() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[0]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
       >
         <StickyTopBlock inset={top} rowHeight={TOP_ROW} page={p.sand200} wash={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]} scrollY={scrollY}>
           <HomeTopRow

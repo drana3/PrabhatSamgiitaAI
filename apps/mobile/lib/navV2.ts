@@ -254,6 +254,24 @@ export function contentInsetFor(safeBottom: number, withMini: boolean): number {
   return withMini ? contentInset : tabBottom + amNav.tabHeight + amNav.gap
 }
 
+/** Air kept under the last row of a scrolling page, above the mini-player (or the bottom safe area). */
+export const SCROLL_AIR = 24
+
+/**
+ * THE rule for the bottom padding of every long page (scroll content): the last row and the last button must
+ * clear whatever floats at the bottom.
+ *  - tab screen: the tab pill, and the mini-player above it while one shows (contentInsetFor);
+ *  - pushed screen (no tab bar): the bottom safe area, the mini-player while one shows, and a little air.
+ * The mini-player slides away while a sheet is open, so sheets need no padding for it (lib/sheetCover.ts).
+ * Screens call useScrollBottomInset() (hooks/useScrollBottomInset.ts); this is its pure core.
+ */
+export function scrollBottomInset(input: { safeBottom: number; pathname: string; hasSong: boolean }): number {
+  const miniVisible = miniPlayerVisible({ pathname: input.pathname, hasSong: input.hasSong })
+  if (tabBarVisible(input.pathname)) return contentInsetFor(input.safeBottom, miniVisible)
+  const base = Math.max(input.safeBottom, amNav.tabBottom)
+  return miniVisible ? base + amNav.miniHeight + amNav.gap + SCROLL_AIR : base + SCROLL_AIR
+}
+
 /** Vertical layout of the two pills for a given bottom safe-area inset. */
 export function navV2Layout(safeBottom: number): {
   tabBottom: number

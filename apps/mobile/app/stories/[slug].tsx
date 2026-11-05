@@ -32,6 +32,7 @@ import { storyShareMessage } from "@/lib/stories/share"
 import { primarySong, type Story } from "@/lib/stories/types"
 import { songHrefFor } from "@/lib/songsV2/storySheet"
 import { usePlayerStore } from "@/stores/playerStore"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useStoriesStore } from "@/stores/storiesStore"
 import { href } from "@/utils/href"
 
@@ -52,7 +53,6 @@ function StoryReader({ slug }: { slug: string }) {
   const insets = useSafeAreaInsets()
   const inset = Platform.OS === "web" ? 54 : insets.top
   const openedAt = useRevealClock()
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
   const read = useStoriesStore((s) => s.read)
   const isRead = slug in read
 
@@ -94,7 +94,6 @@ function StoryReader({ slug }: { slug: string }) {
       sp={sp}
       inset={inset}
       openedAt={openedAt}
-      hasSong={hasSong}
       isRead={isRead}
       songTitle={songTitle}
       next={next}
@@ -114,7 +113,6 @@ type ViewProps = {
   sp: ReturnType<typeof useSpTheme>
   inset: number
   openedAt: number
-  hasSong: boolean
   isRead: boolean
   songTitle: (n: number) => string | undefined
   next: Story | null
@@ -127,12 +125,12 @@ function StoryView({
   sp,
   inset,
   openedAt,
-  hasSong,
   isRead,
   songTitle,
   next,
   back,
 }: ViewProps) {
+  const bottomInset = useScrollBottomInset()
   const router = useRouter()
   const readMap = useStoriesStore((s) => s.read)
   const { width } = useWindowDimensions()
@@ -205,7 +203,7 @@ function StoryView({
             contentH.value = h
           }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: hasSong ? 190 : 140 }}
+          contentContainerStyle={{ paddingBottom: bottomInset }}
         >
           {/* hero: the photo, a flat dim, a scrim at the top for the buttons and one at the bottom for the title */}
           <View style={[styles.hero, { backgroundColor: theme.inner }]}>

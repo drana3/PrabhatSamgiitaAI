@@ -20,6 +20,7 @@ import { uses12Hour } from "@/lib/notifications/hourCycle"
 import { FESTIVAL_EVE_AT, MAX_TIMES, STREAK_AT, formatMinutes, suggestTime, type TimedKind, type ToggleKind } from "@/lib/notifications/settings"
 import { useNotificationSettingsStore, type PermissionState } from "@/stores/notificationSettingsStore"
 import { href } from "@/utils/href"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useT } from "@/lib/i18n"
 
 /* ------------------------------------------------------------------ rows */
@@ -179,6 +180,7 @@ function PermissionCard({ p, state, onAllow }: { p: AmProto; state: "undetermine
  * offers "Open settings".
  */
 export default function NotificationSettingsScreen() {
+  const bottomInset = useScrollBottomInset()
   const router = useRouter()
   const t = useT()
   const theme = useAmTheme()
@@ -262,7 +264,7 @@ export default function NotificationSettingsScreen() {
         </TodayPress>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: bottomInset }]}>
         <Reveal index={0}>
           <Text style={s.h1} accessibilityRole="header">
             <Text style={{ color: p.ink800 }}>{t("notif.settings.h1a")}</Text>

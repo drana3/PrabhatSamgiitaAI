@@ -18,6 +18,7 @@ import { amSpring } from "@/constants/tokens/amMotion"
 import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amType, amFonts } from "@/constants/tokens/amTypography"
 import type { AmTheme } from "@/constants/tokens/amColors"
+import { useCoverWhile } from "@/lib/sheetCover"
 import { backdropOpacity, settleSheet, sheetOffset } from "@/lib/assistantSheetPhysics"
 import { useT } from "@/lib/i18n"
 
@@ -43,6 +44,7 @@ export function SpringSheet({ visible, onClose, title, theme, children }: Props)
   const reduce = useReducedMotion()
   const screenHeight = Dimensions.get("window").height
   const [mounted, setMounted] = useState(visible)
+  useCoverWhile(mounted)
   const height = useSharedValue(screenHeight * 0.6)
   const translateY = useSharedValue(screenHeight)
   const fade = useSharedValue(0)

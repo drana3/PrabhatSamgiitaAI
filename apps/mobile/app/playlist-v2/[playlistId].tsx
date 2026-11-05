@@ -24,6 +24,7 @@ import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { mineSyncStatus, playlistMeta, songEyebrow } from "@/lib/mineView"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { playPlaylist } from "@/lib/playPlaylist"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { routeString } from "@/lib/songMap"
 import { MOCK_PLAYLISTS } from "@/lib/fixtures/songsMock"
 import { previewTitle } from "@/lib/previewCatalog"
@@ -43,6 +44,7 @@ import { useT } from "@/lib/i18n"
  * are the working logic of the first build. Reorder is not offered: the API has no reorder call.
  */
 export default function PlaylistV2Screen() {
+  const bottomInset = useScrollBottomInset()
   const t = useT()
   useFlushPlaylistsOnBlur()
   const router = useRouter()
@@ -164,7 +166,7 @@ export default function PlaylistV2Screen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.body}
+          contentContainerStyle={[styles.body, { paddingBottom: bottomInset }]}
         >
           {!playlist ? (
             <SongsReveal index={next()}>

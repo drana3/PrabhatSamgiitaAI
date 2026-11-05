@@ -11,6 +11,7 @@ import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { sampleMixes } from "@/lib/fixtures/kirtanGate"
@@ -26,6 +27,7 @@ import { href } from "@/utils/href"
  * player, so song, Kiirtan, song plays through with no hand-over.
  */
 export default function KirtanMixScreen() {
+  const bottomInset = useScrollBottomInset()
   const router = useRouter()
   const theme = useSongsTheme()
   const params = useLocalSearchParams<{ id?: string }>()
@@ -140,7 +142,7 @@ export default function KirtanMixScreen() {
           </View>
         }
         renderItem={renderItem}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
         showsVerticalScrollIndicator={false}
       />
       <Toast message={actions.toast} theme={theme} />

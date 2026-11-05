@@ -25,7 +25,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2ListPage } from "@/hooks/useSongsV2ListPage"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import type { BarMarks } from "@/lib/songPage/stickyBar"
-import { usePlayerStore } from "@/stores/playerStore"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { collageCoverIds } from "@/lib/songsV2/listPage"
 import { listPageRowHeight, ROW_GEOMETRY, slotHeight } from "@/lib/songsV2/rowStyles"
 import { useListViewStore } from "@/stores/listViewStore"
@@ -65,7 +65,7 @@ export function SongsListPage({
   // The phone-frame preview on the web draws the 54px status area of the board.
   const inset = Platform.OS === "web" ? 54 : insets.top
   const openedAt = useRevealClock()
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const bottomInset = useScrollBottomInset()
   const list = useSongsV2ListPage({ listId, listName: title, entries })
   const shownNumbers = useMemo(() => list.shown.map((e) => e.number), [list.shown])
   const listDownload = useListDownload(shownNumbers, title)
@@ -83,7 +83,7 @@ export function SongsListPage({
   const coverIds = useMemo(() => collageCoverIds(list.base.map((e) => e.number)), [list.base])
   const cover =
     kind === "all" ? <CollageCover ids={coverIds} tint={theme.inner} /> : <AccentCover label={title} dark={theme.dark} />
-  const bottom = hasSong ? 180 : 130
+  const bottom = bottomInset
 
   // Collapsing top bar (SpStickyBar): back button always, title and a round play-all button fade in as the header leaves.
   const barHeight = inset + SP_BAR_CONTENT

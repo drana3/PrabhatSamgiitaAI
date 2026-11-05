@@ -14,6 +14,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { artistById, kirtansOfArtist, popularOf } from "@/lib/kirtan/artists"
 import { kindsCountLabel } from "@/lib/kirtan/kind"
@@ -33,6 +34,7 @@ import { href } from "@/utils/href"
  * TODO(api): artists, photos and texts come from the backend.
  */
 export default function KirtanArtistScreen() {
+  const bottomInset = useScrollBottomInset()
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
@@ -158,7 +160,7 @@ export default function KirtanArtistScreen() {
             <Text style={[styles.body, { color: theme.textBody }]}>{artist.about}</Text>
           </View>
         }
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
         showsVerticalScrollIndicator={false}
       />
       <KirtanMenuSheet

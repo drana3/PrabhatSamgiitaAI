@@ -44,6 +44,7 @@ import type { MockSong } from "@/data/mock"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { loadCatalog } from "@/lib/catalog"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { api } from "@/lib/client"
@@ -132,6 +133,7 @@ export function fixtureDay(kind: "date" | "fest" | "season", count: number) {
  * Colours are the prototype's "Dawn" set (light) and the dark theme.
  */
 export default function TodayScreen() {
+  const bottomInset = useScrollBottomInset()
   const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
@@ -299,7 +301,7 @@ export default function TodayScreen() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[dawn ? 2 : 1]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
       >
         {dawn ? (
           <LinearGradient

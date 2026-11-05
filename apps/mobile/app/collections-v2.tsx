@@ -28,7 +28,7 @@ import {
 } from "@/lib/songsV2/collectionsIndex"
 import { collageCoverIds, songCountText } from "@/lib/songsV2/listPage"
 import { SPECIAL_TILES } from "@/lib/songsV2/collections"
-import { usePlayerStore } from "@/stores/playerStore"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
 
@@ -59,7 +59,7 @@ export default function CollectionsV2Screen() {
   // The phone-frame preview on the web draws the 54px status area of the board.
   const inset = Platform.OS === "web" ? 54 : insets.top
   const openedAt = useRevealClock()
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
+  const bottomInset = useScrollBottomInset()
   const catalog = useSongsV2Catalog()
 
   const [query, setQuery] = useState("")
@@ -174,7 +174,7 @@ export default function CollectionsV2Screen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 4, paddingBottom: hasSong ? 180 : 130 }}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: bottomInset }}
           initialNumToRender={12}
           windowSize={7}
         />

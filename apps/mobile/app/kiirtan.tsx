@@ -27,6 +27,7 @@ import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { sampleArtists, sampleResume } from "@/lib/fixtures/kirtanGate"
 import { artistsWithKirtans, kirtansOfArtist } from "@/lib/kirtan/artists"
@@ -58,6 +59,7 @@ const TYPE_CARD = { w: 152, h: 112 }
  * TODO(api): the catalog, the artists, the day's pick and the resume positions come from the backend.
  */
 export default function KiirtanTabScreen() {
+  const bottomInset = useScrollBottomInset()
   const t = useT()
   const router = useRouter()
   const am = useAmTheme()
@@ -372,7 +374,7 @@ export default function KiirtanTabScreen() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[0]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
       >
         <StickyTopBlock inset={top} rowHeight={TOP_ROW} page={p.sand200} wash={p.dark ? ["rgba(74, 46, 28, 0.6)", "rgba(74, 46, 28, 0)"] : [p.orange100, "rgba(255, 220, 197, 0)"]} scrollY={scrollY}>
         <View style={styles.topRow}>

@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amSpring } from "@/constants/tokens/amMotion"
+import { useCoverWhile } from "@/lib/sheetCover"
 import { sheetPosition, sheetSettle } from "@/lib/songPage/sheetPhysics"
 
 const RUBBER_LIMIT = 96
@@ -62,6 +63,9 @@ export function SpSheet({
   const closeRef = useRef(onClose)
   closeRef.current = onClose
   const maxHeight = Math.min(MAX_HEIGHT, windowHeight - 40)
+
+  // While the sheet is on screen the mini-player and the tab pill slide away (lib/sheetCover.ts).
+  useCoverWhile(mounted)
 
   const unmount = useCallback(() => setMounted(false), [])
 
