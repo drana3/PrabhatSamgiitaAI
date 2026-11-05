@@ -9,6 +9,8 @@ export function isTrackPlayerLinked(): boolean {
 export function ensurePlaybackServiceRegistered(): void {
   if (!isTrackPlayerLinked() || playbackServiceRegistered) return
   playbackServiceRegistered = true
+  // index.js registers the service at app start; do not register it a second time.
+  if ((globalThis as { __psPlaybackServiceRegistered?: boolean }).__psPlaybackServiceRegistered) return
   const TrackPlayer = require("react-native-track-player").default
   TrackPlayer.registerPlaybackService(() => require("../../playbackService").playbackService)
 }

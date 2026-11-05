@@ -27,6 +27,7 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { useT } from "@/lib/i18n"
 import { miniProgress, miniSubtitle, isDarkTheme, rubberBand } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
+import { skipToNextSong, skipToPreviousSong } from "@/lib/playerV2/transport"
 import type { SaveItem } from "@/lib/save/saveToSheet"
 import { usePlayerStore } from "@/stores/playerStore"
 
@@ -80,8 +81,6 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   const isBuffering = usePlayerStore((s) => (s.currentSong ? songPlayback(s, s.currentSong).isBuffering : false))
   const togglePlay = usePlayerStore((s) => s.togglePlay)
   const pause = usePlayerStore((s) => s.pause)
-  const next = usePlayerStore((s) => s.next)
-  const previous = usePlayerStore((s) => s.previous)
   const isKiirtan = currentSong?.kind === "kiirtan"
   const kiirtanId = currentSong?.kiirtan?.id ?? null
 
@@ -97,8 +96,9 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   const dy = useSharedValue(0)
   const axis = useSharedValue(0) // 0 undecided, 1 vertical, 2 horizontal
 
-  const goNext = useCallback(() => next(), [next])
-  const goPrevious = useCallback(() => previous(), [previous])
+  // The same Next / Previous as the Player buttons and the lock screen.
+  const goNext = useCallback(() => skipToNextSong(), [])
+  const goPrevious = useCallback(() => skipToPreviousSong(), [])
 
   const settle = (value: { value: number }, velocity: number) => {
     "worklet"

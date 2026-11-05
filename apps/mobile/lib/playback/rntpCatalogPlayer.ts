@@ -38,34 +38,66 @@ function ensureNativeListenersInstalled(): void {
   installNativeListenersHook()
 }
 
+/** Lock screen / car / notification buttons. Next is offered only while there is a next song. */
+let nextEnabled = true
+let playerReady = false
+
+function remoteOptions() {
+  const { AppKilledPlaybackBehavior, Capability } = loadTrackPlayerModule()
+  const capabilities = [
+    Capability.Play,
+    Capability.Pause,
+    ...(nextEnabled ? [Capability.SkipToNext] : []),
+    Capability.SkipToPrevious,
+    Capability.SeekTo,
+    Capability.Stop,
+  ]
+  return {
+    capabilities,
+    notificationCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      ...(nextEnabled ? [Capability.SkipToNext] : []),
+      Capability.SkipToPrevious,
+    ],
+    progressUpdateEventInterval: 1,
+    android: {
+      appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+    },
+  }
+}
+
 export async function setupNativeCatalogPlayer(): Promise<void> {
   ensureNativeListenersInstalled()
   if (setupPromise) return setupPromise
-  setupPromise = (async () => {
+  const attempt = (async () => {
     const TrackPlayer = getTrackPlayer()
-    const { AppKilledPlaybackBehavior, Capability } = loadTrackPlayerModule()
     try {
       await TrackPlayer.setupPlayer({ autoHandleInterruptions: true })
     } catch {
       /* already initialized */
     }
-    await TrackPlayer.updateOptions({
-      capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.SeekTo,
-        Capability.Stop,
-      ],
-      notificationCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
-      progressUpdateEventInterval: 1,
-      android: {
-        appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
-      },
-    })
+    await TrackPlayer.updateOptions(remoteOptions())
+    playerReady = true
   })()
-  return setupPromise
+  setupPromise = attempt
+  // A failed setup must not be remembered for the life of the app: the next call tries again.
+  attempt.catch(() => {
+    if (setupPromise === attempt) setupPromise = null
+  })
+  return attempt
+}
+
+/** Show or hide Next on the lock screen / notification. Only touches the player when the answer changes. */
+export async function setRemoteNextEnabled(enabled: boolean): Promise<void> {
+  if (enabled === nextEnabled) return
+  nextEnabled = enabled
+  if (!playerReady) return
+  try {
+    await getTrackPlayer().updateOptions(remoteOptions())
+  } catch {
+    /* the next song change tries again */
+  }
 }
 
 export async function resetNativeCatalog(): Promise<void> {

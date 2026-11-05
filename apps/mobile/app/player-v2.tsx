@@ -76,14 +76,13 @@ import { formatClock } from "@/lib/playerV2/transportState"
 import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
 import { mockupSong } from "@/lib/fixtures/songMockup"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { skipToNextSong, skipToPreviousSong } from "@/lib/playerV2/transport"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { hasPlayableAudio, playableAudioCount, playableNumbersList } from "@/lib/playableAudio"
 import { playlistSongNumbers, playPlaylist, starterSongForNumber } from "@/lib/playPlaylist"
 import {
   activeQueue,
   canGoNext,
-  goNext,
-  goPrevious,
   playNumber,
   playVersion,
 } from "@/lib/playerV2/controller"
@@ -178,8 +177,6 @@ export default function PlayerV2Screen() {
   const seekTo = usePlayerStore((s) => s.seekTo)
   const setRate = usePlayerStore((s) => s.setRate)
   const toggleLegacyRepeat = usePlayerStore((s) => s.toggleRepeat)
-  const storeNext = usePlayerStore((s) => s.next)
-  const storePrevious = usePlayerStore((s) => s.previous)
 
   const v2 = usePlayerV2Store()
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
@@ -475,12 +472,8 @@ export default function PlayerV2Screen() {
     if (playState === "error") play()
     else togglePlay()
   }
-  const onNext = () => {
-    if (!goNext(deps)) storeNext()
-  }
-  const onPrevious = () => {
-    if (!goPrevious(deps)) storePrevious()
-  }
+  const onNext = () => skipToNextSong()
+  const onPrevious = () => skipToPreviousSong()
   const onRepeat = () => {
     const next = v2.cycleRepeat()
     toast.show(repeatMessage(next, source))

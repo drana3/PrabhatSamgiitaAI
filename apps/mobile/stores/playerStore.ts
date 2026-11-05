@@ -54,6 +54,12 @@ import {
   loadTrackPlayerModule,
 } from "@/lib/playback/trackPlayerBridge"
 import { setRadioSession } from "@/lib/playback/radioSession"
+import {
+  patchForSignal,
+  signalFromState,
+  type NativeSignal,
+} from "@/lib/playback/nativeSignals"
+import { clearTransition, inTransition, markTransition } from "@/lib/playback/transition"
 import { runTrackEndHook } from "@/lib/playback/trackEndHook"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -223,6 +229,7 @@ async function startNativeSong(song: MockSong, generation: number) {
   // Buffer immediately — after Remove offline, hydrate may fetch a remote URL
   // before the player can start (felt like a hang with no progress).
   playerExtras.__psWantPlaying = true
+  markTransition()
   setPlaybackIntent(song.number)
   usePlayerStore.setState({
     currentSong: song,
@@ -266,6 +273,7 @@ async function startNativeSong(song: MockSong, generation: number) {
   // A newer load may have started while the native player was busy; starting
   // this stream now would play two songs (BUG-05).
   if (generation !== playerExtras.__psLoadGeneration) return
+  markTransition()
   await playTrackNow(songToTrack(ready, ready.audioUrl))
   if (generation !== playerExtras.__psLoadGeneration) return
   const rate = usePlayerStore.getState().rate
@@ -347,6 +355,7 @@ function handleCatalogQueueEnded(): void {
   )
   if (shouldAdvance) {
     if (isTrackPlayerLinked()) {
+      markTransition()
       void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
     } else {
       void advanceCatalogAfterTrackEnd()
@@ -373,9 +382,62 @@ function handleCatalogPlaybackError(): void {
     return
   }
   if (isTrackPlayerLinked()) {
+    markTransition()
     void ensureUpcomingRadioTrack().then(() => nativeSkipToNext().catch(() => undefined))
   } else {
     void advanceCatalogAfterTrackEnd()
+  }
+}
+
+/** Apply what the native player reports to the store: the one place isPlaying follows the sound. */
+export function applyNativeSignal(signal: NativeSignal): void {
+  const patch = patchForSignal(
+    signal,
+    { inTransition: inTransition() },
+    { wantPlaying: playerExtras.__psWantPlaying },
+  )
+  if (!patch) return
+  playerExtras.__psWantPlaying = patch.wantPlaying
+  if (patch.endTransition) clearTransition()
+  const next: Partial<PlayerState> = {}
+  if (patch.isPlaying !== undefined) next.isPlaying = patch.isPlaying
+  if (patch.isBuffering !== undefined) next.isBuffering = patch.isBuffering
+  if (patch.clearError) next.audioError = null
+  usePlayerStore.setState(next)
+  if (signal === "paused" || signal === "stopped" || signal === "wants-pause") {
+    setPlaybackIntent(null)
+  } else if (signal === "playing" || signal === "wants-play") {
+    const song = usePlayerStore.getState().currentSong
+    if (song) setPlaybackIntent(song.number)
+  }
+}
+
+/**
+ * Back in the foreground: the JS side may have missed events while it was
+ * suspended (a pause from the lock screen, a call). Ask the native player.
+ */
+async function reconcilePlayStateFromNative(): Promise<void> {
+  if (!isTrackPlayerLinked()) return
+  try {
+    const TrackPlayer = getTrackPlayer()
+    const [{ state }, progress] = await Promise.all([
+      TrackPlayer.getPlaybackState(),
+      TrackPlayer.getProgress(),
+    ])
+    const signal = signalFromState(state as unknown as string)
+    if (signal === "playing" || signal === "paused" || signal === "stopped" || signal === "ended") {
+      const store = usePlayerStore.getState()
+      // Only correct a disagreement; never start or stop anything here.
+      if (signal === "playing" && !store.isPlaying) applyNativeSignal("playing")
+      if (signal !== "playing" && store.isPlaying && !store.isBuffering) {
+        applyNativeSignal(signal === "ended" ? "stopped" : signal)
+      }
+    }
+    if (progress && Number.isFinite(progress.position) && usePlayerStore.getState().currentSong) {
+      usePlayerStore.setState({ position: Math.floor(progress.position) })
+    }
+  } catch {
+    /* player not set up yet */
   }
 }
 
@@ -396,22 +458,14 @@ function installNativeListeners() {
     sub.remove()
   }
   listen(Event.PlaybackState, (event: { state?: string }) => {
-    const state = event.state
-    if (state === State.Playing) {
-      playerExtras.__psWantPlaying = true
-      usePlayerStore.setState({ isPlaying: true, isBuffering: false, audioError: null })
-      return
-    }
-    if (state === State.Buffering || state === State.Loading) {
-      usePlayerStore.setState({ isBuffering: true, isPlaying: playerExtras.__psWantPlaying })
-      return
-    }
-    if (state === State.Paused || state === State.Stopped) {
-      if (!playerExtras.__psWantPlaying) {
-        usePlayerStore.setState({ isPlaying: false, isBuffering: false })
-      }
-    }
+    applyNativeSignal(signalFromState(event.state))
   })
+  // Fired for every play/pause, whoever caused it (lock screen, headphones, a call, Siri).
+  if (Event.PlaybackPlayWhenReadyChanged) {
+    listen(Event.PlaybackPlayWhenReadyChanged, (event: { playWhenReady?: boolean }) => {
+      applyNativeSignal(event.playWhenReady ? "wants-play" : "wants-pause")
+    })
+  }
   listen(Event.PlaybackProgressUpdated, (event) => {
     // Native reports duration 0 while loading; keep "unknown" (0) instead of faking 0:01.
     const reported = Number(event.duration)
@@ -651,6 +705,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       nextQueue = [hold]
       playlistBounds = null
     }
+    // The queue always contains what is playing: a stale list from an earlier screen must not
+    // become the "next" of a song that is not in it. A lone song is a queue of one.
+    if (!nextQueue.includes(song.number)) nextQueue = [song.number]
     const clearPlaylistMeta =
       playbackMode === "random" ||
       playbackMode === "default" ||
@@ -765,6 +822,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     void songFromActiveTrack().then((song) => {
       if (song) usePlayerStore.setState({ currentSong: song, hasAudio: true })
     })
+    void reconcilePlayStateFromNative()
   },
 
   pause: () => {
@@ -863,6 +921,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return
     }
     void (async () => {
+      markTransition()
       await ensureUpcomingRadioTrack()
       try {
         await nativeSkipToNext()

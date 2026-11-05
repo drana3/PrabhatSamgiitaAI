@@ -357,7 +357,7 @@ export default function TodayScreen() {
                     title={readableTitle(row.song.title)}
                     firstLine={row.firstLine}
                     onOpen={() => openSong(row.song)}
-                    onPlay={() => listen(row.song)}
+                    onPlay={() => listen(row.song, rows.map((r) => Number(r.song.number)))}
                   />
                 ))}
                 <TodayPlayAll

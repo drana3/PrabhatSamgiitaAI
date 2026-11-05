@@ -23,6 +23,8 @@ export const Event = {
   PlaybackActiveTrackChanged: "playback-active-track-changed",
   PlaybackQueueEnded: "playback-queue-ended",
   PlaybackError: "playback-error",
+  PlaybackPlayWhenReadyChanged: "playback-play-when-ready-changed",
+  RemoteDuck: "remote-duck",
 }
 
 export const State = {

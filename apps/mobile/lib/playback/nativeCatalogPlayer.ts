@@ -12,6 +12,7 @@ function impl() {
 export const registerNativePlayerListeners = (...args: Parameters<typeof rntp.registerNativePlayerListeners>) =>
   impl().registerNativePlayerListeners(...args)
 export const setupNativeCatalogPlayer = () => impl().setupNativeCatalogPlayer()
+export const setRemoteNextEnabled = (enabled: boolean) => impl().setRemoteNextEnabled(enabled)
 export const resetNativeCatalog = () => impl().resetNativeCatalog()
 export const playTrackNow = (...args: Parameters<typeof rntp.playTrackNow>) => impl().playTrackNow(...args)
 export const enqueueTrack = (...args: Parameters<typeof rntp.enqueueTrack>) => impl().enqueueTrack(...args)

@@ -14,6 +14,7 @@ import { createQueueActions } from "@/lib/playerV2/queueActions"
 import { activeQueue } from "@/lib/playerV2/controller"
 import { createResumeTracker } from "@/lib/playerV2/resumeTracker"
 import { tickSleep } from "@/lib/playerV2/sleepWatcher"
+import { setTransportDeps } from "@/lib/playerV2/transport"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
 import { useResumeStore } from "@/stores/resumeStore"
@@ -69,6 +70,9 @@ export function realQueueActions() {
     setShuffleOriginal: (queue) => usePlayerV2Store.getState().setShuffleOriginal(queue),
   })
 }
+
+// Next / Previous from every source (lock screen, headphones, mini player) use these dependencies.
+setTransportDeps(realControllerDeps)
 
 let started = false
 
