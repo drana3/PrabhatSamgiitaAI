@@ -76,7 +76,11 @@ export async function hydratePlayableSong(number: number, seed?: MockSong | null
   return { ...song, audioUrl: uri, mediaHydrated: true }
 }
 
-/** Keep one upcoming native track so overnight radio never hits a silent JS gap. */
+/**
+ * Keep one upcoming native track so overnight radio never hits a silent JS gap.
+ * The "busy" flag is taken before the first await: two events arriving together (track change and
+ * queue end, the service and the store) must not each add a next song.
+ */
 export async function ensureUpcomingRadioTrack(): Promise<void> {
   if (!isTrackPlayerLinked()) return
   if (advancing) return
@@ -85,42 +89,48 @@ export async function ensureUpcomingRadioTrack(): Promise<void> {
   if (session.kind === "casual") return
   if (session.driveRepeat || session.repeat) return
 
+  advancing = true
+  try {
+    await enqueueNextRadioTrack(session)
+  } catch {
+    /* next event will retry */
+  } finally {
+    advancing = false
+  }
+}
+
+async function enqueueNextRadioTrack(session: ReturnType<typeof getRadioSession>): Promise<void> {
   const remaining = await nativeQueueLengthPastIndex()
   if (remaining >= 1) return
 
-  const active = isTrackPlayerLinked() ? await getTrackPlayer().getActiveTrack() : null
+  const active = await getTrackPlayer().getActiveTrack()
   const current =
     session.currentNumber ??
     getActiveCatalogTrackNumber() ??
     trackIdToSongNumber(typeof active?.id === "string" ? active.id : null)
   if (!current) return
 
-  advancing = true
-  try {
-    let nextNumber: number | null = null
-    if (session.kind === "drive-random") {
-      nextNumber = randomPlayableSongNumber(current)
-    } else if (session.kind === "playlist" || session.kind === "drive-playlist") {
-      const bounds = session.playlistBounds
-      if (!bounds?.length) return
-      nextNumber = nextPlayableInQueue(bounds, current, 1) ?? playlistStep(current, bounds, 1)
-      if (nextNumber == null) {
-        await nativeRemoveUpcomingTracks()
-        return
-      }
-    } else if (session.playlistBounds?.length) {
-      nextNumber =
-        nextPlayableInQueue(session.playlistBounds, current, 1) ??
-        playlistStep(current, session.playlistBounds, 1)
+  let nextNumber: number | null = null
+  if (session.kind === "drive-random") {
+    nextNumber = randomPlayableSongNumber(current)
+  } else if (session.kind === "playlist" || session.kind === "drive-playlist") {
+    const bounds = session.playlistBounds
+    if (!bounds?.length) return
+    nextNumber = nextPlayableInQueue(bounds, current, 1) ?? playlistStep(current, bounds, 1)
+    if (nextNumber == null) {
+      await nativeRemoveUpcomingTracks()
+      return
     }
-    if (nextNumber == null) return
-    const song = await hydratePlayableSong(nextNumber)
-    if (!song?.audioUrl) return
-    cacheCatalogSong(song)
-    await enqueueTrack(songToTrack(song, song.audioUrl))
-  } catch {
-    /* next event will retry */
-  } finally {
-    advancing = false
+  } else if (session.playlistBounds?.length) {
+    nextNumber =
+      nextPlayableInQueue(session.playlistBounds, current, 1) ??
+      playlistStep(current, session.playlistBounds, 1)
   }
+  if (nextNumber == null) return
+  const song = await hydratePlayableSong(nextNumber)
+  if (!song?.audioUrl) return
+  cacheCatalogSong(song)
+  // The native queue may have grown while the song was fetched: add only when still empty.
+  if ((await nativeQueueLengthPastIndex()) >= 1) return
+  await enqueueTrack(songToTrack(song, song.audioUrl))
 }
