@@ -6,7 +6,7 @@
  *
  *   idle         arrow-down
  *   downloading  progress ring with the percent inside; a tap cancels
- *   done         orange check; a tap removes, after a confirm that shows the size
+ *   done         green disc with an arrow-down-to-tray (not a check: a check is Save); a tap removes, after a confirm that shows the size
  *
  * A song or Kiirtan WITHOUT playable audio shows no control at all (not disabled, not hidden under
  * a menu with an error).
@@ -68,8 +68,8 @@ export function downloadView(input: {
 /** Screen-reader label of the icon control. */
 export function downloadLabel(view: Pick<DownloadView, "status" | "percent">): string {
   if (view.status === "downloading") return `Downloading ${view.percent} percent, tap to cancel`
-  if (view.status === "done") return "Downloaded, tap to remove"
-  return "Download"
+  if (view.status === "done") return "Downloaded to this phone, tap to remove"
+  return "Download to this phone"
 }
 
 /** The row of a menu: Download, Cancel download, Remove download. */

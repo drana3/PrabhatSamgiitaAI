@@ -150,7 +150,7 @@ export function KirtanRow({
           </Text>
           <View style={styles.subRow}>
             <KirtanTag theme={theme} kind={kirtan.kind} />
-            <KiirtanDownloadedBadge kirtan={kirtan} fill={theme.brand} onFill="#FFFFFF" />
+            <KiirtanDownloadedBadge kirtan={kirtan} />
             {onOpenArtist ? <ArtistLink theme={theme} author={kirtan.author} onOpenArtist={onOpenArtist} /> : null}
             <Text style={[styles.subText, { color: theme.textBody }]} numberOfLines={1}>
               {onOpenArtist && kirtan.author.trim() ? `· ${kirtanSubline(kirtan)}` : kirtanSubline(kirtan)}

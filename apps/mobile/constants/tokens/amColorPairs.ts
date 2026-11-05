@@ -96,6 +96,10 @@ export const amColorPairs: AmColorPair[] = [
   ...lightFlat.map(([n, bg]) => pair("light", `action-coloured icon on ${n}`, L.brand, bg, "graphic")),
   ...lightFlat.map(([n, bg]) => pair("light", `bright orange decor (progress, dots, glows) on ${n}`, L.accentBright, bg, "decor")),
   pair("light", "action fill against the page", L.brand, L.page, "graphic"),
+  // the DOWNLOADED disc (forest green sage700, white arrow-to-tray glyph; the Save disc is orange)
+  pair("light", "white glyph on downloaded disc (sage700)", c.white, c.sage700, "graphic"),
+  pair("light", "downloaded disc (sage700) against the page", c.sage700, L.page, "graphic"),
+  pair("light", "downloaded disc (sage700) against a card", c.sage700, L.card, "graphic"),
 
   // ---- Dark: text on neutral surfaces
   ...darkFlat.flatMap(([n, bg]) => [
@@ -121,6 +125,10 @@ export const amColorPairs: AmColorPair[] = [
   pair("dark", "action fill against the page", D.brand, S.page, "graphic"),
   pair("dark", "action fill against a card", D.brand, S.card, "graphic"),
   pair("dark", "action fill against an inner surface", D.brand, S.inner, "graphic"),
+  // the DOWNLOADED disc in Dark: sage700 alone is 2.3:1 on the page, so it carries a sage300 edge
+  pair("dark", "white glyph on downloaded disc (sage700)", c.white, c.sage700, "graphic"),
+  pair("dark", "downloaded disc edge (sage300) against the page", c.sage300, S.page, "graphic"),
+  pair("dark", "downloaded disc edge (sage300) against a card", c.sage300, S.card, "graphic"),
   pair("dark", "ink label on a light control in dark", S.onLight, c.sand50, "text"),
 
   // ---- Both: photographs. Scrims and neutral chips only.

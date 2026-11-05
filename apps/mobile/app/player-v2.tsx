@@ -830,8 +830,7 @@ export default function PlayerV2Screen() {
                       color={playerColors.utilIcon}
                       track="rgba(255, 255, 255, 0.28)"
                       ring={amColors.orange500}
-                      fill={amColors.orange700}
-                      onFill={amColors.white}
+                      onDark
                     />
                     <UtilButton label="Queue" onPress={() => setSheet("queue")}>
                       <PlayerIcon name="queue" size={playerSize.utilGlyph} color={playerColors.utilIcon} />

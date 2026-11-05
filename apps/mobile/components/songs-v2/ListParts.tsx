@@ -168,7 +168,7 @@ export function ActionBar({
       <View style={styles.actionsLeft}>
         {download.visible ? (
           <IconButton label={listDownloadLabel(download)} onPress={onDownload}>
-            <DownloadMark status={download.status} progress={download.progress} size={24} color={theme.textHeading} track={theme.line} ring={theme.accentBright} fill={theme.brand} onFill={ON_ACTION} />
+            <DownloadMark status={download.status} progress={download.progress} size={24} color={theme.textHeading} track={theme.line} ring={theme.accentBright} />
           </IconButton>
         ) : null}
         <IconButton label="Sort and filter" onPress={onSort}>
@@ -321,7 +321,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
             </Text>
             {saved ? <SaveMark on size={14} /> : null}
             {download === "done" ? (
-              <DownloadMark status="done" size={14} fill={theme.brand} onFill={ON_ACTION} />
+              <DownloadMark status="done" size={14} />
             ) : null}
           </View>
         </View>

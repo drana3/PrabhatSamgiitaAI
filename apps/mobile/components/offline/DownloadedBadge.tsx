@@ -8,23 +8,23 @@ import type { DownloadItem } from "@/lib/offline/downloadModel"
 import type { KiirtanSource } from "@/lib/kirtan/track"
 
 /**
- * The small orange check of a row that is already on the phone ("Downloaded"). Draws nothing in
+ * The small green downloaded disc of a row that is already on the phone ("Downloaded"). Draws nothing in
  * any other state, so a row does not get crowded. Same mark as the buttons.
  */
-export function DownloadedBadge({ item, size = 14, fill, onFill }: { item: DownloadItem | null; size?: number; fill?: string; onFill?: string }) {
+export function DownloadedBadge({ item, size = 14 }: { item: DownloadItem | null; size?: number }) {
   const { view } = useDownloadState(item)
   if (view.status !== "done") return null
   return (
     <View accessible accessibilityLabel="Downloaded" style={styles.badge}>
-      <DownloadMark status="done" size={size} fill={fill} onFill={onFill} />
+      <DownloadMark status="done" size={size} />
     </View>
   )
 }
 
 /** The badge of a Kiirtan or Bhajan row. */
-export function KiirtanDownloadedBadge({ kirtan, size, fill, onFill }: { kirtan: KiirtanSource; size?: number; fill?: string; onFill?: string }) {
+export function KiirtanDownloadedBadge({ kirtan, size }: { kirtan: KiirtanSource; size?: number }) {
   const item = useMemo(() => kiirtanDownloadItem(kirtan), [kirtan])
-  return <DownloadedBadge item={item} size={size} fill={fill} onFill={onFill} />
+  return <DownloadedBadge item={item} size={size} />
 }
 
 const styles = StyleSheet.create({

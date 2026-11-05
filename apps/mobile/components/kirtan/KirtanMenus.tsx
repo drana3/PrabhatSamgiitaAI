@@ -70,7 +70,7 @@ export function KirtanMenuSheet({ open, theme, kirtan, saved, onPlayNext, onAddT
           icon={<SaveMark on={saved} size={22} color={ink} />}
           onPress={act(onToggleSave)}
         />
-        <DownloadMenuRow item={downloadItem} size={22} color={ink} track={theme.line} ring={theme.accentBright} fill={theme.brand} onFill="#FFFFFF">
+        <DownloadMenuRow item={downloadItem} size={22} color={ink} track={theme.line} ring={theme.accentBright}>
           {(row) => <MenuRow theme={theme} label={row.label} icon={row.icon} onPress={() => { row.onPress(); onClose() }} />}
         </DownloadMenuRow>
         <MenuRow theme={theme} label="Share" icon={<PlayerIcon name="share" size={22} color={ink} />} onPress={act(onShare)} />

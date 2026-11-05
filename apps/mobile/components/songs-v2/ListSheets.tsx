@@ -124,7 +124,7 @@ export function SongMenuSheet(props: SongMenuProps) {
           />
           <Row theme={theme} label="Share" icon={<Share2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onShare)} />
           <Row theme={theme} label="Open song page" icon={<Music2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onOpenSong)} />
-          <DownloadMenuRow item={shown ? songDownloadItem(shown.number, { title: shown.title, seconds: shown.durationSeconds || undefined }) : null} color={theme.textHeading} track={theme.line} ring={theme.accentBright} fill={theme.brand} onFill="#FFFFFF">
+          <DownloadMenuRow item={shown ? songDownloadItem(shown.number, { title: shown.title, seconds: shown.durationSeconds || undefined }) : null} color={theme.textHeading} track={theme.line} ring={theme.accentBright}>
             {(row) => <Row theme={theme} label={row.label} icon={row.icon} onPress={act2(row.onPress)} />}
           </DownloadMenuRow>
           <Row

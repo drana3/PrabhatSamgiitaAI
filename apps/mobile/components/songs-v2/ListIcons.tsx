@@ -10,6 +10,7 @@ import Animated, {
 } from "react-native-reanimated"
 import Svg, { Circle, Path, Rect } from "react-native-svg"
 
+import { DOWNLOADED_GLYPH } from "@/lib/offline/downloadLook"
 import type { DownloadAllState } from "@/lib/songsV2/listPage"
 
 /**
@@ -54,7 +55,7 @@ const ARROW = "M12 7.5v8M8.5 12.2l3.5 3.5 3.5-3.5"
 
 /**
  * Download of a list or a song. idle: ring and arrow. downloading: the ring turns. done: a filled
- * disc with a dark arrow (the "down-arrow in a circle" of a downloaded row).
+ * disc with the arrow-down-to-tray glyph (same glyph as components/offline/DownloadMark).
  */
 export function DownloadIcon({
   state,
@@ -89,8 +90,8 @@ export function DownloadIcon({
   if (state === "done") {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Circle cx={12} cy={12} r={9.5} fill={fill} />
-        <Path d={ARROW} stroke={onFill} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        <Circle cx={12} cy={12} r={10.5} fill={fill} />
+        <Path d={DOWNLOADED_GLYPH} stroke={onFill} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       </Svg>
     )
   }

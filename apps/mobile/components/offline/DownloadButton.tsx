@@ -13,8 +13,8 @@ type Props = {
   color?: string
   track?: string
   ring?: string
-  fill?: string
-  onFill?: string
+  /** true on a dark ground (the full player) */
+  onDark?: boolean
   /** size of the touch area; at least 44 */
   hit?: number
   style?: StyleProp<ViewStyle>
@@ -22,11 +22,11 @@ type Props = {
 
 /**
  * The download control of the whole app (like components/save/SaveButton.tsx is the save control):
- * arrow, progress ring with the percent, orange check. A tap starts, cancels (while the ring runs)
+ * arrow in a circle outline, progress ring with the percent, solid green disc with the downloaded glyph (never an orange check: that is Save). A tap starts, cancels (while the ring runs)
  * or removes (after a confirm that shows the size). Draws nothing for a song without playable
  * audio. Press feedback starts on touch-down; the action runs on release.
  */
-export function DownloadButton({ item, size = 24, color, track, ring, fill, onFill, hit = 44, style }: Props) {
+export function DownloadButton({ item, size = 24, color, track, ring, onDark, hit = 44, style }: Props) {
   const { view, press } = useDownloadState(item)
   const scale = useSharedValue(1)
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
@@ -47,7 +47,7 @@ export function DownloadButton({ item, size = 24, color, track, ring, fill, onFi
       style={[styles.hit, { width: Math.max(44, hit), height: Math.max(44, hit), borderRadius: Math.max(44, hit) / 2 }, style]}
     >
       <Animated.View style={animated}>
-        <DownloadMark status={view.status} progress={view.progress} size={size} color={color} track={track} ring={ring} fill={fill} onFill={onFill} />
+        <DownloadMark status={view.status} progress={view.progress} size={size} color={color} track={track} ring={ring} onDark={onDark} />
       </Animated.View>
     </Pressable>
   )

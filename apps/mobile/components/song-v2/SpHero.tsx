@@ -187,8 +187,6 @@ export function SpActionRow({
           color={t.ink800}
           track={t.sand400}
           ring={accent.bright}
-          fill={accent.fill}
-          onFill={accent.onFill}
         />
         <Tool label="Add to playlist" onPress={onPlaylist}>
           <SpIcon name="listPlus" size={25} color={t.ink800} />

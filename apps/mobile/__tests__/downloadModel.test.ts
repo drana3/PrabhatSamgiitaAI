@@ -49,11 +49,11 @@ describe("one download control: states", () => {
 
 describe("one download control: words", () => {
   it("accessibility labels", () => {
-    expect(downloadLabel(downloadView({ hasAudio: true, downloaded: false, downloading: false }))).toBe("Download")
+    expect(downloadLabel(downloadView({ hasAudio: true, downloaded: false, downloading: false }))).toBe("Download to this phone")
     expect(downloadLabel(downloadView({ hasAudio: true, downloaded: false, downloading: true, progress: 0.42 }))).toBe(
       "Downloading 42 percent, tap to cancel",
     )
-    expect(downloadLabel(downloadView({ hasAudio: true, downloaded: true, downloading: false }))).toBe("Downloaded, tap to remove")
+    expect(downloadLabel(downloadView({ hasAudio: true, downloaded: true, downloading: false }))).toBe("Downloaded to this phone, tap to remove")
   })
 
   it("menu rows", () => {
@@ -183,5 +183,15 @@ describe("batching", () => {
     expect(nextToStart([1, 2, 3], 3)).toEqual([])
     expect(nextToStart([1, 2, 3], 9)).toEqual([])
     expect(nextToStart([], 0)).toEqual([])
+  })
+})
+
+describe("download look: never confused with save", () => {
+  it("the done disc is green, not the orange of Save, and its glyph is not a check", async () => {
+    const look = await import("@/lib/offline/downloadLook")
+    expect(look.DOWNLOADED_FILL).toBe("#3C5535")
+    expect(look.DOWNLOADED_FILL).not.toBe(look.SAVED_FILL)
+    expect(look.DOWNLOADED_GLYPH).not.toBe(look.SAVED_CHECK_PATH)
+    expect(look.DOWNLOADED_GLYPH).not.toBe(look.DOWNLOAD_ARROW_PATH)
   })
 })
