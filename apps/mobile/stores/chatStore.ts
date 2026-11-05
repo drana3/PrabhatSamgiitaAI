@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
+
+import { chatStorage, trimHistory } from "@/lib/chatStorage"
 
 import type { ChatMessage } from "@/lib/chat"
 
@@ -412,8 +413,12 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: "prabhat-chat-memory",
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ byAccount: state.byAccount }),
+      storage: createJSONStorage(() => chatStorage),
+      partialize: (state) => ({
+        byAccount: Object.fromEntries(
+          Object.entries(state.byAccount).map(([id, account]) => [id, { ...account, threads: trimHistory(account.threads) }]),
+        ),
+      }),
     },
   ),
 )
