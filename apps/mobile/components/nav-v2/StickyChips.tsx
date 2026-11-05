@@ -5,6 +5,7 @@ import Animated, { Extrapolation, interpolate, useAnimatedStyle, type SharedValu
 import { KPress } from "@/components/kirtan/KPress"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 /**
  * The chips row of the Today, Songs and Kiirtan tabs. On Today and Kiirtan it is the lower half of ONE sticky
@@ -111,7 +112,7 @@ export function StickyChipsRow<T extends string>({ items, value, onChange, color
               pressedScale={0.94}
               style={[styles.chip, { backgroundColor: on ? colors.active : colors.card, borderColor: on ? colors.active : colors.line }]}
             >
-              <Text style={[styles.text, { color: on ? colors.onActive : colors.text }]}>{chip.label}</Text>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.text, { color: on ? colors.onActive : colors.text }]}>{chip.label}</Text>
             </KPress>
           )
         })}

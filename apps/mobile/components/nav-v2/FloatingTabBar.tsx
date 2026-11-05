@@ -33,6 +33,7 @@ import {
   type NavV2Tab,
   type NavV2TabId,
 } from "@/lib/navV2"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 /** Finger travel (px) before a touch counts as a drag instead of a tap. */
 const DRAG_SLOP = 4
@@ -238,7 +239,7 @@ function Faces({ tabs, color }: { tabs: readonly NavV2Tab[]; color: string }) {
             importantForAccessibility="no-hide-descendants"
           >
             <TabGlyph name={tab.icon} size={22} color={color} />
-            <Text style={[styles.label, { color }]} numberOfLines={1}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.label, { color }]} numberOfLines={1}>
               {tab.label}
             </Text>
           </View>

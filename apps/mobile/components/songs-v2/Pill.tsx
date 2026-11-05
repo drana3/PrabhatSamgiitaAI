@@ -5,6 +5,7 @@ import { Press } from "@/components/songs-v2/Press"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 export type PillTone = "brand" | "sand" | "ink" | "danger"
 
@@ -50,7 +51,7 @@ export function PillButton({
       ]}
     >
       {icon}
-      <Text style={[styles.pillLabel, { color: fg }]}>{label}</Text>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.pillLabel, { color: fg }]}>{label}</Text>
     </Press>
   )
 }
@@ -83,7 +84,7 @@ export function Chip({
           : { backgroundColor: theme.card, borderColor: theme.line },
       ]}
     >
-      <Text style={[styles.chipLabel, { color: active ? (theme.dark ? theme.onBrand : theme.onInk) : theme.textHeading }]}>{label}</Text>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.chipLabel, { color: active ? (theme.dark ? theme.onBrand : theme.onInk) : theme.textHeading }]}>{label}</Text>
     </Press>
   )
 }

@@ -5,6 +5,7 @@ import { Press } from "@/components/songs-v2/Press"
 import { overStyle } from "@/components/songs-v2/primitives"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 /**
  * One song of a playlist, drawn like the prototype song card (`.card.song`: 76px, radius 20,
@@ -37,10 +38,10 @@ export function PlaylistSongRow({
         outerStyle={styles.mainOuter}
         style={styles.main}
       >
-        <Text style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
           {eyebrow}
         </Text>
-        <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
           {title}
         </Text>
       </Press>

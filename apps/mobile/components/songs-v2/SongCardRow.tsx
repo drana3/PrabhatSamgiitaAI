@@ -19,6 +19,7 @@ import { ROW_GEOMETRY, rowMeta, type RowStyle } from "@/lib/songsV2/rowStyles"
 import { useListViewStore } from "@/stores/listViewStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useT } from "@/lib/i18n"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 type Props = {
   theme: SongsTheme
@@ -106,13 +107,13 @@ export const SongCardRow = memo(function SongCardRow({
       renderLeftActions={() => (
         <View style={[styles.action, look === "compact" && styles.actionCompact, { backgroundColor: theme.brand, borderRadius: radius }]} accessibilityElementsHidden>
           <SaveMark on={false} size={look === "compact" ? 20 : 22} color={amColors.white} />
-          <Text style={[overStyle, { color: amColors.white }]}>{saved ? t("songs.menu.saved") : t("songs.row.saveOverlay")}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[overStyle, { color: amColors.white }]}>{saved ? t("songs.menu.saved") : t("songs.row.saveOverlay")}</Text>
         </View>
       )}
       renderRightActions={() => (
         <View style={[styles.action, look === "compact" && styles.actionCompact, { backgroundColor: theme.forest, borderRadius: radius }]} accessibilityElementsHidden>
           <ListPlus size={20} color={amColors.white} />
-          <Text style={[overStyle, { color: amColors.white }]}>{t("songs.row.queue")}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[overStyle, { color: amColors.white }]}>{t("songs.row.queue")}</Text>
         </View>
       )}
     >
@@ -129,10 +130,10 @@ export const SongCardRow = memo(function SongCardRow({
             outerStyle={styles.mainOuter}
             style={styles.main}
           >
-            <Text style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
               {eyebrow}
             </Text>
-            <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
               {entry.title}
             </Text>
           </Press>
@@ -158,13 +159,13 @@ export const SongCardRow = memo(function SongCardRow({
               {current ? (
                 <RowPlayingMark color={theme.accent} />
               ) : (
-                <Text style={[look === "compact" ? styles.numTextCompact : styles.numText, { color: theme.accent }]} numberOfLines={1}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[look === "compact" ? styles.numTextCompact : styles.numText, { color: theme.accent }]} numberOfLines={1}>
                   {entry.number}
                 </Text>
               )}
             </View>
             <View style={styles.text}>
-              <Text
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE}
                 style={[
                   look === "compact" ? styles.titleCompact : styles.titleTrack,
                   { color: theme.textHeading, fontFamily: current ? amFonts.bold : look === "compact" ? amFonts.medium : amFonts.regular },
@@ -174,7 +175,7 @@ export const SongCardRow = memo(function SongCardRow({
                 {entry.title}
               </Text>
               {meta ? (
-                <Text style={[styles.meta, { color: theme.textMuted }]} numberOfLines={1}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.meta, { color: theme.textMuted }]} numberOfLines={1}>
                   {meta}
                 </Text>
               ) : null}

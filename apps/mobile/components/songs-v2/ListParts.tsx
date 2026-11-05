@@ -16,6 +16,7 @@ import { coverFor, stripColors, type HomeCoverId } from "@/lib/homeShelves"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
 import { accentIndex, splitTitle, type ChipDef, type DownloadAllState } from "@/lib/songsV2/listPage"
 import { useT } from "@/lib/i18n"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 /** White glyphs and labels on the action fill (orange700): 5.1:1. Never dark text on orange. */
 export const ON_ACTION = "#FFFFFF"
@@ -76,7 +77,7 @@ export function AccentCover({ label, dark }: { label: string; dark: boolean }) {
   const letter = Array.from(label.trim())[0]?.toUpperCase() ?? "·"
   return (
     <View style={[styles.cover, { backgroundColor: bg }]}>
-      <Text style={[styles.letter, { color: fg }]} accessibilityElementsHidden>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.letter, { color: fg }]} accessibilityElementsHidden>
         {letter}
       </Text>
     </View>
@@ -127,11 +128,11 @@ export function ListHeader({
     <View style={styles.header}>
       {cover}
       <View style={styles.headText}>
-        <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={3} accessibilityRole="header">
-          {lead ? <Text style={styles.titleLight}>{lead} </Text> : null}
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.title, { color: theme.textHeading }]} numberOfLines={3} accessibilityRole="header">
+          {lead ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.titleLight}>{lead} </Text> : null}
           {rest}
         </Text>
-        <Text style={[styles.meta, { color: theme.textBody }]} numberOfLines={1}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.meta, { color: theme.textBody }]} numberOfLines={1}>
           {meta}
         </Text>
       </View>
@@ -262,7 +263,7 @@ export function ChipsRow({
                 : { backgroundColor: theme.card, borderColor: theme.line },
             ]}
           >
-            <Text style={[styles.chipLabel, { color: on ? ON_ACTION : theme.textHeading }]}>{chip.label}</Text>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.chipLabel, { color: on ? ON_ACTION : theme.textHeading }]}>{chip.label}</Text>
           </Press>
         )
       })}
@@ -308,7 +309,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
       >
         <SongCover number={entry.number} size={48} radius={6} tint={theme.inner} />
         <View style={styles.rowText}>
-          <Text
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE}
             style={[
               styles.rowTitle,
               current
@@ -320,7 +321,7 @@ export const SongListRow = memo(function SongListRow({ theme, entry, current, sa
             {entry.title}
           </Text>
           <View style={styles.rowSubLine}>
-            <Text style={[styles.rowSub, { color: theme.textBody }]} numberOfLines={1}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.rowSub, { color: theme.textBody }]} numberOfLines={1}>
               {sub}
             </Text>
             {saved ? <SaveMark on size={14} /> : null}

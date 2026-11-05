@@ -8,6 +8,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { RAIL } from "@/lib/songsV2/rail"
 import type { RailTick } from "@/lib/songsV2/layout"
 import { useT } from "@/lib/i18n"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 /** Touch area is wider than the 12px drawn rail so a thumb can find it. */
 const TOUCH = 30
@@ -114,7 +115,7 @@ export function FastScrollRail({
             tick.dot ? (
               <View key={`d${index}`} style={[styles.dot, { top: `${tick.y}%`, backgroundColor: theme.ink300 }]} />
             ) : (
-              <Text key={`${tick.label}${index}`} numberOfLines={1} style={[styles.tick, { top: `${tick.y}%`, color: theme.textBody }]}>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE} key={`${tick.label}${index}`} numberOfLines={1} style={[styles.tick, { top: `${tick.y}%`, color: theme.textBody }]}>
                 {tick.label}
               </Text>
             ),
@@ -122,7 +123,7 @@ export function FastScrollRail({
           <Animated.View style={[styles.thumb, { backgroundColor: theme.brand }, thumb]} />
         </View>
         <Animated.View pointerEvents="none" style={[styles.bubble, { backgroundColor: theme.ink900 }, bubble]}>
-          <Text style={[styles.bubbleText, { color: theme.onInk }]} numberOfLines={1}>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.bubbleText, { color: theme.onInk }]} numberOfLines={1}>
             {label}
           </Text>
         </Animated.View>

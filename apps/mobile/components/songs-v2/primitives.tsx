@@ -5,6 +5,7 @@ import { ChevronRightGlyph } from "@/components/songs-v2/Glyphs"
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { MAX_FONT_SCALE } from "@/constants/fontScale"
 
 /** Prototype `.over`: 13/16, 600, +0.08em, uppercase, orange-700 (gold in Dark). */
 export const overStyle: TextStyle = {
@@ -29,10 +30,10 @@ export function SectionHeading({
   style?: StyleProp<TextStyle>
 }) {
   return (
-    <Text style={[styles.h2, { color: theme.textHeading }, style]} accessibilityRole="header">
+    <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.h2, { color: theme.textHeading }, style]} accessibilityRole="header">
       {first}
       {"\n"}
-      <Text style={{ color: theme.ink300 }}>{second}</Text>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={{ color: theme.ink300 }}>{second}</Text>
     </Text>
   )
 }
@@ -60,10 +61,10 @@ export function CardButton({
       style={[styles.cardBtn, { backgroundColor: theme.card, borderColor: theme.line }]}
     >
       <View style={styles.main}>
-        <Text style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
           {eyebrow}
         </Text>
-        <Text style={[styles.cardTitle, { color: theme.textHeading }]} numberOfLines={2}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.cardTitle, { color: theme.textHeading }]} numberOfLines={2}>
           {title}
         </Text>
       </View>
@@ -76,7 +77,7 @@ export function CardButton({
 export function EmptyNote({ theme, children, style }: { theme: SongsTheme; children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[{ paddingHorizontal: 20 }, style]}>
-      <Text style={[styles.empty, { color: theme.textBody }]}>{children}</Text>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.empty, { color: theme.textBody }]}>{children}</Text>
     </View>
   )
 }
@@ -112,7 +113,7 @@ export function BrandPill({
       ]}
     >
       {icon}
-      <Text style={[small ? styles.pillSmLabel : styles.pillLabel, { color: "#FFFFFF" }]}>{label}</Text>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[small ? styles.pillSmLabel : styles.pillLabel, { color: "#FFFFFF" }]}>{label}</Text>
     </Press>
   )
 }
