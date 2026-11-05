@@ -738,9 +738,10 @@ export default function SongPageV2() {
         return setSheet(null)
     }
   }
-  const onShareTarget = (target: ShareTargetId) => {
-    if (!sharePayload) return
-    void runShare(target, sharePayload).then((outcome) => {
+  const onShareTarget = (target: ShareTargetId, override?: Parameters<typeof runShare>[1]) => {
+    const payload = override ?? sharePayload
+    if (!payload) return
+    void runShare(target, payload).then((outcome) => {
       const message = shareToast(outcome)
       // a copied link closes the sheet, so the toast shows over the page and not over the buttons
       if (message) {
@@ -1277,6 +1278,8 @@ export default function SongPageV2() {
         songNumber={song.number}
         title={song.title}
         performer={performerName}
+        lyrics={song.lyrics}
+        lyricsDevanagari={song.lyricsDevanagari}
         onShare={onShareTarget}
         onClose={() => setSheet(null)}
       />
