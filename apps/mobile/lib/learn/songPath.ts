@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import { EMPTY_PATH, isSongLearned, pathDoneCount, pathStepDone, type PathPart, type PathState, type PathStep } from "@/lib/learn/progress"
 import { LEARN_ROUTES, songHref, wordsHref } from "@/lib/learn/routes"
 
@@ -18,43 +19,67 @@ export const PATH_STEPS: ReadonlyArray<{
   {
     step: 1,
     part: "listen",
-    title: "Hear it and sing it",
-    text: "Play it at 0.75 speed with the words lighting up. Sing along line by line until the tune stays with you.",
-    cta: "Listen and sing",
-    short: "hear it",
+    get title() {
+      return t("learn.path.s1.title")
+    },
+    get text() {
+      return t("learn.path.s1.text")
+    },
+    get cta() {
+      return t("learn.path.s1.cta")
+    },
+    get short() {
+      return t("learn.path.s1.short")
+    },
   },
   {
     step: 2,
     part: "words",
-    title: "Learn what it means",
-    text: "Go through this song's words as flashcards, then read the meaning of each line.",
-    cta: "Study the words",
-    short: "know what it means",
+    get title() {
+      return t("learn.path.s2.title")
+    },
+    get text() {
+      return t("learn.path.s2.text")
+    },
+    get cta() {
+      return t("learn.path.s2.cta")
+    },
+    get short() {
+      return t("learn.path.s2.short")
+    },
   },
   {
     step: 3,
     part: "chords",
-    title: "Play it",
-    text: "Chord letters sit above the words, in your key. Pick guitar or harmonium and play along.",
-    cta: "Open the chords",
-    short: "play it",
+    get title() {
+      return t("learn.path.s3.title")
+    },
+    get text() {
+      return t("learn.path.s3.text")
+    },
+    get cta() {
+      return t("learn.path.s3.cta")
+    },
+    get short() {
+      return t("learn.path.s3.short")
+    },
   },
 ]
 
 /** "Step 1 · To do" or "Step 2 · Done". */
 export function stepOver(step: PathStep, done: boolean): string {
-  return `Step ${step} · ${done ? "Done" : "To do"}`
+  return done ? t("learn.path.overDone", { n: step }) : t("learn.path.overTodo", { n: step })
 }
 
 /** Button text of a step: its own, or "Do it again" once done. */
 export function stepCta(step: PathStep, path: PathState | undefined): string {
   const meta = PATH_STEPS[step - 1]!
-  return pathStepDone(path ?? EMPTY_PATH, step) ? "Do it again" : meta.cta
+  return pathStepDone(path ?? EMPTY_PATH, step) ? t("learn.path.again") : meta.cta
 }
 
 /** "2 of 3 steps". */
 export function pathProgressLabel(path: PathState | undefined): string {
-  return `${pathDoneCount(path)} of 3 steps`
+  return t("learn.path.progress", { done: pathDoneCount(path) })
 }
 
 /** 0 to 1 for the path progress bar. */
@@ -66,7 +91,7 @@ export function pathFraction(path: PathState | undefined): number {
 export function nextStepNote(path: PathState | undefined): string {
   const done = pathDoneCount(path)
   const step = Math.min(3, done + 1)
-  return `Step ${step} of 3 · ${PATH_STEPS[Math.min(2, done)]!.short}`
+  return t("learn.step.line", { n: step, name: PATH_STEPS[Math.min(2, done)]!.short })
 }
 
 /** Where each button of the path goes. Harmonium routes belong to another branch and are linked by path only. */

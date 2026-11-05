@@ -19,12 +19,14 @@ import {
 import { LEARN_ROUTES, songHref, songPathHref, wordsHref } from "@/lib/learn/routes"
 import { useLearnStore } from "@/stores/learnStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 /**
  * "See all" of the Learn hub: every song on the learner's list with the filters All / Due /
  * Learning / Learned. This is the old "My songs" tab, moved here unchanged.
  */
 export default function LearnSongsScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
   const hydrated = useLearnHydrated()
@@ -50,10 +52,10 @@ export default function LearnSongsScreen() {
   const rowCta = (row: LibraryRowData) => (row.learned ? go(wordsHref()) : go(songPathHref(`ps-${row.number}`)))
 
   return (
-    <OverlayScreen theme={theme} onBack={back} label="My songs">
+    <OverlayScreen theme={theme} onBack={back} label={t("learn.mySongs")}>
       {!hydrated ? null : (
         <Reveal index={0}>
-          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Show">
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t("learn.show")}>
             {LIBRARY_FILTERS.map((item) => (
               <Chip key={item.key} theme={theme} small green label={item.label} on={filter === item.key} onPress={() => setFilter(item.key)} />
             ))}

@@ -9,6 +9,7 @@ import {
 } from "@/lib/learn/progress"
 import { LEARN_ROUTES, quizHref, songPathHref, wordsHref } from "@/lib/learn/routes"
 import { QUIZ_LEVELS, type LearnQuizLevel } from "@/lib/learn/quiz"
+import { t } from "@/lib/i18n"
 
 /**
  * Logic of the Learn hub (the Learn tab): which song to continue, what the next step is
@@ -39,9 +40,9 @@ export const HUB_LINKS = {
  * (hear it, learn what it means through its words, play it).
  */
 export const HUB_STEPS = [
-  { step: 1, key: "hear", label: "Hear" },
-  { step: 2, key: "words", label: "Words" },
-  { step: 3, key: "play", label: "Play" },
+  { step: 1, key: "hear", get label() { return t("learn.step.hear") } },
+  { step: 2, key: "words", get label() { return t("learn.step.words") } },
+  { step: 3, key: "play", get label() { return t("learn.step.play") } },
 ] as const satisfies ReadonlyArray<{ step: PathStep; key: string; label: string }>
 
 export type StepBar = { step: PathStep; label: string; done: boolean }
@@ -62,9 +63,9 @@ export function nextStep(path: PathState | undefined): PathStep | null {
 /** "Step 2 of 3 · Words", "Not started" or "All three steps done". */
 export function stepLine(path: PathState | undefined): string {
   const next = nextStep(path)
-  if (next === null) return "All three steps done"
-  if (!pathStarted(path)) return "Not started"
-  return `Step ${next} of 3 · ${HUB_STEPS[next - 1]!.label}`
+  if (next === null) return t("learn.step.allDone")
+  if (!pathStarted(path)) return t("learn.step.notStarted")
+  return t("learn.step.line", { n: next, name: HUB_STEPS[next - 1]!.label })
 }
 
 /**
@@ -176,21 +177,18 @@ export function buildContinue(
 
 /** "3 songs learned · 2 learning · 6 words". */
 export function statsLine(learned: number, learning: number, words: number): string {
-  const songs = `${learned} ${learned === 1 ? "song" : "songs"} learned`
-  const now = `${learning} learning`
-  const w = `${words} ${words === 1 ? "word" : "words"}`
-  return `${songs} · ${now} · ${w}`
+  return [t("learn.songsLearned", { count: learned }), t("learn.learning", { count: learning }), t("learn.words", { count: words })].join(" · ")
 }
 
 /** Under "Word cards": "2 due", "All done", or an invitation while there are no cards yet. */
 export function wordCardsSubtitle(due: number, hasCards: boolean): string {
-  if (due > 0) return `${due} due`
-  return hasCards ? "All done" : "Start with 10 words"
+  if (due > 0) return t("learn.due", { count: due })
+  return hasCards ? t("learn.allDone") : t("learn.startWith10")
 }
 
 /** Under "Quiz": "Level 1 · Know the words". */
 export function quizSubtitle(level: LearnQuizLevel): string {
-  return `Level ${level} · ${QUIZ_LEVELS.find((entry) => entry.level === level)?.title ?? ""}`.trimEnd()
+  return t("learn.level", { level, title: QUIZ_LEVELS.find((entry) => entry.level === level)?.title ?? "" }).trimEnd()
 }
 
 export function quizTarget(level: LearnQuizLevel): string {

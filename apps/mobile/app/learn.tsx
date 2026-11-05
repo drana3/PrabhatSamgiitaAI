@@ -46,8 +46,7 @@ import { sessionDeck, songNumbersFromIds, wordOfTheDay } from "@/lib/learn/words
 import { useLearnStore } from "@/stores/learnStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
-
-const EXPLANATION = "Learn songs word by word, understand them, and play along."
+import { useT } from "@/lib/i18n"
 
 /**
  * Learn tab, as one hub that says what it is for: continue a song, a shelf of songs with
@@ -55,6 +54,7 @@ const EXPLANATION = "Learn songs word by word, understand them, and play along."
  * My songs / Tools switch. The old "My songs" list is now the "See all" screen (/learn/songs).
  */
 export default function LearnScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
   const p = protoFor(theme)
@@ -100,10 +100,15 @@ export default function LearnScreen() {
 
   const nothingYet = counts.total === 0 && words === 0
   const stats = statsLine(counts.learned, counts.learning, words)
+  // each phrase starts with its number; the number is drawn bold, the rest plain
+  const part = (text: string) => {
+    const at = text.indexOf(" ")
+    return at < 0 ? { value: text, rest: "" } : { value: text.slice(0, at), rest: text.slice(at) }
+  }
   const statsParts = [
-    { value: String(counts.learned), rest: counts.learned === 1 ? " song learned" : " songs learned" },
-    { value: String(counts.learning), rest: " learning" },
-    { value: String(words), rest: words === 1 ? " word" : " words" },
+    part(t("learn.songsLearned", { count: counts.learned })),
+    part(t("learn.learning", { count: counts.learning })),
+    part(t("learn.words", { count: words })),
   ]
   const iconColor = p.orange700
 
@@ -131,9 +136,9 @@ export default function LearnScreen() {
         <Reveal index={1}>
           <HubHeading
             p={p}
-            explanation={EXPLANATION}
-            stats={nothingYet ? "Nothing learned yet" : stats}
-            statsParts={nothingYet ? [{ value: "0", rest: " songs learned" }, { value: "0", rest: " words" }] : statsParts}
+            explanation={t("learn.explain")}
+            stats={nothingYet ? t("learn.nothingYet") : stats}
+            statsParts={nothingYet ? [part(t("learn.songsLearned", { count: 0 })), part(t("learn.words", { count: 0 }))] : statsParts}
           />
         </Reveal>
 
@@ -146,7 +151,7 @@ export default function LearnScreen() {
             ) : null}
 
             <Reveal index={3} style={styles.section}>
-              <HubSectionHead p={p} eyebrow="Three steps each" first="Learn" second="a song" />
+              <HubSectionHead p={p} eyebrow={t("learn.sect.steps")} first={t("learn.sect.steps.first")} second={t("learn.sect.steps.second")} />
               {shelf.length > 0 || counts.total > 0 ? (
                 <HubShelf>
                   {shelf.map((entry) => (
@@ -155,18 +160,18 @@ export default function LearnScreen() {
                   <SeeAllCard p={p} count={counts.total} onPress={() => go(HUB_LINKS.allSongs)} />
                 </HubShelf>
               ) : (
-                <HubEmpty p={p} text="Songs you start to learn appear here. Open any song and tap Learn this song." />
+                <HubEmpty p={p} text={t("learn.empty.songs")} />
               )}
             </Reveal>
 
             <Reveal index={4} style={styles.section}>
-              <HubSectionHead p={p} eyebrow="Keep it fresh" first="Practice" second="today" />
+              <HubSectionHead p={p} eyebrow={t("learn.sect.fresh")} first={t("learn.sect.fresh.first")} second={t("learn.sect.fresh.second")} />
               <View style={styles.pad}>
                 <View style={styles.tiles}>
                   <HubTile
                     p={p}
                     icon={<Layers size={22} color={iconColor} strokeWidth={1.9} />}
-                    title="Word cards"
+                    title={t("learn.wordCards")}
                     subtitle={wordCardsSubtitle(due, hasCards)}
                     emphasis={due > 0}
                     onPress={() => go(HUB_LINKS.wordCards)}
@@ -174,7 +179,7 @@ export default function LearnScreen() {
                   <HubTile
                     p={p}
                     icon={<CircleQuestionMark size={22} color={iconColor} strokeWidth={1.9} />}
-                    title="Quiz"
+                    title={t("learn.quiz")}
                     subtitle={quizSubtitle(quizLevel)}
                     onPress={() => go(quizTarget(quizLevel))}
                   />
@@ -192,33 +197,33 @@ export default function LearnScreen() {
             </Reveal>
 
             <Reveal index={5} style={styles.section}>
-              <HubSectionHead p={p} eyebrow="With the songs" first="Play" second="along" />
+              <HubSectionHead p={p} eyebrow={t("learn.sect.along")} first={t("learn.sect.along.first")} second={t("learn.sect.along.second")} />
               <View style={[styles.pad, styles.tiles]}>
                 <HubTile
                   p={p}
                   icon={<Piano size={22} color={iconColor} strokeWidth={1.9} />}
-                  title="Harmonium"
-                  subtitle="Find the swaras on the keys"
+                  title={t("learn.harmonium")}
+                  subtitle={t("learn.harmonium.sub")}
                   onPress={() => go(HUB_LINKS.harmonium)}
                 />
                 <HubTile
                   p={p}
                   icon={<Guitar size={22} color={iconColor} strokeWidth={1.9} />}
-                  title="Chords"
-                  subtitle="How chords work"
+                  title={t("learn.chords")}
+                  subtitle={t("learn.chords.sub")}
                   onPress={() => go(HUB_LINKS.chords)}
                 />
               </View>
             </Reveal>
 
             <Reveal index={6} style={styles.section}>
-              <HubSectionHead p={p} eyebrow="Go deeper" first="Explore" second="more" />
+              <HubSectionHead p={p} eyebrow={t("learn.sect.deeper")} first={t("learn.sect.deeper.first")} second={t("learn.sect.deeper.second")} />
               <View style={[styles.pad, styles.rows]}>
-                <ExploreRow p={p} title="Stories behind the songs" onPress={() => go(HUB_LINKS.stories)} />
+                <ExploreRow p={p} title={t("learn.stories")} onPress={() => go(HUB_LINKS.stories)} />
                 <ExploreRow
                   p={p}
-                  title="Raga and tala index"
-                  subtitle={`${INDEX_SUMMARY.ragas} ragas · ${INDEX_SUMMARY.talas} talas`}
+                  title={t("learn.index")}
+                  subtitle={t("learn.index.summary", { ragas: INDEX_SUMMARY.ragas, talas: INDEX_SUMMARY.talas })}
                   onPress={() => go(indexHref("tala"))}
                 />
                 {/* hidden for now, Dada 2026-11-05: <ExploreRow p={p} title="Certificates" subtitle="Live quiz · none yet" onPress={() => go(HUB_LINKS.certificates)} /> */}

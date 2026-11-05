@@ -5,6 +5,7 @@ import { CardText, CardTitle, LCard, Meter, Over, Pill, StepBars, toneOf } from 
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 
 /** The emblem of the prototype's `.logo` (36px high). */
 export function LearnLogo() {
@@ -82,7 +83,8 @@ export function LibraryRow({
   onOpen: () => void
   onCta: () => void
 }) {
-  const state = row.learned ? (row.due ? "Due today" : "Learned") : "Learning"
+  const t = useT()
+  const state = row.learned ? (row.due ? t("learn.state.dueToday") : t("learn.state.learned")) : t("learn.state.learning")
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}>
       <PressBox
@@ -101,7 +103,7 @@ export function LibraryRow({
           {row.note ? <Text style={[styles.note, { color: theme.textBody }]}>{row.note}</Text> : null}
         </View>
       </PressBox>
-      <Pill theme={theme} small variant={row.due ? "brand" : "sand"} label={row.learned ? "Repeat" : "Continue"} onPress={onCta} />
+      <Pill theme={theme} small variant={row.due ? "brand" : "sand"} label={row.learned ? t("learn.row.repeat") : t("learn.row.continue")} onPress={onCta} />
     </View>
   )
 }

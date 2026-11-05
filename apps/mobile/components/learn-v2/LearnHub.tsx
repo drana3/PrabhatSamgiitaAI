@@ -11,6 +11,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 import { coverFor } from "@/lib/homeShelves"
 import { songStepBars, stepLine, type ContinueModel, type ShelfEntry } from "@/lib/learn/hub"
+import { useLanguage, useT } from "@/lib/i18n"
 
 /**
  * Pieces of the Learn hub (app/learn.tsx): top row, heading, the forest Continue card, the
@@ -45,11 +46,12 @@ export function HubTopRow({
   onSearch: () => void
   onBell: () => void
 }) {
+  const t = useT()
   return (
     <View style={s.topRow}>
       <PressBox
         accessibilityRole="button"
-        accessibilityLabel="Profile and settings"
+        accessibilityLabel={t("today.profileA11y")}
         onPress={onAvatar}
         pressedScale={PRESS}
         style={[s.round44, { backgroundColor: p.dark ? p.orange100 : p.white }]}
@@ -59,7 +61,7 @@ export function HubTopRow({
       <View style={s.flex} />
       <PressBox
         accessibilityRole="search"
-        accessibilityLabel="Search"
+        accessibilityLabel={t("home.search")}
         onPress={onSearch}
         pressedScale={PRESS}
         style={[s.round44, s.bordered, { backgroundColor: p.white, borderColor: p.sand300 }]}
@@ -68,7 +70,7 @@ export function HubTopRow({
       </PressBox>
       <PressBox
         accessibilityRole="button"
-        accessibilityLabel={unread ? "Notifications, unread" : "Notifications"}
+        accessibilityLabel={unread ? t("home.notificationsUnread") : t("home.notifications")}
         onPress={onBell}
         pressedScale={PRESS}
         style={[s.round44, s.bordered, { backgroundColor: p.white, borderColor: p.sand300 }]}
@@ -94,10 +96,11 @@ export function HubHeading({
   stats: string
   statsParts: ReadonlyArray<{ value: string; rest: string }>
 }) {
+  const t = useT()
   return (
     <View style={s.heading}>
       <Text accessibilityRole="header" style={s.h1}>
-        <Text style={[s.h1Big, { color: p.ink800 }]}>LEARN</Text>
+        <Text style={[s.h1Big, { color: p.ink800 }]}>{t("tabs.learn").toUpperCase()}</Text>
         {"\n"}
         <Text style={[s.h1Small, { color: p.ink300 }]}>PRABHAT SAMGIITA</Text>
       </Text>
@@ -137,8 +140,9 @@ export function HubSectionHead({ p, eyebrow, first, second }: { p: AmProto; eyeb
 
 /** Three bars with their names under them; done ones are filled. */
 function ContinueBars({ bars, next }: { bars: ReturnType<typeof songStepBars>; next: number | null }) {
+  const t = useT()
   return (
-    <View style={s.cBars} accessible accessibilityLabel={bars.map((b) => `${b.label} ${b.done ? "done" : "to do"}`).join(", ")}>
+    <View style={s.cBars} accessible accessibilityLabel={bars.map((b) => t(b.done ? "learn.bar.done" : "learn.bar.todo", { name: b.label })).join(", ")}>
       {bars.map((bar) => (
         <View key={bar.step} style={s.cBarCol}>
           <View style={[s.cBar, { backgroundColor: bar.done ? amColors.orange500 : BAR_OFF_ON_FOREST }]} />
@@ -156,13 +160,14 @@ function ContinueBars({ bars, next }: { bars: ReturnType<typeof songStepBars>; n
  * opens the next step; with nothing in progress it offers a song to start.
  */
 export function ContinueCard({ model, onGo }: { model: Exclude<ContinueModel, { kind: "none" }>; onGo: () => void }) {
+  const t = useT()
   const isContinue = model.kind === "continue"
   const path = model.song.path
   const bars = songStepBars(path)
   const next = isContinue ? model.step : null
-  const eyebrow = isContinue ? "Continue" : model.first ? "Start your first song" : "Start your next song"
-  const line = isContinue ? stepLine(path) : "3 steps: hear, words, play"
-  const label = isContinue ? "Go" : "Start"
+  const eyebrow = isContinue ? t("learn.continue") : model.first ? t("learn.startFirst") : t("learn.startNext")
+  const line = isContinue ? stepLine(path) : t("learn.threeSteps")
+  const label = isContinue ? t("learn.go") : t("learn.start")
   return (
     <View style={s.cCard}>
       <View style={s.cTop}>
@@ -179,7 +184,7 @@ export function ContinueCard({ model, onGo }: { model: Exclude<ContinueModel, { 
         </Text>
         <PressBox
           accessibilityRole="button"
-          accessibilityLabel={isContinue ? `Go to ${stepLine(path)}, ${model.song.title}` : `Start ${model.song.title}`}
+          accessibilityLabel={isContinue ? t("learn.goTo", { step: stepLine(path), title: model.song.title }) : t("learn.startA11y", { title: model.song.title })}
           onPress={onGo}
           pressedScale={0.94}
           style={s.cGo}
@@ -198,6 +203,7 @@ export const SHELF_CARD = 148
 const SHELF_GAP = 12
 
 export function SongShelfCard({ p, entry, onPress }: { p: AmProto; entry: ShelfEntry; onPress: () => void }) {
+  useLanguage() // re-render when the language changes: the step line comes from lib/learn/hub
   const bars = songStepBars(entry.path)
   const cover = coverFor(entry.number)
   const line = stepLine(entry.path)
@@ -237,11 +243,12 @@ export function SongShelfCard({ p, entry, onPress }: { p: AmProto; entry: ShelfE
 }
 
 export function SeeAllCard({ p, count, onPress }: { p: AmProto; count: number; onPress: () => void }) {
-  const text = count === 0 ? "Your song list" : `${count} ${count === 1 ? "song" : "songs"}`
+  const t = useT()
+  const text = count === 0 ? t("learn.seeAll.empty") : t("songs.count", { count })
   return (
     <PressBox
       accessibilityRole="button"
-      accessibilityLabel={`See all songs. ${text}`}
+      accessibilityLabel={t("learn.seeAll.a11y", { text })}
       onPress={onPress}
       pressedScale={PRESS}
       outerStyle={{ width: SHELF_CARD }}
@@ -250,7 +257,7 @@ export function SeeAllCard({ p, count, onPress }: { p: AmProto; count: number; o
       <View style={[s.seeAllIcon, { backgroundColor: p.ink900 }]}>
         <ArrowRight size={22} color={p.onInk} strokeWidth={2.2} />
       </View>
-      <Text style={[s.seeAllTitle, { color: p.ink800 }]}>See all</Text>
+      <Text style={[s.seeAllTitle, { color: p.ink800 }]}>{t("learn.seeAll")}</Text>
       <Text style={[s.songLine, { color: p.ink500 }]}>{text}</Text>
     </PressBox>
   )
@@ -327,16 +334,17 @@ export function WordOfDayRow({
   songNumber: number
   onPress: () => void
 }) {
+  const t = useT()
   return (
     <PressBox
       accessibilityRole="button"
-      accessibilityLabel={`Word of the day: ${word}, ${meaning}`}
+      accessibilityLabel={t("learn.wordOfDay.a11y", { word, meaning })}
       onPress={onPress}
       pressedScale={0.985}
       style={[s.wod, { backgroundColor: p.white, borderColor: p.sand300 }]}
     >
       <View style={s.flex}>
-        <Text style={[s.over, { color: p.orange700 }]}>{`Word of the day · PS ${songNumber}`}</Text>
+        <Text style={[s.over, { color: p.orange700 }]}>{t("learn.wordOfDay", { number: songNumber })}</Text>
         <Text style={[s.wodWord, { color: p.ink800 }]} numberOfLines={1}>
           {word}
         </Text>

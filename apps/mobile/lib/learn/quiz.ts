@@ -1,4 +1,5 @@
 import type { LearnWord } from "@/lib/learn/words"
+import { t } from "@/lib/i18n"
 
 /** Real quiz: 10 questions, pass mark 7 (spec SCR-15). */
 export const QUIZ_LENGTH = 10
@@ -8,9 +9,9 @@ export const QUIZ_PASS_FRACTION = QUIZ_PASS_MARK / QUIZ_LENGTH
 export type LearnQuizLevel = 1 | 2 | 3
 
 export const QUIZ_LEVELS: ReadonlyArray<{ level: LearnQuizLevel; title: string; unlockRule: string }> = [
-  { level: 1, title: "Know the words", unlockRule: "Open from the start." },
-  { level: 2, title: "Know the meaning", unlockRule: "Pass level 1 with 7 of 10 to open." },
-  { level: 3, title: "Know the story", unlockRule: "Pass level 2 with 7 of 10 to open." },
+  { level: 1, get title() { return t("learn.quiz.l1") }, get unlockRule() { return t("learn.quiz.unlock1") } },
+  { level: 2, get title() { return t("learn.quiz.l2") }, get unlockRule() { return t("learn.quiz.unlock2") } },
+  { level: 3, get title() { return t("learn.quiz.l3") }, get unlockRule() { return t("learn.quiz.unlock3") } },
 ]
 
 export type QuizOption = { id: string; text: string }

@@ -5,14 +5,15 @@ import { pathDoneCount, pathDots, songsWithDueWords, type LearningSong, type Pat
 import { nextStepNote } from "@/lib/learn/songPath"
 import { describeNextDue, nextDueAt, type WordCard } from "@/lib/learn/srs"
 import { wordsForSong } from "@/lib/learn/words"
+import { t } from "@/lib/i18n"
 
 export type LibraryFilter = "all" | "due" | "learning" | "learned"
 
 export const LIBRARY_FILTERS: ReadonlyArray<{ key: LibraryFilter; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "due", label: "Due" },
-  { key: "learning", label: "Learning" },
-  { key: "learned", label: "Learned" },
+  { key: "all", get label() { return t("learn.filter.all") } },
+  { key: "due", get label() { return t("learn.filter.due") } },
+  { key: "learning", get label() { return t("learn.filter.learning") } },
+  { key: "learned", get label() { return t("learn.filter.learned") } },
 ]
 
 /**
@@ -38,13 +39,13 @@ export function buildLibraryRows(input: {
     let note: string
     if (!learned) note = nextStepNote(path)
     else if (mockup && demo?.next) note = demo.next
-    else if (due) note = "Review due today"
+    else if (due) note = t("learn.note.reviewDue")
     else {
       const nextWord = nextDueAt(
         Object.fromEntries(wordsForSong(words, song.number).flatMap((w) => (cards[w.id] ? [[w.id, cards[w.id]!]] : []))),
         now,
       )
-      note = nextWord ? describeNextDue(nextWord, now).replace("Next card", "Next review") : "All three steps done"
+      note = nextWord ? describeNextDue(nextWord, now, "review") : t("learn.step.allDone")
     }
     return {
       number: song.number,
@@ -70,11 +71,11 @@ export function filterLibraryRows(rows: readonly LibraryRowData[], filter: Libra
 /** Empty-state text of the songs list, for the chosen filter. */
 export function libraryEmptyText(totalRows: number, filter: LibraryFilter = "due"): string {
   if (totalRows === 0) {
-    return "No songs yet. Open a song and tap Learn this song. Three steps: hear it, know what it means, play it."
+    return t("learn.empty.none")
   }
-  if (filter === "learning") return "Nothing in progress. Pick a song on the Learn page and begin."
-  if (filter === "learned") return "No song is fully learned yet. Finish its three steps and it lands here."
-  return "You have nothing due. Words and songs come back here when it is time."
+  if (filter === "learning") return t("learn.empty.learning")
+  if (filter === "learned") return t("learn.empty.learned")
+  return t("learn.empty.due")
 }
 
 export function libraryCounts(rows: readonly LibraryRowData[]): { learned: number; learning: number; total: number } {

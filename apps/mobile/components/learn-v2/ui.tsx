@@ -28,6 +28,7 @@ import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/token
 import { amReveal, amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useT } from "@/lib/i18n"
 
 /**
  * Presentation primitives of the Learn area, measured on the design prototype
@@ -226,10 +227,11 @@ export function Chip({
 
 /** 44px round button of the overlay head: white, 1px line, chevron. */
 export function BackButton({ theme, onPress }: { theme: AmTheme; onPress: () => void }) {
+  const t = useT()
   return (
     <PressBox
       accessibilityRole="button"
-      accessibilityLabel="Back"
+      accessibilityLabel={t("common.back")}
       onPress={onPress}
       pressedScale={0.94}
       style={[styles.round, { backgroundColor: theme.card, borderColor: theme.line }]}
@@ -376,8 +378,9 @@ export function Track({
 
 /** `.dots`: three 28x6 bars for the song path. */
 export function StepBars({ theme, done }: { theme: AmTheme; done: readonly boolean[] }) {
+  const t = useT()
   return (
-    <View style={styles.dots} accessibilityLabel={`${done.filter(Boolean).length} of ${done.length} steps done`}>
+    <View style={styles.dots} accessibilityLabel={t("learn.a11y.stepsDone", { done: done.filter(Boolean).length, total: done.length })}>
       {done.map((on, i) => (
         <View key={i} style={[styles.dotBar, { backgroundColor: on ? amColors.orange500 : theme.line }]} />
       ))}
@@ -387,8 +390,9 @@ export function StepBars({ theme, done }: { theme: AmTheme; done: readonly boole
 
 /** `.meter`: five 22x6 bars, the memory strength of a learned song. */
 export function Meter({ theme, strength }: { theme: AmTheme; strength: number }) {
+  const t = useT()
   return (
-    <View style={styles.meter} accessibilityLabel={`Memory strength ${strength} of 5`}>
+    <View style={styles.meter} accessibilityLabel={t("learn.a11y.memory", { strength })}>
       {[1, 2, 3, 4, 5].map((k) => (
         <View key={k} style={[styles.meterBar, { backgroundColor: strength >= k ? (isDarkLearnTheme(theme) ? amColors.orange500 : amColors.sage700) : theme.line }]} />
       ))}
@@ -532,13 +536,14 @@ export function LearnHead({
   onAvatar: () => void
   logo: ReactNode
 }) {
+  const t = useT()
   const tone = toneOf(theme)
   return (
     <View style={styles.head}>
       <View style={styles.logo}>{logo}</View>
       <PressBox
         accessibilityRole="button"
-        accessibilityLabel="Profile and settings"
+        accessibilityLabel={t("today.profileA11y")}
         onPress={onAvatar}
         pressedScale={0.94}
         style={[styles.avatar, { backgroundColor: tone.peach }]}

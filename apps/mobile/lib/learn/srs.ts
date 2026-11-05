@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /**
  * Spaced repetition for the Learn word cards (spec SCR-22 and SCR-27).
  *
@@ -342,11 +343,12 @@ export function nextDueAt(cards: Readonly<Record<string, WordCard>>, now: number
 }
 
 /** "in 10m", "in 3h", "tomorrow", "in 4 days". */
-export function describeNextDue(dueAt: number | null, now: number): string {
-  if (dueAt === null) return "No cards scheduled"
+export function describeNextDue(dueAt: number | null, now: number, what: "card" | "review" = "card"): string {
+  if (dueAt === null) return t("learn.next.none")
+  const p = what === "review" ? "learn.nextReview" : "learn.nextCard"
   const delta = dueAt - now
-  if (delta < HOUR) return `Next card in ${Math.max(1, Math.round(delta / MINUTE))}m`
-  if (delta < DAY) return `Next card in ${Math.round(delta / HOUR)}h`
+  if (delta < HOUR) return t(`${p}.min`, { n: Math.max(1, Math.round(delta / MINUTE)) })
+  if (delta < DAY) return t(`${p}.hour`, { n: Math.round(delta / HOUR) })
   const days = Math.round(delta / DAY)
-  return days <= 1 ? "Next card tomorrow" : `Next card in ${days} days`
+  return days <= 1 ? t(`${p}.tomorrow`) : t(`${p}.days`, { count: days })
 }
