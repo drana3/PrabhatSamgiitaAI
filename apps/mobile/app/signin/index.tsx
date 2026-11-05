@@ -1,35 +1,30 @@
 import { DEFAULT_PHONE_COUNTRY } from "@prabhat/core"
-import { useEffect, useRef, useState } from "react"
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native"
-import { useRouter } from "expo-router"
-import { Image } from "expo-image"
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { AppleSignInButton } from "@/components/auth/AppleSignInButton"
-import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
-import { PrimaryButton } from "@/components/common/PrimaryButton"
-import { SecondaryButton } from "@/components/common/SecondaryButton"
-import { brandAssets } from "@/constants/brand"
-import { colors } from "@/constants/colors"
-import { softShadow } from "@/constants/shadows"
-import { radius, spacing } from "@/constants/spacing"
-import { typography } from "@/constants/typography"
+import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
+import { AppleMark, FacebookMark, GoogleMark, MicrosoftMark } from "@/components/account/BrandMarks"
+import { PhoneField } from "@/components/account/PhoneField"
+import { Press } from "@/components/songs-v2/Press"
+import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { appleSignInOffered } from "@/lib/appleAuth"
+import {
+  authErrorMessage,
+  checkEmailForm,
+  isEmailValid,
+  PASSWORD_MIN,
+  visibleProviders,
+  afterSignIn,
+  type EmailMode,
+  type EmailStep,
+} from "@/lib/auth/signInFlow"
 import { facebookAuthConfigured } from "@/lib/facebookAuth"
-import { googleAuthConfigured, googleSetupHint } from "@/lib/googleAuth"
-import { memberAuthAvailable } from "@/lib/memberAuth"
-import { expoGoOAuthMessage } from "@/lib/oauthRedirect"
-import { oauthSignInConfigured } from "@/lib/authConfig"
+import { googleAuthConfigured } from "@/lib/googleAuth"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import {
   microsoftAuthConfigured,
   signInMember,
@@ -39,443 +34,423 @@ import {
   signInWithGoogleAccount,
   signUpWithEmailPassword,
 } from "@/lib/session"
+import { forgotPasswordUrl, privacyUrl, termsUrl } from "@/lib/webLinks"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
-type EmailMode = "signin" | "signup"
-type BusyAction = "apple" | "microsoft" | "google" | "facebook" | "email" | null
+type Busy = "apple" | "google" | "microsoft" | "facebook" | "email" | null
+type FieldKey = "email" | "password" | "name" | "phone"
+type SignInResult = { needsName?: boolean; needsPhone?: boolean }
 
-function ModeTab({
-  label,
-  active,
-  onPress,
-  disabled,
-}: {
-  label: string
-  active: boolean
-  onPress: () => void
-  disabled?: boolean
-}) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.modeTab, active && styles.modeTabActive]}
-    >
-      <Text style={[styles.modeTabText, active && styles.modeTabTextActive]}>{label}</Text>
-    </Pressable>
-  )
-}
+const PREVIEW_EMAIL = "dada@example.com"
 
-function FieldLabel({ children }: { children: string }) {
-  return <Text style={styles.fieldLabel}>{children}</Text>
-}
-
+/**
+ * Sign in. Apple (black) and Google (white) first, then one email field. "Continue with email" goes to
+ * the password step, which can switch to Create account (name, mobile number). The name and the Google
+ * picture come from the provider (lib/session.ts finishSignIn); if no name arrives, complete-profile
+ * asks once. "Not now" continues as a guest. Facebook stays in code and shows only when it is enabled.
+ *
+ * Preview only (EXPO_PUBLIC_MOCKUP_DATA=1): Apple and Google show as buttons but never call the real
+ * sign-in, they end in a quiet error. `?state=` is `typed`, `password`, `signup`, `error` or `loading`.
+ */
 export default function SignInScreen() {
   const router = useRouter()
+  const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
-  const scrollRef = useRef<ScrollView>(null)
+  const inset = topInset(insets.top)
+  const openedAt = useRevealClock()
+  const params = useLocalSearchParams<{ state?: string }>()
+  const preview = MOCKUP_DATA ? params.state : undefined
+
   const completeWelcome = useAuthStore((s) => s.completeWelcome)
   const signOut = useAuthStore((s) => s.signOut)
-  const [busyAction, setBusyAction] = useState<BusyAction>(null)
-  const [keyboardVisible, setKeyboardVisible] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [emailMode, setEmailMode] = useState<EmailMode>("signin")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [displayName, setDisplayName] = useState("")
-  const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const msalReady = microsoftAuthConfigured()
-  const googleReady = googleAuthConfigured()
-  const facebookReady = facebookAuthConfigured()
-  const appleReady = appleSignInOffered()
-  const expoGoOAuthHint = expoGoOAuthMessage()
-  const oauthReady = oauthSignInConfigured()
-  const busy = busyAction !== null
 
+  const providers = useMemo(
+    () =>
+      visibleProviders(
+        {
+          apple: appleSignInOffered(),
+          google: googleAuthConfigured(),
+          microsoft: microsoftAuthConfigured(),
+          facebook: facebookAuthConfigured(),
+        },
+        MOCKUP_DATA,
+      ),
+    [],
+  )
+
+  const [busy, setBusy] = useState<Busy>(preview === "loading" ? "apple" : null)
+  const [error, setError] = useState<{ text: string; where: "provider" | "email" } | null>(
+    preview === "error" ? { text: "Can't reach the server. Check your connection and try again.", where: "provider" } : null,
+  )
+  const [step, setStep] = useState<EmailStep>(preview === "password" || preview === "signup" ? "password" : "email")
+  const [mode, setMode] = useState<EmailMode>(preview === "signup" ? "signup" : "signin")
+  const [email, setEmail] = useState(preview === "typed" || preview === "password" || preview === "signup" ? PREVIEW_EMAIL : "")
+  const [password, setPassword] = useState("")
+  const [name, setName] = useState("")
+  const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
+  const [phone, setPhone] = useState("")
+  const [fieldError, setFieldError] = useState<{ field: FieldKey; error: string } | null>(null)
+
+  const scrollRef = useRef<ScrollView>(null)
+  const passwordRef = useRef<TextInput>(null)
+  const nameRef = useRef<TextInput>(null)
+  const lastRun = useRef<(() => void) | null>(null)
+  const alive = useRef(true)
   useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
-    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true))
-    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false))
+    alive.current = true
     return () => {
-      showSub.remove()
-      hideSub.remove()
+      alive.current = false
     }
   }, [])
 
-  const scrollFieldIntoView = () => {
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true })
-    })
-  }
+  const goBack = useCallback(() => (router.canGoBack() ? router.back() : router.replace(href("/(tabs)"))), [router])
 
-  const continueGuest = () => {
+  const continueGuest = useCallback(() => {
     signOut()
     completeWelcome()
-    router.replace(href("/(tabs)"))
-  }
+    if (router.canGoBack()) router.back()
+    else router.replace(href("/(tabs)"))
+  }, [completeWelcome, router, signOut])
 
-  const completeSignIn = async (
-    action: Exclude<BusyAction, null>,
-    run: () => Promise<{ message?: string; needsPhone?: boolean }>,
-  ) => {
-    setBusyAction(action)
-    setError(null)
-    setNotice(null)
-    try {
-      const result = await run()
-      setNotice(result.message ?? null)
-      completeWelcome()
-      if (result.needsPhone) {
-        router.replace(href("/complete-profile"))
-        return
+  const run = useCallback(
+    async (action: Exclude<Busy, null>, task: () => Promise<SignInResult>) => {
+      lastRun.current = () => void run(action, task)
+      setBusy(action)
+      setError(null)
+      setFieldError(null)
+      try {
+        let result: SignInResult
+        if (MOCKUP_DATA) {
+          // Preview: never touch the real sign-in or the session.
+          await new Promise((resolve) => setTimeout(resolve, 900))
+          throw new Error(action === "email" ? "Incorrect email or password." : "Sign-in isn't connected in the preview.")
+        } else {
+          result = await task()
+        }
+        const cameFromWelcome = !useAuthStore.getState().hasCompletedWelcome
+        completeWelcome()
+        const next = afterSignIn(result, cameFromWelcome)
+        if (next.to === "complete-profile") router.replace(href(next.path))
+        else if (next.to === "tabs") router.replace(href("/(tabs)"))
+        else goBack()
+      } catch (failure) {
+        if (!alive.current) return
+        const text = authErrorMessage(failure)
+        setError(text ? { text, where: action === "email" ? "email" : "provider" } : null)
+      } finally {
+        if (alive.current) setBusy(null)
       }
-      router.replace(href("/(tabs)"))
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Sign-in failed.")
-    } finally {
-      setBusyAction(null)
-    }
-  }
+    },
+    [completeWelcome, goBack, router],
+  )
 
-  const submitEmail = async () => {
+  // Preview of the error state: Try again repeats a Google attempt (which ends in the preview error again).
+  useEffect(() => {
+    if (preview === "error") lastRun.current = () => void run("google", () => signInWithGoogleAccount())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const nextToPassword = () => {
+    if (!isEmailValid(email)) {
+      setFieldError({ field: "email", error: "Enter a valid email address." })
+      return
+    }
+    setFieldError(null)
     setError(null)
-    if (emailMode === "signup" && !phoneInputValid(phoneCountryCode, phoneNumber)) {
-      setError("Enter a valid mobile number with country code.")
-      return
-    }
-    if (emailMode === "signup") {
-      await completeSignIn("email", () =>
-        signUpWithEmailPassword(
-          email,
-          password,
-          displayName || email.split("@")[0] || "Member",
-          phoneCountryCode,
-          phoneNumber,
-        ),
-      )
-      return
-    }
-    await completeSignIn("email", () => signInWithEmailPassword(email, password))
+    setStep("password")
+    setTimeout(() => (mode === "signup" ? nameRef : passwordRef).current?.focus(), 80)
   }
 
-  const signupReady =
-    email.length > 0 &&
-    password.length >= 8 &&
-    (emailMode !== "signup" || phoneInputValid(phoneCountryCode, phoneNumber))
+  const submitEmail = () => {
+    const check = checkEmailForm({ mode, email, password, name, phoneCountryCode: countryCode, phoneNumber: phone })
+    if (!check.ok) {
+      setFieldError({ field: check.field, error: check.error })
+      return
+    }
+    const address = email.trim()
+    void run("email", () =>
+      mode === "signup"
+        ? signUpWithEmailPassword(address, password, name.trim(), countryCode, phone)
+        : signInWithEmailPassword(address, password),
+    )
+  }
+
+  const switchMode = (next: EmailMode) => {
+    setMode(next)
+    setFieldError(null)
+    setError(null)
+  }
+
+  const errorFor = (field: FieldKey) => (fieldError?.field === field ? fieldError.error : null)
+  const clear = (field: FieldKey) => setFieldError((current) => (current?.field === field ? null : current))
+  const inactive = busy !== null
 
   return (
-    <SafeAreaView style={styles.root}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
-      >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={[
-            styles.scroll,
-            keyboardVisible ? styles.scrollKeyboard : styles.scrollIdle,
-            { paddingBottom: keyboardVisible ? spacing.xxl * 4 : spacing.xl },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.card}>
-            <Image source={brandAssets.emblemClear} style={styles.logo} contentFit="contain" />
-            <Text style={styles.eyebrow}>Member account</Text>
-            <Text style={styles.title}>Namaskar. Continue your journey.</Text>
-            <Text style={styles.body}>
-              Sign in to sync favorites, quiz progress, and AI chat across website, Android, and
-              iOS.
-            </Text>
+    <RevealClock.Provider value={openedAt}>
+      <View style={[styles.root, { backgroundColor: theme.page }]}>
+        <AccountBar theme={theme} title="Sign in" onBack={goBack} inset={inset} />
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.flex}
+            contentContainerStyle={[styles.content, { paddingBottom: Platform.OS === "web" ? 32 : Math.max(insets.bottom, 12) + 24 }]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets
+            showsVerticalScrollIndicator={false}
+          >
+            <SongsReveal index={1}>
+              <Text style={[styles.lead, { color: theme.textBody }]}>Keep your songs, playlists and progress on every device.</Text>
+            </SongsReveal>
 
-            {error ? (
-              <View style={styles.errorBox} accessibilityRole="alert">
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-            {notice && !error ? (
-              <View style={styles.noticeBox}>
-                <Text style={styles.noticeText}>{notice}</Text>
-              </View>
-            ) : null}
-
-            {expoGoOAuthHint && oauthReady ? (
-              <View style={styles.hintBox}>
-                <Text style={styles.hintText}>{expoGoOAuthHint}</Text>
-              </View>
-            ) : null}
-
-            {!oauthReady && !__DEV__ ? (
-              <View style={styles.hintBox}>
-                <Text style={styles.hintText}>
-                  Microsoft and Google sign-in are not configured in this build. Use email sign-in
-                  below, or install an updated app build from the team.
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={styles.socialStack}>
-              {appleReady ? (
-                <AppleSignInButton
-                  onPress={() => void completeSignIn("apple", () => signInWithAppleAccount())}
-                  loading={busyAction === "apple"}
-                  disabled={busy && busyAction !== "apple"}
+            <SongsReveal index={2} style={styles.stack}>
+              {providers.apple ? (
+                <AccountButton
+                  theme={theme}
+                  tone="black"
+                  label="Continue with Apple"
+                  icon={<AppleMark size={20} />}
+                  loading={busy === "apple"}
+                  disabled={inactive && busy !== "apple"}
+                  onPress={() => void run("apple", () => signInWithAppleAccount())}
                 />
               ) : null}
-              {msalReady ? (
-                <PrimaryButton
-                  label="Continue with Microsoft"
-                  onPress={() => void completeSignIn("microsoft", () => signInMember())}
-                  disabled={busy}
-                  loading={busyAction === "microsoft"}
-                />
-              ) : null}
-              {googleReady ? (
-                <SecondaryButton
+              {providers.google ? (
+                <AccountButton
+                  theme={theme}
+                  tone="white"
                   label="Continue with Google"
-                  onPress={() => void completeSignIn("google", () => signInWithGoogleAccount())}
-                  disabled={busy}
-                  loading={busyAction === "google"}
+                  icon={<GoogleMark size={20} />}
+                  loading={busy === "google"}
+                  disabled={inactive && busy !== "google"}
+                  onPress={() => void run("google", () => signInWithGoogleAccount())}
                 />
-              ) : __DEV__ ? (
-                <View style={styles.hintBox}>
-                  <Text style={styles.hintText}>{googleSetupHint()}</Text>
-                </View>
               ) : null}
-              {facebookReady ? (
-                <SecondaryButton
+              {providers.microsoft ? (
+                <AccountButton
+                  theme={theme}
+                  tone="white"
+                  label="Continue with Microsoft"
+                  icon={<MicrosoftMark size={18} />}
+                  loading={busy === "microsoft"}
+                  disabled={inactive && busy !== "microsoft"}
+                  onPress={() => void run("microsoft", () => signInMember())}
+                />
+              ) : null}
+              {providers.facebook ? (
+                <AccountButton
+                  theme={theme}
+                  tone="white"
                   label="Continue with Facebook"
-                  onPress={() => void completeSignIn("facebook", () => signInWithFacebookAccount())}
-                  disabled={busy}
-                  loading={busyAction === "facebook"}
+                  icon={<FacebookMark size={20} />}
+                  loading={busy === "facebook"}
+                  disabled={inactive && busy !== "facebook"}
+                  onPress={() => void run("facebook", () => signInWithFacebookAccount())}
                 />
               ) : null}
-            </View>
+              {error?.where === "provider" ? (
+                <InlineError theme={theme} onRetry={() => lastRun.current?.()}>
+                  {error.text}
+                </InlineError>
+              ) : null}
+            </SongsReveal>
 
-            <View style={styles.dividerRow}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>or email</Text>
-              <View style={styles.divider} />
-            </View>
+            <SongsReveal index={3} style={styles.divider}>
+              <View style={[styles.rule, { backgroundColor: theme.line }]} />
+              <Text style={[styles.dividerText, { color: theme.textMuted }]}>or</Text>
+              <View style={[styles.rule, { backgroundColor: theme.line }]} />
+            </SongsReveal>
 
-            <View style={styles.modeRow} accessibilityRole="tablist">
-              <ModeTab
-                label="Sign in"
-                active={emailMode === "signin"}
-                onPress={() => {
-                  setEmailMode("signin")
-                  setError(null)
-                }}
-                disabled={busy}
-              />
-              <ModeTab
-                label="Create account"
-                active={emailMode === "signup"}
-                onPress={() => {
-                  setEmailMode("signup")
-                  setError(null)
-                }}
-                disabled={busy}
-              />
-            </View>
-
-            <View style={styles.form}>
-              {emailMode === "signup" ? (
-                <View style={styles.field}>
-                  <FieldLabel>Name</FieldLabel>
-                  <TextInput
-                    value={displayName}
-                    onChangeText={setDisplayName}
-                    placeholder="Your name"
-                    autoCapitalize="words"
-                    autoComplete="name"
-                    style={styles.input}
-                    onFocus={scrollFieldIntoView}
+            <SongsReveal index={4} style={styles.form}>
+              {step === "email" ? (
+                <>
+                  <AccountField
+                    theme={theme}
+                    label="Email"
+                    value={email}
+                    onChangeText={(value) => {
+                      setEmail(value)
+                      clear("email")
+                    }}
+                    error={errorFor("email")}
+                    placeholder="you@example.com"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="email"
+                    keyboardType="email-address"
+                    textContentType="emailAddress"
+                    returnKeyType="next"
+                    editable={!inactive}
+                    onSubmitEditing={nextToPassword}
                   />
-                </View>
-              ) : null}
-              {emailMode === "signup" ? (
-                <PhoneInput
-                  countryCode={phoneCountryCode}
-                  nationalNumber={phoneNumber}
-                  onCountryCodeChange={setPhoneCountryCode}
-                  onNationalNumberChange={setPhoneNumber}
-                  onFocus={scrollFieldIntoView}
-                  disabled={busy}
-                />
-              ) : null}
-              <View style={styles.field}>
-                <FieldLabel>Email</FieldLabel>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  style={styles.input}
-                  onFocus={scrollFieldIntoView}
-                />
-              </View>
-              <View style={styles.field}>
-                <FieldLabel>Password</FieldLabel>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder={emailMode === "signup" ? "At least 8 characters" : "Your password"}
-                  secureTextEntry
-                  autoComplete={emailMode === "signup" ? "new-password" : "password"}
-                  style={styles.input}
-                  onFocus={scrollFieldIntoView}
-                />
-              </View>
-              <PrimaryButton
-                label={emailMode === "signup" ? "Create account" : "Sign in with email"}
-                onPress={() => void submitEmail()}
-                disabled={busy || !signupReady}
-                loading={busyAction === "email"}
-              />
-            </View>
+                  <AccountButton
+                    theme={theme}
+                    tone="brand"
+                    label="Continue with email"
+                    disabled={inactive}
+                    onPress={nextToPassword}
+                  />
+                </>
+              ) : (
+                <>
+                  <View style={[styles.emailRow, { backgroundColor: theme.card, borderColor: theme.line }]}>
+                    <Text style={[styles.emailText, { color: theme.textHeading }]} numberOfLines={1}>
+                      {email.trim()}
+                    </Text>
+                    <Press
+                      accessibilityRole="button"
+                      accessibilityLabel="Change email"
+                      disabled={inactive}
+                      onPress={() => {
+                        setStep("email")
+                        setError(null)
+                        setFieldError(null)
+                      }}
+                      pressedScale={0.96}
+                      style={styles.change}
+                    >
+                      <Text style={[styles.linkText, { color: theme.accent }]}>Change</Text>
+                    </Press>
+                  </View>
 
-            {__DEV__ && !memberAuthAvailable() ? (
-              <Text style={styles.syncHint}>
-                Dev note: add EXPO_PUBLIC_MEMBER_PROXY_KEY to sync favorites, quiz, and chat memory
-                with the live API.
+                  {mode === "signup" ? (
+                    <>
+                      <AccountField
+                        ref={nameRef}
+                        theme={theme}
+                        label="Name"
+                        value={name}
+                        onChangeText={(value) => {
+                          setName(value)
+                          clear("name")
+                        }}
+                        error={errorFor("name")}
+                        autoCapitalize="words"
+                        autoComplete="name"
+                        autoCorrect={false}
+                        returnKeyType="next"
+                        editable={!inactive}
+                        onSubmitEditing={() => passwordRef.current?.focus()}
+                      />
+                      <PhoneField
+                        theme={theme}
+                        countryCode={countryCode}
+                        nationalNumber={phone}
+                        onCountryCodeChange={setCountryCode}
+                        onNationalNumberChange={(value) => {
+                          setPhone(value)
+                          clear("phone")
+                        }}
+                        error={errorFor("phone")}
+                        disabled={inactive}
+                      />
+                    </>
+                  ) : null}
+
+                  <AccountField
+                    ref={passwordRef}
+                    theme={theme}
+                    label="Password"
+                    value={password}
+                    onChangeText={(value) => {
+                      setPassword(value)
+                      clear("password")
+                    }}
+                    error={errorFor("password")}
+                    hint={mode === "signup" ? `At least ${PASSWORD_MIN} characters.` : null}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoComplete={mode === "signup" ? "new-password" : "password"}
+                    textContentType={mode === "signup" ? "newPassword" : "password"}
+                    returnKeyType="go"
+                    editable={!inactive}
+                    onSubmitEditing={submitEmail}
+                  />
+
+                  {error?.where === "email" ? (
+                    <InlineError theme={theme} onRetry={() => lastRun.current?.()}>
+                      {error.text}
+                    </InlineError>
+                  ) : null}
+
+                  <AccountButton
+                    theme={theme}
+                    tone="brand"
+                    label={mode === "signup" ? "Create account" : "Sign in"}
+                    loading={busy === "email"}
+                    disabled={inactive && busy !== "email"}
+                    onPress={submitEmail}
+                  />
+
+                  <View style={styles.links}>
+                    <Press
+                      accessibilityRole="button"
+                      accessibilityLabel={mode === "signup" ? "I already have an account" : "Create an account"}
+                      disabled={inactive}
+                      onPress={() => switchMode(mode === "signup" ? "signin" : "signup")}
+                      pressedScale={0.96}
+                      style={styles.link}
+                    >
+                      <Text style={[styles.linkText, { color: theme.accent }]}>
+                        {mode === "signup" ? "I already have an account" : "Create an account"}
+                      </Text>
+                    </Press>
+                    {mode === "signin" ? (
+                      <Press
+                        accessibilityRole="link"
+                        accessibilityLabel="Forgot password"
+                        onPress={() => void Linking.openURL(forgotPasswordUrl())}
+                        pressedScale={0.96}
+                        style={styles.link}
+                      >
+                        <Text style={[styles.linkText, { color: theme.accent }]}>Forgot password?</Text>
+                      </Press>
+                    ) : null}
+                  </View>
+                </>
+              )}
+            </SongsReveal>
+
+            <SongsReveal index={5} style={styles.foot}>
+              <Text style={[styles.legal, { color: theme.textMuted }]}>
+                {"By continuing you agree to the "}
+                <Text accessibilityRole="link" onPress={() => void Linking.openURL(termsUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
+                  Terms
+                </Text>
+                {" and the "}
+                <Text accessibilityRole="link" onPress={() => void Linking.openURL(privacyUrl())} style={[styles.legalLink, { color: theme.textBody }]}>
+                  Privacy Policy
+                </Text>
+                .
               </Text>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={continueGuest}
-              style={styles.guestLink}
-              disabled={busy}
-            >
-              <Text style={styles.guestLinkText}>Continue without account</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <AccountButton theme={theme} tone="quiet" label="Not now" disabled={inactive} onPress={continueGuest} style={styles.notNow} />
+            </SongsReveal>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    </RevealClock.Provider>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1 },
   flex: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-  },
-  scrollIdle: {
-    justifyContent: "center",
-  },
-  scrollKeyboard: {
-    justifyContent: "flex-start",
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xxl,
-    padding: spacing.xl,
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...softShadow(2),
-  },
-  logo: { width: 64, height: 64, alignSelf: "center" },
-  eyebrow: {
-    ...typography.caption,
-    textAlign: "center",
-    color: colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
-    fontWeight: "700",
-  },
-  title: {
-    fontFamily: "Lora_700Bold",
-    fontSize: 26,
-    lineHeight: 32,
-    color: colors.textPrimary,
-    textAlign: "center",
-  },
-  body: { ...typography.bodySmall, color: colors.textSecondary, textAlign: "center" },
-  socialStack: { gap: spacing.sm, marginTop: spacing.xs },
-  dividerRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginVertical: spacing.xs },
-  divider: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { ...typography.caption, color: colors.textMuted },
-  modeRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    padding: 4,
-  },
-  modeTab: {
-    flex: 1,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    alignItems: "center",
-  },
-  modeTabActive: {
-    backgroundColor: colors.textPrimary,
-  },
-  modeTabText: { ...typography.label, color: colors.textSecondary },
-  modeTabTextActive: { color: colors.white },
-  form: { gap: spacing.md },
-  field: { gap: spacing.xs },
-  fieldLabel: { ...typography.label, color: colors.textPrimary },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    backgroundColor: colors.surface,
-    color: colors.textPrimary,
-    fontSize: 16,
-  },
-  errorBox: {
-    backgroundColor: "#FDEEEE",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: "#F5C2C2",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  errorText: { ...typography.caption, color: colors.error, textAlign: "center" },
-  noticeBox: {
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  noticeText: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
-  hintBox: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  hintText: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
-  syncHint: { ...typography.caption, color: colors.textMuted, textAlign: "center" },
-  guestLink: { alignSelf: "center", paddingVertical: spacing.sm },
-  guestLinkText: {
-    ...typography.label,
-    color: colors.secondary,
-    textDecorationLine: "underline",
-  },
+  content: { paddingHorizontal: ACCOUNT_SIDE, paddingTop: 8, gap: 24 },
+  lead: { fontFamily: amFonts.medium, fontSize: 17, lineHeight: 25 },
+  stack: { gap: 12 },
+  divider: { flexDirection: "row", alignItems: "center", gap: 16 },
+  rule: { flex: 1, height: StyleSheet.hairlineWidth },
+  dividerText: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
+  form: { gap: 16 },
+  emailRow: { minHeight: 56, borderRadius: 16, borderWidth: 1, paddingLeft: 16, paddingRight: 8, flexDirection: "row", alignItems: "center", gap: 8 },
+  emailText: { flex: 1, fontFamily: amFonts.medium, fontSize: 17 },
+  change: { minHeight: 44, justifyContent: "center", paddingHorizontal: 8 },
+  links: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", columnGap: 16 },
+  link: { minHeight: 44, justifyContent: "center" },
+  linkText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
+  foot: { gap: 4, alignItems: "stretch" },
+  legal: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 19, textAlign: "center", paddingHorizontal: 8 },
+  legalLink: { fontFamily: amFonts.semi, textDecorationLine: "underline" },
+  notNow: { alignSelf: "center", minWidth: 140 },
 })

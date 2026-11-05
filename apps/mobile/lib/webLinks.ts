@@ -25,6 +25,24 @@ export function songShareUrl(songNumber: number): string {
   return `${webBaseUrl()}/songs/${songNumber}?open=app`
 }
 
+/** Privacy policy page of the website. */
+export function privacyUrl(): string {
+  return `${webBaseUrl()}/privacy`
+}
+
+/**
+ * Terms of use. TODO(web): apps/web has a /privacy page but no /terms page yet; this link answers
+ * 404 until it is added.
+ */
+export function termsUrl(): string {
+  return `${webBaseUrl()}/terms`
+}
+
+/** Password reset page of the website (the app has no reset screen of its own). */
+export function forgotPasswordUrl(): string {
+  return `${webBaseUrl()}/forgot-password`
+}
+
 /** Public instructions for account/data deletion (Play / App Store data safety). */
 export function deleteAccountHelpUrl(): string {
   return `${webBaseUrl()}/delete-account`

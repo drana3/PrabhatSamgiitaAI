@@ -15,8 +15,10 @@ import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
 import { hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
 import { memberPhoneRequired } from "@/lib/memberPhone"
+import { nameIsMissing } from "@/lib/profile/validate"
 import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { useProfileStore } from "@/stores/profileStore"
 
 export { microsoftAuthConfigured, getMicrosoftRedirectUri }
 export { googleAuthConfigured } from "@/lib/googleAuth"
@@ -97,6 +99,8 @@ async function finishSignIn(input: {
   email: string | null
   memberId: string
   identityProvider: string
+  /** the provider's picture (Google), kept unless the person chose their own */
+  photoUrl?: string | null
 }) {
   useAuthStore.getState().applyMemberSession({
     displayName: input.displayName,
@@ -105,11 +109,15 @@ async function finishSignIn(input: {
     memberBackend: false,
     identityProvider: input.identityProvider,
   })
+  if (input.photoUrl) useProfileStore.getState().setProviderPhoto(input.photoUrl)
+  // The name comes from the provider; when it gave none (Apple only gives it once), the page asks once.
+  const needsName = nameIsMissing(input.displayName, input.email)
 
   if (!memberAuthAvailable()) {
     return {
       ok: true as const,
       memberBackend: false,
+      needsName,
       message:
         "Signed in on this device. Favorites, quiz, and admin status will sync after you install an app update that includes member sync.",
     }
@@ -120,6 +128,7 @@ async function finishSignIn(input: {
     return {
       ok: true as const,
       memberBackend: false,
+      needsName,
       message:
         "Signed in locally. We could not reach your member account — check your connection and try again.",
     }
@@ -129,12 +138,14 @@ async function finishSignIn(input: {
       ok: true as const,
       memberBackend: true,
       needsPhone: true,
+      needsName,
       message: "Add your mobile number to finish setting up your account.",
     }
   }
   return {
     ok: true as const,
     memberBackend: true,
+    needsName,
     message: "Signed in and synced with your Prabhat Samgiita member session.",
   }
 }
@@ -195,6 +206,7 @@ export async function signInWithGoogleAccount() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: identity.provider,
+    photoUrl: identity.photoUrl,
   })
 }
 

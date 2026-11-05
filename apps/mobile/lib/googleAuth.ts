@@ -108,6 +108,7 @@ async function signInWithGoogleBrowser(): Promise<OAuthIdentity> {
     email: identity.email,
     displayName: identity.displayName,
     provider: "google",
+    ...(identity.picture ? { photoUrl: identity.picture } : {}),
   }
 }
 
@@ -135,6 +136,7 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
       email: profile.email ?? null,
       displayName: profile.name || profile.email || "Google member",
       provider: "google",
+      ...(profile.photo ? { photoUrl: profile.photo } : {}),
     }
   } catch (error) {
     if (shouldUseBrowserFallback(error)) {

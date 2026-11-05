@@ -86,6 +86,14 @@ async function writeStoredAppleDisplayName(userId: string, name: string) {
   }
 }
 
+/**
+ * Keeps a name the person typed themselves for their Apple account, so the next sign-in has it even
+ * though Apple only hands the name over the first time.
+ */
+export async function rememberAppleDisplayName(userId: string, name: string) {
+  await writeStoredAppleDisplayName(userId, name)
+}
+
 async function resolveAppleDisplayName(
   userId: string,
   fullName: AppleAuthentication.AppleAuthenticationFullName | null,

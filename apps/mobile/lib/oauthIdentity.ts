@@ -3,6 +3,8 @@ export type OAuthIdentity = {
   email: string | null
   displayName: string
   provider: "google" | "facebook" | "aad" | "apple" | "local"
+  /** Profile picture the provider gave (https URL), when it gave one. */
+  photoUrl?: string | null
 }
 
 export type AuthSessionPayload = {

@@ -3,6 +3,8 @@ export type MicrosoftIdentity = {
   email: string | null
   displayName: string
   idToken?: string
+  /** `picture` claim (Google), when present */
+  picture?: string | null
 }
 
 export function decodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -37,5 +39,6 @@ export function identityFromIdToken(idToken: string): MicrosoftIdentity | null {
   if (!id) return null
   const displayName =
     (typeof claims.name === "string" && claims.name) || email || "Microsoft member"
-  return { id, email, displayName, idToken }
+  const picture = typeof claims.picture === "string" && /^https:\/\//i.test(claims.picture) ? claims.picture : null
+  return { id, email, displayName, idToken, ...(picture ? { picture } : {}) }
 }

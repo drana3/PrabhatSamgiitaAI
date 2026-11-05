@@ -1,4 +1,12 @@
+import { Platform } from "react-native"
 import Svg, { Circle, Path, Rect } from "react-native-svg"
+
+/** Icons are decoration (the button names the action). The web build rejects the native props, so it gets aria-hidden. */
+const HIDDEN = (
+  Platform.OS === "web"
+    ? { "aria-hidden": true }
+    : { accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" as const }
+) as object
 
 /**
  * Line icons of the prototype, drawn from the same 24x24 path data (`stroke-width: 1.75`, round caps).
@@ -38,7 +46,7 @@ export function SpIcon({
 }) {
   const stroke = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...HIDDEN}>
       {name === "search" ? (
         <>
           <Circle cx={11} cy={11} r={6.5} {...stroke} />
