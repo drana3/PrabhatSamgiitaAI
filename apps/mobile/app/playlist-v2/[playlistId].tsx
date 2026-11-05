@@ -34,6 +34,7 @@ import { playlistListId } from "@/lib/songsV2/rowMenu"
 import { useAuthStore } from "@/stores/authStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 /**
  * One playlist. The prototype has no page for it (a playlist row in Mine just plays), so this page
@@ -42,6 +43,7 @@ import { href } from "@/utils/href"
  * are the working logic of the first build. Reorder is not offered: the API has no reorder call.
  */
 export default function PlaylistV2Screen() {
+  const t = useT()
   useFlushPlaylistsOnBlur()
   const router = useRouter()
   const theme = useSongsTheme()
@@ -124,16 +126,16 @@ export default function PlaylistV2Screen() {
     }
     const result = await renamePlaylist(playlistId, trimmed)
     if (!isPlaylist(result)) {
-      Alert.alert("Playlist", "error" in result ? result.error : "Sign in to rename a playlist.")
+      Alert.alert(t("player.playlist"), "error" in result ? result.error : t("playlist.signInRename"))
     }
   }
 
   const confirmDelete = () => {
     if (!playlistId) return
-    Alert.alert("Delete playlist", "This removes the playlist from your account. The songs stay in the catalog.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("playlist.delete"), t("playlist.delete.body"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Delete",
+        text: t("playlist.delete.confirm"),
         style: "destructive",
         onPress: () => {
           void deletePlaylist(playlistId).then(() => router.back())
@@ -145,7 +147,7 @@ export default function PlaylistV2Screen() {
   const play = () => {
     if (!playlist) return
     void playPlaylist(playlist).then((error) => {
-      if (error) Alert.alert("Playlist", error)
+      if (error) Alert.alert(t("player.playlist"), error)
     })
   }
 
@@ -166,7 +168,7 @@ export default function PlaylistV2Screen() {
         >
           {!playlist ? (
             <SongsReveal index={next()}>
-              <EmptyNote theme={theme}>Looking for this playlist…</EmptyNote>
+              <EmptyNote theme={theme}>{t("playlist.loading")}</EmptyNote>
             </SongsReveal>
           ) : (
             <>
@@ -180,7 +182,7 @@ export default function PlaylistV2Screen() {
                     onSubmitEditing={() => void commitRename()}
                     onBlur={() => void commitRename()}
                     returnKeyType="done"
-                    accessibilityLabel="Playlist name"
+                    accessibilityLabel={t("playlist.name.a11y")}
                     style={[styles.nameInput, { backgroundColor: theme.card, borderColor: theme.line, color: theme.textHeading }]}
                   />
                 ) : (
@@ -195,7 +197,7 @@ export default function PlaylistV2Screen() {
                   <PillButton
                     theme={theme}
                     fill
-                    label="Play"
+                    label={t("player.play")}
                     onPress={play}
                     disabled={numbers.length === 0}
                     icon={<PlayGlyph color={amColors.white} />}
@@ -204,7 +206,7 @@ export default function PlaylistV2Screen() {
                     theme={theme}
                     fill
                     tone="sand"
-                    label={renaming ? "Save name" : "Rename"}
+                    label={renaming ? t("playlist.saveName") : t("playlist.rename")}
                     onPress={() => (renaming ? void commitRename() : setRenaming(true))}
                   />
                 </View>
@@ -222,7 +224,7 @@ export default function PlaylistV2Screen() {
                       {sync.text}
                     </Text>
                     {sync.kind === "error" ? (
-                      <PillButton theme={theme} tone="sand" label="Try again" onPress={() => void flushSync()} style={styles.start} />
+                      <PillButton theme={theme} tone="sand" label={t("common.tryAgain")} onPress={() => void flushSync()} style={styles.start} />
                     ) : null}
                   </View>
                 ) : null}
@@ -231,7 +233,7 @@ export default function PlaylistV2Screen() {
               <SongsReveal index={next()} style={styles.list}>
                 {numbers.length === 0 ? (
                   <EmptyNote theme={theme}>
-                    Nothing here yet. Open a song and choose Add to playlist, or press and hold a song in the catalog.
+                    {t("playlist.empty")}
                   </EmptyNote>
                 ) : (
                   numbers.map((number: number) => {
@@ -243,7 +245,7 @@ export default function PlaylistV2Screen() {
                         eyebrow={songEyebrow(number, offlineNumbers.has(number))}
                         title={title}
                         accessibilityLabel={`PS ${number}, ${title}`}
-                        menuLabel={`More actions for PS ${number}`}
+                        menuLabel={t("playlist.moreActions", { number: String(number) })}
                         onOpen={() => router.push(href(`/song-v2/ps-${number}`))}
                         onMenu={() => setMenuEntry(entries.find((e) => e.number === number) ?? null)}
                       />
@@ -255,12 +257,12 @@ export default function PlaylistV2Screen() {
               <SongsReveal index={next()} style={[styles.danger, { borderTopColor: theme.line }]}>
                 <Press
                   accessibilityRole="button"
-                  accessibilityLabel="Delete playlist"
+                  accessibilityLabel={t("playlist.delete")}
                   onPress={confirmDelete}
                   pressedScale={0.98}
                   style={styles.deleteHit}
                 >
-                  <Text style={styles.deleteText}>Delete playlist</Text>
+                  <Text style={styles.deleteText}>{t("playlist.delete")}</Text>
                 </Press>
               </SongsReveal>
             </>

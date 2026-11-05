@@ -29,6 +29,7 @@ import { usePlayerStore } from "@/stores/playerStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { useSaveSheetStore } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 const SIDE = 16
 const REVEALED_ROWS = 6
@@ -42,6 +43,7 @@ const REVEALED_ROWS = 6
  * Preview only: `?as=guest` shows the guest state, `?chip=` picks a chip.
  */
 export default function LibraryV2Screen() {
+  const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
   const sp = useSpTheme()
@@ -64,29 +66,29 @@ export default function LibraryV2Screen() {
   const open = useCallback((row: LibraryRow) => router.push(href(row.target)), [router])
 
   const askSignIn = useCallback(() => {
-    if (Platform.OS === "web") return useSaveSheetStore.getState().showToast("Sign in to make playlists")
-    Alert.alert("Sign in", "Playlists need an account, so they follow you to other phones.", [
-      { text: "Not now", style: "cancel" },
-      { text: "Sign in", onPress: signIn },
+    if (Platform.OS === "web") return useSaveSheetStore.getState().showToast(t("library.toast.signIn"))
+    Alert.alert(t("library.signIn"), t("library.alert.body"), [
+      { text: t("library.alert.notNow"), style: "cancel" },
+      { text: t("library.signIn"), onPress: signIn },
     ])
-  }, [signIn])
+  }, [signIn, t])
 
   /** The Save sheet's "New playlist": next free name, then open the empty list to fill it. */
   const newPlaylist = useCallback(async () => {
     const toast = useSaveSheetStore.getState().showToast
-    if (MOCKUP_DATA) return toast("Playlists are not available in the preview")
+    if (MOCKUP_DATA) return toast(t("library.toast.preview"))
     const store = usePlaylistStore.getState()
     const name = nextPlaylistName(store.playlists)
     const created = await store.createPlaylist(name)
     if (isPlaylist(created)) {
-      toast(`Created ${name}`)
+      toast(t("library.toast.created", { name }))
       void usePlaylistStore.getState().flushSync()
       router.push(href(`/playlist-v2/${created.id}`))
       return
     }
     if ("needsAuth" in created) return askSignIn()
-    Alert.alert("Playlist", created.error)
-  }, [askSignIn, router])
+    Alert.alert(t("player.playlist"), created.error)
+  }, [askSignIn, router, t])
 
   const clear = useCallback(() => {
     setQuery("")
@@ -123,9 +125,9 @@ export default function LibraryV2Screen() {
         <View style={[styles.bar, { paddingTop: inset, backgroundColor: theme.page }]}>
           <SongsReveal index={0}>
             <View style={styles.titleRow}>
-              <SpRound t={sp} icon="back" label="Back" onPress={back} />
+              <SpRound t={sp} icon="back" label={t("common.back")} onPress={back} />
               <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1} accessibilityRole="header">
-                Your library
+                {t("library.title")}
               </Text>
             </View>
           </SongsReveal>
@@ -135,9 +137,9 @@ export default function LibraryV2Screen() {
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search in your library"
+                placeholder={t("library.search")}
                 placeholderTextColor={theme.textMuted}
-                accessibilityLabel="Search in your library"
+                accessibilityLabel={t("library.search")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="search"
@@ -145,7 +147,7 @@ export default function LibraryV2Screen() {
                 style={[styles.input, { color: theme.textHeading }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}
               />
               {query ? (
-                <Press accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery("")} pressedScale={0.88} style={styles.clearBtn}>
+                <Press accessibilityRole="button" accessibilityLabel={t("search.clear.a11y")} onPress={() => setQuery("")} pressedScale={0.88} style={styles.clearBtn}>
                   <CloseGlyph size={18} color={theme.textBody} />
                 </Press>
               ) : null}
@@ -165,8 +167,8 @@ export default function LibraryV2Screen() {
             <View style={styles.emptyBox}>
               <Text style={[styles.empty, { color: theme.textBody }]}>{emptyLibraryText(chip, query)}</Text>
               {query || chip !== "all" ? (
-                <Press accessibilityRole="button" accessibilityLabel="Show everything" onPress={clear} pressedScale={0.96} style={styles.emptyBtn}>
-                  <Text style={[styles.emptyLink, { color: theme.accent }]}>Show everything</Text>
+                <Press accessibilityRole="button" accessibilityLabel={t("library.showAll")} onPress={clear} pressedScale={0.96} style={styles.emptyBtn}>
+                  <Text style={[styles.emptyLink, { color: theme.accent }]}>{t("library.showAll")}</Text>
                 </Press>
               ) : null}
             </View>

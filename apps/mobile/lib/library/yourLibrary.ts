@@ -1,4 +1,5 @@
 import { formatBytes } from "@/lib/storageCache"
+import { t } from "@/lib/i18n"
 
 /**
  * Pure logic of "Your library" (/library-v2), opened from the profile sheet: everything that is the
@@ -12,12 +13,12 @@ import { formatBytes } from "@/lib/storageCache"
 export type LibraryChipId = "all" | "songs" | "kiirtans" | "playlists" | "downloads" | "uploads"
 
 export const LIBRARY_CHIPS: readonly { id: LibraryChipId; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "songs", label: "Songs" },
-  { id: "kiirtans", label: "Kiirtans" },
-  { id: "playlists", label: "Playlists" },
-  { id: "downloads", label: "Downloads" },
-  { id: "uploads", label: "Uploads" },
+  { id: "all", get label() { return t("home.filter.all") } },
+  { id: "songs", get label() { return t("tabs.songs") } },
+  { id: "kiirtans", get label() { return t("kind.kiirtans") } },
+  { id: "playlists", get label() { return t("songs.chip.playlists") } },
+  { id: "downloads", get label() { return t("songs.mine.downloads") } },
+  { id: "uploads", get label() { return t("library.chip.uploads") } },
 ]
 
 export function isLibraryChip(value: unknown): value is LibraryChipId {
@@ -72,27 +73,27 @@ export const LIBRARY_TARGETS = {
 } as const
 
 export function songCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "song" : "songs"}`
+  return t("songs.count", { count })
 }
 
 export function downloadsMeta(count: number, bytes: number | null): string {
-  if (count <= 0) return "On this phone · nothing yet"
-  if (bytes == null || bytes <= 0) return `On this phone · ${songCountLabel(count)}`
-  return `On this phone · ${songCountLabel(count)} · ${formatBytes(bytes)}`
+  if (count <= 0) return t("library.meta.phoneNone")
+  if (bytes == null || bytes <= 0) return t("library.meta.phone", { songs: songCountLabel(count) })
+  return t("library.meta.phoneSize", { songs: songCountLabel(count), size: formatBytes(bytes) })
 }
 
 export function uploadsMeta(total: number, pending: number): string {
-  if (pending > 0) return `Your recordings · ${pending} in review`
-  if (total > 0) return `Your recordings · ${total}`
-  return "Your recordings · none yet"
+  if (pending > 0) return t("library.meta.uploadsReview", { count: pending })
+  if (total > 0) return t("library.meta.uploads", { count: total })
+  return t("library.meta.uploadsNone")
 }
 
 export function savedSongsMeta(count: number): string {
-  return count > 0 ? `Saved songs · ${count}` : "Saved songs · none yet"
+  return count > 0 ? t("library.meta.saved", { count }) : t("library.meta.savedNone")
 }
 
 export function savedKiirtansMeta(count: number): string {
-  return count > 0 ? `Kiirtans · ${count} saved` : "Kiirtans · none saved yet"
+  return count > 0 ? t("library.meta.kiirtans", { count }) : t("library.meta.kiirtansNone")
 }
 
 /**
@@ -103,7 +104,7 @@ export function buildLibraryRows(input: LibraryInput): LibraryRow[] {
   const base: LibraryRow[] = [
     {
       id: "mine",
-      title: "Mine",
+      title: t("songs.mine"),
       meta: savedSongsMeta(input.savedSongCount),
       target: LIBRARY_TARGETS.mine,
       cover: { kind: "mine" },
@@ -113,7 +114,7 @@ export function buildLibraryRows(input: LibraryInput): LibraryRow[] {
     },
     {
       id: "kiirtans-saved",
-      title: "Saved Kiirtans",
+      title: t("library.row.savedKiirtans"),
       meta: savedKiirtansMeta(input.savedKiirtanCount),
       target: LIBRARY_TARGETS.kiirtansSaved,
       cover: { kind: "kiirtans" },
@@ -125,7 +126,7 @@ export function buildLibraryRows(input: LibraryInput): LibraryRow[] {
       (pl): LibraryRow => ({
         id: `pl-${pl.id}`,
         title: pl.name,
-        meta: `Playlist · ${songCountLabel(pl.songNumbers.length)}`,
+        meta: t("library.meta.playlist", { songs: songCountLabel(pl.songNumbers.length) }),
         target: LIBRARY_TARGETS.playlist(pl.id),
         cover: { kind: "playlist", numbers: pl.songNumbers.slice(0, 4) as number[] },
         chips: ["songs", "playlists"],
@@ -135,7 +136,7 @@ export function buildLibraryRows(input: LibraryInput): LibraryRow[] {
     ),
     {
       id: "downloads",
-      title: "Downloads",
+      title: t("songs.mine.downloads"),
       meta: downloadsMeta(input.downloads.count, input.downloads.bytes),
       target: LIBRARY_TARGETS.downloads,
       cover: { kind: "downloads" },
@@ -145,7 +146,7 @@ export function buildLibraryRows(input: LibraryInput): LibraryRow[] {
     },
     {
       id: "uploads",
-      title: "My uploads",
+      title: t("library.row.uploads"),
       meta: uploadsMeta(input.uploads.total, input.uploads.pending),
       target: LIBRARY_TARGETS.uploads,
       cover: { kind: "uploads" },
@@ -193,9 +194,21 @@ export function showSignInInvite(signedIn: boolean): boolean {
 export const INVITE_TITLE = "Sign in to keep songs and playlists"
 export const INVITE_BODY = "They follow you to every phone. What is saved on this phone stays here too."
 
+/** The invitation title and text in the screen language. */
+export function inviteTitle(): string {
+  return t("library.invite.title")
+}
+export function inviteBody(): string {
+  return t("library.invite.body")
+}
+
 export function emptyLibraryText(chip: LibraryChipId, query: string): string {
   const q = query.trim()
-  if (q) return `Nothing called “${q}” in your library.`
-  const label = LIBRARY_CHIPS.find((c) => c.id === chip)?.label.toLowerCase() ?? "library"
-  return chip === "all" ? "Your library is empty for now." : `No ${label} here yet.`
+  if (q) return t("library.empty.query", { query: q })
+  if (chip === "songs") return t("library.empty.songs")
+  if (chip === "kiirtans") return t("library.empty.kiirtans")
+  if (chip === "playlists") return t("library.empty.playlists")
+  if (chip === "downloads") return t("library.empty.downloads")
+  if (chip === "uploads") return t("library.empty.uploads")
+  return t("library.empty.all")
 }

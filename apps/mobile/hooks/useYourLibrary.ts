@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { useLanguage } from "@/lib/i18n"
 
 /** TODO(api): the preview shows two saved Kiirtans; real counts come from kirtanStore.savedIds. */
 const MOCK_SAVED_KIIRTANS = 2
@@ -20,6 +21,7 @@ const MOCK_SAVED_KIIRTANS = 2
  * TODO(api): "last used" times per list, so the order can follow what was opened last (rows already sort by it).
  */
 export function useYourLibrary(forceGuest = false): { rows: LibraryRow[]; signedIn: boolean } {
+  const language = useLanguage()
   const mode = useAuthStore((s) => s.mode)
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const savedKiirtanIds = useKirtanStore((s) => s.savedIds)
@@ -52,7 +54,7 @@ export function useYourLibrary(forceGuest = false): { rows: LibraryRow[]; signed
           playlists: playlists.map((p) => ({ id: p.id, name: p.name, songNumbers: p.songs.map((song: { song_number: number }) => song.song_number) })),
         }
     return buildLibraryRows(input)
-  }, [savedSongIds, savedKiirtanIds, submissions, playlists, storage.fileCount, storage.bytes])
+  }, [savedSongIds, savedKiirtanIds, submissions, playlists, storage.fileCount, storage.bytes, language])
 
   return { rows, signedIn: !forceGuest && (MOCKUP_DATA || mode === "signed_in") }
 }

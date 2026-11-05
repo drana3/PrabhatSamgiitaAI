@@ -13,7 +13,8 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { photoForSeed } from "@/lib/photos/catalog"
-import { INVITE_BODY, INVITE_TITLE, type LibraryCover, type LibraryRow } from "@/lib/library/yourLibrary"
+import { inviteBody, inviteTitle, type LibraryCover, type LibraryRow } from "@/lib/library/yourLibrary"
+import { useT } from "@/lib/i18n"
 
 /** Cover size of a row and its corner. The same 8dp corner as the covers in the Save sheet and the lists. */
 export const LIBRARY_COVER = 56
@@ -124,17 +125,18 @@ export const LibraryListRow = memo(function LibraryListRow({
 
 /** The row that starts a playlist: a dashed tile with a plus, then its name. */
 export function NewPlaylistRow({ theme, onPress }: { theme: SongsTheme; onPress: () => void }) {
+  const t = useT()
   return (
-    <Press accessibilityRole="button" accessibilityLabel="New playlist" onPress={onPress} pressedScale={0.98} style={styles.row}>
+    <Press accessibilityRole="button" accessibilityLabel={t("songs.mine.newPlaylist")} onPress={onPress} pressedScale={0.98} style={styles.row}>
       <View style={[styles.tile, styles.center, styles.dashed, { borderColor: theme.textBody }]}>
         <PlusGlyph size={24} color={theme.textHeading} />
       </View>
       <View style={styles.text}>
         <Text style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
-          New playlist
+          {t("songs.mine.newPlaylist")}
         </Text>
         <Text style={[styles.meta, { color: theme.textBody }]} numberOfLines={1}>
-          Make one and add songs to it
+          {t("library.row.newMeta")}
         </Text>
       </View>
     </Press>
@@ -143,14 +145,15 @@ export function NewPlaylistRow({ theme, onPress }: { theme: SongsTheme; onPress:
 
 /** Guests: forest card, white text, the one orange button of the page. Local rows stay below it. */
 export function SignInInvite({ theme, onSignIn }: { theme: SongsTheme; onSignIn: () => void }) {
+  const t = useT()
   return (
     <View style={[styles.invite, { backgroundColor: theme.dark ? theme.inner : amColors.sage900 }]}>
-      <Text style={[overStyle, { color: amColors.gold300 }]}>Not signed in</Text>
+      <Text style={[overStyle, { color: amColors.gold300 }]}>{t("library.invite.eyebrow")}</Text>
       <Text style={styles.inviteTitle} accessibilityRole="header">
-        {INVITE_TITLE}
+        {inviteTitle()}
       </Text>
-      <Text style={styles.inviteBody}>{INVITE_BODY}</Text>
-      <PillButton theme={theme} label="Sign in" onPress={onSignIn} style={styles.inviteButton} />
+      <Text style={styles.inviteBody}>{inviteBody()}</Text>
+      <PillButton theme={theme} label={t("library.signIn")} onPress={onSignIn} style={styles.inviteButton} />
     </View>
   )
 }

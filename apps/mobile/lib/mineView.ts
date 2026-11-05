@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 /**
  * Pure view logic for the "Mine" content (spec SCR-11): which state a list is in,
  * row eyebrows and the sync status line. No React Native imports.
@@ -13,13 +14,13 @@ export function listViewState(input: { loading: boolean; count: number }): ListV
 
 /** `9 songs · made by you` (spec SCR-11 item 7). */
 export function playlistMeta(songCount: number): string {
-  if (songCount <= 0) return "No songs yet · made by you"
-  return `${songCount} ${songCount === 1 ? "song" : "songs"} · made by you`
+  if (songCount <= 0) return t("mine.meta.none")
+  return t("mine.meta", { count: songCount })
 }
 
 /** `PS 3` or `PS 3 · Offline` (spec SCR-20: a downloaded song shows Offline everywhere). */
 export function songEyebrow(number: number, offline: boolean): string {
-  return offline ? `PS ${number} · Offline` : `PS ${number}`
+  return offline ? `PS ${number} · ${t("songs.offline")}` : `PS ${number}`
 }
 
 /** Saved songs are stored oldest first; Mine shows the newest on top. Duplicates removed. */
@@ -55,13 +56,13 @@ export function mineSyncStatus(input: {
   error: string | null
 }): SyncStatus {
   if (input.mode !== "signed_in") {
-    return { kind: "local", text: "Sign in to keep playlists and sync saved songs across devices." }
+    return { kind: "local", text: t("mine.sync.guest") }
   }
   if (!input.syncAvailable) {
-    return { kind: "local", text: "This build cannot sync playlists with your account yet." }
+    return { kind: "local", text: t("mine.sync.unavailable") }
   }
   if (input.error) return { kind: "error", text: input.error }
-  if (input.syncing) return { kind: "syncing", text: "Syncing your changes…" }
+  if (input.syncing) return { kind: "syncing", text: t("mine.sync.syncing") }
   return { kind: "hidden" }
 }
 

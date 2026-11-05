@@ -13,12 +13,14 @@ import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
+import { useT } from "@/lib/i18n"
 
 const { height: screenHeight } = Dimensions.get("window")
 /** Standard emblem size — smaller than Home */
 const emblemSize = 112
 
 export default function WelcomeScreen() {
+  const t = useT()
   const router = useRouter()
   const setMode = useAuthStore((s) => s.setMode)
   const completeWelcome = useAuthStore((s) => s.completeWelcome)
@@ -53,27 +55,29 @@ export default function WelcomeScreen() {
           />
           <Text style={styles.brand}>Prabhat Samgiita AI</Text>
           <Text style={styles.headline}>
-            Music for{"\n"}the inner dawn
+            {t("welcome.headline.1")}
+            {"\n"}
+            {t("welcome.headline.2")}
           </Text>
           <Text style={styles.support}>
-            Discover 5,018 songs of devotion, hope, nature, and universal love.
+            {t("welcome.support", { count: 5018 })}
           </Text>
         </View>
 
         <View style={styles.bottom}>
-          <PrimaryButton label="Continue as Guest" onPress={enterGuest} />
+          <PrimaryButton label={t("welcome.guest")} onPress={enterGuest} />
           <SecondaryButton
-            label="Login / Sign Up"
+            label={t("welcome.signIn")}
             onPress={() => router.push(href("/signin"))}
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Explore app without sign up"
+            accessibilityLabel={t("welcome.explore.a11y")}
             onPress={enterGuest}
             style={styles.tertiary}
           >
             <Eye size={16} color="rgba(255,255,255,0.92)" />
-            <Text style={styles.tertiaryLabel}>Explore without signing up</Text>
+            <Text style={styles.tertiaryLabel}>{t("welcome.explore")}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
