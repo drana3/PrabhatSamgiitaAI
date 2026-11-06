@@ -418,3 +418,75 @@ route `app/song-v2/[songId].tsx`); the switcher, the old "Current" page and the 
   lines: PS 19, PS 1903), is shown whole as "Translation of the whole song", scrollable, with the quiet note "Translation is shown
   for the whole song." under the lyrics. No translation, or the translation off in "Aa": no strip.
 
+
+### 12c. Update: three panels in a pinned stage, no visible tabs (board 6, variant 5, with the pinned scroll of anandamargi.org)
+
+Dada's wish: "variant 5, but when scrolling down these three tabs scroll sideways: we scroll down, the screen pins, and we
+swipe/scroll sideways". The pill switcher is gone. The text block is a stage with three panels side by side, Lyrics |
+Commentary | Word by word (`TextBlock.tsx`, `usePanelMotion.ts`, pure rules in `lib/songPage/blockPanels.ts`).
+
+**What the reader sees**
+- Header of the stage: the one-word name of the panel and its place ("Lyrics 1/3"), the round "Aa" button (the text options
+  popover is unchanged), and under them three small page dots with a moving mark. The dots are real tabs for screen readers
+  (`tablist` / `tab`, "Lyrics, 1/3", selected state); a tap springs to that panel. The off-screen panels are hidden from
+  screen readers.
+- Sideways swipe on the stage: the row follows the finger one to one from the point it was taken (the 12 px of slop before
+  the pan takes over are not the row's to follow), meets a rubber band at the first and last panel, and on release the finger's
+  speed goes into a spring. The landing is the projection of the throw, `current + (v/1000) * 0.998 / (1 - 0.998)`, rounded to
+  the nearest panel and never more than one panel from where the gesture began. A plain release settles with no overshoot
+  (damping 1.0, response 0.35); only a throw faster than 600 dp/s may overshoot (damping 0.8). The spring can be caught: a finger
+  on the stage freezes it where it is, a finger on the page hands the row back to the scroll. Reduced motion: same positions,
+  a 150 ms ease and no spring.
+- Pinned scroll: when the stage reaches the bars (compact title bar plus the section strip) it holds still, and the page's
+  scroll moves the panels sideways, one pixel of panel per pixel of scroll (the feel of the site's `PinnedRail`: pinned under
+  the header, 1:1, no easing of its own). Scrolling back up reverses it. Then the stage is released and the page goes on to
+  Recordings. The pin is an invisible spacer inside the block: its height is the stage plus the pin distance. Only transform
+  and opacity move; the whole thing runs on the UI thread (a reanimated scroll handler, derived values and animated styles; no
+  React state per frame).
+- Section strip / menu: Lyrics and Commentary now spring the page to the stage with that panel at rest on top. The compact
+  reading strip of the Lyrics panel (12b) shows only while Lyrics is the nearest panel (the row less than half way to the next)
+  and the lyrics are on screen. It is fed the lyrics' real place on screen, which is not the page scroll any more once the
+  lyrics move inside the pinned stage (`readingScroll`).
+
+**The hard problem: a panel taller than the screen.** A pinned stage has a fixed height, but the lyrics, the commentary and the
+word grid can be several screens tall (PS 19 and PS 1903 are short; PS 150 has a word grid of about 3,400 px). Options weighed:
+1. Pure "vertical scroll only moves the panels sideways" with a stage clipped to the screen: unusable, the lower part of a tall
+   panel could never be read.
+2. A vertical scroller inside the stage, stage pinned: two scrolls on one finger. On a phone there is no scroll chaining, so a
+   finger that starts in the stage would be trapped in the inner scroll, and the page could not be scrolled from there at all.
+3. **Chosen: one timeline, one scroll.** The stage is as tall as the tallest panel, capped at what the screen leaves under the
+   bars and above the mini-player. While pinned, the page's scroll does two things in turn, for each panel: first it READS the
+   panel (its text moves up inside the stage, one pixel per pixel, exactly what scrolling a page would do, with the title bar,
+   strip and header held still), then it SLIDES to the next panel (one stage width of scroll). A panel that fits has no read step.
+   Pin distance = sum of the panels' overflows + two stage widths. This is the idea Dada gave as the second option ("the
+   sideways move happens at the end of a panel's own content").
+
+Measured in the browser (390 x 844, rounded): PS 19 pins for about 1,550 px of scroll (1.8 screens: 780 are the two slides, the
+rest is reading the commentary and the word grid), PS 1903 about 1,900, a 2,500-px page song about 2,500, PS 150 (long lyrics and
+a long word grid) about 4,000 (4.7 screens). The stage was pinned throughout and did not drift by a pixel in the scripted
+runs, with the wheel and with the spring.
+
+**Trade-offs, plainly**
+- "Vertical scroll drives horizontal" is pure only for short songs. For a tall panel it is a hybrid: reading first, slide at the
+  end. The reader who wants to read the lyrics gets exactly what a normal page gave; the reader who wants only to *leave* the block
+  has to scroll through everything in it. For a long song that is several screens. The exits: the section strip and the menu jump
+  straight to Recordings, Chords and the rest, and the dots or a sideways swipe jump to a panel without scrolling through the others.
+- The panel you enter by swipe, dot or strip arrives at its top. Going back to Lyrics by a swipe therefore does not return to
+  the line you had read to. The scroll timeline cannot remember a reading position per panel, and a half-remembered one would
+  fight the scroll.
+- A swipe or a dot is a shortcut along the same timeline: the page scroll really moves to where plain scrolling would have put
+  it (so the outgoing panel's text drifts to its end while it slides out). After a swipe the vertical scroll continues from the
+  new panel.
+- All three panels are mounted at once (they have to be measured and they sit side by side); the word grid of a long song is a
+  few hundred cells. The Aa popover, taps on stanzas and on words work as before.
+- The stage is a normal child of the scroll view that is moved by `translateY` from the scroll offset (like the strip's pin).
+  On a phone the compositor can scroll a frame ahead of a transform that follows it, which can show as a slight shimmer of
+  the stage during a fast fling. Only a real device can show whether it is noticeable (see the report).
+
+**Honest limits.** A horizontal trackpad scroll is not wired yet (the site handles it). Sliding is 1:1 with the finger; there is
+no magnetic snap if the page scroll comes to rest between two panels (the row then rests between them, as it would on the site).
+
+Files: `components/song-page/TextBlock.tsx` (the stage, header, dots), `usePanelMotion.ts` (gesture, springs, scroll-driven
+styles), `Shell.tsx` (shares the scroll offset and finger touches with the block), `SongPage.tsx` (jumps), `lib/songPage/blockPanels.ts`
+(pure rules) and `__tests__/songPageBlockPanels.test.ts` (25 tests: progress mapping, snap/projection, panel index from offset,
+strip visibility).

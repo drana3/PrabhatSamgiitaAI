@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { StyleSheet, View, type LayoutChangeEvent } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import type Animated from "react-native-reanimated"
+import Animated, { useAnimatedRef, useSharedValue } from "react-native-reanimated"
 
 import { useSpTheme } from "@/hooks/useSpTheme"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { routeString } from "@/lib/songMap"
 import { usePageT } from "@/lib/songPage/pageCopy"
-import { anchorOf, blockTabAfterJump, scrollSections, stripActive } from "@/lib/songPage/blockTabs"
+import { COMMENTARY_SECTION, anchorOf, scrollSections, stripActive } from "@/lib/songPage/blockTabs"
 import { STRIP_HEIGHT, activeSectionAt, jumpOffset, menuSections, sectionTops, visibleTabs, type PageSection, type TabSection } from "@/lib/songPage/pageSections"
 
 import { AboutSection } from "./About"
@@ -21,6 +21,7 @@ import { Shell, ShellMessage, useBarHeight } from "./Shell"
 import { usePageUi } from "./state"
 import { TextBlock } from "./TextBlock"
 import { SectionTabs } from "./ui"
+import type { PanelController } from "./usePanelMotion"
 import type { SongPageModel } from "./useSongPageModel"
 import { useSongPageModel } from "./useSongPageModel"
 import { RecordingsSection, StorySection, VideoSection } from "./Watch"
@@ -59,7 +60,13 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const [active, setActive] = useState<TabSection>("lyrics")
   const heights = useRef<Record<string, number>>({})
   const heroH = useRef(0)
-  const scrollRef = useRef<Animated.ScrollView | null>(null)
+  const [heroHeight, setHeroHeight] = useState(0)
+  const scrollRef = useAnimatedRef<Animated.ScrollView>()
+  // the page's scroll, read on the UI thread by the pinned text block; and the pinned block's own remote (jump to a panel)
+  const scrollY = useSharedValue(0)
+  const touch = useSharedValue(0)
+  const motion = useMemo(() => ({ scrollY, touch }), [scrollY, touch])
+  const panels = useRef<PanelController | null>(null)
   // the reading strip of the Lyrics tab follows the scroll: it is told where the text block is and how far the page moved
   const reading = useReadingStoreOfPage()
 
@@ -71,18 +78,20 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const jump = useCallback(
     (id: PageSection) => {
       ui.closeOptions()
-      ui.setBlockTab(blockTabAfterJump(id, ui.blockTab))
       if (id !== "about") setActive(anchorOf(id) as TabSection)
+      // Lyrics and Commentary are panels of the pinned block: a spring takes the page there with that panel at rest
+      const panel = id === "lyrics" ? 0 : id === COMMENTARY_SECTION ? 1 : -1
+      if (panel >= 0 && panels.current) return panels.current.goTo(panel)
       const y = jumpOffset(topOf(id), bar)
       ;(scrollRef.current as unknown as { scrollTo: (o: { y: number; animated: boolean }) => void } | null)?.scrollTo({ y, animated: true })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [topOf, bar, ui.blockTab, ui.closeOptions, ui.setBlockTab],
+    [topOf, bar, ui.closeOptions],
   )
   reading.base = () => topOf("lyrics") + FIRST_PAD
   const follow = useCallback(
     (y: number) => {
-      reading.setScroll(y)
+      // (the reading strip is fed by the text block itself: its lyrics move inside the pinned stage)
       const current = activeSectionAt(scrollTabs, heights.current, heroH.current + STRIP_HEIGHT, y, bar)
       if (current) setActive((prev) => (prev === current ? prev : current))
     },
@@ -111,9 +120,11 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       strip={<SectionTabs t={t} items={items} active={lit} onSelect={jump} />}
       stripHeight={STRIP_HEIGHT}
       scrollRef={scrollRef}
+      motion={motion}
       onScrollJS={follow}
       onHeroHeight={(h) => {
         heroH.current = h
+        setHeroHeight(h)
       }}
       onMore={() => model.setSheet("actions")}
       onMenu={() => ui.setSheet("menu")}
@@ -121,7 +132,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       sheets={<PageSheets t={t} model={model} ui={ui} sections={sections} onJump={jump} />}
     >
       <View onLayout={place("lyrics")} style={styles.first}>
-        <TextBlock t={t} model={model} ui={ui} />
+        <TextBlock t={t} model={model} ui={ui} blockTop={heroHeight + STRIP_HEIGHT + FIRST_PAD} topInset={bar + STRIP_HEIGHT} motion={motion} scrollRef={scrollRef} controller={panels} />
       </View>
       {show.has("recordings") ? (
         <View onLayout={place("recordings")} style={styles.section}>

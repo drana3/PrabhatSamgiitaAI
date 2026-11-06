@@ -9,6 +9,8 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  type AnimatedRef,
+  type SharedValue,
 } from "react-native-reanimated"
 
 import { SpPill, SpToast } from "@/components/song-v2/SpUi"
@@ -50,7 +52,12 @@ export type ShellProps = {
   /** opens the sections menu */
   onMenu: () => void
   onBack?: () => void
-  scrollRef?: RefObject<Animated.ScrollView | null>
+  scrollRef?: RefObject<Animated.ScrollView | null> | AnimatedRef<Animated.ScrollView>
+  /**
+   * The page's scroll offset and a counter of finger touches on the scroll, owned by the page so the pinned text block
+   * can read the offset on the UI thread and stop a settling spring when the reader puts a finger on the page.
+   */
+  motion?: { scrollY: SharedValue<number>; touch: SharedValue<number> }
   /** JS-side scroll offset, in steps of 8px */
   onScrollJS?: (y: number) => void
   /** the hero block's height, as it changes */
@@ -66,7 +73,7 @@ export type ShellProps = {
  * The frame of the song page: the scroll view, the buttons over the photo, the compact bar that takes over
  * when the hero is gone, a strip that pins under it, the toast. Only transform and opacity animate.
  */
-export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeight = 0, onMore, onMenu, onBack, scrollRef, onScrollJS, onHeroHeight, overlay, sheets, children }: ShellProps) {
+export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeight = 0, onMore, onMenu, onBack, scrollRef, motion, onScrollJS, onHeroHeight, overlay, sheets, children }: ShellProps) {
   const tr = usePageT()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -74,13 +81,20 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
   const bottom = useScrollBottomInset(24)
   const resolved = useResolvedAppearance()
 
-  const scrollY = useSharedValue(0)
+  const ownScrollY = useSharedValue(0)
+  const scrollY = motion?.scrollY ?? ownScrollY
+  const touch = motion?.touch
   const stripY = useSharedValue(0)
   const [barOn, setBarOn] = useState(top === "plain")
   const threshold = Math.max(40, heroHeight - barHeight - 24)
 
-  const onScroll = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y
+    },
+    onBeginDrag: () => {
+      if (touch) touch.value += 1
+    },
   })
   useAnimatedReaction(
     () => scrollY.value > threshold,
