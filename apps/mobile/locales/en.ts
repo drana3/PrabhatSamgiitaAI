@@ -1123,6 +1123,8 @@ export const en = {
 
   // Player extra 4
   "player.from": "From {time}",
+  "player.resume.from": "Continued from {time}",
+  "player.resume.startOver": "Start over",
 
   // Player extra 5
   "player.nowPlaying": "Now playing",

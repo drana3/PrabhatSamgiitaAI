@@ -12,7 +12,11 @@ import {
 import { installDemoPlayer } from "@/lib/playerV2/demoEngine"
 import { createQueueActions } from "@/lib/playerV2/queueActions"
 import { activeQueue } from "@/lib/playerV2/controller"
-import { createResumeTracker } from "@/lib/playerV2/resumeTracker"
+import { createResumeTracker, type ResumeTracker } from "@/lib/playerV2/resumeTracker"
+import { resumePositionFor } from "@/lib/playerV2/resume"
+import { useResumeNotice } from "@/lib/playerV2/resumeNotice"
+import { setStartPositionResolver } from "@/lib/playback/startPosition"
+import type { MockSong } from "@/data/mock"
 import { createRepeatSync } from "@/lib/playerV2/repeatSync"
 import { createSleepRuntime } from "@/lib/playerV2/sleepRuntime"
 import { tickSleep } from "@/lib/playerV2/sleepWatcher"
@@ -80,6 +84,30 @@ export function realQueueActions() {
 setTransportDeps(realControllerDeps)
 
 let started = false
+let resumeTracker: ResumeTracker | null = null
+
+/** The version of a song that is playing, for resume points; null for a song with one recording. */
+function versionIdOf(song: MockSong): string | null {
+  const versions = versionsFromSong(song)
+  if (versions.length <= 1) return null
+  const remembered = usePlayerV2Store.getState().versionByNumber[String(song.number)]
+  return versions[selectedVersionIndex(versions, song.audioUrl, remembered)]?.id ?? null
+}
+
+/**
+ * "Start over" on the player: forget the saved place of this song, go to 0 and play. If the song is still
+ * loading, the late jump to the saved place is cancelled too.
+ */
+export function startSongOver(): void {
+  const player = usePlayerStore.getState()
+  const song = player.currentSong
+  if (!song) return
+  resumeTracker?.dismiss()
+  useResumeStore.getState().forget(song.number)
+  useResumeNotice.getState().clear()
+  player.seekTo(0)
+  if (!player.isPlaying) player.play()
+}
 
 /**
  * Starts what the redesigned player needs in the background: the "play all
@@ -126,26 +154,31 @@ export function startPlayerV2Services(): void {
   const deps = { ...realControllerDeps(), sleep: sleepRuntime.controllerSleep }
   setTrackEndHook(createTrackEndHook(deps))
 
-  const observe = createResumeTracker({
+  resumeTracker = createResumeTracker({
     getEntry: (n) => useResumeStore.getState().get(n),
     record: (n, position, duration, versionId) => useResumeStore.getState().record(n, position, duration, versionId),
-    seekTo: (seconds) => usePlayerStore.getState().seekTo(seconds),
+    // the late jump: the song started at 0 and is moved to its saved place (the start position below is the normal way)
+    seekTo: (seconds) => {
+      const number = usePlayerStore.getState().currentSong?.number
+      if (number != null) useResumeNotice.getState().show(number, seconds)
+      usePlayerStore.getState().seekTo(seconds)
+    },
+  })
+  const observe = resumeTracker
+  // A song stopped at 1:23 is handed to the native player already at 1:23: no moment of the beginning first.
+  setStartPositionResolver((song) => {
+    if (song.kind === "kiirtan") return 0
+    const at = resumePositionFor(useResumeStore.getState().get(song.number), versionIdOf(song))
+    if (at != null) useResumeNotice.getState().show(song.number, at)
+    return at ?? 0
   })
   const feed = () => {
     const s = usePlayerStore.getState()
     const resumable = s.currentSong && s.currentSong.kind !== "kiirtan" ? s.currentSong : null
-    let versionId: string | null = null
-    if (resumable) {
-      const versions = versionsFromSong(resumable)
-      if (versions.length > 1) {
-        const remembered = usePlayerV2Store.getState().versionByNumber[String(resumable.number)]
-        versionId = versions[selectedVersionIndex(versions, resumable.audioUrl, remembered)]?.id ?? null
-      }
-    }
     observe({
       // resume points are for Prabhat Samgiita songs only
       songNumber: resumable ? resumable.number : null,
-      versionId,
+      versionId: resumable ? versionIdOf(resumable) : null,
       position: s.position,
       duration: s.duration,
       isPlaying: s.isPlaying,

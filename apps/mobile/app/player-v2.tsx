@@ -33,6 +33,7 @@ import { SaveHost } from "@/components/save/SaveHost"
 import { PlaylistSheet, type PlaylistSheetRow } from "@/components/player-v2/PlaylistSheet"
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { QueueSheet, splitQueue, type QueueRow } from "@/components/player-v2/QueueSheet"
+import { ResumeNotice } from "@/components/player-v2/ResumeNotice"
 import { ThickScrubber, ThinScrubber } from "@/components/player-v2/Scrubber"
 import { ShareSheet } from "@/components/player-v2/ShareSheet"
 import { SourceSheet } from "@/components/player-v2/SourceSheet"
@@ -114,7 +115,8 @@ import type { SaveItem } from "@/lib/save/saveToSheet"
 import { buildSharePayload, shareToast, type SharePayload, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { formatRate, nextRate } from "@/lib/playerV2/playbackSpeed"
 import { sourceLabel } from "@/lib/playerV2/queueOps"
-import { realControllerDeps, realQueueActions, startPlayerV2Services } from "@/lib/playerV2/services"
+import { useResumeNotice, resumeNoticeVisible } from "@/lib/playerV2/resumeNotice"
+import { realControllerDeps, realQueueActions, startPlayerV2Services, startSongOver } from "@/lib/playerV2/services"
 import { nextSleepStep, sleepLabel, sleepToast } from "@/lib/playerV2/sleepTimer"
 import {
   activeSourceKey,
@@ -199,6 +201,8 @@ export default function PlayerV2Screen() {
   const [now, setNow] = useState(() => Date.now())
   const reduce = useReducedMotion()
   const isK = isKiirtanSong(song)
+  const resumeNotice = useResumeNotice()
+  const resumeVisible = !isK && resumeNoticeVisible(resumeNotice, song?.number ?? null, position)
   /** a Kiirtan or a Bhajan: same screen, the words differ */
   const recKind = recordingKindOfSong(song)
   const kiirtanId = song?.kiirtan?.id ?? null
@@ -863,6 +867,7 @@ export default function PlayerV2Screen() {
                 <View style={styles.gap} />
                 <Reveal index={3}>
                   <ThinScrubber position={position} duration={knownLength} onSeek={seekTo} />
+                  {resumeVisible ? <ResumeNotice from={resumeNotice.from} onStartOver={startSongOver} /> : null}
                 </Reveal>
                 <Reveal index={4}>
                   <TransportRow

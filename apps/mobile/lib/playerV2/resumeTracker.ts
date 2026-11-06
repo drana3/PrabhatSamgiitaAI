@@ -21,11 +21,16 @@ export type ResumeTrackerDeps = {
   seekTo: (seconds: number) => void
 }
 
+export type ResumeTracker = ((obs: ResumeObservation) => void) & {
+  /** Give up restoring the saved position of the song now loading (the person chose Start over). */
+  dismiss: () => void
+}
+
 /**
  * Feed it every player update. It restores the saved position once per song
  * load and saves progress every few seconds and on pause.
  */
-export function createResumeTracker(deps: ResumeTrackerDeps) {
+export function createResumeTracker(deps: ResumeTrackerDeps): ResumeTracker {
   let song: number | null = null
   let version: string | null = null
   let target: number | null = null
@@ -33,7 +38,7 @@ export function createResumeTracker(deps: ResumeTrackerDeps) {
   let lastSaved: number | null = null
   let wasPlaying = false
 
-  return (obs: ResumeObservation): void => {
+  const observe = (obs: ResumeObservation): void => {
     const obsVersion = obs.versionId ?? null
     if (obs.songNumber !== song || obsVersion !== version) {
       song = obs.songNumber
@@ -59,6 +64,17 @@ export function createResumeTracker(deps: ResumeTrackerDeps) {
       deps.seekTo(target as number)
       return
     }
+    // The song was handed to the engine already at the saved position (lib/playback/startPosition.ts):
+    // nothing to seek, and saving may begin.
+    if (
+      !applied &&
+      target != null &&
+      !obs.isBuffering &&
+      obs.duration > 1 &&
+      obs.position >= target - 1
+    ) {
+      applied = true
+    }
     // Until the saved position is restored, the engine reports 0: never save that.
     if (!applied) return
 
@@ -69,4 +85,10 @@ export function createResumeTracker(deps: ResumeTrackerDeps) {
       deps.record(song, obs.position, obs.duration, version)
     }
   }
+  return Object.assign(observe, {
+    dismiss: () => {
+      target = null
+      applied = true
+    },
+  })
 }

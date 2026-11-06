@@ -68,6 +68,7 @@ import {
 } from "@/lib/playback/nativeSignals"
 import { clearTransition, inTransition, markTransition } from "@/lib/playback/transition"
 import { runTrackEndHook } from "@/lib/playback/trackEndHook"
+import { resolveStartPosition } from "@/lib/playback/startPosition"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
@@ -326,7 +327,7 @@ async function startNativeSongInner(song: MockSong, generation: number) {
   // this stream now would play two songs (BUG-05).
   if (generation !== playerExtras.__psLoadGeneration) return
   markTransition()
-  await playTrackNow(songToTrack(ready, ready.audioUrl))
+  await playTrackNow(songToTrack(ready, ready.audioUrl), resolveStartPosition(ready))
   // The song is with the native player now: a pause from here on pauses it instead of cancelling the load.
   if (pendingStartGeneration === generation) pendingStartGeneration = null
   armLoadTimeout(generation)

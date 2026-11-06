@@ -1197,6 +1197,8 @@ export const ru: Dictionary = {
 
   // Player extra 4
   "player.from": "С {time}",
+  "player.resume.from": "Продолжено с {time}",
+  "player.resume.startOver": "Начать сначала",
 
   // Player extra 5
   "player.nowPlaying": "Сейчас играет",

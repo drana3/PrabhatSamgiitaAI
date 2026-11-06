@@ -1117,6 +1117,8 @@ export const es: Dictionary = {
 
   // Player extra 4
   "player.from": "Desde {time}",
+  "player.resume.from": "Continúas desde {time}",
+  "player.resume.startOver": "Empezar de nuevo",
 
   // Player extra 5
   "player.nowPlaying": "Suena ahora",

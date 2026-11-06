@@ -7,6 +7,8 @@ import {
   upsertResume,
 } from "@/lib/playerV2/resume"
 import { createResumeTracker } from "@/lib/playerV2/resumeTracker"
+import { RESUME_NOTICE_SECONDS, resumeNoticeVisible } from "@/lib/playerV2/resumeNotice"
+import { resolveStartPosition, setStartPositionResolver } from "@/lib/playback/startPosition"
 
 describe("resume position", () => {
   it("ignores the first seconds and the tail", () => {
@@ -148,3 +150,59 @@ describe("resume per version", () => {
   })
 })
 
+
+describe("resume at load (no blip) and Start over", () => {
+  const obs = (over: Record<string, unknown>) => ({
+    songNumber: 5,
+    position: 0,
+    duration: 200,
+    isPlaying: true,
+    isBuffering: false,
+    ...over,
+  })
+
+  it("a song handed to the engine already at its saved place is not sought, and saving begins", () => {
+    const record = vi.fn()
+    const seekTo = vi.fn()
+    const feed = createResumeTracker({ getEntry: () => ({ position: 90, duration: 200, savedAt: 0 }), record, seekTo })
+    feed(obs({ isBuffering: true, duration: 0 }))
+    feed(obs({ position: 90, duration: 200 }))
+    feed(obs({ position: 96 }))
+    expect(seekTo).not.toHaveBeenCalled()
+    expect(record).toHaveBeenCalledWith(5, 96, 200, null)
+  })
+
+  it("dismiss cancels the late jump: Start over while the song loads stays at 0", () => {
+    const seekTo = vi.fn()
+    const record = vi.fn()
+    const feed = createResumeTracker({ getEntry: () => ({ position: 90, duration: 200, savedAt: 0 }), record, seekTo })
+    feed(obs({ isBuffering: true, duration: 0 }))
+    feed.dismiss()
+    feed(obs({ position: 0 }))
+    expect(seekTo).not.toHaveBeenCalled()
+    feed(obs({ position: 7 }))
+    expect(record).toHaveBeenCalledWith(5, 7, 200, null)
+  })
+
+  it("the start position resolver answers 0 when there is nothing to resume and survives a failing resolver", () => {
+    const song = { number: 5 } as never
+    setStartPositionResolver(null)
+    expect(resolveStartPosition(song)).toBe(0)
+    setStartPositionResolver(() => 90.8)
+    expect(resolveStartPosition(song)).toBe(90)
+    setStartPositionResolver(() => {
+      throw new Error("x")
+    })
+    expect(resolveStartPosition(song)).toBe(0)
+    setStartPositionResolver(null)
+  })
+
+  it("the notice shows near the continued place, for that song only", () => {
+    const notice = { songNumber: 5, from: 90 }
+    expect(resumeNoticeVisible(notice, 5, 0)).toBe(true)
+    expect(resumeNoticeVisible(notice, 5, 100)).toBe(true)
+    expect(resumeNoticeVisible(notice, 5, 90 + RESUME_NOTICE_SECONDS)).toBe(false)
+    expect(resumeNoticeVisible(notice, 6, 91)).toBe(false)
+    expect(resumeNoticeVisible({ songNumber: null, from: 0 }, null, 0)).toBe(false)
+  })
+})

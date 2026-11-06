@@ -105,11 +105,19 @@ export async function resetNativeCatalog(): Promise<void> {
   await getTrackPlayer().reset()
 }
 
-export async function playTrackNow(track: CatalogTrack): Promise<void> {
+/** `startAt`: the second to start from (a saved resume point), moved to before play so the beginning is never heard. */
+export async function playTrackNow(track: CatalogTrack, startAt = 0): Promise<void> {
   await setupNativeCatalogPlayer()
   const TrackPlayer = getTrackPlayer()
   await TrackPlayer.reset()
   await TrackPlayer.add(trackForNativePlayer(track))
+  if (startAt > 0) {
+    try {
+      await TrackPlayer.seekTo(startAt)
+    } catch {
+      /* the resume tracker moves it once the song is playing */
+    }
+  }
   await TrackPlayer.play()
 }
 
