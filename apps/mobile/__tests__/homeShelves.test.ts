@@ -59,7 +59,7 @@ describe("home shelves", () => {
   })
 })
 
-import { HOME_BECAUSE, HOME_MIXES, SEARCH_BROWSE_ALL, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
+import { HOME_BECAUSE, HOME_MIXES, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
 import { inboxFixtures } from "@/lib/fixtures/notifications"
 import { sectionsOf } from "@/lib/notifications"
 
@@ -68,13 +68,8 @@ describe("home fixtures", () => {
     expect(HOME_MIXES.map((m) => m.label)).toEqual(["Songs for today", "Raga mix", "Festival mix", "Morning songs"])
     expect(HOME_BECAUSE.every((s) => s.title.length > 0 && s.sub.startsWith("PS "))).toBe(true)
   })
-  it("has the search tiles and no two neighbours in Browse all share a tone", () => {
+  it("has the four top search tiles (Browse all is built from real data, see searchBrowse.test)", () => {
     expect(SEARCH_TOP_TILES.map((t) => t.label)).toEqual(["Songs", "Stories", "Learn", "Kiirtans"])
-    expect(SEARCH_BROWSE_ALL).toHaveLength(10)
-    SEARCH_BROWSE_ALL.forEach((t, i) => {
-      if (i % 2 === 0) expect(SEARCH_BROWSE_ALL[i + 1].tone).not.toBe(t.tone)
-      if (i + 2 < SEARCH_BROWSE_ALL.length) expect(SEARCH_BROWSE_ALL[i + 2].tone).not.toBe(t.tone)
-    })
   })
   it("fills the Earlier notifications", () => {
     const now = new Date(2026, 10, 5, 12).getTime()

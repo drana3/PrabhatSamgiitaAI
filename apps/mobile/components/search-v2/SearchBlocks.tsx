@@ -204,10 +204,19 @@ export function AnswerCard({
   )
 }
 
-/** `.empty`: nothing matched (or a plain message from the engine). */
-export function EmptyMessage({ p, text }: P & { text?: string | null }) {
+/** `.empty`: nothing matched (or a plain message from the engine), and a way on: the list of collections. */
+export function EmptyMessage({ p, text, onBrowse }: P & { text?: string | null; onBrowse?: () => void }) {
   const t = useT()
-  return <Text style={[s.empty, { color: p.ink500 }]}>{text || t("search.noMatch")}</Text>
+  return (
+    <View style={s.emptyWrap}>
+      <Text style={[s.empty, { color: p.ink500 }]}>{text || t("search.noMatch")}</Text>
+      {onBrowse ? (
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("search.none.browse")} onPress={onBrowse} pressedScale={0.95} style={[s.browse, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+          <Text style={[s.browseText, { color: p.ink800 }]}>{t("search.none.browse")}</Text>
+        </TodayPress>
+      ) : null}
+    </View>
+  )
 }
 
 const s = StyleSheet.create({
@@ -244,6 +253,9 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
   },
   list: { gap: 10 },
+  emptyWrap: { gap: 16, alignItems: "flex-start" },
+  browse: { height: 44, marginLeft: 20, paddingHorizontal: 20, borderRadius: 70, borderWidth: 1, justifyContent: "center" },
+  browseText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 18 },
   empty: { paddingHorizontal: 20, maxWidth: 330, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6 },
   recents: { paddingTop: 32, paddingHorizontal: amProto.gutter + 10 },
   recentsHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

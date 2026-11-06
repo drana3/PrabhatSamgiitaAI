@@ -13,6 +13,7 @@ import {
   ResultList,
 } from "@/components/search-v2/SearchBlocks"
 import { BrowseView, SearchHeader } from "@/components/search-v2/BrowseBlocks"
+import { StoryResults } from "@/components/search-v2/StoryResults"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
 import { KirtanRow } from "@/components/kirtan/KirtanParts"
 import { FloatingTabBar } from "@/components/nav-v2/FloatingTabBar"
@@ -37,8 +38,9 @@ import { api } from "@/lib/client"
 import { flattenResults } from "@/lib/searchProto"
 import { MOCK_OFFLINE } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { SEARCH_BROWSE_ALL, SEARCH_DISCOVER, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
-import { browseAllTiles } from "@/lib/searchBrowse"
+import { SEARCH_DISCOVER, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
+import { browseKindTiles, realCollectionEntries } from "@/lib/searchBrowse"
+import { kindLabel } from "@/lib/songsV2/collectionsIndex"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
@@ -114,6 +116,7 @@ export default function UnifiedSearchScreen() {
   const recents = usePreferencesStore((s) => s.searchRecents)
   const addSearchRecent = usePreferencesStore((s) => s.addSearchRecent)
   const clearSearchRecents = usePreferencesStore((s) => s.clearSearchRecents)
+  const recentPlays = usePreferencesStore((s) => s.recentPlays)
 
   const [scope, setScope] = useState<SearchScope>(parseSearchScope(params.scope))
   const songsTheme = useSongsTheme()
@@ -289,6 +292,9 @@ export default function UnifiedSearchScreen() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` re-reads the scope labels when the language changes
   const scopeItems = useMemo(() => SEARCH_SCOPES.map((item) => ({ id: item.id, label: item.label })), [t])
+  // "Browse all": one tile per kind of collection the app really has (never a tile without a page behind it)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` re-reads the kind names when the language changes
+  const kindTiles = useMemo(() => browseKindTiles(realCollectionEntries(), (kind) => kindLabel(kind, true)), [t])
   const kirtanHits = useMemo(() => searchKirtans(kirtanCatalog, query, scope === "all" ? 5 : 50), [kirtanCatalog, query, scope])
   // TODO(api): artists come from the backend; today they are the preview fixtures.
   const artistHits = useMemo(() => searchArtists(sampleArtists(), kirtanCatalog, query, 6), [kirtanCatalog, query])
@@ -383,22 +389,21 @@ export default function UnifiedSearchScreen() {
             p={p}
             top={SEARCH_TOP_TILES}
             discover={SEARCH_DISCOVER}
-            all={browseAllTiles(SEARCH_BROWSE_ALL)}
+            all={kindTiles}
             recents={MOCKUP_DATA ? [] : recents}
+            played={recentPlays.slice(0, 8)}
             onTile={(tile) => router.push(href(tile.target))}
             onTag={(tag) => pick(tag.query)}
             onRecent={pick}
             onClearRecents={clearSearchRecents}
+            onPlayed={(play) => router.push(href(`/song-v2/${play.id}`))}
           />
         ) : (
           <View style={styles.results}>
             <StickyChipsRow items={scopeItems} value={scope} onChange={setScope} colors={chipColorsOf(p)} scrollY={chipScroll} stickAt={99999} />
             {kirtanFirst ? kirtanSection : null}
             {show.stories ? (
-              // TODO(api): stories are not searchable yet; this points to the list.
-              <TodayPress accessibilityRole="button" accessibilityLabel={t("search.stories.a11y")} onPress={() => router.push(href("/stories"))} pressedScale={0.98} style={[styles.storyNote, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-                <Text style={[styles.waitingText, { color: p.ink800 }]}>{t("search.stories.note")}</Text>
-              </TodayPress>
+              <StoryResults p={p} query={query} onOpen={(story) => { remember(query); router.push(href(`/stories/${story.slug}`)) }} onBrowse={() => router.push(href("/stories"))} />
             ) : null}
             {!show.songs ? null : !MOCKUP_DATA && result.answer ? (
               <AnswerCard p={p} answer={result.answer} onOpen={openItem} onAsk={() => router.push(href("/assistant"))} />
@@ -417,7 +422,7 @@ export default function UnifiedSearchScreen() {
                 {t("search.guest")}
               </Text>
             ) : null}
-            {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={result.message === outOfRangeMessage() ? result.message : null} /> : null}
+            {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={result.message === outOfRangeMessage() ? result.message : null} onBrowse={() => router.push(href("/collections-v2"))} /> : null}
           </View>
         )}
       </ScrollView>
@@ -450,7 +455,6 @@ const styles = StyleSheet.create({
   kirtanList: { gap: 10, paddingHorizontal: 16 },
   groupLabel: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2 },
   pad: { paddingHorizontal: 4 },
-  storyNote: { marginHorizontal: 16, padding: 18, borderRadius: 20, borderWidth: 1 },
   waiting: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20 },
   waitingText: { fontFamily: amFonts.medium, fontSize: 16 },
 })

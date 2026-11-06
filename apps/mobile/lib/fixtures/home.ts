@@ -78,17 +78,3 @@ export const SEARCH_DISCOVER: readonly DiscoverTag[] = [
   { id: "morning", tag: "#morning", cover: 2, query: "morning" },
   { id: "kirtan", tag: "#kiirtan", cover: 6, query: "kiirtan" },
 ]
-
-/** "Browse all": coloured tiles, two columns. Each opens an existing list or collection. */
-export const SEARCH_BROWSE_ALL: readonly BrowseTile[] = [
-  { id: "moods", label: "Moods", tone: "orange", cover: 3, target: "/collections-v2?kind=mood" },
-  { id: "ragas", label: "Ragas", tone: "forest", cover: 7, target: "/songs-v2-collection?id=meditation&title=Ragas" },
-  { id: "festivals", label: "Festivals", tone: "gold", cover: 2, target: "/collections-v2?kind=festival" },
-  { id: "languages", label: "Languages", tone: "sage", cover: 4, target: "/collections-v2?kind=language" },
-  { id: "themes", label: "Themes", tone: "sage", cover: 1, target: "/songs-v2" },
-  { id: "instruments", label: "Instruments", tone: "orange", cover: 6, target: "/songs-v2?segment=collections" },
-  { id: "stories", label: "Stories", tone: "forest", cover: 5, target: "/stories" },
-  { id: "made", label: "Made for you", tone: "gold", cover: 3, target: "/v2/today" },
-  { id: "new", label: "New this month", tone: "orange", cover: 6, target: "/songs-v2" },
-  { id: "played", label: "Most played", tone: "sage", cover: 1, target: "/songs-v2" },
-]
