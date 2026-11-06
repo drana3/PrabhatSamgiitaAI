@@ -15,6 +15,7 @@ import { CommentsSection } from "./Comments"
 import { ChordsSection } from "./Chords"
 import { Actions, FadeHero, fadeHeight, songTitle } from "./Hero"
 import { LearnButton } from "./LearnButton"
+import { PronunciationRow } from "./Pronunciation"
 import { ReadingProvider, useReadingStoreOfPage } from "./readingState"
 import { ReadingStrip } from "./ReadingStrip"
 import { PageSheets } from "./Sheets"
@@ -160,6 +161,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       <View onLayout={place("about")} style={styles.section}>
         {divider}
         <AboutSection t={t} model={model} />
+        <PronunciationRow t={t} ui={ui} last />
       </View>
       {/* members' comments close the page; not a tab, so the strip and the jump math do not know it */}
       <View style={styles.section}>

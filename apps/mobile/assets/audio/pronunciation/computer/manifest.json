@@ -1,0 +1,832 @@
+{
+  "generator": "scripts/pronunciation/generate-clips.mjs",
+  "voices": {
+    "bengali": "Piya",
+    "sanskrit": "Lekha"
+  },
+  "rate": "90",
+  "clips": [
+    {
+      "audio": "bn.g.inherent.1",
+      "voice": "Piya",
+      "text": "পথ",
+      "roman": "path"
+    },
+    {
+      "audio": "bn.g.inherent.2",
+      "voice": "Piya",
+      "text": "কথা",
+      "roman": "kathá"
+    },
+    {
+      "audio": "bn.g.final.1",
+      "voice": "Piya",
+      "text": "পথ",
+      "roman": "path"
+    },
+    {
+      "audio": "bn.g.length.1",
+      "voice": "Piya",
+      "text": "দেখি",
+      "roman": "dekhi"
+    },
+    {
+      "audio": "bn.g.length.2",
+      "voice": "Piya",
+      "text": "জীবন",
+      "roman": "jiivan"
+    },
+    {
+      "audio": "bn.g.aspirate.1",
+      "voice": "Piya",
+      "text": "খেলা",
+      "roman": "khelá"
+    },
+    {
+      "audio": "bn.g.aspirate.2",
+      "voice": "Piya",
+      "text": "কথা",
+      "roman": "kathá"
+    },
+    {
+      "audio": "bn.a.1",
+      "voice": "Piya",
+      "text": "পথ",
+      "roman": "path"
+    },
+    {
+      "audio": "bn.a.2",
+      "voice": "Piya",
+      "text": "মন",
+      "roman": "mana"
+    },
+    {
+      "audio": "bn.aa.1",
+      "voice": "Piya",
+      "text": "আকাশ",
+      "roman": "ákásh"
+    },
+    {
+      "audio": "bn.aa.2",
+      "voice": "Piya",
+      "text": "কথা",
+      "roman": "kathá"
+    },
+    {
+      "audio": "bn.i.1",
+      "voice": "Piya",
+      "text": "দেখি",
+      "roman": "dekhi"
+    },
+    {
+      "audio": "bn.i.2",
+      "voice": "Piya",
+      "text": "জীবন",
+      "roman": "jiivan"
+    },
+    {
+      "audio": "bn.u.1",
+      "voice": "Piya",
+      "text": "শুধু",
+      "roman": "shudhu"
+    },
+    {
+      "audio": "bn.u.2",
+      "voice": "Piya",
+      "text": "দূরে",
+      "roman": "dúre"
+    },
+    {
+      "audio": "bn.u.3",
+      "voice": "Piya",
+      "text": "ফুল",
+      "roman": "phúl"
+    },
+    {
+      "audio": "bn.e.1",
+      "voice": "Piya",
+      "text": "দেখে",
+      "roman": "dekhe"
+    },
+    {
+      "audio": "bn.e.2",
+      "voice": "Piya",
+      "text": "এক",
+      "roman": "ek"
+    },
+    {
+      "audio": "bn.o.1",
+      "voice": "Piya",
+      "text": "তোমার",
+      "roman": "tomár"
+    },
+    {
+      "audio": "bn.o.2",
+      "voice": "Piya",
+      "text": "চলো",
+      "roman": "calo"
+    },
+    {
+      "audio": "bn.ae.1",
+      "voice": "Piya",
+      "text": "তৈরি",
+      "roman": "taeri"
+    },
+    {
+      "audio": "bn.ae.2",
+      "voice": "Piya",
+      "text": "ভৈরব",
+      "roman": "bhaerava"
+    },
+    {
+      "audio": "bn.ao.1",
+      "voice": "Piya",
+      "text": "সৌরভ",
+      "roman": "saorabha"
+    },
+    {
+      "audio": "bn.ao.2",
+      "voice": "Piya",
+      "text": "গৌরব",
+      "roman": "gaorava"
+    },
+    {
+      "audio": "bn.diph.1",
+      "voice": "Piya",
+      "text": "সবাই",
+      "roman": "sabái"
+    },
+    {
+      "audio": "bn.diph.2",
+      "voice": "Piya",
+      "text": "এই",
+      "roman": "ei"
+    },
+    {
+      "audio": "bn.ri.1",
+      "voice": "Piya",
+      "text": "কৃষ্ণ",
+      "roman": "krśńa"
+    },
+    {
+      "audio": "bn.velar.1",
+      "voice": "Piya",
+      "text": "কত",
+      "roman": "kata"
+    },
+    {
+      "audio": "bn.velar.2",
+      "voice": "Piya",
+      "text": "খেলা",
+      "roman": "khelá"
+    },
+    {
+      "audio": "bn.velar.3",
+      "voice": "Piya",
+      "text": "গান",
+      "roman": "gán"
+    },
+    {
+      "audio": "bn.velar.4",
+      "voice": "Piya",
+      "text": "ঘুম",
+      "roman": "ghum"
+    },
+    {
+      "audio": "bn.palatal.1",
+      "voice": "Piya",
+      "text": "চলো",
+      "roman": "calo"
+    },
+    {
+      "audio": "bn.palatal.2",
+      "voice": "Piya",
+      "text": "ছিল",
+      "roman": "chilo"
+    },
+    {
+      "audio": "bn.palatal.3",
+      "voice": "Piya",
+      "text": "জীবন",
+      "roman": "jiivan"
+    },
+    {
+      "audio": "bn.palatal.4",
+      "voice": "Piya",
+      "text": "ঝরে",
+      "roman": "jhare"
+    },
+    {
+      "audio": "bn.retroflex.1",
+      "voice": "Piya",
+      "text": "টানে",
+      "roman": "t́áne"
+    },
+    {
+      "audio": "bn.retroflex.2",
+      "voice": "Piya",
+      "text": "উঠে",
+      "roman": "ut́he"
+    },
+    {
+      "audio": "bn.retroflex.3",
+      "voice": "Piya",
+      "text": "ডেকে",
+      "roman": "d́eke"
+    },
+    {
+      "audio": "bn.retroflex.4",
+      "voice": "Piya",
+      "text": "ঢেলে",
+      "roman": "d́hele"
+    },
+    {
+      "audio": "bn.dental.1",
+      "voice": "Piya",
+      "text": "তুমি",
+      "roman": "tumi"
+    },
+    {
+      "audio": "bn.dental.2",
+      "voice": "Piya",
+      "text": "কথা",
+      "roman": "kathá"
+    },
+    {
+      "audio": "bn.dental.3",
+      "voice": "Piya",
+      "text": "দূরে",
+      "roman": "dúre"
+    },
+    {
+      "audio": "bn.dental.4",
+      "voice": "Piya",
+      "text": "ধারা",
+      "roman": "dhárá"
+    },
+    {
+      "audio": "bn.labial.1",
+      "voice": "Piya",
+      "text": "পথ",
+      "roman": "path"
+    },
+    {
+      "audio": "bn.labial.2",
+      "voice": "Piya",
+      "text": "ফুল",
+      "roman": "phúl"
+    },
+    {
+      "audio": "bn.labial.3",
+      "voice": "Piya",
+      "text": "বন্ধু",
+      "roman": "bandhu"
+    },
+    {
+      "audio": "bn.labial.4",
+      "voice": "Piya",
+      "text": "ভালো",
+      "roman": "bhálo"
+    },
+    {
+      "audio": "bn.v.1",
+      "voice": "Piya",
+      "text": "তব",
+      "roman": "tava"
+    },
+    {
+      "audio": "bn.v.2",
+      "voice": "Piya",
+      "text": "বিশ্ব",
+      "roman": "vishva"
+    },
+    {
+      "audio": "bn.y.1",
+      "voice": "Piya",
+      "text": "যায়",
+      "roman": "jáy"
+    },
+    {
+      "audio": "bn.y.2",
+      "voice": "Piya",
+      "text": "প্রিয়",
+      "roman": "priya"
+    },
+    {
+      "audio": "bn.y.3",
+      "voice": "Piya",
+      "text": "যদি",
+      "roman": "yadi"
+    },
+    {
+      "audio": "bn.r.1",
+      "voice": "Piya",
+      "text": "রাত",
+      "roman": "ráta"
+    },
+    {
+      "audio": "bn.r.2",
+      "voice": "Piya",
+      "text": "প্রিয়",
+      "roman": "priya"
+    },
+    {
+      "audio": "bn.rr.1",
+      "voice": "Piya",
+      "text": "পড়ে",
+      "roman": "paŕe"
+    },
+    {
+      "audio": "bn.rr.2",
+      "voice": "Piya",
+      "text": "ছাড়া",
+      "roman": "cháŕá"
+    },
+    {
+      "audio": "bn.n.1",
+      "voice": "Piya",
+      "text": "প্রাণে",
+      "roman": "práńe"
+    },
+    {
+      "audio": "bn.n.2",
+      "voice": "Piya",
+      "text": "করুণা",
+      "roman": "karuńá"
+    },
+    {
+      "audio": "bn.n.3",
+      "voice": "Piya",
+      "text": "নয়ন",
+      "roman": "nayan"
+    },
+    {
+      "audio": "bn.m.1",
+      "voice": "Piya",
+      "text": "মন",
+      "roman": "mana"
+    },
+    {
+      "audio": "bn.m.2",
+      "voice": "Piya",
+      "text": "লীলা",
+      "roman": "liilá"
+    },
+    {
+      "audio": "bn.h.1",
+      "voice": "Piya",
+      "text": "হয়",
+      "roman": "hoy"
+    },
+    {
+      "audio": "bn.sh.1",
+      "voice": "Piya",
+      "text": "শুধু",
+      "roman": "shudhu"
+    },
+    {
+      "audio": "bn.sh.2",
+      "voice": "Piya",
+      "text": "আকাশ",
+      "roman": "ákásh"
+    },
+    {
+      "audio": "bn.ss.1",
+      "voice": "Piya",
+      "text": "পুষ্প",
+      "roman": "puśpa"
+    },
+    {
+      "audio": "bn.ss.2",
+      "voice": "Piya",
+      "text": "শেষ",
+      "roman": "sheśa"
+    },
+    {
+      "audio": "bn.s.1",
+      "voice": "Piya",
+      "text": "সব",
+      "roman": "sab"
+    },
+    {
+      "audio": "bn.s.2",
+      "voice": "Piya",
+      "text": "স্থান",
+      "roman": "sthán"
+    },
+    {
+      "audio": "bn.anusvara.1",
+      "voice": "Piya",
+      "text": "সংসার",
+      "roman": "saḿsár"
+    },
+    {
+      "audio": "bn.anusvara.2",
+      "voice": "Piya",
+      "text": "সংগীত",
+      "roman": "saḿgiita"
+    },
+    {
+      "audio": "bn.nga.1",
+      "voice": "Piya",
+      "text": "সঙ্গে",
+      "roman": "saunge"
+    },
+    {
+      "audio": "bn.nga.2",
+      "voice": "Piya",
+      "text": "ভাঙা",
+      "roman": "bháungá"
+    },
+    {
+      "audio": "bn.nya.1",
+      "voice": "Piya",
+      "text": "ঝঞ্ঝা",
+      "roman": "jhainjhá"
+    },
+    {
+      "audio": "bn.visarga.1",
+      "voice": "Piya",
+      "text": "দুঃখে",
+      "roman": "duhkhe"
+    },
+    {
+      "audio": "bn.visarga.2",
+      "voice": "Piya",
+      "text": "তমঃ",
+      "roman": "tamah"
+    },
+    {
+      "audio": "bn.kss.1",
+      "voice": "Piya",
+      "text": "ক্ষুদ্র",
+      "roman": "kśudra"
+    },
+    {
+      "audio": "bn.kss.2",
+      "voice": "Piya",
+      "text": "ক্ষণে",
+      "roman": "kśańe"
+    },
+    {
+      "audio": "bn.gy.1",
+      "voice": "Piya",
+      "text": "জ্ঞান",
+      "roman": "gyán"
+    },
+    {
+      "audio": "bn.yphala.1",
+      "voice": "Piya",
+      "text": "ব্যথা",
+      "roman": "vyathá"
+    },
+    {
+      "audio": "bn.yphala.2",
+      "voice": "Piya",
+      "text": "লক্ষ্য",
+      "roman": "lakśya"
+    },
+    {
+      "audio": "bn.vphala.1",
+      "voice": "Piya",
+      "text": "স্বপনে",
+      "roman": "svapane"
+    },
+    {
+      "audio": "bn.vphala.2",
+      "voice": "Piya",
+      "text": "বিশ্ব",
+      "roman": "vishva"
+    },
+    {
+      "audio": "bn.loan.1",
+      "voice": "Piya",
+      "text": "শেফালি",
+      "roman": "shefáli"
+    },
+    {
+      "audio": "sa.g.length.1",
+      "voice": "Lekha",
+      "text": "तव",
+      "roman": "tava"
+    },
+    {
+      "audio": "sa.g.length.2",
+      "voice": "Lekha",
+      "text": "पिता",
+      "roman": "pitá"
+    },
+    {
+      "audio": "sa.g.final.1",
+      "voice": "Lekha",
+      "text": "सर्व",
+      "roman": "sarva"
+    },
+    {
+      "audio": "sa.g.aspirate.1",
+      "voice": "Lekha",
+      "text": "शेखर",
+      "roman": "shekhara"
+    },
+    {
+      "audio": "sa.g.aspirate.2",
+      "voice": "Lekha",
+      "text": "भगवन्",
+      "roman": "bhagavan"
+    },
+    {
+      "audio": "sa.a.1",
+      "voice": "Lekha",
+      "text": "तव",
+      "roman": "tava"
+    },
+    {
+      "audio": "sa.a.2",
+      "voice": "Lekha",
+      "text": "सर्व",
+      "roman": "sarva"
+    },
+    {
+      "audio": "sa.aa.1",
+      "voice": "Lekha",
+      "text": "पिता",
+      "roman": "pitá"
+    },
+    {
+      "audio": "sa.aa.2",
+      "voice": "Lekha",
+      "text": "कालम्",
+      "roman": "kálam"
+    },
+    {
+      "audio": "sa.i.1",
+      "voice": "Lekha",
+      "text": "शिव",
+      "roman": "shiva"
+    },
+    {
+      "audio": "sa.i.2",
+      "voice": "Lekha",
+      "text": "गिरि",
+      "roman": "giri"
+    },
+    {
+      "audio": "sa.ii.1",
+      "voice": "Lekha",
+      "text": "बीजम्",
+      "roman": "biijam"
+    },
+    {
+      "audio": "sa.u.1",
+      "voice": "Lekha",
+      "text": "कुसुम",
+      "roman": "kusuma"
+    },
+    {
+      "audio": "sa.u.2",
+      "voice": "Lekha",
+      "text": "गुणानि",
+      "roman": "guńáni"
+    },
+    {
+      "audio": "sa.uu.1",
+      "voice": "Lekha",
+      "text": "स्वयम्भू",
+      "roman": "svayambhú"
+    },
+    {
+      "audio": "sa.uu.2",
+      "voice": "Lekha",
+      "text": "सम्भूत",
+      "roman": "sambhúta"
+    },
+    {
+      "audio": "sa.ri.1",
+      "voice": "Lekha",
+      "text": "कृष्णो",
+      "roman": "kriśńo"
+    },
+    {
+      "audio": "sa.e.1",
+      "voice": "Lekha",
+      "text": "ते",
+      "roman": "te"
+    },
+    {
+      "audio": "sa.o.1",
+      "voice": "Lekha",
+      "text": "नमो",
+      "roman": "namo"
+    },
+    {
+      "audio": "sa.ae.1",
+      "voice": "Lekha",
+      "text": "कण्टकै",
+      "roman": "kant́akae"
+    },
+    {
+      "audio": "sa.ao.1",
+      "voice": "Lekha",
+      "text": "सौरभ",
+      "roman": "saorabha"
+    },
+    {
+      "audio": "sa.velar.1",
+      "voice": "Lekha",
+      "text": "कुसुम",
+      "roman": "kusuma"
+    },
+    {
+      "audio": "sa.velar.2",
+      "voice": "Lekha",
+      "text": "शेखर",
+      "roman": "shekhara"
+    },
+    {
+      "audio": "sa.velar.3",
+      "voice": "Lekha",
+      "text": "गिरि",
+      "roman": "giri"
+    },
+    {
+      "audio": "sa.velar.4",
+      "voice": "Lekha",
+      "text": "व्याघ्र",
+      "roman": "vyághra"
+    },
+    {
+      "audio": "sa.palatal.1",
+      "voice": "Lekha",
+      "text": "चन्द्र",
+      "roman": "candra"
+    },
+    {
+      "audio": "sa.palatal.2",
+      "voice": "Lekha",
+      "text": "नाधिगच्छन्ति",
+      "roman": "nádhigacchanti"
+    },
+    {
+      "audio": "sa.palatal.3",
+      "voice": "Lekha",
+      "text": "जानामि",
+      "roman": "jánámi"
+    },
+    {
+      "audio": "sa.retroflex.1",
+      "voice": "Lekha",
+      "text": "कण्टकै",
+      "roman": "kant́akae"
+    },
+    {
+      "audio": "sa.retroflex.2",
+      "voice": "Lekha",
+      "text": "कठोर",
+      "roman": "kat́hora"
+    },
+    {
+      "audio": "sa.dental.1",
+      "voice": "Lekha",
+      "text": "तव",
+      "roman": "tava"
+    },
+    {
+      "audio": "sa.dental.2",
+      "voice": "Lekha",
+      "text": "स्थले",
+      "roman": "sthale"
+    },
+    {
+      "audio": "sa.dental.3",
+      "voice": "Lekha",
+      "text": "देव",
+      "roman": "deva"
+    },
+    {
+      "audio": "sa.dental.4",
+      "voice": "Lekha",
+      "text": "धी",
+      "roman": "dhii"
+    },
+    {
+      "audio": "sa.labial.1",
+      "voice": "Lekha",
+      "text": "पिता",
+      "roman": "pitá"
+    },
+    {
+      "audio": "sa.labial.2",
+      "voice": "Lekha",
+      "text": "बीजम्",
+      "roman": "biijam"
+    },
+    {
+      "audio": "sa.labial.3",
+      "voice": "Lekha",
+      "text": "भगवन्",
+      "roman": "bhagavan"
+    },
+    {
+      "audio": "sa.nasals.1",
+      "voice": "Lekha",
+      "text": "नमो",
+      "roman": "namo"
+    },
+    {
+      "audio": "sa.nasals.2",
+      "voice": "Lekha",
+      "text": "पाणये",
+      "roman": "páńaye"
+    },
+    {
+      "audio": "sa.nga.1",
+      "voice": "Lekha",
+      "text": "शङ्कर",
+      "roman": "shaunkara"
+    },
+    {
+      "audio": "sa.y.1",
+      "voice": "Lekha",
+      "text": "कृष्णाय",
+      "roman": "kriśńáya"
+    },
+    {
+      "audio": "sa.rl.1",
+      "voice": "Lekha",
+      "text": "रजत",
+      "roman": "rajata"
+    },
+    {
+      "audio": "sa.rl.2",
+      "voice": "Lekha",
+      "text": "गोलोके",
+      "roman": "goloke"
+    },
+    {
+      "audio": "sa.v.1",
+      "voice": "Lekha",
+      "text": "वज्र",
+      "roman": "vajra"
+    },
+    {
+      "audio": "sa.v.2",
+      "voice": "Lekha",
+      "text": "त्वम्",
+      "roman": "tvam"
+    },
+    {
+      "audio": "sa.h.1",
+      "voice": "Lekha",
+      "text": "हर",
+      "roman": "hara"
+    },
+    {
+      "audio": "sa.sh.1",
+      "voice": "Lekha",
+      "text": "शिव",
+      "roman": "shiva"
+    },
+    {
+      "audio": "sa.ss.1",
+      "voice": "Lekha",
+      "text": "पुरुषोत्तमः",
+      "roman": "puruśottamah"
+    },
+    {
+      "audio": "sa.s.1",
+      "voice": "Lekha",
+      "text": "सर्व",
+      "roman": "sarva"
+    },
+    {
+      "audio": "sa.anusvara.1",
+      "voice": "Lekha",
+      "text": "नमाम्यहं",
+      "roman": "namámyahaḿ"
+    },
+    {
+      "audio": "sa.anusvara.2",
+      "voice": "Lekha",
+      "text": "संस्कृत",
+      "roman": "saḿskrta"
+    },
+    {
+      "audio": "sa.visarga.1",
+      "voice": "Lekha",
+      "text": "पुरुषोत्तमः",
+      "roman": "puruśottamah"
+    },
+    {
+      "audio": "sa.visarga.2",
+      "voice": "Lekha",
+      "text": "आश्रयः",
+      "roman": "áshrayah"
+    },
+    {
+      "audio": "sa.kss.1",
+      "voice": "Lekha",
+      "text": "अन्तरीक्षे",
+      "roman": "antariikśe"
+    }
+  ]
+}

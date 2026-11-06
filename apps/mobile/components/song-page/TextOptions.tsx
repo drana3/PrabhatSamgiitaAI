@@ -12,6 +12,7 @@ import { lyricLanguage } from "@/lib/songPage/lyricLanguages"
 import { scriptName, usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import type { ScriptId } from "@/lib/songPage/scripts"
 
+import { PronunciationRow } from "./Pronunciation"
 import type { PageUi, TextScaleIndex } from "./state"
 import { Segmented, type SegItem } from "./ui"
 import type { MeaningLanguageRow, SongPageModel } from "./useSongPageModel"
@@ -173,6 +174,8 @@ function Card({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageMode
         <PopSwitch t={t} on={ui.translationOn && has} disabled={!has} onChange={ui.setTranslationOn} label={tr("songPage.options.translation")} />
       </View>
       {has && ui.translationOn ? <LanguageList t={t} tr={tr} model={model} /> : null}
+      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
+      <PronunciationRow t={t} ui={ui} onOpen={ui.closeOptions} last />
     </>
   )
 }

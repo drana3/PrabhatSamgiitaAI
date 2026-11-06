@@ -9,6 +9,7 @@ import type { PageSection } from "@/lib/songPage/pageSections"
 import { usePageT } from "@/lib/songPage/pageCopy"
 
 import { songTitle } from "./Hero"
+import { PronunciationSheet } from "./Pronunciation"
 import { TextOptionsPopover } from "./TextOptions"
 import type { PageUi } from "./state"
 import { ChevronRow } from "./ui"
@@ -66,6 +67,7 @@ export function PageSheets({ t, model, ui, sections, onJump }: { t: SpTheme; mod
       />
       <TextOptionsPopover t={t} model={model} ui={ui} />
       <MenuSheet t={t} ui={ui} sections={sections} onPick={onJump} />
+      <PronunciationSheet t={t} model={model} ui={ui} />
     </>
   )
 }

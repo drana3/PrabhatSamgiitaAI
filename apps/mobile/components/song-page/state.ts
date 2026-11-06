@@ -8,7 +8,7 @@ import { useSongPageStore } from "@/stores/songPageStore"
 export const TEXT_SCALES = [0.9, 1, 1.2] as const
 export type TextScaleIndex = TextSize
 
-export type PageSheet = null | "menu"
+export type PageSheet = null | "menu" | "pronounce"
 
 /** The chords: diagrams of the shapes, or the chord letters set over the lyrics. */
 export type ChordView = "diagrams" | "lyrics"

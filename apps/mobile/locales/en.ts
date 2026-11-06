@@ -19,6 +19,7 @@ import { festivalSongsEn } from "./festivalSongs"
 import { profileRowsEn } from "./profileRows"
 import { assistantErrorsEn } from "./assistantErrors"
 import { songCommentsEn } from "./songComments"
+import { pronunciationEn } from "./pronunciation"
 
 /**
  * English: the source of truth. Every other language mirrors these keys (the parity test enforces it).
@@ -1288,4 +1289,5 @@ export const en = {
   ...profileRowsEn,
   ...assistantErrorsEn,
   ...songCommentsEn,
+  ...pronunciationEn,
 } as const
