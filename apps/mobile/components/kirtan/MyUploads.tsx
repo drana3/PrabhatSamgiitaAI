@@ -64,12 +64,12 @@ export function UploadRow({ theme, kirtan: k, onOpen, onMore, onOpenArtist }: Ro
 }
 
 /** A recording the team took down: the reason in plain words, the date, and the ways to answer. */
-export function RemovedCard({ theme, kirtan: k }: { theme: SongsTheme; kirtan: Kirtan }) {
+export function RemovedCard({ theme, kirtan: k, onOpenOriginal }: { theme: SongsTheme; kirtan: Kirtan; onOpenOriginal?: (id: string) => void }) {
   const t = useT()
   const router = useRouter()
   const withdraw = useKirtanStore((s) => s.withdraw)
   const corrected = () =>
-    router.push(href(`/add-kirtan?kind=${k.kind}&title=${encodeURIComponent(k.title)}&author=${encodeURIComponent(k.author)}`))
+    router.push(href(`/add-kirtan?kind=${k.kind}&title=${encodeURIComponent(k.title)}&author=${encodeURIComponent(k.author)}&mantra=${encodeURIComponent(k.mantra ?? "")}`))
   const reason = k.removedReason?.trim()
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityLabel={`${t("ugc.removed.title")}. ${k.title}`}>
@@ -83,11 +83,23 @@ export function RemovedCard({ theme, kirtan: k }: { theme: SongsTheme; kirtan: K
           {k.title}
         </Text>
         <Text style={[styles.heading, { color: theme.dangerText }]}>{t("ugc.removed.title")}</Text>
+        {k.duplicateOf ? (
+          <Text style={[styles.reason, { color: theme.textHeading }]}>
+            {k.duplicateOf.title ? t("ugc.removed.duplicateOf", { title: k.duplicateOf.title }) : t("ugc.removed.duplicateOfUnknown")}
+          </Text>
+        ) : null}
         <View style={[styles.reasonBox, { backgroundColor: theme.inner, borderColor: theme.line }]}>
           <Text style={[styles.reasonLabel, { color: theme.textBody }]}>{t("ugc.removed.reason")}</Text>
           <Text style={[styles.reason, { color: theme.textHeading }]}>{reason || t("ugc.removed.noReason")}</Text>
         </View>
         {k.removedAt ? <Text style={[styles.note, { color: theme.textBody }]}>{t("ugc.removed.on", { date: formatDate(k.removedAt, "medium") })}</Text> : null}
+        {k.duplicateOf && onOpenOriginal ? (
+          <View style={styles.actions}>
+            <KPress accessibilityRole="button" accessibilityLabel={t("ugc.removed.openOriginal")} onPress={() => onOpenOriginal(k.duplicateOf?.id ?? "")} pressedScale={0.96} style={[styles.pill, { backgroundColor: amColors.orange700 }]}>
+              <Text style={styles.pillText}>{t("ugc.removed.openOriginal")}</Text>
+            </KPress>
+          </View>
+        ) : null}
         <View style={styles.actions}>
           <KPress accessibilityRole="button" accessibilityLabel={t("ugc.removed.contact")} onPress={() => router.push(href(CONTACT_ROUTE))} pressedScale={0.96} style={[styles.pill, { backgroundColor: amColors.orange700 }]}>
             <Text style={styles.pillText}>{t("ugc.removed.contact")}</Text>

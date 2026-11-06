@@ -69,7 +69,7 @@ export const duplicatesEn = {
   "ugc.report.hint.duplicate": "The same recording is already in the library",
 } as const
 
-export const duplicatesRu: Record<keyof typeof duplicatesEn, string> = {
+export const duplicatesRu = {
   "ugc.dup.title": "Этот файл уже есть в библиотеке",
   "ugc.dup.ownTitle": "Вы уже добавляли эту запись",
   "ugc.dup.body": "Послушайте ту, что уже есть, или выберите другой файл.",
@@ -129,7 +129,7 @@ export const duplicatesRu: Record<keyof typeof duplicatesEn, string> = {
 
   "ugc.report.reason.duplicate": "Дубликат",
   "ugc.report.hint.duplicate": "Такая же запись уже есть в библиотеке",
-}
+} as const
 
 export const duplicatesEs: Record<keyof typeof duplicatesEn, string> = {
   "ugc.dup.title": "Este archivo ya está en la biblioteca",

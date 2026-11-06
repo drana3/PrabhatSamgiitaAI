@@ -41,13 +41,13 @@ describe("upload in three steps", () => {
     expect(out).toEqual({ status: "published", recording: REC })
     expect(calls.map((c) => c.method + " " + c.url)).toEqual(["POST https://api.test/api/v1/recordings/uploads", "PUT https://r2.test/put", "POST https://api.test/api/v1/recordings"])
     expect(calls[0].body).toMatchObject({ file_name: "a.mp3", size_bytes: 3, sha256: "ff" })
-    expect(calls[2].body).toMatchObject({ key: "k1", terms_accepted: true, confirm_similar: false, by_author: true })
+    expect(calls[2].body).toMatchObject({ key: "k1", terms_accepted: true, confirm_different: false, by_author: true })
   })
 
   it("stops an exact duplicate before the bytes travel", async () => {
     const { cfg, calls } = server(() => json(409, { detail: { code: "duplicate", message: "Already here", duplicate_of: { id: "r0", kind: "kiirtan", title: "T", author: "A", audio_url: "u" } } }))
     const out = await uploadSubmission(cfg, source, deps)
-    expect(out).toEqual({ status: "failed", failure: { code: "duplicate" } })
+    expect(out).toEqual({ status: "failed", failure: { code: "duplicate", original: { id: "r0", title: "T", author: "A", audioUrl: "u" } } })
     expect(calls).toHaveLength(1)
   })
 
@@ -60,10 +60,10 @@ describe("upload in three steps", () => {
     })
     const first = await uploadSubmission(cfg, source, deps)
     expect(first).toMatchObject({ status: "similar", key: "k1" })
-    const second = await uploadSubmission(cfg, { ...source, confirmSimilar: true, key: "k1" }, deps)
+    const second = await uploadSubmission(cfg, { ...source, confirmDifferent: true, key: "k1" }, deps)
     expect(second.status).toBe("published")
     expect(calls.filter((c) => c.url === "https://r2.test/put")).toHaveLength(1)
-    expect(calls[calls.length - 1].body).toMatchObject({ confirm_similar: true })
+    expect(calls[calls.length - 1].body).toMatchObject({ confirm_different: true })
   })
 
   it("maps network loss, sign-in, size, rules mismatch and wrong format", async () => {

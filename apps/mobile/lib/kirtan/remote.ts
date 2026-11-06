@@ -34,7 +34,16 @@ export type RemoteRecording = {
   removed_reason?: string | null
   removed_at?: string | null
   duplicate_of?: string | null
+  /** the mantra title as typed, and the id of its group */
+  mantra?: string | null
+  mantra_id?: string | null
+  year?: number | null
+  /** owner only: the team removed this as a copy of that recording */
+  removed_duplicate_of?: string | null
 }
+
+/** A mantra (chant) of the library with the number of published versions (`MantraOut` of the API). */
+export type RemoteMantra = { id: string; kind: RecordingKind; title: string; versions: number; plays: number }
 
 export type RemoteBrief = { id: string; kind: RecordingKind; title: string; author: string; audio_url: string }
 
@@ -61,6 +70,7 @@ export type RemoteNotice = {
 /** An answer the server gave that is not a success. `similar` is set for the "a similar recording exists" warning. */
 export class RemoteError extends Error {
   readonly status: number
+  /** the API's `detail.code`, or the `X-Error-Code` header (for example `upload_daily_limit`) */
   readonly code: string | null
   readonly duplicateOf: RemoteBrief | null
   readonly similar: RemoteBrief[]
@@ -99,15 +109,16 @@ async function readError(response: Response): Promise<RemoteError> {
     body = null
   }
   const detail = body && typeof body === "object" ? (body as { detail?: unknown }).detail : null
+  const headerCode = response.headers?.get?.("X-Error-Code") ?? null
   if (detail && typeof detail === "object" && !Array.isArray(detail)) {
     const d = detail as { code?: string; message?: string; duplicate_of?: RemoteBrief | null; similar?: RemoteBrief[] }
     return new RemoteError(response.status, d.message ?? `Request failed (${response.status})`, {
-      code: d.code ?? null,
+      code: d.code ?? headerCode,
       duplicateOf: d.duplicate_of ?? null,
       similar: Array.isArray(d.similar) ? d.similar : [],
     })
   }
-  if (typeof detail === "string" && detail) return new RemoteError(response.status, detail)
+  if (typeof detail === "string" && detail) return new RemoteError(response.status, detail, { code: headerCode })
   if (Array.isArray(detail) && detail.length) {
     const first = detail[0] as { msg?: string }
     return new RemoteError(response.status, first?.msg ?? `Request failed (${response.status})`)
@@ -168,7 +179,11 @@ export type PublishPayload = {
   author: string
   byAuthor: boolean
   termsVersion: string
-  confirmSimilar: boolean
+  /** the author saw "sounds like a recording already in the library" and said theirs is a different performance */
+  confirmDifferent: boolean
+  /** the mantra title as typed (optional); the server groups performances of one mantra */
+  mantra?: string
+  year?: number | null
   durationSec?: number | null
 }
 
@@ -183,9 +198,43 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     by_author: payload.byAuthor,
     terms_accepted: true,
     terms_version: payload.termsVersion,
-    confirm_similar: payload.confirmSimilar,
+    confirm_different: payload.confirmDifferent,
+    ...(payload.mantra?.trim() ? { mantra: payload.mantra.trim() } : {}),
+    ...(payload.year ? { year: payload.year } : {}),
     ...(payload.durationSec ? { duration_sec: Math.max(1, Math.round(payload.durationSec)) } : {}),
   })
+}
+
+/** The file reached the server but the author backed out: the stored file is deleted (an unpublished one only). */
+export async function discardUpload(cfg: RemoteConfig, key: string): Promise<void> {
+  await call<void>(cfg, "POST", "/uploads/discard", { key }, undefined)
+}
+
+/* ------------------------------------------------------------------ mantras */
+
+/** Autocomplete for the mantra field: titles already in the library whose spelling contains the typed text. */
+export async function suggestMantras(cfg: RemoteConfig, query: string, kind: RecordingKind = "kiirtan", limit = 6): Promise<RemoteMantra[]> {
+  const params = new URLSearchParams({ q: query, kind, limit: String(limit) })
+  return call<RemoteMantra[]>(cfg, "GET", `/mantras/suggest?${params.toString()}`)
+}
+
+/** How many versions of this mantra exist (spelling-proof: "Bábá Nám Kevalam" finds "Baba Nam Kevalam"). */
+export async function lookupMantra(cfg: RemoteConfig, title: string, kind: RecordingKind = "kiirtan"): Promise<{ title: string; mantra: RemoteMantra | null; versions: number }> {
+  const params = new URLSearchParams({ title, kind })
+  return call<{ title: string; mantra: RemoteMantra | null; versions: number }>(cfg, "GET", `/mantras/lookup?${params.toString()}`)
+}
+
+export async function fetchMantras(cfg: RemoteConfig, query: { kind?: RecordingKind; q?: string; limit?: number } = {}): Promise<RemoteMantra[]> {
+  const params = new URLSearchParams()
+  if (query.kind) params.set("kind", query.kind)
+  if (query.q) params.set("q", query.q)
+  params.set("limit", String(query.limit ?? 100))
+  return (await call<{ items: RemoteMantra[] }>(cfg, "GET", `/mantras?${params.toString()}`)).items
+}
+
+export async function fetchMantraVersions(cfg: RemoteConfig, id: string, sort: "newest" | "plays" = "newest"): Promise<{ mantra: RemoteMantra; items: RemoteRecording[] }> {
+  const { mantra, items } = await call<{ mantra: RemoteMantra; items: RemoteRecording[]; total: number }>(cfg, "GET", `/mantras/${id}?sort=${sort}&limit=100`)
+  return { mantra, items }
 }
 
 /* ------------------------------------------------------------------ reading */
@@ -242,13 +291,19 @@ export async function markNoticeRead(cfg: RemoteConfig, id: string): Promise<voi
 
 /* ------------------------------------------------------------------ errors to the phone's words */
 
+function withOriginal(failure: UploadFailure, brief: RemoteBrief | null): UploadFailure {
+  return brief ? { ...failure, original: { id: brief.id, title: brief.title, author: brief.author, audioUrl: brief.audio_url } } : failure
+}
+
 /** What went wrong, as one of the codes the form knows (`lib/kirtan/rules.ts` has the sentence for each). */
 export function failureFromError(error: unknown): UploadFailure {
   if (error instanceof NetworkError) return { code: "network" }
   if (error instanceof RemoteError) {
     if (error.status === 401 || error.status === 403) return { code: "signin" }
-    if (error.code === "duplicate") return { code: "duplicate" }
+    if (error.code === "duplicate") return withOriginal({ code: "duplicate" }, error.duplicateOf)
+    if (error.code === "own_duplicate") return withOriginal({ code: "ownDuplicate" }, error.duplicateOf)
     if (error.code === "removed_duplicate") return { code: "removedDuplicate" }
+    if (error.code === "upload_daily_limit") return { code: "dailyLimit", message: error.message }
     if (error.status === 413) return { code: "size" }
     if (error.status === 415) return { code: "format" }
     if (error.status === 422 && /content rules/i.test(error.message)) return { code: "rules" }

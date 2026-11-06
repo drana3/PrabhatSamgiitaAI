@@ -8,18 +8,23 @@ import Svg, { Path } from "react-native-svg"
 import { KirtanTag, PlusGlyph } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { formatDate, useT } from "@/lib/i18n"
 import { kindLabel, normalizeKind } from "@/lib/kirtan/kind"
+import { cleanMantra, mantraKey, versionsOfThisLabel, versionsLabel, type MantraSummary } from "@/lib/kirtan/mantras"
+import { suggestMantraTitles, versionsOfMantra } from "@/lib/kirtan/mantraSource"
+import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES, uploadErrorText } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
 import { RECORDING_KINDS, type Kirtan, type RecordingKind, type UploadFailure } from "@/lib/kirtan/types"
-import { runUpload } from "@/lib/kirtan/uploadRunner"
+import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
@@ -35,11 +40,15 @@ const CloseGlyph = ({ color }: { color: string }) => (
 type PickedFile = { name: string; uri: string; size: number | null; type: string | null }
 
 const LIMIT_MB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))
+/** Suggestions stay for a moment after the field loses focus, so a tap on one is not lost to the blur. */
+const BLUR_DELAY_MS = 150
+/** The mantra field asks the library after the person stops typing. */
+const MANTRA_DEBOUNCE_MS = 250
 
 /** What the person sees under the form when something is wrong. */
 type Problem = { form: SubmissionError } | { upload: UploadFailure } | "running" | "picker"
 
-/** The server said a similar recording exists; the author decides whether theirs is different. */
+/** The server said it sounds like a recording already in the library; the author decides whether theirs is a different performance. */
 type SimilarAsk = { id: string; key: string; similar: RemoteBrief[] }
 
 /**
@@ -59,7 +68,8 @@ export default function AddKirtanScreen() {
   const top = Platform.OS === "web" ? 24 : Math.max(insets.top, 16)
   const isWeb = Platform.OS === "web"
   // "Upload a corrected version" opens this screen with the removed recording's words already in.
-  const params = useLocalSearchParams<{ kind?: string; title?: string; author?: string }>()
+  const params = useLocalSearchParams<{ kind?: string; title?: string; author?: string; mantra?: string }>()
+  const actions = useKirtanActions()
 
   const signedIn = useAuthStore((s) => s.mode === "signed_in") || MOCKUP_DATA
   const acceptedAt = useContentRulesStore((s) => s.acceptedAt)
@@ -71,18 +81,73 @@ export default function AddKirtanScreen() {
   const [file, setFile] = useState<PickedFile | null>(null)
   const [title, setTitle] = useState(typeof params.title === "string" ? params.title : "")
   const [author, setAuthor] = useState(typeof params.author === "string" ? params.author : "")
+  const [mantra, setMantra] = useState(typeof params.mantra === "string" ? params.mantra : "")
+  const [suggestions, setSuggestions] = useState<MantraSummary[]>([])
+  const [versions, setVersions] = useState<{ mantra: MantraSummary | null; count: number } | null>(null)
+  const [mantraCheckFailed, setMantraCheckFailed] = useState(false)
   const [byAuthor, setByAuthor] = useState(false)
   const [agree, setAgree] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
   const [busy, setBusy] = useState(false)
   const [similar, setSimilar] = useState<SimilarAsk | null>(null)
   const [sent, setSent] = useState<{ kirtan: Kirtan; local: boolean } | null>(null)
-  const [focus, setFocus] = useState<"title" | "author" | null>(null)
+  const [focus, setFocus] = useState<"title" | "mantra" | "author" | null>(null)
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<{ click: () => void } | null>(null)
   const alive = useRef(true)
   useEffect(() => () => {
     alive.current = false
+    if (blurTimer.current) clearTimeout(blurTimer.current)
   }, [])
+
+  // The mantra field asks the library: which mantras look like this, and how many versions of this one exist.
+  useEffect(() => {
+    if (!signedIn) return
+    const typed = cleanMantra(mantra)
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const [listed, found] = await Promise.all([suggestMantraTitles(typed, kind), versionsOfMantra(typed, kind)])
+        if (cancelled) return
+        setSuggestions(listed)
+        setVersions(typed ? { mantra: found.mantra, count: found.versions } : null)
+        setMantraCheckFailed(false)
+      } catch {
+        if (cancelled) return
+        setSuggestions([])
+        setVersions(null)
+        setMantraCheckFailed(true)
+      }
+    }, MANTRA_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [mantra, kind, signedIn])
+
+  const focusField = (field: "title" | "mantra" | "author") => {
+    if (blurTimer.current) clearTimeout(blurTimer.current)
+    setFocus(field)
+  }
+  const blurField = () => {
+    if (blurTimer.current) clearTimeout(blurTimer.current)
+    blurTimer.current = setTimeout(() => setFocus(null), BLUR_DELAY_MS)
+  }
+  const pickMantra = (title: string) => {
+    setMantra(title)
+    setSuggestions([])
+    setFocus(null)
+  }
+
+  /** Plays the recording the server pointed at, if the app can reach its audio. */
+  const listenTo = (ref: OriginalRef) => {
+    const playable = playableOriginal(ref)
+    if (!playable) {
+      actions.flash(t("ugc.dup.cantPlay"))
+      return
+    }
+    actions.open(playable, [playable])
+  }
 
   const acceptFile = (next: PickedFile) => {
     setFile(next)
@@ -112,7 +177,7 @@ export default function AddKirtanScreen() {
   }
 
   /** Sends the stored submission to the server and shows what came of it. */
-  const finish = async (item: Kirtan, options: { confirmSimilar?: boolean; key?: string } = {}) => {
+  const finish = async (item: Kirtan, options: { confirmDifferent?: boolean; key?: string } = {}) => {
     setBusy(true)
     setProblem(null)
     setSimilar(null)
@@ -142,6 +207,7 @@ export default function AddKirtanScreen() {
       fileType: file?.type ?? null,
       title,
       author,
+      mantra: cleanMantra(mantra),
       byAuthor,
       addedBy: "You",
       termsAccepted: rulesOk || agree,
@@ -164,9 +230,11 @@ export default function AddKirtanScreen() {
     if (!similar) return
     const item = useKirtanStore.getState().submissions.find((k) => k.id === similar.id)
     if (different && item) {
-      void finish(item, { confirmSimilar: true, key: similar.key })
+      void finish(item, { confirmDifferent: true, key: similar.key })
       return
     }
+    // "Cancel": the file that already reached the server is deleted, and the form keeps what was typed.
+    void cancelSimilar(similar.key)
     useKirtanStore.getState().withdraw(similar.id)
     setSimilar(null)
   }
@@ -184,6 +252,8 @@ export default function AddKirtanScreen() {
     setFile(null)
     setTitle("")
     setAuthor("")
+    setMantra("")
+    setVersions(null)
     setByAuthor(false)
     setProblem(null)
   }
@@ -201,6 +271,11 @@ export default function AddKirtanScreen() {
           : formProblem
             ? t(`ugc.form.error.${formProblem}`)
             : null
+  // "This file is already in the library" (or "you already added this"): a card with the recording and a way to hear it.
+  const original =
+    problem && typeof problem === "object" && "upload" in problem && problem.upload.original && (problem.upload.code === "duplicate" || problem.upload.code === "ownDuplicate")
+      ? { ref: problem.upload.original as OriginalRef, own: problem.upload.code === "ownDuplicate" }
+      : null
   const fileBad = formProblem === "file" || formProblem === "format" || formProblem === "size"
 
   return (
@@ -294,8 +369,8 @@ export default function AddKirtanScreen() {
                 <TextInput
                   value={title}
                   onChangeText={setTitle}
-                  onFocus={() => setFocus("title")}
-                  onBlur={() => setFocus(null)}
+                  onFocus={() => focusField("title")}
+                  onBlur={blurField}
                   placeholder={t("ugc.add.titlePlaceholder", { kind: kindLabel(kind) })}
                   placeholderTextColor={theme.textMuted}
                   accessibilityLabel={t("ugc.add.titleLabel")}
@@ -303,13 +378,37 @@ export default function AddKirtanScreen() {
                   style={[styles.input, { color: theme.textHeading }]}
                 />
               </View>
+              <Text style={[styles.label, { color: theme.textHeading, marginTop: 6 }]}>{t("ugc.mantra.label")}</Text>
+              <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: focus === "mantra" ? theme.brand : theme.line }]}>
+                <TextInput
+                  value={mantra}
+                  onChangeText={setMantra}
+                  onFocus={() => focusField("mantra")}
+                  onBlur={blurField}
+                  placeholder={t("ugc.mantra.placeholder")}
+                  placeholderTextColor={theme.textMuted}
+                  accessibilityLabel={t("ugc.mantra.label")}
+                  maxLength={200}
+                  style={[styles.input, { color: theme.textHeading }]}
+                />
+              </View>
+              <MantraHelp
+                theme={theme}
+                typed={cleanMantra(mantra)}
+                focused={focus === "mantra"}
+                suggestions={suggestions}
+                versions={versions}
+                checkFailed={mantraCheckFailed}
+                onPick={pickMantra}
+                onSeeAll={(id) => router.push(href(`/kirtan-mantra?id=${encodeURIComponent(id)}`))}
+              />
               <Text style={[styles.label, { color: theme.textHeading, marginTop: 6 }]}>{t("ugc.add.authorLabel")}</Text>
               <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: focus === "author" ? theme.brand : formProblem === "author" ? amColors.danger : theme.line }]}>
                 <TextInput
                   value={author}
                   onChangeText={setAuthor}
-                  onFocus={() => setFocus("author")}
-                  onBlur={() => setFocus(null)}
+                  onFocus={() => focusField("author")}
+                  onBlur={blurField}
                   placeholder={t("ugc.add.authorPlaceholder")}
                   placeholderTextColor={theme.textMuted}
                   accessibilityLabel={t("ugc.add.authorLabel")}
@@ -329,9 +428,28 @@ export default function AddKirtanScreen() {
               <Text style={[styles.linkText, { color: theme.accent }]}>{t("ugc.add.readRules")}</Text>
             </KPress>
 
-            {similar ? <SimilarCard theme={theme} similar={similar.similar} onYes={() => answerSimilar(true)} onNo={() => answerSimilar(false)} /> : null}
+            {similar ? (
+              <SimilarCard
+                theme={theme}
+                similar={similar.similar}
+                onPlay={(s) => listenTo({ id: s.id, title: s.title, author: s.author, audioUrl: s.audio_url, kind: s.kind })}
+                onYes={() => answerSimilar(true)}
+                onNo={() => answerSimilar(false)}
+              />
+            ) : null}
 
-            {problemText ? (
+            {original ? (
+              <ExistingCard
+                theme={theme}
+                own={original.own}
+                original={original.ref}
+                onPlay={() => listenTo(original.ref)}
+                onAnother={() => {
+                  setFile(null)
+                  setProblem(null)
+                }}
+              />
+            ) : problemText ? (
               <Text style={[styles.hint, { color: theme.dangerText }]} accessibilityLiveRegion="polite">
                 {problemText}
               </Text>
@@ -352,6 +470,7 @@ export default function AddKirtanScreen() {
           </>
         )}
       </ScrollView>
+      <Toast message={actions.toast} theme={theme} />
     </KeyboardAvoidingView>
   )
 }
@@ -382,16 +501,125 @@ function SignInGate({ theme, onSignIn }: { theme: SongsTheme; onSignIn: () => vo
   )
 }
 
-function SimilarCard({ theme, similar, onYes, onNo }: { theme: SongsTheme; similar: RemoteBrief[]; onYes: () => void; onNo: () => void }) {
+/**
+ * Under the mantra field: the library's mantras that look like what is typed (tap one to use its spelling), and one line
+ * about the typed mantra: "12 versions of this mantra" with a way to see them, or "yours will be the first".
+ * Nothing here blocks publishing: the field is optional and a failed check only says so.
+ */
+function MantraHelp({
+  theme,
+  typed,
+  focused,
+  suggestions,
+  versions,
+  checkFailed,
+  onPick,
+  onSeeAll,
+}: {
+  theme: SongsTheme
+  typed: string
+  focused: boolean
+  suggestions: MantraSummary[]
+  versions: { mantra: MantraSummary | null; count: number } | null
+  checkFailed: boolean
+  onPick: (title: string) => void
+  onSeeAll: (id: string) => void
+}) {
+  const t = useT()
+  // The exact spelling the person already typed needs no suggestion: the line below says how many versions it has.
+  const others = suggestions.filter((m) => mantraKey(m.title) !== mantraKey(typed)).slice(0, 5)
+  const count = versions?.count ?? 0
+  // While close matches are listed, "yours will be the first" would contradict them; say it once the list is gone.
+  const showingSuggestions = focused && others.length > 0
+  return (
+    <View style={styles.mantraHelp}>
+      {focused && others.length ? (
+        <Reveal index={0}>
+          <View style={[styles.suggestBox, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityLabel={t("ugc.mantra.suggestions")}>
+            <Text style={[styles.suggestHead, { color: theme.textBody }]}>{t("ugc.mantra.suggestions")}</Text>
+            {others.map((m, index) => (
+              <KPress
+                key={m.id}
+                accessibilityRole="button"
+                accessibilityLabel={t("mantra.openA11y", { title: m.title, versions: versionsLabel(m.versions) })}
+                onActivate={() => onPick(m.title)}
+                pressedScale={0.985}
+                style={[styles.suggestRow, index > 0 && { borderTopWidth: 1, borderTopColor: theme.line }]}
+              >
+                <Text style={[styles.suggestTitle, { color: theme.textHeading }]} numberOfLines={1}>
+                  {m.title}
+                </Text>
+                <Text style={[styles.suggestCount, { color: theme.accent }]}>{versionsLabel(m.versions)}</Text>
+              </KPress>
+            ))}
+          </View>
+        </Reveal>
+      ) : null}
+      {typed && versions && !(count === 0 && showingSuggestions) ? (
+        count > 0 && versions.mantra ? (
+          <View style={styles.versionsLine} accessibilityLiveRegion="polite">
+            <Text style={[styles.versionsNumber, { color: theme.textHeading }]}>{count}</Text>
+            <Text style={[styles.versionsText, { color: theme.textBody }]}>{versionsOfThisLabel(count)}</Text>
+            <KPress accessibilityRole="link" accessibilityLabel={t("ugc.mantra.seeAll")} onPress={() => onSeeAll(versions.mantra?.id ?? "")} pressedScale={0.97} style={styles.seeAll}>
+              <Text style={[styles.linkText, { color: theme.accent }]}>{t("ugc.mantra.seeAll")}</Text>
+            </KPress>
+          </View>
+        ) : (
+          <Text style={[styles.hint, { color: theme.textBody }]} accessibilityLiveRegion="polite">
+            {t("ugc.mantra.first")}
+          </Text>
+        )
+      ) : checkFailed && typed ? (
+        <Text style={[styles.hint, { color: theme.textBody }]}>{t("ugc.mantra.checkFailed")}</Text>
+      ) : (
+        <Text style={[styles.hint, { color: theme.textBody }]}>{t("ugc.mantra.hint")}</Text>
+      )}
+    </View>
+  )
+}
+
+/** "This file is already in the library": the recording that is there, a way to hear it, and a way to choose another file. */
+function ExistingCard({ theme, own, original, onPlay, onAnother }: { theme: SongsTheme; own: boolean; original: OriginalRef; onPlay: () => void; onAnother: () => void }) {
+  const t = useT()
+  return (
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line, padding: 16, gap: 10 }]} accessibilityLiveRegion="polite">
+      <Text style={[styles.cardTitle, { color: theme.textHeading }]}>{own ? t("ugc.dup.ownTitle") : t("ugc.dup.title")}</Text>
+      <View style={[styles.existing, { backgroundColor: theme.inner, borderColor: theme.line }]}>
+        <Text style={[styles.existingTitle, { color: theme.textHeading }]} numberOfLines={2}>
+          {original.title}
+        </Text>
+        {original.author ? (
+          <Text style={[styles.hint, { color: theme.textBody }]} numberOfLines={1}>
+            {original.author}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={[styles.hint, { color: theme.textBody, fontSize: 14, lineHeight: 20 }]}>{own ? t("ugc.dup.ownBody") : t("ugc.dup.body")}</Text>
+      <KPress accessibilityRole="button" accessibilityLabel={t("ugc.dup.playA11y", { title: original.title })} onPress={onPlay} pressedScale={0.98} style={[styles.send, { backgroundColor: amColors.orange700 }]}>
+        <Text style={styles.sendText}>{t("ugc.dup.play")}</Text>
+      </KPress>
+      <KPress accessibilityRole="button" accessibilityLabel={t("ugc.dup.another")} onPress={onAnother} pressedScale={0.98} style={[styles.send, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line }]}>
+        <Text style={[styles.sendText, { color: theme.textHeading }]}>{t("ugc.dup.another")}</Text>
+      </KPress>
+    </View>
+  )
+}
+
+function SimilarCard({ theme, similar, onPlay, onYes, onNo }: { theme: SongsTheme; similar: RemoteBrief[]; onPlay: (s: RemoteBrief) => void; onYes: () => void; onNo: () => void }) {
   const t = useT()
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line, padding: 16, gap: 10 }]} accessibilityLiveRegion="polite">
       <Text style={[styles.cardTitle, { color: theme.textHeading }]}>{t("ugc.similar.title")}</Text>
       <Text style={[styles.hint, { color: theme.textBody, fontSize: 14, lineHeight: 20 }]}>{t("ugc.similar.body")}</Text>
       {similar.slice(0, 3).map((s) => (
-        <Text key={s.id} style={[styles.hint, { color: theme.textHeading }]} numberOfLines={2}>
-          {t("ugc.similar.listed", { title: s.title })}
-        </Text>
+        <View key={s.id} style={[styles.existing, styles.existingRow, { backgroundColor: theme.inner, borderColor: theme.line }]}>
+          <Text style={[styles.existingTitle, { color: theme.textHeading, flex: 1 }]} numberOfLines={2}>
+            {t("ugc.similar.listed", { title: s.title })}
+          </Text>
+          <KPress accessibilityRole="button" accessibilityLabel={t("ugc.similar.playA11y", { title: s.title })} onPress={() => onPlay(s)} pressedScale={0.94} style={[styles.pasteBtn, { backgroundColor: theme.peach }]}>
+            <Text style={[styles.pasteText, { color: theme.accent }]}>{t("ugc.similar.play")}</Text>
+          </KPress>
+        </View>
       ))}
       <KPress accessibilityRole="button" accessibilityLabel={t("ugc.similar.yes")} onPress={onYes} pressedScale={0.98} style={[styles.send, { backgroundColor: amColors.orange700 }]}>
         <Text style={styles.sendText}>{t("ugc.similar.yes")}</Text>
@@ -473,4 +701,17 @@ const styles = StyleSheet.create({
   sent: { alignItems: "stretch", gap: 20, paddingTop: 12 },
   sentDisc: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", alignSelf: "center" },
   full: { alignSelf: "stretch" },
+  mantraHelp: { gap: 8 },
+  suggestBox: { borderRadius: 20, borderWidth: 1, overflow: "hidden" },
+  suggestHead: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.4, textTransform: "uppercase", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  suggestRow: { minHeight: 48, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  suggestTitle: { flex: 1, minWidth: 0, fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
+  suggestCount: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16 },
+  versionsLine: { flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" },
+  versionsNumber: { fontFamily: amFonts.display, fontSize: 48, lineHeight: 48, letterSpacing: -1 },
+  versionsText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
+  seeAll: { paddingVertical: 6 },
+  existing: { borderRadius: 16, borderWidth: 1, padding: 12, gap: 2 },
+  existingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  existingTitle: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 21 },
 })

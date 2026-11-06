@@ -122,6 +122,12 @@ export default function KiirtanTabScreen() {
   )
 
   const play = (k: Kirtan, context: readonly Kirtan[], label?: string | null) => actions.open(k, context, label)
+  /** "Listen to the original" of a recording the team removed as a copy: the original is a normal recording of the list. */
+  const openOriginal = (id: string) => {
+    const original = playable.find((k) => k.serverId === id || k.id === id)
+    if (original) play(original, [original])
+    else actions.flash(t("ugc.dup.cantPlay"))
+  }
   let reveal = 0
   const next = () => Math.min(reveal++, 8)
 
@@ -234,6 +240,21 @@ export default function KiirtanTabScreen() {
         </Reveal>
       ) : null}
 
+      <Reveal index={next()} style={styles.section}>
+        <KPress
+          accessibilityRole="button"
+          accessibilityLabel={t("mantra.entry.a11y")}
+          onPress={() => router.push(href("/kirtan-mantra"))}
+          pressedScale={0.98}
+          style={[styles.addCard, { borderColor: theme.line }]}
+        >
+          <View style={styles.addText}>
+            <Text style={[styles.addTitle, { color: theme.textHeading }]}>{t("mantra.entry.title")}</Text>
+            <Text style={[styles.addSub, { color: theme.textBody }]}>{t("mantra.entry.sub")}</Text>
+          </View>
+        </KPress>
+      </Reveal>
+
       {kind === "all" && bhajanDay ? (
         <Reveal index={next()}>
           <DayCard kirtan={bhajanDay} onPlay={() => play(bhajanDay, filterByKind(playable, "bhajan"))} />
@@ -342,7 +363,7 @@ export default function KiirtanTabScreen() {
       {submissions.length ? (
         submissions.map((k) =>
           k.status === "removed" ? (
-            <RemovedCard key={k.id} theme={theme} kirtan={k} />
+            <RemovedCard key={k.id} theme={theme} kirtan={k} onOpenOriginal={openOriginal} />
           ) : (
             <UploadRow key={k.id} theme={theme} kirtan={k} onOpen={(row) => play(row, playable)} onMore={setMenu} onOpenArtist={actions.openArtist} />
           ),

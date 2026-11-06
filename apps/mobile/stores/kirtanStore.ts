@@ -53,6 +53,8 @@ type KirtanState = {
   /** the server's list of the person's own uploads; a recording that was live and is now removed raises a notice */
   applyMine: (remote: readonly RemoteRecording[], now?: number) => void
   setCatalog: (remote: readonly RemoteRecording[]) => void
+  /** recordings opened from a mantra page that the catalogue may not hold yet, so they can be queued and played */
+  addToCatalog: (remote: readonly RemoteRecording[]) => void
   toggleSaved: (id: string) => boolean
   markReported: (id: string) => void
   setBlockedAuthors: (ids: readonly string[]) => void
@@ -98,6 +100,11 @@ export const useKirtanStore = create<KirtanState>()(
         if (told.length) useNotificationsStore.getState().receive(told, now)
       },
       setCatalog: (remote) => set({ catalog: remote.filter((r) => r.status !== "removed").map((r) => fromRemote(r)) }),
+      addToCatalog: (remote) => {
+        const known = new Set(get().catalog.map((k) => k.serverId))
+        const fresh = remote.filter((r) => r.status !== "removed" && !known.has(r.id)).map((r) => fromRemote(r))
+        if (fresh.length) set({ catalog: [...get().catalog, ...fresh] })
+      },
       toggleSaved: (id) => {
         const has = get().savedIds.includes(id)
         set({ savedIds: has ? get().savedIds.filter((s) => s !== id) : [...get().savedIds, id] })

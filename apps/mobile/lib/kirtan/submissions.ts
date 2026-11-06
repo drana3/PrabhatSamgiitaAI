@@ -35,6 +35,8 @@ export type SubmissionInput = {
   title: string
   /** performer or group */
   author: string
+  /** the mantra (chant) this is a performance of, as typed; optional */
+  mantra?: string
   /** the person is the author, or performs it themselves */
   byAuthor: boolean
   addedBy: string
@@ -79,6 +81,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     durationSec: null,
     type: DEFAULT_SUBMISSION_TYPE,
     byAuthor: Boolean(input.byAuthor),
+    ...(tidy(input.mantra ?? "") ? { mantra: tidy(input.mantra ?? "") } : {}),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
@@ -186,7 +189,12 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     plays: remote.plays,
     serverId: remote.id,
     authorId: remote.author_id,
+    // the mantra the uploader named (or the phone's own words while the upload runs) and its group on the server
+    ...(remote.mantra ? { mantra: remote.mantra } : base?.mantra ? { mantra: base.mantra } : {}),
+    ...(remote.mantra_id ? { mantraId: remote.mantra_id } : {}),
+    ...(remote.year ? { year: remote.year } : base?.year ? { year: base.year } : {}),
   }
+  if (removed && remote.removed_duplicate_of) next.duplicateOf = { id: remote.removed_duplicate_of, title: "", author: "" }
   if (removed) {
     next.removedReason = remote.removed_reason ?? ""
     const at = ms(remote.removed_at)

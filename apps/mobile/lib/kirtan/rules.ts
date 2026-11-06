@@ -30,7 +30,7 @@ export function ruleSections(): { id: RuleSectionId; title: string; body: string
 /* ------------------------------------------------------------------ report */
 
 /** The reasons a person can give when reporting a recording. The ids are the API's. */
-export const REPORT_REASONS = ["copyright", "offensive", "wrong_info", "other"] as const
+export const REPORT_REASONS = ["copyright", "offensive", "wrong_info", "duplicate", "other"] as const
 export type ReportReason = (typeof REPORT_REASONS)[number]
 
 export function reportReasonLabel(reason: ReportReason): string {
@@ -103,6 +103,10 @@ export function uploadErrorText(failure: UploadFailure): string {
       return t("ugc.err.duplicate")
     case "removedDuplicate":
       return t("ugc.err.removedDuplicate")
+    case "ownDuplicate":
+      return t("ugc.err.ownDuplicate")
+    case "dailyLimit":
+      return t("ugc.err.dailyLimit")
     case "rules":
       return t("ugc.err.rules")
     case "gone":

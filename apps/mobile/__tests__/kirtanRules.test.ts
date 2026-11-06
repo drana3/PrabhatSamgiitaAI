@@ -21,10 +21,10 @@ describe("file checks", () => {
 })
 
 describe("content rules", () => {
-  it("has sections and the four report reasons", () => {
+  it("has sections and the five report reasons, Duplicate among them", () => {
     expect(ruleSections().length).toBeGreaterThanOrEqual(4)
     expect(ruleSections().every((s) => s.title && s.body)).toBe(true)
-    expect([...REPORT_REASONS]).toEqual(["copyright", "offensive", "wrong_info", "other"])
+    expect([...REPORT_REASONS]).toEqual(["copyright", "offensive", "wrong_info", "duplicate", "other"])
   })
 
   it("agreement counts only for today's version with a real date", () => {

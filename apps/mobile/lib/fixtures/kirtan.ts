@@ -16,10 +16,10 @@ const T0 = Date.UTC(2026, 10, 1)
 const BHAJAN_TEAM = "Ananda Marga team"
 
 export const KIRTAN_FIXTURES: readonly Kirtan[] = [
-  { id: "k-bnk-morning", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, morning round", author: "Priya Devi", durationSec: 12 * 60 + 40, type: "bnk", thumbnailUrl: null, addedBy: "Priya", status: "published", addedAt: T0 - 1 * DAY, plays: 920 },
-  { id: "k-bnk-evening", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, evening dharmacakra", author: "Dharmacakra Kiirtan", durationSec: 24 * 60 + 5, type: "bnk", thumbnailUrl: null, addedBy: "Arun", status: "published", addedAt: T0 - 3 * DAY, plays: 1480 },
-  { id: "k-bnk-short", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, five minutes before meditation", author: "Sadhana Notes", durationSec: 5 * 60 + 12, type: "bnk", thumbnailUrl: null, addedBy: "Meera", status: "published", addedAt: T0 - 5 * DAY, plays: 2210 },
-  { id: "k-bnk-night", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, slow and soft", author: "Priya Devi", durationSec: 18 * 60 + 30, type: "bnk", thumbnailUrl: null, addedBy: "Tomas", status: "published", addedAt: T0 - 8 * DAY, plays: 640 },
+  { id: "k-bnk-morning", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, morning round", author: "Priya Devi", durationSec: 12 * 60 + 40, type: "bnk", thumbnailUrl: null, addedBy: "Priya", status: "published", addedAt: T0 - 1 * DAY, plays: 920, mantra: "Baba Nam Kevalam", mantraId: "m-bnk" },
+  { id: "k-bnk-evening", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, evening dharmacakra", author: "Dharmacakra Kiirtan", durationSec: 24 * 60 + 5, type: "bnk", thumbnailUrl: null, addedBy: "Arun", status: "published", addedAt: T0 - 3 * DAY, plays: 1480, mantra: "Baba Nam Kevalam", mantraId: "m-bnk" },
+  { id: "k-bnk-short", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, five minutes before meditation", author: "Sadhana Notes", durationSec: 5 * 60 + 12, type: "bnk", thumbnailUrl: null, addedBy: "Meera", status: "published", addedAt: T0 - 5 * DAY, plays: 2210, mantra: "Baba Nam Kevalam", mantraId: "m-bnk" },
+  { id: "k-bnk-night", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, slow and soft", author: "Priya Devi", durationSec: 18 * 60 + 30, type: "bnk", thumbnailUrl: null, addedBy: "Tomas", status: "published", addedAt: T0 - 8 * DAY, plays: 640, mantra: "Baba Nam Kevalam", mantraId: "m-bnk" },
   { id: "k-lila-krishna", kind: "kiirtan", audioUrl: null, title: "Lila kiirtan, Krishna and the flute", author: "Lila Kiirtan Group", durationSec: 9 * 60 + 15, type: "lila", thumbnailUrl: null, addedBy: "Priya", status: "published", addedAt: T0 - 2 * DAY, plays: 770 },
   { id: "k-lila-shiva", kind: "kiirtan", audioUrl: null, title: "Lila kiirtan, Shiva in the mountains", author: "Lila Kiirtan Group", durationSec: 11 * 60 + 2, type: "lila", thumbnailUrl: null, addedBy: "Arun", status: "published", addedAt: T0 - 10 * DAY, plays: 510 },
   { id: "k-lila-radha", kind: "kiirtan", audioUrl: null, title: "Lila kiirtan, Radha waits by the river", author: "Arun Deva", durationSec: 13 * 60 + 40, type: "lila", thumbnailUrl: null, addedBy: "Arun", status: "published", addedAt: T0 - 6 * DAY, plays: 380 },
@@ -27,7 +27,7 @@ export const KIRTAN_FIXTURES: readonly Kirtan[] = [
   { id: "k-purnima", kind: "kiirtan", audioUrl: null, title: "Buddha Purnima kiirtan", author: "Festival Voices", durationSec: 22 * 60 + 10, type: "festival", thumbnailUrl: null, addedBy: "Tomas", status: "published", addedAt: T0 - 14 * DAY, plays: 430 },
   { id: "k-other-bhajan", kind: "kiirtan", audioUrl: null, title: "Evening kiirtan with harmonium and tabla", author: "Sadhana Notes", durationSec: 14 * 60 + 20, type: "other", thumbnailUrl: null, addedBy: "Priya", status: "published", addedAt: T0 - 20 * DAY, plays: 290 },
   { id: "k-other-morning-raga", kind: "kiirtan", audioUrl: null, title: "Morning kiirtan on the harmonium alone", author: "Arun Deva", durationSec: 8 * 60 + 5, type: "other", thumbnailUrl: null, addedBy: "Arun", status: "published", addedAt: T0 - 7 * DAY, plays: 205 },
-  { id: "k-bnk-sleep", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, one hour for sleep", author: "Dharmacakra Kiirtan", durationSec: 62 * 60, type: "bnk", thumbnailUrl: null, addedBy: "Tomas", status: "published", addedAt: T0 - 9 * DAY, plays: 1760 },
+  { id: "k-bnk-sleep", kind: "kiirtan", audioUrl: null, title: "Baba Nam Kevalam, one hour for sleep", author: "Dharmacakra Kiirtan", durationSec: 62 * 60, type: "bnk", thumbnailUrl: null, addedBy: "Tomas", status: "published", addedAt: T0 - 9 * DAY, plays: 1760, mantra: "Baba Nam Kevalam", mantraId: "m-bnk" },
   { id: "k-night-meditation", kind: "kiirtan", audioUrl: null, title: "Night kiirtan for long meditation", author: "Priya Devi", durationSec: 72 * 60 + 30, type: "other", thumbnailUrl: null, addedBy: "Priya", status: "published", addedAt: T0 - 11 * DAY, plays: 980 },
   { id: "k-akhanda", kind: "kiirtan", audioUrl: null, title: "Akhanda kiirtan, an evening in full", author: "Festival Voices", durationSec: 95 * 60, type: "festival", thumbnailUrl: null, addedBy: "Meera", status: "published", addedAt: T0 - 16 * DAY, plays: 560 },
 
@@ -90,6 +90,23 @@ export const KIRTAN_DEMO_UPLOADS: readonly Kirtan[] = [
     removedReason: "It is a commercial recording, and we cannot share it without the owner's permission.",
     removedAt: T0 - 1 * DAY,
     addedAt: T0 - 3 * DAY,
+  },
+  {
+    id: "sub-morning-copy-1",
+    kind: "kiirtan",
+    audioUrl: null,
+    title: "Baba Nam Kevalam, morning (my copy)",
+    author: "Priya Devi",
+    durationSec: 12 * 60 + 40,
+    type: "other",
+    byAuthor: false,
+    thumbnailUrl: null,
+    addedBy: "You",
+    status: "removed",
+    removedReason: "This is the same recording as one already in the app. Please listen to the original.",
+    removedAt: T0 - 1 * DAY,
+    addedAt: T0 - 4 * DAY,
+    duplicateOf: { id: "k-bnk-morning", title: "Baba Nam Kevalam, morning round", author: "Priya Devi" },
   },
 ]
 

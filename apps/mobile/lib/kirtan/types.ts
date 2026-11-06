@@ -54,11 +54,17 @@ export type UploadFailureCode =
   | "size"
   | "duplicate"
   | "removedDuplicate"
+  | "dailyLimit"
+  | "ownDuplicate"
   | "rules"
   | "gone"
   | "server"
 
-export type UploadFailure = { code: UploadFailureCode; message?: string }
+/** A recording that is already in the library: what the "already there" and "removed as a copy" cards point at. */
+export type KirtanOriginal = { id: string; title: string; author: string }
+
+/** `original` is set when the file (or the same performance) is already in the library; the form offers to play it. */
+export type UploadFailure = { code: UploadFailureCode; message?: string; original?: KirtanOriginal & { audioUrl: string } }
 
 export type Kirtan = {
   id: string
@@ -100,6 +106,14 @@ export type Kirtan = {
   failure?: UploadFailure
   /** how often it was played; orders the artist page's "Popular" list. TODO(api): comes from the server. */
   plays?: number
+  /** the mantra (chant) as the uploader wrote it; performances of one mantra are grouped as its versions */
+  mantra?: string
+  /** the server's id of the mantra group (the mantra page opens with it) */
+  mantraId?: string
+  /** year of the performance, when known */
+  year?: number
+  /** the team removed this as a copy of that recording (status `removed`); the card offers to open the original */
+  duplicateOf?: KirtanOriginal
 }
 
 export function isKirtanType(value: unknown): value is KirtanTypeId {

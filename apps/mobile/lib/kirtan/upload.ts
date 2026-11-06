@@ -1,4 +1,5 @@
 import {
+  discardUpload,
   failureFromError,
   publishRecording,
   putFile,
@@ -16,8 +17,9 @@ import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
  * 1. ask where to send the file (an exact copy that is already published is refused here, before the bytes travel),
  * 2. send the bytes,
  * 3. publish. The recording is live the moment step 3 returns.
- * A near copy ("a similar recording exists") is not refused: the outcome `similar` asks the author whether theirs is
- * different, and the same call with `confirmSimilar` publishes it. Pure of React and stores; `fetch` comes from `cfg`.
+ * A near copy ("sounds like a recording already in the library") is not refused: the outcome `similar` asks the author
+ * whether theirs is a different performance, and the same call with `confirmDifferent` publishes it. If the author
+ * backs out instead, `discardSimilar` deletes the file that was already sent. Pure of React and stores; `fetch` comes from `cfg`.
  */
 
 export type UploadSource = {
@@ -30,10 +32,13 @@ export type UploadSource = {
   title: string
   author: string
   byAuthor: boolean
+  /** the mantra (chant) as typed; the server keeps performances of one mantra together */
+  mantra?: string
+  year?: number | null
   /** the version of the content rules the person accepted */
   termsVersion?: string
-  /** the author saw the "similar recording" question and said theirs is different */
-  confirmSimilar?: boolean
+  /** the author saw the "sounds like a recording already in the library" question and said theirs is different */
+  confirmDifferent?: boolean
   /** a file that already reached the server in an earlier try (after the similar question), so it is not sent twice */
   key?: string
 }
@@ -88,13 +93,27 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       author: source.author,
       byAuthor: source.byAuthor,
       termsVersion: source.termsVersion ?? RULES_VERSION,
-      confirmSimilar: Boolean(source.confirmSimilar),
+      mantra: source.mantra,
+      year: source.year,
+      confirmDifferent: Boolean(source.confirmDifferent),
     })
     return { status: "published", recording }
   } catch (error) {
     if (key && error instanceof RemoteError && error.code === "similar_recording") {
       return { status: "similar", similar: error.similar, key }
     }
-    return { status: "failed", failure: failureFromError(error) }
+    const failure = failureFromError(error)
+    // The same recording is in the library already: the stored copy is of no use, so it is deleted (best effort).
+    if (key && (failure.code === "duplicate" || failure.code === "ownDuplicate" || failure.code === "removedDuplicate")) void discardSimilar(cfg, key)
+    return { status: "failed", failure }
+  }
+}
+
+/** The author said "Cancel" to the similar-recording question: the file that already reached the server is deleted. Never throws. */
+export async function discardSimilar(cfg: RemoteConfig, key: string): Promise<void> {
+  try {
+    await discardUpload(cfg, key)
+  } catch {
+    // nothing to tell the person: an unpublished file is not shown anywhere
   }
 }
