@@ -7,7 +7,8 @@ import { Reveal } from "@/components/today/motion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { getUpcomingFestivals, type FestivalListItem } from "@/data/festivals"
 import { useAmTheme } from "@/hooks/useAmTheme"
-import { useT } from "@/lib/i18n"
+import { useLanguage, useT } from "@/lib/i18n"
+import { festivalText } from "@/lib/i18n/festivalText"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 import { href } from "@/utils/href"
 
@@ -17,6 +18,7 @@ import { href } from "@/utils/href"
  */
 export default function FestivalsScreen() {
   const t = useT()
+  const language = useLanguage()
   const router = useRouter()
   const theme = useAmTheme()
   const upcoming = getUpcomingFestivals(new Date(), 20)
@@ -42,14 +44,14 @@ export default function FestivalsScreen() {
           <Reveal key={item.id} index={Math.min(index, 6)}>
             <PressBox
               accessibilityRole="button"
-              accessibilityLabel={t("fest.open.a11y", { title: item.title, date: item.dateLabel })}
+              accessibilityLabel={t("fest.open.a11y", { title: festivalText(item, language).title, date: item.dateLabel })}
               onPress={() => router.push(href(`/festival/${item.id}`))}
               pressedScale={0.98}
               style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}
             >
               <Over color={theme.eyebrow} numeric>{`${item.dateLabel} · ${when(item)}`}</Over>
-              <CardTitle color={theme.textHeading}>{item.title}</CardTitle>
-              <CardText color={theme.textBody} wide>{item.subtitle}</CardText>
+              <CardTitle color={theme.textHeading}>{festivalText(item, language).title}</CardTitle>
+              <CardText color={theme.textBody} wide>{festivalText(item, language).subtitle}</CardText>
             </PressBox>
           </Reveal>
         ))

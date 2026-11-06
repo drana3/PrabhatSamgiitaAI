@@ -33,20 +33,21 @@ export function StatsStrip({
   learning: number
   words: number
 }) {
+  const t = useT()
   const tone = toneOf(theme)
   const cells: Array<{ key: string; value: string; suffix?: string; label: string; color: string }> = [
-    { key: "learned", value: String(learned), suffix: `/${total}`, label: "Songs learned", color: tone.dark ? amColors.sage300 : amColors.sage700 },
-    { key: "learning", value: String(learning), label: "Learning now", color: theme.eyebrow },
-    { key: "words", value: String(words), label: "Words learned", color: tone.ink900 },
+    { key: "learned", value: String(learned), suffix: `/${total}`, label: t("learn.strip.learned"), color: tone.dark ? amColors.sage300 : amColors.sage700 },
+    { key: "learning", value: String(learning), label: t("learn.strip.learning"), color: theme.eyebrow },
+    { key: "words", value: String(words), label: t("learn.strip.words"), color: tone.ink900 },
   ]
   return (
-    <View accessibilityLabel="Your songs in numbers" style={[styles.strip, { backgroundColor: theme.card, borderColor: theme.line }]}>
+    <View accessibilityLabel={t("learn.strip.a11y")} style={[styles.strip, { backgroundColor: theme.card, borderColor: theme.line }]}>
       {cells.map((cell, index) => (
         <View
           key={cell.key}
           style={[styles.cell, index > 0 && { borderLeftWidth: 1, borderLeftColor: theme.line }]}
           accessible
-          accessibilityLabel={`${cell.label}: ${cell.value}${cell.suffix ? ` of ${total}` : ""}`}
+          accessibilityLabel={cell.suffix ? t("learn.strip.cellOf.a11y", { label: cell.label, value: cell.value, total }) : t("learn.strip.cell.a11y", { label: cell.label, value: cell.value })}
         >
           <Text style={[styles.stripNumber, { color: cell.color }]}>
             {cell.value}

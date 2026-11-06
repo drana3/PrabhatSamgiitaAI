@@ -8,11 +8,12 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { indexRows, type IndexKind } from "@/lib/fixtures/learn"
 import { LEARN_ROUTES } from "@/lib/learn/routes"
+import { useT } from "@/lib/i18n"
 import { href } from "@/utils/href"
 
-const TABS: ReadonlyArray<{ key: IndexKind; label: string }> = [
-  { key: "raga", label: "Raga" },
-  { key: "tala", label: "Tala" },
+const TABS: ReadonlyArray<{ key: IndexKind; label: "learn.index.tab.raga" | "learn.index.tab.tala" }> = [
+  { key: "raga", label: "learn.index.tab.raga" },
+  { key: "tala", label: "learn.index.tab.tala" },
 ]
 
 /**
@@ -21,6 +22,7 @@ const TABS: ReadonlyArray<{ key: IndexKind; label: string }> = [
  * ?tab=tala opens on the Tala list.
  */
 export default function RagaTalaIndexScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
   const params = useLocalSearchParams<{ tab?: string }>()
@@ -34,18 +36,18 @@ export default function RagaTalaIndexScreen() {
   }
 
   return (
-    <OverlayScreen theme={theme} onBack={back} label="Index" overlay={toast.node}>
+    <OverlayScreen theme={theme} onBack={back} label={t("learn.index.screen")} overlay={toast.node}>
       <Reveal index={0}>
-        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Index">
+        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t("learn.index.screen")}>
           {TABS.map((tab) => (
-            <Chip key={tab.key} theme={theme} label={tab.label} on={kind === tab.key} onPress={() => setKind(tab.key)} />
+            <Chip key={tab.key} theme={theme} label={t(tab.label)} on={kind === tab.key} onPress={() => setKind(tab.key)} />
           ))}
         </View>
       </Reveal>
       <Reveal key={kind} index={1} style={styles.list}>
         {rows.length === 0 ? (
           <Text style={[styles.empty, { color: theme.textBody }]}>
-            The raga and tala index is not ready yet. The catalog does not list ragas and talas song by song.
+            {t("learn.index.empty")}
           </Text>
         ) : null}
         {rows.map((row) => (
@@ -55,7 +57,7 @@ export default function RagaTalaIndexScreen() {
             numericEyebrow
             eyebrow={row.meta}
             title={row.name}
-            onPress={() => toast.show(`Songs in ${row.name} open here`)}
+            onPress={() => toast.show(t("learn.index.toast", { name: row.name }))}
           />
         ))}
       </Reveal>

@@ -25,6 +25,7 @@ import { resolveSongBundle } from "@/lib/songs"
 import { useLearnStore } from "@/stores/learnStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useSongPageStore } from "@/stores/songPageStore"
+import { useT } from "@/lib/i18n"
 import { href } from "@/utils/href"
 
 /** Where "Hear it and sing it" lands: the Player tab of the redesigned shell. */
@@ -38,6 +39,7 @@ const SING_ALONG_RATE = 0.75
  * harmonium. Every step can be done in any order and repeated.
  */
 export default function LearnSongScreen() {
+  const t = useT()
   const router = useRouter()
   const theme = useAmTheme()
   const tone = toneOf(theme)
@@ -80,13 +82,13 @@ export default function LearnSongScreen() {
 
   if (number === null) {
     return (
-      <OverlayScreen theme={theme} onBack={back} label="Learn a song">
+      <OverlayScreen theme={theme} onBack={back} label={t("learn.song.screen")}>
         <EmptyCard
           theme={theme}
-          eyebrow="Learn a song"
-          title="Song not found"
-          text="This link does not point to a song."
-          action="Back to Learn"
+          eyebrow={t("learn.song.screen")}
+          title={t("learn.song.notFound.title")}
+          text={t("learn.song.notFound.text")}
+          action={t("learn.song.backToLearn")}
           onAction={back}
         />
       </OverlayScreen>
@@ -120,7 +122,7 @@ export default function LearnSongScreen() {
   const actions = [listen, words, chords]
 
   return (
-    <OverlayScreen theme={theme} onBack={back} label="Learn a song">
+    <OverlayScreen theme={theme} onBack={back} label={t("learn.song.screen")}>
       <Reveal index={0} style={styles.head}>
         <Over color={theme.eyebrow} numeric>{`PS ${number}`}</Over>
         <Text accessibilityRole="header" style={[styles.title, { color: theme.textHeading }]}>
@@ -160,8 +162,8 @@ export default function LearnSongScreen() {
       <Reveal index={5}>
         <NavRow
           theme={theme}
-          eyebrow="Playing harmonium?"
-          title="How chords work on the harmonium"
+          eyebrow={t("learn.song.harmonium.eyebrow")}
+          title={t("learn.song.harmonium.title")}
           onPress={() => go(LEARN_ROUTES.harmoniumChords)}
         />
       </Reveal>

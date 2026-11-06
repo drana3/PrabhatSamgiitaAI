@@ -9,7 +9,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { allCollections } from "@/data/collections"
 import { getFestivalById } from "@/data/festivals"
 import { useAmTheme } from "@/hooks/useAmTheme"
-import { formatDate, useT } from "@/lib/i18n"
+import { formatDate, useLanguage, useT } from "@/lib/i18n"
+import { festivalText } from "@/lib/i18n/festivalText"
 import { href } from "@/utils/href"
 
 /**
@@ -19,6 +20,7 @@ import { href } from "@/utils/href"
  */
 export default function FestivalDetailScreen() {
   const t = useT()
+  const language = useLanguage()
   const theme = useAmTheme()
   const router = useRouter()
   const { festivalId } = useLocalSearchParams<{ festivalId: string }>()
@@ -61,9 +63,9 @@ export default function FestivalDetailScreen() {
               {formatDate(new Date(festival.year, festival.month - 1, festival.day), "long")}
             </Over>
             <Text accessibilityRole="header" style={[styles.heading, { color: theme.textHeading }]}>
-              {festival.title}
+              {festivalText(festival, language).title}
             </Text>
-            <Text style={[styles.sub, { color: theme.textBody }]}>{festival.subtitle}</Text>
+            <Text style={[styles.sub, { color: theme.textBody }]}>{festivalText(festival, language).subtitle}</Text>
           </Reveal>
           <Reveal index={1}>
             <LCard theme={theme} tone="white">
