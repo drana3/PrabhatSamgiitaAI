@@ -7,15 +7,14 @@ Revises: 0026_google_translate_quota_alert
 from __future__ import annotations
 
 from alembic import op
-from app.models import AuthorBlock, MantraGroup, MemberNotice, Recording, RecordingReport
+from app.models import AuthorBlock, MemberNotice, Recording, RecordingReport
 
 revision = "0027_recordings"
 down_revision = "0026_google_translate_quota_alert"
 branch_labels = None
 depends_on = None
 
-# MantraGroup first: `recordings` has a foreign key to it in the current model.
-TABLES = (MantraGroup, Recording, RecordingReport, AuthorBlock, MemberNotice)
+TABLES = (Recording, RecordingReport, AuthorBlock, MemberNotice)
 
 
 def upgrade() -> None:

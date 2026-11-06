@@ -1,8 +1,8 @@
-"""Kiirtan and Bhajan recordings, published at once and moderated afterwards.
+"""Kiirtan, Bhajan, devotional song and Prabhat Samgiita recordings, published at once.
 
-See docs/kiirtan-publishing.md. One table holds both kinds (`kind`). A recording is `published`
-the moment the upload succeeds; the team looks afterwards and may mark it `flagged` (too many
-reports, or a copyright claim) or `removed` (with a reason that the author is told).
+See docs/kiirtan-publishing.md. One table holds all four categories (`kind`). A recording is
+`published` the moment the upload succeeds; the team looks afterwards and may mark it `flagged`
+(too many reports, or a copyright claim) or `removed` (with a reason that the author is told).
 """
 
 from __future__ import annotations
@@ -30,43 +30,19 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
 
-RECORDING_KINDS = ("kiirtan", "bhajan")
+# The category of a recording, as the uploader picks it (the field is called `kind`). A Kiirtan is
+# always a version of "Baba Nam Kevalam": there is only that one mantra in the library.
+RECORDING_KINDS = ("kiirtan", "bhajan", "devotional_song", "prabhat_samgiita")
 RECORDING_STATUSES = ("published", "removed", "flagged")
 KIRTAN_TYPES = ("bnk", "lila", "festival", "other")
 BHAJAN_TYPES = ("morning", "evening", "devotional", "other")
 REPORT_REASONS = ("copyright", "offensive", "wrong_info", "duplicate", "other")
+RECORDING_LANGUAGES = ("bengali", "sanskrit", "hindi", "english", "other")
+# Prabhat Samgiita songs are numbered 1 to 5018; a recording of that category names its song.
+PS_SONG_COUNT = 5018
 
 # JSONB on Postgres, plain JSON elsewhere (the tests run on SQLite).
 PortableJSON = JSON().with_variant(JSONB(), "postgresql")
-
-
-class MantraGroup(Base, TimestampMixin):
-    """One mantra (a chant), the common home of its performances ("versions").
-
-    The key is the normalised title (lower case, no diacritics, no punctuation, no spaces, see
-    `app.services.mantras.mantra_key`), so "Baba Nam Kevalam" and "Bábá Nám Kevalam" are one group.
-    A merged group stays as an alias (`merged_into_id`) so the old spelling still finds the target.
-    """
-
-    __tablename__ = "mantra_groups"
-    __table_args__ = (
-        UniqueConstraint("kind", "key", name="uq_mantra_groups_kind_key"),
-        CheckConstraint("kind IN ('kiirtan', 'bhajan')", name="ck_mantra_groups_kind"),
-    )
-
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
-    kind: Mapped[str] = mapped_column(
-        String(16), default="kiirtan", server_default="kiirtan", nullable=False
-    )
-    key: Mapped[str] = mapped_column(String(200), nullable=False)
-    # The words as the first uploader typed them (shown in lists and suggestions).
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    merged_into_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("mantra_groups.id", ondelete="SET NULL"),
-        index=True,
-        nullable=True,
-    )
 
 
 class Recording(Base, TimestampMixin):
@@ -75,14 +51,29 @@ class Recording(Base, TimestampMixin):
         # One file, one recording, removed ones included (a removed file must not come back).
         # Also what makes two simultaneous uploads of the same bytes safe.
         Index("ix_recordings_audio_sha256", "audio_sha256", unique=True),
-        CheckConstraint("kind IN ('kiirtan', 'bhajan')", name="ck_recordings_kind"),
+        CheckConstraint(
+            "kind IN ('kiirtan', 'bhajan', 'devotional_song', 'prabhat_samgiita')",
+            name="ck_recordings_kind",
+        ),
         CheckConstraint(
             "status IN ('published', 'removed', 'flagged')", name="ck_recordings_status"
         ),
         CheckConstraint(
             "(kind = 'kiirtan' AND type IN ('bnk', 'lila', 'festival', 'other')) OR "
-            "(kind = 'bhajan' AND type IN ('morning', 'evening', 'devotional', 'other'))",
+            "(kind = 'bhajan' AND type IN ('morning', 'evening', 'devotional', 'other')) OR "
+            "(kind IN ('devotional_song', 'prabhat_samgiita') AND type = 'other')",
             name="ck_recordings_type_for_kind",
+        ),
+        # A Prabhat Samgiita recording names its song (1..5018); no other category has one.
+        CheckConstraint(
+            "(kind = 'prabhat_samgiita' AND ps_song_number IS NOT NULL "
+            "AND ps_song_number >= 1 AND ps_song_number <= 5018) OR "
+            "(kind <> 'prabhat_samgiita' AND ps_song_number IS NULL)",
+            name="ck_recordings_ps_song",
+        ),
+        CheckConstraint(
+            "language IS NULL OR language IN ('bengali', 'sanskrit', 'hindi', 'english', 'other')",
+            name="ck_recordings_language",
         ),
     )
 
@@ -94,7 +85,7 @@ class Recording(Base, TimestampMixin):
         String(16), default="other", server_default="other", nullable=False
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
-    # Performer or group as the uploader wrote it. Empty when unknown.
+    # Performer or group as the uploader wrote it (required for an upload; empty only for old data).
     author: Mapped[str] = mapped_column(String(200), default="", server_default="", nullable=False)
     # Display name of the person who added it ("Ananda Marga team" for the bulk load).
     added_by: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -148,16 +139,15 @@ class Recording(Base, TimestampMixin):
         PGUUID(as_uuid=True), ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
     )
 
-    # The mantra (chant) as the uploader typed it, and its group ("versions of one mantra").
-    mantra_title: Mapped[str | None] = mapped_column(String(200))
-    mantra_group_id: Mapped[UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("mantra_groups.id", ondelete="SET NULL"),
-        index=True,
-        nullable=True,
-    )
-    # Year of the performance when known (the bulk import knows it; an upload may leave it empty).
+    # Year it was recorded, when the uploader knows it.
     year: Mapped[int | None] = mapped_column(Integer)
+    # Sung language: one of RECORDING_LANGUAGES, or none.
+    language: Mapped[str | None] = mapped_column(String(16))
+    # "Words and music by": credits for a Bhajan, a devotional song or a Prabhat Samgiita recording.
+    credits: Mapped[str | None] = mapped_column(String(300))
+    notes: Mapped[str | None] = mapped_column(String(500))
+    # The song of a `prabhat_samgiita` recording (1..5018). The song page lists it as a recording.
+    ps_song_number: Mapped[int | None] = mapped_column(Integer, index=True)
 
 
 class RecordingReport(Base, TimestampMixin):

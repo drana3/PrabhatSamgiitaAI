@@ -35,7 +35,6 @@ from app.core.security import require_admin
 from app.models import Base, UserAccount
 from app.models.recordings import (
     AuthorBlock,
-    MantraGroup,
     MemberNotice,
     Recording,
     RecordingReport,
@@ -398,7 +397,6 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
         cast(Table, m.__table__)
         for m in (
             UserAccount,
-            MantraGroup,
             Recording,
             RecordingReport,
             RecordingSimilarConfirm,

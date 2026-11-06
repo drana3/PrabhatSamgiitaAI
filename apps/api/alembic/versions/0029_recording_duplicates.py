@@ -1,4 +1,4 @@
-"""Kiirtan duplicates: mantra groups, unique file hash, remembered confirmations.
+"""Kiirtan duplicates and the four upload categories: unique file hash, new recording fields.
 
 Revision ID: 0029_recording_duplicates
 Revises: 0028_learn_progress
@@ -8,23 +8,28 @@ and safe to run twice or on a database where some of it already exists: migratio
 `recordings` from the CURRENT model, and the app also runs `create_all` at start, so on a new
 database every table and column below may be there already. Each step looks first.
 
+This revision was never deployed. An earlier draft of it also added mantra groups; there is only
+ONE mantra in the library (Baba Nam Kevalam), so that was dropped before release (step 3 only
+tidies a development database that ran the draft).
+
 What it does:
 
-* `mantra_groups`: one row per mantra (kind + normalised key), with `merged_into_id` for aliases.
-* `recordings`: new columns `mantra_title`, `mantra_group_id`, `year`, `removed_duplicate_of`;
-  the index on `audio_sha256` becomes UNIQUE (the same file cannot be stored twice, even by two
-  uploads at the same moment). If duplicates are already there it stops with a clear message.
-* `recording_similar_confirms`: "this file is a different performance" answers.
-* `recording_reports`: the reason "duplicate" is allowed (the check constraint is replaced).
-* Backfill: every recording without a mantra gets `mantra_title = title` and a group.
+1. `recordings`: new columns `year` (recorded), `removed_duplicate_of`, `language`, `credits`,
+   `notes`, `ps_song_number`; the index on `audio_sha256` becomes UNIQUE (the same file cannot be
+   stored twice, even by two uploads at the same moment). If duplicates are already there it stops
+   with a clear message.
+2. `recordings.kind` may be `kiirtan`, `bhajan`, `devotional_song` or `prabhat_samgiita` (the check
+   constraints are replaced), a Prabhat Samgiita recording must name its song (1..5018), the
+   language is one of five.
+3. Tidy: drops `mantra_title`, `mantra_group_id` and the table `mantra_groups`, if the draft
+   made them.
+4. `recording_similar_confirms`: "this file is a different performance" answers.
+5. `recording_reports`: the reason "duplicate" is allowed (the check constraint is replaced).
 
 Never run it against a real database without a backup (docs/kiirtan-publishing.md, "Duplicates").
 """
 
 from __future__ import annotations
-
-import unicodedata
-from uuid import uuid4
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -36,28 +41,35 @@ down_revision = "0028_learn_progress"
 branch_labels = None
 depends_on = None
 
-GROUPS = "mantra_groups"
+DRAFT_GROUPS = "mantra_groups"
 CONFIRMS = "recording_similar_confirms"
 RECORDINGS = "recordings"
 REPORTS = "recording_reports"
 SHA_INDEX = "ix_recordings_audio_sha256"
+SONG_INDEX = "ix_recordings_ps_song_number"
 REASON_CHECK = "ck_recording_reports_reason"
 OLD_REASONS = "reason IN ('copyright', 'offensive', 'wrong_info', 'other')"
 NEW_REASONS = "reason IN ('copyright', 'offensive', 'wrong_info', 'duplicate', 'other')"
 
-
-def _key(text: str | None) -> str:
-    """The same rule as `app.services.mantras.mantra_key`, frozen here (a test compares them)."""
-    if not text:
-        return ""
-    kept: list[str] = []
-    for char in unicodedata.normalize("NFKD", text).casefold():
-        category = unicodedata.category(char)
-        if category == "Mn" and kept and ord(kept[-1]) < 0x250 and kept[-1].isalpha():
-            continue
-        if category[0] in ("L", "N", "M"):
-            kept.append(char)
-    return unicodedata.normalize("NFC", "".join(kept))[:200]
+KIND_CHECK = "ck_recordings_kind"
+TYPE_CHECK = "ck_recordings_type_for_kind"
+SONG_CHECK = "ck_recordings_ps_song"
+LANGUAGE_CHECK = "ck_recordings_language"
+OLD_KIND = "kind IN ('kiirtan', 'bhajan')"
+NEW_KIND = "kind IN ('kiirtan', 'bhajan', 'devotional_song', 'prabhat_samgiita')"
+OLD_TYPE = (
+    "(kind = 'kiirtan' AND type IN ('bnk', 'lila', 'festival', 'other')) OR "
+    "(kind = 'bhajan' AND type IN ('morning', 'evening', 'devotional', 'other'))"
+)
+NEW_TYPE = OLD_TYPE + " OR (kind IN ('devotional_song', 'prabhat_samgiita') AND type = 'other')"
+SONG_RULE = (
+    "(kind = 'prabhat_samgiita' AND ps_song_number IS NOT NULL "
+    "AND ps_song_number >= 1 AND ps_song_number <= 5018) OR "
+    "(kind <> 'prabhat_samgiita' AND ps_song_number IS NULL)"
+)
+LANGUAGE_RULE = (
+    "language IS NULL OR language IN ('bengali', 'sanskrit', 'hindi', 'english', 'other')"
+)
 
 
 def _uuid() -> sa.types.TypeEngine[object]:
@@ -72,29 +84,8 @@ def _indexes(inspector: sa.Inspector, table: str) -> dict[str, bool]:
     return {index["name"]: bool(index.get("unique")) for index in inspector.get_indexes(table)}
 
 
-def _create_groups() -> None:
-    op.create_table(
-        GROUPS,
-        sa.Column("id", _uuid(), primary_key=True),
-        sa.Column("kind", sa.String(16), nullable=False, server_default="kiirtan"),
-        sa.Column("key", sa.String(200), nullable=False),
-        sa.Column("title", sa.String(200), nullable=False),
-        sa.Column(
-            "merged_into_id",
-            _uuid(),
-            sa.ForeignKey(f"{GROUPS}.id", ondelete="SET NULL"),
-            nullable=True,
-        ),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
-        ),
-        sa.UniqueConstraint("kind", "key", name="uq_mantra_groups_kind_key"),
-        sa.CheckConstraint("kind IN ('kiirtan', 'bhajan')", name="ck_mantra_groups_kind"),
-    )
-    op.create_index("ix_mantra_groups_merged_into_id", GROUPS, ["merged_into_id"])
+def _checks(inspector: sa.Inspector, table: str) -> dict[str, str]:
+    return {c["name"]: str(c.get("sqltext") or "") for c in inspector.get_check_constraints(table)}
 
 
 def _create_confirms() -> None:
@@ -129,21 +120,16 @@ def _create_confirms() -> None:
 def _add_recording_columns(inspector: sa.Inspector) -> None:
     have = _columns(inspector, RECORDINGS)
     wanted: list[sa.Column[object]] = []
-    if "mantra_title" not in have:
-        wanted.append(sa.Column("mantra_title", sa.String(200), nullable=True))
-    if "mantra_group_id" not in have:
-        wanted.append(
-            sa.Column(
-                "mantra_group_id",
-                _uuid(),
-                sa.ForeignKey(
-                    f"{GROUPS}.id", ondelete="SET NULL", name="fk_recordings_mantra_group_id"
-                ),
-                nullable=True,
-            )
-        )
     if "year" not in have:
         wanted.append(sa.Column("year", sa.Integer(), nullable=True))
+    if "language" not in have:
+        wanted.append(sa.Column("language", sa.String(16), nullable=True))
+    if "credits" not in have:
+        wanted.append(sa.Column("credits", sa.String(300), nullable=True))
+    if "notes" not in have:
+        wanted.append(sa.Column("notes", sa.String(500), nullable=True))
+    if "ps_song_number" not in have:
+        wanted.append(sa.Column("ps_song_number", sa.Integer(), nullable=True))
     if "removed_duplicate_of" not in have:
         wanted.append(
             sa.Column(
@@ -162,8 +148,24 @@ def _add_recording_columns(inspector: sa.Inspector) -> None:
         with op.batch_alter_table(RECORDINGS) as batch:
             for column in wanted:
                 batch.add_column(column)
-    if "ix_recordings_mantra_group_id" not in _indexes(sa.inspect(op.get_bind()), RECORDINGS):
-        op.create_index("ix_recordings_mantra_group_id", RECORDINGS, ["mantra_group_id"])
+    if SONG_INDEX not in _indexes(sa.inspect(op.get_bind()), RECORDINGS):
+        op.create_index(SONG_INDEX, RECORDINGS, ["ps_song_number"])
+
+
+def _drop_draft_mantras() -> None:
+    """Tidy a development database that ran the earlier draft (mantra groups). Nothing else."""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "mantra_group_id" in _columns(inspector, RECORDINGS):
+        if "ix_recordings_mantra_group_id" in _indexes(inspector, RECORDINGS):
+            op.drop_index("ix_recordings_mantra_group_id", table_name=RECORDINGS)
+        with op.batch_alter_table(RECORDINGS) as batch:
+            batch.drop_column("mantra_group_id")
+    if "mantra_title" in _columns(sa.inspect(bind), RECORDINGS):
+        with op.batch_alter_table(RECORDINGS) as batch:
+            batch.drop_column("mantra_title")
+    if sa.inspect(bind).has_table(DRAFT_GROUPS):
+        op.drop_table(DRAFT_GROUPS)
 
 
 def _make_sha_unique() -> None:
@@ -189,10 +191,8 @@ def _make_sha_unique() -> None:
 
 
 def _allow_duplicate_reason(inspector: sa.Inspector) -> None:
-    constraints = {
-        c["name"]: (c.get("sqltext") or "") for c in inspector.get_check_constraints(REPORTS)
-    }
-    if REASON_CHECK in constraints and "duplicate" in str(constraints[REASON_CHECK]):
+    constraints = _checks(inspector, REPORTS)
+    if REASON_CHECK in constraints and "duplicate" in constraints[REASON_CHECK]:
         return
     with op.batch_alter_table(REPORTS) as batch:
         if REASON_CHECK in constraints:
@@ -200,75 +200,69 @@ def _allow_duplicate_reason(inspector: sa.Inspector) -> None:
         batch.create_check_constraint(REASON_CHECK, NEW_REASONS)
 
 
-def _backfill() -> None:
-    bind = op.get_bind()
-    recordings = sa.table(
-        RECORDINGS,
-        sa.column("id", _uuid()),
-        sa.column("kind", sa.String),
-        sa.column("title", sa.String),
-        sa.column("mantra_title", sa.String),
-        sa.column("mantra_group_id", _uuid()),
-    )
-    groups = sa.table(
-        GROUPS,
-        sa.column("id", _uuid()),
-        sa.column("kind", sa.String),
-        sa.column("key", sa.String),
-        sa.column("title", sa.String),
-    )
-    ids: dict[tuple[str, str], object] = {
-        (row.kind, row.key): row.id
-        for row in bind.execute(sa.select(groups.c.id, groups.c.kind, groups.c.key))
-    }
-    pending = bind.execute(
-        sa.select(recordings.c.id, recordings.c.kind, recordings.c.title)
-        .where(recordings.c.mantra_group_id.is_(None))
-        .order_by(recordings.c.id)
-    ).fetchall()
-    for row in pending:
-        shown = " ".join((row.title or "").split())[:200]
-        key = _key(shown)
-        if not key:
-            continue
-        group_id = ids.get((row.kind, key))
-        if group_id is None:
-            group_id = uuid4()
-            bind.execute(sa.insert(groups).values(id=group_id, kind=row.kind, key=key, title=shown))
-            ids[(row.kind, key)] = group_id
-        bind.execute(
-            sa.update(recordings)
-            .where(recordings.c.id == row.id)
-            .values(mantra_group_id=group_id, mantra_title=shown)
-        )
+def _widen_categories(inspector: sa.Inspector) -> None:
+    """New kinds in the check constraints, the song rule and the language list.
+
+    An existing constraint with the old text is replaced; one that is not there is not invented
+    (a table made by hand may have no `type` column), except the two new rules, which only use
+    columns this migration has just added.
+    """
+    have = _checks(inspector, RECORDINGS)
+    replace = [
+        (name, rule)
+        for name, rule in ((KIND_CHECK, NEW_KIND), (TYPE_CHECK, NEW_TYPE))
+        if name in have and "prabhat_samgiita" not in have[name]
+    ]
+    add = [
+        (name, rule)
+        for name, rule in ((SONG_CHECK, SONG_RULE), (LANGUAGE_CHECK, LANGUAGE_RULE))
+        if name not in have
+    ]
+    if not replace and not add:
+        return
+    with op.batch_alter_table(RECORDINGS) as batch:
+        for name, rule in replace:
+            batch.drop_constraint(name, type_="check")
+            batch.create_check_constraint(name, rule)
+        for name, rule in add:
+            batch.create_check_constraint(name, rule)
 
 
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    if not inspector.has_table(GROUPS):
-        _create_groups()
     if not inspector.has_table(RECORDINGS):
         return  # nothing to extend (0027 has not made the table); create_all will build it whole
-    _add_recording_columns(sa.inspect(bind))
+    _add_recording_columns(inspector)
+    _drop_draft_mantras()
+    _widen_categories(sa.inspect(bind))
     if not sa.inspect(bind).has_table(CONFIRMS):
         _create_confirms()
     _make_sha_unique()
     if sa.inspect(bind).has_table(REPORTS):
         _allow_duplicate_reason(sa.inspect(bind))
-    _backfill()
 
 
 def downgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
+    if inspector.has_table(RECORDINGS):
+        newer = bind.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM recordings "
+                "WHERE kind IN ('devotional_song', 'prabhat_samgiita')"
+            )
+        ).scalar()
+        if newer:
+            raise RuntimeError(
+                f"Cannot go back: {newer} recording(s) of the Devotional song or Prabhat Samgiita "
+                "category exist, and the older schema has no place for them."
+            )
     if inspector.has_table(REPORTS):
         bind.execute(
             sa.text("UPDATE recording_reports SET reason = 'other' WHERE reason = 'duplicate'")
         )
-        constraints = {
-            c["name"]: (c.get("sqltext") or "") for c in inspector.get_check_constraints(REPORTS)
-        }
+        constraints = _checks(inspector, REPORTS)
         with op.batch_alter_table(REPORTS) as batch:
             if REASON_CHECK in constraints:
                 batch.drop_constraint(REASON_CHECK, type_="check")
@@ -280,12 +274,25 @@ def downgrade() -> None:
         if present.get(SHA_INDEX):
             op.drop_index(SHA_INDEX, table_name=RECORDINGS)
             op.create_index(SHA_INDEX, RECORDINGS, ["audio_sha256"])
-        if "ix_recordings_mantra_group_id" in present:
-            op.drop_index("ix_recordings_mantra_group_id", table_name=RECORDINGS)
+        if SONG_INDEX in present:
+            op.drop_index(SONG_INDEX, table_name=RECORDINGS)
         have = _columns(sa.inspect(bind), RECORDINGS)
+        checks = _checks(sa.inspect(bind), RECORDINGS)
         with op.batch_alter_table(RECORDINGS) as batch:
-            for column in ("removed_duplicate_of", "year", "mantra_group_id", "mantra_title"):
+            for name in (SONG_CHECK, LANGUAGE_CHECK):
+                if name in checks:
+                    batch.drop_constraint(name, type_="check")
+            for name, rule in ((KIND_CHECK, OLD_KIND), (TYPE_CHECK, OLD_TYPE)):
+                if name in checks:
+                    batch.drop_constraint(name, type_="check")
+                    batch.create_check_constraint(name, rule)
+            for column in (
+                "removed_duplicate_of",
+                "ps_song_number",
+                "notes",
+                "credits",
+                "language",
+                "year",
+            ):
                 if column in have:
                     batch.drop_column(column)
-    if sa.inspect(bind).has_table(GROUPS):
-        op.drop_table(GROUPS)

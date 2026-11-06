@@ -48,7 +48,6 @@ from app.models.member import (
 from app.models.notation import Notation
 from app.models.recordings import (
     AuthorBlock,
-    MantraGroup,
     MemberNotice,
     Recording,
     RecordingReport,
@@ -60,7 +59,6 @@ from app.models.song import Song
 __all__ = [
     "AiDailyUsage",
     "AuthorBlock",
-    "MantraGroup",
     "GoogleTranslateUsage",
     "AnalyticsDaily",
     "Base",

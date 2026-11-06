@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
+from datetime import UTC, datetime
+from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-Kind = Literal["kiirtan", "bhajan"]
+from app.models.recordings import PS_SONG_COUNT
+
+# The category of a recording. "kiirtan" is Baba Nam Kevalam (the only mantra of the library),
+# "prabhat_samgiita" is a performance of one Prabhat Samgiita song (`ps_song_number`).
+Kind = Literal["kiirtan", "bhajan", "devotional_song", "prabhat_samgiita"]
+Language = Literal["bengali", "sanskrit", "hindi", "english", "other"]
+FIRST_YEAR = 1900
 Status = Literal["published", "removed", "flagged"]
 ReportReason = Literal["copyright", "offensive", "wrong_info", "duplicate", "other"]
 AdminFilter = Literal["new", "flagged", "removed", "all"]
@@ -33,19 +39,40 @@ class RecordingCreate(BaseModel):
     key: str = Field(min_length=10, max_length=300)
     kind: Kind = "kiirtan"
     type: str = Field(default="other", max_length=16)
+    # The uploader types the title.
     title: str = Field(min_length=1, max_length=200)
-    author: str = Field(default="", max_length=200)
+    # Performer or group: required (the form prefills it with the member's name).
+    author: str = Field(min_length=1, max_length=200)
     by_author: bool = False
     terms_accepted: bool
     terms_version: str = Field(min_length=1, max_length=32)
-    # The chant, as typed (the app suggests titles already in the library). Empty: no group.
-    mantra: str | None = Field(default=None, max_length=200)
-    year: int | None = Field(default=None, ge=1800, le=2200)
+    # Optional details ("More details" in the app).
+    language: Language | None = None
+    credits: str | None = Field(default=None, max_length=300)
+    year: int | None = Field(default=None, ge=FIRST_YEAR)
+    notes: str | None = Field(default=None, max_length=500)
+    # Required for a Prabhat Samgiita recording (1..5018), not allowed for the other categories.
+    ps_song_number: int | None = Field(default=None, ge=1, le=PS_SONG_COUNT)
     # The uploader saw "Sounds like a recording already in the library" and said theirs is a
     # different performance. `confirm_similar` is the older name of the same flag.
     confirm_different: bool = False
     confirm_similar: bool = False
     duration_sec: int | None = Field(default=None, ge=1, le=60 * 60 * 6)
+
+    @field_validator("year")
+    @classmethod
+    def _year_not_in_the_future(cls, value: int | None) -> int | None:
+        if value is not None and value > datetime.now(UTC).year:
+            raise ValueError("The year cannot be in the future.")
+        return value
+
+    @model_validator(mode="after")
+    def _song_matches_category(self) -> Self:
+        if self.kind == "prabhat_samgiita" and self.ps_song_number is None:
+            raise ValueError("Choose the Prabhat Samgiita song this is a performance of.")
+        if self.kind != "prabhat_samgiita" and self.ps_song_number is not None:
+            raise ValueError("A song number belongs to the Prabhat Samgiita category only.")
+        return self
 
 
 class RecordingBrief(BaseModel):
@@ -54,8 +81,6 @@ class RecordingBrief(BaseModel):
     title: str
     author: str
     audio_url: str
-    mantra: str | None = None
-    mantra_id: str | None = None
 
 
 class RecordingOut(BaseModel):
@@ -74,9 +99,11 @@ class RecordingOut(BaseModel):
     thumbnail_url: str | None
     published_at: datetime | None
     created_at: datetime
-    mantra: str | None = None
-    mantra_id: str | None = None
     year: int | None = None
+    language: Language | None = None
+    credits: str | None = None
+    notes: str | None = None
+    ps_song_number: int | None = None
     # Only filled for the owner (`/recordings/mine`) and for admins.
     removed_reason: str | None = None
     removed_at: datetime | None = None
@@ -180,39 +207,3 @@ class DiscardRequest(BaseModel):
     """The author gave up after the "similar recording" question: drop the stored file."""
 
     key: str = Field(min_length=10, max_length=300)
-
-
-# --- mantras -------------------------------------------------------------------------------
-
-
-class MantraOut(BaseModel):
-    id: str
-    kind: Kind
-    title: str
-    versions: int
-    plays: int = 0
-
-
-class MantraList(BaseModel):
-    items: list[MantraOut]
-    total: int
-
-
-class MantraVersions(BaseModel):
-    mantra: MantraOut
-    items: list[RecordingOut]
-    total: int
-
-
-class MantraLookup(BaseModel):
-    """What the upload form shows under the mantra field: how many versions exist already."""
-
-    title: str
-    mantra: MantraOut | None
-    versions: int
-
-
-class MantraMergeRequest(BaseModel):
-    source_id: UUID
-    target_id: UUID
-    title: str | None = Field(default=None, max_length=200)

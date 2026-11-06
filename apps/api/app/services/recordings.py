@@ -12,6 +12,7 @@ The model is publish first, review after:
 from __future__ import annotations
 
 import tempfile
+import unicodedata
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
+from app.models import UserAccount
 from app.models.recordings import (
     BHAJAN_TYPES,
     KIRTAN_TYPES,
@@ -43,7 +45,7 @@ from app.schemas.recordings import (
     RecordingCreate,
     RecordingOut,
 )
-from app.services.mantras import clean_mantra, get_or_create_group, mantra_key
+from app.services.admin_members import normalize_member_email, owner_admin_emails
 from app.services.recording_fingerprint import (
     SIMILAR_THRESHOLD,
     compute_fingerprint,
@@ -62,7 +64,16 @@ from app.services.recording_storage import (
 VISIBLE = ("published", "flagged")
 ALREADY_IN_LIBRARY = "This file is already in the library."
 DAILY_LIMIT_CODE = "upload_daily_limit"
-KIND_WORD = {"kiirtan": "Kiirtan", "bhajan": "Bhajan"}
+KIND_WORD = {
+    "kiirtan": "Kiirtan",
+    "bhajan": "Bhajan",
+    "devotional_song": "devotional song",
+    "prabhat_samgiita": "Prabhat Samgiita recording",
+}
+# Bulk uploading by a team member (admin) is not held to the daily limit; the hourly brake is
+# only raised for them, so a script gone wrong still stops.
+HOURLY_UPLOADS = 60
+HOURLY_UPLOADS_TEAM = 600
 APPEAL_LINE = (
     "If you think this was a mistake, write to us from the app (Contact us) and we will look "
     "again. "
@@ -72,6 +83,34 @@ APPEAL_LINE = (
 
 def now_utc() -> datetime:
     return datetime.now(UTC)
+
+
+def title_key(text: str | None) -> str:
+    """A title without case, Latin accents, spaces or punctuation: "Bábá Nám" equals "baba-nam".
+
+    Used to tell that two titles of one author are the same title. Letters of other scripts keep
+    their combining marks (Devanagari, Cyrillic); only case and punctuation go.
+    """
+    if not text:
+        return ""
+    kept: list[str] = []
+    for char in unicodedata.normalize("NFKD", text).casefold():
+        category = unicodedata.category(char)
+        if category == "Mn" and kept and ord(kept[-1]) < 0x250 and kept[-1].isalpha():
+            continue  # an accent on a Latin letter
+        if category[0] in ("L", "N", "M"):
+            kept.append(char)
+    return unicodedata.normalize("NFC", "".join(kept))[:200]
+
+
+def is_team_member(member: UserAccount, settings: Settings) -> bool:
+    """Admins (the team) are not limited to N uploads a day. There is no separate "team" role:
+    `is_admin` / `is_super_admin` of the account, or an email in the owner lists, is the team.
+    """
+    if member.is_admin or member.is_super_admin:
+        return True
+    email = normalize_member_email(member.email)
+    return bool(email) and email in owner_admin_emails(settings)
 
 
 # --------------------------------------------------------------------------- rate limits
@@ -112,8 +151,6 @@ def _brief(recording: Recording) -> RecordingBrief:
         title=recording.title,
         author=recording.author,
         audio_url=recording.audio_url,
-        mantra=recording.mantra_title,
-        mantra_id=str(recording.mantra_group_id) if recording.mantra_group_id else None,
     )
 
 
@@ -134,9 +171,11 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         thumbnail_url=recording.thumbnail_url,
         published_at=recording.published_at,
         created_at=recording.created_at,
-        mantra=recording.mantra_title,
-        mantra_id=str(recording.mantra_group_id) if recording.mantra_group_id else None,
         year=recording.year,
+        language=recording.language,  # type: ignore[arg-type]
+        credits=recording.credits,
+        notes=recording.notes,
+        ps_song_number=recording.ps_song_number,
         removed_reason=recording.removed_reason if owner else None,
         removed_at=recording.removed_at if owner else None,
         duplicate_of=str(recording.duplicate_of) if owner and recording.duplicate_of else None,
@@ -168,6 +207,10 @@ def clean_text(value: str | None, limit: int) -> str:
 
 
 def validate_type(kind: str, type_id: str) -> str:
+    """The old sub-type (Kiirtan: BNK, lila, festival; Bhajan: morning, evening, devotional).
+    The two newer categories have none."""
+    if kind not in ("kiirtan", "bhajan"):
+        return "other"
     allowed = KIRTAN_TYPES if kind == "kiirtan" else BHAJAN_TYPES
     return type_id if type_id in allowed else "other"
 
@@ -275,7 +318,7 @@ async def own_duplicate(
     A member cannot add one performance twice under one title, whatever the file bytes are.
     Needs the fingerprint: without it (fpcalc missing) nothing is compared.
     """
-    wanted = mantra_key(title)
+    wanted = title_key(title)
     mine = decode_fingerprint(fingerprint)
     rows = (
         await session.scalars(
@@ -287,7 +330,7 @@ async def own_duplicate(
         )
     ).all()
     for row in rows:
-        if mantra_key(row.title) != wanted or not row.fingerprint:
+        if title_key(row.title) != wanted or not row.fingerprint:
             continue
         if similarity(mine, decode_fingerprint(row.fingerprint)) >= SIMILAR_THRESHOLD:
             return row
@@ -308,9 +351,14 @@ async def uploads_in_last_day(session: AsyncSession, member_id: UUID) -> int:
 
 
 async def ensure_daily_allowance(
-    session: AsyncSession, member_id: UUID, settings: Settings
+    session: AsyncSession, member_id: UUID, settings: Settings, *, team: bool = False
 ) -> None:
-    """At most `recording_uploads_per_day` per member in 24 hours (removed ones count)."""
+    """At most `recording_uploads_per_day` per member in 24 hours (removed ones count).
+
+    A team member (`is_team_member`) has no daily limit, so a bulk upload is never stopped.
+    """
+    if team:
+        return
     limit = settings.recording_uploads_per_day
     if await uploads_in_last_day(session, member_id) >= limit:
         raise HTTPException(
@@ -377,6 +425,7 @@ async def create_recording(
     member_id: UUID,
     member_name: str,
     payload: RecordingCreate,
+    team: bool = False,
 ) -> tuple[Recording, list[tuple[Recording, float]]]:
     """Publish a recording at once. Returns it with the similar recordings the author confirmed.
 
@@ -394,7 +443,10 @@ async def create_recording(
     title = clean_text(payload.title, 200)
     if not title:
         raise HTTPException(status_code=422, detail="Add a title.")
-    await ensure_daily_allowance(session, member_id, settings)
+    performer = clean_text(payload.author, 200)
+    if not performer:
+        raise HTTPException(status_code=422, detail="Add who performs it.")
+    await ensure_daily_allowance(session, member_id, settings, team=team)
 
     info = await inspect_stored_file(storage, payload.key, settings)
     existing = await exact_duplicate(session, info.sha256)
@@ -430,13 +482,12 @@ async def create_recording(
             session, sha256=info.sha256, member_id=member_id, others=[row for row, _ in similar]
         )
 
-    group = await get_or_create_group(session, payload.kind, payload.mantra)
     moment = now_utc()
     recording = Recording(
         kind=payload.kind,
         type=validate_type(payload.kind, payload.type),
         title=title,
-        author=clean_text(payload.author, 200),
+        author=performer,
         added_by=member_name,
         author_id=member_id,
         by_author=payload.by_author,
@@ -452,9 +503,11 @@ async def create_recording(
         terms_version=payload.terms_version,
         published_at=moment,
         duplicate_of=similar[0][0].id if similar else None,
-        mantra_title=(clean_mantra(payload.mantra) or None) if group else None,
-        mantra_group_id=group.id if group else None,
         year=payload.year,
+        language=payload.language,
+        credits=clean_text(payload.credits, 300) or None,
+        notes=clean_text(payload.notes, 500) or None,
+        ps_song_number=payload.ps_song_number if payload.kind == "prabhat_samgiita" else None,
     )
     session.add(recording)
     try:
@@ -495,6 +548,7 @@ async def list_visible(
     query: str | None,
     limit: int,
     offset: int,
+    song_number: int | None = None,
 ) -> tuple[list[Recording], int]:
     conditions: list[Any] = [Recording.status.in_(VISIBLE)]
     blocked = await blocked_author_ids(session, viewer_id)
@@ -502,6 +556,10 @@ async def list_visible(
         conditions.append(or_(Recording.author_id.is_(None), Recording.author_id.not_in(blocked)))
     if kind:
         conditions.append(Recording.kind == kind)
+    if song_number:
+        # The recordings of one Prabhat Samgiita song (the song page lists them).
+        conditions.append(Recording.kind == "prabhat_samgiita")
+        conditions.append(Recording.ps_song_number == song_number)
     if author_id:
         conditions.append(Recording.author_id == author_id)
     if query:
@@ -619,9 +677,6 @@ async def remove_recording(
                 "id": str(duplicate_of.id),
                 "title": duplicate_of.title,
                 "author": duplicate_of.author,
-                "mantra_id": str(duplicate_of.mantra_group_id)
-                if duplicate_of.mantra_group_id
-                else None,
             }
             payload["actions"] = ["open_original", "contact"]
             body = (

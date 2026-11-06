@@ -11,9 +11,17 @@ are already in the library) and prints what it WOULD do; it writes nothing, uplo
     # 3. the rest (resumes from the state file; finished files are skipped)
     python scripts/import_kiirtan_library.py --folder ... --csv ... --execute
 
-The table is a CSV with a header row: `title` (required), `performer`, `mantra`, `year`, and
-`file` (the file name inside the folder; when it is missing, the file whose name without extension
-equals the title is used). `type` is optional too. Commas or semicolons both work; UTF-8.
+The table is a CSV with a header row: `title` (required), `performer`, `category`, `language`,
+`credits`, `year`, `song` and `file` (the file name inside the folder; when it is missing, the file
+whose name without extension equals the title is used). Only `title` is required; the rest may be
+empty. Commas or semicolons both work; UTF-8.
+
+  * `category`: kiirtan (default; a Kiirtan is a version of Baba Nam Kevalam, there is no mantra
+    column), bhajan, devotional_song or prabhat_samgiita. Empty means `--category`.
+  * `performer`: who sings; `language`: bengali, sanskrit, hindi, english or other;
+    `credits`: "words and music by"; `year`: the year it was recorded (1900 up to this year).
+  * `song`: the Prabhat Samgiita song number (1 to 5018), REQUIRED when the category is
+    prabhat_samgiita, not allowed otherwise. `type` (the old Kiirtan/Bhajan sub-type) is optional.
 
 Per file, in this order:
   1. the SHA-256 of the file is in the library already (or earlier in this run): skipped;
@@ -23,7 +31,7 @@ Per file, in this order:
   4. otherwise: the audio is normalised (MP3 and M4A are stored as they are, other formats are
      converted to MP3 128 kbps with ffmpeg; `--normalise off` stores every file as it is),
      uploaded to the storage backend the API uses (RECORDING_STORAGE_BACKEND), and a published
-     recording is created with the mantra group assigned by the same rule as the API.
+     recording is created in its category.
 
 `recordings.audio_sha256` holds the hash of the SOURCE file, so the same file sent later through
 the app is refused as a duplicate even when this script converted it. Imported recordings have no
@@ -61,8 +69,12 @@ from sqlalchemy import select  # noqa: E402
 from sqlalchemy.exc import IntegrityError  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E402
 
-from app.models.recordings import MantraGroup, Recording  # noqa: E402
-from app.services.mantras import clean_mantra, get_or_create_group, mantra_key  # noqa: E402
+from app.models.recordings import (  # noqa: E402
+    PS_SONG_COUNT,
+    RECORDING_KINDS,
+    RECORDING_LANGUAGES,
+    Recording,
+)
 from app.services.recording_fingerprint import (  # noqa: E402
     SIMILAR_THRESHOLD,
     Fingerprint,
@@ -83,6 +95,7 @@ from app.services.recordings import VISIBLE, clean_text, validate_type  # noqa: 
 LIBRARY_OWNER = "00000000-0000-0000-0000-000000000000"
 MB = 1024 * 1024
 DEFAULT_ADDED_BY = "Ananda Marga team"
+FIRST_YEAR = 1900
 REVIEWED_BY = "bulk import"
 DONE = {"imported", "skipped_exact", "near_duplicate"}
 CONTENT_TYPES = {
@@ -98,9 +111,12 @@ KEEP_AS_IS = {"mp3", "m4a"}
 REPORT_FIELDS = [
     "file",
     "title",
+    "category",
     "performer",
-    "mantra",
+    "language",
+    "credits",
     "year",
+    "song",
     "status",
     "detail",
     "match_id",
@@ -117,9 +133,12 @@ class Row:
     line: int
     title: str
     performer: str
-    mantra: str
     year: int | None
     file: str
+    category: str = ""  # empty: the run's default category (`--category`)
+    language: str | None = None
+    credits: str = ""
+    song: int | None = None  # the Prabhat Samgiita song number
     type: str = "other"
 
 
@@ -136,7 +155,9 @@ def _read_table(path: Path) -> list[dict[str, str]]:
     return rows
 
 
-def load_rows(table: Path, folder: Path) -> tuple[list[Row], list[dict[str, str]]]:
+def load_rows(
+    table: Path, folder: Path, default_category: str = "kiirtan"
+) -> tuple[list[Row], list[dict[str, str]]]:
     """The rows of the table, and the report lines of rows that cannot be used."""
     by_stem = {p.stem.lower(): p.name for p in folder.iterdir() if p.is_file()}
     rows: list[Row] = []
@@ -151,13 +172,29 @@ def load_rows(table: Path, folder: Path) -> tuple[list[Row], list[dict[str, str]
                 year = int(year_text)
             except ValueError:
                 year = None
+        category = (raw.get("category") or "").strip().lower().replace(" ", "_").replace("-", "_")
+        language = (raw.get("language") or "").strip().lower()
+        song_text = (raw.get("song") or raw.get("song_number") or "").strip()
+        song = int(song_text) if song_text.isdigit() else None
+        effective = category or default_category
+        complaint = ""
         if not title or not name:
+            complaint = "a title and a file are required"
+        elif category and category not in RECORDING_KINDS:
+            complaint = f"category must be one of {', '.join(RECORDING_KINDS)}"
+        elif language and language not in RECORDING_LANGUAGES:
+            complaint = f"language must be one of {', '.join(RECORDING_LANGUAGES)}"
+        elif effective == "prabhat_samgiita" and (song is None or not 1 <= song <= PS_SONG_COUNT):
+            complaint = f"a Prabhat Samgiita recording needs a song number (1 to {PS_SONG_COUNT})"
+        elif effective != "prabhat_samgiita" and song_text:
+            complaint = "a song number belongs to the prabhat_samgiita category only"
+        if complaint:
             problems.append(
                 {
                     "file": name,
                     "title": title,
                     "status": "bad_row",
-                    "detail": f"line {number}: a title and a file are required",
+                    "detail": f"line {number}: {complaint}",
                 }
             )
             continue
@@ -166,9 +203,12 @@ def load_rows(table: Path, folder: Path) -> tuple[list[Row], list[dict[str, str]
                 line=number,
                 title=title,
                 performer=clean_text(raw.get("performer") or raw.get("author"), 200),
-                mantra=clean_mantra(raw.get("mantra")),
-                year=year if year and 1800 <= year <= 2200 else None,
+                year=year if year and FIRST_YEAR <= year <= datetime.now(UTC).year else None,
                 file=name,
+                category=category,
+                language=language or None,
+                credits=clean_text(raw.get("credits"), 300),
+                song=song if effective == "prabhat_samgiita" else None,
                 type=raw.get("type") or "other",
             )
         )
@@ -211,14 +251,13 @@ class State:
 
 @dataclass
 class Library:
-    """What the database already knows: hashes, fingerprints, mantra groups."""
+    """What the database already knows: hashes and fingerprints."""
 
     hashes: dict[str, tuple[str, str, str]] = field(
         default_factory=dict
     )  # sha -> id, title, status
     fingerprints: list[tuple[str, str]] = field(default_factory=list)  # id, encoded
     titles: dict[str, str] = field(default_factory=dict)  # id -> title
-    groups: set[tuple[str, str]] = field(default_factory=set)  # (kind, key)
 
 
 async def load_library(session: AsyncSession) -> Library:
@@ -239,12 +278,6 @@ async def load_library(session: AsyncSession) -> Library:
         library.titles[str(ident)] = title
         if fingerprint and status in VISIBLE:
             library.fingerprints.append((str(ident), fingerprint))
-    for kind, key in (
-        await session.execute(
-            select(MantraGroup.kind, MantraGroup.key).where(MantraGroup.merged_into_id.is_(None))
-        )
-    ).all():
-        library.groups.add((kind, key))
     return library
 
 
@@ -257,7 +290,7 @@ class Config:
     table: Path
     execute: bool = False
     limit: int | None = None
-    kind: str = "kiirtan"
+    kind: str = "kiirtan"  # the category of rows whose `category` cell is empty
     added_by: str = DEFAULT_ADDED_BY
     normalise: str = "mp3"  # "mp3" or "off"
     ffmpeg: str = "ffmpeg"
@@ -357,7 +390,7 @@ class Importer:
         self.say(f"  table  {config.table}")
         if config.limit:
             self.say(f"  pilot: at most {config.limit} files")
-        rows, problems = load_rows(config.table, config.folder)
+        rows, problems = load_rows(config.table, config.folder, config.kind)
         for problem in problems:
             self.outcomes.append(Outcome(None, problem["status"], problem["detail"]))
             self._remember_problem(problem)
@@ -409,7 +442,7 @@ class Importer:
             library = await load_library(session)
         self.say(
             f"  library: {len(library.hashes)} recordings, "
-            f"{len(library.fingerprints)} with a fingerprint, {len(library.groups)} mantras"
+            f"{len(library.fingerprints)} with a fingerprint"
         )
         return library
 
@@ -480,14 +513,15 @@ class Importer:
                     titles.get(ident, ""),
                     score,
                 )
-        mantra_note = self._mantra_note(row, library)
+        category = row.category or config.kind
+        note = f", {category}" + (f" (PS {row.song})" if row.song else "")
         action = "convert to MP3, " if convert else ""
         if print_ is not None:
             batch_prints.append((f"file:{row.file}", print_.data))
             batch_titles[f"file:{row.file}"] = row.title
         if not config.execute:
             batch_hashes[sha] = row.title
-            return Outcome(row, "would_import", f"{action}upload{mantra_note}", sha)
+            return Outcome(row, "would_import", f"{action}upload{note}", sha)
         with tempfile.TemporaryDirectory(prefix="kiirtan-import-") as scratch:
             source, stored_extension = path, extension
             if convert:
@@ -496,16 +530,8 @@ class Importer:
                     return Outcome(row, "failed", "ffmpeg could not convert this file", sha)
                 source, stored_extension = target, "mp3"
             return await self._store(
-                row, library, source, stored_extension, sha, print_, mantra_note, batch_hashes
+                row, library, source, stored_extension, sha, print_, note, batch_hashes
             )
-
-    def _mantra_note(self, row: Row, library: Library) -> str:
-        key = mantra_key(row.mantra)
-        if not key:
-            return ", no mantra group"
-        new = (self.config.kind, key) not in library.groups
-        library.groups.add((self.config.kind, key))
-        return f", mantra '{row.mantra}'" + (" (new group)" if new else "")
 
     async def _store(
         self,
@@ -515,12 +541,13 @@ class Importer:
         extension: str,
         sha: str,
         print_: Fingerprint | None,
-        mantra_note: str,
+        note: str,
         batch_hashes: dict[str, str],
     ) -> Outcome:
         assert self.storage is not None and self.sessions is not None
         config = self.config
         key = new_key(LIBRARY_OWNER, extension)
+        category = row.category or config.kind
         try:
             await self.storage.store_file(key, source, CONTENT_TYPES.get(extension, "audio/mpeg"))
         except Exception as exc:  # noqa: BLE001  (storage errors differ per backend)
@@ -528,10 +555,9 @@ class Importer:
         moment = datetime.now(UTC)
         try:
             async with self.sessions() as session:
-                group = await get_or_create_group(session, config.kind, row.mantra)
                 recording = Recording(
-                    kind=config.kind,
-                    type=validate_type(config.kind, row.type),
+                    kind=category,
+                    type=validate_type(category, row.type),
                     title=row.title,
                     author=row.performer,
                     added_by=config.added_by,
@@ -548,9 +574,10 @@ class Importer:
                     published_at=moment,
                     reviewed_at=moment,
                     reviewed_by=REVIEWED_BY,
-                    mantra_title=row.mantra or None if group else None,
-                    mantra_group_id=group.id if group else None,
                     year=row.year,
+                    language=row.language,
+                    credits=row.credits or None,
+                    ps_song_number=row.song,
                 )
                 session.add(recording)
                 await session.commit()
@@ -566,7 +593,7 @@ class Importer:
         if print_ is not None:
             library.fingerprints.append((ident, print_.data))
         batch_hashes[sha] = row.title
-        return Outcome(row, "imported", f"stored as {key}{mantra_note}", sha, ident)
+        return Outcome(row, "imported", f"stored as {key}{note}", sha, ident)
 
     def _remember_problem(self, problem: dict[str, str]) -> None:
         self.say(f"  [bad row] {problem['detail']}")
@@ -610,8 +637,11 @@ class Importer:
                         "file": row.file if row else "",
                         "title": row.title if row else "",
                         "performer": row.performer if row else "",
-                        "mantra": row.mantra if row else "",
+                        "category": (row.category or self.config.kind) if row else "",
+                        "language": row.language or "" if row else "",
+                        "credits": row.credits if row else "",
                         "year": row.year if row and row.year else "",
+                        "song": row.song or "" if row else "",
                         "status": outcome.status,
                         "detail": outcome.detail,
                         "match_id": outcome.match_id,
@@ -645,7 +675,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--csv",
         type=Path,
         required=True,
-        help="metadata table (title, performer, mantra, year, file)",
+        help="metadata table (title, performer, category, language, credits, year, song, file)",
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
@@ -661,7 +691,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--report", type=Path, help="report CSV (default: <table>.import-report.csv)"
     )
-    parser.add_argument("--kind", choices=["kiirtan", "bhajan"], default="kiirtan")
+    parser.add_argument(
+        "--category",
+        "--kind",
+        dest="kind",
+        choices=list(RECORDING_KINDS),
+        default="kiirtan",
+        help="category of rows whose category cell is empty (default: kiirtan)",
+    )
     parser.add_argument("--added-by", default=DEFAULT_ADDED_BY)
     parser.add_argument("--normalise", choices=["mp3", "off"], default="mp3")
     parser.add_argument("--ffmpeg", default="ffmpeg")

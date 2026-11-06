@@ -6,7 +6,7 @@ Design: docs/kiirtan-publishing.md.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Literal
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -20,8 +20,8 @@ from app.core.db import get_session
 from app.core.security import require_admin
 from app.models import UserAccount
 from app.models.recordings import (
+    PS_SONG_COUNT,
     AuthorBlock,
-    MantraGroup,
     MemberNotice,
     Recording,
     RecordingReport,
@@ -37,11 +37,6 @@ from app.schemas.recordings import (
     DiscardRequest,
     DuplicateOfRequest,
     Kind,
-    MantraList,
-    MantraLookup,
-    MantraMergeRequest,
-    MantraOut,
-    MantraVersions,
     NoticeOut,
     RecordingCreate,
     RecordingList,
@@ -54,7 +49,6 @@ from app.schemas.recordings import (
     UploadRequest,
     UploadTargetResponse,
 )
-from app.services import mantras
 from app.services import recordings as service
 from app.services.members import require_member_identity, sync_member, try_member_identity
 from app.services.recording_storage import (
@@ -126,12 +120,14 @@ async def list_recordings(
     session: DatabaseSession,
     member: OptionalMember,
     kind: Kind | None = None,
+    song_number: Annotated[int | None, Query(ge=1, le=PS_SONG_COUNT)] = None,
     author_id: UUID | None = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RecordingList:
-    """Published recordings, newest first.
+    """Published recordings, newest first. `kind` filters by category; `song_number` gives the
+    recordings of one Prabhat Samgiita song (the song page).
 
     Removed ones never show; the viewer's blocked authors are left out.
     """
@@ -143,6 +139,7 @@ async def list_recordings(
         query=q,
         limit=limit,
         offset=offset,
+        song_number=song_number,
     )
     return RecordingList(items=[service.recording_out(r) for r in rows], total=total)
 
@@ -159,92 +156,6 @@ async def my_recordings(session: DatabaseSession, member: Member) -> RecordingLi
     ).all()
     return RecordingList(
         items=[service.recording_out(r, owner=True) for r in rows], total=len(rows)
-    )
-
-
-# --------------------------------------------------------------------------- mantras
-
-
-def _mantra_out(group: MantraGroup, versions: int, plays: int = 0) -> MantraOut:
-    return MantraOut(
-        id=str(group.id),
-        kind=group.kind,  # type: ignore[arg-type]
-        title=group.title,
-        versions=versions,
-        plays=plays,
-    )
-
-
-@router.get("/mantras", response_model=MantraList)
-async def list_mantras(
-    session: DatabaseSession,
-    kind: Kind | None = None,
-    q: Annotated[str | None, Query(max_length=100)] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-) -> MantraList:
-    """Mantras that have at least one published version, with the number of versions."""
-    rows, total = await mantras.list_groups(session, kind=kind, query=q, limit=limit, offset=offset)
-    return MantraList(
-        items=[_mantra_out(group, versions, plays) for group, versions, plays in rows],
-        total=total,
-    )
-
-
-@router.get("/mantras/suggest", response_model=list[MantraOut])
-async def suggest_mantras(
-    session: DatabaseSession,
-    q: Annotated[str | None, Query(max_length=100)] = None,
-    kind: Kind | None = "kiirtan",
-    limit: Annotated[int, Query(ge=1, le=20)] = 8,
-) -> list[MantraOut]:
-    """Autocomplete for the upload form: titles already in the library, never a fixed list."""
-    rows = await mantras.suggest(session, kind=kind, query=q, limit=limit)
-    return [_mantra_out(group, versions) for group, versions in rows]
-
-
-@router.get("/mantras/lookup", response_model=MantraLookup)
-async def lookup_mantra(
-    session: DatabaseSession,
-    title: Annotated[str, Query(max_length=200)],
-    kind: Kind = "kiirtan",
-) -> MantraLookup:
-    """How many versions of this mantra exist ("12 versions of this mantra"), spelling-proof."""
-    group = await mantras.find_group(session, kind, title)
-    if group is None:
-        return MantraLookup(title=mantras.clean_mantra(title), mantra=None, versions=0)
-    versions = await mantras.count_versions(session, group.id)
-    return MantraLookup(
-        title=group.title,
-        mantra=_mantra_out(group, versions) if versions else None,
-        versions=versions,
-    )
-
-
-@router.get("/mantras/{group_id}", response_model=MantraVersions)
-async def mantra_versions(
-    group_id: UUID,
-    session: DatabaseSession,
-    member: OptionalMember,
-    sort: Annotated[Literal["newest", "plays"], Query()] = "newest",
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-) -> MantraVersions:
-    """The versions (performances) of one mantra, newest or most played first."""
-    group = await session.get(MantraGroup, group_id)
-    if group is None:
-        raise HTTPException(status_code=404, detail="Mantra not found")
-    group = await mantras.resolve_group(session, group)  # an old, merged link still works
-    blocked = await service.blocked_author_ids(session, member.id if member else None)
-    rows, total = await mantras.list_versions(
-        session, group, blocked=blocked, sort=sort, limit=limit, offset=offset
-    )
-    versions = await mantras.count_versions(session, group.id)
-    plays = sum(r.plays for r in rows)
-    return MantraVersions(
-        mantra=_mantra_out(group, versions, plays),
-        items=[service.recording_out(r) for r in rows],
-        total=total,
     )
 
 
@@ -342,8 +253,14 @@ async def create_upload(
 
     An exact duplicate is refused here, before the bytes travel.
     """
-    service.limiter.hit("upload", str(member.id), limit=60, window_seconds=3600)
-    await service.ensure_daily_allowance(session, member.id, settings)
+    team = service.is_team_member(member, settings)
+    service.limiter.hit(
+        "upload",
+        str(member.id),
+        limit=service.HOURLY_UPLOADS_TEAM if team else service.HOURLY_UPLOADS,
+        window_seconds=3600,
+    )
+    await service.ensure_daily_allowance(session, member.id, settings, team=team)
     extension = extension_for(payload.content_type)
     if extension is None:
         raise HTTPException(status_code=415, detail="Send an MP3, M4A, WAV, OGG or FLAC file.")
@@ -440,7 +357,13 @@ async def publish_recording(
     storage: Storage,
 ) -> RecordingOut:
     """Step 2: the file is stored; publish it. It is live the moment this returns."""
-    service.limiter.hit("publish", str(member.id), limit=60, window_seconds=3600)
+    team = service.is_team_member(member, settings)
+    service.limiter.hit(
+        "publish",
+        str(member.id),
+        limit=service.HOURLY_UPLOADS_TEAM if team else service.HOURLY_UPLOADS,
+        window_seconds=3600,
+    )
     if payload.terms_version != settings.recording_terms_version:
         raise HTTPException(
             status_code=422, detail="The content rules changed. Please read and accept them again."
@@ -453,6 +376,7 @@ async def publish_recording(
             member_id=member.id,
             member_name=member.display_name,
             payload=payload,
+            team=team,
         )
     except SQLAlchemyError as exc:
         await session.rollback()
@@ -599,17 +523,6 @@ async def admin_remove(
         session, recording, reason=payload.reason, by=payload.reviewer or admin
     )
     return service.admin_out(recording)
-
-
-@admin_router.post("/mantras/merge", response_model=MantraOut)
-async def admin_merge_mantras(
-    payload: MantraMergeRequest, admin: AdminIdentity, session: DatabaseSession
-) -> MantraOut:
-    """Join two mantras that the spelling rule could not (for example "Kiirtan" and "Kirtan")."""
-    target = await mantras.merge_groups(
-        session, source_id=payload.source_id, target_id=payload.target_id, title=payload.title
-    )
-    return _mantra_out(target, await mantras.count_versions(session, target.id))
 
 
 @admin_router.post("/{recording_id}/duplicate-of", response_model=AdminRecordingOut)
