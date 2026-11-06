@@ -31,6 +31,7 @@ import { Reveal } from "@/components/today/motion"
 import { fixtureDay } from "@/components/today/TodayPrototypeScreen"
 import { songCategories } from "@/constants/categories"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
+import { getUpcomingFestivals } from "@/data/festivals"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
@@ -290,6 +291,20 @@ export function HomeScreen() {
   })
   const chipColors = chipColorsOf(p)
 
+  /* Only observances with confirmed dates (data/festivals.ts); the names are catalogue text. */
+  const festivalCards: StripCardData[] = useMemo(
+    () =>
+      getUpcomingFestivals(now, 4).map((f, i) => ({
+        id: f.id,
+        label: f.dateLabel,
+        tone: (["orange", "sage", "gold", "forest"] as const)[i % 4],
+        cover: i + 3,
+        title: f.title,
+        caption: f.daysUntil === 0 ? t("fest.today") : f.daysUntil === 1 ? t("fest.tomorrow") : t("fest.inDays", { count: f.daysUntil }),
+      })),
+    [now, t],
+  )
+
   const shelves = shelvesFor(filter)
   const has: Record<HomeShelfId, boolean> = {
     today: Boolean(hero),
@@ -301,6 +316,7 @@ export function HomeScreen() {
     trending: MOCKUP_DATA,
     stories: storyCards.length > 0,
     learn: true,
+    festivals: festivalCards.length > 0,
     downloaded: true,
   }
   const visible = shelves.filter((id) => has[id])
@@ -419,6 +435,23 @@ export function HomeScreen() {
             <HomeShelf itemWidth={MIX_WIDTH}>
               {learnCards.map((card) => (
                 <StripCard key={card.id} p={p} card={card} width={MIX_WIDTH} height={170} onPress={() => router.push(href(card.target))} />
+              ))}
+            </HomeShelf>
+          </Reveal>
+        )
+      case "festivals":
+        return (
+          <Reveal key={id} index={next()} style={styles.section}>
+            <HomeSectionHead
+              p={p}
+              eyebrow={t("home.festivals.eyebrow")}
+              first={t("home.festivals.first")}
+              second={t("home.festivals.second")}
+              action={{ label: t("home.festivals.all"), onPress: () => router.push(href("/festivals")) }}
+            />
+            <HomeShelf itemWidth={STORY_WIDTH}>
+              {festivalCards.map((card) => (
+                <StripCard key={card.id} p={p} card={card} width={STORY_WIDTH} height={150} onPress={() => router.push(href(`/festival/${card.id}`))} />
               ))}
             </HomeShelf>
           </Reveal>

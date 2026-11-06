@@ -16,11 +16,11 @@ export const HOME_FILTERS = [
 ] as const
 export type HomeFilterId = (typeof HOME_FILTERS)[number]["id"]
 
-export type HomeShelfId = "today" | "start" | "kmixes" | "kiirtan" | "mixes" | "because" | "trending" | "stories" | "learn" | "downloaded"
+export type HomeShelfId = "today" | "start" | "kmixes" | "kiirtan" | "mixes" | "because" | "trending" | "stories" | "learn" | "festivals" | "downloaded"
 
 const SHELVES: Record<HomeFilterId, readonly HomeShelfId[]> = {
-  all: ["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "learn"],
-  songs: ["today", "start", "mixes", "because", "trending"],
+  all: ["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "festivals", "learn"],
+  songs: ["today", "start", "mixes", "because", "trending", "festivals"],
   kiirtan: ["kiirtan", "kmixes"],
   stories: ["stories"],
   learn: ["learn"],

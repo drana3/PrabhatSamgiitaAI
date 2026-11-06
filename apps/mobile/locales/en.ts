@@ -12,6 +12,7 @@ import { learnScreensEn } from "./learnScreens"
 import { kiirtanScreensEn } from "./kiirtanScreens"
 import { countsEn } from "./counts"
 import { homeStatesEn } from "./homeStates"
+import { homeFestivalsEn } from "./homeFestivals"
 import { profileRowsEn } from "./profileRows"
 import { assistantErrorsEn } from "./assistantErrors"
 
@@ -1273,6 +1274,7 @@ export const en = {
   ...kiirtanScreensEn,
   ...countsEn,
   ...homeStatesEn,
+  ...homeFestivalsEn,
   ...profileRowsEn,
   ...assistantErrorsEn,
 } as const

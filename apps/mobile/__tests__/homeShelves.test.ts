@@ -14,7 +14,7 @@ import {
 
 describe("home shelves", () => {
   it("All shows every shelf and each chip has its own", () => {
-    expect(shelvesFor("all")).toEqual(["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "learn"])
+    expect(shelvesFor("all")).toEqual(["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "festivals", "learn"])
     expect(shelvesFor("kiirtan")).toEqual(["kiirtan", "kmixes"])
     expect(shelvesFor("stories")).toEqual(["stories"])
     expect(shelvesFor("learn")).toEqual(["learn"])

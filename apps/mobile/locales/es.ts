@@ -13,6 +13,7 @@ import { learnScreensEs } from "./learnScreens"
 import { kiirtanScreensEs } from "./kiirtanScreens"
 import { countsEs } from "./counts"
 import { homeStatesEs } from "./homeStates"
+import { homeFestivalsEs } from "./homeFestivals"
 import { profileRowsEs } from "./profileRows"
 import { assistantErrorsEs } from "./assistantErrors"
 
@@ -1267,6 +1268,7 @@ export const es: Dictionary = {
   ...kiirtanScreensEs,
   ...countsEs,
   ...homeStatesEs,
+  ...homeFestivalsEs,
   ...profileRowsEs,
   ...assistantErrorsEs,
 }
