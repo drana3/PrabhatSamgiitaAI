@@ -8,11 +8,13 @@ import { TodayPress } from "@/components/today/TodayPress"
 import type { AmTheme } from "@/constants/tokens/amColors"
 import type { AmProto } from "@/constants/tokens/amToday"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { everyDayAt, formatMinutes, fromParts12, hasTime, timeParts, toMinutes } from "@/lib/notifications/settings"
+import { everyDayAt, formatMinutes, hasTime, timeParts, toMinutes } from "@/lib/notifications/settings"
 import { useT } from "@/lib/i18n"
 
-const HOURS_12 = Array.from({ length: 12 }, (_, i) => String(i + 1))
-const HOURS_24 = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"))
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"))
+/** the two accent lines sit on the top and bottom edge of the middle row */
+const LINE_TOP = (WHEEL_HEIGHT - WHEEL_ITEM) / 2
+const LINE_BOTTOM = LINE_TOP + WHEEL_ITEM - 2
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"))
 
 export type PickerTarget = {
@@ -33,37 +35,35 @@ type Props = {
   target: PickerTarget | null
   theme: AmTheme
   p: AmProto
-  hour12: boolean
   onCancel: () => void
   onDone: (minutes: number) => void
 }
 
 /**
- * The time picker, as a bottom sheet: an hour wheel and a minute wheel (any minute, 0 to 59), AM and PM
- * on a 12-hour clock, a live line saying what will happen ("Every day at 7:45 AM"), Cancel and Done.
+ * The time picker, as a bottom sheet: an hour wheel (00 to 23) and a minute wheel (any minute, 00 to 59)
+ * on a 24-hour clock, a live line saying what will happen ("Every day at 07:45"), Cancel and Done. The
+ * chosen row is marked by a pair of thin accent lines and accent text, with no frame around the wheels.
  * Nothing is saved until Done. Dragging the sheet down, or tapping outside it, is Cancel.
  */
-export function TimePickerSheet({ visible, target, theme, p, hour12, onCancel, onDone }: Props) {
+export function TimePickerSheet({ visible, target, theme, p, onCancel, onDone }: Props) {
   // keep the last target while the sheet slides away, so its content does not change mid-flight
   const last = useRef<PickerTarget | null>(null)
   if (target) last.current = target
   const current = target ?? last.current
   return (
     <Sheet visible={visible} onClose={onCancel} title={current?.title ?? ""} theme={theme} hideDone>
-      {current ? <PickerBody key={current.key} p={p} hour12={hour12} target={current} onCancel={onCancel} onDone={onDone} /> : null}
+      {current ? <PickerBody key={current.key} p={p} target={current} onCancel={onCancel} onDone={onDone} /> : null}
     </Sheet>
   )
 }
 
 function PickerBody({
   p,
-  hour12,
   target,
   onCancel,
   onDone,
 }: {
   p: AmProto
-  hour12: boolean
   target: PickerTarget
   onCancel: () => void
   onDone: (minutes: number) => void
@@ -73,55 +73,30 @@ function PickerBody({
   const parts = timeParts(minutes)
   const taken = hasTime(target.others, minutes)
 
-  const setHourIndex = (i: number) => setMinutes(hour12 ? fromParts12(i + 1, parts.minute, parts.pm) : toMinutes(i, parts.minute))
+  const setHourIndex = (i: number) => setMinutes(toMinutes(i, parts.minute))
   const setMinute = (i: number) => setMinutes(toMinutes(parts.hour24, i))
-  const setPm = (pm: boolean) => setMinutes(fromParts12(parts.hour12, parts.minute, pm))
 
   return (
     <View>
       <Text style={[s.preview, { color: p.ink800 }]} accessibilityRole="header" accessibilityLiveRegion="polite">
-        {everyDayAt(minutes, hour12)}
+        {everyDayAt(minutes)}
       </Text>
 
-      <View style={[s.wheels, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-        <View pointerEvents="none" style={[s.band, { backgroundColor: p.sand300 }]} />
-        <TimeWheel
-          p={p}
-          label={t("notif.picker.hour")}
-          labels={hour12 ? HOURS_12 : HOURS_24}
-          index={hour12 ? parts.hour12 - 1 : parts.hour24}
-          onIndex={setHourIndex}
-          width={88}
-        />
-        <Text style={[s.colon, { color: p.ink800 }]} accessibilityElementsHidden importantForAccessibility="no">
-          :
-        </Text>
-        <TimeWheel p={p} label={t("notif.picker.minute")} labels={MINUTES} index={parts.minute} onIndex={setMinute} width={88} />
-        {hour12 ? (
-          <View style={s.ampm}>
-            {(["AM", "PM"] as const).map((label) => {
-              const on = (label === "PM") === parts.pm
-              return (
-                <TodayPress
-                  key={label}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={label === "PM" ? t("unit.pm") : t("unit.am")}
-                  onPress={() => setPm(label === "PM")}
-                  pressedScale={0.95}
-                  style={[s.ampmChip, on ? { backgroundColor: p.action, borderColor: p.action } : { backgroundColor: p.white, borderColor: p.sand300 }]}
-                >
-                  <Text style={[s.ampmText, { color: on ? p.onAction : p.ink800 }]}>{label === "PM" ? t("unit.pm") : t("unit.am")}</Text>
-                </TodayPress>
-              )
-            })}
-          </View>
-        ) : null}
+      <View style={s.wheels}>
+        <View style={s.face}>
+          <View pointerEvents="none" style={[s.line, { top: LINE_TOP, backgroundColor: p.action }]} />
+          <View pointerEvents="none" style={[s.line, { top: LINE_BOTTOM, backgroundColor: p.action }]} />
+          <TimeWheel p={p} label={t("notif.picker.hour")} labels={HOURS} index={parts.hour24} onIndex={setHourIndex} width={96} />
+          <Text style={[s.colon, { color: p.orange700 }]} accessibilityElementsHidden importantForAccessibility="no">
+            :
+          </Text>
+          <TimeWheel p={p} label={t("notif.picker.minute")} labels={MINUTES} index={parts.minute} onIndex={setMinute} width={96} />
+        </View>
       </View>
 
       {taken ? (
         <Text style={[s.warn, { color: p.dangerText }]} accessibilityLiveRegion="polite">
-          {t("notif.picker.taken", { time: formatMinutes(minutes, hour12) })}
+          {t("notif.picker.taken", { time: formatMinutes(minutes) })}
         </Text>
       ) : null}
 
@@ -174,22 +149,10 @@ const s = StyleSheet.create({
     letterSpacing: -0.56,
     textTransform: "uppercase",
   },
-  wheels: {
-    marginHorizontal: 10,
-    height: WHEEL_HEIGHT,
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: "hidden",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  band: { position: "absolute", left: 10, right: 10, top: (WHEEL_HEIGHT - WHEEL_ITEM) / 2, height: WHEEL_ITEM, borderRadius: 14, opacity: 0.7 },
-  colon: { fontFamily: amFonts.semi, fontSize: 30, lineHeight: 36, marginBottom: 4 },
-  ampm: { gap: 8, marginLeft: 12 },
-  ampmChip: { width: 64, minHeight: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  ampmText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
+  wheels: { height: WHEEL_HEIGHT, alignItems: "center", justifyContent: "center" },
+  face: { height: WHEEL_HEIGHT, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 12 },
+  line: { position: "absolute", left: 0, right: 0, height: 2, borderRadius: 1 },
+  colon: { fontFamily: amFonts.semi, fontSize: 32, lineHeight: 38, marginBottom: 4 },
   warn: { paddingHorizontal: 20, paddingTop: 12, fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19 },
   remove: {
     marginHorizontal: 20,

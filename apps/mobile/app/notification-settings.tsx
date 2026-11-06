@@ -16,7 +16,6 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { nativeNotificationsAvailable, openSystemSettings } from "@/lib/notifications/native"
 import { ensurePermission, refreshPermission } from "@/lib/notifications/permission"
-import { uses12Hour } from "@/lib/notifications/hourCycle"
 import { FESTIVAL_EVE_AT, MAX_TIMES, STREAK_AT, formatMinutes, suggestTime, type TimedKind, type ToggleKind } from "@/lib/notifications/settings"
 import { useNotificationSettingsStore, type PermissionState } from "@/stores/notificationSettingsStore"
 import { href } from "@/utils/href"
@@ -74,7 +73,6 @@ function TimedRow({
   kind,
   on,
   times,
-  hour12,
   disabled,
   onChange,
   onEdit,
@@ -87,7 +85,6 @@ function TimedRow({
   kind: TimedKind
   on: boolean
   times: readonly number[]
-  hour12: boolean
   disabled?: boolean
   onChange: (on: boolean) => void
   onEdit: (index: number) => void
@@ -107,14 +104,14 @@ function TimedRow({
               <TodayPress
                 key={minutes}
                 accessibilityRole="button"
-                accessibilityLabel={t("notif.time.a11y", { label, time: formatMinutes(minutes, hour12) })}
+                accessibilityLabel={t("notif.time.a11y", { label, time: formatMinutes(minutes) })}
                 accessibilityHint={t("notif.time.hint")}
                 disabled={disabled}
                 onPress={() => onEdit(index)}
                 pressedScale={0.96}
-                style={[s.timeChip, { backgroundColor: p.sand200, borderColor: p.sand300 }]}
+                style={[s.timeChip, { backgroundColor: p.orange100, borderColor: p.orange700 }]}
               >
-                <Text style={[s.timeChipText, { color: p.ink800 }]}>{formatMinutes(minutes, hour12)}</Text>
+                <Text style={[s.timeChipText, { color: p.orange700 }]}>{formatMinutes(minutes)}</Text>
               </TodayPress>
             ))}
             <TodayPress
@@ -175,7 +172,7 @@ function PermissionCard({ p, state, onAllow }: { p: AmProto; state: "undetermine
 /**
  * Notification settings (card route, from the bell screen and the profile sheet). A master switch and one
  * switch per kind. Song of the day and Words to repeat carry their own times of the day: any minute, up to
- * 3 and 5 a day, chosen in a bottom sheet with an hour and a minute wheel. The OS permission is asked
+ * 3 and 5 a day, chosen in a bottom sheet with an hour and a minute wheel (24-hour clock). The OS permission is asked
  * only when the person turns something on; when it is off in system settings the screen says so and
  * offers "Open settings".
  */
@@ -209,7 +206,6 @@ export default function NotificationSettingsScreen() {
     st.setKind(k, on)
     asking(on)
   }
-  const hour12 = useMemo(uses12Hour, [])
 
   /** the picker: which time of which kind is being changed, or a new one (index null) */
   const [editing, setEditing] = useState<{ kind: TimedKind; index: number | null; opened: number } | null>(null)
@@ -305,7 +301,6 @@ export default function NotificationSettingsScreen() {
               kind="song"
               on={st.song.on}
               times={st.song.times}
-              hour12={hour12}
               disabled={off}
               onChange={kind("song")}
               onEdit={(i) => edit("song", i)}
@@ -319,7 +314,6 @@ export default function NotificationSettingsScreen() {
               kind="words"
               on={st.words.on}
               times={st.words.times}
-              hour12={hour12}
               disabled={off}
               onChange={kind("words")}
               onEdit={(i) => edit("words", i)}
@@ -333,12 +327,12 @@ export default function NotificationSettingsScreen() {
         <Reveal index={reveal++}>
           <Footer>
             <SheetNote p={p}>{t("notif.note.times")}</SheetNote>
-            <SheetNote p={p}>{t("notif.note.fixed", { festival: formatMinutes(FESTIVAL_EVE_AT, hour12), streak: formatMinutes(STREAK_AT, hour12) })}</SheetNote>
+            <SheetNote p={p}>{t("notif.note.fixed", { festival: formatMinutes(FESTIVAL_EVE_AT), streak: formatMinutes(STREAK_AT) })}</SheetNote>
           </Footer>
         </Reveal>
       </ScrollView>
 
-      <TimePickerSheet visible={editing != null} target={target} theme={theme} p={p} hour12={hour12} onCancel={closePicker} onDone={done} />
+      <TimePickerSheet visible={editing != null} target={target} theme={theme} p={p} onCancel={closePicker} onDone={done} />
     </View>
   )
 }

@@ -54,31 +54,23 @@ export function toMinutes(hour: number, minute: number): number {
   return h * 60 + m
 }
 
-export type TimeParts = { hour24: number; minute: number; pm: boolean; hour12: number }
+export type TimeParts = { hour24: number; minute: number }
 
-/** The pieces a picker shows: 24-hour hour, minute, and the 12-hour hour (1 to 12) with AM or PM. */
+/** The pieces a picker shows: hour (0 to 23) and minute (0 to 59). */
 export function timeParts(minutes: number): TimeParts {
   const m = wrapMinutes(minutes)
-  const hour24 = Math.floor(m / 60)
-  return { hour24, minute: m % 60, pm: hour24 >= 12, hour12: hour24 % 12 === 0 ? 12 : hour24 % 12 }
+  return { hour24: Math.floor(m / 60), minute: m % 60 }
 }
 
-/** 12-hour pieces back to minutes: 12 AM is midnight, 12 PM is noon. */
-export function fromParts12(hour12: number, minute: number, pm: boolean): number {
-  const h = Math.min(12, Math.max(1, Math.round(hour12)))
-  return toMinutes((h % 12) + (pm ? 12 : 0), minute)
+/** The time as the app shows it everywhere: a 24-hour clock with two digits each, "07:45", "00:05", "18:00". */
+export function formatMinutes(minutes: number): string {
+  const { hour24, minute } = timeParts(minutes)
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
 }
 
-/** "7:45 AM" (12-hour clock, `hour12` true) or "7:45" (24-hour). 0:00 is "12:00 AM", noon "12:00 PM". */
-export function formatMinutes(minutes: number, hour12 = true): string {
-  const { hour24, minute, pm, hour12: h12 } = timeParts(minutes)
-  const mm = String(minute).padStart(2, "0")
-  return hour12 ? `${h12}:${mm} ${pm ? t("unit.pm") : t("unit.am")}` : `${hour24}:${mm}`
-}
-
-/** The live line of the picker: "Every day at 7:45 AM". */
-export function everyDayAt(minutes: number, hour12 = true): string {
-  return t("notif.picker.preview", { time: formatMinutes(minutes, hour12) })
+/** The live line of the picker: "Every day at 07:45". */
+export function everyDayAt(minutes: number): string {
+  return t("notif.picker.preview", { time: formatMinutes(minutes) })
 }
 
 /**

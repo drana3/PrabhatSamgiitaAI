@@ -133,7 +133,7 @@ export function TimeWheel({ p, label, labels, index, onIndex, width }: Props) {
               <Text
                 style={[
                   s.text,
-                  { color: distance === 0 ? p.ink800 : p.ink500 },
+                  { color: distance === 0 ? p.orange700 : p.ink500 },
                   distance === 0 ? s.textOn : null,
                   { opacity: distance === 0 ? 1 : distance === 1 ? 0.75 : 0.45 },
                 ]}
@@ -151,5 +151,5 @@ export function TimeWheel({ p, label, labels, index, onIndex, width }: Props) {
 const s = StyleSheet.create({
   item: { height: WHEEL_ITEM, alignItems: "center", justifyContent: "center" },
   text: { fontFamily: amFonts.medium, fontSize: 22, lineHeight: 28 },
-  textOn: { fontFamily: amFonts.semi, fontSize: 30, lineHeight: 36 },
+  textOn: { fontFamily: amFonts.semi, fontSize: 32, lineHeight: 38 },
 })

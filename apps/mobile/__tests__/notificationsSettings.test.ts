@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 
 import { learningStreak } from "@/lib/learn/streak"
 import type { WordCard } from "@/lib/learn/srs"
-import { detect12Hour } from "@/lib/notifications/hourCycle"
 import {
   DEFAULT_SETTINGS,
   MAX_TIMES,
@@ -12,7 +11,6 @@ import {
   canAddTime,
   everyDayAt,
   formatMinutes,
-  fromParts12,
   hasTime,
   kindEnabled,
   migrateSettings,
@@ -45,31 +43,25 @@ describe("notification settings: defaults", () => {
 })
 
 describe("time formatting", () => {
-  it("formats a 12-hour clock with AM and PM, midnight and noon as 12", () => {
-    expect(formatMinutes(0)).toBe("12:00 AM")
-    expect(formatMinutes(5)).toBe("12:05 AM")
-    expect(formatMinutes(59)).toBe("12:59 AM")
-    expect(formatMinutes(60)).toBe("1:00 AM")
-    expect(formatMinutes(7 * 60 + 45)).toBe("7:45 AM")
-    expect(formatMinutes(11 * 60 + 59)).toBe("11:59 AM")
-    expect(formatMinutes(12 * 60)).toBe("12:00 PM")
-    expect(formatMinutes(12 * 60 + 1)).toBe("12:01 PM")
-    expect(formatMinutes(13 * 60)).toBe("1:00 PM")
-    expect(formatMinutes(18 * 60 + 30)).toBe("6:30 PM")
-    expect(formatMinutes(23 * 60 + 59)).toBe("11:59 PM")
+  it("formats a 24-hour clock with two digits each, never AM or PM", () => {
+    expect(formatMinutes(0)).toBe("00:00")
+    expect(formatMinutes(5)).toBe("00:05")
+    expect(formatMinutes(60)).toBe("01:00")
+    expect(formatMinutes(7 * 60 + 45)).toBe("07:45")
+    expect(formatMinutes(8 * 60)).toBe("08:00")
+    expect(formatMinutes(12 * 60)).toBe("12:00")
+    expect(formatMinutes(13 * 60)).toBe("13:00")
+    expect(formatMinutes(18 * 60 + 30)).toBe("18:30")
+    expect(formatMinutes(23 * 60 + 59)).toBe("23:59")
   })
 
-  it("formats a 24-hour clock without a zero before the hour", () => {
-    expect(formatMinutes(0, false)).toBe("0:00")
-    expect(formatMinutes(7 * 60 + 5, false)).toBe("7:05")
-    expect(formatMinutes(12 * 60, false)).toBe("12:00")
-    expect(formatMinutes(23 * 60 + 59, false)).toBe("23:59")
-  })
-
-  it("formats every minute of the day on both clocks", () => {
+  it("formats every minute of the day as HH:mm", () => {
     for (let m = 0; m < 1440; m += 1) {
-      expect(formatMinutes(m, true)).toMatch(/^(1[0-2]|[1-9]):[0-5]\d (AM|PM)$/)
-      expect(formatMinutes(m, false)).toMatch(/^(2[0-3]|1\d|\d):[0-5]\d$/)
+      const text = formatMinutes(m)
+      expect(text).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/)
+      expect(text).not.toMatch(/AM|PM/i)
+      const [h, min] = text.split(":").map(Number)
+      expect(toMinutes(h!, min!)).toBe(m)
     }
   })
 
@@ -77,25 +69,20 @@ describe("time formatting", () => {
     expect(wrapMinutes(1440)).toBe(0)
     expect(wrapMinutes(-1)).toBe(1439)
     expect(wrapMinutes(480.4)).toBe(480)
-    expect(formatMinutes(1440 + 480)).toBe("8:00 AM")
+    expect(formatMinutes(1440 + 480)).toBe("08:00")
   })
 
   it("says what will happen, for the picker's live line", () => {
-    expect(everyDayAt(7 * 60 + 45)).toBe("Every day at 7:45 AM")
-    expect(everyDayAt(18 * 60, false)).toBe("Every day at 18:00")
+    expect(everyDayAt(8 * 60 + 5)).toBe("Every day at 08:05")
+    expect(everyDayAt(18 * 60)).toBe("Every day at 18:00")
   })
 
-  it("splits a time into 24-hour and 12-hour pieces and puts it back", () => {
-    expect(timeParts(0)).toEqual({ hour24: 0, minute: 0, pm: false, hour12: 12 })
-    expect(timeParts(12 * 60)).toEqual({ hour24: 12, minute: 0, pm: true, hour12: 12 })
-    expect(timeParts(15 * 60 + 7)).toEqual({ hour24: 15, minute: 7, pm: true, hour12: 3 })
-    expect(fromParts12(12, 0, false)).toBe(0)
-    expect(fromParts12(12, 0, true)).toBe(12 * 60)
-    expect(fromParts12(3, 7, true)).toBe(15 * 60 + 7)
-    expect(fromParts12(11, 59, true)).toBe(23 * 60 + 59)
+  it("splits a time into hour (0 to 23) and minute and puts it back", () => {
+    expect(timeParts(0)).toEqual({ hour24: 0, minute: 0 })
+    expect(timeParts(12 * 60)).toEqual({ hour24: 12, minute: 0 })
+    expect(timeParts(15 * 60 + 7)).toEqual({ hour24: 15, minute: 7 })
     for (let m = 0; m < 1440; m += 1) {
       const t = timeParts(m)
-      expect(fromParts12(t.hour12, t.minute, t.pm)).toBe(m)
       expect(toMinutes(t.hour24, t.minute)).toBe(m)
     }
   })
@@ -105,17 +92,12 @@ describe("time formatting", () => {
     expect(toMinutes(30, -4)).toBe(23 * 60)
   })
 
-  it("follows the device locale for 12 or 24 hours, and falls back to 12", () => {
-    expect(detect12Hour(() => ({ hour12: true }))).toBe(true)
-    expect(detect12Hour(() => ({ hour12: false }))).toBe(false)
-    expect(detect12Hour(() => ({ hourCycle: "h23" }))).toBe(false)
-    expect(detect12Hour(() => ({ hourCycle: "h12" }))).toBe(true)
-    expect(detect12Hour(() => ({}))).toBe(true)
-    expect(
-      detect12Hour(() => {
-        throw new Error("no Intl")
-      }),
-    ).toBe(true)
+  it("keeps saved times as minutes after midnight: older saves read the same as before", () => {
+    const saved = { master: true, song: { on: true, times: [485, 1020] }, festival: { on: true }, words: { on: true, times: [1080] }, streak: { on: false } }
+    const read = migrateSettings(saved, SETTINGS_VERSION)
+    expect(read.song.times).toEqual([485, 1020])
+    expect(read.song.times.map(formatMinutes)).toEqual(["08:05", "17:00"])
+    expect(migrateSettings({ song: { at: 485 } }, 1).song.times).toEqual([485])
   })
 })
 
