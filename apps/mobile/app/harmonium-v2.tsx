@@ -5,6 +5,7 @@ import { useRouter } from "expo-router"
 import { SpCardButton, SpKeyRow } from "@/components/song-v2/SpSections"
 import { SpKeyboard, SpOverlayPage, SpReadout } from "@/components/song-v2/SpHarmonium"
 import { note, over } from "@/components/song-v2/spType"
+import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { Reveal } from "@/components/today/motion"
 import { useSpTheme } from "@/hooks/useSpTheme"
@@ -22,6 +23,7 @@ import { href } from "@/utils/href"
 export default function HarmoniumV2Screen() {
   const router = useRouter()
   const t = useSpTheme()
+  const tr = useT()
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
   const stepKey = useSongPageStore((s) => s.stepHarmoniumKey)
   const setInstrument = useSongPageStore((s) => s.setInstrument)
@@ -43,17 +45,17 @@ export default function HarmoniumV2Screen() {
   }
 
   return (
-    <SpOverlayPage t={t} title="Harmonium" onBack={back}>
+    <SpOverlayPage t={t} title={tr("hm.title")} onBack={back}>
       <Reveal index={0}>
         <SpKeyRow
           t={t}
-          label="Sa is"
-          noteText="Pick the key you sing in"
+          label={tr("hm.saIs")}
+          noteText={tr("hm.pickKey")}
           value={keyLabel(harmoniumKey)}
           onDown={() => stepKey(-1)}
           onUp={() => stepKey(1)}
-          downLabel="Lower the key"
-          upLabel="Raise the key"
+          downLabel={tr("songPage.chords.key.lower")}
+          upLabel={tr("songPage.chords.key.raise")}
           inset
         />
       </Reveal>
@@ -62,7 +64,7 @@ export default function HarmoniumV2Screen() {
           t={t}
           live
           big={current ? current.swara : "—"}
-          small={current ? `${current.note} on the harmonium` : "Tap a key"}
+          small={current ? tr("hm.noteOn", { note: current.note }) : tr("hm.tapKey")}
         />
       </Reveal>
       <Reveal index={2}>
@@ -78,14 +80,14 @@ export default function HarmoniumV2Screen() {
       </Reveal>
       <Reveal index={3}>
         <Text style={[note(t), { paddingHorizontal: 0 }]}>
-          Sa and the other swaras are marked on the keys that belong to the key you picked.
-          {MOCKUP_DATA ? " Sound is not part of this mockup." : ""}
+          {tr("hm.marked")}
+          {MOCKUP_DATA ? ` ${tr("hm.noSound")}` : ""}
         </Text>
       </Reveal>
       <Reveal index={4}>
         <View style={{ gap: 10 }}>
           <View style={{ paddingHorizontal: 10 }}>
-            <Text style={over(t)}>Practise on</Text>
+            <Text style={over(t)}>{tr("hm.practiseOn")}</Text>
           </View>
           {PRACTISE_SONGS.map((song) => (
             <SpCardButton

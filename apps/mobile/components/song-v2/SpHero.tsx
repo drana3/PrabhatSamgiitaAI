@@ -14,6 +14,7 @@ import { songAccents } from "@/lib/songPage/accent"
 import { coverTransform } from "@/lib/songPage/stickyBar"
 import type { DownloadItem } from "@/lib/offline/downloadModel"
 
+import { useT } from "@/lib/i18n"
 import { SpIcon } from "./SpIcon"
 import { SpPress } from "./SpUi"
 
@@ -177,6 +178,7 @@ export function SpActionRow({
   onLayout?: (event: LayoutChangeEvent) => void
 }) {
   const accent = songAccents(t)
+  const tr = useT()
   return (
     <View style={styles.actions} onLayout={onLayout}>
       <View style={styles.tools}>
@@ -187,19 +189,19 @@ export function SpActionRow({
           hit={46}
           color={t.ink800}
         />
-        <Tool label="Add to playlist" onPress={onPlaylist}>
+        <Tool label={tr("sp.addToPlaylist")} onPress={onPlaylist}>
           <SpIcon name="listPlus" size={25} color={t.ink800} />
         </Tool>
-        <Tool label="Share" onPress={onShare}>
+        <Tool label={tr("common.share")} onPress={onShare}>
           <PlayerIcon name="share" size={24} color={t.ink800} />
         </Tool>
-        <Tool label="More" onPress={onMore}>
+        <Tool label={tr("songPage.more")} onPress={onMore}>
           <PlayerIcon name="more" size={24} color={t.ink800} />
         </Tool>
       </View>
       <SpPress
         onPress={onPlay}
-        accessibilityLabel={playing ? "Pause" : "Play"}
+        accessibilityLabel={playing ? tr("player.pause") : tr("player.play")}
         pressedScale={0.94}
         style={[styles.play, { backgroundColor: accent.fill }]}
       >

@@ -5,6 +5,7 @@ import { ugcRu } from "./ugc"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { playerErrorsRu } from "./playerErrors"
+import { harmoniumScreensRu } from "./harmoniumScreens"
 import { learnScreensRu } from "./learnScreens"
 import { kiirtanScreensRu } from "./kiirtanScreens"
 import { countsRu } from "./counts"
@@ -1341,6 +1342,7 @@ export const ru: Dictionary = {
   ...offlineRu,
   ...accountRu,
   ...playerErrorsRu,
+  ...harmoniumScreensRu,
   ...learnScreensRu,
   ...kiirtanScreensRu,
   ...countsRu,

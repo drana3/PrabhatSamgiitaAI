@@ -13,6 +13,7 @@ import type { SpTheme } from "@/constants/tokens/amSong"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
 
+import { useT } from "@/lib/i18n"
 import { SpIcon, type SpIconName } from "./SpIcon"
 import { note as noteStyle, over, pillText, secH2 } from "./spType"
 
@@ -347,14 +348,15 @@ export function SpGapNote({
   requested: boolean
   onRequest: () => void
 }) {
+  const tr = useT()
   return (
     <View style={styles.gap} accessibilityRole="alert">
       <Text style={[noteStyle(t), { flex: 1 }]}>{text}</Text>
       {requested ? (
-        <Text style={[styles.gapAction, { color: t.ink500 }]}>Requested</Text>
+        <Text style={[styles.gapAction, { color: t.ink500 }]}>{tr("sp.requested")}</Text>
       ) : (
-        <SpPress onPress={onRequest} accessibilityLabel="Request this language" style={styles.gapBtn}>
-          <Text style={[styles.gapAction, { color: t.orange700 }]}>Request</Text>
+        <SpPress onPress={onRequest} accessibilityLabel={tr("sp.requestLanguage")} style={styles.gapBtn}>
+          <Text style={[styles.gapAction, { color: t.orange700 }]}>{tr("sp.request")}</Text>
         </SpPress>
       )}
     </View>

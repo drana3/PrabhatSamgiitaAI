@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import { SP_NOTES, spTranspose, swaraAt } from "./spChords"
 
 /**
@@ -152,8 +153,8 @@ export function explainChord(base: string, saPitch: number): ChordExplained {
     name,
     minor,
     pitches,
-    kind: minor ? "Minor: root, then 3 and 7 keys up" : "Major: root, then 4 and 7 keys up",
-    equation: `${name} = ${pitches.map(noteOfPitch).join(" + ")}, swaras ${pitches
+    kind: minor ? t("hm.kind.minor") : t("hm.kind.major"),
+    equation: `${name} = ${pitches.map(noteOfPitch).join(" + ")}, ${t("hm.swaras")} ${pitches
       .map((p) => swaraOfPitch(p, saPitch))
       .join(" · ")}`,
   }

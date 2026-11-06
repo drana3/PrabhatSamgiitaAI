@@ -4,6 +4,7 @@ import { openExternal } from "@/lib/openLink"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 
+import { useT } from "@/lib/i18n"
 import { note as noteStyle } from "./spType"
 import { SpPress } from "./SpUi"
 
@@ -16,7 +17,7 @@ export function SpEmptyNote({
   text,
   requested,
   onRequest,
-  requestLabel = "Request",
+  requestLabel,
   link,
 }: {
   t: SpTheme
@@ -27,16 +28,18 @@ export function SpEmptyNote({
   requestLabel?: string
   link?: { label: string; url: string } | null
 }) {
+  const tr = useT()
+  const label = requestLabel ?? tr("sp.request")
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
         <Text style={[noteStyle(t), styles.text]}>{text}</Text>
         {onRequest ? (
           requested ? (
-            <Text style={[styles.action, { color: t.ink500 }]}>Requested</Text>
+            <Text style={[styles.action, { color: t.ink500 }]}>{tr("sp.requested")}</Text>
           ) : (
-            <SpPress onPress={onRequest} accessibilityLabel={`${requestLabel}: ${text}`} style={styles.btn}>
-              <Text style={[styles.action, { color: t.orange700 }]}>{requestLabel}</Text>
+            <SpPress onPress={onRequest} accessibilityLabel={`${label}: ${text}`} style={styles.btn}>
+              <Text style={[styles.action, { color: t.orange700 }]}>{label}</Text>
             </SpPress>
           )
         ) : null}
@@ -52,10 +55,11 @@ export function SpEmptyNote({
 
 /** Small tag on content that is sample material of the demo preview, never real. */
 export function SpDemoTag({ t }: { t: SpTheme }) {
+  const tr = useT()
   return (
     <View style={styles.tagRow}>
       <View style={[styles.tag, { borderColor: t.ink500 }]}>
-        <Text style={[styles.tagText, { color: t.ink500 }]}>Demo content</Text>
+        <Text style={[styles.tagText, { color: t.ink500 }]}>{tr("player.demo")}</Text>
       </View>
     </View>
   )

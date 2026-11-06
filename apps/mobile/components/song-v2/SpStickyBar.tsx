@@ -17,6 +17,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { songAccents } from "@/lib/songPage/accent"
 import { stickyBarValues, type BarMarks } from "@/lib/songPage/stickyBar"
 
+import { useT } from "@/lib/i18n"
 import { SpIcon } from "./SpIcon"
 import { SpPress, SpRound } from "./SpUi"
 
@@ -64,6 +65,7 @@ export function SpStickyBar({
   highlight?: boolean
   actionLabel?: string
 }) {
+  const tr = useT()
   const reduce = useReducedMotion()
   const [live, setLive] = useState(false)
   const pop = useSharedValue(0.7)
@@ -95,7 +97,7 @@ export function SpStickyBar({
     <View style={[styles.bar, { height, paddingTop: topInset }]} pointerEvents="box-none">
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: tint }, ground]} />
       <View style={styles.row} pointerEvents="box-none">
-        <SpRound t={t} icon="back" label="Back" onPress={onBack} />
+        <SpRound t={t} icon="back" label={tr("common.back")} onPress={onBack} />
         <Animated.View pointerEvents="none" style={[styles.titleWrap, titleStyle]}>
           <Text
             numberOfLines={1}
@@ -110,7 +112,7 @@ export function SpStickyBar({
             <Animated.View style={actionStyle} pointerEvents={live ? "auto" : "none"}>
               <SpPress
                 onPress={onAction}
-                accessibilityLabel={actionLabel ?? (playing ? "Pause" : "Play")}
+                accessibilityLabel={actionLabel ?? (playing ? tr("player.pause") : tr("player.play"))}
                 style={[styles.play, { backgroundColor: accent.fill }]}
                 pressedScale={0.92}
               >

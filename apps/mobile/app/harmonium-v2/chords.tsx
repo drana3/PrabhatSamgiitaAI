@@ -9,6 +9,7 @@ import { SpCard, SpChip, SpPill } from "@/components/song-v2/SpUi"
 import { Reveal } from "@/components/today/motion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSpTheme } from "@/hooks/useSpTheme"
+import { useT } from "@/lib/i18n"
 import { EXPLAINER_SONG_LINES } from "@/lib/fixtures/harmonium"
 import { keyLabel, keyPitch } from "@/lib/songPage/spChords"
 import {
@@ -22,20 +23,7 @@ import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
-const HOW = [
-  {
-    title: "Two hands, two jobs",
-    text: "Your right hand plays the keys. Your left hand pumps the bellows with a steady push and pull. If your harmonium has a drone stop, open it: Sa then hums under the whole song.",
-  },
-  {
-    title: "A chord is three keys",
-    text: "Press a root key, the key 4 steps above it and the key 7 steps above it, all together. Count every key, black ones too. In a minor chord the middle key is 3 steps above the root, not 4.",
-  },
-  {
-    title: "Letters tell you when",
-    text: "The letter above a word is the chord to press on that word. Hold it until the next letter appears.",
-  },
-] as const
+const HOW = [1, 2, 3] as const
 
 /**
  * How chords work on the harmonium (prototype `HARMONIUM CHORDS EXPLAINER`, boards ChordHow and chordhowfull): three
@@ -45,6 +33,7 @@ const HOW = [
 export default function HarmoniumChordsScreen() {
   const router = useRouter()
   const t = useSpTheme()
+  const tr = useT()
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
   const stepKey = useSongPageStore((s) => s.stepHarmoniumKey)
   const setInstrument = useSongPageStore((s) => s.setInstrument)
@@ -67,21 +56,21 @@ export default function HarmoniumChordsScreen() {
   }
 
   return (
-    <SpOverlayPage t={t} title="Harmonium chords" onBack={back}>
+    <SpOverlayPage t={t} title={tr("hm.chordsTitle")} onBack={back}>
       <Reveal index={0}>
         <View style={{ paddingHorizontal: 10 }}>
           <Text accessibilityRole="header" style={secH2(t, 40)}>
-            Three keys
+            {tr("hm.threeKeys")}
           </Text>
-          <Text style={[secH2(t, 40), { color: t.ink300 }]}>at once</Text>
+          <Text style={[secH2(t, 40), { color: t.ink300 }]}>{tr("hm.atOnce")}</Text>
         </View>
       </Reveal>
 
       <Reveal index={1}>
         <View style={{ gap: 10 }}>
-          {HOW.map((card, index) => (
+          {HOW.map((n, index) => (
             <View
-              key={card.title}
+              key={n}
               style={{
                 gap: 12,
                 padding: 25,
@@ -96,8 +85,8 @@ export default function HarmoniumChordsScreen() {
               >
                 {index + 1}
               </Text>
-              <Text style={[secH2(t, 22), { fontSize: 22, lineHeight: 22 }]}>{card.title}</Text>
-              <Text style={[bodyT(t), { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6 }]}>{card.text}</Text>
+              <Text style={[secH2(t, 22), { fontSize: 22, lineHeight: 22 }]}>{tr(`hm.how${n}.title`)}</Text>
+              <Text style={[bodyT(t), { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6 }]}>{tr(`hm.how${n}.text`)}</Text>
             </View>
           ))}
         </View>
@@ -106,20 +95,20 @@ export default function HarmoniumChordsScreen() {
       <Reveal index={2}>
         {/* the label sits in a block with the page line height, so it is taller than the 16px text */}
         <View style={{ paddingHorizontal: 10, minHeight: 23, paddingTop: 3 }}>
-          <Text style={over(t)}>Try it</Text>
+          <Text style={over(t)}>{tr("hm.tryIt")}</Text>
         </View>
       </Reveal>
 
       <Reveal index={3} style={{ gap: 20 }}>
         <SpKeyRow
           t={t}
-          label="Sa is"
-          noteText="Pick the key you sing in"
+          label={tr("hm.saIs")}
+          noteText={tr("hm.pickKey")}
           value={keyLabel(harmoniumKey)}
           onDown={() => stepKey(-1)}
           onUp={() => stepKey(1)}
-          downLabel="Lower the key"
-          upLabel="Raise the key"
+          downLabel={tr("songPage.chords.key.lower")}
+          upLabel={tr("songPage.chords.key.raise")}
           inset
         />
         <SpChipRow>
@@ -135,18 +124,18 @@ export default function HarmoniumChordsScreen() {
         </SpChipRow>
         <SpReadout t={t} live keepCase big={chord.name} small={chord.kind} />
         <SpKeyboard t={t} whites={whites} blacks={blacks} lit={(key) => keyInChord(key, chord)} />
-        <Text style={[note(t), { paddingHorizontal: 10 }]}>{`${chord.equation}. Orange keys are pressed together.`}</Text>
+        <Text style={[note(t), { paddingHorizontal: 10 }]}>{tr("hm.pressedTogether", { equation: chord.equation })}</Text>
       </Reveal>
 
       <Reveal index={4} style={{ gap: 20 }}>
         <SpCard t={t} style={{ marginHorizontal: 0 }}>
-          <Text style={over(t)}>In the song</Text>
+          <Text style={over(t)}>{tr("hm.inSong")}</Text>
           <SpChordTokens t={t} tokens={tokens} />
           <Text style={note(t)}>
-            Press the chord when its letter appears over a word. The swara under each word is the note to hold.
+            {tr("hm.inSongNote")}
           </Text>
         </SpCard>
-        <SpPill t={t} label="Open this song's chords" onPress={openSong} style={{ width: "100%" }} />
+        <SpPill t={t} label={tr("hm.openSong")} onPress={openSong} style={{ width: "100%" }} />
       </Reveal>
     </SpOverlayPage>
   )

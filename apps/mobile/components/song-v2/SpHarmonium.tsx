@@ -25,6 +25,7 @@ import {
 } from "@/lib/songPage/spKeyboard"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { useT } from "@/lib/i18n"
 import { over } from "./spType"
 import { SpRound } from "./SpUi"
 
@@ -41,10 +42,11 @@ export function SpOverlayPage({
   children: ReactNode
 }) {
   const insets = useSafeAreaInsets()
+  const tr = useT()
   return (
     <View style={[styles.page, { backgroundColor: t.sand200, paddingTop: insets.top || SP_STATUS_BAR }]}>
       <View style={styles.head}>
-        <SpRound t={t} tone="white" icon="back" label="Back" onPress={onBack} />
+        <SpRound t={t} tone="white" icon="back" label={tr("common.back")} onPress={onBack} />
         <Text style={over(t)} accessibilityRole="header">
           {title}
         </Text>
