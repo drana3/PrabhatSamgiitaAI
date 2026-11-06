@@ -3,6 +3,7 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import { isAssistantLanguage, type AssistantLanguage } from "@/lib/assistantLanguage"
+import { keepSavedState } from "@/lib/persistMigrate"
 import {
   markQuotaExhausted,
   recordQuestion,
@@ -45,6 +46,8 @@ export const useAssistantStore = create<AssistantState>()(
     {
       name: "prabhat-assistant-v2",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (saved) => keepSavedState<AssistantState>(saved),
       partialize: (state) => ({ language: state.language, quotaByAccount: state.quotaByAccount }),
     },
   ),

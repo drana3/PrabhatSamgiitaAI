@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import { bindOwner } from "@/lib/account/bindOwner"
 import type { OwnedData } from "@/lib/account/owner"
+import { keepSavedState } from "@/lib/persistMigrate"
 import { upsertResume, type ResumeEntry, type ResumeMap } from "@/lib/playerV2/resume"
 
 type ResumeState = OwnedData<{ entries: ResumeMap }> & {
@@ -32,6 +33,8 @@ export const useResumeStore = create<ResumeState>()(
     {
       name: "ps.resume",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (saved) => keepSavedState<ResumeState>(saved),
       partialize: (state) => ({ entries: state.entries, owner: state.owner, slots: state.slots }),
     },
   ),

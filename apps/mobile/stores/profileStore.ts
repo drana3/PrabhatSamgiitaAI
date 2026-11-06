@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
+import { keepSavedState } from "@/lib/persistMigrate"
 import { useAuthStore } from "@/stores/authStore"
 
 type ProfileData = {
@@ -65,6 +66,8 @@ export const useProfileStore = create<ProfileState>()(
     {
       name: "prabhat-profile",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (saved) => keepSavedState<ProfileData>(saved),
       // Saved data with no owner (an older build) must not inherit the owner the in-memory state holds.
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<ProfileData>

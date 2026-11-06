@@ -3,6 +3,7 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import { bindOwner } from "@/lib/account/bindOwner"
+import { keepSavedState } from "@/lib/persistMigrate"
 import type { OwnedData } from "@/lib/account/owner"
 import { useKirtanStore } from "@/stores/kirtanStore"
 
@@ -18,6 +19,8 @@ export const useKirtanOwnerStore = create<OwnedData<KirtanAccountData>>()(
   persist(() => ({ owner: null, slots: {} }) as OwnedData<KirtanAccountData>, {
     name: "prabhat-kirtan-owner",
     storage: createJSONStorage(() => AsyncStorage),
+    version: 1,
+    migrate: (saved) => keepSavedState<OwnedData<KirtanAccountData>>(saved),
     partialize: (state) => ({ owner: state.owner, slots: state.slots }),
   }),
 )
