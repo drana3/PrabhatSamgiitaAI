@@ -42,8 +42,8 @@ const run = (from: number, to: number): ListRow[] => {
 }
 
 describe("row style setting", () => {
-  it("defaults to Tracklist and lists the three options in order", () => {
-    expect(DEFAULT_ROW_STYLE).toBe("tracklist")
+  it("defaults to Compact and lists the three options in order", () => {
+    expect(DEFAULT_ROW_STYLE).toBe("compact")
     expect(ROW_STYLE_OPTIONS.map((o) => o.label)).toEqual(["Tracklist", "Compact", "Cards"])
   })
 
@@ -51,8 +51,8 @@ describe("row style setting", () => {
     expect(isRowStyle("compact")).toBe(true)
     expect(isRowStyle("grid")).toBe(false)
     expect(normalizeRowStyle("cards")).toBe("cards")
-    expect(normalizeRowStyle(undefined)).toBe("tracklist")
-    expect(normalizeRowStyle(3)).toBe("tracklist")
+    expect(normalizeRowStyle(undefined)).toBe("compact")
+    expect(normalizeRowStyle(3)).toBe("compact")
   })
 })
 

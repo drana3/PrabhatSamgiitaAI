@@ -12,6 +12,8 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
+import { stackGap } from "@/lib/songsV2/rowStyles"
+import { useListViewStore } from "@/stores/listViewStore"
 import { downloadsSummary, MINE_COPY, playlistEyebrow, sectionState, type SavedRow } from "@/lib/songsV2/mine"
 import { useT } from "@/lib/i18n"
 
@@ -47,6 +49,7 @@ type Props = {
 export function MineSegment(props: Props) {
   const t = useT()
   const { theme } = props
+  const rowStyle = useListViewStore((s) => s.rowStyle)
   const saved = sectionState({ loading: props.savedLoading, count: props.savedRows.length })
   const lists = sectionState({ loading: props.playlistsLoading, count: props.playlists.length })
   const [naming, setNaming] = useState(false)
@@ -82,19 +85,21 @@ export function MineSegment(props: Props) {
         {saved === "ready" ? (
           <SongsReveal index={4} style={styles.list}>
             <ListDownloadRow theme={theme} numbers={savedNumbers} name={t("songs.menu.saved")} />
-            {props.savedRows.map((row) => (
-              <SongCardRow
-                key={row.number}
-                theme={theme}
-                entry={row.entry}
-                saved
-                offline={row.offline}
-                onOpen={props.onOpen}
-                onToggleSave={props.onToggleSave}
-                onQueue={props.onQueue}
-                onMenu={props.onMenu}
-              />
-            ))}
+            <View style={{ gap: stackGap(rowStyle) }}>
+              {props.savedRows.map((row) => (
+                <SongCardRow
+                  key={row.number}
+                  theme={theme}
+                  entry={row.entry}
+                  saved
+                  offline={row.offline}
+                  onOpen={props.onOpen}
+                  onToggleSave={props.onToggleSave}
+                  onQueue={props.onQueue}
+                  onMenu={props.onMenu}
+                />
+              ))}
+            </View>
           </SongsReveal>
         ) : (
           <EmptyNote theme={theme}>{saved === "loading" ? t("songs.mine.loadingSaved") : MINE_COPY.savedEmpty}</EmptyNote>

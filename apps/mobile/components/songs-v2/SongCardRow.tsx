@@ -46,9 +46,9 @@ const HAIRLINE_INSET = 10 + NUMBER_COLUMN
 
 /**
  * One song row in the three looks of the "Rows" setting (stores/listViewStore.ts):
- *  - tracklist (default): no card, 56px, the PS number in orange800 on the left, title over a quiet meta line,
+ *  - tracklist: no card, 56px, the PS number in orange800 on the left, title over a quiet meta line,
  *    a small circle-plus on the right, a hairline between rows inset from the number column
- *  - compact: a 44px tile (radius 10), number and title only
+ *  - compact (default): a 44px tile (radius 10), number and title only
  *  - cards: prototype `.card.song`: white 20px card, min height 76, `PS 1 · 3:58 · OFFLINE` over a one-line 19px title
  * The save circle (44px touch area) opens the "Save to" sheet in all of them. Swipe right saves, swipe left queues,
  * long press opens the menu. In Tracklist and Compact the song in the player shows the small equaliser in place

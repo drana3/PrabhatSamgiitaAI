@@ -21,6 +21,8 @@ import { useSongsV2ListPage } from "@/hooks/useSongsV2ListPage"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongTitles } from "@/hooks/useSongTitles"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
+import { stackGap } from "@/lib/songsV2/rowStyles"
+import { useListViewStore } from "@/stores/listViewStore"
 import { mineSyncStatus, playlistMeta, songEyebrow } from "@/lib/mineView"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { playPlaylist } from "@/lib/playPlaylist"
@@ -53,6 +55,7 @@ export default function PlaylistV2Screen() {
   const insets = useSafeAreaInsets()
   const inset = Platform.OS === "web" ? 54 : insets.top
   const openedAt = useRevealClock()
+  const rowStyle = useListViewStore((s) => s.rowStyle)
   const params = useLocalSearchParams<{ playlistId?: string | string[] }>()
   const playlistId = routeString(params.playlistId)
 
@@ -267,7 +270,7 @@ export default function PlaylistV2Screen() {
                 ) : null}
               </SongsReveal>
 
-              <SongsReveal index={next()} style={styles.list}>
+              <SongsReveal index={next()} style={[styles.list, { gap: stackGap(rowStyle) }]}>
                 {numbers.length === 0 ? (
                   <EmptyNote theme={theme}>
                     {t("playlist.empty")}
@@ -279,6 +282,8 @@ export default function PlaylistV2Screen() {
                       <PlaylistSongRow
                         key={number}
                         theme={theme}
+                        number={number}
+                        offline={offlineNumbers.has(number)}
                         eyebrow={songEyebrow(number, offlineNumbers.has(number))}
                         title={title}
                         accessibilityLabel={`PS ${number}, ${title}`}
