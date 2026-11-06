@@ -88,7 +88,8 @@ export function GroundingStrip({
   onOpenSong: () => void
   onDetach: () => void
   onLanguage: () => void
-  quotaLabel: string
+  /** null when the server has not said how many questions are left: nothing is shown then */
+  quotaLabel: string | null
 }) {
   const t = useT()
   return (
@@ -144,7 +145,7 @@ export function GroundingStrip({
           <Text style={[styles.langText, { color: theme.textHeading }]}>{language}</Text>
         </PressScale>
       </View>
-      <Text style={[amType.label, { color: theme.eyebrow }]}>{quotaLabel}</Text>
+      {quotaLabel ? <Text style={[amType.label, { color: theme.eyebrow }]}>{quotaLabel}</Text> : null}
     </View>
   )
 }

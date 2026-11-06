@@ -6,6 +6,7 @@ import {
   type AnswerKind,
   type TurnGrounding,
 } from "@/lib/assistantAnswer"
+import type { QuotaReport } from "@/lib/assistantServerQuota"
 import { t } from "@/lib/i18n"
 import { promptWithLanguage, type AssistantLanguage } from "@/lib/assistantLanguage"
 import {
@@ -70,12 +71,16 @@ export type TurnDeps = {
     history: HistoryTurn[],
     /** the server's stable code when its reply is a notice (api.streamExplanation's `onNotice`) */
     onNotice?: (code: string) => void,
+    /** today's allowance as the server reports it (api.streamExplanation's `onQuota`) */
+    onQuota?: (quota: QuotaReport) => void,
   ) => Promise<void>
   /** chatStore.beginExchange bound to the account; returns the assistant message id */
   beginExchange: (displayPrompt: string) => string | null
   updateMessage: (assistantId: string, text: string) => void
   /** Only called for real answers. */
   saveMemory?: (turns: HistoryTurn[]) => void
+  /** The server's count of today's questions, when it sends one. */
+  onQuota?: (quota: QuotaReport) => void
 }
 
 export type TurnInput = {
@@ -133,6 +138,7 @@ export async function runAssistantTurn(deps: TurnDeps, input: TurnInput): Promis
       (code) => {
         noticeCode = code
       },
+      deps.onQuota,
     )
     finalText = buffer.trim() ? formatAssistantMessage(buffer) : NO_ANSWER_COPY
     // the daily limit is told in the app language, not in the server's English sentence

@@ -8,7 +8,8 @@ import {
   type AnswerSource,
 } from "@/lib/assistantAnswer"
 import { threadsForScope } from "@/lib/assistantHistory"
-import { dailyLimit, questionsLeft, quotaLabel } from "@/lib/assistantQuota"
+import { currentQuota } from "@/lib/assistantQuota"
+import { serverQuotaLabel, serverQuotaLeft } from "@/lib/assistantServerQuota"
 import { runAssistantTurn, buildHistory, type TurnResult } from "@/lib/assistantTurn"
 import {
   companionReceivesMemberQuota,
@@ -20,6 +21,7 @@ import { api } from "@/lib/client"
 import { getCachedMemberEmail, hydrateLocalMemberEmail } from "@/lib/memberEmail"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { songDetailToMockSong } from "@/lib/songMap"
+import { useAssistantServerQuotaStore } from "@/stores/assistantServerQuotaStore"
 import { useAssistantStore } from "@/stores/assistantStore"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
@@ -50,7 +52,6 @@ export function useAssistantChat(input: { songParam: number | null }) {
   const language = useAssistantStore((s) => s.language)
   const setLanguage = useAssistantStore((s) => s.setLanguage)
   const quotaByAccount = useAssistantStore((s) => s.quotaByAccount)
-  const noteQuestion = useAssistantStore((s) => s.noteQuestion)
   const noteQuotaReached = useAssistantStore((s) => s.noteQuotaReached)
 
   const getAccountId = useChatStore((s) => s.getAccountId)
@@ -72,6 +73,8 @@ export function useAssistantChat(input: { songParam: number | null }) {
   const [syncingHistory, setSyncingHistory] = useState(false)
 
   const accountId = getAccountId(mode, email, memberId)
+  const serverQuota = useAssistantServerQuotaStore((s) => s.byAccount[accountId])
+  const reportServerQuota = useAssistantServerQuotaStore((s) => s.report)
   const isMember = companionReceivesMemberQuota({
     signedIn: mode === "signed_in",
     memberAuthReady: memberAuthAvailable(),
@@ -84,6 +87,16 @@ export function useAssistantChat(input: { songParam: number | null }) {
     if (mode !== "signed_in") return
     void hydrateLocalMemberEmail()
   }, [mode, memberId, identityProvider])
+
+  // Today's allowance from the server, so the counter is there before the first question. A failed read
+  // leaves the counter hidden; it never falls back to a guess.
+  useEffect(() => {
+    const controller = new AbortController()
+    void api.fetchDailyQuota(controller.signal).then((report) => {
+      if (report && !controller.signal.aborted) reportServerQuota(accountId, report)
+    })
+    return () => controller.abort()
+  }, [accountId, reportServerQuota])
 
   // Title for the grounding chip.
   useEffect(() => {
@@ -185,9 +198,16 @@ export function useAssistantChat(input: { songParam: number | null }) {
     return remainingCompanionSuggestions(starters, asked)
   }, [groundedNumber, songTitle, storedMessages])
 
-  const now = new Date()
-  const left = questionsLeft(quotaByAccount[accountId], dailyLimit(isMember), now)
-  const quota = { left, label: quotaLabel(left), isMember }
+  // `left` is the server's own count, or null when it has not reported: then no label is shown. The only thing
+  // kept on the phone is "the server said the limit is reached today", which hides the follow-up suggestions.
+  const left = serverQuotaLeft(serverQuota, Date.now())
+  const reachedToday = currentQuota(quotaByAccount[accountId], new Date()).exhausted
+  const quota = {
+    left,
+    label: serverQuotaLabel(left),
+    exhausted: left === null ? reachedToday : left <= 0,
+    isMember,
+  }
 
   // leaving the screen cancels the answer in flight: no waiting stream, no quota spent on a reply nobody reads
   const inFlight = useRef<AbortController | null>(null)
@@ -203,8 +223,8 @@ export function useAssistantChat(input: { songParam: number | null }) {
       try {
         const result = await runAssistantTurn(
           {
-            stream: (songNumber, onChunk, prompt, history, onNotice) =>
-              api.streamExplanation(songNumber, onChunk, prompt, history, controller.signal, onNotice),
+            stream: (songNumber, onChunk, prompt, history, onNotice, onQuota) =>
+              api.streamExplanation(songNumber, onChunk, prompt, history, controller.signal, onNotice, onQuota),
             beginExchange: (display) => beginExchange(accountId, display),
             updateMessage: (id, value) => updateAssistantMessage(accountId, id, value),
             saveMemory:
@@ -212,6 +232,7 @@ export function useAssistantChat(input: { songParam: number | null }) {
                 ? (turns) =>
                     void api.saveMemberChat({ song_number: groundedNumber ?? undefined, turns })
                 : undefined,
+            onQuota: (report) => reportServerQuota(accountId, report),
           },
           {
             prompt: text,
@@ -223,7 +244,6 @@ export function useAssistantChat(input: { songParam: number | null }) {
         )
         if (result.status === "done") {
           if (result.kind === "quota") noteQuotaReached(accountId)
-          else if (result.kind === "answer") noteQuestion(accountId)
         }
         return result
       } finally {
@@ -241,8 +261,8 @@ export function useAssistantChat(input: { songParam: number | null }) {
       storedMessages,
       beginExchange,
       updateAssistantMessage,
-      noteQuestion,
       noteQuotaReached,
+      reportServerQuota,
     ],
   )
 

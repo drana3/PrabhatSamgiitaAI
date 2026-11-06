@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { parseDailyQuotaBody, readDailyQuota, type DailyQuota } from "./daily-quota"
 import { queryGuidanceFor, queryIsUseful } from "./query-guard"
 
 export const songSummarySchema = z.object({
@@ -1116,6 +1117,17 @@ export function createApiClient(options: ApiClientOptions) {
       }
     },
 
+    /** Today's AI question allowance from the server, or null when it cannot be read (offline, error). */
+    async fetchDailyQuota(signal?: AbortSignal): Promise<DailyQuota | null> {
+      try {
+        const response = await fetchJson("/api/v1/ai/quota", { signal })
+        if (!response.ok) return null
+        return parseDailyQuotaBody(await response.json())
+      } catch {
+        return null
+      }
+    },
+
     async fetchMemberChat(songNumber?: number): Promise<ChatMemoryResponse & { ok: boolean }> {
       const empty = {
         ok: false as const,
@@ -1399,6 +1411,8 @@ export function createApiClient(options: ApiClientOptions) {
       signal?: AbortSignal,
       /** Called with the server's `X-Error-Code` when the reply is a notice (quota, unknown song, refused question). */
       onNotice?: (code: string) => void,
+      /** Called with today's allowance when the server reports it (`X-RateLimit-*`); never called otherwise. */
+      onQuota?: (quota: DailyQuota) => void,
     ): Promise<void> {
       if (prompt && !queryIsUseful(prompt, 800, { companion: true, allowFollowUp: history.length > 0 })) {
         onChunk(queryGuidanceFor(prompt, { companion: true, allowFollowUp: history.length > 0 }))
@@ -1440,6 +1454,8 @@ export function createApiClient(options: ApiClientOptions) {
         if (!response.ok) {
           throw new ApiRequestError(response.status, code)
         }
+        const quota = readDailyQuota(response.headers)
+        if (quota) onQuota?.(quota)
         if (code) onNotice?.(code)
         await readEventStream(response, onChunk, touch)
       } finally {

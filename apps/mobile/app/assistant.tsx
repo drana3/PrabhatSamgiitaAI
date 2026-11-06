@@ -142,7 +142,7 @@ export default function AssistantScreen() {
   const initialCount = useRef(chat.messages.length)
   const hasMessages = chat.messages.length > 0
   const grounded = Boolean(chat.groundedNumber)
-  const exhausted = chat.quota.left <= 0
+  const exhausted = chat.quota.exhausted
 
   const hint = useMemo(() => {
     if (voice.listening) return t("assistant.hint.listening")
