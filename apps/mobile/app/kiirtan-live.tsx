@@ -14,6 +14,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { useT } from "@/lib/i18n"
 import { hostLine, liveShareMessage, liveStatus, youtubeWatchUrl } from "@/lib/kirtan/live"
 import { copyText, runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast } from "@/lib/playerV2/playerShare"
@@ -32,6 +33,7 @@ import { href } from "@/utils/href"
 export default function KiirtanLiveScreen() {
   const router = useRouter()
   const theme = useSongsTheme()
+  const t = useT()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const params = useLocalSearchParams<{ id?: string }>()
@@ -58,18 +60,18 @@ export default function KiirtanLiveScreen() {
     if (player.isPlaying) {
       player.pause()
       setPausedQueue(true)
-      flash("Paused your queue")
+      flash(t("kt.live.pausedQueue"))
     }
-  }, [item, flash])
+  }, [item, flash, t])
 
   const back = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
 
   if (!item) {
     return (
       <View style={[styles.root, styles.center, { backgroundColor: theme.page }]}>
-        <Text style={[styles.body, { color: theme.textBody }]}>This broadcast has ended or does not exist.</Text>
-        <KPress accessibilityRole="button" accessibilityLabel="Back" onPress={back} pressedScale={0.96} style={[styles.pill, { backgroundColor: theme.brand }]}>
-          <Text style={styles.pillText}>Back</Text>
+        <Text style={[styles.body, { color: theme.textBody }]}>{t("kt.live.missing")}</Text>
+        <KPress accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={back} pressedScale={0.96} style={[styles.pill, { backgroundColor: theme.brand }]}>
+          <Text style={styles.pillText}>{t("common.back")}</Text>
         </KPress>
       </View>
     )
@@ -84,21 +86,22 @@ export default function KiirtanLiveScreen() {
 
   const onShare = async () => {
     const url = webBaseUrl()
-    const message = shareToast(await runShare("more", { title: `Kiirtan live · ${item.title}`, message: liveShareMessage(item, now, url), url }))
+    const message = shareToast(await runShare("more", { title: t("kt.live.shareTitle", { title: item.title }), message: liveShareMessage(item, now, url), url }))
     if (message) flash(message)
   }
-  const copy = async (label: string, value: string) => flash((await copyText(value)) ? `${label} copied` : `Could not copy the ${label.toLowerCase()}`)
+  const copy = async (label: string, value: string) =>
+    flash((await copyText(value)) ? t("kt.live.copied", { label }) : t("kt.live.copyFailed", { label: label.toLowerCase() }))
   const open = async (url: string) => {
     try {
       await Linking.openURL(url)
     } catch {
-      flash("Could not open the link")
+      flash(t("kt.live.openFailed"))
     }
   }
   const resume = () => {
     usePlayerStore.getState().play()
     setPausedQueue(false)
-    flash("Resumed your queue")
+    flash(t("kt.live.resumedQueue"))
   }
 
   return (
@@ -119,7 +122,7 @@ export default function KiirtanLiveScreen() {
 
           <View style={styles.badgeRow}>
             <LiveBadge item={item} now={now} />
-            <Text style={[styles.when, { color: theme.textBody }]}>{live ? "On now" : `${item.durationMin} min`}</Text>
+            <Text style={[styles.when, { color: theme.textBody }]}>{live ? t("kt.live.onNow") : t("kt.live.minutes", { count: item.durationMin })}</Text>
           </View>
           <Text style={[styles.title, { color: theme.textHeading }]} accessibilityRole="header">
             {item.title}
@@ -130,58 +133,58 @@ export default function KiirtanLiveScreen() {
             <View style={[styles.zoomCard, { backgroundColor: theme.card, borderColor: theme.line }]}>
               <KPress
                 accessibilityRole="button"
-                accessibilityLabel="Join in Zoom"
+                accessibilityLabel={t("kt.live.joinZoom")}
                 onPress={() => void open(item.zoom!.url)}
                 pressedScale={0.97}
                 style={[styles.join, { backgroundColor: theme.brand }]}
               >
                 <ExternalLink size={20} color={theme.onBrand} strokeWidth={2.2} />
-                <Text style={styles.joinText}>Join in Zoom</Text>
+                <Text style={styles.joinText}>{t("kt.live.joinZoom")}</Text>
               </KPress>
-              <Text style={[styles.hint, { color: theme.textMuted }]}>Opens in the Zoom app.</Text>
-              <CopyField theme={theme} label="Meeting ID" value={item.zoom.meetingId} onCopy={() => void copy("Meeting ID", item.zoom!.meetingId.replace(/\s+/g, ""))} />
-              <CopyField theme={theme} label="Passcode" value={item.zoom.passcode} onCopy={() => void copy("Passcode", item.zoom!.passcode)} />
+              <Text style={[styles.hint, { color: theme.textMuted }]}>{t("kt.live.zoomHint")}</Text>
+              <CopyField theme={theme} label={t("kt.live.meetingId")} value={item.zoom.meetingId} onCopy={() => void copy(t("kt.live.meetingId"), item.zoom!.meetingId.replace(/\s+/g, ""))} />
+              <CopyField theme={theme} label={t("kt.live.passcode")} value={item.zoom.passcode} onCopy={() => void copy(t("kt.live.passcode"), item.zoom!.passcode)} />
             </View>
           ) : item.youtubeId ? (
             <KPress
               accessibilityRole="link"
-              accessibilityLabel="Watch on YouTube"
+              accessibilityLabel={t("kt.live.watchYoutube")}
               onPress={() => void open(youtubeWatchUrl(item.youtubeId!))}
               pressedScale={0.97}
               style={[styles.outline, { borderColor: theme.line, backgroundColor: theme.card }]}
             >
               <ExternalLink size={18} color={theme.textHeading} strokeWidth={2} />
-              <Text style={[styles.outlineText, { color: theme.textHeading }]}>Watch on YouTube</Text>
+              <Text style={[styles.outlineText, { color: theme.textHeading }]}>{t("kt.live.watchYoutube")}</Text>
             </KPress>
           ) : null}
 
           <View style={styles.actions}>
             <KPress
               accessibilityRole="button"
-              accessibilityLabel="Share"
+              accessibilityLabel={t("common.share")}
               onPress={() => void onShare()}
               pressedScale={0.96}
               outerStyle={styles.actionOuter}
               style={[styles.outline, { borderColor: theme.line, backgroundColor: theme.card }]}
             >
               <Share2 size={18} color={theme.textHeading} strokeWidth={2} />
-              <Text style={[styles.outlineText, { color: theme.textHeading }]}>Share</Text>
+              <Text style={[styles.outlineText, { color: theme.textHeading }]}>{t("common.share")}</Text>
             </KPress>
           </View>
 
           {pausedQueue ? (
-            <KPress accessibilityRole="button" accessibilityLabel="Resume your queue" onPress={resume} pressedScale={0.97} style={styles.resumeLink}>
-              <Text style={[styles.resumeText, { color: theme.accent }]}>Resume your queue</Text>
+            <KPress accessibilityRole="button" accessibilityLabel={t("kt.live.resume")} onPress={resume} pressedScale={0.97} style={styles.resumeLink}>
+              <Text style={[styles.resumeText, { color: theme.accent }]}>{t("kt.live.resume")}</Text>
             </KPress>
           ) : null}
 
-          <Text style={[styles.note, { color: theme.textMuted }]}>Live audio does not continue in the background. Keep the app open to listen.</Text>
+          <Text style={[styles.note, { color: theme.textMuted }]}>{t("kt.live.bgNote")}</Text>
         </View>
       </ScrollView>
 
       <KPress
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={t("common.back")}
         onPress={back}
         pressedScale={0.9}
         outerStyle={[styles.back, { top: top + 6 }]}
@@ -197,6 +200,7 @@ export default function KiirtanLiveScreen() {
 }
 
 function CopyField({ theme, label, value, onCopy }: { theme: ReturnType<typeof useSongsTheme>; label: string; value: string; onCopy: () => void }) {
+  const t = useT()
   return (
     <View style={[styles.field, { borderColor: theme.line }]}>
       <View style={styles.fieldText}>
@@ -205,7 +209,7 @@ function CopyField({ theme, label, value, onCopy }: { theme: ReturnType<typeof u
           {value}
         </Text>
       </View>
-      <KPress accessibilityRole="button" accessibilityLabel={`Copy ${label.toLowerCase()}`} onPress={onCopy} pressedScale={0.9} style={[styles.copy, { borderColor: theme.line }]}>
+      <KPress accessibilityRole="button" accessibilityLabel={t("kt.live.copyA11y", { label: label.toLowerCase() })} onPress={onCopy} pressedScale={0.9} style={[styles.copy, { borderColor: theme.line }]}>
         <Copy size={18} color={theme.textHeading} strokeWidth={2} />
       </KPress>
     </View>

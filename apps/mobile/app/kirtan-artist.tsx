@@ -15,6 +15,7 @@ import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
+import { useT } from "@/lib/i18n"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { artistById, kirtansOfArtist, popularOf } from "@/lib/kirtan/artists"
 import { kindsCountLabel } from "@/lib/kirtan/kind"
@@ -37,6 +38,7 @@ export default function KirtanArtistScreen() {
   const bottomInset = useScrollBottomInset()
   const router = useRouter()
   const theme = useSongsTheme()
+  const t = useT()
   const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<{ id?: string }>()
   const actions = useKirtanActions()
@@ -59,9 +61,9 @@ export default function KirtanArtistScreen() {
   if (!artist) {
     return (
       <View style={[styles.root, styles.center, { backgroundColor: theme.page }]}>
-        <Text style={[styles.body, { color: theme.textBody }]}>This artist does not exist.</Text>
-        <KPress accessibilityRole="button" accessibilityLabel="Back" onPress={back} pressedScale={0.96} style={[styles.pill, { backgroundColor: theme.brand }]}>
-          <Text style={styles.pillText}>Back</Text>
+        <Text style={[styles.body, { color: theme.textBody }]}>{t("kt.artist.missing")}</Text>
+        <KPress accessibilityRole="button" accessibilityLabel={t("common.back")} onPress={back} pressedScale={0.96} style={[styles.pill, { backgroundColor: theme.brand }]}>
+          <Text style={styles.pillText}>{t("common.back")}</Text>
         </KPress>
       </View>
     )
@@ -82,7 +84,7 @@ export default function KirtanArtistScreen() {
         <LinearGradient pointerEvents="none" colors={["rgba(10,14,8,0)", "rgba(10,14,8,0.7)"]} style={StyleSheet.absoluteFill} />
         <KPress
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t("common.back")}
           onPress={back}
           pressedScale={0.9}
           outerStyle={[styles.back, { top: top + 6 }]}
@@ -104,32 +106,32 @@ export default function KirtanArtistScreen() {
       <View style={styles.actions}>
         <KPress
           accessibilityRole="button"
-          accessibilityLabel={`Play ${artist.name}`}
+          accessibilityLabel={t("kt.artist.playA11y", { name: artist.name })}
           onPress={() => actions.flash(playArtist(artist, all) ?? "")}
           pressedScale={0.97}
           outerStyle={styles.actionOuter}
           style={[styles.action, { backgroundColor: theme.brand }]}
         >
           <PlayFilled size={20} color="#FFFFFF" />
-          <Text style={styles.actionText}>Play</Text>
+          <Text style={styles.actionText}>{t("common.play")}</Text>
         </KPress>
         <KPress
           accessibilityRole="button"
-          accessibilityLabel={`Shuffle ${artist.name}`}
+          accessibilityLabel={t("kt.artist.shuffleA11y", { name: artist.name })}
           onPress={() => actions.flash(playArtist(artist, all, { shuffle: true }) ?? "")}
           pressedScale={0.97}
           outerStyle={styles.actionOuter}
           style={[styles.action, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line }]}
         >
           <Shuffle size={20} color={theme.textHeading} strokeWidth={2.2} />
-          <Text style={[styles.actionText, { color: theme.textHeading }]}>Shuffle</Text>
+          <Text style={[styles.actionText, { color: theme.textHeading }]}>{t("common.shuffle")}</Text>
         </KPress>
       </View>
 
       {popular.length ? (
         <View style={styles.block}>
           <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">
-            Popular
+            {t("kt.artist.popular")}
           </Text>
           <View style={styles.rows}>{popular.map((k) => row(k, popular))}</View>
         </View>
@@ -137,7 +139,7 @@ export default function KirtanArtistScreen() {
 
       <View style={styles.block}>
         <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">
-          All recordings
+          {t("kt.artist.all")}
         </Text>
       </View>
     </View>
@@ -151,11 +153,11 @@ export default function KirtanArtistScreen() {
         ListHeaderComponent={header}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         renderItem={({ item }) => <View style={styles.rowSlot}>{row(item, all)}</View>}
-        ListEmptyComponent={<Text style={[styles.body, styles.pad, { color: theme.textBody }]}>No Kiirtans or Bhajans by this artist yet.</Text>}
+        ListEmptyComponent={<Text style={[styles.body, styles.pad, { color: theme.textBody }]}>{t("kt.artist.empty")}</Text>}
         ListFooterComponent={
           <View style={styles.block}>
             <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">
-              About
+              {t("kt.artist.about")}
             </Text>
             <Text style={[styles.body, { color: theme.textBody }]}>{artist.about}</Text>
           </View>

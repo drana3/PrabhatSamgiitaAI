@@ -28,6 +28,7 @@ import {
   settleSheet,
   sheetPositionDuringDrag,
 } from "@/lib/sheetPhysics";
+import { useT } from "@/lib/i18n"
 import { REVIEW_STYLES, type ReviewStyle } from "@/lib/learn/srs";
 
 /**
@@ -48,6 +49,7 @@ export function ReviewStyleSheet({
   onSelect: (style: ReviewStyle) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const tone = toneOf(theme);
   const reduce = useReducedMotion();
   // Android Back closes the sheet.
@@ -123,14 +125,14 @@ export function ReviewStyleSheet({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t("common.close")}
           style={StyleSheet.absoluteFill}
           onPress={onClose}
         />
       </Animated.View>
       <Animated.View
         accessibilityViewIsModal
-        accessibilityLabel="Word review style"
+        accessibilityLabel={t("reviewStyle.sheet.a11y")}
         onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
         style={[
           styles.sheet,
@@ -142,7 +144,7 @@ export function ReviewStyleSheet({
         ]}
       >
         <GestureDetector gesture={pan}>
-          <View style={styles.grab} accessibilityLabel="Drag down to close">
+          <View style={styles.grab} accessibilityLabel={t("common.dragToClose")}>
             <View style={[styles.grabBar, { backgroundColor: tone.ink300 }]} />
           </View>
         </GestureDetector>
@@ -153,11 +155,10 @@ export function ReviewStyleSheet({
         >
           <View style={styles.titleBox}>
             <Text style={[styles.title, { color: theme.textHeading }]}>
-              How often do words come back?
+              {t("reviewStyle.title")}
             </Text>
             <Text style={[styles.intro, { color: theme.textHeading }]}>
-              Pick the rhythm that suits you. You can change it any time. Your
-              progress stays.
+              {t("reviewStyle.intro")}
             </Text>
           </View>
           <View
@@ -219,11 +220,10 @@ export function ReviewStyleSheet({
             })}
           </View>
           <Text style={[styles.note, { color: theme.textBody }]}>
-            New to this? Start with Simple steps. Switch to Adaptive when you
-            have fifty words or more.
+            {t("reviewStyle.note")}
           </Text>
           <View style={styles.done}>
-            <Pill theme={theme} label="Done" onPress={onClose} full />
+            <Pill theme={theme} label={t("common.done")} onPress={onClose} full />
           </View>
         </ScrollView>
       </Animated.View>

@@ -1,4 +1,4 @@
-import { t } from "@/lib/i18n"
+import { getActiveLanguage, t, translatorFor, type TranslateFn } from "@/lib/i18n"
 /**
  * Spaced repetition for the Learn word cards (spec SCR-22 and SCR-27).
  *
@@ -44,27 +44,24 @@ export const REVIEW_STYLES: ReadonlyArray<{
 }> = [
   {
     key: "steps",
-    name: "Simple steps",
-    tag: "Easiest to follow",
-    description:
-      "A fixed ladder. Every word comes back after 1, 3, 7, 14 and 30 days. Press Again and that word starts the ladder over. You always know what is coming.",
-    ladder: "1d → 3d → 7d → 14d → 30d",
+    get name() { return t("reviewStyle.simple") },
+    get tag() { return t("reviewStyle.simple.tag") },
+    get description() { return t("reviewStyle.simple.desc") },
+    get ladder() { return t("reviewStyle.simple.line") },
   },
   {
     key: "adaptive",
-    name: "Adaptive",
-    tag: "Fewest reviews",
-    description:
-      "Like Anki. Every word gets its own gap: easy words come back later and later, hard words sooner. Less work over months, but the gaps differ from word to word.",
-    ladder: "An easy word: 1d → 4d → 11d → 30d → 80d",
+    get name() { return t("reviewStyle.adaptive") },
+    get tag() { return t("reviewStyle.adaptive.tag") },
+    get description() { return t("reviewStyle.adaptive.desc") },
+    get ladder() { return t("reviewStyle.adaptive.line") },
   },
   {
     key: "daily",
-    name: "Daily practice",
-    tag: "Best for one song",
-    description:
-      "For a song you sing every day. Each word comes back tomorrow until you press Easy, then once a week. Short sessions, every day.",
-    ladder: "1d → 1d → 1d → 7d",
+    get name() { return t("reviewStyle.daily") },
+    get tag() { return t("reviewStyle.daily.tag") },
+    get description() { return t("reviewStyle.daily.desc") },
+    get ladder() { return t("reviewStyle.daily.line") },
   },
 ]
 
@@ -228,14 +225,14 @@ export function gradeCard(card: WordCard, grade: Grade, style: ReviewStyle, now:
 }
 
 /** "<1m", "10m", "3h", "4d", "2mo". Again is prefixed with "<" because it comes back in this session. */
-export function formatDelay(delayMs: number, lessThan = false): string {
+export function formatDelay(delayMs: number, lessThan = false, tr: TranslateFn = translatorFor(getActiveLanguage())): string {
   const prefix = lessThan ? "<" : ""
-  if (delayMs <= MINUTE) return `${prefix}1m`
-  if (delayMs < HOUR) return `${prefix}${Math.round(delayMs / MINUTE)}m`
-  if (delayMs < DAY) return `${prefix}${Math.round(delayMs / HOUR)}h`
+  if (delayMs <= MINUTE) return `${prefix}${tr("learn.delay.min", { count: 1 })}`
+  if (delayMs < HOUR) return `${prefix}${tr("learn.delay.min", { count: Math.round(delayMs / MINUTE) })}`
+  if (delayMs < DAY) return `${prefix}${tr("learn.delay.hour", { count: Math.round(delayMs / HOUR) })}`
   const days = Math.round(delayMs / DAY)
-  if (days < 60) return `${prefix}${days}d`
-  return `${prefix}${Math.round(days / 30)}mo`
+  if (days < 60) return `${prefix}${tr("learn.delay.day", { count: days })}`
+  return `${prefix}${tr("learn.delay.month", { count: Math.round(days / 30) })}`
 }
 
 /** The interval printed under each grade button, for the chosen style. */

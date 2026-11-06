@@ -14,6 +14,7 @@ import { useKirtans } from "@/hooks/useKirtans"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
+import { useT } from "@/lib/i18n"
 import { sampleMixes } from "@/lib/fixtures/kirtanGate"
 import { formatKirtanLength } from "@/lib/kirtan/list"
 import { mixCaption, playableItems, type MixItem } from "@/lib/kirtan/mix"
@@ -30,6 +31,7 @@ export default function KirtanMixScreen() {
   const bottomInset = useScrollBottomInset()
   const router = useRouter()
   const theme = useSongsTheme()
+  const t = useT()
   const params = useLocalSearchParams<{ id?: string }>()
   const actions = useKirtanActions()
   const { byId } = useKirtans()
@@ -50,7 +52,7 @@ export default function KirtanMixScreen() {
   if (!mix) {
     return (
       <View style={[styles.root, styles.center, { backgroundColor: theme.page }]}>
-        <Text style={[styles.empty, { color: theme.textBody }]}>This mix does not exist.</Text>
+        <Text style={[styles.empty, { color: theme.textBody }]}>{t("kt.mix.missing")}</Text>
       </View>
     )
   }
@@ -111,7 +113,7 @@ export default function KirtanMixScreen() {
             <View style={styles.back}>
               <KPress
                 accessibilityRole="button"
-                accessibilityLabel="Back"
+                accessibilityLabel={t("common.back")}
                 onPress={() => (router.canGoBack() ? router.back() : router.replace(href("/v2/today")))}
                 pressedScale={0.9}
                 style={[styles.backDisc, { backgroundColor: theme.card, borderColor: theme.line }]}
@@ -132,11 +134,11 @@ export default function KirtanMixScreen() {
               </Text>
             </View>
             <View style={styles.meta}>
-              <Text style={[styles.over, { color: theme.accent }]}>{mixCaption(items)}</Text>
+              <Text style={[styles.over, { color: theme.accent }]}>{mixCaption(items, t)}</Text>
               <Text style={[styles.blurb, { color: theme.textBody }]}>{mix.blurb}</Text>
-              <KPress accessibilityRole="button" accessibilityLabel={`Play ${mix.title}`} onPress={() => play(0)} pressedScale={0.98} style={[styles.playBtn, { backgroundColor: theme.brand }]}>
+              <KPress accessibilityRole="button" accessibilityLabel={t("kt.mix.playA11y", { title: mix.title })} onPress={() => play(0)} pressedScale={0.98} style={[styles.playBtn, { backgroundColor: theme.brand }]}>
                 <PlayFilled size={18} color="#FFFFFF" />
-                <Text style={styles.playText}>Play</Text>
+                <Text style={styles.playText}>{t("common.play")}</Text>
               </KPress>
             </View>
           </View>

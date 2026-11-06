@@ -9,6 +9,7 @@ import { OverlayScreen, Over, Pill, Track } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
+import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
 import { mockCounts, mockIntervals, mockIsReview, mockKind, type MockGrades } from "@/lib/learn/mockupCards"
@@ -29,8 +30,6 @@ import { useLearnStore } from "@/stores/learnStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
-const KIND_LABEL = { new: "New card", learning: "Learning card", due: "Review card" } as const
-
 /**
  * Word cards, Anki style (prototype FLASHCARDS, SCR-22). Full screen over Learn or the
  * song path. With ?song=3 the deck is the words of that song, and answering every card
@@ -43,6 +42,7 @@ export default function WordCardsScreen() {
 function WordCards() {
   const router = useRouter()
   const theme = useAmTheme()
+  const t = useT()
   const params = useLocalSearchParams<{ song?: string }>()
   const songNumber = parseNumberParam(params.song)
   const hydrated = useLearnHydrated()
@@ -126,7 +126,7 @@ function WordCards() {
     <OverlayScreen
       theme={theme}
       onBack={back}
-      label={songNumber !== undefined ? `Words · PS ${songNumber}` : "Words"}
+      label={songNumber !== undefined ? t("learn.cards.screenSong", { number: songNumber }) : t("learn.cards.screen")}
       right={
         queue && counts && headCard !== undefined ? (
           <QueueCounters theme={theme} counts={counts} active={headKind} />
@@ -143,7 +143,7 @@ function WordCards() {
       }
     >
       {queue === null ? (
-        <Over color={theme.eyebrow}>Loading your cards</Over>
+        <Over color={theme.eyebrow}>{t("learn.cards.loading")}</Over>
       ) : (
         <>
           <Reveal index={0}>
@@ -154,14 +154,14 @@ function WordCards() {
           </Reveal>
           {live && head && headCard ? (
             <Reveal index={2} style={styles.stack}>
-              <FlashCard word={head} kindLabel={KIND_LABEL[headKind ?? "new"]} flipped={flipped} onShow={() => setFlipped(true)} />
+              <FlashCard word={head} kindLabel={t(`learn.cards.kind.${headKind ?? "new"}`)} flipped={flipped} onShow={() => setFlipped(true)} />
               {flipped && intervals ? (
                 <GradeButtons theme={theme} intervals={intervals} onGrade={onGrade} />
               ) : (
-                <Pill theme={theme} full height={56} label="Show answer" onPress={() => setFlipped(true)} />
+                <Pill theme={theme} full height={56} label={t("learn.cards.showAnswer")} onPress={() => setFlipped(true)} />
               )}
               <Text style={[styles.note, { color: theme.textBody }]}>
-                The time under each button is when you will see this card again.
+                {t("learn.cards.hint")}
               </Text>
             </Reveal>
           ) : (
@@ -169,9 +169,7 @@ function WordCards() {
               <DoneCard
                 theme={theme}
                 text={
-                  total === 0
-                    ? "No word is waiting right now. Words come back here when it is time."
-                    : `${total} ${total === 1 ? "card" : "cards"} answered. The next ones come back in 10 minutes and tomorrow.`
+                  total === 0 ? t("learn.cards.none") : t("learn.cards.answered", { count: total })
                 }
                 onAgain={() => setRound((value) => value + 1)}
                 onBack={back}

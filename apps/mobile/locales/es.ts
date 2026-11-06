@@ -5,6 +5,8 @@ import { ugcEs } from "./ugc"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { playerErrorsEs } from "./playerErrors"
+import { learnScreensEs } from "./learnScreens"
+import { kiirtanScreensEs } from "./kiirtanScreens"
 import { countsEs } from "./counts"
 import { homeStatesEs } from "./homeStates"
 import { profileRowsEs } from "./profileRows"
@@ -1253,6 +1255,8 @@ export const es: Dictionary = {
   ...offlineEs,
   ...accountEs,
   ...playerErrorsEs,
+  ...learnScreensEs,
+  ...kiirtanScreensEs,
   ...countsEs,
   ...homeStatesEs,
   ...profileRowsEs,

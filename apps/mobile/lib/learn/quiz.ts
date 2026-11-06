@@ -73,10 +73,10 @@ export function scoreQuiz(
 /** The one line shown under the answers after a pick. */
 export function answerFeedback(question: LearnQuizQuestion, pickedOptionId: string): string {
   if (pickedOptionId === question.correctOptionId) {
-    return question.explanation ? `Right. ${question.explanation}` : "Right."
+    return question.explanation ? `${t("learn.quiz.right")} ${question.explanation}` : t("learn.quiz.right")
   }
   const correct = question.options.find((option) => option.id === question.correctOptionId)
-  return `Not quite. The answer is ${correct?.text ?? "above"}.${question.explanation ? ` ${question.explanation}` : ""}`
+  return `${t("learn.quiz.notQuite")} ${t("learn.quiz.answerIs", { answer: correct?.text ?? t("learn.quiz.above") })}${question.explanation ? ` ${question.explanation}` : ""}`
 }
 
 export type QuizResultView = {
@@ -157,10 +157,10 @@ export function buildWordQuiz(
     }))
     return {
       id: `w-${word.id}`,
-      prompt: `What does ${word.roman} mean?`,
+      prompt: t("learn.quiz.prompt", { word: word.roman }),
       options: answerOptions,
       correctOptionId: word.id,
-      explanation: `${word.roman} means ${word.meaning}, from PS ${word.songNumber}.`,
+      explanation: t("learn.quiz.explain", { word: word.roman, meaning: word.meaning, number: word.songNumber }),
     }
   })
 }

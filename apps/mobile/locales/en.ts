@@ -4,6 +4,8 @@ import { ugcEn } from "./ugc"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { playerErrorsEn } from "./playerErrors"
+import { learnScreensEn } from "./learnScreens"
+import { kiirtanScreensEn } from "./kiirtanScreens"
 import { countsEn } from "./counts"
 import { homeStatesEn } from "./homeStates"
 import { profileRowsEn } from "./profileRows"
@@ -1259,6 +1261,8 @@ export const en = {
   ...offlineEn,
   ...accountEn,
   ...playerErrorsEn,
+  ...learnScreensEn,
+  ...kiirtanScreensEn,
   ...countsEn,
   ...homeStatesEn,
   ...profileRowsEn,

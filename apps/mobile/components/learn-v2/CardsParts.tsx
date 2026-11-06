@@ -4,19 +4,21 @@ import { PressBox } from "@/components/learn-v2/PressBox"
 import { CardTitle, ICON_CHEVRON, Icon, Over, Pill, toneOf } from "@/components/learn-v2/ui"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 import type { LearnWord } from "@/lib/learn/words"
 import { GRADES, type Grade, type QueueCounts, type QueueKind } from "@/lib/learn/srs"
 
 /** `.counts`: New, Learning and Due, the kind of the card on screen underlined. */
 export function QueueCounters({ theme, counts, active }: { theme: AmTheme; counts: QueueCounts; active: QueueKind | null }) {
+  const t = useT()
   const tone = toneOf(theme)
   const cells: Array<{ kind: QueueKind; value: number; label: string; color: string }> = [
-    { kind: "new", value: counts.newCount, label: "New", color: theme.textHeading },
-    { kind: "learning", value: counts.learningCount, label: "Learning", color: theme.eyebrow },
-    { kind: "due", value: counts.dueCount, label: "Due", color: tone.dark ? "#B7D08F" : amColors.sage700 },
+    { kind: "new", value: counts.newCount, label: t("learn.cards.new"), color: theme.textHeading },
+    { kind: "learning", value: counts.learningCount, label: t("learn.cards.learning"), color: theme.eyebrow },
+    { kind: "due", value: counts.dueCount, label: t("learn.cards.due"), color: tone.dark ? "#B7D08F" : amColors.sage700 },
   ]
   return (
-    <View accessibilityRole="summary" accessibilityLabel="Cards waiting" style={styles.counts}>
+    <View accessibilityRole="summary" accessibilityLabel={t("learn.cards.waiting")} style={styles.counts}>
       {cells.map((cell) => (
         <View
           key={cell.kind}
@@ -34,15 +36,16 @@ export function QueueCounters({ theme, counts, active }: { theme: AmTheme; count
 
 /** `.srsbar`: "Review style  Simple steps  >" opens the sheet. */
 export function ReviewStyleBar({ theme, name, onPress }: { theme: AmTheme; name: string; onPress: () => void }) {
+  const t = useT()
   return (
     <PressBox
       accessibilityRole="button"
-      accessibilityLabel={`Review style, ${name}`}
+      accessibilityLabel={t("learn.cards.reviewStyleA11y", { name })}
       onPress={onPress}
       pressedScale={0.98}
       style={styles.srsbar}
     >
-      <Over color={theme.eyebrow}>Review style</Over>
+      <Over color={theme.eyebrow}>{t("learn.cards.reviewStyle")}</Over>
       <Text style={[styles.srsName, { color: theme.textHeading }]}>{name}</Text>
       <View style={styles.srsChevron}>
         <Icon d={ICON_CHEVRON} size={16} color={theme.textBody} />
@@ -63,10 +66,11 @@ export function FlashCard({
   flipped: boolean
   onShow: () => void
 }) {
+  const t = useT()
   return (
     <PressBox
       accessibilityRole="button"
-      accessibilityLabel={flipped ? `${word.roman}, ${word.meaning}` : `${word.roman}. Show the answer`}
+      accessibilityLabel={flipped ? `${word.roman}, ${word.meaning}` : t("learn.cards.showAnswerA11y", { word: word.roman })}
       onPress={onShow}
       pressedScale={0.99}
       outerStyle={styles.fcardOuter}
@@ -79,14 +83,12 @@ export function FlashCard({
         <>
           <View style={styles.ansline} />
           <Text style={[styles.big, styles.ansText]}>{word.meaning}</Text>
-          <Text style={styles.srcl}>{`From PS ${word.songNumber}`}</Text>
+          <Text style={styles.srcl}>{t("learn.cards.fromSong", { number: word.songNumber })}</Text>
         </>
       ) : null}
     </PressBox>
   )
 }
-
-const GRADE_LABEL: Record<Grade, string> = { again: "Again", hard: "Hard", good: "Good", easy: "Easy" }
 
 /** `.answers`: four buttons, each with the time you will see the card again. */
 export function GradeButtons({
@@ -98,6 +100,7 @@ export function GradeButtons({
   intervals: Record<Grade, string>
   onGrade: (grade: Grade) => void
 }) {
+  const t = useT()
   const tone = toneOf(theme)
   const look = (grade: Grade) => {
     switch (grade) {
@@ -119,13 +122,13 @@ export function GradeButtons({
           <PressBox
             key={grade}
             accessibilityRole="button"
-            accessibilityLabel={`${GRADE_LABEL[grade]}, back in ${intervals[grade].replace("<", "less than ")}`}
+            accessibilityLabel={t("learn.cards.gradeA11y", { grade: t(`learn.cards.grade.${grade}`), delay: intervals[grade].startsWith("<") ? t("learn.cards.lessThan", { delay: intervals[grade].slice(1) }) : intervals[grade] })}
             onPress={() => onGrade(grade)}
             pressedScale={0.96}
             outerStyle={styles.abOuter}
             style={[styles.ab, { backgroundColor: c.bg, borderColor: c.border }]}
           >
-            <Text style={[styles.abLabel, { color: c.fg }]}>{GRADE_LABEL[grade]}</Text>
+            <Text style={[styles.abLabel, { color: c.fg }]}>{t(`learn.cards.grade.${grade}`)}</Text>
             <Text style={[styles.abTime, { color: c.fg }]}>{intervals[grade]}</Text>
           </PressBox>
         )
@@ -146,17 +149,18 @@ export function DoneCard({
   onAgain: () => void
   onBack: () => void
 }) {
+  const t = useT()
   return (
     <>
       <View style={styles.done}>
-        <Over color={amColors.gold300}>Done for today</Over>
+        <Over color={amColors.gold300}>{t("learn.cards.doneEyebrow")}</Over>
         <CardTitle color={amColors.white} size={28}>
-          {"All cards\nanswered"}
+          {t("learn.cards.doneTitle")}
         </CardTitle>
         <Text style={styles.doneText}>{text}</Text>
-        <Pill theme={theme} go label="Study again" onPress={onAgain} />
+        <Pill theme={theme} go label={t("learn.cards.studyAgain")} onPress={onAgain} />
       </View>
-      <Pill theme={theme} variant="sand" full label="Back" onPress={onBack} />
+      <Pill theme={theme} variant="sand" full label={t("common.back")} onPress={onBack} />
     </>
   )
 }

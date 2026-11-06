@@ -10,6 +10,7 @@ import { Reveal } from "@/components/today/motion"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useT } from "@/lib/i18n"
 import { SAMPLE_QUIZ, SAMPLE_QUIZ_PASS_MARK } from "@/lib/fixtures/learn"
 import {
   QUIZ_LEVELS,
@@ -39,6 +40,7 @@ export default function LearnQuizScreen() {
 function LearnQuiz() {
   const router = useRouter()
   const theme = useAmTheme()
+  const t = useT()
   const params = useLocalSearchParams<{ level?: string; song?: string }>()
   const requested = parseNumberParam(params.level) ?? 1
   const level = (requested >= 1 && requested <= 3 ? requested : 1) as LearnQuizLevel
@@ -94,7 +96,7 @@ function LearnQuiz() {
 
   const onNext = () => {
     if (picked === null) {
-      toast.show("Choose an answer first")
+      toast.show(t("learn.quiz.chooseFirst"))
       return
     }
     if (!isLast) {
@@ -110,41 +112,44 @@ function LearnQuiz() {
     setFinished(true)
   }
 
-  const label = `Level ${level} · ${levelTitle}${songNumber !== undefined ? ` · PS ${songNumber}` : ""}`
+  const label =
+    songNumber !== undefined
+      ? t("learn.quiz.screenSong", { level, title: levelTitle, number: songNumber })
+      : t("learn.quiz.screen", { level, title: levelTitle })
 
   return (
     <OverlayScreen theme={theme} onBack={back} label={label} overlay={toast.node}>
       {!status.open ? (
-        <EmptyCard theme={theme} eyebrow="Locked" title="Locked" text={status.unlockRule} action="Back to Learn" onAction={back} />
+        <EmptyCard theme={theme} eyebrow={t("learn.quiz.locked")} title={t("learn.quiz.locked")} text={status.unlockRule} action={t("learn.quiz.backToLearn")} onAction={back} />
       ) : level !== 1 ? (
         <EmptyCard
           theme={theme}
-          eyebrow={`Level ${level}`}
-          title="Questions are on the way"
-          text="This level needs its question bank, which arrives with the next content update."
-          action="Back to Learn"
+          eyebrow={t("learn.quiz.levelEyebrow", { level })}
+          title={t("learn.quiz.soonTitle")}
+          text={t("learn.quiz.soonText")}
+          action={t("learn.quiz.backToLearn")}
           onAction={back}
         />
       ) : finished ? (
         <Reveal index={0} style={styles.stack}>
           <View style={styles.result}>
-            <Over color={amColors.gold300}>Your result</Over>
-            <Text style={styles.resultNumber}>{`${result.score} of ${result.total}`}</Text>
+            <Over color={amColors.gold300}>{t("learn.quiz.result")}</Over>
+            <Text style={styles.resultNumber}>{t("learn.quiz.score", { score: result.score, total: result.total })}</Text>
             <Text style={styles.resultText}>
               {result.passed
-                ? "Passed. Level 2 opens. The real quiz has 10 questions and a pass mark of 7."
-                : "Not yet. Read the words again and try once more."}
+                ? t("learn.quiz.passed")
+                : t("learn.quiz.notYet")}
             </Text>
           </View>
           <View style={styles.buttons}>
-            <Pill theme={theme} label="Try again" onPress={restart} />
-            <Pill theme={theme} variant="sand" label="Back to Learn" onPress={back} />
+            <Pill theme={theme} label={t("learn.quiz.tryAgain")} onPress={restart} />
+            <Pill theme={theme} variant="sand" label={t("learn.quiz.backToLearn")} onPress={back} />
           </View>
         </Reveal>
       ) : question ? (
         <Reveal index={0} style={styles.stack}>
           <Track theme={theme} value={(index + (picked !== null ? 1 : 0)) / questions.length} />
-          <Over color={theme.eyebrow} numeric>{`Question ${index + 1} of ${questions.length}`}</Over>
+          <Over color={theme.eyebrow} numeric>{t("learn.quiz.progress", { n: index + 1, total: questions.length })}</Over>
           <Text accessibilityRole="header" style={[styles.question, { color: theme.textHeading }]}>
             {question.prompt}
           </Text>
@@ -170,7 +175,7 @@ function LearnQuiz() {
           <Text accessibilityLiveRegion="polite" style={[styles.feedback, { color: theme.textBody }]}>
             {picked !== null ? quizFeedback(question, picked) : ""}
           </Text>
-          <Pill theme={theme} style={styles.next} label={isLast ? "See result" : "Next question"} onPress={onNext} />
+          <Pill theme={theme} style={styles.next} label={isLast ? t("learn.quiz.seeResult") : t("learn.quiz.next")} onPress={onNext} />
         </Reveal>
       ) : null}
     </OverlayScreen>
