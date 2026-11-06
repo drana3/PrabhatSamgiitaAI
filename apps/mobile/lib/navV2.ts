@@ -124,6 +124,7 @@ export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = [
   "/review-style",
   "/language",
   "/add-kirtan",
+  "/upload-chords",
   "/kiirtan-live",
   "/feedback",
   "/assistant",

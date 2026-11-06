@@ -19,6 +19,7 @@ import { festivalSongsEn } from "./festivalSongs"
 import { profileRowsEn } from "./profileRows"
 import { assistantErrorsEn } from "./assistantErrors"
 import { songCommentsEn } from "./songComments"
+import { chordProposalsEn } from "./chordProposals"
 import { pronunciationEn } from "./pronunciation"
 
 /**
@@ -1289,5 +1290,6 @@ export const en = {
   ...profileRowsEn,
   ...assistantErrorsEn,
   ...songCommentsEn,
+  ...chordProposalsEn,
   ...pronunciationEn,
 } as const

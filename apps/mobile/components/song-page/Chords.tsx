@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
+import { CommunityChords } from "@/components/song-chords/CommunityChords";
 import { SpEmptyNote } from "@/components/song-v2/SpHonest";
 import { SpIcon } from "@/components/song-v2/SpIcon";
 import {
@@ -292,6 +293,13 @@ export function ChordsSection({
           />
         </View>
       )}
+      {model.song ? (
+        <CommunityChords
+          t={t}
+          songNumber={model.song.number}
+          romanLines={model.sources.roman}
+        />
+      ) : null}
       <View style={styles.sing}>
         <SpPill
           t={t}

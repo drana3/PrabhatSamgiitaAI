@@ -38,6 +38,8 @@ HOURLY_PROPOSALS_TEAM = 120
 # One member may keep at most this many live (pending or published) charts per song and instrument.
 OPEN_PER_SONG_INSTRUMENT = 3
 DAILY_LIMIT_CODE = "chords_daily_limit"
+DUPLICATE_CODE = "chords_duplicate"
+OPEN_LIMIT_CODE = "chords_open_limit"
 FALLBACK_NAME = "Member"
 NOTICE_REJECTED = "chords_rejected"
 NOTICE_PUBLISHED = "chords_published"
@@ -247,7 +249,11 @@ async def create_proposal(
             and row.capo == payload.capo
             and _fingerprint(row.chart) == wanted
         ):
-            raise HTTPException(status_code=409, detail="You already offered exactly this chart.")
+            raise HTTPException(
+                status_code=409,
+                detail="You already offered exactly this chart.",
+                headers={"X-Error-Code": DUPLICATE_CODE},
+            )
     if not team and len(live) >= OPEN_PER_SONG_INSTRUMENT:
         raise HTTPException(
             status_code=409,
@@ -255,6 +261,7 @@ async def create_proposal(
                 f"You already have {OPEN_PER_SONG_INSTRUMENT} charts of this song for this "
                 "instrument waiting or live. Delete one first, or wait for the review."
             ),
+            headers={"X-Error-Code": OPEN_LIMIT_CODE},
         )
     now = now_utc()
     proposal = SongChordProposal(

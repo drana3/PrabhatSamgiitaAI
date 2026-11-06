@@ -348,6 +348,7 @@ async def test_several_charts_per_song_and_instrument_are_allowed_with_a_cap(wor
     assert [r.status_code for r in (first, second, third)] == [201, 201, 201]
     fourth = await world.offer("a", base_key="G")
     assert fourth.status_code == 409
+    assert fourth.headers["X-Error-Code"] == service.OPEN_LIMIT_CODE
     # another instrument and another song are separate
     assert (await world.offer("a", instrument="harmonium", capo=0, strum=None)).status_code == 201
     assert (await world.offer("a", song_id=20)).status_code == 201
@@ -361,6 +362,7 @@ async def test_the_same_chart_twice_is_refused(world: World) -> None:
     twin = await world.offer("a")
     assert twin.status_code == 409
     assert "already" in twin.json()["detail"]
+    assert twin.headers["X-Error-Code"] == service.DUPLICATE_CODE
     # another member may offer the same chords: it is a different voice
     assert (await world.offer("b")).status_code == 201
 

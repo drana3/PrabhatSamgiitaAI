@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
+import { useRouter } from "expo-router"
+import Svg, { Path } from "react-native-svg"
 import { Frost } from "@/components/common/Frost"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
@@ -19,7 +21,9 @@ import { amNav } from "@/constants/tokens/amNav"
 import { amRadius } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
-import { useLanguage } from "@/lib/i18n"
+import { useLanguage, useT } from "@/lib/i18n"
+import { KPress } from "@/components/kirtan/KPress"
+import { href } from "@/utils/href"
 import {
   NAV_V2_TABS,
   navV2Layout,
@@ -34,6 +38,9 @@ import {
   type NavV2TabId,
 } from "@/lib/navV2"
 import { MAX_FONT_SCALE } from "@/constants/fontScale"
+
+/** Width of the Upload button beside the tab pill. */
+const UPLOAD_WIDTH = 80
 
 /** Finger travel (px) before a touch counts as a drag instead of a tap. */
 const DRAG_SLOP = 4
@@ -61,6 +68,8 @@ type Props = {
 export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_TABS }: Props) {
   const theme = useAmTheme()
   useLanguage() // tab labels are read from the active language
+  const t = useT()
+  const router = useRouter()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
   const count = tabs.length
@@ -229,6 +238,22 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
           </View>
         </View>
       </GestureDetector>
+      {/* Upload: always in sight, on every screen that carries the bar. Opens the hub (recording, chords). */}
+      <KPress
+        accessibilityRole="button"
+        accessibilityLabel={t("upload.button.a11y")}
+        onPress={() => router.push(href("/upload"))}
+        pressedScale={0.94}
+        outerStyle={styles.uploadHit}
+        style={[styles.upload, { backgroundColor: theme.brand }]}
+      >
+        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+          <Path d="M12 5v14M5 12h14" stroke={theme.onBrand} strokeWidth={2.25} strokeLinecap="round" />
+        </Svg>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.label, { color: theme.onBrand }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+          {t("upload.button")}
+        </Text>
+      </KPress>
     </Animated.View>
   )
 }
@@ -260,8 +285,22 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: amNav.inset,
     right: amNav.inset,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  uploadHit: { width: UPLOAD_WIDTH, height: amNav.tabHeight },
+  upload: {
+    width: UPLOAD_WIDTH,
+    height: amNav.tabHeight,
+    borderRadius: amNav.radius,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingHorizontal: 8,
   },
   pill: {
+    flex: 1,
     height: amNav.tabHeight,
     borderRadius: amNav.radius,
     overflow: "hidden",

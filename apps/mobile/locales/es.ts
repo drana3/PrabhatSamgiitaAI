@@ -20,6 +20,7 @@ import { festivalSongsEs } from "./festivalSongs"
 import { profileRowsEs } from "./profileRows"
 import { assistantErrorsEs } from "./assistantErrors"
 import { songCommentsEs } from "./songComments"
+import { chordProposalsEs } from "./chordProposals"
 import { pronunciationEs } from "./pronunciation"
 
 /** Español. Trato de «tú». Kiirtan y Bhajan se escriben como en inglés; Prabhat Samgiita no se traduce. */
@@ -1283,5 +1284,6 @@ export const es: Dictionary = {
   ...profileRowsEs,
   ...assistantErrorsEs,
   ...songCommentsEs,
+  ...chordProposalsEs,
   ...pronunciationEs,
 }

@@ -199,6 +199,10 @@ export default function RootLayout() {
             <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
             {/* Kiirtans: audio files uploaded by their authors, played in the one player. */}
             <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
+            {/* Upload: the hub of the tab bar's Upload button, offering chords for a song, and the team's review of them. */}
+            <Stack.Screen name="upload" options={{ presentation: "modal" }} />
+            <Stack.Screen name="upload-chords" options={{ presentation: "modal" }} />
+            <Stack.Screen name="chords-review" options={{ presentation: "card" }} />
             <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
             <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />
             <Stack.Screen name="content-rules" options={{ presentation: "card" }} />
