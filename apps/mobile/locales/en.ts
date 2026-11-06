@@ -1,6 +1,7 @@
 import { songPageEn } from "./songPage"
 import { appShellEn } from "./appShell"
 import { ugcEn } from "./ugc"
+import { duplicatesEn } from "./duplicates"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { playerErrorsEn } from "./playerErrors"
@@ -1267,6 +1268,7 @@ export const en = {
   ...songPageEn,
   ...appShellEn,
   ...ugcEn,
+  ...duplicatesEn,
   ...offlineEn,
   ...accountEn,
   ...playerErrorsEn,

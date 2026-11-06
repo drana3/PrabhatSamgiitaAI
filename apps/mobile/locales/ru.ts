@@ -2,6 +2,7 @@ import type { Dictionary } from "@/locales"
 import { songPageRu } from "./songPage"
 import { appShellRu } from "./appShell"
 import { ugcRu } from "./ugc"
+import { duplicatesRu } from "./duplicates"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { playerErrorsRu } from "./playerErrors"
@@ -1347,6 +1348,7 @@ export const ru: Dictionary = {
   ...songPageRu,
   ...appShellRu,
   ...ugcRu,
+  ...duplicatesRu,
   ...offlineRu,
   ...accountRu,
   ...playerErrorsRu,

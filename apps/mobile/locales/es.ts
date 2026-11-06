@@ -2,6 +2,7 @@ import type { Dictionary } from "@/locales"
 import { songPageEs } from "./songPage"
 import { appShellEs } from "./appShell"
 import { ugcEs } from "./ugc"
+import { duplicatesEs } from "./duplicates"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { playerErrorsEs } from "./playerErrors"
@@ -1261,6 +1262,7 @@ export const es: Dictionary = {
   ...songPageEs,
   ...appShellEs,
   ...ugcEs,
+  ...duplicatesEs,
   ...offlineEs,
   ...accountEs,
   ...playerErrorsEs,

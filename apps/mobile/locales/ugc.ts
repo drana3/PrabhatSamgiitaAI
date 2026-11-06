@@ -55,7 +55,7 @@ export const ugcEn = {
   // why an upload stopped
   "ugc.err.network": "No connection. Check your internet and try again.",
   "ugc.err.signin": "Sign in to upload.",
-  "ugc.err.duplicate": "This exact recording is already in the app.",
+  "ugc.err.duplicate": "This file is already in the library.",
   "ugc.err.removedDuplicate": "The team removed this recording earlier. Contact us if you think that was a mistake.",
   "ugc.err.rules": "The content rules changed. Read and accept them again.",
   "ugc.err.gone": "This upload could not be finished. Please try once more.",
@@ -67,10 +67,10 @@ export const ugcEn = {
   "ugc.signin.action": "Sign in",
 
   // "a similar recording exists"
-  "ugc.similar.title": "A similar recording exists",
-  "ugc.similar.body": "Is yours different? A new performance of the same chant is welcome. Same file twice is not.",
-  "ugc.similar.listed": "Already in the app: {title}",
-  "ugc.similar.yes": "Yes, mine is different",
+  "ugc.similar.title": "Sounds like a recording already in the library",
+  "ugc.similar.body": "Is yours different? A new performance of the same mantra is welcome, it becomes another version. The same recording twice is not.",
+  "ugc.similar.listed": "Already in the library: {title}",
+  "ugc.similar.yes": "This is a different performance, publish",
   "ugc.similar.no": "Cancel",
 
   // published
@@ -208,7 +208,7 @@ export const ugcRu: Record<keyof typeof ugcEn, string> = {
 
   "ugc.err.network": "Нет соединения. Проверьте интернет и попробуйте снова.",
   "ugc.err.signin": "Войдите, чтобы загружать.",
-  "ugc.err.duplicate": "Именно эта запись уже есть в приложении.",
+  "ugc.err.duplicate": "Этот файл уже есть в библиотеке.",
   "ugc.err.removedDuplicate": "Команда раньше удалила эту запись. Напишите нам, если это ошибка.",
   "ugc.err.rules": "Правила контента изменились. Прочитайте и примите их снова.",
   "ugc.err.gone": "Загрузку не удалось закончить. Попробуйте ещё раз.",
@@ -218,10 +218,10 @@ export const ugcRu: Record<keyof typeof ugcEn, string> = {
   "ugc.signin.body": "Загрузка привязана к вашей учётной записи, чтобы команда могла связаться с вами, если запись нужно поправить.",
   "ugc.signin.action": "Войти",
 
-  "ugc.similar.title": "Похожая запись уже есть",
-  "ugc.similar.body": "Ваша отличается? Новое исполнение того же киртана приветствуется. Один и тот же файл дважды нет.",
-  "ugc.similar.listed": "Уже в приложении: {title}",
-  "ugc.similar.yes": "Да, моя другая",
+  "ugc.similar.title": "Звучит как запись, которая уже есть в библиотеке",
+  "ugc.similar.body": "Ваша запись другая? Новое исполнение той же мантры приветствуется, оно станет ещё одной версией. Одну и ту же запись дважды не нужно.",
+  "ugc.similar.listed": "Уже в библиотеке: {title}",
+  "ugc.similar.yes": "Это другое исполнение, опубликовать",
   "ugc.similar.no": "Отмена",
 
   "ugc.sent.line1": "Опубликовано",
@@ -352,7 +352,7 @@ export const ugcEs: Record<keyof typeof ugcEn, string> = {
 
   "ugc.err.network": "Sin conexión. Revisa tu internet e inténtalo de nuevo.",
   "ugc.err.signin": "Inicia sesión para subir.",
-  "ugc.err.duplicate": "Esta misma grabación ya está en la app.",
+  "ugc.err.duplicate": "Este archivo ya está en la biblioteca.",
   "ugc.err.removedDuplicate": "El equipo eliminó antes esta grabación. Escríbenos si crees que fue un error.",
   "ugc.err.rules": "Las normas de contenido cambiaron. Léelas y acéptalas de nuevo.",
   "ugc.err.gone": "No se pudo terminar esta subida. Inténtalo una vez más.",
@@ -362,10 +362,10 @@ export const ugcEs: Record<keyof typeof ugcEn, string> = {
   "ugc.signin.body": "Una subida pertenece a tu cuenta, para que el equipo pueda contactarte si una grabación necesita un cambio.",
   "ugc.signin.action": "Iniciar sesión",
 
-  "ugc.similar.title": "Ya existe una grabación parecida",
-  "ugc.similar.body": "¿La tuya es distinta? Una nueva interpretación del mismo canto es bienvenida. El mismo archivo dos veces, no.",
-  "ugc.similar.listed": "Ya está en la app: {title}",
-  "ugc.similar.yes": "Sí, la mía es distinta",
+  "ugc.similar.title": "Suena como una grabación que ya está en la biblioteca",
+  "ugc.similar.body": "¿La tuya es distinta? Una nueva interpretación del mismo mantra es bienvenida y pasa a ser otra versión. La misma grabación dos veces, no.",
+  "ugc.similar.listed": "Ya está en la biblioteca: {title}",
+  "ugc.similar.yes": "Es otra interpretación, publicar",
   "ugc.similar.no": "Cancelar",
 
   "ugc.sent.line1": "Publicado",
