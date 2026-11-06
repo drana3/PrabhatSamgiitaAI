@@ -4,7 +4,7 @@ import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChartPreview } from "@/components/song-chords/ChartPreview"
-import { ActionButton, CORNER, Chip, Hint } from "@/components/song-chords/parts"
+import { ActionButton, CORNER, Chip, Hint, PILL } from "@/components/song-chords/parts"
 import { KPress } from "@/components/kirtan/KPress"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -179,7 +179,7 @@ function ReviewCard({ item, filter, onDone }: { item: ReviewItem; filter: Review
 const s = StyleSheet.create({
   root: { flex: 1 },
   bar: { paddingHorizontal: 24, paddingBottom: 6, flexDirection: "row" },
-  back: { minHeight: 44, paddingHorizontal: 16, borderRadius: CORNER, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  back: { minHeight: 44, paddingHorizontal: 16, borderRadius: PILL, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   backText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   content: { paddingHorizontal: 24, gap: 20, paddingTop: 12, maxWidth: 560, width: "100%", alignSelf: "center" },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },

@@ -8,7 +8,7 @@ import { ChartPreview } from "@/components/song-chords/ChartPreview"
 import { ChordPalette } from "@/components/song-chords/ChordPalette"
 import { ChordPasteBox } from "@/components/song-chords/ChordPasteBox"
 import { ChordSlotEditor, type Slot } from "@/components/song-chords/ChordSlotEditor"
-import { ActionButton, CheckRow, Chip, CORNER, Hint, Label } from "@/components/song-chords/parts"
+import { ActionButton, CheckRow, Chip, CORNER, Hint, Label, PILL } from "@/components/song-chords/parts"
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { KPress } from "@/components/kirtan/KPress"
 import { Reveal } from "@/components/today/motion"
@@ -452,7 +452,7 @@ const s = StyleSheet.create({
   songName: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20 },
   input: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, outlineStyle: "none" as never },
   noteInput: { minHeight: 80, textAlignVertical: "top" },
-  pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: CORNER, alignItems: "center", justifyContent: "center" },
+  pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: PILL, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   note: { borderWidth: 1.5, borderRadius: CORNER, padding: 12, gap: 8, alignItems: "flex-start" },
   noteText: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },

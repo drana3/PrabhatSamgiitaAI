@@ -11,7 +11,10 @@ import { amFonts } from "@/constants/tokens/amTypography"
  * Small pieces shared by the Upload hub, the "offer chords" flow and the review screen. Square-cornered (2 px) on
  * purpose: chords are written, not tapped like bubbles. Colours come from the app's own tokens (SongsTheme).
  */
-export const CORNER = 2
+/** Soft corners of the song page: cards and fields 20, round buttons and chips, a small box for the check mark. */
+export const CORNER = 20
+export const PILL = 9999
+export const BOX = 8
 
 export function Label({ theme, children }: { theme: SongsTheme; children: ReactNode }) {
   return <Text style={[s.label, { color: theme.textHeading }]}>{children}</Text>
@@ -111,11 +114,11 @@ export function CheckRow({ theme, on, label, onToggle, invalid }: { theme: Songs
 const s = StyleSheet.create({
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: CORNER, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: PILL, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   chipText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
-  button: { minHeight: 56, borderRadius: CORNER, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  button: { minHeight: 56, borderRadius: PILL, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
   buttonText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, textAlign: "center" },
   check: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingVertical: 6, minHeight: 44 },
-  box: { width: 26, height: 26, borderRadius: CORNER, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  box: { width: 26, height: 26, borderRadius: BOX, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 1 },
   checkText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21 },
 })

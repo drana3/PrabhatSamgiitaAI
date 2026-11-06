@@ -94,7 +94,7 @@ const s = StyleSheet.create({
   line: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
   gutter: { width: 22, paddingTop: 26, fontFamily: amFonts.medium, fontSize: 11, lineHeight: 14, textAlign: "right" },
   words: { flex: 1, flexDirection: "row", flexWrap: "wrap", rowGap: 4, columnGap: 2 },
-  col: { minWidth: 44, minHeight: 56, paddingHorizontal: 6, paddingTop: 2, paddingBottom: 4, borderRadius: CORNER, borderWidth: 2, justifyContent: "flex-end" },
+  col: { minWidth: 44, minHeight: 56, paddingHorizontal: 6, paddingTop: 2, paddingBottom: 4, borderRadius: 14, borderWidth: 2, justifyContent: "flex-end" },
   slot: { minHeight: 24, justifyContent: "flex-end", borderBottomWidth: 1, marginBottom: 2 },
   chord: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20 },
   word: { fontFamily: amFonts.medium, fontSize: 17, lineHeight: 22 },

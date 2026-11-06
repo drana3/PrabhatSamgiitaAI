@@ -240,7 +240,7 @@ const s = StyleSheet.create({
   pad: { paddingHorizontal: 20, gap: 8 },
   body: { gap: 12 },
   chips: { flexDirection: "row", flexWrap: "wrap" },
-  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 2, borderWidth: 1, alignItems: "center", justifyContent: "center", marginRight: 8, marginBottom: 8 },
+  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 9999, borderWidth: 1, alignItems: "center", justifyContent: "center", marginRight: 8, marginBottom: 8 },
   chipText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 20 },
   meta: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
@@ -249,5 +249,5 @@ const s = StyleSheet.create({
   link: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
   linkText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 20 },
   reasons: { gap: 8 },
-  reason: { minHeight: 44, borderRadius: 2, borderWidth: 1, paddingHorizontal: 14, justifyContent: "center" },
+  reason: { minHeight: 44, borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, justifyContent: "center" },
 })
