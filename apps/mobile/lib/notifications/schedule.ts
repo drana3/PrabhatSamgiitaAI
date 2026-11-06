@@ -1,4 +1,6 @@
 import { t } from "@/lib/i18n"
+import { getActiveLanguage } from "@/lib/i18n/core"
+import { festivalText } from "@/lib/i18n/festivalText"
 import type { WordCard } from "@/lib/learn/srs"
 import type { LearningStreak } from "@/lib/learn/streak"
 import type { AppNotification, NotificationKind } from "@/lib/notifications"
@@ -45,7 +47,18 @@ export type SongPick = {
  */
 export type TodaySong = { date: string; song: SongPick }
 
-export type FestivalEntry = { id: string; title: string; month: number; day: number; year: number }
+export type FestivalEntry = {
+  id: string
+  title: string
+  month: number
+  day: number
+  year: number
+  /**
+   * False when the festival has no song of its own to show (data/festivalSongs.ts): the reminder then names the
+   * festival and promises nothing more. Absent means it has.
+   */
+  hasSongs?: boolean
+}
 
 export type PlanInput = {
   /** the clock, ms since epoch (the streak reminder depends on whether today is still ahead) */
@@ -184,7 +197,10 @@ function festivalCandidates(input: PlanInput, day: number): PlannedNotification[
       kind: "festival",
       fireAt: atMinutes(day, FESTIVAL_EVE_AT),
       title: t("notif.item.festival.title"),
-      text: t("notif.item.festival.text", { title: f.title }),
+      // the festival's name in the app language (Russian and Spanish captions), the calendar's own name otherwise
+      text: t(f.hasSongs === false ? "notif.item.festival.plain" : "notif.item.festival.text", {
+        title: festivalText({ id: f.id, title: f.title, subtitle: "" }, getActiveLanguage()).title,
+      }),
       target: `/festival/${f.id}`,
     })
   }

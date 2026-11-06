@@ -2,16 +2,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import type { SongSummary } from "@prabhat/core"
 
 import { festivalCalendar } from "@/data/festivals"
+import { festivalSongCount } from "@/data/festivalSongs"
 import { dateKey, type FestivalEntry, type SongPick, type TodaySong } from "@/lib/notifications/schedule"
 import { readTodayCache } from "@/lib/todayCache"
 
-/** The festival calendar the app already has (data/festivals.ts), in the scheduler's shape. */
+/** The festival calendar the app already has (data/festivals.ts), in the scheduler's shape. `hasSongs` is whether the festival has songs to show (data/festivalSongs.ts). */
 export const FESTIVAL_ENTRIES: readonly FestivalEntry[] = festivalCalendar.map((f) => ({
   id: f.id,
   title: f.title,
   month: f.month,
   day: f.day,
   year: f.year,
+  hasSongs: festivalSongCount(f) > 0,
 }))
 
 const CATALOG_CACHE_KEY = "prabhat-catalog-songs-v1"

@@ -120,6 +120,32 @@ send them to Dada. Add each as a row in `EXTRA_FESTIVAL_DATES` and remove it fro
 
 The calendar now ends after 2028-10-17 (Diipavalii). After that date the Festivals screen says that no confirmed date is ahead.
 
+## Songs for a festival
+
+A festival shows Prabhat Samgiita only when the data links them. Nothing is guessed from a theme.
+
+Two kinds of link, kept apart on screen:
+
+1. **Listed for the festival.** `data/festivalSongs.ts` maps a festival id (without the year, so the link survives moving
+   lunar dates) to a collection label in `data/collections`, or to a fixed song list. The mapping copies the reviewed one
+   in `apps/api/app/services/domain_catalog.py`. Only these festivals have it: Navavarsa, Ananda Purnima and Baba's birthday
+   (Baba Birthday Songs), PROUT Day, Shravanii, PS Divasa (reviewed list: 1, 68, 135, 647, 1418, 4281, 5018),
+   Sharadotsava (Children Songs), Vijayotsava, Diipavalii.
+2. **Composed on this calendar day.** The composition date (day and month, any year) comes from `metadata_json.date` of
+   the lyrics page. `scripts/build_composition_dates.py` reads `data/generated/songs.json`, keeps only real calendar dates
+   in 1900 to 2100 (damaged ones are dropped) and writes the compact `data/generated/composition_dates.json`. Rerun it when
+   songs.json changes. The text says "Composed on this day, <year>", never "about this festival", because composing on a
+   festival's calendar date is not the same as writing for it. It uses the civil date of the current year's festival, so a
+   lunar festival gets a different set each year.
+
+A festival with neither kind shows nothing extra. Every calendar day has at least 5 composed songs, so in practice every
+festival has the second kind.
+
+Today screen: a festival that is today or tomorrow (local calendar day, from 00:05) gets a panel "Prabhat Samgiita for this
+day" with up to 3 songs, and its shelf card says "Tomorrow" or "Today". The festival page lists all links in two groups.
+The reminder is the existing `festival` notification (17:00 on the eve); its text mentions the songs only when the festival
+has some (`hasSongs` in `lib/notifications/schedule.ts`).
+
 ## How to add a confirmed date
 
 1. A known observance: add a row to `EXTRA_FESTIVAL_DATES` in `data/festivalDates2027.ts` (`idBase`, year, month, day,

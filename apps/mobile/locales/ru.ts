@@ -14,6 +14,7 @@ import { kiirtanScreensRu } from "./kiirtanScreens"
 import { countsRu } from "./counts"
 import { homeStatesRu } from "./homeStates"
 import { homeFestivalsRu } from "./homeFestivals"
+import { festivalSongsRu } from "./festivalSongs"
 import { profileRowsRu } from "./profileRows"
 import { assistantErrorsRu } from "./assistantErrors"
 
@@ -179,7 +180,8 @@ export const ru: Dictionary = {
   "notif.item.words_many": "Пора повторить {count} слов. Это займёт минуту.",
   "notif.item.words_other": "Пора повторить {count} слова. Это займёт минуту.",
   "notif.item.festival.title": "Праздник завтра",
-  "notif.item.festival.text": "{title} — завтра. Песни праздника уже готовы.",
+  "notif.item.festival.text": "{title} — завтра. Prabhat Samgiita к этому дню уже в приложении.",
+  "notif.item.festival.plain": "{title} — завтра.",
   "notif.item.streak_one": "{count} день подряд. Не останавливайтесь.",
   "notif.item.streak_few": "{count} дня подряд. Не останавливайтесь.",
   "notif.item.streak_many": "{count} дней подряд. Не останавливайтесь.",
@@ -1357,6 +1359,7 @@ export const ru: Dictionary = {
   ...countsRu,
   ...homeStatesRu,
   ...homeFestivalsRu,
+  ...festivalSongsRu,
   ...profileRowsRu,
   ...assistantErrorsRu,
 }

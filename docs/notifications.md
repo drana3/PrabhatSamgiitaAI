@@ -7,7 +7,7 @@ Phase 1 runs on the phone only. Phase 2 adds a server. The bell, the inbox and t
 | Kind | Trigger | Where it comes from | Tap opens |
 | --- | --- | --- | --- |
 | `song` | Song of the day: 8:00 local by default; the person sets up to 3 times a day, any minute | scheduler; "composed on this day" when the song list has the date, else a daily pick | `/song-v2/ps-N` |
-| `festival` | 17:00 on the eve of a festival | scheduler, from `data/festivals.ts` | `/festival/<id>` |
+| `festival` | 17:00 on the eve of a festival | scheduler, from `data/festivals.ts`; the text names the songs only when `data/festivalSongs.ts` has some for it | `/festival/<id>` |
 | `words` | 18:00 local by default; the person sets up to 5 times a day, any minute; only when words are due | scheduler, from the word cards in `stores/learnStore.ts` | `/learn/words` |
 | `streak` | 20:00, only when a streak of 2+ days could end today (off by default) | scheduler, from card review history (`lib/learn/streak.ts`) | `/v2/learn` |
 | `live` | not scheduled on the phone any more, and not a setting. The kind stays so that a server push (phase 2) or an old inbox item can still show | server only (TODO(api)) | `/kiirtan-live?id=<id>` |
@@ -41,7 +41,7 @@ Copy is short, sentence case, no exclamation marks, verb first where there is an
 
 Not yet tried on a real phone: native scheduling of several times a day, iOS delivery with 60 pending, and Android exact alarms (from Android 12 an app needs the exact-alarm permission to fire on the minute; without it the system may delay a reminder by minutes).
 
-Limits of phase 1: a notification is only scheduled while the app has run within the last 7 days (iOS and Android hold local notifications, the app has to refill them). The inbox shows what should have fired from the app's current data, so a words reminder that fired before the person reviewed is not reconstructed with its old count. There is no cross-device state. The "composed on this day" text needs a song date that the app does not have yet.
+Limits of phase 1: a notification is only scheduled while the app has run within the last 7 days (iOS and Android hold local notifications, the app has to refill them). The inbox shows what should have fired from the app's current data, so a words reminder that fired before the person reviewed is not reconstructed with its old count. There is no cross-device state. The song notification can say "composed on this day" only for songs in `data/generated/composition_dates.json` (built from the lyrics-page dates); the scheduler does not use it yet.
 
 ## Phase 2: server
 

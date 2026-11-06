@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { setActiveLanguage } from "@/lib/i18n/core"
 import type { WordCard } from "@/lib/learn/srs"
 import {
   MAX_PENDING,
@@ -215,8 +216,23 @@ describe("scheduler: festival eve", () => {
     expect(eve?.id).toBe("festival:diipavalii-2026")
     expect(eve?.fireAt).toBe(at(11, 7, 17, 0))
     expect(eve?.title).toBe("Festival tomorrow")
-    expect(eve?.text).toBe("Diipavalii is tomorrow. Its songs are ready.")
+    expect(eve?.text).toBe("Diipavalii is tomorrow. Prabhat Samgiita for this day is ready in the app.")
     expect(eve?.target).toBe("/festival/diipavalii-2026")
+  })
+
+  it("promises songs only when the festival has some, and says nothing more otherwise", () => {
+    const out = scheduleNext7Days(input({ festivals: [{ id: "diipavalii-2026", title: "Diipavalii", month: 11, day: 8, year: 2026, hasSongs: false }] }))
+    expect(out.find((n) => n.kind === "festival")?.text).toBe("Diipavalii is tomorrow.")
+  })
+
+  it("names the festival in the app language", () => {
+    setActiveLanguage("ru")
+    try {
+      const out = scheduleNext7Days(input({ festivals: [{ id: "prout-day-2026", title: "PROUT Day", month: 11, day: 8, year: 2026 }] }))
+      expect(out.find((n) => n.kind === "festival")?.text).toBe("День PROUT — завтра. Prabhat Samgiita к этому дню уже в приложении.")
+    } finally {
+      setActiveLanguage("en")
+    }
   })
 
   it("skips a festival today or in the past, and one more than a week away", () => {

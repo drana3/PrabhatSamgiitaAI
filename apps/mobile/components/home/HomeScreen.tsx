@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native"
+import { AppState, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
@@ -21,6 +21,7 @@ import {
   type HomeRowData,
   type StripCardData,
 } from "@/components/home/HomeBlocks"
+import { FestivalEvePanel } from "@/components/festivals/FestivalEvePanel"
 import { LiveNowStrip } from "@/components/kirtan/LiveNowStrip"
 import { KirtanMenuSheet } from "@/components/kirtan/KirtanMenus"
 import { KirtanRow } from "@/components/kirtan/KirtanParts"
@@ -32,6 +33,7 @@ import { fixtureDay } from "@/components/today/TodayPrototypeScreen"
 import { songCategories } from "@/constants/categories"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { getUpcomingFestivals } from "@/data/festivals"
+import { festivalSongCount } from "@/data/festivalSongs"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
@@ -45,7 +47,10 @@ import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { ensureCatalog, useCatalogStore } from "@/lib/catalogStore"
-import { useT } from "@/lib/i18n"
+import { useLanguage, useT } from "@/lib/i18n"
+import { festivalText } from "@/lib/i18n/festivalText"
+import { eveFestivals, festivalPhase } from "@/lib/festivalEve"
+import { nowMs } from "@/lib/notifications/clock"
 import { api } from "@/lib/client"
 import {
   HOME_BECAUSE,
@@ -108,6 +113,7 @@ function mockSongOf(row: { number: number; title: string }): MockSong {
 export function HomeScreen() {
   const bottomInset = useScrollBottomInset()
   const t = useT()
+  const language = useLanguage()
   const router = useRouter()
   const theme = useAmTheme()
   const p = protoFor(theme)
@@ -291,18 +297,43 @@ export function HomeScreen() {
   })
   const chipColors = chipColorsOf(p)
 
-  /* Only observances with confirmed dates (data/festivals.ts); the names are catalogue text. */
+  /*
+   * Only observances with confirmed dates (data/festivals.ts). The day before a festival, and on the day, the
+   * card says "Tomorrow" / "Today" and the shelf opens with that festival's Prabhat Samgiita (lib/festivalEve.ts).
+   * The date is the phone's local day, read again whenever the app comes back to the front. In the web preview
+   * `?at=2026-11-07T10:00` moves the clock (lib/notifications/clock.ts); everywhere else it is the real one.
+   */
+  const [clock, setClock] = useState(() => nowMs())
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") setClock(nowMs())
+    })
+    return () => sub.remove()
+  }, [])
+  const festivalNow = useMemo(() => new Date(clock), [clock])
+  const eveList = useMemo(() => eveFestivals(festivalNow).slice(0, 2), [festivalNow])
   const festivalCards: StripCardData[] = useMemo(
     () =>
-      getUpcomingFestivals(now, 4).map((f, i) => ({
-        id: f.id,
-        label: f.dateLabel,
-        tone: (["orange", "sage", "gold", "forest"] as const)[i % 4],
-        cover: i + 3,
-        title: f.title,
-        caption: f.daysUntil === 0 ? t("fest.today") : f.daysUntil === 1 ? t("fest.tomorrow") : t("fest.inDays", { count: f.daysUntil }),
-      })),
-    [now, t],
+      getUpcomingFestivals(festivalNow, 4).map((f, i) => {
+        const phase = festivalPhase(f.daysUntil)
+        const songs = phase ? festivalSongCount(f) : 0
+        return {
+          id: f.id,
+          label: phase ? `${phase === "today" ? t("fest.today") : t("fest.tomorrow")} · ${f.dateLabel}` : f.dateLabel,
+          tone: (["orange", "sage", "gold", "forest"] as const)[i % 4],
+          cover: i + 3,
+          title: festivalText(f, language).title,
+          caption:
+            songs > 0
+              ? t("festSongs.card.caption", { count: songs })
+              : f.daysUntil === 0
+                ? t("fest.today")
+                : f.daysUntil === 1
+                  ? t("fest.tomorrow")
+                  : t("fest.inDays", { count: f.daysUntil }),
+        }
+      }),
+    [festivalNow, t, language],
   )
 
   const shelves = shelvesFor(filter)
@@ -449,6 +480,13 @@ export function HomeScreen() {
               second={t("home.festivals.second")}
               action={{ label: t("home.festivals.all"), onPress: () => router.push(href("/festivals")) }}
             />
+            {eveList.length > 0 ? (
+              <View style={styles.list}>
+                {eveList.map((festival) => (
+                  <FestivalEvePanel key={festival.id} p={p} festival={festival} onSeeAll={() => router.push(href(`/festival/${festival.id}`))} />
+                ))}
+              </View>
+            ) : null}
             <HomeShelf itemWidth={STORY_WIDTH}>
               {festivalCards.map((card) => (
                 <StripCard key={card.id} p={p} card={card} width={STORY_WIDTH} height={150} onPress={() => router.push(href(`/festival/${card.id}`))} />

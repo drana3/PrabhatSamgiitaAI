@@ -4,13 +4,17 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { CardText, CardTitle, LCard, OverlayScreen, Over, Pill } from "@/components/learn-v2/ui"
+import { FestivalSongSections } from "@/components/festivals/FestivalSongSections"
 import { Reveal } from "@/components/today/motion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { allCollections } from "@/data/collections"
+import { protoFor } from "@/constants/tokens/amToday"
 import { getFestivalById } from "@/data/festivals"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { formatDate, useLanguage, useT } from "@/lib/i18n"
 import { festivalText } from "@/lib/i18n/festivalText"
+import { daysUntilFestival, festivalPhase } from "@/lib/festivalEve"
+import { nowMs } from "@/lib/notifications/clock"
 import { href } from "@/utils/href"
 
 /**
@@ -26,6 +30,8 @@ export default function FestivalDetailScreen() {
   const { festivalId } = useLocalSearchParams<{ festivalId: string }>()
 
   const festival = useMemo(() => getFestivalById(String(festivalId ?? "")), [festivalId])
+  // today or tomorrow by the phone's local day (the web preview can move the clock: see lib/notifications/clock.ts)
+  const phase = useMemo(() => (festival ? festivalPhase(daysUntilFestival(new Date(nowMs()), festival)) : null), [festival])
   const collection = festival?.relatedCollectionLabel
     ? allCollections.find((item) => item.label === festival.relatedCollectionLabel)
     : undefined
@@ -61,6 +67,7 @@ export default function FestivalDetailScreen() {
           <Reveal index={0}>
             <Over color={theme.eyebrow} numeric style={styles.date}>
               {formatDate(new Date(festival.year, festival.month - 1, festival.day), "long")}
+              {phase ? ` · ${phase === "today" ? t("fest.today") : t("fest.tomorrow")}` : ""}
             </Over>
             <Text accessibilityRole="header" style={[styles.heading, { color: theme.textHeading }]}>
               {festivalText(festival, language).title}
@@ -89,6 +96,9 @@ export default function FestivalDetailScreen() {
             </LCard>
           </Reveal>
           <Reveal index={2}>
+            <FestivalSongSections p={protoFor(theme)} festival={festival} />
+          </Reveal>
+          <Reveal index={3}>
             <PressBox
               accessibilityRole="button"
               accessibilityLabel={t("fest.browse")}

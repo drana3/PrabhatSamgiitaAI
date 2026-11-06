@@ -13,6 +13,7 @@ import { kiirtanScreensEn } from "./kiirtanScreens"
 import { countsEn } from "./counts"
 import { homeStatesEn } from "./homeStates"
 import { homeFestivalsEn } from "./homeFestivals"
+import { festivalSongsEn } from "./festivalSongs"
 import { profileRowsEn } from "./profileRows"
 import { assistantErrorsEn } from "./assistantErrors"
 
@@ -177,7 +178,8 @@ export const en = {
   "notif.item.words_one": "{count} word is due. It takes a minute.",
   "notif.item.words_other": "{count} words are due. It takes a minute.",
   "notif.item.festival.title": "Festival tomorrow",
-  "notif.item.festival.text": "{title} is tomorrow. Its songs are ready.",
+  "notif.item.festival.text": "{title} is tomorrow. Prabhat Samgiita for this day is ready in the app.",
+  "notif.item.festival.plain": "{title} is tomorrow.",
   "notif.item.streak_one": "{count} day in a row. Keep it going.",
   "notif.item.streak_other": "{count} days in a row. Keep it going.",
   "notif.yesterday": "Yesterday",
@@ -1277,6 +1279,7 @@ export const en = {
   ...countsEn,
   ...homeStatesEn,
   ...homeFestivalsEn,
+  ...festivalSongsEn,
   ...profileRowsEn,
   ...assistantErrorsEn,
 } as const

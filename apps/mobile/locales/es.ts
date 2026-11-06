@@ -14,6 +14,7 @@ import { kiirtanScreensEs } from "./kiirtanScreens"
 import { countsEs } from "./counts"
 import { homeStatesEs } from "./homeStates"
 import { homeFestivalsEs } from "./homeFestivals"
+import { festivalSongsEs } from "./festivalSongs"
 import { profileRowsEs } from "./profileRows"
 import { assistantErrorsEs } from "./assistantErrors"
 
@@ -171,7 +172,8 @@ export const es: Dictionary = {
   "notif.item.words_one": "Toca repasar {count} palabra. Solo lleva un minuto.",
   "notif.item.words_other": "Toca repasar {count} palabras. Solo lleva un minuto.",
   "notif.item.festival.title": "Festival mañana",
-  "notif.item.festival.text": "{title} es mañana. Sus canciones ya están listas.",
+  "notif.item.festival.text": "{title} es mañana. Prabhat Samgiita para este día ya está en la app.",
+  "notif.item.festival.plain": "{title} es mañana.",
   "notif.item.streak_one": "{count} día seguido. ¡Sigue así!",
   "notif.item.streak_other": "{count} días seguidos. ¡Sigue así!",
   "notif.yesterday": "Ayer",
@@ -1271,6 +1273,7 @@ export const es: Dictionary = {
   ...countsEs,
   ...homeStatesEs,
   ...homeFestivalsEs,
+  ...festivalSongsEs,
   ...profileRowsEs,
   ...assistantErrorsEs,
 }
