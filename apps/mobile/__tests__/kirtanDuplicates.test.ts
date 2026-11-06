@@ -23,28 +23,12 @@ vi.mock("@/lib/kirtan/api", () => ({
 import { KIRTAN_FIXTURES } from "@/lib/fixtures/kirtan"
 import { sampleKirtans } from "@/lib/fixtures/kirtanGate"
 import { allKirtans } from "@/lib/kirtan/catalog"
-import {
-  cleanMantra,
-  groupLocalMantras,
-  localVersions,
-  lookupLocalMantra,
-  mantraKey,
-  suggestLocalMantras,
-  versionsLabel,
-  versionsOfThisLabel,
-  versionWord,
-} from "@/lib/kirtan/mantras"
-import { loadMantras, loadMantraVersions, suggestMantraTitles, versionsOfMantra } from "@/lib/kirtan/mantraSource"
 import { playableOriginal } from "@/lib/kirtan/original"
 import {
   discardUpload,
   failureFromError,
-  fetchMantras,
-  fetchMantraVersions,
-  lookupMantra,
   publishRecording,
   RemoteError,
-  suggestMantras,
   type RemoteConfig,
   type RemoteRecording,
 } from "@/lib/kirtan/remote"
@@ -76,7 +60,7 @@ const REC: RemoteRecording = {
 }
 const BRIEF = { id: "r0", kind: "kiirtan" as const, title: "Old one", author: "B", audio_url: "https://cdn/r0.mp3" }
 const TARGET = { key: "k1", method: "PUT", url: "https://r2.test/put", headers: {}, expires_at: "x", max_bytes: 1 }
-const source: UploadSource = { uri: "blob:x", fileName: "a.mp3", kind: "kiirtan", title: "T", author: "A", byAuthor: true, mantra: "Baba Nam Kevalam" }
+const source: UploadSource = { uri: "blob:x", fileName: "a.mp3", kind: "kiirtan", title: "T", author: "A", byAuthor: true }
 const deps = { readBlob: async () => new Blob(["abc"], { type: "audio/mpeg" }), sha256: async () => "ff" }
 
 function happy(call: Call): Response {
@@ -177,154 +161,43 @@ describe("level 2: sounds like a recording already in the library", () => {
   })
 })
 
-/* ------------------------------------------------------------------ level 3: mantras */
+/* ------------------------------------------------------------------ level 3: one mantra, the new fields */
 
-describe("level 3: the mantra key", () => {
-  it("joins spellings of one mantra, like the server does", () => {
-    const keys = ["Baba Nam Kevalam", "Bábá Nám Kevalam", "baba-nam-kevalam", "  BABA   NAM  KEVALAM! ", "Baba Nam Kevalam."].map(mantraKey)
-    expect(new Set(keys)).toEqual(new Set(["babanamkevalam"]))
+describe("level 3: one mantra (Baba Nam Kevalam) and the fields of a recording", () => {
+  it("has no mantra field, no mantra pages and no mantra calls any more", async () => {
+    const remote = await import("@/lib/kirtan/remote")
+    for (const name of ["fetchMantras", "fetchMantraVersions", "lookupMantra", "suggestMantras"]) expect(remote).not.toHaveProperty(name)
+    const submission = buildSubmission({ kind: "kiirtan", fileName: "a.mp3", fileUri: "u", title: "T", author: "A", byAuthor: true, addedBy: "You" }, 1)
+    expect(submission).not.toHaveProperty("mantra")
   })
 
-  it("keeps the letters of other scripts and drops punctuation", () => {
-    expect(mantraKey("Баба Нам Кевалам")).toBe("бабанамкевалам")
-    expect(mantraKey("बाबा नाम केवलम्")).toBe("बाबानामकेवलम्")
-    expect(mantraKey("Hare Krishna, Hare Rama (2)")).toBe("harekrishnaharerama2")
-  })
-
-  it("is empty for nothing and for punctuation only", () => {
-    expect(mantraKey("")).toBe("")
-    expect(mantraKey(null)).toBe("")
-    expect(mantraKey(" - ! ")).toBe("")
-  })
-
-  it("cleans the shown title", () => {
-    expect(cleanMantra("  Baba   Nam \n Kevalam ")).toBe("Baba Nam Kevalam")
-  })
-
-  it("counts versions in each language", () => {
-    expect(versionsLabel(1)).toBe("1 version")
-    expect(versionsLabel(12)).toBe("12 versions")
-    expect(versionsOfThisLabel(12)).toBe("12 versions of this mantra")
-    expect(versionWord(1)).toBe("version")
-    setActiveLanguage("ru")
-    expect(versionsLabel(1)).toBe("1 версия")
-    expect(versionsLabel(3)).toBe("3 версии")
-    expect(versionsLabel(5)).toBe("5 версий")
-    expect(versionWord(5)).toBe("версий")
-    setActiveLanguage("es")
-    expect(versionsOfThisLabel(2)).toBe("2 versiones de este mantra")
-  })
-})
-
-describe("level 3: mantras on the phone (demo preview)", () => {
-  const list = KIRTAN_FIXTURES
-
-  it("groups the sample recordings by mantra, most versions first", () => {
-    const groups = groupLocalMantras(list, "kiirtan")
-    expect(groups).toHaveLength(1)
-    expect(groups[0]).toMatchObject({ id: "m-bnk", title: "Baba Nam Kevalam", versions: 5 })
-  })
-
-  it("does not invent mantras for recordings that name none", () => {
-    expect(groupLocalMantras(list.filter((k) => !k.mantra))).toEqual([])
-  })
-
-  it("suggests by any spelling, starting-with first", () => {
-    const more = [...list, { ...list[0], id: "x", mantra: "Hari Nam Kiirtan", mantraId: "m-hari", title: "x", addedAt: 1 }]
-    expect(suggestLocalMantras(more, "Bábá", "kiirtan").map((m) => m.title)).toEqual(["Baba Nam Kevalam"])
-    expect(suggestLocalMantras(more, "nam", "kiirtan").map((m) => m.title)).toEqual(["Baba Nam Kevalam", "Hari Nam Kiirtan"])
-    expect(suggestLocalMantras(more, "", "kiirtan")).toHaveLength(2)
-    expect(suggestLocalMantras(more, "zzz", "kiirtan")).toEqual([])
-  })
-
-  it("counts the versions of a typed mantra, spelling-proof", () => {
-    expect(lookupLocalMantra(list, "BÁBÁ-NÁM kevalam", "kiirtan").versions).toBe(5)
-    expect(lookupLocalMantra(list, "Something new", "kiirtan")).toEqual({ mantra: null, versions: 0 })
-    expect(lookupLocalMantra(list, "", "kiirtan")).toEqual({ mantra: null, versions: 0 })
-    expect(lookupLocalMantra(list, "Baba Nam Kevalam", "bhajan").versions).toBe(0)
-  })
-
-  it("lists the versions newest or most played first, and leaves out those that are not live", () => {
-    const newest = localVersions(list, "m-bnk", "newest").items
-    const plays = localVersions(list, "m-bnk", "plays").items
-    expect(newest.map((k) => k.addedAt)).toEqual([...newest.map((k) => k.addedAt)].sort((a, b) => b - a))
-    expect((plays[0].plays ?? 0)).toBe(Math.max(...plays.map((k) => k.plays ?? 0)))
-    expect(localVersions(list, "m-none", "newest")).toEqual({ mantra: null, items: [] })
-    const withRemoved = [...list, { ...list[0], id: "gone", status: "removed" as const }]
-    expect(localVersions(withRemoved, "m-bnk", "newest").items.some((k) => k.id === "gone")).toBe(false)
-  })
-
-  it("the mantra sources answer from the phone only in the demo preview; elsewhere they ask the server", async () => {
-    // tests run like a release build: no samples, so the server is asked
-    expect(sampleKirtans()).toEqual([])
-    const { cfg, calls } = server((call) => {
-      if (call.url.includes("/mantras/suggest")) return json(200, [{ id: "g1", kind: "kiirtan", title: "Baba Nam Kevalam", versions: 12, plays: 0 }])
-      if (call.url.includes("/mantras/lookup")) return json(200, { title: "Baba Nam Kevalam", mantra: { id: "g1", kind: "kiirtan", title: "Baba Nam Kevalam", versions: 12, plays: 0 }, versions: 12 })
-      if (call.url.includes("/mantras/g1")) return json(200, { mantra: { id: "g1", kind: "kiirtan", title: "Baba Nam Kevalam", versions: 1, plays: 3 }, items: [REC], total: 1 })
-      return json(200, { items: [{ id: "g1", kind: "kiirtan", title: "Baba Nam Kevalam", versions: 12, plays: 0 }], total: 1 })
+  it("publish sends year, language, credits, note and the song number only when there are some", async () => {
+    const full = server(() => json(200, REC))
+    await publishRecording(full.cfg, {
+      key: "k", kind: "prabhat_samgiita", type: "other", title: "T", author: "A", byAuthor: true, termsVersion: "v", confirmDifferent: false,
+      year: 1999, language: "bengali", credits: "  Words and music by P. R. Sarkar ", notes: " A note ", psSong: 12,
     })
-    expect((await suggestMantraTitles("baba", "kiirtan", cfg))[0]).toMatchObject({ id: "g1", versions: 12 })
-    expect(await versionsOfMantra("Bábá Nám Kevalam", "kiirtan", cfg)).toMatchObject({ versions: 12, mantra: { id: "g1" } })
-    expect(await versionsOfMantra("   ", "kiirtan", cfg)).toEqual({ mantra: null, versions: 0 })
-    expect((await loadMantras("kiirtan", cfg)).map((m) => m.title)).toEqual(["Baba Nam Kevalam"])
-    const versions = await loadMantraVersions("g1", "plays", cfg)
-    expect(versions.items.map((k) => k.serverId)).toEqual(["r1"])
-    expect(calls.map((c) => c.url)).toContain("https://api.test/api/v1/recordings/mantras/g1?sort=plays&limit=100")
-    // the versions were put in the catalogue, so the one player can queue them
-    expect(allKirtans().some((k) => k.serverId === "r1")).toBe(true)
+    expect(full.calls[0].body).toMatchObject({ kind: "prabhat_samgiita", year: 1999, language: "bengali", credits: "Words and music by P. R. Sarkar", notes: "A note", ps_song_number: 12 })
+    const plain = server(() => json(200, REC))
+    await publishRecording(plain.cfg, { key: "k", kind: "kiirtan", type: "other", title: "T", author: "A", byAuthor: true, termsVersion: "v", confirmDifferent: false, credits: "   ", notes: "" })
+    for (const field of ["year", "language", "credits", "notes", "ps_song_number", "mantra"]) expect(plain.calls[0].body).not.toHaveProperty(field)
   })
 
-  it("an unreachable server is an error for the screen to show, never an empty list", async () => {
-    const { cfg } = server(() => {
-      throw new Error("offline")
-    })
-    await expect(loadMantras("kiirtan", cfg)).rejects.toThrow()
-  })
-
-  it("leaves out versions of authors the person blocked", async () => {
-    useKirtanStore.getState().blockAuthor("m1")
-    const { cfg } = server(() => json(200, { mantra: { id: "g1", kind: "kiirtan", title: "T", versions: 1, plays: 0 }, items: [REC], total: 1 }))
-    expect((await loadMantraVersions("g1", "newest", cfg)).items).toEqual([])
-  })
-})
-
-describe("level 3: the mantra calls", () => {
-  it("send the typed text, the kind and the sort to the public endpoints", async () => {
-    const { cfg, calls } = server(() => json(200, { items: [], total: 0 }))
-    await fetchMantras(cfg, { kind: "kiirtan", q: "baba" })
-    await fetchMantraVersions(cfg, "g1", "newest").catch(() => undefined)
-    const suggest = server(() => json(200, []))
-    await suggestMantras(suggest.cfg, "bá ba", "bhajan", 4)
-    const lookup = server(() => json(200, { title: "x", mantra: null, versions: 0 }))
-    await lookupMantra(lookup.cfg, "Baba Nam", "kiirtan")
-    expect(calls[0].url).toBe("https://api.test/api/v1/recordings/mantras?kind=kiirtan&q=baba&limit=100")
-    expect(suggest.calls[0].url).toBe("https://api.test/api/v1/recordings/mantras/suggest?q=b%C3%A1+ba&kind=bhajan&limit=4")
-    expect(lookup.calls[0].url).toBe("https://api.test/api/v1/recordings/mantras/lookup?title=Baba+Nam&kind=kiirtan")
-  })
-
-  it("publish sends the mantra and year only when there are some", async () => {
-    const withMantra = server(() => json(200, REC))
-    await publishRecording(withMantra.cfg, { key: "k", kind: "kiirtan", type: "other", title: "T", author: "A", byAuthor: true, termsVersion: "v", confirmDifferent: false, mantra: "  Baba Nam Kevalam ", year: 1999 })
-    expect(withMantra.calls[0].body).toMatchObject({ mantra: "Baba Nam Kevalam", year: 1999 })
-    const without = server(() => json(200, REC))
-    await publishRecording(without.cfg, { key: "k", kind: "kiirtan", type: "other", title: "T", author: "A", byAuthor: true, termsVersion: "v", confirmDifferent: false, mantra: "   " })
-    expect(without.calls[0].body).not.toHaveProperty("mantra")
-    expect(without.calls[0].body).not.toHaveProperty("year")
-  })
-
-  it("a recording from the server keeps its mantra, its group and the one it was removed as a copy of", () => {
-    const live = fromRemote({ ...REC, mantra: "Baba Nam Kevalam", mantra_id: "g1", year: 1999 })
-    expect(live).toMatchObject({ mantra: "Baba Nam Kevalam", mantraId: "g1", year: 1999 })
+  it("a recording from the server keeps its fields and the one it was removed as a copy of", () => {
+    const live = fromRemote({ ...REC, kind: "prabhat_samgiita", year: 1999, language: "hindi", credits: "C", notes: "N", ps_song_number: 7 })
+    expect(live).toMatchObject({ kind: "prabhat_samgiita", year: 1999, language: "hindi", credits: "C", notes: "N", psSong: 7 })
     const removed = fromRemote({ ...REC, status: "removed", removed_reason: "A copy", removed_duplicate_of: "r0" })
     expect(removed).toMatchObject({ status: "removed", duplicateOf: { id: "r0" } })
-    expect(fromRemote(REC)).not.toHaveProperty("mantra")
+    expect(fromRemote(REC)).not.toHaveProperty("psSong")
   })
 
-  it("a new submission remembers the mantra as typed, tidied", () => {
-    const k = buildSubmission({ kind: "kiirtan", fileName: "a.mp3", fileUri: "u", title: "T", author: "A", mantra: "  Baba   Nam Kevalam ", byAuthor: true, addedBy: "You" }, 1)
-    expect(k.mantra).toBe("Baba Nam Kevalam")
-    const none = buildSubmission({ kind: "kiirtan", fileName: "a.mp3", fileUri: "u", title: "T", author: "A", byAuthor: true, addedBy: "You" }, 1)
-    expect(none).not.toHaveProperty("mantra")
+  it("a new submission remembers the extra fields, tidied", () => {
+    const k = buildSubmission(
+      { kind: "devotional_song", fileName: "a.mp3", fileUri: "u", title: "T", author: "A", byAuthor: true, addedBy: "You", year: 2001, language: "english", credits: "  Words   by X ", notes: " n " },
+      1,
+    )
+    expect(k).toMatchObject({ kind: "devotional_song", year: 2001, language: "english", credits: "Words by X", notes: "n" })
+    expect(k).not.toHaveProperty("psSong")
   })
 })
 

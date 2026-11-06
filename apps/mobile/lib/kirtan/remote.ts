@@ -34,16 +34,15 @@ export type RemoteRecording = {
   removed_reason?: string | null
   removed_at?: string | null
   duplicate_of?: string | null
-  /** the mantra title as typed, and the id of its group */
-  mantra?: string | null
-  mantra_id?: string | null
   year?: number | null
+  language?: string | null
+  credits?: string | null
+  notes?: string | null
+  /** Prabhat Samgiita recordings: the number of the song (1 to 5018) */
+  ps_song_number?: number | null
   /** owner only: the team removed this as a copy of that recording */
   removed_duplicate_of?: string | null
 }
-
-/** A mantra (chant) of the library with the number of published versions (`MantraOut` of the API). */
-export type RemoteMantra = { id: string; kind: RecordingKind; title: string; versions: number; plays: number }
 
 export type RemoteBrief = { id: string; kind: RecordingKind; title: string; author: string; audio_url: string }
 
@@ -181,9 +180,12 @@ export type PublishPayload = {
   termsVersion: string
   /** the author saw "sounds like a recording already in the library" and said theirs is a different performance */
   confirmDifferent: boolean
-  /** the mantra title as typed (optional); the server groups performances of one mantra */
-  mantra?: string
   year?: number | null
+  language?: string | null
+  credits?: string | null
+  notes?: string | null
+  /** required for the Prabhat Samgiita kind, refused for the others */
+  psSong?: number | null
   durationSec?: number | null
 }
 
@@ -199,8 +201,11 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     terms_accepted: true,
     terms_version: payload.termsVersion,
     confirm_different: payload.confirmDifferent,
-    ...(payload.mantra?.trim() ? { mantra: payload.mantra.trim() } : {}),
     ...(payload.year ? { year: payload.year } : {}),
+    ...(payload.language ? { language: payload.language } : {}),
+    ...(payload.credits?.trim() ? { credits: payload.credits.trim() } : {}),
+    ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
+    ...(payload.psSong ? { ps_song_number: payload.psSong } : {}),
     ...(payload.durationSec ? { duration_sec: Math.max(1, Math.round(payload.durationSec)) } : {}),
   })
 }
@@ -210,42 +215,16 @@ export async function discardUpload(cfg: RemoteConfig, key: string): Promise<voi
   await call<void>(cfg, "POST", "/uploads/discard", { key }, undefined)
 }
 
-/* ------------------------------------------------------------------ mantras */
-
-/** Autocomplete for the mantra field: titles already in the library whose spelling contains the typed text. */
-export async function suggestMantras(cfg: RemoteConfig, query: string, kind: RecordingKind = "kiirtan", limit = 6): Promise<RemoteMantra[]> {
-  const params = new URLSearchParams({ q: query, kind, limit: String(limit) })
-  return call<RemoteMantra[]>(cfg, "GET", `/mantras/suggest?${params.toString()}`)
-}
-
-/** How many versions of this mantra exist (spelling-proof: "Bábá Nám Kevalam" finds "Baba Nam Kevalam"). */
-export async function lookupMantra(cfg: RemoteConfig, title: string, kind: RecordingKind = "kiirtan"): Promise<{ title: string; mantra: RemoteMantra | null; versions: number }> {
-  const params = new URLSearchParams({ title, kind })
-  return call<{ title: string; mantra: RemoteMantra | null; versions: number }>(cfg, "GET", `/mantras/lookup?${params.toString()}`)
-}
-
-export async function fetchMantras(cfg: RemoteConfig, query: { kind?: RecordingKind; q?: string; limit?: number } = {}): Promise<RemoteMantra[]> {
-  const params = new URLSearchParams()
-  if (query.kind) params.set("kind", query.kind)
-  if (query.q) params.set("q", query.q)
-  params.set("limit", String(query.limit ?? 100))
-  return (await call<{ items: RemoteMantra[] }>(cfg, "GET", `/mantras?${params.toString()}`)).items
-}
-
-export async function fetchMantraVersions(cfg: RemoteConfig, id: string, sort: "newest" | "plays" = "newest"): Promise<{ mantra: RemoteMantra; items: RemoteRecording[] }> {
-  const { mantra, items } = await call<{ mantra: RemoteMantra; items: RemoteRecording[]; total: number }>(cfg, "GET", `/mantras/${id}?sort=${sort}&limit=100`)
-  return { mantra, items }
-}
-
 /* ------------------------------------------------------------------ reading */
 
 export async function fetchTermsVersion(cfg: RemoteConfig): Promise<string> {
   return (await call<{ version: string }>(cfg, "GET", "/terms")).version
 }
 
-export async function fetchPublished(cfg: RemoteConfig, query: { kind?: RecordingKind; authorId?: string; limit?: number } = {}): Promise<RemoteRecording[]> {
+export async function fetchPublished(cfg: RemoteConfig, query: { kind?: RecordingKind; songNumber?: number; authorId?: string; limit?: number } = {}): Promise<RemoteRecording[]> {
   const params = new URLSearchParams()
   if (query.kind) params.set("kind", query.kind)
+  if (query.songNumber) params.set("song_number", String(query.songNumber))
   if (query.authorId) params.set("author_id", query.authorId)
   params.set("limit", String(query.limit ?? 100))
   return (await call<{ items: RemoteRecording[] }>(cfg, "GET", `?${params.toString()}`)).items

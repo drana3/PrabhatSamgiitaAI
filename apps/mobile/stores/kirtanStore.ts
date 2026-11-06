@@ -25,7 +25,7 @@ import { uploadDecisionNotification } from "@/lib/notifications/serverKinds"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 
 /**
- * Kiirtans and Bhajans (one list, a `kind` each) on this phone: what the person uploaded and where each one stands
+ * Recordings of the four kinds (one list, a `kind` each) on this phone: what the person uploaded and where each one stands
  * (uploading, published, failed, removed), the recordings they saved, the ones they reported, and the authors
  * they blocked. An upload is published at once; the team looks afterwards (docs/kiirtan-publishing.md).
  * `catalog` is what the server publishes for everyone else; it is not stored (a removed recording must not linger).
@@ -53,7 +53,7 @@ type KirtanState = {
   /** the server's list of the person's own uploads; a recording that was live and is now removed raises a notice */
   applyMine: (remote: readonly RemoteRecording[], now?: number) => void
   setCatalog: (remote: readonly RemoteRecording[]) => void
-  /** recordings opened from a mantra page that the catalogue may not hold yet, so they can be queued and played */
+  /** recordings the catalogue may not hold yet (for example a version opened from a song page), so they can be queued and played */
   addToCatalog: (remote: readonly RemoteRecording[]) => void
   toggleSaved: (id: string) => boolean
   markReported: (id: string) => void
@@ -131,7 +131,7 @@ export const useKirtanStore = create<KirtanState>()(
       name: "prabhat-kirtan",
       storage: createJSONStorage(() => AsyncStorage),
       version: KIRTAN_STORE_VERSION,
-      // v1 had no `kind`; v2 had the review statuses (approved/pending/rejected): see lib/kirtan/migrate.ts.
+      // v1 had no `kind`; v2 had the review statuses (approved/pending/rejected); v4 dropped the draft mantra fields: see lib/kirtan/migrate.ts.
       migrate: (persisted, version) => migrateKirtanState(persisted, version) as unknown as KirtanState,
       // An upload that was still running when the app closed is not running any more: it is saved as "not uploaded".
       partialize: (state) => ({

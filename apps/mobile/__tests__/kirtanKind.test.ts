@@ -23,6 +23,7 @@ import {
   withKindWord,
 } from "@/lib/kirtan/kind"
 import { migrateKirtanState, KIRTAN_STORE_VERSION } from "@/lib/kirtan/migrate"
+import { RECORDING_KINDS } from "@/lib/kirtan/types"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { queryKind, queryWords, searchArtists, searchKirtans } from "@/lib/kirtan/search"
 import { addSubmission, buildSubmission, validateSubmission, type SubmissionInput } from "@/lib/kirtan/submissions"
@@ -116,7 +117,7 @@ describe("types of each kind", () => {
 
 describe("fixtures", () => {
   it("hold every old Kiirtan as a Kiirtan and the four real sample Bhajans with their lengths", () => {
-    expect(KIRTAN_FIXTURES.every((k) => k.kind === "kiirtan" || k.kind === "bhajan")).toBe(true)
+    expect(KIRTAN_FIXTURES.every((k) => ["kiirtan", "bhajan", "devotional_song", "prabhat_samgiita"].includes(k.kind))).toBe(true)
     const real = ["b-sweetest-word", "b-day-will-dawn", "b-once-there-was", "b-many-thousand-years"].map((id) => KIRTAN_FIXTURES.find((k) => k.id === id))
     expect(real.map((k) => k?.title)).toEqual(["The sweetest word", "Soon the day will dawn", "Once there was a day", "Many Thousand Years Ago"])
     expect(real.map((k) => k?.durationSec)).toEqual([282.55, 192.3, 259.72, 592.05])
@@ -144,10 +145,12 @@ describe("filtering by kind", () => {
     expect(filterByKind(approved, "all")).toHaveLength(approved.length)
     expect(filterByKind(approved, "bhajan").every((k) => k.kind === "bhajan")).toBe(true)
     expect(filterByKind(approved, "kiirtan").every((k) => k.kind === "kiirtan")).toBe(true)
-    expect(filterByKind(approved, "bhajan").length + filterByKind(approved, "kiirtan").length).toBe(approved.length)
+    expect(RECORDING_KINDS.reduce((n, kind) => n + filterByKind(approved, kind).length, 0)).toBe(approved.length)
+    expect(filterByKind(approved, "devotional_song").every((k) => k.kind === "devotional_song")).toBe(true)
+    expect(filterByKind(approved, "prabhat_samgiita").every((k) => k.kind === "prabhat_samgiita" && Number.isInteger(k.psSong))).toBe(true)
     expect(filterByKind([{ id: "old" } as Kirtan], "kiirtan")).toHaveLength(1)
     expect(filterByKind([{ id: "old" } as Kirtan], "bhajan")).toHaveLength(0)
-    expect(kindsCountLabel(approved)).toBe(`${kindCountLabel("kiirtan", kiirtans.length)} · ${kindCountLabel("bhajan", bhajans.length)}`)
+    expect(kindsCountLabel(approved)).toBe(RECORDING_KINDS.map((kind) => [kind, filterByKind(approved, kind).length] as const).filter(([, n]) => n > 0).map(([kind, n]) => kindCountLabel(kind, n)).join(" · "))
     expect(kindsCountLabel(bhajans)).toBe(kindCountLabel("bhajan", bhajans.length))
     expect(kindsCountLabel([])).toBe("0 kiirtans")
   })
@@ -186,7 +189,10 @@ describe("filtering by kind", () => {
     expect(all).toHaveLength(8)
     expect(all.slice(0, 4).every((c) => c.kind === "kiirtan")).toBe(true)
     expect(all.slice(4).every((c) => c.kind === "bhajan")).toBe(true)
-    expect(all.reduce((n, c) => n + c.count, 0)).toBe(approved.length)
+    // only Kiirtan and Bhajan have sub-types; the other two kinds have no type cards
+    expect(all.reduce((n, c) => n + c.count, 0)).toBe(filterByKind(approved, "kiirtan").length + filterByKind(approved, "bhajan").length)
+    expect(typeCards(approved, "devotional_song")).toEqual([])
+    expect(typeCards(approved, "prabhat_samgiita")).toEqual([])
     expect(typeCardCount({ kind: "bhajan", count: 1 })).toBe("1 bhajan")
     expect(typeCardCount({ kind: "kiirtan", count: 5 })).toBe("5 kiirtans")
   })
@@ -203,14 +209,14 @@ describe("filtering by kind", () => {
   it("says what is empty in the words of the kind", () => {
     expect(emptyListText(null, null, "bhajan")).toBe("No Bhajans yet.")
     expect(emptyListText("morning", null, "bhajan")).toBe("No Bhajans of this type yet.")
-    expect(emptyListText(null, "long", "all")).toBe("No Kiirtans or Bhajans of this length yet.")
+    expect(emptyListText(null, "long", "all")).toBe("No recordings of this length yet.")
     expect(emptyListText(null, null)).toBe("No Kiirtans yet.")
   })
 })
 
-describe("old stored data (migration v1 to v3)", () => {
+describe("old stored data (migration v1 to v4)", () => {
   it("gives stored submissions the kind Kiirtan and keeps the rest", () => {
-    expect(KIRTAN_STORE_VERSION).toBe(3)
+    expect(KIRTAN_STORE_VERSION).toBe(4)
     const old = {
       submissions: [{ id: "sub-a-1", title: "A", author: "X", durationSec: null, type: "bnk", audioUrl: null, thumbnailUrl: null, addedBy: "You", status: "pending", addedAt: 1 }],
       savedIds: ["k-bnk-morning", 7],

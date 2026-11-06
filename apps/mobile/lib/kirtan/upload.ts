@@ -32,9 +32,12 @@ export type UploadSource = {
   title: string
   author: string
   byAuthor: boolean
-  /** the mantra (chant) as typed; the server keeps performances of one mantra together */
-  mantra?: string
   year?: number | null
+  language?: string | null
+  credits?: string
+  notes?: string
+  /** Prabhat Samgiita only: the number of the song */
+  psSong?: number | null
   /** the version of the content rules the person accepted */
   termsVersion?: string
   /** the author saw the "sounds like a recording already in the library" question and said theirs is different */
@@ -93,8 +96,11 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       author: source.author,
       byAuthor: source.byAuthor,
       termsVersion: source.termsVersion ?? RULES_VERSION,
-      mantra: source.mantra,
       year: source.year,
+      language: source.language,
+      credits: source.credits,
+      notes: source.notes,
+      psSong: source.psSong,
       confirmDifferent: Boolean(source.confirmDifferent),
     })
     return { status: "published", recording }

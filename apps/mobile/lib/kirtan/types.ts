@@ -1,16 +1,24 @@
 import { t } from "@/lib/i18n"
 /**
- * Kiirtans and Bhajans: devotional recordings, uploaded as audio files by their authors (and by the
- * team). They are ONE recordings system with two KINDS (`kind`): a Kiirtan is group chanting, a Bhajan
- * a devotional song. Both play in the same player as a Prabhat Samgiita song (lib/kirtan/track.ts),
- * just without lyrics, words, chords or versions. Pure types and constants, no React, no I/O.
- * Visible words for a kind come from lib/kirtan/kind.ts.
+ * Devotional recordings, uploaded as audio files by their authors (and by the team). They are ONE recordings
+ * system with four KINDS (`kind`, shown as "Type" in the add form): a Kiirtan is group chanting of Baba Nam Kevalam
+ * (the library has this one mantra only), a Bhajan a devotional song, a Devotional song any other song of devotion,
+ * and a Prabhat Samgiita recording is another performance of one of the 5018 songs (`psSong` names it).
+ * All play in the same player as a Prabhat Samgiita song (lib/kirtan/track.ts). Pure types and constants, no React,
+ * no I/O. Visible words for a kind come from lib/kirtan/kind.ts.
  */
 
-/** The two kinds of one recording. Old data without a kind is a Kiirtan. */
-export const RECORDING_KINDS = ["kiirtan", "bhajan"] as const
+/** The four kinds of one recording. Old data without a kind is a Kiirtan. */
+export const RECORDING_KINDS = ["kiirtan", "bhajan", "devotional_song", "prabhat_samgiita"] as const
 export type RecordingKind = (typeof RECORDING_KINDS)[number]
 export type KindFilter = RecordingKind | "all"
+
+/** Languages the uploader can name (the API's list). Optional. */
+export const RECORDING_LANGUAGES = ["bengali", "sanskrit", "hindi", "english", "other"] as const
+export type RecordingLanguage = (typeof RECORDING_LANGUAGES)[number]
+
+/** The Prabhat Samgiita catalogue has 5018 songs; a Prabhat Samgiita recording names one of them. */
+export const PS_SONG_COUNT = 5018
 
 export const KIRTAN_TYPES = [
   { id: "bnk", get label() { return t("kt.type.bnk") } },
@@ -68,7 +76,7 @@ export type UploadFailure = { code: UploadFailureCode; message?: string; origina
 
 export type Kirtan = {
   id: string
-  /** Kiirtan or Bhajan. Old stored items have none and count as "kiirtan" (see lib/kirtan/kind.ts). */
+  /** One of the four kinds. Old stored items have none and count as "kiirtan" (see lib/kirtan/kind.ts). */
   kind: RecordingKind
   title: string
   /** performer or group, as the author wrote it */
@@ -106,12 +114,16 @@ export type Kirtan = {
   failure?: UploadFailure
   /** how often it was played; orders the artist page's "Popular" list. TODO(api): comes from the server. */
   plays?: number
-  /** the mantra (chant) as the uploader wrote it; performances of one mantra are grouped as its versions */
-  mantra?: string
-  /** the server's id of the mantra group (the mantra page opens with it) */
-  mantraId?: string
   /** year of the performance, when known */
   year?: number
+  /** language of the words, when the uploader named it */
+  language?: RecordingLanguage
+  /** words and music by, as the uploader wrote it (Bhajan and Devotional song) */
+  credits?: string
+  /** a short note from the uploader */
+  notes?: string
+  /** Prabhat Samgiita recordings only: the number of the song (1 to 5018) this is a performance of */
+  psSong?: number
   /** the team removed this as a copy of that recording (status `removed`); the card offers to open the original */
   duplicateOf?: KirtanOriginal
 }

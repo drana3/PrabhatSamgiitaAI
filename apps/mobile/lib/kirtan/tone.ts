@@ -19,8 +19,14 @@ export const KIIRTAN_TYPE_TONES: Record<string, readonly [string, string]> = {
 /** "Other" Bhajans: a darker green than "Other" Kiirtans, so the two kinds stay apart. */
 export const BHAJAN_OTHER_TONE: readonly [string, string] = [amColors.sage700, amColors.ink900]
 
-/** The gradient of a type. Give the kind so "other" Bhajans differ from "other" Kiirtans. */
+/** Devotional songs and Prabhat Samgiita recordings have no sub-types, so each kind has one gradient of its own. */
+export const DEVOTIONAL_SONG_TONE: readonly [string, string] = [amColors.gold500, amColors.sage800]
+export const PRABHAT_SAMGIITA_TONE: readonly [string, string] = [amColors.orange600, amColors.ink900]
+
+/** The gradient of a type. Give the kind so "other" Bhajans differ from "other" Kiirtans, and the two newer kinds have their own. */
 export function kiirtanTone(type: string | null | undefined, kind?: string | null): readonly [string, string] {
+  if (kind === "devotional_song") return DEVOTIONAL_SONG_TONE
+  if (kind === "prabhat_samgiita") return PRABHAT_SAMGIITA_TONE
   if (kind === "bhajan" && (type ?? "other") === "other") return BHAJAN_OTHER_TONE
   return KIIRTAN_TYPE_TONES[type ?? "other"] ?? KIIRTAN_TYPE_TONES.other
 }

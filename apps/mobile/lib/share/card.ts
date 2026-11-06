@@ -34,7 +34,7 @@ export type CardSubject =
       title: string
       /** performer or group, as the author wrote it */
       author?: string | null
-      /** "bhajan" prints "Bhajan", anything else "Kiirtan" */
+      /** the kind of the recording ("bhajan", "devotional_song", "prabhat_samgiita"); anything else prints "Kiirtan" */
       recordingKind?: string | null
       durationSec?: number | null
       /** the author's own cover picture, when there is one */
@@ -42,6 +42,12 @@ export type CardSubject =
       /** Kiirtan type (bnk, lila, ...), for the gradient behind a cover that fails to load */
       type?: string | null
     }
+
+const RECORDING_KIND_NAMES: Record<string, string> = { bhajan: "Bhajan", devotional_song: "Devotional song", prabhat_samgiita: "Prabhat Samgiita" }
+
+function recordingKindName(kind: string | null | undefined): string {
+  return RECORDING_KIND_NAMES[kind ?? ""] ?? "Kiirtan"
+}
 
 const GENERIC_PERFORMERS = new Set(["", "prabhat samgiita", "prabhat samgiita collection", "unknown", "unknown artist"])
 
@@ -52,7 +58,7 @@ function isGenericPerformer(value: string | null | undefined): boolean {
 /** The small line above the title: "PS 123", or "Kiirtan · Artist" ("Kiirtan" alone when the artist is not known). */
 export function cardEyebrow(subject: CardSubject): string {
   if (subject.kind === "song") return `PS ${subject.number}`
-  const label = subject.recordingKind === "bhajan" ? "Bhajan" : "Kiirtan"
+  const label = recordingKindName(subject.recordingKind)
   const by = (subject.author ?? "").trim()
   return isGenericPerformer(by) ? label : `${label} · ${by}`
 }
@@ -60,7 +66,7 @@ export function cardEyebrow(subject: CardSubject): string {
 export function cardTitle(subject: CardSubject): string {
   const title = subject.title.trim()
   if (title) return title
-  return subject.kind === "song" ? `Prabhat Samgiita ${subject.number}` : subject.recordingKind === "bhajan" ? "Bhajan" : "Kiirtan"
+  return subject.kind === "song" ? `Prabhat Samgiita ${subject.number}` : recordingKindName(subject.recordingKind)
 }
 
 /** The line under the title: the performer of a song. A Kiirtan carries its artist in the eyebrow, so it has none. */
@@ -208,7 +214,7 @@ function slug(text: string): string {
 
 /** `prabhat-samgiita-ps-123-portrait.png`, or `prabhat-samgiita-kiirtan-<title>-square.png`. */
 export function cardFileName(subject: CardSubject, format: CardFormat): string {
-  const middle = subject.kind === "song" ? `ps-${subject.number}` : `${subject.recordingKind === "bhajan" ? "bhajan" : "kiirtan"}-${slug(subject.title) || slug(subject.id) || "recording"}`
+  const middle = subject.kind === "song" ? `ps-${subject.number}` : `${recordingKindName(subject.recordingKind).toLowerCase().replace(/ /g, "-")}-${slug(subject.title) || slug(subject.id) || "recording"}`
   return `prabhat-samgiita-${middle}-${format}.png`
 }
 

@@ -201,7 +201,6 @@ export default function RootLayout() {
             <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
             <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
             <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />
-            <Stack.Screen name="kirtan-mantra" options={{ presentation: "card" }} />
             <Stack.Screen name="content-rules" options={{ presentation: "card" }} />
             <Stack.Screen name="kiirtan-live" options={{ presentation: "card" }} />
             <Stack.Screen name="kiirtan" options={{ presentation: "card" }} />

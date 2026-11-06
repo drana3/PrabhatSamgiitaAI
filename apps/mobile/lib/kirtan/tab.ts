@@ -1,17 +1,19 @@
-import { filterByKind, kindCountLabel, typesOfKind } from "@/lib/kirtan/kind"
+import { filterByKind, isRecordingKind, kindCountLabel, kindHasTypes, kindWhat, typesOfKind } from "@/lib/kirtan/kind"
 import { filterByLength, type LengthBucketId } from "@/lib/kirtan/length"
 import { filterKirtans } from "@/lib/kirtan/list"
-import type { KindFilter, Kirtan, KirtanTypeId, RecordingKind } from "@/lib/kirtan/types"
+import { RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
 import { t } from "@/lib/i18n"
 
 /**
- * The sticky chips of the Kiirtan tab. The first three are the KIND filter (All, Kiirtan, Bhajan) and
- * narrow every shelf and list; Saved, Downloaded and My uploads are lists of their own (both kinds).
+ * The sticky chips of the Kiirtan tab. The first five are the KIND filter (All, Kiirtan, Bhajan, Devotional song,
+ * Prabhat Samgiita) and narrow every shelf and list; Saved, Downloaded and My uploads are lists of their own (all kinds).
  */
 export const KIRTAN_TAB_CHIPS = [
   { id: "all", get label() { return t("kt.chip.all") } },
   { id: "kiirtan", get label() { return t("kind.kiirtan") } },
   { id: "bhajan", get label() { return t("kind.bhajan") } },
+  { id: "devotional_song", get label() { return t("kind.devotional_song") } },
+  { id: "prabhat_samgiita", get label() { return t("kind.prabhat_samgiita") } },
   { id: "saved", get label() { return t("kt.chip.saved") } },
   { id: "downloaded", get label() { return t("kt.chip.downloaded") } },
   { id: "mine", get label() { return t("kt.chip.mine") } },
@@ -23,14 +25,14 @@ export function parseKirtanTabChip(value: string | string[] | undefined): Kirtan
   return KIRTAN_TAB_CHIPS.some((c) => c.id === raw) ? (raw as KirtanTabChip) : "all"
 }
 
-/** The kind a chip filters by: All, Kiirtan and Bhajan say it; the list chips (Saved...) show both kinds. */
+/** The kind a chip filters by: All and the four kinds say it; the list chips (Saved...) show every kind. */
 export function kindOfTabChip(chip: KirtanTabChip): KindFilter {
-  return chip === "kiirtan" ? "kiirtan" : chip === "bhajan" ? "bhajan" : "all"
+  return isRecordingKind(chip) ? chip : "all"
 }
 
-/** Is this one of the three chips that show the shelves (and so use the kind filter)? */
+/** Is this one of the five chips that show the shelves (and so use the kind filter)? */
 export function isShelfChip(chip: KirtanTabChip): boolean {
-  return chip === "all" || chip === "kiirtan" || chip === "bhajan"
+  return chip === "all" || isRecordingKind(chip)
 }
 
 /**
@@ -53,7 +55,7 @@ export type TypeCard = { id: KirtanTypeId; kind: RecordingKind; label: string; c
  * Bhajan types. The kind is part of a card because "Other" exists in both.
  */
 export function typeCards(list: readonly (Pick<Kirtan, "type"> & { kind?: RecordingKind })[], kind: KindFilter = "kiirtan"): TypeCard[] {
-  const kinds: RecordingKind[] = kind === "all" ? ["kiirtan", "bhajan"] : [kind]
+  const kinds: RecordingKind[] = (kind === "all" ? [...RECORDING_KINDS] : [kind]).filter(kindHasTypes)
   return kinds.flatMap((k) => {
     const ofKind = filterByKind(list, k)
     return typesOfKind(k).map((t) => ({ id: t.id, kind: k, label: t.label, count: ofKind.filter((x) => x.type === t.id).length }))
@@ -75,7 +77,7 @@ export function savedKirtans<T extends Pick<Kirtan, "id" | "status">>(savedIds: 
 
 /** What the list says when a type or length leaves nothing. */
 export function emptyListText(type: KirtanTypeId | null, length: LengthBucketId | null, kind: KindFilter = "kiirtan"): string {
-  const what = t(kind === "all" ? "kt.what.all" : kind === "bhajan" ? "kt.what.bhajan" : "kt.what.kiirtan")
+  const what = kindWhat(kind)
   if (type && length) return t("kt.emptyList.both", { what })
   if (type) return t("kt.emptyList.type", { what })
   if (length) return t("kt.emptyList.length", { what })
@@ -87,8 +89,7 @@ export function emptyListText(type: KirtanTypeId | null, length: LengthBucketId 
  * first upload), with the Add entry shown under it: "No Kiirtans yet. Be the first to add one."
  */
 export function emptyCatalogText(kind: KindFilter = "kiirtan"): string {
-  const what = t(kind === "all" ? "kt.what.all" : kind === "bhajan" ? "kt.what.bhajan" : "kt.what.kiirtan")
-  return t("kt.emptyCatalog", { what })
+  return t("kt.emptyCatalog", { what: kindWhat(kind) })
 }
 
 /** True when the list is empty because nothing exists, not because a type or length filter hides it. */

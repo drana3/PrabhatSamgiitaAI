@@ -9,9 +9,10 @@ import type { Kirtan, KirtanStatus } from "@/lib/kirtan/types"
  *   approved -> published, pending -> failed (it never reached the server; the person can try again),
  *   rejected -> removed (the phone has no reason for it; the server's list fills it in).
  *   `blockedAuthorIds` and `blockedNames` start empty.
+ * v3 -> v4: there is one mantra in the library, so the draft fields `mantra` and `mantraId` of a stored item are dropped.
  * Pure: the store passes in whatever AsyncStorage held.
  */
-export const KIRTAN_STORE_VERSION = 3
+export const KIRTAN_STORE_VERSION = 4
 
 type Persisted = { submissions?: unknown; savedIds?: unknown; reportedIds?: unknown; blockedAuthorIds?: unknown; blockedNames?: unknown }
 
@@ -49,7 +50,9 @@ export function migrateKirtanState(persisted: unknown, _fromVersion: number): Ki
   return {
     submissions: submissions
       .filter((s): s is Kirtan => Boolean(s) && typeof s === "object")
-      .map((s) => {
+      .map((stored) => {
+        // v4: the draft mantra fields are gone
+        const { mantra: _mantra, mantraId: _mantraId, ...s } = stored as Kirtan & { mantra?: unknown; mantraId?: unknown }
         const kind = normalizeKind((s as { kind?: unknown }).kind)
         const old = (s as { status?: unknown }).status
         const next: Kirtan = { ...s, kind, type: isTypeOfKind(kind, s.type) ? s.type : "other", status: normalizeStatus(old) }

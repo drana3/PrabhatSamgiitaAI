@@ -59,8 +59,8 @@ describe("blocking authors", () => {
 })
 
 describe("migration to publish-first", () => {
-  it("is version 3 and maps the old statuses", () => {
-    expect(KIRTAN_STORE_VERSION).toBe(3)
+  it("is version 4 and maps the old statuses", () => {
+    expect(KIRTAN_STORE_VERSION).toBe(4)
     expect(normalizeStatus("approved")).toBe("published")
     expect(normalizeStatus("pending")).toBe("failed")
     expect(normalizeStatus("rejected")).toBe("removed")

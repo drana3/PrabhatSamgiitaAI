@@ -12,12 +12,29 @@ import type { KindFilter, Kirtan } from "@/lib/kirtan/types"
 /** Names shown after "Playing from" for the sources that only Kiirtans and mixes have. */
 export const SOURCE_ALL_KIIRTANS = "All Kiirtans"
 export const SOURCE_ALL_BHAJANS = "All Bhajans"
+export const SOURCE_ALL_DEVOTIONAL_SONGS = "All Devotional songs"
+export const SOURCE_ALL_PS_RECORDINGS = "All Prabhat Samgiita recordings"
 export const SOURCE_ALL_RECORDINGS = "All Kiirtans and Bhajans"
 export const SOURCE_EVERYTHING = "Everything"
 
 /** `Mix · Morning`. */
 export function mixSourceName(title: string): string {
   return `Mix · ${title}`
+}
+
+const NOUNS: Record<KindFilter, string> = {
+  kiirtan: "Kiirtans",
+  bhajan: "Bhajans",
+  devotional_song: "Devotional songs",
+  prabhat_samgiita: "Prabhat Samgiita recordings",
+  all: "Kiirtans and Bhajans",
+}
+const ALL_NAMES: Record<KindFilter, string> = {
+  kiirtan: SOURCE_ALL_KIIRTANS,
+  bhajan: SOURCE_ALL_BHAJANS,
+  devotional_song: SOURCE_ALL_DEVOTIONAL_SONGS,
+  prabhat_samgiita: SOURCE_ALL_PS_RECORDINGS,
+  all: SOURCE_ALL_RECORDINGS,
 }
 
 /**
@@ -27,9 +44,9 @@ export function mixSourceName(title: string): string {
  */
 export function kiirtanListSourceName(label: string | null | undefined, kind: KindFilter = "kiirtan"): string {
   const text = (label ?? "").trim()
-  const noun = kind === "bhajan" ? "Bhajans" : kind === "all" ? "Kiirtans and Bhajans" : "Kiirtans"
+  const noun = NOUNS[kind]
   if (text && text.toLowerCase() !== "all") return `${text} ${noun}`
-  return kind === "bhajan" ? SOURCE_ALL_BHAJANS : kind === "all" ? SOURCE_ALL_RECORDINGS : SOURCE_ALL_KIIRTANS
+  return ALL_NAMES[kind]
 }
 
 /** The queue number of one mix item. */

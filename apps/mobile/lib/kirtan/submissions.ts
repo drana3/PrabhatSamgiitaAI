@@ -1,7 +1,7 @@
 import { normalizeKind } from "@/lib/kirtan/kind"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
-import type { Kirtan, KirtanStatus, KirtanTypeId, RecordingKind, UploadFailure } from "@/lib/kirtan/types"
+import { PS_SONG_COUNT, RECORDING_LANGUAGES, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
 
 /**
  * Submissions: a person uploads an audio file of a Kiirtan or a Bhajan (the `kind`) and it is PUBLISHED AT ONCE.
@@ -22,7 +22,7 @@ import type { Kirtan, KirtanStatus, KirtanTypeId, RecordingKind, UploadFailure }
 export const DEFAULT_SUBMISSION_TYPE = "other" as const
 
 export type SubmissionInput = {
-  /** "What is it?": a Kiirtan or a Bhajan. */
+  /** "Type": one of the four kinds. */
   kind: RecordingKind
   /** name of the picked audio file, e.g. `morning-round.mp3`; null until a file is chosen */
   fileName: string | null
@@ -35,8 +35,15 @@ export type SubmissionInput = {
   title: string
   /** performer or group */
   author: string
-  /** the mantra (chant) this is a performance of, as typed; optional */
-  mantra?: string
+  /** year recorded, optional */
+  year?: number | null
+  language?: RecordingLanguage | null
+  /** words and music by, optional */
+  credits?: string
+  /** a short note, optional */
+  notes?: string
+  /** Prabhat Samgiita only: the song this is a performance of (1 to 5018) */
+  psSong?: number | null
   /** the person is the author, or performs it themselves */
   byAuthor: boolean
   addedBy: string
@@ -44,7 +51,20 @@ export type SubmissionInput = {
   termsAccepted?: boolean
 }
 
-export type SubmissionError = "file" | FileProblem | "title" | "author" | "terms"
+export type SubmissionError = "file" | FileProblem | "title" | "author" | "song" | "year" | "terms"
+
+/** Is this a song number of the Prabhat Samgiita catalogue (a whole number from 1 to 5018)? */
+export function isPsSongNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= PS_SONG_COUNT
+}
+
+/** Earliest year the form accepts (the API's `FIRST_YEAR`). */
+export const FIRST_YEAR = 1900
+
+/** Is this a year that can be recorded: a whole number from 1900 up to this year? */
+export function isRecordableYear(value: unknown, now: number = Date.now()): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= FIRST_YEAR && value <= new Date(now).getFullYear()
+}
 
 /** The first thing missing from the form, or null when it can be sent. Order follows the form from the top. */
 export function validateSubmission(input: SubmissionInput): SubmissionError | null {
@@ -53,6 +73,8 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   if (problem) return problem
   if (!input.title.trim()) return "title"
   if (!input.author.trim()) return "author"
+  if (normalizeKind(input.kind) === "prabhat_samgiita" && !isPsSongNumber(input.psSong)) return "song"
+  if (input.year != null && !isRecordableYear(input.year)) return "year"
   if (!input.termsAccepted) return "terms"
   return null
 }
@@ -81,7 +103,11 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     durationSec: null,
     type: DEFAULT_SUBMISSION_TYPE,
     byAuthor: Boolean(input.byAuthor),
-    ...(tidy(input.mantra ?? "") ? { mantra: tidy(input.mantra ?? "") } : {}),
+    ...(input.year ? { year: input.year } : {}),
+    ...(input.language ? { language: input.language } : {}),
+    ...(tidy(input.credits ?? "") ? { credits: tidy(input.credits ?? "") } : {}),
+    ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),
+    ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
@@ -168,6 +194,10 @@ function ms(value: string | null | undefined): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed
 }
 
+function isLanguage(value: unknown): value is RecordingLanguage {
+  return RECORDING_LANGUAGES.includes(value as RecordingLanguage)
+}
+
 /** A server recording as the app's `Kirtan`. `base` keeps the phone's own id and time when the item is already here. */
 export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
   const removed = remote.status === "removed"
@@ -189,10 +219,11 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     plays: remote.plays,
     serverId: remote.id,
     authorId: remote.author_id,
-    // the mantra the uploader named (or the phone's own words while the upload runs) and its group on the server
-    ...(remote.mantra ? { mantra: remote.mantra } : base?.mantra ? { mantra: base.mantra } : {}),
-    ...(remote.mantra_id ? { mantraId: remote.mantra_id } : {}),
     ...(remote.year ? { year: remote.year } : base?.year ? { year: base.year } : {}),
+    ...(isLanguage(remote.language) ? { language: remote.language } : base?.language ? { language: base.language } : {}),
+    ...(remote.credits ? { credits: remote.credits } : base?.credits ? { credits: base.credits } : {}),
+    ...(remote.notes ? { notes: remote.notes } : base?.notes ? { notes: base.notes } : {}),
+    ...(isPsSongNumber(remote.ps_song_number) ? { psSong: remote.ps_song_number } : base?.psSong ? { psSong: base.psSong } : {}),
   }
   if (removed && remote.removed_duplicate_of) next.duplicateOf = { id: remote.removed_duplicate_of, title: "", author: "" }
   if (removed) {

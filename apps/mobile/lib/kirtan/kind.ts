@@ -3,9 +3,11 @@ import { artistForAuthor, type Artist } from "@/lib/kirtan/artists"
 import { BHAJAN_TYPES, KIRTAN_TYPES, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * The two kinds of one recording, Kiirtan and Bhajan, and every visible word that depends on the kind.
- * One recordings system: the kind is a field, not a second system. Pure, no React, no stores.
+ * The four kinds of one recording (Kiirtan, Bhajan, Devotional song, Prabhat Samgiita) and every visible word that
+ * depends on the kind. One recordings system: the kind is a field, not a second system. Pure, no React, no stores.
  * Code identifiers and routes keep the `kirtan` spelling; only the strings below are shown to people.
+ * Every word of a kind lives under keys named by the kind id (`kind.<id>`, `kt.head.<id>`, ...), so a new kind needs
+ * words and no new code.
  */
 
 export function isRecordingKind(value: unknown): value is RecordingKind {
@@ -14,38 +16,62 @@ export function isRecordingKind(value: unknown): value is RecordingKind {
 
 /** Anything that is not a known kind (old stored data, a missing field) is a Kiirtan. */
 export function normalizeKind(value: unknown): RecordingKind {
-  return value === "bhajan" ? "bhajan" : "kiirtan"
+  return isRecordingKind(value) ? value : "kiirtan"
 }
 
-/** The visible name of a kind: `Kiirtan` or `Bhajan`. */
+/** The visible name of a kind: `Kiirtan`, `Bhajan`, `Devotional song` or `Prabhat Samgiita`. */
 export function kindLabel(kind: RecordingKind | null | undefined): string {
-  return kind === "bhajan" ? t("kind.bhajan") : t("kind.kiirtan")
+  return t(`kind.${normalizeKind(kind)}`)
 }
 
-/** `Kiirtans` or `Bhajans`. */
+/** `Kiirtans`, `Bhajans`, `Devotional songs`, `Prabhat Samgiita recordings`. */
 export function kindLabelPlural(kind: RecordingKind | null | undefined): string {
-  return kind === "bhajan" ? t("kind.bhajans") : t("kind.kiirtans")
+  return t(`kind.${normalizeKind(kind)}s`)
 }
 
-/** Small capitals tag of a row: `KIIRTAN` or `BHAJAN`. */
+/** Small capitals tag of a row: `KIIRTAN`, `BHAJAN`, `DEVOTIONAL SONG`, `PRABHAT SAMGIITA`. */
 export function kindTag(kind: RecordingKind | null | undefined): string {
-  return kind === "bhajan" ? t("kind.bhajan.tag") : t("kind.kiirtan.tag")
+  // upper-cased here, so the name "Prabhat Samgiita" is spelled one way in every dictionary
+  return t(`kind.${normalizeKind(kind)}.tag`).toLocaleUpperCase()
 }
 
 /** Lower-case noun with a count: `1 kiirtan`, `3 bhajans`. */
 export function kindCountLabel(kind: RecordingKind | null | undefined, count: number): string {
-  return kind === "bhajan" ? t("kind.bhajan.count", { count }) : t("kind.kiirtan.count", { count })
+  return t(`kind.${normalizeKind(kind)}.count`, { count })
+}
+
+/** The second line of the tab heading for a kind chip ("for every hour"). */
+export function kindHeading(kind: RecordingKind): string {
+  return t(`kt.head.${kind}`)
+}
+
+/** What a list holds in a sentence ("Kiirtans", "Devotional songs"); `all` says "Kiirtans or Bhajans". */
+export function kindWhat(kind: KindFilter): string {
+  return t(kind === "all" ? "kt.what.all" : `kt.what.${kind}`)
+}
+
+/** `KIIRTAN OF THE DAY` and its spoken form. */
+export function kindDayLabel(kind: RecordingKind | null | undefined): string {
+  return t(`kt.day.${normalizeKind(kind)}`).toLocaleUpperCase()
+}
+export function kindDayA11y(kind: RecordingKind | null | undefined, title: string): string {
+  return t(`kt.day.a11y.${normalizeKind(kind)}`, { title })
+}
+
+/** The toast for "add to a playlist" (not built yet), in the words of the kind. */
+export function kindPlaylistsSoon(kind: RecordingKind | null | undefined): string {
+  return t(`kt.toast.playlistsSoon.${normalizeKind(kind)}`)
 }
 
 export function kindOf(item: { kind?: RecordingKind | null } | null | undefined): RecordingKind {
   return normalizeKind(item?.kind)
 }
 
-/** What a list holds: "bhajan" or "kiirtan" when it is all of one kind, "all" when both kinds are in it (an empty list is "kiirtan"). */
+/** What a list holds: its kind when it is all of one kind, "all" when kinds are mixed (an empty list is "kiirtan"). */
 export function listKindOf(list: readonly { kind?: RecordingKind | null }[]): KindFilter {
-  const bhajans = list.filter((x) => kindOf(x) === "bhajan").length
-  if (bhajans === 0) return "kiirtan"
-  return bhajans === list.length ? "bhajan" : "all"
+  if (!list.length) return "kiirtan"
+  const first = kindOf(list[0])
+  return list.every((x) => kindOf(x) === first) ? first : "all"
 }
 
 /** Keeps the items of one kind, or all of them. Items without a kind count as Kiirtans. */
@@ -53,9 +79,22 @@ export function filterByKind<T extends { kind?: RecordingKind | null }>(list: re
   return kind === "all" ? [...list] : list.filter((k) => kindOf(k) === kind)
 }
 
+/** Only Kiirtans and Bhajans have sub-types (Lila, Morning...). The other kinds are always type "other". */
+export function kindHasTypes(kind: RecordingKind): boolean {
+  return kind === "kiirtan" || kind === "bhajan"
+}
+
+/** "Words and music by" is asked for songs (Bhajan and Devotional song), not for chanting or a Prabhat Samgiita performance. */
+export function kindHasCredits(kind: RecordingKind): boolean {
+  return kind === "bhajan" || kind === "devotional_song"
+}
+
+/** The kinds without sub-types have the one type "other". */
+const OTHER_ONLY: readonly { id: KirtanTypeId; label: string }[] = [{ id: "other", get label() { return t("kt.type.other") } }]
+
 /** The type choices of a kind, in the order the add form and the type shelf show them. */
 export function typesOfKind(kind: RecordingKind): readonly { id: KirtanTypeId; label: string }[] {
-  return kind === "bhajan" ? BHAJAN_TYPES : KIRTAN_TYPES
+  return kind === "bhajan" ? BHAJAN_TYPES : kind === "kiirtan" ? KIRTAN_TYPES : OTHER_ONLY
 }
 
 /** Is this type id valid for this kind? ("other" is valid for both.) */
@@ -102,5 +141,6 @@ export function kindsCountLabel(list: readonly { kind?: RecordingKind | null }[]
 /** Swaps the leading word "Kiirtan" of a ready-made line for the kind's word (`Kiirtan · 1:05 of 12:40` to `Bhajan · 1:05 of 12:40`). Other lines stay. */
 export function withKindWord(text: string, kind: RecordingKind | null | undefined): string {
   const word = t("kind.kiirtan")
-  return kind === "bhajan" && text.startsWith(word) ? `${t("kind.bhajan")}${text.slice(word.length)}` : text
+  const own = normalizeKind(kind)
+  return own !== "kiirtan" && text.startsWith(word) ? `${kindLabel(own)}${text.slice(word.length)}` : text
 }
