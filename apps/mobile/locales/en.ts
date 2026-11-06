@@ -2,6 +2,7 @@ import { songPageEn } from "./songPage"
 import { appShellEn } from "./appShell"
 import { ugcEn } from "./ugc"
 import { duplicatesEn } from "./duplicates"
+import { recordingsEn } from "./recordings"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { playerErrorsEn } from "./playerErrors"
@@ -730,7 +731,7 @@ export const en = {
   // Kiirtan tab
   "kt.chip.all": "All",
   "kt.chip.mine": "My uploads",
-  "kt.head.all": "and bhajan",
+  "kt.head.all": "and more",
   "kt.head.bhajan": "of devotion",
   "kt.head.kiirtan": "for every hour",
   "kt.jump.eyebrow": "Pick up where you stopped",
@@ -756,12 +757,12 @@ export const en = {
   "kt.hour.eyebrow": "Morning, evening, devotion",
   "kt.hour.second": "for every hour",
   "kt.ctx.long": "Long",
-  "kt.empty.saved": "Nothing saved yet. Open the menu of a Kiirtan or Bhajan and choose Save.",
-  "kt.empty.downloaded": "Nothing on this phone yet. Open the menu of a Kiirtan or Bhajan and choose Download. It plays without internet.",
-  "kt.empty.mine": "You have not uploaded a Kiirtan or Bhajan yet.",
-  "kt.add.a11y": "Add a Kiirtan or Bhajan. Upload an audio file and it goes live at once.",
-  "kt.add.title": "Add Kiirtan or Bhajan",
-  "kt.add.sub": "Upload an audio file, it goes live at once",
+  "kt.empty.saved": "Nothing saved yet. Open the menu of a recording and choose Save.",
+  "kt.empty.downloaded": "Nothing on this phone yet. Open the menu of a recording and choose Download. It plays without internet.",
+  "kt.empty.mine": "You have not uploaded a recording yet.",
+  "kt.add.a11y": "Add recordings. Upload one or many audio files and they go live at once.",
+  "kt.add.title": "Add recordings",
+  "kt.add.sub": "Kiirtan, Bhajan, Prabhat Samgiita. Many files at once",
   "kt.byAuthor": "By the author",
   "kt.takeBack": "Take back",
   "kt.takeBackA11y": "Take back {title}",
@@ -783,7 +784,7 @@ export const en = {
   "kt.resume": "Resume {at} of {total}",
   "kt.resume.at": "Resume {at}",
   "kt.addedBy": "added by {name}",
-  "kt.what.all": "Kiirtans or Bhajans",
+  "kt.what.all": "recordings",
   "kt.what.kiirtan": "Kiirtans",
   "kt.what.bhajan": "Bhajans",
   "kt.emptyList.both": "No {what} of this type and length yet.",
@@ -1269,6 +1270,7 @@ export const en = {
   ...appShellEn,
   ...ugcEn,
   ...duplicatesEn,
+  ...recordingsEn,
   ...offlineEn,
   ...accountEn,
   ...playerErrorsEn,

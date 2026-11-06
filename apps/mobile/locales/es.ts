@@ -3,6 +3,7 @@ import { songPageEs } from "./songPage"
 import { appShellEs } from "./appShell"
 import { ugcEs } from "./ugc"
 import { duplicatesEs } from "./duplicates"
+import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { playerErrorsEs } from "./playerErrors"
@@ -724,7 +725,7 @@ export const es: Dictionary = {
   // Kiirtan tab
   "kt.chip.all": "Todo",
   "kt.chip.mine": "Mis subidas",
-  "kt.head.all": "y bhajan",
+  "kt.head.all": "y más",
   "kt.head.bhajan": "de devoción",
   "kt.head.kiirtan": "para cada hora",
   "kt.jump.eyebrow": "Sigue donde lo dejaste",
@@ -750,12 +751,12 @@ export const es: Dictionary = {
   "kt.hour.eyebrow": "Mañana, tarde, devoción",
   "kt.hour.second": "para cada hora",
   "kt.ctx.long": "Largos",
-  "kt.empty.saved": "Todavía no has guardado nada. Abre el menú de un Kiirtan o Bhajan y elige Guardar.",
-  "kt.empty.downloaded": "Aún no hay nada en este teléfono. Abre el menú de un Kiirtan o Bhajan y elige Descargar. Suena sin internet.",
-  "kt.empty.mine": "Aún no has subido ningún Kiirtan ni Bhajan.",
-  "kt.add.a11y": "Añadir un Kiirtan o Bhajan. Sube un archivo de audio y se publica al instante.",
-  "kt.add.title": "Añadir Kiirtan o Bhajan",
-  "kt.add.sub": "Sube un archivo de audio, se publica al instante",
+  "kt.empty.saved": "Todavía no has guardado nada. Abre el menú de una grabación y elige Guardar.",
+  "kt.empty.downloaded": "Aún no hay nada en este teléfono. Abre el menú de una grabación y elige Descargar. Suena sin internet.",
+  "kt.empty.mine": "Aún no has subido ninguna grabación.",
+  "kt.add.a11y": "Añadir grabaciones. Sube uno o varios archivos de audio y se publican al instante.",
+  "kt.add.title": "Añadir grabaciones",
+  "kt.add.sub": "Kiirtan, Bhajan, Prabhat Samgiita. Varios archivos a la vez",
   "kt.byAuthor": "Del autor",
   "kt.takeBack": "Retirar",
   "kt.takeBackA11y": "Retirar {title}",
@@ -777,7 +778,7 @@ export const es: Dictionary = {
   "kt.resume": "Desde {at} de {total}",
   "kt.resume.at": "Desde {at}",
   "kt.addedBy": "añadido por {name}",
-  "kt.what.all": "Kiirtans o Bhajans",
+  "kt.what.all": "grabaciones",
   "kt.what.kiirtan": "Kiirtans",
   "kt.what.bhajan": "Bhajans",
   "kt.emptyList.both": "Aún no hay {what} de este tipo y duración.",
@@ -1263,6 +1264,7 @@ export const es: Dictionary = {
   ...appShellEs,
   ...ugcEs,
   ...duplicatesEs,
+  ...recordingsEs,
   ...offlineEs,
   ...accountEs,
   ...playerErrorsEs,

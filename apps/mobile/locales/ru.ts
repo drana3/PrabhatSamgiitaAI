@@ -3,6 +3,7 @@ import { songPageRu } from "./songPage"
 import { appShellRu } from "./appShell"
 import { ugcRu } from "./ugc"
 import { duplicatesRu } from "./duplicates"
+import { recordingsRu } from "./recordings"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { playerErrorsRu } from "./playerErrors"
@@ -788,7 +789,7 @@ export const ru: Dictionary = {
   // Kiirtan tab
   "kt.chip.all": "Все",
   "kt.chip.mine": "Мои загрузки",
-  "kt.head.all": "и бхаджан",
+  "kt.head.all": "и не только",
   "kt.head.bhajan": "от всего сердца",
   "kt.head.kiirtan": "на любой час",
   "kt.jump.eyebrow": "Продолжите с того же места",
@@ -814,12 +815,12 @@ export const ru: Dictionary = {
   "kt.hour.eyebrow": "Утро, вечер, преданность",
   "kt.hour.second": "на каждый час",
   "kt.ctx.long": "Долгие",
-  "kt.empty.saved": "Пока ничего не сохранено. Откройте меню киртана или бхаджана и выберите «Сохранить».",
-  "kt.empty.downloaded": "На телефоне пока ничего нет. Откройте меню киртана или бхаджана и выберите «Скачать». Он играет без интернета.",
-  "kt.empty.mine": "Вы ещё не загружали киртан или бхаджан.",
-  "kt.add.a11y": "Добавить киртан или бхаджан. Загрузите аудиофайл, он сразу появится в приложении.",
-  "kt.add.title": "Добавить киртан или бхаджан",
-  "kt.add.sub": "Загрузите аудиофайл, он сразу станет доступен",
+  "kt.empty.saved": "Пока ничего не сохранено. Откройте меню записи и выберите «Сохранить».",
+  "kt.empty.downloaded": "На телефоне пока ничего нет. Откройте меню записи и выберите «Скачать». Она играет без интернета.",
+  "kt.empty.mine": "Вы ещё не загружали записей.",
+  "kt.add.a11y": "Добавить записи. Загрузите один или несколько аудиофайлов, они сразу появятся в приложении.",
+  "kt.add.title": "Добавить записи",
+  "kt.add.sub": "Киртан, бхаджан, Prabhat Samgiita. Много файлов сразу",
   "kt.byAuthor": "От автора",
   "kt.takeBack": "Отозвать",
   "kt.takeBackA11y": "Отозвать «{title}»",
@@ -841,7 +842,7 @@ export const ru: Dictionary = {
   "kt.resume": "С {at} из {total}",
   "kt.resume.at": "С {at}",
   "kt.addedBy": "от {name}",
-  "kt.what.all": "киртанов и бхаджанов",
+  "kt.what.all": "записей",
   "kt.what.kiirtan": "киртанов",
   "kt.what.bhajan": "бхаджанов",
   "kt.emptyList.both": "Пока нет {what} такого вида и длины.",
@@ -1349,6 +1350,7 @@ export const ru: Dictionary = {
   ...appShellRu,
   ...ugcRu,
   ...duplicatesRu,
+  ...recordingsRu,
   ...offlineRu,
   ...accountRu,
   ...playerErrorsRu,

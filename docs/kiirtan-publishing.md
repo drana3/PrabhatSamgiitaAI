@@ -90,9 +90,9 @@ author gets a notice with the reason and how to answer. This file is the operati
 ## Duplicates
 
 The same chant is sung by many people, so the library separates three things: the same file (a duplicate, refused),
-a recording that sounds like another (a warning, the author decides), and another performance of the same mantra
-(not a duplicate, a version of it). Five levels do this. Code: `apps/api/app/services/recordings.py`,
-`recording_fingerprint.py`, `mantras.py`, `apps/api/app/api/v1/recordings.py`, `apps/mobile/lib/kirtan/*`.
+a recording that sounds like another (a warning, the author decides), and another performance of the same
+recording (not a duplicate, a version of it). Five levels do this. Code: `apps/api/app/services/recordings.py`,
+`recording_fingerprint.py`, `apps/api/app/api/v1/recordings.py`, `apps/mobile/lib/kirtan/*`.
 
 ### Level 1: the same file
 
@@ -117,19 +117,24 @@ a recording that sounds like another (a warning, the author decides), and anothe
   and the upload is published. Nothing is blocked because the tool is not there.
 - Setting: `RECORDING_FPCALC_PATH` (default `fpcalc`). The API `Dockerfile` installs `libchromaprint-tools`.
 
-### Level 3: mantras and versions
+### Level 3: one mantra, four types, and the form
 
-- The uploader may type a free-text mantra (and a year). The API makes a key from it: lower case, accents of Latin
-  letters removed, only letters and digits kept. "Baba Nam Kevalam", "Bábá Nám Kevalam" and "baba-nam-kevalam" are one
-  mantra; Cyrillic and Devanagari keep their letters. The phone has the same rule (`lib/kirtan/mantras.ts`).
-- One row per (kind, key) in `mantra_groups`. A merged group points to the one it was merged into
-  (`merged_into_id`), so old links keep working. Recordings keep `mantra` (as typed) and `mantra_group_id`.
-- Public endpoints (no sign-in): `GET /recordings/mantras?kind=&q=`, `GET /recordings/mantras/suggest?q=&kind=`
-  (autocomplete, those starting with the text first), `GET /recordings/mantras/lookup?title=&kind=` (how many versions
-  of exactly this mantra), `GET /recordings/mantras/{id}?sort=newest|plays` (the versions).
-- Admin, to fix a split: `POST /admin/recordings/mantras/merge {source_id, target_id, title?}`.
-- App: the add form has a Mantra field with suggestions and "N versions of this mantra" with "See all versions"; the
-  Kiirtan page has "Browse by mantra" (`app/kirtan-mantra.tsx`): the list of mantras, and the versions of one.
+There is ONE mantra in the app: Baba Nam Kevalam. Every Kiirtan recording is a version of it, in one list. There is no
+mantra field, no autocomplete, no "N versions" line, no browse-by-mantra page and no merge endpoint (removed; the
+`mantra_groups` table and the mantra columns were dropped from the models; migration 0029 was amended before deploy and
+tidies a database that ran the old draft, see the checklist).
+
+- Type (field `kind`, kept under that name): `kiirtan` (always Baba Nam Kevalam), `bhajan`, `devotional_song`,
+  `prabhat_samgiita`. The brief said "three categories" and named four; all four are built. For `prabhat_samgiita` the
+  uploader picks the song number 1 to 5018 with the song picker (`ps_song_number`, required for that type and refused
+  for the others). The recording is stored and listed in the library under that type, with the song number.
+- The uploader types the TITLE (required). Performer (required, prefilled from the profile name; stored in the
+  existing `author` column). Optional: `language` (bengali, sanskrit, hindi, english, other), `credits` ("Words and
+  music by"; asked for Bhajan and Devotional song), `year` (1900 up to this year, not in the future), `notes` (up to
+  500 characters). The duration is read from the file. Checks: "I am the author or I perform this" and the content rules.
+- Public listing: `GET /recordings?kind=&song_number=&sort=` filters by type. My uploads and the Kiirtan page show the
+  type on every recording (a tag, and the chips All, Kiirtan, Bhajan, Devotional song, Prabhat Samgiita).
+- The old "Kiirtan or Bhajan" sub-types (Dharmacakra, Akhanda, ...) stay as an optional `type` for the Kiirtan area.
 
 ### Level 4: reports, removal, limits
 
@@ -142,10 +147,34 @@ a recording that sounds like another (a warning, the author decides), and anothe
   to add more. Thank you for sharing." The old hourly limiter stays as a second brake (60 an hour).
 - The same author with the same title and a similar sound is refused: 409 `own_duplicate` ("You already added this one").
 
+### Bulk upload from the app (queue)
+
+One screen sends many files: pick the type and the shared choices once (performer, language, credits, year, notes,
+the song for Prabhat Samgiita, the checks), pick many audio files (`expo-document-picker`, `multiple`; the browser has
+a hidden multi-file input), and press Upload. Code: `lib/kirtan/queue.ts` (pure rows and loop),
+`stores/uploadQueueStore.ts`, `components/kirtan/add/QueueRows.tsx`, `app/add-kirtan.tsx`.
+
+- Each file is a row with its file name, an editable title (the name without extension, underscores read as spaces),
+  a status and a remove button. A row without a title stops the start and shows what is missing. A file that is not
+  audio or is too large is marked "Not uploaded" at once and is not part of the progress.
+- Files go one after another (the same single-file route and rules). A progress bar shows how many rows are settled.
+- Row states: waiting, uploading, published, already in the library (with "Listen" to the existing recording),
+  needs your decision (sounds like a recording in the library: the row carries its own "different performance?"
+  question and the rest carries on), left for tomorrow (daily limit), not uploaded (anything else, with "Try again").
+- The queue lives in memory in the app, so it survives leaving the screen while the app is open; failed rows are
+  resumed with "Try again" or "Try N again". It is not saved to disk: closing the app empties it.
+- The end summary reads like "2 uploaded, 1 already in the library, 1 needs your decision".
+- Daily limit (default 20, `RECORDING_UPLOADS_PER_DAY`): a team member (`is_team_member`: `is_admin`, `is_super_admin`
+  or an email in the owner lists; there is no separate team role) has no daily limit and the hourly brake is 600.
+  Everyone else: the queue stops with "Daily limit reached. N files are left for tomorrow" and keeps those rows.
+- The duplicate rules (same file, sounds like, own duplicate) are the same as for one file.
+
 ### Level 5: bulk import
 
-`apps/api/scripts/import_kiirtan_library.py` imports a folder of audio and a CSV (`title`, `performer`, `mantra`,
-`year`, `file`; `type` optional).
+`apps/api/scripts/import_kiirtan_library.py` imports a folder of audio and a CSV (`title` required; `performer`, `category`,
+`language`, `credits`, `year`, `song`, `file` optional; `type` optional). `category` is kiirtan (default), bhajan,
+devotional_song or prabhat_samgiita; `song` (1 to 5018) is required for prabhat_samgiita and refused otherwise. There
+is no `mantra` column any more.
 
     python scripts/import_kiirtan_library.py --folder ~/Kiirtan --csv ~/Kiirtan/table.csv            # dry run (default)
     python scripts/import_kiirtan_library.py --folder ... --csv ... --limit 50 --execute              # pilot
@@ -154,7 +183,7 @@ a recording that sounds like another (a warning, the author decides), and anothe
 - Dry run is the default and writes nothing. `--execute` asks for confirmation (`--yes` skips it).
 - Per file: same SHA-256 (in the library or earlier in this run) is skipped; a close fingerprint is NOT imported and goes
   to the report CSV for a person to decide; the rest is converted to MP3 128 kbps with ffmpeg (MP3 and M4A are kept),
-  stored with the API's storage backend, and published with its mantra group.
+  stored with the API's storage backend, and published in its category.
 - The hash of the SOURCE file is stored, so the same file sent later from the app is refused.
 - The state file (`<table>.import-state.json`) is written after every file: a stopped run continues. The report is
   `<table>.import-report.csv`. Without `fpcalc` the script refuses `--execute` unless `--allow-no-fingerprint`.
@@ -162,22 +191,28 @@ a recording that sounds like another (a warning, the author decides), and anothe
 
 ### Deploy checklist
 
-1. Alembic migration `0029_recording_duplicates` (adds the unique hash index, `audio_fingerprint`, `mantra`, `year`,
-   `mantra_groups`, `mantra_group_id`, and the duplicate fields). It stops with a clear error if two recordings already
-   share one hash: look at those first.
+1. Alembic migration `0029_recording_duplicates`, AMENDED (idempotent, safe to run twice; it was never deployed): it adds
+   the unique hash index, `audio_fingerprint`, `year`, `language`, `credits`, `notes`, `ps_song_number`, the four-value
+   `kind` constraints and the duplicate fields, with no mantra objects. Step 3 drops `mantra_title`, `mantra_group_id`
+   and the table `mantra_groups` if an older draft of 0029 made them (a development database). It stops with a clear
+   error if two recordings already share one hash: look at those first. Back up the database before running it.
 2. `fpcalc` on the server: rebuild the API image (the `Dockerfile` has `libchromaprint-tools`).
 3. Environment: `RECORDING_UPLOADS_PER_DAY` (optional, 20), `RECORDING_FPCALC_PATH` (optional).
-4. Ship the app build that has the mantra field and the new cards.
+4. Ship the app build with the type selector, the queue and the new cards.
 
 ### Limits (honest)
 
 - The similarity scan is linear in the size of the library. It is fine for thousands of recordings; for tens of
   thousands it needs an index.
-- Chromaprint finds the same recording and re-encodes. It does not know "the same mantra by another singer"; that is
-  what mantra groups are for, and they depend on what the uploader types (the admin can merge two spellings).
+- Chromaprint finds the same recording and re-encodes. "The same chant by another singer" is simply another version in
+  the list; nothing groups them beyond the type.
+- A Prabhat Samgiita recording is listed in the library under its type with the song number. It is not yet shown in
+  the Recordings section of that song's page (the song page plays the catalogue's own audio list; wiring uploaded
+  versions into its player queue is a separate piece of work).
+- The catalogue fetch of the app asks for up to 100 recordings; paging is not built.
 - There are no server-side likes yet, so plays are the only measure that moves on removal as a copy.
 - Verified here: API tests on SQLite, the migration on SQLite, the import script with a fake storage, the mobile
-  vitest suite, the 390 px preview of the form, the mantra pages and the cards. Not verified: Postgres, the Docker
+  vitest suite, the 390 px preview of the form, the queue states (a temporary fixture page, since removed), the cards. Not verified: a real file picker on a phone, a real server upload of many files, : Postgres, the Docker
   build, a real `fpcalc` on the server, R2, a real phone.
 
 ### Резюме по-русски: дубликаты
@@ -186,7 +221,7 @@ a recording that sounds like another (a warning, the author decides), and anothe
   существующую запись; гонку двух загрузок решает уникальный индекс.
 - Уровень 2: похожее звучание (Chromaprint, порог 0,80) даёт предупреждение «это другое исполнение?»; без `fpcalc`
   проверка тихо пропускается и запись публикуется.
-- Уровень 3: мантра вводится текстом, ключ не зависит от написания; группы, список, версии, подсказки, слияние админом.
+- Уровень 3: одна мантра, Baba Nam Kevalam; все записи киртана в одном списке. Типы: Киртан, Бхаджан, Песня преданности, Prabhat Samgiita (номер песни 1-5018). Название вводит загрузчик; исполнитель, язык, авторы, год, заметка. Много файлов сразу: очередь, итог, дневной лимит не мешает команде.
 - Уровень 4: причина жалобы «Дубликат», админ «это копия записи X» (удаление с уведомлением, прослушивания
   переносятся), лимит 20 загрузок в сутки на автора (`RECORDING_UPLOADS_PER_DAY`), свой дубль с тем же названием
   и звучанием отклоняется.
