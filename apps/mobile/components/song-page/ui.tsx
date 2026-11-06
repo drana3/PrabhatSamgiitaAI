@@ -137,7 +137,7 @@ export function SectionTabs<T extends string>({ t, items, active, onSelect }: { 
   )
 }
 
-export type SegItem<T extends string> = { id: T; label: string; a11y?: string; fontSize?: number }
+export type SegItem<T extends string> = { id: T; label: string; a11y?: string; fontSize?: number; disabled?: boolean }
 
 /**
  * A pill with two or three choices, one of them on ("Lines | Word by word", the text size). Each segment is at
@@ -151,6 +151,8 @@ export function Segmented<T extends string>({
   label,
   style,
   equal,
+  role = "radio",
+  fit,
 }: {
   t: SpTheme
   items: Array<SegItem<T>>
@@ -160,9 +162,13 @@ export function Segmented<T extends string>({
   style?: StyleProp<ViewStyle>
   /** segments share the width equally */
   equal?: boolean
+  /** "tab" when the segments switch what a block shows, "radio" when they pick a setting */
+  role?: "radio" | "tab"
+  /** one line each, the segments grow to share the row (three short labels in a phone width) */
+  fit?: boolean
 }) {
   return (
-    <View accessibilityLabel={label} style={[styles.seg, { backgroundColor: t.white, borderColor: t.sand400 }, style]}>
+    <View accessibilityRole={role === "tab" ? "tablist" : "radiogroup"} accessibilityLabel={label} style={[styles.seg, { backgroundColor: t.white, borderColor: t.sand400 }, style]}>
       {items.map((item) => {
         const on = item.id === value
         const fg = on ? (t.dark ? t.onAction : t.onInk) : t.ink800
@@ -170,13 +176,19 @@ export function Segmented<T extends string>({
           <SpPress
             key={item.id}
             onPress={() => onChange(item.id)}
-            accessibilityRole="radio"
+            disabled={item.disabled}
+            accessibilityRole={role}
             accessibilityLabel={item.a11y ?? item.label}
-            accessibilityState={{ selected: on }}
+            accessibilityState={{ selected: on, disabled: item.disabled }}
             pressedScale={0.96}
-            style={[styles.segItem, equal && { flex: 1 }, { backgroundColor: on ? (t.dark ? t.action : t.ink900) : "transparent" }]}
+            style={[styles.segItem, equal && { flex: 1 }, fit && styles.segFit, { backgroundColor: on ? (t.dark ? t.action : t.ink900) : "transparent" }]}
           >
-            <Text style={[styles.segLabel, { color: fg, fontFamily: on ? amFonts.bold : amFonts.semi }, item.fontSize ? { fontSize: item.fontSize, lineHeight: Math.round(item.fontSize * 1.3) } : null]} numberOfLines={equal ? 2 : 1}>
+            <Text
+              style={[styles.segLabel, { color: fg, fontFamily: on ? amFonts.bold : amFonts.semi }, item.disabled && { opacity: 0.45 }, item.fontSize ? { fontSize: item.fontSize, lineHeight: Math.round(item.fontSize * 1.3) } : null]}
+              numberOfLines={equal && !fit ? 2 : 1}
+              adjustsFontSizeToFit={fit}
+              minimumFontScale={fit ? 0.8 : undefined}
+            >
               {item.label}
             </Text>
           </SpPress>
@@ -249,6 +261,7 @@ const styles = StyleSheet.create({
   textTabBar: { position: "absolute", left: 12, right: 12, bottom: 0, height: 3, borderRadius: 2 },
   seg: { flexDirection: "row", alignItems: "center", padding: 2, borderRadius: 9999, borderWidth: 1 },
   segItem: { minHeight: 44, minWidth: 44, paddingHorizontal: 14, paddingVertical: 4, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
+  segFit: { flexGrow: 1, paddingHorizontal: 12 },
   segLabel: { fontSize: 15, lineHeight: 20, textAlign: "center" },
   pill: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 1 },
   pillLabel: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },

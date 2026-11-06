@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import { clampCapo, stepHarmoniumKey } from "@/lib/songPage/chords"
 import type { ChordInstrument, ChordMode } from "@/lib/songPage/chordChart"
-import { DEFAULT_SONG_PAGE_SETTINGS, normalizeSettings, type SongPageSettings } from "@/lib/songPage/settings"
+import { DEFAULT_SONG_PAGE_SETTINGS, normalizeSettings, type SongPageSettings, type TextSize } from "@/lib/songPage/settings"
 import type { ScriptChoice } from "@/lib/songPage/scripts"
 import { FOLLOW_APP, migrateSongPageLanguages, normalizeLyricChoice } from "@/lib/songPage/lyricLanguages"
 import { getActiveLanguage } from "@/lib/i18n/core"
@@ -21,6 +21,10 @@ type SongPageState = SongPageSettings & {
   setTranslations: (codes: string[]) => void
   /** The language of the word meanings on the Words card. Separate from the translations on purpose. */
   setWordLanguage: (code: string) => void
+  /** Text size of the lyrics (0 small, 1 medium, 2 large), kept on the device. */
+  setTextSize: (size: TextSize) => void
+  /** The translation under the lyrics, on or off. */
+  setTranslationOn: (on: boolean) => void
   setChordsOn: (on: boolean) => void
   setInstrument: (instrument: ChordInstrument) => void
   setCapo: (capo: number) => void
@@ -46,6 +50,8 @@ export const useSongPageStore = create<SongPageState>()(
         set((s) => ({ translations: setPrimaryTranslation(effectiveTranslations(s.translations, getActiveLanguage()), code) })),
       setTranslations: (codes) => set({ translations: normalizeStoredTranslations(codes, MAX_TRANSLATIONS) }),
       setWordLanguage: (code) => set({ wordLanguage: normalizeLyricChoice(code) === "off" ? FOLLOW_APP : normalizeLyricChoice(code) }),
+      setTextSize: (textSize) => set({ textSize }),
+      setTranslationOn: (translationOn) => set({ translationOn }),
       setChordsOn: (chordsOn) => set({ chordsOn }),
       setInstrument: (instrument) => set({ instrument }),
       setCapo: (capo) => set({ capo: clampCapo(capo) }),
@@ -62,6 +68,8 @@ export const useSongPageStore = create<SongPageState>()(
         script: s.script,
         translations: s.translations,
         wordLanguage: s.wordLanguage,
+        textSize: s.textSize,
+        translationOn: s.translationOn,
         chordsOn: s.chordsOn,
         instrument: s.instrument,
         capo: s.capo,

@@ -5,8 +5,10 @@ import type { AlignResult } from "./alignLines"
  * "which sections exist for which song", "what the tab strip and the menu list" and "where a jump lands" are
  * tested here and nowhere else.
  *
- * One scrolling page, in this order: Lyrics, Meaning, Recordings, Chords, Video, Story, then About this song.
- * The tab strip lists the first six that exist; the menu lists them and About.
+ * One scrolling page, in this order: the text block (Lyrics, Commentary, Word by word as three tabs of one block),
+ * Recordings, Chords, Video, Story, then About this song. The tab strip lists the first six that exist; the menu
+ * lists them and About. The id of Commentary is still "meaning": it is the tab of the text block that the strip and
+ * the menu jump to (see blockTabs.ts).
  */
 
 export type TabSection = "lyrics" | "meaning" | "recordings" | "chords" | "video" | "story"
@@ -61,9 +63,10 @@ export type LyricsLayout =
   /** lyrics only, no translation to show */
   | { kind: "plain" }
 
-export function lyricsLayout(facts: SongFacts): LyricsLayout {
+/** `translationOn` is the reader's own switch in the text options; off, the lyrics stand alone. */
+export function lyricsLayout(facts: SongFacts, translationOn = true): LyricsLayout {
   if (!facts.hasLyrics) return { kind: "empty" }
-  if (!facts.hasMeaning) return { kind: "plain" }
+  if (!facts.hasMeaning || !translationOn) return { kind: "plain" }
   if (facts.align.kind === "pairs") return { kind: "pairs", expand: "full" }
   return { kind: "stacked", expand: "show", note: facts.align.reason === "count-differs" || facts.align.reason === "runs-on" }
 }

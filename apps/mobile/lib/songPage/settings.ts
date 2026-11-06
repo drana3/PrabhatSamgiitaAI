@@ -10,6 +10,8 @@ import { MAX_TRANSLATIONS } from "./translations"
  * and shares them with the Player karaoke view; here they are stored per device
  * until the account sync (API-16) exists.
  */
+export type TextSize = 0 | 1 | 2
+
 export type SongPageSettings = {
   script: ScriptChoice
   /**
@@ -22,6 +24,10 @@ export type SongPageSettings = {
    * the translation setting: picking a word language never changes the Meaning section.
    */
   wordLanguage: string
+  /** text size of the lyrics: 0 small, 1 medium, 2 large */
+  textSize: TextSize
+  /** the translation under the lyrics: on or off (the language is `translations`) */
+  translationOn: boolean
   chordsOn: boolean
   instrument: ChordInstrument
   capo: number
@@ -33,6 +39,8 @@ export const DEFAULT_SONG_PAGE_SETTINGS: SongPageSettings = {
   script: "roman",
   translations: [],
   wordLanguage: FOLLOW_APP,
+  textSize: 1,
+  translationOn: true,
   chordsOn: false,
   instrument: "guitar",
   capo: 0,
@@ -53,6 +61,8 @@ export function normalizeSettings(input: Partial<SongPageSettings> | null | unde
     translations,
     // a word language is one language (or "auto"); "off" is a player-only value
     wordLanguage: raw.wordLanguage === "off" ? FOLLOW_APP : normalizeLyricChoice(raw.wordLanguage),
+    textSize: raw.textSize === 0 || raw.textSize === 2 ? raw.textSize : d.textSize,
+    translationOn: typeof raw.translationOn === "boolean" ? raw.translationOn : d.translationOn,
     chordsOn: typeof raw.chordsOn === "boolean" ? raw.chordsOn : d.chordsOn,
     instrument: raw.instrument === "harmonium" ? "harmonium" : "guitar",
     capo: clampCapo(typeof raw.capo === "number" ? raw.capo : d.capo),

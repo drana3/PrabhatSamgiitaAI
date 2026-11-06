@@ -44,7 +44,7 @@ export function SpPress({
   disabled?: boolean
   accessibilityLabel?: string
   accessibilityState?: { selected?: boolean; checked?: boolean; disabled?: boolean }
-  accessibilityRole?: "button" | "tab" | "radio" | "checkbox" | "link"
+  accessibilityRole?: "button" | "tab" | "radio" | "checkbox" | "link" | "switch"
   hitSlop?: number | { top?: number; bottom?: number; left?: number; right?: number }
   testID?: string
 }) {

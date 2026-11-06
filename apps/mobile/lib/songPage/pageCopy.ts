@@ -43,3 +43,8 @@ export function usePageT(): PageT {
   const language = useLanguage()
   return useMemo(() => (key, params) => translatePage(language, key, params), [language])
 }
+
+/** The name of a script ("Roman", "Латиница") in the language of the app. */
+export function scriptName(tr: PageT, id: "roman" | "devanagari" | "bengali"): string {
+  return tr(`songPage.script.${id}`)
+}

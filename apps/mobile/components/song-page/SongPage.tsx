@@ -7,17 +7,17 @@ import { useSpTheme } from "@/hooks/useSpTheme"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { routeString } from "@/lib/songMap"
 import { usePageT } from "@/lib/songPage/pageCopy"
+import { anchorOf, blockTabAfterJump, scrollSections, stripActive } from "@/lib/songPage/blockTabs"
 import { STRIP_HEIGHT, activeSectionAt, jumpOffset, menuSections, sectionTops, visibleTabs, type PageSection, type TabSection } from "@/lib/songPage/pageSections"
 
 import { AboutSection } from "./About"
 import { ChordsSection } from "./Chords"
 import { Actions, FadeHero, fadeHeight, songTitle } from "./Hero"
 import { LearnButton } from "./LearnButton"
-import { LyricsSection } from "./Lyrics"
-import { MeaningSection } from "./Meaning"
 import { PageSheets } from "./Sheets"
 import { Shell, ShellMessage, useBarHeight } from "./Shell"
 import { usePageUi } from "./state"
+import { TextBlock } from "./TextBlock"
 import { SectionTabs } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 import { useSongPageModel } from "./useSongPageModel"
@@ -28,9 +28,10 @@ const LEARN_ROW = 64
 
 /**
  * The song page: one scrolling page. A photo that fades into the page, the title, "Learn this song", the action row;
- * a pinned tab strip; then Lyrics, Meaning, Recordings, Chords, Video, Story and About this song, in that order,
- * each drawn only when the song has it (Lyrics, Meaning and Chords always have a place and say honestly when empty).
- * The tabs and the top Menu jump to a section; the strip follows the scroll.
+ * a pinned tab strip; then the text block (Lyrics | Commentary | Word by word as three tabs of one block),
+ * Recordings, Chords, Video, Story and About this song, in that order, each drawn only when the song has it (the
+ * text block and Chords always have a place and say honestly when empty). The tabs and the top Menu jump to a
+ * section ("Commentary" jumps to the text block and opens its Commentary tab); the strip follows the scroll.
  */
 export function SongPage() {
   const params = useLocalSearchParams<{ songId: string | string[] }>()
@@ -48,32 +49,39 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const bar = useBarHeight()
   const tabs = useMemo(() => visibleTabs(model.facts), [model.facts])
   const sections = useMemo(() => menuSections(model.facts), [model.facts])
+  // Commentary is a tab of the text block, not a place of its own in the scroll
+  const scrollTabs = useMemo(() => scrollSections(tabs) as TabSection[], [tabs])
+  const scrollOrder = useMemo(() => scrollSections(sections), [sections])
   const [active, setActive] = useState<TabSection>("lyrics")
   const heights = useRef<Record<string, number>>({})
   const heroH = useRef(0)
   const scrollRef = useRef<Animated.ScrollView | null>(null)
 
   // a section's place is the hero plus the strip plus the heights above it (the web does not report a move)
-  const topOf = useCallback((id: PageSection) => sectionTops(sections, heights.current, heroH.current + STRIP_HEIGHT)[id] ?? 0, [sections])
+  const topOf = useCallback((id: PageSection) => sectionTops(scrollOrder, heights.current, heroH.current + STRIP_HEIGHT)[anchorOf(id)] ?? 0, [scrollOrder])
   const place = (id: PageSection) => (event: LayoutChangeEvent) => {
     heights.current[id] = event.nativeEvent.layout.height
   }
   const jump = useCallback(
     (id: PageSection) => {
-      if (id !== "about") setActive(id)
+      ui.closeOptions()
+      ui.setBlockTab(blockTabAfterJump(id, ui.blockTab))
+      if (id !== "about") setActive(anchorOf(id) as TabSection)
       const y = jumpOffset(topOf(id), bar)
       ;(scrollRef.current as unknown as { scrollTo: (o: { y: number; animated: boolean }) => void } | null)?.scrollTo({ y, animated: true })
     },
-    [topOf, bar],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [topOf, bar, ui.blockTab, ui.closeOptions, ui.setBlockTab],
   )
   const follow = useCallback(
     (y: number) => {
-      const current = activeSectionAt(tabs, heights.current, heroH.current + STRIP_HEIGHT, y, bar)
+      const current = activeSectionAt(scrollTabs, heights.current, heroH.current + STRIP_HEIGHT, y, bar)
       if (current) setActive((prev) => (prev === current ? prev : current))
     },
-    [tabs, bar],
+    [scrollTabs, bar],
   )
 
+  const lit = stripActive(active, ui.blockTab)
   const items = tabs.map((id) => ({ id, label: tr(`songPage.tab.${id}`) }))
   const show = new Set<PageSection>(sections)
   const divider = <View style={[styles.divider, { backgroundColor: t.sand400 }]} />
@@ -92,7 +100,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
           <Actions t={t} model={model} />
         </>
       }
-      strip={<SectionTabs t={t} items={items} active={active} onSelect={jump} />}
+      strip={<SectionTabs t={t} items={items} active={lit} onSelect={jump} />}
       stripHeight={STRIP_HEIGHT}
       scrollRef={scrollRef}
       onScrollJS={follow}
@@ -104,11 +112,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       sheets={<PageSheets t={t} model={model} ui={ui} sections={sections} onJump={jump} />}
     >
       <View onLayout={place("lyrics")} style={styles.first}>
-        <LyricsSection t={t} model={model} ui={ui} />
-      </View>
-      <View onLayout={place("meaning")} style={styles.section}>
-        {divider}
-        <MeaningSection t={t} meaning={model.meaning} />
+        <TextBlock t={t} model={model} ui={ui} />
       </View>
       {show.has("recordings") ? (
         <View onLayout={place("recordings")} style={styles.section}>

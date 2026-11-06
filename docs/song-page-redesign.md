@@ -382,3 +382,21 @@ route `app/song-v2/[songId].tsx`); the switcher, the old "Current" page and the 
   when a whole stanza is such a repeat (or when a stored text labels it, which no current song does).
 - One translation-language chooser (a pill in the lyrics toolbar). The old "Change" button of the Meaning header opened the same
   language sheet, so it is removed.
+
+### 12a. Update: one text block with three tabs, "Aa" popover (Dada's choice from the boards)
+
+- "Meaning" is now **Commentary** everywhere the reader sees it (strip, menu, header line, empty states; ru "Комментарий",
+  es "Comentario"). The section id and the tab id stay `meaning` in code.
+- Section 1 is one block with three tabs in a pill switch: **Lyrics | Commentary | Word by word** (`components/song-page/TextBlock.tsx`).
+  Commentary is a tab of this block, not a place of its own in the scroll: the strip and the menu still list it, and a jump
+  to it scrolls to the block and opens the tab (`lib/songPage/blockTabs.ts`).
+  - Lyrics tab = `LyricsBody.tsx`, kept in its own file so the final lyrics-with-translation layout can replace it.
+  - Commentary tab = `Commentary.tsx` (board 3, variant A: one white card): the central idea and the explanation in plain
+    words; a dashed note says so when no explanation is written. The translation text stays in the Lyrics tab.
+  - Word by word tab = `WordByWord.tsx` (board 4, variant 1: interlinear). Real words with real counts; a tapped word lights
+    the same word everywhere. With no verified glosses (every real song) it shows "No word meanings yet." and Request; no
+    gloss is ever invented.
+- The wide toolbar is gone. One round "Aa" button in the header row opens a compact popover (board 2, variant 1): text size,
+  script, translation on or off and the translation language (`TextOptions.tsx`). Text size and the translation switch are kept
+  on the device with the script and the language (`stores/songPageStore.ts`). The popover registers with `lib/sheetCover.ts`,
+  closes on Back, Escape or a tap outside.
