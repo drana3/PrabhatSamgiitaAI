@@ -9,7 +9,8 @@ import { amProto, type AmProto } from "@/constants/tokens/amToday"
 import {
   SEARCH_FEELING_CHIPS,
   SEARCH_HINT_ROWS,
-  SEARCH_INTRO,
+  feelingLabel,
+  hintRowLabel,
   type FlatResult,
 } from "@/lib/searchProto"
 import type { AnswerCard as AnswerCardData, CollectionHit, SearchResultItem } from "@/lib/unifiedSearch"
@@ -58,22 +59,23 @@ export function EmptyState({
   onRemoveRecent: (query: string) => void
   onClearRecents: () => void
 }) {
+  const t = useT()
   return (
     <View>
       <View style={s.hint}>
-        <TodaySectionHeading p={p} first="Write" second="anything" />
-        <Text style={[s.hintText, { color: p.ink500 }]}>{SEARCH_INTRO}</Text>
+        <TodaySectionHeading p={p} first={t("searchHints.write.first")} second={t("searchHints.write.second")} />
+        <Text style={[s.hintText, { color: p.ink500 }]}>{t("searchHints.intro")}</Text>
         {SEARCH_HINT_ROWS.map((row) => (
           <TodayPress
             key={row.id}
             accessibilityRole="button"
-            accessibilityLabel={`${row.label}, for example ${row.example}`}
+            accessibilityLabel={t("searchHints.rowA11y", { label: hintRowLabel(row.id, t), example: row.example })}
             onPress={() => onPick(row.example)}
             pressedScale={PRESS}
             style={[s.cardBtn, { backgroundColor: p.white, borderColor: p.sand300 }]}
           >
             <View style={s.main}>
-              <Text style={[overStyle, { color: p.orange700 }]}>{row.label}</Text>
+              <Text style={[overStyle, { color: p.orange700 }]}>{hintRowLabel(row.id, t)}</Text>
               <Text style={[s.title, { color: p.ink800 }]}>{row.example}</Text>
             </View>
             <ChevronGlyph size={22} color={p.ink500} />
@@ -82,31 +84,31 @@ export function EmptyState({
       </View>
 
       <View style={s.feelHead}>
-        <TodaySectionHeading p={p} first="Or start from" second="a feeling" />
+        <TodaySectionHeading p={p} first={t("searchHints.feel.first")} second={t("searchHints.feel.second")} />
       </View>
       <View style={s.cloud}>
         {SEARCH_FEELING_CHIPS.map((label) => (
-          <Chip key={label} p={p} label={label} accessibilityLabel={`Feeling: ${label}`} onPress={() => onPick(label)} />
+          <Chip key={label} p={p} label={feelingLabel(label, t)} accessibilityLabel={t("searchHints.feelingA11y", { label: feelingLabel(label, t) })} onPress={() => onPick(label)} />
         ))}
       </View>
 
       {recents.length ? (
         <View style={s.recents}>
           <View style={s.recentsHead}>
-            <Text style={[overStyle, { color: p.orange700 }]}>Recent searches</Text>
-            <TodayPress accessibilityRole="button" accessibilityLabel="Clear recent searches" onPress={onClearRecents} pressedScale={0.94} style={s.clear}>
-              <Text style={[s.clearText, { color: p.ink500 }]}>Clear</Text>
+            <Text style={[overStyle, { color: p.orange700 }]}>{t("searchHints.recent")}</Text>
+            <TodayPress accessibilityRole="button" accessibilityLabel={t("searchHints.clearA11y")} onPress={onClearRecents} pressedScale={0.94} style={s.clear}>
+              <Text style={[s.clearText, { color: p.ink500 }]}>{t("common.clear")}</Text>
             </TodayPress>
           </View>
           {recents.map((item) => (
             <View key={item} style={[s.recentRow, { borderBottomColor: p.sand400 }]}>
-              <TodayPress accessibilityRole="button" accessibilityLabel={`Search ${item}`} onPress={() => onPick(item)} pressedScale={PRESS} style={s.recentMain}>
+              <TodayPress accessibilityRole="button" accessibilityLabel={t("searchHints.searchA11y", { query: item })} onPress={() => onPick(item)} pressedScale={PRESS} style={s.recentMain}>
                 <Clock size={16} color={p.ink500} />
                 <Text style={[s.recentText, { color: p.ink800 }]} numberOfLines={1}>
                   {item}
                 </Text>
               </TodayPress>
-              <TodayPress accessibilityRole="button" accessibilityLabel={`Remove ${item}`} onPress={() => onRemoveRecent(item)} pressedScale={0.88} style={s.remove}>
+              <TodayPress accessibilityRole="button" accessibilityLabel={t("searchHints.removeA11y", { query: item })} onPress={() => onRemoveRecent(item)} pressedScale={0.88} style={s.remove}>
                 <X size={16} color={p.ink500} />
               </TodayPress>
             </View>

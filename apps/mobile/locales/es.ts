@@ -5,6 +5,9 @@ import { ugcEs } from "./ugc"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { playerErrorsEs } from "./playerErrors"
+import { shareSheetEs } from "./shareSheet"
+import { scriptSheetEs } from "./scriptSheet"
+import { searchHintsEs } from "./searchHints"
 import { harmoniumScreensEs } from "./harmoniumScreens"
 import { learnScreensEs } from "./learnScreens"
 import { kiirtanScreensEs } from "./kiirtanScreens"
@@ -1256,6 +1259,9 @@ export const es: Dictionary = {
   ...offlineEs,
   ...accountEs,
   ...playerErrorsEs,
+  ...shareSheetEs,
+  ...scriptSheetEs,
+  ...searchHintsEs,
   ...harmoniumScreensEs,
   ...learnScreensEs,
   ...kiirtanScreensEs,

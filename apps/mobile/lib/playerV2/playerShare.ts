@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import { songShareMessage, songShareUrl } from "@/lib/webLinks"
 import { contrastRatio, mixHex } from "@/lib/playerV2/coverTint"
 
@@ -15,10 +16,10 @@ import { contrastRatio, mixHex } from "@/lib/playerV2/coverTint"
 export type ShareBackground = "cover" | "forest" | "ink" | "photo"
 
 export const SHARE_BACKGROUNDS: ReadonlyArray<{ id: ShareBackground; label: string }> = [
-  { id: "cover", label: "Cover colour" },
-  { id: "forest", label: "Forest green" },
-  { id: "ink", label: "Night" },
-  { id: "photo", label: "Photo" },
+  { id: "cover", get label() { return t("shareSheet.bg.cover") } },
+  { id: "forest", get label() { return t("shareSheet.bg.forest") } },
+  { id: "ink", get label() { return t("shareSheet.bg.ink") } },
+  { id: "photo", get label() { return t("shareSheet.bg.photo") } },
 ]
 
 /** Black laid over a stock photo so white text on it keeps 4.5:1 even on a pure-white pixel. */
@@ -80,8 +81,8 @@ export function sharePalette(id: ShareBackground, tint: string): SharePalette {
 export type ShareMode = "song" | "words"
 
 export const SHARE_MODES: ReadonlyArray<{ id: ShareMode; label: string }> = [
-  { id: "song", label: "Song" },
-  { id: "words", label: "Words" },
+  { id: "song", get label() { return t("shareSheet.mode.song") } },
+  { id: "words", get label() { return t("shareSheet.mode.words") } },
 ]
 
 /** Kiirtan items have no lyrics, so they only offer "Song". So does a song whose lyrics are missing. */
@@ -149,13 +150,13 @@ export type ShareTargetId = "copy" | "whatsapp" | "telegram" | "instagramStories
  * that has no picture to send (the Kiirtan share sheet) leaves them out.
  */
 export const SHARE_TARGETS: ReadonlyArray<{ id: ShareTargetId; label: string; needsImage?: boolean }> = [
-  { id: "copy", label: "Copy link" },
+  { id: "copy", get label() { return t("shareSheet.target.copy") } },
   { id: "whatsapp", label: "WhatsApp" },
   { id: "telegram", label: "Telegram" },
   { id: "instagramStories", label: "Instagram Stories", needsImage: true },
   { id: "instagram", label: "Instagram" },
   { id: "facebook", label: "Facebook" },
-  { id: "more", label: "More" },
+  { id: "more", get label() { return t("shareSheet.target.more") } },
 ]
 
 export type SharePlatform = "ios" | "android" | "web"
@@ -211,7 +212,7 @@ export type ShareOutcome = "copied" | "copy-failed" | "opened" | "shared" | "dis
 
 /** Toast text for an outcome, or null when the other app or the system sheet already said it all. */
 export function shareToast(outcome: ShareOutcome): string | null {
-  if (outcome === "copied") return "Link copied"
-  if (outcome === "copy-failed") return "Could not copy the link"
+  if (outcome === "copied") return t("shareSheet.copied")
+  if (outcome === "copy-failed") return t("shareSheet.copyFailed")
   return null
 }

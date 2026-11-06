@@ -10,7 +10,7 @@ import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
 import { SCRIPT_ROWS, lyricLanguageRows } from "@/lib/languageSheet"
 import { TRANSLATION_COVERAGE_FIXTURE } from "@/lib/fixtures/translations"
-import { useLanguage } from "@/lib/i18n"
+import { useLanguage, useT } from "@/lib/i18n"
 import { effectiveTranslations } from "@/lib/songPage/lyricLanguages"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { MAX_TRANSLATIONS } from "@/lib/songPage/translations"
@@ -33,11 +33,12 @@ export default function ScriptTranslationsScreen() {
   const savedTranslations = useSongPageStore((st) => st.translations)
   const toggleTranslation = useSongPageStore((st) => st.toggleTranslation)
   const appLanguage = useLanguage()
+  const t = useT()
   // nothing chosen yet means the language of the app, and that is what the check shows
   const translations = useMemo(() => effectiveTranslations(savedTranslations, appLanguage), [savedTranslations, appLanguage])
   // The list is the one list of the player and the song page. What a language covers is per song, so the
   // sheet claims nothing about it (the preview shows its sample coverage).
-  const rows = useMemo(() => lyricLanguageRows(MOCKUP_DATA ? TRANSLATION_COVERAGE_FIXTURE : undefined), [])
+  const rows = useMemo(() => lyricLanguageRows(MOCKUP_DATA ? TRANSLATION_COVERAGE_FIXTURE : undefined), [appLanguage])
 
   const onClosed = useCallback(() => {
     if (router.canGoBack()) router.back()
@@ -47,8 +48,8 @@ export default function ScriptTranslationsScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style={statusBarStyleFor(resolved)} />
-      <SheetShell p={p} label="Script and translations" onClosed={onClosed}>
-        <SheetTitle p={p} label="Script" baseline />
+      <SheetShell p={p} label={t("scriptSheet.title")} onClosed={onClosed}>
+        <SheetTitle p={p} label={t("scriptSheet.script")} baseline />
         <Group p={p}>
           {SCRIPT_ROWS.filter((row) => (row.id !== "both" || script === "both") && !(MOCKUP_DATA && row.id === "both")).map((row) => {
             // The prototype has no Bengali script yet: it reads "not added yet" and cannot be picked.
@@ -58,7 +59,7 @@ export default function ScriptTranslationsScreen() {
                 key={row.id}
                 p={p}
                 name={row.name}
-                sub={notAdded ? "Bengali, not added yet" : row.sub}
+                sub={notAdded ? t("scriptSheet.bengaliSoon") : row.sub}
                 control="radio"
                 on={!notAdded && script === row.id}
                 dim={notAdded}
@@ -68,7 +69,7 @@ export default function ScriptTranslationsScreen() {
           })}
         </Group>
 
-        <SheetTitle p={p} label="Translation under each line" note={`Up to ${MAX_TRANSLATIONS}`} spaced baseline />
+        <SheetTitle p={p} label={t("scriptSheet.translation")} note={t("scriptSheet.upTo", { count: MAX_TRANSLATIONS })} spaced baseline />
         <Group p={p}>
           {rows.map((row, i) => (
             <LangRow
@@ -85,7 +86,7 @@ export default function ScriptTranslationsScreen() {
           ))}
         </Group>
         <SheetNote p={p}>
-          A song that does not have the language yet shows English and says so. Word meanings have their own language: pick it on the Words card of a song or in the player.
+          {t("scriptSheet.note")}
         </SheetNote>
         <DoneButton p={p} onPress={onClosed} />
       </SheetShell>

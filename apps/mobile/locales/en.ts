@@ -4,6 +4,9 @@ import { ugcEn } from "./ugc"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { playerErrorsEn } from "./playerErrors"
+import { shareSheetEn } from "./shareSheet"
+import { scriptSheetEn } from "./scriptSheet"
+import { searchHintsEn } from "./searchHints"
 import { harmoniumScreensEn } from "./harmoniumScreens"
 import { learnScreensEn } from "./learnScreens"
 import { kiirtanScreensEn } from "./kiirtanScreens"
@@ -1262,6 +1265,9 @@ export const en = {
   ...offlineEn,
   ...accountEn,
   ...playerErrorsEn,
+  ...shareSheetEn,
+  ...scriptSheetEn,
+  ...searchHintsEn,
   ...harmoniumScreensEn,
   ...learnScreensEn,
   ...kiirtanScreensEn,

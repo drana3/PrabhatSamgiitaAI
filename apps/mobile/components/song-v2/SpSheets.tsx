@@ -12,6 +12,7 @@ import { useDownloadState } from "@/hooks/useDownloadState"
 import { downloadPillLabel, type DownloadItem } from "@/lib/offline/downloadModel"
 
 import { SpIcon } from "./SpIcon"
+import { useT } from "@/lib/i18n"
 import { SpSheet } from "./SpSheet"
 import { note, over } from "./spType"
 import { SpMark, SpPill, SpPress } from "./SpUi"
@@ -41,9 +42,10 @@ export function ShTitle({
 }
 
 export function DoneLink({ t, onPress }: { t: SpTheme; onPress: () => void }) {
+  const tr = useT()
   return (
-    <SpPress onPress={onPress} accessibilityLabel="Done" style={styles.doneBtn}>
-      <Text style={{ fontFamily: amFonts.semi, fontSize: 15, color: t.ink800 }}>Done</Text>
+    <SpPress onPress={onPress} accessibilityLabel={tr("common.done")} style={styles.doneBtn}>
+      <Text style={{ fontFamily: amFonts.semi, fontSize: 15, color: t.ink800 }}>{tr("common.done")}</Text>
     </SpPress>
   )
 }

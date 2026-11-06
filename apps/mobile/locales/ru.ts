@@ -5,6 +5,9 @@ import { ugcRu } from "./ugc"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { playerErrorsRu } from "./playerErrors"
+import { shareSheetRu } from "./shareSheet"
+import { scriptSheetRu } from "./scriptSheet"
+import { searchHintsRu } from "./searchHints"
 import { harmoniumScreensRu } from "./harmoniumScreens"
 import { learnScreensRu } from "./learnScreens"
 import { kiirtanScreensRu } from "./kiirtanScreens"
@@ -1342,6 +1345,9 @@ export const ru: Dictionary = {
   ...offlineRu,
   ...accountRu,
   ...playerErrorsRu,
+  ...shareSheetRu,
+  ...scriptSheetRu,
+  ...searchHintsRu,
   ...harmoniumScreensRu,
   ...learnScreensRu,
   ...kiirtanScreensRu,

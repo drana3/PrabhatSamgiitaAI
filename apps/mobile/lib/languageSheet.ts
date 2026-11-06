@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 import type { FixtureCoverage } from "@/lib/fixtures/translations"
 import { LYRIC_LANGUAGES } from "@/lib/songPage/lyricLanguages"
 import type { ScriptChoice } from "@/lib/songPage/scripts"
@@ -10,16 +11,16 @@ import { shortCode } from "@/lib/songPage/translations"
 export type ScriptRow = { id: ScriptChoice; name: string; sub: string }
 
 export const SCRIPT_ROWS: readonly ScriptRow[] = [
-  { id: "roman", name: "Roman", sub: "Latin letters, for example Bandhu, Álo" },
-  { id: "devanagari", name: "देवनागरी", sub: "Devanagari" },
-  { id: "bengali", name: "বাংলা", sub: "Bengali" },
-  { id: "both", name: "Both", sub: "Roman and Devanagari together" },
+  { id: "roman", get name() { return t("scriptSheet.roman") }, get sub() { return t("scriptSheet.roman.sub") } },
+  { id: "devanagari", name: "देवनागरी", get sub() { return t("scriptSheet.devanagari.sub") } },
+  { id: "bengali", name: "বাংলা", get sub() { return t("scriptSheet.bengali.sub") } },
+  { id: "both", get name() { return t("scriptSheet.both") }, get sub() { return t("scriptSheet.both.sub") } },
 ]
 
 export function coverageText(coverage: FixtureCoverage | null): string {
-  if (coverage === "full") return "Lines and word meanings"
-  if (coverage === "lines") return "Lines only"
-  if (coverage === "none") return "Not added yet"
+  if (coverage === "full") return t("scriptSheet.cover.full")
+  if (coverage === "lines") return t("scriptSheet.cover.lines")
+  if (coverage === "none") return t("scriptSheet.cover.none")
   return ""
 }
 
@@ -51,14 +52,14 @@ export function lyricLanguageRows(coverage?: Record<string, FixtureCoverage>): L
   })
 }
 
-const SCRIPT_SUMMARY: Record<ScriptChoice, string> = {
-  roman: "Roman",
-  devanagari: "Devanagari",
-  bengali: "Bengali",
-  both: "Both scripts",
+const SCRIPT_SUMMARY: Record<ScriptChoice, () => string> = {
+  roman: () => t("scriptSheet.roman"),
+  devanagari: () => t("scriptSheet.summary.devanagari"),
+  bengali: () => t("scriptSheet.summary.bengali"),
+  both: () => t("scriptSheet.summary.both"),
 }
 
 /** "Roman + EN + RU": the value of the "Script and translations" row. */
 export function languageSummary(script: ScriptChoice, translations: readonly string[]): string {
-  return [SCRIPT_SUMMARY[script], ...translations.map(shortCode)].join(" + ")
+  return [SCRIPT_SUMMARY[script](), ...translations.map(shortCode)].join(" + ")
 }

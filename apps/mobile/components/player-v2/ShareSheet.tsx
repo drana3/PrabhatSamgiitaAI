@@ -23,6 +23,7 @@ import { TouchButton } from "@/components/player-v2/TouchButton"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useT } from "@/lib/i18n"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { isKiirtanNumber, recordingKindOfNumber, kiirtanIdForNumber } from "@/lib/kirtan/track"
 import { isDarkTheme } from "@/lib/navV2"
@@ -148,6 +149,7 @@ export function ShareSheet({ visible, theme, songNumber, title, performer, onSha
 
   // ---- the picture card (components/share): its own full-screen step above this sheet
   const tCard = useShareCardT()
+  const tr = useT()
   const [cardOpen, setCardOpen] = useState(false)
   useEffect(() => {
     if (!visible) setCardOpen(false)
@@ -176,7 +178,7 @@ export function ShareSheet({ visible, theme, songNumber, title, performer, onSha
 
   return (
     <>
-    <Sheet visible={visible} onClose={onClose} title="Share" theme={theme}>
+    <Sheet visible={visible} onClose={onClose} title={tr("common.share")} theme={theme}>
       <Animated.ScrollView
         ref={scrollRef}
         horizontal
@@ -216,12 +218,12 @@ export function ShareSheet({ visible, theme, songNumber, title, performer, onSha
       ) : (
         <View style={styles.toggleRow}>
           <View style={[styles.onlyMode, { borderColor: theme.textHeading, backgroundColor: theme.textHeading }]}>
-            <Text style={[styles.onlyModeText, { color: dark ? amColors.ink900 : amColors.white }]}>Song</Text>
+            <Text style={[styles.onlyModeText, { color: dark ? amColors.ink900 : amColors.white }]}>{tr("shareSheet.mode.song")}</Text>
           </View>
         </View>
       )}
 
-      <View style={styles.dots} accessibilityRole="radiogroup" accessibilityLabel="Card colour">
+      <View style={styles.dots} accessibilityRole="radiogroup" accessibilityLabel={tr("shareSheet.colourA11y")}>
         {backgrounds.map((b, i) => (
           <ColourDot
             key={b.id}
@@ -294,6 +296,7 @@ function SegmentedToggle({
   options: ReadonlyArray<{ id: ShareMode; label: string }>
   onChange: (m: ShareMode) => void
 }) {
+  const tr = useT()
   const reduce = useReducedMotion()
   const selectedIndex = Math.max(0, options.findIndex((o) => o.id === value))
   const x = useSharedValue(selectedIndex * TOGGLE_W)
@@ -305,7 +308,7 @@ function SegmentedToggle({
   const pillBg = theme.textHeading
   const onPill = dark ? amColors.ink900 : amColors.white
   return (
-    <View style={[styles.toggle, { borderColor: theme.line, backgroundColor: theme.card }]} accessibilityRole="radiogroup" accessibilityLabel="Card content">
+    <View style={[styles.toggle, { borderColor: theme.line, backgroundColor: theme.card }]} accessibilityRole="radiogroup" accessibilityLabel={tr("shareSheet.contentA11y")}>
       <Animated.View style={[styles.togglePill, { backgroundColor: pillBg, width: TOGGLE_W }, pill]} />
       {options.map((o) => {
         const on = o.id === value

@@ -1,6 +1,6 @@
 import type { SearchGroup, SearchResultItem } from "@/lib/unifiedSearch"
 import { reasonLabel } from "@/lib/unifiedSearchQuery"
-import { t } from "@/lib/i18n"
+import { getActiveLanguage, t, translatorFor, type TranslateFn } from "@/lib/i18n"
 
 /**
  * Copy and shape of the prototype's search overlay (Main.dc.html, SEARCH OVERLAY and the
@@ -28,6 +28,27 @@ export const SEARCH_FEELING_CHIPS = [
 ] as const
 
 export const SEARCH_INTRO = "A number, a name or first line, or how you feel. No need to choose first."
+
+const FEELING_KEYS = {
+  "Peaceful devotion": "searchHints.chip.peaceful",
+  Longing: "searchHints.chip.longing",
+  Dawn: "searchHints.chip.dawn",
+  Gratitude: "searchHints.chip.gratitude",
+  Surrender: "searchHints.chip.surrender",
+  Guidance: "searchHints.chip.guidance",
+  Nature: "searchHints.chip.nature",
+  Joy: "searchHints.chip.joy",
+} as const
+
+/** A chip's label in the screen language. The English text stays what is typed into the search. */
+export function feelingLabel(query: (typeof SEARCH_FEELING_CHIPS)[number], tr: TranslateFn = translatorFor(getActiveLanguage())): string {
+  return tr(FEELING_KEYS[query])
+}
+
+/** A hint row's label in the screen language. The example stays English (it is the search text). */
+export function hintRowLabel(id: (typeof SEARCH_HINT_ROWS)[number]["id"], tr: TranslateFn = translatorFor(getActiveLanguage())): string {
+  return tr(`searchHints.row.${id}`)
+}
 
 export const SEARCH_NO_MATCH = "No song matches that. Try the number, a word from the first line, or a feeling."
 
