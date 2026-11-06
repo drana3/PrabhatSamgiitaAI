@@ -1,5 +1,7 @@
 import { formatDate } from "@/lib/i18n/format"
 
+import { extraFestivalsFrom } from "./festivalDates2027"
+
 export type UpcomingFestival = {
   id: string
   title: string
@@ -239,6 +241,9 @@ function fixedDateYear(year: number): UpcomingFestival[] {
   return FIXED_DATE_OBSERVANCES.map(({ idBase, ...rest }) => ({ ...rest, id: `${idBase}-${year}`, year }))
 }
 
+/** Dates added from the official Ananda Marga lists (data/festivalDates2027.ts). */
+const EXTRA_DATE_FESTIVALS = extraFestivalsFrom(festivalCalendar2026)
+
 /**
  * Observances whose 2027 and 2028 dates are not known yet (lunar or festival dates). They are NOT
  * in the calendar and never shown. The list exists so the gap is explicit and testable.
@@ -246,6 +251,7 @@ function fixedDateYear(year: number): UpcomingFestival[] {
 export const FESTIVAL_DATES_TO_CONFIRM: ReadonlyArray<{ idBase: string; title: string; years: readonly number[] }> =
   festivalCalendar2026
     .filter((item) => !FIXED_DATE_OBSERVANCES.some((fixed) => item.id === `${fixed.idBase}-2026`))
+    .filter((item) => !EXTRA_DATE_FESTIVALS.some((extra) => extra.id === item.id.replace(/-2026$/, "-2027")))
     .map((item) => ({ idBase: item.id.replace(/-2026$/, ""), title: item.title, years: [2027, 2028] }))
 
 function byDate(a: UpcomingFestival, b: UpcomingFestival) {
@@ -257,6 +263,7 @@ export const festivalCalendar: UpcomingFestival[] = [
   ...festivalCalendar2026,
   ...fixedDateYear(2027),
   ...fixedDateYear(2028),
+  ...EXTRA_DATE_FESTIVALS,
 ].sort(byDate)
 
 function daysUntil(now: Date, month: number, day: number, year: number) {

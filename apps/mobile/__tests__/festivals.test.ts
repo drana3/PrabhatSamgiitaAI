@@ -37,28 +37,26 @@ describe("festival calendar", () => {
     expect(festivalCalendarExhausted(new Date(2026, 7, 3))).toBe(false)
   })
 
-  it("lists 2027 and 2028 only for observances held on the same civil date every year", () => {
+  it("lists 2027 and 2028 only for dates confirmed from the official lists", () => {
     const later = festivalCalendar.filter((item) => item.year > REVIEWED_FESTIVAL_YEAR)
-    expect(later.map((item) => `${item.year}-${item.month}-${item.day}`).sort()).toEqual([
-      "2027-1-25",
-      "2027-5-21",
-      "2027-9-14",
-      "2028-1-25",
-      "2028-5-21",
-      "2028-9-14",
-    ])
-    // none of the lunar or festival dates is guessed
-    expect(later.some((item) => /diipavalii|vijayotsava|vasantotsava|purnima/.test(item.id))).toBe(false)
+    // the three civil-date observances are always there
+    for (const id of ["ru-day", "baba-birthday", "ps-divasa"]) {
+      expect(later.some((item) => item.id === `${id}-2027`)).toBe(true)
+      expect(later.some((item) => item.id === `${id}-2028`)).toBe(true)
+    }
+    // dates without a confirmed or rule-derived source stay out (details: festivalDates2027.test.ts)
+    expect(later.some((item) => /vasantotsava|navavarsa|navanna|bhratrdvitiya/.test(item.id))).toBe(false)
     expect(festivalCalendar.every((item) => item.year <= FESTIVAL_CALENDAR_LAST_YEAR)).toBe(true)
   })
 
   it("keeps ids unique and names every observance that still needs a date", () => {
     expect(new Set(festivalCalendar.map((item) => item.id)).size).toBe(festivalCalendar.length)
     const pending = FESTIVAL_DATES_TO_CONFIRM.map((item) => item.idBase)
-    expect(pending).toContain("diipavalii")
-    expect(pending).toContain("vijayotsava")
+    expect(pending).toContain("vasantotsava")
+    expect(pending).toContain("navavarsa")
     expect(pending).not.toContain("ru-day")
     expect(pending).not.toContain("ps-divasa")
+    expect(pending).not.toContain("diipavalii")
     // nothing pending is also in the calendar for those years
     for (const item of FESTIVAL_DATES_TO_CONFIRM) {
       expect(festivalCalendar.some((entry) => entry.id === `${item.idBase}-2027`)).toBe(false)
