@@ -6,6 +6,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.discovery import router as discovery_router
 from app.api.v1.health import router as health_router
 from app.api.v1.inventory import router as inventory_router
+from app.api.v1.learn_sync import router as learn_sync_router
 from app.api.v1.media import router as media_router
 from app.api.v1.member_admin import router as member_admin_router
 from app.api.v1.members import router as members_router
@@ -26,6 +27,7 @@ router.include_router(search_router)
 router.include_router(recommendations_router)
 router.include_router(inventory_router)
 router.include_router(members_router)
+router.include_router(learn_sync_router)
 router.include_router(auth_router)
 router.include_router(member_admin_router)
 router.include_router(quiz_events_router)

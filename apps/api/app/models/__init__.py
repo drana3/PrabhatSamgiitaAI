@@ -25,6 +25,7 @@ from app.models.domain import (
 )
 from app.models.google_translate_usage import GoogleTranslateUsage
 from app.models.inventory import InventoryItem
+from app.models.learn_sync import MemberLearnProgress
 from app.models.media import Media
 from app.models.member import (
     CommunityTestimonial,
@@ -63,6 +64,7 @@ __all__ = [
     "InspirationStoryRecord",
     "InventoryItem",
     "Media",
+    "MemberLearnProgress",
     "MemberNotice",
     "Notation",
     "NotationCapture",

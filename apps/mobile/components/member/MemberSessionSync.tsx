@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { AppState, InteractionManager, Platform, type AppStateStatus } from "react-native"
 
 import "@/lib/account/ownership"
+import { startLearnSync, syncLearnNow } from "@/lib/learn/sync"
 import { hydrateLocalMemberEmail } from "@/lib/memberEmail"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { refreshMemberSession } from "@/lib/session"
@@ -31,6 +32,7 @@ export function MemberSessionSync() {
     const start = () => {
       if (cancelled) return
       unsub = attachSessionSync()
+      startLearnSync() // Learn progress between phones: pulls now, pushes after changes (lib/learn/sync.ts)
     }
 
     if (Platform.OS === "android") {
@@ -51,7 +53,10 @@ export function MemberSessionSync() {
 
   useEffect(() => {
     const onChange = (next: AppStateStatus) => {
-      if (next === "active") void syncIfSignedIn()
+      if (next === "active") {
+        void syncIfSignedIn()
+        void syncLearnNow()
+      }
     }
     const sub = AppState.addEventListener("change", onChange)
     return () => sub.remove()
