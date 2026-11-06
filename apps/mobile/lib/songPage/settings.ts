@@ -28,6 +28,8 @@ export type SongPageSettings = {
   textSize: TextSize
   /** the translation under the lyrics: on or off (the language is `translations`) */
   translationOn: boolean
+  /** the reading strip of the Lyrics tab: false = compact (a peek of two lines), true = the whole stanza open */
+  stripExpanded: boolean
   chordsOn: boolean
   instrument: ChordInstrument
   capo: number
@@ -41,6 +43,7 @@ export const DEFAULT_SONG_PAGE_SETTINGS: SongPageSettings = {
   wordLanguage: FOLLOW_APP,
   textSize: 1,
   translationOn: true,
+  stripExpanded: false,
   chordsOn: false,
   instrument: "guitar",
   capo: 0,
@@ -63,6 +66,7 @@ export function normalizeSettings(input: Partial<SongPageSettings> | null | unde
     wordLanguage: raw.wordLanguage === "off" ? FOLLOW_APP : normalizeLyricChoice(raw.wordLanguage),
     textSize: raw.textSize === 0 || raw.textSize === 2 ? raw.textSize : d.textSize,
     translationOn: typeof raw.translationOn === "boolean" ? raw.translationOn : d.translationOn,
+    stripExpanded: typeof raw.stripExpanded === "boolean" ? raw.stripExpanded : d.stripExpanded,
     chordsOn: typeof raw.chordsOn === "boolean" ? raw.chordsOn : d.chordsOn,
     instrument: raw.instrument === "harmonium" ? "harmonium" : "guitar",
     capo: clampCapo(typeof raw.capo === "number" ? raw.capo : d.capo),

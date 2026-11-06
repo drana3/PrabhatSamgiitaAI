@@ -400,3 +400,21 @@ route `app/song-v2/[songId].tsx`); the switcher, the old "Current" page and the 
   script, translation on or off and the translation language (`TextOptions.tsx`). Text size and the translation switch are kept
   on the device with the script and the language (`stores/songPageStore.ts`). The popover registers with `lib/sheetCover.ts`,
   closes on Back, Escape or a tap outside.
+
+### 12b. Update: the Lyrics tab is the "Reading strip" (board 5, variant G, Scroll mode)
+
+- The lyrics are clean and large, stanza by stanza, with no translation under the lines (`LyricsBody.tsx` -> `LyricsReader.tsx`).
+  The translation sits in a card above the mini-player and the safe area, `ReadingStrip.tsx`, drawn only while the Lyrics tab is
+  on screen, the lyrics are in view and no sheet or popover is open.
+- Scroll mode (default): the strip shows the stanza under the reader's eye (a line a bit above the middle of what the bars
+  leave, 42%). Tap a stanza: the strip pins to it ("Pinned"); tap it again, or scroll on (160 px, after 600 ms): back to Scroll.
+- Compact by default (label plus two fading lines); a tap or an upward drag opens the whole stanza. The drag is one to one, meets a
+  rubber band, the release lands by momentum projection with the finger's velocity in the spring. The choice is kept on the device
+  (`stripExpanded` in `songPageStore`). The card's height is animated (the one non-transform value: the card grows upward from a
+  fixed bottom edge).
+- Honesty (`lib/songPage/readingStrip.ts`, `splitTranslation`): by stanza only when the catalogue pairs the translation line by
+  line, or the translation has blank-line paragraphs as many as the stanzas (or as many as the non-refrain stanzas: a refrain then
+  shows the translation of its first time, marked). Everything else, which is the real catalogue today (wrapped lines, no blank
+  lines: PS 19, PS 1903), is shown whole as "Translation of the whole song", scrollable, with the quiet note "Translation is shown
+  for the whole song." under the lyrics. No translation, or the translation off in "Aa": no strip.
+

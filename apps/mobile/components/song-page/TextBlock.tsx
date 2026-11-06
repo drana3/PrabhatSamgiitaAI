@@ -7,6 +7,7 @@ import { usePageT } from "@/lib/songPage/pageCopy"
 
 import { CommentaryBody } from "./Commentary"
 import { LyricsBody } from "./LyricsBody"
+import { useReadingStore } from "./readingState"
 import type { PageUi } from "./state"
 import { TextOptionsButton } from "./TextOptions"
 import { Segmented, type SegItem } from "./ui"
@@ -26,6 +27,7 @@ const TAB_LABEL: Record<BlockTab, "songPage.tab.lyrics" | "songPage.tab.meaning"
  */
 export function TextBlock({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
   const tr = usePageT()
+  const reading = useReadingStore()
   const items: Array<SegItem<BlockTab>> = BLOCK_TABS.map((id) => ({ id, label: tr(TAB_LABEL[id]) }))
   const tab = model.facts.hasLyrics || ui.blockTab !== "words" ? ui.blockTab : "lyrics"
   return (
@@ -43,7 +45,7 @@ export function TextBlock({ t, model, ui }: { t: SpTheme; model: SongPageModel; 
         />
         <TextOptionsButton t={t} ui={ui} />
       </View>
-      <Animated.View key={tab} entering={FadeIn.duration(200)} style={styles.body}>
+      <Animated.View key={tab} entering={FadeIn.duration(200)} style={styles.body} onLayout={(event) => reading?.setBodyY(event.nativeEvent.layout.y)}>
         {tab === "lyrics" ? <LyricsBody t={t} model={model} ui={ui} /> : tab === "commentary" ? <CommentaryBody t={t} model={model} /> : <WordByWordBody t={t} model={model} ui={ui} />}
       </Animated.View>
     </View>

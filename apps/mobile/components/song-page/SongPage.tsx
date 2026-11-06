@@ -14,6 +14,8 @@ import { AboutSection } from "./About"
 import { ChordsSection } from "./Chords"
 import { Actions, FadeHero, fadeHeight, songTitle } from "./Hero"
 import { LearnButton } from "./LearnButton"
+import { ReadingProvider, useReadingStoreOfPage } from "./readingState"
+import { ReadingStrip } from "./ReadingStrip"
 import { PageSheets } from "./Sheets"
 import { Shell, ShellMessage, useBarHeight } from "./Shell"
 import { usePageUi } from "./state"
@@ -25,6 +27,8 @@ import { RecordingsSection, StorySection, VideoSection } from "./Watch"
 
 /** The room the Learn button adds under the title, for the height the compact bar waits for. */
 const LEARN_ROW = 64
+/** The air above the text block inside its place in the scroll (the first section's top padding). */
+const FIRST_PAD = 24
 
 /**
  * The song page: one scrolling page. A photo that fades into the page, the title, "Learn this song", the action row;
@@ -56,6 +60,8 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const heights = useRef<Record<string, number>>({})
   const heroH = useRef(0)
   const scrollRef = useRef<Animated.ScrollView | null>(null)
+  // the reading strip of the Lyrics tab follows the scroll: it is told where the text block is and how far the page moved
+  const reading = useReadingStoreOfPage()
 
   // a section's place is the hero plus the strip plus the heights above it (the web does not report a move)
   const topOf = useCallback((id: PageSection) => sectionTops(scrollOrder, heights.current, heroH.current + STRIP_HEIGHT)[anchorOf(id)] ?? 0, [scrollOrder])
@@ -73,12 +79,14 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [topOf, bar, ui.blockTab, ui.closeOptions, ui.setBlockTab],
   )
+  reading.base = () => topOf("lyrics") + FIRST_PAD
   const follow = useCallback(
     (y: number) => {
+      reading.setScroll(y)
       const current = activeSectionAt(scrollTabs, heights.current, heroH.current + STRIP_HEIGHT, y, bar)
       if (current) setActive((prev) => (prev === current ? prev : current))
     },
-    [scrollTabs, bar],
+    [scrollTabs, bar, reading],
   )
 
   const lit = stripActive(active, ui.blockTab)
@@ -86,7 +94,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const show = new Set<PageSection>(sections)
   const divider = <View style={[styles.divider, { backgroundColor: t.sand400 }]} />
 
-  return (
+  const page = (
     <Shell
       t={t}
       model={model}
@@ -109,6 +117,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       }}
       onMore={() => model.setSheet("actions")}
       onMenu={() => ui.setSheet("menu")}
+      overlay={<ReadingStrip t={t} model={model} ui={ui} />}
       sheets={<PageSheets t={t} model={model} ui={ui} sections={sections} onJump={jump} />}
     >
       <View onLayout={place("lyrics")} style={styles.first}>
@@ -142,10 +151,11 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       </View>
     </Shell>
   )
+  return <ReadingProvider store={reading}>{page}</ReadingProvider>
 }
 
 const styles = StyleSheet.create({
-  first: { paddingTop: 24 },
+  first: { paddingTop: FIRST_PAD },
   section: { paddingTop: 0 },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 20, marginBottom: 28, marginTop: 32 },
 })

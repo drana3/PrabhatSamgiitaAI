@@ -25,6 +25,8 @@ type SongPageState = SongPageSettings & {
   setTextSize: (size: TextSize) => void
   /** The translation under the lyrics, on or off. */
   setTranslationOn: (on: boolean) => void
+  /** The reading strip of the Lyrics tab: compact (false) or open (true), kept on the device. */
+  setStripExpanded: (open: boolean) => void
   setChordsOn: (on: boolean) => void
   setInstrument: (instrument: ChordInstrument) => void
   setCapo: (capo: number) => void
@@ -52,6 +54,7 @@ export const useSongPageStore = create<SongPageState>()(
       setWordLanguage: (code) => set({ wordLanguage: normalizeLyricChoice(code) === "off" ? FOLLOW_APP : normalizeLyricChoice(code) }),
       setTextSize: (textSize) => set({ textSize }),
       setTranslationOn: (translationOn) => set({ translationOn }),
+      setStripExpanded: (stripExpanded) => set({ stripExpanded }),
       setChordsOn: (chordsOn) => set({ chordsOn }),
       setInstrument: (instrument) => set({ instrument }),
       setCapo: (capo) => set({ capo: clampCapo(capo) }),
@@ -70,6 +73,7 @@ export const useSongPageStore = create<SongPageState>()(
         wordLanguage: s.wordLanguage,
         textSize: s.textSize,
         translationOn: s.translationOn,
+        stripExpanded: s.stripExpanded,
         chordsOn: s.chordsOn,
         instrument: s.instrument,
         capo: s.capo,
