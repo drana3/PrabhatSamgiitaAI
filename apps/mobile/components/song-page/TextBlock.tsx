@@ -9,7 +9,7 @@ import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { BLOCK_TABS, type BlockTab } from "@/lib/songPage/blockTabs"
-import { DOT_STEP, LYRICS_FOOT, PANELS_HEAD, PANEL_COUNT, PANEL_FOOT, buildFrame, panelIndexOf, panelTab } from "@/lib/songPage/blockPanels"
+import { DOT_STEP, LYRICS_FOOT, PANELS_HEAD, PANEL_COUNT, PANEL_FOOT, PANEL_TOP, buildFrame, panelIndexOf, panelTab } from "@/lib/songPage/blockPanels"
 import { usePageT } from "@/lib/songPage/pageCopy"
 
 import { CommentaryBody } from "./Commentary"
@@ -85,7 +85,7 @@ export function TextBlock({
   }, [controller, goTo])
   // where the lyrics begin inside the block: under the stage's header
   useEffect(() => {
-    reading?.setBodyY(PANELS_HEAD)
+    reading?.setBodyY(PANELS_HEAD + PANEL_TOP)
   }, [reading])
 
   const measure = (i: number) => (event: LayoutChangeEvent) => {
@@ -142,7 +142,7 @@ export function TextBlock({
                   importantForAccessibility={i === index ? "auto" : "no-hide-descendants"}
                 >
                   <Animated.View style={[styles.content, m.readStyle[i]]}>
-                    <View onLayout={measure(i)} style={{ paddingBottom: id === "lyrics" ? LYRICS_FOOT : PANEL_FOOT }}>
+                    <View onLayout={measure(i)} style={{ paddingTop: PANEL_TOP, paddingBottom: id === "lyrics" ? LYRICS_FOOT : PANEL_FOOT }}>
                       {id === "lyrics" ? <LyricsBody t={t} model={model} ui={ui} /> : id === "commentary" ? <CommentaryBody t={t} model={model} /> : <WordByWordBody t={t} model={model} ui={ui} />}
                     </View>
                   </Animated.View>
@@ -151,7 +151,8 @@ export function TextBlock({
             </Animated.View>
           </View>
         </GestureDetector>
-        {/* the text runs on under the stage's bottom edge: a soft end instead of a cut line */}
+        {/* the text runs on under the header and under the stage's bottom edge: a soft end instead of a cut line */}
+        <LinearGradient pointerEvents="none" colors={[t.sand200, `${t.sand200}00`]} style={styles.fadeTop} />
         <LinearGradient pointerEvents="none" colors={[`${t.sand200}00`, t.sand200]} style={styles.fade} />
       </Animated.View>
     </View>
@@ -170,6 +171,7 @@ const styles = StyleSheet.create({
   slot: { position: "absolute", top: 0, width: DOT_STEP, height: DOTS_H, alignItems: "center", justifyContent: "center" },
   dot: { width: 6, height: 6, borderRadius: 3 },
   mark: { position: "absolute", left: (DOT_STEP - 18) / 2, top: (DOTS_H - 6) / 2, width: 18, height: 6, borderRadius: 3 },
+  fadeTop: { position: "absolute", left: 0, right: 0, top: PANELS_HEAD, height: PANEL_TOP + 6 },
   fade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 32 },
   row: { position: "absolute", top: 0, left: 0, flexDirection: "row" },
   content: { position: "absolute", top: 0, left: 0, right: 0 },

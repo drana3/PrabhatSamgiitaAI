@@ -25,6 +25,8 @@ export const PANEL_COUNT = BLOCK_TABS.length
 
 /** The room the stage's header takes: the label row, the page dots. */
 export const PANELS_HEAD = 76
+/** The air above a panel's first line (the soft edge under the header fades into it). */
+export const PANEL_TOP = 10
 /** The air under a panel's last line, and under the Lyrics panel the room for the reading strip's compact card. */
 export const PANEL_FOOT = 28
 export const LYRICS_FOOT = 120
