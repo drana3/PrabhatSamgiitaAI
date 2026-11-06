@@ -1,5 +1,6 @@
 import { createElement, useEffect, useMemo, useRef, useState } from "react"
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import * as DocumentPicker from "expo-document-picker"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path } from "react-native-svg"
@@ -36,7 +37,7 @@ type PickedFile = { name: string; uri: string; size: number | null; type: string
 const LIMIT_MB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))
 
 /** What the person sees under the form when something is wrong. */
-type Problem = { form: SubmissionError } | { upload: UploadFailure } | "running"
+type Problem = { form: SubmissionError } | { upload: UploadFailure } | "running" | "picker"
 
 /** The server said a similar recording exists; the author decides whether theirs is different. */
 type SimilarAsk = { id: string; key: string; similar: RemoteBrief[] }
@@ -47,9 +48,8 @@ type SimilarAsk = { id: string; key: string; similar: RemoteBrief[] }
  * the rules change) and PUBLISHES. Nothing waits for a reviewer: the recording is live in the app the moment the upload
  * succeeds, the team looks afterwards and may remove it with a notice that says why (docs/kiirtan-publishing.md).
  * Only a signed-in person can upload. The same file twice is refused by the server, a similar one only asks first.
- * The file picker works in the web preview (an `<input type=file accept="audio/*">`). On a phone the
- * native picker needs expo-document-picker, which is not installed yet, so "Choose file" is off there.
- * TODO(native): add expo-document-picker and call getDocumentAsync({ type: "audio/*" }) in `choose`.
+ * The file picker is an `<input type=file accept="audio/*">` in the web preview and the system document picker
+ * (expo-document-picker, audio files only) on a phone.
  */
 export default function AddKirtanScreen() {
   const t = useT()
@@ -84,16 +84,31 @@ export default function AddKirtanScreen() {
     alive.current = false
   }, [])
 
-  const choose = () => {
-    if (isWeb) inputRef.current?.click()
+  const acceptFile = (next: PickedFile) => {
+    setFile(next)
+    setProblem(null)
+    // A good first title: the file name without its extension.
+    if (!title.trim()) setTitle(next.name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[-_]+/g, " ").trim())
+  }
+  const choose = async () => {
+    if (isWeb) {
+      inputRef.current?.click()
+      return
+    }
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "audio/*", multiple: false, copyToCacheDirectory: true })
+      if (result.canceled) return
+      const asset = result.assets[0]
+      if (!asset || !alive.current) return
+      acceptFile({ name: asset.name, uri: asset.uri, size: typeof asset.size === "number" ? asset.size : null, type: asset.mimeType ?? null })
+    } catch {
+      if (alive.current) setProblem("picker")
+    }
   }
   const onPicked = (picked: ({ name: string; type?: string; size?: number } & Blob) | null) => {
     if (!picked) return
     const uri = typeof URL !== "undefined" && URL.createObjectURL ? URL.createObjectURL(picked) : ""
-    setFile({ name: picked.name, uri, size: typeof picked.size === "number" ? picked.size : null, type: picked.type || null })
-    setProblem(null)
-    // A good first title: the file name without its extension.
-    if (!title.trim()) setTitle(picked.name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[-_]+/g, " ").trim())
+    acceptFile({ name: picked.name, uri, size: typeof picked.size === "number" ? picked.size : null, type: picked.type || null })
   }
 
   /** Sends the stored submission to the server and shows what came of it. */
@@ -177,7 +192,9 @@ export default function AddKirtanScreen() {
   const problemText =
     problem === "running"
       ? t("ugc.form.error.running")
-      : problem && "upload" in problem
+      : problem === "picker"
+        ? t("ugc.add.pickFailed")
+        : problem && "upload" in problem
         ? uploadErrorText(problem.upload)
         : formProblem === "format" || formProblem === "size"
           ? fileProblemText(formProblem)
@@ -187,7 +204,7 @@ export default function AddKirtanScreen() {
   const fileBad = formProblem === "file" || formProblem === "format" || formProblem === "size"
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.root, { backgroundColor: theme.page }]}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.root, { backgroundColor: theme.page }]}>
       <View style={[styles.bar, { paddingTop: top }]}>
         <View style={[styles.handle, { backgroundColor: theme.dark ? "rgba(255,255,255,0.22)" : amColors.sand400 }]} />
         <KPress accessibilityRole="button" accessibilityLabel={t("ugc.add.close")} onPress={close} pressedScale={0.9} outerStyle={styles.close} style={[styles.closeDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
@@ -241,16 +258,14 @@ export default function AddKirtanScreen() {
               <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: fileBad ? amColors.danger : theme.line }]}>
                 <PlayerIcon name="link" size={20} color={theme.textBody} />
                 <Text style={[styles.fileName, { color: file ? theme.textHeading : theme.textBody }]} numberOfLines={1}>
-                  {file ? file.name : isWeb ? t("ugc.add.noFile") : t("ugc.add.noPicker")}
+                  {file ? file.name : t("ugc.add.noFile")}
                 </Text>
                 <KPress
                   accessibilityRole="button"
                   accessibilityLabel={t("ugc.add.choose")}
-                  accessibilityState={{ disabled: !isWeb }}
-                  onPress={choose}
-                  disabled={!isWeb}
+                  onPress={() => void choose()}
                   pressedScale={0.94}
-                  style={[styles.pasteBtn, { backgroundColor: theme.peach, opacity: isWeb ? 1 : 0.45 }]}
+                  style={[styles.pasteBtn, { backgroundColor: theme.peach }]}
                 >
                   <Text style={[styles.pasteText, { color: theme.accent }]}>{file ? t("ugc.add.change") : t("ugc.add.choose")}</Text>
                 </KPress>
