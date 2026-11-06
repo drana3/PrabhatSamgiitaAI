@@ -46,13 +46,21 @@ from app.models.member import (
     UserPlaylistSong,
 )
 from app.models.notation import Notation
-from app.models.recordings import AuthorBlock, MemberNotice, Recording, RecordingReport
+from app.models.recordings import (
+    AuthorBlock,
+    MantraGroup,
+    MemberNotice,
+    Recording,
+    RecordingReport,
+    RecordingSimilarConfirm,
+)
 from app.models.sargam_capture import NotationCapture
 from app.models.song import Song
 
 __all__ = [
     "AiDailyUsage",
     "AuthorBlock",
+    "MantraGroup",
     "GoogleTranslateUsage",
     "AnalyticsDaily",
     "Base",
@@ -80,6 +88,7 @@ __all__ = [
     "RecommendationAudit",
     "Recording",
     "RecordingReport",
+    "RecordingSimilarConfirm",
     "ReflectionQuote",
     "Season",
     "Song",

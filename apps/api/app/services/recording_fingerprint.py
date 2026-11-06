@@ -16,12 +16,16 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
+
+logger = logging.getLogger(__name__)
+_warned_missing = False
 
 # Mean share of equal bits (over the best alignment) from which two recordings count as "similar".
 SIMILAR_THRESHOLD = 0.80
@@ -81,10 +85,42 @@ def fpcalc_available(path: str = "fpcalc") -> bool:
     return shutil.which(path) is not None
 
 
+def similar_matches(
+    mine: NDArray[np.uint32],
+    others: list[tuple[str, str]],
+    *,
+    threshold: float = SIMILAR_THRESHOLD,
+    limit: int = 3,
+) -> list[tuple[str, float]]:
+    """Of `(id, encoded fingerprint)` pairs, those close to `mine`, best first (id, score).
+
+    A damaged fingerprint is skipped, never an error. The cost is linear in the library size.
+    """
+    scored: list[tuple[str, float]] = []
+    for ident, encoded in others:
+        if not encoded:
+            continue
+        try:
+            score = similarity(mine, decode_fingerprint(encoded))
+        except (ValueError, TypeError):
+            continue
+        if score >= threshold:
+            scored.append((ident, score))
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+    return scored[:limit]
+
+
 async def compute_fingerprint(path: Path, fpcalc_path: str = "fpcalc") -> Fingerprint | None:
     """Run `fpcalc -raw -json`. None when fpcalc is missing, fails, times out or returns nothing."""
+    global _warned_missing
     binary = shutil.which(fpcalc_path)
     if binary is None:
+        if not _warned_missing:
+            _warned_missing = True
+            logger.warning(
+                "fpcalc (Chromaprint) is not installed: uploads are not compared by sound, "
+                "only by SHA-256. Install libchromaprint-tools or set RECORDING_FPCALC_PATH."
+            )
         return None
     try:
         process = await asyncio.create_subprocess_exec(
@@ -97,8 +133,14 @@ async def compute_fingerprint(path: Path, fpcalc_path: str = "fpcalc") -> Finger
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
+    except OSError:
+        return None
+    try:
         stdout, _ = await asyncio.wait_for(process.communicate(), timeout=FPCALC_TIMEOUT)
-    except (TimeoutError, OSError):
+    except TimeoutError:
+        process.kill()
+        return None
+    except OSError:
         return None
     if process.returncode != 0:
         return None

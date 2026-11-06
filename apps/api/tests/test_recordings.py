@@ -10,6 +10,7 @@ import os
 import stat
 import time
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -32,7 +33,14 @@ from app.core.db import get_session
 from app.core.middleware import RequestContextMiddleware
 from app.core.security import require_admin
 from app.models import Base, UserAccount
-from app.models.recordings import AuthorBlock, MemberNotice, Recording, RecordingReport
+from app.models.recordings import (
+    AuthorBlock,
+    MantraGroup,
+    MemberNotice,
+    Recording,
+    RecordingReport,
+    RecordingSimilarConfirm,
+)
 from app.services import recording_fingerprint as fingerprints
 from app.services import recordings as service
 from app.services.recording_storage import (
@@ -365,12 +373,38 @@ def mp3(seed: int = 0, extra: bytes = b"") -> bytes:
 
 @pytest_asyncio.fixture
 async def world(tmp_path: Path) -> AsyncIterator[World]:
-    engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-    )
+    async with build_world(tmp_path, file_database=False) as built:
+        yield built
+
+
+@pytest_asyncio.fixture
+async def file_world(tmp_path: Path) -> AsyncIterator[World]:
+    """Like `world`, but on a SQLite FILE: every request gets its own connection, so two requests
+    at the same moment really race (the shared in-memory connection of `world` would hide that).
+    """
+    async with build_world(tmp_path, file_database=True) as built:
+        yield built
+
+
+@asynccontextmanager
+async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[World]:
+    if file_database:
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'race.db'}")
+    else:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+        )
     tables = [
         cast(Table, m.__table__)
-        for m in (UserAccount, Recording, RecordingReport, AuthorBlock, MemberNotice)
+        for m in (
+            UserAccount,
+            MantraGroup,
+            Recording,
+            RecordingReport,
+            RecordingSimilarConfirm,
+            AuthorBlock,
+            MemberNotice,
+        )
     ]
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
@@ -579,7 +613,7 @@ async def test_an_exact_duplicate_is_blocked_with_a_link_to_the_existing_one(wor
     detail = early.json()["detail"]
     assert detail["code"] == "duplicate"
     assert detail["duplicate_of"]["id"] == first["id"]
-    assert "already in the app" in detail["message"]
+    assert detail["message"] == "This file is already in the library."
     # Late check on the stored bytes (the client did not send a hash).
     late = await world.publish("b", data)
     assert late.status_code == 409
@@ -602,7 +636,7 @@ async def test_a_similar_recording_only_warns_and_the_author_can_confirm(world: 
     assert warn.status_code == 409
     detail = warn.json()["detail"]
     assert detail["code"] == "similar_recording"
-    assert detail["message"] == "A similar recording exists. Is yours different?"
+    assert detail["message"].startswith("Sounds like a recording already in the library")
     assert detail["similar"][0]["id"] == first["id"]
     assert await world.scalar(select(Recording).where(Recording.title == "Mine")) is None
 

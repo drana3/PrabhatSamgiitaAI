@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     recording_terms_version: str = Field(default="2026-11", alias="RECORDING_TERMS_VERSION")
     recording_flag_threshold: int = Field(default=3, alias="RECORDING_FLAG_THRESHOLD", ge=1)
     recording_fpcalc_path: str = Field(default="fpcalc", alias="RECORDING_FPCALC_PATH")
+    # How many recordings one member may add in 24 hours (docs/kiirtan-publishing.md, "Duplicates").
+    recording_uploads_per_day: int = Field(default=20, alias="RECORDING_UPLOADS_PER_DAY", ge=1)
     # S3-compatible storage (Cloudflare R2). All empty until Dada creates the bucket.
     recording_s3_endpoint: str | None = Field(default=None, alias="RECORDING_S3_ENDPOINT")
     recording_s3_bucket: str | None = Field(default=None, alias="RECORDING_S3_BUCKET")

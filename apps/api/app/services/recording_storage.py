@@ -69,6 +69,10 @@ class RecordingStorage(Protocol):
 
     async def delete(self, key: str) -> None: ...
 
+    async def store_file(self, key: str, source: Path, content_type: str) -> None:
+        """Put a local file at `key` (the bulk import; the phone uploads with a presigned URL)."""
+        ...
+
     def public_url(self, key: str) -> str: ...
 
 
@@ -209,6 +213,11 @@ class LocalDiskStorage:
 
     async def delete(self, key: str) -> None:
         self.path_for(key).unlink(missing_ok=True)
+
+    async def store_file(self, key: str, source: Path, content_type: str) -> None:
+        target = self.path_for(key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
 
     def public_url(self, key: str) -> str:
         return f"{self.api_base_url.rstrip('/')}/api/v1/recordings/media/{key}"
@@ -374,6 +383,19 @@ class S3Storage:
         response = await self._request("DELETE", self._url("DELETE", key, 120))
         if response.status_code >= 400 and response.status_code != 404:
             raise StorageError(f"Storage refused the request ({response.status_code})")
+
+    async def store_file(self, key: str, source: Path, content_type: str) -> None:
+        url = self._url("PUT", key, 900, {"content-type": content_type})
+        data = source.read_bytes()
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
+                response = await client.put(
+                    url, content=data, headers={"Content-Type": content_type}
+                )
+        except httpx.HTTPError as exc:
+            raise StorageError("Storage is not reachable") from exc
+        if response.status_code >= 400:
+            raise StorageError(f"Storage refused the upload ({response.status_code})")
 
     def public_url(self, key: str) -> str:
         if not self.public_base_url:

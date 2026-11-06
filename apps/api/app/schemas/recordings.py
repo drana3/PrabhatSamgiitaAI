@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 Kind = Literal["kiirtan", "bhajan"]
 Status = Literal["published", "removed", "flagged"]
-ReportReason = Literal["copyright", "offensive", "wrong_info", "other"]
+ReportReason = Literal["copyright", "offensive", "wrong_info", "duplicate", "other"]
 AdminFilter = Literal["new", "flagged", "removed", "all"]
 
 
@@ -37,7 +38,12 @@ class RecordingCreate(BaseModel):
     by_author: bool = False
     terms_accepted: bool
     terms_version: str = Field(min_length=1, max_length=32)
-    # The uploader saw "A similar recording exists. Is yours different?" and said yes.
+    # The chant, as typed (the app suggests titles already in the library). Empty: no group.
+    mantra: str | None = Field(default=None, max_length=200)
+    year: int | None = Field(default=None, ge=1800, le=2200)
+    # The uploader saw "Sounds like a recording already in the library" and said theirs is a
+    # different performance. `confirm_similar` is the older name of the same flag.
+    confirm_different: bool = False
     confirm_similar: bool = False
     duration_sec: int | None = Field(default=None, ge=1, le=60 * 60 * 6)
 
@@ -48,6 +54,8 @@ class RecordingBrief(BaseModel):
     title: str
     author: str
     audio_url: str
+    mantra: str | None = None
+    mantra_id: str | None = None
 
 
 class RecordingOut(BaseModel):
@@ -66,10 +74,14 @@ class RecordingOut(BaseModel):
     thumbnail_url: str | None
     published_at: datetime | None
     created_at: datetime
+    mantra: str | None = None
+    mantra_id: str | None = None
+    year: int | None = None
     # Only filled for the owner (`/recordings/mine`) and for admins.
     removed_reason: str | None = None
     removed_at: datetime | None = None
     duplicate_of: str | None = None
+    removed_duplicate_of: str | None = None
 
 
 class RecordingList(BaseModel):
@@ -78,7 +90,7 @@ class RecordingList(BaseModel):
 
 
 class DuplicateDetail(BaseModel):
-    code: Literal["duplicate", "removed_duplicate", "similar_recording"]
+    code: Literal["duplicate", "removed_duplicate", "similar_recording", "own_duplicate"]
     message: str
     duplicate_of: RecordingBrief | None = None
     similar: list[RecordingBrief] = Field(default_factory=list)
@@ -155,3 +167,52 @@ class RemoveRequest(BaseModel):
 
 class ReviewRequest(BaseModel):
     reviewer: str | None = Field(default=None, max_length=255)
+
+
+class DuplicateOfRequest(BaseModel):
+    """Admin: this recording is a copy of `original_id`; remove it and tell the author."""
+
+    original_id: UUID
+    reviewer: str | None = Field(default=None, max_length=255)
+
+
+class DiscardRequest(BaseModel):
+    """The author gave up after the "similar recording" question: drop the stored file."""
+
+    key: str = Field(min_length=10, max_length=300)
+
+
+# --- mantras -------------------------------------------------------------------------------
+
+
+class MantraOut(BaseModel):
+    id: str
+    kind: Kind
+    title: str
+    versions: int
+    plays: int = 0
+
+
+class MantraList(BaseModel):
+    items: list[MantraOut]
+    total: int
+
+
+class MantraVersions(BaseModel):
+    mantra: MantraOut
+    items: list[RecordingOut]
+    total: int
+
+
+class MantraLookup(BaseModel):
+    """What the upload form shows under the mantra field: how many versions exist already."""
+
+    title: str
+    mantra: MantraOut | None
+    versions: int
+
+
+class MantraMergeRequest(BaseModel):
+    source_id: UUID
+    target_id: UUID
+    title: str | None = Field(default=None, max_length=200)

@@ -18,6 +18,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -33,15 +34,47 @@ RECORDING_KINDS = ("kiirtan", "bhajan")
 RECORDING_STATUSES = ("published", "removed", "flagged")
 KIRTAN_TYPES = ("bnk", "lila", "festival", "other")
 BHAJAN_TYPES = ("morning", "evening", "devotional", "other")
-REPORT_REASONS = ("copyright", "offensive", "wrong_info", "other")
+REPORT_REASONS = ("copyright", "offensive", "wrong_info", "duplicate", "other")
 
 # JSONB on Postgres, plain JSON elsewhere (the tests run on SQLite).
 PortableJSON = JSON().with_variant(JSONB(), "postgresql")
 
 
+class MantraGroup(Base, TimestampMixin):
+    """One mantra (a chant), the common home of its performances ("versions").
+
+    The key is the normalised title (lower case, no diacritics, no punctuation, no spaces, see
+    `app.services.mantras.mantra_key`), so "Baba Nam Kevalam" and "Bábá Nám Kevalam" are one group.
+    A merged group stays as an alias (`merged_into_id`) so the old spelling still finds the target.
+    """
+
+    __tablename__ = "mantra_groups"
+    __table_args__ = (
+        UniqueConstraint("kind", "key", name="uq_mantra_groups_kind_key"),
+        CheckConstraint("kind IN ('kiirtan', 'bhajan')", name="ck_mantra_groups_kind"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    kind: Mapped[str] = mapped_column(
+        String(16), default="kiirtan", server_default="kiirtan", nullable=False
+    )
+    key: Mapped[str] = mapped_column(String(200), nullable=False)
+    # The words as the first uploader typed them (shown in lists and suggestions).
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    merged_into_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("mantra_groups.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+
 class Recording(Base, TimestampMixin):
     __tablename__ = "recordings"
     __table_args__ = (
+        # One file, one recording, removed ones included (a removed file must not come back).
+        # Also what makes two simultaneous uploads of the same bytes safe.
+        Index("ix_recordings_audio_sha256", "audio_sha256", unique=True),
         CheckConstraint("kind IN ('kiirtan', 'bhajan')", name="ck_recordings_kind"),
         CheckConstraint(
             "status IN ('published', 'removed', 'flagged')", name="ck_recordings_status"
@@ -89,7 +122,7 @@ class Recording(Base, TimestampMixin):
     audio_url: Mapped[str] = mapped_column(Text, nullable=False)
     audio_mime: Mapped[str | None] = mapped_column(String(100))
     audio_bytes: Mapped[int | None] = mapped_column(BigInteger)
-    audio_sha256: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    audio_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     # Chromaprint raw fingerprint (base64 of big-endian uint32 values); null when fpcalc is missing.
     fingerprint: Mapped[str | None] = mapped_column(Text)
     thumbnail_url: Mapped[str | None] = mapped_column(Text)
@@ -106,9 +139,25 @@ class Recording(Base, TimestampMixin):
     removed_reason: Mapped[str | None] = mapped_column(Text)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     removed_by: Mapped[str | None] = mapped_column(String(255))
+    # Confirmed by the uploader as "a different performance" of this similar recording.
     duplicate_of: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
     )
+    # The team removed it as a duplicate of this recording (set together with the removal).
+    removed_duplicate_of: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # The mantra (chant) as the uploader typed it, and its group ("versions of one mantra").
+    mantra_title: Mapped[str | None] = mapped_column(String(200))
+    mantra_group_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("mantra_groups.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    # Year of the performance when known (the bulk import knows it; an upload may leave it empty).
+    year: Mapped[int | None] = mapped_column(Integer)
 
 
 class RecordingReport(Base, TimestampMixin):
@@ -118,7 +167,7 @@ class RecordingReport(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("recording_id", "reporter_key", name="uq_recording_reports_once"),
         CheckConstraint(
-            "reason IN ('copyright', 'offensive', 'wrong_info', 'other')",
+            "reason IN ('copyright', 'offensive', 'wrong_info', 'duplicate', 'other')",
             name="ck_recording_reports_reason",
         ),
     )
@@ -138,6 +187,31 @@ class RecordingReport(Base, TimestampMixin):
     comment: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(
         String(16), default="new", server_default="new", nullable=False
+    )
+
+
+class RecordingSimilarConfirm(Base, TimestampMixin):
+    """An uploader said: "this file is a different performance" of a similar recording.
+
+    Remembered per file (SHA-256) and per similar recording, so the same warning is not asked again
+    for the same pair (a second publish call of the same file, a retry after a dropped connection).
+    """
+
+    __tablename__ = "recording_similar_confirms"
+    __table_args__ = (
+        UniqueConstraint("audio_sha256", "other_id", name="uq_recording_similar_confirms_pair"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    audio_sha256: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    other_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recordings.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    member_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("user_accounts.id", ondelete="SET NULL"), nullable=True
     )
 
 

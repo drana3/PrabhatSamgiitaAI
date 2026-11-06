@@ -15,7 +15,7 @@ import tempfile
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -23,6 +23,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -33,6 +34,7 @@ from app.models.recordings import (
     MemberNotice,
     Recording,
     RecordingReport,
+    RecordingSimilarConfirm,
 )
 from app.schemas.recordings import (
     AdminRecordingOut,
@@ -41,11 +43,13 @@ from app.schemas.recordings import (
     RecordingCreate,
     RecordingOut,
 )
+from app.services.mantras import clean_mantra, get_or_create_group, mantra_key
 from app.services.recording_fingerprint import (
     SIMILAR_THRESHOLD,
     compute_fingerprint,
     decode_fingerprint,
     sha256_of_file,
+    similar_matches,
     similarity,
 )
 from app.services.recording_storage import (
@@ -56,6 +60,8 @@ from app.services.recording_storage import (
 )
 
 VISIBLE = ("published", "flagged")
+ALREADY_IN_LIBRARY = "This file is already in the library."
+DAILY_LIMIT_CODE = "upload_daily_limit"
 KIND_WORD = {"kiirtan": "Kiirtan", "bhajan": "Bhajan"}
 APPEAL_LINE = (
     "If you think this was a mistake, write to us from the app (Contact us) and we will look "
@@ -106,6 +112,8 @@ def _brief(recording: Recording) -> RecordingBrief:
         title=recording.title,
         author=recording.author,
         audio_url=recording.audio_url,
+        mantra=recording.mantra_title,
+        mantra_id=str(recording.mantra_group_id) if recording.mantra_group_id else None,
     )
 
 
@@ -126,9 +134,17 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         thumbnail_url=recording.thumbnail_url,
         published_at=recording.published_at,
         created_at=recording.created_at,
+        mantra=recording.mantra_title,
+        mantra_id=str(recording.mantra_group_id) if recording.mantra_group_id else None,
+        year=recording.year,
         removed_reason=recording.removed_reason if owner else None,
         removed_at=recording.removed_at if owner else None,
         duplicate_of=str(recording.duplicate_of) if owner and recording.duplicate_of else None,
+        removed_duplicate_of=(
+            str(recording.removed_duplicate_of)
+            if owner and recording.removed_duplicate_of
+            else None
+        ),
     )
 
 
@@ -171,7 +187,6 @@ async def exact_duplicate(session: AsyncSession, sha256: str) -> Recording | Non
 
 
 def duplicate_detail(existing: Recording) -> DuplicateDetail:
-    kind = KIND_WORD.get(existing.kind, "recording")
     if existing.status == "removed":
         return DuplicateDetail(
             code="removed_duplicate",
@@ -184,32 +199,128 @@ def duplicate_detail(existing: Recording) -> DuplicateDetail:
         )
     return DuplicateDetail(
         code="duplicate",
-        message=f"This {kind} is already in the app. Open the existing recording instead.",
+        message=ALREADY_IN_LIBRARY,
         duplicate_of=_brief(existing),
     )
 
 
 async def similar_recordings(
-    session: AsyncSession, fingerprint: str, *, limit: int = 3
+    session: AsyncSession,
+    fingerprint: str,
+    *,
+    limit: int = 3,
+    sha256: str | None = None,
 ) -> list[tuple[Recording, float]]:
-    """Visible recordings whose audio fingerprint is close to this one, best first."""
+    """Visible recordings whose audio fingerprint is close to this one, best first.
+
+    With `sha256` (the new file's hash) the pairs the uploader already confirmed as "a different
+    performance" are left out, so the same warning does not come back for the same pair.
+    """
     mine = decode_fingerprint(fingerprint)
     rows = (
-        await session.scalars(
-            select(Recording).where(
+        await session.execute(
+            select(Recording.id, Recording.fingerprint).where(
                 Recording.fingerprint.is_not(None), Recording.status.in_(VISIBLE)
             )
         )
     ).all()
-    scored: list[tuple[Recording, float]] = []
+    confirmed = await confirmed_pairs(session, sha256) if sha256 else set()
+    matches = similar_matches(
+        mine,
+        [(str(ident), data) for ident, data in rows if data and ident not in confirmed],
+        threshold=SIMILAR_THRESHOLD,
+        limit=limit,
+    )
+    found: list[tuple[Recording, float]] = []
+    for ident, score in matches:
+        row = await session.get(Recording, UUID(ident))
+        if row is not None:
+            found.append((row, score))
+    return found
+
+
+async def confirmed_pairs(session: AsyncSession, sha256: str) -> set[UUID]:
+    """Recordings the uploader of this file already called "different" (no second warning)."""
+    return set(
+        (
+            await session.scalars(
+                select(RecordingSimilarConfirm.other_id).where(
+                    RecordingSimilarConfirm.audio_sha256 == sha256.lower()
+                )
+            )
+        ).all()
+    )
+
+
+async def remember_confirmed(
+    session: AsyncSession, *, sha256: str, member_id: UUID, others: Sequence[Recording]
+) -> None:
+    """Store "this file is a different performance than these" and commit it at once."""
+    known = await confirmed_pairs(session, sha256)
+    for other in others:
+        if other.id not in known:
+            session.add(
+                RecordingSimilarConfirm(
+                    audio_sha256=sha256.lower(), other_id=other.id, member_id=member_id
+                )
+            )
+    await session.commit()
+
+
+async def own_duplicate(
+    session: AsyncSession, *, member_id: UUID, title: str, fingerprint: str
+) -> Recording | None:
+    """The same author's visible recording with the same title and the same sound.
+
+    A member cannot add one performance twice under one title, whatever the file bytes are.
+    Needs the fingerprint: without it (fpcalc missing) nothing is compared.
+    """
+    wanted = mantra_key(title)
+    mine = decode_fingerprint(fingerprint)
+    rows = (
+        await session.scalars(
+            select(Recording).where(
+                Recording.author_id == member_id,
+                Recording.status.in_(VISIBLE),
+                Recording.fingerprint.is_not(None),
+            )
+        )
+    ).all()
     for row in rows:
-        if not row.fingerprint:
+        if mantra_key(row.title) != wanted or not row.fingerprint:
             continue
-        score = similarity(mine, decode_fingerprint(row.fingerprint))
-        if score >= SIMILAR_THRESHOLD:
-            scored.append((row, score))
-    scored.sort(key=lambda pair: pair[1], reverse=True)
-    return scored[:limit]
+        if similarity(mine, decode_fingerprint(row.fingerprint)) >= SIMILAR_THRESHOLD:
+            return row
+    return None
+
+
+# --------------------------------------------------------------------------- daily allowance
+
+
+async def uploads_in_last_day(session: AsyncSession, member_id: UUID) -> int:
+    since = now_utc() - timedelta(hours=24)
+    total = await session.scalar(
+        select(func.count())
+        .select_from(Recording)
+        .where(Recording.author_id == member_id, Recording.published_at >= since)
+    )
+    return int(total or 0)
+
+
+async def ensure_daily_allowance(
+    session: AsyncSession, member_id: UUID, settings: Settings
+) -> None:
+    """At most `recording_uploads_per_day` per member in 24 hours (removed ones count)."""
+    limit = settings.recording_uploads_per_day
+    if await uploads_in_last_day(session, member_id) >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"You can add up to {limit} recordings a day. "
+                "Please come back tomorrow to add more. Thank you for sharing."
+            ),
+            headers={"X-Error-Code": DAILY_LIMIT_CODE},
+        )
 
 
 # --------------------------------------------------------------------------- publish
@@ -267,7 +378,13 @@ async def create_recording(
     member_name: str,
     payload: RecordingCreate,
 ) -> tuple[Recording, list[tuple[Recording, float]]]:
-    """Publish a recording at once. Returns it with the similar recordings the author confirmed."""
+    """Publish a recording at once. Returns it with the similar recordings the author confirmed.
+
+    The checks, in order: terms, ownership of the key, daily allowance, the file itself (type,
+    size), the SAME file (SHA-256, blocks), the author's own copy (title + sound, blocks), a
+    SIMILAR sound (Chromaprint, warns until `confirm_different`). Then the row is inserted;
+    if two uploads of the same bytes race, the unique index on the hash lets only one win.
+    """
     if not payload.terms_accepted:
         raise HTTPException(status_code=422, detail="Please accept the content rules first.")
     if not key_belongs_to(payload.key, str(member_id)):
@@ -277,6 +394,7 @@ async def create_recording(
     title = clean_text(payload.title, 200)
     if not title:
         raise HTTPException(status_code=422, detail="Add a title.")
+    await ensure_daily_allowance(session, member_id, settings)
 
     info = await inspect_stored_file(storage, payload.key, settings)
     existing = await exact_duplicate(session, info.sha256)
@@ -286,15 +404,33 @@ async def create_recording(
 
     similar: list[tuple[Recording, float]] = []
     if info.fingerprint:
-        similar = await similar_recordings(session, info.fingerprint)
-    if similar and not payload.confirm_similar:
+        own = await own_duplicate(
+            session, member_id=member_id, title=title, fingerprint=info.fingerprint
+        )
+        if own is not None:
+            await storage.delete(payload.key)
+            detail = DuplicateDetail(
+                code="own_duplicate",
+                message="You already added this recording. It is in your uploads.",
+                duplicate_of=_brief(own),
+            )
+            raise HTTPException(status_code=409, detail=detail.model_dump())
+        similar = await similar_recordings(session, info.fingerprint, sha256=info.sha256)
+    confirmed = payload.confirm_different or payload.confirm_similar
+    if similar and not confirmed:
         detail = DuplicateDetail(
             code="similar_recording",
-            message="A similar recording exists. Is yours different?",
+            message="Sounds like a recording already in the library. Is yours different?",
             similar=[_brief(row) for row, _ in similar],
         )
         raise HTTPException(status_code=409, detail=detail.model_dump())
+    if similar and confirmed:
+        # Remember at once: if the rest fails, a retry of this file is not asked again.
+        await remember_confirmed(
+            session, sha256=info.sha256, member_id=member_id, others=[row for row, _ in similar]
+        )
 
+    group = await get_or_create_group(session, payload.kind, payload.mantra)
     moment = now_utc()
     recording = Recording(
         kind=payload.kind,
@@ -316,9 +452,21 @@ async def create_recording(
         terms_version=payload.terms_version,
         published_at=moment,
         duplicate_of=similar[0][0].id if similar else None,
+        mantra_title=(clean_mantra(payload.mantra) or None) if group else None,
+        mantra_group_id=group.id if group else None,
+        year=payload.year,
     )
     session.add(recording)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # Two uploads of the same bytes at the same moment: the unique index let the other one win.
+        await session.rollback()
+        winner = await exact_duplicate(session, info.sha256)
+        if winner is None:
+            raise
+        await storage.delete(payload.key)
+        raise HTTPException(status_code=409, detail=duplicate_detail(winner).model_dump()) from None
     await session.refresh(recording)
     return recording, similar
 
@@ -434,9 +582,23 @@ def removal_notice(recording: Recording, reason: str) -> tuple[str, str, dict[st
     return title, body, payload
 
 
+def duplicate_reason(original: Recording) -> str:
+    """The removal reason the author reads when the team marks a recording as a duplicate."""
+    by = f" by {original.author}" if original.author else ""
+    return f"It duplicates “{original.title}”{by}, which is already in the library"
+
+
 async def remove_recording(
-    session: AsyncSession, recording: Recording, *, reason: str, by: str
+    session: AsyncSession,
+    recording: Recording,
+    *,
+    reason: str,
+    by: str,
+    duplicate_of: Recording | None = None,
 ) -> MemberNotice | None:
+    """Take a recording down. With `duplicate_of` it is removed as a copy of that recording:
+    the notice points at the original and the plays move to it (the count stays true).
+    """
     reason = clean_text(reason, 500)
     moment = now_utc()
     recording.status = "removed"
@@ -445,9 +607,28 @@ async def remove_recording(
     recording.removed_by = by
     recording.reviewed_at = moment
     recording.reviewed_by = by
+    if duplicate_of is not None:
+        recording.removed_duplicate_of = duplicate_of.id
+        duplicate_of.plays = (duplicate_of.plays or 0) + (recording.plays or 0)
+        recording.plays = 0
     notice: MemberNotice | None = None
     if recording.author_id is not None:
         title, body, payload = removal_notice(recording, reason)
+        if duplicate_of is not None:
+            payload["duplicate_of"] = {
+                "id": str(duplicate_of.id),
+                "title": duplicate_of.title,
+                "author": duplicate_of.author,
+                "mantra_id": str(duplicate_of.mantra_group_id)
+                if duplicate_of.mantra_group_id
+                else None,
+            }
+            payload["actions"] = ["open_original", "contact"]
+            body = (
+                f"“{recording.title}” was removed because: {reason}. "
+                "You can open the original in the app. If you think this was a mistake, write to "
+                "us from the app (Contact us) and we will look again."
+            )
         notice = MemberNotice(
             user_id=recording.author_id,
             kind="recording_removed",
@@ -461,6 +642,27 @@ async def remove_recording(
     return notice
 
 
+async def remove_as_duplicate(
+    session: AsyncSession, recording: Recording, *, original_id: UUID, by: str
+) -> MemberNotice | None:
+    """Admin: `recording` is a copy of `original_id`. Remove it with a notice that points there."""
+    if original_id == recording.id:
+        raise HTTPException(status_code=422, detail="A recording cannot be a duplicate of itself.")
+    original = await session.get(Recording, original_id)
+    if original is None:
+        raise HTTPException(status_code=404, detail="The original recording was not found")
+    if original.status not in VISIBLE:
+        raise HTTPException(
+            status_code=409,
+            detail="The original is not published, so it cannot be the one to keep.",
+        )
+    if recording.status == "removed":
+        raise HTTPException(status_code=409, detail="Already removed")
+    return await remove_recording(
+        session, recording, reason=duplicate_reason(original), by=by, duplicate_of=original
+    )
+
+
 async def restore_recording(
     session: AsyncSession, recording: Recording, *, by: str
 ) -> MemberNotice | None:
@@ -469,6 +671,7 @@ async def restore_recording(
     recording.removed_reason = None
     recording.removed_at = None
     recording.removed_by = None
+    recording.removed_duplicate_of = None
     recording.reviewed_at = moment
     recording.reviewed_by = by
     notice: MemberNotice | None = None

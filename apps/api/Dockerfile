@@ -22,6 +22,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/apps/api/.venv/bin:$PATH"
 
+# Chromaprint's `fpcalc`: lets the Kiirtan upload warn about a recording that sounds like one already in
+# the library (docs/kiirtan-publishing.md, "Duplicates"). Without it uploads still work, only that
+# warning is skipped. Check after a build with: docker run --rm <image> fpcalc -version
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libchromaprint-tools \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --system app && useradd --system --gid app --home /app app
 
 COPY --from=builder --chown=app:app /app/apps/api/.venv /app/apps/api/.venv
