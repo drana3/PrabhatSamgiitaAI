@@ -34,8 +34,11 @@ import { useSongComments } from "./useSongComments"
 type Translate = ReturnType<typeof useT>
 type PostFn = ReturnType<typeof useSongComments>["post"]
 
-/** The radius of everything here (the brand: square corners, 0 to 2). */
-const R = 2
+/** Corner radii of the song page: soft cards like the Meaning card (24 and 20), round buttons and avatars like the pills (9999). */
+const R_CARD = 24
+const R_FIELD = 20
+const R_BOX = 8
+const R_ROUND = 9999
 
 /**
  * The comments block at the end of the song page: an invitation to share a story, an inspiration or a realization,
@@ -369,16 +372,16 @@ const styles = StyleSheet.create({
   invite: { fontFamily: amFonts.medium, fontSize: 17, lineHeight: 26, paddingHorizontal: 20, paddingBottom: 8 },
   note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: 20, paddingBottom: 8 },
   composer: { paddingHorizontal: 20, paddingTop: 8, gap: 4 },
-  field: { minHeight: 112, paddingHorizontal: 14, paddingVertical: 12, borderRadius: R, fontFamily: amFonts.regular, fontSize: 16, lineHeight: 24, textAlignVertical: "top" },
+  field: { minHeight: 112, paddingHorizontal: 14, paddingVertical: 14, borderRadius: R_FIELD, fontFamily: amFonts.regular, fontSize: 16, lineHeight: 24, textAlignVertical: "top" },
   counter: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, textAlign: "right" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingTop: 4 },
-  box: { width: 24, height: 24, borderWidth: 2, borderRadius: R, alignItems: "center", justifyContent: "center" },
+  box: { width: 24, height: 24, borderWidth: 2, borderRadius: R_BOX, alignItems: "center", justifyContent: "center" },
   checkLabel: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22, flexShrink: 1 },
   as: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   team: { fontSize: 13, lineHeight: 18 },
   postRow: { flexDirection: "row", justifyContent: "flex-end", paddingTop: 12 },
   message: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20, paddingTop: 8 },
-  gate: { marginHorizontal: 20, marginTop: 8, padding: 16, borderWidth: 1, borderRadius: R, gap: 12, alignItems: "flex-start" },
+  gate: { marginHorizontal: 20, marginTop: 8, padding: 20, borderWidth: 1, borderRadius: R_CARD, gap: 12, alignItems: "flex-start" },
   gateText: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 24 },
   list: { paddingHorizontal: 20, paddingTop: 28 },
   count: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", paddingBottom: 8 },
@@ -400,9 +403,9 @@ const styles = StyleSheet.create({
   radio: { width: 22, height: 22, borderWidth: 2, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   radioDot: { width: 10, height: 10, borderRadius: 5 },
   radioLabel: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22, flexShrink: 1 },
-  avatar: { width: 40, height: 40, borderRadius: R, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  avatar: { width: 40, height: 40, borderRadius: R_ROUND, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   avatarImage: { width: 40, height: 40 },
   initial: { fontFamily: amFonts.bold, fontSize: 18, lineHeight: 24 },
-  button: { minHeight: 48, minWidth: 48, paddingHorizontal: 20, borderRadius: R, alignItems: "center", justifyContent: "center", alignSelf: "flex-start" },
+  button: { minHeight: 48, minWidth: 48, paddingHorizontal: 24, borderRadius: R_ROUND, alignItems: "center", justifyContent: "center", alignSelf: "flex-start" },
   buttonLabel: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
 })
