@@ -87,17 +87,33 @@ describe("scheduler: window and ids", () => {
     expect(scheduleNext7Days(input({}, { song: { on: false, times: [480] } }))).toEqual([])
   })
 
-  it("says what the song is: composed on this day, or the daily pick, or a plain line without songs", () => {
+  it("says what the song is: composed on this day, the song Today shows, or a plain line", () => {
     const out = scheduleNext7Days(input())
     const composed = out.find((n) => n.id === "song:2026-11-08@0800")
     expect(composed?.text).toBe("Ándhára Sheśe Álora Deshe was composed on this day in 1983.")
     expect(composed?.target).toBe("/song-v2/ps-3")
-    const pick = out.find((n) => n.id === "song:2026-11-06@0800")
-    expect(pick?.text).toMatch(/^Start the day with /)
-    expect(pick?.coverNumber).toBeGreaterThan(0)
+    // a day with no known song: the reminder does not name a song of its own
+    const plain = out.find((n) => n.id === "song:2026-11-06@0800")
+    expect(plain?.text).toBe("Open today's song.")
+    expect(plain?.target).toBe("/v2/today")
+    expect(plain?.coverNumber).toBeUndefined()
     const none = scheduleNext7Days(input({ songs: [] }))
     expect(none[0]?.text).toBe("Open today's song.")
     expect(none[0]?.target).toBe("/v2/today")
+  })
+
+  it("names the song of the day only for the day Today has it, and that is the one song Today shows", () => {
+    const todaySong = { date: "2026-11-06", song: { number: 5, title: "Elo, Anek Juger Sei Ajáná Pathik" } }
+    const out = scheduleNext7Days(input({ todaySong }))
+    const named = out.find((n) => n.id === "song:2026-11-06@0800")
+    expect(named?.text).toBe("Start the day with Elo, Anek Juger Sei Ajáná Pathik.")
+    expect(named?.target).toBe("/song-v2/ps-5")
+    expect(named?.coverNumber).toBe(5)
+    // the next days are not guessed
+    expect(out.find((n) => n.id === "song:2026-11-07@0800")?.text).toBe("Open today's song.")
+    // the song Today shows wins over a composition date from another source
+    const both = scheduleNext7Days(input({ todaySong: { date: "2026-11-08", song: { number: 5, title: "Elo" } } }))
+    expect(both.find((n) => n.id === "song:2026-11-08@0800")?.target).toBe("/song-v2/ps-5")
   })
 })
 

@@ -38,13 +38,23 @@ export type SongPick = {
   composed?: { month: number; day: number; year: number }
 }
 
+/**
+ * The one song Today shows as the song of the day ("recommendations[0]" of the server's answer for that
+ * day, read from the copy the phone saved). `date` is the local "2026-11-05" it belongs to: the server
+ * answers only for the day it is asked, so the reminder for any other day does not name a song.
+ */
+export type TodaySong = { date: string; song: SongPick }
+
 export type FestivalEntry = { id: string; title: string; month: number; day: number; year: number }
 
 export type PlanInput = {
   /** the clock, ms since epoch (the streak reminder depends on whether today is still ahead) */
   now: number
   settings: NotificationSettings
+  /** songs whose composition date is known ("composed on this day"); today none is known in a real build */
   songs: readonly SongPick[]
+  /** the song of the day Today shows, when the phone has it (see TodaySong) */
+  todaySong?: TodaySong | null
   festivals: readonly FestivalEntry[]
   cards: Readonly<Record<string, WordCard>>
   streak: LearningStreak
@@ -101,11 +111,6 @@ export function dateKey(ms: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
-function dayNumber(ms: number): number {
-  const d = new Date(ms)
-  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS)
-}
-
 /** "0745": the time in an id. */
 function hhmm(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}${String(minutes % 60).padStart(2, "0")}`
@@ -114,10 +119,17 @@ function hhmm(minutes: number): string {
 /* --------------------------------------------------------------- the kinds */
 
 function songCandidates(input: PlanInput, day: number): PlannedNotification[] {
-  const { songs, settings } = input
+  const { songs, settings, todaySong } = input
   const d = new Date(day)
-  const composed = songs.find((s) => s.composed && s.composed.month === d.getMonth() + 1 && s.composed.day === d.getDate())
-  const pick = songs.length ? songs[dayNumber(day) % songs.length] : undefined
+  // One source for "Song of the day": the song Today shows. For another day the phone does not know it yet,
+  // so the reminder says "Open today's song." and Today shows that day's song when it is opened. It never
+  // names a song of its own: that is how the reminder and the screen used to disagree.
+  const shown = todaySong && todaySong.date === dateKey(day) ? todaySong.song : undefined
+  const composed = shown
+    ? shown.composed
+      ? shown
+      : undefined
+    : songs.find((s) => s.composed && s.composed.month === d.getMonth() + 1 && s.composed.day === d.getDate())
   const base: Pick<PlannedNotification, "kind" | "title" | "text" | "target" | "coverNumber"> = composed?.composed
     ? {
         kind: "song",
@@ -126,13 +138,13 @@ function songCandidates(input: PlanInput, day: number): PlannedNotification[] {
         target: `/song-v2/ps-${composed.number}`,
         coverNumber: composed.number,
       }
-    : pick
+    : shown
       ? {
           kind: "song",
           title: t("notif.song"),
-          text: t("notif.item.song.pick", { title: pick.title }),
-          target: `/song-v2/ps-${pick.number}`,
-          coverNumber: pick.number,
+          text: t("notif.item.song.pick", { title: shown.title }),
+          target: `/song-v2/ps-${shown.number}`,
+          coverNumber: shown.number,
         }
       : { kind: "song", title: t("notif.song"), text: t("notif.item.song.open"), target: "/v2/today" }
   return settings.song.times.map((at) => ({ ...base, id: `song:${dateKey(day)}@${hhmm(at)}`, fireAt: atMinutes(day, at) }))

@@ -148,7 +148,7 @@ export const es: Dictionary = {
   "notif.words.sub": "Solo cuando hay palabras por repasar.",
   "notif.streak": "Racha de estudio",
   "notif.streak.sub": "Cuando tu racha podría terminar hoy.",
-  "notif.note.times": "Los recordatorios de canciones y palabras llegan a las horas que elijas.",
+  "notif.note.times": "Los recordatorios de canciones y palabras llegan hacia las horas que elijas. El teléfono puede retrasarlos unos minutos.",
   "notif.note.fixed": "Los de festivales llegan a las {festival} y el de la racha a las {streak}.",
   "notif.time.a11y": "{label} a las {time}",
   "notif.time.hint": "Abre el selector de hora",

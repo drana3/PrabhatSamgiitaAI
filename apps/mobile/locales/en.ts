@@ -154,7 +154,7 @@ export const en = {
   "notif.words.sub": "Only when words are due.",
   "notif.streak": "Learning streak",
   "notif.streak.sub": "When a streak could end today.",
-  "notif.note.times": "Song and word reminders arrive at the times you pick.",
+  "notif.note.times": "Song and word reminders arrive around the times you pick. The phone can delay them by a few minutes.",
   "notif.note.fixed": "Festivals arrive at {festival}, the streak reminder at {streak}.",
   "notif.time.a11y": "{label} at {time}",
   "notif.time.hint": "Opens the time picker",

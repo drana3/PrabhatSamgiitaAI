@@ -25,8 +25,9 @@ import {
   toInboxItem,
   type PlanInput,
   type SongPick,
+  type TodaySong,
 } from "@/lib/notifications/schedule"
-import { FESTIVAL_ENTRIES, readSongPicks } from "@/lib/notifications/sources"
+import { FESTIVAL_ENTRIES, readSongPicks, readTodaySong } from "@/lib/notifications/sources"
 import { useLearnStore } from "@/stores/learnStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
@@ -80,8 +81,8 @@ export function NotificationsHost() {
   // reminders carry text: when the language changes, the pending ones are planned again in the new one
   const language = useLanguage()
 
-  const sources = useRef({ songs })
-  sources.current = { songs }
+  const sources = useRef<{ songs: readonly SongPick[]; todaySong: TodaySong | null }>({ songs, todaySong: null })
+  sources.current.songs = songs
 
   const input = useCallback((now: number): PlanInput => {
     const st = useNotificationSettingsStore.getState()
@@ -90,6 +91,7 @@ export function NotificationsHost() {
       now,
       settings: { master: st.master, song: st.song, festival: st.festival, words: st.words, streak: st.streak },
       songs: sources.current.songs,
+      todaySong: sources.current.todaySong,
       festivals: FESTIVAL_ENTRIES,
       // word cards are unchecked prototype content in a real build: no "words are due" or streak reminders from them
       cards: learnWordsAvailable() ? learn.cards : {},
@@ -97,23 +99,43 @@ export function NotificationsHost() {
     }
   }, [])
 
-  /** Put what has fired in the inbox. Cheap, no native calls. */
+  /**
+   * Put what has fired in the inbox. Cheap, no native calls. On a phone the bell lists only what the phone
+   * was told to deliver (the ledger kept at the last scheduling) and only while the OS permission is
+   * granted: a reminder that never arrived does not appear. The preview has no phone, so there the inbox
+   * is filled from the plan.
+   */
   const syncInbox = useCallback(() => {
     const now = nowMs()
     const inbox = useNotificationsStore.getState()
     const since = MOCKUP_DATA ? now - PREVIEW_BACKFILL_DAYS * DAY_MS : (inbox.syncedAt ?? startOfDay(now))
+    if (nativeNotificationsAvailable && !MOCKUP_DATA) {
+      const settings = useNotificationSettingsStore.getState()
+      const delivered =
+        settings.master && settings.permission === "granted"
+          ? inbox.scheduled.filter((n) => n.fireAt > since && n.fireAt <= now).map(toInboxItem)
+          : []
+      inbox.receive(delivered, now)
+      return
+    }
     inbox.receive(firedSince(input(now), since).map(toInboxItem), now)
   }, [input])
 
   /** Make the phone's schedule equal the plan, and set the badge. */
   const reschedule = useCallback(async () => {
+    // the permission first: the inbox must not take in reminders from a time when the OS no longer allowed them
+    const granted = nativeNotificationsAvailable ? (await refreshPermission()) === "granted" : false
     syncInbox()
     if (!nativeNotificationsAvailable) return
+    sources.current.todaySong = await readTodaySong()
     const now = nowMs()
-    const granted = (await refreshPermission()) === "granted"
     const st = useNotificationSettingsStore.getState()
-    if (granted && st.master) await applySchedule(scheduleAhead(input(now)))
-    else await cancelAll()
+    if (granted && st.master) {
+      useNotificationsStore.getState().setScheduled(await applySchedule(scheduleAhead(input(now))))
+    } else {
+      await cancelAll()
+      useNotificationsStore.getState().setScheduled([])
+    }
     const inbox = useNotificationsStore.getState()
     await setBadge(unreadCount(inbox.items, inbox.read))
   }, [input, syncInbox])

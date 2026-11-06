@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
+import type { PlannedNotification } from "@/lib/notifications/schedule"
 import {
   EMPTY_INBOX,
   markAllRead,
@@ -13,7 +14,17 @@ import {
   type InboxState,
 } from "@/lib/notifications"
 
+/** What the phone was told to deliver: the only notifications that can have reached the person. */
+export type ScheduledLedger = PlannedNotification[]
+
 type NotificationsState = InboxState & {
+  /**
+   * The notifications handed to the phone at the last scheduling (at most 60). The inbox takes in what has
+   * fired from this list, not from the plan: a reminder the phone never held (permission off, past the
+   * phone's limit, the app not opened for weeks) did not arrive, so it is not in the bell.
+   */
+  scheduled: ScheduledLedger
+  setScheduled: (planned: readonly PlannedNotification[]) => void
   /** the notifications that have fired since the last look; ids already there or deleted are skipped */
   receive: (fired: readonly AppNotification[], now: number) => void
   open: (id: string) => void
@@ -34,6 +45,17 @@ export function migrateInbox(saved: unknown, _version: number): InboxState {
   }
 }
 
+/** Version 3 added the scheduled ledger; older saves have none (the next scheduling fills it). */
+export function migrateScheduled(saved: unknown): ScheduledLedger {
+  const list = saved && typeof saved === "object" ? (saved as { scheduled?: unknown }).scheduled : undefined
+  return Array.isArray(list)
+    ? list.filter(
+        (n): n is PlannedNotification =>
+          !!n && typeof n === "object" && typeof n.id === "string" && typeof n.fireAt === "number" && typeof n.kind === "string",
+      )
+    : []
+}
+
 /**
  * The inbox: notifications that have fired (with when), which are read, and which were deleted.
  * Kept on the phone for 30 days.
@@ -42,19 +64,21 @@ export const useNotificationsStore = create<NotificationsState>()(
   persist(
     (set) => ({
       ...EMPTY_INBOX,
+      scheduled: [],
+      setScheduled: (planned) => set({ scheduled: [...planned] }),
       receive: (fired, now) => set((s) => receiveFired(s, fired, now)),
       open: (id) => set((s) => ({ read: markRead(s.read, id) })),
       markAll: (items) => set((s) => ({ read: markAllRead(items, s.read) })),
       remove: (item) => set((s) => removeItem(s, item.id, item.firedAt)),
       prune: (now) => set((s) => pruneInbox(s, now)),
-      reset: () => set({ ...EMPTY_INBOX }),
+      reset: () => set({ ...EMPTY_INBOX, scheduled: [] }),
     }),
     {
       name: "prabhat-notifications",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
-      migrate: (saved, version) => migrateInbox(saved, version) as NotificationsState,
-      partialize: (s) => ({ items: s.items, read: s.read, deleted: s.deleted, syncedAt: s.syncedAt }),
+      version: 3,
+      migrate: (saved, version) => ({ ...migrateInbox(saved, version), scheduled: migrateScheduled(saved) }) as NotificationsState,
+      partialize: (s) => ({ items: s.items, read: s.read, deleted: s.deleted, syncedAt: s.syncedAt, scheduled: s.scheduled }),
     },
   ),
 )

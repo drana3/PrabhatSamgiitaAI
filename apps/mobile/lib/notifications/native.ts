@@ -98,11 +98,13 @@ export function openSystemSettings(): void {
  * Make the phone's scheduled notifications equal the plan: cancel what is no longer planned (a time the
  * person moved or removed has another id, so its old notification is cancelled), schedule the rest under
  * their deterministic ids (an existing id is replaced). Only the soonest `MAX_PENDING` are scheduled: iOS
- * holds 64 at most. Returns how many are scheduled.
+ * holds 64 at most. Returns the notifications the phone accepted: the inbox lists only those, because only
+ * those can reach the person.
  */
-export async function applySchedule(planned: readonly PlannedNotification[]): Promise<number> {
+export async function applySchedule(planned: readonly PlannedNotification[]): Promise<PlannedNotification[]> {
   const N = expo()
-  if (!N) return 0
+  if (!N) return []
+  const accepted: PlannedNotification[] = []
   try {
     const existing = await N.getAllScheduledNotificationsAsync()
     const { cancel, schedule } = diffSchedule(existing.map((e) => e.identifier), capForPlatform(planned))
@@ -113,10 +115,11 @@ export async function applySchedule(planned: readonly PlannedNotification[]): Pr
         content: { title: n.title, body: n.text, data: { id: n.id, target: n.target }, sound: false },
         trigger: { type: N.SchedulableTriggerInputTypes.DATE, date: n.fireAt, channelId: REMINDERS_CHANNEL },
       })
+      accepted.push(n)
     }
-    return schedule.length
+    return accepted
   } catch {
-    return 0
+    return accepted
   }
 }
 

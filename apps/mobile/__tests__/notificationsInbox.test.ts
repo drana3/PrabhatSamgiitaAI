@@ -1,7 +1,7 @@
 import { formatTime } from "@/lib/i18n"
 import { describe, expect, it } from "vitest"
 
-import { migrateInbox } from "@/stores/notificationsStore"
+import { migrateInbox, migrateScheduled } from "@/stores/notificationsStore"
 import {
   EMPTY_INBOX,
   INBOX_KEEP_DAYS,
@@ -113,5 +113,14 @@ describe("server kinds (copy only, no trigger yet)", () => {
   it("wraps a team announcement", () => {
     const a = announcementNotification({ announcementId: "a1", title: "", text: " New songs. ", firedAt: NOW })
     expect(a).toMatchObject({ id: "announcement:a1", kind: "announcement", title: "From the team", text: "New songs.", target: "/v2/today" })
+  })
+})
+
+describe("inbox: the ledger of what the phone was told to deliver", () => {
+  it("is empty for a save from before the ledger existed and keeps valid entries", () => {
+    expect(migrateScheduled({ items: [] })).toEqual([])
+    expect(migrateScheduled(null)).toEqual([])
+    const good = { id: "song:2026-11-05@0800", kind: "song", fireAt: at(5), title: "t", text: "x", target: "/" }
+    expect(migrateScheduled({ scheduled: [good, { id: 3 }, null, "x"] })).toEqual([good])
   })
 })
