@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated"
 import { BackGlyph } from "@/components/songs-v2/Glyphs"
+import { Switch } from "@/components/offline/ListDownloadRow"
 
 import { Chip } from "@/components/songs-v2/Pill"
 import { Press } from "@/components/songs-v2/Press"
@@ -211,6 +212,60 @@ export function StorageRow({
   )
 }
 
+/** "Download on Wi-Fi only": one switch row under the cache limit. */
+export function WifiOnlyRow({ theme, on, onToggle }: ThemeProps & { on: boolean; onToggle: () => void }) {
+  const t = useT()
+  return (
+    <Press
+      accessibilityRole="switch"
+      accessibilityLabel={t("storage.wifi.title")}
+      accessibilityState={{ checked: on }}
+      onPress={onToggle}
+      pressedScale={0.98}
+      style={[styles.wifiRow, { backgroundColor: theme.card, borderColor: theme.line }]}
+    >
+      <View style={styles.rowMain}>
+        <Text style={[styles.rowTitle, { color: theme.textHeading }]} numberOfLines={2}>
+          {t("storage.wifi.title")}
+        </Text>
+        <Text style={[styles.rowSub, { color: theme.textBody }]}>{t("storage.wifi.sub")}</Text>
+      </View>
+      <Switch on={on} theme={theme} />
+    </Press>
+  )
+}
+
+/**
+ * Audio files on the phone that the downloaded list does not know (left by an interrupted download or an
+ * update). Their size is real space, so the screen shows it and offers to remove them.
+ */
+export function OrphansRow({ theme, count, bytes, onPress }: ThemeProps & { count: number; bytes: number; onPress: () => void }) {
+  const t = useT()
+  const size = formatBytes(bytes)
+  return (
+    <View style={[styles.orphans, { backgroundColor: theme.card, borderColor: theme.line }]}>
+      <View style={styles.rowMain}>
+        <Text style={[styles.rowTitle, { color: theme.textHeading }]} numberOfLines={2}>
+          {t("storage.orphans.title")}
+        </Text>
+        <Text style={[styles.rowSub, { color: theme.textBody }]}>{t("storage.orphans.sub", { count, size })}</Text>
+      </View>
+      <Press
+        accessibilityRole="button"
+        accessibilityLabel={t("storage.orphans.remove", { size })}
+        onPress={onPress}
+        pressedScale={0.96}
+        outerStyle={styles.orphanHit}
+        style={styles.orphanButton}
+      >
+        <Text style={[styles.clearAllText, { color: amColors.dangerText }]} numberOfLines={1}>
+          {t("storage.orphans.remove", { size })}
+        </Text>
+      </Press>
+    </View>
+  )
+}
+
 /**
  * "Clear all downloads" as the last row of the list, not a floating pill: the most destructive button of
  * the screen should not sit over the songs (and over the mini-player) all the time. Red text on the card colour.
@@ -284,6 +339,10 @@ export function ClearActionPill({
 }
 
 const styles = StyleSheet.create({
+  wifiRow: { minHeight: 72, borderRadius: 20, borderWidth: 1, paddingVertical: 10, paddingLeft: 16, paddingRight: 16, flexDirection: "row", alignItems: "center", gap: 14 },
+  orphans: { borderRadius: 20, borderWidth: 1, padding: 16, gap: 8, marginTop: 6 },
+  orphanHit: { alignSelf: "flex-start" },
+  orphanButton: { minHeight: 44, justifyContent: "center", paddingRight: 8 },
   clearAll: { minHeight: 56, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, marginTop: 6 },
   clearAllText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 21, textAlign: "center" },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 12 },

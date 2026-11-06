@@ -26,6 +26,7 @@ import {
 import { readCacheLimit, writeCacheLimit } from "@/lib/storageScan"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useOfflineStorageItems } from "@/hooks/useOfflineStorageItems"
+import { orphanBytes, removeOrphans, scanOrphans, type Orphan } from "@/lib/offline/orphans"
 import { t } from "@/lib/i18n"
 
 export type StorageToast = { id: number; text: string }
@@ -45,6 +46,11 @@ export function useStorageScreen() {
   const [pending, setPending] = useState<ClearPlan | null>(null)
   const [toast, setToast] = useState<StorageToast | null>(null)
   const toastSeq = useRef(0)
+  // files in the download folder that nothing records (see lib/offline/orphans.ts)
+  const [orphans, setOrphans] = useState<Orphan[]>([])
+  const [orphanPlan, setOrphanPlan] = useState<Orphan[] | null>(null)
+  const wifiOnly = usePreferencesStore((s) => s.downloadWifiOnly)
+  const setWifiOnly = usePreferencesStore((s) => s.setDownloadWifiOnly)
   const askedTrim = useRef("")
 
   const limit = cacheLimitById(limitId)
@@ -66,6 +72,17 @@ export function useStorageScreen() {
     toastSeq.current += 1
     setToast({ id: toastSeq.current, text })
   }, [])
+
+  // look for leftovers whenever the list of downloads changes (and once the list is known)
+  const scannedOnce = scanned
+  useEffect(() => {
+    if (MOCKUP_DATA || !scannedOnce) return
+    let active = true
+    void scanOrphans().then((found) => active && setOrphans(found))
+    return () => {
+      active = false
+    }
+  }, [items, scannedOnce])
 
   useEffect(() => {
     void readCacheLimit().then((id: CacheLimitId) => {
@@ -146,6 +163,28 @@ export function useStorageScreen() {
     showToast(clearedToast(plan.freedBytes))
   }, [pending, removeKeys, showToast])
 
+  /** "Remove" on the leftovers row: the confirm sheet first, nothing is deleted before it. */
+  const askRemoveOrphans = useCallback(() => setOrphanPlan(orphans), [orphans])
+  const confirmRemoveOrphans = useCallback(async () => {
+    const plan = orphanPlan
+    setOrphanPlan(null)
+    if (!plan?.length) return
+    const freed = await removeOrphans(plan)
+    setOrphans(await scanOrphans())
+    showToast(clearedToast(freed))
+  }, [orphanPlan, showToast])
+  const orphanCopy = useMemo(
+    () =>
+      orphanPlan
+        ? {
+            title: t("storage.orphans.confirm.title"),
+            body: t("storage.orphans.confirm.body", { size: formatBytes(orphanBytes(orphanPlan)) }),
+            confirmLabel: t("storage.orphans.confirm.confirm", { size: formatBytes(orphanBytes(orphanPlan)) }),
+          }
+        : null,
+    [orphanPlan],
+  )
+
   const action = clearActionModel({ items, selected })
   const confirm = useMemo(() => (pending ? clearConfirmCopy(pending) : null), [pending])
 
@@ -166,5 +205,13 @@ export function useStorageScreen() {
     cancelClear,
     confirmClear,
     toast,
+    wifiOnly,
+    setWifiOnly,
+    orphans,
+    orphanBytes: orphanBytes(orphans),
+    askRemoveOrphans,
+    orphanCopy,
+    confirmRemoveOrphans,
+    cancelRemoveOrphans: () => setOrphanPlan(null),
   }
 }

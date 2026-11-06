@@ -13,6 +13,7 @@ export type DownloadFailure =
   | "http" // the server refused (404, 403, 5xx)
   | "stalled" // nothing arrived for a long time
   | "limit" // the listener's own storage limit is full
+  | "wifi" // "Download on Wi-Fi only" is on and the phone is on mobile data
   | "unknown"
 
 export class DownloadError extends Error {
@@ -94,7 +95,8 @@ export function resumeDataFor(platform: string, partialBytes: number | null | un
 /** The reason as a translation key, for the toast that follows a failed save. */
 export function failureMessageKey(
   code: DownloadFailure,
-): "dl.toast.offline" | "dl.toast.noSpace" | "dl.toast.limit" | "dl.toast.error" {
+): "dl.toast.offline" | "dl.toast.noSpace" | "dl.toast.limit" | "dl.toast.wifi" | "dl.toast.error" {
+  if (code === "wifi") return "dl.toast.wifi"
   if (code === "no-space") return "dl.toast.noSpace"
   if (code === "limit") return "dl.toast.limit"
   if (code === "offline" || code === "stalled") return "dl.toast.offline"

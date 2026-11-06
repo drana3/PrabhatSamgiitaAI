@@ -409,7 +409,7 @@ export function parseOfflineIndex(
   }
 }
 
-function offlineDir(scope: string) {
+export function offlineDir(scope: string) {
   const base = FileSystem.documentDirectory
   if (!base) throw new Error("Offline storage is not available on this device.")
   return `${base}offline-audio/${encodeURIComponent(scope)}/`

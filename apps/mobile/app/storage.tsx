@@ -9,9 +9,11 @@ import {
   CacheLimitSection,
   ClearActionPill,
   ClearAllRow,
+  OrphansRow,
   StorageListHeader,
   StorageRow,
   StorageTotalCard,
+  WifiOnlyRow,
 } from "@/components/songs-v2/StorageParts"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { Toast } from "@/components/songs-v2/Toast"
@@ -62,9 +64,15 @@ export default function StorageScreen() {
 
   // one stable object per sheet: a new one on every render would re-open a sheet that is closing
   const { confirm, confirmClear } = state
+  const { orphanCopy, confirmRemoveOrphans } = state
   const request = useMemo(
-    () => (confirm ? { ...confirm, onConfirm: () => void confirmClear() } : null),
-    [confirm, confirmClear],
+    () =>
+      confirm
+        ? { ...confirm, onConfirm: () => void confirmClear() }
+        : orphanCopy
+          ? { ...orphanCopy, onConfirm: () => void confirmRemoveOrphans() }
+          : null,
+    [confirm, confirmClear, orphanCopy, confirmRemoveOrphans],
   )
 
   const [toast, setToast] = useState<string | null>(null)
@@ -93,6 +101,10 @@ export default function StorageScreen() {
 
           <SongsReveal index={2}>
             <CacheLimitSection theme={theme} value={state.limit.id} onChange={state.chooseLimit} />
+          </SongsReveal>
+
+          <SongsReveal index={2}>
+            <WifiOnlyRow theme={theme} on={state.wifiOnly} onToggle={() => state.setWifiOnly(!state.wifiOnly)} />
           </SongsReveal>
 
           <SongsReveal index={3} style={styles.list}>
@@ -133,6 +145,9 @@ export default function StorageScreen() {
                   : `\n${t("storage.checking")}`}
               </Text>
             )}
+            {state.orphans.length > 0 ? (
+              <OrphansRow theme={theme} count={state.orphans.length} bytes={state.orphanBytes} onPress={state.askRemoveOrphans} />
+            ) : null}
           </SongsReveal>
         </ScrollView>
 
@@ -142,7 +157,7 @@ export default function StorageScreen() {
           theme={theme}
           bottomOffset={barBottom}
           request={request}
-          onDismiss={state.cancelClear}
+          onDismiss={() => (state.confirm ? state.cancelClear() : state.cancelRemoveOrphans())}
         />
       </View>
     </RevealClock.Provider>

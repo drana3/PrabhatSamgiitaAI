@@ -1,7 +1,9 @@
+import { AppState } from "react-native"
 import { create } from "zustand"
 
 import { kiirtanSongForNumber, isKiirtanNumber } from "@/lib/kirtan/track"
 import {
+  activeDownloadUrlForSong,
   ensureOfflineAudioReady,
   offlineRecordingState,
   useOfflineAudioStore,
@@ -11,11 +13,17 @@ import { classifyDownloadError, type DownloadFailure } from "@/lib/offline/downl
 import { demoDownloadBytes, downloadErrorToast, downloadFailureToast, downloadRemovedToast, downloadRetryLabel, listRemoveConfirmCopy, listStoppedToast, nextToStart, removeConfirmCopy, type DownloadItem, type DownloadStatus } from "@/lib/offline/downloadModel"
 import { demoDownloadFails, demoSignedOut } from "@/lib/offline/demoSwitches"
 import { t } from "@/lib/i18n"
+import { readNetworkKind } from "@/lib/offline/network"
+import { blockedByWifiRule, mayAutoResume } from "@/lib/offline/networkRule"
+import { clearPending, freshPending, markPending, readPending, replacePending } from "@/lib/offline/pendingDownloads"
+import { keepsPartialFile } from "@/lib/offline/downloadVerify"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { hasPlayableAudio } from "@/lib/playableAudio"
 import { demoDownloadKey, useDemoDownloads } from "@/lib/playerV2/demoDownloads"
 import { readCacheLimit, scanOfflineStorage } from "@/lib/storageScan"
 import { cacheLimitById, limitAllowsDownload, totalBytes } from "@/lib/storageCache"
+import { offlineAudioScopeKey } from "@/lib/offlineAudio"
+import { usePreferencesStore } from "@/stores/preferencesStore"
 import { DownloadError } from "@/lib/offline/downloadVerify"
 import { useAuthStore } from "@/stores/authStore"
 import { useDownloadUiStore } from "@/stores/downloadUiStore"
@@ -71,7 +79,24 @@ let failed: DownloadItem[] = []
 const failureReason = new Map<number, DownloadFailure>()
 
 function toastFailure(retry: () => void, code?: DownloadFailure | null) {
-  useDownloadUiStore.getState().showToast(downloadFailureToast(code), { label: downloadRetryLabel(), onPress: retry })
+  // On mobile data with "Wi-Fi only" on, the toast does not say "try again" (that would fail the same way):
+  // it offers to go on anyway, which is the person's own confirm.
+  const label = code === "wifi" ? t("dl.wifi.anyway") : downloadRetryLabel()
+  useDownloadUiStore.getState().showToast(downloadFailureToast(code), { label, onPress: retry })
+}
+
+/** Items the person allowed to use mobile data once ("Download anyway"). */
+const cellularAllowed = new Set<number>()
+/** Items continued by themselves at app start: no toast when they fail, they are tried again at the next start. */
+const quiet = new Set<number>()
+
+function scopeNow(): string {
+  const { mode, memberId, identityProvider, email } = useAuthStore.getState()
+  return offlineAudioScopeKey({ mode, memberId, identityProvider, email })
+}
+
+export function wifiOnlyOn(): boolean {
+  return usePreferencesStore.getState().downloadWifiOnly
 }
 
 /** The reason to show for a group of failed items: the first one that is not a plain "unknown". */
@@ -116,13 +141,24 @@ async function runOne(item: DownloadItem): Promise<boolean> {
     }
     return true
   }
+  const scope = scopeNow()
+  const recording = { url: item.url?.trim() ?? "", songNumber: item.number }
   try {
     await ensureOfflineAudioReady()
+    const allowCellular = cellularAllowed.delete(item.number)
+    if (blockedByWifiRule({ wifiOnly: wifiOnlyOn(), kind: await readNetworkKind(), allowCellular })) throw new DownloadError("wifi")
     if (await storageLimitReached()) throw new DownloadError("limit")
+    // written before the first byte: if the app is closed now, the next start can continue this download
+    await markPending(scope, { ...recording, startedAt: Date.now() })
     await useOfflineAudioStore.getState().download(itemAudioUrl(item), item.number, { userInitiated: true })
+    // a second tap on a save that is still running returns at once: that save keeps its place in the list
+    if (!activeDownloadUrlForSong(item.number, useOfflineAudioStore.getState())) await clearPending(scope, recording)
     return true
   } catch (error) {
-    failureReason.set(item.number, classifyDownloadError(error))
+    const code = classifyDownloadError(error)
+    failureReason.set(item.number, code)
+    // a dropped connection keeps the half file, so it keeps its place in the list to continue; any other end does not
+    if (!keepsPartialFile(code)) await clearPending(scope, recording)
     return false
   }
 }
@@ -134,7 +170,8 @@ function pump() {
     running.add(item.number)
     void runOne(item).then((ok) => {
       running.delete(item.number)
-      if (!ok) failed.push(item)
+      const wasQuiet = quiet.delete(item.number)
+      if (!ok && !wasQuiet) failed.push(item)
       useDownloadQueue.setState((s) => ({ pending: s.pending.filter((p) => p.number !== item.number) }))
       pump()
     })
@@ -142,7 +179,11 @@ function pump() {
   if (useDownloadQueue.getState().pending.length === 0 && running.size === 0 && failed.length > 0) {
     const again = failed
     failed = []
-    toastFailure(() => startMany(again), reasonOf(again))
+    const reason = reasonOf(again)
+    toastFailure(() => {
+      if (reason === "wifi") again.forEach((item) => cellularAllowed.add(item.number))
+      startMany(again)
+    }, reason)
   }
 }
 
@@ -153,7 +194,12 @@ export function startDownload(item: DownloadItem): void {
   if (!requireSignIn()) return
   if (!itemHasAudio(item)) return
   void runOne(item).then((ok) => {
-    if (!ok) toastFailure(() => startDownload(item), reasonOf([item]))
+    if (ok) return
+    const reason = reasonOf([item])
+    toastFailure(() => {
+      if (reason === "wifi") cellularAllowed.add(item.number)
+      startDownload(item)
+    }, reason)
   })
 }
 
@@ -175,6 +221,8 @@ function demoKeysOf(item: DownloadItem, record: Readonly<Record<string, unknown>
 
 /** A tap on the ring: stop, drop the half file. */
 export function cancelDownload(item: DownloadItem): void {
+  void clearPending(scopeNow(), { url: item.url?.trim() ?? "", songNumber: item.number })
+  quiet.delete(item.number)
   useDownloadQueue.setState((s) => ({ pending: s.pending.filter((p) => p.number !== item.number) }))
   if (MOCKUP_DATA) {
     const demo = useDemoDownloads.getState()
@@ -285,5 +333,59 @@ export async function confirmRemoveMany(name: string, items: readonly DownloadIt
         useDownloadUiStore.getState().showToast(results.every(Boolean) ? downloadRemovedToast() : downloadErrorToast()),
       )
     },
+  })
+}
+
+/* ----------------------------------------------------------------- resume */
+
+let resumeRunning = false
+
+/**
+ * At app start (and when the app comes back to the front): continue the downloads that were interrupted, the
+ * app closed on 40%, the connection lost. Only when nobody has to be asked: signed in, a connection the
+ * "Wi-Fi only" rule allows, and the download is less than three days old. A download the rule does not allow
+ * now stays in the list for the next time. Returns how many were started.
+ */
+export async function resumeInterruptedDownloads(): Promise<number> {
+  if (MOCKUP_DATA || resumeRunning || !isSignedIn()) return 0
+  resumeRunning = true
+  try {
+    await ensureOfflineAudioReady()
+    const scope = scopeNow()
+    const all = await readPending(scope)
+    if (all.length === 0) return 0
+    const files = Object.values(useOfflineAudioStore.getState().files)
+    const live = freshPending(all, Date.now()).filter((p) => !files.some((f) => f.songNumber === p.songNumber && (!p.url || f.remoteUrl === p.url)))
+    // finished or too old: out of the list (their half files are dropped by the stale rule or shown as leftovers)
+    if (live.length !== all.length) await replacePending(scope, live)
+    if (live.length === 0) return 0
+    if (!mayAutoResume({ wifiOnly: wifiOnlyOn(), kind: await readNetworkKind() })) return 0
+    const started = live
+      .filter((p) => !running.has(p.songNumber))
+      .map<DownloadItem>((p) => ({ kind: isKiirtanNumber(p.songNumber) ? "kiirtan" : "song", number: p.songNumber, url: p.url || null }))
+    if (started.length === 0) return 0
+    started.forEach((item) => quiet.add(item.number))
+    useDownloadQueue.setState((s) => {
+      const known = new Set(s.pending.map((p) => p.number))
+      return { pending: [...s.pending, ...started.filter((item) => !known.has(item.number))] }
+    })
+    pump()
+    return started.length
+  } catch {
+    return 0
+  } finally {
+    resumeRunning = false
+  }
+}
+
+let resumeWatching = false
+
+/** Runs `resumeInterruptedDownloads` now and every time the app comes back to the front. Safe to call twice. */
+export function startDownloadResume(): void {
+  if (resumeWatching) return
+  resumeWatching = true
+  void resumeInterruptedDownloads()
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") void resumeInterruptedDownloads()
   })
 }

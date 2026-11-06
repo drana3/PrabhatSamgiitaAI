@@ -19,7 +19,7 @@ const THUMB = 26
 const REDUCED_MS = 120
 
 /** The switch: a white thumb on an orange700 track when on. Only the thumb's transform moves. */
-function Switch({ on, theme }: { on: boolean; theme: SongsTheme }) {
+export function Switch({ on, theme }: { on: boolean; theme: SongsTheme }) {
   const reduce = useReducedMotion()
   const x = useSharedValue(on ? 1 : 0)
   const first = useRef(true)

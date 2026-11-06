@@ -4,6 +4,7 @@ import { View } from "react-native"
 
 import { FloatingTabBar } from "@/components/nav-v2/FloatingTabBar"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { startDownloadResume } from "@/lib/offline/downloadActions"
 import { useMockupPlayerSeed } from "@/lib/mockupPlayerSeed"
 import { startPlayerV2Services } from "@/lib/playerV2/services"
 import { NAV_V2_TABS, type NavV2TabId } from "@/lib/navV2"
@@ -22,6 +23,12 @@ export default function V2Layout() {
   // current app behaves exactly as before until the redesign replaces it.
   useEffect(() => {
     startPlayerV2Services()
+  }, [])
+
+  // Downloads cut short (the app was closed on 40%, the connection dropped) go on by themselves when the
+  // "Wi-Fi only" rule allows it: at start and each time the app comes back to the front.
+  useEffect(() => {
+    startDownloadResume()
   }, [])
 
   return (

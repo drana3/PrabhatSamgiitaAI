@@ -36,6 +36,8 @@ type PreferencesState = OwnedData<PreferencesOwnedData> & {
   recentPlays: RecentPlay[]
   searchRecents: string[]
   feelingSearchEnabled: boolean
+  /** "Download on Wi-Fi only": downloads wait for Wi-Fi instead of using mobile data. On by default. */
+  downloadWifiOnly: boolean
   songNotes: Record<string, string>
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
@@ -49,6 +51,7 @@ type PreferencesState = OwnedData<PreferencesOwnedData> & {
   addSearchRecent: (query: string) => void
   clearSearchRecents: () => void
   setFeelingSearchEnabled: (enabled: boolean) => void
+  setDownloadWifiOnly: (enabled: boolean) => void
   setSongNote: (songId: string, note: string) => void
 }
 
@@ -77,6 +80,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       recentPlays: [],
       searchRecents: [],
       feelingSearchEnabled: false,
+      downloadWifiOnly: true,
       songNotes: {},
       owner: null,
       slots: {},
@@ -203,6 +207,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       clearSearchRecents: () => set({ searchRecents: [] }),
       setFeelingSearchEnabled: (enabled) => set({ feelingSearchEnabled: enabled }),
+      setDownloadWifiOnly: (enabled) => set({ downloadWifiOnly: enabled }),
 
       setSongNote: (songId, note) => {
         const trimmed = note.trim()
@@ -251,6 +256,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,
         feelingSearchEnabled: state.feelingSearchEnabled,
+        downloadWifiOnly: state.downloadWifiOnly,
         songNotes: state.songNotes,
       }),
       onRehydrateStorage: () => (state) => {
