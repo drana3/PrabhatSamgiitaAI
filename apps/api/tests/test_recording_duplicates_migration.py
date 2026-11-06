@@ -108,7 +108,9 @@ def add(engine: sa.Engine, title: str, *, kind: str = "kiirtan", sha: str | None
 
 def test_the_chain_ends_in_0029_after_0028(migration: ModuleType) -> None:
     script = ScriptDirectory.from_config(Config(str(VERSIONS.parents[1] / "alembic.ini")))
-    assert script.get_heads() == ["0029_recording_duplicates"]
+    # 0029 is no longer the head (0030 follows it); the chain must still be a single line
+    assert len(script.get_heads()) == 1
+    assert "0029_recording_duplicates" in {r.revision for r in script.walk_revisions()}
     revision = script.get_revision("0029_recording_duplicates")
     assert revision is not None and revision.down_revision == "0028_learn_progress"
     assert migration.revision == "0029_recording_duplicates"

@@ -56,6 +56,7 @@ from app.models.recordings import (
 from app.models.sargam_capture import NotationCapture
 from app.models.song import Song
 from app.models.song_chords import SongChordProposal, SongChordReport
+from app.models.song_comments import SongComment, SongCommentReport
 
 __all__ = [
     "AiDailyUsage",
@@ -91,6 +92,8 @@ __all__ = [
     "ReflectionQuote",
     "Season",
     "Song",
+    "SongComment",
+    "SongCommentReport",
     "SongChordProposal",
     "SongChordReport",
     "SongChunk",

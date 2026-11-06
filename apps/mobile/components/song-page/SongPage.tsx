@@ -11,6 +11,7 @@ import { COMMENTARY_SECTION, anchorOf, scrollSections, stripActive } from "@/lib
 import { STRIP_HEIGHT, activeSectionAt, jumpOffset, menuSections, sectionTops, visibleTabs, type PageSection, type TabSection } from "@/lib/songPage/pageSections"
 
 import { AboutSection } from "./About"
+import { CommentsSection } from "./Comments"
 import { ChordsSection } from "./Chords"
 import { Actions, FadeHero, fadeHeight, songTitle } from "./Hero"
 import { LearnButton } from "./LearnButton"
@@ -159,6 +160,11 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       <View onLayout={place("about")} style={styles.section}>
         {divider}
         <AboutSection t={t} model={model} />
+      </View>
+      {/* members' comments close the page; not a tab, so the strip and the jump math do not know it */}
+      <View style={styles.section}>
+        {divider}
+        <CommentsSection t={t} model={model} />
       </View>
     </Shell>
   )

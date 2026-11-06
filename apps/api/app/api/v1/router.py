@@ -18,6 +18,7 @@ from app.api.v1.recordings import router as recordings_router
 from app.api.v1.search import router as search_router
 from app.api.v1.song_chords import admin_router as song_chords_admin_router
 from app.api.v1.song_chords import router as song_chords_router
+from app.api.v1.song_comments import router as song_comments_router
 from app.api.v1.songs import router as songs_router
 from app.api.v1.transliteration import router as transliteration_router
 
@@ -40,5 +41,6 @@ router.include_router(admin_router)
 router.include_router(transliteration_router)
 router.include_router(recordings_router)
 router.include_router(recordings_admin_router)
+router.include_router(song_comments_router)
 router.include_router(song_chords_router)
 router.include_router(song_chords_admin_router)
