@@ -740,13 +740,13 @@ export default function PlayerV2Screen() {
                 </TouchButton>
                 <TouchButton
                   accessibilityRole="button"
-                  accessibilityLabel={`${drive ? "Drive mode" : `Playing from ${source}`}. Open the queue`}
+                  accessibilityLabel={`${drive ? "Radio" : `Playing from ${source}`}. Open the queue`}
                   onAction={() => setSheet("queue")}
                   containerStyle={styles.sourceHit}
                   style={styles.sourceChip}
                 >
                   <Text style={styles.sourceText} numberOfLines={1}>
-                    {drive ? "Drive mode" : source}
+                    {drive ? "Radio" : source}
                   </Text>
                 </TouchButton>
                 {song ? (

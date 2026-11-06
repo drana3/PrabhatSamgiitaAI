@@ -63,9 +63,9 @@ describe("More sheet rows", () => {
     expect(queueAddMessage(false)).toBe("Added to the queue")
   })
 
-  it("keeps Drive mode and the source picker reachable from the sheet", () => {
+  it("keeps Radio and the source picker reachable from the sheet", () => {
     const rows = buildActionRows({ ...base, sourceName: "Mine" })
-    expect(rows.find((r) => r.id === "drive")?.label).toBe("Drive mode")
+    expect(rows.find((r) => r.id === "drive")?.label).toBe("Radio")
     expect(rows.find((r) => r.id === "source")).toMatchObject({ label: "Play songs from", meta: "Mine" })
   })
 

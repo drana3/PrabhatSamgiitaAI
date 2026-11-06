@@ -175,14 +175,14 @@ export default function DriveScreen() {
         if (!usePlayerStore.getState().driveScreenFocused) return
         enterDrivePlayback()
         const error = await playPlaylist(playlist, startAt)
-        if (error) Alert.alert("Drive Mode", error)
+        if (error) Alert.alert("Radio", error)
       })()
     },
     [enterDrivePlayback],
   )
 
   return (
-    <ScreenContainer edges={["top"]} title="Drive Mode" subtitle="Random play by default · pick a playlist to switch">
+    <ScreenContainer edges={["top"]} title="Radio" subtitle="Random play by default · pick a playlist to switch">
       <PlaylistSyncBar />
       <NestableScrollContainer
         style={styles.scroll}
