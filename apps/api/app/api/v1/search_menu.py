@@ -25,7 +25,7 @@ DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
 AdminIdentity = Annotated[str, Depends(require_admin)]
 
 # Shelves a menu can hold at the top at once (the phone shows at most this many pinned shelves).
-MAX_PINS = 4
+MAX_PINS = 3
 _SHELF_ID = re.compile(r"^[a-z0-9][a-z0-9:_-]{0,79}$")
 
 

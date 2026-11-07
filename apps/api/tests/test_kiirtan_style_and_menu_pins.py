@@ -140,15 +140,15 @@ async def test_pins_start_empty_and_the_team_replaces_them_in_order(
     assert cleared.json() == {"pins": []}
 
 
-async def test_pins_refuse_bad_ids_and_more_than_four(
+async def test_pins_refuse_bad_ids_and_more_than_three(
     pins_app: tuple[httpx.AsyncClient, FastAPI],
 ) -> None:
     client, _ = pins_app
     assert (
         await client.put("/api/v1/admin/search-menu/pins", json={"pins": ["has space"]})
     ).status_code == 422
-    five = {"pins": ["a", "b", "c", "d", "e"]}
-    assert (await client.put("/api/v1/admin/search-menu/pins", json=five)).status_code == 422
+    four = {"pins": ["a", "b", "c", "d"]}
+    assert (await client.put("/api/v1/admin/search-menu/pins", json=four)).status_code == 422
 
 
 async def test_only_the_team_can_write_pins(
