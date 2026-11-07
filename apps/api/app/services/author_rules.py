@@ -12,6 +12,8 @@ from difflib import SequenceMatcher
 from typing import Any
 from urllib.parse import urlsplit
 
+from app.services.invisible_text import strip_invisible
+
 SLUG_MIN = 3
 SLUG_MAX = 30
 NAME_MIN = 2
@@ -338,6 +340,8 @@ def protected_name_hit(name: str) -> bool:
 
 
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f​-‏‪-‮⁦-⁩]")
+# What strip_invisible leaves of the controls (it drops the "format" class itself).
+_ASCII_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _LINK_WORD = re.compile(
     r"(?:https?://|www\.|\b[a-z0-9-]+\.(?:com|org|net|io|me|co|app|xyz|info|tv|ly|link|site)\b)",
     re.I,
@@ -345,13 +349,16 @@ _LINK_WORD = re.compile(
 
 
 def clean_line(value: str | None, limit: int) -> str:
-    """One line: control and bidi-override characters out, spaces collapsed."""
-    return " ".join(_CONTROL.sub("", value or "").split())[:limit]
+    """One line: control and invisible characters out (joiners stay inside Indic and Arabic-script
+    words, see invisible_text), spaces collapsed."""
+    return " ".join(_ASCII_CONTROL.sub("", strip_invisible(value)).split())[:limit]
 
 
 def clean_paragraphs(value: str | None, limit: int) -> str:
     """Several paragraphs: at most one blank line between them, no control characters."""
-    text = _CONTROL.sub("", (value or "").replace("\r\n", "\n").replace("\r", "\n"))
+    text = _ASCII_CONTROL.sub(
+        "", strip_invisible((value or "").replace("\r\n", "\n").replace("\r", "\n"))
+    )
     lines = [" ".join(line.split()) for line in text.split("\n")]
     out: list[str] = []
     for line in lines:

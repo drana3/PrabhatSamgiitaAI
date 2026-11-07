@@ -27,6 +27,7 @@ from app.schemas.song_comments import (
     CommentAuthor,
     SongCommentOut,
 )
+from app.services.invisible_text import strip_invisible  # noqa: F401  (also imported from here)
 from app.services.recordings import RateLimiter, clean_text, now_utc
 
 DAILY_COMMENTS = 20
@@ -63,43 +64,12 @@ _BARE_LINK = re.compile(
     re.IGNORECASE,
 )
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-# Joiners keep Indic conjuncts and emoji sequences intact; anywhere else they hide text, so they go.
-_JOINERS = ("\u200c", "\u200d")
 
 
 def check_song(song_id: int) -> int:
     if not 1 <= song_id <= PS_SONG_COUNT:
         raise HTTPException(status_code=422, detail="Unknown song number.")
     return song_id
-
-
-def _joiner_belongs(text: str, index: int) -> bool:
-    """A zero-width joiner or non-joiner is kept only next to a letter of an Indic script
-    (Devanagari, Bengali, Tamil and the rest, U+0900 to U+0DFF) or an emoji: there it changes how
-    the text is drawn. Anywhere else it is invisible and only hides text."""
-
-    def meaningful(position: int) -> bool:
-        if not 0 <= position < len(text):
-            return False
-        code = ord(text[position])
-        return 0x0900 <= code <= 0x0DFF or code >= 0x1F000 or 0x2190 <= code <= 0x2BFF
-
-    return meaningful(index - 1) or meaningful(index + 1)
-
-
-def strip_invisible(text: str) -> str:
-    """Drop the characters that draw nothing and only change how text reads: bidi overrides and
-    isolates (U+202A to U+202E, U+2066 to U+2069, the direction marks), zero-width space, word
-    joiner, byte-order mark, soft hyphen and the rest of the "format" class (Unicode Cf). Joiners
-    next to Indic letters or emoji stay (see `_joiner_belongs`)."""
-    out: list[str] = []
-    for index, char in enumerate(text):
-        if unicodedata.category(char) == "Cf" and not (
-            char in _JOINERS and _joiner_belongs(text, index)
-        ):
-            continue
-        out.append(char)
-    return "".join(out)
 
 
 def clean_body(raw: str) -> str:
