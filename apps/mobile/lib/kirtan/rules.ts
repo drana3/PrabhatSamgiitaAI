@@ -107,6 +107,12 @@ export function uploadErrorText(failure: UploadFailure): string {
       return t("ugc.err.ownDuplicate")
     case "dailyLimit":
       return t("ugc.err.dailyLimit")
+    case "setDailyLimit":
+      return t("ugc.err.setDailyLimit")
+    case "setFull":
+      return t("ugc.err.setFull")
+    case "fields":
+      return t("ugc.err.fields")
     case "rules":
       return t("ugc.err.rules")
     case "gone":

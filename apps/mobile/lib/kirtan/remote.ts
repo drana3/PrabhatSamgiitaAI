@@ -1,4 +1,5 @@
-import { kindHasLanguage } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage } from "@/lib/kirtan/kind"
+import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
 
@@ -36,7 +37,15 @@ export type RemoteRecording = {
   removed_at?: string | null
   duplicate_of?: string | null
   year?: number | null
+  /** an ISO code, `other` (then `language_other` names it) or an old word of the first form */
   language?: string | null
+  language_other?: string | null
+  /** Dance songs: tandava or kaoshiki */
+  dance?: string | null
+  /** the playlist from an event this is a track of, and its place there */
+  collection_id?: string | null
+  position?: number | null
+  recorded_on?: string | null
   credits?: string | null
   notes?: string | null
   /** Prabhat Samgiita recordings: the number of the song (1 to 5018) */
@@ -127,9 +136,14 @@ async function readError(response: Response): Promise<RemoteError> {
 }
 
 async function call<T>(cfg: RemoteConfig, method: string, path: string, body?: unknown, fallback?: T): Promise<T> {
+  return callUrl<T>(cfg, method, join(cfg.baseUrl, path), body, fallback)
+}
+
+/** The same request with the same error handling for any URL of the API (the playlists from an event use `/api/v1/recording-sets`). */
+export async function callUrl<T>(cfg: RemoteConfig, method: string, url: string, body?: unknown, fallback?: T): Promise<T> {
   let response: Response
   try {
-    response = await doFetch(cfg)(join(cfg.baseUrl, path), {
+    response = await doFetch(cfg)(url, {
       method,
       headers: { Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...cfg.headers() },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -146,13 +160,15 @@ async function call<T>(cfg: RemoteConfig, method: string, path: string, body?: u
 
 export async function requestUpload(
   cfg: RemoteConfig,
-  file: { fileName: string; contentType: string; sizeBytes: number; sha256?: string | null },
+  file: { fileName: string; contentType: string; sizeBytes: number; sha256?: string | null; collectionId?: string | null },
 ): Promise<UploadTarget> {
   return call<UploadTarget>(cfg, "POST", "/uploads", {
     file_name: file.fileName,
     content_type: file.contentType,
     size_bytes: file.sizeBytes,
     ...(file.sha256 ? { sha256: file.sha256 } : {}),
+    // a track of a playlist is counted against the playlist allowance, not the single-upload one
+    ...(file.collectionId ? { collection_id: file.collectionId } : {}),
   })
 }
 
@@ -183,6 +199,14 @@ export type PublishPayload = {
   confirmDifferent: boolean
   year?: number | null
   language?: string | null
+  /** the person's own name for the language, sent only with `language: "other"` */
+  languageOther?: string | null
+  /** required for the Dance song kind, refused for the others */
+  dance?: string | null
+  /** a track of a playlist from an event, and its place there; kind, language and dance left out come from the playlist */
+  collectionId?: string | null
+  position?: number | null
+  recordedOn?: string | null
   credits?: string | null
   notes?: string | null
   /** required for the Prabhat Samgiita kind, refused for the others */
@@ -204,6 +228,10 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     confirm_different: payload.confirmDifferent,
     ...(payload.year ? { year: payload.year } : {}),
     ...(payload.language && kindHasLanguage(payload.kind) ? { language: payload.language } : {}),
+    ...(payload.language === OTHER_LANGUAGE && kindHasLanguage(payload.kind) && cleanLanguageOther(payload.languageOther) ? { language_other: cleanLanguageOther(payload.languageOther) } : {}),
+    ...(payload.dance && kindHasDance(payload.kind) ? { dance: payload.dance } : {}),
+    ...(payload.collectionId ? { collection_id: payload.collectionId, ...(payload.position ? { position: payload.position } : {}) } : {}),
+    ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),
     ...(payload.credits?.trim() ? { credits: payload.credits.trim() } : {}),
     ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
     ...(payload.psSong ? { ps_song_number: payload.psSong } : {}),
@@ -284,9 +312,13 @@ export function failureFromError(error: unknown): UploadFailure {
     if (error.code === "own_duplicate") return withOriginal({ code: "ownDuplicate" }, error.duplicateOf)
     if (error.code === "removed_duplicate") return { code: "removedDuplicate" }
     if (error.code === "upload_daily_limit") return { code: "dailyLimit", message: error.message }
+    if (error.code === "set_daily_limit") return { code: "setDailyLimit", message: error.message }
+    if (error.code === "set_full") return { code: "setFull", message: error.message }
     if (error.status === 413) return { code: "size" }
     if (error.status === 415) return { code: "format" }
     if (error.status === 422 && /content rules/i.test(error.message)) return { code: "rules" }
+    // the server refused for a missing language or dance (the form should have caught it first)
+    if (error.status === 422 && /language|dance/i.test(error.message)) return { code: "fields", message: error.message }
     if (error.status === 404 || error.status === 409) return { code: "gone", message: error.message }
     return { code: "server", message: error.message }
   }

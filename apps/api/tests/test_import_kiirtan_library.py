@@ -201,11 +201,12 @@ async def test_dry_run_still_flags_files_already_in_the_library(
 # ============================================================ import
 
 
-async def test_execute_imports_and_stores_like_the_api(
-    world: World, library: Library
-) -> None:
+async def test_execute_imports_and_stores_like_the_api(world: World, library: Library) -> None:
     source = wav(3)
-    library.add("a.wav", source, title="Evening Kiirtan",
+    library.add(
+        "a.wav",
+        source,
+        title="Evening Kiirtan",
         year="1998",
         language="Bengali",
         credits="Words and music by A. Sen",

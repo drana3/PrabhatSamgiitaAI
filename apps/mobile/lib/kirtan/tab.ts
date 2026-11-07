@@ -1,18 +1,21 @@
 import { filterByKind, isRecordingKind, kindCountLabel, kindHasTypes, kindWhat, typesOfKind } from "@/lib/kirtan/kind"
 import { filterByLength, type LengthBucketId } from "@/lib/kirtan/length"
 import { filterKirtans } from "@/lib/kirtan/list"
-import { RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
+import { languageLabel, LANGUAGE_CODES, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
+import { RECORDING_KINDS, type DanceId, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
 import { t } from "@/lib/i18n"
 
 /**
- * The sticky chips of the Kiirtan tab. The first four are the KIND filter (All, Kiirtan, Bhajan,
- * Prabhat Samgiita) and narrow every shelf and list; Saved, Downloaded and My uploads are lists of their own (all kinds).
+ * The sticky chips of the Kiirtan tab. The first six are the KIND filter (All, Kiirtan, Bhajan,
+ * Prabhat Samgiita, Spiritual song, Dance song) and narrow every shelf and list; Saved, Downloaded and My uploads are lists of their own (all kinds).
  */
 export const KIRTAN_TAB_CHIPS = [
   { id: "all", get label() { return t("kt.chip.all") } },
   { id: "kiirtan", get label() { return t("kind.kiirtan") } },
   { id: "bhajan", get label() { return t("kind.bhajan") } },
   { id: "prabhat_samgiita", get label() { return t("kind.prabhat_samgiita") } },
+  { id: "spiritual_song", get label() { return t("kind.spiritual_song") } },
+  { id: "dance_song", get label() { return t("kind.dance_song") } },
   { id: "saved", get label() { return t("kt.chip.saved") } },
   { id: "downloaded", get label() { return t("kt.chip.downloaded") } },
   { id: "mine", get label() { return t("kt.chip.mine") } },
@@ -24,12 +27,12 @@ export function parseKirtanTabChip(value: string | string[] | undefined): Kirtan
   return KIRTAN_TAB_CHIPS.some((c) => c.id === raw) ? (raw as KirtanTabChip) : "all"
 }
 
-/** The kind a chip filters by: All and the three kinds say it; the list chips (Saved...) show every kind. */
+/** The kind a chip filters by: All and the five kinds say it; the list chips (Saved...) show every kind. */
 export function kindOfTabChip(chip: KirtanTabChip): KindFilter {
   return isRecordingKind(chip) ? chip : "all"
 }
 
-/** Is this one of the four chips that show the shelves (and so use the kind filter)? */
+/** Is this one of the chips that show the shelves (and so use the kind filter)? */
 export function isShelfChip(chip: KirtanTabChip): boolean {
   return chip === "all" || isRecordingKind(chip)
 }
@@ -107,4 +110,40 @@ export function bhajansForEveryHour<T extends Pick<Kirtan, "type" | "addedAt"> &
     .sort((a, b) => order.indexOf(a.item.type) - order.indexOf(b.item.type) || b.item.addedAt - a.item.addedAt || a.index - b.index)
     .slice(0, limit)
     .map((x) => x.item)
+}
+
+/* ------------------------------------------------------------------ language and dance filters */
+
+/** The two sub-filters of the Spiritual song and Dance song chips: which dance, which language (null is any). */
+export type KindSubFilter = { dance: DanceId | null; language: string | null }
+export const NO_SUB_FILTER: KindSubFilter = { dance: null, language: null }
+
+/** Do these kinds have sub-filters (languages for both; the dance for Dance songs only)? */
+export function hasSubFilters(kind: KindFilter): boolean {
+  return kind === "spiritual_song" || kind === "dance_song"
+}
+
+export function isSubFilterOn(sub: KindSubFilter): boolean {
+  return sub.dance !== null || sub.language !== null
+}
+
+export function filterBySub<T extends Pick<Kirtan, "dance" | "language">>(list: readonly T[], sub: KindSubFilter): T[] {
+  return list.filter((item) => (!sub.dance || item.dance === sub.dance) && (!sub.language || item.language === sub.language))
+}
+
+/** The languages that really occur in the list, in the order of the language catalog ("other" last). */
+export function languagesIn(list: readonly Pick<Kirtan, "language">[]): string[] {
+  const present = new Set(list.flatMap((item) => (item.language ? [item.language] : [])))
+  const known = LANGUAGE_CODES.filter((code) => present.has(code))
+  return present.has(OTHER_LANGUAGE) ? [...known, OTHER_LANGUAGE] : known
+}
+
+/** What the list says when a dance or language filter leaves nothing (the catalog itself is not empty). */
+export function subEmptyText(kind: KindFilter, sub: KindSubFilter): string {
+  const what = kindWhat(kind)
+  const dance = sub.dance ? (t as (key: string) => string)(`rec.dance.${sub.dance}`) : ""
+  const language = sub.language ? languageLabel(sub.language) : ""
+  if (dance && language) return t("kt.emptyList.danceLanguage", { what, dance, language })
+  if (dance) return t("kt.emptyList.dance", { what, dance })
+  return t("kt.emptyList.language", { what, language })
 }

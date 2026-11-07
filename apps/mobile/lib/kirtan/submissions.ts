@@ -1,7 +1,9 @@
-import { kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
+import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
-import { PS_SONG_COUNT, RECORDING_LANGUAGES, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
+import { missingKindFields } from "@/lib/kirtan/uploadForm"
+import { DANCES, PS_SONG_COUNT, type DanceId, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
 
 /**
  * Submissions: a person uploads an audio file of a Kiirtan or a Bhajan (the `kind`) and it is PUBLISHED AT ONCE.
@@ -38,6 +40,15 @@ export type SubmissionInput = {
   /** year recorded, optional */
   year?: number | null
   language?: RecordingLanguage | null
+  /** the person's own name for the language, when `language` is "other" */
+  languageOther?: string | null
+  /** Dance song only: Tandava or Kaoshiki */
+  dance?: DanceId | null
+  /** a playlist from an event this recording is a track of (a server id), and its place there */
+  collectionId?: string | null
+  position?: number | null
+  /** the day it was recorded, YYYY-MM-DD */
+  recordedOn?: string | null
   /** words and music by, optional */
   credits?: string
   /** a short note, optional */
@@ -51,7 +62,7 @@ export type SubmissionInput = {
   termsAccepted?: boolean
 }
 
-export type SubmissionError = "file" | FileProblem | "title" | "author" | "song" | "year" | "terms"
+export type SubmissionError = "file" | FileProblem | "title" | "author" | "language" | "languageName" | "dance" | "song" | "year" | "terms"
 
 /** Is this a song number of the Prabhat Samgiita catalogue (a whole number from 1 to 5018)? */
 export function isPsSongNumber(value: unknown): value is number {
@@ -73,6 +84,8 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   if (problem) return problem
   if (!input.title.trim()) return "title"
   if (!input.author.trim()) return "author"
+  const missing = missingKindFields({ kind: normalizeKind(input.kind), language: input.language, languageOther: input.languageOther, dance: input.dance })
+  if (missing.length) return missing[0]!
   if (normalizeKind(input.kind) === "prabhat_samgiita" && !isPsSongNumber(input.psSong)) return "song"
   if (input.year != null && !isRecordableYear(input.year)) return "year"
   if (!input.termsAccepted) return "terms"
@@ -105,6 +118,10 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     byAuthor: Boolean(input.byAuthor),
     ...(input.year ? { year: input.year } : {}),
     ...(input.language && kindHasLanguage(kind) ? { language: input.language } : {}),
+    ...(input.language === OTHER_LANGUAGE && kindHasLanguage(kind) && cleanLanguageOther(input.languageOther) ? { languageOther: cleanLanguageOther(input.languageOther)! } : {}),
+    ...(kindHasDance(kind) && input.dance && DANCES.includes(input.dance) ? { dance: input.dance } : {}),
+    ...(input.collectionId ? { collectionId: input.collectionId, ...(input.position ? { position: input.position } : {}) } : {}),
+    ...(input.recordedOn ? { recordedOn: input.recordedOn } : {}),
     ...(tidy(input.credits ?? "") ? { credits: tidy(input.credits ?? "") } : {}),
     ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),
     ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),
@@ -194,8 +211,16 @@ function ms(value: string | null | undefined): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed
 }
 
-function isLanguage(value: unknown): value is RecordingLanguage {
-  return RECORDING_LANGUAGES.includes(value as RecordingLanguage)
+function isDance(value: unknown): value is DanceId {
+  return DANCES.includes(value as DanceId)
+}
+
+/** The language fields of a server row, read through the catalog (an old stored word like "bengali" reads as "bn"). */
+function languageOf(remote: RemoteRecording, base?: Kirtan): Pick<Kirtan, "language" | "languageOther"> {
+  const code = normalizeLanguageCode(remote.language) ?? base?.language
+  if (!code) return {}
+  const other = code === OTHER_LANGUAGE ? cleanLanguageOther(remote.language_other) ?? base?.languageOther : undefined
+  return { language: code, ...(other ? { languageOther: other } : {}) }
 }
 
 /** A server recording as the app's `Kirtan`. `base` keeps the phone's own id and time when the item is already here. */
@@ -220,7 +245,11 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     serverId: remote.id,
     authorId: remote.author_id,
     ...(remote.year ? { year: remote.year } : base?.year ? { year: base.year } : {}),
-    ...(isLanguage(remote.language) ? { language: remote.language } : base?.language ? { language: base.language } : {}),
+    ...languageOf(remote, base),
+    ...(isDance(remote.dance) ? { dance: remote.dance } : base?.dance ? { dance: base.dance } : {}),
+    ...(remote.collection_id ? { collectionId: remote.collection_id } : base?.collectionId ? { collectionId: base.collectionId } : {}),
+    ...(remote.position ? { position: remote.position } : base?.position ? { position: base.position } : {}),
+    ...(remote.recorded_on ? { recordedOn: remote.recorded_on } : base?.recordedOn ? { recordedOn: base.recordedOn } : {}),
     ...(remote.credits ? { credits: remote.credits } : base?.credits ? { credits: base.credits } : {}),
     ...(remote.notes ? { notes: remote.notes } : base?.notes ? { notes: base.notes } : {}),
     ...(isPsSongNumber(remote.ps_song_number) ? { psSong: remote.ps_song_number } : base?.psSong ? { psSong: base.psSong } : {}),

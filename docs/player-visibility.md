@@ -33,15 +33,17 @@ while something is loaded in the player (nothing loaded: no pill on any screen).
 | Song page | `/song-v2`, `/song` | Shown above the bottom edge | Not shown | The page is about a song; the pill shows what is playing and opens the player. |
 | Songs lists and collections | `/songs-v2-collection`, `/songs-v2-index`, `/songs-v2`, `/collections-v2`, `/collections` | Shown above the bottom edge | Not shown | Browsing: the person plays one song after another. |
 | Library, saved and playlists | `/library-v2`, `/saved-v2`, `/playlist-v2`, `/playlist` | Shown above the bottom edge | Not shown | Browsing the person's own songs. |
-| Kiirtan pages (list, artist, mix) | `/kiirtan`, `/kirtan-artist`, `/kirtan-mix` | Shown above the bottom edge | Not shown | Browsing recordings. |
+| Kiirtan pages (list, artist, mix, event playlists) | `/kiirtan`, `/kirtan-artist`, `/kirtan-mix`, `/recording-set`, `/my-sets` | Shown above the bottom edge | Not shown | Browsing recordings. |
 | Learn pages (songs, words, quiz, stories, harmonium) | `/learn`, `/stories`, `/story-sheet`, `/quiz`, `/harmonium-v2` | Shown above the bottom edge | Not shown | Study with the song playing in the background. |
 | Festivals | `/festivals`, `/festival` | Shown above the bottom edge | Not shown | Browsing; songs of the festival can be played. |
 | Notifications | `/notifications` | Shown above the bottom edge | Not shown | A list; nothing at the bottom to cover. |
+| Author pages (directory, a public page, your own page) | `/author`, `/authors`, `/my-author` | Shown above the bottom edge | Not shown | Browsing recordings: a page to play from, and the pill is the way back to what plays. |
 | Full player | `/player-v2`, `/player` | Hidden | Not shown | The player IS the full version of the pill. |
 | Welcome, sign in, finish profile | `/welcome`, `/auth`, `/signin`, `/complete-profile` | Hidden | Not shown | A task with a button at the bottom; nothing is playing yet for a new person. |
 | Edit profile and the profile sheets (language, appearance, script) | `/edit-profile`, `/profile-sheet`, `/script-translations`, `/review-style`, `/language` | Hidden | Not shown | Sheets and forms that draw over the whole screen. |
 | Settings (notifications, storage, contact us) | `/notification-settings`, `/storage`, `/feedback` | Hidden | Not shown | Switches and action buttons at the bottom; the pill would sit on them. |
-| Upload and Add recording | `/upload-chords`, `/upload`, `/add-kirtan`, `/chords-review` | Hidden | Not shown | Forms with a keyboard and a send button; the screen opens over the tab bar and its Upload button. |
+| Upload and Add recording | `/upload-chords`, `/upload`, `/add-kirtan`, `/upload-set`, `/chords-review` | Hidden | Not shown | Forms with a keyboard and a send button; the screen opens over the tab bar and its Upload button. |
+| Become an author and edit the page | `/become-author`, `/author-edit` | Hidden | Not shown | Step-by-step forms with a keyboard and a Publish button at the bottom. |
 | Content rules | `/content-rules` | Hidden | Not shown | A page to read to the end and agree to; the pill covered its last lines. |
 | Kiirtan live | `/kiirtan-live` | Hidden | Not shown | A video is playing: two sounds at once would clash. |
 | Assistant | `/assistant` | Hidden | Not shown | The message box sits where the pill would. |

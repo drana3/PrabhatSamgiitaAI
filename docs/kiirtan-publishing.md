@@ -117,14 +117,15 @@ recording (not a duplicate, a version of it). Five levels do this. Code: `apps/a
   and the upload is published. Nothing is blocked because the tool is not there.
 - Setting: `RECORDING_FPCALC_PATH` (default `fpcalc`). The API `Dockerfile` installs `libchromaprint-tools`.
 
-### Level 3: one mantra, three types, and the form
+### Level 3: one mantra, five types, and the form
 
 There is ONE mantra in the app: Baba Nam Kevalam. Every Kiirtan recording is a version of it, in one list. There is no
 mantra field, no autocomplete, no "N versions" line, no browse-by-mantra page and no merge endpoint (removed; the
 `mantra_groups` table and the mantra columns were dropped from the models; migration 0029 was amended before deploy and
 tidies a database that ran the old draft, see the checklist).
 
-- Type (field `kind`, kept under that name): `kiirtan` (always Baba Nam Kevalam), `bhajan`, `prabhat_samgiita`.
+- Type (field `kind`, kept under that name): `kiirtan` (always Baba Nam Kevalam), `bhajan`, `prabhat_samgiita`, and since
+  migration 0032 `spiritual_song` and `dance_song` (see "Five types, languages and dances" below).
   "Devotional song" was removed as a type: it is not offered in the form, the chips or the API (`kind=devotional_song`
   is a 422). Old rows keep `kind = 'devotional_song'` in the database (the check constraint still allows it, so no
   migration is needed) and are read, filtered and shown as Bhajan everywhere (`public_kind` / `stored_kinds` in
@@ -132,20 +133,48 @@ tidies a database that ran the old draft, see the checklist).
   uploader picks the song number 1 to 5018 with the song picker (`ps_song_number`, required for that type and refused
   for the others). The recording is stored and listed in the library under that type, with the song number.
 - The uploader types the TITLE (required). Performer (required, prefilled from the profile name; stored in the
-  existing `author` column). Optional: `language` (bengali, sanskrit, hindi, english, other; asked for Bhajan and
-  Prabhat Samgiita only, never for Kiirtan, which is always Baba Nam Kevalam), `credits` ("Words and
+  existing `author` column). Optional: `language` (an ISO code from the catalog, or `other` with a name; see the
+  language rule below; never asked for Kiirtan, which is always Baba Nam Kevalam), `credits` ("Words and
   music by"; asked for Bhajan), `year` (1900 up to this year, not in the future), `notes` (up to
   500 characters). The duration is read from the file. Checks: "I am the author or I perform this" and the content rules.
-- Language rule, one place per side: phone `LANGUAGE_KINDS` in `apps/mobile/lib/kirtan/types.ts` (the form hides the
-  field and clears the value when the type changes to one that does not ask for it; the queue and the remote publish
-  also drop it), API `KINDS_WITH_LANGUAGE` in `app/models/recordings.py`. For a Kiirtan the API silently ignores a
-  `language` (the recording is saved with none; an invalid value is still a 422), and the bulk importer does the same.
-  Whether Prabhat Samgiita asks for a language was ambiguous in the feedback; it is shown as optional. To hide it:
-  remove `"prabhat_samgiita"` from `LANGUAGE_KINDS` and `KINDS_WITH_LANGUAGE`.
+- Language rule: ONE table per side, `KIND_LANGUAGE_RULE` (phone `lib/kirtan/types.ts`, API `app/models/recordings.py`;
+  a test pins them, see below). Kiirtan: none (a sent `language` is ignored). Bhajan and Prabhat Samgiita: optional.
+  Spiritual song: REQUIRED. Dance song: optional (the dance is what is required).
 - Public listing: `GET /recordings?kind=&song_number=&sort=` filters by type (`kind=bhajan` includes old
-  devotional-song rows). My uploads and the Kiirtan page show the type on every recording (a tag, and the chips All,
-  Kiirtan, Bhajan, Prabhat Samgiita).
+  devotional-song rows), plus `language=` and `dance=` for the two new types. My uploads and the Kiirtan page show the
+  type on every recording (a tag, and the chips All, Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance song).
 - The old "Kiirtan or Bhajan" sub-types (Dharmacakra, Akhanda, ...) stay as an optional `type` for the Kiirtan area.
+
+### Five types, languages and dances
+
+Added with migration `0032_recording_sets_and_categories` (additive and idempotent; it never rewrites a row).
+
+- Types: Kiirtan, Bhajan, Prabhat Samgiita, **Spiritual song** (`spiritual_song`) and **Dance song** (`dance_song`).
+  The `kind` check constraint grows by the two values; old rows are untouched.
+- Dance song: Tandava or Kaoshiki is REQUIRED (`dance`, ids in `DANCES`, `app/models/recordings.py`; phone
+  `lib/kirtan/types.ts`). Missing: a 422 with "Choose the dance: Tandava or Kaoshiki." on the API, an inline error and a blocked button on the form, a
+  "Dance missing" line on a queue row, and the import script rejects the CSV row. A `dance` on another type is a 422.
+  The Russian label for Kaoshiki ("Каушики") is not checked by a Russian speaker yet.
+- Spiritual song: the language is REQUIRED (a 422 with "Choose the language of this song."). "Other" needs its name (up to 80 characters)
+  for every type that has a language.
+- Languages: ISO 639 codes, one catalog of 49 (`app/services/recording_languages.py`, phone
+  `lib/kirtan/languages.ts`), labels in en, ru and es (`locales/recordingLanguages.ts`), a searchable picker with
+  "Other (name it)". The database stores the code only, so a new language needs no migration. The old words
+  (`bengali`, `hindi`, ...) read as codes; stored rows keep working. To add a language: add it on both sides and a
+  `lang.<code>` label in the three dictionaries; `__tests__/kirtanLanguages.test.ts` and
+  `apps/api/tests/test_recording_sets_languages.py` fail when the two lists drift.
+- Bulk queue: the form's language and dance apply to every row unless a row has its own. A row that still misses a
+  required field says what, and is passed over (the rest go). "Apply to all rows" (language or dance) overwrites every
+  row that can still be sent. The upload button stays blocked until every open row is complete.
+- The Kiirtan screens have chips for the two types and, inside them, filters by dance and by language (only the
+  languages that occur). A filter that leaves nothing says so and is not the empty catalog.
+- Import script: CSV `category` accepts `spiritual_song` and `dance_song`; `language` is a code or an English name;
+  `dance` is a column; a missing required value fails that row only.
+
+### Playlists from an event
+
+A concert, a retreat or a satsang can go up as one playlist with a title, dates, place and its tracks in order. The
+whole thing (model, flow, limits and why, edge cases) is in `docs/kiirtan-sets.md`.
 
 ### Level 4: reports, removal, limits
 

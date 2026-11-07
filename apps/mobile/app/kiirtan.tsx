@@ -38,8 +38,9 @@ import { formatKirtanLength } from "@/lib/kirtan/list"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { dayNumberOf, kiirtanOfTheDay, resumeEntries, resumeLabel, resumeProgress } from "@/lib/kirtan/resume"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
-import { bhajansForEveryHour, emptyCatalogText, emptyListText, isEmptyCatalog, isShelfChip, kindOfTabChip, KIRTAN_TAB_CHIPS, newKirtansList, parseKirtanTabChip, savedKirtans, typeCardCount, typeCards, type KirtanTabChip, type TypeCard as TypeCardData } from "@/lib/kirtan/tab"
-import { kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
+import { bhajansForEveryHour, emptyCatalogText, emptyListText, filterBySub, hasSubFilters, isEmptyCatalog, isShelfChip, isSubFilterOn, kindOfTabChip, KIRTAN_TAB_CHIPS, languagesIn, newKirtansList, NO_SUB_FILTER, parseKirtanTabChip, savedKirtans, subEmptyText, typeCardCount, typeCards, type KindSubFilter, type KirtanTabChip, type TypeCard as TypeCardData } from "@/lib/kirtan/tab"
+import { languageLabel } from "@/lib/kirtan/languages"
+import { DANCES, kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { useKirtanStore } from "@/stores/kirtanStore"
@@ -70,11 +71,17 @@ export default function KiirtanTabScreen() {
   const initial = useProfileInitial()
   const params = useLocalSearchParams<{ filter?: string }>()
   const actions = useKirtanActions()
-  const { playable, byId, submissions } = useKirtans()
+  const { playable: allPlayable, byId, submissions } = useKirtans()
   const savedIds = useKirtanStore((s) => s.savedIds)
   const live = useKirtanLive()
 
-  const [chip, setChip] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
+  const [chip, setChipRaw] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
+  // Spiritual song and Dance song can be narrowed by dance and by language; a new chip starts without it
+  const [sub, setSub] = useState<KindSubFilter>(NO_SUB_FILTER)
+  const setChip = (next: KirtanTabChip) => {
+    setChipRaw(next)
+    setSub(NO_SUB_FILTER)
+  }
   const [typePick, setTypePick] = useState<{ kind: RecordingKind; id: TypeCardData["id"] } | null>(null)
   const [length, setLength] = useState<LengthBucketId | null>(null)
   const [menu, setMenu] = useState<Kirtan | null>(null)
@@ -84,6 +91,9 @@ export default function KiirtanTabScreen() {
   const kind = kindOfTabChip(chip)
   const shelves = isShelfChip(chip)
   const showKiirtan = kind === "all" || kind === "kiirtan"
+  const subOn = hasSubFilters(kind) && isSubFilterOn(sub)
+  const playable = useMemo(() => (hasSubFilters(kind) ? filterBySub(allPlayable, sub) : allPlayable), [allPlayable, kind, sub])
+  const languageCodes = useMemo(() => (hasSubFilters(kind) ? languagesIn(allPlayable.filter((k) => k.kind === kind)) : []), [allPlayable, kind])
   // a chosen type card belongs to one kind; it only counts while that kind is shown
   const pick = typePick && (kind === "all" || typePick.kind === kind) ? typePick : null
   const type = pick?.id ?? null
@@ -150,10 +160,55 @@ export default function KiirtanTabScreen() {
     </>
   )
 
-  const renderAll = () =>
-    isEmptyCatalog(null, null, kindList.length) ? renderEmptyCatalog() : (
+  /** Dance (Dance songs only) and language chips under the heading: only languages that really occur are offered. */
+  const subFilters = () =>
+    hasSubFilters(kind) ? (
+      <Reveal index={next()} style={styles.section}>
+        {kind === "dance_song" ? (
+          <View style={styles.lengths} accessibilityRole="radiogroup" accessibilityLabel={t("kt.sub.dance")}>
+            {[null, ...DANCES].map((dance) => {
+              const on = sub.dance === dance
+              const label = dance ? (t as (key: string) => string)(`rec.dance.${dance}`) : t("kt.sub.allDances")
+              return (
+                <KPress key={dance ?? "all"} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={label} onActivate={() => setSub((cur) => ({ ...cur, dance }))} pressedScale={0.95} style={[styles.lengthChip, { backgroundColor: on ? p.action : p.white, borderColor: on ? p.action : p.sand300 }]}>
+                  <Text style={[styles.lengthText, { color: on ? p.onAction : p.ink800 }]}>{label}</Text>
+                </KPress>
+              )
+            })}
+          </View>
+        ) : null}
+        {languageCodes.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.lengths} accessibilityRole="radiogroup" accessibilityLabel={t("kt.sub.language")}>
+            {[null, ...languageCodes].map((code) => {
+              const on = sub.language === code
+              const label = code ? languageLabel(code) : t("kt.sub.anyLanguage")
+              return (
+                <KPress key={code ?? "any"} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={label} onActivate={() => setSub((cur) => ({ ...cur, language: code }))} pressedScale={0.95} style={[styles.lengthChip, { backgroundColor: on ? p.action : p.white, borderColor: on ? p.action : p.sand300 }]}>
+                  <Text style={[styles.lengthText, { color: on ? p.onAction : p.ink800 }]}>{label}</Text>
+                </KPress>
+              )
+            })}
+          </ScrollView>
+        ) : null}
+      </Reveal>
+    ) : null
+
+  // A dance or language filter that leaves nothing says so plainly; it is not "no recordings yet"
+  const renderFilteredEmpty = () => (
     <>
       {titleBlock()}
+      {subFilters()}
+      <Reveal index={next()} style={styles.section}>
+        <HomeEmpty p={p} text={subEmptyText(kind, sub)} />
+      </Reveal>
+    </>
+  )
+
+  const renderAll = () =>
+    subOn && kindList.length === 0 ? renderFilteredEmpty() : isEmptyCatalog(null, null, kindList.length) ? renderEmptyCatalog() : (
+    <>
+      {titleBlock()}
+      {subFilters()}
 
       {day ? (
         <Reveal index={next()}>

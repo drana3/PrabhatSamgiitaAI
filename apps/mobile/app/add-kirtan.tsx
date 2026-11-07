@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path } from "react-native-svg"
 
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
-import { QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
+import { DanceField, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
+import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
@@ -18,18 +19,18 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindLabel, normalizeKind } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, kindLabel, normalizeKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
-import { hasWork, isRetryable, leftForTomorrow, queueCounts, queueProgress, queueSummary, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
+import { effectiveFields, hasWork, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
-import { PS_SONG_COUNT, RECORDING_KINDS, RECORDING_LANGUAGES, type RecordingKind } from "@/lib/kirtan/types"
-import { moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
+import { PS_SONG_COUNT, RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
+import { missingKindFields, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
-import { useUploadQueueStore, yearOf, type QueueDraft } from "@/stores/uploadQueueStore"
+import { defaultsOf, useUploadQueueStore, yearOf, type QueueDraft } from "@/stores/uploadQueueStore"
 import { href } from "@/utils/href"
 
 const ChevronGlyph = ({ color, open }: { color: string; open: boolean }) => (
@@ -42,6 +43,9 @@ const LIMIT_MB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))
 
 /** What is wrong with the form, shown under the button. `row` names the file when it is one row's title. */
 type Problem = { form: SubmissionError; row?: string } | "picker" | "nothing"
+
+/** Which language picker is open: the form's own, "Apply to all rows", or one row (its id). */
+type LangTarget = "form" | "all" | (string & {})
 
 /**
  * Add recordings: the one form for everything people upload (docs/kiirtan-publishing.md). The person picks the TYPE
@@ -81,6 +85,9 @@ export default function AddKirtanScreen() {
   const [problem, setProblem] = useState<Problem | null>(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const [chooser, setChooser] = useState(false)
+  const [langFor, setLangFor] = useState<LangTarget | null>(null)
+  // after the first press of Upload: the fields that block it show their error
+  const [tried, setTried] = useState(false)
   const inputRef = useRef<{ click: () => void } | null>(null)
   const titleHint = useRef(typeof params.title === "string" ? params.title : "")
   const alive = useRef(true)
@@ -113,6 +120,43 @@ export default function AddKirtanScreen() {
   const finished = !running && counts.total > 0 && !hasWork(items)
   const summary = queueSummary(items)
   const kind = draft.kind
+  const defaults = defaultsOf(draft)
+  const formMissing = missingKindFields({ kind, language: draft.language, languageOther: draft.languageOther, dance: draft.dance })
+  const rowsIncomplete = incompleteRows(items, defaults)
+  const missing = missingCounts(items, defaults)
+  /** the inline error under a field: only after a try, and only when it is what blocks the upload */
+  const fieldError = (field: "language" | "languageName" | "dance"): string | null => {
+    if (!tried) return null
+    const blocks = items.length ? rowsIncomplete.some((row) => row.missing.includes(field)) : formMissing.includes(field)
+    return blocks && formMissing.includes(field) ? t(`ugc.form.error.${field}`) : null
+  }
+  const languageError = fieldError("language") ?? fieldError("languageName")
+  const danceError = fieldError("dance")
+  const languageValue: LanguageValue = { language: draft.language, languageOther: draft.languageOther }
+  const pickerValue: LanguageValue =
+    langFor === "form" || langFor === null
+      ? languageValue
+      : langFor === "all"
+        ? { language: null, languageOther: "" }
+        : (() => {
+            const row = items.find((item) => item.id === langFor)
+            const fields = row ? effectiveFields(row, defaults) : null
+            return { language: fields?.language ?? null, languageOther: fields?.languageOther ?? "" }
+          })()
+  const pickLanguage = (value: LanguageValue) => {
+    if (langFor === "form") store().setDraft({ language: value.language, languageOther: value.languageOther })
+    else if (langFor === "all") {
+      store().applyToAll({ language: value.language, languageOther: value.languageOther })
+      actions.flash(t("rec.q.applied", { count: store().items.filter((item) => item.status === "waiting").length }))
+    } else if (langFor) store().setRowFields(langFor, { language: value.language, languageOther: value.languageOther })
+    setLangFor(null)
+    setProblem(null)
+  }
+  const pickDanceForAll = (dance: DanceId) => {
+    store().applyToAll({ dance })
+    actions.flash(t("rec.q.applied", { count: store().items.filter((item) => item.status === "waiting").length }))
+    setProblem(null)
+  }
 
   const listenTo = (ref: OriginalRef) => {
     const playable = playableOriginal(ref)
@@ -169,13 +213,18 @@ export default function AddKirtanScreen() {
   const upload = async () => {
     if (running) return
     setProblem(null)
+    setTried(true)
     const open = items.filter((item) => item.status === "waiting" || item.status === "limit")
     if (!open.length) {
       if (!items.length) setProblem("nothing")
       return
     }
     const first = open[0] as QueueItem
+    const firstFields = effectiveFields(first, defaults)
     const form = validateSubmission({
+      language: firstFields.language,
+      languageOther: firstFields.languageOther,
+      dance: firstFields.dance,
       kind,
       author: draft.performer,
       psSong: draft.psSong?.number ?? null,
@@ -200,6 +249,12 @@ export default function AddKirtanScreen() {
     }
     if (form === "year") {
       setProblem({ form })
+      return
+    }
+    // every file needs its language and dance before anything goes up: nothing is sent half-ready
+    const lacking = open.map((item) => ({ item, missing: rowMissing(item, defaults) })).find((entry) => entry.missing.length)
+    if (lacking) {
+      setProblem({ form: lacking.missing[0]!, row: lacking.item.id })
       return
     }
     const untitled = open.find((item) => !item.title.trim())
@@ -255,7 +310,29 @@ export default function AddKirtanScreen() {
               </Text>
             </Reveal>
 
-            <Reveal index={1} style={styles.field}>
+            {/* a whole event at once: its own screen (app/upload-set.tsx), docs/kiirtan-sets.md */}
+            <Reveal index={1}>
+              <KPress
+                accessibilityRole="link"
+                accessibilityLabel={`${t("set.entry.title")}. ${t("set.entry.body")}`}
+                onPress={() => !locked && router.push(href("/upload-set"))}
+                pressedScale={0.98}
+                style={[styles.setEntry, { backgroundColor: theme.peach, borderColor: theme.line }]}
+              >
+                <View style={styles.moreText}>
+                  <Text style={[styles.setEntryTitle, { color: theme.textHeading }]}>{t("set.entry.title")}</Text>
+                  <Text style={[styles.hint, { color: theme.textBody }]}>{t("set.entry.body")}</Text>
+                </View>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                  <Path d="M9 6l6 6-6 6" stroke={theme.accent} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </KPress>
+              <KPress accessibilityRole="link" accessibilityLabel={t("set.entry.mine")} onPress={() => router.push(href("/my-sets"))} pressedScale={0.98} style={styles.linkRow}>
+                <Text style={[styles.linkText, { color: theme.accent }]}>{t("set.entry.mine")}</Text>
+              </KPress>
+            </Reveal>
+
+            <Reveal index={2} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.type.label")}</Text>
               <View style={styles.kinds} accessibilityRole="radiogroup">
                 {RECORDING_KINDS.map((k) => {
@@ -271,6 +348,7 @@ export default function AddKirtanScreen() {
                         if (locked) return
                         store().setDraft({ kind: k, ...(k === "prabhat_samgiita" ? {} : { psSong: null }) })
                         setProblem(null)
+                        setTried(false)
                       }}
                       pressedScale={0.97}
                       outerStyle={styles.kindOuter}
@@ -304,6 +382,18 @@ export default function AddKirtanScreen() {
                   </View>
                 </KPress>
                 <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.song.hint")}</Text>
+              </Reveal>
+            ) : null}
+
+            {kindHasDance(kind) ? (
+              <Reveal index={2}>
+                <DanceField theme={theme} value={draft.dance} onChange={(dance) => store().setDraft({ dance })} invalid={!!danceError} errorText={danceError} disabled={locked} />
+              </Reveal>
+            ) : null}
+
+            {kind === "spiritual_song" ? (
+              <Reveal index={2}>
+                <LanguageField theme={theme} kind={kind} value={languageValue} onOpen={() => setLangFor("form")} invalid={!!languageError} errorText={languageError} disabled={locked} />
               </Reveal>
             ) : null}
 
@@ -363,12 +453,18 @@ export default function AddKirtanScreen() {
             {items.length ? (
               <View style={styles.queue}>
                 {running || queueProgress(items) > 0 ? <QueueBar theme={theme} items={items} /> : null}
+                {items.length > 1 && (kindHasLanguage(kind) || kindHasDance(kind)) ? (
+                  <ApplyToAllCard theme={theme} kind={kind} missing={missing} tried={tried} locked={locked} onLanguage={() => setLangFor("all")} onDance={pickDanceForAll} />
+                ) : null}
                 {items.map((item, index) => (
                   <QueueRow
                     key={item.id}
                     theme={theme}
                     item={item}
                     position={index + 1}
+                    kindFields={{ ...effectiveFields(item, defaults), missing: rowMissing(item, defaults), tried }}
+                    onRowLanguage={(id) => setLangFor(id)}
+                    onRowDance={(id, dance) => store().setRowFields(id, { dance })}
                     titleInvalid={rowWithProblem === item.id}
                     onTitle={(id, title) => store().setTitle(id, title)}
                     onRemove={(id) => store().remove(id)}
@@ -397,7 +493,7 @@ export default function AddKirtanScreen() {
                 </View>
                 <ChevronGlyph color={theme.textBody} open={moreOpen} />
               </KPress>
-              {moreOpen ? <MoreDetails theme={theme} kind={kind} locked={locked} yearInvalid={formError === "year"} /> : null}
+              {moreOpen ? <MoreDetails theme={theme} kind={kind} locked={locked} yearInvalid={formError === "year"} onOpenLanguage={() => setLangFor("form")} /> : null}
             </View>
 
             <Check theme={theme} on={draft.byAuthor} label={t("ugc.add.byAuthor")} onToggle={() => !locked && store().setDraft({ byAuthor: !store().draft.byAuthor })} />
@@ -453,45 +549,25 @@ export default function AddKirtanScreen() {
           setProblem(null)
         }}
       />
+      <LanguagePicker visible={langFor !== null} value={pickerValue} allowClear={kind !== "spiritual_song"} onPick={pickLanguage} onClose={() => setLangFor(null)} />
       <Toast message={actions.toast} theme={theme} />
     </KeyboardAvoidingView>
   )
 }
 
 /**
- * Language (Bhajan and Prabhat Samgiita, never Kiirtan), "words and music by" (Bhajan), year recorded and a short note.
+ * Language (Bhajan, Prabhat Samgiita and Dance song: optional; never Kiirtan), "words and music by" (Bhajan), year recorded and a short note.
  * All optional. Which fields a type has is lib/kirtan/uploadForm.ts moreDetailsFor.
  */
-function MoreDetails({ theme, kind, locked, yearInvalid }: { theme: SongsTheme; kind: RecordingKind; locked: boolean; yearInvalid: boolean }) {
+function MoreDetails({ theme, kind, locked, yearInvalid, onOpenLanguage }: { theme: SongsTheme; kind: RecordingKind; locked: boolean; yearInvalid: boolean; onOpenLanguage: () => void }) {
   const t = useT()
   const draft = useUploadQueueStore((s) => s.draft)
   const setDraft = useUploadQueueStore.getState().setDraft
   const has = moreDetailsFor(kind)
   return (
     <View style={styles.moreBody}>
-      {has.language ? (
-        <>
-          <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.language.label")}</Text>
-          <View style={styles.chips} accessibilityRole="radiogroup">
-            {RECORDING_LANGUAGES.map((language) => {
-              const on = draft.language === language
-              return (
-                <KPress
-                  key={language}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={t(`rec.language.${language}`)}
-                  onActivate={() => !locked && setDraft({ language: on ? null : language })}
-                  pressedScale={0.96}
-                  style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
-                >
-                  <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{t(`rec.language.${language}`)}</Text>
-                </KPress>
-              )
-            })}
-          </View>
-        </>
-      ) : null}
+      {/* a Spiritual song asks for its language above, as a required field; the other kinds keep it optional here */}
+      {has.language && kind !== "spiritual_song" ? <LanguageField theme={theme} kind={kind} value={{ language: draft.language, languageOther: draft.languageOther }} onOpen={onOpenLanguage} disabled={locked} /> : null}
       {has.credits ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.credits.label")}</Text>
@@ -559,6 +635,8 @@ const styles = StyleSheet.create({
   kindName: { fontFamily: amFonts.display, fontSize: 21, lineHeight: 23, letterSpacing: -0.3, textTransform: "uppercase" },
   kindBlurb: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
   queue: { gap: 10 },
+  setEntry: { minHeight: 72, borderRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  setEntryTitle: { fontFamily: amFonts.display, fontSize: 19, lineHeight: 22, letterSpacing: -0.2, textTransform: "uppercase" },
   moreHead: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10 },
   moreText: { flex: 1, minWidth: 0, gap: 2 },
   moreBody: { gap: 10, paddingTop: 4 },

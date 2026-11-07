@@ -1,10 +1,10 @@
 import { create } from "zustand"
 
-import { addFiles, applyOutcome, patchItem, queueCounts, removeItem, requeue, requeueAll, runQueue, setItemTitle, withoutFinished, type PickedFile, type QueueItem, type QueueStop, type RowOutcome } from "@/lib/kirtan/queue"
+import { addFiles, applyOutcome, applyToAll, effectiveFields, incompleteRows, patchItem, queueCounts, removeItem, requeue, requeueAll, rowMissing, runQueue, setItemTitle, setRowFields, withoutFinished, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
 import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import { validateSubmission } from "@/lib/kirtan/submissions"
 import { kindHasLanguage } from "@/lib/kirtan/kind"
-import type { RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
+import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { useKirtanStore } from "@/stores/kirtanStore"
 
@@ -22,6 +22,10 @@ export type QueueDraft = {
   kind: RecordingKind
   performer: string
   language: RecordingLanguage | null
+  /** the person's own name for the language, when `language` is "other" */
+  languageOther: string
+  /** Dance song: Tandava or Kaoshiki */
+  dance: DanceId | null
   credits: string
   year: string
   notes: string
@@ -30,7 +34,7 @@ export type QueueDraft = {
   byAuthor: boolean
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, credits: "", year: "", notes: "", psSong: null, byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", year: "", notes: "", psSong: null, byAuthor: false }
 
 type QueueState = {
   items: QueueItem[]
@@ -41,6 +45,10 @@ type QueueState = {
   setDraft: (patch: Partial<QueueDraft>) => void
   addFiles: (files: readonly PickedFile[]) => { added: number; skipped: number }
   setTitle: (id: string, title: string) => void
+  /** one row's own language and/or dance */
+  setRowFields: (id: string, patch: RowFieldsPatch) => void
+  /** the same language and/or dance for every row that can still be sent ("Apply to all rows") */
+  applyToAll: (patch: RowFieldsPatch) => void
   remove: (id: string) => void
   /** begins (or carries on with) the waiting rows; does nothing while a run is going */
   start: () => Promise<void>
@@ -62,6 +70,11 @@ export function yearOf(text: string): number | null {
   return /^\d{4}$/.test(digits) ? Number(digits) : null
 }
 
+/** The form's choices that rows without their own inherit. */
+export function defaultsOf(draft: QueueDraft): KindDefaults {
+  return { kind: draft.kind, language: draft.language, languageOther: draft.languageOther, dance: draft.dance }
+}
+
 function outcomeOf(result: Awaited<ReturnType<typeof runUpload>>, submissionId: string): RowOutcome {
   if (result.status === "similar") return { status: "similar", key: result.key, similar: result.similar, submissionId }
   if (result.status === "failed") return { status: "failed", failure: result.failure }
@@ -74,6 +87,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
   /** Sends one row: it becomes a submission of the kirtan store, then goes up. */
   const sendOne = async (item: QueueItem): Promise<RowOutcome> => {
     const { draft } = get()
+    const fields = effectiveFields(item, defaultsOf(draft))
     const input = {
       kind: draft.kind,
       fileName: item.fileName,
@@ -86,7 +100,9 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       addedBy: "You",
       termsAccepted: true,
       year: yearOf(draft.year),
-      language: kindHasLanguage(draft.kind) ? draft.language : null,
+      language: kindHasLanguage(draft.kind) ? fields.language : null,
+      languageOther: kindHasLanguage(draft.kind) ? fields.languageOther : null,
+      dance: fields.dance,
       credits: draft.credits,
       notes: draft.notes,
       psSong: draft.psSong?.number ?? null,
@@ -107,7 +123,8 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     set({ running: true, stopped: null })
     let stopped: QueueStop = null
     try {
-      stopped = await runQueue({ items: () => get().items, patch, upload: sendOne })
+      // a row that still misses its language or dance is passed over: the list marks it and "Upload" waits for it
+      stopped = await runQueue({ items: () => get().items, patch, upload: sendOne, ready: (item) => rowMissing(item, defaultsOf(get().draft)).length === 0 })
     } finally {
       set({ running: false, stopped })
     }
@@ -126,6 +143,8 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       return { added: result.added, skipped: result.skipped }
     },
     setTitle: (id, title) => set({ items: setItemTitle(get().items, id, title) }),
+    setRowFields: (id, change) => set({ items: setRowFields(get().items, id, change) }),
+    applyToAll: (change) => set({ items: applyToAll(get().items, change) }),
     remove: (id) => {
       const row = get().items.find((item) => item.id === id)
       // a row that waits for the answer to "is it different?" has a file on the server: it goes with the row
@@ -165,6 +184,11 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     reset: () => set({ items: [], draft: EMPTY_DRAFT, running: false, stopped: null }),
   }
 })
+
+/** The waiting rows that still miss a language or a dance (empty when every row can be sent). */
+export function selectIncompleteRows(state: Pick<QueueState, "items" | "draft">) {
+  return incompleteRows(state.items, defaultsOf(state.draft))
+}
 
 /** Is the queue busy, and with what: the numbers the form and the Kiirtan tab show. */
 export function selectQueueCounts(state: Pick<QueueState, "items">) {

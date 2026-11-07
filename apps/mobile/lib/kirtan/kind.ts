@@ -1,9 +1,9 @@
 import { t } from "@/lib/i18n"
 import { artistForAuthor, type Artist } from "@/lib/kirtan/artists"
-import { BHAJAN_TYPES, KIRTAN_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
+import { BHAJAN_TYPES, DANCE_KINDS, KIND_LANGUAGE_RULE, KIRTAN_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type LanguageRule, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * The three kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita) and every visible word that
+ * The five kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance song) and every visible word that
  * depends on the kind. One recordings system: the kind is a field, not a second system. Pure, no React, no stores.
  * Code identifiers and routes keep the `kirtan` spelling; only the strings below are shown to people.
  * Every word of a kind lives under keys named by the kind id (`kind.<id>`, `kt.head.<id>`, ...), so a new kind needs
@@ -93,9 +93,24 @@ export function kindHasCredits(kind: RecordingKind): boolean {
   return kind === "bhajan"
 }
 
-/** The sung language is asked for a Bhajan and a Prabhat Samgiita recording, never for a Kiirtan (types.ts LANGUAGE_KINDS). */
+/** The sung language is asked for every kind but Kiirtan (types.ts LANGUAGE_KINDS, KIND_LANGUAGE_RULE). */
 export function kindHasLanguage(kind: RecordingKind | null | undefined): boolean {
   return LANGUAGE_KINDS.includes(normalizeKind(kind))
+}
+
+/** `none`, `optional` or `required`: the one table of the language rule per kind. */
+export function kindLanguageRule(kind: RecordingKind | null | undefined): LanguageRule {
+  return KIND_LANGUAGE_RULE[normalizeKind(kind)]
+}
+
+/** A Spiritual song cannot be sent without its language. */
+export function kindRequiresLanguage(kind: RecordingKind | null | undefined): boolean {
+  return kindLanguageRule(kind) === "required"
+}
+
+/** A Dance song names its dance (Tandava or Kaoshiki), and must. */
+export function kindHasDance(kind: RecordingKind | null | undefined): boolean {
+  return DANCE_KINDS.includes(normalizeKind(kind))
 }
 
 /** The kinds without sub-types have the one type "other". */

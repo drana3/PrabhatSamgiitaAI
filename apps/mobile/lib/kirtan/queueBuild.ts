@@ -13,6 +13,8 @@ import type { KindFilter, Kirtan } from "@/lib/kirtan/types"
 export const SOURCE_ALL_KIIRTANS = "All Kiirtans"
 export const SOURCE_ALL_BHAJANS = "All Bhajans"
 export const SOURCE_ALL_PS_RECORDINGS = "All Prabhat Samgiita recordings"
+export const SOURCE_ALL_SPIRITUAL_SONGS = "All Spiritual songs"
+export const SOURCE_ALL_DANCE_SONGS = "All Dance songs"
 export const SOURCE_ALL_RECORDINGS = "All Kiirtans and Bhajans"
 export const SOURCE_EVERYTHING = "Everything"
 
@@ -25,12 +27,16 @@ const NOUNS: Record<KindFilter, string> = {
   kiirtan: "Kiirtans",
   bhajan: "Bhajans",
   prabhat_samgiita: "Prabhat Samgiita recordings",
+  spiritual_song: "Spiritual songs",
+  dance_song: "Dance songs",
   all: "Kiirtans and Bhajans",
 }
 const ALL_NAMES: Record<KindFilter, string> = {
   kiirtan: SOURCE_ALL_KIIRTANS,
   bhajan: SOURCE_ALL_BHAJANS,
   prabhat_samgiita: SOURCE_ALL_PS_RECORDINGS,
+  spiritual_song: SOURCE_ALL_SPIRITUAL_SONGS,
+  dance_song: SOURCE_ALL_DANCE_SONGS,
   all: SOURCE_ALL_RECORDINGS,
 }
 

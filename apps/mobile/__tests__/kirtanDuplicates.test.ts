@@ -175,17 +175,17 @@ describe("level 3: one mantra (Baba Nam Kevalam) and the fields of a recording",
     const full = server(() => json(200, REC))
     await publishRecording(full.cfg, {
       key: "k", kind: "prabhat_samgiita", type: "other", title: "T", author: "A", byAuthor: true, termsVersion: "v", confirmDifferent: false,
-      year: 1999, language: "bengali", credits: "  Words and music by P. R. Sarkar ", notes: " A note ", psSong: 12,
+      year: 1999, language: "bn", credits: "  Words and music by P. R. Sarkar ", notes: " A note ", psSong: 12,
     })
-    expect(full.calls[0].body).toMatchObject({ kind: "prabhat_samgiita", year: 1999, language: "bengali", credits: "Words and music by P. R. Sarkar", notes: "A note", ps_song_number: 12 })
+    expect(full.calls[0].body).toMatchObject({ kind: "prabhat_samgiita", year: 1999, language: "bn", credits: "Words and music by P. R. Sarkar", notes: "A note", ps_song_number: 12 })
     const plain = server(() => json(200, REC))
     await publishRecording(plain.cfg, { key: "k", kind: "kiirtan", type: "other", title: "T", author: "A", byAuthor: true, termsVersion: "v", confirmDifferent: false, credits: "   ", notes: "" })
     for (const field of ["year", "language", "credits", "notes", "ps_song_number", "mantra"]) expect(plain.calls[0].body).not.toHaveProperty(field)
   })
 
   it("a recording from the server keeps its fields and the one it was removed as a copy of", () => {
-    const live = fromRemote({ ...REC, kind: "prabhat_samgiita", year: 1999, language: "hindi", credits: "C", notes: "N", ps_song_number: 7 })
-    expect(live).toMatchObject({ kind: "prabhat_samgiita", year: 1999, language: "hindi", credits: "C", notes: "N", psSong: 7 })
+    const live = fromRemote({ ...REC, kind: "prabhat_samgiita", year: 1999, language: "hi", credits: "C", notes: "N", ps_song_number: 7 })
+    expect(live).toMatchObject({ kind: "prabhat_samgiita", year: 1999, language: "hi", credits: "C", notes: "N", psSong: 7 })
     const removed = fromRemote({ ...REC, status: "removed", removed_reason: "A copy", removed_duplicate_of: "r0" })
     expect(removed).toMatchObject({ status: "removed", duplicateOf: { id: "r0" } })
     expect(fromRemote(REC)).not.toHaveProperty("psSong")

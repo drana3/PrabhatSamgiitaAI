@@ -1,12 +1,17 @@
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { validateAudioFile } from "@/lib/kirtan/rules"
-import type { KirtanOriginal, UploadFailure } from "@/lib/kirtan/types"
+import { missingKindFields, type KindFields, type MissingField } from "@/lib/kirtan/uploadForm"
+import type { DanceId, KirtanOriginal, RecordingKind, UploadFailure } from "@/lib/kirtan/types"
 
 /**
  * The upload queue: many audio files of one kind sent one after another (docs/kiirtan-publishing.md, "Bulk upload").
  * Pure: the rows, their states and the loop that works through them. Nothing here knows React, the stores or the
  * network; the loop gets one `upload` function and one `patch` function (stores/uploadQueueStore.ts wires the real ones,
  * the tests wire fakes).
+ *
+ * A row can carry its OWN language and dance (the form's choices apply to every row that has none): a Spiritual song
+ * row without a language, or a Dance song row without a dance, is "missing" and the queue will not send it
+ * (`rowMissing`, `applyToAll` fills them all at once).
  *
  * A row goes: waiting -> uploading -> one of
  *   done       the recording is published
@@ -36,6 +41,11 @@ export type QueueItem = {
   similar?: { submissionId: string; key: string; briefs: RemoteBrief[] }
   /** the submission of the phone's own list that this row became (`done`) */
   submissionId?: string
+  /** this row's own language (an ISO code or "other"); undefined means the form's choice, null means none */
+  language?: string | null
+  languageOther?: string
+  /** this row's own dance; undefined means the form's choice */
+  dance?: DanceId | null
 }
 
 export type PickedFile = { name: string; uri: string; size: number | null; type: string | null }
@@ -121,6 +131,75 @@ export function withoutFinished(items: readonly QueueItem[]): QueueItem[] {
   return items.filter((item) => item.status !== "done" && item.status !== "duplicate")
 }
 
+/* ------------------------------------------------------------------ language and dance per row */
+
+/** The form's choices that every row without its own inherits. */
+export type KindDefaults = { kind: RecordingKind; language: string | null; languageOther: string; dance: DanceId | null }
+
+/** What a row will be sent with: its own language and dance, or else the form's. */
+export function effectiveFields(item: QueueItem, defaults: KindDefaults): KindFields {
+  const language = item.language !== undefined ? item.language : defaults.language
+  return {
+    kind: defaults.kind,
+    language,
+    languageOther: item.language !== undefined ? item.languageOther ?? "" : defaults.languageOther,
+    dance: item.dance !== undefined ? item.dance : defaults.dance,
+  }
+}
+
+/** What this row still needs before it can be sent (empty when it is complete). */
+export function rowMissing(item: QueueItem, defaults: KindDefaults): MissingField[] {
+  return missingKindFields(effectiveFields(item, defaults))
+}
+
+/** The rows that are waiting to be sent and still miss something; the list says what, row by row. */
+export function incompleteRows(items: readonly QueueItem[], defaults: KindDefaults): { id: string; missing: MissingField[] }[] {
+  return items.flatMap((item) => {
+    if (item.status !== "waiting") return []
+    const missing = rowMissing(item, defaults)
+    return missing.length ? [{ id: item.id, missing }] : []
+  })
+}
+
+/** How many waiting rows miss a language (or its name), a dance, and how many miss anything. */
+export function missingCounts(items: readonly QueueItem[], defaults: KindDefaults): { language: number; dance: number; rows: number } {
+  const incomplete = incompleteRows(items, defaults)
+  return {
+    language: incomplete.filter((row) => row.missing.includes("language") || row.missing.includes("languageName")).length,
+    dance: incomplete.filter((row) => row.missing.includes("dance")).length,
+    rows: incomplete.length,
+  }
+}
+
+export type RowFieldsPatch = { language?: string | null; languageOther?: string; dance?: DanceId | null }
+
+/** Sets one row's own language and/or dance. Choosing a language other than "other" forgets the name. */
+export function setRowFields(items: readonly QueueItem[], id: string, patch: RowFieldsPatch): QueueItem[] {
+  return items.map((item) => {
+    if (item.id !== id || item.status === "uploading" || item.status === "done") return item
+    const next: QueueItem = { ...item }
+    if ("language" in patch) {
+      next.language = patch.language
+      next.languageOther = patch.language === "other" ? (patch.languageOther ?? item.languageOther ?? "") : undefined
+    } else if ("languageOther" in patch) {
+      next.languageOther = patch.languageOther
+    }
+    if ("dance" in patch) next.dance = patch.dance
+    return next
+  })
+}
+
+/**
+ * "Apply to all rows": gives every row that can still be sent (not uploading, done or already in the library) the
+ * same language and/or dance. Rows that have their own value are overwritten: the person asked for all.
+ */
+export function applyToAll(items: readonly QueueItem[], patch: RowFieldsPatch): QueueItem[] {
+  return items.map((item) => {
+    if (item.status === "uploading" || item.status === "done" || item.status === "duplicate") return item
+    return setRowFields([item], item.id, patch)[0] as QueueItem
+  })
+}
+
 /* ------------------------------------------------------------------ counting */
 
 export type QueueCounts = Record<QueueStatus, number> & { total: number }
@@ -193,7 +272,7 @@ export function applyOutcome(outcome: RowOutcome): { patch: Partial<QueueItem>; 
   if (failure.code === "duplicate" || failure.code === "ownDuplicate") {
     return { patch: { status: "duplicate", failure, original: failure.original as (KirtanOriginal & { audioUrl: string }) | undefined }, stop: null }
   }
-  if (failure.code === "dailyLimit") return { patch: { status: "limit", failure }, stop: "dailyLimit" }
+  if (failure.code === "dailyLimit" || failure.code === "setDailyLimit") return { patch: { status: "limit", failure }, stop: "dailyLimit" }
   if (failure.code === "signin") return { patch: { status: "failed", failure }, stop: "signin" }
   return { patch: { status: "failed", failure }, stop: null }
 }
@@ -206,6 +285,8 @@ export type QueueRunnerDeps = {
   patch: (id: string, patch: Partial<QueueItem>) => void
   /** sends one row; never throws (a thrown error counts as a failed row) */
   upload: (item: QueueItem) => Promise<RowOutcome>
+  /** a waiting row that is not ready (it still misses its language or dance) is passed over, not sent */
+  ready?: (item: QueueItem) => boolean
 }
 
 /**
@@ -215,7 +296,7 @@ export type QueueRunnerDeps = {
  */
 export async function runQueue(deps: QueueRunnerDeps): Promise<QueueStop> {
   for (;;) {
-    const item = nextWaiting(deps.items())
+    const item = deps.items().find((row) => row.status === "waiting" && (deps.ready ? deps.ready(row) : true))
     if (!item) return null
     deps.patch(item.id, { status: "uploading", failure: undefined })
     let outcome: RowOutcome

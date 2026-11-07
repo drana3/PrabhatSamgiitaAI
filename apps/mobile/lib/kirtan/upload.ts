@@ -34,6 +34,13 @@ export type UploadSource = {
   byAuthor: boolean
   year?: number | null
   language?: string | null
+  languageOther?: string | null
+  /** Dance song only */
+  dance?: string | null
+  /** a track of a playlist from an event: its server id and place; the playlist's own allowance and defaults apply */
+  collectionId?: string | null
+  position?: number | null
+  recordedOn?: string | null
   credits?: string
   notes?: string
   /** Prabhat Samgiita only: the number of the song */
@@ -84,7 +91,7 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       const problem = validateAudioFile({ name: source.fileName, size: blob.size, type: source.fileType })
       if (problem) return { status: "failed", failure: { code: problem } }
       const sha256 = await (deps.sha256 ?? sha256Hex)(blob)
-      const target = await requestUpload(cfg, { fileName: source.fileName, contentType, sizeBytes: blob.size, sha256 })
+      const target = await requestUpload(cfg, { fileName: source.fileName, contentType, sizeBytes: blob.size, sha256, collectionId: source.collectionId })
       await putFile(cfg, target, blob, contentType)
       key = target.key
     }
@@ -98,6 +105,11 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       termsVersion: source.termsVersion ?? RULES_VERSION,
       year: source.year,
       language: source.language,
+      languageOther: source.languageOther,
+      dance: source.dance,
+      collectionId: source.collectionId,
+      position: source.position,
+      recordedOn: source.recordedOn,
       credits: source.credits,
       notes: source.notes,
       psSong: source.psSong,

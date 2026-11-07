@@ -204,6 +204,10 @@ export default function RootLayout() {
             {/* Kiirtans: audio files uploaded by their authors, played in the one player. */}
             <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
             {/* Upload: the hub of the tab bar's Upload button, offering chords for a song, and the team's review of them. */}
+            {/* Playlists from an event: the upload wizard, the playlist's page and the person's own list (docs/kiirtan-sets.md). */}
+            <Stack.Screen name="upload-set" options={{ presentation: "modal" }} />
+            <Stack.Screen name="recording-set/[id]" options={{ presentation: "card" }} />
+            <Stack.Screen name="my-sets" options={{ presentation: "card" }} />
             <Stack.Screen name="upload" options={{ presentation: "modal" }} />
             <Stack.Screen name="upload-chords" options={{ presentation: "modal" }} />
             <Stack.Screen name="chords-review" options={{ presentation: "card" }} />

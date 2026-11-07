@@ -3,13 +3,18 @@ import { StyleSheet, Text, TextInput, View } from "react-native"
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated"
 import Svg, { Path } from "react-native-svg"
 
+import { DanceChoices, RequiredMark } from "@/components/kirtan/add/KindFields"
 import { KPress } from "@/components/kirtan/KPress"
 import { amColors } from "@/constants/tokens/amColors"
 import { amSpring } from "@/constants/tokens/amMotion"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
+import { kindHasDance, kindHasLanguage, kindRequiresLanguage } from "@/lib/kirtan/kind"
+import { languageLabel } from "@/lib/kirtan/languages"
 import { isRetryable, queueProgress, type QueueItem, type QueueSummary } from "@/lib/kirtan/queue"
+import type { DanceId, RecordingKind } from "@/lib/kirtan/types"
+import type { MissingField } from "@/lib/kirtan/uploadForm"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { uploadErrorText } from "@/lib/kirtan/rules"
 
@@ -48,10 +53,89 @@ export function QueueBar({ theme, items }: { theme: SongsTheme; items: readonly 
   )
 }
 
+/** What a row is sent with and what it still lacks (lib/kirtan/queue.ts effectiveFields and rowMissing). */
+export type RowKindFields = { kind: RecordingKind; language?: string | null; languageOther?: string | null; dance?: DanceId | null; missing: MissingField[]; tried: boolean }
+
+/** "For every file": one language or dance for all rows at once, and how many rows still lack one. */
+export function ApplyToAllCard({ theme, kind, missing, tried, locked, onLanguage, onDance }: { theme: SongsTheme; kind: RecordingKind; missing: { language: number; dance: number; rows: number }; tried: boolean; locked: boolean; onLanguage: () => void; onDance: (dance: DanceId) => void }) {
+  const t = useT()
+  const warn = tried ? theme.dangerText : theme.textBody
+  return (
+    <View style={[styles.apply, { backgroundColor: theme.inner, borderColor: theme.line }]}>
+      <Text style={[styles.askTitle, { color: theme.textHeading }]}>{t("rec.q.applyTitle")}</Text>
+      {kindHasLanguage(kind) ? (
+        <KPress accessibilityRole="button" accessibilityLabel={t("rec.q.applyLanguage")} accessibilityState={{ disabled: locked }} onPress={() => !locked && onLanguage()} pressedScale={0.97} style={[styles.small, { backgroundColor: theme.peach }]}>
+          <Text style={[styles.smallText, { color: theme.accent }]}>{t("rec.q.applyLanguage")}</Text>
+        </KPress>
+      ) : null}
+      {kindHasDance(kind) ? (
+        <View style={styles.applyDance}>
+          <Text style={[styles.detail, { color: theme.textBody }]}>{t("rec.q.applyDance")}</Text>
+          <DanceChoices theme={theme} value={null} onChange={onDance} disabled={locked} />
+        </View>
+      ) : null}
+      {missing.language > 0 ? (
+        <Text style={[styles.detail, { color: warn }]} accessibilityLiveRegion="polite">
+          {t("rec.q.needLanguage", { count: missing.language })}
+        </Text>
+      ) : null}
+      {missing.dance > 0 ? (
+        <Text style={[styles.detail, { color: warn }]} accessibilityLiveRegion="polite">
+          {t("rec.q.needDance", { count: missing.dance })}
+        </Text>
+      ) : null}
+    </View>
+  )
+}
+
+/** The language and dance of one row: what it will be sent with, a way to change it, and what is still missing. */
+function RowKindLine({ theme, item, fields, onLanguage, onDance }: { theme: SongsTheme; item: QueueItem; fields: RowKindFields; onLanguage: (id: string) => void; onDance: (id: string, dance: DanceId) => void }) {
+  const t = useT()
+  const lacksLanguage = fields.missing.includes("language") || fields.missing.includes("languageName")
+  const lacksDance = fields.missing.includes("dance")
+  const label = fields.language ? languageLabel(fields.language, fields.languageOther ?? undefined) : ""
+  return (
+    <View style={styles.kindLine}>
+      {kindHasLanguage(fields.kind) ? (
+        <View style={styles.kindRow}>
+          <Text style={[styles.kindRowLabel, { color: theme.textBody }]}>{t("rec.q.rowLanguage")}</Text>
+          <RequiredMark theme={theme} required={kindRequiresLanguage(fields.kind)} invalid={lacksLanguage && fields.tried} />
+          <KPress
+            accessibilityRole="button"
+            accessibilityLabel={t("rec.q.fieldsFor", { title: item.title || item.fileName })}
+            onPress={() => onLanguage(item.id)}
+            pressedScale={0.96}
+            style={[styles.small, { backgroundColor: lacksLanguage ? theme.card : theme.peach, borderWidth: lacksLanguage ? 1.5 : 0, borderColor: lacksLanguage && fields.tried ? amColors.danger : theme.line }]}
+          >
+            <Text style={[styles.smallText, { color: theme.accent }]} numberOfLines={1}>
+              {label || t("rec.q.rowEdit")}
+            </Text>
+          </KPress>
+        </View>
+      ) : null}
+      {kindHasDance(fields.kind) ? (
+        <View style={styles.kindRow}>
+          <Text style={[styles.kindRowLabel, { color: theme.textBody }]}>{t("rec.q.rowDance")}</Text>
+          <RequiredMark theme={theme} required invalid={lacksDance && fields.tried} />
+          <DanceChoices theme={theme} value={fields.dance ?? null} onChange={(dance) => onDance(item.id, dance)} invalid={lacksDance && fields.tried} />
+        </View>
+      ) : null}
+      {fields.missing.map((field) => (
+        <Text key={field} style={[styles.detail, { color: theme.dangerText }]} accessibilityLiveRegion="polite">
+          {t(`rec.q.missing.${field}`)}
+        </Text>
+      ))}
+    </View>
+  )
+}
+
 export function QueueRow({
   theme,
   item,
   position,
+  kindFields,
+  onRowLanguage,
+  onRowDance,
   onTitle,
   onRemove,
   onRetry,
@@ -65,6 +149,10 @@ export function QueueRow({
   item: QueueItem
   /** `3` of N, for the spoken label */
   position: number
+  /** the type's language and dance for this row; left out where the type has neither */
+  kindFields?: RowKindFields
+  onRowLanguage?: (id: string) => void
+  onRowDance?: (id: string, dance: DanceId) => void
   onTitle: (id: string, title: string) => void
   onRemove: (id: string) => void
   onRetry: (id: string) => void
@@ -115,6 +203,7 @@ export function QueueRow({
       <Text style={[styles.meta, { color: theme.textBody }]} numberOfLines={1}>
         {meta}
       </Text>
+      {kindFields && onRowLanguage && onRowDance && item.status === "waiting" && (kindHasLanguage(kindFields.kind) || kindHasDance(kindFields.kind)) ? <RowKindLine theme={theme} item={item} fields={kindFields} onLanguage={onRowLanguage} onDance={onRowDance} /> : null}
       <View style={styles.statusLine}>
         <View style={[styles.dot, { backgroundColor: item.status === "uploading" ? amColors.orange700 : tone }]} />
         <Text style={[styles.status, { color: tone }]} accessibilityLiveRegion="polite">
@@ -212,6 +301,11 @@ const styles = StyleSheet.create({
   askListed: { flex: 1, fontFamily: amFonts.semi, fontSize: 14, lineHeight: 19 },
   askButton: { height: 48, borderRadius: 70, alignItems: "center", justifyContent: "center", flexDirection: "row" },
   askButtonText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20, color: "#FFFFFF" },
+  apply: { borderRadius: 20, borderWidth: 1, padding: 14, gap: 10 },
+  applyDance: { gap: 8 },
+  kindLine: { gap: 8, paddingVertical: 4 },
+  kindRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  kindRowLabel: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   summary: { borderRadius: 20, borderWidth: 1, padding: 16, gap: 10 },
   summaryText: { fontFamily: amFonts.display, fontSize: 18, lineHeight: 24, letterSpacing: -0.2 },
 })
