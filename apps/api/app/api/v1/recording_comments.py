@@ -65,12 +65,15 @@ async def list_comments(
     # The answer depends on who asks (`mine`, `can_remove`): never share it between readers.
     response.headers["Cache-Control"] = "private, no-store"
     await visible_recording(session, recording_id)
-    rows, total = await service.list_published(session, recording_id, limit=limit, offset=offset)
+    rows, total, live = await service.list_published(
+        session, recording_id, limit=limit, offset=offset
+    )
     team = member is not None and is_team_member(member, settings)
     viewer = member.id if member else None
     return RecordingCommentList(
         items=[service.public_out(c, a, viewer_id=viewer, team=team) for c, a in rows],
         total=total,
+        live_total=live,
         limit=limit,
         offset=offset,
         has_more=offset + len(rows) < total,

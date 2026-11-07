@@ -84,6 +84,36 @@ describe("a deleted comment is a tombstone (QA-051)", () => {
     expect(state.items.map((c) => c.id)).toEqual(["c1"])
     expect(state.total).toBe(1)
   })
+  it("shows the exact number: the server's live count, kept right through post and delete (QA-057)", () => {
+    const wirePage = { items: [WIRE, DELETED, { ...DELETED, id: "c8" }], total: 3, live_total: 1, limit: 20, offset: 0, has_more: false }
+    const page = recordingPageFromWire(wirePage)
+    expect(page).toMatchObject({ total: 3, liveTotal: 1 })
+    // only the first page is loaded (has_more): the count still counts every comment, not the loaded ones
+    let state = reducer(emptyState<RecordingComment>(), { type: "loaded", page: { ...page, items: page.items.slice(0, 1), hasMore: true } })
+    expect(state.live).toBe(1)
+    state = reducer(state, { type: "moreLoaded", page })
+    expect(state.live).toBe(1)
+    const fresh = { ...recordingCommentFromWire({ ...WIRE, id: "c7", mine: true }) }
+    state = reducer(state, { type: "posted", comment: fresh })
+    expect([state.total, state.live]).toEqual([4, 2])
+    state = reducer(state, { type: "removed", id: "c7", tombstone: true })
+    expect([state.total, state.live]).toEqual([4, 1])
+    state = reducer(state, { type: "removed", id: "c1" })
+    expect([state.total, state.live]).toEqual([3, 0])
+  })
+  it("falls back to total where a page has no live count (songs)", () => {
+    const state = reducer(emptyState(), { type: "loaded", page: { items: [], total: 4, hasMore: false } })
+    expect(state.live).toBe(4)
+  })
+  it("the preview's live count leaves tombstones out", async () => {
+    const api = createRecordingCommentsMock({ me: () => "Me" })
+    const before = await api.list("r1", { limit: 20, offset: 0 })
+    const posted = await api.post("r1", { body: "Mine to delete", isAnonymous: false })
+    await api.remove(posted.id)
+    const after = await api.list("r1", { limit: 20, offset: 0 })
+    expect(after.total).toBe(before.total + 1)
+    expect(after.liveTotal).toBe(before.liveTotal)
+  })
   it("the preview keeps a tombstone for the author's own delete and nothing for another's", async () => {
     const api = createRecordingCommentsMock({ me: () => "Me" })
     const posted = await api.post("r1", { body: "Mine", isAnonymous: false })

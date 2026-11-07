@@ -73,9 +73,9 @@ export function CommentsView<T extends CommentBase>({ t, comments, words, testID
       )}
 
       <View style={styles.list}>
-        {state.status === "ready" && state.total > 0 ? (
+        {state.status === "ready" && state.live > 0 ? (
           <Text accessibilityRole="header" style={[styles.count, { color: t.ink500 }]}>
-            {tr("songComments.count", { count: Math.max(0, state.total - state.items.filter((c) => c.deleted).length) })}
+            {tr("songComments.count", { count: state.live })}
           </Text>
         ) : null}
         {state.status === "loading" ? (

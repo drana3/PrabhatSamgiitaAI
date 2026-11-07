@@ -26,7 +26,7 @@ One migration, `0034_recording_extras`, six tables. All of them hang off `record
 | `video_links` | one video: target (a recording or a song), provider (`youtube`, `vimeo`, `archive`), the video's own id, the rebuilt https address, optional title (80), member, anonymous flag, status `published` or `removed`, who removed it and why |
 | `video_link_reports` | one report per reporter and video |
 
-Deleting a recording deletes its comments, sheets and video links with it (`ON DELETE CASCADE`). A member's own deletion leaves a tombstone for comments (see below) and a row marked `author` for videos.
+Deleting a recording deletes its comments, sheets and video links with it (`ON DELETE CASCADE`). A member's own deletion leaves a tombstone for comments (see below) and a wiped row for videos, both marked in `removed_by` with a reserved author-delete marker.
 
 ### Why a new table for chord sheets, and not `song_chord_proposals`
 
@@ -53,10 +53,10 @@ Deleting a comment does **not** refund the allowance (removed and author-deleted
 
 ## API
 
-All under `/api/v1`. Every call needs a signed-in member except the reads, which are open (a read adds the viewer's own "mine" flags when signed in). IDs are UUIDs for recordings and 1..5018 for songs.
+All under `/api/v1`. Every call needs a signed-in member except two kinds, which are open: the reads (a read adds the viewer's own "mine" flags when signed in) and the three report calls (comment, chord sheet, video), which a signed-out visitor may make too (see Reporting below). IDs are UUIDs for recordings and 1..5018 for songs.
 
 **Comments** (`/recording-comments`)
-- `GET /recordings/{id}` list, newest first, with tombstones.
+- `GET /recordings/{id}` list, newest first, with tombstones; `total` pages through them, `live_total` is the count to show.
 - `POST /recordings/{id}` post (body, anonymous). 201.
 - `DELETE /{comment_id}` author deletes their own, or the team removes (with a reason). 204.
 - `POST /{comment_id}/report` report (reason, optional note).
@@ -103,7 +103,8 @@ Rate limits are checked **after** the input is validated, so a bad request never
 
 - **Reporting** is one rule for all three kinds. Signed-out visitors may report, exactly as under a Prabhat Samgiita song (the API keys a signed-out report by the caller's address; rate limited per address and per member). **Nobody reports their own item**: a comment, a chord sheet or a video of your own answers `422` ("This is your own ... You can delete it.") and the app shows Delete instead of Report. One report per person and item, with a reason. A report does not hide anything by itself; it puts the item in the team's list.
 - The team can **remove** a comment or a video (with a reason) and **restore** a video or a sheet. A team-removed video cannot be re-added by a member: the address stays refused (`video_team_removed`), so a removed link does not come back under a new account.
-- **Tombstones.** A comment its author deletes stays in the list as a tombstone: `deleted: true`, no text, no author, no id of a person, nothing to report or remove, and it shows as one quiet line ("Deleted by the author"). The text is wiped on the server. A **team removal leaves nothing** for readers: the comment just goes. (The song comments' own delete currently removes the line entirely; only recordings keep the tombstone.) A tombstone is counted in the page size but not in the "N comments" count.
+- **Tombstones.** A comment its author deletes stays in the list as a tombstone: `deleted: true`, no text, no author, no id of a person, nothing to report or remove, and it shows as one quiet line ("Deleted by the author"). The text is wiped on the server. A **team removal leaves nothing** for readers: the comment just goes. (The song comments' own delete currently removes the line entirely; only recordings keep the tombstone.) A tombstone is counted in the page size (`total`, which drives paging) but not in the "N comments" count: the list answer carries `live_total`, the number of comments people can read, and the phone shows that number (it stays exact when only the first page is loaded, and after posting or deleting).
+- **How the author's own delete is told from a team removal.** `removed_by` holds a reserved marker for an author delete (it starts with a control character). A team removal stores the member's display name with control characters stripped, so no name, not even one spelled `author`, can look like an author delete. Migration `0036_author_delete_marker` rewrites older rows that held the plain word.
 - **Anonymous means hidden from members, not from the team.** The public view of an anonymous comment, sheet or video carries no author, no avatar and no id that links it to a person (`public_out`). The team sees who wrote it (`admin_out`) and the app says so next to the toggle.
 - **Strangers' text.** Bidi and zero-width characters are stripped, control characters are dropped, spaces are collapsed. Nothing is rendered as HTML. The comment box (shared with the song comments) says "at most two links" **while the person types**, so a shut Post button is never a mystery.
 
@@ -142,6 +143,8 @@ Transposing (`lib/recordingChords/transpose.ts`) reads a line as chords when eve
 ### What counts as a chord chart
 
 A body is accepted when it holds chords AND is more than one lonely plain letter. "A" alone is also an ordinary word, so a body of just "A" (or "A" and "A") is refused with its own sentence. Accepted: at least **two different** chords ("A" and "G"), or **one chord that is plainly a chord**: a quality, a number or a bass note (Am, G7, Cmaj7, D/F#). So real minimal charts such as "Am" over a line, or "Am" and "G", pass. The note under a chart takes no web links, like the chart and a video title. The phone applies the same rules for instant feedback; the API has the final say.
+
+**Open decision for the owner:** a one-chord chart written as a plain letter (a drone kiirtan on just "G", "E" or "Bb") is refused too. The refusal sentence names the way out (write the chord in full: G5, Gsus4, Gmaj7 all pass). Whether such a chart should pass is not decided here.
 
 **Adding or changing later.** "Add your own chart" in the viewer, or the Chords block, opens `/recording-chords?recording=<id>` (a modal). The same form, the same checks, a sent screen that says whether the chart is live (team) or waiting. "Change" opens it with `edit=<sheet>` for a waiting or rejected chart.
 

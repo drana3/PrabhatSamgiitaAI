@@ -58,7 +58,7 @@ export function createRecordingCommentsMock(options: { me: () => string; now?: (
     async list(recordingId, query): Promise<CommentPage<RecordingComment>> {
       const all = sorted(storeFor(recordingId))
       const items = all.slice(query.offset, query.offset + query.limit)
-      return { items, total: all.length, hasMore: query.offset + items.length < all.length }
+      return { items, total: all.length, liveTotal: all.filter((c) => !c.deleted).length, hasMore: query.offset + items.length < all.length }
     },
     async post(recordingId, draft) {
       const problem = draftProblem(draft.body)

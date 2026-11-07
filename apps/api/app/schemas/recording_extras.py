@@ -39,7 +39,10 @@ class RecordingCommentOut(BaseModel):
 
 class RecordingCommentList(BaseModel):
     items: list[RecordingCommentOut]
+    # every entry the list pages through, tombstones included (it drives `has_more`)
     total: int
+    # the comments people can read: `total` without the tombstones. This is the number to show.
+    live_total: int
     limit: int
     offset: int
     has_more: bool

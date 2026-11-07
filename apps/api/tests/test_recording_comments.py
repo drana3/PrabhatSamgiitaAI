@@ -16,11 +16,13 @@ from sqlalchemy import func, select
 from app.models import UserAccount
 from app.models.recording_extras import RecordingComment
 from app.models.song_comments import SongComment
+from app.services.extras_common import AUTHOR_DELETED_BY, team_removed_by
 from tests.extras_support import (
     AVATAR,
     MEMBER_A,
     REC,
     REC_REMOVED,
+    TEAM,
     World,
 )
 from tests.extras_support import world_fixture as world_fixture  # noqa: F401
@@ -144,7 +146,7 @@ async def _fill_day(world: World, count: int, model=RecordingComment, **extra) -
 
 
 async def test_daily_allowance_counts_removed_ones_and_the_team_is_free(world: World) -> None:
-    await _fill_day(world, 20, status="removed", removed_by="author")
+    await _fill_day(world, 20, status="removed", removed_by=AUTHOR_DELETED_BY)
     blocked = await post(world, body="Another one today")
     assert blocked.status_code == 429
     assert blocked.headers["x-error-code"] == "comment_daily_limit"
@@ -194,7 +196,7 @@ async def test_author_delete_wipes_the_text_and_keeps_the_row(world: World) -> N
         assert item["mine"] is False and item["can_remove"] is False
         assert "Private memory" not in str(item) and "Ananda" not in str(item)
     (row,) = await world.rows(RecordingComment)
-    assert row.status == "removed" and row.removed_by == "author"
+    assert row.status == "removed" and row.removed_by == AUTHOR_DELETED_BY
     assert "Private memory" not in row.body
     assert (await world.call("DELETE", f"{URL}/{created['id']}", "a")).status_code == 404
     # a tombstone cannot be reported, removed again or counted as a duplicate
@@ -203,11 +205,48 @@ async def test_author_delete_wipes_the_text_and_keeps_the_row(world: World) -> N
     assert (await post(world, "a", "Private memory")).status_code == 201
 
 
+async def test_live_total_is_the_number_to_show_and_leaves_tombstones_out(world: World) -> None:
+    """QA-057: `total` pages through tombstones too, `live_total` counts what people can read."""
+    first = (await post(world, "a", "One")).json()
+    await post(world, "b", "Two")
+    await post(world, "a", "Three")
+    assert (await world.call("DELETE", f"{URL}/{first['id']}", "a")).status_code == 204
+    body = (await listing(world, "b", limit=1)).json()
+    assert body["total"] == 3 and body["live_total"] == 2 and len(body["items"]) == 1
+    assert body["has_more"] is True
+    # a team removal leaves neither a tombstone nor a count
+    other = (await post(world, "b", "Rude words")).json()
+    await world.call("DELETE", f"{URL}/{other['id']}", "team", json={"reason": "unkind"})
+    body = (await listing(world, "b")).json()
+    assert body["total"] == 3 and body["live_total"] == 2
+
+
 async def test_a_team_removal_leaves_no_tombstone(world: World) -> None:
     created = (await post(world, "a", "Rude words")).json()
     await world.call("DELETE", f"{URL}/{created['id']}", "team", json={"reason": "unkind"})
     assert (await listing(world, "b")).json()["items"] == []
     assert (await listing(world, "b")).json()["total"] == 0
+
+
+async def test_a_team_member_named_author_does_not_make_a_removal_look_like_an_author_delete(
+    world: World,
+) -> None:
+    """QA-056: the marker of an author's own delete can never equal a display name."""
+    await world.update(UserAccount, TEAM, display_name="author")
+    created = (await post(world, "a", "Rude words")).json()
+    await world.call("DELETE", f"{URL}/{created['id']}", "team", json={"reason": "unkind"})
+    (row,) = await world.rows(RecordingComment)
+    assert row.removed_by == "author" and row.removed_by != AUTHOR_DELETED_BY
+    listed = (await listing(world, "b")).json()
+    assert listed["items"] == [] and listed["total"] == 0  # no tombstone for a team removal
+
+
+def test_team_removed_by_strips_control_characters_so_the_marker_cannot_be_typed() -> None:
+    assert team_removed_by("\x1fauthor") == "author"
+    assert team_removed_by("\x1fauthor") != AUTHOR_DELETED_BY
+    assert team_removed_by("\x00\x1f") == "team"
+    assert team_removed_by(None) == "team"
+    assert AUTHOR_DELETED_BY.startswith("\x1f")
 
 
 async def test_team_removes_with_a_reason_and_the_author_cannot_wipe_it_afterwards(
@@ -224,7 +263,7 @@ async def test_team_removes_with_a_reason_and_the_author_cannot_wipe_it_afterwar
     again = await world.call("DELETE", f"{URL}/{created['id']}", "a")
     assert again.status_code == 204
     (row,) = await world.rows(RecordingComment)
-    assert row.body == "Rude words" and row.removed_by != "author"
+    assert row.body == "Rude words" and row.removed_by != AUTHOR_DELETED_BY
     assert (await world.call("DELETE", f"{URL}/{created['id']}", "team")).status_code == 404
 
 

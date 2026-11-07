@@ -10,6 +10,8 @@ export type CommentsState<T extends CommentBase = SongComment> = {
   status: ListStatus
   items: T[]
   total: number
+  /** the comments people can read, the number to show (`total` minus a recording's tombstones) */
+  live: number
   hasMore: boolean
   /** loading the next page */
   more: "idle" | "loading" | "error"
@@ -18,7 +20,7 @@ export type CommentsState<T extends CommentBase = SongComment> = {
 }
 
 export function emptyState<T extends CommentBase = SongComment>(): CommentsState<T> {
-  return { status: "loading", items: [], total: 0, hasMore: false, more: "idle", failure: null }
+  return { status: "loading", items: [], total: 0, live: 0, hasMore: false, more: "idle", failure: null }
 }
 
 /** What is left of a comment its author deleted: no text, no author, nothing to act on. */
@@ -44,7 +46,7 @@ export function reducer<T extends CommentBase = SongComment>(state: CommentsStat
       // keep what is on screen while it reloads; only the very first load shows the loading state
       return state.status === "ready" ? state : emptyState<T>()
     case "loaded":
-      return { status: "ready", items: action.page.items, total: action.page.total, hasMore: action.page.hasMore, more: "idle", failure: null }
+      return { status: "ready", items: action.page.items, total: action.page.total, live: action.page.liveTotal ?? action.page.total, hasMore: action.page.hasMore, more: "idle", failure: null }
     case "loadFailed":
       return { ...state, status: action.failure === "network" ? "offline" : "error", failure: action.failure }
     case "moreStart":
@@ -52,19 +54,19 @@ export function reducer<T extends CommentBase = SongComment>(state: CommentsStat
     case "moreLoaded": {
       const known = new Set(state.items.map((c) => c.id))
       const fresh = action.page.items.filter((c) => !known.has(c.id))
-      return { ...state, items: [...state.items, ...fresh], total: action.page.total, hasMore: action.page.hasMore, more: "idle" }
+      return { ...state, items: [...state.items, ...fresh], total: action.page.total, live: action.page.liveTotal ?? action.page.total, hasMore: action.page.hasMore, more: "idle" }
     }
     case "moreFailed":
       return { ...state, more: "error" }
     case "posted": {
       if (state.items.some((c) => c.id === action.comment.id)) return state
-      return { ...state, status: "ready", items: [action.comment, ...state.items], total: state.total + 1, failure: null }
+      return { ...state, status: "ready", items: [action.comment, ...state.items], total: state.total + 1, live: state.live + 1, failure: null }
     }
     case "removed": {
       if (!state.items.some((c) => c.id === action.id)) return state
       // an author's own delete under a recording leaves a tombstone the server also shows; a song's comment just leaves
-      if (action.tombstone) return { ...state, items: state.items.map((c) => (c.id === action.id ? tombstoneOf(c) : c)) }
-      return { ...state, items: state.items.filter((c) => c.id !== action.id), total: Math.max(0, state.total - 1) }
+      if (action.tombstone) return { ...state, items: state.items.map((c) => (c.id === action.id ? tombstoneOf(c) : c)), live: Math.max(0, state.live - 1) }
+      return { ...state, items: state.items.filter((c) => c.id !== action.id), total: Math.max(0, state.total - 1), live: Math.max(0, state.live - 1) }
     }
   }
 }

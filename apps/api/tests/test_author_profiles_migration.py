@@ -131,7 +131,7 @@ def test_0035_is_the_single_head_after_0034(m35: ModuleType) -> None:
     assert revision is not None
     assert revision.down_revision == "0034_recording_extras"
     assert m35.revision == "0035_author_review_and_play_caps"
-    assert script.get_heads() == ["0035_author_review_and_play_caps"]
+    assert len(script.get_heads()) == 1  # a later migration (0036) may follow it
 
 
 def _profile_row(engine: sa.Engine, slug: str, **values: object) -> None:

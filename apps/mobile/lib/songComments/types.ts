@@ -22,7 +22,14 @@ export type CommentBase = {
 
 export type SongComment = CommentBase & { songId: number }
 
-export type CommentPage<T extends CommentBase = SongComment> = { items: T[]; total: number; hasMore: boolean }
+export type CommentPage<T extends CommentBase = SongComment> = {
+  items: T[]
+  /** everything the list pages through (a recording's tombstones included) */
+  total: number
+  /** the comments people can read: the number to show. Absent where there are no tombstones (then it is `total`). */
+  liveTotal?: number
+  hasMore: boolean
+}
 
 export type CommentReportReason = "offensive" | "spam" | "private" | "other"
 

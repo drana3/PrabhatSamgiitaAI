@@ -7,6 +7,7 @@ extra, so one fix reaches all of them.
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 from uuid import UUID
 
@@ -22,6 +23,17 @@ from app.models.recording_extras import (
 from app.models.recordings import PS_SONG_COUNT, Recording
 from app.services.recordings import VISIBLE, clean_text, now_utc
 from app.services.song_comments import FALLBACK_NAME, strip_invisible
+
+# What the author's own delete writes into `removed_by`. It starts with a control character, which
+# `team_removed_by` strips from every name a team removal records, so no display name (however it
+# was chosen) can ever equal it: a team removal can never pass for an author delete (QA-056).
+AUTHOR_DELETED_BY = "\x1fauthor"
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def team_removed_by(name: str | None, fallback: str = "team") -> str:
+    """The `removed_by` of a team removal: the member's name, never equal to the author marker."""
+    return _CONTROL.sub("", name or "").strip()[:255] or fallback
 
 
 def check_song(song_id: int) -> int:

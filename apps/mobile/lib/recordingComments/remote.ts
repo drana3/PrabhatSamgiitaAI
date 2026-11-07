@@ -23,7 +23,7 @@ export type WireRecordingComment = {
   deleted?: boolean
 }
 
-export type WireRecordingPage = { items: WireRecordingComment[]; total: number; limit: number; offset: number; has_more: boolean }
+export type WireRecordingPage = { items: WireRecordingComment[]; total: number; live_total?: number; limit: number; offset: number; has_more: boolean }
 
 /** Wire to app. An anonymous comment keeps `author: null` whatever else the answer carries; a tombstone carries no text, author or action. */
 export function recordingCommentFromWire(w: WireRecordingComment): RecordingComment {
@@ -41,7 +41,7 @@ export function recordingCommentFromWire(w: WireRecordingComment): RecordingComm
 }
 
 export function recordingPageFromWire(w: WireRecordingPage): CommentPage<RecordingComment> {
-  return { items: w.items.map(recordingCommentFromWire), total: w.total, hasMore: w.has_more }
+  return { items: w.items.map(recordingCommentFromWire), total: w.total, liveTotal: w.live_total ?? w.total, hasMore: w.has_more }
 }
 
 export function recordingCommentsRemote(cfg: RemoteConfig): RecordingCommentsBackend {

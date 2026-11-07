@@ -36,7 +36,13 @@ from app.models.recording_extras import (
 )
 from app.schemas.recording_extras import AdminVideoOut, VideoOut
 from app.schemas.song_comments import CommentAuthor
-from app.services.extras_common import display_name, one_line, videos_in_last_day
+from app.services.extras_common import (
+    AUTHOR_DELETED_BY,
+    display_name,
+    one_line,
+    team_removed_by,
+    videos_in_last_day,
+)
 from app.services.recordings import RateLimiter, now_utc
 from app.services.song_comments import link_count
 
@@ -46,7 +52,6 @@ MAX_PER_MEMBER_PER_TARGET = 3
 DAILY_VIDEOS = 10
 HOURLY_VIDEOS = 5
 HOURLY_VIDEOS_TEAM = 60
-AUTHOR_DELETED_BY = "author"
 
 BAD_LINK_CODE = "video_bad_link"
 PROVIDER_CODE = "video_provider"
@@ -370,7 +375,7 @@ async def remove_by_team(session: AsyncSession, video: VideoLink, *, reason: str
     video.status = "removed"
     video.removed_reason = one_line(reason, 500) or None
     video.removed_at = now_utc()
-    video.removed_by = by[:255]
+    video.removed_by = team_removed_by(by)
     await session.commit()
 
 

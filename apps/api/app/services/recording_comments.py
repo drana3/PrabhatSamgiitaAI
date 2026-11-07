@@ -23,11 +23,16 @@ from app.models.recording_extras import RecordingComment, RecordingCommentReport
 from app.schemas.recording_extras import AdminRecordingCommentOut, RecordingCommentOut
 from app.schemas.song_comments import CommentAuthor
 from app.services import song_comments as base
-from app.services.extras_common import comments_in_last_day, display_name, one_line
+from app.services.extras_common import (
+    AUTHOR_DELETED_BY,
+    comments_in_last_day,
+    display_name,
+    one_line,
+    team_removed_by,
+)
 from app.services.recordings import now_utc
 from app.services.song_comments import (
     AUTHOR_DELETED_BODY,
-    AUTHOR_DELETED_BY,
     DAILY_COMMENTS,
     DAILY_LIMIT_CODE,
     HOURLY_COMMENTS,
@@ -105,9 +110,11 @@ def admin_out(comment: RecordingComment, author: UserAccount | None) -> AdminRec
 
 async def list_published(
     session: AsyncSession, recording_id: UUID, *, limit: int, offset: int
-) -> tuple[list[tuple[RecordingComment, UserAccount | None]], int]:
+) -> tuple[list[tuple[RecordingComment, UserAccount | None]], int, int]:
     """Published comments of one recording, newest first, each with its author's account, and the
-    tombstones of the comments their authors deleted (a team removal leaves no trace for readers)."""
+    tombstones of the comments their authors deleted (a team removal leaves no trace for readers).
+    Returns the rows, the total of everything listed (tombstones too, for paging) and the count of
+    live comments alone (the number to show)."""
     condition = (
         RecordingComment.recording_id == recording_id,
         or_(
@@ -131,7 +138,15 @@ async def list_published(
             .offset(offset)
         )
     ).all()
-    return [(c, a) for c, a in rows], int(total or 0)
+    live = await session.scalar(
+        select(func.count())
+        .select_from(RecordingComment)
+        .where(
+            RecordingComment.recording_id == recording_id,
+            RecordingComment.status == "published",
+        )
+    )
+    return [(c, a) for c, a in rows], int(total or 0), int(live or 0)
 
 
 async def ensure_daily_allowance(
@@ -227,7 +242,7 @@ async def remove_by_team(
     comment.status = "removed"
     comment.removed_reason = one_line(reason, 500) or None
     comment.removed_at = now_utc()
-    comment.removed_by = by[:255]
+    comment.removed_by = team_removed_by(by)
     await session.commit()
 
 

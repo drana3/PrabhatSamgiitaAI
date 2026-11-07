@@ -8,13 +8,16 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.models import UserAccount
 from app.models.recording_extras import VideoLink
 from app.services import video_links as service
+from app.services.extras_common import AUTHOR_DELETED_BY
 from tests.extras_support import (
     AVATAR,
     MEMBER_A,
     REC,
     REC_REMOVED,
+    TEAM,
     World,
 )
 from tests.extras_support import world_fixture as world_fixture  # noqa: F401
@@ -259,7 +262,7 @@ async def test_daily_allowance_counts_deleted_ones(world: World) -> None:
                     external_id="",
                     url="",
                     status="removed",
-                    removed_by="author",
+                    removed_by=AUTHOR_DELETED_BY,
                 )
             )
         await session.commit()
@@ -330,7 +333,7 @@ async def test_author_delete_wipes_the_address_and_frees_the_place(world: World)
     (row,) = await world.rows(VideoLink)
     assert (row.status, row.removed_by, row.url, row.title, row.external_id) == (
         "removed",
-        "author",
+        AUTHOR_DELETED_BY,
         "",
         None,
         "",
@@ -356,6 +359,20 @@ async def test_team_removal_keeps_the_row_and_blocks_the_same_video(world: World
     (row,) = await world.rows(VideoLink)
     assert row.url == YT and row.removed_by == "Carya"
     assert (await world.call("DELETE", f"{URL}/{created['id']}", "b")).status_code == 404
+
+
+async def test_a_team_member_named_author_still_counts_as_a_team_removal(world: World) -> None:
+    """QA-056: the author-delete marker cannot be a display name, so the team's removal stays a
+    team removal: it blocks the same video and can be restored."""
+    await world.update(UserAccount, TEAM, display_name="author")
+    created = (await add(world, "a")).json()
+    await world.call("DELETE", f"{URL}/{created['id']}", "team", json={"reason": "wrong film"})
+    (row,) = await world.rows(VideoLink)
+    assert row.removed_by == "author" and row.removed_by != AUTHOR_DELETED_BY and row.url == YT
+    again = await add(world, "b")
+    assert again.status_code == 409 and again.headers["x-error-code"] == "video_team_removed"
+    restored = await world.call("POST", f"{URL}/{created['id']}/restore", "team")
+    assert restored.status_code in (200, 204)
 
 
 async def test_team_queue_and_restore(world: World) -> None:
