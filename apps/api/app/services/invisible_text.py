@@ -18,6 +18,9 @@ black flag U+1F3F4, tags spelling exactly gbeng, gbsct or gbwls, and the cancel 
 (England, Scotland, Wales). Any other tag run, however short, is dropped, because tags can carry
 hidden text that a person cannot see and a model later reads.
 
+A combining mark or variation selector with no base character before it is dropped too (a value
+made only of them is empty).
+
 Blank-looking characters (Hangul fillers, braille blank, combining grapheme joiner, Khmer inherent
 vowels) are dropped, so a value made only of them is empty.
 
@@ -97,12 +100,25 @@ def _flag_tags_end(text: str, start: int) -> int | None:
     return None
 
 
+def _is_base(char: str) -> bool:
+    """A character a mark can sit on: a letter, number, symbol or punctuation mark. Combining
+    marks (Mn, Mc, Me, which include the variation selectors), spaces, controls and the format
+    class are not."""
+    return unicodedata.category(char)[0] in "LNSP"
+
+
 def strip_invisible(text: str | None) -> str:
     """The text without the characters that draw nothing or draw as blank (see the module note).
-    A value that is only such characters and spaces comes out empty after the caller folds spaces
+
+    A combining mark or variation selector is kept only while it is attached to a base character
+    before it (a Devanagari matra after its consonant, a Vietnamese tone after its vowel, VS16
+    after an emoji). One that stands first, or after a space or a line break, has nothing to sit
+    on and is dropped; so a value made only of marks comes out empty. A value that is only blank
+    characters and spaces comes out empty after the caller folds spaces
     (`" ".join(value.split())`), which is how every surface tells "empty"."""
     value = text or ""
     out: list[str] = []
+    attached = False  # does a base character, with only marks since, end `out`?
     index = 0
     while index < len(value):
         char = value[index]
@@ -110,15 +126,22 @@ def strip_invisible(text: str | None) -> str:
             end = _flag_tags_end(value, index)
             if end is not None:
                 out.append(value[index:end])
+                attached = True
                 index = end
                 continue
+        category = unicodedata.category(char)
         if char in BLANKS:
-            out.append(" " if char in BLANK_AS_SPACE else "")
-        elif unicodedata.category(char) == "Cf" and not (
-            char in JOINERS and joiner_belongs(value, index)
-        ):
-            pass
+            if char in BLANK_AS_SPACE:
+                out.append(" ")
+                attached = False
+        elif category == "Cf":
+            if char in JOINERS and joiner_belongs(value, index):
+                out.append(char)  # neutral: the letters around it decide
+        elif category[0] == "M":
+            if attached:
+                out.append(char)
         else:
             out.append(char)
+            attached = _is_base(char)
         index += 1
     return "".join(out)

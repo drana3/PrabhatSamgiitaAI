@@ -59,7 +59,7 @@ def test_everywhere_else_the_invisible_characters_go(raw: str, clean: str) -> No
 def test_a_joiner_next_to_a_digit_or_virama_alone_is_not_enough() -> None:
     # a virama without a letter after it, or a mark with a joiner after the word, is not flanked
     assert invisible_text.strip_invisible(f"क्{ZWJ}") == "क्"
-    assert invisible_text.strip_invisible(f"्{ZWJ}1") == "्1"
+    assert invisible_text.strip_invisible(f"्{ZWJ}1") == "1"  # a virama with no letter before it
 
 
 def test_paragraphs_keep_the_joiner_in_an_indic_word_and_lose_it_elsewhere() -> None:
@@ -220,3 +220,84 @@ def test_any_other_tag_run_is_stripped_even_when_it_is_short(code: str) -> None:
 
 def test_a_good_flag_followed_by_hidden_tags_keeps_only_the_flag() -> None:
     assert invisible_text.strip_invisible(ENGLAND + _tags("secret") + "\U000e007f") == ENGLAND
+
+
+# --------------------------------------------------------------------------- QA-048: marks only
+
+ONLY_MARKS = {
+    "combining acute": "\u0301\u0301",
+    "one combining mark": "\u0301",
+    "variation selectors": "\ufe00\ufe0f",
+    "ideographic variation selectors": "\U000e0100\U000e0101",
+    "devanagari matra and virama": "\u093e\u094d",
+    "enclosing keycap": "\u20e3",
+    "marks and blanks": "\u0301\u3164\ufe0f \u2800\u0300",
+    "marks after a space": " \u0301 \ufe0f",
+}
+
+
+@pytest.mark.parametrize("marks", ONLY_MARKS.values(), ids=ONLY_MARKS.keys())
+def test_a_value_with_no_base_character_is_empty_on_every_surface(marks: str) -> None:
+    assert invisible_text.strip_invisible(marks).strip() == ""
+    assert rules.clean_line(marks, 80) == ""
+    assert rules.clean_paragraphs(marks, 80) == ""
+    with pytest.raises(author_profiles.AuthorError) as caught:
+        author_profiles._clean_fields({"display_name": marks})
+    assert caught.value.code == "name_too_short"
+    assert song_comments.clean_body(marks) == ""
+    assert extras_common.one_line(marks, 80) == ""
+    with pytest.raises(HTTPException) as refused:
+        recording_chords.clean_sheet(marks)
+    assert refused.value.status_code == 422
+    assert recording_chords.clean_note(marks) is None
+    assert video_links.clean_title(marks) is None
+    assert recording_collections.clean_set_text(marks, 80) == ""
+    assert recording_collections.clean_optional(marks, 80) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "e\u0301",  # an accent on a Latin letter
+        "\u0928\u093f\u0924\u094d\u092f\u093e",  # Devanagari with matras and a virama
+        "\u0915\u094d\u0937",
+        "Vi\u1ec7t Nam \u0111\u1eb9p",  # Vietnamese tones
+        "Vie\u0323\u0302t",  # the same with separate marks
+        "\u2764\ufe0f",  # heart with the emoji selector
+        "1\ufe0f\u20e3",  # keycap one
+        "\u0645\u064e\u0631\u0652\u062d\u064e\u0628\u064b\u0627",  # Arabic with harakat
+        "\u0e01\u0e34\u0e19",  # Thai vowel sign
+        "\u09ac\u09be\u0982\u09b2\u09be",  # Bengali
+        KSHA_BENGALI,
+        "\u0928\u093e\u092e \u0928\u093e\u092e",
+    ],
+)
+def test_marks_attached_to_a_base_letter_stay(text: str) -> None:
+    assert invisible_text.strip_invisible(text) == text
+    assert rules.clean_line(text, 80) == text
+    assert song_comments.clean_body(text) == text
+
+
+@pytest.mark.parametrize(
+    ("raw", "clean"),
+    [
+        ("\u0301abc", "abc"),  # a stray mark first
+        ("ab \u0301c", "ab c"),  # after a space
+        ("ab\u0301\u0301c", "ab\u0301\u0301c"),  # two marks on one letter are fine
+        ("\ufe0fMadhu", "Madhu"),
+        ("Madhu\ufe0f", "Madhu\ufe0f"),  # a selector after a letter has a base, so it stays
+        ("a\n\u0301b", "a\nb"),  # after a line break
+        ("\u0300 \u0928\u093e\u092e", " \u0928\u093e\u092e"),  # stray mark before a good word
+        ("\u3164\u0301Madhu", "Madhu"),  # the mark's base was a dropped blank
+        ("\U000e0100Madhu", "Madhu"),
+    ],
+)
+def test_a_mark_with_nothing_to_sit_on_is_dropped(raw: str, clean: str) -> None:
+    assert invisible_text.strip_invisible(raw) == clean
+
+
+def test_the_author_name_with_a_stray_mark_is_cleaned_not_refused() -> None:
+    ok = author_profiles._clean_fields({"display_name": "\u0301Madhu Vrata"})
+    assert ok["display_name"] == "Madhu Vrata"
+    ok = author_profiles._clean_fields({"display_name": "\u0928\u093f\u0924\u094d\u092f\u093e"})
+    assert ok["display_name"] == "\u0928\u093f\u0924\u094d\u092f\u093e"
