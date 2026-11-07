@@ -119,6 +119,9 @@ export function remoteBackend(cfg: RemoteConfig): ChordsBackend {
     async offer(payload) {
       return proposalFromWire(await call<WireProposal>(cfg, "POST", "", payloadToWire(payload)))
     },
+    async update(id, payload) {
+      return proposalFromWire(await call<WireProposal>(cfg, "PUT", `/${encodeURIComponent(id)}`, payloadToWire(payload)))
+    },
     async remove(id) {
       await call<void>(cfg, "DELETE", `/${encodeURIComponent(id)}`)
     },
@@ -148,6 +151,7 @@ export function failureFromError(error: unknown): ChordFailure {
     if (error.code === "chords_daily_limit") return "dailyLimit"
     if (error.code === "chords_duplicate") return "duplicate"
     if (error.code === "chords_open_limit") return "tooMany"
+    if (error.code === "chords_not_editable") return "notEditable"
     if (error.status === 401) return "signin"
     if (error.status === 403) return "forbidden"
     if (error.status === 404) return "gone"

@@ -3,7 +3,7 @@
 Revision ID: 0031_song_chord_proposals
 Revises: 0030_song_comments
 
-Two new tables, written out by hand (not from the models) so the revision keeps meaning the same
+Three new tables, written out by hand (not from the models) so the revision keeps meaning the same
 after the models change. Safe to run twice or on a database where the tables already exist: the
 app also runs `Base.metadata.create_all` at start, so on a new database they may be there already.
 Each table and each index is looked for first; an existing one is left alone.
@@ -25,6 +25,7 @@ depends_on = None
 
 PROPOSALS = "song_chord_proposals"
 REPORTS = "song_chord_reports"
+OFFERS = "song_chord_offers"
 
 
 def _uuid() -> sa.types.TypeEngine:
@@ -118,7 +119,20 @@ def upgrade() -> None:
                 name="ck_song_chord_reports_reason",
             ),
         )
+    if not inspector.has_table(OFFERS):
+        op.create_table(
+            OFFERS,
+            sa.Column("id", _uuid(), primary_key=True),
+            sa.Column(
+                "member_id",
+                _uuid(),
+                sa.ForeignKey("user_accounts.id", ondelete="CASCADE"),
+                nullable=False,
+            ),
+            *_stamps(),
+        )
     inspector = sa.inspect(op.get_bind())
+    _index(inspector, OFFERS, "ix_song_chord_offers_member_created", ["member_id", "created_at"])
     _index(inspector, PROPOSALS, "ix_song_chord_proposals_member_id", ["member_id"])
     _index(
         inspector,
@@ -132,6 +146,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     inspector = sa.inspect(op.get_bind())
+    if inspector.has_table(OFFERS):
+        op.drop_table(OFFERS)
     if inspector.has_table(REPORTS):
         op.drop_table(REPORTS)
     if inspector.has_table(PROPOSALS):

@@ -137,12 +137,6 @@ async def offer_chart(
     """Offer a chart. A team member's is live at once (`status: published`); anyone else's is
     `pending` until the team looks at it."""
     team = is_team_member(member, settings)
-    service.limiter.hit(
-        "offer",
-        str(member.id),
-        limit=service.HOURLY_PROPOSALS_TEAM if team else service.HOURLY_PROPOSALS,
-        window_seconds=3600,
-    )
     try:
         proposal = await service.create_proposal(session, member=member, payload=payload, team=team)
     except SQLAlchemyError as exc:
@@ -152,12 +146,36 @@ async def offer_chart(
     return service.public_out(proposal, member, viewer_id=member.id, team=team)
 
 
+@router.put("/{proposal_id}", response_model=ChordProposalOut)
+async def update_own(
+    proposal_id: UUID,
+    payload: ChordProposalCreate,
+    session: DatabaseSession,
+    member: Member,
+    settings: AppSettings,
+) -> ChordProposalOut:
+    """The author fixes a waiting or rejected chart and sends it again (a live one cannot be
+    changed: offer a changed copy). The reason of an earlier rejection is cleared."""
+    proposal = await get_proposal(session, proposal_id)
+    if proposal.member_id != member.id:
+        # Same answer as for a chart that does not exist: strangers learn nothing about ids.
+        raise HTTPException(status_code=404, detail="Chart not found")
+    team = is_team_member(member, settings)
+    try:
+        proposal = await service.update_proposal(session, proposal, payload=payload, team=team)
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        logger.exception("Chord chart could not be updated")
+        raise HTTPException(status_code=503, detail="Storage is temporarily unavailable") from exc
+    return service.public_out(proposal, member, viewer_id=member.id, team=team)
+
+
 @router.delete("/{proposal_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_own(proposal_id: UUID, session: DatabaseSession, member: Member) -> Response:
     """The author takes their chart back, for good, in any state."""
     proposal = await get_proposal(session, proposal_id)
     if proposal.member_id != member.id:
-        raise HTTPException(status_code=403, detail="You can only delete your own charts.")
+        raise HTTPException(status_code=404, detail="Chart not found")
     await service.delete_proposal(session, proposal)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

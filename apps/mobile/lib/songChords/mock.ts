@@ -81,6 +81,43 @@ function seed(): Row[] {
   ]
 }
 
+/**
+ * The preview member's own charts, one in each state, so the Upload hub and the notices can be looked at. Only with
+ * `seedMine` (the web preview turns it on; `?empty` in the address turns it off to see the empty hub).
+ */
+function seedMineRows(): Row[] {
+  const day = 24 * 60 * 60 * 1000
+  const now = Date.now()
+  const lines = [{ placements: [{ word: 0, chord: "G" }, { word: 2, chord: "Em" }, { word: 4, chord: "C" }] }, { placements: [{ word: 1, chord: "D" }] }]
+  const base = {
+    strum: null,
+    lines,
+    note: null,
+    playedIt: true,
+    isAnonymous: false,
+    author: { name: PREVIEW_NAME },
+    mine: true,
+    canReview: false,
+    ownerKey: "me",
+    reports: 0,
+  }
+  return [
+    { ...base, id: "preview-mine-pending", songId: 2, instrument: "guitar", baseKey: "D", capo: 2, strum: "D D U U D U", createdAt: new Date(now - 1 * day).toISOString(), status: "pending", rejectedReason: null },
+    { ...base, id: "preview-mine-live", songId: 3, instrument: "harmonium", baseKey: "C", capo: 0, createdAt: new Date(now - 6 * day).toISOString(), status: "published", rejectedReason: null },
+    {
+      ...base,
+      id: "preview-mine-rejected",
+      songId: 5,
+      instrument: "guitar",
+      baseKey: "G",
+      capo: 0,
+      createdAt: new Date(now - 3 * day).toISOString(),
+      status: "rejected",
+      rejectedReason: "The chords do not fit the tune in the second line. Please check the key and send it again.",
+    },
+  ]
+}
+
 function view(row: Row, me: string, team: boolean): ChordProposal {
   const { ownerKey, reports: _reports, ...rest } = row
   const mine = ownerKey === me
@@ -94,8 +131,8 @@ function view(row: Row, me: string, team: boolean): ChordProposal {
 }
 
 /** `me` is the name a named chart gets; `team` says whether the previewing member counts as the team. */
-export function createMockBackend(options: { me: () => string; team?: () => boolean } = { me: () => "You" }): ChordsBackend {
-  const rows: Row[] = seed()
+export function createMockBackend(options: { me: () => string; team?: () => boolean; seedMine?: boolean } = { me: () => "You" }): ChordsBackend {
+  const rows: Row[] = [...seed(), ...(options.seedMine ? seedMineRows() : [])]
   const reported = new Set<string>()
   let counter = 0
   const isTeam = () => options.team?.() ?? false
@@ -142,6 +179,27 @@ export function createMockBackend(options: { me: () => string; team?: () => bool
       }
       rows.push(row)
       return view(row, "me", team)
+    },
+    async update(id, payload) {
+      const row = find(id)
+      if (row.ownerKey !== "me") throw new MockFailure("forbidden")
+      if (row.status === "published") throw new MockFailure("notEditable")
+      if (payload.songId !== row.songId || payload.instrument !== row.instrument) throw new MockFailure("invalid")
+      const others = rows.filter((r) => r.ownerKey === "me" && r !== row && r.songId === row.songId && r.instrument === row.instrument && r.status !== "rejected")
+      const wanted = fingerprint({ baseKey: payload.baseKey, capo: payload.capo, lines: payload.lines })
+      if (others.some((r) => fingerprint(r) === wanted)) throw new MockFailure("duplicate")
+      if (!isTeam() && row.status === "rejected" && others.length >= OPEN_LIMIT) throw new MockFailure("tooMany")
+      row.baseKey = payload.baseKey
+      row.capo = payload.capo
+      row.strum = payload.strum
+      row.lines = payload.lines
+      row.note = payload.note
+      row.playedIt = payload.playedIt
+      row.isAnonymous = payload.isAnonymous
+      row.author = payload.isAnonymous ? null : { name: options.me() }
+      row.status = isTeam() ? "published" : "pending"
+      row.rejectedReason = null
+      return view(row, "me", isTeam())
     },
     async remove(id) {
       const row = find(id)

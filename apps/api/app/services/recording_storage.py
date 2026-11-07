@@ -107,7 +107,7 @@ def new_key(member_id: str, extension: str) -> str:
 
 
 def key_belongs_to(key: str, member_id: str) -> bool:
-    return bool(KEY_PATTERN.match(key)) and key.split("/")[1] == member_id
+    return bool(KEY_PATTERN.fullmatch(key)) and key.split("/")[1] == member_id
 
 
 def sniff_audio(head: bytes) -> str | None:
@@ -176,7 +176,7 @@ class LocalDiskStorage:
     name: str = "local"
 
     def path_for(self, key: str) -> Path:
-        if not KEY_PATTERN.match(key):
+        if not KEY_PATTERN.fullmatch(key):
             raise StorageError("Invalid storage key")
         return self.base_dir / key
 
@@ -322,7 +322,7 @@ class S3Storage:
         expires_in: int,
         signed_headers: Mapping[str, str] | None = None,
     ) -> str:
-        if not KEY_PATTERN.match(key):
+        if not KEY_PATTERN.fullmatch(key):
             raise StorageError("Invalid storage key")
         return presign_s3_url(
             method=method,

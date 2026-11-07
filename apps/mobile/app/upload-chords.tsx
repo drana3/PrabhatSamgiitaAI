@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import Svg, { Path } from "react-native-svg"
 
 import { ChartPreview } from "@/components/song-chords/ChartPreview"
-import { ChordPalette } from "@/components/song-chords/ChordPalette"
 import { ChordPasteBox } from "@/components/song-chords/ChordPasteBox"
+import { ChordSheet } from "@/components/song-chords/ChordSheet"
 import { ChordSlotEditor, type Slot } from "@/components/song-chords/ChordSlotEditor"
+import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
+import { EditBanner, ResumePanel, SentPanel } from "@/components/song-chords/OfferPanels"
+import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ActionButton, CheckRow, Chip, CORNER, Hint, Label, PILL } from "@/components/song-chords/parts"
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { KPress } from "@/components/kirtan/KPress"
@@ -27,6 +29,7 @@ import {
   NOTE_MAX,
   STRUM_MAX,
   countChords,
+  draftFromProposal,
   draftProblems,
   fitLines,
   linesWithChords,
@@ -43,6 +46,9 @@ import {
   type DraftProblem,
   type Placement,
 } from "@/lib/songChords/draft"
+import { draftKey, entryChoices, worthKeeping, type DraftEntry } from "@/lib/songChords/drafts"
+import { draftSignature, parseEntry, type Entry } from "@/lib/songChords/entry"
+import { revealOffset } from "@/lib/songChords/reveal"
 import type { ChordFailure, ChordProposal } from "@/lib/songChords/types"
 import { splitWords } from "@/lib/songPage/chordChart"
 import { MAX_CAPO } from "@/lib/songPage/chords"
@@ -50,17 +56,48 @@ import { useAuthStore } from "@/stores/authStore"
 import { useChordDraftStore } from "@/stores/chordDraftStore"
 import { href } from "@/utils/href"
 
-const CloseGlyph = ({ color }: { color: string }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={1.75} strokeLinecap="round" />
-  </Svg>
-)
+type Phase = "loading" | "resume" | "edit"
+
+/** Failures after which the useful next step is to look at the member's charts, not to press Send again. */
+const SEE_CHARTS: ReadonlySet<ChordFailure> = new Set(["dailyLimit", "duplicate", "tooMany", "notEditable", "gone"])
+
+type Linked = { status: "idle" | "loading" | "ready" | "gone"; proposal: ChordProposal | null }
+
+/** The chart a draft is fixing or copying, looked up among the member's own charts. */
+function useLinked(id: string | null, enabled: boolean): Linked {
+  const [state, setState] = useState<Linked>({ status: "idle", proposal: null })
+  useEffect(() => {
+    if (!id || !enabled) {
+      setState({ status: "idle", proposal: null })
+      return undefined
+    }
+    let active = true
+    setState({ status: "loading", proposal: null })
+    chordsBackend()
+      .mine()
+      .then((items) => {
+        if (!active) return
+        const found = items.find((p) => p.id === id) ?? null
+        setState(found ? { status: "ready", proposal: found } : { status: "gone", proposal: null })
+      })
+      .catch(() => {
+        if (active) setState({ status: "gone", proposal: null })
+      })
+    return () => {
+      active = false
+    }
+  }, [id, enabled])
+  return state
+}
 
 /**
- * Offer chords for a Prabhat Samgiita song (docs/chord-proposals.md). One scrolling sheet, top to bottom: which song,
- * which instrument, the key (and capo for a guitar), the chords (tap the words of the song, or paste text), a preview
- * drawn by the song page's own chord view, then "I played it", a note, anonymous or not, and Send.
- * The unfinished chart is kept on the device (stores/chordDraftStore), so leaving does not lose it.
+ * Offer chords for a Prabhat Samgiita song (docs/chord-proposals.md has the scenario map). One scrolling sheet, top to
+ * bottom: which song, which instrument, the key (and capo for a guitar), the chords (tap the words of the song, or paste
+ * text), a preview drawn by the song page's own chord view, then "I played it", a note, anonymous or not, and Send.
+ *
+ * The work is kept on the phone as a draft as it goes (stores/chordDraftStore), so leaving does not lose it; coming back
+ * offers to continue (or start over, after saying what would be lost). The same screen fixes a waiting or rejected chart
+ * (`?edit=`), makes a changed copy of a live one (`?copy=`) and ends in a confirmation that says what happens next.
  */
 export default function UploadChordsScreen() {
   const t = useT()
@@ -68,35 +105,103 @@ export default function UploadChordsScreen() {
   const theme = useSongsTheme()
   const spTheme = useSpTheme()
   const insets = useSafeAreaInsets()
-  const top = Platform.OS === "web" ? 24 : Math.max(insets.top, 16)
-  const params = useLocalSearchParams<{ song?: string }>()
+  const params = useLocalSearchParams<{ song?: string; instrument?: string; edit?: string; copy?: string; draft?: string }>()
+  const [entry] = useState<Entry>(() => parseEntry(params))
 
   const signedIn = useAuthStore((s) => s.mode === "signed_in") || MOCKUP_DATA
   const displayName = useAuthStore((s) => s.displayName)
   const name = MOCKUP_DATA ? previewName() : displayName && displayName !== "Guest" ? displayName : ""
   const { team } = useChordTeam(signedIn)
 
-  const stored = useChordDraftStore((s) => s.draft)
-  const storeDraft = useChordDraftStore.getState().setDraft
+  const book = useChordDraftStore((s) => s.drafts)
+  const saveDraft = useChordDraftStore((s) => s.save)
+  const discardKey = useChordDraftStore((s) => s.discard)
 
-  const songParam = Number(params.song)
-  const [restored, setRestored] = useState(false)
-  const [draft, setDraft] = useState<Draft>(() => {
-    const wanted = Number.isInteger(songParam) && songParam > 0 ? songParam : null
-    if (stored && (wanted === null || stored.songId === wanted)) return stored
-    return newDraft(wanted)
-  })
+  // the book comes back from storage a moment after the first render
+  const [hydrated, setHydrated] = useState(() => useChordDraftStore.persist.hasHydrated())
   useEffect(() => {
-    if (stored && stored.songId === draft.songId && countChords(stored) > 0) setRestored(true)
-    // only the first render decides whether the draft was brought back
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (hydrated) return undefined
+    return useChordDraftStore.persist.onFinishHydration(() => setHydrated(true))
+  }, [hydrated])
+
+  const fresh = useCallback((): Draft => {
+    const base = newDraft(entry.kind === "new" ? entry.song : null)
+    return entry.kind === "new" && entry.instrument ? setInstrument(base, entry.instrument) : base
+  }, [entry])
+
+  const [phase, setPhase] = useState<Phase>("loading")
+  const [draft, setDraft] = useState<Draft>(() => fresh())
+  const [baseline, setBaseline] = useState(() => draftSignature(fresh()))
+  const [choices, setChoices] = useState<DraftEntry[]>([])
+  const [original, setOriginal] = useState<Draft | null>(null)
+  const [linkedId, setLinkedId] = useState<string | null>(entry.kind === "edit" || entry.kind === "copy" ? entry.id : null)
+  const linked = useLinked(linkedId, signedIn)
+
+  const begin = useCallback((d: Draft, base?: Draft | null) => {
+    setDraft(d)
+    setBaseline(draftSignature(d))
+    setOriginal(base ?? null)
+    setLinkedId(d.editId ?? d.basedOn ?? null)
+    setPhase("edit")
   }, [])
 
-  // keep the unfinished chart on the device (a short pause after the last change, not on every tap)
+  // decide, once, what the screen starts with: a new chart, a chart being fixed, or the unfinished work to continue
+  const started = useRef(false)
   useEffect(() => {
-    const id = setTimeout(() => storeDraft(draft), 400)
+    if (started.current || !hydrated || !signedIn) return
+    if ((entry.kind === "edit" || entry.kind === "copy") && linked.status === "loading") return
+    started.current = true
+    if (entry.kind === "draft") {
+      const stored = book[entry.key]
+      begin(stored ? stored.draft : fresh())
+      return
+    }
+    if (entry.kind === "edit" || entry.kind === "copy") {
+      if (linked.status !== "ready" || !linked.proposal) {
+        setPhase("edit")
+        return
+      }
+      const base = draftFromProposal(linked.proposal, entry.kind)
+      const found = entryChoices(book, entry.kind === "edit" ? { edit: entry.id } : { copy: entry.id })
+      if (found.length) {
+        setChoices(found)
+        setOriginal(base)
+        setPhase("resume")
+      } else begin(base, base)
+      return
+    }
+    const found = entryChoices(book, { song: entry.song })
+    if (found.length) {
+      setChoices(found)
+      setPhase("resume")
+    } else begin(fresh())
+  }, [hydrated, signedIn, entry, linked, book, begin, fresh])
+  useEffect(() => {
+    if (!signedIn) setPhase("edit")
+  }, [signedIn])
+
+  const dirty = draftSignature(draft) !== baseline
+  const keep = dirty && worthKeeping(draft)
+  const locked = Boolean(draft.editId || draft.basedOn)
+
+  // keep the unfinished chart on the phone (a short pause after the last change, not on every tap)
+  useEffect(() => {
+    if (phase !== "edit" || !dirty) return undefined
+    const id = setTimeout(() => saveDraft(draft), 400)
     return () => clearTimeout(id)
-  }, [draft, storeDraft])
+  }, [draft, dirty, phase, saveDraft])
+
+  // ...and once more when the screen goes away, so the last tap is never lost
+  const skipFlush = useRef(false)
+  const latest = useRef({ draft, dirty, phase })
+  latest.current = { draft, dirty, phase }
+  useEffect(
+    () => () => {
+      const now = latest.current
+      if (!skipFlush.current && now.phase === "edit" && now.dirty) useChordDraftStore.getState().save(now.draft)
+    },
+    [],
+  )
 
   const lyrics = useSongLyrics(draft.songId)
   const lines = lyrics.status === "ready" ? lyrics.lines : null
@@ -106,12 +211,15 @@ export default function UploadChordsScreen() {
   }, [lyrics])
 
   const [chooser, setChooser] = useState(false)
-  const [entry, setEntry] = useState<"tap" | "paste">("tap")
+  const [entryMode, setEntryMode] = useState<"tap" | "paste">("tap")
   const [selected, setSelected] = useState<Slot | null>(null)
   const [showProblems, setShowProblems] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<ChordFailure | null>(null)
-  const [sent, setSent] = useState<ChordProposal | null>(null)
+  const [sent, setSent] = useState<{ proposal: ChordProposal; again: boolean } | null>(null)
+  const [leaving, setLeaving] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
+  const [startingOver, setStartingOver] = useState<DraftEntry | null>(null)
   const alive = useRef(true)
   useEffect(
     () => () => {
@@ -125,21 +233,54 @@ export default function UploadChordsScreen() {
   const problems: DraftProblem[] = useMemo(() => draftProblems(draft, counts), [draft, counts])
   const used = useMemo(() => usedChords(draft.lines), [draft.lines])
   const guitar = draft.instrument === "guitar"
-  const close = () => (router.canGoBack() ? router.back() : router.replace(href("/upload")))
+  const leave = () => (router.canGoBack() ? router.back() : router.replace(href("/upload")))
+  const toHub = () => router.replace(href("/upload"))
 
+  // closing: unfinished work is kept as a draft, and the member is told so before leaving
+  const requestClose = () => {
+    if (phase === "edit" && !sent && keep && total > 0) setLeaving(true)
+    else leave()
+  }
+
+  // ---- the selected word and the chord sheet ----
   const selectedWord = useMemo(() => {
     if (!selected || !lines) return null
     return splitWords(lines[selected.line] ?? "")[selected.word] ?? null
   }, [selected, lines])
+  const lastWord = useRef("")
+  if (selectedWord) lastWord.current = selectedWord
   const currentChord = selected ? (draft.lines[selected.line]?.find((p) => p.word === selected.word)?.chord ?? null) : null
+  const sheetOpen = entryMode === "tap" && selected !== null && lines !== null && selectedWord !== null && !sent && phase === "edit"
 
   const pick = (chord: string | null) => {
     if (!selected) return
     setDraft((d) => setChord(d, selected.line, selected.word, chord))
   }
-  const move = (to: Slot | null) => {
-    if (to) setSelected(to)
-  }
+  const closeSheet = useCallback(() => setSelected(null), [])
+
+  // keep the selected word in sight above the sheet
+  const [covered, setCovered] = useState(0)
+  const coveredRef = useRef(0)
+  coveredRef.current = covered
+  const areaRef = useRef<View>(null)
+  const scrollRef = useRef<ScrollView>(null)
+  const offsetRef = useRef(0)
+  const nodes = useRef<Record<string, View | null>>({})
+  useEffect(() => {
+    if (!selected) return undefined
+    const id = setTimeout(() => {
+      const node = nodes.current[`${selected.line}:${selected.word}`]
+      const area = areaRef.current
+      if (!node || !area) return
+      area.measureInWindow((_ax, ay, _aw, ah) => {
+        node.measureInWindow((_nx, ny, _nw, nh) => {
+          const next = revealOffset({ itemTop: ny, itemBottom: ny + nh, viewTop: ay, viewBottom: ay + ah, covered: coveredRef.current, offset: offsetRef.current })
+          if (next !== null) scrollRef.current?.scrollTo({ y: next, animated: true })
+        })
+      })
+    }, 80)
+    return () => clearTimeout(id)
+  }, [selected, covered])
 
   const applyPasted = (pasted: Placement[][], meta: ParseMeta) => {
     setDraft((d) => {
@@ -149,7 +290,7 @@ export default function UploadChordsScreen() {
       if (meta.strum && next.instrument === "guitar") next = { ...next, strum: meta.strum.slice(0, STRUM_MAX) }
       return next
     })
-    setEntry("tap")
+    setEntryMode("tap")
   }
 
   const send = async () => {
@@ -160,31 +301,53 @@ export default function UploadChordsScreen() {
     }
     setBusy(true)
     try {
-      const proposal = await chordsBackend().offer(toPayload(draft, counts))
+      const payload = toPayload(draft, counts)
+      const backend = chordsBackend()
+      const proposal = draft.editId ? await backend.update(draft.editId, payload) : await backend.offer(payload)
       if (!alive.current) return
-      storeDraft(null)
-      setSent(proposal)
+      skipFlush.current = true
+      discardKey(draftKey(draft))
+      setSelected(null)
+      setSent({ proposal, again: Boolean(draft.editId) })
     } catch (error) {
-      if (alive.current) setFailure(chordFailure(error))
+      if (!alive.current) return
+      // nothing is lost: the draft is on the phone, and the sentence says what to do
+      saveDraft(draft)
+      setFailure(chordFailure(error))
     } finally {
       if (alive.current) setBusy(false)
     }
   }
 
   const another = () => {
-    const fresh = { ...newDraft(null), instrument: draft.instrument, key: draft.key, capo: draft.capo }
-    setDraft(fresh)
-    storeDraft(null)
+    const next = { ...newDraft(null), instrument: draft.instrument, key: draft.key, capo: draft.capo }
+    skipFlush.current = false
     setSent(null)
     setSelected(null)
     setShowProblems(false)
-    setRestored(false)
+    setFailure(null)
+    begin(next)
   }
-  const startOver = () => {
-    setDraft(newDraft(draft.songId))
+
+  const discardThis = () => {
+    discardKey(draftKey(draft))
+    setDiscarding(false)
     setSelected(null)
-    setRestored(false)
     setShowProblems(false)
+    setFailure(null)
+    begin(original ?? newDraft(draft.songId), original)
+  }
+
+  const continueWith = (e: DraftEntry) => begin(e.draft, original)
+  const startOver = () => {
+    const target = startingOver
+    setStartingOver(null)
+    if (!target) return
+    discardKey(target.key)
+    const rest = choices.filter((c) => c.key !== target.key)
+    setChoices(rest)
+    if (original && (entry.kind === "edit" || entry.kind === "copy")) begin(original, original)
+    else if (rest.length === 0) begin(fresh())
   }
 
   const payloadForPreview = useMemo(() => {
@@ -194,228 +357,305 @@ export default function UploadChordsScreen() {
   }, [lines, total, draft, counts])
 
   const problemText = (p: DraftProblem) => t(`chordOffer.problem.${p}`)
-  const dockOpen = entry === "tap" && selected !== null && lines !== null && selectedWord !== null && !sent
+  const mode: "edit" | "copy" | null = draft.editId ? "edit" : draft.basedOn ? "copy" : null
+  const title = mode === "edit" ? t("chordOffer.title.fix") : mode === "copy" ? t("chordOffer.title.copy") : t("chordOffer.title")
+  const sendLabel = busy ? t("chordOffer.sending") : failure === "network" ? t("chordOffer.send.retry") : mode === "copy" ? t("chordOffer.send.copy") : mode === "edit" ? t("chordOffer.send.again") : t("chordOffer.send")
+
+  const discardBody = total > 0 && draft.songId ? t("chordOffer.discard.body", { count: total, number: draft.songId }) : t("chordOffer.discard.bodyNoChords")
+  const startOverBody = startingOver
+    ? startingOver.chords > 0 && startingOver.draft.songId
+      ? t("chordOffer.discard.body", { count: startingOver.chords, number: startingOver.draft.songId })
+      : t("chordOffer.discard.bodyNoChords")
+    : ""
+  const leaveActions: DialogAction[] = [
+    { label: t("chordOffer.leave.keep"), tone: "quiet", onPress: () => setLeaving(false) },
+    {
+      label: t("chordOffer.leave.save"),
+      tone: "primary",
+      onPress: () => {
+        saveDraft(draft)
+        skipFlush.current = true
+        setLeaving(false)
+        leave()
+      },
+    },
+    {
+      label: t("chordOffer.leave.discard"),
+      tone: "danger",
+      onPress: () => {
+        skipFlush.current = true
+        discardKey(draftKey(draft))
+        setLeaving(false)
+        leave()
+      },
+    },
+  ]
+  const discardActions: DialogAction[] = [
+    { label: t("chordOffer.discard.keep"), tone: "quiet", onPress: () => setDiscarding(false) },
+    { label: t("chordOffer.discard.yes"), tone: "danger", onPress: discardThis },
+  ]
+  const startOverActions: DialogAction[] = [
+    { label: t("chordOffer.discard.keep"), tone: "quiet", onPress: () => setStartingOver(null) },
+    { label: t("chordOffer.discard.yes"), tone: "danger", onPress: startOver },
+  ]
+
+  const inBook = draftKey(draft) in book
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[s.root, { backgroundColor: theme.page }]}>
-      <View style={[s.bar, { paddingTop: top }]}>
-        <View style={[s.handle, { backgroundColor: theme.dark ? "rgba(255,255,255,0.22)" : amColors.sand400 }]} />
-        <KPress accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={close} pressedScale={0.9} outerStyle={s.close} style={[s.closeDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
-          <CloseGlyph color={theme.textHeading} />
-        </KPress>
-      </View>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[s.root, { backgroundColor: theme.page }]}>
+      <SheetTopBar onClose={requestClose} closeLabel={t("common.close")} />
 
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: (dockOpen ? 24 : Math.max(insets.bottom, 16)) + 40 }]}>
-        <Reveal index={0}>
-          <Text style={[s.over, { color: theme.accent }]}>{t("chordOffer.over")}</Text>
-          <Text style={[s.h1, { color: theme.textHeading }]} accessibilityRole="header">
-            {t("chordOffer.title")}
-          </Text>
-        </Reveal>
+      <View ref={areaRef} collapsable={false} style={s.area}>
+        <ScrollView
+          ref={scrollRef}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            offsetRef.current = event.nativeEvent.contentOffset.y
+          }}
+          contentContainerStyle={[s.content, { paddingBottom: sheetOpen && covered > 0 ? covered + 24 : Math.max(insets.bottom, 16) + 40 }]}
+        >
+          <Reveal index={0}>
+            <Text style={[s.over, { color: theme.accent }]}>{t("chordOffer.over")}</Text>
+            <Text style={[s.h1, { color: theme.textHeading }]} accessibilityRole="header">
+              {sent ? t("chordOffer.title") : title}
+            </Text>
+          </Reveal>
 
-        {!signedIn ? (
-          <View style={s.field}>
-            <Text style={[s.h2, { color: theme.textHeading }]}>{t("chordOffer.signin.title")}</Text>
-            <Hint theme={theme}>{t("chordOffer.signin.body")}</Hint>
-            <ActionButton theme={theme} label={t("chordOffer.signin.action")} onPress={() => router.push(href("/signin"))} />
-          </View>
-        ) : sent ? (
-          <View style={s.field} accessibilityLiveRegion="polite">
-            <Text style={[s.h2, { color: theme.textHeading }]}>{t("chordOffer.sent.title")}</Text>
-            <Text style={[s.body, { color: theme.textBody }]}>{sent.status === "published" ? t("chordOffer.sent.published") : t("chordOffer.sent.pending")}</Text>
-            <ActionButton theme={theme} label={t("chordOffer.sent.open")} onPress={() => router.replace(href(`/song-v2/ps-${sent.songId}`))} />
-            <ActionButton theme={theme} tone="quiet" label={t("chordOffer.sent.again")} onPress={another} />
-            <ActionButton theme={theme} tone="quiet" label={t("chordOffer.sent.hub")} onPress={() => router.replace(href("/upload"))} />
-          </View>
-        ) : (
-          <>
-            <Reveal index={1} style={s.field}>
-              <Hint theme={theme}>{t("chordOffer.intro")}</Hint>
-              {team ? <Hint theme={theme}>{t("chordOffer.intro.team")}</Hint> : null}
-              {restored && draft.songId ? (
-                <View style={[s.note, { borderColor: theme.line, backgroundColor: theme.card }]}>
-                  <Text style={[s.noteText, { color: theme.textHeading }]}>{t("chordOffer.draft.restored", { number: draft.songId })}</Text>
-                  <Chip theme={theme} role="button" label={t("chordOffer.draft.discard")} onPress={startOver} />
-                </View>
-              ) : null}
-            </Reveal>
-
-            {/* 1. the song */}
-            <Reveal index={2} style={s.field}>
-              <Label theme={theme}>{t("chordOffer.song.label")}</Label>
-              <KPress
-                accessibilityRole="button"
-                accessibilityLabel={draft.songId ? t("chordOffer.song.a11y", { number: draft.songId, title: lyrics.status === "ready" || lyrics.status === "none" ? lyrics.title : "" }) : t("chordOffer.song.none")}
-                onPress={() => setChooser(true)}
-                pressedScale={0.99}
-                style={[s.inputBox, { backgroundColor: theme.card, borderColor: showProblems && problems.includes("noSong") ? amColors.danger : theme.line }]}
-              >
-                <Text style={[s.songName, { color: draft.songId ? theme.textHeading : theme.textBody }]} numberOfLines={1}>
-                  {draft.songId ? (lyrics.status === "ready" || lyrics.status === "none" ? t("chordOffer.songTitle", { number: draft.songId, title: lyrics.title }) : t("chordOffer.song", { number: draft.songId })) : t("chordOffer.song.none")}
-                </Text>
-                <View style={[s.pasteBtn, { backgroundColor: theme.peach }]}>
-                  <Text style={[s.pasteText, { color: theme.accent }]}>{draft.songId ? t("chordOffer.song.change") : t("chordOffer.song.choose")}</Text>
-                </View>
-              </KPress>
-              <Hint theme={theme}>{t("chordOffer.song.hint")}</Hint>
-            </Reveal>
-
-            {/* 2. instrument */}
-            <Reveal index={3} style={s.field}>
-              <Label theme={theme}>{t("chordOffer.instrument.label")}</Label>
-              <View style={s.chips} accessibilityRole="radiogroup">
-                <Chip theme={theme} label={t("chordOffer.instrument.guitar")} on={guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "guitar"))} />
-                <Chip theme={theme} label={t("chordOffer.instrument.harmonium")} on={!guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "harmonium"))} />
-              </View>
-            </Reveal>
-
-            {/* 3. key and capo */}
-            <Reveal index={4} style={s.field}>
-              <Label theme={theme}>{guitar ? t("chordOffer.key.guitar.label") : t("chordOffer.key.harmonium.label")}</Label>
-              <View style={s.chips} accessibilityRole="radiogroup">
-                {ROOTS.map((root) => (
-                  <Chip key={root} theme={theme} label={root} on={draft.key === root} a11y={t("chordOffer.key.a11y", { key: root })} minWidth={52} onPress={() => patch({ key: root })} />
-                ))}
-              </View>
-              <Hint theme={theme}>{guitar ? t("chordOffer.key.guitar.hint") : t("chordOffer.key.harmonium.hint")}</Hint>
-              {guitar ? (
-                <>
-                  <Label theme={theme}>{t("chordOffer.capo.label")}</Label>
-                  <View style={s.stepper}>
-                    <Chip theme={theme} role="button" label="−" a11y={t("chordOffer.capo.lower")} minWidth={52} onPress={() => patch(setCapo(draft, draft.capo - 1))} />
-                    <Text style={[s.capoValue, { color: theme.textHeading }]} accessibilityLiveRegion="polite">
-                      {draft.capo === 0 ? t("chordOffer.capo.none") : t("chordOffer.capo.fret", { capo: draft.capo })}
-                    </Text>
-                    <Chip theme={theme} role="button" label="+" a11y={t("chordOffer.capo.raise")} minWidth={52} onPress={() => patch(setCapo(draft, Math.min(MAX_CAPO, draft.capo + 1)))} />
-                  </View>
-                  {draft.capo > 0 ? <Hint theme={theme}>{t("chordOffer.capo.sounds", { key: soundingKey(draft) })}</Hint> : null}
-                  <Label theme={theme}>{t("chordOffer.strum.label")}</Label>
-                  <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: showProblems && problems.includes("strumShape") ? amColors.danger : theme.line }]}>
-                    <TextInput
-                      value={draft.strum}
-                      onChangeText={(text) => patch({ strum: text.slice(0, STRUM_MAX) })}
-                      placeholder={t("chordOffer.strum.placeholder")}
-                      placeholderTextColor={theme.textMuted}
-                      accessibilityLabel={t("chordOffer.strum.label")}
-                      autoCapitalize="characters"
-                      autoCorrect={false}
-                      maxLength={STRUM_MAX}
-                      style={[s.input, { color: theme.textHeading }]}
-                    />
-                  </View>
-                  <Hint theme={theme}>{t("chordOffer.strum.hint")}</Hint>
-                </>
-              ) : null}
-            </Reveal>
-
-            {/* 4. the chords */}
-            <Reveal index={5} style={s.field}>
-              <Label theme={theme}>{t("chordOffer.chords.label")}</Label>
-              <View style={s.chips} accessibilityRole="tablist" accessibilityLabel={t("chordOffer.chords.mode.a11y")}>
-                <Chip theme={theme} label={t("chordOffer.chords.mode.tap")} on={entry === "tap"} minWidth={130} onPress={() => setEntry("tap")} />
-                <Chip theme={theme} label={t("chordOffer.chords.mode.paste")} on={entry === "paste"} minWidth={130} onPress={() => setEntry("paste")} />
-              </View>
-              {lyrics.status === "idle" ? <Hint theme={theme}>{t("chordOffer.lyrics.pick")}</Hint> : null}
-              {lyrics.status === "loading" ? <Hint theme={theme}>{t("chordOffer.lyrics.loading")}</Hint> : null}
-              {lyrics.status === "error" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.error")}</Hint> : null}
-              {lyrics.status === "none" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.none")}</Hint> : null}
-              {lines ? (
-                entry === "tap" ? (
-                  <>
-                    <Hint theme={theme}>{t("chordOffer.chords.tapHint")}</Hint>
-                    <ChordSlotEditor theme={theme} lines={lines} placements={draft.lines} selected={selected} onSelect={setSelected} />
-                  </>
-                ) : (
-                  <ChordPasteBox theme={theme} lyricLines={lines} placements={draft.lines} onApply={applyPasted} />
-                )
-              ) : null}
-              {lines ? (
-                <Text style={[s.count, { color: theme.textBody }]} accessibilityLiveRegion="polite">
-                  {t("chordOffer.chords.count", { count: total })}
-                  {total > 0 ? ` · ${linesWithChords(draft)}/${lines.length}` : ""}
-                </Text>
-              ) : null}
-            </Reveal>
-
-            {/* 5. the preview */}
-            {lines ? (
-              <View style={s.field}>
-                <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
-                  {t("chordOffer.preview.title")}
-                </Text>
-                {payloadForPreview ? (
-                  <>
-                    <Hint theme={theme}>{t("chordOffer.preview.hint")}</Hint>
-                    <ChartPreview
-                      t={spTheme}
-                      romanLines={lines}
-                      proposal={payloadForPreview}
-                      capo={guitar ? draft.capo : 0}
-                      harmoniumKey={draft.key}
-                      caption={guitar ? (draft.capo > 0 ? t("chordOffer.preview.summary.guitar", { capo: draft.capo }) : t("chordOffer.preview.summary.guitarNoCapo")) : t("chordOffer.preview.summary.harmonium", { key: draft.key })}
-                    />
-                  </>
-                ) : (
-                  <Hint theme={theme}>{t("chordOffer.preview.empty")}</Hint>
-                )}
-              </View>
-            ) : null}
-
-            {/* 6. confirm and send */}
+          {!signedIn ? (
             <View style={s.field}>
-              <CheckRow theme={theme} on={draft.playedIt} label={t("chordOffer.played.label")} onToggle={() => patch({ playedIt: !draft.playedIt })} invalid={showProblems && problems.includes("notPlayed")} />
-              <Label theme={theme}>{t("chordOffer.note.label")}</Label>
-              <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: theme.line, alignItems: "flex-start" }]}>
-                <TextInput
-                  value={draft.note}
-                  onChangeText={(text) => patch({ note: text.slice(0, NOTE_MAX) })}
-                  placeholder={t("chordOffer.note.placeholder")}
-                  placeholderTextColor={theme.textMuted}
-                  accessibilityLabel={t("chordOffer.note.label")}
-                  maxLength={NOTE_MAX}
-                  multiline
-                  style={[s.input, s.noteInput, { color: theme.textHeading }]}
-                />
-              </View>
-              <Hint theme={theme}>{t("chordOffer.note.left", { count: NOTE_MAX - draft.note.length })}</Hint>
-              <CheckRow theme={theme} on={draft.isAnonymous} label={t("chordOffer.anonymous.label")} onToggle={() => patch({ isAnonymous: !draft.isAnonymous })} />
-              <Hint theme={theme}>{draft.isAnonymous ? t("chordOffer.as.anonymous") : name ? t("chordOffer.as.named", { name }) : t("chordOffer.as.namedNoName")}</Hint>
+              <Text style={[s.h2, { color: theme.textHeading }]}>{t("chordOffer.signin.title")}</Text>
+              <Hint theme={theme}>{t("chordOffer.signin.body")}</Hint>
+              <ActionButton theme={theme} label={t("chordOffer.signin.action")} onPress={() => router.push(href("/signin"))} />
+            </View>
+          ) : sent ? (
+            <SentPanel
+              theme={theme}
+              proposal={sent.proposal}
+              again={sent.again}
+              name={name}
+              onOpenSong={() => router.replace(href(`/song-v2/ps-${sent.proposal.songId}`))}
+              onAnother={another}
+              onHub={toHub}
+            />
+          ) : phase === "loading" ? (
+            <Hint theme={theme}>{t("chordOffer.edit.loading")}</Hint>
+          ) : phase === "resume" ? (
+            <ResumePanel theme={theme} entries={choices} onContinue={continueWith} onStartOver={setStartingOver} onFresh={() => begin(fresh())} />
+          ) : (entry.kind === "edit" || entry.kind === "copy") && !locked ? (
+            <View style={s.field} accessibilityLiveRegion="polite">
+              <Hint theme={theme} tone="danger">
+                {t("chordOffer.edit.gone")}
+              </Hint>
+              <ActionButton theme={theme} tone="quiet" label={t("chordOffer.edit.back")} onPress={toHub} />
+            </View>
+          ) : (
+            <>
+              <Reveal index={1} style={s.field}>
+                {mode && linked.proposal ? <EditBanner theme={theme} mode={mode} proposal={linked.proposal} /> : <Hint theme={theme}>{t("chordOffer.intro")}</Hint>}
+                {team && !mode ? <Hint theme={theme}>{t("chordOffer.intro.team")}</Hint> : null}
+              </Reveal>
 
-              {showProblems && problems.length ? (
-                <View accessibilityLiveRegion="polite" style={s.problems}>
-                  {problems.map((p) => (
-                    <Hint key={p} theme={theme} tone="danger">
-                      {problemText(p)}
-                    </Hint>
+              {/* 1. the song */}
+              <Reveal index={2} style={s.field}>
+                <Label theme={theme}>{t("chordOffer.song.label")}</Label>
+                <KPress
+                  accessibilityRole="button"
+                  accessibilityLabel={draft.songId ? t("chordOffer.song.a11y", { number: draft.songId, title: lyrics.status === "ready" || lyrics.status === "none" ? lyrics.title : "" }) : t("chordOffer.song.none")}
+                  onPress={locked ? undefined : () => setChooser(true)}
+                  pressedScale={locked ? 1 : 0.99}
+                  style={[s.inputBox, { backgroundColor: theme.card, borderColor: showProblems && problems.includes("noSong") ? amColors.danger : theme.line }]}
+                >
+                  <Text style={[s.songName, { color: draft.songId ? theme.textHeading : theme.textBody }]} numberOfLines={1}>
+                    {draft.songId ? (lyrics.status === "ready" || lyrics.status === "none" ? t("chordOffer.songTitle", { number: draft.songId, title: lyrics.title }) : t("chordOffer.song", { number: draft.songId })) : t("chordOffer.song.none")}
+                  </Text>
+                  {locked ? null : (
+                    <View style={[s.pasteBtn, { backgroundColor: theme.peach }]}>
+                      <Text style={[s.pasteText, { color: theme.accent }]}>{draft.songId ? t("chordOffer.song.change") : t("chordOffer.song.choose")}</Text>
+                    </View>
+                  )}
+                </KPress>
+                {locked ? null : <Hint theme={theme}>{t("chordOffer.song.hint")}</Hint>}
+              </Reveal>
+
+              {/* 2. instrument */}
+              <Reveal index={3} style={s.field}>
+                <Label theme={theme}>{t("chordOffer.instrument.label")}</Label>
+                <View style={s.chips} accessibilityRole="radiogroup">
+                  {locked ? (
+                    <Chip theme={theme} label={t(`chordOffer.instrument.${draft.instrument}` as "chordOffer.instrument.guitar")} on minWidth={120} onPress={() => {}} />
+                  ) : (
+                    <>
+                      <Chip theme={theme} label={t("chordOffer.instrument.guitar")} on={guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "guitar"))} />
+                      <Chip theme={theme} label={t("chordOffer.instrument.harmonium")} on={!guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "harmonium"))} />
+                    </>
+                  )}
+                </View>
+              </Reveal>
+
+              {/* 3. key and capo */}
+              <Reveal index={4} style={s.field}>
+                <Label theme={theme}>{guitar ? t("chordOffer.key.guitar.label") : t("chordOffer.key.harmonium.label")}</Label>
+                <View style={s.chips} accessibilityRole="radiogroup">
+                  {ROOTS.map((root) => (
+                    <Chip key={root} theme={theme} label={root} on={draft.key === root} a11y={t("chordOffer.key.a11y", { key: root })} minWidth={52} onPress={() => patch({ key: root })} />
                   ))}
                 </View>
-              ) : null}
-              {failure ? (
-                <Hint theme={theme} tone="danger">
-                  {t(`chordOffer.failure.${failure}`)}
-                </Hint>
-              ) : null}
-              {failure === "signin" ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.signin.action")} onPress={() => router.push(href("/signin"))} /> : null}
-              <ActionButton theme={theme} label={busy ? t("chordOffer.sending") : t("chordOffer.send")} onPress={() => void send()} disabled={busy} busy={busy} />
-            </View>
-          </>
-        )}
-      </ScrollView>
+                <Hint theme={theme}>{guitar ? t("chordOffer.key.guitar.hint") : t("chordOffer.key.harmonium.hint")}</Hint>
+                {guitar ? (
+                  <>
+                    <Label theme={theme}>{t("chordOffer.capo.label")}</Label>
+                    <View style={s.stepper}>
+                      <Chip theme={theme} role="button" label="−" a11y={t("chordOffer.capo.lower")} minWidth={52} onPress={() => patch(setCapo(draft, draft.capo - 1))} />
+                      <Text style={[s.capoValue, { color: theme.textHeading }]} accessibilityLiveRegion="polite">
+                        {draft.capo === 0 ? t("chordOffer.capo.none") : t("chordOffer.capo.fret", { capo: draft.capo })}
+                      </Text>
+                      <Chip theme={theme} role="button" label="+" a11y={t("chordOffer.capo.raise")} minWidth={52} onPress={() => patch(setCapo(draft, Math.min(MAX_CAPO, draft.capo + 1)))} />
+                    </View>
+                    {draft.capo > 0 ? <Hint theme={theme}>{t("chordOffer.capo.sounds", { key: soundingKey(draft) })}</Hint> : null}
+                    <Label theme={theme}>{t("chordOffer.strum.label")}</Label>
+                    <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: showProblems && problems.includes("strumShape") ? amColors.danger : theme.line }]}>
+                      <TextInput
+                        value={draft.strum}
+                        onChangeText={(text) => patch({ strum: text.slice(0, STRUM_MAX) })}
+                        onFocus={closeSheet}
+                        placeholder={t("chordOffer.strum.placeholder")}
+                        placeholderTextColor={theme.textMuted}
+                        accessibilityLabel={t("chordOffer.strum.label")}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        maxLength={STRUM_MAX}
+                        style={[s.input, { color: theme.textHeading }]}
+                      />
+                    </View>
+                    <Hint theme={theme}>{t("chordOffer.strum.hint")}</Hint>
+                  </>
+                ) : null}
+              </Reveal>
 
-      {dockOpen && selected && lines && selectedWord ? (
-        <ChordPalette
-          theme={theme}
-          word={selectedWord}
-          current={currentChord}
-          keyName={draft.key}
-          used={used}
-          onPick={pick}
-          onClear={() => pick(null)}
-          onPrevious={previousSlot(counts, selected.line, selected.word) ? () => move(previousSlot(counts, selected.line, selected.word)) : null}
-          onNext={nextSlot(counts, selected.line, selected.word) ? () => move(nextSlot(counts, selected.line, selected.word)) : null}
-          onDone={() => setSelected(null)}
-        />
-      ) : null}
+              {/* 4. the chords */}
+              <Reveal index={5} style={s.field}>
+                <Label theme={theme}>{t("chordOffer.chords.label")}</Label>
+                <View style={s.chips} accessibilityRole="tablist" accessibilityLabel={t("chordOffer.chords.mode.a11y")}>
+                  <Chip theme={theme} label={t("chordOffer.chords.mode.tap")} on={entryMode === "tap"} minWidth={130} onPress={() => setEntryMode("tap")} />
+                  <Chip theme={theme} label={t("chordOffer.chords.mode.paste")} on={entryMode === "paste"} minWidth={130} onPress={() => setEntryMode("paste")} />
+                </View>
+                {lyrics.status === "idle" ? <Hint theme={theme}>{t("chordOffer.lyrics.pick")}</Hint> : null}
+                {lyrics.status === "loading" ? <Hint theme={theme}>{t("chordOffer.lyrics.loading")}</Hint> : null}
+                {lyrics.status === "error" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.error")}</Hint> : null}
+                {lyrics.status === "none" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.none")}</Hint> : null}
+                {lines ? (
+                  entryMode === "tap" ? (
+                    <>
+                      <Hint theme={theme}>{t("chordOffer.chords.tapHint")}</Hint>
+                      {/* a tap on the blank part of the sheet puts the chord sheet away; a word catches its own tap */}
+                      <Pressable accessible={false} onPress={closeSheet} style={s.editorTap}>
+                        <ChordSlotEditor theme={theme} lines={lines} placements={draft.lines} selected={selected} onSelect={setSelected} nodes={nodes} />
+                      </Pressable>
+                    </>
+                  ) : (
+                    <ChordPasteBox theme={theme} lyricLines={lines} placements={draft.lines} onApply={applyPasted} />
+                  )
+                ) : null}
+                {lines ? (
+                  <Text style={[s.count, { color: theme.textBody }]} accessibilityLiveRegion="polite">
+                    {t("chordOffer.chords.count", { count: total })}
+                    {total > 0 ? ` · ${linesWithChords(draft)}/${lines.length}` : ""}
+                  </Text>
+                ) : null}
+              </Reveal>
+
+              {/* 5. the preview */}
+              {lines ? (
+                <View style={s.field}>
+                  <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
+                    {t("chordOffer.preview.title")}
+                  </Text>
+                  {payloadForPreview ? (
+                    <>
+                      <Hint theme={theme}>{t("chordOffer.preview.hint")}</Hint>
+                      <ChartPreview
+                        t={spTheme}
+                        romanLines={lines}
+                        proposal={payloadForPreview}
+                        capo={guitar ? draft.capo : 0}
+                        harmoniumKey={draft.key}
+                        caption={guitar ? (draft.capo > 0 ? t("chordOffer.preview.summary.guitar", { capo: draft.capo }) : t("chordOffer.preview.summary.guitarNoCapo")) : t("chordOffer.preview.summary.harmonium", { key: draft.key })}
+                      />
+                    </>
+                  ) : (
+                    <Hint theme={theme}>{t("chordOffer.preview.empty")}</Hint>
+                  )}
+                </View>
+              ) : null}
+
+              {/* 6. confirm and send */}
+              <View style={s.field}>
+                <CheckRow theme={theme} on={draft.playedIt} label={t("chordOffer.played.label")} onToggle={() => patch({ playedIt: !draft.playedIt })} invalid={showProblems && problems.includes("notPlayed")} />
+                <Label theme={theme}>{t("chordOffer.note.label")}</Label>
+                <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: theme.line, alignItems: "flex-start" }]}>
+                  <TextInput
+                    value={draft.note}
+                    onChangeText={(text) => patch({ note: text.slice(0, NOTE_MAX) })}
+                    onFocus={closeSheet}
+                    placeholder={t("chordOffer.note.placeholder")}
+                    placeholderTextColor={theme.textMuted}
+                    accessibilityLabel={t("chordOffer.note.label")}
+                    maxLength={NOTE_MAX}
+                    multiline
+                    style={[s.input, s.noteInput, { color: theme.textHeading }]}
+                  />
+                </View>
+                <Hint theme={theme}>{t("chordOffer.note.left", { count: NOTE_MAX - draft.note.length })}</Hint>
+                <CheckRow theme={theme} on={draft.isAnonymous} label={t("chordOffer.anonymous.label")} onToggle={() => patch({ isAnonymous: !draft.isAnonymous })} />
+                <Hint theme={theme}>{draft.isAnonymous ? t("chordOffer.as.anonymous") : name ? t("chordOffer.as.named", { name }) : t("chordOffer.as.namedNoName")}</Hint>
+
+                {showProblems && problems.length ? (
+                  <View accessibilityLiveRegion="polite" style={s.problems}>
+                    {problems.map((p) => (
+                      <Hint key={p} theme={theme} tone="danger">
+                        {problemText(p)}
+                      </Hint>
+                    ))}
+                  </View>
+                ) : null}
+                {failure ? (
+                  <View style={s.problems} accessibilityLiveRegion="polite">
+                    <Hint theme={theme} tone="danger">
+                      {t(`chordOffer.failure.${failure}`)}
+                    </Hint>
+                    {SEE_CHARTS.has(failure) ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.failure.seeCharts")} onPress={toHub} /> : null}
+                    {failure === "signin" ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.signin.action")} onPress={() => router.push(href("/signin"))} /> : null}
+                  </View>
+                ) : null}
+                <ActionButton theme={theme} label={sendLabel} onPress={() => void send()} disabled={busy} busy={busy} />
+                {keep || inBook ? (
+                  <>
+                    <Hint theme={theme}>{t("chordOffer.draft.saved")}</Hint>
+                    <ActionButton theme={theme} tone="quiet" label={t("chordOffer.draft.discardAction")} onPress={() => setDiscarding(true)} />
+                  </>
+                ) : null}
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </View>
+
+      <ChordSheet
+        theme={theme}
+        open={sheetOpen}
+        word={selectedWord ?? lastWord.current}
+        current={currentChord}
+        keyName={draft.key}
+        used={used}
+        onPick={pick}
+        onClear={() => pick(null)}
+        onPrevious={selected && previousSlot(counts, selected.line, selected.word) ? () => setSelected(previousSlot(counts, selected.line, selected.word)) : null}
+        onNext={selected && nextSlot(counts, selected.line, selected.word) ? () => setSelected(nextSlot(counts, selected.line, selected.word)) : null}
+        onClose={closeSheet}
+        onHeight={setCovered}
+      />
 
       <PsSongChooser
         visible={chooser}
@@ -424,38 +664,36 @@ export default function UploadChordsScreen() {
         onPick={(song) => {
           setChooser(false)
           setSelected(null)
-          setSent(null)
-          setRestored(false)
+          setFailure(null)
           setDraft((d) => (d.songId === song.number ? d : { ...newDraft(song.number), instrument: d.instrument, key: d.key, capo: d.capo, strum: d.strum }))
         }}
       />
+
+      <ConfirmDialog theme={theme} open={leaving} title={t("chordOffer.leave.title")} body={t("chordOffer.leave.body")} actions={leaveActions} onDismiss={() => setLeaving(false)} />
+      <ConfirmDialog theme={theme} open={discarding} title={t("chordOffer.discard.title")} body={discardBody} actions={discardActions} onDismiss={() => setDiscarding(false)} />
+      <ConfirmDialog theme={theme} open={startingOver !== null} title={t("chordOffer.discard.title")} body={startOverBody} actions={startOverActions} onDismiss={() => setStartingOver(null)} />
     </KeyboardAvoidingView>
   )
 }
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  bar: { alignItems: "center", paddingBottom: 6 },
-  handle: { width: 40, height: 5, borderRadius: 3, marginTop: 4 },
-  close: { position: "absolute", right: 16, top: Platform.OS === "web" ? 18 : undefined },
-  closeDisc: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  area: { flex: 1 },
   content: { paddingHorizontal: 24, gap: 24, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
-  over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },
+  over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 8 },
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
   h2: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
-  body: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 23 },
-  field: { gap: 10 },
+  field: { gap: 12 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stepper: { flexDirection: "row", alignItems: "center", gap: 12 },
   capoValue: { minWidth: 110, textAlign: "center", fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22 },
-  inputBox: { minHeight: 56, borderRadius: CORNER, borderWidth: 1.5, paddingLeft: 16, paddingRight: 8, flexDirection: "row", alignItems: "center", gap: 10 },
+  inputBox: { minHeight: 56, borderRadius: CORNER, borderWidth: 1.5, paddingLeft: 16, paddingRight: 8, flexDirection: "row", alignItems: "center", gap: 12 },
   songName: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20 },
   input: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, outlineStyle: "none" as never },
   noteInput: { minHeight: 80, textAlignVertical: "top" },
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: PILL, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
-  note: { borderWidth: 1.5, borderRadius: CORNER, padding: 12, gap: 8, alignItems: "flex-start" },
-  noteText: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
+  editorTap: { paddingVertical: 8 },
   count: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
-  problems: { gap: 4 },
+  problems: { gap: 8 },
 })

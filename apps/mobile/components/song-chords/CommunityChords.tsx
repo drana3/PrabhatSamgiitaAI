@@ -10,6 +10,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useCommunityChords } from "@/hooks/useCommunityChords"
 import { useT } from "@/lib/i18n"
 import { chartTokens } from "@/components/song-chords/ChartPreview"
+import { editHref } from "@/lib/songChords/charts"
 import { chartOf, type ChordFailure, type ChordProposal, type ChordReportReason } from "@/lib/songChords/types"
 import { SP_NOTES, capoName, guitarKeyNote, harmoniumKeyNote, keyLabel, keyPitch, uniqueChords } from "@/lib/songPage/spChords"
 import { clampCapo } from "@/lib/songPage/chords"
@@ -121,6 +122,18 @@ export function CommunityChords({
             </Text>
             {current.status === "pending" ? <Text style={[s.pending, { color: t.accentText }]}>{tr("chordSong.pending")}</Text> : null}
             {current.status === "rejected" ? <Text style={[s.pending, { color: t.danger }]}>{tr("chordOffer.status.rejected")}</Text> : null}
+            {current.mine && current.status === "rejected" && current.rejectedReason ? <Text style={[s.note, { color: t.ink800 }]}>{tr("chordOffer.rejectedWhy", { reason: current.rejectedReason })}</Text> : null}
+            {current.mine ? (
+              <SpPress
+                accessibilityLabel={current.status === "rejected" ? tr("upload.mine.fix") : current.status === "published" ? tr("chordSong.editCopy") : tr("chordSong.edit")}
+                onPress={() => router.push(href(editHref(current)))}
+                style={s.link}
+              >
+                <Text style={[s.linkText, { color: t.accentText }]}>
+                  {current.status === "rejected" ? tr("upload.mine.fix") : current.status === "published" ? tr("chordSong.editCopy") : tr("chordSong.edit")}
+                </Text>
+              </SpPress>
+            ) : null}
           </View>
 
           <View style={s.pad}>
@@ -171,7 +184,7 @@ export function CommunityChords({
             {current.mine ? (
               confirmDelete ? (
                 <View style={s.row}>
-                  <Text style={[s.note, { color: t.ink800, flex: 1 }]}>{tr("chordOffer.delete.ask")}</Text>
+                  <Text style={[s.note, { color: t.ink800, flex: 1 }]}>{current.status === "published" ? tr("chordOffer.delete.ask.published") : tr("chordOffer.delete.ask")}</Text>
                   <SpPill
                     t={t}
                     variant="sand"
@@ -231,6 +244,13 @@ export function CommunityChords({
       <View style={[s.pad, s.row]}>
         <SpPill t={t} variant="sand" icon="plus" label={tr("chordSong.offer")} onPress={() => router.push(offerHref)} />
       </View>
+      {items.some((p) => p.mine) ? (
+        <View style={s.pad}>
+          <SpPress accessibilityLabel={tr("chordSong.mine.link")} onPress={() => router.push(href("/upload"))} style={s.link}>
+            <Text style={[s.linkText, { color: t.accentText }]}>{tr("chordSong.mine.link")}</Text>
+          </SpPress>
+        </View>
+      ) : null}
     </View>
   )
 }

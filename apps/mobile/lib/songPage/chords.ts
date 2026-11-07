@@ -38,7 +38,8 @@ function accidentalOffset(mark: string): number {
 
 export function parseChord(name: string): ParsedChord | null {
   const text = name.trim()
-  const match = /^([A-G])([#b♯♭]?)([^/]*)(?:\/([A-G])([#b♯♭]?))?$/.exec(text)
+  // after the root: the suffix (it may end in a second number, as in C6/9), then an optional bass note (G/B)
+  const match = /^([A-G])([#b♯♭]?)((?:[^/]|\/\d{1,2}(?=$))*)(?:\/([A-G])([#b♯♭]?))?$/.exec(text)
   if (!match) return null
   const [, letter, mark, suffix, bassLetter, bassMark] = match
   const root = mod12(LETTER_PC[letter] + accidentalOffset(mark))

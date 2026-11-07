@@ -24,9 +24,16 @@ MAX_PLACEMENTS_PER_LINE = 80
 MAX_PLACEMENTS = 1500
 MAX_WORD_INDEX = 199
 
-KEY_PATTERN = re.compile(r"^[A-G][#b]?$")
-CHORD_PATTERN = re.compile(r"^[A-G][#b]?[A-Za-z0-9#()+\-]{0,10}(?:/[A-G][#b]?)?$")
-STRUM_PATTERN = re.compile(r"^[DUduxX.\-\s^v|()0-9]{0,40}$")
+# Every pattern is used with `fullmatch`: `$` would also accept a trailing newline.
+KEY_PATTERN = re.compile(r"[A-G][#b]?")
+# A root, then up to ten pieces of a chord's name that musicians really write (m, min, maj, M, dim,
+# aug, sus, add, the degree and alteration signs and digits, the diminished and half-diminished
+# signs), then an optional bass note (G/B) or a second number (C6/9). "Cfoo" is not a chord name.
+CHORD_PATTERN = re.compile(
+    r"[A-G][#b]?(?:maj|min|dim|aug|sus|add|m|M|°|ø|\+|-|#|b|\d|\(|\)){0,10}"
+    r"(?:/(?:[A-G][#b]?|\d{1,2}))?"
+)
+STRUM_PATTERN = re.compile(r"[DUduxX.\-\s^v|()0-9]{0,40}")
 
 
 class ChordPlacementIn(BaseModel):
@@ -37,7 +44,7 @@ class ChordPlacementIn(BaseModel):
     @classmethod
     def _chord_shape(cls, value: str) -> str:
         chord = value.strip()
-        if not CHORD_PATTERN.match(chord):
+        if not CHORD_PATTERN.fullmatch(chord):
             raise ValueError(f"'{value}' is not a chord name")
         return chord
 
@@ -64,7 +71,7 @@ class ChordProposalCreate(BaseModel):
     @classmethod
     def _key_shape(cls, value: str) -> str:
         key = value.strip()
-        if not KEY_PATTERN.match(key):
+        if not KEY_PATTERN.fullmatch(key):
             raise ValueError("The key must be a note name such as C, F# or Bb")
         return key
 
@@ -76,7 +83,7 @@ class ChordProposalCreate(BaseModel):
         text = " ".join(value.split())
         if not text:
             return None
-        if not STRUM_PATTERN.match(text):
+        if not STRUM_PATTERN.fullmatch(text):
             raise ValueError("The strum pattern may only use D, U, x, dots and dashes")
         return text
 

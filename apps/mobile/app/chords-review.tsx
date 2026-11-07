@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -13,6 +13,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useT } from "@/lib/i18n"
 import { chordFailure, chordsBackend } from "@/lib/songChords/backend"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import type { ReviewFilter, ReviewItem } from "@/lib/songChords/types"
 import { keyLabel } from "@/lib/songPage/spChords"
 import { href } from "@/utils/href"
@@ -29,7 +30,7 @@ export default function ChordsReviewScreen() {
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
-  const top = Platform.OS === "web" ? 24 : Math.max(insets.top, 16)
+  const top = useScreenTop()
   const [filter, setFilter] = useState<ReviewFilter>("pending")
   const [state, setState] = useState<{ status: "loading" | "ready" | "error" | "denied"; items: ReviewItem[] }>({ status: "loading", items: [] })
 

@@ -55,7 +55,7 @@ from app.models.recordings import (
 )
 from app.models.sargam_capture import NotationCapture
 from app.models.song import Song
-from app.models.song_chords import SongChordProposal, SongChordReport
+from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordReport
 from app.models.song_comments import SongComment, SongCommentReport
 
 __all__ = [
@@ -95,6 +95,7 @@ __all__ = [
     "SongComment",
     "SongCommentReport",
     "SongChordProposal",
+    "SongChordOffer",
     "SongChordReport",
     "SongChunk",
     "SongIngestionSubmission",

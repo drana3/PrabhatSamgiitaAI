@@ -3,27 +3,37 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import type { Draft } from "@/lib/songChords/draft"
+import { draftKey, migrateDrafts, putDraft, removeDraft, type DraftBook } from "@/lib/songChords/drafts"
 
 /**
- * The chart a member is working on, kept on the device so that leaving the screen (a phone call, the back button, a
- * crash) does not lose half an hour of chords. One draft at a time; it is cleared when the chart is sent.
+ * The unfinished charts a member is working on, kept on the device so that leaving the screen (a phone call, the back
+ * button, a crash, a dead connection while sending) does not lose half an hour of chords. A small book of drafts, one
+ * per song and instrument (lib/songChords/drafts.ts); a draft goes when its chart is sent or the member discards it.
  */
 type ChordDraftState = {
-  draft: Draft | null
-  setDraft: (draft: Draft | null) => void
+  drafts: DraftBook
+  /** save (or, when it holds nothing worth keeping, forget) this draft */
+  save: (draft: Draft) => void
+  discard: (key: string) => void
+  discardFor: (draft: Draft) => void
+  clear: () => void
 }
 
 export const useChordDraftStore = create<ChordDraftState>()(
   persist(
     (set) => ({
-      draft: null,
-      setDraft: (draft) => set({ draft }),
+      drafts: {},
+      save: (draft) => set((s) => ({ drafts: putDraft(s.drafts, draft, Date.now()) })),
+      discard: (key) => set((s) => ({ drafts: removeDraft(s.drafts, key) })),
+      discardFor: (draft) => set((s) => ({ drafts: removeDraft(s.drafts, draftKey(draft)) })),
+      clear: () => set({ drafts: {} }),
     }),
     {
       name: "prabhat-chord-draft-v1",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
-      partialize: (s) => ({ draft: s.draft }),
+      version: 2,
+      migrate: (saved) => ({ drafts: migrateDrafts(saved, Date.now()) }) as ChordDraftState,
+      partialize: (s) => ({ drafts: s.drafts }),
     },
   ),
 )

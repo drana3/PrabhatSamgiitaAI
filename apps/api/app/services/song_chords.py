@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserAccount
 from app.models.recordings import PS_SONG_COUNT, MemberNotice
-from app.models.song_chords import SongChordProposal, SongChordReport
+from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordReport
 from app.schemas.song_chords import (
     AdminChordProposalOut,
     ChordAuthor,
@@ -40,6 +40,7 @@ OPEN_PER_SONG_INSTRUMENT = 3
 DAILY_LIMIT_CODE = "chords_daily_limit"
 DUPLICATE_CODE = "chords_duplicate"
 OPEN_LIMIT_CODE = "chords_open_limit"
+NOT_EDITABLE_CODE = "chords_not_editable"
 FALLBACK_NAME = "Member"
 NOTICE_REJECTED = "chords_rejected"
 NOTICE_PUBLISHED = "chords_published"
@@ -194,13 +195,23 @@ async def list_mine(
 
 
 async def proposals_in_last_day(session: AsyncSession, member_id: UUID) -> int:
+    """Charts the member offered in 24 hours, the ones they deleted since included.
+
+    Every offer leaves a row in the ledger that outlives the chart, so taking a chart back does
+    not give its place in the day back. Charts stored before the ledger existed are counted too.
+    """
     since = now_utc() - timedelta(hours=24)
-    total = await session.scalar(
+    offered = await session.scalar(
+        select(func.count())
+        .select_from(SongChordOffer)
+        .where(SongChordOffer.member_id == member_id, SongChordOffer.created_at >= since)
+    )
+    stored = await session.scalar(
         select(func.count())
         .select_from(SongChordProposal)
         .where(SongChordProposal.member_id == member_id, SongChordProposal.created_at >= since)
     )
-    return int(total or 0)
+    return max(int(offered or 0), int(stored or 0))
 
 
 async def ensure_daily_allowance(
@@ -263,7 +274,16 @@ async def create_proposal(
             ),
             headers={"X-Error-Code": OPEN_LIMIT_CODE},
         )
+    # Only a chart that passed every check above uses up the hourly allowance: a refused one
+    # (empty, duplicate, over the cap) must not make the member wait for a new try.
+    limiter.hit(
+        "offer",
+        str(member.id),
+        limit=HOURLY_PROPOSALS_TEAM if team else HOURLY_PROPOSALS,
+        window_seconds=3600,
+    )
     now = now_utc()
+    session.add(SongChordOffer(member_id=member.id))
     proposal = SongChordProposal(
         song_id=payload.song_id,
         member_id=member.id,
@@ -282,6 +302,85 @@ async def create_proposal(
         reviewed_by="team" if team else None,
     )
     session.add(proposal)
+    await session.commit()
+    await session.refresh(proposal)
+    return proposal
+
+
+async def update_proposal(
+    session: AsyncSession,
+    proposal: SongChordProposal,
+    *,
+    payload: ChordProposalCreate,
+    team: bool,
+) -> SongChordProposal:
+    """The author changes a chart that is waiting or was not accepted, and sends it again.
+
+    A live (published) chart is never edited in place: it would leave the song page, or change on it
+    without a second look. The author offers a changed copy as a new chart instead. A song and an
+    instrument belong to the chart for good. The chart goes back to `pending` (the team: straight to
+    `published`) and the old reason of a rejection is cleared. The daily allowance is not charged
+    again: it is the same chart.
+    """
+    if proposal.status == "published":
+        raise HTTPException(
+            status_code=409,
+            detail="A live chart cannot be changed. Offer a changed copy instead.",
+            headers={"X-Error-Code": NOT_EDITABLE_CODE},
+        )
+    if payload.song_id != proposal.song_id or payload.instrument != proposal.instrument:
+        raise HTTPException(status_code=422, detail="A chart keeps its song and its instrument.")
+    chart, kept = normalise_chart(payload)
+    if kept == 0:
+        raise HTTPException(status_code=422, detail="Put at least one chord over a word.")
+    others = (
+        await session.scalars(
+            select(SongChordProposal).where(
+                SongChordProposal.member_id == proposal.member_id,
+                SongChordProposal.song_id == proposal.song_id,
+                SongChordProposal.instrument == proposal.instrument,
+                SongChordProposal.status.in_(("pending", "published")),
+                SongChordProposal.id != proposal.id,
+            )
+        )
+    ).all()
+    wanted = _fingerprint(chart)
+    for row in others:
+        if (
+            row.base_key == payload.base_key
+            and row.capo == payload.capo
+            and _fingerprint(row.chart) == wanted
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="You already offered exactly this chart.",
+                headers={"X-Error-Code": DUPLICATE_CODE},
+            )
+    # A rejected chart that comes back is a live chart again: it counts against the cap.
+    if not team and proposal.status == "rejected" and len(others) >= OPEN_PER_SONG_INSTRUMENT:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"You already have {OPEN_PER_SONG_INSTRUMENT} charts of this song for this "
+                "instrument waiting or live. Delete one first, or wait for the review."
+            ),
+            headers={"X-Error-Code": OPEN_LIMIT_CODE},
+        )
+    limiter.hit("edit", str(proposal.member_id), limit=30, window_seconds=3600)
+    now = now_utc()
+    proposal.base_key = payload.base_key
+    proposal.capo = payload.capo
+    proposal.strum = payload.strum
+    proposal.chart = chart
+    proposal.placements_count = kept
+    proposal.played_it = payload.played_it
+    proposal.note = clean_note(payload.note)
+    proposal.is_anonymous = payload.is_anonymous
+    proposal.status = "published" if team else "pending"
+    proposal.rejected_reason = None
+    proposal.published_at = now if team else None
+    proposal.reviewed_at = now if team else None
+    proposal.reviewed_by = "team" if team else None
     await session.commit()
     await session.refresh(proposal)
     return proposal

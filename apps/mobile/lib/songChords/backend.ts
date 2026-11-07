@@ -32,9 +32,18 @@ function previewTeam(): boolean {
   return teamSeen
 }
 
+/** Preview only: `?empty` in the address starts the preview member with no charts (the empty Upload hub). */
+function previewEmpty(): boolean {
+  try {
+    return typeof window !== "undefined" && new URLSearchParams(window.location.search).has("empty")
+  } catch {
+    return false
+  }
+}
+
 export function chordsBackend(): ChordsBackend {
   if (MOCKUP_DATA) {
-    mock ??= createMockBackend({ me: previewName, team: previewTeam })
+    mock ??= createMockBackend({ me: previewName, team: previewTeam, seedMine: !previewEmpty() })
     return mock
   }
   return remoteBackend(remoteConfig())

@@ -71,6 +71,7 @@ export type ChordFailure =
   | "forbidden" // not the author / not the team
   | "network" // no answer (offline)
   | "gone" // the chart is not there any more
+  | "notEditable" // a live chart cannot be changed in place
   | "server"
 
 export type SubmitOutcome = { ok: true; proposal: ChordProposal } | { ok: false; failure: ChordFailure }
@@ -80,6 +81,8 @@ export interface ChordsBackend {
   listForSong(songId: number): Promise<ChordProposal[]>
   mine(): Promise<ChordProposal[]>
   offer(payload: ProposalPayload): Promise<ChordProposal>
+  /** the author fixes a waiting or rejected chart and sends it again (same song and instrument) */
+  update(id: string, payload: ProposalPayload): Promise<ChordProposal>
   remove(id: string): Promise<void>
   report(id: string, reason: ChordReportReason): Promise<{ status: "received" | "already_reported" }>
   /** team only */

@@ -1,4 +1,4 @@
-import { memo } from "react"
+import { memo, type MutableRefObject } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { KPress } from "@/components/kirtan/KPress"
@@ -24,12 +24,15 @@ export function ChordSlotEditor({
   placements,
   selected,
   onSelect,
+  nodes,
 }: {
   theme: SongsTheme
   lines: readonly string[]
   placements: ReadonlyArray<ReadonlyArray<Placement>>
   selected: Slot | null
   onSelect: (slot: Slot) => void
+  /** filled with each word's view, keyed "line:word", so the screen can scroll the selected word clear of the chord sheet */
+  nodes?: MutableRefObject<Record<string, View | null>>
 }) {
   const t = useT()
   return (
@@ -43,7 +46,7 @@ export function ChordSlotEditor({
             {splitWords(line).map((word, wi) => {
               const chord = placements[li]?.find((p) => p.word === wi)?.chord ?? null
               const on = selected?.line === li && selected.word === wi
-              return <Column key={wi} theme={theme} line={li} word={wi} text={word} chord={chord} on={on} onSelect={onSelect} />
+              return <Column key={wi} theme={theme} line={li} word={wi} text={word} chord={chord} on={on} onSelect={onSelect} nodes={nodes} />
             })}
           </View>
         </View>
@@ -60,6 +63,7 @@ const Column = memo(function Column({
   chord,
   on,
   onSelect,
+  nodes,
 }: {
   theme: SongsTheme
   line: number
@@ -68,24 +72,32 @@ const Column = memo(function Column({
   chord: string | null
   on: boolean
   onSelect: (slot: Slot) => void
+  nodes?: MutableRefObject<Record<string, View | null>>
 }) {
   const t = useT()
   return (
-    <KPress
-      accessibilityRole="button"
-      accessibilityState={{ selected: on }}
-      accessibilityLabel={chord ? t("chordOffer.slot.chord.a11y", { line: line + 1, word: word + 1, text, chord }) : t("chordOffer.slot.empty.a11y", { line: line + 1, word: word + 1, text })}
-      onPress={() => onSelect({ line, word })}
-      pressedScale={0.94}
-      style={[s.col, { borderColor: on ? theme.accent : "transparent", backgroundColor: on ? theme.peach : "transparent" }]}
+    <View
+      collapsable={false}
+      ref={(node) => {
+        if (nodes) nodes.current[`${line}:${word}`] = node
+      }}
     >
-      <View style={[s.slot, { borderBottomColor: chord ? "transparent" : theme.line }]}>
-        <Text style={[s.chord, { color: theme.accent }]} numberOfLines={1}>
-          {chord ?? ""}
-        </Text>
-      </View>
-      <Text style={[s.word, { color: theme.textHeading }]}>{text}</Text>
-    </KPress>
+      <KPress
+        accessibilityRole="button"
+        accessibilityState={{ selected: on }}
+        accessibilityLabel={chord ? t("chordOffer.slot.chord.a11y", { line: line + 1, word: word + 1, text, chord }) : t("chordOffer.slot.empty.a11y", { line: line + 1, word: word + 1, text })}
+        onPress={() => onSelect({ line, word })}
+        pressedScale={0.94}
+        style={[s.col, { borderColor: on ? theme.accent : "transparent", backgroundColor: on ? theme.peach : "transparent" }]}
+      >
+        <View style={[s.slot, { borderBottomColor: chord ? "transparent" : theme.line }]}>
+          <Text style={[s.chord, { color: theme.accent }]} numberOfLines={1}>
+            {chord ?? ""}
+          </Text>
+        </View>
+        <Text style={[s.word, { color: theme.textHeading }]}>{text}</Text>
+      </KPress>
+    </View>
   )
 })
 

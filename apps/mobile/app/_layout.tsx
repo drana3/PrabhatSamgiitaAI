@@ -34,6 +34,7 @@ import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { AppStatusBar, FrameSafeArea } from "@/components/common/EdgeToEdge"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
+import { ChordNoticeSync } from "@/components/song-chords/ChordNoticeSync"
 import { LegacyRedirectHost } from "@/components/nav-v2/LegacyRedirectHost"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
 import { NotificationsHost } from "@/components/notifications/NotificationsHost"
@@ -149,6 +150,7 @@ export default function RootLayout() {
         <FrameSafeArea>
           <PlaybackLifecycle />
           <MemberSessionSync />
+          <ChordNoticeSync />
           <LegacyRedirectHost />
           {/* Edge to edge: the app draws under the status bar; its content colour follows Light / Dark. */}
           <AppStatusBar />

@@ -102,6 +102,24 @@ class SongChordProposal(Base, TimestampMixin):
     rejected_reason: Mapped[str | None] = mapped_column(Text)
 
 
+class SongChordOffer(Base, TimestampMixin):
+    """One row for every chart a member ever offered, kept when the chart is deleted.
+
+    The daily allowance counts these, not the charts that are left: deleting a chart must not give
+    its place in the day back. Nothing else reads it; a deleted member takes their rows with them.
+    """
+
+    __tablename__ = "song_chord_offers"
+    __table_args__ = (Index("ix_song_chord_offers_member_created", "member_id", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    member_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+
 class SongChordReport(Base, TimestampMixin):
     """One report of one proposal by one reporter (a member, or an anonymous device bucket)."""
 

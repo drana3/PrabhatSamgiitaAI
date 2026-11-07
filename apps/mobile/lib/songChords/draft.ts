@@ -1,9 +1,9 @@
 import type { ChordChart } from "@/lib/songPage/chordChart"
 import { MAX_CAPO } from "@/lib/songPage/chords"
-import { spTranspose } from "@/lib/songPage/spChords"
 
 import { isChordName } from "./chordName"
-import type { ChordInstrument, ProposalPayload } from "./types"
+import { shiftChord } from "./spelling"
+import type { ChordInstrument, ChordProposal, ProposalPayload } from "./types"
 
 /**
  * The editor's model: pure functions on a plain object, so every rule is tested without a screen.
@@ -27,6 +27,10 @@ export type Draft = {
   playedIt: boolean
   note: string
   isAnonymous: boolean
+  /** set while the member fixes a chart they already sent (a waiting or a rejected one): "send again" updates it */
+  editId?: string | null
+  /** set while the member makes a changed copy of a live chart: it is sent as a NEW chart */
+  basedOn?: string | null
 }
 
 export const NOTE_MAX = 300
@@ -103,12 +107,12 @@ export function setCapo(draft: Draft, capo: number): Draft {
 
 /** The key the chart SOUNDS in: the shapes' key raised by the capo (a harmonium's Sa is what it is). */
 export function soundingKey(draft: Pick<Draft, "instrument" | "key" | "capo">): string {
-  return draft.instrument === "guitar" ? spTranspose(draft.key, draft.capo) : draft.key
+  return draft.instrument === "guitar" ? shiftChord(draft.key, draft.capo) : draft.key
 }
 
 /** What the chord sounds like: for a guitar a shape with the capo on fret `capo`, for a harmonium itself. */
 export function soundingOf(draft: Pick<Draft, "instrument" | "capo">, chord: string): string {
-  return draft.instrument === "guitar" ? spTranspose(chord, draft.capo) : chord
+  return draft.instrument === "guitar" ? shiftChord(chord, draft.capo) : chord
 }
 
 export type DraftProblem = "noSong" | "noChords" | "badChord" | "notPlayed" | "noteTooLong" | "strumShape"
@@ -155,4 +159,27 @@ export function toPayload(draft: Draft, wordCounts: readonly number[]): Proposal
 export function toChart(draft: Draft, wordCounts: readonly number[]): ChordChart {
   const payload = toPayload({ ...draft, songId: draft.songId ?? 0 }, wordCounts)
   return { reviewed: true, baseKey: payload.baseKey, strum: payload.strum ?? undefined, lines: payload.lines }
+}
+
+/**
+ * The editor's draft for a chart that already exists: the other way round of `toPayload`. A guitar chart is stored as
+ * SOUNDING chords, the editor works in the SHAPES, so every chord and the key go down by the capo. `how` says what
+ * sending does: "edit" updates this very chart (a waiting or rejected one), "copy" offers a changed copy of a live one.
+ */
+export function draftFromProposal(proposal: ChordProposal, how: "edit" | "copy"): Draft {
+  const capo = proposal.instrument === "guitar" ? proposal.capo : 0
+  const shape = (chord: string) => (capo > 0 ? shiftChord(chord, -capo) : chord)
+  return {
+    songId: proposal.songId,
+    instrument: proposal.instrument,
+    key: shiftChord(proposal.baseKey, -capo),
+    capo,
+    strum: proposal.instrument === "guitar" ? (proposal.strum ?? "") : "",
+    lines: proposal.lines.map((line) => line.placements.map((p) => ({ word: p.word, chord: shape(p.chord) }))),
+    playedIt: proposal.playedIt,
+    note: proposal.note ?? "",
+    isAnonymous: proposal.isAnonymous,
+    editId: how === "edit" ? proposal.id : null,
+    basedOn: how === "copy" ? proposal.id : null,
+  }
 }

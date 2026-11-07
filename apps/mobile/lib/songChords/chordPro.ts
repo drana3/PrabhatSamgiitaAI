@@ -3,6 +3,7 @@ import { MAX_CAPO } from "@/lib/songPage/chords"
 
 import { cleanChordName, isChordName } from "./chordName"
 import type { Placement } from "./draft"
+import { shiftChord } from "./spelling"
 
 /**
  * The plain-text way to enter chords: ChordPro-style, a chord in square brackets in front of the word it changes on.
@@ -122,7 +123,10 @@ function directive(text: string, lineNo: number, meta: ParseMeta, issues: ParseI
     else meta.capo = n
   } else if (lower === "key") {
     const key = cleanChordName(value)
+    const minor = /^([A-G][#b]?)(?:m|min)$/.exec(key)
     if (/^[A-G][#b]?$/.test(key)) meta.key = key
+    // the editor's key is a major key: a minor song sits on its relative major (Am is the key of C)
+    else if (minor) meta.key = shiftChord(minor[1], 3)
     else issues.push({ level: "error", code: "badChord", line: lineNo, params: { chord: value } })
   } else if (lower === "strum") {
     meta.strum = value
