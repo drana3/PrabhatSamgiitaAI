@@ -19,6 +19,7 @@ import {
   draftProblem,
   elapsed,
   initialOf,
+  liveNotice,
   postingAccess,
   showCounter,
 } from "@/lib/songComments/rules"
@@ -74,7 +75,7 @@ export function CommentsView<T extends CommentBase>({ t, comments, words, testID
       <View style={styles.list}>
         {state.status === "ready" && state.total > 0 ? (
           <Text accessibilityRole="header" style={[styles.count, { color: t.ink500 }]}>
-            {tr("songComments.count", { count: state.total })}
+            {tr("songComments.count", { count: Math.max(0, state.total - state.items.filter((c) => c.deleted).length) })}
           </Text>
         ) : null}
         {state.status === "loading" ? (
@@ -91,7 +92,7 @@ export function CommentsView<T extends CommentBase>({ t, comments, words, testID
         ) : null}
         {state.status === "ready" && state.items.length === 0 ? <Text style={[styles.empty, { color: t.ink500 }]}>{tr(`${words}.empty`)}</Text> : null}
         {state.items.map((comment, index) => (
-          <CommentRow key={comment.id} t={t} comment={comment} first={index === 0} comments={comments as CommentsController<CommentBase>} />
+          <CommentRow key={comment.id} t={t} comment={comment} first={index === 0} comments={comments as CommentsController<CommentBase>} words={words} />
         ))}
         {state.status === "ready" && state.hasMore ? (
           <Button
@@ -118,6 +119,7 @@ function Composer({ t, name, post }: { t: SpTheme; name: string; post: PostFn })
   const alive = useRef(true)
   useEffect(() => () => void (alive.current = false), [])
 
+  const notice = liveNotice(text)
   const ready = !draftProblem(text) && !busy
   const submit = async () => {
     if (!ready) return
@@ -159,6 +161,13 @@ function Composer({ t, name, post }: { t: SpTheme; name: string; post: PostFn })
         </Text>
       ) : null}
 
+      {/* Said while the person types, not only after a failed send: the Post button is shut for this reason and must not be a mystery. */}
+      {notice === "links" ? (
+        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.message, { color: t.dangerText }]}>
+          {tr("songComments.failure.links")}
+        </Text>
+      ) : null}
+
       <SpPress
         onPress={() => setAnonymous((on) => !on)}
         accessibilityRole="checkbox"
@@ -191,7 +200,7 @@ function Composer({ t, name, post }: { t: SpTheme; name: string; post: PostFn })
 
 type Panel = null | "menu" | "report" | "delete"
 
-function CommentRow({ t, comment, first, comments }: { t: SpTheme; comment: CommentBase; first: boolean; comments: CommentsController<CommentBase> }) {
+function CommentRow({ t, comment, first, comments, words }: { t: SpTheme; comment: CommentBase; first: boolean; comments: CommentsController<CommentBase>; words: CommentsWords }) {
   const tr = useT()
   const [panel, setPanel] = useState<Panel>(null)
   const [busy, setBusy] = useState(false)
@@ -200,6 +209,19 @@ function CommentRow({ t, comment, first, comments }: { t: SpTheme; comment: Comm
   const [problem, setProblem] = useState<CommentFailure | null>(null)
   const name = comment.author?.name ?? tr("songComments.anonymous")
   const mineOrTeam = comment.mine || comment.canRemove
+
+  // What an author's own delete leaves under a recording: one quiet line, no name, no text, nothing to press.
+  if (comment.deleted) {
+    return (
+      <View style={[styles.item, { borderTopColor: t.sand400, borderTopWidth: first ? 0 : StyleSheet.hairlineWidth }]} testID="comment-deleted">
+        <Avatar t={t} comment={comment} label={tr("songComments.anonymous.avatar")} />
+        <View style={styles.itemMain}>
+          <Text style={[styles.body, { color: t.ink500, fontFamily: amFonts.medium }]}>{words === "recordingComments" ? tr("recordingComments.deleted") : null}</Text>
+          <Text style={[styles.time, { color: t.ink500 }]}>{timeLabel(tr, comment.createdAt)}</Text>
+        </View>
+      </View>
+    )
+  }
 
   const open = (next: Panel) => {
     setPanel(next)

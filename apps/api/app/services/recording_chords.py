@@ -72,26 +72,46 @@ def is_chord(token: str) -> bool:
     return CHORD_PATTERN.fullmatch(token) is not None
 
 
-def chord_line_count(line: str) -> int:
-    """How many chords a CHORD LINE holds: a line made only of chords and the usual separators
-    (bars, dashes, "x2", "N.C."). 0 when the line is words (or empty)."""
+# A chord that is only a letter with an optional sharp or flat: "A", "Bb", "F#". On its own it is
+# also a word ("A"), so it does not prove a chart is a chart (QA-053).
+_PLAIN_CHORD = re.compile(r"[A-G][#b\u266f\u266d]?")
+
+
+def chord_line_tokens(line: str) -> list[str]:
+    """The chords of a CHORD LINE: a line made only of chords and the usual separators (bars,
+    dashes, "x2", "N.C."). Empty when the line is words (or empty)."""
     tokens = line.split()
-    if not tokens:
-        return 0
-    chords = 0
+    chords: list[str] = []
     for token in tokens:
         if is_chord(token):
-            chords += 1
+            chords.append(token)
         elif not _SEPARATOR.fullmatch(token):
-            return 0
+            return []
     return chords
 
 
-def line_chords(line: str) -> int:
+def chord_line_count(line: str) -> int:
+    return len(chord_line_tokens(line))
+
+
+def line_chord_tokens(line: str) -> list[str]:
     """Chords on one line: the chord line's tokens, or the `[Am]` marks in the words."""
-    return chord_line_count(line) or sum(
-        1 for found in _INLINE.finditer(line) if is_chord(found.group(1))
-    )
+    return chord_line_tokens(line) or [
+        found.group(1) for found in _INLINE.finditer(line) if is_chord(found.group(1))
+    ]
+
+
+def line_chords(line: str) -> int:
+    return len(line_chord_tokens(line))
+
+
+def proves_a_chart(chords: list[str]) -> bool:
+    """A chart needs more than one lonely letter: at least two DIFFERENT chords, or one chord that
+    is plainly a chord (a quality, a number or a bass note: Am, G7, D/F#). So "Am" over words and
+    "Am" + "G" pass; a body of just "A" does not."""
+    if len(set(chords)) >= 2:
+        return True
+    return any(not _PLAIN_CHORD.fullmatch(chord) for chord in chords)
 
 
 def clean_sheet(raw: str) -> tuple[str, int]:
@@ -126,11 +146,20 @@ def clean_sheet(raw: str) -> tuple[str, int]:
         raise HTTPException(status_code=422, detail="This chord chart is too long.")
     if link_count(body) > 0:
         raise HTTPException(status_code=422, detail="Please leave web links out of a chord chart.")
-    chords = sum(line_chords(line) for line in out)
+    found = [chord for line in out for chord in line_chord_tokens(line)]
+    chords = len(found)
     if chords == 0:
         raise HTTPException(
             status_code=422,
             detail="Add at least one chord, for example Am or G7, over the words.",
+        )
+    if not proves_a_chart(found):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "A single plain letter is not a chord chart. Add a second chord, "
+                "or write the chord in full, for example Am or G7."
+            ),
         )
     if chords > MAX_CHORDS:
         raise HTTPException(status_code=422, detail="Too many chords for one chart.")
@@ -154,7 +183,12 @@ def same_sheet_key(body: str) -> str:
 
 
 def clean_note(raw: str | None) -> str | None:
-    return one_line(raw, 300) or None
+    """The note under a chart: one short line, no web links (the same rule as the chart itself and
+    as a video title)."""
+    note = one_line(raw, 300) or None
+    if note is not None and link_count(note) > 0:
+        raise HTTPException(status_code=422, detail="Please leave web links out of the note.")
+    return note
 
 
 def public_out(
@@ -327,6 +361,7 @@ async def create_sheet(
 ) -> RecordingChordSheet:
     # Content first: a chart refused for what is in it costs nothing, not even an hourly place.
     body, chords = clean_sheet(payload.body)
+    note = clean_note(payload.note)
     await ensure_daily_allowance(session, member.id, team=team)
     live = (
         await session.scalars(_live_statement(member.id, recording_id, payload.instrument))
@@ -353,7 +388,7 @@ async def create_sheet(
         body=body,
         chords_count=chords,
         played_it=payload.played_it,
-        note=clean_note(payload.note),
+        note=note,
         is_anonymous=payload.is_anonymous,
         status="published" if team else "pending",
         published_at=now if team else None,
@@ -389,6 +424,7 @@ async def update_sheet(
     if payload.instrument != sheet.instrument:
         raise HTTPException(status_code=422, detail="A chart keeps its instrument.")
     body, chords = clean_sheet(payload.body)
+    note = clean_note(payload.note)
     others = [
         row
         for row in (
@@ -410,7 +446,7 @@ async def update_sheet(
     sheet.body = body
     sheet.chords_count = chords
     sheet.played_it = payload.played_it
-    sheet.note = clean_note(payload.note)
+    sheet.note = note
     sheet.is_anonymous = payload.is_anonymous
     sheet.status = "published" if team else "pending"
     sheet.rejected_reason = None

@@ -16,6 +16,8 @@ export type CommentBase = {
   mine: boolean
   /** the team can remove any comment */
   canRemove: boolean
+  /** the line an author's own delete leaves behind (recordings): no text, no author, nothing to act on */
+  deleted?: boolean
 }
 
 export type SongComment = CommentBase & { songId: number }

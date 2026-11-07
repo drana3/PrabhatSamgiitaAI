@@ -56,7 +56,7 @@ def _stamps() -> list[sa.Column]:
     ]
 
 
-def _fk(target: str, *, ondelete: str, nullable: bool = False) -> sa.ForeignKey:
+def _fk(target: str, *, ondelete: str) -> sa.ForeignKey:
     return sa.ForeignKey(target, ondelete=ondelete)
 
 

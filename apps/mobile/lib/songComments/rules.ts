@@ -66,6 +66,14 @@ export function draftProblem(raw: string): CommentFailure | null {
   return null
 }
 
+/**
+ * What the composer says while the person types, so a shut Post button is never a mystery: only "links" (more than two),
+ * the one reason that cannot be read off the screen. Too long is the counter's job, an empty field needs no sentence.
+ */
+export function liveNotice(raw: string): "links" | null {
+  return draftProblem(raw) === "links" ? "links" : null
+}
+
 /** What the writer sees counted: characters that stay in the comment (invisible ones are dropped, so they are not counted). */
 export function visibleLength(raw: string): number {
   return stripInvisible(raw).length

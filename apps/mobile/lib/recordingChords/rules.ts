@@ -33,9 +33,37 @@ export function chordLineCount(line: string): number {
   return chords
 }
 
+/** The chords of a CHORD LINE (empty for a line of words). */
+export function chordLineTokens(line: string): string[] {
+  const tokens = line.split(/\s+/).filter(Boolean)
+  const chords: string[] = []
+  for (const token of tokens) {
+    if (isChordName(token)) chords.push(token)
+    else if (!SEPARATOR.test(token)) return []
+  }
+  return chords
+}
+
 /** Chords on one line: the chord line's tokens, or the `[Am]` marks inside words. */
+export function lineChordTokens(line: string): string[] {
+  const onLine = chordLineTokens(line)
+  return onLine.length ? onLine : Array.from(line.matchAll(INLINE)).map((m) => m[1] as string).filter((name) => isChordName(name))
+}
+
 export function lineChords(line: string): number {
-  return chordLineCount(line) || Array.from(line.matchAll(INLINE)).filter((m) => isChordName(m[1] as string)).length
+  return lineChordTokens(line).length
+}
+
+/** A chord that is only a letter with an optional sharp or flat ("A", "Bb"): on its own it is also a word. */
+const PLAIN_CHORD = /^[A-G][#b♯♭]?$/
+
+/**
+ * A chart needs more than one lonely letter: at least two DIFFERENT chords, or one chord that is plainly a chord (a
+ * quality, a number or a bass note: Am, G7, D/F#). So "Am" over words and "Am" + "G" pass; a body of just "A" does not.
+ * The API applies the same rule and has the final say.
+ */
+export function provesAChart(chords: readonly string[]): boolean {
+  return new Set(chords).size >= 2 || chords.some((name) => !PLAIN_CHORD.test(name))
 }
 
 function dedent(lines: string[]): string[] {
@@ -65,8 +93,10 @@ export function cleanSheet(raw: string): CleanSheet | { problem: SheetFailure } 
   if (!body.trim()) return { problem: "noChords" }
   if (lines.length > SHEET_MAX_LINES || lines.some((l) => l.length > SHEET_MAX_LINE_LENGTH) || body.length > SHEET_MAX_LENGTH) return { problem: "tooLong" }
   if (linkCount(body) > 0) return { problem: "links" }
-  const chords = lines.reduce((sum, l) => sum + lineChords(l), 0)
+  const found = lines.flatMap((l) => lineChordTokens(l))
+  const chords = found.length
   if (chords === 0) return { problem: "noChords" }
+  if (!provesAChart(found)) return { problem: "fewChords" }
   if (chords > SHEET_MAX_CHORDS) return { problem: "tooLong" }
   return { body, chords }
 }
@@ -75,6 +105,8 @@ export function cleanSheet(raw: string): CleanSheet | { problem: SheetFailure } 
 export function draftProblem(draft: SheetDraft): SheetFailure | "notPlayed" | "badKey" | "noteTooLong" | null {
   if (draft.key.trim() && !KEY_PATTERN.test(draft.key.trim())) return "badKey"
   if (Array.from(draft.note.trim()).length > SHEET_NOTE_MAX) return "noteTooLong"
+  // the note takes no web links, like the chart and a video title
+  if (linkCount(stripInvisible(draft.note)) > 0) return "links"
   const cleaned = cleanSheet(draft.body)
   if ("problem" in cleaned) return cleaned.problem
   if (!draft.playedIt) return "notPlayed"

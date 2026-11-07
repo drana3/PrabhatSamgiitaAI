@@ -70,8 +70,8 @@ export function ChordsViewer({
     setNote(null)
   }
 
-  const key = sheet ? shiftedKey(sheet.chartKey, shift) : null
-  const shown = useMemo(() => (sheet ? transposeSheet(sheet.body, shift) : ""), [sheet, shift])
+  const key = sheet ? shiftedKey(sheet.chartKey, shift, sheet.body) : null
+  const shown = useMemo(() => (sheet ? transposeSheet(sheet.body, shift, sheet.chartKey) : ""), [sheet, shift])
 
   const by = !sheet ? "" : sheet.mine ? tr("recChords.by.you") : sheet.author ? tr("recChords.by", { name: sheet.author.name }) : tr("recChords.by.anonymous")
 

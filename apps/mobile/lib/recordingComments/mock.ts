@@ -1,5 +1,6 @@
 import { MockFailure } from "@/lib/songComments/mock"
 import { cleanDraft, draftProblem, sameTextKey } from "@/lib/songComments/rules"
+import { tombstoneOf } from "@/lib/songComments/state"
 import type { CommentPage, CommentReportReason } from "@/lib/songComments/types"
 
 import type { RecordingComment, RecordingCommentsBackend } from "./types"
@@ -87,8 +88,12 @@ export function createRecordingCommentsMock(options: { me: () => string; now?: (
     async remove(commentId) {
       const { store, comment } = find(commentId)
       if (!comment.mine && !comment.canRemove) throw new MockFailure("gone")
-      store.byId.delete(commentId)
-      store.order = store.order.filter((id) => id !== commentId)
+      // the author's own delete leaves a tombstone, as the real API does; a team removal leaves nothing
+      if (comment.mine) store.byId.set(commentId, tombstoneOf(comment))
+      else {
+        store.byId.delete(commentId)
+        store.order = store.order.filter((id) => id !== commentId)
+      }
     },
     async report(commentId, _report: { reason: CommentReportReason }) {
       const { store } = find(commentId)

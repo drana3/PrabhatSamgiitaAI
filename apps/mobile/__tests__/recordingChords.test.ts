@@ -14,8 +14,9 @@ import {
   isBlankDraft,
   lineChords,
   newSheetDraft,
+  provesAChart,
 } from "@/lib/recordingChords/rules"
-import { MAX_SHIFT, clampShift, lineKind, piecesOf, shiftedKey, transposeLine, transposeSheet } from "@/lib/recordingChords/transpose"
+import { MAX_SHIFT, chartSpelling, clampShift, lineKind, piecesOf, shiftedKey, transposeLine, transposeSheet } from "@/lib/recordingChords/transpose"
 import type { SheetDraft } from "@/lib/recordingChords/types"
 
 import { CFG, fakeFetch, type Seen } from "./recordingExtrasHelpers"
@@ -55,6 +56,16 @@ describe("cleanSheet", () => {
     expect(cleanSheet("just words")).toEqual({ problem: "noChords" })
     expect(cleanSheet("   \n  ")).toEqual({ problem: "noChords" })
   })
+  it("one lonely plain letter is not a chart, but real minimal charts pass (QA-053)", () => {
+    for (const raw of ["A", "A\nBaba Nam Kevalam", "Bb\nWords", "A\nA", "C#\nx"]) expect(cleanSheet(raw), raw).toEqual({ problem: "fewChords" })
+    for (const raw of ["Am", "Am\nBaba", "A  G\nBaba Nam", "G7", "D/F#\nBaba", "Baba [A]Nam [G]Kevalam", "Cmaj7\nBaba"]) {
+      expect("problem" in cleanSheet(raw), raw).toBe(false)
+    }
+    expect(provesAChart(["A"])).toBe(false)
+    expect(provesAChart(["A", "A"])).toBe(false)
+    expect(provesAChart(["A", "G"])).toBe(true)
+    expect(provesAChart(["Am"])).toBe(true)
+  })
   it("refuses a link", () => {
     expect(cleanSheet("Em C\nsee https://evil.example")).toEqual({ problem: "links" })
     expect(cleanSheet("Em C\nsee evil.com")).toEqual({ problem: "links" })
@@ -83,6 +94,15 @@ describe("draftProblem", () => {
     expect(draftProblem(draft({ key: "H" }))).toBe("badKey")
     expect(draftProblem(draft({ key: "F#m" }))).toBeNull()
     expect(draftProblem(draft({ note: "x".repeat(301) }))).toBe("noteTooLong")
+  })
+  it("the note takes no web links, like the chart (QA-052)", () => {
+    expect(draftProblem(draft({ note: "chords at https://example.com/x" }))).toBe("links")
+    expect(draftProblem(draft({ note: "see www.example.com" }))).toBe("links")
+    expect(draftProblem(draft({ note: "example.com has it" }))).toBe("links")
+    expect(draftProblem(draft({ note: "capo on 2, slow strum" }))).toBeNull()
+  })
+  it("a lonely letter is named for what it is", () => {
+    expect(draftProblem(draft({ body: "A" }))).toBe("fewChords")
   })
   it("a blank draft is blank, and the prompt sends nothing for it", () => {
     expect(isBlankDraft(newSheetDraft())).toBe(true)
@@ -115,15 +135,51 @@ describe("transposing", () => {
     expect(transposeLine("Ba[Em]ba [C]Nam", 2)).toBe("Ba[F#m]ba [D]Nam")
     expect(transposeSheet(CHART, 0)).toBe(CHART)
   })
-  it("keeps a flat chord flat and a slash bass moving with it", () => {
-    expect(transposeLine("Bb  G/B", 2)).toBe("C   A/C#")
-    expect(transposeLine("Ab Eb", 1)).toBe("A  E")
+  it("keeps a flat chart flat and a slash bass moving with it", () => {
+    expect(transposeSheet("Bb  G/B", 2)).toBe("C   A/Db")
+    expect(transposeSheet("Ab Eb", 1)).toBe("A  E")
+    expect(transposeLine("Bb  G/B", 2, "flat")).toBe("C   A/Db")
+  })
+  it("writes a moved chart in ONE spelling, never C# beside Bb (QA-012)", () => {
+    const chart = "Em  C  Am  G  D  Em"
+    // Em +1 lands in Fm, a flat key: every chord takes flats
+    const names = (text: string) => text.split(/\s+/).filter(Boolean)
+    expect(names(transposeSheet(chart, 1, "Em"))).toEqual(["Fm", "Db", "Bbm", "Ab", "Eb", "Fm"])
+    expect(names(transposeSheet(chart, 1))).toEqual(["Fm", "Db", "Bbm", "Ab", "Eb", "Fm"])
+    // +2 lands in F#m, not a flat key: every chord takes sharps
+    expect(names(transposeSheet(chart, 2, "Em"))).toEqual(["F#m", "D", "Bm", "A", "E", "F#m"])
+    for (let n = -11; n <= 11; n++) {
+      const moved = names(transposeSheet(chart, n, "Em"))
+      const flats = moved.some((c) => /^[A-G]b/.test(c))
+      const sharps = moved.some((c) => /^[A-G]#/.test(c))
+      expect(flats && sharps).toBe(false)
+    }
+    const slash = "G  D/F#  Em"
+    for (let n = 1; n <= 11; n++) {
+      const moved = transposeSheet(slash, n, "G").split(/[\s/]+/).filter(Boolean)
+      expect(moved.some((c) => /^[A-G]b/.test(c)) && moved.some((c) => /^[A-G]#/.test(c))).toBe(false)
+    }
+    // marks inside words follow the same rule
+    expect(transposeSheet("Ba[Em]ba [C]Nam", 1)).toBe("Ba[Fm]ba [Db]Nam")
+  })
+  it("picks flats for a flat source or a flat landing key, sharps otherwise, and leaves zero alone", () => {
+    expect(chartSpelling("Em  C", null, 1)).toBe("flat")
+    expect(chartSpelling("Em  C", null, 2)).toBe("sharp")
+    expect(chartSpelling("C  F", null, 5)).toBe("flat") // lands in F
+    expect(chartSpelling("C  G", null, 6)).toBe("flat") // lands in Gb
+    expect(chartSpelling("C  G", null, 7)).toBe("sharp") // lands in G
+    expect(chartSpelling("Bb  F", null, 2)).toBe("flat") // written with a flat
+    expect(chartSpelling("C  G", "Eb", 2)).toBe("flat") // the key says flat
+    expect(chartSpelling("not chords", null, 3)).toBe("sharp")
+    expect(transposeSheet("Bb  F#  Em", 0)).toBe("Bb  F#  Em")
   })
   it("up and down by the same amount comes back", () => {
     for (const n of [1, 3, 5, 7, 11]) expect(transposeSheet(transposeSheet(CHART, n), -n)).toBe(CHART)
   })
   it("moves the key label and the steps stay within an octave", () => {
     expect(shiftedKey("Em", 2)).toBe("F#m")
+    expect(shiftedKey("Em", 1, "Em  C")).toBe("Fm")
+    expect(shiftedKey("Em", 0)).toBe("Em")
     expect(shiftedKey(null, 2)).toBeNull()
     expect(clampShift(40)).toBe(MAX_SHIFT)
     expect(clampShift(-40)).toBe(-MAX_SHIFT)
@@ -197,6 +253,8 @@ describe("failureFromError", () => {
     [e(403, null), "forbidden"],
     [e(404, null), "gone"],
     [e(422, null, "Add at least one chord, for example Am or G7, over the words."), "noChords"],
+    [e(422, null, "A single plain letter is not a chord chart. Add a second chord, or write the chord in full, for example Am or G7."), "fewChords"],
+    [e(422, null, "Please leave web links out of the note."), "links"],
     [e(422, null, "Please leave web links out of a chord chart."), "links"],
     [e(422, null, "A chord chart can have 250 lines at most."), "tooLong"],
     [e(422, null, "A line is longer than 120 characters. Please split it."), "tooLong"],

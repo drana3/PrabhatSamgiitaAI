@@ -53,6 +53,38 @@ def test_chord_lines_and_inline_marks_are_counted() -> None:
     assert service.line_chords("Baba [Hello]Nam") == 0
 
 
+@pytest.mark.parametrize("raw", ["A", "A\nBaba Nam Kevalam", "Bb\nWords", "A\nA", "C#\nx"])
+def test_one_lonely_plain_letter_is_not_a_chart(raw: str) -> None:
+    with pytest.raises(HTTPException) as caught:
+        service.clean_sheet(raw)
+    assert caught.value.status_code == 422 and "single plain letter" in caught.value.detail
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["Am", "Am\nBaba", "A  G\nBaba Nam", "G7", "D/F#\nBaba", "Baba [A]Nam [G]Kevalam", "Cmaj7\nBaba"],
+)
+def test_real_minimal_charts_pass(raw: str) -> None:
+    body, chords = service.clean_sheet(raw)
+    assert chords >= 1 and body
+
+
+def test_what_proves_a_chart() -> None:
+    assert not service.proves_a_chart(["A"])
+    assert not service.proves_a_chart(["A", "A"])
+    assert service.proves_a_chart(["A", "G"])
+    assert service.proves_a_chart(["Am"])
+    assert service.proves_a_chart(["A", "A7"])
+
+
+def test_clean_note_refuses_links_like_the_chart_does() -> None:
+    assert service.clean_note("  capo on 2  ") == "capo on 2"
+    assert service.clean_note("   ") is None
+    for bad in ("see https://example.com", "www.example.com", "example.com has it"):
+        with pytest.raises(HTTPException):
+            service.clean_note(bad)
+
+
 def test_clean_sheet_removes_invisible_marks_and_keeps_the_alignment() -> None:
     body, chords = service.clean_sheet("‮Am​     G\r\nBaba Nam   \n\n\n\nKevalam\t\n")
     assert body == "Am     G\nBaba Nam\n\nKevalam"
@@ -135,6 +167,26 @@ async def test_the_played_it_box_and_the_key_are_checked(world: World) -> None:
         "POST", f"{URL}/recordings/{REC}", "a", json={**payload(), "instrument": "piano"}
     )
     assert bad_instrument.status_code == 422
+
+
+async def test_a_note_with_a_link_is_refused_and_costs_nothing(world: World) -> None:
+    for _ in range(8):
+        refused = await offer(world, "a", note="chords at https://example.com/x")
+        assert refused.status_code == 422 and "web links" in refused.json()["detail"]
+    assert await world.rows(SongChordOffer) == []
+    ok = await offer(world, "a", note="capo on 2")
+    assert ok.status_code == 201
+    changed = await world.call(
+        "PUT", f"{URL}/{ok.json()['id']}", "a", json=payload(note="www.example.com")
+    )
+    assert changed.status_code == 422
+
+
+async def test_a_lonely_letter_costs_no_allowance(world: World) -> None:
+    for _ in range(8):
+        assert (await offer(world, "a", body="A")).status_code == 422
+    assert await world.rows(SongChordOffer) == []
+    assert (await offer(world, "a", body="Am")).status_code == 201
 
 
 async def test_a_refused_text_costs_no_allowance(world: World) -> None:

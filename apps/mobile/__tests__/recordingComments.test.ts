@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { createRecordingCommentsMock } from "@/lib/recordingComments/mock"
 import { recordingCommentFromWire, recordingCommentsRemote, recordingPageFromWire, type WireRecordingComment } from "@/lib/recordingComments/remote"
+import { draftProblem, liveNotice } from "@/lib/songComments/rules"
 import { emptyState, initialState, reducer } from "@/lib/songComments/state"
 import type { CommentBase } from "@/lib/songComments/types"
 import type { RecordingComment } from "@/lib/recordingComments/types"
@@ -62,6 +63,49 @@ describe("the reducer is shared with the song comments", () => {
     expect(initialState.status).toBe("loading")
     const base: CommentBase[] = emptyState().items
     expect(base).toEqual([])
+  })
+})
+
+describe("a deleted comment is a tombstone (QA-051)", () => {
+  const DELETED: WireRecordingComment = { ...WIRE, id: "c9", body: "", author: null, is_anonymous: true, deleted: true }
+  it("carries no text, author or action, whatever else the answer carries", () => {
+    const t = recordingCommentFromWire({ ...DELETED, body: "leak", author: { name: "Leak", avatar_url: "x" }, mine: true, can_remove: true })
+    expect(t).toMatchObject({ id: "c9", deleted: true, body: "", author: null, mine: false, canRemove: false })
+  })
+  it("stays in the list and the count when the author deletes, and only then", () => {
+    const mine = { ...recordingCommentFromWire({ ...WIRE, mine: true }) }
+    const other = { ...recordingCommentFromWire({ ...WIRE, id: "c2" }) }
+    let state = reducer(emptyState<RecordingComment>(), { type: "loaded", page: { items: [mine, other], total: 2, hasMore: false } })
+    state = reducer(state, { type: "removed", id: "c1", tombstone: true })
+    expect(state.items[0]).toMatchObject({ id: "c1", deleted: true, body: "", author: null, mine: false })
+    expect(state.total).toBe(2)
+    // a plain removal (a team removal, a comment that is gone) takes the line away
+    state = reducer(state, { type: "removed", id: "c2" })
+    expect(state.items.map((c) => c.id)).toEqual(["c1"])
+    expect(state.total).toBe(1)
+  })
+  it("the preview keeps a tombstone for the author's own delete and nothing for another's", async () => {
+    const api = createRecordingCommentsMock({ me: () => "Me" })
+    const posted = await api.post("r1", { body: "Mine", isAnonymous: false })
+    await api.remove(posted.id)
+    const items = (await api.list("r1", { limit: 20, offset: 0 })).items
+    expect(items.find((c) => c.id === posted.id)).toMatchObject({ deleted: true, body: "", author: null })
+    // the same words can be shared again after the delete, as on the server
+    await expect(api.post("r1", { body: "Mine", isAnonymous: false })).resolves.toBeTruthy()
+  })
+})
+
+describe("the composer says why Post is shut (QA-050)", () => {
+  it("says it while typing when there are more than two links", () => {
+    expect(liveNotice("a https://a.example b https://b.example c https://c.example")).toBe("links")
+    expect(liveNotice("one https://a.example and two https://b.example")).toBeNull()
+    expect(liveNotice("")).toBeNull()
+    expect(liveNotice("x".repeat(2500))).toBeNull()
+  })
+  it("is exactly the case that shuts the button", () => {
+    const text = "https://a.example https://b.example https://c.example"
+    expect(draftProblem(text)).toBe("links")
+    expect(liveNotice(text)).toBe("links")
   })
 })
 

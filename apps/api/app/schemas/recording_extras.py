@@ -33,6 +33,8 @@ class RecordingCommentOut(BaseModel):
     author: CommentAuthor | None
     mine: bool = False
     can_remove: bool = False
+    # True for the line an author's own delete leaves behind: no text, no author, nothing to act on
+    deleted: bool = False
 
 
 class RecordingCommentList(BaseModel):

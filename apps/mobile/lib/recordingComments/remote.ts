@@ -1,6 +1,7 @@
 import type { RemoteConfig } from "@/lib/kirtan/remote"
 import { callFor } from "@/lib/recordingExtras/http"
 import { COMMENT_PAGE_SIZE } from "@/lib/songComments/rules"
+import { tombstoneOf } from "@/lib/songComments/state"
 import type { CommentPage, CommentReportReason } from "@/lib/songComments/types"
 
 import type { RecordingComment, RecordingCommentsBackend } from "./types"
@@ -18,12 +19,15 @@ export type WireRecordingComment = {
   author: { name: string; avatar_url: string | null } | null
   mine: boolean
   can_remove: boolean
+  /** the line an author's own delete leaves: no text, no author */
+  deleted?: boolean
 }
 
 export type WireRecordingPage = { items: WireRecordingComment[]; total: number; limit: number; offset: number; has_more: boolean }
 
-/** Wire to app. An anonymous comment keeps `author: null` whatever else the answer carries. */
+/** Wire to app. An anonymous comment keeps `author: null` whatever else the answer carries; a tombstone carries no text, author or action. */
 export function recordingCommentFromWire(w: WireRecordingComment): RecordingComment {
+  if (w.deleted) return tombstoneOf({ id: w.id, recordingId: w.recording_id, body: "", createdAt: w.created_at, isAnonymous: true, author: null, mine: false, canRemove: false })
   return {
     id: w.id,
     recordingId: w.recording_id,

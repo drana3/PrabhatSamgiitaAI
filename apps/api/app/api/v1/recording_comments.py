@@ -59,8 +59,9 @@ async def list_comments(
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RecordingCommentList:
-    """Published comments of one recording, newest first. An anonymous comment has `author: null`:
-    no id, name or avatar, for any reader."""
+    """Comments of one recording, newest first, with a tombstone (`deleted: true`, no text, no author)
+    where the author deleted theirs. An anonymous comment has `author: null`: no id, name or avatar,
+    for any reader."""
     # The answer depends on who asks (`mine`, `can_remove`): never share it between readers.
     response.headers["Cache-Control"] = "private, no-store"
     await visible_recording(session, recording_id)
@@ -140,8 +141,8 @@ async def delete_comment(
     settings: AppSettings,
     payload: RemoveRequest | None = None,
 ) -> Response:
-    """The author deletes their own comment (also an anonymous one): it disappears for everybody
-    and its text is wiped, but the row stays and still counts toward the daily allowance. The team
+    """The author deletes their own comment (also an anonymous one): its text is wiped and readers
+    see a tombstone, but the row stays and still counts toward the daily allowance. The team
     removes any comment; that keeps the text and carries a reason."""
     comment = await get_comment(session, comment_id)
     if comment.member_id == member.id:
@@ -170,7 +171,8 @@ async def report_comment(
     session: DatabaseSession,
     member: OptionalMember,
 ) -> ReportResponse:
-    """Anyone may report, signed in or not. One report per person per comment; rate limited."""
+    """Anyone may report, signed in or not (as under a song). Nobody reports their own comment: they
+    delete it. One report per person per comment; rate limited."""
     host = client_host(request)
     service.limiter.hit("report-recording", host, limit=30, window_seconds=3600)
     if member is not None:
@@ -185,6 +187,8 @@ async def report_comment(
         return ReportResponse(
             status="received", message="Thank you. This comment is already removed."
         )
+    if member is not None and comment.member_id == member.id:
+        raise HTTPException(status_code=422, detail="This is your own comment. You can delete it.")
     try:
         created = await service.add_report(
             session,

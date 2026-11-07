@@ -420,6 +420,15 @@ async def test_reports(world: World) -> None:
     assert gone.status_code == 201 and "already removed" in gone.json()["message"]
 
 
+async def test_nobody_reports_their_own_video(world: World) -> None:
+    created = (await add(world, "a")).json()
+    own = await world.call("POST", f"{URL}/{created['id']}/report", "a", json={"reason": "spam"})
+    assert own.status_code == 422 and "your own" in own.json()["detail"]
+    assert (await world.rows(VideoLink))[0].reports_count == 0
+    guest = await world.call("POST", f"{URL}/{created['id']}/report", None, json={"reason": "spam"})
+    assert guest.status_code == 201
+
+
 async def test_report_flood_is_limited(world: World) -> None:
     created = (await add(world, "a")).json()
     codes = [

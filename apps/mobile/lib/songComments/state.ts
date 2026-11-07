@@ -21,6 +21,11 @@ export function emptyState<T extends CommentBase = SongComment>(): CommentsState
   return { status: "loading", items: [], total: 0, hasMore: false, more: "idle", failure: null }
 }
 
+/** What is left of a comment its author deleted: no text, no author, nothing to act on. */
+export function tombstoneOf<T extends CommentBase>(comment: T): T {
+  return { ...comment, body: "", author: null, isAnonymous: true, mine: false, canRemove: false, deleted: true }
+}
+
 export const initialState: CommentsState = emptyState()
 
 export type Action<T extends CommentBase = SongComment> =
@@ -31,7 +36,7 @@ export type Action<T extends CommentBase = SongComment> =
   | { type: "moreLoaded"; page: CommentPage<T> }
   | { type: "moreFailed" }
   | { type: "posted"; comment: T }
-  | { type: "removed"; id: string }
+  | { type: "removed"; id: string; tombstone?: boolean }
 
 export function reducer<T extends CommentBase = SongComment>(state: CommentsState<T>, action: Action<T>): CommentsState<T> {
   switch (action.type) {
@@ -57,6 +62,8 @@ export function reducer<T extends CommentBase = SongComment>(state: CommentsStat
     }
     case "removed": {
       if (!state.items.some((c) => c.id === action.id)) return state
+      // an author's own delete under a recording leaves a tombstone the server also shows; a song's comment just leaves
+      if (action.tombstone) return { ...state, items: state.items.map((c) => (c.id === action.id ? tombstoneOf(c) : c)) }
       return { ...state, items: state.items.filter((c) => c.id !== action.id), total: Math.max(0, state.total - 1) }
     }
   }

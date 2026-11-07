@@ -55,6 +55,7 @@ export type SheetFailure =
   | "duplicate" // exactly this chart was offered already
   | "tooMany" // three live charts of this recording for this instrument
   | "noChords" // the text holds no chord
+  | "fewChords" // one lonely plain letter ("A"): also a word, so not yet a chart
   | "tooLong" // too many characters, lines, or a line too long
   | "links" // a web link in a chart
   | "invalid" // the server found the chart unusable, for another reason

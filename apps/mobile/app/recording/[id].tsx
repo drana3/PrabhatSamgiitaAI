@@ -76,7 +76,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
   const apiId = apiIdOf(recording)
   const sheets = useRecordingSheets(apiId)
   const videos = useVideos({ kind: "recording", id: apiId })
-  const comments = useComments<RecordingComment, string>(apiId, recordingCommentsBackend, recordingCommentFailure)
+  const comments = useComments<RecordingComment, string>(apiId, recordingCommentsBackend, recordingCommentFailure, { tombstones: true })
   const [viewing, setViewing] = useState(false)
   const [adding, setAdding] = useState(false)
 
@@ -99,7 +99,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
             {recording.title}
           </Text>
           {recording.author ? <Text style={[styles.author, { color: theme.textHeading }]}>{recording.author}</Text> : null}
-          <AuthorLine theme={theme} recordingId={recording.serverId} />
+          <AuthorLine theme={theme} recordingId={apiId} />
           <View style={styles.row}>
             <SpPress onPress={() => actions.open(recording, [recording], recording.title)} accessibilityLabel={tr("recPage.play")} style={[styles.play, { backgroundColor: t.action }]}>
               <Text style={[styles.playText, { color: t.onAction }]}>{tr("recPage.play")}</Text>

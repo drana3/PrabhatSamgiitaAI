@@ -15,7 +15,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserAccount
@@ -47,6 +47,11 @@ __all__ = [
 ]
 
 
+def is_tombstone(comment: RecordingComment) -> bool:
+    """The author deleted it: the row stays (allowance, evidence) and readers see a bare line."""
+    return comment.status == "removed" and comment.removed_by == AUTHOR_DELETED_BY
+
+
 def public_out(
     comment: RecordingComment,
     author: UserAccount | None,
@@ -54,7 +59,20 @@ def public_out(
     viewer_id: UUID | None,
     team: bool,
 ) -> RecordingCommentOut:
-    """What every reader gets. `author` is filled only for a NAMED comment."""
+    """What every reader gets. `author` is filled only for a NAMED comment. A comment its author
+    deleted comes back as a tombstone: `deleted`, no text, no author, nothing to act on."""
+    if is_tombstone(comment):
+        return RecordingCommentOut(
+            id=str(comment.id),
+            recording_id=str(comment.recording_id),
+            body="",
+            created_at=comment.created_at,
+            is_anonymous=True,
+            author=None,
+            mine=False,
+            can_remove=False,
+            deleted=True,
+        )
     shown = None
     if not comment.is_anonymous and author is not None:
         shown = CommentAuthor(name=display_name(author), avatar_url=author.avatar_url)
@@ -88,10 +106,17 @@ def admin_out(comment: RecordingComment, author: UserAccount | None) -> AdminRec
 async def list_published(
     session: AsyncSession, recording_id: UUID, *, limit: int, offset: int
 ) -> tuple[list[tuple[RecordingComment, UserAccount | None]], int]:
-    """Published comments of one recording, newest first, each with its author's account."""
+    """Published comments of one recording, newest first, each with its author's account, and the
+    tombstones of the comments their authors deleted (a team removal leaves no trace for readers)."""
     condition = (
         RecordingComment.recording_id == recording_id,
-        RecordingComment.status == "published",
+        or_(
+            RecordingComment.status == "published",
+            and_(
+                RecordingComment.status == "removed",
+                RecordingComment.removed_by == AUTHOR_DELETED_BY,
+            ),
+        ),
     )
     total = await session.scalar(
         select(func.count()).select_from(RecordingComment).where(*condition)
@@ -209,7 +234,7 @@ async def remove_by_team(
 async def delete_by_author(session: AsyncSession, comment: RecordingComment) -> bool:
     """The author deletes their own comment. False when there is nothing to delete (already done).
 
-    The text goes at once and the comment disappears for every reader, but the row stays marked
+    The text goes at once and readers see a tombstone (no text, no author), and the row stays marked
     removed: it still counts toward the daily allowance (QA-009). A comment the TEAM already
     removed is left exactly as it is, text and reason included.
     """

@@ -87,6 +87,7 @@ export function sheetFailureFromError(error: unknown): SheetFailure {
     if (error.status === 403) return "forbidden"
     if (error.status === 404) return "gone"
     if (error.status === 422) {
+      if (/single plain letter/i.test(error.message)) return "fewChords"
       if (/at least one chord|write the chords/i.test(error.message)) return "noChords"
       if (/web links/i.test(error.message)) return "links"
       if (/too long|lines at most|longer than|too many chords/i.test(error.message)) return "tooLong"

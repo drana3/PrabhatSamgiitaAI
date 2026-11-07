@@ -32,16 +32,22 @@ Deleting a recording deletes its comments, sheets and video links with it (`ON D
 
 `song_chord_proposals` stores a chart as **placements**: "this chord starts on word 3 of line 7 of song 1234". That only works because a song has fixed lyric lines the app knows by heart. A recording has no lyric lines in the app: it may be a Kiirtan with three words repeated, a Bhajan in another language, a talk-song nobody has typed. There is nothing to hang a placement on.
 
-So a recording sheet is a **plain-text chart**: the chords on a line of their own over the words, or `[Am]` inside the words, kept exactly as typed. The server cleans it (invisible characters, control characters, line limits), checks it holds at least one real chord, and keeps it. Putting this into the song table would have meant either a nullable song number and a nullable lines column (two shapes in one table, a check constraint for each, every query filtering on both) or inventing fake lyric lines. A separate table keeps the song proposals untouched, lets each table keep a strict shape, and lets the review queue and the hub query one shape at a time.
+So a recording sheet is a **plain-text chart**: the chords on a line of their own over the words, or `[Am]` inside the words, kept exactly as typed. The server cleans it (invisible characters, control characters, line limits), checks it holds real chords (see "What counts as a chord chart" below), and keeps it. Putting this into the song table would have meant either a nullable song number and a nullable lines column (two shapes in one table, a check constraint for each, every query filtering on both) or inventing fake lyric lines. A separate table keeps the song proposals untouched, lets each table keep a strict shape, and lets the review queue and the hub query one shape at a time.
 
 What is shared is the **ledger**: the daily and hourly allowance for chord offers is the same as for song chords (the same `song_chord_offers` ledger and the same limiter bucket), so one member cannot double the allowance by using both kinds. The chord-name grammar (`CHORD_PATTERN`) and the reviewing rules are the song proposals' own, imported.
 
 ### Why the comment allowance is asymmetric
 
-Comments on a recording and comments on a song share **one** daily allowance (20 in 24 hours) and the same hourly limiter. The count is asymmetric on purpose: `comments_in_last_day` for a recording counts recording comments only, while the song side counts song comments only. The limiter bucket is shared, the 24-hour ledgers are not. Why:
+Comments on a recording and comments on a song share **one** hourly limiter (the song comments' own, imported) and one daily number (20 in 24 hours), but the daily count is **not symmetric**:
 
-- A shared bucket stops a person from posting 10 comments an hour on songs and 10 an hour on recordings in the same minute by using both doors.
-- Merging the two 24-hour ledgers would have needed a join across two tables on every post, or a third table. The cost is that, over a full day, a member can in principle post up to 20 song comments and 20 recording comments. Both are still bounded, publish-first with review after, and the hourly bucket makes a burst hard. This was judged a fair trade against a cross-table count. If it turns out to be abused, the fix is one query in `extras_common.comments_in_last_day`.
+- Posting under a **recording** counts the member's recording comments **plus** their song comments from the last 24 hours (`ensure_daily_allowance` in `services/recording_comments.py`).
+- Posting under a **song** counts song comments only (the song side is the older code and was left alone).
+
+So 20 song comments use up the day for recordings too, while 20 recording comments leave the song side open. Why it is built this way:
+
+- The recording side is new code and can look at both tables, so one person cannot double the allowance by using both doors from the recording page.
+- Making the song side count recordings as well would mean changing the song comments' service and its tests, which are not part of this work. That is the one-line follow-up if the asymmetry matters: add the recording count to `song_comments.ensure_daily_allowance`.
+- The shared hourly limiter makes a burst on both doors hard either way.
 
 Deleting a comment does **not** refund the allowance (removed and author-deleted comments still count).
 
@@ -82,7 +88,8 @@ A removed or unknown recording is a plain 404 on every call, so nobody learns a 
 | Comments per member | 20 per 24 hours, 10 per hour (team: 120 per hour, no daily cap) |
 | Chord sheets per member | 10 per 24 hours, 6 per hour (shared with song chord offers; team: 120 per hour, no daily cap) |
 | Live chord sheets | 3 per member per recording and instrument (pending or published) |
-| Chord sheet size | 8000 characters, 250 lines, 120 characters a line, at most 2000 chords; at least one real chord |
+| Chord sheet size | 8000 characters, 250 lines, 120 characters a line, at most 2000 chords; at least one real chord, and more than one lonely plain letter (below) |
+| Chord sheet note | 300 characters, no web links |
 | Videos per recording or song | 12 live |
 | Videos per member per target | 3 live |
 | Videos per member | 10 per 24 hours, 5 per hour (team: 60 per hour) |
@@ -94,11 +101,11 @@ Rate limits are checked **after** the input is validated, so a bad request never
 
 **Publish first, review after** for comments and videos. **Review first** for chord sheets, as for song chords: a team member's sheet is live at once, everybody else's waits as `pending` until the team approves or rejects it (a rejection carries a reason and sends the author a notice).
 
-- Anyone signed in can **report**. One report per person and item, with a reason. A report does not hide anything by itself; it puts the item in the team's list.
+- **Reporting** is one rule for all three kinds. Signed-out visitors may report, exactly as under a Prabhat Samgiita song (the API keys a signed-out report by the caller's address; rate limited per address and per member). **Nobody reports their own item**: a comment, a chord sheet or a video of your own answers `422` ("This is your own ... You can delete it.") and the app shows Delete instead of Report. One report per person and item, with a reason. A report does not hide anything by itself; it puts the item in the team's list.
 - The team can **remove** a comment or a video (with a reason) and **restore** a video or a sheet. A team-removed video cannot be re-added by a member: the address stays refused (`video_team_removed`), so a removed link does not come back under a new account.
-- **Tombstones.** A comment its author deletes stays as a line saying the author deleted it, with no text, so the thread still reads.
+- **Tombstones.** A comment its author deletes stays in the list as a tombstone: `deleted: true`, no text, no author, no id of a person, nothing to report or remove, and it shows as one quiet line ("Deleted by the author"). The text is wiped on the server. A **team removal leaves nothing** for readers: the comment just goes. (The song comments' own delete currently removes the line entirely; only recordings keep the tombstone.) A tombstone is counted in the page size but not in the "N comments" count.
 - **Anonymous means hidden from members, not from the team.** The public view of an anonymous comment, sheet or video carries no author, no avatar and no id that links it to a person (`public_out`). The team sees who wrote it (`admin_out`) and the app says so next to the toggle.
-- **Strangers' text.** Bidi and zero-width characters are stripped, control characters are dropped, spaces are collapsed. Nothing is rendered as HTML.
+- **Strangers' text.** Bidi and zero-width characters are stripped, control characters are dropped, spaces are collapsed. Nothing is rendered as HTML. The comment box (shared with the song comments) says "at most two links" **while the person types**, so a shut Post button is never a mystery.
 
 ## Videos: the provider allow-list
 
@@ -130,7 +137,11 @@ Because a recording only gets its server id **after** it is published, the chart
 
 **Reading.** The "Chords" button on the recording page and in the player More sheet opens the chord sheet: instrument pills, one pill per chart, the chart in a monospace face with the chords picked out in the accent colour, a transpose stepper (plus and minus a semitone, up to 11 either way, the shown key moves with it), who made it, their note, "I played it", and Report or Change or Delete. The chart is **static**: no timing, no scrolling with the song. Timing was not asked for in v1 and is never guessed.
 
-Transposing uses the same code as the song chords (`lib/recordingChords/` reads a line as chords when every piece is a chord name, and re-spells each one; `[Am]` inline marks too). It keeps the author's spelling where possible and never touches words.
+Transposing (`lib/recordingChords/transpose.ts`) reads a line as chords when every piece is a chord name, and handles `[Am]` inline marks too. A moved chart is written in **one** convention, never C# beside Bb: **flats** when the chart's key or any chord is written with a flat, or when the key it lands in is a flat key by convention (F, Bb, Eb, Ab, Db, Gb, and Dm, Gm, Cm, Fm, Bbm, Ebm); **sharps** otherwise. The landing key is the chart's key moved, or, with no key given, the first chord moved. At zero nothing changes, so a chart keeps its author's own spelling until moved. Words are never touched. (Em up one step becomes Fm Db Bbm Ab Eb Fm, not a mix.) The song page's own transpose (`spTranspose`) is not part of this work and was not changed.
+
+### What counts as a chord chart
+
+A body is accepted when it holds chords AND is more than one lonely plain letter. "A" alone is also an ordinary word, so a body of just "A" (or "A" and "A") is refused with its own sentence. Accepted: at least **two different** chords ("A" and "G"), or **one chord that is plainly a chord**: a quality, a number or a bass note (Am, G7, Cmaj7, D/F#). So real minimal charts such as "Am" over a line, or "Am" and "G", pass. The note under a chart takes no web links, like the chart and a video title. The phone applies the same rules for instant feedback; the API has the final say.
 
 **Adding or changing later.** "Add your own chart" in the viewer, or the Chords block, opens `/recording-chords?recording=<id>` (a modal). The same form, the same checks, a sent screen that says whether the chart is live (team) or waiting. "Change" opens it with `edit=<sheet>` for a waiting or rejected chart.
 
@@ -156,4 +167,4 @@ Not checked:
 
 ## Tests
 
-API: `pytest tests/test_recording_comments.py tests/test_recording_chords.py tests/test_video_links.py` (127 tests). App: `npx vitest run` (`recordingComments`, `recordingChords`, `recordingChordsPending`, `recordingVideos`, `recordingExtrasLinks`), plus `i18nParity` for the three languages.
+API: `pytest tests/test_recording_comments.py tests/test_recording_chords.py tests/test_video_links.py`. App: `npx vitest run` (`recordingComments`, `recordingChords`, `recordingChordsPending`, `recordingVideos`, `recordingExtrasLinks`), plus `i18nParity` for the three languages.

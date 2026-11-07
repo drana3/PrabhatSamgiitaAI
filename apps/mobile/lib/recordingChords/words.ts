@@ -14,6 +14,7 @@ export function draftProblemText(tr: TranslateFn, problem: SheetFailure | "notPl
     case "badKey":
     case "noteTooLong":
     case "noChords":
+    case "fewChords":
     case "tooLong":
     case "links":
       return tr(`recChordsForm.problem.${problem}`)

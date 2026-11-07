@@ -248,7 +248,8 @@ async def report_video(
     session: DatabaseSession,
     member: OptionalMember,
 ) -> ReportResponse:
-    """Anyone may report, signed in or not. One report per person per link; rate limited."""
+    """Anyone may report, signed in or not. Nobody reports their own link: they delete it. One report
+    per person per link; rate limited."""
     host = client_host(request)
     service.limiter.hit("report", host, limit=30, window_seconds=3600)
     if member is not None:
@@ -261,6 +262,8 @@ async def report_video(
         return ReportResponse(
             status="received", message="Thank you. This video is already removed."
         )
+    if member is not None and video.member_id == member.id:
+        raise HTTPException(status_code=422, detail="This is your own video. You can delete it.")
     try:
         created = await service.add_report(
             session,

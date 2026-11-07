@@ -172,7 +172,8 @@ async def report_sheet(
     session: DatabaseSession,
     member: OptionalMember,
 ) -> ReportResponse:
-    """Anyone may report a published chart. One report per person; rate limited."""
+    """Anyone may report a published chart, signed in or not. Nobody reports their own chart: they delete
+    it. One report per person; rate limited."""
     host = client_host(request)
     service.limiter.hit("report-sheet", host, limit=30, window_seconds=3600)
     if member is not None:

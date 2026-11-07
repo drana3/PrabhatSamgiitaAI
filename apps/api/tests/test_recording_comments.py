@@ -186,11 +186,28 @@ async def test_author_delete_wipes_the_text_and_keeps_the_row(world: World) -> N
     created = (await post(world, "a", "Private memory", anonymous=True)).json()
     assert (await world.call("DELETE", f"{URL}/{created['id']}", "b")).status_code == 404
     assert (await world.call("DELETE", f"{URL}/{created['id']}", "a")).status_code == 204
-    assert (await listing(world)).json()["items"] == []
+    # readers get a tombstone: no text, no author, nothing to act on (docs/recording-extras.md)
+    for who in (None, "a", "b", "team"):
+        (item,) = (await listing(world, who)).json()["items"]
+        assert item["id"] == created["id"] and item["deleted"] is True
+        assert item["body"] == "" and item["author"] is None
+        assert item["mine"] is False and item["can_remove"] is False
+        assert "Private memory" not in str(item) and "Ananda" not in str(item)
     (row,) = await world.rows(RecordingComment)
     assert row.status == "removed" and row.removed_by == "author"
     assert "Private memory" not in row.body
     assert (await world.call("DELETE", f"{URL}/{created['id']}", "a")).status_code == 404
+    # a tombstone cannot be reported, removed again or counted as a duplicate
+    reply = await world.call("POST", f"{URL}/{created['id']}/report", "b", json={"reason": "spam"})
+    assert "already removed" in reply.json()["message"]
+    assert (await post(world, "a", "Private memory")).status_code == 201
+
+
+async def test_a_team_removal_leaves_no_tombstone(world: World) -> None:
+    created = (await post(world, "a", "Rude words")).json()
+    await world.call("DELETE", f"{URL}/{created['id']}", "team", json={"reason": "unkind"})
+    assert (await listing(world, "b")).json()["items"] == []
+    assert (await listing(world, "b")).json()["total"] == 0
 
 
 async def test_team_removes_with_a_reason_and_the_author_cannot_wipe_it_afterwards(
@@ -233,6 +250,15 @@ async def test_reports_once_each_and_the_team_sees_who_wrote_an_anonymous_commen
     assert item["reports_count"] == 2
     bad = await world.call("POST", f"{URL}/{created['id']}/report", json={"reason": "nope"})
     assert bad.status_code == 422
+
+
+async def test_nobody_reports_their_own_comment(world: World) -> None:
+    created = (await post(world, "a", "My own words")).json()
+    own = await world.call("POST", f"{URL}/{created['id']}/report", "a", json={"reason": "spam"})
+    assert own.status_code == 422 and "your own" in own.json()["detail"]
+    assert (await world.rows(RecordingComment))[0].reports_count == 0
+    team = await world.call("POST", f"{URL}/{created['id']}/report", "b", json={"reason": "spam"})
+    assert team.status_code == 201
 
 
 async def test_reporting_a_removed_or_unknown_comment(world: World) -> None:

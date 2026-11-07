@@ -24,8 +24,11 @@ export function useComments<T extends CommentBase, K extends string | number>(
   target: K,
   backend: () => CommentsBackendOf<T, K>,
   failureOf: (error: unknown) => CommentFailure,
+  options: { tombstones?: boolean } = {},
 ): CommentsController<T> {
   const [state, dispatch] = useReducer(reducer as (s: CommentsState<T>, a: Action<T>) => CommentsState<T>, undefined, () => emptyState<T>())
+  const stateRef = useRef(state)
+  stateRef.current = state
   const current = useRef(target)
   current.current = target
   const mounted = useRef(true)
@@ -84,7 +87,8 @@ export function useComments<T extends CommentBase, K extends string | number>(
     async (id: string) => {
       try {
         await backend().remove(id)
-        if (fresh(target)) dispatch({ type: "removed", id })
+        // the author's own delete leaves a tombstone where the server shows one (recordings), as a reload would
+        if (fresh(target)) dispatch({ type: "removed", id, tombstone: Boolean(options.tombstones) && stateRef.current.items.some((c) => c.id === id && c.mine) })
         return null
       } catch (error) {
         const failure = failureOf(error)
