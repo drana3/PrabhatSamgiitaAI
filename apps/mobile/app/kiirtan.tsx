@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus, Search } from "lucide-react-native"
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 
@@ -21,7 +20,8 @@ import { Reveal } from "@/components/today/motion"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { amProto, protoFor } from "@/constants/tokens/amToday"
+import { protoFor } from "@/constants/tokens/amToday"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useDownloadedKirtans } from "@/hooks/useDownloadedKirtans"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
@@ -52,7 +52,7 @@ const SECTION_GAP = 36
 const TYPE_CARD = { w: 152, h: 112 }
 
 /**
- * The Kiirtan tab (four kinds of one recordings list: Kiirtan, Bhajan, Devotional song, Prabhat Samgiita). Row 1
+ * The Kiirtan tab (three kinds of one recordings list: Kiirtan, Bhajan, Prabhat Samgiita). Row 1
  * (avatar, search, "+" for Add) and the chips row (All, the four kinds, Saved, Downloaded, My uploads) are ONE
  * pinned header block; the big heading scrolls away. The first five chips are the KIND filter and narrow every
  * shelf below: the heading, the recording of the day, Jump back in, By type (Kiirtan and Bhajan only: the other
@@ -66,8 +66,7 @@ export default function KiirtanTabScreen() {
   const am = useAmTheme()
   const p = protoFor(am)
   const theme = useSongsTheme()
-  const insets = useSafeAreaInsets()
-  const top = insets.top || amProto.statusArea
+  const top = useScreenTop()
   const initial = useProfileInitial()
   const params = useLocalSearchParams<{ filter?: string }>()
   const actions = useKirtanActions()

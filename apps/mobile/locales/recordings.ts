@@ -1,36 +1,25 @@
 /**
- * Words for the recordings form and the upload queue (docs/kiirtan-publishing.md, "Bulk upload"): the four types
- * (Kiirtan, Bhajan, Devotional song, Prabhat Samgiita), the Prabhat Samgiita song chooser, the shared and optional
+ * Words for the recordings form and the upload queue (docs/kiirtan-publishing.md, "Bulk upload"): the three types
+ * (Kiirtan, Bhajan, Prabhat Samgiita), the Prabhat Samgiita song chooser, the shared and optional
  * fields, the queue rows and their states, and the end-of-run summary. English is the source of truth; ru and es
  * mirror it key for key (the parity test checks it once these objects are spread into locales/en.ts, ru.ts and
  * es.ts). "Kiirtan" is always written with two i's in English. Plural groups use _one, _few, _many, _other.
  */
 export const recordingsEn = {
-  // the four types
-  "kind.devotional_song": "Devotional song",
-  "kind.devotional_songs": "Devotional songs",
-  "kind.devotional_song.tag": "DEVOTIONAL SONG",
-  "kind.devotional_song.count_one": "{count} devotional song",
-  "kind.devotional_song.count_other": "{count} devotional songs",
+  // the three types
   "kind.prabhat_samgiita": "Prabhat Samgiita",
   "kind.prabhat_samgiitas": "Prabhat Samgiita recordings",
   "kind.prabhat_samgiita.tag": "Prabhat Samgiita",
   "kind.prabhat_samgiita.count_one": "{count} Prabhat Samgiita recording",
   "kind.prabhat_samgiita.count_other": "{count} Prabhat Samgiita recordings",
-  "kt.head.devotional_song": "from the heart",
   "kt.head.prabhat_samgiita": "in many voices",
-  "kt.what.devotional_song": "Devotional songs",
   "kt.what.prabhat_samgiita": "Prabhat Samgiita recordings",
-  "kt.day.devotional_song": "DEVOTIONAL SONG OF THE DAY",
   "kt.day.prabhat_samgiita": "Prabhat Samgiita of the day",
-  "kt.day.a11y.devotional_song": "Devotional song of the day, {title}. Play",
   "kt.day.a11y.prabhat_samgiita": "Prabhat Samgiita recording of the day, {title}. Play",
-  "kt.toast.playlistsSoon.devotional_song": "Devotional songs in playlists are coming soon",
   "kt.toast.playlistsSoon.prabhat_samgiita": "Prabhat Samgiita recordings in playlists are coming soon",
 
   // the add form
   "rec.type.label": "Type",
-  "ugc.add.blurb.devotional_song": "Another song of devotion",
   "ugc.add.blurb.prabhat_samgiita": "Another performance of one of the 5018 songs",
   "rec.song.label": "Which song is it?",
   "rec.song.choose": "Choose the song",
@@ -48,7 +37,9 @@ export const recordingsEn = {
   "rec.files.chosen_one": "{count} file",
   "rec.files.chosen_other": "{count} files",
   "rec.more.label": "More details",
-  "rec.more.hint": "Language, credits, year, a note. All optional.",
+  "rec.more.hint.kiirtan": "Year, a note. All optional.",
+  "rec.more.hint.bhajan": "Language, credits, year, a note. All optional.",
+  "rec.more.hint.prabhat_samgiita": "Language, year, a note. All optional.",
   "rec.language.label": "Language",
   "rec.language.bengali": "Bengali",
   "rec.language.sanskrit": "Sanskrit",
@@ -102,13 +93,6 @@ export const recordingsEn = {
 } as const
 
 export const recordingsRu: Record<string, string> = {
-  "kind.devotional_song": "Песня преданности",
-  "kind.devotional_songs": "Песни преданности",
-  "kind.devotional_song.tag": "ПЕСНЯ ПРЕДАННОСТИ",
-  "kind.devotional_song.count_one": "{count} песня преданности",
-  "kind.devotional_song.count_few": "{count} песни преданности",
-  "kind.devotional_song.count_many": "{count} песен преданности",
-  "kind.devotional_song.count_other": "{count} песни преданности",
   "kind.prabhat_samgiita": "Prabhat Samgiita",
   "kind.prabhat_samgiitas": "Записи Prabhat Samgiita",
   "kind.prabhat_samgiita.tag": "Prabhat Samgiita",
@@ -116,19 +100,13 @@ export const recordingsRu: Record<string, string> = {
   "kind.prabhat_samgiita.count_few": "{count} записи Prabhat Samgiita",
   "kind.prabhat_samgiita.count_many": "{count} записей Prabhat Samgiita",
   "kind.prabhat_samgiita.count_other": "{count} записи Prabhat Samgiita",
-  "kt.head.devotional_song": "от сердца",
   "kt.head.prabhat_samgiita": "разными голосами",
-  "kt.what.devotional_song": "песен преданности",
   "kt.what.prabhat_samgiita": "записей Prabhat Samgiita",
-  "kt.day.devotional_song": "ПЕСНЯ ПРЕДАННОСТИ ДНЯ",
   "kt.day.prabhat_samgiita": "Prabhat Samgiita дня",
-  "kt.day.a11y.devotional_song": "Песня преданности дня, {title}. Слушать",
   "kt.day.a11y.prabhat_samgiita": "Запись Prabhat Samgiita дня, {title}. Слушать",
-  "kt.toast.playlistsSoon.devotional_song": "Песни преданности в плейлистах скоро появятся",
   "kt.toast.playlistsSoon.prabhat_samgiita": "Записи Prabhat Samgiita в плейлистах скоро появятся",
 
   "rec.type.label": "Тип",
-  "ugc.add.blurb.devotional_song": "Ещё одна песня преданности",
   "ugc.add.blurb.prabhat_samgiita": "Ещё одно исполнение одной из 5018 песен",
   "rec.song.label": "Какая это песня?",
   "rec.song.choose": "Выбрать песню",
@@ -148,7 +126,9 @@ export const recordingsRu: Record<string, string> = {
   "rec.files.chosen_many": "{count} файлов",
   "rec.files.chosen_other": "{count} файла",
   "rec.more.label": "Подробнее",
-  "rec.more.hint": "Язык, авторы, год, заметка. Всё по желанию.",
+  "rec.more.hint.kiirtan": "Год, заметка. Всё по желанию.",
+  "rec.more.hint.bhajan": "Язык, авторы, год, заметка. Всё по желанию.",
+  "rec.more.hint.prabhat_samgiita": "Язык, год, заметка. Всё по желанию.",
   "rec.language.label": "Язык",
   "rec.language.bengali": "Бенгальский",
   "rec.language.sanskrit": "Санскрит",
@@ -217,29 +197,18 @@ export const recordingsRu: Record<string, string> = {
 }
 
 export const recordingsEs: Record<keyof typeof recordingsEn, string> = {
-  "kind.devotional_song": "Canción devocional",
-  "kind.devotional_songs": "Canciones devocionales",
-  "kind.devotional_song.tag": "CANCIÓN DEVOCIONAL",
-  "kind.devotional_song.count_one": "{count} canción devocional",
-  "kind.devotional_song.count_other": "{count} canciones devocionales",
   "kind.prabhat_samgiita": "Prabhat Samgiita",
   "kind.prabhat_samgiitas": "Grabaciones de Prabhat Samgiita",
   "kind.prabhat_samgiita.tag": "Prabhat Samgiita",
   "kind.prabhat_samgiita.count_one": "{count} grabación de Prabhat Samgiita",
   "kind.prabhat_samgiita.count_other": "{count} grabaciones de Prabhat Samgiita",
-  "kt.head.devotional_song": "desde el corazón",
   "kt.head.prabhat_samgiita": "en muchas voces",
-  "kt.what.devotional_song": "Canciones devocionales",
   "kt.what.prabhat_samgiita": "Grabaciones de Prabhat Samgiita",
-  "kt.day.devotional_song": "CANCIÓN DEVOCIONAL DEL DÍA",
   "kt.day.prabhat_samgiita": "Prabhat Samgiita del día",
-  "kt.day.a11y.devotional_song": "Canción devocional del día, {title}. Reproducir",
   "kt.day.a11y.prabhat_samgiita": "Grabación de Prabhat Samgiita del día, {title}. Reproducir",
-  "kt.toast.playlistsSoon.devotional_song": "Las canciones devocionales en listas llegarán pronto",
   "kt.toast.playlistsSoon.prabhat_samgiita": "Las grabaciones de Prabhat Samgiita en listas llegarán pronto",
 
   "rec.type.label": "Tipo",
-  "ugc.add.blurb.devotional_song": "Otra canción de devoción",
   "ugc.add.blurb.prabhat_samgiita": "Otra interpretación de una de las 5018 canciones",
   "rec.song.label": "¿Qué canción es?",
   "rec.song.choose": "Elegir la canción",
@@ -257,7 +226,9 @@ export const recordingsEs: Record<keyof typeof recordingsEn, string> = {
   "rec.files.chosen_one": "{count} archivo",
   "rec.files.chosen_other": "{count} archivos",
   "rec.more.label": "Más detalles",
-  "rec.more.hint": "Idioma, autoría, año, una nota. Todo opcional.",
+  "rec.more.hint.kiirtan": "Año, una nota. Todo opcional.",
+  "rec.more.hint.bhajan": "Idioma, autoría, año, una nota. Todo opcional.",
+  "rec.more.hint.prabhat_samgiita": "Idioma, año, una nota. Todo opcional.",
   "rec.language.label": "Idioma",
   "rec.language.bengali": "Bengalí",
   "rec.language.sanskrit": "Sánscrito",

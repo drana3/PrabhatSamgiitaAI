@@ -10,6 +10,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnSongs } from "@/hooks/useLearnSongs"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { LEARN_ROUTES } from "@/lib/learn/routes"
 import { PICKER_ROW_HEIGHT, buildPickerIndex, entryFromIndexRow, queryLabel, searchPicker, type PickerIndexRow } from "@/lib/learn/songPicker"
 import { catalogLyricRows } from "@/lib/lyricSearch"
@@ -44,6 +45,7 @@ export default function LearnAddSongScreen() {
   const theme = useAmTheme()
   const p = protoFor(theme)
   const top = useLearnTopInset()
+  const bottomInset = useScrollBottomInset()
   const learn = useLearnSongs()
   const inputRef = useRef<TextInput | null>(null)
 
@@ -202,7 +204,7 @@ export default function LearnAddSongScreen() {
         updateCellsBatchingPeriod={40}
         windowSize={9}
         removeClippedSubviews={Platform.OS === "android"}
-        contentContainerStyle={s.listContent}
+        contentContainerStyle={[s.listContent, { paddingBottom: bottomInset }]}
         style={s.list}
       />
 

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Copy, ExternalLink, Share2 } from "lucide-react-native"
 
 import { LiveBadge, LiveGlyph, LivePhoto, liveTone } from "@/components/kirtan/LiveCard"
@@ -12,6 +11,7 @@ import { KPress } from "@/components/kirtan/KPress"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useT } from "@/lib/i18n"
@@ -34,7 +34,6 @@ export default function KiirtanLiveScreen() {
   const router = useRouter()
   const theme = useSongsTheme()
   const t = useT()
-  const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const params = useLocalSearchParams<{ id?: string }>()
   const { now, byId } = useKirtanLive()
@@ -42,7 +41,7 @@ export default function KiirtanLiveScreen() {
   const [toast, setToast] = useState<string | null>(null)
   const [pausedQueue, setPausedQueue] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const top = insets.top || 54
+  const top = useScreenTop()
 
   const flash = useCallback((message: string) => {
     setToast(message)

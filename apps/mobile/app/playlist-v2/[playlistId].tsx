@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PlayGlyph } from "@/components/songs-v2/Glyphs"
 import { ListDownloadRow } from "@/components/offline/ListDownloadRow"
@@ -15,6 +14,7 @@ import { BackHeader } from "@/components/songs-v2/StorageParts"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useFlushPlaylistsOnBlur } from "@/hooks/useFlushPlaylistsOnBlur"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { useSongsV2ListPage } from "@/hooks/useSongsV2ListPage"
@@ -52,8 +52,7 @@ export default function PlaylistV2Screen() {
   useFlushPlaylistsOnBlur()
   const router = useRouter()
   const theme = useSongsTheme()
-  const insets = useSafeAreaInsets()
-  const inset = Platform.OS === "web" ? 54 : insets.top
+  const inset = useScreenTop()
   const openedAt = useRevealClock()
   const rowStyle = useListViewStore((s) => s.rowStyle)
   const params = useLocalSearchParams<{ playlistId?: string | string[] }>()

@@ -1,3 +1,4 @@
+import { kindHasLanguage } from "@/lib/kirtan/kind"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
 
@@ -202,7 +203,7 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     terms_version: payload.termsVersion,
     confirm_different: payload.confirmDifferent,
     ...(payload.year ? { year: payload.year } : {}),
-    ...(payload.language ? { language: payload.language } : {}),
+    ...(payload.language && kindHasLanguage(payload.kind) ? { language: payload.language } : {}),
     ...(payload.credits?.trim() ? { credits: payload.credits.trim() } : {}),
     ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
     ...(payload.psSong ? { ps_song_number: payload.psSong } : {}),

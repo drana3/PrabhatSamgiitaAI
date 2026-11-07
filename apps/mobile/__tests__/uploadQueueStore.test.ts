@@ -162,3 +162,16 @@ describe("uploading the queue", () => {
     expect(queue().draft.performer).toBe("Priya Devi")
   })
 })
+
+describe("the type decides the optional fields", () => {
+  it("clears the language when the type changes to one that hides it, and refuses it on a Kiirtan", () => {
+    queue().setDraft({ kind: "bhajan", language: "sanskrit" })
+    expect(queue().draft.language).toBe("sanskrit")
+    queue().setDraft({ kind: "prabhat_samgiita" })
+    expect(queue().draft.language).toBe("sanskrit") // Prabhat Samgiita asks for it too
+    queue().setDraft({ kind: "kiirtan" })
+    expect(queue().draft.language).toBeNull()
+    queue().setDraft({ language: "english" })
+    expect(queue().draft.language).toBeNull()
+  })
+})

@@ -2,7 +2,6 @@ import { useMemo, useState } from "react"
 import { FlatList, StyleSheet, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Shuffle } from "lucide-react-native"
 
 import { artistGradient, ArtistAvatar } from "@/components/kirtan/ArtistParts"
@@ -11,6 +10,7 @@ import { ChevronGlyph, KirtanRow, PlayFilled } from "@/components/kirtan/KirtanP
 import { KPress } from "@/components/kirtan/KPress"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -39,7 +39,6 @@ export default function KirtanArtistScreen() {
   const router = useRouter()
   const theme = useSongsTheme()
   const t = useT()
-  const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<{ id?: string }>()
   const actions = useKirtanActions()
   const { playable } = useKirtans()
@@ -50,7 +49,7 @@ export default function KirtanArtistScreen() {
   const artist = useMemo(() => artistById(sampleArtists(), params.id), [params.id])
   const all = useMemo(() => (artist ? newestFirst(kirtansOfArtist(artist, playable)) : []), [artist, playable])
   const popular = useMemo(() => popularOf(all, 5), [all])
-  const top = insets.top || 54
+  const top = useScreenTop()
 
   const back = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
   const onShare = async (k: Kirtan, target: ShareTargetId) => {

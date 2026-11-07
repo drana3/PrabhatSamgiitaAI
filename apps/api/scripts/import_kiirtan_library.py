@@ -17,7 +17,8 @@ whose name without extension equals the title is used). Only `title` is required
 empty. Commas or semicolons both work; UTF-8.
 
   * `category`: kiirtan (default; a Kiirtan is a version of Baba Nam Kevalam, there is no mantra
-    column), bhajan, devotional_song or prabhat_samgiita. Empty means `--category`.
+    column), bhajan or prabhat_samgiita (an old devotional_song reads as bhajan). Empty means
+    `--category`. A Kiirtan has no language: the cell is ignored for it.
   * `performer`: who sings; `language`: bengali, sanskrit, hindi, english or other;
     `credits`: "words and music by"; `year`: the year it was recorded (1900 up to this year).
   * `song`: the Prabhat Samgiita song number (1 to 5018), REQUIRED when the category is
@@ -70,10 +71,12 @@ from sqlalchemy.exc import IntegrityError  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E402
 
 from app.models.recordings import (  # noqa: E402
+    KINDS_WITH_LANGUAGE,
     PS_SONG_COUNT,
     RECORDING_KINDS,
     RECORDING_LANGUAGES,
     Recording,
+    public_kind,
 )
 from app.services.recording_fingerprint import (  # noqa: E402
     SIMILAR_THRESHOLD,
@@ -173,6 +176,7 @@ def load_rows(
             except ValueError:
                 year = None
         category = (raw.get("category") or "").strip().lower().replace(" ", "_").replace("-", "_")
+        category = public_kind(category)  # the old "devotional song" is a bhajan
         language = (raw.get("language") or "").strip().lower()
         song_text = (raw.get("song") or raw.get("song_number") or "").strip()
         song = int(song_text) if song_text.isdigit() else None
@@ -575,7 +579,8 @@ class Importer:
                     reviewed_at=moment,
                     reviewed_by=REVIEWED_BY,
                     year=row.year,
-                    language=row.language,
+                    # a Kiirtan has no language (it is always Baba Nam Kevalam)
+                    language=row.language if category in KINDS_WITH_LANGUAGE else None,
                     credits=row.credits or None,
                     ps_song_number=row.song,
                 )

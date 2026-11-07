@@ -117,23 +117,34 @@ recording (not a duplicate, a version of it). Five levels do this. Code: `apps/a
   and the upload is published. Nothing is blocked because the tool is not there.
 - Setting: `RECORDING_FPCALC_PATH` (default `fpcalc`). The API `Dockerfile` installs `libchromaprint-tools`.
 
-### Level 3: one mantra, four types, and the form
+### Level 3: one mantra, three types, and the form
 
 There is ONE mantra in the app: Baba Nam Kevalam. Every Kiirtan recording is a version of it, in one list. There is no
 mantra field, no autocomplete, no "N versions" line, no browse-by-mantra page and no merge endpoint (removed; the
 `mantra_groups` table and the mantra columns were dropped from the models; migration 0029 was amended before deploy and
 tidies a database that ran the old draft, see the checklist).
 
-- Type (field `kind`, kept under that name): `kiirtan` (always Baba Nam Kevalam), `bhajan`, `devotional_song`,
-  `prabhat_samgiita`. The brief said "three categories" and named four; all four are built. For `prabhat_samgiita` the
+- Type (field `kind`, kept under that name): `kiirtan` (always Baba Nam Kevalam), `bhajan`, `prabhat_samgiita`.
+  "Devotional song" was removed as a type: it is not offered in the form, the chips or the API (`kind=devotional_song`
+  is a 422). Old rows keep `kind = 'devotional_song'` in the database (the check constraint still allows it, so no
+  migration is needed) and are read, filtered and shown as Bhajan everywhere (`public_kind` / `stored_kinds` in
+  `app/models/recordings.py`; `normalizeKind` on the phone). For `prabhat_samgiita` the
   uploader picks the song number 1 to 5018 with the song picker (`ps_song_number`, required for that type and refused
   for the others). The recording is stored and listed in the library under that type, with the song number.
 - The uploader types the TITLE (required). Performer (required, prefilled from the profile name; stored in the
-  existing `author` column). Optional: `language` (bengali, sanskrit, hindi, english, other), `credits` ("Words and
-  music by"; asked for Bhajan and Devotional song), `year` (1900 up to this year, not in the future), `notes` (up to
+  existing `author` column). Optional: `language` (bengali, sanskrit, hindi, english, other; asked for Bhajan and
+  Prabhat Samgiita only, never for Kiirtan, which is always Baba Nam Kevalam), `credits` ("Words and
+  music by"; asked for Bhajan), `year` (1900 up to this year, not in the future), `notes` (up to
   500 characters). The duration is read from the file. Checks: "I am the author or I perform this" and the content rules.
-- Public listing: `GET /recordings?kind=&song_number=&sort=` filters by type. My uploads and the Kiirtan page show the
-  type on every recording (a tag, and the chips All, Kiirtan, Bhajan, Devotional song, Prabhat Samgiita).
+- Language rule, one place per side: phone `LANGUAGE_KINDS` in `apps/mobile/lib/kirtan/types.ts` (the form hides the
+  field and clears the value when the type changes to one that does not ask for it; the queue and the remote publish
+  also drop it), API `KINDS_WITH_LANGUAGE` in `app/models/recordings.py`. For a Kiirtan the API silently ignores a
+  `language` (the recording is saved with none; an invalid value is still a 422), and the bulk importer does the same.
+  Whether Prabhat Samgiita asks for a language was ambiguous in the feedback; it is shown as optional. To hide it:
+  remove `"prabhat_samgiita"` from `LANGUAGE_KINDS` and `KINDS_WITH_LANGUAGE`.
+- Public listing: `GET /recordings?kind=&song_number=&sort=` filters by type (`kind=bhajan` includes old
+  devotional-song rows). My uploads and the Kiirtan page show the type on every recording (a tag, and the chips All,
+  Kiirtan, Bhajan, Prabhat Samgiita).
 - The old "Kiirtan or Bhajan" sub-types (Dharmacakra, Akhanda, ...) stay as an optional `type` for the Kiirtan area.
 
 ### Level 4: reports, removal, limits
@@ -172,8 +183,8 @@ a hidden multi-file input), and press Upload. Code: `lib/kirtan/queue.ts` (pure 
 ### Level 5: bulk import
 
 `apps/api/scripts/import_kiirtan_library.py` imports a folder of audio and a CSV (`title` required; `performer`, `category`,
-`language`, `credits`, `year`, `song`, `file` optional; `type` optional). `category` is kiirtan (default), bhajan,
-devotional_song or prabhat_samgiita; `song` (1 to 5018) is required for prabhat_samgiita and refused otherwise. There
+`language`, `credits`, `year`, `song`, `file` optional; `type` optional). `category` is kiirtan (default), bhajan
+or prabhat_samgiita (an old `devotional_song` in a CSV is read as bhajan); `song` (1 to 5018) is required for prabhat_samgiita and refused otherwise. There
 is no `mantra` column any more.
 
     python scripts/import_kiirtan_library.py --folder ~/Kiirtan --csv ~/Kiirtan/table.csv            # dry run (default)

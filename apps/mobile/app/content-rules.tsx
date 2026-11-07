@@ -1,13 +1,13 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import Svg, { Path } from "react-native-svg"
 
+import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { formatDate, useT } from "@/lib/i18n"
 import { CONTACT_ROUTE, isRulesAccepted, RULES_VERSION, ruleSections } from "@/lib/kirtan/rules"
@@ -15,12 +15,6 @@ import { unblockAuthorOf } from "@/lib/kirtan/safety"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
-
-const CloseGlyph = ({ color }: { color: string }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={1.75} strokeLinecap="round" />
-  </Svg>
-)
 
 /**
  * The content rules for a Kiirtan or a Bhajan, in plain words (docs/kiirtan-publishing.md; App Store 1.2, Play UGC).
@@ -32,7 +26,7 @@ export default function ContentRulesScreen() {
   const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
-  const insets = useSafeAreaInsets()
+  const bottomInset = useScrollBottomInset(24)
   const acceptedAt = useContentRulesStore((s) => s.acceptedAt)
   const version = useContentRulesStore((s) => s.version)
   const blockedKeys = useKirtanStore((s) => s.blockedAuthorIds)
@@ -43,12 +37,8 @@ export default function ContentRulesScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.page }]}>
-      <View style={[styles.bar, { paddingTop: Math.max(insets.top, 16) }]}>
-        <KPress accessibilityRole="button" accessibilityLabel={t("ugc.add.close")} onPress={close} pressedScale={0.9} style={[styles.closeDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
-          <CloseGlyph color={theme.textHeading} />
-        </KPress>
-      </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 48 }]}>
+      <SheetTopBar closeLabel={t("ugc.add.close")} onClose={close} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
         <Reveal index={0}>
           <Text style={[styles.over, { color: theme.accent }]}>{t("ugc.rules.eyebrow")}</Text>
           <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
@@ -111,8 +101,6 @@ function BlockedRow({ theme, name, onUnblock }: { theme: SongsTheme; name: strin
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  bar: { alignItems: "flex-end", paddingHorizontal: 16, paddingBottom: 6 },
-  closeDisc: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   content: { paddingHorizontal: 24, gap: 24, paddingTop: 8, maxWidth: 600, width: "100%", alignSelf: "center" },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },
   h1: { fontFamily: amFonts.display, fontSize: 52, lineHeight: 50, letterSpacing: -1, textTransform: "uppercase" },

@@ -224,7 +224,8 @@ async def test_execute_imports_and_stores_like_the_api(
     assert len(stored_files(world)) == 2
     assert evening.fingerprint is not None
     assert evening.kind == "kiirtan" and morning.kind == "kiirtan"
-    assert evening.language == "bengali" and evening.credits == "Words and music by A. Sen"
+    # the table said "Bengali", but a Kiirtan has no language: it is dropped, as the API does
+    assert evening.language is None and evening.credits == "Words and music by A. Sen"
     assert morning.language is None and morning.credits is None and morning.ps_song_number is None
 
 
@@ -373,18 +374,18 @@ async def test_the_category_cell_and_the_default_decide_the_category(
 ) -> None:
     library.add("a.mp3", mp3(70), title="Plain")  # empty cell: the run's default
     library.add("b.mp3", mp3(71), title="A bhajan", category="Bhajan")
-    library.add("c.mp3", mp3(72), title="A song", category="devotional song")
+    library.add("c.mp3", mp3(72), title="A song", category="devotional song")  # old name
     library.add("d.mp3", mp3(73), title="PS one", category="prabhat_samgiita", song="12")
-    importer, _ = make_importer(world, library, execute=True, kind="devotional_song")
+    importer, _ = make_importer(world, library, execute=True, kind="bhajan")
 
     outcomes = await importer.run()  # type: ignore[attr-defined]
 
     assert statuses(outcomes) == {"imported": 4}
     async with world.sessions() as session:
         rows = {r.title: r for r in (await session.scalars(select(Recording))).all()}
-    assert rows["Plain"].kind == "devotional_song"
+    assert rows["Plain"].kind == "bhajan"
     assert rows["A bhajan"].kind == "bhajan"
-    assert rows["A song"].kind == "devotional_song"
+    assert rows["A song"].kind == "bhajan"
     assert rows["PS one"].kind == "prabhat_samgiita" and rows["PS one"].ps_song_number == 12
     assert all(r.ps_song_number is None for t, r in rows.items() if t != "PS one")
 

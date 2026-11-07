@@ -1,9 +1,9 @@
 import { t } from "@/lib/i18n"
 import { artistForAuthor, type Artist } from "@/lib/kirtan/artists"
-import { BHAJAN_TYPES, KIRTAN_TYPES, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
+import { BHAJAN_TYPES, KIRTAN_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * The four kinds of one recording (Kiirtan, Bhajan, Devotional song, Prabhat Samgiita) and every visible word that
+ * The three kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita) and every visible word that
  * depends on the kind. One recordings system: the kind is a field, not a second system. Pure, no React, no stores.
  * Code identifiers and routes keep the `kirtan` spelling; only the strings below are shown to people.
  * Every word of a kind lives under keys named by the kind id (`kind.<id>`, `kt.head.<id>`, ...), so a new kind needs
@@ -14,22 +14,26 @@ export function isRecordingKind(value: unknown): value is RecordingKind {
   return RECORDING_KINDS.includes(value as RecordingKind)
 }
 
-/** Anything that is not a known kind (old stored data, a missing field) is a Kiirtan. */
+/**
+ * Anything that is not a known kind (old stored data, a missing field) is a Kiirtan; the removed kind
+ * `devotional_song` (old stored data, old server rows) is a Bhajan.
+ */
 export function normalizeKind(value: unknown): RecordingKind {
-  return isRecordingKind(value) ? value : "kiirtan"
+  if (isRecordingKind(value)) return value
+  return typeof value === "string" ? (LEGACY_KINDS[value] ?? "kiirtan") : "kiirtan"
 }
 
-/** The visible name of a kind: `Kiirtan`, `Bhajan`, `Devotional song` or `Prabhat Samgiita`. */
+/** The visible name of a kind: `Kiirtan`, `Bhajan` or `Prabhat Samgiita`. */
 export function kindLabel(kind: RecordingKind | null | undefined): string {
   return t(`kind.${normalizeKind(kind)}`)
 }
 
-/** `Kiirtans`, `Bhajans`, `Devotional songs`, `Prabhat Samgiita recordings`. */
+/** `Kiirtans`, `Bhajans`, `Prabhat Samgiita recordings`. */
 export function kindLabelPlural(kind: RecordingKind | null | undefined): string {
   return t(`kind.${normalizeKind(kind)}s`)
 }
 
-/** Small capitals tag of a row: `KIIRTAN`, `BHAJAN`, `DEVOTIONAL SONG`, `PRABHAT SAMGIITA`. */
+/** Small capitals tag of a row: `KIIRTAN`, `BHAJAN`, `PRABHAT SAMGIITA`. */
 export function kindTag(kind: RecordingKind | null | undefined): string {
   // upper-cased here, so the name "Prabhat Samgiita" is spelled one way in every dictionary
   return t(`kind.${normalizeKind(kind)}.tag`).toLocaleUpperCase()
@@ -45,7 +49,7 @@ export function kindHeading(kind: RecordingKind): string {
   return t(`kt.head.${kind}`)
 }
 
-/** What a list holds in a sentence ("Kiirtans", "Devotional songs"); `all` says "Kiirtans or Bhajans". */
+/** What a list holds in a sentence ("Kiirtans", "Bhajans"); `all` says "Kiirtans or Bhajans". */
 export function kindWhat(kind: KindFilter): string {
   return t(kind === "all" ? "kt.what.all" : `kt.what.${kind}`)
 }
@@ -84,9 +88,14 @@ export function kindHasTypes(kind: RecordingKind): boolean {
   return kind === "kiirtan" || kind === "bhajan"
 }
 
-/** "Words and music by" is asked for songs (Bhajan and Devotional song), not for chanting or a Prabhat Samgiita performance. */
+/** "Words and music by" is asked for a Bhajan, not for chanting or a Prabhat Samgiita performance. */
 export function kindHasCredits(kind: RecordingKind): boolean {
-  return kind === "bhajan" || kind === "devotional_song"
+  return kind === "bhajan"
+}
+
+/** The sung language is asked for a Bhajan and a Prabhat Samgiita recording, never for a Kiirtan (types.ts LANGUAGE_KINDS). */
+export function kindHasLanguage(kind: RecordingKind | null | undefined): boolean {
+  return LANGUAGE_KINDS.includes(normalizeKind(kind))
 }
 
 /** The kinds without sub-types have the one type "other". */

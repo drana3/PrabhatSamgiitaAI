@@ -5,14 +5,13 @@ import { RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type 
 import { t } from "@/lib/i18n"
 
 /**
- * The sticky chips of the Kiirtan tab. The first five are the KIND filter (All, Kiirtan, Bhajan, Devotional song,
+ * The sticky chips of the Kiirtan tab. The first four are the KIND filter (All, Kiirtan, Bhajan,
  * Prabhat Samgiita) and narrow every shelf and list; Saved, Downloaded and My uploads are lists of their own (all kinds).
  */
 export const KIRTAN_TAB_CHIPS = [
   { id: "all", get label() { return t("kt.chip.all") } },
   { id: "kiirtan", get label() { return t("kind.kiirtan") } },
   { id: "bhajan", get label() { return t("kind.bhajan") } },
-  { id: "devotional_song", get label() { return t("kind.devotional_song") } },
   { id: "prabhat_samgiita", get label() { return t("kind.prabhat_samgiita") } },
   { id: "saved", get label() { return t("kt.chip.saved") } },
   { id: "downloaded", get label() { return t("kt.chip.downloaded") } },
@@ -25,12 +24,12 @@ export function parseKirtanTabChip(value: string | string[] | undefined): Kirtan
   return KIRTAN_TAB_CHIPS.some((c) => c.id === raw) ? (raw as KirtanTabChip) : "all"
 }
 
-/** The kind a chip filters by: All and the four kinds say it; the list chips (Saved...) show every kind. */
+/** The kind a chip filters by: All and the three kinds say it; the list chips (Saved...) show every kind. */
 export function kindOfTabChip(chip: KirtanTabChip): KindFilter {
   return isRecordingKind(chip) ? chip : "all"
 }
 
-/** Is this one of the five chips that show the shelves (and so use the kind filter)? */
+/** Is this one of the four chips that show the shelves (and so use the kind filter)? */
 export function isShelfChip(chip: KirtanTabChip): boolean {
   return chip === "all" || isRecordingKind(chip)
 }

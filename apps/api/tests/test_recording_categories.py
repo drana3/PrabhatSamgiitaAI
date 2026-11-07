@@ -1,7 +1,7 @@
 """Recording categories, the extra fields, and the team exemption from the daily limit.
 
-Dada's decisions: one mantra only (no mantra groups, no mantra endpoints), four categories
-(Kiirtan, Bhajan, Devotional song, Prabhat Samgiita), a required performer, and no daily limit
+Dada's decisions: one mantra only (no mantra groups, no mantra endpoints), three categories
+(Kiirtan, Bhajan, Prabhat Samgiita), a required performer, and no daily limit
 for the team so a bulk upload is never stopped. The fixtures come from test_recordings.py.
 """
 
@@ -12,6 +12,8 @@ import os
 from datetime import datetime
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
+
+from uuid import UUID
 
 import pytest
 from sqlalchemy import select
@@ -24,18 +26,30 @@ from test_recordings import (  # noqa: F401  (fixtures are used by name)
 )
 
 from app.models.member import UserAccount
-from app.models.recordings import RECORDING_KINDS, Recording
+from app.models.recordings import (
+    RECORDING_KINDS,
+    STORED_KINDS,
+    Recording,
+    public_kind,
+    stored_kinds,
+)
 from app.schemas.recordings import RecordingCreate
 
 AS_A = {"X-Test-Member": "a"}
 
 
-def test_there_are_four_categories() -> None:
-    assert RECORDING_KINDS == ("kiirtan", "bhajan", "devotional_song", "prabhat_samgiita")
+def test_there_are_three_categories() -> None:
+    # "Devotional song" is gone: a Bhajan already is one. The word stays storable for old rows only.
+    assert RECORDING_KINDS == ("kiirtan", "bhajan", "prabhat_samgiita")
+    assert STORED_KINDS == (*RECORDING_KINDS, "devotional_song")
+    assert public_kind("devotional_song") == "bhajan"
+    assert public_kind("kiirtan") == "kiirtan"
+    assert stored_kinds("bhajan") == ("bhajan", "devotional_song")
+    assert stored_kinds("kiirtan") == ("kiirtan",)
 
 
 async def test_every_category_can_be_published(world: World) -> None:
-    for number, kind in enumerate(("kiirtan", "bhajan", "devotional_song")):
+    for number, kind in enumerate(("kiirtan", "bhajan")):
         response = await world.publish("a", mp3(300 + number), kind=kind, title=f"Song {kind}")
         assert response.status_code == 201, response.text
         assert response.json()["kind"] == kind
@@ -59,7 +73,7 @@ async def test_a_prabhat_samgiita_recording_needs_a_valid_song_number(world: Wor
 
 
 async def test_a_song_number_is_refused_for_the_other_categories(world: World) -> None:
-    for kind in ("kiirtan", "bhajan", "devotional_song"):
+    for kind in ("kiirtan", "bhajan"):
         response = await world.publish("a", mp3(330), kind=kind, ps_song_number=7)
         assert response.status_code == 422, (kind, response.text)
 
@@ -78,7 +92,7 @@ async def test_the_new_fields_are_stored_and_returned(world: World) -> None:
     response = await world.publish(
         "a",
         mp3(350),
-        kind="devotional_song",
+        kind="bhajan",
         title="Tumi amar",
         language="bengali",
         credits="Words and music by A. Sen",
@@ -122,7 +136,13 @@ async def test_the_length_of_credits_and_notes_is_limited(world: World) -> None:
 async def test_the_list_is_filtered_by_category_and_by_song(world: World) -> None:
     await world.publish("a", mp3(390), kind="kiirtan", title="K one")
     await world.publish("a", mp3(391), kind="bhajan", title="B one")
-    await world.publish("a", mp3(392), kind="devotional_song", title="D one")
+    # a row stored before "Devotional song" was dropped: it shows as a Bhajan
+    legacy = (await world.publish("a", mp3(392), kind="bhajan", title="D one")).json()["id"]
+    async with world.sessions() as session:
+        row = await session.get(Recording, UUID(legacy))
+        assert row is not None
+        row.kind = "devotional_song"
+        await session.commit()
     await world.publish("a", mp3(393), kind="prabhat_samgiita", title="P1 a", ps_song_number=1)
     await world.publish("a", mp3(394), kind="prabhat_samgiita", title="P1 b", ps_song_number=1)
     await world.publish("a", mp3(395), kind="prabhat_samgiita", title="P2", ps_song_number=2)
@@ -133,14 +153,46 @@ async def test_the_list_is_filtered_by_category_and_by_song(world: World) -> Non
 
     assert len(await titles()) == 6
     assert await titles(kind="kiirtan") == ["K one"]
-    assert await titles(kind="devotional_song") == ["D one"]
+    assert await titles(kind="bhajan") == ["B one", "D one"]  # the legacy row is a Bhajan
     assert await titles(kind="prabhat_samgiita") == ["P1 a", "P1 b", "P2"]
     assert await titles(kind="prabhat_samgiita", song_number=1) == ["P1 a", "P1 b"]
     assert await titles(song_number=2) == ["P2"]
     bad = await world.client.get("/api/v1/recordings", params={"song_number": 5019})
     assert bad.status_code == 422
-    bad_kind = await world.client.get("/api/v1/recordings", params={"kind": "mantra"})
-    assert bad_kind.status_code == 422
+    for gone in ("mantra", "devotional_song"):
+        bad_kind = await world.client.get("/api/v1/recordings", params={"kind": gone})
+        assert bad_kind.status_code == 422, gone
+    shown = (await world.client.get("/api/v1/recordings", params={"kind": "bhajan"})).json()
+    assert {item["kind"] for item in shown["items"]} == {"bhajan"}  # never "devotional_song"
+
+
+async def test_devotional_song_cannot_be_chosen_any_more(world: World) -> None:
+    response = await world.publish("a", mp3(396), kind="devotional_song")
+    assert response.status_code == 422, response.text
+
+
+async def test_the_language_is_kept_for_a_bhajan_and_a_prabhat_samgiita_not_for_a_kiirtan(
+    world: World,
+) -> None:
+    kiirtan = await world.publish("a", mp3(397), kind="kiirtan", language="bengali")
+    assert kiirtan.status_code == 201, kiirtan.text
+    assert kiirtan.json()["language"] is None  # dropped, consistently (never rejected)
+    bhajan = await world.publish("a", mp3(398), kind="bhajan", language="hindi")
+    assert bhajan.json()["language"] == "hindi"
+    ps = await world.publish(
+        "a", mp3(399), kind="prabhat_samgiita", ps_song_number=3, language="bengali"
+    )
+    assert ps.json()["language"] == "bengali"
+    # a bad value is still refused for a Kiirtan: the list is validated before it is dropped
+    bad = await world.publish("a", mp3(401), kind="kiirtan", language="klingon")
+    assert bad.status_code == 422
+    rows = {r.kind: r.language for r in await _all(world)}
+    assert rows == {"kiirtan": None, "bhajan": "hindi", "prabhat_samgiita": "bengali"}
+
+
+async def _all(world: World) -> list[Recording]:
+    async with world.sessions() as session:
+        return list((await session.scalars(select(Recording))).all())
 
 
 async def test_the_mantra_endpoints_are_gone(world: World) -> None:

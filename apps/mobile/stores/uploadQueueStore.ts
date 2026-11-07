@@ -1,7 +1,9 @@
 import { create } from "zustand"
 
 import { addFiles, applyOutcome, patchItem, queueCounts, removeItem, requeue, requeueAll, runQueue, setItemTitle, withoutFinished, type PickedFile, type QueueItem, type QueueStop, type RowOutcome } from "@/lib/kirtan/queue"
+import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import { validateSubmission } from "@/lib/kirtan/submissions"
+import { kindHasLanguage } from "@/lib/kirtan/kind"
 import type { RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { useKirtanStore } from "@/stores/kirtanStore"
@@ -84,7 +86,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       addedBy: "You",
       termsAccepted: true,
       year: yearOf(draft.year),
-      language: draft.language,
+      language: kindHasLanguage(draft.kind) ? draft.language : null,
       credits: draft.credits,
       notes: draft.notes,
       psSong: draft.psSong?.number ?? null,
@@ -116,7 +118,8 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     draft: EMPTY_DRAFT,
     running: false,
     stopped: null,
-    setDraft: (change) => set({ draft: { ...get().draft, ...change } }),
+    // the type decides which optional fields exist: changing it clears the ones the new type does not have
+    setDraft: (change) => set({ draft: draftWithPatch(get().draft, change) }),
     addFiles: (files) => {
       const result = addFiles(get().items, files, newId)
       set({ items: result.items })

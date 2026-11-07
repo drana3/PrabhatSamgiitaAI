@@ -6,16 +6,21 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.recordings import PS_SONG_COUNT
+from app.models.recordings import KINDS_WITH_LANGUAGE, PS_SONG_COUNT, public_kind
 
 # The category of a recording. "kiirtan" is Baba Nam Kevalam (the only mantra of the library),
 # "prabhat_samgiita" is a performance of one Prabhat Samgiita song (`ps_song_number`).
-Kind = Literal["kiirtan", "bhajan", "devotional_song", "prabhat_samgiita"]
+Kind = Literal["kiirtan", "bhajan", "prabhat_samgiita"]
 Language = Literal["bengali", "sanskrit", "hindi", "english", "other"]
 FIRST_YEAR = 1900
 Status = Literal["published", "removed", "flagged"]
 ReportReason = Literal["copyright", "offensive", "wrong_info", "duplicate", "other"]
 AdminFilter = Literal["new", "flagged", "removed", "all"]
+
+
+def _legacy_kind_is_a_bhajan(value: object) -> object:
+    """Reads only: a row stored as the old `devotional_song` is answered as `bhajan`."""
+    return public_kind(value) if isinstance(value, str) else value
 
 
 class UploadRequest(BaseModel):
@@ -67,6 +72,14 @@ class RecordingCreate(BaseModel):
         return value
 
     @model_validator(mode="after")
+    def _language_only_where_it_is_asked(self) -> Self:
+        # A Kiirtan has no language field (it is always Baba Nam Kevalam): a language sent with
+        # one is dropped, so a Kiirtan never carries one. Bhajan and Prabhat Samgiita keep it.
+        if self.kind not in KINDS_WITH_LANGUAGE:
+            self.language = None
+        return self
+
+    @model_validator(mode="after")
     def _song_matches_category(self) -> Self:
         if self.kind == "prabhat_samgiita" and self.ps_song_number is None:
             raise ValueError("Choose the Prabhat Samgiita song this is a performance of.")
@@ -81,6 +94,8 @@ class RecordingBrief(BaseModel):
     title: str
     author: str
     audio_url: str
+
+    _kind_read = field_validator("kind", mode="before")(_legacy_kind_is_a_bhajan)
 
 
 class RecordingOut(BaseModel):
@@ -109,6 +124,8 @@ class RecordingOut(BaseModel):
     removed_at: datetime | None = None
     duplicate_of: str | None = None
     removed_duplicate_of: str | None = None
+
+    _kind_read = field_validator("kind", mode="before")(_legacy_kind_is_a_bhajan)
 
 
 class RecordingList(BaseModel):

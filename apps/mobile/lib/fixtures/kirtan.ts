@@ -45,8 +45,8 @@ export const KIRTAN_FIXTURES: readonly Kirtan[] = [
   { id: "b-evening-request", kind: "bhajan", audioUrl: null, title: "Evening bhajan, a quiet request", author: "Sadhana Notes", durationSec: 7 * 60 + 45, type: "evening", thumbnailUrl: null, addedBy: "Meera", status: "published", addedAt: T0 - 6 * DAY, plays: 410 },
   { id: "b-festival-lamps", kind: "bhajan", audioUrl: null, title: "A bhajan for the festival of lamps", author: "Festival Voices", durationSec: 5 * 60 + 30, type: "devotional", thumbnailUrl: null, addedBy: "Tomas", status: "published", addedAt: T0 - 7 * DAY, plays: 530 },
 
-  // TODO(api): made-up samples of the two newer kinds, so the preview's chips and rows show them (preview only).
-  { id: "d-evening-prayer", kind: "devotional_song", audioUrl: null, title: "An evening prayer in song", author: "Sadhana Notes", durationSec: 5 * 60 + 5, type: "other", thumbnailUrl: null, addedBy: "Meera", status: "published", addedAt: T0 - 4 * DAY, plays: 220, language: "english", credits: "Words and music by the group" },
+  // TODO(api): made-up samples of the newer kind, so the preview's chips and rows show them (preview only).
+  { id: "d-evening-prayer", kind: "bhajan", audioUrl: null, title: "An evening prayer in song", author: "Sadhana Notes", durationSec: 5 * 60 + 5, type: "other", thumbnailUrl: null, addedBy: "Meera", status: "published", addedAt: T0 - 4 * DAY, plays: 220, language: "english", credits: "Words and music by the group" },
   { id: "p-ps-1-harmonium", kind: "prabhat_samgiita", audioUrl: null, title: "Prabhat Samgiita 1, soft harmonium", author: "Priya Devi", durationSec: 4 * 60 + 40, type: "other", thumbnailUrl: null, addedBy: "Priya", status: "published", addedAt: T0 - 2 * DAY, plays: 90, language: "bengali", psSong: 1 },
 ]
 

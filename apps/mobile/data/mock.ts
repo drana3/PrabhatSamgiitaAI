@@ -57,9 +57,9 @@ export type MockSong = {
   kind?: "song" | "kiirtan"
   /**
    * Set when kind is "kiirtan" (a recording of the Kiirtan system): its catalog id, type id and who added it.
-   * `recording` says which kind it is (Kiirtan, Bhajan, Devotional song, Prabhat Samgiita); absent means a Kiirtan.
+   * `recording` says which kind it is (Kiirtan, Bhajan, Prabhat Samgiita); absent means a Kiirtan.
    */
-  kiirtan?: { id: string; type: string; addedBy: string; recording?: "kiirtan" | "bhajan" | "devotional_song" | "prabhat_samgiita" }
+  kiirtan?: { id: string; type: string; addedBy: string; recording?: "kiirtan" | "bhajan" | "prabhat_samgiita" }
 }
 
 export {

@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import { Alert, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { LibraryListRow, NewPlaylistRow, SignInInvite } from "@/components/library-v2/LibraryParts"
 import { SpRound } from "@/components/song-v2/SpUi"
@@ -10,6 +9,7 @@ import { ChipsRow, LIST_SIDE } from "@/components/songs-v2/ListParts"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useYourLibrary } from "@/hooks/useYourLibrary"
@@ -47,9 +47,8 @@ export default function LibraryV2Screen() {
   const router = useRouter()
   const theme = useSongsTheme()
   const sp = useSpTheme()
-  const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
-  const inset = Platform.OS === "web" ? 54 : insets.top
+  const inset = useScreenTop()
   const openedAt = useRevealClock()
   const bottomInset = useScrollBottomInset()
   const params = useLocalSearchParams<{ chip?: string; as?: string }>()

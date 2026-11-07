@@ -26,6 +26,7 @@ import { protoFor } from "@/constants/tokens/amToday"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useLearnSongs } from "@/hooks/useLearnSongs"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
@@ -63,6 +64,7 @@ export default function LearnScreen() {
   const theme = useAmTheme()
   const p = protoFor(theme)
   const top = useLearnTopInset()
+  const bottomInset = useScrollBottomInset()
   const hydrated = useLearnHydrated()
   const openProfile = useOpenProfileSheet()
   const { unread } = useNotificationItems()
@@ -154,7 +156,7 @@ export default function LearnScreen() {
       />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: top }]}
+        contentContainerStyle={[styles.content, { paddingTop: top, paddingBottom: bottomInset }]}
       >
         <Reveal index={0}>
           <HubTopRow

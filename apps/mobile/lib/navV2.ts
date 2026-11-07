@@ -2,6 +2,7 @@ import { t } from "@/lib/i18n"
 import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { projectMomentum } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
+import { HIDDEN_MINI_PREFIXES, miniModeForPath } from "@/lib/playerPolicy"
 
 /**
  * Navigation shell v2 (spec 2.1 four tabs, SCR-07, SCR-12).
@@ -108,41 +109,24 @@ export function tabIndexForId(id: NavV2TabId, tabs: readonly NavV2Tab[] = NAV_V2
 
 /**
  * Routes on which the mini-player never shows: the full player itself, the welcome and sign-in flow,
- * sheets that draw over the whole screen, forms with a keyboard, and the assistant, whose message
- * box sits at the bottom where the pill would cover it.
+ * sheets and forms that draw over the whole screen, settings, the content rules, and the assistant, whose message
+ * box sits at the bottom where the pill would cover it. Read from the policy table (lib/playerPolicy.ts), the one
+ * place that says which screens show the pill; docs/player-visibility.md is the same table for people.
  */
-export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = [
-  "/player-v2",
-  "/player",
-  "/welcome",
-  "/auth",
-  "/signin",
-  "/complete-profile",
-  "/edit-profile",
-  "/profile-sheet",
-  "/script-translations",
-  "/review-style",
-  "/language",
-  "/add-kirtan",
-  "/upload-chords",
-  "/kiirtan-live",
-  "/feedback",
-  "/assistant",
-]
+export const NAV_V2_MINI_HIDDEN_PREFIXES: readonly string[] = HIDDEN_MINI_PREFIXES
 
 /** The start route only shows a spinner while the app decides where to go: no pill there. */
 const NAV_V2_BOOT_PATHS: readonly string[] = ["/"]
 
 /**
- * Mini-player rule: one pill above the tab bar on EVERY screen (tabs and pushed screens) while
- * something is loaded; nothing loaded, no pill. Hidden on the full player, auth/welcome, full-screen
- * sheets and the assistant.
+ * Mini-player rule: one pill above the tab bar on a tab screen and above the bottom edge on a pushed screen,
+ * while something is loaded; nothing loaded, no pill. Which screens hide it is the table in lib/playerPolicy.ts.
  */
 export function miniPlayerVisible(input: { pathname: string; hasSong: boolean }): boolean {
   if (!input.hasSong) return false
   const path = normalisePath(input.pathname)
   if (NAV_V2_BOOT_PATHS.includes(path)) return false
-  return !NAV_V2_MINI_HIDDEN_PREFIXES.some((prefix) => pathHasPrefix(path, prefix))
+  return miniModeForPath(path) !== "hidden"
 }
 
 /**

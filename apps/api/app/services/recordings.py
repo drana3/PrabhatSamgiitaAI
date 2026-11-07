@@ -37,6 +37,8 @@ from app.models.recordings import (
     Recording,
     RecordingReport,
     RecordingSimilarConfirm,
+    public_kind,
+    stored_kinds,
 )
 from app.schemas.recordings import (
     AdminRecordingOut,
@@ -67,7 +69,7 @@ DAILY_LIMIT_CODE = "upload_daily_limit"
 KIND_WORD = {
     "kiirtan": "Kiirtan",
     "bhajan": "Bhajan",
-    "devotional_song": "devotional song",
+    "devotional_song": "Bhajan",  # legacy rows: a Bhajan now
     "prabhat_samgiita": "Prabhat Samgiita recording",
 }
 # Bulk uploading by a team member (admin) is not held to the daily limit; the hourly brake is
@@ -504,7 +506,7 @@ async def create_recording(
         published_at=moment,
         duplicate_of=similar[0][0].id if similar else None,
         year=payload.year,
-        language=payload.language,
+        language=payload.language,  # None for a Kiirtan (the schema drops it)
         credits=clean_text(payload.credits, 300) or None,
         notes=clean_text(payload.notes, 500) or None,
         ps_song_number=payload.ps_song_number if payload.kind == "prabhat_samgiita" else None,
@@ -555,7 +557,7 @@ async def list_visible(
     if blocked:
         conditions.append(or_(Recording.author_id.is_(None), Recording.author_id.not_in(blocked)))
     if kind:
-        conditions.append(Recording.kind == kind)
+        conditions.append(Recording.kind.in_(stored_kinds(kind)))
     if song_number:
         # The recordings of one Prabhat Samgiita song (the song page lists them).
         conditions.append(Recording.kind == "prabhat_samgiita")
@@ -632,7 +634,7 @@ def removal_notice(recording: Recording, reason: str) -> tuple[str, str, dict[st
     payload: dict[str, Any] = {
         "recording_id": str(recording.id),
         "recording_title": recording.title,
-        "kind": recording.kind,
+        "kind": public_kind(recording.kind),
         "reason": reason,
         "removed_at": (recording.removed_at or now_utc()).isoformat(),
         "actions": ["contact", "upload_corrected"],
@@ -738,7 +740,7 @@ async def restore_recording(
             recording_id=recording.id,
             title=f"Your {word} is back",
             body=f"“{recording.title}” is published again. Thank you for your patience.",
-            payload={"recording_id": str(recording.id), "kind": recording.kind},
+            payload={"recording_id": str(recording.id), "kind": public_kind(recording.kind)},
         )
         session.add(notice)
     await session.commit()

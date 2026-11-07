@@ -18,6 +18,7 @@ import {
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongTitles } from "@/hooks/useSongTitles"
 import { useStorageScreen } from "@/hooks/useStorageScreen"
@@ -49,7 +50,7 @@ export default function StorageScreen() {
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
-  const inset = Platform.OS === "web" ? 54 : insets.top
+  const inset = useScreenTop()
   const state = useStorageScreen()
   const titles = useSongTitles(state.items.map((item) => item.songNumber))
   const view = listViewState({ loading: !state.scanned, count: state.items.length })

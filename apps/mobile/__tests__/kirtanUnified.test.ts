@@ -296,8 +296,8 @@ describe("jump back in and Kiirtan of the day", () => {
 })
 
 describe("Kiirtan tab", () => {
-  it("has the eight sticky chips (All, the four kinds, then the lists) and falls back to All", () => {
-    expect(KIRTAN_TAB_CHIPS.map((c) => c.label)).toEqual(["All", "Kiirtan", "Bhajan", "Devotional song", "Prabhat Samgiita", "Saved", "Downloaded", "My uploads"])
+  it("has the seven sticky chips (All, the three kinds, then the lists) and falls back to All", () => {
+    expect(KIRTAN_TAB_CHIPS.map((c) => c.label)).toEqual(["All", "Kiirtan", "Bhajan", "Prabhat Samgiita", "Saved", "Downloaded", "My uploads"])
     expect(parseKirtanTabChip("mine")).toBe("mine")
     expect(parseKirtanTabChip(["saved"])).toBe("saved")
     expect(parseKirtanTabChip("zzz")).toBe("all")

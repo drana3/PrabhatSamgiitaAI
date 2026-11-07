@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from "react"
 import { FlatList, Platform, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { SpRound } from "@/components/song-v2/SpUi"
 import { CollectionTile } from "@/components/songs-v2/CollectionTile"
@@ -11,6 +10,7 @@ import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { allCollections } from "@/data/collections"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { useSpTheme } from "@/hooks/useSpTheme"
@@ -57,9 +57,8 @@ export default function CollectionsV2Screen() {
   const router = useRouter()
   const theme = useSongsTheme()
   const sp = useSpTheme()
-  const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
-  const inset = Platform.OS === "web" ? 54 : insets.top
+  const inset = useScreenTop()
   const openedAt = useRevealClock()
   const bottomInset = useScrollBottomInset()
   const catalog = useSongsV2Catalog()

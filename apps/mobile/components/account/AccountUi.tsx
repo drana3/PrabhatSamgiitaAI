@@ -18,13 +18,14 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useT } from "@/lib/i18n"
+import { screenTopInset } from "@/lib/screenTop"
 
 /** Side padding of the account pages. */
 export const ACCOUNT_SIDE = LIST_SIDE
 
-/** The 54px status area of the phone frame in the web preview; the real inset on a phone. */
+/** Top padding of an account page: the real inset (the phone frame's 59 in the web preview), else the 54px fallback. */
 export function topInset(insetTop: number): number {
-  return Platform.OS === "web" ? 54 : insetTop
+  return screenTopInset(insetTop)
 }
 
 /** Back round and the page title in capitals (same bar as Your library). */

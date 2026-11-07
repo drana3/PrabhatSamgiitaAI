@@ -193,10 +193,10 @@ describe("level 3: one mantra (Baba Nam Kevalam) and the fields of a recording",
 
   it("a new submission remembers the extra fields, tidied", () => {
     const k = buildSubmission(
-      { kind: "devotional_song", fileName: "a.mp3", fileUri: "u", title: "T", author: "A", byAuthor: true, addedBy: "You", year: 2001, language: "english", credits: "  Words   by X ", notes: " n " },
+      { kind: "bhajan", fileName: "a.mp3", fileUri: "u", title: "T", author: "A", byAuthor: true, addedBy: "You", year: 2001, language: "english", credits: "  Words   by X ", notes: " n " },
       1,
     )
-    expect(k).toMatchObject({ kind: "devotional_song", year: 2001, language: "english", credits: "Words by X", notes: "n" })
+    expect(k).toMatchObject({ kind: "bhajan", year: 2001, language: "english", credits: "Words by X", notes: "n" })
     expect(k).not.toHaveProperty("psSong")
   })
 })

@@ -1,16 +1,25 @@
 import { t } from "@/lib/i18n"
 /**
  * Devotional recordings, uploaded as audio files by their authors (and by the team). They are ONE recordings
- * system with four KINDS (`kind`, shown as "Type" in the add form): a Kiirtan is group chanting of Baba Nam Kevalam
- * (the library has this one mantra only), a Bhajan a devotional song, a Devotional song any other song of devotion,
- * and a Prabhat Samgiita recording is another performance of one of the 5018 songs (`psSong` names it).
+ * system with three KINDS (`kind`, shown as "Type" in the add form): a Kiirtan is group chanting of Baba Nam Kevalam
+ * (the library has this one mantra only), a Bhajan is a devotional song, and a Prabhat Samgiita recording is another
+ * performance of one of the 5018 songs (`psSong` names it). "Devotional song" was a fourth kind once; a Bhajan already
+ * is one, so it is gone (old stored items and old server rows with it read as a Bhajan: lib/kirtan/kind.ts normalizeKind).
  * All play in the same player as a Prabhat Samgiita song (lib/kirtan/track.ts). Pure types and constants, no React,
  * no I/O. Visible words for a kind come from lib/kirtan/kind.ts.
  */
 
-/** The four kinds of one recording. Old data without a kind is a Kiirtan. */
-export const RECORDING_KINDS = ["kiirtan", "bhajan", "devotional_song", "prabhat_samgiita"] as const
+/** The three kinds of one recording. Old data without a kind is a Kiirtan. */
+export const RECORDING_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita"] as const
 export type RecordingKind = (typeof RECORDING_KINDS)[number]
+/** Kinds that were removed but may still sit in stored data or in old server rows, and the kind they now read as. */
+export const LEGACY_KINDS: Readonly<Record<string, RecordingKind>> = { devotional_song: "bhajan" }
+/**
+ * The kinds whose add form asks for the sung LANGUAGE (under "More details"). A Kiirtan is always Baba Nam Kevalam, so
+ * it has none. Prabhat Samgiita is optional here: Dada said both "not needed" and "yes, add language". To hide the
+ * language for a Prabhat Samgiita recording, delete "prabhat_samgiita" from this list; everything else follows.
+ */
+export const LANGUAGE_KINDS: readonly RecordingKind[] = ["bhajan", "prabhat_samgiita"]
 export type KindFilter = RecordingKind | "all"
 
 /** Languages the uploader can name (the API's list). Optional. */
@@ -76,7 +85,7 @@ export type UploadFailure = { code: UploadFailureCode; message?: string; origina
 
 export type Kirtan = {
   id: string
-  /** One of the four kinds. Old stored items have none and count as "kiirtan" (see lib/kirtan/kind.ts). */
+  /** One of the three kinds. Old stored items have none and count as "kiirtan" (see lib/kirtan/kind.ts). */
   kind: RecordingKind
   title: string
   /** performer or group, as the author wrote it */
@@ -118,7 +127,7 @@ export type Kirtan = {
   year?: number
   /** language of the words, when the uploader named it */
   language?: RecordingLanguage
-  /** words and music by, as the uploader wrote it (Bhajan and Devotional song) */
+  /** words and music by, as the uploader wrote it (Bhajan) */
   credits?: string
   /** a short note from the uploader */
   notes?: string

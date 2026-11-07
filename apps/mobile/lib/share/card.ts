@@ -34,7 +34,7 @@ export type CardSubject =
       title: string
       /** performer or group, as the author wrote it */
       author?: string | null
-      /** the kind of the recording ("bhajan", "devotional_song", "prabhat_samgiita"); anything else prints "Kiirtan" */
+      /** the kind of the recording ("bhajan", "prabhat_samgiita"); anything else prints "Kiirtan" */
       recordingKind?: string | null
       durationSec?: number | null
       /** the author's own cover picture, when there is one */
@@ -43,7 +43,7 @@ export type CardSubject =
       type?: string | null
     }
 
-const RECORDING_KIND_NAMES: Record<string, string> = { bhajan: "Bhajan", devotional_song: "Devotional song", prabhat_samgiita: "Prabhat Samgiita" }
+const RECORDING_KIND_NAMES: Record<string, string> = { bhajan: "Bhajan", devotional_song: "Bhajan", prabhat_samgiita: "Prabhat Samgiita" }
 
 function recordingKindName(kind: string | null | undefined): string {
   return RECORDING_KIND_NAMES[kind ?? ""] ?? "Kiirtan"

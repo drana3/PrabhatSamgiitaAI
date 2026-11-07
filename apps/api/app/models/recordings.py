@@ -1,4 +1,4 @@
-"""Kiirtan, Bhajan, devotional song and Prabhat Samgiita recordings, published at once.
+"""Kiirtan, Bhajan and Prabhat Samgiita recordings, published at once.
 
 See docs/kiirtan-publishing.md. One table holds all four categories (`kind`). A recording is
 `published` the moment the upload succeeds; the team looks afterwards and may mark it `flagged`
@@ -32,7 +32,26 @@ from app.models.base import Base, TimestampMixin
 
 # The category of a recording, as the uploader picks it (the field is called `kind`). A Kiirtan is
 # always a version of "Baba Nam Kevalam": there is only that one mantra in the library.
-RECORDING_KINDS = ("kiirtan", "bhajan", "devotional_song", "prabhat_samgiita")
+RECORDING_KINDS = ("kiirtan", "bhajan", "prabhat_samgiita")
+# "Devotional song" was a fourth category once. A Bhajan already is one, so it is gone from every
+# form and list. Rows stored with it stay valid (the database check still allows the word) and are
+# shown, filtered and counted as Bhajans: see `public_kind` and `stored_kinds`.
+LEGACY_KIND_DEVOTIONAL_SONG = "devotional_song"
+STORED_KINDS = (*RECORDING_KINDS, LEGACY_KIND_DEVOTIONAL_SONG)
+# Categories that carry a sung language. A Kiirtan is always Baba Nam Kevalam, so it has none.
+KINDS_WITH_LANGUAGE = ("bhajan", "prabhat_samgiita")
+
+
+def public_kind(stored: str) -> str:
+    """The category as people see it: a legacy `devotional_song` row is a Bhajan."""
+    return "bhajan" if stored == LEGACY_KIND_DEVOTIONAL_SONG else stored
+
+
+def stored_kinds(kind: str) -> tuple[str, ...]:
+    """Every stored value that shows as `kind` (Bhajan also finds the legacy rows)."""
+    return ("bhajan", LEGACY_KIND_DEVOTIONAL_SONG) if kind == "bhajan" else (kind,)
+
+
 RECORDING_STATUSES = ("published", "removed", "flagged")
 KIRTAN_TYPES = ("bnk", "lila", "festival", "other")
 BHAJAN_TYPES = ("morning", "evening", "devotional", "other")
@@ -143,7 +162,7 @@ class Recording(Base, TimestampMixin):
     year: Mapped[int | None] = mapped_column(Integer)
     # Sung language: one of RECORDING_LANGUAGES, or none.
     language: Mapped[str | None] = mapped_column(String(16))
-    # "Words and music by": credits for a Bhajan, a devotional song or a Prabhat Samgiita recording.
+    # "Words and music by": credits for a Bhajan or a Prabhat Samgiita recording.
     credits: Mapped[str | None] = mapped_column(String(300))
     notes: Mapped[str | None] = mapped_column(String(500))
     # The song of a `prabhat_samgiita` recording (1..5018). The song page lists it as a recording.

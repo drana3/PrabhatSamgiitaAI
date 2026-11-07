@@ -117,7 +117,7 @@ describe("types of each kind", () => {
 
 describe("fixtures", () => {
   it("hold every old Kiirtan as a Kiirtan and the four real sample Bhajans with their lengths", () => {
-    expect(KIRTAN_FIXTURES.every((k) => ["kiirtan", "bhajan", "devotional_song", "prabhat_samgiita"].includes(k.kind))).toBe(true)
+    expect(KIRTAN_FIXTURES.every((k) => ["kiirtan", "bhajan", "prabhat_samgiita"].includes(k.kind))).toBe(true)
     const real = ["b-sweetest-word", "b-day-will-dawn", "b-once-there-was", "b-many-thousand-years"].map((id) => KIRTAN_FIXTURES.find((k) => k.id === id))
     expect(real.map((k) => k?.title)).toEqual(["The sweetest word", "Soon the day will dawn", "Once there was a day", "Many Thousand Years Ago"])
     expect(real.map((k) => k?.durationSec)).toEqual([282.55, 192.3, 259.72, 592.05])
@@ -146,7 +146,6 @@ describe("filtering by kind", () => {
     expect(filterByKind(approved, "bhajan").every((k) => k.kind === "bhajan")).toBe(true)
     expect(filterByKind(approved, "kiirtan").every((k) => k.kind === "kiirtan")).toBe(true)
     expect(RECORDING_KINDS.reduce((n, kind) => n + filterByKind(approved, kind).length, 0)).toBe(approved.length)
-    expect(filterByKind(approved, "devotional_song").every((k) => k.kind === "devotional_song")).toBe(true)
     expect(filterByKind(approved, "prabhat_samgiita").every((k) => k.kind === "prabhat_samgiita" && Number.isInteger(k.psSong))).toBe(true)
     expect(filterByKind([{ id: "old" } as Kirtan], "kiirtan")).toHaveLength(1)
     expect(filterByKind([{ id: "old" } as Kirtan], "bhajan")).toHaveLength(0)
@@ -189,9 +188,8 @@ describe("filtering by kind", () => {
     expect(all).toHaveLength(8)
     expect(all.slice(0, 4).every((c) => c.kind === "kiirtan")).toBe(true)
     expect(all.slice(4).every((c) => c.kind === "bhajan")).toBe(true)
-    // only Kiirtan and Bhajan have sub-types; the other two kinds have no type cards
+    // only Kiirtan and Bhajan have sub-types; Prabhat Samgiita has no type cards
     expect(all.reduce((n, c) => n + c.count, 0)).toBe(filterByKind(approved, "kiirtan").length + filterByKind(approved, "bhajan").length)
-    expect(typeCards(approved, "devotional_song")).toEqual([])
     expect(typeCards(approved, "prabhat_samgiita")).toEqual([])
     expect(typeCardCount({ kind: "bhajan", count: 1 })).toBe("1 bhajan")
     expect(typeCardCount({ kind: "kiirtan", count: 5 })).toBe("5 kiirtans")

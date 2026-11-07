@@ -28,6 +28,7 @@ import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/token
 import { amReveal, amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useT } from "@/lib/i18n"
 
 /**
@@ -503,6 +504,7 @@ export function OverlayScreen({
   overlay?: ReactNode
 }) {
   const top = useLearnTopInset()
+  const bottomInset = useScrollBottomInset()
   return (
     <View style={[styles.flex, { backgroundColor: theme.page, paddingTop: top }]}>
       <ScreenIn>
@@ -517,7 +519,7 @@ export function OverlayScreen({
           )}
           {right}
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.ovlBody} style={styles.flex}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.ovlBody, { paddingBottom: bottomInset }]} style={styles.flex}>
           {children}
         </ScrollView>
       </ScreenIn>

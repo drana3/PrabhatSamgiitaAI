@@ -1,4 +1,4 @@
-import { normalizeKind } from "@/lib/kirtan/kind"
+import { kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
 import { PS_SONG_COUNT, RECORDING_LANGUAGES, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
@@ -104,7 +104,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     type: DEFAULT_SUBMISSION_TYPE,
     byAuthor: Boolean(input.byAuthor),
     ...(input.year ? { year: input.year } : {}),
-    ...(input.language ? { language: input.language } : {}),
+    ...(input.language && kindHasLanguage(kind) ? { language: input.language } : {}),
     ...(tidy(input.credits ?? "") ? { credits: tidy(input.credits ?? "") } : {}),
     ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),
     ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),

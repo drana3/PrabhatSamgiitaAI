@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { BellOff, BellRing, ChevronLeft, Plus } from "lucide-react-native"
 
 import { HOME_INSET } from "@/components/home/HomeBlocks"
@@ -11,7 +10,8 @@ import { Group, SheetNote, SheetTitle } from "@/components/profile-v2/SheetBlock
 import { Reveal } from "@/components/today/motion"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { amProto, protoFor, type AmProto } from "@/constants/tokens/amToday"
+import { protoFor, type AmProto } from "@/constants/tokens/amToday"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { nativeNotificationsAvailable, openSystemSettings } from "@/lib/notifications/native"
@@ -182,8 +182,7 @@ export default function NotificationSettingsScreen() {
   const t = useT()
   const theme = useAmTheme()
   const p = protoFor(theme)
-  const insets = useSafeAreaInsets()
-  const top = insets.top || amProto.statusArea
+  const top = useScreenTop()
   const params = useLocalSearchParams<{ permission?: string }>()
 
   const st = useNotificationSettingsStore()
@@ -328,6 +327,7 @@ export default function NotificationSettingsScreen() {
           <Footer>
             <SheetNote p={p}>{t("notif.note.times")}</SheetNote>
             <SheetNote p={p}>{t("notif.note.fixed", { festival: formatMinutes(FESTIVAL_EVE_AT), streak: formatMinutes(STREAK_AT) })}</SheetNote>
+            <SheetNote p={p}>{t("notif.note.keep")}</SheetNote>
           </Footer>
         </Reveal>
       </ScrollView>

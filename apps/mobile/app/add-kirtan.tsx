@@ -7,6 +7,7 @@ import Svg, { Path } from "react-native-svg"
 
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
+import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
 import { Toast } from "@/components/songs-v2/Toast"
@@ -17,24 +18,19 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindHasCredits, kindLabel, normalizeKind } from "@/lib/kirtan/kind"
+import { kindLabel, normalizeKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { hasWork, isRetryable, leftForTomorrow, queueCounts, queueProgress, queueSummary, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
 import { RECORDING_KINDS, RECORDING_LANGUAGES, type RecordingKind } from "@/lib/kirtan/types"
+import { moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
 import { useUploadQueueStore, yearOf, type QueueDraft } from "@/stores/uploadQueueStore"
 import { href } from "@/utils/href"
-
-const CloseGlyph = ({ color }: { color: string }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={1.75} strokeLinecap="round" />
-  </Svg>
-)
 
 const ChevronGlyph = ({ color, open }: { color: string; open: boolean }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}>
@@ -49,7 +45,7 @@ type Problem = { form: SubmissionError; row?: string } | "picker" | "nothing"
 
 /**
  * Add recordings: the one form for everything people upload (docs/kiirtan-publishing.md). The person picks the TYPE
- * (Kiirtan, Bhajan, Devotional song or Prabhat Samgiita), names the performer, picks one or many audio files and gives
+ * (Kiirtan, Bhajan or Prabhat Samgiita), names the performer, picks one or many audio files and gives
  * each its title; the choices at the top apply to every file. Upload runs the files one after another, shows each one's
  * state and ends with a summary. Nothing waits for a reviewer: a recording is live the moment its upload succeeds, the
  * team looks afterwards and may remove it with a notice that says why. Only a signed-in person can upload.
@@ -63,7 +59,6 @@ export default function AddKirtanScreen() {
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
-  const top = Platform.OS === "web" ? 24 : Math.max(insets.top, 16)
   const isWeb = Platform.OS === "web"
   // "Upload a corrected version" opens this screen with the removed recording's words already in.
   const params = useLocalSearchParams<{ kind?: string; title?: string; author?: string; song?: string }>()
@@ -243,12 +238,8 @@ export default function AddKirtanScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.root, { backgroundColor: theme.page }]}>
-      <View style={[styles.bar, { paddingTop: top }]}>
-        <View style={[styles.handle, { backgroundColor: theme.dark ? "rgba(255,255,255,0.22)" : amColors.sand400 }]} />
-        <KPress accessibilityRole="button" accessibilityLabel={t("ugc.add.close")} onPress={close} pressedScale={0.9} outerStyle={styles.close} style={[styles.closeDisc, { backgroundColor: theme.card, borderColor: theme.line }]}>
-          <CloseGlyph color={theme.textHeading} />
-        </KPress>
-      </View>
+      {/* below the status bar and the island, in a row of its own (components/common/SheetTopBar) */}
+      <SheetTopBar closeLabel={t("ugc.add.close")} onClose={close} />
 
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
         {!signedIn ? (
@@ -402,7 +393,7 @@ export default function AddKirtanScreen() {
               >
                 <View style={styles.moreText}>
                   <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.more.label")}</Text>
-                  {!moreOpen ? <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.more.hint")}</Text> : null}
+                  {!moreOpen ? <Text style={[styles.hint, { color: theme.textBody }]}>{t(moreDetailsHintKey(kind))}</Text> : null}
                 </View>
                 <ChevronGlyph color={theme.textBody} open={moreOpen} />
               </KPress>
@@ -467,33 +458,41 @@ export default function AddKirtanScreen() {
   )
 }
 
-/** Language, "words and music by" (Bhajan and Devotional song), year recorded and a short note. All optional. */
+/**
+ * Language (Bhajan and Prabhat Samgiita, never Kiirtan), "words and music by" (Bhajan), year recorded and a short note.
+ * All optional. Which fields a type has is lib/kirtan/uploadForm.ts moreDetailsFor.
+ */
 function MoreDetails({ theme, kind, locked, yearInvalid }: { theme: SongsTheme; kind: RecordingKind; locked: boolean; yearInvalid: boolean }) {
   const t = useT()
   const draft = useUploadQueueStore((s) => s.draft)
   const setDraft = useUploadQueueStore.getState().setDraft
+  const has = moreDetailsFor(kind)
   return (
     <View style={styles.moreBody}>
-      <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.language.label")}</Text>
-      <View style={styles.chips} accessibilityRole="radiogroup">
-        {RECORDING_LANGUAGES.map((language) => {
-          const on = draft.language === language
-          return (
-            <KPress
-              key={language}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: on }}
-              accessibilityLabel={t(`rec.language.${language}`)}
-              onActivate={() => !locked && setDraft({ language: on ? null : language })}
-              pressedScale={0.96}
-              style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
-            >
-              <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{t(`rec.language.${language}`)}</Text>
-            </KPress>
-          )
-        })}
-      </View>
-      {kindHasCredits(kind) ? (
+      {has.language ? (
+        <>
+          <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.language.label")}</Text>
+          <View style={styles.chips} accessibilityRole="radiogroup">
+            {RECORDING_LANGUAGES.map((language) => {
+              const on = draft.language === language
+              return (
+                <KPress
+                  key={language}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={t(`rec.language.${language}`)}
+                  onActivate={() => !locked && setDraft({ language: on ? null : language })}
+                  pressedScale={0.96}
+                  style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
+                >
+                  <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{t(`rec.language.${language}`)}</Text>
+                </KPress>
+              )
+            })}
+          </View>
+        </>
+      ) : null}
+      {has.credits ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.credits.label")}</Text>
           <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
@@ -541,10 +540,6 @@ function SignInGate({ theme, onSignIn }: { theme: SongsTheme; onSignIn: () => vo
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  bar: { alignItems: "center", paddingBottom: 6 },
-  handle: { width: 40, height: 5, borderRadius: 3, marginTop: 4 },
-  close: { position: "absolute", right: 16, top: Platform.OS === "web" ? 18 : undefined },
-  closeDisc: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   content: { paddingHorizontal: 24, gap: 22, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
