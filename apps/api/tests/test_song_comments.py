@@ -67,6 +67,12 @@ class World:
         assert response.status_code == 200, response.text
         return response
 
+    async def rows(self) -> list[SongComment]:
+        async with self.sessions() as session:
+            return list(
+                (await session.scalars(select(SongComment).order_by(SongComment.created_at))).all()
+            )
+
     async def scalar(self, statement: Select[Any]) -> Any:
         async with self.sessions() as session:
             return await session.scalar(statement)
@@ -286,7 +292,48 @@ async def test_the_author_deletes_their_own_comment_also_an_anonymous_one(world:
             await world.client.delete(f"{URL}/{item['id']}", headers={"X-Test-Member": "a"})
         ).status_code == 204
     assert (await world.listing()).json()["total"] == 0
-    assert await world.scalar(select(sa.func.count()).select_from(SongComment)) == 0
+    # QA-009: the row stays (it counts toward the daily allowance) but the text is gone for good
+    rows = await world.rows()
+    assert len(rows) == 2
+    assert {r.status for r in rows} == {"removed"} and {r.removed_by for r in rows} == {"author"}
+    assert {r.body for r in rows} == {service.AUTHOR_DELETED_BODY}
+    assert "named" not in json.dumps((await world.listing("team")).json())
+    # deleting it a second time finds nothing, like any missing comment
+    again = await world.client.delete(f"{URL}/{named['id']}", headers={"X-Test-Member": "a"})
+    assert again.status_code == 404
+
+
+async def test_the_author_cannot_wipe_a_comment_the_team_removed(world: World) -> None:
+    """QA-008: the team keeps a removed comment for the record; the author's delete changes none."""
+    item = (await world.post("a", body="Evidence text", anonymous=True)).json()
+    await world.client.request(
+        "DELETE", f"{URL}/{item['id']}", headers={"X-Test-Member": "team"}, json={"reason": "Abuse"}
+    )
+    before = (await world.rows())[0]
+    answer = await world.client.delete(f"{URL}/{item['id']}", headers={"X-Test-Member": "a"})
+    assert answer.status_code == 204  # the same answer as for a normal delete
+    after = await world.rows()
+    assert len(after) == 1
+    assert after[0].body == "Evidence text" == before.body
+    assert after[0].status == "removed" and after[0].removed_reason == "Abuse"
+    assert after[0].removed_by == "Carya" and after[0].removed_by != "author"
+
+
+async def test_deleting_comments_does_not_give_the_daily_allowance_back(world: World) -> None:
+    """QA-009: the daily count includes deleted and removed comments."""
+    for number in range(service.DAILY_COMMENTS):
+        service.limiter.reset()
+        posted = await world.post("b", body=f"c{number}")
+        assert posted.status_code == 201
+        assert (
+            await world.client.delete(
+                f"{URL}/{posted.json()['id']}", headers={"X-Test-Member": "b"}
+            )
+        ).status_code == 204
+    service.limiter.reset()
+    stopped = await world.post("b", body="one more")
+    assert stopped.status_code == 429
+    assert stopped.headers["x-error-code"] == service.DAILY_LIMIT_CODE
 
 
 async def test_another_member_cannot_delete_and_learns_nothing(world: World) -> None:
@@ -385,6 +432,100 @@ async def test_the_hourly_brake_stops_a_script(world: World) -> None:
     results = [(await world.post("b", body=f"burst {n}")).status_code for n in range(12)]
     assert results[: service.HOURLY_COMMENTS] == [201] * service.HOURLY_COMMENTS
     assert results[service.HOURLY_COMMENTS :] == [429, 429]
+
+
+async def test_refused_posts_do_not_use_up_the_hourly_allowance(world: World) -> None:
+    """QA-009: an empty post or a link flood is refused before it is counted."""
+    for _ in range(service.HOURLY_COMMENTS + 5):
+        assert (await world.post("b", body="   ")).status_code == 422
+        assert (await world.post("b", body="a.com b.org c.net")).status_code == 422
+    results = [
+        (await world.post("b", body=f"real {n}")).status_code
+        for n in range(service.HOURLY_COMMENTS + 1)
+    ]
+    assert results[: service.HOURLY_COMMENTS] == [201] * service.HOURLY_COMMENTS
+    assert results[-1] == 429
+
+
+# ------------------------------------------------------------ invisible text, links, duplicates
+
+
+def test_bidi_overrides_and_zero_width_characters_are_stripped() -> None:
+    """QA-010."""
+    tricky = "start \u202eevil\u202c a\u200bb\u2060c\ufeffd \u2066x\u2069 \u200ey\u200f \u00adz"
+    assert service.clean_body(tricky) == "start evil abcd x y z"
+    assert service.clean_body("\u200b\u200c\u200d\u202e") == ""
+    # joiners that shape Indic letters and emoji stay; everywhere else they go
+    assert service.clean_body("क्\u200dष") == "क्\u200dष"
+    assert service.clean_body("ab\u200dcd ef\u200cgh") == "abcd efgh"
+    assert service.clean_body("👨\u200d👩") == "👨\u200d👩"
+
+
+async def test_an_invisible_only_comment_is_empty_and_the_stored_text_is_clean(
+    world: World,
+) -> None:
+    assert (await world.post("a", body="\u200b\u202e\u200d")).status_code == 422
+    posted = await world.post("a", body="Jai \u202eguru\u202c\u200b!")
+    assert posted.status_code == 201 and posted.json()["body"] == "Jai guru!"
+    assert (await world.rows())[0].body == "Jai guru!"
+
+
+def test_bare_domains_count_as_links() -> None:
+    """QA-016."""
+    assert service.link_count("example.com") == 1
+    assert service.link_count("see example.com, shop.example.org/page and www.c.net") == 3
+    assert service.link_count("https://a.example https://b.example") == 2
+    assert service.link_count("https://a.com,https://b.com,https://c.com") == 3
+    assert service.link_count("https://example.com/path") == 1  # one link, not two
+    for plain in (
+        "yes.No it ended.Next",
+        "e.g. this, i.e. that",
+        "mail me: a@b.com",
+        "v1.2 is out",
+        "Dr.Smith",
+    ):
+        assert service.link_count(plain) == 0, plain
+    with pytest.raises(HTTPException):
+        service.validate_body("a.com b.org c.net")
+    assert service.validate_body("a.com and b.org") != ""
+
+
+def test_same_text_ignores_case_spaces_punctuation_and_invisible_marks() -> None:
+    """QA-017."""
+    key = service.same_text_key("Hello world")
+    for variant in (
+        "hello WORLD",
+        "  Hello,   world!! ",
+        "H e l l o w-o-r-l-d",
+        "hel\u200blo world",
+        "ＨＥＬＬＯ world",
+    ):
+        assert service.same_text_key(variant) == key, variant
+    assert service.same_text_key("Hello there") != key
+    # vowel signs are part of a word: not the same
+    assert service.same_text_key("कि") != service.same_text_key("क")
+
+
+async def test_a_disguised_copy_of_a_comment_is_still_a_duplicate(world: World) -> None:
+    assert (await world.post("a", body="Beautiful song")).status_code == 201
+    for variant in (
+        "beautiful song",
+        "Beautiful   song!!!",
+        "BEAUTIFUL, SONG.",
+        "Beautiful\u200b song",
+    ):
+        stopped = await world.post("a", body=variant)
+        assert stopped.status_code == 409, variant
+    # another song, another member, or a really different text are fine
+    assert (await world.post("a", body="Beautiful song", song=20)).status_code == 201
+    assert (await world.post("b", body="Beautiful song")).status_code == 201
+    assert (await world.post("a", body="Beautiful song indeed")).status_code == 201
+
+
+async def test_a_deleted_comment_can_be_written_again(world: World) -> None:
+    first = (await world.post("a", body="Say it again")).json()
+    await world.client.delete(f"{URL}/{first['id']}", headers={"X-Test-Member": "a"})
+    assert (await world.post("a", body="Say it again")).status_code == 201
 
 
 # --------------------------------------------------------------------------- migration 0030

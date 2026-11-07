@@ -109,6 +109,9 @@ async def post_comment(
 ) -> SongCommentOut:
     """Share a comment. Live at once. Signed-in members only."""
     team = is_team_member(member, settings)
+    # A post refused for its content (empty, too many links) costs nothing: it must not use up the
+    # hourly allowance.
+    body = service.validate_body(payload.body)
     service.limiter.hit(
         "post",
         str(member.id),
@@ -120,7 +123,7 @@ async def post_comment(
             session,
             member=member,
             song_id=song_id,
-            body=payload.body,
+            body=body,
             is_anonymous=payload.is_anonymous,
             team=team,
         )
@@ -158,12 +161,14 @@ async def delete_comment(
     settings: AppSettings,
     payload: CommentRemoveRequest | None = None,
 ) -> Response:
-    """The author deletes their own comment for good (also an anonymous one). The team removes
-    any comment; that keeps the text for the record and carries a reason."""
+    """The author deletes their own comment (also an anonymous one): it disappears for everybody and
+    its text is wiped, but the row stays and still counts toward the daily allowance. A comment the
+    team already removed is kept as it is for the record; the author gets the same answer. The team
+    removes any comment; that keeps the text and carries a reason."""
     comment = await get_comment(session, comment_id)
     if comment.member_id == member.id:
-        await session.delete(comment)
-        await session.commit()
+        if not await service.delete_by_author(session, comment):
+            raise HTTPException(status_code=404, detail="Comment not found")
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     if comment.status == "removed" or not is_team_member(member, settings):
         # a stranger learns nothing: a removed or foreign comment looks the same as a missing one

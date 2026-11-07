@@ -10,6 +10,7 @@ author (see `public_out`). Everything that knows the author is `admin_out` and t
 from __future__ import annotations
 
 import re
+import unicodedata
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
@@ -35,9 +36,35 @@ MAX_LINKS = 2
 DAILY_LIMIT_CODE = "comment_daily_limit"
 FALLBACK_NAME = "Member"
 
+# The in-process limiter keeps its counts in this API process only (see
+# apps/mobile/docs/song-comments.md, "Limits that are only as strong as one process"): a restart
+# empties it and several instances do not share it. The daily allowance is the strong one: it is
+# counted from rows in the database.
 limiter = RateLimiter()
+
+# What the author's own delete leaves behind: the row stays (so the daily allowance is not given
+# back and the team keeps who and when), the text is replaced, nobody sees it. `removed_by` says
+# the author did it.
+AUTHOR_DELETED_BY = "author"
+AUTHOR_DELETED_BODY = "[deleted by the author]"
+
 _LINK = re.compile(r"(?:https?://|www\.)", re.IGNORECASE)
+_LINK_TOKEN = re.compile(r"(?:https?://|www\.)[^\s,;<>\"')\]]*", re.IGNORECASE)
+# A bare address such as `example.com` or `shop.example.org/page` is a link too. Only well-known
+# endings are matched, so ordinary writing such as "yes.No" or "end.Next" is never taken for one; an
+# e-mail address is not a link.
+_BARE_TLDS = (
+    "com|org|net|edu|gov|info|biz|io|co|app|dev|xyz|online|site|link|shop|store|blog|club|live|"
+    "tv|ly|"
+    "uk|de|fr|ru|ua|pl|nl|ch|cz|se|jp|cn|br|au|nz|ai"
+)
+_BARE_LINK = re.compile(
+    rf"(?<![\w@./-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:{_BARE_TLDS})(?![\w@-])(?!\.[a-z0-9])",
+    re.IGNORECASE,
+)
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# Joiners keep Indic conjuncts and emoji sequences intact; anywhere else they hide text, so they go.
+_JOINERS = ("\u200c", "\u200d")
 
 
 def check_song(song_id: int) -> int:
@@ -46,13 +73,56 @@ def check_song(song_id: int) -> int:
     return song_id
 
 
+def _joiner_belongs(text: str, index: int) -> bool:
+    """A zero-width joiner or non-joiner is kept only next to a letter of an Indic script
+    (Devanagari, Bengali, Tamil and the rest, U+0900 to U+0DFF) or an emoji: there it changes how
+    the text is drawn. Anywhere else it is invisible and only hides text."""
+
+    def meaningful(position: int) -> bool:
+        if not 0 <= position < len(text):
+            return False
+        code = ord(text[position])
+        return 0x0900 <= code <= 0x0DFF or code >= 0x1F000 or 0x2190 <= code <= 0x2BFF
+
+    return meaningful(index - 1) or meaningful(index + 1)
+
+
+def strip_invisible(text: str) -> str:
+    """Drop the characters that draw nothing and only change how text reads: bidi overrides and
+    isolates (U+202A to U+202E, U+2066 to U+2069, the direction marks), zero-width space, word
+    joiner, byte-order mark, soft hyphen and the rest of the "format" class (Unicode Cf). Joiners
+    next to Indic letters or emoji stay (see `_joiner_belongs`)."""
+    out: list[str] = []
+    for index, char in enumerate(text):
+        if unicodedata.category(char) == "Cf" and not (
+            char in _JOINERS and _joiner_belongs(text, index)
+        ):
+            continue
+        out.append(char)
+    return "".join(out)
+
+
 def clean_body(raw: str) -> str:
-    """Trim, drop control characters, keep line breaks but never more than one blank line."""
-    text = _CONTROL.sub("", raw.replace("\r\n", "\n").replace("\r", "\n"))
+    """Trim, drop control and invisible characters, keep line breaks (one blank line at most)."""
+    text = _CONTROL.sub("", strip_invisible(raw).replace("\r\n", "\n").replace("\r", "\n"))
     lines = [" ".join(line.split()) for line in text.split("\n")]
     text = "\n".join(lines).strip()
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text[:COMMENT_MAX_LENGTH]
+
+
+def link_count(body: str) -> int:
+    """Links in a comment: `https://...`, `www....` and bare addresses such as `example.com`."""
+    with_scheme = len(_LINK.findall(body))
+    bare = len(_BARE_LINK.findall(_LINK_TOKEN.sub(" ", body)))
+    return with_scheme + bare
+
+
+def same_text_key(body: str) -> str:
+    """What "the same comment" means: letters, marks and digits only, one case, one Unicode form.
+    "Hello", "hello!" and "H e l l o" are the same; "क" and "कि" are not (marks are kept)."""
+    folded = unicodedata.normalize("NFKC", strip_invisible(body)).casefold()
+    return "".join(c for c in folded if unicodedata.category(c)[0] in "LMN")
 
 
 def display_name(member: UserAccount) -> str:
@@ -148,9 +218,22 @@ def validate_body(raw: str) -> str:
     body = clean_body(raw)
     if not body:
         raise HTTPException(status_code=422, detail="Write something before posting.")
-    if len(_LINK.findall(body)) > MAX_LINKS:
+    if link_count(body) > MAX_LINKS:
         raise HTTPException(status_code=422, detail="Please use at most two links in a comment.")
     return body
+
+
+async def shared_before(session: AsyncSession, member_id: UUID, song_id: int, body: str) -> bool:
+    """Has this member already published the same comment on this song (see `same_text_key`)?"""
+    key = same_text_key(body)
+    earlier = await session.scalars(
+        select(SongComment.body).where(
+            SongComment.member_id == member_id,
+            SongComment.song_id == song_id,
+            SongComment.status == "published",
+        )
+    )
+    return any(same_text_key(text) == key for text in earlier)
 
 
 async def create_comment(
@@ -164,15 +247,7 @@ async def create_comment(
 ) -> SongComment:
     body = validate_body(body)
     await ensure_daily_allowance(session, member.id, team=team)
-    twin = await session.scalar(
-        select(SongComment.id).where(
-            SongComment.member_id == member.id,
-            SongComment.song_id == song_id,
-            SongComment.body == body,
-            SongComment.status == "published",
-        )
-    )
-    if twin is not None:
+    if await shared_before(session, member.id, song_id, body):
         raise HTTPException(status_code=409, detail="You already shared this comment.")
     comment = SongComment(
         song_id=song_id, member_id=member.id, body=body, is_anonymous=is_anonymous
@@ -223,6 +298,26 @@ async def remove_by_team(
     comment.removed_at = now_utc()
     comment.removed_by = by[:255]
     await session.commit()
+
+
+async def delete_by_author(session: AsyncSession, comment: SongComment) -> bool:
+    """The author deletes their own comment. False when there is nothing to delete (already done).
+
+    The text goes at once (it is replaced) and the comment disappears for every reader, but the row
+    stays, marked removed: it still counts toward the author's daily allowance (deleting and posting
+    again is not a way around the limit). A comment the TEAM already removed is left exactly as it
+    is, text and reason included: the team keeps it for the record, and the author asking to delete
+    it changes nothing (the answer is the same).
+    """
+    if comment.status == "removed":
+        return comment.removed_by != AUTHOR_DELETED_BY
+    comment.status = "removed"
+    comment.body = AUTHOR_DELETED_BODY
+    comment.removed_reason = None
+    comment.removed_at = now_utc()
+    comment.removed_by = AUTHOR_DELETED_BY
+    await session.commit()
+    return True
 
 
 async def reported_queue(

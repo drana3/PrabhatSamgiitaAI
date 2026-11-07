@@ -10,10 +10,34 @@ export const COMMENT_REPORT_REASONS: readonly CommentReportReason[] = ["offensiv
 export const COUNTER_FROM = 1800
 
 const LINK = /(?:https?:\/\/|www\.)/gi
+const LINK_TOKEN = /(?:https?:\/\/|www\.)[^\s,;<>"')\]]*/gi
+/** Well-known endings only, so "yes.No" or "end.Next" is not taken for an address; an e-mail address is not a link. Same list as the API. */
+const BARE_TLDS = "com|org|net|edu|gov|info|biz|io|co|app|dev|xyz|online|site|link|shop|store|blog|club|live|tv|ly|uk|de|fr|ru|ua|pl|nl|ch|cz|se|jp|cn|br|au|nz|ai"
+const BARE_LINK = new RegExp(`(?<![\\w@./-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${BARE_TLDS})(?![\\w@-])(?!\\.[a-z0-9])`, "gi")
+/** Characters that draw nothing and only change how text reads: bidi overrides and isolates, direction marks, zero-width space, word joiner, byte-order mark, soft hyphen, tag characters (Unicode "format", minus the two joiners). */
+const INVISIBLE =
+  /[\u00AD\u0600-\u0605\u061C\u06DD\u070F\u08E2\u180E\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF\uFFF9-\uFFFB\u{E0000}-\u{E007F}]/gu
 
-/** The text as the server will keep it: trimmed, spaces collapsed inside a line, at most one blank line in a row. */
+/** A joiner is kept only next to a letter of an Indic script (U+0900 to U+0DFF) or an emoji: there it shapes the text. */
+function joinerBelongs(chars: readonly string[], index: number): boolean {
+  const meaningful = (position: number): boolean => {
+    const char = chars[position]
+    if (char === undefined) return false
+    const code = char.codePointAt(0) ?? 0
+    return (code >= 0x0900 && code <= 0x0dff) || code >= 0x1f000 || (code >= 0x2190 && code <= 0x2bff)
+  }
+  return meaningful(index - 1) || meaningful(index + 1)
+}
+
+/** The text without the invisible characters the server also drops (bidi overrides, zero-width marks). Indic and emoji joiners stay. */
+export function stripInvisible(raw: string): string {
+  const chars = Array.from(raw.replace(INVISIBLE, ""))
+  return chars.filter((char, index) => (char === "\u200c" || char === "\u200d" ? joinerBelongs(chars, index) : true)).join("")
+}
+
+/** The text as the server will keep it: trimmed, invisible characters gone, spaces collapsed inside a line, at most one blank line in a row. */
 export function cleanDraft(raw: string): string {
-  const lines = raw
+  const lines = stripInvisible(raw)
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\r\n?/g, "\n")
@@ -22,11 +46,18 @@ export function cleanDraft(raw: string): string {
   return lines.join("\n").trim().replace(/\n{3,}/g, "\n\n")
 }
 
+/** Links in a text: `https://...`, `www....` and bare addresses such as `example.com` (one each), as the server counts them. */
 export function linkCount(text: string): number {
-  return (text.match(LINK) ?? []).length
+  const withScheme = (text.match(LINK) ?? []).length
+  const bare = (text.replace(LINK_TOKEN, " ").match(BARE_LINK) ?? []).length
+  return withScheme + bare
 }
 
-/** Why this draft cannot be posted yet, or null when it can. `empty` is not an error to show, only a disabled button. */
+/** What "the same comment" means to the server: letters, marks and digits only, one case. Used by the in-memory preview. */
+export function sameTextKey(text: string): string {
+  return stripInvisible(text).normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "")
+}
+
 export function draftProblem(raw: string): CommentFailure | null {
   const text = cleanDraft(raw)
   if (!text) return "empty"
@@ -35,12 +66,17 @@ export function draftProblem(raw: string): CommentFailure | null {
   return null
 }
 
+/** What the writer sees counted: characters that stay in the comment (invisible ones are dropped, so they are not counted). */
+export function visibleLength(raw: string): number {
+  return stripInvisible(raw).length
+}
+
 export function charactersLeft(raw: string): number {
-  return COMMENT_MAX_LENGTH - raw.length
+  return COMMENT_MAX_LENGTH - visibleLength(raw)
 }
 
 export function showCounter(raw: string): boolean {
-  return raw.length >= COUNTER_FROM
+  return visibleLength(raw) >= COUNTER_FROM
 }
 
 export type Elapsed =

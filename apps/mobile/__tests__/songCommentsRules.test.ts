@@ -13,7 +13,10 @@ import {
   linkCount,
   postingAccess,
   postingAs,
+  sameTextKey,
   showCounter,
+  stripInvisible,
+  visibleLength,
 } from "@/lib/songComments/rules"
 import { initialState, reducer, type CommentsState } from "@/lib/songComments/state"
 import type { SongComment } from "@/lib/songComments/types"
@@ -43,6 +46,37 @@ describe("draft rules (the same as the API)", () => {
     expect(draftProblem("see https://a.example and www.b.example")).toBeNull()
     expect(draftProblem("https://a.example https://b.example http://c.example")).toBe("links")
     expect(linkCount("HTTP://A.example")).toBe(1)
+  })
+  it("drops bidi overrides and zero-width characters like the server does (QA-010)", () => {
+    expect(cleanDraft("start \u202eevil\u202c a\u200bb\u2060c\ufeffd \u2066x\u2069 \u200ey\u200f \u00adz")).toBe("start evil abcd x y z")
+    expect(cleanDraft("\u200b\u200c\u200d\u202e")).toBe("")
+    expect(draftProblem("\u200b\u202e\u200d")).toBe("empty")
+    // joiners that shape Indic letters and emoji stay, others go
+    expect(stripInvisible("क्\u200dष")).toBe("क्\u200dष")
+    expect(stripInvisible("ab\u200dcd ef\u200cgh")).toBe("abcd efgh")
+    expect(stripInvisible("👨\u200d👩")).toBe("👨\u200d👩")
+  })
+  it("counts the characters that stay, not the invisible ones (QA-010)", () => {
+    const padded = "x".repeat(1990) + "\u200b".repeat(500)
+    expect(visibleLength(padded)).toBe(1990)
+    expect(charactersLeft(padded)).toBe(10)
+    expect(showCounter("\u200b".repeat(1900))).toBe(false)
+    expect(draftProblem(padded)).toBeNull()
+  })
+  it("counts a bare address as a link, like the server (QA-016)", () => {
+    expect(linkCount("example.com")).toBe(1)
+    expect(linkCount("see example.com, shop.example.org/page and www.c.net")).toBe(3)
+    expect(linkCount("https://example.com/path")).toBe(1)
+    expect(linkCount("https://a.com,https://b.com,https://c.com")).toBe(3)
+    for (const plain of ["yes.No it ended.Next", "e.g. this, i.e. that", "mail me: a@b.com", "v1.2 is out", "Dr.Smith"]) expect(linkCount(plain), plain).toBe(0)
+    expect(draftProblem("a.com b.org c.net")).toBe("links")
+    expect(draftProblem("a.com and b.org")).toBeNull()
+  })
+  it("calls a copy with other case, spaces or punctuation the same comment (QA-017)", () => {
+    const key = sameTextKey("Hello world")
+    for (const variant of ["hello WORLD", "  Hello,   world!! ", "H e l l o w-o-r-l-d", "hel\u200blo world"]) expect(sameTextKey(variant), variant).toBe(key)
+    expect(sameTextKey("Hello there")).not.toBe(key)
+    expect(sameTextKey("कि")).not.toBe(sameTextKey("क"))
   })
   it("shows the counter only near the limit", () => {
     expect(showCounter("x".repeat(100))).toBe(false)
@@ -231,6 +265,7 @@ describe("the preview's in-memory backend", () => {
     const hidden = await backend.post(19, { body: "Quiet one", isAnonymous: true })
     expect(hidden.author).toBeNull()
     await expect(backend.post(19, { body: "My story", isAnonymous: true })).rejects.toMatchObject({ failure: "duplicate" })
+    await expect(backend.post(19, { body: "MY STORY!!", isAnonymous: true })).rejects.toMatchObject({ failure: "duplicate" })
     await expect(backend.post(19, { body: "  ", isAnonymous: false })).rejects.toMatchObject({ failure: "empty" })
     await backend.remove(named.id)
     expect((await backend.list(19, { limit: 20, offset: 0 })).total).toBe(3)

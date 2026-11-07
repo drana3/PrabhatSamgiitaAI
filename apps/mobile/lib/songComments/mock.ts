@@ -1,4 +1,4 @@
-import { cleanDraft, draftProblem } from "./rules"
+import { cleanDraft, draftProblem, sameTextKey } from "./rules"
 import type { CommentFailure, CommentPage, CommentReportReason, CommentsBackend, SongComment } from "./types"
 
 /**
@@ -85,7 +85,8 @@ export function createMockBackend(options: { me: () => string; now?: () => numbe
       if (problem) throw new MockFailure(problem)
       const body = cleanDraft(draft.body)
       const store = storeFor(songId)
-      if (store.order.some((id) => (store.byId.get(id) as SongComment).mine && (store.byId.get(id) as SongComment).body === body)) throw new MockFailure("duplicate")
+      const key = sameTextKey(body)
+      if (store.order.some((id) => (store.byId.get(id) as SongComment).mine && sameTextKey((store.byId.get(id) as SongComment).body) === key)) throw new MockFailure("duplicate")
       store.counter += 1
       const id = `mock-${songId}-${store.counter}`
       const comment: SongComment = {
