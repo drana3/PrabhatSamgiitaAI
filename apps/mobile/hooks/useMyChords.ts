@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { useFocusEffect } from "expo-router"
 
 import { chordsBackend } from "@/lib/songChords/backend"
 import { ingestMine } from "@/lib/songChords/noticeSync"
@@ -44,6 +45,14 @@ export function useMyChords(enabled: boolean, refreshKey = 0): MyChords {
   }, [enabled, refreshKey, again])
 
   const reload = useCallback(() => setAgain((n) => n + 1), [])
+  // coming back to the screen (from the editor, from a song page) shows what changed meanwhile; the first look is the load above
+  const seenOnce = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (seenOnce.current) setAgain((n) => n + 1)
+      seenOnce.current = true
+    }, []),
+  )
   const drop = useCallback((id: string) => setState((was) => ({ ...was, items: was.items.filter((p) => p.id !== id) })), [])
   return { status: state.status, items: state.items, reload, drop }
 }

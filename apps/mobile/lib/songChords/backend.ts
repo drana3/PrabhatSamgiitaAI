@@ -2,7 +2,7 @@ import { remoteConfig } from "@/lib/kirtan/api"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
 
-import { PREVIEW_NAME, createMockBackend, mockFailure } from "./mock"
+import { MockFailure, PREVIEW_NAME, createMockBackend, mockFailure } from "./mock"
 import { failureFromError, remoteBackend } from "./remote"
 import type { ChordFailure, ChordsBackend } from "./types"
 
@@ -32,6 +32,11 @@ function previewTeam(): boolean {
   return teamSeen
 }
 
+/** Preview only: `?guest` in the address previews the screens as someone who is not signed in. */
+export function previewGuest(): boolean {
+  return previewParam("guest") !== null
+}
+
 /** Preview only: `?empty` in the address starts the preview member with no charts (the empty Upload hub). */
 function previewEmpty(): boolean {
   try {
@@ -41,10 +46,36 @@ function previewEmpty(): boolean {
   }
 }
 
+/**
+ * Preview only, to look at the failure screens: `?fail=network` (or any other failure name, such as `dailyLimit`,
+ * `duplicate`, `tooMany`, `server`) makes every send, fix and delete fail that way; `?failList` makes the lists fail
+ * as if offline.
+ */
+function previewParam(name: string): string | null {
+  try {
+    return typeof window !== "undefined" ? new URLSearchParams(window.location.search).get(name) : null
+  } catch {
+    return null
+  }
+}
+
+function withPreviewFailures(base: ChordsBackend): ChordsBackend {
+  const write = previewParam("fail") as ChordFailure | null
+  const list = previewParam("failList") !== null
+  if (!write && !list) return base
+  const failWrite = () => Promise.reject(new MockFailure(write ?? "network"))
+  const failRead = () => Promise.reject(new MockFailure("network"))
+  return {
+    ...base,
+    ...(write ? { offer: failWrite, update: failWrite, remove: failWrite } : {}),
+    ...(list ? { mine: failRead, listForSong: failRead } : {}),
+  }
+}
+
 export function chordsBackend(): ChordsBackend {
   if (MOCKUP_DATA) {
     mock ??= createMockBackend({ me: previewName, team: previewTeam, seedMine: !previewEmpty() })
-    return mock
+    return withPreviewFailures(mock)
   }
   return remoteBackend(remoteConfig())
 }

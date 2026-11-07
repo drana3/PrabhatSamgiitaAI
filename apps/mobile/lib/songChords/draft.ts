@@ -183,3 +183,13 @@ export function draftFromProposal(proposal: ChordProposal, how: "edit" | "copy")
     basedOn: how === "copy" ? proposal.id : null,
   }
 }
+
+/**
+ * Someone else's published chart as the start of a NEW chart of the member's own: the chords come over, nothing else.
+ * The member has not played or checked them yet (so the box is empty), the note is theirs to write, and the chart is
+ * not tied to the original (no `editId`, no `basedOn`): it is a plain chart of that song and instrument.
+ */
+export function draftFromOther(proposal: ChordProposal): Draft {
+  const base = draftFromProposal(proposal, "copy")
+  return { ...base, playedIt: false, note: "", isAnonymous: false, editId: null, basedOn: null }
+}

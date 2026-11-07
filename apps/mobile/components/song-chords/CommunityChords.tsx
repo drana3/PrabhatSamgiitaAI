@@ -123,6 +123,11 @@ export function CommunityChords({
             {current.status === "pending" ? <Text style={[s.pending, { color: t.accentText }]}>{tr("chordSong.pending")}</Text> : null}
             {current.status === "rejected" ? <Text style={[s.pending, { color: t.danger }]}>{tr("chordOffer.status.rejected")}</Text> : null}
             {current.mine && current.status === "rejected" && current.rejectedReason ? <Text style={[s.note, { color: t.ink800 }]}>{tr("chordOffer.rejectedWhy", { reason: current.rejectedReason })}</Text> : null}
+            {!current.mine && current.status === "published" ? (
+              <SpPress accessibilityLabel={tr("chordSong.startFrom")} onPress={() => router.push(href(`/upload-chords?from=${encodeURIComponent(current.id)}&song=${songNumber}`))} style={s.link}>
+                <Text style={[s.linkText, { color: t.accentText }]}>{tr("chordSong.startFrom")}</Text>
+              </SpPress>
+            ) : null}
             {current.mine ? (
               <SpPress
                 accessibilityLabel={current.status === "rejected" ? tr("upload.mine.fix") : current.status === "published" ? tr("chordSong.editCopy") : tr("chordSong.edit")}

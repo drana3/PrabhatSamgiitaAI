@@ -9,14 +9,17 @@ import type { ChordInstrument } from "./types"
  *  - `/upload-chords?edit=<id>`            fix a waiting or rejected chart (it is updated, same id)
  *  - `/upload-chords?copy=<id>`            a changed copy of a live chart (sent as a new chart)
  *  - `/upload-chords?draft=<key>`          continue exactly this draft (from Unfinished charts on Upload)
+ *  - `/upload-chords?from=<id>&song=7`     start from someone else's published chart of song 7 (a new chart, nobody's
+ *                                          words are copied but the chords; the member plays and confirms them)
  */
-export type EntryParams = { song?: string; instrument?: string; edit?: string; copy?: string; draft?: string }
+export type EntryParams = { song?: string; instrument?: string; edit?: string; copy?: string; draft?: string; from?: string }
 
 export type Entry =
   | { kind: "new"; song: number | null; instrument: ChordInstrument | null }
   | { kind: "edit"; id: string }
   | { kind: "copy"; id: string }
   | { kind: "draft"; key: string }
+  | { kind: "from"; id: string; song: number | null }
 
 function one(value: string | string[] | undefined): string | undefined {
   const v = Array.isArray(value) ? value[0] : value
@@ -31,6 +34,8 @@ export function parseEntry(params: Record<string, string | string[] | undefined>
   const draft = one(params.draft)
   if (draft) return { kind: "draft", key: draft }
   const song = Number(one(params.song))
+  const from = one(params.from)
+  if (from) return { kind: "from", id: from, song: Number.isInteger(song) && song > 0 ? song : null }
   const instrument = one(params.instrument)
   return {
     kind: "new",

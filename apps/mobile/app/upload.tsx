@@ -1,12 +1,11 @@
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path, Rect } from "react-native-svg"
 
-import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
 import { MyRecordingCharts } from "@/components/recording-extras/MyRecordingCharts"
-import { DraftList, MyCharts } from "@/components/song-chords/MyCharts"
+import { MyCharts } from "@/components/song-chords/MyCharts"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ActionButton, CORNER, Hint } from "@/components/song-chords/parts"
 import { KPress } from "@/components/kirtan/KPress"
@@ -17,12 +16,9 @@ import { useMyChords } from "@/hooks/useMyChords"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { chordFailure, chordsBackend } from "@/lib/songChords/backend"
-import type { DraftEntry } from "@/lib/songChords/drafts"
-import type { ChordProposal } from "@/lib/songChords/types"
+import { previewGuest } from "@/lib/songChords/backend"
 import { AuthorHubRow } from "@/components/authors/AuthorHubRow"
 import { useAuthStore } from "@/stores/authStore"
-import { useChordDraftStore } from "@/stores/chordDraftStore"
 import { href } from "@/utils/href"
 
 /** A recording: a waveform. */
@@ -53,56 +49,12 @@ export default function UploadScreen() {
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
-  const signedIn = useAuthStore((s) => s.mode === "signed_in") || MOCKUP_DATA
+  const signedIn = useAuthStore((s) => s.mode === "signed_in") || (MOCKUP_DATA && !previewGuest())
 
   const [tick, setTick] = useState(0)
   const { team, waiting } = useChordTeam(signedIn, tick)
   const mine = useMyChords(signedIn, tick)
-  const book = useChordDraftStore((s) => s.drafts)
-  const discardDraft = useChordDraftStore((s) => s.discard)
   const close = () => (router.canGoBack() ? router.back() : router.replace(href("/")))
-
-  const [deleting, setDeleting] = useState<ChordProposal | null>(null)
-  const [discarding, setDiscarding] = useState<DraftEntry | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-
-  const confirmDelete = useCallback(async () => {
-    const target = deleting
-    setDeleting(null)
-    if (!target) return
-    try {
-      await chordsBackend().remove(target.id)
-      mine.drop(target.id)
-      discardDraft(`edit:${target.id}`)
-      discardDraft(`copy:${target.id}`)
-      setMessage(t("chordOffer.deleted"))
-      setTick((n) => n + 1)
-    } catch (error) {
-      setMessage(t(`chordOffer.failure.${chordFailure(error)}` as "chordOffer.failure.server"))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deleting, discardDraft, mine.drop, t])
-
-  const deleteActions: DialogAction[] = [
-    { label: t("chordOffer.delete.keep"), onPress: () => setDeleting(null), tone: "quiet" },
-    { label: t("chordOffer.delete.yes"), onPress: () => void confirmDelete(), tone: "danger" },
-  ]
-  const draftBody = discarding
-    ? discarding.chords > 0 && discarding.draft.songId
-      ? t("chordOffer.discard.body", { count: discarding.chords, number: discarding.draft.songId })
-      : t("chordOffer.discard.bodyNoChords")
-    : ""
-  const discardActions: DialogAction[] = [
-    { label: t("chordOffer.discard.keep"), onPress: () => setDiscarding(null), tone: "quiet" },
-    {
-      label: t("chordOffer.discard.yes"),
-      onPress: () => {
-        if (discarding) discardDraft(discarding.key)
-        setDiscarding(null)
-      },
-      tone: "danger",
-    },
-  ]
 
   return (
     <View style={[s.root, { backgroundColor: theme.page }]}>
@@ -152,16 +104,12 @@ export default function UploadScreen() {
           ) : null}
         </Reveal>
 
-        <Reveal index={2}>
-          <DraftList theme={theme} book={book} onAskDiscard={setDiscarding} />
-        </Reveal>
-
-        <Reveal index={3} style={s.mine}>
+        <Reveal index={2} style={s.mine}>
           <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
             {t("upload.mine.title")}
           </Text>
           {signedIn ? (
-            <MyCharts theme={theme} chords={mine} signedIn onAskDelete={setDeleting} message={message} />
+            <MyCharts theme={theme} chords={mine} onChanged={() => setTick((n) => n + 1)} />
           ) : (
             <>
               <Hint theme={theme}>{t("upload.mine.signin")}</Hint>
@@ -179,16 +127,6 @@ export default function UploadScreen() {
           </Reveal>
         ) : null}
       </ScrollView>
-
-      <ConfirmDialog
-        theme={theme}
-        open={deleting !== null}
-        title={t("chordOffer.delete.ask")}
-        body={deleting?.status === "published" ? t("chordOffer.delete.ask.published") : t("chordOffer.delete.ask.body")}
-        actions={deleteActions}
-        onDismiss={() => setDeleting(null)}
-      />
-      <ConfirmDialog theme={theme} open={discarding !== null} title={t("chordOffer.discard.title")} body={draftBody} actions={discardActions} onDismiss={() => setDiscarding(null)} />
     </View>
   )
 }

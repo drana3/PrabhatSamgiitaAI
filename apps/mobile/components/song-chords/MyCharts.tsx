@@ -1,54 +1,127 @@
-import { useMemo, useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Modal, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
-import Svg, { Path, Rect } from "react-native-svg"
+import Svg, { Circle } from "react-native-svg"
 
 import { KPress } from "@/components/kirtan/KPress"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { MyChords } from "@/hooks/useMyChords"
 import { getActiveLanguage, useT } from "@/lib/i18n"
-import { editHref, editMode, filterCharts, countByStatus, offerAnotherHref, shortDate, showFilters, sortForMember, type ChartFilter } from "@/lib/songChords/charts"
-import { listDrafts, type DraftBook, type DraftEntry } from "@/lib/songChords/drafts"
-import type { ChordProposal } from "@/lib/songChords/types"
-import { keyLabel } from "@/lib/songPage/spChords"
+import { catalogSongsByNumbers } from "@/lib/lyricSearch"
+import { chordFailure, chordsBackend } from "@/lib/songChords/backend"
+import { shortDate } from "@/lib/songChords/charts"
+import { actionHref, buildRows, menuActions, primaryAction, type ChartRow, type RowAction } from "@/lib/songChords/rows"
+import { useChordDraftStore } from "@/stores/chordDraftStore"
 import { href } from "@/utils/href"
 
-import { ageLabel } from "./ageLabel"
+import { ConfirmDialog, type DialogAction } from "./ConfirmDialog"
+import { RowMenu } from "./RowMenu"
 import { StatusChip } from "./StatusChip"
-import { ActionButton, CORNER, Chip, Hint, PILL } from "./parts"
+import { ActionButton, CORNER, Hint } from "./parts"
 
 /**
- * "Your chord charts" on the Upload hub, in every state: loading, could not load, empty, and a list with a chip for
- * where each chart stands, the reason when it was not accepted, and what the member can do with it (open the song,
- * edit, offer another version, delete). Pure rules (order, filters, edit or copy) are in lib/songChords/charts.ts.
+ * "Your chord charts" on the Upload hub: ONE compact row for each chart, the ones sent to the team and the drafts kept
+ * on this phone alike. A row is the song (number and title), a chip for where it stands (Draft, Waiting, Published,
+ * Not accepted), one line of facts, and a ⋯ menu. A tap on the row does the one thing the state is for; every other
+ * action is in the menu. What each action does, asks and says is the table in docs/chord-proposals.md ("Actions of a
+ * row"); the rules that decide it are pure and tested in lib/songChords/rows.ts.
  */
-export function MyCharts({
-  theme,
-  chords,
-  signedIn,
-  onAskDelete,
-  message,
-}: {
-  theme: SongsTheme
-  chords: MyChords
-  signedIn: boolean
-  onAskDelete: (p: ChordProposal) => void
-  message: string | null
-}) {
+type Confirm = { action: "withdraw" | "delete" | "discardDraft" | "discardChanges"; row: ChartRow }
+type Notice = { tone: "ok" | "error"; text: string }
+
+export function MyCharts({ theme, chords, onChanged }: { theme: SongsTheme; chords: MyChords; onChanged?: () => void }) {
   const t = useT()
   const router = useRouter()
-  const [filter, setFilter] = useState<ChartFilter>("all")
+  const book = useChordDraftStore((s) => s.drafts)
+  const discard = useChordDraftStore((s) => s.discard)
 
-  const sorted = useMemo(() => sortForMember(chords.items), [chords.items])
-  const counts = useMemo(() => countByStatus(chords.items), [chords.items])
-  const shown = useMemo(() => filterCharts(sorted, filter), [sorted, filter])
-  const filters = showFilters(chords.items)
+  const rows = useMemo(() => buildRows(chords.items, book), [chords.items, book])
+  const [menu, setMenu] = useState<ChartRow | null>(null)
+  const [confirm, setConfirm] = useState<Confirm | null>(null)
+  const [why, setWhy] = useState<ChartRow | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
 
-  if (!signedIn) return null
-  if (chords.status === "loading" || chords.status === "idle") return <Hint theme={theme}>{t("upload.mine.loading")}</Hint>
-  if (chords.status === "error" && chords.items.length === 0) {
-    return (
+  // a good notice goes away by itself; a problem stays until the member has read it
+  useEffect(() => {
+    if (!notice || notice.tone === "error") return undefined
+    const id = setTimeout(() => setNotice(null), 6000)
+    return () => clearTimeout(id)
+  }, [notice])
+
+  // the Modal that holds the menu and the questions stays up for the length of their exit
+  const anyOpen = menu !== null || confirm !== null || why !== null
+  const [hosted, setHosted] = useState(false)
+  useEffect(() => {
+    if (anyOpen) {
+      setHosted(true)
+      return undefined
+    }
+    const id = setTimeout(() => setHosted(false), 260)
+    return () => clearTimeout(id)
+  }, [anyOpen])
+
+  const run = useCallback(
+    (action: RowAction, row: ChartRow) => {
+      const to = actionHref(action, row)
+      if (to) {
+        router.push(href(to))
+        return
+      }
+      if (action === "why") setWhy(row)
+      else if (action === "withdraw" || action === "delete" || action === "discardDraft" || action === "discardChanges") setConfirm({ action, row })
+    },
+    [router],
+  )
+
+  const forgetDraftsOf = useCallback(
+    (id: string) => {
+      discard(`edit:${id}`)
+      discard(`copy:${id}`)
+    },
+    [discard],
+  )
+
+  const doConfirm = useCallback(async () => {
+    const current = confirm
+    setConfirm(null)
+    if (!current) return
+    const { action, row } = current
+    if (action === "discardDraft" || action === "discardChanges") {
+      if (row.draft) discard(row.draft.key)
+      setNotice({ tone: "ok", text: t(action === "discardDraft" ? "chordOffer.notice.draftDiscarded" : "chordOffer.notice.changesDiscarded") })
+      return
+    }
+    const id = row.proposal?.id
+    if (!id) return
+    try {
+      await chordsBackend().remove(id)
+      chords.drop(id)
+      forgetDraftsOf(id)
+      setNotice({ tone: "ok", text: t(action === "withdraw" ? "chordOffer.notice.withdrawn" : "chordOffer.deleted") })
+      onChanged?.()
+    } catch (error) {
+      const failure = chordFailure(error)
+      if (failure === "gone") {
+        // somebody (this member on another phone) already removed it: the list should say so, too
+        chords.drop(id)
+        forgetDraftsOf(id)
+        onChanged?.()
+      }
+      setNotice({ tone: "error", text: t(`chordOffer.failure.${failure}` as "chordOffer.failure.server") })
+    }
+  }, [confirm, discard, chords, forgetDraftsOf, onChanged, t])
+
+  // ---- states of the list ----
+  const loading = (chords.status === "loading" || chords.status === "idle") && chords.items.length === 0
+  const failed = chords.status === "error"
+
+  const noticeBar = notice ? <NoticeBar theme={theme} notice={notice} onClose={() => setNotice(null)} /> : null
+
+  let body: React.ReactNode
+  if (rows.length === 0 && loading) body = <Hint theme={theme}>{t("upload.mine.loading")}</Hint>
+  else if (rows.length === 0 && failed)
+    body = (
       <View style={s.stack}>
         <Hint theme={theme} tone="danger">
           {t("upload.mine.error")}
@@ -56,164 +129,187 @@ export function MyCharts({
         <ActionButton theme={theme} tone="quiet" label={t("upload.mine.retry")} onPress={chords.reload} />
       </View>
     )
-  }
-  if (chords.items.length === 0) {
-    return (
+  else if (rows.length === 0)
+    body = (
       <View style={[s.empty, { backgroundColor: theme.card, borderColor: theme.line }]}>
-        <View style={[s.emptyIcon, { backgroundColor: theme.peach }]}>
-          <Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
-            <Rect x={5} y={4} width={22} height={24} rx={3} stroke={theme.accent} strokeWidth={1.75} />
-            <Path d="M5 12h22M5 20h22M13 4v24M20 4v24" stroke={theme.accent} strokeWidth={1.25} />
-          </Svg>
-        </View>
         <Text style={[s.emptyTitle, { color: theme.textHeading }]}>{t("upload.mine.empty.title")}</Text>
         <Text style={[s.emptyBody, { color: theme.textBody }]}>{t("upload.mine.empty")}</Text>
         <ActionButton theme={theme} label={t("upload.mine.empty.action")} onPress={() => router.push(href("/upload-chords"))} />
       </View>
     )
-  }
-
-  return (
-    <View style={s.stack}>
-      {chords.status === "error" ? (
-        <Hint theme={theme} tone="danger">
-          {t("upload.mine.error")}
-        </Hint>
-      ) : null}
-      {message ? <Hint theme={theme}>{message}</Hint> : null}
-      {filters ? (
-        <View style={s.filters} accessibilityRole="radiogroup" accessibilityLabel={t("upload.filter.a11y")}>
-          {(["all", "pending", "published", "rejected"] as const).map((f) => (
-            <Chip key={f} theme={theme} label={`${t(`upload.filter.${f}` as "upload.filter.all")} ${counts[f]}`} on={filter === f} onPress={() => setFilter(f)} />
-          ))}
-        </View>
-      ) : null}
-      {shown.length === 0 ? <Hint theme={theme}>{t("upload.mine.filtered")}</Hint> : null}
-      {shown.map((p) => (
-        <ChartRow key={p.id} theme={theme} proposal={p} onAskDelete={onAskDelete} />
-      ))}
-      <ActionButton theme={theme} tone="quiet" label={t("upload.mine.offerMore")} onPress={() => router.push(href("/upload-chords"))} />
-    </View>
-  )
-}
-
-function Mini({ theme, label, onPress, tone = "quiet" }: { theme: SongsTheme; label: string; onPress: () => void; tone?: "quiet" | "danger" }) {
-  return (
-    <KPress
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      pressedScale={0.96}
-      style={[s.mini, { borderColor: tone === "danger" ? theme.dangerText : theme.line, backgroundColor: theme.card }]}
-    >
-      <Text style={[s.miniText, { color: tone === "danger" ? theme.dangerText : theme.textHeading }]}>{label}</Text>
-    </KPress>
-  )
-}
-
-function ChartRow({ theme, proposal: p, onAskDelete }: { theme: SongsTheme; proposal: ChordProposal; onAskDelete: (p: ChordProposal) => void }) {
-  const t = useT()
-  const router = useRouter()
-  const meta =
-    p.instrument === "guitar"
-      ? p.capo > 0
-        ? t("chordOffer.meta.guitar", { capo: p.capo, key: keyLabel(p.baseKey) })
-        : t("chordOffer.meta.guitarNoCapo", { key: keyLabel(p.baseKey) })
-      : t("chordOffer.meta.harmonium", { key: keyLabel(p.baseKey) })
-  const date = shortDate(p.createdAt, getActiveLanguage())
-  const copy = editMode(p) === "copy"
-  const open = () => router.push(href(`/song-v2/ps-${p.songId}`))
-  const edit = () => router.push(href(editHref(p)))
-  const help = p.status === "pending" ? t("chordOffer.status.pending.help") : p.status === "published" ? t("chordOffer.status.published.help") : null
-  return (
-    <View style={[s.row, { backgroundColor: theme.card, borderColor: p.status === "rejected" ? theme.dangerText : theme.line }]} accessibilityLabel={`${t("chordOffer.song", { number: p.songId })}. ${t(`chordOffer.status.${p.status}` as "chordOffer.status.pending")}`}>
-      <View style={s.rowHead}>
-        <Text style={[s.rowTitle, { color: theme.textHeading }]} numberOfLines={1}>
-          {t("chordOffer.song", { number: p.songId })}
-        </Text>
-        <StatusChip theme={theme} status={p.status} />
-      </View>
-      <Text style={[s.rowMeta, { color: theme.textBody }]}>{meta}</Text>
-      <Text style={[s.rowDate, { color: theme.textMuted }]}>
-        {date ? t("upload.mine.sent", { date }) : ""}
-        {p.isAnonymous ? `${date ? " · " : ""}${t("upload.mine.asAnonymous")}` : ""}
-      </Text>
-      {help ? <Hint theme={theme}>{help}</Hint> : null}
-      {p.status === "rejected" ? (
-        <View style={[s.reason, { borderColor: theme.dangerText }]} accessibilityLiveRegion="polite">
-          {p.rejectedReason ? <Text style={[s.reasonText, { color: theme.dangerText }]}>{t("chordOffer.rejectedWhy", { reason: p.rejectedReason })}</Text> : null}
-          <Text style={[s.reasonHelp, { color: theme.textBody }]}>{t("chordOffer.rejectedHelp")}</Text>
-        </View>
-      ) : null}
-      {p.status === "rejected" ? <ActionButton theme={theme} label={t("upload.mine.fix")} onPress={edit} /> : null}
-      <View style={s.actions}>
-        <Mini theme={theme} label={t("upload.mine.open")} onPress={open} />
-        {p.status !== "rejected" ? <Mini theme={theme} label={copy ? t("upload.mine.newVersion") : t("upload.mine.edit")} onPress={edit} /> : null}
-        <Mini theme={theme} label={t("upload.mine.offerAnother")} onPress={() => router.push(href(offerAnotherHref(p)))} />
-        <Mini theme={theme} tone="danger" label={t("chordOffer.delete")} onPress={() => onAskDelete(p)} />
-      </View>
-    </View>
-  )
-}
-
-/** "Unfinished charts": the drafts kept on this phone. Nothing in here has been sent. */
-export function DraftList({ theme, book, onAskDiscard }: { theme: SongsTheme; book: DraftBook; onAskDiscard: (entry: DraftEntry) => void }) {
-  const t = useT()
-  const router = useRouter()
-  const entries = useMemo(() => listDrafts(book), [book])
-  if (entries.length === 0) return null
-  const now = Date.now()
-  return (
-    <View style={s.stack}>
-      <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
-        {t("upload.drafts.title")}
-      </Text>
-      <Hint theme={theme}>{t("upload.drafts.hint")}</Hint>
-      {entries.map((e) => {
-        const d = e.draft
-        const title = d.songId ? t("chordOffer.song", { number: d.songId }) : t("upload.drafts.noSong")
-        const kind = d.editId ? ` · ${t("chordOffer.title.fix")}` : d.basedOn ? ` · ${t("chordOffer.title.copy")}` : ""
-        return (
-          <View key={e.key} style={[s.row, { backgroundColor: theme.card, borderColor: theme.line }]}>
-            <Text style={[s.rowTitle, { color: theme.textHeading }]} numberOfLines={1}>
-              {title}
-              {kind}
-            </Text>
-            <Text style={[s.rowMeta, { color: theme.textBody }]}>
-              {t("upload.drafts.meta", {
-                instrument: t(`chordOffer.instrument.${d.instrument}` as "chordOffer.instrument.guitar"),
-                chords: t("chordOffer.chords.count", { count: e.chords }),
-                when: ageLabel(t, e.updatedAt, now),
-              })}
-            </Text>
-            <View style={s.actions}>
-              <Mini theme={theme} label={t("upload.drafts.continue")} onPress={() => router.push(href(`/upload-chords?draft=${encodeURIComponent(e.key)}`))} />
-              <Mini theme={theme} tone="danger" label={t("upload.drafts.discard")} onPress={() => onAskDiscard(e)} />
-            </View>
+  else
+    body = (
+      <View style={s.list}>
+        {failed ? (
+          <View style={s.inline}>
+            <Hint theme={theme} tone="danger">
+              {t("upload.mine.error.some")}
+            </Hint>
+            <ActionButton theme={theme} tone="quiet" label={t("upload.mine.retry")} onPress={chords.reload} />
           </View>
-        )
-      })}
+        ) : null}
+        {rows.map((row) => (
+          <ChartRowView key={row.key} theme={theme} row={row} onPrimary={() => run(primaryAction(row), row)} onMenu={() => setMenu(row)} />
+        ))}
+      </View>
+    )
+
+  const menuItems = menu ? menuActions(menu).map((action) => ({ id: action, label: t(`chordOffer.action.${action}` as "chordOffer.action.edit"), tone: action === "withdraw" || action === "delete" || action === "discardDraft" || action === "discardChanges" ? ("danger" as const) : undefined })) : []
+  const titleOf = (row: ChartRow) => rowTitle(row.songId, t)
+
+  const confirmCopy = confirm ? confirmTexts(confirm, t) : { title: "", body: "", yes: "", keep: "" }
+  const confirmActions: DialogAction[] = [
+    { label: confirmCopy.keep, tone: "quiet", onPress: () => setConfirm(null) },
+    { label: confirmCopy.yes, tone: "danger", onPress: () => void doConfirm() },
+  ]
+  const whyReason = why?.proposal?.rejectedReason?.trim()
+  const whyActions: DialogAction[] = [
+    { label: t("common.close"), tone: "quiet", onPress: () => setWhy(null) },
+    {
+      label: t("upload.mine.fix"),
+      tone: "primary",
+      onPress: () => {
+        const row = why
+        setWhy(null)
+        if (row) run("fix", row)
+      },
+    },
+  ]
+
+  return (
+    <View style={s.stack}>
+      {noticeBar}
+      {body}
+      <Modal visible={hosted} transparent animationType="none" onRequestClose={() => { setMenu(null); setConfirm(null); setWhy(null) }}>
+        <View style={s.host} pointerEvents="box-none">
+          <RowMenu
+            theme={theme}
+            open={menu !== null}
+            title={menu ? titleOf(menu) : ""}
+            subtitle={menu ? t(`chordOffer.status.long.${menu.kind}` as "chordOffer.status.long.draft") : undefined}
+            items={menuItems}
+            closeLabel={t("common.close")}
+            onSelect={(id) => {
+              const row = menu
+              setMenu(null)
+              if (row) run(id as RowAction, row)
+            }}
+            onDismiss={() => setMenu(null)}
+          />
+          <ConfirmDialog theme={theme} open={confirm !== null} title={confirmCopy.title} body={confirmCopy.body} actions={confirmActions} onDismiss={() => setConfirm(null)} />
+          <ConfirmDialog
+            theme={theme}
+            open={why !== null}
+            title={t("chordOffer.why.title")}
+            body={whyReason ? t("chordOffer.rejectedWhy", { reason: whyReason }) : t("chordOffer.why.noReason")}
+            actions={whyActions}
+            onDismiss={() => setWhy(null)}
+          />
+        </View>
+      </Modal>
+    </View>
+  )
+}
+
+/** "PS 7 · Title" (the title comes from the index that ships with the app, so it is there offline); "PS 7" without it. */
+function rowTitle(songId: number | null, t: ReturnType<typeof useT>): string {
+  if (!songId) return t("upload.drafts.noSong")
+  const hit = catalogSongsByNumbers([songId], 1)[0]
+  return hit?.title ? t("chordOffer.songTitle", { number: songId, title: hit.title }) : t("chordOffer.song", { number: songId })
+}
+
+function confirmTexts(confirm: Confirm, t: ReturnType<typeof useT>): { title: string; body: string; yes: string; keep: string } {
+  const { action, row } = confirm
+  if (action === "withdraw") return { title: t("chordOffer.withdraw.title"), body: t("chordOffer.withdraw.body"), yes: t("chordOffer.withdraw.yes"), keep: t("chordOffer.withdraw.keep") }
+  if (action === "delete")
+    return {
+      title: t("chordOffer.delete.ask"),
+      body: row.kind === "published" ? t("chordOffer.delete.ask.published") : t("chordOffer.delete.ask.body"),
+      yes: t("chordOffer.delete.yes"),
+      keep: t("chordOffer.delete.keep"),
+    }
+  if (action === "discardChanges") return { title: t("chordOffer.changes.title"), body: t("chordOffer.changes.body"), yes: t("chordOffer.changes.yes"), keep: t("chordOffer.changes.keep") }
+  const entry = row.draft
+  const body = entry && entry.chords > 0 && entry.draft.songId ? t("chordOffer.discard.body", { count: entry.chords, number: entry.draft.songId }) : t("chordOffer.discard.bodyNoChords")
+  return { title: t("chordOffer.discard.title"), body, yes: t("chordOffer.discard.yes"), keep: t("chordOffer.discard.keep") }
+}
+
+function Dots({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill={color}>
+      <Circle cx={5} cy={12} r={2} />
+      <Circle cx={12} cy={12} r={2} />
+      <Circle cx={19} cy={12} r={2} />
+    </Svg>
+  )
+}
+
+function ChartRowView({ theme, row, onPrimary, onMenu }: { theme: SongsTheme; row: ChartRow; onPrimary: () => void; onMenu: () => void }) {
+  const t = useT()
+  const title = rowTitle(row.songId, t)
+  const instrument = t(`chordOffer.instrument.${row.instrument}` as "chordOffer.instrument.guitar")
+  const p = row.proposal
+  let facts: string
+  if (row.kind === "draft") facts = `${instrument} · ${t("chordOffer.chords.count", { count: row.draft?.chords ?? 0 })}`
+  else if (row.draft) facts = `${instrument} · ${t("chordOffer.row.changes")}`
+  else {
+    const detail = p?.instrument === "guitar" && p.capo > 0 ? `${instrument} · ${t("chordOffer.row.capo", { capo: p.capo })}` : instrument
+    const date = p ? shortDate(p.createdAt, getActiveLanguage()) : ""
+    facts = date ? `${detail} · ${date}` : detail
+  }
+  const label = `${title}. ${t(`chordOffer.status.long.${row.kind}` as "chordOffer.status.long.draft")}. ${facts}`
+  return (
+    <View style={[s.row, { backgroundColor: theme.card, borderColor: row.kind === "rejected" ? theme.dangerText : theme.line }]}>
+      <KPress accessibilityRole="button" accessibilityLabel={label} accessibilityHint={t(`chordOffer.action.${primaryAction(row)}` as "chordOffer.action.edit")} onPress={onPrimary} pressedScale={0.99} outerStyle={s.mainOuter} style={s.main}>
+        <Text style={[s.title, { color: theme.textHeading }]} numberOfLines={1}>
+          {title}
+        </Text>
+        <View style={s.line}>
+          <StatusChip theme={theme} status={row.kind} />
+          <Text style={[s.facts, { color: theme.textBody }]} numberOfLines={1}>
+            {facts}
+          </Text>
+        </View>
+      </KPress>
+      <KPress accessibilityRole="button" accessibilityLabel={t("chordOffer.row.menu", { title })} onPress={onMenu} pressedScale={0.9} outerStyle={s.menuOuter} style={s.menu}>
+        <Dots color={theme.textHeading} />
+      </KPress>
+    </View>
+  )
+}
+
+/** One line that says what just happened, or what went wrong. Read out by screen readers; a good one fades by itself. */
+function NoticeBar({ theme, notice, onClose }: { theme: SongsTheme; notice: Notice; onClose: () => void }) {
+  const t = useT()
+  const bad = notice.tone === "error"
+  return (
+    <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[s.notice, { backgroundColor: bad ? "transparent" : theme.oliveBg, borderColor: bad ? theme.dangerText : theme.oliveBg }]}>
+      <Text style={[s.noticeText, { color: bad ? theme.dangerText : theme.oliveText }]}>{notice.text}</Text>
+      <KPress accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} pressedScale={0.9} style={s.noticeClose}>
+        <Text style={[s.noticeX, { color: bad ? theme.dangerText : theme.oliveText }]}>{"×"}</Text>
+      </KPress>
     </View>
   )
 }
 
 const s = StyleSheet.create({
   stack: { gap: 12 },
-  h2: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
-  filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  empty: { borderWidth: 1.5, borderRadius: 24, padding: 24, gap: 12, alignItems: "stretch" },
-  emptyIcon: { width: 56, height: 56, borderRadius: PILL, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontFamily: amFonts.bold, fontSize: 20, lineHeight: 26 },
-  emptyBody: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22 },
-  row: { borderWidth: 1.5, borderRadius: 24, padding: 16, gap: 8 },
-  rowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  rowTitle: { flexShrink: 1, fontFamily: amFonts.bold, fontSize: 18, lineHeight: 24 },
-  rowMeta: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
-  rowDate: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  reason: { borderWidth: 1.5, borderRadius: CORNER, padding: 12, gap: 4 },
-  reasonText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 20 },
-  reasonHelp: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
-  mini: { minHeight: 44, paddingHorizontal: 16, borderRadius: PILL, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  miniText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18 },
+  host: { flex: 1 },
+  list: { gap: 8 },
+  inline: { gap: 8 },
+  empty: { borderWidth: 1.5, borderRadius: CORNER, padding: 16, gap: 12, alignItems: "stretch" },
+  emptyTitle: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22 },
+  emptyBody: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
+  row: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: CORNER, minHeight: 64 },
+  mainOuter: { flex: 1, minWidth: 0 },
+  main: { paddingLeft: 16, paddingVertical: 10, gap: 6, justifyContent: "center", minHeight: 62 },
+  title: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
+  line: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 },
+  facts: { flexShrink: 1, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  menuOuter: { width: 52, alignSelf: "stretch" },
+  menu: { flex: 1, minHeight: 62, alignItems: "center", justifyContent: "center" },
+  notice: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: CORNER, paddingLeft: 16, minHeight: 48 },
+  noticeText: { flex: 1, fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20, paddingVertical: 10 },
+  noticeClose: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
+  noticeX: { fontFamily: amFonts.bold, fontSize: 22, lineHeight: 24 },
 })

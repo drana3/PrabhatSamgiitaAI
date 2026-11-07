@@ -97,29 +97,39 @@ function Step({ theme, n, title, body }: { theme: SongsTheme; n: number; title: 
 
 /**
  * After Send: the chart is with the team (or already live, for the team itself). It says what happens next, in three
- * steps, and gives the three ways on: back to Upload (where the chart now shows as "Waiting for the team"), the song,
- * and another chart.
+ * steps, and gives the ways on. The first button always goes back to where the person came from: the song page when
+ * they came from there, the Upload hub otherwise. Then, when it makes sense, the song (a live chart) and another chart.
  */
 export function SentPanel({
   theme,
   proposal,
   again,
+  copy,
   name,
+  fromSong,
   onOpenSong,
   onAnother,
   onHub,
+  onBack,
 }: {
   theme: SongsTheme
   proposal: ChordProposal
+  /** an existing chart was fixed and sent again */
   again: boolean
+  /** a changed copy of a live chart was sent */
+  copy: boolean
   name: string
+  /** the person came from a song page */
+  fromSong: boolean
   onOpenSong: () => void
   onAnother: () => void
   onHub: () => void
+  onBack: () => void
 }) {
   const t = useT()
   const live = proposal.status === "published"
   const credit = proposal.isAnonymous ? t("chordOffer.sent.step3.anonymous") : name ? t("chordOffer.sent.step3.named", { name }) : t("chordOffer.sent.step3.namedNoName")
+  const title = live ? t("chordOffer.sent.title.published") : copy ? t("chordOffer.sent.title.copy") : again ? t("chordOffer.sent.title.again") : t("chordOffer.sent.title")
   return (
     <View style={s.stack} accessibilityLiveRegion="polite">
       <View style={[s.seal, { backgroundColor: theme.oliveBg }]}>
@@ -128,7 +138,7 @@ export function SentPanel({
         </Svg>
       </View>
       <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
-        {live ? t("chordOffer.sent.title.published") : again ? t("chordOffer.sent.title.again") : t("chordOffer.sent.title")}
+        {title}
       </Text>
       <Label theme={theme}>{t("chordOffer.sent.lead")}</Label>
       {live ? (
@@ -140,8 +150,10 @@ export function SentPanel({
           <Step theme={theme} n={3} title={t("chordOffer.sent.step3.title")} body={credit} />
         </View>
       )}
-      <ActionButton theme={theme} label={t("chordOffer.sent.hub")} onPress={onHub} />
-      {live ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.sent.open")} onPress={onOpenSong} /> : null}
+      {copy && !live ? <Hint theme={theme}>{t("chordOffer.sent.copyNote")}</Hint> : null}
+      <ActionButton theme={theme} label={fromSong ? t("chordOffer.sent.backSong") : t("chordOffer.sent.hub")} onPress={fromSong ? onBack : onHub} />
+      {live && !fromSong ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.sent.open")} onPress={onOpenSong} /> : null}
+      {fromSong ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.sent.hub")} onPress={onHub} /> : null}
       <ActionButton theme={theme} tone="quiet" label={t("chordOffer.sent.again")} onPress={onAnother} />
     </View>
   )

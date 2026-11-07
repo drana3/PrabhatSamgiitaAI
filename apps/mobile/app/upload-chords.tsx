@@ -17,18 +17,20 @@ import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useChordTeam } from "@/hooks/useChordTeam"
+import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { useSongLyrics } from "@/hooks/useSongLyrics"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { chordFailure, chordsBackend, previewName } from "@/lib/songChords/backend"
-import { ROOTS, usedChords } from "@/lib/songChords/chordName"
+import { chordFailure, chordsBackend, previewGuest, previewName } from "@/lib/songChords/backend"
+import { ROOTS, suggestedChords, usedChords } from "@/lib/songChords/chordName"
 import type { ParseMeta } from "@/lib/songChords/chordPro"
 import {
   NOTE_MAX,
   STRUM_MAX,
   countChords,
+  draftFromOther,
   draftFromProposal,
   draftProblems,
   fitLines,
@@ -48,6 +50,7 @@ import {
 } from "@/lib/songChords/draft"
 import { draftKey, entryChoices, worthKeeping, type DraftEntry } from "@/lib/songChords/drafts"
 import { draftSignature, parseEntry, type Entry } from "@/lib/songChords/entry"
+import { FIELD_ORDER, problemsByField, type FormField } from "@/lib/songChords/fields"
 import { revealOffset } from "@/lib/songChords/reveal"
 import type { ChordFailure, ChordProposal } from "@/lib/songChords/types"
 import { splitWords } from "@/lib/songPage/chordChart"
@@ -64,8 +67,8 @@ const SEE_CHARTS: ReadonlySet<ChordFailure> = new Set(["dailyLimit", "duplicate"
 
 type Linked = { status: "idle" | "loading" | "ready" | "gone"; proposal: ChordProposal | null }
 
-/** The chart a draft is fixing or copying, looked up among the member's own charts. */
-function useLinked(id: string | null, enabled: boolean): Linked {
+/** The chart a draft is fixing, copying or starting from, looked up (see `song`). */
+function useLinked(id: string | null, enabled: boolean, song: number | null = null): Linked {
   const [state, setState] = useState<Linked>({ status: "idle", proposal: null })
   useEffect(() => {
     if (!id || !enabled) {
@@ -74,8 +77,9 @@ function useLinked(id: string | null, enabled: boolean): Linked {
     }
     let active = true
     setState({ status: "loading", proposal: null })
-    chordsBackend()
-      .mine()
+    // a chart of the member's own is found among theirs; someone else's published chart among the charts of its song
+    const source = song ? chordsBackend().listForSong(song) : chordsBackend().mine()
+    source
       .then((items) => {
         if (!active) return
         const found = items.find((p) => p.id === id) ?? null
@@ -87,7 +91,7 @@ function useLinked(id: string | null, enabled: boolean): Linked {
     return () => {
       active = false
     }
-  }, [id, enabled])
+  }, [id, enabled, song])
   return state
 }
 
@@ -106,10 +110,10 @@ export default function UploadChordsScreen() {
   const theme = useSongsTheme()
   const spTheme = useSpTheme()
   const insets = useSafeAreaInsets()
-  const params = useLocalSearchParams<{ song?: string; instrument?: string; edit?: string; copy?: string; draft?: string }>()
+  const params = useLocalSearchParams<{ song?: string; instrument?: string; edit?: string; copy?: string; draft?: string; from?: string }>()
   const [entry] = useState<Entry>(() => parseEntry(params))
 
-  const signedIn = useAuthStore((s) => s.mode === "signed_in") || MOCKUP_DATA
+  const signedIn = useAuthStore((s) => s.mode === "signed_in") || (MOCKUP_DATA && !previewGuest())
   const displayName = useAuthStore((s) => s.displayName)
   const name = MOCKUP_DATA ? previewName() : displayName && displayName !== "Guest" ? displayName : ""
   const { team } = useChordTeam(signedIn)
@@ -125,7 +129,10 @@ export default function UploadChordsScreen() {
     return useChordDraftStore.persist.onFinishHydration(() => setHydrated(true))
   }, [hydrated])
 
+  // "start from someone else's chart": the chords it brings, kept for "Start a new chart instead" in the resume panel
+  const fromBase = useRef<Draft | null>(null)
   const fresh = useCallback((): Draft => {
+    if (entry.kind === "from" && fromBase.current) return fromBase.current
     const base = newDraft(entry.kind === "new" ? entry.song : null)
     return entry.kind === "new" && entry.instrument ? setInstrument(base, entry.instrument) : base
   }, [entry])
@@ -135,8 +142,11 @@ export default function UploadChordsScreen() {
   const [baseline, setBaseline] = useState(() => draftSignature(fresh()))
   const [choices, setChoices] = useState<DraftEntry[]>([])
   const [original, setOriginal] = useState<Draft | null>(null)
-  const [linkedId, setLinkedId] = useState<string | null>(entry.kind === "edit" || entry.kind === "copy" ? entry.id : null)
-  const linked = useLinked(linkedId, signedIn)
+  const [linkedId, setLinkedId] = useState<string | null>(entry.kind === "edit" || entry.kind === "copy" || entry.kind === "from" ? entry.id : null)
+  const linked = useLinked(linkedId, signedIn, entry.kind === "from" ? entry.song : null)
+  const [viaFrom, setViaFrom] = useState(false)
+  // the chart this screen was asked to open is not there (deleted, or never was)
+  const [missing, setMissing] = useState(false)
 
   const begin = useCallback((d: Draft, base?: Draft | null) => {
     setDraft(d)
@@ -150,15 +160,34 @@ export default function UploadChordsScreen() {
   const started = useRef(false)
   useEffect(() => {
     if (started.current || !hydrated || !signedIn) return
-    if ((entry.kind === "edit" || entry.kind === "copy") && linked.status === "loading") return
+    if ((entry.kind === "edit" || entry.kind === "copy" || entry.kind === "from") && (linked.status === "loading" || linked.status === "idle")) return
     started.current = true
     if (entry.kind === "draft") {
       const stored = book[entry.key]
       begin(stored ? stored.draft : fresh())
       return
     }
+    if (entry.kind === "from") {
+      if (linked.status !== "ready" || !linked.proposal) {
+        setMissing(true)
+        setPhase("edit")
+        return
+      }
+      const base = draftFromOther(linked.proposal)
+      fromBase.current = base
+      const found = entryChoices(book, { song: base.songId }).filter((e) => e.draft.instrument === base.instrument)
+      if (found.length) {
+        setChoices(found)
+        setPhase("resume")
+      } else {
+        setViaFrom(true)
+        begin(base)
+      }
+      return
+    }
     if (entry.kind === "edit" || entry.kind === "copy") {
       if (linked.status !== "ready" || !linked.proposal) {
+        setMissing(true)
         setPhase("edit")
         return
       }
@@ -204,7 +233,8 @@ export default function UploadChordsScreen() {
     [],
   )
 
-  const lyrics = useSongLyrics(draft.songId)
+  const [lyricsTry, setLyricsTry] = useState(0)
+  const lyrics = useSongLyrics(draft.songId, lyricsTry)
   const lines = lyrics.status === "ready" ? lyrics.lines : null
   const counts = lyrics.status === "ready" ? lyrics.wordCounts : []
   useEffect(() => {
@@ -215,9 +245,10 @@ export default function UploadChordsScreen() {
   const [entryMode, setEntryMode] = useState<"tap" | "paste">("tap")
   const [selected, setSelected] = useState<Slot | null>(null)
   const [showProblems, setShowProblems] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<ChordFailure | null>(null)
-  const [sent, setSent] = useState<{ proposal: ChordProposal; again: boolean } | null>(null)
+  const [sent, setSent] = useState<{ proposal: ChordProposal; again: boolean; copy: boolean } | null>(null)
   const [leaving, setLeaving] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   const [startingOver, setStartingOver] = useState<DraftEntry | null>(null)
@@ -236,6 +267,8 @@ export default function UploadChordsScreen() {
   const guitar = draft.instrument === "guitar"
   const leave = () => (router.canGoBack() ? router.back() : router.replace(href("/upload")))
   const toHub = () => router.replace(href("/upload"))
+  // opened from a song page (or from a chart on it): that is where "Back" goes
+  const cameFromSong = (entry.kind === "new" && entry.song !== null) || entry.kind === "from"
 
   // closing: unfinished work is kept as a draft, and the member is told so before leaving
   const requestClose = () => {
@@ -264,7 +297,9 @@ export default function UploadChordsScreen() {
   const coveredRef = useRef(0)
   coveredRef.current = covered
   const areaRef = useRef<View>(null)
-  const scrollRef = useRef<ScrollView>(null)
+  // the shared "jump to the first field that is wrong" helper (lib/forms/useFormFocus.ts) owns the scroll view's ref
+  const form = useFormFocus()
+  const scrollRef = form.scrollRef
   const offsetRef = useRef(0)
   const nodes = useRef<Record<string, View | null>>({})
   useEffect(() => {
@@ -294,10 +329,22 @@ export default function UploadChordsScreen() {
     setEntryMode("tap")
   }
 
+  const problemText = (p: DraftProblem) => t(`chordOffer.problem.${p}`)
+  const byField = useMemo(() => problemsByField(problems), [problems])
+  /** the sentence under a field once Send was pressed with something wrong in it; null while it is fine */
+  const fieldError = (field: FormField): string | null => (showProblems && byField[field]?.length ? problemText(byField[field]![0]) : null)
+
   const send = async () => {
     setFailure(null)
     if (problems.length) {
+      // say what is wrong under every field that is wrong, and take the person to the first one from the top
       setShowProblems(true)
+      setSelected(null)
+      const by = problemsByField(problems)
+      const keys = FIELD_ORDER.filter((f) => by[f]?.length)
+      const messages: Record<string, string> = {}
+      for (const f of keys) messages[f] = problemText(by[f]![0])
+      void form.focusFirst(keys, messages)
       return
     }
     setBusy(true)
@@ -309,7 +356,7 @@ export default function UploadChordsScreen() {
       skipFlush.current = true
       discardKey(draftKey(draft))
       setSelected(null)
-      setSent({ proposal, again: Boolean(draft.editId) })
+      setSent({ proposal, again: Boolean(draft.editId), copy: Boolean(draft.basedOn) })
     } catch (error) {
       if (!alive.current) return
       // nothing is lost: the draft is on the phone, and the sentence says what to do
@@ -323,6 +370,9 @@ export default function UploadChordsScreen() {
   const another = () => {
     const next = { ...newDraft(null), instrument: draft.instrument, key: draft.key, capo: draft.capo }
     skipFlush.current = false
+    fromBase.current = null
+    setViaFrom(false)
+    setMoreOpen(false)
     setSent(null)
     setSelected(null)
     setShowProblems(false)
@@ -357,7 +407,6 @@ export default function UploadChordsScreen() {
     return { baseKey: payload.baseKey, strum: payload.strum, lines: payload.lines, instrument: payload.instrument }
   }, [lines, total, draft, counts])
 
-  const problemText = (p: DraftProblem) => t(`chordOffer.problem.${p}`)
   const mode: "edit" | "copy" | null = draft.editId ? "edit" : draft.basedOn ? "copy" : null
   const title = mode === "edit" ? t("chordOffer.title.fix") : mode === "copy" ? t("chordOffer.title.copy") : t("chordOffer.title")
   const sendLabel = busy ? t("chordOffer.sending") : failure === "network" ? t("chordOffer.send.retry") : mode === "copy" ? t("chordOffer.send.copy") : mode === "edit" ? t("chordOffer.send.again") : t("chordOffer.send")
@@ -408,7 +457,7 @@ export default function UploadChordsScreen() {
 
       <View ref={areaRef} collapsable={false} style={s.area}>
         <ScrollView
-          ref={scrollRef}
+          ref={form.scrollRef}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
@@ -435,49 +484,69 @@ export default function UploadChordsScreen() {
               theme={theme}
               proposal={sent.proposal}
               again={sent.again}
+              copy={sent.copy}
               name={name}
+              fromSong={cameFromSong}
               onOpenSong={() => router.replace(href(`/song-v2/ps-${sent.proposal.songId}`))}
               onAnother={another}
               onHub={toHub}
+              onBack={leave}
             />
           ) : phase === "loading" ? (
             <Hint theme={theme}>{t("chordOffer.edit.loading")}</Hint>
           ) : phase === "resume" ? (
-            <ResumePanel theme={theme} entries={choices} onContinue={continueWith} onStartOver={setStartingOver} onFresh={() => begin(fresh())} />
-          ) : (entry.kind === "edit" || entry.kind === "copy") && !locked ? (
+            <ResumePanel
+              theme={theme}
+              entries={choices}
+              onContinue={continueWith}
+              onStartOver={setStartingOver}
+              onFresh={() => {
+                if (fromBase.current) setViaFrom(true)
+                begin(fresh())
+              }}
+            />
+          ) : missing ? (
             <View style={s.field} accessibilityLiveRegion="polite">
               <Hint theme={theme} tone="danger">
                 {t("chordOffer.edit.gone")}
               </Hint>
-              <ActionButton theme={theme} tone="quiet" label={t("chordOffer.edit.back")} onPress={toHub} />
+              <ActionButton theme={theme} tone="quiet" label={entry.kind === "from" ? t("chordOffer.sent.backSong") : t("chordOffer.edit.back")} onPress={entry.kind === "from" ? leave : toHub} />
             </View>
           ) : (
             <>
               <Reveal index={1} style={s.field}>
-                {mode && linked.proposal ? <EditBanner theme={theme} mode={mode} proposal={linked.proposal} /> : <Hint theme={theme}>{t("chordOffer.intro")}</Hint>}
+                {mode && linked.proposal ? <EditBanner theme={theme} mode={mode} proposal={linked.proposal} /> : viaFrom ? <Hint theme={theme}>{t("chordOffer.edit.from")}</Hint> : <Hint theme={theme}>{t("chordOffer.intro")}</Hint>}
                 {team && !mode ? <Hint theme={theme}>{t("chordOffer.intro.team")}</Hint> : null}
               </Reveal>
 
               {/* 1. the song */}
               <Reveal index={2} style={s.field}>
-                <Label theme={theme}>{t("chordOffer.song.label")}</Label>
-                <KPress
-                  accessibilityRole="button"
-                  accessibilityLabel={draft.songId ? t("chordOffer.song.a11y", { number: draft.songId, title: lyrics.status === "ready" || lyrics.status === "none" ? lyrics.title : "" }) : t("chordOffer.song.none")}
-                  onPress={locked ? undefined : () => setChooser(true)}
-                  pressedScale={locked ? 1 : 0.99}
-                  style={[s.inputBox, { backgroundColor: theme.card, borderColor: showProblems && problems.includes("noSong") ? amColors.danger : theme.line }]}
-                >
-                  <Text style={[s.songName, { color: draft.songId ? theme.textHeading : theme.textBody }]} numberOfLines={1}>
-                    {draft.songId ? (lyrics.status === "ready" || lyrics.status === "none" ? t("chordOffer.songTitle", { number: draft.songId, title: lyrics.title }) : t("chordOffer.song", { number: draft.songId })) : t("chordOffer.song.none")}
-                  </Text>
-                  {locked ? null : (
-                    <View style={[s.pasteBtn, { backgroundColor: theme.peach }]}>
-                      <Text style={[s.pasteText, { color: theme.accent }]}>{draft.songId ? t("chordOffer.song.change") : t("chordOffer.song.choose")}</Text>
-                    </View>
+                <View {...form.field("song")} style={s.field}>
+                  <Label theme={theme}>{t("chordOffer.song.label")}</Label>
+                  <KPress
+                    accessibilityRole="button"
+                    accessibilityLabel={draft.songId ? t("chordOffer.song.a11y", { number: draft.songId, title: lyrics.status === "ready" || lyrics.status === "none" ? lyrics.title : "" }) : t("chordOffer.song.none")}
+                    onPress={locked ? undefined : () => setChooser(true)}
+                    pressedScale={locked ? 1 : 0.99}
+                    style={[s.inputBox, { backgroundColor: theme.card, borderColor: fieldError("song") ? amColors.danger : theme.line }]}
+                  >
+                    <Text style={[s.songName, { color: draft.songId ? theme.textHeading : theme.textBody }]} numberOfLines={1}>
+                      {draft.songId ? (lyrics.status === "ready" || lyrics.status === "none" ? t("chordOffer.songTitle", { number: draft.songId, title: lyrics.title }) : t("chordOffer.song", { number: draft.songId })) : t("chordOffer.song.none")}
+                    </Text>
+                    {locked ? null : (
+                      <View style={[s.pasteBtn, { backgroundColor: theme.peach }]}>
+                        <Text style={[s.pasteText, { color: theme.accent }]}>{draft.songId ? t("chordOffer.song.change") : t("chordOffer.song.choose")}</Text>
+                      </View>
+                    )}
+                  </KPress>
+                  {fieldError("song") ? (
+                    <Hint theme={theme} tone="danger">
+                      {fieldError("song")}
+                    </Hint>
+                  ) : locked ? null : (
+                    <Hint theme={theme}>{t("chordOffer.song.hint", { count: String(PS_SONG_COUNT) })}</Hint>
                   )}
-                </KPress>
-                {locked ? null : <Hint theme={theme}>{t("chordOffer.song.hint", { count: String(PS_SONG_COUNT) })}</Hint>}
+                </View>
               </Reveal>
 
               {/* 2. instrument */}
@@ -495,15 +564,18 @@ export default function UploadChordsScreen() {
                 </View>
               </Reveal>
 
-              {/* 3. key and capo */}
+              {/* 3. key (and capo for a guitar): a question in plain words, an answer to pick, an example of what it does */}
               <Reveal index={4} style={s.field}>
                 <Label theme={theme}>{guitar ? t("chordOffer.key.guitar.label") : t("chordOffer.key.harmonium.label")}</Label>
+                <Hint theme={theme}>{guitar ? t("chordOffer.key.guitar.hint") : t("chordOffer.key.harmonium.hint")}</Hint>
                 <View style={s.chips} accessibilityRole="radiogroup">
                   {ROOTS.map((root) => (
                     <Chip key={root} theme={theme} label={root} on={draft.key === root} a11y={t("chordOffer.key.a11y", { key: root })} minWidth={52} onPress={() => patch({ key: root })} />
                   ))}
                 </View>
-                <Hint theme={theme}>{guitar ? t("chordOffer.key.guitar.hint") : t("chordOffer.key.harmonium.hint")}</Hint>
+                <View style={[s.example, { backgroundColor: theme.peach }]} accessibilityLiveRegion="polite">
+                  <Text style={[s.exampleText, { color: theme.textHeading }]}>{t("chordOffer.key.example", { key: draft.key, chords: suggestedChords(draft.key).slice(0, 4).join(" · ") })}</Text>
+                </View>
                 {guitar ? (
                   <>
                     <Label theme={theme}>{t("chordOffer.capo.label")}</Label>
@@ -515,56 +587,54 @@ export default function UploadChordsScreen() {
                       <Chip theme={theme} role="button" label="+" a11y={t("chordOffer.capo.raise")} minWidth={52} onPress={() => patch(setCapo(draft, Math.min(MAX_CAPO, draft.capo + 1)))} />
                     </View>
                     {draft.capo > 0 ? <Hint theme={theme}>{t("chordOffer.capo.sounds", { key: soundingKey(draft) })}</Hint> : null}
-                    <Label theme={theme}>{t("chordOffer.strum.label")}</Label>
-                    <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: showProblems && problems.includes("strumShape") ? amColors.danger : theme.line }]}>
-                      <TextInput
-                        value={draft.strum}
-                        onChangeText={(text) => patch({ strum: text.slice(0, STRUM_MAX) })}
-                        onFocus={closeSheet}
-                        placeholder={t("chordOffer.strum.placeholder")}
-                        placeholderTextColor={theme.textMuted}
-                        accessibilityLabel={t("chordOffer.strum.label")}
-                        autoCapitalize="characters"
-                        autoCorrect={false}
-                        maxLength={STRUM_MAX}
-                        style={[s.input, { color: theme.textHeading }]}
-                      />
-                    </View>
-                    <Hint theme={theme}>{t("chordOffer.strum.hint")}</Hint>
                   </>
                 ) : null}
               </Reveal>
 
               {/* 4. the chords */}
               <Reveal index={5} style={s.field}>
-                <Label theme={theme}>{t("chordOffer.chords.label")}</Label>
-                <View style={s.chips} accessibilityRole="tablist" accessibilityLabel={t("chordOffer.chords.mode.a11y")}>
-                  <Chip theme={theme} label={t("chordOffer.chords.mode.tap")} on={entryMode === "tap"} minWidth={130} onPress={() => setEntryMode("tap")} />
-                  <Chip theme={theme} label={t("chordOffer.chords.mode.paste")} on={entryMode === "paste"} minWidth={130} onPress={() => setEntryMode("paste")} />
-                </View>
-                {lyrics.status === "idle" ? <Hint theme={theme}>{t("chordOffer.lyrics.pick")}</Hint> : null}
-                {lyrics.status === "loading" ? <Hint theme={theme}>{t("chordOffer.lyrics.loading")}</Hint> : null}
-                {lyrics.status === "error" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.error")}</Hint> : null}
-                {lyrics.status === "none" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.none")}</Hint> : null}
-                {lines ? (
-                  entryMode === "tap" ? (
+                <View {...form.field("chords")} style={s.field}>
+                  <Label theme={theme}>{t("chordOffer.chords.label")}</Label>
+                  <View style={s.chips} accessibilityRole="tablist" accessibilityLabel={t("chordOffer.chords.mode.a11y")}>
+                    <Chip theme={theme} label={t("chordOffer.chords.mode.tap")} on={entryMode === "tap"} minWidth={130} onPress={() => setEntryMode("tap")} />
+                    <Chip theme={theme} label={t("chordOffer.chords.mode.paste")} on={entryMode === "paste"} minWidth={130} onPress={() => setEntryMode("paste")} />
+                  </View>
+                  {fieldError("chords") ? (
+                    <Hint theme={theme} tone="danger">
+                      {fieldError("chords")}
+                    </Hint>
+                  ) : null}
+                  {lyrics.status === "idle" ? <Hint theme={theme}>{t("chordOffer.lyrics.pick")}</Hint> : null}
+                  {lyrics.status === "loading" ? <Hint theme={theme}>{t("chordOffer.lyrics.loading")}</Hint> : null}
+                  {lyrics.status === "error" ? (
                     <>
-                      <Hint theme={theme}>{t("chordOffer.chords.tapHint")}</Hint>
-                      {/* a tap on the blank part of the sheet puts the chord sheet away; a word catches its own tap */}
-                      <Pressable accessible={false} onPress={closeSheet} style={s.editorTap}>
-                        <ChordSlotEditor theme={theme} lines={lines} placements={draft.lines} selected={selected} onSelect={setSelected} nodes={nodes} />
-                      </Pressable>
+                      <Hint theme={theme} tone="danger">
+                        {t("chordOffer.lyrics.error")}
+                      </Hint>
+                      <ActionButton theme={theme} tone="quiet" label={t("upload.mine.retry")} onPress={() => setLyricsTry((n) => n + 1)} />
                     </>
-                  ) : (
-                    <ChordPasteBox theme={theme} lyricLines={lines} placements={draft.lines} onApply={applyPasted} />
-                  )
-                ) : null}
-                {lines ? (
-                  <Text style={[s.count, { color: theme.textBody }]} accessibilityLiveRegion="polite">
-                    {t("chordOffer.chords.count", { count: total })}
-                    {total > 0 ? ` · ${linesWithChords(draft)}/${lines.length}` : ""}
-                  </Text>
-                ) : null}
+                  ) : null}
+                  {lyrics.status === "none" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.none")}</Hint> : null}
+                  {lines ? (
+                    entryMode === "tap" ? (
+                      <>
+                        <Hint theme={theme}>{t("chordOffer.chords.tapHint")}</Hint>
+                        {/* a tap on the blank part of the sheet puts the chord sheet away; a word catches its own tap */}
+                        <Pressable accessible={false} onPress={closeSheet} style={s.editorTap}>
+                          <ChordSlotEditor theme={theme} lines={lines} placements={draft.lines} selected={selected} onSelect={setSelected} nodes={nodes} />
+                        </Pressable>
+                      </>
+                    ) : (
+                      <ChordPasteBox theme={theme} lyricLines={lines} placements={draft.lines} onApply={applyPasted} />
+                    )
+                  ) : null}
+                  {lines ? (
+                    <Text style={[s.count, { color: theme.textBody }]} accessibilityLiveRegion="polite">
+                      {t("chordOffer.chords.count", { count: total })}
+                      {total > 0 ? ` · ${linesWithChords(draft)}/${lines.length}` : ""}
+                    </Text>
+                  ) : null}
+                </View>
               </Reveal>
 
               {/* 5. the preview */}
@@ -591,36 +661,74 @@ export default function UploadChordsScreen() {
                 </View>
               ) : null}
 
-              {/* 6. confirm and send */}
+              {/* 6. the optional part (strumming pattern, note), shut until asked for or filled in */}
               <View style={s.field}>
-                <CheckRow theme={theme} on={draft.playedIt} label={t("chordOffer.played.label")} onToggle={() => patch({ playedIt: !draft.playedIt })} invalid={showProblems && problems.includes("notPlayed")} />
-                <Label theme={theme}>{t("chordOffer.note.label")}</Label>
-                <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: theme.line, alignItems: "flex-start" }]}>
-                  <TextInput
-                    value={draft.note}
-                    onChangeText={(text) => patch({ note: text.slice(0, NOTE_MAX) })}
-                    onFocus={closeSheet}
-                    placeholder={t("chordOffer.note.placeholder")}
-                    placeholderTextColor={theme.textMuted}
-                    accessibilityLabel={t("chordOffer.note.label")}
-                    maxLength={NOTE_MAX}
-                    multiline
-                    style={[s.input, s.noteInput, { color: theme.textHeading }]}
-                  />
+                {moreOpen || draft.strum || draft.note || fieldError("strum") || fieldError("note") ? (
+                  <>
+                    {guitar ? (
+                      <View {...form.field("strum")} style={s.field}>
+                        <Label theme={theme}>{t("chordOffer.strum.label")}</Label>
+                        <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: fieldError("strum") ? amColors.danger : theme.line }]}>
+                          <TextInput
+                            ref={form.input("strum") as never}
+                            value={draft.strum}
+                            onChangeText={(text) => patch({ strum: text.slice(0, STRUM_MAX) })}
+                            onFocus={closeSheet}
+                            placeholder={t("chordOffer.strum.placeholder")}
+                            placeholderTextColor={theme.textMuted}
+                            accessibilityLabel={t("chordOffer.strum.label")}
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            maxLength={STRUM_MAX}
+                            style={[s.input, { color: theme.textHeading }]}
+                          />
+                        </View>
+                        {fieldError("strum") ? (
+                          <Hint theme={theme} tone="danger">
+                            {fieldError("strum")}
+                          </Hint>
+                        ) : (
+                          <Hint theme={theme}>{t("chordOffer.strum.hint")}</Hint>
+                        )}
+                      </View>
+                    ) : null}
+                    <View {...form.field("note")} style={s.field}>
+                      <Label theme={theme}>{t("chordOffer.note.label")}</Label>
+                      <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: theme.line, alignItems: "flex-start" }]}>
+                        <TextInput
+                          ref={form.input("note") as never}
+                          value={draft.note}
+                          onChangeText={(text) => patch({ note: text.slice(0, NOTE_MAX) })}
+                          onFocus={closeSheet}
+                          placeholder={t("chordOffer.note.placeholder")}
+                          placeholderTextColor={theme.textMuted}
+                          accessibilityLabel={t("chordOffer.note.label")}
+                          maxLength={NOTE_MAX}
+                          multiline
+                          style={[s.input, s.noteInput, { color: theme.textHeading }]}
+                        />
+                      </View>
+                      <Hint theme={theme}>{t("chordOffer.note.left", { count: NOTE_MAX - draft.note.length })}</Hint>
+                    </View>
+                  </>
+                ) : (
+                  <ActionButton theme={theme} tone="quiet" label={guitar ? t("chordOffer.details.show.guitar") : t("chordOffer.details.show.harmonium")} onPress={() => setMoreOpen(true)} />
+                )}
+              </View>
+
+              {/* 7. confirm and send */}
+              <View style={s.field}>
+                <View {...form.field("played")} style={s.field}>
+                  <CheckRow theme={theme} on={draft.playedIt} label={t("chordOffer.played.label")} onToggle={() => patch({ playedIt: !draft.playedIt })} invalid={fieldError("played") !== null} />
+                  {fieldError("played") ? (
+                    <Hint theme={theme} tone="danger">
+                      {fieldError("played")}
+                    </Hint>
+                  ) : null}
                 </View>
-                <Hint theme={theme}>{t("chordOffer.note.left", { count: NOTE_MAX - draft.note.length })}</Hint>
                 <CheckRow theme={theme} on={draft.isAnonymous} label={t("chordOffer.anonymous.label")} onToggle={() => patch({ isAnonymous: !draft.isAnonymous })} />
                 <Hint theme={theme}>{draft.isAnonymous ? t("chordOffer.as.anonymous") : name ? t("chordOffer.as.named", { name }) : t("chordOffer.as.namedNoName")}</Hint>
 
-                {showProblems && problems.length ? (
-                  <View accessibilityLiveRegion="polite" style={s.problems}>
-                    {problems.map((p) => (
-                      <Hint key={p} theme={theme} tone="danger">
-                        {problemText(p)}
-                      </Hint>
-                    ))}
-                  </View>
-                ) : null}
                 {failure ? (
                   <View style={s.problems} accessibilityLiveRegion="polite">
                     <Hint theme={theme} tone="danger">
@@ -695,6 +803,8 @@ const s = StyleSheet.create({
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: PILL, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   editorTap: { paddingVertical: 8 },
+  example: { borderRadius: CORNER, paddingHorizontal: 16, paddingVertical: 12 },
+  exampleText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
   count: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   problems: { gap: 8 },
 })

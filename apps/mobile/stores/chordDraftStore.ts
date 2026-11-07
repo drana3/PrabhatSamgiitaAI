@@ -29,7 +29,8 @@ export const useChordDraftStore = create<ChordDraftState>()(
       clear: () => set({ drafts: {} }),
     }),
     {
-      name: "prabhat-chord-draft-v1",
+      // v2: a new key drops the drafts made while testing (lib/songChords/retireTestData.ts removes the old one)
+      name: "prabhat-chord-draft-v2",
       storage: createJSONStorage(() => AsyncStorage),
       version: 2,
       migrate: (saved) => ({ drafts: migrateDrafts(saved, Date.now()) }) as ChordDraftState,

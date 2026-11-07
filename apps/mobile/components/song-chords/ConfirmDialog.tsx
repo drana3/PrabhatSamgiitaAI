@@ -79,9 +79,9 @@ export function ConfirmDialog({
         </Text>
         <Text style={[s.body, { color: theme.textBody }]}>{body}</Text>
         <View style={s.actions}>
-          {actions.map((action) => (
+          {actions.map((action, index) => (
             <KPress
-              key={action.label}
+              key={index}
               accessibilityRole="button"
               accessibilityLabel={action.label}
               onPress={action.onPress}

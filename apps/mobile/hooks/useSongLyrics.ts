@@ -24,7 +24,7 @@ function fromSong(song: MockSong): SongLyrics {
   return { status: "ready", number: song.number, title: song.title, lines: roman, wordCounts: roman.map((line) => splitWords(line).length) }
 }
 
-export function useSongLyrics(number: number | null): SongLyrics {
+export function useSongLyrics(number: number | null, retry = 0): SongLyrics {
   const [state, setState] = useState<SongLyrics>({ status: "idle" })
   useEffect(() => {
     if (number === null) {
@@ -48,6 +48,6 @@ export function useSongLyrics(number: number | null): SongLyrics {
     return () => {
       active = false
     }
-  }, [number])
+  }, [number, retry])
   return useMemo(() => state, [state])
 }

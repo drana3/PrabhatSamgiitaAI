@@ -2,12 +2,12 @@
 
 Members can offer chords, for guitar or for harmonium, for any of the 5,018 Prabhat Samgiita songs. An accepted chart shows on the song page, in the Chords section, drawn by the same code as the built-in chart. This note says what the format is, why it is built this way, how review works, and what has not been checked.
 
-Code: API `apps/api/app/api/v1/song_chords.py` (service, model, migration `0031`, tests `tests/test_song_chords.py`); app `lib/songChords/`, `components/song-chords/`, `app/upload.tsx`, `app/upload-chords.tsx`, `app/chords-review.tsx`, words in `locales/chordProposals.ts`.
+Code: API `apps/api/app/api/v1/song_chords.py` (service, model, migration `0031`, tests `tests/test_song_chords.py`); app `lib/songChords/`, `components/song-chords/`, `app/upload.tsx`, `app/upload-chords.tsx`, `app/chords-review.tsx`, words in `locales/chordProposals.ts`. A board with a real 390 px screenshot of every screen and state below is in `Для-Дады/аккорды-v2/` (the shared folder, not in the repo).
 
 ## Where things are
 
 - **Upload button.** On every screen that carries the tab bar (Today, Songs, Kiirtan, Learn, and Search opened from a link), a solid orange button with a plus and the word "Upload" sits to the right of the tab pill. It opens the hub, `/upload`.
-- **The hub** has two doors: "A recording" (the existing add-Kiirtan form, unchanged) and "Chords for a song" (new). Under them: "Your chord charts", each with its state (waiting, live, not published), the reason if the team declined it, a link to the song and a delete. A team member also sees "Review chord charts" with the number waiting.
+- **The hub** has two doors: "A recording" (the existing add-Kiirtan form, unchanged) and "Chords for a song" (new). Under them: "Your chord charts", ONE compact row for each chart: the song number and title, a chip for where it stands (Draft, Waiting, Published, Not accepted) and one ⋯ menu. What the menu does is the table "Actions of a row" below. A team member also sees "Review chord charts" with the number waiting.
 - **The song page**, Chords section: under the built-in chart, "Chords from members" lists one chip for each chart (instrument and author), the chosen chart as letters over the lyrics, the capo or Sa control (starting where the author played), who made it, their note, "I played it" if they said so, Report (or Delete, for your own chart), and "Offer chords for this song". The built-in sample chart stays where it was.
 
 ## The format
@@ -44,7 +44,19 @@ Two ways, on one screen, both feeding the same data:
 1. **Tap words.** Every line of the song is drawn as tappable words. Tap a word and a chord sheet docks at the bottom (see "The chord sheet"). Previous and Next move through the words so a whole chart can be entered without leaving the sheet. This is the way meant for a phone.
 2. **Paste text.** For people who already have chords in a file: ChordPro-style, `[Am]word` in front of the word the chord starts on, one line of text for each song line. Optional header lines `{capo: 2}`, `{key: D}`, `{strum: D D U U}`. A minor key (`{key: Am}`) sits on its relative major (C), because the editor's key is the key of the major shapes. Nothing is guessed: if a line has the wrong number of words, a chord has no closing bracket or no word after it, a word differs from the song, or a name is not a chord, the box lists each problem with its line and column, in words, and "Use this text" stays closed until the errors are fixed. Text for fewer lines than the song is only a warning.
 
-Then a **preview** drawn by the song page's own pieces, "I played or checked these chords myself" (required), an optional note, "Share without my name", and Send.
+Then a **preview** drawn by the song page's own pieces, an optional block (strumming pattern and note, closed until asked for, open by itself when one of them is filled), "I played or checked these chords myself" (required), "Share without my name", and "Send for review".
+
+### The key question
+
+The screen asks "Which key do you play in?" and says in one sentence how to answer: pick the chord the song comes home to, usually the last one; if you use a capo, ignore it here and write the chords your fingers make. Under the chips a live line shows what the choice does: "in the key of D you will mostly use D · G · A · Bm". Why the question is there at all:
+
+1. It is the key of the chords as the member types them (before the capo). The app uses it to offer the usual chords in the chord sheet, to save the chart's key (shape key plus capo, so readers see "sounds in X"), and, for a harmonium, as the Sa the readers move from. It never changes a chord the member typed.
+2. The old wording ("the shapes you play are in the key of ...") was jargon, and D was already selected, so beginners never noticed it was a question.
+3. It cannot be dropped, because the stored chart needs a key. So it became a plain question with a hint and an example.
+
+### Send with something missing
+
+Send never greys out. When a required piece is missing the screen scrolls to the first missing field in screen order (song, chords, then the "I played it" box), shows the sentence under that field, and the other missing fields show theirs too. The jump is the shared helper `lib/forms/useFormFocus.ts` (`scrollRef`, `field(key)`, `focusFirst`); which field is first is the pure `firstInvalid` in `lib/songChords/fields.ts` (tested).
 
 ### The chord sheet
 
@@ -59,7 +71,7 @@ Then a **preview** drawn by the song page's own pieces, "I played or checked the
 
 ### Drafts
 
-Unfinished charts are kept on the phone (`stores/chordDraftStore.ts`, pure rules in `lib/songChords/drafts.ts`), not as one draft but as a small book: one per song and instrument (a guitar and a harmonium chart of the same song are different work), one per chart being fixed (`edit:<id>`), one per changed copy of a live chart (`copy:<id>`). At most five; the least recently touched makes room. A draft with no chord and no note is not kept. Hydration of the store is asynchronous, so the screen waits for it before it decides what to offer.
+Unfinished charts are kept on the phone (`stores/chordDraftStore.ts`, pure rules in `lib/songChords/drafts.ts`), not as one draft but as a small book: one per song and instrument (a guitar and a harmonium chart of the same song are different work), one per chart being fixed (`edit:<id>`), one per changed copy of a live chart (`copy:<id>`). At most five; the least recently touched makes room. On the Upload hub a draft is a row like any other (chip "Draft"); a draft that fixes or changes a chart (`edit:` or `copy:`) does not get a second row: it rides on that chart's row as "unsent changes saved". A draft with no chord and no note is not kept. Hydration of the store is asynchronous, so the screen waits for it before it decides what to offer.
 
 ## Scenario map: the Offer Chords flow
 
@@ -74,9 +86,10 @@ Every state a member can meet, and what the app does in it. Each row has a test 
 | `/upload-chords?song=7&instrument=harmonium` | "Offer another" for that song and instrument |
 | `/upload-chords?edit=<id>` | fix a waiting or rejected chart; it is updated, same id |
 | `/upload-chords?copy=<id>` | a changed copy of a live chart; it is sent as a new chart |
-| `/upload-chords?draft=<key>` | continue exactly this draft (from "Unfinished charts" on Upload) |
+| `/upload-chords?draft=<key>` | continue exactly this draft (from a Draft row on Upload) |
+| `/upload-chords?from=<id>&song=7` | "Start from this chart": a NEW chart that begins with someone else's published chart of song 7, with the note and the "I played it" box left empty and the name not carried over; it never edits the other chart |
 
-Junk in the address (a song that is not a number, an instrument that is not one) falls back to a plain new chart. `edit` wins over `copy`, `copy` over `draft`, `draft` over `song`.
+Junk in the address (a song that is not a number, an instrument that is not one) falls back to a plain new chart. `edit` wins over `copy`, `copy` over `draft`, `draft` over `from`, `from` over `song`.
 
 ### Drafts
 
@@ -84,7 +97,7 @@ Junk in the address (a song that is not a number, an instrument that is not one)
 | --- | --- |
 | Open the screen with no draft | A new chart. |
 | Open it with a draft of this song and instrument | "Continue where you stopped?" with what is saved (song, instrument, number of chords, "Saved 2 hours ago"), Continue, Start over, and "Start a new chart instead". Nothing is lost by looking. |
-| Several drafts | The Upload hub lists them under "Unfinished charts", newest first; each opens exactly that draft. At most five are kept. |
+| Several drafts | The Upload hub shows each as a Draft row; its menu has "Continue editing" and "Discard the draft". At most five are kept. |
 | Close the screen with unsent work | "Leave this chart?" says it is saved as a draft and where to find it: Keep editing, Save and leave, Discard draft. |
 | Start over or discard | The dialog says what will be lost (the number of chords, "Nothing has been sent", "This cannot be undone") before anything is deleted. |
 | Close with nothing placed | No dialog; nothing is saved. |
@@ -96,7 +109,7 @@ Junk in the address (a song that is not a number, an instrument that is not one)
 | Situation | What happens |
 | --- | --- |
 | Not signed in | The send button explains that sign-in is needed; the draft is kept. |
-| Missing pieces | The form lists what is missing in order (song, chords, a bad chord, the "I played it" box, a strum that is not a strum) and the button stays closed. |
+| Missing pieces | The screen jumps to the first missing field and says which one under it (see "Send with something missing"); the sheet closes first if it was open. |
 | Member sends | "Sent to the team": three steps (the team looks at it, you get a notice, it shows on the song page, with your name or as an anonymous member, and the team can still see who sent it). Back to Upload, Offer chords for another song. |
 | Team member sends | "Your chart is live"; Open the song. |
 | Offline | "No connection. Your chart is saved on this phone." The button changes to "Try sending again". |
@@ -114,6 +127,8 @@ Junk in the address (a song that is not a number, an instrument that is not one)
 | Not accepted (`rejected`) | Opens the chart with the team's words on top; "Fix and send again" updates it (PUT), clears the reason and puts it back in the queue. | "The team did not accept this chart", the reason, and what to do. |
 | Live (`published`) | "New version": opens a copy. Sending offers a new chart through the review; the live one stays on the song page until the member deletes it. The API refuses a PUT on a live chart (`chords_not_editable`). | "This chart is live. It stays on the song page while the team looks at your new version." |
 
+**What editing a published chart does (decided).** A live chart is never changed in place. "Make a new version" opens a copy; sending it offers a NEW chart that waits for the team, while the old one stays on the song page. When the new one is accepted the member deletes the old one by hand (the banner says so). Replacing the old chart by itself on approval would need a link between the two charts on the server and a migration; it is listed under "What Dada decides" instead of being guessed.
+
 A chart keeps its song and its instrument: the pickers are locked and the banner says why. A chart that is gone (deleted somewhere else) shows "This chart is not there any more" and a way back.
 
 ### After the decision
@@ -129,16 +144,56 @@ Notices come from the phone seeing a status change in `/song-chords/mine` (`lib/
 
 ### Your chord charts (Upload hub)
 
-`components/song-chords/MyCharts.tsx`, rules in `lib/songChords/charts.ts`.
+`components/song-chords/MyCharts.tsx` (list, menu, questions, notices), `RowMenu.tsx` (the sheet), pure rules in `lib/songChords/rows.ts` (`buildRows`, `primaryAction`, `menuActions`, `actionHref`; tested in `__tests__/songChordsRows.test.ts`).
 
 | State | What the hub shows |
 | --- | --- |
 | Signed out | A sentence to sign in. |
-| Loading / error | A quiet loading line; an error with "Try again". |
+| Loading / error | A quiet loading line; an error with "Try again". If the list had loaded once and a refresh fails, the rows stay and a line says the list may be out of date. |
 | No charts | "No chord charts yet" and "Offer your first chart". |
-| Charts | Newest of what needs the member first: not accepted, then waiting, then live. A status chip on each card (icon and text, not colour alone), the song, instrument, capo and key, the sent date. Actions by state: Fix and send again (rejected), Edit (waiting), New version (live); Open song, Offer another, Delete (with a question that says a live chart leaves the song page for everyone). |
-| Four or more charts | Filter chips (All, Waiting, Live, Not accepted) with counts; an empty filter says so. |
+| Charts | One row for each: "PS 5 · Title", the chip (icon and text, not colour alone), a line of facts (instrument, capo, date; for a draft the number of chords; "unsent changes saved" when a fix or new version is waiting on the phone), and ⋯. Order: not accepted, drafts, waiting, live; newest first inside a group. No filters. The list reloads when the hub comes back into focus (after an edit). |
 | Team | "Review chord charts" with the number waiting. |
+
+A tap on the row does the one thing its state is for: Draft opens it, Waiting opens it for editing, Published opens the song page, Not accepted shows the team's reason.
+
+#### Actions of a row
+
+Every action is in the ⋯ menu (the destructive one is always last and red). "Where it lands" says what the member sees next and how to get back.
+
+| Action | In which states | What it does | Asks first | After it | Where it lands, way back |
+| --- | --- | --- | --- | --- | --- |
+| Continue editing | Draft | Opens the draft in the editor | No | Nothing | Editor (`?draft=`). Close (X): if there is unsent work, "Leave this chart?" (Keep editing, Save and leave, Discard draft); then the hub |
+| Edit | Waiting | Opens the chart; "Send again" replaces it and it waits again; the daily allowance is not charged again | No | "Sent again" screen | Editor (`?edit=`); same way back |
+| Fix and send again | Not accepted | Opens the chart with the team's words on top; sending puts it back in the queue | No | "Sent again" screen | Editor (`?edit=`); same way back |
+| Make a new version | Published | Opens a copy of the live chart; sending offers a NEW chart, the live one stays | No | "Sent to the team" screen, with a line that the old one stays | Editor (`?copy=`); same way back |
+| View on the song page | Waiting, Published | Opens the song | No | Nothing | Song page (`/song-v2/ps-N`); the back arrow returns to the hub |
+| Why it was not accepted | Not accepted | A small window with the team's words (or "The team did not write a reason...") | No | Nothing | Stays on the hub; "Close", or "Fix and send again" to the editor |
+| Withdraw from the team | Waiting | Deletes the waiting chart, so the team no longer sees it | "Take this chart back from the team?" "The team will not see it. The chart is deleted and cannot be brought back. If you only want to change it, choose Edit instead." Buttons: Withdraw / Leave it with the team | Notice "Taken back from the team. The chart was deleted."; on failure a red notice with the failure sentence (offline: "No connection...") that stays until closed | Stays on the hub; the row is gone; the day's allowance stays used |
+| Delete the chart | Published, Not accepted | Deletes the chart for good | "Delete this chart for good?" "This chart is live. Deleting it takes it off the song page for everyone. This cannot be undone." (a not accepted chart: "The chart is removed and cannot be brought back."). Buttons: Delete / Keep | Notice "The chart was deleted."; red notice on failure | Stays on the hub; the row is gone |
+| Discard the draft | Draft | Throws away a draft that has no chart | "Discard this draft?" with the number of chords and "Nothing has been sent. This cannot be undone." Buttons: Discard draft / Keep draft | Notice "The draft was discarded." | Stays on the hub; the row is gone |
+| Throw away my changes | Any chart with unsent changes | Throws away the saved fix or new version; the chart itself stays | "Throw away your changes?" "What you changed and did not send is lost. The chart itself stays as it is." Buttons: Throw away / Keep my changes | Notice "Your unsent changes were thrown away." | Stays on the hub; the row loses "unsent changes saved" |
+
+Good notices go away by themselves after six seconds; a problem stays until it is closed. If a delete finds the chart already gone (removed on another phone), the list drops it and says so.
+
+### The whole chain, scenario by scenario
+
+One row for each way into the flow. "Back" is where the member lands when it is over or when they leave.
+
+| Scenario | Door | What the member sees | Ends in | Back |
+| --- | --- | --- | --- | --- |
+| New, from the hub | Upload, "Chords for a song" (`/upload-chords`) | Asks which song first (the picker), then the same form | "Sent to the team" | "Back to Upload" |
+| New, from the song page | "Offer chords for this song" (`?song=N`) | The song is already chosen | "Sent to the team" | "Back to the song" first, then "Back to Upload" (quiet) |
+| From a draft | Draft row, "Continue editing" (`?draft=`), or opening the screen again for the same song and instrument | Resume panel (what is saved, "Saved 2 hours ago"): Continue, Start over, "Start a new chart instead" | As a new chart | As a new chart |
+| Fix a waiting or not accepted chart | Row menu (`?edit=`) | The chart, the song and instrument locked, a banner (the team's words for a rejected one) | "Sent again" | "Back to Upload" |
+| New version of a live chart | Row menu (`?copy=`) | A copy, banner "This chart is live. It stays on the song page..." | "New version sent", with the note that the live chart stays | "Back to Upload" |
+| Start from someone's chart | "Start from this chart" under another member's chart on the song page (`?from=&song=`) | The chords come over, the note and the "I played it" box are empty, a line says only the chords were copied | "Sent to the team" | "Back to the song" |
+| Signed out | Any door | "Sign in to offer chords" with a Sign in button; the Upload hub shows a sentence to sign in; nothing is lost | The sign-in screen opens on top; its back arrow returns here | Close (X) |
+| Offline or server error | Send | The red sentence under the button ("No connection. Your chart is saved on this phone..."); the button says "Try sending again"; the draft is kept. If the words of the song cannot load, a retry button sits where they would be | Same screen | Leave: "Leave this chart?" |
+| Empty states | Hub with no charts; song with no member charts | "No chord charts yet" with "Offer your first chart"; the song page keeps "Offer chords for this song" | The form | Close (X) |
+| Limits | Send | Daily limit (10 in 24 hours), hourly brake (6), three open charts of one song and instrument: each has its own sentence, says the draft is kept, and where to go ("See your charts") | Same screen | Close (X) |
+| Duplicate | Send | "You already sent exactly this chart. You can find it under Your chord charts on Upload." | Same screen | Close (X) |
+| Cancel with unsaved changes | Close (X), Android back | "Leave this chart?": Keep editing, Save and leave (draft), Discard draft. With nothing placed there is no question | The hub or the song page | The draft is a row on the hub |
+| A chart that is gone | `?edit=` or `?from=` of a deleted chart | "This chart is not there any more. It may have been deleted." and one button | The hub, or the song page when the member came from there | "Back to Upload" / "Back to the song" |
 
 ### Rules of the server that the screens know
 
@@ -151,8 +206,8 @@ Notices come from the phone seeing a status change in `/song-chords/mine` (`lib/
 
 ## Tests
 
-- API: `apps/api/tests/test_song_chords.py` (offering, review, limits, ledger, editing, 404 for strangers, the chord grammar, migration `0031` including `song_chord_offers`).
-- App: `__tests__/songChordsDraft.test.ts`, `songChordsChordPro.test.ts`, `songChordsRemote.test.ts`, `songChordsSpelling.test.ts` (spelling, grammar, minor keys), `songChordsHub.test.ts` (draft book, entry, reveal, charts, notices, the preview and remote backends for fixing a chart).
+- API: `apps/api/tests/test_song_chords.py` (offering, review, limits, ledger, editing, 404 for strangers, withdrawing a waiting chart, a new version beside a live one, the chord grammar, migration `0031` including `song_chord_offers`).
+- App: `__tests__/songChordsDraft.test.ts`, `songChordsChordPro.test.ts`, `songChordsRemote.test.ts`, `songChordsSpelling.test.ts` (spelling, grammar, minor keys), `songChordsHub.test.ts` (draft book, entry, reveal, charts, notices, the preview and remote backends for fixing a chart), `songChordsRows.test.ts` (the rows of the hub, the menu of each state, the address of each action, the field Send jumps to, starting from someone else's chart), `songChordsRetire.test.ts` (the retired storage keys), plus `i18nParity.test.ts` for the words.
 
 ## Why this design
 
@@ -175,16 +230,21 @@ Notices come from the phone seeing a status change in `/song-chords/mine` (`lib/
 - Anyone can report a published chart (wrong chords, offensive, spam, other): one report each. A report only raises the count and moves the chart into the "Reported" filter. It does not hide the chart by itself.
 - Limits for non-team members: see "Rules of the server" above. The server answers with `X-Error-Code` (`chords_daily_limit`, `chords_duplicate`, `chords_open_limit`, `chords_not_editable`) and the app turns each into a sentence.
 
+## Test data of the preview
+
+The web preview keeps what a person makes in the browser: chord drafts and the notices "your chart is live / not published". Charts made while testing must not outlive the test, so the version in the storage key is raised whenever the test data or the format changes. Raised now: `prabhat-chord-draft-v1` to `-v2` (`stores/chordDraftStore.ts`) and `prabhat-chord-notices-v1` to `-v2` (`stores/chordNoticeStore.ts`). `lib/songChords/retireTestData.ts` removes the two old keys once on the next load and drops the `chords:` notices of the old tests from the inbox (other notices stay). The demo seed charts live in `lib/songChords/mock.ts`, are made again on every load, are stored nowhere, and were not touched. Next time: change the key's version in the store and add the old key to `RETIRED_KEYS`.
+
 ## Web preview
 
-With `EXPO_PUBLIC_MOCKUP_DATA=1` the screens use an in-memory server (`lib/songChords/mock.ts`) that keeps charts until the page is reloaded, with two sample charts on PS 1 and, for the previewing member, one chart in each state (waiting PS 2, live PS 3, not accepted PS 5). Add `?team` to the address to act as the team and try the review screen; add `?empty` to see the Upload hub with no charts. `/phone.html` shows the app in a 390 by 844 frame with a 59 point top and 34 point bottom inset, like a phone with a notch. The real server is never contacted in that mode.
+With `EXPO_PUBLIC_MOCKUP_DATA=1` the screens use an in-memory server (`lib/songChords/mock.ts`) that keeps charts until the page is reloaded, with two sample charts on PS 1 and, for the previewing member, one chart in each state (waiting PS 2, live PS 3, not accepted PS 5). Add `?team` to the address to act as the team and try the review screen; add `?empty` to see the Upload hub with no charts; add `?guest` to see the screens as someone who is not signed in; add `?fail=network` (or `dailyLimit`, `slowDown`, `duplicate`, `tooMany`, `invalid`, `signin`, `server`) to make every send, fix and delete fail that way; add `?failList` to make the lists fail as if offline. These switches are read in `lib/songChords/backend.ts` and only work with the in-memory server. `/phone.html` shows the app in a 390 by 844 frame with a 59 point top and 34 point bottom inset, like a phone with a notch. The real server is never contacted in that mode.
 
 ## Not verified
 
 - No run against a real PostgreSQL. The API tests run on SQLite, and the migration `0031` was written by hand and read, not applied to Postgres.
 - Not tried on a phone or in a simulator: the touch feel of the tap editor and the chord sheet (the drag, rubber band and fling were reasoned from the spring helpers and seen only in the web preview), the keyboard over the sheet's "Type a chord" field and the paste box (`useAnimatedKeyboard` on iOS, window resize on Android), and the top inset of the three screens on a real notch and on Android. The preview frame at 390 by 844 simulates the insets; the code reads them from `useScreenTop`.
 - The rate limiter of the API lives in one process (it resets on restart and is not shared between instances); the daily allowance is in the database and is not affected.
-- The real song picker (`PsSongChooser`) was not driven in the preview; the screens were opened with `?song=1`.
+- The real song picker (`PsSongChooser`) was not driven in the preview; the screens were opened with `?song=1`. The scenario "New, from the hub" was therefore seen only up to the picker.
+- After a chart is accepted, the member still deletes the old live chart by hand (see "What editing a published chart does").
 - Team flows against the real API (the review endpoints for signed-in team members, notices to authors) are covered by API tests but were not tried end to end from the app.
 - Russian and Spanish words have not been read by a native speaker (marked unreviewed in `locales/review.json`).
 - The chart on the song page is drawn in Roman letters even when the page's main script is Devanagari or Bengali; the built-in chart follows the page script, the member charts do not yet.
