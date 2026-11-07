@@ -22,6 +22,7 @@ import { assistantErrorsRu } from "./assistantErrors"
 import { songCommentsRu } from "./songComments"
 import { chordProposalsRu } from "./chordProposals"
 import { pronunciationRu } from "./pronunciation"
+import { authorsRu } from "./authors"
 import { notificationCentreRu } from "./notificationCentre"
 import { searchMenuRu } from "./searchMenu"
 
@@ -1370,6 +1371,7 @@ export const ru: Dictionary = {
   ...songCommentsRu,
   ...chordProposalsRu,
   ...pronunciationRu,
+  ...authorsRu,
   ...notificationCentreRu,
   ...searchMenuRu,
 }

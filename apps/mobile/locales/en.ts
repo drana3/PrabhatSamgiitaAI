@@ -21,6 +21,7 @@ import { assistantErrorsEn } from "./assistantErrors"
 import { songCommentsEn } from "./songComments"
 import { chordProposalsEn } from "./chordProposals"
 import { pronunciationEn } from "./pronunciation"
+import { authorsEn } from "./authors"
 import { notificationCentreEn } from "./notificationCentre"
 import { searchMenuEn } from "./searchMenu"
 
@@ -1290,6 +1291,7 @@ export const en = {
   ...songCommentsEn,
   ...chordProposalsEn,
   ...pronunciationEn,
+  ...authorsEn,
   ...notificationCentreEn,
   ...searchMenuEn,
 } as const

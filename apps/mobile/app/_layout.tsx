@@ -38,6 +38,7 @@ import { ChordNoticeSync } from "@/components/song-chords/ChordNoticeSync"
 import { LegacyRedirectHost } from "@/components/nav-v2/LegacyRedirectHost"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
 import { NotificationsHost } from "@/components/notifications/NotificationsHost"
+import { PlayReporterHost } from "@/components/authors/PlayReporterHost"
 import { SaveHost } from "@/components/save/SaveHost"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
@@ -203,11 +204,17 @@ export default function RootLayout() {
             <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
             {/* Kiirtans: audio files uploaded by their authors, played in the one player. */}
             <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />
-            {/* Upload: the hub of the tab bar's Upload button, offering chords for a song, and the team's review of them. */}
             {/* Playlists from an event: the upload wizard, the playlist's page and the person's own list (docs/kiirtan-sets.md). */}
             <Stack.Screen name="upload-set" options={{ presentation: "modal" }} />
             <Stack.Screen name="recording-set/[id]" options={{ presentation: "card" }} />
             <Stack.Screen name="my-sets" options={{ presentation: "card" }} />
+            {/* Author pages: the directory, a public page, becoming an author, the author's own page and its edit form. */}
+            <Stack.Screen name="authors" options={{ presentation: "card" }} />
+            <Stack.Screen name="author/[slug]" options={{ presentation: "card" }} />
+            <Stack.Screen name="become-author" options={{ presentation: "card" }} />
+            <Stack.Screen name="my-author" options={{ presentation: "card" }} />
+            <Stack.Screen name="author-edit" options={{ presentation: "card" }} />
+            {/* Upload: the hub of the tab bar's Upload button, offering chords for a song, and the team's review of them. */}
             <Stack.Screen name="upload" options={{ presentation: "modal" }} />
             <Stack.Screen name="upload-chords" options={{ presentation: "modal" }} />
             <Stack.Screen name="chords-review" options={{ presentation: "card" }} />
@@ -227,6 +234,8 @@ export default function RootLayout() {
           <MiniPlayerHost />
           {/* The one "Save to" sheet (circle-plus buttons everywhere open it). */}
           <SaveHost />
+          {/* Counts plays of recordings for their authors' statistics (watches the player, draws nothing). */}
+          <PlayReporterHost />
           {/* Reminders and the inbox: schedules local notifications, fills the bell. Draws nothing. */}
           <NotificationsHost />
         </FrameSafeArea>

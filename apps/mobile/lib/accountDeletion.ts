@@ -3,7 +3,9 @@ import { favoritesScopeKey } from "@/lib/favoritesScope"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { completeMemberSignOut } from "@/lib/session"
 import { useAuthStore } from "@/stores/authStore"
+import { useAuthorStore } from "@/stores/authorStore"
 import { useChatStore } from "@/stores/chatStore"
+import { usePlayQueueStore } from "@/stores/playQueueStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { useProfileStore } from "@/stores/profileStore"
 
@@ -30,6 +32,9 @@ export function clearLocalAccountData(accountId: string) {
   const favoritesScope = favoritesScopeKey({ mode, memberId, identityProvider, email })
   useChatStore.getState().clearAccountMemory(accountId)
   useProfileStore.getState().reset()
+  // The author page belongs to the account; the queue of not-yet-sent plays carries the old device id.
+  useAuthorStore.getState().reset()
+  usePlayQueueStore.getState().reset()
   usePreferencesStore.setState((state) => {
     const favoritesByScope = { ...state.favoritesByScope }
     delete favoritesByScope[favoritesScope]

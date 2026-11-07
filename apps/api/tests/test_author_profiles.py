@@ -972,6 +972,66 @@ async def test_three_different_reporters_put_a_page_in_front_of_the_team(world: 
     assert profile.review_needed is True and profile.review_reason == "reported:spam"
 
 
+async def test_unpublishing_and_publishing_keep_a_flag_raised_by_reports(world: World) -> None:
+    made = await world.create()
+    pid = made.json()["id"]
+    await world.client.post(
+        f"{URL}/madhu-vrata/report", headers=AS["b"], json={"reason": "impersonation"}
+    )
+    off = await world.client.post(f"{URL}/me/unpublish", headers=AS["a"])
+    assert off.json()["review_needed"] is True
+    assert off.json()["review_reason"] == "reported:impersonation"
+    on = await world.client.post(f"{URL}/me/publish", headers=AS["a"])
+    assert on.json()["status"] == "published"
+    assert on.json()["review_needed"] is True
+    assert on.json()["review_reason"] == "reported:impersonation"
+    # verifying does not clear a report either; only approving does
+    await world.client.post(f"/api/v1/admin/authors/{pid}/verify", headers=AS_TEAM)
+    profile = await world.profile("madhu-vrata")
+    assert profile.review_needed is True and profile.review_reason == "reported:impersonation"
+    await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    profile = await world.profile("madhu-vrata")
+    assert profile.review_needed is False and profile.review_reason is None
+
+
+async def test_unpublishing_still_clears_a_name_check_flag(world: World) -> None:
+    held = await world.create(display_name="Prabhat Samgiita Team", slug="madhu-team")
+    assert held.status_code == 201, held.text
+    assert held.json()["review_reason"] == "protected_name"
+    off = await world.client.post(f"{URL}/me/unpublish", headers=AS["a"])
+    assert off.json()["review_needed"] is False and off.json()["review_reason"] is None
+
+
+async def test_a_verified_claim_does_not_skip_the_other_name_checks(world: World) -> None:
+    r = await world.create(
+        claimed_name="Dada Maetreya", slug="dada-music", display_name="Dada Maetreya"
+    )
+    pid = r.json()["id"]
+    await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    await world.client.post(f"/api/v1/admin/authors/{pid}/verify", headers=AS_TEAM)
+    assert (await world.get("dada-music")).json()["verified"] is True
+    # a look-alike name appears in the library afterwards
+    await world.recording(None, title="Old", author="Dada Maetreya Music")
+    await world.client.post(f"{URL}/me/unpublish", headers=AS["a"])
+    again = await world.client.post(f"{URL}/me/publish", headers=AS["a"])
+    assert again.json()["status"] == "draft"
+    assert again.json()["review_reason"] == "look_alike_artist"
+
+
+async def test_renaming_or_moving_a_verified_page_removes_the_verification(world: World) -> None:
+    r = await world.create(
+        claimed_name="Dada Maetreya", slug="dada-music", display_name="Dada Music"
+    )
+    pid = r.json()["id"]
+    await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    await world.client.post(f"/api/v1/admin/authors/{pid}/verify", headers=AS_TEAM)
+    renamed = await world.client.patch(
+        f"{URL}/me", headers=AS["a"], json={"display_name": "Prabhat Samgiita Team"}
+    )
+    assert renamed.json()["verified"] is False and renamed.json()["status"] == "draft"
+    assert renamed.json()["review_reason"] == "protected_name"
+
+
 # --------------------------------------------------------------------------- limits
 
 

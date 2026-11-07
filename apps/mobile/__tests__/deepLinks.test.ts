@@ -20,3 +20,16 @@ describe("songAppDeepLink", () => {
     expect(songAppDeepLink(5)).toBe("prabhatai:///song/ps-5")
   })
 })
+
+describe("author page links", () => {
+  it("opens a public author page in the app", () => {
+    expect(webUrlToAppPath("https://www.prabhatasamgiita.org/author/Priya-Devi")).toBe("/author/priya-devi")
+    expect(webUrlToAppPath("https://www.prabhatasamgiita.org/author/priya-devi/")).toBe("/author/priya-devi")
+  })
+
+  it("ignores other hosts and odd paths", () => {
+    expect(webUrlToAppPath("https://evil.example/author/priya-devi")).toBeNull()
+    expect(webUrlToAppPath("https://www.prabhatasamgiita.org/author/a/b")).toBeNull()
+    expect(webUrlToAppPath("https://www.prabhatasamgiita.org/author/..%2f")).toBeNull()
+  })
+})

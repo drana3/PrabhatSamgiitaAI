@@ -22,6 +22,7 @@ import { assistantErrorsEs } from "./assistantErrors"
 import { songCommentsEs } from "./songComments"
 import { chordProposalsEs } from "./chordProposals"
 import { pronunciationEs } from "./pronunciation"
+import { authorsEs } from "./authors"
 import { notificationCentreEs } from "./notificationCentre"
 import { searchMenuEs } from "./searchMenu"
 
@@ -1284,6 +1285,7 @@ export const es: Dictionary = {
   ...songCommentsEs,
   ...chordProposalsEs,
   ...pronunciationEs,
+  ...authorsEs,
   ...notificationCentreEs,
   ...searchMenuEs,
 }

@@ -7,6 +7,8 @@ const h = vi.hoisted(() => ({
   clearAccountMemory: vi.fn(),
   resetProfile: vi.fn(),
   prefsSetState: vi.fn(),
+  resetAuthor: vi.fn(),
+  resetPlayQueue: vi.fn(),
   prefs: { favoritesByScope: { "member:oid-a": ["ps-1"], guest: [] as string[] } as Record<string, string[]> },
 }))
 
@@ -20,6 +22,8 @@ vi.mock("@/stores/authStore", () => ({
 }))
 vi.mock("@/stores/chatStore", () => ({ useChatStore: { getState: () => ({ clearAccountMemory: h.clearAccountMemory }) } }))
 vi.mock("@/stores/profileStore", () => ({ useProfileStore: { getState: () => ({ reset: h.resetProfile }) } }))
+vi.mock("@/stores/authorStore", () => ({ useAuthorStore: { getState: () => ({ reset: h.resetAuthor }) } }))
+vi.mock("@/stores/playQueueStore", () => ({ usePlayQueueStore: { getState: () => ({ reset: h.resetPlayQueue }) } }))
 vi.mock("@/stores/preferencesStore", () => ({
   usePreferencesStore: {
     setState: (fn: (s: typeof h.prefs) => Partial<typeof h.prefs>) => {
@@ -64,6 +68,8 @@ describe("account deletion is honest", () => {
     expect(h.deleteMemberAccount).toHaveBeenCalledTimes(1)
     expect(h.clearAccountMemory).toHaveBeenCalledWith("acct")
     expect(h.resetProfile).toHaveBeenCalledTimes(1)
+    expect(h.resetAuthor).toHaveBeenCalledTimes(1)
+    expect(h.resetPlayQueue).toHaveBeenCalledTimes(1)
     expect(h.prefsSetState).toHaveBeenCalledWith({ favoritesByScope: { guest: [] } })
     expect(h.completeMemberSignOut).toHaveBeenCalledTimes(1)
   })

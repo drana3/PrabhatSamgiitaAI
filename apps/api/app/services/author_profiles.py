@@ -383,6 +383,7 @@ async def review_reason_for(
     display_name: str,
     claimed_name: str | None,
     own_id: UUID | None,
+    skip_claim: bool = False,
 ) -> str | None:
     """Why the team has to look before this page goes public, or None. Checked in this order:
     a protected name (founder, organisation, app), a claim to be a known artist, a name that looks
@@ -390,7 +391,9 @@ async def review_reason_for(
     a name already in the library or on another page."""
     if rules.protected_hit(slug) or rules.protected_name_hit(display_name):
         return "protected_name"
-    if claimed_name and rules.clean_line(claimed_name, 120):
+    # `skip_claim`: the team already verified this claim. Only the claim is exempt; the
+    # protected-name check above and the look-alike checks below always run.
+    if not skip_claim and claimed_name and rules.clean_line(claimed_name, 120):
         return "artist_claim"
     others = (
         await session.scalars(
@@ -907,6 +910,12 @@ async def create_profile(
     return profile
 
 
+def _has_report_flag(profile: AuthorProfile) -> bool:
+    """A review flag raised by reports (`reported:<reason>`), not by the name checks. Only the team
+    clears it (approve); publishing, unpublishing and verifying must not wipe it."""
+    return bool(profile.review_needed and (profile.review_reason or "").startswith("reported:"))
+
+
 async def _publish(session: AsyncSession, profile: AuthorProfile) -> None:
     """Publish now, or park the page for the team when its name needs a look."""
     if profile.status == "suspended":
@@ -918,14 +927,16 @@ async def _publish(session: AsyncSession, profile: AuthorProfile) -> None:
         display_name=profile.display_name,
         claimed_name=profile.claimed_name,
         own_id=profile.id,
+        skip_claim=profile.verified,
     )
-    if reason and not (profile.verified and reason == "artist_claim"):
+    if reason:
         profile.review_needed = True
         profile.review_reason = reason
         profile.status = "draft"
         return
-    profile.review_needed = False
-    profile.review_reason = None
+    if not _has_report_flag(profile):
+        profile.review_needed = False
+        profile.review_reason = None
     profile.status = "published"
     if profile.published_at is None:
         profile.published_at = now_utc()
@@ -942,8 +953,9 @@ async def unpublish_profile(session: AsyncSession, profile: AuthorProfile) -> Au
     if profile.status == "suspended":
         raise AuthorError("suspended", 403, "This page was suspended by the team")
     profile.status = "draft"
-    profile.review_needed = False
-    profile.review_reason = None
+    if not _has_report_flag(profile):
+        profile.review_needed = False
+        profile.review_reason = None
     await session.commit()
     return profile
 
@@ -978,8 +990,15 @@ async def update_profile(
                 )
             await _claim_slug(session, profile, normal, was_public=was_public)
             identity_changed = True
+            profile.verified = False
+            profile.verified_at = None
+            profile.verified_by = None
     if "display_name" in fields and fields["display_name"] != profile.display_name:
         identity_changed = True
+        # the team verified the old name; a new name is a new question
+        profile.verified = False
+        profile.verified_at = None
+        profile.verified_by = None
     if "claimed_name" in fields and (fields["claimed_name"] or None) != profile.claimed_name:
         identity_changed = True
         profile.verified = False  # a new claim is a new question for the team
@@ -1291,7 +1310,7 @@ async def admin_verify(
     profile.verified = verified
     profile.verified_at = now_utc() if verified else None
     profile.verified_by = by if verified else None
-    if verified:
+    if verified and not _has_report_flag(profile):
         profile.review_needed = False
         profile.review_reason = None
     await session.commit()
