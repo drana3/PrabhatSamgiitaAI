@@ -682,6 +682,33 @@ async def test_the_author_deletes_their_chart_for_good_in_any_state(world: World
     ).status_code == 404
 
 
+async def test_withdrawing_a_waiting_chart_takes_it_off_the_review_queue(world: World) -> None:
+    """The app's "Withdraw from the team" is a delete of a waiting chart: the team no longer sees it
+    and the author's list drops it. The day's allowance stays used (see the test above)."""
+    item = (await world.offer("a")).json()
+    assert (await world.client.get("/api/v1/admin/song-chords")).json()["total"] == 1
+    gone = await world.client.delete(f"{URL}/{item['id']}", headers={"X-Test-Member": "a"})
+    assert gone.status_code == 204
+    assert (await world.client.get("/api/v1/admin/song-chords")).json()["total"] == 0
+    assert (await world.listing("a")).json() == {"items": [], "total": 0}
+
+
+async def test_a_new_version_of_a_live_chart_waits_while_the_old_one_stays_live(
+    world: World,
+) -> None:
+    """Editing a live chart is "make a new version": a second offer goes to review and the first
+    one is untouched (a live chart is never changed in place)."""
+    live = (await world.offer("a")).json()
+    await world.client.post(f"/api/v1/admin/song-chords/{live['id']}/approve", json={})
+    service.limiter.reset()
+    newer = await world.offer("a", capo=0, base_key="G")
+    assert newer.status_code == 201 and newer.json()["status"] == "pending"
+    public = (await world.listing("b")).json()
+    assert [i["id"] for i in public["items"]] == [live["id"]]
+    own = (await world.listing("a")).json()
+    assert {i["status"] for i in own["items"]} == {"published", "pending"}
+
+
 # --------------------------------------------------------------------------- migration 0031
 
 VERSIONS = Path(__file__).resolve().parents[1] / "alembic" / "versions"
