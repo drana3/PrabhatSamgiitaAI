@@ -25,7 +25,9 @@ import { amNav } from "@/constants/tokens/amNav"
 import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useRadioPools } from "@/hooks/useRadioPools"
 import { useT } from "@/lib/i18n"
+import { miniRadioLine } from "@/lib/radio/labels"
 import { miniProgress, miniSubtitle, isDarkTheme, rubberBand } from "@/lib/navV2"
 import { songPlayback } from "@/lib/playback"
 import { skipToNextSong, skipToPreviousSong } from "@/lib/playerV2/transport"
@@ -82,6 +84,9 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   const isBuffering = usePlayerStore((s) => (s.currentSong ? songPlayback(s, s.currentSong).isBuffering : false))
   const togglePlay = usePlayerStore((s) => s.togglePlay)
   const pause = usePlayerStore((s) => s.pause)
+  // While the Radio runs, the second line says what it plays ("Radio · Kiirtan, Bhajan") instead of the track number.
+  const radioRunning = usePlayerStore((s) => s.playbackMode === "random" && s.driveAutoAdvance)
+  const radio = useRadioPools()
   const isKiirtan = currentSong?.kind === "kiirtan"
   const kiirtanId = currentSong?.kiirtan?.id ?? null
 
@@ -191,7 +196,9 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
                 {currentSong.title}
               </Text>
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.sub, { color: theme.textBody }]} numberOfLines={1}>
-                {withKindWord(miniSubtitle({ number: currentSong.number, position, duration, kind: isKiirtan ? "kiirtan" : "song" }), currentSong.kiirtan?.recording)}
+                {radioRunning
+                  ? miniRadioLine(radio.chosen, radio.counts)
+                  : withKindWord(miniSubtitle({ number: currentSong.number, position, duration, kind: isKiirtan ? "kiirtan" : "song" }), currentSong.kiirtan?.recording)}
               </Text>
             </View>
           </PressScale>

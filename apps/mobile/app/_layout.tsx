@@ -233,6 +233,8 @@ export default function RootLayout() {
             <Stack.Screen name="library-v2" options={{ presentation: "card" }} />
             {/* My listening history (on this phone only) and the full list behind a Search menu shelf. */}
             <Stack.Screen name="listening-history" options={{ presentation: "card" }} />
+            {/* Top Played: the tracks people played most (counted by the server); opened from Today and from the Radio. */}
+            <Stack.Screen name="top-played" options={{ presentation: "card" }} />
             <Stack.Screen name="browse-shelf" options={{ presentation: "card" }} />
             {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
             <Stack.Screen name="player-v2" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />

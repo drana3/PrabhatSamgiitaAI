@@ -680,12 +680,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       duration: 0,
     })
     publishRadioSession()
-    void nativeStop()
+    // The web preview has no native engine: nothing to stop (leaving the Radio there raised an uncaught error).
+    if (isTrackPlayerLinked()) void nativeStop()
   },
 
   prepareCatalogAudioForDriveEntry: async () => {
     playerExtras.__psLoadGeneration += 1
     playerExtras.__psWantPlaying = false
+    // The web preview has no native engine: there is nothing to stop (Radio opened with an uncaught error there).
+    if (!isTrackPlayerLinked()) return
     await nativeStop()
   },
 

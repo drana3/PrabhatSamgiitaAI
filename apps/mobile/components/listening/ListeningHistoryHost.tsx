@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useEffect } from "react"
 
 import { PlayTracker } from "@/lib/authors/plays"
+import "@/lib/radio/live" // installs the Radio picker (the chosen categories); this host is mounted once at the root
 import { demoHistory } from "@/lib/fixtures/searchMenuDemo"
 import { kirtanById } from "@/lib/kirtan/catalog"
 import { entryFromTrack, trackKey } from "@/lib/listening/capture"

@@ -19,6 +19,7 @@ import { useExitDriveOnBlur } from "@/hooks/useExitDriveOnBlur"
 import { DriveNowPlaying } from "@/components/drive/DriveNowPlaying"
 import { DrivePlaylistAccordion } from "@/components/drive/DrivePlaylistAccordion"
 import { DriveReorderableQueue } from "@/components/drive/DriveReorderableQueue"
+import { RadioCategoryStrip } from "@/components/radio/RadioCategoryStrip"
 import { PlaylistSyncBar } from "@/components/playlists/PlaylistSyncBar"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
@@ -26,10 +27,13 @@ import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { useT } from "@/lib/i18n"
 import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
-import { playPlaylist, starterSongForNumber } from "@/lib/playPlaylist"
+import { playPlaylist } from "@/lib/playPlaylist"
+import { trackForNumber } from "@/lib/kirtan/mixPlayback"
 import { shouldAutoStartRandomOnDriveFocus } from "@/lib/driveAutoStart"
 import { randomPlayableSongNumber } from "@/lib/playableAudio"
 import { canStepPlaylist } from "@/lib/playbackQueue"
+import { watchRadioSelection } from "@/lib/radio/applyChange"
+import { startRadioMix } from "@/lib/radio/live"
 import { usePlaylistStore } from "@/stores/playlistStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
@@ -103,8 +107,10 @@ export default function DriveScreen() {
         usePlayerStore.getState().next()
         return
       }
+      startRadioMix() // a fresh radio: a new seed, and the chosen categories from the first track
       const number = randomPlayableSongNumber(latest.currentSong?.number ?? 0)
-      const song = starterSongForNumber(number)
+      // trackForNumber: a catalogue song, or a recording when the chosen categories include recordings
+      const song = trackForNumber(number)
       loadSong(song, [number], "random")
     } finally {
       setStartingRandom(false)
@@ -143,6 +149,9 @@ export default function DriveScreen() {
       }
     }, [startRandom]),
   )
+
+  // a change of the chosen categories while the radio plays reaches the track queued next (never the one playing)
+  useEffect(() => watchRadioSelection(), [])
 
   const driving =
     driveAutoAdvance &&
@@ -222,6 +231,8 @@ export default function DriveScreen() {
             <ActivityIndicator style={styles.modeSpinner} color={colors.primary} />
           ) : null}
         </Pressable>
+
+        <RadioCategoryStrip />
 
         <Pressable
           accessibilityRole="button"

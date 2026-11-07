@@ -24,8 +24,22 @@ export function playableAudioCount(): number {
   return PLAYABLE_LIST.length
 }
 
+/**
+ * The Radio's own picker (lib/radio/live.ts): which category and which track comes next, from the categories the
+ * person chose. Null (the default, and in every test that does not install one) keeps the plain random pick below.
+ */
+let radioPicker: ((exclude: number) => number | null) | null = null
+
+export function setRadioPicker(picker: ((exclude: number) => number | null) | null): void {
+  radioPicker = picker
+}
+
 /** Random PS with a known official audio file in corpus (~3.7k of 5018). */
 export function randomPlayableSongNumber(exclude: number): number {
+  if (radioPicker) {
+    const chosen = radioPicker(exclude)
+    if (chosen != null) return chosen
+  }
   if (!PLAYABLE_LIST.length) return fallbackRandom(exclude)
   for (let attempt = 0; attempt < 48; attempt += 1) {
     const pick = PLAYABLE_LIST[Math.floor(Math.random() * PLAYABLE_LIST.length)]

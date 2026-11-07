@@ -35,6 +35,8 @@ export function qualifies(listenedSec: number, durationSec: number | null | unde
 export type Sample = {
   /** the server's recording id, or null when what plays is not a recording (a Prabhat Samgiita song, nothing) */
   recordingId: string | null
+  /** the catalogue number of a Prabhat Samgiita song that plays (used only when `recordingId` is null); the event then carries `song_number` */
+  songNumber?: number | null
   playing: boolean
   /** seconds into the track */
   position: number
@@ -44,7 +46,10 @@ export type Sample = {
 }
 
 type Listen = {
-  recordingId: string
+  /** what is followed: the recording id, or `ps:<number>` for a catalogue song */
+  subject: string
+  /** set for a catalogue song: the event then carries `song_number` instead of `recording_id` */
+  songNumber: number | null
   startedAt: number
   heard: number
   lastPosition: number
@@ -70,13 +75,14 @@ export class PlayTracker {
   constructor(private readonly emit: (event: PlayEventOut) => void) {}
 
   feed(sample: Sample): void {
-    const { recordingId, at } = sample
-    if (!recordingId) {
+    const { at } = sample
+    const subject = sample.recordingId ?? (sample.songNumber ? `ps:${sample.songNumber}` : null)
+    if (!subject) {
       this.listen = null
       return
     }
     const current = this.listen
-    if (!current || current.recordingId !== recordingId) {
+    if (!current || current.subject !== subject) {
       this.listen = this.begin(sample)
       return
     }
@@ -105,7 +111,8 @@ export class PlayTracker {
 
   private begin(sample: Sample): Listen {
     return {
-      recordingId: sample.recordingId as string,
+      subject: sample.recordingId ?? `ps:${sample.songNumber}`,
+      songNumber: sample.recordingId ? null : (sample.songNumber ?? null),
       startedAt: sample.at,
       heard: 0,
       lastPosition: sample.position,
@@ -119,12 +126,12 @@ export class PlayTracker {
   private check(listen: Listen): void {
     if (listen.sent || !qualifies(Math.floor(listen.heard), listen.duration)) return
     listen.sent = true
-    const key = `${listen.recordingId}:${isoDay(listen.startedAt)}`
+    const key = `${listen.subject}:${isoDay(listen.startedAt)}`
     if (this.doneToday.has(key)) return
     this.doneToday.add(key)
     if (this.doneToday.size > 2000) this.doneToday.clear()
     this.emit({
-      recording_id: listen.recordingId,
+      ...(listen.songNumber != null ? { song_number: listen.songNumber } : { recording_id: listen.subject }),
       played_at: new Date(listen.startedAt).toISOString(),
       listened_sec: Math.floor(listen.heard),
       duration_sec: listen.duration ? Math.round(listen.duration) : null,
@@ -167,4 +174,11 @@ export function recordingIdOfTrack(
   const appId = track.kiirtan.id
   if (appId.startsWith("srv-")) return appId.slice(4)
   return serverIdOf(appId) ?? null
+}
+
+/** The catalogue number behind a player track, or null when the track is a recording (or not a catalogue song). */
+export function songNumberOfTrack(track: { kind?: string; number?: number } | null | undefined): number | null {
+  if (!track || track.kind === "kiirtan") return null
+  const n = track.number
+  return typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= 5018 ? n : null
 }

@@ -26,6 +26,7 @@ import { pronunciationRu } from "./pronunciation"
 import { authorsRu } from "./authors"
 import { notificationCentreRu } from "./notificationCentre"
 import { listeningRu } from "./listening"
+import { radioRu } from "./radio"
 import { searchMenuRu } from "./searchMenu"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
@@ -1378,4 +1379,5 @@ export const ru: Dictionary = {
   ...notificationCentreRu,
   ...searchMenuRu,
   ...listeningRu,
+  ...radioRu,
 }

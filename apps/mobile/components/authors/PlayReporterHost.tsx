@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { AppState } from "react-native"
 
 import { flushPlays } from "@/lib/authors/flush"
-import { PlayTracker, recordingIdOfTrack } from "@/lib/authors/plays"
+import { PlayTracker, recordingIdOfTrack, songNumberOfTrack } from "@/lib/authors/plays"
 import { sendPlays } from "@/lib/authors/remote"
 import { remoteConfig, canUseServer } from "@/lib/kirtan/api"
 import { kirtanById } from "@/lib/kirtan/catalog"
@@ -47,8 +47,10 @@ export function PlayReporterHost() {
     })
     const serverIdOf = (appId: string) => kirtanById(appId)?.serverId
     const unsubscribe = usePlayerStore.subscribe((state) => {
+      const recordingId = recordingIdOfTrack(state.currentSong, serverIdOf)
       tracker.feed({
-        recordingId: recordingIdOfTrack(state.currentSong, serverIdOf),
+        recordingId,
+        songNumber: recordingId ? null : songNumberOfTrack(state.currentSong),
         playing: state.isPlaying,
         position: state.position,
         duration: state.duration,

@@ -25,6 +25,7 @@ import { pronunciationEn } from "./pronunciation"
 import { authorsEn } from "./authors"
 import { notificationCentreEn } from "./notificationCentre"
 import { listeningEn } from "./listening"
+import { radioEn } from "./radio"
 import { searchMenuEn } from "./searchMenu"
 
 /**
@@ -1298,4 +1299,5 @@ export const en = {
   ...notificationCentreEn,
   ...searchMenuEn,
   ...listeningEn,
+  ...radioEn,
 } as const

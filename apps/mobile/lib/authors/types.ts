@@ -170,7 +170,17 @@ export type OwnerStats = {
 
 export type ReportOutcome = { status: "received" | "already_reported"; message: string }
 
-export type PlayEventOut = { recording_id: string; played_at: string; listened_sec: number; duration_sec: number | null }
+/**
+ * One counted listen for `POST /plays`: of a recording (`recording_id`, the server's id) or of a Prabhat Samgiita song of the
+ * catalogue (`song_number`, 1 to 5018). Exactly one of the two is set; the server refuses an event with both or neither.
+ */
+export type PlayEventOut = {
+  recording_id?: string
+  song_number?: number
+  played_at: string
+  listened_sec: number
+  duration_sec: number | null
+}
 export type PlayBatchResult = { accepted: number; duplicates: number; rejected: Record<string, number> }
 
 /** The one thing the screens talk to: the real client or, in the preview, the demo. */

@@ -26,6 +26,7 @@ import { pronunciationEs } from "./pronunciation"
 import { authorsEs } from "./authors"
 import { notificationCentreEs } from "./notificationCentre"
 import { listeningEs } from "./listening"
+import { radioEs } from "./radio"
 import { searchMenuEs } from "./searchMenu"
 
 /** Español. Trato de «tú». Kiirtan y Bhajan se escriben como en inglés; Prabhat Samgiita no se traduce. */
@@ -1292,4 +1293,5 @@ export const es: Dictionary = {
   ...notificationCentreEs,
   ...searchMenuEs,
   ...listeningEs,
+  ...radioEs,
 }
