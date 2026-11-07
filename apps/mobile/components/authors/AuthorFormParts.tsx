@@ -6,6 +6,7 @@ import { AccountField } from "@/components/account/AccountUi"
 import { KPress } from "@/components/kirtan/KPress"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { authorShareUrl } from "@/lib/authors/constants"
 import { ABOUT_MAX, BIO_MAX, LINK_KINDS, MAX_LINKS, NAME_MAX, PLACE_MAX, PROFILE_LANGUAGES, SLUG_MAX } from "@/lib/authors/constants"
 import { type Draft, type DraftErrors, settleSlug, withName, withSlug } from "@/lib/authors/draft"
 import { say } from "@/lib/authors/text"
@@ -44,6 +45,12 @@ export function SlugStatus({ theme, state, onPick }: { theme: SongsTheme; state:
   )
 }
 
+export type FormFocusHook = ReturnType<typeof import("@/lib/forms/useFormFocus").useFormFocus>
+
+/**
+ * Name, and the link of the page. The link is made from the name and shown as a plain line; changing it is a small
+ * text button, not a field. It opens by itself when the link has a problem (taken, reserved) so the person sees why.
+ */
 export function NameAndAddress({
   theme,
   draft,
@@ -52,6 +59,7 @@ export function NameAndAddress({
   slug,
   onChange,
   slugLocked,
+  form,
 }: {
   theme: SongsTheme
   draft: Draft
@@ -59,41 +67,74 @@ export function NameAndAddress({
   touched: boolean
   slug: SlugState
   onChange: Change
-  /** days to wait before the address can change again; 0 or undefined = free */
+  /** days to wait before the link can change again; 0 or undefined = free */
   slugLocked?: number
+  /** the shared "jump to the first field that is wrong" helper (lib/forms) */
+  form?: FormFocusHook
 }) {
   const t = useT()
+  const [open, setOpen] = useState(false)
+  const trouble = slug.kind === "problem" || slug.kind === "error" || Boolean(errors.slug && draft.slugTouched)
+  const editing = !slugLocked && (open || trouble)
+  const shown = authorShareUrl(draft.slug).replace(/^https?:\/\//, "")
   return (
     <View style={styles.group}>
-      <AccountField
-        theme={theme}
-        label={t("authors.form.name")}
-        value={draft.displayName}
-        onChangeText={(v) => onChange(withName(draft, v))}
-        maxLength={NAME_MAX}
-        autoCapitalize="words"
-        autoCorrect={false}
-        aside={`${draft.displayName.length}/${NAME_MAX}`}
-        hint={t("authors.form.nameHint")}
-        error={touched && errors.name ? t(errors.name === "too_short" ? "authors.error.name_too_short" : "authors.error.name_too_long") : null}
-      />
-      <View style={styles.group}>
+      <View {...(form ? form.field("name") : {})}>
         <AccountField
+          ref={form ? (form.input("name") as never) : undefined}
           theme={theme}
-          label={t("authors.form.slug")}
-          value={draft.slug}
-          onChangeText={(v) => onChange(withSlug(draft, v))}
-          onBlur={() => onChange(settleSlug(draft))}
-          maxLength={SLUG_MAX}
-          autoCapitalize="none"
+          label={t("authors.form.name")}
+          value={draft.displayName}
+          onChangeText={(v) => {
+            form?.clear("name")
+            onChange(withName(draft, v))
+          }}
+          maxLength={NAME_MAX}
+          autoCapitalize="words"
           autoCorrect={false}
-          editable={!slugLocked}
-          hint={slugLocked ? t("authors.form.slugWait", { count: slugLocked }) : t("authors.form.slugHint")}
+          aside={`${draft.displayName.length}/${NAME_MAX}`}
+          hint={t("authors.form.nameHint")}
+          error={touched && errors.name ? t(errors.name === "too_short" ? "authors.error.name_too_short" : "authors.error.name_too_long") : null}
         />
-        <Text style={[styles.preview, { color: theme.textBody }]} selectable>
-          {`prabhatasamgiita.org/author/${draft.slug || "…"}`}
-        </Text>
-        {slugLocked ? null : <SlugStatus theme={theme} state={slug} onPick={(s) => onChange(withSlug(draft, s))} />}
+      </View>
+      <View style={styles.linkBlock} {...(form ? form.field("slug") : {})}>
+        {editing ? null : <Text style={[styles.label, { color: theme.textBody }]}>{t("authors.form.slug")}</Text>}
+        <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.form.linkHelp")}</Text>
+        {editing ? (
+          <>
+            <AccountField
+              ref={form ? (form.input("slug") as never) : undefined}
+              theme={theme}
+              label={t("authors.form.slug")}
+              value={draft.slug}
+              onChangeText={(v) => onChange(withSlug(draft, v))}
+              onBlur={() => onChange(settleSlug(draft))}
+              maxLength={SLUG_MAX}
+              autoCapitalize="none"
+              autoCorrect={false}
+              hint={t("authors.form.slugHint")}
+            />
+            <Text style={[styles.preview, { color: theme.textBody }]} selectable>
+              {shown}
+            </Text>
+            <SlugStatus theme={theme} state={slug} onPick={(s) => onChange(withSlug(draft, s))} />
+            {!trouble ? <PillButton theme={theme} tone="quiet" label={t("authors.form.linkKeep")} onPress={() => setOpen(false)} /> : null}
+          </>
+        ) : (
+          <>
+            <Text style={[styles.preview, { color: draft.slug ? theme.textHeading : theme.textMuted }]} selectable accessibilityLabel={draft.slug ? shown : t("authors.form.linkEmpty")}>
+              {draft.slug ? shown : t("authors.form.linkEmpty")}
+            </Text>
+            {draft.slug ? <SlugStatus theme={theme} state={slug} onPick={(s) => onChange(withSlug(draft, s))} /> : null}
+            {slugLocked ? (
+              <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.form.slugWait", { count: slugLocked })}</Text>
+            ) : !draft.slug ? null : (
+              <KPress accessibilityRole="button" onPress={() => setOpen(true)} pressedScale={0.97} style={styles.changeLink} hitSlop={12}>
+                <Text style={[styles.changeText, { color: theme.accentText }]}>{t("authors.form.linkChange")}</Text>
+              </KPress>
+            )}
+          </>
+        )}
       </View>
     </View>
   )
@@ -110,6 +151,7 @@ function MultiField({
   lines,
   hint,
   error,
+  inputRef,
 }: {
   theme: SongsTheme
   label: string
@@ -119,6 +161,7 @@ function MultiField({
   lines: number
   hint?: string | null
   error?: string | null
+  inputRef?: (node: unknown) => void
 }) {
   const [focused, setFocused] = useState(false)
   const border = error ? theme.dangerText : focused ? theme.accentBright : theme.line
@@ -129,6 +172,7 @@ function MultiField({
         <Text style={[styles.aside, { color: value.length > max ? theme.dangerText : theme.textMuted }]}>{`${value.length}/${max}`}</Text>
       </View>
       <TextInput
+        ref={inputRef as never}
         accessibilityLabel={label}
         multiline
         value={value}
@@ -149,7 +193,7 @@ function MultiField({
   )
 }
 
-export function AboutFields({ theme, draft, errors, onChange }: { theme: SongsTheme; draft: Draft; errors: DraftErrors; onChange: Change }) {
+export function AboutFields({ theme, draft, errors, onChange, form }: { theme: SongsTheme; draft: Draft; errors: DraftErrors; onChange: Change; form?: FormFocusHook }) {
   const t = useT()
   const type = (value: AuthorType) => onChange({ ...draft, authorType: value })
   const toggleLanguage = (code: string) =>
@@ -163,7 +207,9 @@ export function AboutFields({ theme, draft, errors, onChange }: { theme: SongsTh
           <Chip theme={theme} label={t("authors.type.group")} active={draft.authorType === "group"} onPress={() => type("group")} />
         </View>
       </View>
+      <View {...(form ? form.field("bio") : {})}>
       <MultiField
+        inputRef={form?.input("bio")}
         theme={theme}
         label={t("authors.form.bio")}
         value={draft.bio}
@@ -173,7 +219,10 @@ export function AboutFields({ theme, draft, errors, onChange }: { theme: SongsTh
         hint={t("authors.form.bioHint")}
         error={errors.bio ? t("authors.error.too_long") : null}
       />
+      </View>
+      <View {...(form ? form.field("about") : {})}>
       <MultiField
+        inputRef={form?.input("about")}
         theme={theme}
         label={t("authors.form.about")}
         value={draft.about}
@@ -182,9 +231,10 @@ export function AboutFields({ theme, draft, errors, onChange }: { theme: SongsTh
         lines={6}
         error={errors.about ? t("authors.error.too_long") : null}
       />
-      <View style={styles.two}>
+      </View>
+      <View style={styles.two} {...(form ? form.field("place") : {})}>
         <View style={styles.half}>
-          <AccountField theme={theme} label={t("authors.form.country")} value={draft.country} onChangeText={(v) => onChange({ ...draft, country: v })} maxLength={PLACE_MAX} />
+          <AccountField ref={form ? (form.input("place") as never) : undefined} theme={theme} label={t("authors.form.country")} value={draft.country} onChangeText={(v) => onChange({ ...draft, country: v })} maxLength={PLACE_MAX} error={errors.place ? t("authors.error.too_long") : null} />
         </View>
         <View style={styles.half}>
           <AccountField theme={theme} label={t("authors.form.city")} value={draft.city} onChangeText={(v) => onChange({ ...draft, city: v })} maxLength={PLACE_MAX} />
@@ -213,7 +263,7 @@ export function AboutFields({ theme, draft, errors, onChange }: { theme: SongsTh
 
 /* ------------------------------------------------------------------ links */
 
-export function LinksEditor({ theme, draft, errors, onChange }: { theme: SongsTheme; draft: Draft; errors: DraftErrors; onChange: Change }) {
+export function LinksEditor({ theme, draft, errors, onChange, form }: { theme: SongsTheme; draft: Draft; errors: DraftErrors; onChange: Change; form?: FormFocusHook }) {
   const t = useT()
   const setLink = (index: number, patch: Partial<{ kind: LinkKind; url: string }>) =>
     onChange({ ...draft, links: draft.links.map((l, i) => (i === index ? { ...l, ...patch } : l)) })
@@ -224,7 +274,7 @@ export function LinksEditor({ theme, draft, errors, onChange }: { theme: SongsTh
     setLink(index, { kind: LINK_KINDS[(at + 1) % LINK_KINDS.length] as LinkKind })
   }
   return (
-    <View style={styles.group}>
+    <View style={styles.group} {...(form ? form.field("links") : {})}>
       <Text style={[styles.label, { color: theme.textBody }]}>{t("authors.form.links")}</Text>
       <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.form.linksHint")}</Text>
       {draft.links.map((link, index) => (
@@ -318,6 +368,9 @@ export const FORM_SIDE = SIDE
 
 const styles = StyleSheet.create({
   group: { gap: 14 },
+  linkBlock: { gap: 8 },
+  changeLink: { alignSelf: "flex-start", paddingVertical: 4 },
+  changeText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20, textDecorationLine: "underline" },
   field: { gap: 8 },
   labelRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   label: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18, letterSpacing: 0.4 },
@@ -330,7 +383,7 @@ const styles = StyleSheet.create({
   status: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   statusBlock: { gap: 8 },
   suggest: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  preview: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  preview: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 22 },
   linkRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   linkField: { flex: 1 },
   kindButton: { minHeight: 56, minWidth: 92, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },

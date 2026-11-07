@@ -101,6 +101,18 @@ export function validateDraft(d: Draft): DraftErrors {
   return errors
 }
 
+/** The fields that are wrong, top to bottom, as the keys the form registers (lib/forms/focusInvalid.ts). */
+export function invalidFieldKeys(errors: DraftErrors, slugOk: boolean): string[] {
+  const keys: string[] = []
+  if (errors.name) keys.push("name")
+  if (errors.slug || !slugOk) keys.push("slug")
+  if (errors.bio) keys.push("bio")
+  if (errors.about) keys.push("about")
+  if (errors.place) keys.push("place")
+  if (errors.links) keys.push("links")
+  return keys
+}
+
 export function hasErrors(errors: DraftErrors): boolean {
   return Object.keys(errors).length > 0
 }

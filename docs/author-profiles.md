@@ -38,11 +38,13 @@ Slug rules: 3 to 30 characters, lowercase letters, digits and single hyphens, mu
 
 ## Flows
 
-Create (app: Become an author, `app/become-author.tsx`):
-1. Name and type, address (checked live with `GET /authors/slug-check`, with suggestions), short bio, place, languages.
-2. Links and photo (optional).
-3. Which uploads to show. Default is all of the member's published uploads. The member can switch off single recordings, or choose only some.
-4. Choose "Save as draft" or "Publish". Publishing is refused with a plain message when the address or name needs the team, and the page then waits (see Moderation).
+Create (app: Become an author, `app/become-author.tsx`), four steps:
+1. Your name. The link to the page (`/author/<slug>`) is made from the name by itself and checked live with `GET /authors/slug-check`, which suggests free alternatives when it is taken. See "The page link" below.
+2. About you: Singer or Group, short line, about text, place, languages, links and picture (all optional), and "Known under another name" for people who already appear in the library under another name (the team checks this before the page goes public).
+3. Your recordings: all of the member's published uploads (default) or only chosen ones, and whether visitors may see the numbers.
+4. Preview, then "Save as draft" or "Publish". Publishing is refused with a plain message when the name or link needs the team, and the page then waits (see Moderation).
+
+Every step keeps what was typed when the network fails, leaving with unsaved text asks first (`LeaveCard`), and a missing required field is outlined in red and the screen scrolls to it (`lib/forms/focusInvalid.ts`, the helper shared with the upload form).
 
 Appearance: the public page (app `app/author/[slug].tsx`, web `/author/<slug>`) shows photo, name, "Verified" mark if the team verified it, bio, place, numbers if allowed and enough, recordings grouped by kind, event playlists, about text, links. The app adds Play, Shuffle and Share.
 
@@ -52,7 +54,7 @@ How people see it:
 - By address: `/author/<slug>` on the web, or the same address opened in the app (the deep link maps it to the author screen).
 - In the app search, a block of matching authors above the recording results.
 - On a recording page, a line "By <author>" when the uploader has a published page, and a "More from this author" list.
-- In the directory, `/authors` in the app and on the web, sorted by monthly listeners, newest, or name.
+- In the catalog, `/authors` in the app and on the web (see "The catalog" below).
 
 Edit, unpublish, delete, export: `PATCH /authors/me`, `POST /authors/me/unpublish`, `DELETE /authors/me` (the page, photo and choices are removed; uploads stay), `GET /authors/me/export` (all the data the page holds, as JSON). Changing the address is limited to once in 30 days.
 
@@ -89,9 +91,10 @@ Spec, implemented in `app/author/[slug]/page.tsx`, `app/authors/page.tsx`, `app/
 - Robots meta: `index, follow` only when the API says `indexable: true`. That is true when the page is published, not suspended, not waiting for the team, and has at least one published recording. Everything else is `noindex, nofollow`, including the not-found and error pages.
 - JSON-LD (`@graph`): `ProfilePage`, the author as `Person` (solo) or `MusicGroup` (group) with `sameAs` links (https only), and up to 50 `MusicRecording` items that point back with `byArtist`, with ISO 8601 duration, language and year when known. The JSON is escaped (`<`, `>`, `&`, line separators) so a name can never close the script tag.
 - `sitemap.xml`: `/authors` plus every address returned by `GET /authors/sitemap`, which already applies the indexable rule. `robots.txt`: allows `/author/` and `/authors`, closes `/api/`, `/admin` and sign-in areas, and names the sitemap.
-- Old addresses: the API answers `301` with `{code: "moved", slug}`; the page calls `permanentRedirect`, which Next.js sends as `308`. Search engines treat 301 and 308 the same. A deleted or never-existing page answers `404`. The API says `410 Gone` for a deleted page, but the page shows the same 404 for both; this is deliberate so a deleted page does not announce that it existed.
+- Old addresses: the API answers `301` with `{code: "moved", slug}`; the page calls `permanentRedirect`, which Next.js sends as `308`. Search engines treat 301 and 308 the same. A deleted page answers `410 Gone`, one that never existed `404`.
+- The real status codes come from `middleware.ts` (via `lib/author-status.ts`), not from the page. The site's root `loading.tsx` makes every page stream, and a streamed page has already sent `200` when it learns that an author moved or is gone, so a `permanentRedirect()` or `notFound()` inside the page only produced a client-side redirect or a `200` with `noindex`. The middleware asks the API first (2.5 s limit, never blocks the page if the API cannot be reached) and answers `308` with the new address, or a small `noindex` page with `404` or `410`. Every other answer, including an API error, is left to the page, which then renders its own error state with `200` and `noindex`; answering `503` there instead is a possible later improvement.
 - The page also offers "Open in the app" (`prabhatai:///author/<slug>`).
-- Universal links: `/author/*` is not yet in `public/.well-known/apple-app-site-association` or the Android intent filter. Adding it makes https links open in the app on phones that have it, and needs a new native build for Android. Left out on purpose until Dada decides.
+- Universal links: `/author/*` is not yet in `public/.well-known/apple-app-site-association` or the Android intent filter. Adding it makes https links open in the app on phones that have it, and needs a new native build. It stays for the native build.
 
 ## Moderation
 
@@ -171,29 +174,64 @@ Done: screens and routes in `app/_layout.tsx`, the play reporter host, locale st
 For the owners of those screens to add (one line each, components exist):
 - Upload hub: `<AuthorHubRow theme={theme} />`.
 - Recording page: `<AuthorLine theme={theme} recordingId={kirtan.serverId} />` under the title, and `<MoreFromAuthor theme slug name excludeId />` below.
-- Unified search: `<AuthorsSearchBlock theme={theme} query={query} />`.
+- Unified search: `<AuthorsSearchBlock theme={theme} query={query} />` (the search owner places it; the route `/authors` it links to is stable).
 
-## Decisions for Dada
+Done by the authors owner: the "Authors" shelf on the Kiirtan tab (`components/authors/AuthorsShelf.tsx`, one `<Reveal>` block in `app/kiirtan.tsx`), with "See all" into `/authors`.
 
-1. Which uploads appear by default: all published uploads (`DEFAULT_INCLUDE_UPLOADS = "all"`), or only ones the member picks.
-2. Listener key rotation: `LISTENER_SALT_ROTATION_DAYS = 0` (the key is stable). A daily key would be more private but would make monthly listeners impossible to count. Recommended: keep stable.
-3. Minimum before public numbers: 10 plays (Dada, 2026-11). Country threshold: 5 listeners per country and 20 in all.
-4. Address change: once in 30 days; old address held 90 days.
-5. Reports: 3 reports raise review; impersonation and copyright raise it at once.
-6. Photo kept in the database (300 KB). Alternative is object storage.
-7. Claimed artist names need team verification before any "Verified" mark.
-8. Keep evidence of a suspended page after deletion, and for how long (currently without a time limit).
+## The page link (what used to be called "address")
+
+The link is the public name of the page: `www.prabhatasamgiita.org/author/anna-rao`. People open it in a browser, search engines list it, and members send it to friends. It cannot be removed, because without it there is no page, so the form no longer asks for it as a main field.
+
+- It is made from the name while typing (`lib/authors/slug.ts`), checked against the server (free or taken, with two suggestions that take one tap), and shown as one line under the name field with the label "Your page link" and one sentence of explanation.
+- A small "Change link" link opens the field for people who want something else. Rules: Latin letters, numbers and hyphens, 3 to 30 characters.
+- Changing it later: once in 30 days, the old link keeps working for 90 days and no one else can take it meanwhile.
+
+## Page layouts
+
+The public author page has three layouts, behind `?v=1|2|3`, in the demo preview only (`app/author/[slug].tsx`; real builds always show layout 1 until Dada chooses): 1 Cover (photo across the top, like an artist page), 2 Journal (type-set header, recordings as a numbered list), 3 Showcase (round photo beside the name, "Play all" with a count, numbers, then "Most played" tiles). The recommendation is 3, because it works with and without a photo and shows the best recordings without scrolling. Boards: `Для-Дады/автор-v2/index.html` (board 6). Dada picks one; the other two and the switch are then deleted.
+
+## The catalog
+
+One screen, `/authors` (`app/authors.tsx`): search, order (most listened, new, A to Z), filters by kind (Kiirtan, Bhajan, Prabhat Samgiita, and the rest of the kinds) and by language, a way into "Become an author" or "Your author page" (it asks the store whether the member has a page, so it is right even when the screen is opened from a link), every empty and error state, and "Clear filters". The API takes `kind` and `language` and each snapshot stores the kinds it has (`kinds` column, migration 0038).
+
+Where it is reached from (three placements were drawn, board 7): A, a shelf on Today; B, a block in the search tab; C, a shelf on the Kiirtan tab. Built: C, because people on the Kiirtan tab are the ones who care who sings, the shelf is narrow (round photos), and under a kind chip it shows only that kind. The search block (B) stays as an extra door, placed by the search owner. Today (A) is left out: it is already a dense shelf of the song of the day and festivals.
+
+## Scenarios that were worked through and tested
+
+Create (four steps, draft, publish, claimed name, network error, leave guard, signed out, blocked, load error), edit (picture add and remove, name, link with cooldown, saved, save error, leave guard), my page (published, draft, waiting for the team, verified, reported, suspended, small-listener state, no plays and no recordings, hide a recording, unpublish, delete with confirmation, statistics error, load error, no page, signed out), public page (signed out, signed in, own page, report form, report sent, report again, moved, deleted, not found, small listeners, error, playlists, empty about), the three layouts, the catalog (filters, no match, error, with my page) and the Kiirtan shelf. Screenshots of every state at 390 pixels are in `Для-Дады/автор-v2/` (made with `scratchpad` scripts against the preview, where `authorsApi()` is an in-memory demo that can be put into any of these states with `globalThis.__authorsDemo`). Rules are covered by `__tests__/authorScenarios.test.ts` and the existing author tests.
+
+## Test data
+
+User-made author profiles live only in memory in the preview, so a reload clears them. The only persisted store touched is `playQueueStore` (persist version 2), so old test queues vanish. Seed demo data is kept.
+
+## Decisions
+
+Decided by the authors owner (change any of them by one constant; each is recorded here so it is not a surprise):
+
+1. Uploads shown by default: all published uploads (`DEFAULT_INCLUDE_UPLOADS = "all"`); any single one can be switched off.
+2. Listener key rotation: stable (`LISTENER_SALT_ROTATION_DAYS = 0`). A daily key would be more private but would make monthly listeners impossible to count.
+3. Numbers become public after 10 plays (Dada, 2026-11). Country threshold: 5 listeners per country and 20 in all.
+4. Link change: once in 30 days; the old link held for 90 days.
+5. Reports: 3 reports raise review; impersonation and copyright raise it at once. A report never takes a page down by itself.
+6. Photo kept in the database (300 KB). Object storage is the alternative once volume grows.
+7. A claimed artist name needs team verification before any "Verified" mark.
+8. Evidence of a suspended page is kept after deletion, without a time limit for now.
 9. Device region is not sent by default; countries appear only for members who allow it.
-10. Plays are counted without a separate consent screen, since only a short keyed hash is stored. Confirm that this is acceptable for the stores' privacy forms.
+10. Plays are counted without a separate consent screen, since only a short keyed hash is stored. Check this against the stores' privacy forms before release.
 11. Web plays are not counted yet.
-12. Add `/author/*` to universal links (needs a native build).
-13. Language rule for uploads (Dada's rule): language is REQUIRED for Bhajan and Spiritual song; Kiirtan has none; Prabhat Samgiita optional; Dance music: dance is required and language optional. Older rows without a language keep working, and My uploads gives a gentle "Add language" prompt for old bhajans. This is enforced by the upload code (`add-kirtan`, `lib/kirtan`, the recordings API), which another change owns, not by the author pages. Author pages only show a language when a recording has one; the owner recordings endpoint already returns `language`.
-14. Caps for made-up device ids: 10 new listeners per recording and 30 per day per client. Lower is safer against a script but undercounts a sangha hall where many phones share one wifi. The play caps (200 per recording per day, 1000 per day, per client) are a judgment call in the same way: a hall of 300 phones playing one song on one wifi would have its 100 last plays held out of the public number.
-15. The list of staff words and the owners' names that hold a page for the team (see Moderation). A verified page is exempt; a team member's own page must be verified by the team.
+12. Caps against scripts: 10 new listeners per recording and 30 per day per client; 200 plays per recording per day and 1000 per day per client. A sangha hall of 300 phones on one wifi would have its last plays held out of the public number. The proxy address is not trusted for caps beyond that.
+13. Team members' own pages are exempt from nothing: a page that uses a staff word or an owner's name is held for the team until verified, so a team member's page needs the team's verification once.
+14. Upload language rule (Dada's): required for Bhajan and Spiritual song, none for Kiirtan, optional for Prabhat Samgiita, and for Dance music the dance is required and the language optional. Owned by the upload code, not by the author pages.
+
+Needs Dada (changes what people see):
+
+1. The layout of the public page: 1, 2 or 3 (recommended 3).
+2. Whether the catalog also gets a door on Today (built: Kiirtan tab shelf and the search block).
+3. Universal links for `/author/*` (https links opening in the app; needs a new native build).
 
 ## Not verified
 
-- The web pages were written without installing the web dependencies on this machine, so `next build`, the web type check and `next lint` have not run. The helper library has 16 passing tests (`apps/web/tests/authors.test.ts`, run with the mobile vitest binary). Open `/author/<slug>` against a running API before release.
+- The web pages are built and tested: `next build` passes, the standalone server renders `/author/<slug>` and `/authors` with title, description, canonical, `index, follow`, JSON-LD (`ProfilePage`, `Person`, `MusicRecording`), and serves `sitemap.xml`, `robots.txt`, `308` for a moved link, `404` and `410`. This was checked against a small stub API that returns the documented shapes, not against the real API with real data; run the same URLs against a staging API before release. Unit tests: `apps/web/tests/authors.test.ts` and `apps/web/tests/author-status.test.ts`.
 - Nothing was run against PostgreSQL. API tests use SQLite; the migration has a test (`test_author_profiles_migration.py`) but a real upgrade on a copy of production is needed.
 - `AUTHOR_STATS_PEPPER` (or the recording signing secret) must be set in production; without both, a development value is used.
 - Real devices: the play reporter was exercised in the web preview and unit tests only. Background playback, offline batching and app restarts on iOS and Android are not tested.

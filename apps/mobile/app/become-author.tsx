@@ -7,18 +7,20 @@ import { AccountBar, InlineError, topInset } from "@/components/account/AccountU
 import { AuthorHero } from "@/components/authors/AuthorHero"
 import { AboutFields, LinksEditor, NameAndAddress, UploadChoices } from "@/components/authors/AuthorFormParts"
 import { DemoNote, LoadingRows, PillButton, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { LeaveCard } from "@/components/authors/LeaveCard"
 import { PublicStatsStrip } from "@/components/authors/StatsViews"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSlugCheck } from "@/hooks/useSlugCheck"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
+import { isSignedIn } from "@/lib/authors/session"
 import { AUTHORS_HREF, CONTENT_RULES_HREF, MY_AUTHOR_HREF } from "@/lib/authors/constants"
-import { emptyDraft, hasErrors, toCreateInput, validateDraft, type Draft } from "@/lib/authors/draft"
+import { emptyDraft, hasErrors, invalidFieldKeys, toCreateInput, validateDraft, type Draft } from "@/lib/authors/draft"
 import { errorKey as keyOfCode } from "@/lib/authors/slug"
 import { say } from "@/lib/authors/text"
+import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { useT } from "@/lib/i18n"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
-import { canUseServer } from "@/lib/kirtan/api"
 import { NetworkError, RemoteError } from "@/lib/kirtan/remote"
 import { errorKeyOf, useAuthorStore } from "@/stores/authorStore"
 import { href } from "@/utils/href"
@@ -44,6 +46,8 @@ export default function BecomeAuthorScreen() {
   const refresh = useAuthorStore((s) => s.refresh)
   const setMine = useAuthorStore((s) => s.setMine)
 
+  const form = useFormFocus()
+  const [leaving, setLeaving] = useState(false)
   const [step, setStep] = useState(1)
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [touched, setTouched] = useState(false)
@@ -51,7 +55,7 @@ export default function BecomeAuthorScreen() {
   const [error, setError] = useState<string | null>(null)
   const slug = useSlugCheck(draft.slug, null)
   const errors = useMemo(() => validateDraft(draft), [draft])
-  const signedIn = api.demo || canUseServer()
+  const signedIn = isSignedIn(api)
 
   useEffect(() => {
     if (signedIn && load === "idle") void refresh()
@@ -61,12 +65,14 @@ export default function BecomeAuthorScreen() {
   }, [mine, router])
 
   const leave = () => (router.canGoBack() ? router.back() : router.replace(href(AUTHORS_HREF)))
-  const back = () => (step > 1 ? setStep(step - 1) : leave())
+  const started = Boolean(draft.displayName.trim() || draft.bio.trim() || draft.about.trim())
+  const back = () => (step > 1 ? setStep(step - 1) : started ? setLeaving(true) : leave())
   const bar = <AccountBar theme={theme} title={t("authors.become.title")} onBack={back} inset={topInset(insets.top)} />
   const frame = (child: React.ReactNode) => (
     <View style={[styles.root, { backgroundColor: theme.page }]}>
       <Stack.Screen options={{ headerShown: false }} />
       {bar}
+      {leaving ? <LeaveCard theme={theme} onStay={() => setLeaving(false)} onLeave={leave} /> : null}
       {child}
     </View>
   )
@@ -84,7 +90,10 @@ export default function BecomeAuthorScreen() {
   const next = () => {
     setTouched(true)
     setError(null)
-    if (!stepOk(step)) return
+    if (!stepOk(step)) {
+      void form.focusFirst(invalidFieldKeys(errors, step !== 1 || slug.kind === "ok"))
+      return
+    }
     setTouched(false)
     setStep(step + 1)
   }
@@ -109,7 +118,7 @@ export default function BecomeAuthorScreen() {
 
   return frame(
     <KeyboardAvoidingView style={styles.flex} behavior={keyboardBehavior(Platform.OS)}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView ref={form.scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {api.demo ? <DemoNote theme={theme} /> : null}
         <View style={styles.pad}>
           <Text style={[styles.progress, { color: theme.textMuted }]} accessibilityLiveRegion="polite">
@@ -122,11 +131,11 @@ export default function BecomeAuthorScreen() {
         </View>
 
         <View style={styles.pad}>
-          {step === 1 ? <NameAndAddress theme={theme} draft={draft} errors={errors} touched={touched} slug={slug} onChange={setDraft} /> : null}
+          {step === 1 ? <NameAndAddress theme={theme} draft={draft} errors={errors} touched={touched} slug={slug} onChange={setDraft} form={form} /> : null}
           {step === 2 ? (
             <View style={styles.stack}>
-              <AboutFields theme={theme} draft={draft} errors={errors} onChange={setDraft} />
-              <LinksEditor theme={theme} draft={draft} errors={errors} onChange={setDraft} />
+              <AboutFields theme={theme} draft={draft} errors={errors} onChange={setDraft} form={form} />
+              <LinksEditor theme={theme} draft={draft} errors={errors} onChange={setDraft} form={form} />
             </View>
           ) : null}
           {step === 3 ? <UploadChoices theme={theme} draft={draft} onChange={setDraft} /> : null}

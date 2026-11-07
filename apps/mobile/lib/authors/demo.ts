@@ -10,7 +10,7 @@ import type {
   AuthorsApi,
   CollectionBrief,
   CreateInput,
-  DirectorySort,
+  DirectoryQuery,
   OwnerRecording,
   OwnerResponse,
   OwnerStats,
@@ -20,6 +20,8 @@ import type {
   StatsPeriod,
 } from "@/lib/authors/types"
 import { localSlugProblem, normalizeSlug } from "@/lib/authors/slug"
+import { setDemoSignedOut } from "@/lib/authors/demoSession"
+import { NetworkError, RemoteError } from "@/lib/kirtan/remote"
 
 /**
  * The author API for the web preview: the same calls as lib/authors/remote.ts, answered from the invented pages
@@ -75,7 +77,37 @@ function card(p: AuthorProfilePublic): AuthorCardData {
   }
 }
 
-function demoStats(days: StatsPeriod): OwnerStats {
+export type DemoStatsMode = "normal" | "small" | "empty"
+
+/** A small invented picture, so "add a photo" shows something in the preview. */
+const DEMO_PHOTO =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" fill="#B84A0C"/><circle cx="60" cy="46" r="20" fill="#F4E4D6"/><path d="M20 120c4-26 22-40 40-40s36 14 40 40z" fill="#F4E4D6"/></svg>',
+  )
+
+function demoStats(days: StatsPeriod, mode: DemoStatsMode = "normal"): OwnerStats {
+  if (mode !== "normal") {
+    const small = mode === "small"
+    return {
+      period_days: days,
+      counting_since: small ? "2026-10-20" : null,
+      monthly_listeners: small ? 3 : 0,
+      total_plays: small ? 4 : 0,
+      plays_in_period: small ? 4 : 0,
+      public_enough_data: false,
+      public_visible: true,
+      series: Array.from({ length: days }, (_, i) => ({
+        day: new Date(Date.UTC(2026, 10, 1) - (days - 1 - i) * 86_400_000).toISOString().slice(0, 10),
+        plays: small && i > days - 4 ? 1 : 0,
+        listeners: small && i > days - 4 ? 1 : 0,
+      })),
+      top_recordings: small ? [{ recording_id: "k-bnk-morning", title: "Baba Nam Kevalam, morning round", kind: "kiirtan", plays: 4 }] : [],
+      by_kind: small ? [{ kind: "kiirtan", count: 4 }] : [],
+      countries: null,
+      notes: small ? ["not_enough_data", "counting_rule"] : ["no_data_yet", "counting_rule"],
+    }
+  }
   const series = Array.from({ length: days }, (_, i) => {
     const day = new Date(Date.UTC(2026, 10, 1) - (days - 1 - i) * 86_400_000).toISOString().slice(0, 10)
     const plays = 6 + ((i * 7) % 13)
@@ -106,10 +138,44 @@ function demoStats(days: StatsPeriod): OwnerStats {
   }
 }
 
-export function createDemoApi(): AuthorsApi {
-  const authors = [...sampleAuthors().map((a) => ({ ...a }))]
+/**
+ * Switches for the preview and the tests: put the demo into any state a real account can be in (suspended, reported,
+ * few listeners, a failing network) without a server. Reachable in the browser as `globalThis.__authorsDemo`.
+ */
+export type DemoControl = {
+  reset(): void
+  /** a page of the person's own, by fields; `null` removes it */
+  setMine(patch: Partial<AuthorProfileOwner> | null): void
+  /** the account cannot make a page (the team suspended it) */
+  setBlocked(reason: string | null): void
+  setStats(mode: DemoStatsMode): void
+  setRecordings(mode: "some" | "none"): void
+  /** the next call of this API method fails once: "network", "server" or an API error code */
+  failNext(method: keyof AuthorsApi, how: "network" | "server" | string): void
+  /** the public address answers "moved" (to `to`) or "gone" */
+  setLookup(slug: string, answer: { moved: string } | "gone" | null): void
+  setReport(outcome: "received" | "already_reported"): void
+  /** show the signed-out screens (read when a screen opens) */
+  setSignedIn(value: boolean): void
+}
+
+export type DemoAuthorsApi = AuthorsApi & { control: DemoControl }
+
+export function createDemoApi(): DemoAuthorsApi {
+  // the counts follow the sample recordings, so the page and the list never disagree
+  const authors = sampleAuthors().map((a) => {
+    const rows = recordingsOfText(a.authorText)
+    const kinds = [...new Set(rows.map((r) => r.kind))].map((kind) => ({ kind, count: rows.filter((r) => r.kind === kind).length }))
+    return { ...a, profile: { ...a.profile, recordings_count: rows.length, kinds } }
+  })
   let mine: AuthorProfileOwner | null = null
-  const shown = new Map<string, boolean>()
+  let shown = new Map<string, boolean>()
+  let statsMode: DemoStatsMode = "normal"
+  let recordingsMode: "some" | "none" = "some"
+  let blocked: string | null | undefined
+  let reportOutcome: "received" | "already_reported" = "received"
+  const failures = new Map<string, Error>()
+  const lookups = new Map<string, { moved: string } | "gone">()
 
   const publicOf = (o: AuthorProfileOwner): AuthorProfilePublic => ({
     slug: o.slug,
@@ -164,10 +230,10 @@ export function createDemoApi(): AuthorsApi {
 
   const find = (slug: string) => authors.find((a) => a.profile.slug === slug)
 
-  return {
+  const base: AuthorsApi = {
     demo: true,
     async mine(): Promise<OwnerResponse> {
-      return { profile: mine, can_create: true, suspended_reason: null }
+      return { profile: mine, can_create: blocked === undefined, suspended_reason: blocked ?? null }
     },
     async checkSlug(raw): Promise<SlugCheck> {
       const slug = normalizeSlug(raw)
@@ -200,7 +266,7 @@ export function createDemoApi(): AuthorsApi {
     },
     async putPhoto() {
       if (!mine) throw new Error("no page")
-      mine = { ...mine, photo_url: null }
+      mine = { ...mine, photo_url: DEMO_PHOTO }
       return mine
     },
     async removePhoto() {
@@ -209,24 +275,30 @@ export function createDemoApi(): AuthorsApi {
       return mine
     },
     async myRecordings(): Promise<{ items: OwnerRecording[]; total: number }> {
-      const items = recordingsOfText("Priya Devi").map((recording) => ({ recording, shown: shown.get(recording.id) ?? true, exception: shown.get(recording.id) === false }))
+      const items = (recordingsMode === "none" ? [] : recordingsOfText("Priya Devi")).map((recording) => ({ recording, shown: shown.get(recording.id) ?? true, exception: shown.get(recording.id) === false }))
       return { items, total: items.length }
     },
     async setShown(id, value) {
       shown.set(id, value)
     },
     async myStats(days) {
-      return demoStats(days)
+      return demoStats(days, statsMode)
     },
-    async directory({ q, sort = "listeners", offset = 0, limit = 20 }: { q?: string; sort?: DirectorySort; offset?: number; limit?: number }): Promise<AuthorList> {
+    async directory({ q, sort = "listeners", kind, language, offset = 0, limit = 20 }: DirectoryQuery): Promise<AuthorList> {
       const needle = (q ?? "").trim().toLowerCase()
-      let list = authors.map((a) => card(a.profile)).filter((c) => !needle || c.display_name.toLowerCase().includes(needle) || c.slug.includes(needle))
+      const everyone = mine && mine.status === "published" ? [...authors, { authorText: "", profile: { ...publicOf(mine), kinds: [] } }] : authors
+      const shownAuthors = everyone.filter((a) => (!kind || a.profile.kinds.some((k) => k.kind === kind)) && (!language || a.profile.languages.includes(language)))
+      let list = shownAuthors.map((a) => card(a.profile)).filter((c) => !needle || c.display_name.toLowerCase().includes(needle) || c.slug.includes(needle))
       if (sort === "listeners") list = list.sort((a, b) => (b.monthly_listeners ?? -1) - (a.monthly_listeners ?? -1))
       if (sort === "name") list = list.sort((a, b) => a.display_name.localeCompare(b.display_name))
+      if (sort === "new") list = list.sort((a, b) => (everyone.find((x) => x.profile.slug === b.slug)?.profile.published_at ?? "").localeCompare(everyone.find((x) => x.profile.slug === a.slug)?.profile.published_at ?? ""))
       const page = list.slice(offset, offset + limit)
       return { items: page, total: list.length, limit, offset, has_more: offset + limit < list.length }
     },
     async profile(slug): Promise<AuthorLookup> {
+      const moved = lookups.get(slug)
+      if (moved === "gone") return { kind: "gone" }
+      if (moved) return { kind: "moved", slug: moved.moved }
       if (mine && mine.slug === slug && mine.status === "published") return { kind: "profile", profile: publicOf(mine) }
       const found = find(slug)
       return found ? { kind: "profile", profile: found.profile } : { kind: "missing" }
@@ -249,7 +321,63 @@ export function createDemoApi(): AuthorsApi {
       return owner ? card(owner.profile) : null
     },
     async report() {
-      return { status: "received", message: "Thank you. The team will look at this page." }
+      return { status: reportOutcome, message: "Thank you. The team will look at this page." }
     },
   }
+
+  const control: DemoControl = {
+    reset() {
+      mine = null
+      shown = new Map()
+      statsMode = "normal"
+      recordingsMode = "some"
+      blocked = undefined
+      reportOutcome = "received"
+      failures.clear()
+      lookups.clear()
+      setDemoSignedOut(false)
+    },
+    setMine(patch) {
+      mine = patch === null ? null : { ...ownerFrom({ slug: "my-page", display_name: "My Page", author_type: "solo", bio: "", about: "", country: null, city: null, languages: [], links: [], claimed_name: null, include_uploads: "all", show_stats: true, publish: true }, mine ?? undefined), ...patch }
+    },
+    setBlocked(reason) {
+      blocked = reason === null ? undefined : reason
+    },
+    setStats(mode) {
+      statsMode = mode
+    },
+    setRecordings(mode) {
+      recordingsMode = mode
+    },
+    failNext(method, how) {
+      failures.set(method, how === "network" ? new NetworkError() : how === "server" ? new RemoteError(500, "demo") : new RemoteError(400, "demo", { code: how }))
+    },
+    setLookup(slug, answer) {
+      if (answer === null) lookups.delete(slug)
+      else lookups.set(slug, answer)
+    },
+    setReport(outcome) {
+      reportOutcome = outcome
+    },
+    setSignedIn(value) {
+      setDemoSignedOut(!value)
+    },
+  }
+
+  // every method fails once when the preview or a test asked for it
+  const guarded = { demo: true } as unknown as Record<string, unknown>
+  for (const [name, value] of Object.entries(base)) {
+    guarded[name] =
+      typeof value === "function"
+        ? async (...args: unknown[]) => {
+            const failure = failures.get(name)
+            if (failure) {
+              failures.delete(name)
+              throw failure
+            }
+            return (value as (...a: unknown[]) => unknown)(...args)
+          }
+        : value
+  }
+  return Object.assign(guarded as unknown as AuthorsApi, { control })
 }

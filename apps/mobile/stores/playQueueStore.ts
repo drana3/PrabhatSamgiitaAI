@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import type { PlayEventOut } from "@/lib/authors/types"
 import { enqueue, fresh, newDeviceId, takeBatch } from "@/lib/authors/plays"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 /**
  * Listening events waiting to be sent (docs/author-profiles.md, "Statistics"), and the random device id used only
@@ -48,7 +49,10 @@ export const usePlayQueueStore = create<PlayQueueState>()(
     {
       name: "prabhat-play-queue",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      // 2: the preview (MOCKUP_DATA) forgets the test plays and the test device id kept by an older version of the demo.
+      // A real build keeps its queue: those plays are real and are still waiting to be sent.
+      version: 2,
+      migrate: (persisted, from) => (from < 2 && MOCKUP_DATA ? { queue: [], deviceId: null } : (persisted as Pick<PlayQueueState, "queue" | "deviceId">)),
       partialize: (state) => ({ queue: state.queue, deviceId: state.deviceId }),
     },
   ),

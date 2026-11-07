@@ -5,6 +5,7 @@ import { Shuffle } from "lucide-react-native"
 
 import { AuthorHero } from "@/components/authors/AuthorHero"
 import { Chip, DemoNote, LoadingRows, PillButton, SectionTitle, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { EditorialPage, ShelvesPage, type VariantProps } from "@/components/authors/PageVariants"
 import { PublicStatsStrip } from "@/components/authors/StatsViews"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
 import { KirtanRow, PlayFilled } from "@/components/kirtan/KirtanParts"
@@ -17,7 +18,8 @@ import { useScreenTop } from "@/hooks/useScreenTop"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
-import { AUTHORS_HREF, RECORDINGS_PAGE, authorHref } from "@/lib/authors/constants"
+import { isSignedIn } from "@/lib/authors/session"
+import { AUTHORS_HREF, MY_AUTHOR_HREF, RECORDINGS_PAGE, authorHref } from "@/lib/authors/constants"
 import { formatDay, linkHost } from "@/lib/authors/format"
 import { playAuthor } from "@/lib/authors/playback"
 import { shareAuthor } from "@/lib/authors/share"
@@ -28,6 +30,7 @@ import { kindLabelPlural } from "@/lib/kirtan/kind"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { fromRemote } from "@/lib/kirtan/submissions"
 import type { Kirtan, RecordingKind } from "@/lib/kirtan/types"
+import { useAuthorStore } from "@/stores/authorStore"
 import { href } from "@/utils/href"
 import { photoSrc } from "@/components/authors/AuthorsUi"
 
@@ -37,7 +40,7 @@ const SAFE_LINK = /^https:\/\//i
 
 /** Public author page: /author/<slug>. Recordings by kind, playlists from events, About; play all, share, report. */
 export default function AuthorPage() {
-  const params = useLocalSearchParams<{ slug?: string }>()
+  const params = useLocalSearchParams<{ slug?: string; v?: string }>()
   const slug = String(params.slug ?? "").toLowerCase()
   const router = useRouter()
   const t = useT()
@@ -68,10 +71,10 @@ export default function AuthorPage() {
   if (!data || data.kind === "missing") return frame(<StateBlock theme={theme} title={t("authors.page.notFound.title")} body={t("authors.page.notFound.body")} action={t("authors.dir.title")} onAction={() => router.replace(href(AUTHORS_HREF))} />)
   if (data.kind === "gone") return frame(<StateBlock theme={theme} title={t("authors.page.gone.title")} body={t("authors.page.gone.body")} action={t("authors.dir.title")} onAction={() => router.replace(href(AUTHORS_HREF))} />)
 
-  return <Page profile={data.profile} demo={api.demo} top={top} bottom={bottom} onBack={back} />
+  return <Page profile={data.profile} demo={api.demo} top={top} bottom={bottom} onBack={back} variant={api.demo ? Number(params.v) || 1 : 1} />
 }
 
-function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePublic; demo: boolean; top: number; bottom: number; onBack: () => void }) {
+function Page({ profile, demo, top, bottom, onBack, variant }: { profile: AuthorProfilePublic; demo: boolean; top: number; bottom: number; onBack: () => void; variant: number }) {
   const t = useT()
   const locale = useLanguage()
   const theme = useSongsTheme()
@@ -88,6 +91,20 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
 
   const slug = profile.slug
   const name = profile.display_name
+  const router = useRouter()
+  const signedIn = isSignedIn(api)
+  const mineSlug = useAuthorStore((s) => s.mine?.slug ?? null)
+  const loadMine = useAuthorStore((s) => s.load)
+  const refreshMine = useAuthorStore((s) => s.refresh)
+  useEffect(() => {
+    if (signedIn && loadMine === "idle") void refreshMine()
+  }, [signedIn, loadMine, refreshMine])
+  const isOwn = mineSlug === slug
+  const ownPill = isOwn ? (
+    <KPress accessibilityRole="button" accessibilityLabel={t("authors.own.manage")} onPress={() => router.push(href(MY_AUTHOR_HREF))} pressedScale={0.96} style={[styles.ownPill, { borderColor: theme.accentText }]}>
+      <Text style={[styles.ownText, { color: theme.accentText }]}>{t("authors.own.strip")}</Text>
+    </KPress>
+  ) : null
 
   const fetchPage = useCallback(
     async (offset: number) => {
@@ -161,11 +178,42 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
   const meta = t("authors.count.recordings", { count: profile.recordings_count })
   const kinds = profile.kinds.filter((k) => k.count > 0)
 
+  const openRecording = (r: Kirtan) => {
+    const message = playAuthor({ slug, name }, items, { startId: r.serverId ?? null })
+    if (message) actions.flash(message)
+  }
+  const shared: VariantProps = {
+    theme,
+    profile,
+    demo,
+    top,
+    onBack,
+    kirtans,
+    total,
+    state,
+    kind,
+    setKind,
+    busy,
+    onPlay: (shuffle) => void playAll(shuffle),
+    onShare: () => void onShare(),
+    onOpen: openRecording,
+    onMenu: setMenu,
+    onMore: () => void more(),
+    own: ownPill,
+    stats: profile.stats ? <PublicStatsStrip theme={theme} stats={profile.stats} demo={demo} /> : null,
+    playlists: <Playlists slug={slug} name={name} flash={actions.flash} />,
+    about: <About profile={profile} locale={locale} own={isOwn} signedIn={signedIn} />,
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: theme.page }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={{ paddingBottom: bottom + 24 }} showsVerticalScrollIndicator={false}>
+        {variant === 2 ? <EditorialPage {...shared} /> : null}
+        {variant === 3 ? <ShelvesPage {...shared} /> : null}
+        {variant !== 2 && variant !== 3 ? <>
         <AuthorHero theme={theme} top={top} onBack={onBack} demo={demo} data={{ slug, name, type: profile.author_type, verified: profile.verified, place, photoUrl: profile.photo_url ? photoSrc(profile.photo_url) : null, meta }} />
+        {ownPill ? <View style={styles.ownRow}>{ownPill}</View> : null}
         <View style={styles.actions}>
           <PillButton theme={theme} busy={busy} label={t("common.play")} icon={<PlayFilled size={18} color={theme.onBrand} />} onPress={() => void playAll(false)} disabled={!total} a11y={t("authors.page.playA11y", { name })} />
           <View style={styles.actionsRow}>
@@ -207,7 +255,8 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
 
         {tab === "playlists" ? <Playlists slug={slug} name={name} flash={actions.flash} /> : null}
 
-        {tab === "about" ? <About profile={profile} locale={locale} /> : null}
+        {tab === "about" ? <About profile={profile} locale={locale} own={isOwn} signedIn={signedIn} /> : null}
+        </> : null}
       </ScrollView>
       <KirtanMenuSheet open={Boolean(menu)} theme={theme} kirtan={menu} saved={false} onPlayNext={actions.playNext} onAddToPlaylist={actions.addToPlaylist} onToggleSave={actions.toggleSaved} onShare={(k) => setShare(k)} onClose={() => setMenu(null)} />
       <KirtanShareSheet open={Boolean(share)} theme={theme} kirtan={share} onShare={() => setShare(null)} onClose={() => setShare(null)} />
@@ -281,9 +330,10 @@ function Playlists({ slug, name, flash }: { slug: string; name: string; flash: (
   )
 }
 
-function About({ profile, locale }: { profile: AuthorProfilePublic; locale: string }) {
+function About({ profile, locale, own, signedIn }: { profile: AuthorProfilePublic; locale: string; own: boolean; signedIn: boolean }) {
   const t = useT()
   const theme = useSongsTheme()
+  const router = useRouter()
   const [reporting, setReporting] = useState(false)
   const [reason, setReason] = useState<ReportReason | null>(null)
   const [comment, setComment] = useState("")
@@ -330,7 +380,9 @@ function About({ profile, locale }: { profile: AuthorProfilePublic; locale: stri
 
       <View style={styles.report}>
         {result ? <Text style={[styles.body, { color: result.ok ? theme.textBody : theme.dangerText }]} accessibilityLiveRegion="polite">{result.message}</Text> : null}
-        {!reporting && !result?.ok ? <PillButton theme={theme} tone="quiet" label={t("authors.report.open")} onPress={() => { setReporting(true); setResult(null) }} /> : null}
+        {!own && !reporting && !result?.ok ? (
+          <PillButton theme={theme} tone="quiet" label={signedIn ? t("authors.report.open") : t("authors.report.signin")} onPress={() => (signedIn ? (setReporting(true), setResult(null)) : router.push(href("/signin")))} />
+        ) : null}
         {reporting ? (
           <View style={styles.reportForm}>
             <Text style={[styles.cardTitle, { color: theme.textHeading }]}>{t("authors.report.title")}</Text>
@@ -385,6 +437,9 @@ const styles = StyleSheet.create({
   linkKind: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   linkHost: { flexShrink: 1, fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   report: { gap: 12, paddingTop: 12 },
+  ownRow: { paddingHorizontal: SIDE, paddingTop: 14, alignItems: "flex-start" },
+  ownPill: { minHeight: 36, borderRadius: 18, borderWidth: 1, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
+  ownText: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   reportForm: { gap: 12 },
   reasons: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   comment: { minHeight: 88, borderRadius: 16, borderWidth: 1, padding: 14, fontFamily: amFonts.regular, fontSize: 15, lineHeight: 22, textAlignVertical: "top" },

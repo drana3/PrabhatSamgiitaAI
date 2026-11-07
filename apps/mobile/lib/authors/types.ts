@@ -22,6 +22,10 @@ export type LinkKind =
 export type ReportReason = "impersonation" | "offensive" | "spam" | "copyright" | "wrong_info" | "other"
 export type StatsPeriod = 7 | 30 | 90
 export type DirectorySort = "listeners" | "new" | "name"
+/** The recording kinds the directory can filter by (the server's list). */
+export const DIRECTORY_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song"] as const
+export type DirectoryKind = (typeof DIRECTORY_KINDS)[number]
+export type DirectoryQuery = { q?: string; sort?: DirectorySort; kind?: DirectoryKind; language?: string; offset?: number; limit?: number }
 
 export type AuthorLink = { kind: LinkKind; url: string }
 export type PublicLink = AuthorLink & { rel: string }
@@ -185,7 +189,7 @@ export interface AuthorsApi {
   myRecordings(offset?: number): Promise<{ items: OwnerRecording[]; total: number }>
   setShown(recordingId: string, shown: boolean): Promise<void>
   myStats(days: StatsPeriod): Promise<OwnerStats>
-  directory(query: { q?: string; sort?: DirectorySort; offset?: number; limit?: number }): Promise<AuthorList>
+  directory(query: DirectoryQuery): Promise<AuthorList>
   profile(slug: string): Promise<AuthorLookup>
   recordings(slug: string, query: { kind?: string; collectionId?: string; exclude?: string; offset?: number; limit?: number }): Promise<RecordingPage>
   collections(slug: string): Promise<CollectionBrief[]>

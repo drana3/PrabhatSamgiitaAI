@@ -8,6 +8,7 @@ import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_INSET, HomeEmpty, HomeSectionHead } from "@/components/home/HomeBlocks"
 import { LiveCard } from "@/components/kirtan/LiveCard"
+import { AuthorsShelf } from "@/components/authors/AuthorsShelf"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
 import { KiirtanCover, WaveGlyph, kiirtanTone } from "@/components/kirtan/KiirtanCover"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
@@ -294,6 +295,10 @@ export default function KiirtanTabScreen() {
           </ScrollView>
         </Reveal>
       ) : null}
+
+      <Reveal index={next()} style={styles.section}>
+        <AuthorsShelf p={p} kind={kind === "all" || kind === "baba_audio" ? undefined : kind} />
+      </Reveal>
 
       {kind === "all" && bhajanDay ? (
         <Reveal index={next()}>

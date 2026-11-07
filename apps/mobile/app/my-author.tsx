@@ -12,12 +12,12 @@ import { useAuthorRequest } from "@/hooks/useAuthorRequest"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
+import { isSignedIn } from "@/lib/authors/session"
 import { ADD_PLAYLIST_HREF, ADD_RECORDING_HREF, AUTHORS_HREF, AUTHOR_EDIT_HREF, BECOME_AUTHOR_HREF, authorHref, authorShareUrl } from "@/lib/authors/constants"
 import { copyAuthorLink, shareAuthor } from "@/lib/authors/share"
 import { reviewKey, say } from "@/lib/authors/text"
 import type { AuthorProfileOwner, OwnerRecording, StatsPeriod } from "@/lib/authors/types"
 import { useT } from "@/lib/i18n"
-import { canUseServer } from "@/lib/kirtan/api"
 import { kindLabel } from "@/lib/kirtan/kind"
 import { errorKeyOf, useAuthorStore } from "@/stores/authorStore"
 import { href } from "@/utils/href"
@@ -43,7 +43,7 @@ export default function MyAuthorScreen() {
   const storeError = useAuthorStore((s) => s.errorKey)
   const refresh = useAuthorStore((s) => s.refresh)
   const setMine = useAuthorStore((s) => s.setMine)
-  const signedIn = api.demo || canUseServer()
+  const signedIn = isSignedIn(api)
   const [toast, setToast] = useState<string | null>(null)
 
   const flash = useCallback((message: string) => {

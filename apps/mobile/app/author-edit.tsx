@@ -6,19 +6,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { AccountBar, InlineError, topInset } from "@/components/account/AccountUi"
 import { AboutFields, LinksEditor, NameAndAddress, UploadChoices } from "@/components/authors/AuthorFormParts"
 import { AuthorAvatar, DemoNote, LoadingRows, PillButton, SectionTitle, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { LeaveCard } from "@/components/authors/LeaveCard"
 import { PhotoCropSheet } from "@/components/profile-v2/PhotoCropSheet"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSlugCheck } from "@/hooks/useSlugCheck"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
+import { isSignedIn } from "@/lib/authors/session"
 import { BECOME_AUTHOR_HREF, MY_AUTHOR_HREF } from "@/lib/authors/constants"
-import { draftFromOwner, hasErrors, isDirty, toPatch, validateDraft, type Draft } from "@/lib/authors/draft"
+import { draftFromOwner, hasErrors, invalidFieldKeys, isDirty, toPatch, validateDraft, type Draft } from "@/lib/authors/draft"
 import { errorKey as keyOfCode } from "@/lib/authors/slug"
 import { say } from "@/lib/authors/text"
+import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { useT } from "@/lib/i18n"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
-import { canUseServer } from "@/lib/kirtan/api"
 import { NetworkError, RemoteError } from "@/lib/kirtan/remote"
 import { pickProfileImage, renderProfilePhoto, type PickedImage } from "@/lib/profile/photo"
 import { errorKeyOf, useAuthorStore } from "@/stores/authorStore"
@@ -35,8 +37,10 @@ export default function AuthorEditScreen() {
   const mine = useAuthorStore((s) => s.mine)
   const refresh = useAuthorStore((s) => s.refresh)
   const setMine = useAuthorStore((s) => s.setMine)
-  const signedIn = api.demo || canUseServer()
+  const signedIn = isSignedIn(api)
 
+  const form = useFormFocus()
+  const [leaving, setLeaving] = useState(false)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -56,7 +60,8 @@ export default function AuthorEditScreen() {
   const errors = useMemo(() => (draft ? validateDraft(draft) : {}), [draft])
   const dirty = draft && mine ? isDirty(draft, mine) : false
 
-  const back = () => (router.canGoBack() ? router.back() : router.replace(href(MY_AUTHOR_HREF)))
+  const leave = () => (router.canGoBack() ? router.back() : router.replace(href(MY_AUTHOR_HREF)))
+  const back = () => (dirty ? setLeaving(true) : leave())
   const flash = (message: string) => {
     setToast(message)
     setTimeout(() => setToast((current) => (current === message ? null : current)), 2200)
@@ -65,6 +70,7 @@ export default function AuthorEditScreen() {
     <View style={[styles.root, { backgroundColor: theme.page }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <AccountBar theme={theme} title={t("authors.edit.title")} onBack={back} inset={topInset(insets.top)} />
+      {leaving ? <LeaveCard theme={theme} onStay={() => setLeaving(false)} onLeave={leave} /> : null}
       {child}
     </View>
   )
@@ -77,7 +83,11 @@ export default function AuthorEditScreen() {
 
   const save = async () => {
     setTouched(true)
-    if (hasErrors(errors) || (draft.slug !== mine.slug && slug.kind !== "ok")) return
+    const slugOk = draft.slug === mine.slug || slug.kind === "ok"
+    if (hasErrors(errors) || !slugOk) {
+      void form.focusFirst(invalidFieldKeys(errors, slugOk))
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -133,7 +143,7 @@ export default function AuthorEditScreen() {
   return frame(
     <>
       <KeyboardAvoidingView style={styles.flex} behavior={keyboardBehavior(Platform.OS)}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView ref={form.scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {api.demo ? <DemoNote theme={theme} /> : null}
           <View style={[styles.pad, styles.photoRow]}>
             <AuthorAvatar slug={mine.slug} name={mine.display_name} photoUrl={mine.photo_url} size={88} />
@@ -143,13 +153,13 @@ export default function AuthorEditScreen() {
             </View>
           </View>
           <View style={styles.pad}>
-            <NameAndAddress theme={theme} draft={draft} errors={errors} touched={touched} slug={slug} onChange={setDraft} slugLocked={mine.slug_change_wait_days} />
+            <NameAndAddress theme={theme} draft={draft} errors={errors} touched={touched} slug={slug} onChange={setDraft} slugLocked={mine.slug_change_wait_days} form={form} />
           </View>
           <View style={styles.pad}>
-            <AboutFields theme={theme} draft={draft} errors={errors} onChange={setDraft} />
+            <AboutFields theme={theme} draft={draft} errors={errors} onChange={setDraft} form={form} />
           </View>
           <View style={styles.pad}>
-            <LinksEditor theme={theme} draft={draft} errors={errors} onChange={setDraft} />
+            <LinksEditor theme={theme} draft={draft} errors={errors} onChange={setDraft} form={form} />
           </View>
           <View style={styles.pad}>
             <SectionTitle theme={theme}>{t("authors.edit.uploadsTitle")}</SectionTitle>
