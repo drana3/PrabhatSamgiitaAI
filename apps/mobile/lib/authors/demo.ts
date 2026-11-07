@@ -27,7 +27,12 @@ import { localSlugProblem, normalizeSlug } from "@/lib/authors/slug"
  * label everything that comes from here "Demo".
  */
 
-const RESERVED = new Set(["admin", "api", "add-kirtan", "upload-set", "sign-in", "signin", "authors", "author", "about"])
+/** The demo mirrors the server: route words and the protected names (the server also holds staff-sounding ones for review). */
+const RESERVED = new Set([
+  "admin", "api", "add-kirtan", "upload-set", "sign-in", "signin", "authors", "author", "about",
+  "sitemap", "slug-check", "me", "by-recording", "photo", "recordings", "collections", "report",
+  "ananda-murti", "anandamurti", "ananda-marga", "baba", "shrii-shrii-anandamurti", "prabhat-samgiita",
+])
 const NOW = "2026-11-01T10:00:00Z"
 
 function toRemote(id: string, kind: string, title: string, author: string, type: string, durationSec: number | null, plays: number, addedBy: string): RemoteRecording {
