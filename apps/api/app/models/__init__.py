@@ -58,6 +58,14 @@ from app.models.member import (
 )
 from app.models.notation import Notation
 from app.models.recording_collections import RecordingCollection
+from app.models.recording_extras import (
+    RecordingChordReport,
+    RecordingChordSheet,
+    RecordingComment,
+    RecordingCommentReport,
+    VideoLink,
+    VideoLinkReport,
+)
 from app.models.recordings import (
     AuthorBlock,
     MemberNotice,
@@ -108,6 +116,10 @@ __all__ = [
     "QuizEventSubmission",
     "RecommendationAudit",
     "Recording",
+    "RecordingChordReport",
+    "RecordingChordSheet",
+    "RecordingComment",
+    "RecordingCommentReport",
     "RecordingCollection",
     "RecordingReport",
     "RecordingSimilarConfirm",
@@ -135,6 +147,8 @@ __all__ = [
     "UserInterestProfile",
     "UserPlaylist",
     "UserPlaylistSong",
+    "VideoLink",
+    "VideoLinkReport",
     "YoutubeReviewQueue",
     "YoutubeScanChannel",
 ]

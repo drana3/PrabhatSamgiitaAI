@@ -16,6 +16,8 @@ from app.api.v1.members import router as members_router
 from app.api.v1.notation import router as notation_router
 from app.api.v1.quiz_events import router as quiz_events_router
 from app.api.v1.recommendations import router as recommendations_router
+from app.api.v1.recording_chords import router as recording_chords_router
+from app.api.v1.recording_comments import router as recording_comments_router
 from app.api.v1.recording_sets import admin_router as recording_sets_admin_router
 from app.api.v1.recording_sets import router as recording_sets_router
 from app.api.v1.recordings import admin_router as recordings_admin_router
@@ -26,6 +28,7 @@ from app.api.v1.song_chords import router as song_chords_router
 from app.api.v1.song_comments import router as song_comments_router
 from app.api.v1.songs import router as songs_router
 from app.api.v1.transliteration import router as transliteration_router
+from app.api.v1.video_links import router as video_links_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(health_router)
@@ -54,3 +57,6 @@ router.include_router(song_chords_admin_router)
 router.include_router(author_profiles_router)
 router.include_router(author_plays_router)
 router.include_router(author_profiles_admin_router)
+router.include_router(recording_comments_router)
+router.include_router(recording_chords_router)
+router.include_router(video_links_router)
