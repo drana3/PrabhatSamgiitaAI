@@ -14,6 +14,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import httpx
+import pytest
 from sqlalchemy import func, select
 from test_author_profiles import AS, MEMBER_A, MEMBER_B, URL, World, world  # noqa: F401
 
@@ -399,6 +400,56 @@ async def test_one_client_is_also_capped_over_all_recordings_in_a_day(world: Wor
     mine = (await world.client.get(f"{URL}/me/stats", headers=AS["a"])).json()
     assert mine["total_plays"] == total
     assert mine["monthly_listeners"] == stats.NEW_LISTENERS_PER_CLIENT_PER_DAY
+
+
+async def test_one_client_plays_over_the_daily_cap_are_stored_but_not_counted(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY", 6)
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_DAY", 9)
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    for i in range(20):
+        sent = await send(world, [event(rid)], device=f"forged-device-{i:04d}")
+        assert sent.json()["accepted"] == 1  # the app is told nothing about the cap
+        assert sent.json()["rejected"] == {}
+    async with world.sessions() as session:
+        stored = int(await session.scalar(select(func.count()).select_from(PlayEvent)) or 0)
+        counted_listeners = int(
+            await session.scalar(select(func.count()).where(PlayEvent.counts_listener.is_(True)))
+            or 0
+        )
+    assert stored == 20  # every play is kept
+    assert (await counts(world))[1] == 6  # but only 6 are in the public counters
+    mine = (await world.client.get(f"{URL}/me/stats", headers=AS["a"])).json()
+    assert mine["total_plays"] == 6
+    assert mine["monthly_listeners"] == counted_listeners <= 6
+
+
+async def test_one_client_is_also_capped_in_plays_over_all_recordings_in_a_day(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY", 6)
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_DAY", 9)
+    await world.create()
+    for n in range(3):
+        rid = await world.recording(MEMBER_A, title=f"Song {n}")
+        for i in range(4):  # under the per-recording cap each time
+            await send(world, [event(rid)], device=f"forged-device-{n}-{i}")
+    events, counted = await counts(world)
+    assert events == 12 and counted == 9
+
+
+async def test_signed_in_listeners_are_not_held_by_the_client_play_cap(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY", 1)
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_DAY", 1)
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    for who in ("b", "c"):
+        await send(world, [event(rid)], device=None, who=who)
+    assert (await counts(world))[1] == 2
 
 
 async def test_a_device_already_counted_today_is_never_dropped(world: World) -> None:

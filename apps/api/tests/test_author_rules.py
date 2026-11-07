@@ -249,3 +249,55 @@ def test_names_and_addresses_that_sound_like_staff_are_found(text: str) -> None:
 def test_ordinary_names_are_not_staff(text: str) -> None:
     # whole words only for the short word "team": "Teamwork" and "steamboat" are not staff
     assert not rules.staff_hit(text), text
+
+
+DISGUISED_STAFF = [
+    "\u0410dmin \u0422e\u0430m",  # Cyrillic A, e, a, T in "Admin Team"
+    "\u041eff\u0456cial",  # Cyrillic O and i in "Official"
+    "\u0455taff",  # Cyrillic s
+    "\u0391dmin",  # Greek capital Alpha
+    "\u03bfffici\u03b1l",  # Greek omicron and alpha
+    "\uff21\uff44\uff4d\uff49\uff4e",  # fullwidth "Admin"
+    "\uff34\uff45\uff41\uff4d",  # fullwidth "Team"
+    "Adm\u200bin",  # zero-width space inside
+    "Of\u00adficial",  # soft hyphen inside
+    "S\u202eupport",  # bidi override inside
+    "4dm1n",
+    "supp0rt",
+    "0ff1c14l",
+    "t34m",
+    "5taff",
+    "m0d3r4t0r",
+    "d4d4-m4itreya",
+    "\u0410dmin-\u0422eam",
+    "\u041c\u0430itreya",  # Cyrillic M and a in an owner name
+]
+
+
+@pytest.mark.parametrize("text", DISGUISED_STAFF)
+def test_disguised_staff_names_are_found(text: str) -> None:
+    assert rules.staff_hit(text), ascii(text)
+
+
+def test_the_skeleton_turns_look_alikes_into_latin() -> None:
+    assert rules.latin_skeleton("\u0410dmin \u0422e\u0430m") == "admin team"
+    assert rules.latin_skeleton("\uff21\uff44\uff4d\uff49\uff4e") == "admin"
+    assert rules.latin_skeleton("Adm\u200bin") == "admin"
+    assert rules.latin_skeleton(None) == ""
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Teamwork Kirtan",
+        "steamboat",
+        "St3amboat",
+        "T3amwork",
+        "Kiirtan 108",
+        "Madhu Vrata 7",
+        "\u041c\u0430\u0434\u0445\u0443 \u0412\u0440\u0430\u0442\u0430",  # a Russian name
+        "\u0928\u093f\u0924\u094d\u092f\u093e",  # Devanagari
+    ],
+)
+def test_normalising_does_not_make_ordinary_names_staff(text: str) -> None:
+    assert not rules.staff_hit(text), ascii(text)

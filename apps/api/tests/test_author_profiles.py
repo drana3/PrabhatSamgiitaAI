@@ -1100,6 +1100,12 @@ STAFF_CASES = [
     ("Madhu Vrata", "official-ps"),
     ("Madhu Vrata", "verified-artist"),
     ("Madhu Vrata", "admin1"),
+    ("\u0410dmin \u0422e\u0430m", "madhu-vrata"),  # Cyrillic look-alikes
+    ("\u041eff\u0456cial", "madhu-vrata"),
+    ("\uff21\uff44\uff4d\uff49\uff4e", "madhu-vrata"),  # fullwidth
+    ("Adm\u200bin", "madhu-vrata"),  # zero-width space
+    ("4dm1n", "madhu-vrata"),
+    ("Madhu Vrata", "4dm1n"),
 ]
 
 

@@ -68,6 +68,11 @@ PRUNE_EVERY_HOURS = 24
 # networks share addresses, so the caps are generous for people and small for a script.
 NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY = 10
 NEW_LISTENERS_PER_CLIENT_PER_DAY = 30
+# The same client may also add only so many signed-out PLAYS: per recording per day, and in all per
+# day. A play over the cap is still stored (so it can be looked at) but is not added to any public
+# number: not the plays counters and not the listeners. Signed-in members are not capped.
+UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY = 200
+UNSIGNED_PLAYS_PER_CLIENT_PER_DAY = 1000
 
 _last_prune: datetime | None = None
 
@@ -167,6 +172,9 @@ class PlayIn:
 class IngestResult:
     accepted: int = 0
     duplicates: int = 0
+    # stored but over the client's daily play cap, so not in any public number (never sent to the
+    # app: a script must not learn where the cap is)
+    uncounted: int = 0
     rejected: dict[str, int] = field(default_factory=dict)
 
     def reject(self, why: str) -> None:
@@ -221,6 +229,27 @@ async def _may_count_as_listener(
     return in_all < NEW_LISTENERS_PER_CLIENT_PER_DAY
 
 
+async def _client_plays_today(
+    session: AsyncSession, ckey: str, recording_id: UUID, day: date
+) -> tuple[int, int]:
+    """Plays stored today for this client: on this recording, and in all."""
+    on_recording = await session.scalar(
+        select(func.count())
+        .select_from(PlayEvent)
+        .where(
+            PlayEvent.client_key == ckey,
+            PlayEvent.day == day,
+            PlayEvent.recording_id == recording_id,
+        )
+    )
+    in_all = await session.scalar(
+        select(func.count())
+        .select_from(PlayEvent)
+        .where(PlayEvent.client_key == ckey, PlayEvent.day == day)
+    )
+    return int(on_recording or 0), int(in_all or 0)
+
+
 async def ingest_plays(
     session: AsyncSession,
     *,
@@ -247,6 +276,8 @@ async def ingest_plays(
         rows = (await session.scalars(select(Recording).where(Recording.id.in_(ids)))).all()
         recordings = {r.id: r for r in rows}
     per_day: dict[date, int] = {}
+    client_rec: dict[tuple[date, UUID], int] = {}
+    client_all: dict[date, int] = {}
     for event in events[:MAX_EVENTS_PER_BATCH]:
         recording = recordings.get(event.recording_id)
         if recording is None or recording.status not in ("published", "flagged"):
@@ -280,7 +311,19 @@ async def ingest_plays(
         if per_day[day] >= DAILY_EVENT_CAP:
             result.reject("limit")
             continue
-        counts = await _may_count_as_listener(session, ckey, key, recording.id, day)
+        over_cap = False
+        if ckey is not None:
+            if (day, recording.id) not in client_rec:
+                client_rec[(day, recording.id)], client_all[day] = await _client_plays_today(
+                    session, ckey, recording.id, day
+                )
+            over_cap = (
+                client_rec[(day, recording.id)] >= UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY
+                or client_all[day] >= UNSIGNED_PLAYS_PER_CLIENT_PER_DAY
+            )
+        counts = (not over_cap) and await _may_count_as_listener(
+            session, ckey, key, recording.id, day
+        )
         stmt = (
             insert(PlayEvent)
             .values(
@@ -300,6 +343,13 @@ async def ingest_plays(
             result.duplicates += 1
             continue
         per_day[day] += 1
+        if ckey is not None:
+            client_rec[(day, recording.id)] += 1
+            client_all[day] += 1
+        if over_cap:
+            result.uncounted += 1
+            result.accepted += 1  # the app is told the same as for a counted play
+            continue
         counter = insert(PlayDaily).values(recording_id=recording.id, day=day, plays=1)
         await session.execute(
             counter.on_conflict_do_update(

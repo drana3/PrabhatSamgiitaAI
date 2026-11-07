@@ -183,18 +183,93 @@ def slug_problem(slug: str) -> str | None:
     return None
 
 
+# Letters of other scripts that are drawn like a Latin one. Applied to lowercase text after NFKC.
+_LOOKALIKE = str.maketrans(
+    {
+        # Cyrillic
+        "\u0430": "a",
+        "\u0432": "b",
+        "\u0435": "e",
+        "\u0451": "e",
+        "\u043a": "k",
+        "\u043c": "m",
+        "\u043d": "h",
+        "\u043e": "o",
+        "\u0440": "p",
+        "\u0441": "c",
+        "\u0442": "t",
+        "\u0443": "y",
+        "\u0445": "x",
+        "\u0456": "i",
+        "\u0458": "j",
+        "\u0455": "s",
+        "\u0501": "d",
+        "\u04cf": "l",
+        "\u051b": "q",
+        "\u051d": "w",
+        "\u04bb": "h",
+        "\u0491": "r",
+        # Greek
+        "\u03b1": "a",
+        "\u03b2": "b",
+        "\u03b3": "y",
+        "\u03b5": "e",
+        "\u03b7": "n",
+        "\u03b9": "i",
+        "\u03ba": "k",
+        "\u03bd": "v",
+        "\u03bf": "o",
+        "\u03c1": "p",
+        "\u03c4": "t",
+        "\u03c5": "u",
+        "\u03c7": "x",
+        "\u03c9": "w",
+        # Latin letters with no ASCII decomposition
+        "\u0131": "i",
+        "\u0268": "i",
+        "\u0269": "i",
+        "\u0261": "g",
+        "\u0251": "a",
+    }
+)
+# Characters with no width or no sound: they only split a word to slip past a filter.
+_INVISIBLE = re.compile(
+    "[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f"
+    "\u202a-\u202e\u2060-\u206f\u3164\ufe00-\ufe0f\ufeff\uffa0]"
+)
+_LEET = str.maketrans(
+    {"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "$": "s", "@": "a"}
+)
+
+
+def latin_skeleton(text: str | None) -> str:
+    """Lowercase Latin text that looks like the input: invisible characters dropped, fullwidth and
+    styled letters made plain, Cyrillic and Greek look-alikes turned into the Latin letter they
+    imitate, accents removed. "\u0410dmin \u0422e\u0430m" -> "admin team"."""
+    plain = _INVISIBLE.sub("", _CONTROL.sub("", text or ""))
+    plain = unicodedata.normalize("NFKC", plain).lower().translate(_LOOKALIKE)
+    return ascii_fold(plain)
+
+
+def _staff_word_in(skeleton: str) -> bool:
+    for token in re.findall(r"[a-z]+", skeleton):
+        if token in STAFF_WORDS or (token.endswith("s") and token[:-1] in STAFF_WORDS):
+            return True
+    compact = re.sub(r"[^a-z]", "", skeleton)
+    return any(word in compact for word in STAFF_WORDS if len(word) >= 5)
+
+
 def staff_hit(text: str | None) -> bool:
     """The name or address sounds like staff (team, official, support, ...) or carries an owner's
     name. Whole words (also with a number, "admin1", or a plural) and, for the longer words, inside
-    a longer one ("officialps", "supportteam")."""
-    tokens = re.findall(r"[a-z]+", ascii_fold(text or "").lower())
-    for token in tokens:
-        if token in STAFF_WORDS or (token.endswith("s") and token[:-1] in STAFF_WORDS):
-            return True
-    compact = name_key(text)
-    if any(word in compact for word in STAFF_WORDS if len(word) >= 5):
+    a longer one ("officialps", "supportteam"). Look-alike letters of other scripts, fullwidth
+    letters, invisible characters and simple leetspeak ("4dm1n") do not get past it."""
+    skeleton = latin_skeleton(text)
+    if _staff_word_in(skeleton) or _staff_word_in(skeleton.translate(_LEET)):
         return True
-    return any(fragment in compact for fragment in OWNER_FRAGMENTS)
+    compact = re.sub(r"[^a-z0-9]", "", skeleton)
+    leet = re.sub(r"[^a-z]", "", skeleton.translate(_LEET))
+    return any(fragment in compact or fragment in leet for fragment in OWNER_FRAGMENTS)
 
 
 def protected_hit(slug_or_name: str) -> bool:
