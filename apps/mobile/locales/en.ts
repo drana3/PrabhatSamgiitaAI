@@ -770,7 +770,7 @@ export const en = {
   "kt.empty.mine": "You have not uploaded a recording yet.",
   "kt.add.a11y": "Add recordings. Upload one or many audio files and they go live at once.",
   "kt.add.title": "Add recordings",
-  "kt.add.sub": "Kiirtan, Bhajan, Prabhat Samgiita. Many files at once",
+  "kt.add.sub": "Every type of recording. Many files at once",
   "kt.byAuthor": "By the author",
   "kt.takeBack": "Take back",
   "kt.takeBackA11y": "Take back {title}",

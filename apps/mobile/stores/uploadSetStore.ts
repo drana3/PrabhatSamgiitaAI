@@ -263,7 +263,7 @@ export const useUploadSetStore = create<SetStoreState>()(
       // the run never survives a restart: a track that was going goes back to waiting (lib/kirtan/sets.ts restoreDraft)
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<Pick<SetStoreState, "drafts" | "archive">>
-        return { ...current, drafts: (saved.drafts ?? []).map(restoreDraft), archive: saved.archive ?? [] }
+        return { ...current, drafts: (saved.drafts ?? []).map(restoreDraft), archive: (saved.archive ?? []).map(restoreDraft) }
       },
     },
   ),

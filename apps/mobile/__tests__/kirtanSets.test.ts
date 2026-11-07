@@ -361,6 +361,18 @@ describe("after the app was closed", () => {
     expect(restored.tracks[1]!.failure).toMatchObject({ code: "gone" })
     expect(restored.tracks[2]!.recordingId).toBe("r3")
   })
+  it("a set that never reached the server stays a draft even when its lost files are marked failed", () => {
+    let draft = draftWith(["a.mp3", "b.mp3"])
+    draft = restoreDraft(patchTrack(patchTrack(draft, draft.tracks[0]!.id, { uri: "blob:http://x/1" }), draft.tracks[1]!.id, { uri: "blob:http://x/2" }))
+    expect(draft.tracks.every((t) => t.status === "failed")).toBe(true)
+    expect(setState(draft)).toBe("draft")
+    expect(setState({ ...draft, created: true })).toBe("uploading")
+  })
+  it("a cover picked in the browser (a blob address) is dropped on restore, a kept link stays", () => {
+    const draft = draftWith(["a.mp3"])
+    expect(restoreDraft({ ...draft, coverUri: "blob:http://x/2", coverState: "sent" })).toMatchObject({ coverUri: "", coverState: "none" })
+    expect(restoreDraft({ ...draft, coverUri: "file:///cover.jpg", coverState: "pending" })).toMatchObject({ coverUri: "file:///cover.jpg", coverState: "pending" })
+  })
 })
 
 describe("views of a set", () => {

@@ -124,6 +124,7 @@ export default function AddKirtanScreen() {
   useEffect(() => {
     form.clear()
     setLoose(null)
+    setProblem((current) => (current === "picker" ? current : null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, items])
 
@@ -318,7 +319,9 @@ export default function AddKirtanScreen() {
   const left = leftForTomorrow(items)
   const settled = counts.total - counts.waiting - counts.uploading
   const open = counts.waiting + counts.limit
-  const buttonLabel = running ? t("rec.q.uploadingOf", { done: settled, total: counts.total }) : open > 0 ? t("rec.q.uploadN", { count: open }) : t("rec.q.upload")
+  // everything went up: the big button says Done and goes back to the hub, instead of offering an upload of nothing
+  const allDone = finished && retryable === 0 && open === 0
+  const buttonLabel = running ? t("rec.q.uploadingOf", { done: settled, total: counts.total }) : allDone ? t("common.done") : open > 0 ? t("rec.q.uploadN", { count: open }) : t("rec.q.upload")
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.root, { backgroundColor: theme.page }]}>
@@ -577,7 +580,7 @@ export default function AddKirtanScreen() {
               accessibilityRole="button"
               accessibilityLabel={buttonLabel}
               accessibilityState={{ disabled: running, busy: running }}
-              onPress={() => void upload()}
+              onPress={() => (allDone ? close() : void upload())}
               disabled={running}
               pressedScale={0.98}
               style={[styles.send, { backgroundColor: amColors.orange700, opacity: running ? 0.6 : 1 }]}
@@ -702,7 +705,7 @@ const styles = StyleSheet.create({
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   kindOuter: { width: "48%", flexGrow: 1 },
   kindCard: { flex: 1, minHeight: 88, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, justifyContent: "center", gap: 2 },
-  kindName: { fontFamily: amFonts.display, fontSize: 21, lineHeight: 23, letterSpacing: -0.3, textTransform: "uppercase" },
+  kindName: { fontFamily: amFonts.display, fontSize: 17, lineHeight: 20, letterSpacing: -0.2, textTransform: "uppercase" },
   kindBlurb: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
   queue: { gap: 10 },
   setEntry: { minHeight: 72, borderRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },

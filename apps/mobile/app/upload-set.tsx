@@ -165,6 +165,10 @@ export default function UploadSetScreen() {
   /* ------------------------------------------------------------------ what each step needs */
 
   const detailsError: SetDetailsError | null = draft ? validateSetDetails(draft) : null
+  // a new step starts at the top of the page, not where the last one was scrolled to
+  useEffect(() => {
+    form.scrollRef.current?.scrollTo({ y: 0, animated: false })
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
   const defaultsMissing = draft ? missingKindFields({ kind: draft.defaultKind, language: draft.defaultLanguage, languageOther: draft.defaultLanguageOther, dance: draft.defaultDance }) : []
   const counts = draft ? setCounts(draft) : null
 
@@ -535,7 +539,7 @@ export default function UploadSetScreen() {
 
   const sendPanel = (d: SetDraft, state: ReturnType<typeof setState>, settled: number, retryable: number, doneAll: boolean) => {
     const open = d.tracks.filter((track) => track.status === "waiting" || track.status === "limit").length
-    const label = running ? t("set.up.working", { done: settled, total: counts?.total ?? 0 }) : d.created && open > 0 ? t("set.up.continue") : t("set.up.start", { count: open || counts?.total || 0 })
+    const label = running ? t("set.up.working", { done: settled, total: counts?.total ?? 0 }) : d.created && open > 0 ? t("set.up.continue") : t("set.up.start", { count: open })
     const stopText =
       stopped === "network"
         ? t("set.up.offline")
@@ -619,8 +623,13 @@ export default function UploadSetScreen() {
                 <Text style={[styles.secondaryText, { color: theme.textHeading }]}>{t("set.up.retryAll")}</Text>
               </KPress>
             ) : null}
-            <Primary theme={theme} label={label} onPress={() => void send()} disabled={running !== null || (open === 0 && !d.created)} busy={running !== null} />
-            <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>{t("set.up.keepOpen")}</Text>
+            {/* nothing left to send (the rest cannot go up as it is): no button, the note above says what to do */}
+            {running !== null || open > 0 ? (
+              <>
+                <Primary theme={theme} label={label} onPress={() => void send()} disabled={running !== null} busy={running !== null} />
+                <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>{t("set.up.keepOpen")}</Text>
+              </>
+            ) : null}
           </>
         )}
       </View>

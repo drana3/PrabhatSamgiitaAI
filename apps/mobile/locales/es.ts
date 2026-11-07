@@ -764,7 +764,7 @@ export const es: Dictionary = {
   "kt.empty.mine": "Aún no has subido ninguna grabación.",
   "kt.add.a11y": "Añadir grabaciones. Sube uno o varios archivos de audio y se publican al instante.",
   "kt.add.title": "Añadir grabaciones",
-  "kt.add.sub": "Kiirtan, Bhajan, Prabhat Samgiita. Varios archivos a la vez",
+  "kt.add.sub": "Todos los tipos de grabación. Varios archivos a la vez",
   "kt.byAuthor": "Del autor",
   "kt.takeBack": "Retirar",
   "kt.takeBackA11y": "Retirar {title}",

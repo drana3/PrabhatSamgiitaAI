@@ -298,6 +298,8 @@ export function setState(draft: SetDraft): SetState {
   if (counts.live > 0 && open === 0) return "published"
   // nothing has been tried yet (this includes a set without tracks)
   if (counts.waiting === counts.total) return "draft"
+  // never sent to the server: files lost on a reload are marked failed, but the set is still a draft
+  if (!draft.created && counts.live === 0 && counts.uploading === 0) return "draft"
   return "uploading"
 }
 

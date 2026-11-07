@@ -205,7 +205,7 @@ export function QueueRow({
         {meta}
       </Text>
       {kindFields && onRowLanguage && onRowDance && item.status === "waiting" && (kindHasLanguage(kindFields.kind) || kindHasDance(kindFields.kind)) ? <RowKindLine theme={theme} item={item} fields={kindFields} onLanguage={onRowLanguage} onDance={onRowDance} /> : null}
-      <ChordsPrompt theme={theme} rowKey={item.id} title={item.title || item.fileName} locked={!editable} />
+      {item.status === "failed" && !isRetryable(item) ? null : <ChordsPrompt theme={theme} rowKey={item.id} title={item.title || item.fileName} locked={!editable} />}
       <View style={styles.statusLine}>
         <View style={[styles.dot, { backgroundColor: item.status === "uploading" ? amColors.orange700 : tone }]} />
         <Text style={[styles.status, { color: tone }]} accessibilityLiveRegion="polite">
