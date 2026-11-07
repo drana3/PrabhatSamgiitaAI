@@ -16,9 +16,17 @@ export type CommentBase = {
   mine: boolean
   /** the team can remove any comment */
   canRemove: boolean
-  /** the line an author's own delete leaves behind (recordings): no text, no author, nothing to act on */
+  /** the line an author's own delete leaves behind (a top-level comment): no text, no author, nothing to act on. Its replies stay. */
   deleted?: boolean
+  /** a reply: the top-level comment it hangs under (one level of replies only); absent or null for a top-level comment */
+  parentId?: string | null
+  /** a reply that answers another reply: who ("to Name"). `name` is null for an anonymous reply, `deleted` when that reply is gone. */
+  replyTo?: ReplyTarget | null
+  /** on a top-level comment: its live replies, oldest first */
+  replies?: CommentBase[]
 }
+
+export type ReplyTarget = { name: string | null; deleted: boolean }
 
 export type SongComment = CommentBase & { songId: number }
 
@@ -36,14 +44,14 @@ export type CommentReportReason = "offensive" | "spam" | "private" | "other"
 /** What a person can be told when something goes wrong. Each has a sentence in locales/songComments.ts. */
 export type CommentFailure =
   | "signin" // not signed in (or the session ran out)
-  | "dailyLimit" // too many comments today
-  | "slowDown" // too many in an hour
+  | "slowDown" // too many posts in a minute
   | "duplicate" // the same words were shared already
   | "empty" // nothing to post
   | "tooLong"
   | "links" // more than two links
   | "network" // no answer from the server (offline)
-  | "gone" // the comment is not there any more
+  | "gone" // the comment is not there any more (also: the comment a reply answers)
+  | "threadFull" // a conversation holds 50 replies at most
   | "server"
 
 export type PostOutcome<T extends CommentBase = SongComment> = { ok: true; comment: T } | { ok: false; failure: CommentFailure }
@@ -51,7 +59,8 @@ export type PostOutcome<T extends CommentBase = SongComment> = { ok: true; comme
 /** The four things a comments section asks of a server (the real one, or the in-memory one of the preview). `K` is what the comments hang on: a song number, a recording id. */
 export interface CommentsBackendOf<T extends CommentBase, K> {
   list(target: K, query: { limit: number; offset: number }): Promise<CommentPage<T>>
-  post(target: K, draft: { body: string; isAnonymous: boolean }): Promise<T>
+  /** `parentId` answers a comment (a top-level one or a reply); the answer is attached to the top-level comment. */
+  post(target: K, draft: { body: string; isAnonymous: boolean; parentId?: string }): Promise<T>
   remove(commentId: string): Promise<void>
   report(commentId: string, report: { reason: CommentReportReason }): Promise<{ status: "received" | "already_reported" }>
 }

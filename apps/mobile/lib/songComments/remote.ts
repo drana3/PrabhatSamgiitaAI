@@ -1,7 +1,8 @@
 import { NetworkError, RemoteError, type RemoteConfig } from "@/lib/kirtan/remote"
 
 import { COMMENT_PAGE_SIZE } from "./rules"
-import type { CommentFailure, CommentPage, CommentReportReason, CommentsBackend, SongComment } from "./types"
+import { tombstoneOf } from "./state"
+import type { CommentBase, CommentFailure, CommentPage, CommentReportReason, CommentsBackend, SongComment } from "./types"
 
 /**
  * The phone's side of the song comments API (apps/api `/api/v1/song-comments`). Plain `fetch`, no React: the base URL,
@@ -19,12 +20,32 @@ export type WireComment = {
   author: { name: string; avatar_url: string | null } | null
   mine: boolean
   can_remove: boolean
+  /** the line an author's own delete leaves: no text, no author */
+  deleted?: boolean
+  parent_id?: string | null
+  reply_to?: { name: string | null; deleted: boolean } | null
+  replies?: WireComment[]
 }
 
-export type WirePage = { items: WireComment[]; total: number; limit: number; offset: number; has_more: boolean }
+export type WirePage = { items: WireComment[]; total: number; live_total?: number; limit: number; offset: number; has_more: boolean }
+
+/** The reply fields of any comment answer (shared by the song and the recording comments). */
+export function replyFieldsFromWire<W extends { parent_id?: string | null; reply_to?: { name: string | null; deleted: boolean } | null; replies?: unknown[] }>(
+  w: W,
+  convert: (reply: never) => CommentBase,
+): Pick<CommentBase, "parentId" | "replyTo" | "replies"> {
+  return {
+    parentId: w.parent_id ?? null,
+    replyTo: w.reply_to ? { name: w.reply_to.name ?? null, deleted: Boolean(w.reply_to.deleted) } : null,
+    replies: (w.replies ?? []).map((r) => convert(r as never)),
+  }
+}
 
 /** Wire to app. An anonymous comment keeps `author: null` whatever else the answer carries. */
 export function commentFromWire(w: WireComment): SongComment {
+  const replyFields = replyFieldsFromWire(w, commentFromWire as (reply: never) => CommentBase)
+  // a tombstone carries no text, author or action, whatever else the answer carries; its replies stay
+  if (w.deleted) return tombstoneOf({ id: w.id, songId: w.song_id, body: "", createdAt: w.created_at, isAnonymous: true, author: null, mine: false, canRemove: false, ...replyFields })
   return {
     id: w.id,
     songId: w.song_id,
@@ -34,11 +55,12 @@ export function commentFromWire(w: WireComment): SongComment {
     author: w.is_anonymous || !w.author ? null : { name: w.author.name, avatarUrl: w.author.avatar_url ?? null },
     mine: Boolean(w.mine),
     canRemove: Boolean(w.can_remove),
+    ...replyFields,
   }
 }
 
 export function pageFromWire(w: WirePage): CommentPage {
-  return { items: w.items.map(commentFromWire), total: w.total, hasMore: w.has_more }
+  return { items: w.items.map(commentFromWire), total: w.total, liveTotal: w.live_total ?? w.total, hasMore: w.has_more }
 }
 
 function url(base: string, path: string): string {
@@ -83,7 +105,9 @@ export function remoteBackend(cfg: RemoteConfig): CommentsBackend {
       return pageFromWire(await call<WirePage>(cfg, "GET", `/songs/${songId}?${params.toString()}`))
     },
     async post(songId, draft) {
-      return commentFromWire(await call<WireComment>(cfg, "POST", `/songs/${songId}`, { body: draft.body, is_anonymous: draft.isAnonymous }))
+      const body: Record<string, unknown> = { body: draft.body, is_anonymous: draft.isAnonymous }
+      if (draft.parentId) body.parent_id = draft.parentId
+      return commentFromWire(await call<WireComment>(cfg, "POST", `/songs/${songId}`, body))
     },
     async remove(commentId) {
       await call<void>(cfg, "DELETE", `/${commentId}`)
@@ -99,8 +123,8 @@ export function failureFromError(error: unknown): CommentFailure {
   if (error instanceof NetworkError) return "network"
   if (error instanceof RemoteError) {
     if (error.status === 401) return "signin"
-    if (error.status === 429) return error.code === "comment_daily_limit" ? "dailyLimit" : "slowDown"
-    if (error.status === 409) return "duplicate"
+    if (error.status === 429) return "slowDown"
+    if (error.status === 409) return error.code === "comment_thread_full" ? "threadFull" : "duplicate"
     if (error.status === 404) return "gone"
     if (error.status === 422) {
       if (/at most two links/i.test(error.message)) return "links"

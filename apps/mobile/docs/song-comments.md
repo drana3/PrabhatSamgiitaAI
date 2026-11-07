@@ -39,29 +39,33 @@ Rules (mirrored by `lib/songComments/rules.ts`):
   invisible characters (`same_text_key`: letters, marks and digits, NFKC, case-folded). Vowel signs are kept, so two
   different Hindi words are never the same. A comment you deleted does not block writing it again.
 
-Limits for non-team members: 10 comments an hour and 20 in 24 hours (error code `comment_daily_limit`). The team
-(`is_admin`, `is_super_admin` or an owner email, the same test as the recordings:
-`services.recordings.is_team_member`) is not held to the daily limit and can remove any comment.
+There is **one** brake against flooding and no daily or hourly allowance (changed in the replies round): at most
+**5 posts a minute** per member (team: 30), counted over the last 60 seconds and shared by song comments, recording
+comments and replies, so using several doors does not multiply it. The answer is 429 and the app says "up to 5 comments a
+minute". The team (`is_admin`, `is_super_admin` or an owner email, the same test as the recordings:
+`services.recordings.is_team_member`) can remove any comment.
 
-* **A refused post costs nothing** (QA-009): the text is validated before the hourly brake is counted, so an empty post or
-  a link flood does not use up the ten posts an hour.
-* **Deleting does not give the daily allowance back** (QA-009): the daily count is read from the rows, removed ones
-  included, and the author's delete keeps the row.
+* **A refused post costs nothing** (QA-009): the text is validated, and the comment a reply answers is checked, before the
+  minute brake is counted, so an empty post, a link flood or a reply to a missing comment does not use up the five.
+* The removed rows are still kept, only because the author's delete leaves a tombstone and the team keeps the text.
 
 ### Limits that are only as strong as one process (QA-024)
 
-The hourly brake (and the report limits) live in `RateLimiter`, a small in-memory sliding window. It stops a script, not a
-botnet: a restart of the API empties it, several instances do not share it, and nothing is stored. The daily allowance is
-the strong one, because it is counted from the database. The report limits are keyed by `request.client.host`; behind a
+The minute brake (and the report limits) live in `RateLimiter`, a small in-memory sliding window. It stops a script, not a
+botnet: a restart of the API empties it, several instances do not share it, and nothing is stored. With the daily
+allowance gone there is no database-counted limit on comments any more; the length, the two links and the duplicate rule
+bound what one person can post. The report limits are keyed by `request.client.host`; behind a
 reverse proxy that is the proxy's address unless the server is started with proxy headers trusted (for example uvicorn
 `--proxy-headers` with `--forwarded-allow-ips` set to the proxy), so all guests would share one bucket. Nothing in the code
 changed for this; if the API runs on several instances, move the limiter to a shared store (Redis) and set the proxy headers.
 
 ### Deleting (QA-008, QA-009)
 
-* The **author** deletes their own comment, also an anonymous one. It disappears for every reader at once and its text is
-  replaced with a placeholder, but the row stays with `status = removed`, `removed_by = author`: that is what keeps the daily
-  count honest. Deleting it a second time answers 404, like any missing comment.
+* The **author** deletes their own comment, also an anonymous one. Its text is wiped. A top-level comment leaves a
+  **tombstone** ("Deleted by the author", no text, no author, nothing to report) so the replies under it keep their place;
+  a reply just goes. The row keeps `status = removed` and the reserved marker `"\x1fauthor"` in `removed_by` (QA-059):
+  a control character in front, so no display name can ever equal it, and `team_removed_by()` strips control characters
+  from a team member's name. Deleting it a second time answers 404, like any missing comment.
 * If the **team already removed** the comment, the author's delete changes nothing: same answer (204), text, reason, who and
   when stay for the record. (Before, the author could wipe it.)
 * The **team** removes any comment; the text is kept, with a reason, who and when. A removed comment cannot be removed again.
@@ -128,3 +132,10 @@ rules, relative time, reducer, wire mapping, the client against a fake server, t
 * Nothing is deployed. The real API and the sign-in path were not exercised from the app.
 * `expo lint` could not run here (the ESLint config fails to load); TypeScript reports no error in the new files
   (the repository has many older ones).
+
+## Replies and the review calls
+
+Replies (one level, `parent_id`, the "to Name" line, 50 per conversation, how the lists count) are in
+`docs/comment-replies.md`. The team's calls on comments: `GET /review?filter=reported|removed`, `POST /{id}/keep` (the
+reports were looked at, the comment stays) and `POST /{id}/restore` (a team removal was a mistake; an author's own delete
+stays). The phone's review desk (`app/team-review.tsx`) uses them.

@@ -397,6 +397,15 @@ async def delete_by_author(session: AsyncSession, video: VideoLink) -> bool:
     return True
 
 
+async def keep(session: AsyncSession, video: VideoLink) -> None:
+    """The team looked at the reports and the link stays: the reports leave the queue. A link that
+    is not live (removed, or deleted by its author) has nothing to keep."""
+    if video.status != "published":
+        raise HTTPException(status_code=409, detail="Only a live video can be kept.")
+    video.reports_count = 0
+    await session.commit()
+
+
 async def restore(session: AsyncSession, video: VideoLink) -> None:
     """Removed by the team -> published again (a mistake). Refused when the same video is live
     already, or the target is full."""

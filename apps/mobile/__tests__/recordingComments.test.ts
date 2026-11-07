@@ -47,7 +47,7 @@ describe("the wire", () => {
     expect(JSON.parse(seen[1]?.init.body as string)).toEqual({ body: "Hi", is_anonymous: true })
   })
   it("uses the song comments' failure mapping for its errors", () => {
-    expect(failureFromError(new RemoteError(429, "x", { code: "comment_daily_limit" }))).toBe("dailyLimit")
+    expect(failureFromError(new RemoteError(429, "x"))).toBe("slowDown")
     expect(failureFromError(new RemoteError(409, "You already shared this comment."))).toBe("duplicate")
   })
 })

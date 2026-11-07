@@ -203,6 +203,14 @@ async def review_list(
     return AdminVideoList(items=[service.admin_out(v, a) for v, a in rows], total=total)
 
 
+@router.post("/{video_id}/keep", response_model=AdminVideoOut)
+async def keep(video_id: UUID, team: TeamMember, session: DatabaseSession) -> AdminVideoOut:
+    """Team only: the reports were looked at and the link stays (the reports leave the queue)."""
+    video = await get_video(session, video_id)
+    await service.keep(session, video)
+    return service.admin_out(video, await session.get(UserAccount, video.member_id))
+
+
 @router.post("/{video_id}/restore", response_model=AdminVideoOut)
 async def restore(video_id: UUID, team: TeamMember, session: DatabaseSession) -> AdminVideoOut:
     video = await get_video(session, video_id)

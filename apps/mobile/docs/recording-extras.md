@@ -36,28 +36,18 @@ So a recording sheet is a **plain-text chart**: the chords on a line of their ow
 
 What is shared is the **ledger**: the daily and hourly allowance for chord offers is the same as for song chords (the same `song_chord_offers` ledger and the same limiter bucket), so one member cannot double the allowance by using both kinds. The chord-name grammar (`CHORD_PATTERN`) and the reviewing rules are the song proposals' own, imported.
 
-### Why the comment allowance is asymmetric
+### One brake for all comments
 
-Comments on a recording and comments on a song share **one** hourly limiter (the song comments' own, imported) and one daily number (20 in 24 hours), but the daily count is **not symmetric**:
-
-- Posting under a **recording** counts the member's recording comments **plus** their song comments from the last 24 hours (`ensure_daily_allowance` in `services/recording_comments.py`).
-- Posting under a **song** counts song comments only (the song side is the older code and was left alone).
-
-So 20 song comments use up the day for recordings too, while 20 recording comments leave the song side open. Why it is built this way:
-
-- The recording side is new code and can look at both tables, so one person cannot double the allowance by using both doors from the recording page.
-- Making the song side count recordings as well would mean changing the song comments' service and its tests, which are not part of this work. That is the one-line follow-up if the asymmetry matters: add the recording count to `song_comments.ensure_daily_allowance`.
-- The shared hourly limiter makes a burst on both doors hard either way.
-
-Deleting a comment does **not** refund the allowance (removed and author-deleted comments still count).
+The asymmetric daily allowance this section used to describe is gone. Song comments, recording comments and replies share one limiter: 5 posts a minute per member (team: 30), nothing per hour or per day. See `docs/song-comments.md` for the reasoning and `docs/comment-replies.md` for replies.
 
 ## API
 
 All under `/api/v1`. Every call needs a signed-in member except two kinds, which are open: the reads (a read adds the viewer's own "mine" flags when signed in) and the three report calls (comment, chord sheet, video), which a signed-out visitor may make too (see Reporting below). IDs are UUIDs for recordings and 1..5018 for songs.
 
 **Comments** (`/recording-comments`)
-- `GET /recordings/{id}` list, newest first, with tombstones; `total` pages through them, `live_total` is the count to show.
-- `POST /recordings/{id}` post (body, anonymous). 201.
+- `GET /recordings/{id}` list of top-level comments, newest first, with tombstones and each comment's replies; `total` pages through the top-level entries, `live_total` is the count to show (replies included, tombstones not).
+- `POST /recordings/{id}` post (body, anonymous, optional `parent_id` to reply). 201.
+- `GET /review?filter=reported|removed`, `POST /{id}/keep`, `POST /{id}/restore`: team only.
 - `DELETE /{comment_id}` author deletes their own, or the team removes (with a reason). 204.
 - `POST /{comment_id}/report` report (reason, optional note).
 - `GET /reported` team only: reported comments with the author, even if anonymous.
@@ -76,7 +66,7 @@ All under `/api/v1`. Every call needs a signed-in member except two kinds, which
 - `POST /songs/{song}` and `POST /recordings/{id}` add (url, optional title, anonymous). 201.
 - `DELETE /{video_id}` author deletes their own, team removes with a reason.
 - `POST /{video_id}/report` report (`broken`, `not_about_this`, `offensive`, `spam`, `other`).
-- `GET /review` and `POST /{video_id}/restore` team only.
+- `GET /review`, `POST /{video_id}/keep` (the reports were looked at, the link stays) and `POST /{video_id}/restore`: team only.
 
 A removed or unknown recording is a plain 404 on every call, so nobody learns a removed recording ever existed.
 
@@ -85,7 +75,7 @@ A removed or unknown recording is a plain 404 on every call, so nobody learns a 
 | What | Limit |
 | --- | --- |
 | Comment length | 2000 characters, at most 2 links |
-| Comments per member | 20 per 24 hours, 10 per hour (team: 120 per hour, no daily cap) |
+| Comments and replies per member | 5 per minute, shared with song comments (team: 30 per minute); nothing per hour or per day |
 | Chord sheets per member | 10 per 24 hours, 6 per hour (shared with song chord offers; team: 120 per hour, no daily cap) |
 | Live chord sheets | 3 per member per recording and instrument (pending or published) |
 | Chord sheet size | 8000 characters, 250 lines, 120 characters a line, at most 2000 chords; at least one real chord, and more than one lonely plain letter (below) |
@@ -103,7 +93,7 @@ Rate limits are checked **after** the input is validated, so a bad request never
 
 - **Reporting** is one rule for all three kinds. Signed-out visitors may report, exactly as under a Prabhat Samgiita song (the API keys a signed-out report by the caller's address; rate limited per address and per member). **Nobody reports their own item**: a comment, a chord sheet or a video of your own answers `422` ("This is your own ... You can delete it.") and the app shows Delete instead of Report. One report per person and item, with a reason. A report does not hide anything by itself; it puts the item in the team's list.
 - The team can **remove** a comment or a video (with a reason) and **restore** a video or a sheet. A team-removed video cannot be re-added by a member: the address stays refused (`video_team_removed`), so a removed link does not come back under a new account.
-- **Tombstones.** A comment its author deletes stays in the list as a tombstone: `deleted: true`, no text, no author, no id of a person, nothing to report or remove, and it shows as one quiet line ("Deleted by the author"). The text is wiped on the server. A **team removal leaves nothing** for readers: the comment just goes. (The song comments' own delete currently removes the line entirely; only recordings keep the tombstone.) A tombstone is counted in the page size (`total`, which drives paging) but not in the "N comments" count: the list answer carries `live_total`, the number of comments people can read, and the phone shows that number (it stays exact when only the first page is loaded, and after posting or deleting).
+- **Tombstones.** A comment its author deletes stays in the list as a tombstone: `deleted: true`, no text, no author, no id of a person, nothing to report or remove, and it shows as one quiet line ("Deleted by the author"). The text is wiped on the server. A **team removal leaves nothing** for readers: the comment just goes. (Song comments keep the same tombstone since the replies round (QA-059).) A tombstone is counted in the page size (`total`, which drives paging) but not in the "N comments" count: the list answer carries `live_total`, the number of comments people can read, and the phone shows that number (it stays exact when only the first page is loaded, and after posting or deleting).
 - **How the author's own delete is told from a team removal.** `removed_by` holds a reserved marker for an author delete (it starts with a control character). A team removal stores the member's display name with control characters stripped, so no name, not even one spelled `author`, can look like an author delete. Migration `0036_author_delete_marker` rewrites older rows that held the plain word.
 - **Anonymous means hidden from members, not from the team.** The public view of an anonymous comment, sheet or video carries no author, no avatar and no id that links it to a person (`public_out`). The team sees who wrote it (`admin_out`) and the app says so next to the toggle.
 - **Strangers' text.** Bidi and zero-width characters are stripped, control characters are dropped, spaces are collapsed. Nothing is rendered as HTML. The comment box (shared with the song comments) says "at most two links" **while the person types**, so a shut Post button is never a mystery.

@@ -195,7 +195,7 @@ describe("the wire", () => {
   it("turns errors into the failures the section knows", () => {
     expect(failureFromError(new NetworkError())).toBe("network")
     expect(failureFromError(new RemoteError(401, "Sign in is required"))).toBe("signin")
-    expect(failureFromError(new RemoteError(429, "x", { code: "comment_daily_limit" }))).toBe("dailyLimit")
+    expect(failureFromError(new RemoteError(409, "x", { code: "comment_thread_full" }))).toBe("threadFull")
     expect(failureFromError(new RemoteError(429, "Please wait a little before trying again."))).toBe("slowDown")
     expect(failureFromError(new RemoteError(409, "You already shared this comment."))).toBe("duplicate")
     expect(failureFromError(new RemoteError(404, "Comment not found"))).toBe("gone")
@@ -240,10 +240,10 @@ describe("the real backend against a fake server", () => {
     expect(JSON.parse(String(calls[2]?.init.body))).toEqual({ reason: "spam" })
     expect((calls[0]?.init.headers as Record<string, string>)["X-Member-Proxy-Key"]).toBe("k")
   })
-  it("reports a daily limit and a missing network", async () => {
-    const { backend } = fake([{ status: 429, body: { detail: "You can add up to 20 comments a day." }, headers: { "X-Error-Code": "comment_daily_limit" } }])
+  it("reports a flood stop and a missing network", async () => {
+    const { backend } = fake([{ status: 429, body: { detail: "Please wait a little before trying again." } }])
     const error = await backend.post(19, { body: "x", isAnonymous: false }).catch((e: unknown) => e)
-    expect(failureFromError(error)).toBe("dailyLimit")
+    expect(failureFromError(error)).toBe("slowDown")
     const down = remoteBackend({ baseUrl: "https://api.test", headers: () => ({}), fetch: (async () => { throw new TypeError("Network request failed") }) as unknown as typeof fetch })
     expect(failureFromError(await down.list(19, { limit: 20, offset: 0 }).catch((e: unknown) => e))).toBe("network")
   })
@@ -268,7 +268,10 @@ describe("the preview's in-memory backend", () => {
     await expect(backend.post(19, { body: "MY STORY!!", isAnonymous: true })).rejects.toMatchObject({ failure: "duplicate" })
     await expect(backend.post(19, { body: "  ", isAnonymous: false })).rejects.toMatchObject({ failure: "empty" })
     await backend.remove(named.id)
-    expect((await backend.list(19, { limit: 20, offset: 0 })).total).toBe(3)
+    // the author's own delete leaves a tombstone line (QA-059); only readable comments are counted
+    const after = await backend.list(19, { limit: 20, offset: 0 })
+    expect(after).toMatchObject({ total: 4, liveTotal: 4 })
+    expect(after.items.find((c) => c.id === named.id)).toMatchObject({ deleted: true, body: "", author: null })
     await expect(backend.remove("nope")).rejects.toMatchObject({ failure: "gone" })
   })
   it("keeps songs apart and a report once", async () => {

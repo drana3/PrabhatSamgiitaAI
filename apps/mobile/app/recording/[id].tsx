@@ -78,7 +78,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
   const apiId = apiIdOf(recording)
   const sheets = useRecordingSheets(apiId)
   const videos = useVideos({ kind: "recording", id: apiId })
-  const comments = useComments<RecordingComment, string>(apiId, recordingCommentsBackend, recordingCommentFailure, { tombstones: true })
+  const comments = useComments<RecordingComment, string>(apiId, recordingCommentsBackend, recordingCommentFailure)
   const [viewing, setViewing] = useState(false)
   const [adding, setAdding] = useState(false)
 

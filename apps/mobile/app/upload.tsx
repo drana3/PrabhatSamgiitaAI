@@ -12,6 +12,7 @@ import { KPress } from "@/components/kirtan/KPress"
 import { Reveal } from "@/components/today/motion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useChordTeam } from "@/hooks/useChordTeam"
+import { useTeamReviewCounts } from "@/hooks/useTeamReviewCounts"
 import { useMyChords } from "@/hooks/useMyChords"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useT } from "@/lib/i18n"
@@ -53,6 +54,8 @@ export default function UploadScreen() {
 
   const [tick, setTick] = useState(0)
   const { team, waiting } = useChordTeam(signedIn, tick)
+  const reviewCounts = useTeamReviewCounts(team, tick)
+  const reviewWaiting = reviewCounts.sheets + reviewCounts.comments + reviewCounts.videos
   const mine = useMyChords(signedIn, tick)
   const close = () => (router.canGoBack() ? router.back() : router.replace(href("/")))
 
@@ -98,6 +101,16 @@ export default function UploadScreen() {
               title={t("upload.review.title")}
               body={waiting > 0 ? t("upload.review.body", { count: waiting }) : t("upload.review.none")}
               onPress={() => router.push(href("/chords-review"))}
+              theme={theme}
+              quiet
+            />
+          ) : null}
+          {team ? (
+            <Choice
+              icon={null}
+              title={t("teamReview.hub.title")}
+              body={reviewWaiting > 0 ? t("teamReview.hub.body", { count: reviewWaiting }) : t("teamReview.hub.none")}
+              onPress={() => router.push(href("/team-review"))}
               theme={theme}
               quiet
             />

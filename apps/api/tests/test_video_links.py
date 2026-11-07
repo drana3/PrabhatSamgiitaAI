@@ -396,6 +396,21 @@ async def test_team_queue_and_restore(world: World) -> None:
     assert (await world.call("POST", f"{URL}/{uuid4()}/restore", "team")).status_code == 404
 
 
+async def test_team_keeps_a_reported_video(world: World) -> None:
+    created = (await add(world, "a")).json()
+    await world.call("POST", f"{URL}/{created['id']}/report", "b", json={"reason": "broken"})
+    assert (await world.call("POST", f"{URL}/{created['id']}/keep", "a")).status_code == 403
+    assert (await world.call("POST", f"{URL}/{created['id']}/keep", None)).status_code == 401
+    assert (await world.call("POST", f"{URL}/{uuid4()}/keep", "team")).status_code == 404
+    kept = await world.call("POST", f"{URL}/{created['id']}/keep", "team")
+    assert kept.status_code == 200 and kept.json()["reports_count"] == 0
+    assert (await world.call("GET", f"{URL}/review", "team")).json()["total"] == 0
+    assert (await listing(world))["total"] == 1
+    # a removed link has nothing to keep; it is restored instead
+    await world.call("DELETE", f"{URL}/{created['id']}", "team", json={"reason": "bad"})
+    assert (await world.call("POST", f"{URL}/{created['id']}/keep", "team")).status_code == 409
+
+
 async def test_author_deleted_rows_never_reach_the_team_and_cannot_be_restored(
     world: World,
 ) -> None:

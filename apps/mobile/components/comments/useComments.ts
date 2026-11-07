@@ -9,14 +9,14 @@ export type CommentsController<T extends CommentBase> = {
   state: CommentsState<T>
   reload: () => Promise<void>
   loadMore: () => Promise<void>
-  post: (body: string, isAnonymous: boolean) => Promise<PostOutcome<T>>
+  post: (body: string, isAnonymous: boolean, parentId?: string) => Promise<PostOutcome<T>>
   /** Resolves to null when it worked, or the failure. */
   remove: (id: string) => Promise<CommentFailure | null>
   report: (id: string, reason: CommentReportReason) => Promise<{ ok: true; status: "received" | "already_reported" } | { ok: false; failure: CommentFailure }>
 }
 
 /**
- * The comments of one target (a song, a recording): loads the first page and the next ones, posts, deletes and
+ * The comments of one target (a song, a recording): loads the first page and the next ones, posts (comments and replies), deletes and
  * reports. All the rules live in lib/songComments (tested); this only wires them to React. A reply that arrives after
  * the target changed or the page closed is dropped. `backend` and `failureOf` are read when called, never captured.
  */
@@ -24,7 +24,6 @@ export function useComments<T extends CommentBase, K extends string | number>(
   target: K,
   backend: () => CommentsBackendOf<T, K>,
   failureOf: (error: unknown) => CommentFailure,
-  options: { tombstones?: boolean } = {},
 ): CommentsController<T> {
   const [state, dispatch] = useReducer(reducer as (s: CommentsState<T>, a: Action<T>) => CommentsState<T>, undefined, () => emptyState<T>())
   const stateRef = useRef(state)
@@ -68,11 +67,11 @@ export function useComments<T extends CommentBase, K extends string | number>(
   }, [target, state.more, state.hasMore, state.items.length])
 
   const post = useCallback(
-    async (body: string, isAnonymous: boolean): Promise<PostOutcome<T>> => {
+    async (body: string, isAnonymous: boolean, parentId?: string): Promise<PostOutcome<T>> => {
       const problem = draftProblem(body)
       if (problem) return { ok: false, failure: problem }
       try {
-        const comment = await backend().post(target, { body: cleanDraft(body), isAnonymous })
+        const comment = await backend().post(target, { body: cleanDraft(body), isAnonymous, ...(parentId ? { parentId } : {}) })
         if (fresh(target)) dispatch({ type: "posted", comment })
         return { ok: true, comment }
       } catch (error) {
@@ -87,8 +86,8 @@ export function useComments<T extends CommentBase, K extends string | number>(
     async (id: string) => {
       try {
         await backend().remove(id)
-        // the author's own delete leaves a tombstone where the server shows one (recordings), as a reload would
-        if (fresh(target)) dispatch({ type: "removed", id, tombstone: Boolean(options.tombstones) && stateRef.current.items.some((c) => c.id === id && c.mine) })
+        // the author's own delete of a top-level comment leaves a tombstone, as a reload would show; a reply or a team removal just goes
+        if (fresh(target)) dispatch({ type: "removed", id, tombstone: stateRef.current.items.some((c) => c.id === id && c.mine) })
         return null
       } catch (error) {
         const failure = failureOf(error)

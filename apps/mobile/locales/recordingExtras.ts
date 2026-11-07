@@ -12,10 +12,10 @@
 export const recordingExtrasEn = {
   // comments (the block's own words)
   "recordingComments.title": "Comments",
-  "recordingComments.invite": "If this recording means something to you, or you remember where you first heard it, you can share a story here.",
+  "recordingComments.invite": "Share a story or a memory about this recording.",
   "recordingComments.empty": "No comments yet. Be the first.",
   "recordingComments.deleted": "Deleted by the author",
-  "recordingComments.preview": "Preview: comments stay in this window only and are not saved.",
+  "recordingComments.preview": "Preview: comments are not saved.",
 
   // the recording page
   "recPage.missing": "This recording could not be found. Open it from the Kiirtan list.",
@@ -233,10 +233,10 @@ export const recordingExtrasEn = {
 
 export const recordingExtrasRu = {
   "recordingComments.title": "Комментарии",
-  "recordingComments.invite": "Если эта запись что-то для вас значит или вы помните, где впервые её услышали, расскажите об этом здесь.",
+  "recordingComments.invite": "Поделитесь историей или воспоминанием об этой записи.",
   "recordingComments.empty": "Пока нет комментариев. Будьте первым.",
   "recordingComments.deleted": "Удалено автором",
-  "recordingComments.preview": "Предпросмотр: комментарии остаются только в этом окне и не сохраняются.",
+  "recordingComments.preview": "Предпросмотр: комментарии не сохраняются.",
 
   "recPage.missing": "Эту запись не удалось найти. Откройте её из списка киртанов.",
   "recPage.play": "Слушать",
@@ -452,10 +452,10 @@ export const recordingExtrasRu = {
 
 export const recordingExtrasEs = {
   "recordingComments.title": "Comentarios",
-  "recordingComments.invite": "Si esta grabación significa algo para ti, o recuerdas dónde la oíste por primera vez, puedes contarlo aquí.",
+  "recordingComments.invite": "Comparte una historia o un recuerdo sobre esta grabación.",
   "recordingComments.empty": "Aún no hay comentarios. Sé la primera persona.",
   "recordingComments.deleted": "Eliminado por su autor",
-  "recordingComments.preview": "Vista previa: los comentarios se quedan solo en esta ventana y no se guardan.",
+  "recordingComments.preview": "Vista previa: los comentarios no se guardan.",
 
   "recPage.missing": "No se encontró esta grabación. Ábrela desde la lista de Kiirtan.",
   "recPage.play": "Reproducir",

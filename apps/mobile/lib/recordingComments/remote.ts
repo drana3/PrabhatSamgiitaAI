@@ -1,8 +1,9 @@
 import type { RemoteConfig } from "@/lib/kirtan/remote"
 import { callFor } from "@/lib/recordingExtras/http"
 import { COMMENT_PAGE_SIZE } from "@/lib/songComments/rules"
+import { replyFieldsFromWire } from "@/lib/songComments/remote"
 import { tombstoneOf } from "@/lib/songComments/state"
-import type { CommentPage, CommentReportReason } from "@/lib/songComments/types"
+import type { CommentBase, CommentPage, CommentReportReason } from "@/lib/songComments/types"
 
 import type { RecordingComment, RecordingCommentsBackend } from "./types"
 
@@ -21,13 +22,17 @@ export type WireRecordingComment = {
   can_remove: boolean
   /** the line an author's own delete leaves: no text, no author */
   deleted?: boolean
+  parent_id?: string | null
+  reply_to?: { name: string | null; deleted: boolean } | null
+  replies?: WireRecordingComment[]
 }
 
 export type WireRecordingPage = { items: WireRecordingComment[]; total: number; live_total?: number; limit: number; offset: number; has_more: boolean }
 
 /** Wire to app. An anonymous comment keeps `author: null` whatever else the answer carries; a tombstone carries no text, author or action. */
 export function recordingCommentFromWire(w: WireRecordingComment): RecordingComment {
-  if (w.deleted) return tombstoneOf({ id: w.id, recordingId: w.recording_id, body: "", createdAt: w.created_at, isAnonymous: true, author: null, mine: false, canRemove: false })
+  const replyFields = replyFieldsFromWire(w, recordingCommentFromWire as (reply: never) => CommentBase)
+  if (w.deleted) return tombstoneOf({ id: w.id, recordingId: w.recording_id, body: "", createdAt: w.created_at, isAnonymous: true, author: null, mine: false, canRemove: false, ...replyFields })
   return {
     id: w.id,
     recordingId: w.recording_id,
@@ -37,6 +42,7 @@ export function recordingCommentFromWire(w: WireRecordingComment): RecordingComm
     author: w.is_anonymous || !w.author ? null : { name: w.author.name, avatarUrl: w.author.avatar_url ?? null },
     mine: Boolean(w.mine),
     canRemove: Boolean(w.can_remove),
+    ...replyFields,
   }
 }
 
@@ -51,9 +57,9 @@ export function recordingCommentsRemote(cfg: RemoteConfig): RecordingCommentsBac
       return recordingPageFromWire(await call<WireRecordingPage>(cfg, "GET", `/recordings/${encodeURIComponent(recordingId)}?${params.toString()}`))
     },
     async post(recordingId, draft) {
-      return recordingCommentFromWire(
-        await call<WireRecordingComment>(cfg, "POST", `/recordings/${encodeURIComponent(recordingId)}`, { body: draft.body, is_anonymous: draft.isAnonymous }),
-      )
+      const body: Record<string, unknown> = { body: draft.body, is_anonymous: draft.isAnonymous }
+      if (draft.parentId) body.parent_id = draft.parentId
+      return recordingCommentFromWire(await call<WireRecordingComment>(cfg, "POST", `/recordings/${encodeURIComponent(recordingId)}`, body))
     },
     async remove(commentId) {
       await call<void>(cfg, "DELETE", `/${encodeURIComponent(commentId)}`)

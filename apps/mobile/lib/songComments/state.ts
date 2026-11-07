@@ -59,14 +59,28 @@ export function reducer<T extends CommentBase = SongComment>(state: CommentsStat
     case "moreFailed":
       return { ...state, more: "error" }
     case "posted": {
-      if (state.items.some((c) => c.id === action.comment.id)) return state
-      return { ...state, status: "ready", items: [action.comment, ...state.items], total: state.total + 1, live: state.live + 1, failure: null }
+      const comment = action.comment
+      const known = (c: CommentBase): boolean => c.id === comment.id || (c.replies ?? []).some((r) => r.id === comment.id)
+      if (state.items.some(known)) return state
+      if (comment.parentId) {
+        // a reply goes at the end of its conversation (oldest first); the count of readable comments grows by one, the paging total does not
+        const items = state.items.map((c) => (c.id === comment.parentId ? ({ ...c, replies: [...(c.replies ?? []), comment] } as T) : c))
+        return { ...state, status: "ready", items, live: state.live + 1, failure: null }
+      }
+      return { ...state, status: "ready", items: [comment, ...state.items], total: state.total + 1, live: state.live + 1, failure: null }
     }
     case "removed": {
-      if (!state.items.some((c) => c.id === action.id)) return state
-      // an author's own delete under a recording leaves a tombstone the server also shows; a song's comment just leaves
-      if (action.tombstone) return { ...state, items: state.items.map((c) => (c.id === action.id ? tombstoneOf(c) : c)), live: Math.max(0, state.live - 1) }
-      return { ...state, items: state.items.filter((c) => c.id !== action.id), total: Math.max(0, state.total - 1), live: Math.max(0, state.live - 1) }
+      const top = state.items.find((c) => c.id === action.id)
+      if (top) {
+        // an author's own delete leaves a tombstone (its replies stay under it); a team removal takes the comment and its replies out of sight
+        if (action.tombstone) return { ...state, items: state.items.map((c) => (c.id === action.id ? tombstoneOf(c) : c)), live: Math.max(0, state.live - 1) }
+        const taken = (top.deleted ? 0 : 1) + (top.replies?.length ?? 0)
+        return { ...state, items: state.items.filter((c) => c.id !== action.id), total: Math.max(0, state.total - 1), live: Math.max(0, state.live - taken) }
+      }
+      // a reply just goes
+      if (!state.items.some((c) => (c.replies ?? []).some((r) => r.id === action.id))) return state
+      const items = state.items.map((c) => ((c.replies ?? []).some((r) => r.id === action.id) ? ({ ...c, replies: (c.replies ?? []).filter((r) => r.id !== action.id) } as T) : c))
+      return { ...state, items, live: Math.max(0, state.live - 1) }
     }
   }
 }
